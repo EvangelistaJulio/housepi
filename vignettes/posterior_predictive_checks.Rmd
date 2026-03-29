@@ -19,6 +19,7 @@ editor_options:
 ```{r}
 #| label: library
 #| include: false
+options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 library(housepi)
 housepi_theme_set()
@@ -49,8 +50,10 @@ We can use the simulation process to challenge the validity of the inferred mode
 
 ```{r}
 #| label: compute-predictions
-# run simulations according to posterior traces to compute predictions
-ppc <- predicted_cases_by_house_size(hhmodel, results, progress = 3)
+# compute posterior predictive checks
+ppc <- hhmodel |>
+  # run simulations according to previous posterior traces in results
+  predicted_cases_by_house_size(results, progress = 3)
 ```
 
 To show both observed and predicted cases by size, we can extract the formatted cases table from our output object as follows.
@@ -122,7 +125,8 @@ col_dict <- c(Predicted = "coral", Observed = "black")
 
 # extract values for secondary attack rate
 ggplot(ppc$formatted_sec_attack_rate,
-       aes(x = house_size, y = observed, label = sprintf("[%s]", counts))) +
+       aes(x = as.factor(house_size), y = observed, 
+           label = sprintf("[%s]", counts))) +
   # predicted SAR
   geom_point(aes(y = mean, color = "Predicted")) +
   geom_errorbar(aes(y = mean, ymin = q5, ymax = q95, color = "Predicted")) +
@@ -136,63 +140,58 @@ ggplot(ppc$formatted_sec_attack_rate,
 
 # Other posterior measures
 
-The `predicted_measures()` function provides a flexible way to compute any custom measure on simulated data and compare it against the observed values. It accepts one or more named measure functions as arguments, where each function takes a `data_wide` data.frame and returns a summary (e.g. a data.frame or a numeric vector).
+The `predicted_measures()` function provides a flexible way to compute any custom measure on simulated data and compare it against the observed values. 
+It accepts one or more named measure functions as arguments, where each function takes a `data_wide` data.frame and returns a summary as a data.frame, a numeric vector or other.
 
-The package provides two built-in measure functions:
+You can also pass multiple custom measures at once, eventually alongside the built-in measure functions otherwise embedded in `predicted_cases_by_house_size`. 
+Current built-in measure are
 
 -   `measure_sar_by_house_size`: secondary attack rate by household size;
 -   `measure_cases_by_house_size`: contingency table of cases by household size.
 
-Here we show how to use `predicted_measures()` with the built-in SAR measure:
-
-```{r}
-#| label: predicted-measures-sar
-# compute predicted SAR using predicted_measures
-ppc_sar <- predicted_measures(hhmodel, results,
-                              sar = measure_sar_by_house_size)
-ppc_sar
-```
-
-The returned `HousepiPrediction` object stores `observed`, `predicted`, `cri_lower` and `cri_upper` for each measure, accessible by name:
-
-```{r}
-#| label: extract-sar-components
-# observed secondary attack rates
-ppc_sar$sar$observed
-
-# predicted (posterior mean) secondary attack rates
-ppc_sar$sar$predicted
-```
-
-You can also pass multiple measures at once, as well as your own custom functions. A custom measure function should accept a `data_wide` data.frame and return a `data.frame`, a `list`, or a `numeric` vector:
-
+A custom measure function should accept a `data_wide` data.frame and return a `data.frame`, a `list`, or a `numeric` vector:
+  
 ```{r}
 #| label: predicted-measures-custom
 # define a custom measure: overall attack rate
 measure_overall_attack_rate <- function(data_wide) {
-  n_infected <- sum(data_wide$status > 0, na.rm = TRUE)
-  n_total <- nrow(data_wide)
-  c(attack_rate = n_infected / n_total)
+  sum(data_wide$status > 0, na.rm = TRUE) / nrow(data_wide)
 }
 
 # compute both built-in and custom measures together
-ppc_multi <- predicted_measures(hhmodel, results,
-                                sar = measure_sar_by_house_size,
-                                overall = measure_overall_attack_rate)
+ppc_multi <- hhmodel |>
+  predicted_measures(results,
+                     sar = measure_sar_by_house_size,
+                     overall = measure_overall_attack_rate)
 ppc_multi
 ```
 
+The returned `HousepiPrediction` object stores `observed`, `predicted`, `cri_lower` and `cri_upper` for each measure, accessible by name:
+  
+```{r}
+#| label: extract-sar-components
+# bind observed secondary attack rates
+ppc_multi$sar$observed |> 
+  # to predicted (posterior mean) values
+  dplyr::left_join(ppc_multi$sar$predicted, by = "house_size", 
+                   suffix = c("_observed", "_predicted"))
+```
+
+Similarly can be done for all stored measures:
+
 ```{r}
 #| label: plot-overall-attack-rate
+#| fig-width: 5
+#| fig-height: 2.5
+#| fig-alt: >
+#|  Overall attack rates comparison between observed and predicted.
+#|  Predicted mean value shown with errorbars for the 95% credible interval
 # compare observed vs predicted overall attack rate
 ggplot(data.frame(ppc_multi$overall)) +
-  geom_point(aes(x = "observed", y = observed),
-             color = "black") +
+  geom_point(aes(x = "observed", y = observed), color = "black") +
   geom_errorbar(aes(x = "predicted", y = observed,
-                    ymin = cri_lower, ymax = cri_upper),
-                color = "coral") + 
-  geom_point(aes(x = "predicted", y = predicted),
-             color = "coral") +
+                    ymin = cri_lower, ymax = cri_upper)) + 
+  geom_point(aes(x = "predicted", y = predicted)) +
   labs(x = NULL, y = "Attack rate")
 
 ```

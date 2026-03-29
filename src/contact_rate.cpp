@@ -5,7 +5,6 @@
  * See the LICENSE file for details.
  */
 
-#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -13,6 +12,8 @@
 
 #include "tools/keys.h"
 #include "tools/messages.h"
+#include "tools/read.h"
+#include "tools/string.h"
 
 #include "contact_rate.h"
 #include "function.h"
@@ -23,39 +24,99 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** GroupRate : struct ***  ////////////////////////////////
+/////////////////////////////////  *** ContactRate : struct ***  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace hsp
 {
-    ContactRate::ContactRate(
-        std::function<std::string(Household &, const Individual &, const Individual &)> func_init_contact_rate,
-        DataWide *dataptr,
-        const Parameter *paramptr)
-        : callback_init_contact_rate_(func_init_contact_rate),
-          pDataWide_(dataptr),
+    ContactRate::ContactRate(DataWide *dataptr, const Parameter *paramptr)
+        : pDataWide_(dataptr),
           pParameter_(paramptr) {}
     ContactRate::~ContactRate() = default;
 
-    void ContactRate::build()
+    void ContactRate::build(const str_table &input)
     {
         try
         {
-            /// FIXME: skipped for the momemt
-            return;
+            // allocate external contact rate storage
+            house_contact_rates_.clear();
+            house_contact_rates_.resize(pDataWide_->report_house.total);
 
-            // loop over all household pairs
-            for (Household &house : *pDataWide_)
+            // parse column headers to separate from_ and to_ prefixes
+            std::vector<std::string> from_headers, to_headers;
+            std::vector<std::string> data_names;
+
+            if (!input.empty())
             {
-                // initialize contact rate matrix
-                const size_t size = house.size();
-                house.contact_rates_.clear();
-                house.contact_rates_.assign(size, std::vector<Attribute>(size, rates::VALUE_REFERENCE));
+                for (const auto &key : read::extract_keys(input))
+                {
+                    if (key == "param_name")
+                        continue;
+                    if (key.size() > 5 && key.substr(0, 5) == "from_")
+                    {
+                        from_headers.push_back(key);
+                        data_names.push_back(key.substr(5));
+                    }
+                    else if (key.size() > 3 && key.substr(0, 3) == "to_")
+                    {
+                        to_headers.push_back(key);
+                    }
+                }
 
-                for (size_t k = 0; k < size; ++k)  // from : member k
-                    for (size_t i = 0; i < k; ++i) // -> to : member i
-                        init_contact_rates_(house, k, i);
+                if (from_headers.size() != to_headers.size())
+                    throw std::invalid_argument(
+                        "Mismatched number of 'from_' and 'to_' columns in contact rate definitions.");
+
+                // register data columns for multiplicity
+                pDataWide_->set_multiplicity_data(data_names);
+            }
+
+            size_t n_rows = read::csv_n_rows(input);
+
+            // resolve data column indices
+            std::vector<size_t> data_indices = pDataWide_->pRegistry->from_string(data_names);
+
+            // loop over all households
+            for (size_t H = 0; H < pDataWide_->report_house.total; ++H)
+            {
+                Household &house = pDataWide_->at(H);
+                house.pcontact_rate_ = &house_contact_rates_[H];
+
+                // initialize contact rate matrix to reference
+                house_contact_rates_[H].mtx.assign(
+                    house.size(), std::vector<Attribute>(house.size(), rates::VALUE_REFERENCE));
+
+                if (n_rows == 0)
+                    continue;
+
+                for (const Individual &member_from : house)
+                    for (const Individual &member_to : house)
+                        if (member_from != member_to)
+                            for (size_t r = 0; r < n_rows; ++r)
+                            {
+                                bool match = true;
+                                for (size_t d = 0; d < from_headers.size(); ++d)
+                                {
+                                    // FIXME data indices seems here supposed equal from/to
+                                    if (!na::is(input.at(from_headers[d])[r]))
+                                        match &= member_from.data(data_indices[d]) ==
+                                                 str::tod(input.at(from_headers[d])[r]);
+                                    if (!na::is(input.at(to_headers[d])[r]))
+                                        match &= member_to.data(data_indices[d]) ==
+                                                 str::tod(input.at(to_headers[d])[r]);
+                                }
+                                if (!match)
+                                    continue;
+
+                                const std::string &paramstr = input.at("param_name")[r];
+                                if (!na::is(paramstr) && paramstr != rates::REFERENCE)
+                                {
+                                    Attribute &attr = house_contact_rates_[H].mtx[member_from.hhindex()][member_to.hhindex()];
+                                    attr.init_pointer(pParameter_->at(pParameter_->pRegistry->from_string(paramstr)).pointer());
+                                }
+                                break;
+                            }
             }
         }
         catch (const std::exception &e)
@@ -63,28 +124,5 @@ namespace hsp
             msg::error("While initializing contact rates:\n" +
                        std::string(e.what()));
         }
-    }
-
-    void ContactRate::init_contact_rates_(Household &house, size_t k, size_t i)
-    {
-        const Individual &member_k = house.member(k);
-        const Individual &member_i = house.member(i);
-        const std::string rate = callback_init_contact_rate_(house, member_k, member_i);
-
-        if (na::is(rate))
-            return;
-        else if (rate == rates::MISSING)
-            throw std::invalid_argument(
-                "Missing contact rate for members '" + member_k.id() +
-                "' and '" + member_i.id() + "', from " + house.err_name() + ".");
-
-        // skip if default reference rate
-        if (rate == rates::REFERENCE)
-            return;
-
-        size_t p = pParameter_->pRegistry->from_string(rate);
-        Attribute attr = pParameter_->at(p);
-        house.contact_rates_[k][i] = attr;
-        house.contact_rates_[i][k] = attr; /// NOTE: assuming symmetric
     }
 }

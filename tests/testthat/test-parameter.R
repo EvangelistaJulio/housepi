@@ -15,22 +15,16 @@ aux_add <- function(self, name = NA_character_, value = NULL,
   invisible(self)
 }
 
-aux_load <- function(self, ..., append = FALSE) {
-  self$load_quosures(rlang::enquos(...), append = append)
-  invisible(self)
-}
-
 test_that("Default parameter definitions are correct", {
-  param <- housepi:::HousepiParameter$new()
+  param <- HousepiParameter$new()
 
-  expect_error(
-    aux_add(param, name = "dummy", value = 3, const = FALSE),
-    regexp = "No prior"
-  )
+  expect_error(aux_add(param, name = "dummy", value = 3, const = FALSE),
+               regexp = "No prior")
 
   # default sample framework
-  aux_load(param, dummy = list(value = 3, prior = "uniform",
-                               min = 0, max = 5))
+  helper_test_aux_load(
+    param, dummy = list(value = 3, prior = "uniform", min = 0, max = 5)
+  )
 
   expect_equal(param$defs$name, "dummy")
   expect_equal(param$defs$value, "3|N")
@@ -43,13 +37,13 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$defs$max, "5|N")
 
   # load_list and single add should be coherent
-  tmp <- housepi:::HousepiParameter$new()
+  tmp <- HousepiParameter$new()
   aux_add(tmp, name = "dummy", value = 3, prior = "uniform",
           min = 0, max = 5)
   expect_equal(param$defs, tmp$defs)
 
   # proposal
-  param <- housepi:::HousepiParameter$new()
+  param <- HousepiParameter$new()
   aux_add(param, name = "dummy", prior = "uniform", min = 0, max = 5,
           proposal = "normal")
 
@@ -65,14 +59,14 @@ test_that("Default parameter definitions are correct", {
 })
 
 test_that("Constant parameter definitions are correct", {
-  param <- housepi:::HousepiParameter$new()
+  param <- HousepiParameter$new()
   expect_error(aux_add(param, name = "dummy"), regexp = "Incomplete definition")
   expect_error(aux_add(param, name = "dummy", prior = "uniform",
                        min = 0, max = 5, const = TRUE))
 
   # load_list and single add should be coherent
-  aux_load(param, dummy = 3)
-  tmp <- aux_add(housepi:::HousepiParameter$new(), name = "dummy", value = 3)
+  helper_test_aux_load(param, dummy = 3)
+  tmp <- aux_add(HousepiParameter$new(), name = "dummy", value = 3)
   expect_equal(param$defs, tmp$defs)
 
   expect_equal(param$defs$name, "dummy")
@@ -91,13 +85,13 @@ test_that("Constant parameter definitions are correct", {
 
 test_that("Non default arguments are loaded correctly", {
   # simple add
-  param <- housepi:::HousepiParameter$new()
+  param <- HousepiParameter$new()
   aux_add(param, name = "dummy", prior = "gamma",
           shape = 2, scale = 1)
   expect_equal(param$defs$prior, "gamma|shape:scale|{2|N}:{1|N}")
 
   # load list
-  expect_no_error(aux_load(param,
+  expect_no_error(helper_test_aux_load(param,
     normal = list(prior = "gamma", shape = 2, scale = 1,
                   proposal = "normal"),
     lognormal = list(prior = "gamma", shape = 2, scale = 1,
@@ -106,13 +100,15 @@ test_that("Non default arguments are loaded correctly", {
 })
 
 test_that("Symbolic definitions are equivalent", {
-  param <- housepi:::HousepiParameter$new()
+  param <- HousepiParameter$new()
   val <- 1
-  aux_load(param,
-           var1 = list(prior = "normal", mean = indiv_shape + 1),
-           var2 = list(prior = "normal", mean = indiv_shape + !!val),
-           var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
-           var4 = list(prior = "normal", mean = ~ indiv_shape + !!val))
+  helper_test_aux_load(
+    param,
+    var1 = list(prior = "normal", mean = indiv_shape + 1),
+    var2 = list(prior = "normal", mean = indiv_shape + !!val),
+    var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
+    var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
+  )
   aux <- param$defs
   aux$name <- NULL
 

@@ -2,17 +2,44 @@ library(tidyverse)
 
 url <- "https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt"
 
-date_fmt <- function(x) {
-  as.numeric(as.Date(x, format = "%Y-%m-%d", origin = "2021-01-01"))
-}
+date_fmt <- function(x) as.numeric(as.Date(x) - as.Date("2020-01-01"))
 
-read.table(url) |>
-  mutate(isolation = as.integer(isolation != "no quarantine"),
-         status = as.integer(!is.na(first_pos)),
-         test_date = date_fmt(first_pos),
-         isolation = as.logical(isolation),
-         asymptomatic = as.logical(asymptomatic)) |>
-  ungroup() |>
-  select(indid, hhid, status, test_date, vaccination_cat,
-         age, isolation, sex, asymptomatic, recovered) |>
-  rename(id = "indid", house_id = "hhid", vacc_status = "vaccination_cat")
+sarscov2_2021_icofs <- utils::read.table(url) |> 
+  dplyr::group_by(hhid) |>
+  # define followup period
+  dplyr::mutate(
+    house_id = sprintf("hh%03d", dplyr::cur_group_id()),
+    id = sprintf("%sm%02d", house_id, dplyr::row_number()),
+    end_followup = if(!all(is.na(last_neg))) {
+      max(date_fmt(last_neg), na.rm = TRUE)
+    } else {
+      date_fmt(dplyr::first(index_first_pos_pcr)) + 45
+    }
+  ) |>
+  dplyr::ungroup() |> 
+  # format variables
+  dplyr::mutate(
+    status = as.integer(!is.na(first_pos)),
+    test_date = date_fmt(first_pos),
+    last_vacc = pmax(vaccine_1, vaccine_2, vaccine_3, na.rm = TRUE),
+    vacc_status = dplyr::case_when(
+      is.na(last_vacc) ~ "unvaccinated",
+      last_vacc == vaccine_3 ~ "3doses",
+      last_vacc == vaccine_2 ~ "2doses",
+      last_vacc == vaccine_1 ~ "1dose"
+    ),
+    # whether last vaccine is more than 3 months old
+    vacc_status = dplyr::case_when(
+      vacc_status == "2doses" ~ ifelse(
+        date_fmt(index_first_pos_pcr) - date_fmt(last_vacc) <= 90,
+        "2doses<=90", "2doses>90"
+      ),
+      .default = vacc_status
+    ),
+    isolation = isolation != "no quarantine",
+    asymptomatic = as.logical(asymptomatic)
+  ) |>
+  dplyr::select(id, house_id, status, end_followup, test_date, age, sex,
+                vacc_status, isolation, asymptomatic)
+
+usethis::use_data(sarscov2_2021_icofs, overwrite = TRUE)

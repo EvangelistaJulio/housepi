@@ -76,11 +76,11 @@ namespace hsp
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
-            idat.data_vec.resize(pRegistry->size());
+            idat.vec.resize(pRegistry->size());
             for (size_t d = 0; d < pRegistry->size(); ++d)
             {
                 const std::string &datastring = pRegistry->as_string(d);
-                idat.data_vec[d].emplace_back(
+                idat.vec[d].emplace_back(
                     str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
             }
         }

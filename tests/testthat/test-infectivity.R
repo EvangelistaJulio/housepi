@@ -7,14 +7,8 @@ aux_add <- function(self, func, status = NA_integer_,
   invisible(self)
 }
 
-aux_load <- function(self, ..., append = FALSE) {
-  xquos <- rlang::enquos(...)
-  self$load_quosures(xquos, append = append)
-  invisible(self)
-}
-
 test_that("Default infectivity profile definitions are correct", {
-  infec <- housepi:::HousepiInfecProfile$new()
+  infec <- HousepiInfecProfile$new()
 
   # Add a profile with default arguments
   aux_add(infec, func = "dummy", discr = FALSE, a = 1, b = 2, max = 10)
@@ -26,7 +20,7 @@ test_that("Default infectivity profile definitions are correct", {
 })
 
 test_that("Infectivity profile with discrete values is correct", {
-  infec <- housepi:::HousepiInfecProfile$new()
+  infec <- HousepiInfecProfile$new()
 
   # Add a discrete profile
   aux_add(infec, func = "discrete_profile", discr = TRUE,
@@ -38,7 +32,7 @@ test_that("Infectivity profile with discrete values is correct", {
 })
 
 test_that("Error handling in infectivity profile definitions", {
-  infec <- housepi:::HousepiInfecProfile$new()
+  infec <- HousepiInfecProfile$new()
 
   # Missing function name
   expect_error(aux_add(infec, func = NA, discr = FALSE, a = 1),
@@ -46,7 +40,7 @@ test_that("Error handling in infectivity profile definitions", {
 })
 
 test_that("Status specific definition work fine", {
-  infec <- housepi:::HousepiInfecProfile$new()
+  infec <- HousepiInfecProfile$new()
 
   aux_add(infec, func = "discrete_profile", discr = TRUE,
           x = 5, max = 20)
@@ -54,10 +48,10 @@ test_that("Status specific definition work fine", {
   expect_warning(aux_add(infec, func = "another_generic"),
                  regexp = "Overwriting")
 
-  aux_load(infec,
-           list(func = "lognormal", status = 1),
-           list(func = "ferretti20", status = 2),
-           v1 = "uniform")
+  helper_test_aux_load(infec,
+                       list(func = "lognormal", status = 1),
+                       list(func = "ferretti20", status = 2),
+                       v1 = "uniform")
   expect_equal(infec$defs$func, c("lognormal", "ferretti20", "uniform"))
   expect_equal(infec$defs$status, c(1, 2, NA_integer_))
 })
@@ -70,8 +64,8 @@ test_that("Spurious names are dropped", {
                discr = TRUE, shape = ~ shape, scale = ~ scale)
   )
 
-  infec <- housepi:::HousepiInfecProfile$new()
-  expect_no_error(aux_load(infec, !!!external_list))
+  infec <- HousepiInfecProfile$new()
+  expect_no_error(helper_test_aux_load(infec, !!!external_list))
   defs <- infec$defs
   defs$status <- NULL
   expect_equal(nrow(unique(defs)), 1)

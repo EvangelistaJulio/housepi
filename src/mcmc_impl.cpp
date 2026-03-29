@@ -42,6 +42,7 @@ namespace hsp
     MCMCBase::MCMCBase()
         : data_long(&data_wide),
           group_rate(&data_wide, &param),
+          contact_rate(&data_wide, &param),
           infec_profile(&param),
           augm(&data_wide, &param, &infec_profile) {}
     MCMCBase::~MCMCBase() = default;
@@ -119,7 +120,7 @@ namespace hsp
 
             if (augm.is_any_sample())
                 for (size_t i : house.infected_hhindexes())
-                    house.member(i).paugm_->augm_log_lik.recover();
+                    house.member(i).paugm_->log_lik.recover();
         }
 
         if (is_cache_depen)
@@ -166,11 +167,7 @@ namespace hsp
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     MCMC::MCMC(std::unique_ptr<ModelBase> m)
-        : model(std::move(m)),
-          contact_rate(
-              [this](Household &h, const Individual &k, const Individual &i) -> std::string
-              { return model->init_contact_rates(h, k, i); },
-              &data_wide, &param)
+        : model(std::move(m))
     {
         init_registry(model->get_DataKey(),
                       model->get_HHsizeKey(),
@@ -452,7 +449,7 @@ namespace hsp
                 return delta_ll;
 
             // else recover cached values
-            member.paugm_->augm_log_lik.recover();
+            member.paugm_->log_lik.recover();
             house.obs_log_lik_.recover();
             data_wide.recover_member_old_cached(house, i);
         }

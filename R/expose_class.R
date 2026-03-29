@@ -122,6 +122,15 @@ drop_group_rates <-  function(hhmodel) {
 
 #' @rdname drop_definitions
 #' @export
+drop_contact_rates <-  function(hhmodel) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$drop_contact_rates()
+  new_obj
+}
+
+#' @rdname drop_definitions
+#' @export
 drop_infectivity_profile <-  function(hhmodel) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
@@ -179,8 +188,16 @@ get_augmented <- function(hhmodel) {
 #' @export
 get_group_rates <- function(hhmodel) {
   stopifnothousepi(hhmodel)
-  # internal build requires deep clone to avoid inplace
+  # NOTE: internal build requires deep clone to avoid in-place
   hhmodel$copy()$group_rates
+}
+
+#' @rdname get_definitions
+#' @export
+get_contact_rates <- function(hhmodel) {
+  stopifnothousepi(hhmodel)
+  # NOTE: internal build requires deep clone to avoid in-place
+  hhmodel$copy()$contact_rates
 }
 
 #' @rdname get_definitions
@@ -339,6 +356,45 @@ add_group_rate <-  function(hhmodel,
   new_obj$.__enclos_env__$private$group_rates_$add_quo(
     name = name, by = by, prefix = prefix,
     reference = reference, independent = independent,
+    prior = prior, rlang::enquos(...),
+    min = rlang::enquo(min), max = rlang::enquo(max),
+    proposal = proposal, proposal_scale = proposal_scale
+  )
+  new_obj
+}
+
+############################################################################
+############################################################################
+############################################################################
+
+#' @title Add contact rate definition
+#' @description
+#' Define contact rates between household members based on paired individual
+#' features (from/to).
+#' @param hhmodel `r rd_model_in_`
+#' @param by `character()`. Data column names for from/to matching.
+#' @param prefix `character(1)`. Prefix for generated parameter names.
+#' @param reference Named vector with from_/to_ prefixed feature values,
+#' or un-prefixed names (applied to both from and to).
+#' @param prior `r rd_par_model_`
+#' @param ... `r rd_par_args_`
+#' @param min `r rd_var_min_`
+#' @param max `r rd_var_max_`
+#' @param proposal `r rd_var_proposal_`
+#' @param proposal_scale `r rd_proposal_scale_`
+#' @return `r rd_model_out_`
+#' @export
+add_contact_rate <- function(hhmodel, by, prefix = "cr",
+                             reference = NULL,
+                             prior = NA_character_, ...,
+                             min = NULL, max = NULL,
+                             proposal = NA_character_,
+                             proposal_scale = NA_real_) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$.__enclos_env__$private$contact_rates_$add_quo(
+    by = by, prefix = prefix,
+    reference = reference,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale

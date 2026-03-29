@@ -30,11 +30,17 @@ measure_sar_by_house_size <- function(data_wide) {
   # aggregate data by house_id
   y <- dplyr::group_by(y, .data$house_id)
   y <- dplyr::summarise(y, house_size =  dplyr::n(), cases = sum(.data$status))
+
   # compute sar according to definition
-  y <- dplyr::filter(y, .data$cases > 0)
+  y <- dplyr::filter(y, .data$cases > 0, .data$house_size > 1)
   y <- dplyr::mutate(y, sar = (.data$cases - 1) / (.data$house_size - 1))
   y <- dplyr::group_by(y, .data$house_size)
   y <- dplyr::summarise(y, sar = mean(.data$sar))
+
+  # complete grid of size sar
+  y <- tidyr::complete(
+    y, house_size = min(.data$house_size):max(.data$house_size)
+  )
   as.data.frame(y)
 }
 
@@ -92,7 +98,7 @@ ppc_helper_print <- function(model_name, is_posterior, measure_names, cri) {
                        ifelse(is_posterior, "Posterior predictions",
                               "Predictions"),
                        model_name),
-           "Computed measures:")
+           "Stored measures:")
   for (m in measure_names) sms <- c(sms, sprintf(" - {.emph %s}", m))
   c(sms, sprintf("Credible interval level set to %.0f%%.", 100 * cri))
 }
@@ -106,6 +112,7 @@ ppc_helper_print <- function(model_name, is_posterior, measure_names, cri) {
 #' @keywords internal
 #' @noRd
 ppc_frame_apply <- function(frame_list, func) {
+  # FIXME: missing a control on the dimensions of the objects
   elem_n1 <- frame_list[[1]]
 
   # perform element-wise operations
@@ -287,7 +294,7 @@ HousepiPrediction <- R6::R6Class(
       if (has_long) parsed <- c(parsed,
         lapply(names(m_long), function(x) lapply(output$long, `[[`, x))
       )
-      names(parsed) <- all_measure_names # UPDATE: not necessary...?
+      names(parsed) <- all_measure_names
 
       predictions <- lapply(parsed, ppc_extract_predicted_results,
                             cri = private$cri_level_)
@@ -341,9 +348,13 @@ helper_count_non_zero_cases <- function(data_wide) {
   )
   y <- dplyr::group_by(y, .data$house_id)
   y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(.data$status))
-  y <- dplyr::filter(y, .data$cases > 0)
+  y <- dplyr::filter(y, .data$cases > 0, .data$house_size > 1)
   y <- dplyr::group_by(y, .data$house_size)
   y <- dplyr::summarise(y, count = dplyr::n())
+  y <- tidyr::complete(
+    y, house_size = 2:max(.data$house_size),
+    fill = list(count = 0)
+  )
   as.data.frame(y)
 }
 
@@ -377,7 +388,7 @@ helper_filter_tables <- function(cases_table_by_size, max_house_size) {
 }
 
 # Set naming convention of credible interval.
-helper_get_name_convention <- function(x, cri) {
+cri_set_name_convention <- function(x, cri) {
   qtag <- 100 * round(cri, 2)
   x <- gsub("predicted", "mean", x)
   x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
@@ -460,8 +471,8 @@ PredictedCasesBySize <- R6::R6Class(
         cri_upper = self$sec_attack_rate$cri_upper$sar,
         counts = private$counts_$count
       )
-      colnames(output) <- helper_get_name_convention(colnames(output),
-                                                     private$cri_level_)
+      colnames(output) <- cri_set_name_convention(colnames(output),
+                                                  private$cri_level_)
       # filter to maximum house size if applicable
       if (!is.na(private$max_hh_size_)) {
         output <- output[output$house_size <= private$max_hh_size_, ]
@@ -488,7 +499,7 @@ PredictedCasesBySize <- R6::R6Class(
         cri_lower = helper_combine_obs_pred(na_df, cases$cri_lower),
         cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
       )
-      names(output) <- helper_get_name_convention(names(output),
+      names(output) <- cri_set_name_convention(names(output),
                                                   private$cri_level_)
       output
     }

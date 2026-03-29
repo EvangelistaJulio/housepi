@@ -23,27 +23,27 @@ namespace hsp
 		struct Wide
 		{
 			int status = status::MISSING;
-			std::vector<double> data_vec = {};
+			std::vector<double> vec = {};
 		};
 
 		/// Individual long-format data.
 		struct Long
 		{
-			std::vector<std::vector<double>> data_vec = {};
+			std::vector<std::vector<double>> vec = {};
 		};
 
 		/// Individual augmented variables.
 		struct Augm
 		{
-			size_t augm_idx = 0;				 /// index of status specific augmented definition
-			std::vector<Variable> augm_vec = {}; /// augmented variable definitions
-			LogLike augm_log_lik;				 /// augmented model log-likelihood
+			size_t idx = 0;					/// index of status specific augmented definition
+			std::vector<Variable> vec = {}; /// augmented variable definitions
+			LogLike log_lik;				/// augmented model log-likelihood
 		};
 
 		/// Individual group rates.
 		struct Group
 		{
-			std::vector<Attribute> group_rate_vec = {}; /// group rates
+			std::vector<Attribute> vec = {}; /// group rates
 		};
 	};
 }

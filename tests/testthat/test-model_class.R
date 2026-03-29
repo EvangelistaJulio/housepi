@@ -20,18 +20,17 @@ test_that("Model class blank calls", {
   expect_equal(length(snapshot$group_rate), 0)
 
   # blank default data wide format
-  data_wide <- housepi:::template_blank_data_wide_()
-  expect_equal(hhmodel$data_wide, data_wide)
-  expect_equal(snapshot$data_wide, data_wide)
+  expect_equal(hhmodel$data_wide, helper_test_get_data("blank_house"))
+  expect_equal(snapshot$data_wide, hhmodel$data_wide)
 
   # correct data long format
-  data_long <- data.frame(id = data_wide$id[1],
+  data_long <- data.frame(id = snapshot$data_wide$id[1],
                           time = seq(3), measure = seq(3)**3)
   hhmodel$add_data_long(data_long)
   expect_equal(hhmodel$data_long, data_long)
 
   # factorization
-  complex_data <- housepi::survey
+  complex_data <- helper_test_get_data("sarscov2_2021_icofs")
   complex_data$dates <- as.Date(runif(dim(complex_data)[1], max = 100))
   hhmodel$add_data_wide(complex_data)
   expect_equal(hhmodel$data_wide, complex_data)
@@ -210,13 +209,13 @@ test_that("Modules do not get overwritten", {
 test_that("Print behavior works as expected", {
   # with data and parameters
   hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   hhmodel$load_parameter_template()
   expect_snapshot(print(hhmodel))
 
   # without parameters
   hhmodel2 <- new_housepi_model("chain_binomial")
-  hhmodel2$add_data_wide(housepi::survey)
+  hhmodel2$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   expect_snapshot(print(hhmodel2))
 
   # blank model
@@ -225,7 +224,7 @@ test_that("Print behavior works as expected", {
 
 test_that("Active fields are read-only", {
   hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   expect_error(hhmodel$data_wide <- "La", regexp = "read only")
   expect_error(hhmodel$data_long <- "Li", regexp = "read only")
   expect_error(hhmodel$parameters <- "Lu", regexp = "read only")
@@ -239,8 +238,8 @@ test_that("Active fields are read-only", {
 test_that("Add data type errors are conserved", {
   hhmodel <- new_housepi_model("blank")
   expect_error(hhmodel$add_data_wide(data.frame()), regexp = "empty")
-  expect_error(hhmodel$add_data_wide("ground"), regexp = "Unsupported type")
-  expect_error(hhmodel$add_data_long("zero"), regexp = "Unsupported type")
+  expect_error(hhmodel$add_data_wide("ground"), regexp = "data.frame")
+  expect_error(hhmodel$add_data_long("zero"), regexp = "data.frame")
 })
 
 ############################################################################
@@ -250,7 +249,7 @@ test_that("Add data type errors are conserved", {
 test_that("Simulation with observation process is correct", {
   hhmodel <- new_housepi_model("chain_binomial")
   hhmodel$load_parameter_template()
-  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
   withr::with_seed(1,
     result1 <- hhmodel$run_simulation(obs_process = rand_observ)
@@ -265,7 +264,7 @@ test_that("Simulation with observation process is correct", {
 
 test_that("Run simulation with nsim > 1 returns list of dataframes", {
   hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   hhmodel$load_parameter_template()
   nsim <- 3
   result <- hhmodel$run_simulation(nsim = nsim)
@@ -292,11 +291,11 @@ test_that("export_augmented_data works after evaluate_log_lik", {
 
 test_that("export_house_snapshot returns correct structure", {
   hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   hhmodel$load_parameter_template()
   hhmodel$evaluate_log_lik()
 
-  hid <- housepi::survey$house_id[1]
+  hid <- helper_test_get_data("flu_1918_frederick")$house_id[1]
   snapshot <- hhmodel$export_house_snapshot(hid)
   expect_true(is.list(snapshot))
   expect_true("data_wide" %in% names(snapshot))

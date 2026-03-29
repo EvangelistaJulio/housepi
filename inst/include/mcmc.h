@@ -23,7 +23,6 @@
 #include "data_long.h"
 #include "parameter.h"
 #include "group_rate.h"
-#include "contact_rate.h"
 #include "infec_profile.h"
 #include "augmented.h"
 
@@ -46,7 +45,6 @@ namespace hsp
 		///////////////////////////
 
 		std::unique_ptr<ModelBase> model;
-		ContactRate contact_rate; // UPDATE: move to base
 
 		explicit MCMC(std::unique_ptr<ModelBase> m);
 

@@ -7,12 +7,13 @@
 
 #pragma once
 
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "tools/types.h"
+
+#include "house_storage.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,27 +28,19 @@ namespace hsp
     class Household;
     class Individual;
 
-    /// UPDATE: callback will be dropped in favour of table definitions
     struct ContactRate
     {
     public:
-        ContactRate(
-            std::function<std::string(Household &, const Individual &, const Individual &)> func_init_contact_rate,
-            DataWide *dataptr,
-            const Parameter *paramptr);
+        ContactRate(DataWide *dataptr, const Parameter *paramptr);
         ~ContactRate();
 
-        /// Build symmetric contact rates.
-        /// FIXME: skipped for the moment
-        void build();
+        /// Build symmetric contact rates from table definitions.
+        void build(const str_table &input);
 
     private:
-        std::function<std::string(Household &, const Individual &, const Individual &)> callback_init_contact_rate_;
+        std::vector<House::Contact> house_contact_rates_; /// External storage for household contact rates
 
         DataWide *pDataWide_;         /// pointer to external DataWide struct
         const Parameter *pParameter_; /// pointer to external Parameter struct
-
-        /// Set contact rate according to user assignement.
-        void init_contact_rates_(Household &house, size_t k, size_t i);
     };
 }

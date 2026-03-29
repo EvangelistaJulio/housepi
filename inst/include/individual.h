@@ -61,20 +61,20 @@ namespace hsp
 		int status() const noexcept { return status_; }
 
 		/// Set numeric value of augmented variable. If not allowed, raise exception.
-		void set_augm_value(size_t a, double x) { paugm_->augm_vec[a].set(x); }
+		void set_augm_value(size_t a, double x) { paugm_->vec[a].set(x); }
 
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
 
-		double data(size_t d) const { return pwide_->data_vec[d]; }
+		double data(size_t d) const { return pwide_->vec[d]; }
 
 		/// Return associated data long format.
 		/// NOTE: return a reference to a static empty vector when no datalong is attached.
 		const std::vector<double> &data_long(size_t d) const
 		{
 			if (plong_)
-				return plong_->data_vec[d];
+				return plong_->vec[d];
 
 			static const std::vector<double> EMPTY_DATA_LONG_VEC = std::vector<double>();
 			return EMPTY_DATA_LONG_VEC;
@@ -82,14 +82,14 @@ namespace hsp
 
 		/// Return associated data long format.
 		/// NOTE: return a reference to a static empty vector when no datalong is attached
-		const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return &plong_->data_vec; }
+		const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return &plong_->vec; }
 
-		double aug(size_t a) const { return paugm_->augm_vec[a].value(); }
-		Variable &get_augm_variable(size_t a) { return paugm_->augm_vec[a]; }
-		const Variable &get_augm_variable(size_t a) const { return paugm_->augm_vec[a]; }
+		double aug(size_t a) const { return paugm_->vec[a].value(); }
+		Variable &get_augm_variable(size_t a) { return paugm_->vec[a]; }
+		const Variable &get_augm_variable(size_t a) const { return paugm_->vec[a]; }
 
-		double group_rate(size_t g) const { return pgroup_rate_->group_rate_vec[g].value(); }
-		const Attribute &get_group_rate_attribute(size_t g) const { return pgroup_rate_->group_rate_vec[g]; }
+		double group_rate(size_t g) const { return pgroup_rate_->vec[g].value(); }
+		const Attribute &get_group_rate_attribute(size_t g) const { return pgroup_rate_->vec[g]; }
 
 		/////////////////////
 		//////  FLAGS  //////

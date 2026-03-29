@@ -347,6 +347,7 @@ namespace
     MAKE_RCPP_IMPORT_METHOD(data_long, "data-long")
     MAKE_RCPP_IMPORT_METHOD(param, "parameters")
     MAKE_RCPP_IMPORT_METHOD(group_rate, "group rates")
+    MAKE_RCPP_IMPORT_METHOD(contact_rate, "contact rates")
     MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile")
     MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
 
@@ -525,8 +526,8 @@ namespace
             // retrieve total number of rows
             size_t n_rows = 0;
             for (const auto &tbl : data_long.indiv_datalist)
-                if (!tbl.data_vec.empty())
-                    n_rows += tbl.data_vec.begin()->size();
+                if (!tbl.vec.empty())
+                    n_rows += tbl.vec.begin()->size();
 
             Rcpp::CharacterVector datalist_index(n_rows);
 
@@ -1388,8 +1389,10 @@ namespace
         return Rcpp::XPtr<MCMC>(new MCMC(std::unique_ptr<ModelBase>(raw)), true);
     }
 
-    // UPDATE: this should be imported instead
-    void build_contact_rates(Rcpp::XPtr<MCMC> mcmc_ptr) { mcmc_ptr->contact_rate.build(); }
+    bool has_contact_rates(Rcpp::XPtr<MCMC> mcmc_ptr)
+    {
+        return mcmc_ptr->model->has_contact_rates();
+    }
 
     double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
     {
@@ -1453,12 +1456,13 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);
     Rcpp::function("import_group_rate", &import_group_rate);
+    Rcpp::function("import_contact_rate", &import_contact_rate);
     Rcpp::function("import_setup", &import_setup);
     Rcpp::function("import_param", &import_param);
     Rcpp::function("import_infec_profile", &import_infec_profile);
     Rcpp::function("import_augm", &import_augm);
     Rcpp::function("import_param_table", &import_param_table);
-    Rcpp::function("build_contact_rates", &build_contact_rates);
+    Rcpp::function("has_contact_rates", &has_contact_rates);
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);
     Rcpp::function("summarise_cases", &summarise_cases);

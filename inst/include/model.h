@@ -67,9 +67,8 @@ namespace hsp
 		//////  MODEL  //////
 		/////////////////////
 
-		/// Assign the contact patterns between a couple of individuals.
-		/// UPDATE: this will be dropped in favor of table definition.
-		virtual std::string init_contact_rates(Household &, const Individual &, const Individual &) { return ""; }
+		/// Whether the model uses contact rates.
+		virtual bool has_contact_rates() const { return false; }
 
 		/// Update cached augmeted dependecies for whole household.
 		virtual void update_house_cache_dependecies(Household &) {}

@@ -93,13 +93,12 @@ augm_infec_obs_log_lik <- function(house, param, discr = FALSE) {
 
 test_that("Simulations behave as expected", {
   hhsimul <- new_housepi_model("augmented_infection_time")
-  hhsimul$add_data_wide(dplyr::mutate(housepi::survey,
-                                      status = NA,
-                                      end_followup = 45))
-  hhsimul$load_parameter_list(alpha = 0,
-                              beta = 0,
-                              gamma = 1,
-                              size_ref = 4)
+  hhsimul$add_data_wide(
+    dplyr::mutate(helper_test_get_data("sarscov2_2021_icofs"),
+                  status = NA)
+  )
+  hhsimul$load_parameter_list(alpha = 0, beta = 0,
+                              gamma = 1, size_ref = 4)
   hhsimul$load_augmented_list(
     incub_period = list(model = "gamma", shape = 2, scale = 1),
     infec_time = -incub_period
@@ -160,7 +159,7 @@ get_augm_state <- function(augm_draws, index) {
                         names_to = "name", values_to = "value") |>
     tidyr::separate(name, into = c("id", "augm"),
                     sep = "_", extra = "merge") |>
-    tidyr::pivot_wider(names_from = augm, values_from = value) |>
+    tidyr::pivot_wider(names_from = "augm", values_from = "value") |>
     as.data.frame()
 }
 

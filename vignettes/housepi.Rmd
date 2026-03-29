@@ -19,6 +19,7 @@ editor_options:
 ```{r}
 #| label: library
 #| include: false
+options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
@@ -80,7 +81,9 @@ Note that this dataset comes automatically with the model "blank", used for test
 ```{r}
 #| label: blank-data-table
 #| echo: false
-knitr::kable(housepi:::template_blank_data_wide_())
+env <- new.env(parent = emptyenv())
+utils::data(data_name, package = "housepi", envir = env)
+knitr::kable(env[["house_blank"]])
 ```
 
 </div>

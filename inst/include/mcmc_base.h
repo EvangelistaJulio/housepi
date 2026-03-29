@@ -19,6 +19,7 @@
 #include "data_long.h"
 #include "parameter.h"
 #include "group_rate.h"
+#include "contact_rate.h"
 #include "infec_profile.h"
 #include "augmented.h"
 
@@ -58,6 +59,7 @@ namespace hsp
 		DataLong data_long;
 		Parameter param;
 		GroupRate group_rate;
+		ContactRate contact_rate;
 		InfecProfile infec_profile;
 		Augmented augm;
 

@@ -88,6 +88,7 @@ namespace hsp
     STANDALONE_MAKE_READ_METHOD_(data_long, "data-long")
     STANDALONE_MAKE_READ_METHOD_(param, "parameters")
     STANDALONE_MAKE_READ_METHOD_(group_rate, "group rate")
+    STANDALONE_MAKE_READ_METHOD_(contact_rate, "contact rate")
     STANDALONE_MAKE_READ_METHOD_(infec_profile, "infectivity profile")
     STANDALONE_MAKE_READ_METHOD_(augm, "augmented")
 
@@ -305,6 +306,9 @@ namespace hsp
             else if (toup(carg) == "-G" || tolow(carg) == "--group-rates")
                 file.group_rate = argv[++carg_i];
 
+            else if (toup(carg) == "-C" || tolow(carg) == "--contact-rates")
+                file.contact_rate = argv[++carg_i];
+
             else if (toup(carg) == "-I" || tolow(carg) == "--infec-profile")
                 file.infec_profile = argv[++carg_i];
 
@@ -378,7 +382,7 @@ namespace hsp
         opts.read_param(engine);         // 3) Load Parameters
         opts.read_infec_profile(engine); // 4) Load Infectivity Profile
         opts.read_group_rate(engine);    // 5) Load Group Rates
-        engine.contact_rate.build();     // ... and Contact Rates UPDATE: read instead!
+        opts.read_contact_rate(engine);  // ... and Contact Rates
         opts.read_augm(engine);          // 6) Load Augmented Variables
 
         //////////////////////////////

@@ -81,6 +81,12 @@ find_closest_match <- function(input, options, min_dist = 1) {
   output
 }
 
+# Helper to format invalid type errors.
+format_type_error <- function(x) {
+  sprintf("Got an object of class %s instead.",
+          paste(rev(class(x)), collapse = "/"))
+}
+
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {
   if (from == to) return(invisible())
@@ -235,30 +241,40 @@ housepi_theme_set <- function() {
   # ggplot theme
   if (requireNamespace("ggplot2", quietly = TRUE)) {
     my_elem_text <- ggplot2::element_text(size = 12, face = "plain")
+    my_panel <- ggplot2::element_rect(fill = "#FEF9EC", color = NA)
+    my_strip <- ggplot2::element_rect(fill = "#FBE09B", color = NA)
+    my_grid <- ggplot2::element_line(color = "white", linewidth = 1)
     ggplot2::theme_set(
       ggplot2::theme_gray() +
         ggplot2::theme(text = my_elem_text,
                        axis.text = my_elem_text,
                        strip.text = my_elem_text,
+                       panel.background = my_panel,
+                       strip.background = my_strip,
+                       legend.position = "bottom",
                        legend.text = my_elem_text,
+                       panel.grid.major = my_grid,
+                       panel.grid.minor = ggplot2::element_blank(),
                        legend.title = ggplot2::element_blank())
     )
+
     # mimic element_geom for older ggplot2 versions
-    ggplot2::update_geom_defaults("line", list(color = "#FF7F50", size = 1))
-    ggplot2::update_geom_defaults("point", list(color = "#FF7F50", size = 3))
-    ggplot2::update_geom_defaults("vline", list(color = "#FF7F50", size = 1))
-    ggplot2::update_geom_defaults("hline", list(color = "#FF7F50", size = 1))
-    ggplot2::update_geom_defaults("abline", list(color = "#FF7F50", size = 1))
-    ggplot2::update_geom_defaults("segment", list(color = "#FF7F50", size = 1))
-    ggplot2::update_geom_defaults("errorbar", list(color = "#FF7F50", size = 1,
-                                                   width = 0.1))
+    my_point_feats <- list(color = "#FF7F50", size = 2)
+    my_line_feats <- list(color = "#FF7F50", size = 1)
+    my_errbar_feats <- c(my_line_feats, width = 0.1)
+    ggplot2::update_geom_defaults("line", my_line_feats)
+    ggplot2::update_geom_defaults("point", my_point_feats)
+    ggplot2::update_geom_defaults("vline", my_line_feats)
+    ggplot2::update_geom_defaults("hline", my_line_feats)
+    ggplot2::update_geom_defaults("abline", my_line_feats)
+    ggplot2::update_geom_defaults("segment", my_line_feats)
+    ggplot2::update_geom_defaults("errorbar", my_errbar_feats)
 
     # bayesplot theme
     if (requireNamespace("bayesplot", quietly = TRUE)) {
       bayesplot::bayesplot_theme_set(ggplot2::theme_get())
-      bayesplot::color_scheme_set(c("#6ec5ff", "#3db1ff",
-                                    "#0d8fff", "#0070dd",
-                                    "#0055aa", "#003d77"))
+      bayesplot::color_scheme_set(c("#6ec5ff", "#3db1ff", "#0d8fff",
+                                    "#0070dd", "#0055aa", "#003d77"))
     }
   }
 

@@ -4,6 +4,7 @@
 \alias{drop_parameters}
 \alias{drop_augmented}
 \alias{drop_group_rates}
+\alias{drop_contact_rates}
 \alias{drop_infectivity_profile}
 \alias{drop_all}
 \title{Drop current definitions}
@@ -13,6 +14,8 @@ drop_parameters(hhmodel)
 drop_augmented(hhmodel)
 
 drop_group_rates(hhmodel)
+
+drop_contact_rates(hhmodel)
 
 drop_infectivity_profile(hhmodel)
 

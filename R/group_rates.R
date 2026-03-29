@@ -5,6 +5,31 @@
 ## See the LICENSE file for details.
 ##
 
+#' Assert that features choice is valid.
+#' @param features Features as list of data column names.
+#' @keywords internal
+#' @noRd
+assert_valid_features <- function(features) {
+  if (all(is.na(features))) return(invisible())
+
+  if (isFALSE(is.character(features))) stop_h(
+    "Argument 'by' must be of type character.",
+    format_type_error(features)
+  )
+
+  # avoid group rates associated to reserved data
+  reserved_data <- c("id", "house_id", "status",
+                     "n", "param_name", "group_rate")
+  forbidden <- reserved_data[reserved_data %in% features]
+  if (length(forbidden) > 0) stop_h(
+    sprintf("Impossible to associate rate to feature%s %s",
+            ifelse(length(forbidden) > 1, "s:", ""),
+            character_to_string_list(forbidden)),
+    "These names are reserved.",
+    "Please, change feature and/or corresponding data columns."
+  )
+}
+
 #' Assert that features are present in data.
 #' @param features Features as list of data column names.
 #' @param headers All column names of the data.
@@ -21,32 +46,40 @@ assert_data_features <- function(features, headers) {
   )
 }
 
+#' Assert that feature values in data are safe.
+#' @param table Features as list of data column names.
+#' @return `character()`
+#' @keywords internal
+#' @noRd
+assess_feature_values <- function(this_table) {
+  # column names to consider
+  colmask <- setdiff(names(this_table), c("n", "param_name"))
+  for (col in colmask) {
+    sapply(this_table[[col]], function(x) assert_valid_feature(x, col))
+  }
+  colmask
+}
+
 #' Return logic table of group rates
 #' @param data_wide Data from which to extract group rates
-#' @param by Features as list of data column names.
+#' @param this_feat Feature as list of data column names.
 #' @return data.frame with logic table
 #' @keywords internal
 #' @noRd
-group_rate_logic_table <- function(data_wide, by) {
-  # sort alphabetically the features
-  features <- sort(as.character(by))
-
-  # convert features
-  assert_data_features(features, colnames(data_wide))
-
+group_rate_logic_table <- function(data_wide, this_feat) {
   # extract unique features and sort by list length
-  uni_features <- lapply(features, function(f) sort(unique(data_wide[[f]])))
+  uni_features <- lapply(this_feat, function(f) sort(unique(data_wide[[f]])))
   sorted_indices <- order(sapply(uni_features, length), decreasing = TRUE)
-  features <- features[sorted_indices]
+  this_feat <- this_feat[sorted_indices]
   uni_features <- uni_features[sorted_indices]
-  names(uni_features) <- features
+  names(uni_features) <- this_feat
 
   # create a dataframe of all possible multi-features
   y <- expand.grid(uni_features)
 
   # check that the multi-feature exists
   multifeat_count <- apply(y, 1, function(row) {
-    sum(apply(data_wide[features], 1, function(d_row) all(d_row == row)))
+    sum(apply(data_wide[this_feat], 1, function(d_row) all(d_row == row)))
   })
 
   # create the final truth table and reverse it
@@ -71,7 +104,7 @@ group_rate_logic_table <- function(data_wide, by) {
 #' @noRd
 associate_param_names <- function(this_table, prefix, reference) {
   # column names to consider
-  colmask <- setdiff(names(this_table), c("n", "param_name"))
+  colmask <- assess_feature_values(this_table)
 
   # extract reference index
   if (length(reference) == 0) {
@@ -335,16 +368,8 @@ HousepiGroupRate <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      forbidden <- c("n", "param_name", "group_rate")
-      if (!all(is.na(by))) {
-        if (isFALSE(is.character(by))) stop_h(
-          "Argument 'by' must be of type character."
-        )
-        else if (any(by %in% forbidden)) stop_h(
-          sprintf("Feature name '%s' is a reserved word.", by),
-          "Please, rename feature and corresponding data column."
-        )
-      }
+      # check that features are correct
+      assert_valid_features(by)
 
       # load reference
       if (!is.null(reference)) {
@@ -399,15 +424,15 @@ HousepiGroupRate <- R6::R6Class(
 
         new_logic_table <- list()
         if (!all(is.na(features))) {
-          features <- features[!is.na(features)]
+          features <- sort(as.character(features[!is.na(features)]))
+          assert_data_features(features, colnames(data_wide))
 
+          # cast to list if independent
           if (isFALSE(this_def[["independent"]])) features <- list(features)
 
           # default prefix
           prefix <- as.character(this_def[["prefix"]])
-          if (is.na(prefix)) {
-            prefix <- substring(tolower(rate_id), 1, 3)
-          }
+          if (is.na(prefix)) prefix <- substring(tolower(rate_id), 1, 3)
 
           for (this_feat in features) {
             # 1. create logic table with group rates
@@ -488,6 +513,311 @@ HousepiGroupRate <- R6::R6Class(
       defs$n <- NULL
       for (k in intersect(colnames(defs), names(info))) {
         defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
+      }
+      defs
+    }
+  )
+)
+
+############################################################################
+############################################################################
+########################### Housepi Contact Rate ###########################
+############################################################################
+############################################################################
+
+#' Return logic table of contact rates (from/to paired columns).
+#' @param data_wide Data from which to extract contact rates.
+#' @param features Features as list of data column names.
+#' @return data.frame with from_X, to_X columns and count n.
+#' @keywords internal
+#' @noRd
+contact_rate_logic_table <- function(data_wide, features) {
+  # unique values per feature
+  uni_values <- lapply(features, function(f) sort(unique(data_wide[[f]])))
+  names(uni_values) <- features
+
+  # build from and to grids
+  from_grid <- do.call(expand.grid, stats::setNames(
+    uni_values, paste0("from_", features)
+  ))
+  to_grid <- do.call(expand.grid, stats::setNames(
+    uni_values, paste0("to_", features)
+  ))
+
+  # full cross of from x to
+  y <- merge(from_grid, to_grid, by = NULL)
+
+  # convert factors to character
+  for (col in colnames(y)) y[[col]] <- as.character(y[[col]])
+
+  y
+}
+
+#' Associate parameter names to contact rate logic table.
+#' @param this_table `data.frame` with from_X and to_X columns.
+#' @param prefix Prefix for parameter names.
+#' @param reference Named vector with from_/to_ prefixed names and values.
+#' @return `data.frame` with param_name column added.
+#' @keywords internal
+#' @noRd
+associate_contact_param_names <- function(this_table, prefix, reference) {
+  colmask <- assess_feature_values(this_table)
+
+  # find reference index
+  if (length(reference) == 0) {
+    idx_refer <- integer(0)
+  } else {
+    idx_refer <- unname(which(
+      apply(this_table[colmask], 1,
+            function(row) all(row == unlist(reference[colmask])))
+    ))
+    if (length(idx_refer) != 1) stop_h("Provided reference group is not valid.")
+  }
+
+  # format prefix
+  prefix <- ifelse(
+    prefix == "" || !is.character(prefix),
+    "", paste0(prefix, "_")
+  )
+
+  # associate parameter names
+  this_table$param_name <- apply(
+    this_table[colmask], 1, function(row) {
+      paste0(prefix, paste(paste(colmask, row, sep = "_"), collapse = "_"))
+    }
+  )
+  if (length(idx_refer) == 1) {
+    this_table$param_name[idx_refer] <- ".reference"
+  }
+
+  this_table
+}
+
+#' @title Housepi Contact Rate
+#' @description Help with contact rate definitions of model Rcpp object.
+#' @keywords internal
+#' @noRd
+HousepiContactRate <- R6::R6Class(
+  classname = "HousepiContactRate",
+  cloneable = TRUE,
+
+  ############################################################################
+  ################################## PRIVATE #################################
+  ############################################################################
+
+  private = list(
+    deep_clone = function(name, value) helper_clone(value)
+  ),
+
+  ############################################################################
+  ################################## ACTIVE ##################################
+  ############################################################################
+
+  active = list(
+    #' @field parameters `list`.
+    #' Parameter definitions associated to contact rates.
+    parameters = function(value) {
+      if (!missing(value)) stop_h("'parameters' is read only.")
+      new_params <- list()
+      if (!is.null(self$logic_table)) {
+        for (par_id in setdiff(self$logic_table$param_name, ".reference")) {
+          new_params[[par_id]] <- self$raw_params
+        }
+      }
+      new_params
+    },
+
+    #' @field data_required `character()`. Data required by contact rates.
+    data_required = function(value) {
+      if (!missing(value)) stop_h("'data_required' is read only.")
+      required <- self$defs[["by"]]
+      if (is.null(required) || all(is.na(required))) return(character(0))
+      required <- required[!is.na(required)]
+      set_source_name_(required, self$family)
+    },
+
+    #' @field param_required `character()`. Parameters required by contact rates.
+    param_required = function(value) {
+      if (!missing(value)) stop_h("'param_required' is read only.")
+      if (is.null(self$logic_table)) return(character(0))
+      required <- setdiff(unique(self$logic_table$param_name), ".reference")
+      set_source_name_(required, self$family)
+    },
+
+    #' @field tidy_table `data.frame()`.
+    #' Contact rate definitions table.
+    tidy_table = function(value) {
+      if (!missing(value)) stop_h("'tidy_table' is read only.")
+      if (is.null(self$logic_table)) return(data.frame())
+      self$logic_table
+    }
+  ),
+
+  ############################################################################
+  ################################## PUBLIC ##################################
+  ############################################################################
+
+  public = list(
+    #' @field family `character(1)`. Module family.
+    family = "contact rate",
+
+    #' @field defs `list`. Current contact rate definition.
+    defs = list(),
+
+    #' @field raw_params `list`. Raw parameter definitions.
+    raw_params = list(),
+
+    #' @field logic_table `data.frame`.
+    #' Table of parameters associated to contact rate pairs.
+    logic_table = NULL,
+
+    #' @description
+    #' New object of class [HousepiContactRate][housepi::HousepiContactRate].
+    initialize = function() {
+      self$defs <- list()
+      self$raw_params <- list()
+      self$logic_table <- NULL
+      invisible(self)
+    },
+
+    #' @description
+    #' Define contact rate.
+    #' @param by `character()`. Data column names for matching.
+    #' @param prefix `character(1)`. Prefix for generated parameter names.
+    #' @param reference Named vector with from_/to_ prefixed feature values.
+    #' @param prior,min,max,proposal,proposal_scale MCMC setup.
+    #' @param ... Additional prior arguments.
+    #' @param .warn_over Show overwrite warning.
+    add_quo = function(by, prefix = "cr",
+                       reference = NULL,
+                       prior = NA_character_, ...,
+                       min = NULL, max = NULL,
+                       proposal = NA_character_,
+                       proposal_scale = NA_real_,
+                       .warn_over = TRUE) {
+      # unwrap quosures
+      by <- housepi_smart_unwrap(by, "by")
+      prefix <- housepi_smart_unwrap(prefix, "prefix")
+      reference <- housepi_smart_unwrap(reference, "reference")
+      prior <- housepi_smart_unwrap(prior, "prior")
+      proposal <- housepi_smart_unwrap(proposal, "proposal")
+      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
+      min <- housepi_smart_unwrap(min, "min")
+      if (is.null(min)) min <- NA_real_
+      max <- housepi_smart_unwrap(max, "max")
+      if (is.null(max)) max <- NA_real_
+      dots <- list(...)
+      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
+      args <- housepi_extractor(!!!dots)
+
+      # validate by
+      if (isFALSE(is.character(by)) || all(is.na(by))) stop_h(
+        "Argument 'by' must be a non-empty character vector."
+      )
+      forbidden <- c("param_name")
+      if (any(by %in% forbidden)) stop_h(
+        sprintf("Feature name '%s' is a reserved word.", by[by %in% forbidden]),
+        "Please, rename feature and corresponding data column."
+      )
+
+      # warn overwrite
+      if (.warn_over && length(self$defs) > 0) {
+        warning_h("Overwriting previous contact rate definition.")
+      }
+
+      # validate reference names
+      if (!is.null(reference)) {
+        expected_names <- c(paste0("from_", sort(by)),
+                            paste0("to_", sort(by)))
+        # convenience: allow un-prefixed names (apply to both from_ and to_)
+        if (length(reference) == length(by) && all(names(reference) %in% by)) {
+          expanded <- c(
+            stats::setNames(reference[by], paste0("from_", by)),
+            stats::setNames(reference[by], paste0("to_", by))
+          )
+          reference <- expanded
+        }
+        if (length(setdiff(names(reference), expected_names)) != 0) stop_h(
+          "Reference names must use 'from_' and 'to_' prefixes matching 'by'.",
+          sprintf("Expected names: %s",
+                  character_to_string_list(expected_names))
+        )
+        reference <- as.list(reference)
+      }
+
+      # store definition
+      self$defs <- list(by = by, prefix = prefix, reference = reference)
+
+      # store MCMC parameter setup
+      self$raw_params <- set_group_rates_mcmc_setup(
+        prior = prior, args = args, min = min, max = max,
+        proposal = proposal, proposal_scale = proposal_scale
+      )
+
+      invisible(self)
+    },
+
+    #' @description
+    #' Implement contact rate definition according to data.
+    #' @param data_wide A data.frame with the dataset.
+    #' @param factor_info A list with levels for each factorized feature.
+    implement = function(data_wide, factor_info) {
+      self$logic_table <- NULL
+
+      by <- self$defs[["by"]]
+      if (is.null(by) || all(is.na(by))) return(invisible(self))
+      assert_data_features(by, colnames(data_wide))
+
+      # build the paired logic table
+      this_table <- contact_rate_logic_table(data_wide, by)
+
+      # default prefix
+      prefix <- as.character(self$defs[["prefix"]])
+      if (is.na(prefix)) prefix <- "cr"
+
+      # associate parameter names
+      this_table <- associate_contact_param_names(
+        this_table, prefix, self$defs$reference
+      )
+
+      self$logic_table <- this_table
+      invisible(self)
+    },
+
+    #' @description
+    #' Assert that contact rate definitions are compatible with model.
+    #' @param mcmc_ptr Rcpp pointer to MCMC object.
+    assert = function(mcmc_ptr) {
+      has_defs <- length(self$defs) > 0 && !all(is.na(self$defs[["by"]]))
+      has_model <- .engine$has_contact_rates(mcmc_ptr)
+      if (has_defs && !has_model) stop_h(
+        "Contact rates are defined but the loaded model does not use them.",
+        "Check 'has_contact_rates()' in your model implementation."
+      )
+    },
+
+    #' @description
+    #' Tidy table of contact rate definitions to be passed to Cpp.
+    #' @param info list of lists with factor levels for data columns.
+    expose_to_cpp = function(info) {
+      defs <- self$tidy_table
+      if (nrow(defs) == 0) return(defs)
+
+      # integer-encode feature columns using factor info
+      for (k in intersect(colnames(defs), names(info))) {
+        defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
+      }
+      # also encode from_X and to_X using the base column info
+      for (by_col in self$defs[["by"]]) {
+        if (!is.null(info[[by_col]])) {
+          lv <- info[[by_col]]$levels
+          for (prefix in c("from_", "to_")) {
+            col <- paste0(prefix, by_col)
+            if (col %in% colnames(defs)) {
+              defs[[col]] <- as.integer(factor(defs[[col]], levels = lv))
+            }
+          }
+        }
       }
       defs
     }

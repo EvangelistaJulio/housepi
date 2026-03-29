@@ -5,24 +5,21 @@
 ## See the LICENSE file for details.
 ##
 
-#' Household testing survey
+#' Household 'blank' house survey
 #'
-#' Household data with a simulated outbreak to be used for housepi vignettes.
-#' Note: this will be dropped in future versions of the package.
+#' Household data with a single household of 2 individuals.
 #'
 #' \describe{
 #'   \item{id}{Individual identifier}
 #'   \item{house_id}{Household identifier}
 #'   \item{status}{Serological test result}
-#'   \item{age}{Age}
-#'   \item{sex}{Sex}
 #' }
 #'
 #' @docType data
 #' @keywords datasets
-#' @name survey
-#' @usage data(survey)
-#' @format A data frame with 2,249 rows and 6 columns
+#' @name blank_house
+#' @usage data(blank_house)
+#' @format A data frame with 2 rows and 2 columns
 NULL
 
 #' Flu 1918 Frederick

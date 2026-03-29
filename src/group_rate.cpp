@@ -71,19 +71,18 @@ namespace hsp
                 for (size_t r = 0; r < n_rows; ++r)
                 {
                     // check if all conditions are satisfied
-                    bool is_this_class = true;
-                    for (const std::string &d : data_headers)
-                        if (!na::is(input.at(d)[r]))
-                            is_this_class &= member.pwide_->data_vec[pDataWide_->pRegistry->from_string(d)] == str::tod(input.at(d)[r]);
+                    bool match = true;
+                    for (const std::string &dstr : data_headers)
+                        if (!na::is(input.at(dstr)[r]))
+                            match &= member.pwide_->vec[pDataWide_->pRegistry->from_string(dstr)] == str::tod(input.at(dstr)[r]);
 
                     // if it's the case, add the parameter name
-                    if (is_this_class)
+                    if (match)
                         these_rates[input.at("group_rate")[r]].push_back(input.at("param_name")[r]);
                 }
 
                 helper_init_all_rates_(member, these_rates);
             }
-        
     }
 
     std::vector<std::string> GroupRate::helper_assert_definitions_(const str_table &input)
@@ -119,13 +118,13 @@ namespace hsp
     {
         // initialize group rates to reference (access storage directly)
         Indiv::Group &igr = indiv_group_rates_[member.index_];
-        igr.group_rate_vec.clear();
-        igr.group_rate_vec.reserve(pRegistry->size());
+        igr.vec.clear();
+        igr.vec.reserve(pRegistry->size());
         for (size_t g = 0; g < pRegistry->size(); ++g)
         {
-            igr.group_rate_vec.emplace_back(rates::VALUE_REFERENCE);
-            igr.group_rate_vec.back().name(pRegistry->as_string(g));
-            igr.group_rate_vec.back().set_err_type("group rate");
+            igr.vec.emplace_back(rates::VALUE_REFERENCE);
+            igr.vec.back().name(pRegistry->as_string(g));
+            igr.vec.back().set_err_type("group rate");
         }
 
         // assign custom definitions
@@ -147,7 +146,7 @@ namespace hsp
             if (!param_pointers.empty())
             {
                 size_t g = pRegistry->from_string(groupstr);
-                igr.group_rate_vec[g].init_product(param_pointers);
+                igr.vec[g].init_product(param_pointers);
             }
         }
     }

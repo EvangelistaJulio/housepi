@@ -13,7 +13,7 @@ test_that("Chain binomial is not discretizable", {
 
 test_that("Deep clone works as expected", {
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel$add_data_wide(housepi::survey)
+  hhmodel$add_data_wide(helper_test_get_data("flu_2014_matsumoto"))
   hhmodel$load_parameter_template()
   expect_no_error(out <- hhmodel$run_inference(steps = 2, progress = FALSE))
 
@@ -31,8 +31,11 @@ test_that("Deep clone works as expected", {
   expect_equal(hhmodel$group_rates, hhclone$group_rates)
 
   # check no backward changes
-  hhmodel$add_group_rate("susceptibility", by = "sex")
-  hhclone$add_data_wide(dplyr::mutate(housepi::survey, status = NA))
+  hhmodel$add_group_rate("susceptibility", by = "member")
+  hhclone$add_data_wide(
+    dplyr::mutate(helper_test_get_data("flu_2014_matsumoto"),
+                  status = NA)
+  )
   expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
   expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
 })
@@ -40,7 +43,7 @@ test_that("Deep clone works as expected", {
 test_that("Log-likelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
-    add_data_wide(housepi::survey) |>
+    add_data_wide(helper_test_get_data("flu_1918_frederick")) |>
     run_inference(steps = 10, thin = 1, adapt = 0, burnin = 0)
 
   pointwise <- results$log_lik_draws |>
@@ -93,7 +96,7 @@ test_that("Chain binomial models are coherent", {
   hhmodel1 <- new_housepi_model("chain_binomial")
 
   hhmodel1$load_parameter_list(alpha = 0.15, beta = 0.22)
-  hhmodel1$add_data_wide(housepi::survey)
+  hhmodel1$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   ll1 <- hhmodel1$evaluate_log_lik()
 
   # log-likelihood from heterogeneous chain binomial model
@@ -101,7 +104,7 @@ test_that("Chain binomial models are coherent", {
   hhmodel2 <- new_housepi_model("chain_binomial_heterogeneous")
 
   hhmodel2$load_parameter_list(alpha = 0.15, beta = 0.22)
-  hhmodel2$add_data_wide(housepi::survey)
+  hhmodel2$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   ll2 <- hhmodel2$evaluate_log_lik()
 
   expect_equal(ll1, ll2)

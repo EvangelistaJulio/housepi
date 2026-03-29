@@ -35,6 +35,7 @@ HousepiModel <- R6::R6Class(
     param_ = NULL,
     augm_ = NULL,
     group_rates_ = NULL,
+    contact_rates_ = NULL,
     infec_profile_ = NULL,
 
     ############################################################################
@@ -54,10 +55,11 @@ HousepiModel <- R6::R6Class(
       refer_file <- private$get_reference_()
       output <- template_extract_keys(refer_file, "DataKey")
       required <- set_source_name_(output, "model")
-      c(required,                             # by the model
-        private$group_rates_$data_required,   # by group rates
-        private$augm_$data_required,          # by augmented
-        private$infec_profile_$data_required) # by infec profile
+      c(required,                               # by the model
+        private$group_rates_$data_required,     # by group rates
+        private$contact_rates_$data_required,   # by contact rates
+        private$augm_$data_required,            # by augmented
+        private$infec_profile_$data_required)   # by infec profile
     },
 
     # @description
@@ -72,10 +74,11 @@ HousepiModel <- R6::R6Class(
     # Parameters required by implementation file and other definitions.
     get_all_required_param_ = function() {
       required <- private$param_$require(private$get_reference_())
-      c(required,                              # by the model
-        private$group_rates_$param_required,   # by group rates
-        private$augm_$param_required,          # by augmented
-        private$infec_profile_$param_required) # by infec profile
+      c(required,                                # by the model
+        private$group_rates_$param_required,     # by group rates
+        private$contact_rates_$param_required,   # by contact rates
+        private$augm_$param_required,            # by augmented
+        private$infec_profile_$param_required)   # by infec profile
     },
 
     ############################################################################
@@ -110,6 +113,12 @@ HousepiModel <- R6::R6Class(
     assert_group_rates_ = function(capital = TRUE) {
       private$group_rates_$assert(private$get_all_required_group_rates_(),
                                   capital)
+    },
+
+    # @description
+    # Assert contact rate definitions are compatible with the model.
+    assert_contact_rates_ = function() {
+      private$contact_rates_$assert(private$mcmc_ptr_)
     },
 
     # @description
@@ -168,6 +177,35 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
+    # Pre-build to deal with contact rates.
+    build_contact_rates_ = function() {
+      # proceed only if definitions exist and data loaded
+      if (length(private$contact_rates_$defs) == 0) return(invisible(self))
+      if (length(private$cols_data_wide_) == 0) {
+        warning_h(
+          "Missing data needed for building contact rates.",
+          "Ensure to provide all necessary data before proceeding."
+        )
+        return(invisible(self))
+      }
+      data_wide <- self$data_wide
+
+      # implement contact rates
+      private$contact_rates_$implement(data_wide, private$info_data_wide_)
+
+      # append parameter definitions if missing
+      new_parameters <- private$contact_rates_$parameters
+      mask <- setdiff(names(new_parameters), private$param_$defs$name)
+      new_parameters <- new_parameters[mask]
+      if (length(new_parameters) > 0) {
+        xquos <- convert_list_to_quosures(new_parameters)
+        private$param_$load_quosures(xquos, append = TRUE)
+      }
+
+      invisible(self)
+    },
+
+    # @description
     # Get individual for blank model augmented draws.
     # UPDATE: not robust if data has only default columns
     get_blank_id_draws_ = function(id_draws) {
@@ -177,7 +215,9 @@ HousepiModel <- R6::R6Class(
             !is.null(private$augm_$defs) &&
             length(setdiff(private$cols_data_wide_,
                            c("house_id", "id", "status"))) == 0) {
-        id_draws <- template_blank_data_wide_()$id[1]
+        env <- new.env(parent = emptyenv())
+        utils::data("blank_house", package = "housepi", envir = env)
+        id_draws <- env$blank_house$id[1]
       }
       id_draws
     },
@@ -211,9 +251,13 @@ HousepiModel <- R6::R6Class(
       # build group rate definitions
       private$build_group_rates_()
 
-      # build contact rates
-      # UPDATE: waiting for table definitions
-      .engine$build_contact_rates(private$mcmc_ptr_)
+      # assert and build contact rates
+      private$assert_contact_rates_()
+      private$build_contact_rates_()
+      .engine$import_contact_rate(
+        private$mcmc_ptr_,
+        private$contact_rates_$expose_to_cpp(private$info_data_wide_)
+      )
 
       # assert parameter definitions
       private$assert_param_()
@@ -336,10 +380,10 @@ HousepiModel <- R6::R6Class(
       } else if (is.function(obs_process)) {
         function(x) obs_process(private$refactor_data_wide_(x))
       } else {
-        stop_h(sprintf(
-          "Observation process must be a function, not a '%s'.",
-          typeof(obs_process)
-        ))
+        stop_h(
+          "Observation process must be a function.",
+          format_type_error(obs_process)
+        )
       }
     },
 
@@ -474,6 +518,13 @@ HousepiModel <- R6::R6Class(
       private$assert_group_rates_()
       private$build_group_rates_()
       private$group_rates_$tidy_table
+    },
+
+    #' @field contact_rates `data.frame`. Contact rate definitions.
+    contact_rates = function(value) {
+      if (!missing(value)) stop_h("'contact_rates' is read only.")
+      private$build_contact_rates_()
+      private$contact_rates_$tidy_table
     }
   ),
 
@@ -501,7 +552,11 @@ HousepiModel <- R6::R6Class(
       super$initialize(choice = choice, as_template = as_template,
                        force = force, quiet = quiet, ...)
       # import blank template data_wide
-      if (private$is_blank_()) self$add_data_wide(template_blank_data_wide_())
+      if (private$is_blank_()) {
+        env <- new.env(parent = emptyenv())
+        utils::data("blank_house", package = "housepi", envir = env)
+        self$add_data_wide(env$blank_house)
+      }
 
       invisible(self)
     },
@@ -595,9 +650,10 @@ HousepiModel <- R6::R6Class(
     add_data_wide = function(data_wide) {
       # check that data_wide type is correct
       if (!is.data.frame(data_wide)) stop_h(
-        sprintf("Unsupported type '%s' for data_wide.", typeof(data_wide))
+        "Data-wide should be an object of class data.frame.",
+        format_type_error(data_wide)
       )
-      if (dim(data_wide)[[1]] == 0) stop_h("Provided data_wide is empty.")
+      if (dim(data_wide)[[1]] == 0) stop_h("Provided data-wide is empty.")
 
       # convert factors
       embed <- cpp_data_factorize(data_wide)
@@ -637,8 +693,8 @@ HousepiModel <- R6::R6Class(
     #' @param data_long `r rd_add_data_long_`
     add_data_long = function(data_long) {
       if (!is.data.frame(data_long)) stop_h(
-        sprintf("Unsupported type '%s' for data_long.", typeof(data_long)),
-        "Datalist should be a data.frame."
+        "Data-long should be an object of class data.frame.",
+        format_type_error(data_long)
       )
 
       # convert factors
@@ -815,6 +871,36 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description
+    #' Define contact rates between household members.
+    #' @param by `character()`. Data column names for from/to matching.
+    #' @param prefix `character(1)`. Prefix for generated parameter names.
+    #' @param reference Named vector with from_/to_ prefixed feature values,
+    #'   or un-prefixed names (applied to both from and to).
+    #' @param prior `r rd_par_model_`
+    #' @param ... `r rd_par_args_`
+    #' @param min `r rd_var_min_`
+    #' @param max `r rd_var_max_`
+    #' @param proposal `r rd_var_proposal_`
+    #' @param proposal_scale `r rd_proposal_scale_`
+    add_contact_rate = function(by, prefix = "cr",
+                                reference = NULL,
+                                prior = NA_character_, ...,
+                                min = NULL, max = NULL,
+                                proposal = NA_character_,
+                                proposal_scale = NA_real_) {
+      private$contact_rates_$add_quo(
+        by = by, prefix = prefix,
+        reference = reference,
+        prior = prior, rlang::enquos(...),
+        min = rlang::enquo(min),
+        max = rlang::enquo(max),
+        proposal = proposal,
+        proposal_scale = proposal_scale
+      )
+      invisible(self)
+    },
+
     ############################################################################
     ############################################################################
     ############################################################################
@@ -983,6 +1069,18 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description Drop contact rate definitions.
+    drop_contact_rates = function() {
+      # remove associated parameters
+      if (!is.null(private$contact_rates_)) {
+        for (p in names(private$contact_rates_$parameters)) {
+          private$param_$remove(p)
+        }
+      }
+      private$contact_rates_ <- HousepiContactRate$new()
+      invisible(self)
+    },
+
     #' @description Drop infectivity profile rates definitions.
     drop_infectivity_profile = function() {
       private$infec_profile_ <- HousepiInfecProfile$new()
@@ -994,6 +1092,7 @@ HousepiModel <- R6::R6Class(
       self$drop_parameters()
       self$drop_augmented()
       self$drop_group_rates()
+      self$drop_contact_rates()
       self$drop_infectivity_profile()
       invisible(self)
     }

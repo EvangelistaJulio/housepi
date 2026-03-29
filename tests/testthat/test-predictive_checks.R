@@ -22,11 +22,9 @@ test_that("measure_sar_by_house_size computes SAR correctly", {
 })
 
 test_that("measure_cases_by_house_size produces correct contingency table", {
-  data_wide <- data.frame(
-    id = paste0("p", 1:5),
-    house_id = c(rep("hh1", 2), rep("hh2", 3)),
-    status = c(1, 1, 1, 0, 0)
-  )
+  data_wide <- data.frame(id = paste0("p", 1:5),
+                          house_id = c(rep("hh1", 2), rep("hh2", 3)),
+                          status = c(1, 1, 1, 0, 0))
 
   result <- measure_cases_by_house_size(data_wide)
 
@@ -41,27 +39,27 @@ test_that("measure_cases_by_house_size produces correct contingency table", {
 })
 
 test_that("ppc_set_cri_level validates credible interval", {
-  expect_equal(housepi:::ppc_set_cri_level(0.95), 0.95)
-  expect_equal(housepi:::ppc_set_cri_level(0.8), 0.8)
+  expect_equal(ppc_set_cri_level(0.95), 0.95)
+  expect_equal(ppc_set_cri_level(0.8), 0.8)
   # boundary and invalid values
-  expect_error(housepi:::ppc_set_cri_level(0.5), regexp = "between 0.5 and 1")
-  expect_error(housepi:::ppc_set_cri_level(1.0), regexp = "between 0.5 and 1")
-  expect_error(housepi:::ppc_set_cri_level(0.3), regexp = "between 0.5 and 1")
-  expect_error(housepi:::ppc_set_cri_level(NA), regexp = "cannot be NA")
+  expect_error(ppc_set_cri_level(0.5), regexp = "between 0.5 and 1")
+  expect_error(ppc_set_cri_level(1.0), regexp = "between 0.5 and 1")
+  expect_error(ppc_set_cri_level(0.3), regexp = "between 0.5 and 1")
+  expect_error(ppc_set_cri_level(NA), regexp = "cannot be NA")
 })
 
 test_that("ppc_frame_apply computes element-wise operations", {
   # list of data.frames
   df1 <- data.frame(a = c(1, 2), b = c(3, 4))
   df2 <- data.frame(a = c(5, 6), b = c(7, 8))
-  result <- housepi:::ppc_frame_apply(list(df1, df2), mean)
+  result <- ppc_frame_apply(list(df1, df2), mean)
   expect_equal(result$a, c(3, 4))
   expect_equal(result$b, c(5, 6))
 
   # named vectors
   v1 <- c(x = 1, y = 2)
   v2 <- c(x = 3, y = 4)
-  result <- housepi:::ppc_frame_apply(list(v1, v2), mean)
+  result <- ppc_frame_apply(list(v1, v2), mean)
   expect_equal(result, c(x = 2, y = 3))
 })
 
@@ -70,14 +68,14 @@ test_that("ppc_frame_apply_mean handles NA and non-numeric", {
   df1 <- data.frame(a = c(1, 2), b = c(NA_real_, NA_real_))
   df2 <- data.frame(a = c(3, 4), b = c(NA_real_, NA_real_))
 
-  result <- housepi:::ppc_frame_apply_mean(list(df1, df2))
+  result <- ppc_frame_apply_mean(list(df1, df2))
   expect_equal(result$a, c(2, 3))
   expect_true(all(is.na(result$b)))
 
   # named vector path: non-numeric uniform values
   v1 <- c(x = 1, y = NA_real_)
   v2 <- c(x = 3, y = NA_real_)
-  result <- housepi:::ppc_frame_apply_mean(list(v1, v2))
+  result <- ppc_frame_apply_mean(list(v1, v2))
   expect_equal(result[["x"]], 2)
   expect_true(is.na(result[["y"]]))
 })
@@ -88,17 +86,17 @@ test_that("ppc_frame_apply_cri computes quantiles", {
   df2 <- data.frame(a = c(2, 20))
   df3 <- data.frame(a = c(3, 30))
 
-  upper <- housepi:::ppc_frame_apply_cri(list(df1, df2, df3),
-                                         cri_level = 0.95, upper = TRUE)
-  lower <- housepi:::ppc_frame_apply_cri(list(df1, df2, df3),
-                                         cri_level = 0.95, upper = FALSE)
+  upper <- ppc_frame_apply_cri(list(df1, df2, df3),
+                               cri_level = 0.95, upper = TRUE)
+  lower <- ppc_frame_apply_cri(list(df1, df2, df3),
+                               cri_level = 0.95, upper = FALSE)
 
   expect_true(all(upper$a >= lower$a))
 
   # named vector path: all-NA returns NA
   v1 <- c(x = NA_real_)
   v2 <- c(x = NA_real_)
-  result <- housepi:::ppc_frame_apply_cri(list(v1, v2))
+  result <- ppc_frame_apply_cri(list(v1, v2))
   expect_true(is.na(result[["x"]]))
 })
 
@@ -156,7 +154,7 @@ test_that("format_credible_intervals formats vectors correctly", {
 ############################################################################
 
 test_that("ppc_helper_print formats messages correctly", {
-  sms <- housepi:::ppc_helper_print("test_model", TRUE, c("sar", "cases"), 0.95)
+  sms <- ppc_helper_print("test_model", TRUE, c("sar", "cases"), 0.95)
   expect_true(is.character(sms))
   expect_true(any(grepl("Posterior predictions", sms)))
   expect_true(any(grepl("test_model", sms)))
@@ -165,7 +163,7 @@ test_that("ppc_helper_print formats messages correctly", {
   expect_true(any(grepl("95%", sms)))
 
   # non-posterior
-  sms2 <- housepi:::ppc_helper_print("m", FALSE, "sar", 0.8)
+  sms2 <- ppc_helper_print("m", FALSE, "sar", 0.8)
   expect_true(any(grepl("Predictions", sms2)))
   expect_true(any(grepl("80%", sms2)))
 })
@@ -178,8 +176,8 @@ test_that("ppc_extract_predicted_results returns correct structure", {
   df1 <- data.frame(a = c(1, 2))
   df2 <- data.frame(a = c(3, 4))
   df3 <- data.frame(a = c(5, 6))
-  result <- housepi:::ppc_extract_predicted_results(list(df1, df2, df3),
-                                                    cri = 0.95)
+  result <- ppc_extract_predicted_results(list(df1, df2, df3),
+                                          cri = 0.95)
   expect_true(is.list(result))
   expect_true(all(c("predicted", "cri_lower", "cri_upper") %in% names(result)))
   expect_true(is.data.frame(result$predicted))
@@ -195,7 +193,7 @@ test_that("helper_count_non_zero_cases counts correctly", {
     status = c(1, 1, 1, 0, 0, 1, 0)
   )
   df$id <- paste(df$house_id, seq_len(dim(df)[2]), sep = "_")
-  result <- housepi:::helper_count_non_zero_cases(df)
+  result <- helper_count_non_zero_cases(df)
   expect_true(is.data.frame(result))
   expect_true(all(c("house_size", "count") %in% colnames(result)))
   # hh1 (size 2, 2 cases) and hh2 (size 3, 1 case) and hh3 (size 2, 1 case)
@@ -203,16 +201,12 @@ test_that("helper_count_non_zero_cases counts correctly", {
   expect_equal(result$count[result$house_size == 3], 1)
 })
 
-############################################################################
-## helper_get_name_convention
-############################################################################
-
-test_that("helper_get_name_convention renames correctly", {
+test_that("CRI set name convention renames correctly", {
   x <- c("predicted", "cri_lower", "cri_upper")
-  result <- housepi:::helper_get_name_convention(x, cri = 0.95)
+  result <- cri_set_name_convention(x, cri = 0.95)
   expect_equal(result, c("mean", "q5", "q95"))
 
-  result2 <- housepi:::helper_get_name_convention(x, cri = 0.9)
+  result2 <- cri_set_name_convention(x, cri = 0.9)
   expect_equal(result2, c("mean", "q10", "q90"))
 })
 
@@ -235,11 +229,11 @@ test_that("helper_filter_tables filters by max_house_size", {
               cri_lower = cri_lo, cri_upper = cri_up)
 
   # no filter
-  result <- housepi:::helper_filter_tables(tbl, NA)
+  result <- helper_filter_tables(tbl, NA)
   expect_equal(nrow(result$observed), 3)
 
   # filter to max size 3
-  result2 <- housepi:::helper_filter_tables(tbl, 3)
+  result2 <- helper_filter_tables(tbl, 3)
   expect_true(all(result2$observed$house_size <= 3))
 })
 
@@ -252,13 +246,12 @@ test_that("helper_combine_obs_pred interleaves rows", {
                       check.names = FALSE)
   preddf <- data.frame(`0` = c(1.1, 2.1), `1` = c(3.1, 4.1),
                         check.names = FALSE)
-  result <- housepi:::helper_combine_obs_pred(obsdf, preddf)
+  result <- helper_combine_obs_pred(obsdf, preddf)
   expect_true(is.data.frame(result))
   expect_true("distr" %in% colnames(result))
   expect_true("house_size" %in% colnames(result))
   # alternating rows
-  expect_equal(result$distr, c("Observed", "Predicted",
-                                "Observed", "Predicted"))
+  expect_equal(result$distr, rep(c("Observed", "Predicted"), 2))
   expect_equal(nrow(result), 4)
 })
 
@@ -269,7 +262,7 @@ test_that("helper_combine_obs_pred interleaves rows", {
 test_that("predicted_measures errors when no measure is provided", {
   hhmodel <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
-    add_data_wide(housepi::survey)
+    add_data_wide(helper_test_get_data("flu_1918_frederick"))
   results <- run_inference(hhmodel, steps = 5, progress = FALSE)
   expect_error(
     predicted_measures(hhmodel, results, progress = FALSE),
@@ -284,7 +277,7 @@ test_that("predicted_measures errors when no measure is provided", {
 test_that("predicted_cases_by_house_size works end-to-end", {
   hhmodel <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
-    add_data_wide(housepi::survey)
+    add_data_wide(helper_test_get_data("flu_1918_frederick"))
 
   results <- run_inference(hhmodel, steps = 10, progress = FALSE)
 
@@ -320,7 +313,7 @@ test_that("predicted_cases_by_house_size works end-to-end", {
 test_that("predicted_measures works with custom measure", {
   hhmodel <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
-    add_data_wide(housepi::survey)
+    add_data_wide(helper_test_get_data("flu_1918_frederick"))
 
   results <- run_inference(hhmodel, steps = 10, progress = FALSE)
 

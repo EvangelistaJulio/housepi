@@ -18,14 +18,8 @@ aux_add <- function(self, name = NA_character_,  value = NULL,
   invisible(self)
 }
 
-aux_load <- function(self, ..., append = FALSE) {
-  xquos <- rlang::enquos(...)
-  self$load_quosures(xquos, append = append)
-  invisible(self)
-}
-
 test_that("Augmented definition error are recognized", {
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   expect_error(aux_add(augm, name = "infec@"),
                regexp = "invalid characters")
   expect_error(aux_add(augm, name = "infec"),
@@ -33,30 +27,30 @@ test_that("Augmented definition error are recognized", {
 })
 
 test_that("Constant value definition are coherent", {
-  augm <- aux_load(housepi:::HousepiAugmented$new(), dummy = 3)
-  tmp <- aux_add(housepi:::HousepiAugmented$new(), name = "dummy", value = 3)
+  augm <- helper_test_aux_load(HousepiAugmented$new(), dummy = 3)
+  tmp <- aux_add(HousepiAugmented$new(), name = "dummy", value = 3)
   expect_equal(augm$defs, tmp$defs)
 
-  augm <- aux_load(housepi:::HousepiAugmented$new(), dummy = 3@D)
-  tmp <- aux_add(housepi:::HousepiAugmented$new(), name = "dummy", value = 3@D)
+  augm <- helper_test_aux_load(HousepiAugmented$new(), dummy = 3@D)
+  tmp <- aux_add(HousepiAugmented$new(), name = "dummy", value = 3@D)
   expect_equal(augm$defs, tmp$defs)
 })
 
 test_that("Undefined definitions are controoled", {
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   expect_error(aux_add(augm, name = "test", proposal = "sample", value = NA),
                regexp = "No model")
 
   expect_no_error(aux_add(augm, name = "test", value = NA))
 
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   aux_add(augm, name = "test", value = 3, const = TRUE, proposal = "sample")
   expect_true(is.na(augm$defs$proposal))
 })
 
 test_that("Augmented variable definitions are correct", {
   # basic constant definition
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   aux_add(augm, name = "dummy", value = 3)
   expect_equal(augm$defs$name, "dummy")
   expect_equal(augm$defs$status, NA_integer_)
@@ -67,7 +61,7 @@ test_that("Augmented variable definitions are correct", {
   expect_equal(augm$defs$proposal_scale, NA_real_)
 
   # variable definition
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   aux_add(augm, name = "dummy", value = expo@D, model = "uniform",
           min = expo_min@A, max = expo_max@P)
   expect_equal(augm$defs$name, "dummy")
@@ -85,7 +79,7 @@ test_that("Augmented variable definitions are correct", {
 })
 
 test_that("Augmented sampling default is correct", {
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   aux_add(augm, name = "dummy", model = "norm")
 
   expect_equal(augm$defs$const, FALSE)
@@ -93,7 +87,7 @@ test_that("Augmented sampling default is correct", {
 })
 
 test_that("Augmented function definition is correct", {
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   expect_error(aux_add(augm), regexp = "non-empty")
 
   # difference definition
@@ -113,11 +107,11 @@ test_that("Augmented function definition is correct", {
 
 test_that("Augmented load enable special definitions", {
   # alternative function call definitions
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   aux_add(augm, name = "dummy", func = "log", func_args = c(x = infec@A))
 
-  tmp <- housepi:::HousepiAugmented$new()
-  aux_load(tmp, dummy = log(infec@A))
+  tmp <- HousepiAugmented$new()
+  helper_test_aux_load(tmp, dummy = log(infec@A))
   expect_equal(tmp$defs, augm$defs)
 
   expect_warning(aux_add(tmp, name = "dummy", func = log(infec@A)),
@@ -126,17 +120,18 @@ test_that("Augmented load enable special definitions", {
 
   # multi-status definition
   tmp$defs <- NULL
-  aux_load(tmp, dummy = list(func = log(infec@A), status = c(1, 3)))
+  helper_test_aux_load(tmp, dummy = list(func = log(infec@A), status = c(1, 3)))
   tmp$defs$status <- NULL
 
   expect_equal(tmp$defs[1, , drop = TRUE], tmp$defs[2, , drop = TRUE])
 })
 
 test_that("Augmented support rlang double bang", {
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   external_value <- 33
   str_value <- sprintf("%s|N", external_value)
-  aux_load(augm,
+  helper_test_aux_load(
+    augm,
     A = !!external_value,
     B = log(infec@A + !!external_value),
     C = c(model = "uniform",
@@ -151,13 +146,15 @@ test_that("Augmented support rlang double bang", {
 })
 
 test_that("Symbolic definitions are equivalent", {
-  augm <- housepi:::HousepiAugmented$new()
+  augm <- HousepiAugmented$new()
   val <- 1
-  aux_load(augm,
-           var1 = list(model = "normal", mean = indiv_shape + 1),
-           var2 = list(model = "normal", mean = indiv_shape + !!val),
-           var3 = list(model = "normal", mean = ~ indiv_shape + 1),
-           var4 = list(model = "normal", mean = ~ indiv_shape + !!val))
+  helper_test_aux_load(
+    augm,
+    var1 = list(model = "normal", mean = indiv_shape + 1),
+    var2 = list(model = "normal", mean = indiv_shape + !!val),
+    var3 = list(model = "normal", mean = ~ indiv_shape + 1),
+    var4 = list(model = "normal", mean = ~ indiv_shape + !!val)
+  )
   aux <- augm$defs
   aux$name <- NULL
   # check that all rows are identical
@@ -168,9 +165,9 @@ test_that("Symbolic definitions are equivalent", {
     some_func = list(func = "gamma",
                      func_args = c(shape = ~ shape, scale = ~ scale))
   )
-  expect_error(aux_load(augm, external),
+  expect_error(helper_test_aux_load(augm, external),
                regexp = "forgot rlang injection")
 
-  aux_load(augm, !!!external)
+  helper_test_aux_load(augm, !!!external)
   expect_equal(augm$defs$func, "gamma|shape:scale|{shape|A}:{scale|A}")
 })

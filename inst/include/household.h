@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "function.h"
+#include "house_storage.h"
 #include "individual.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,7 +69,7 @@ namespace hsp
 		size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
 		size_t n_missing_status() const noexcept { return missing_list_.size(); }
 
-		double contact_rate(size_t from, size_t to) const { return contact_rates_[from][to].value(); }
+		double contact_rate(size_t from, size_t to) const { return pcontact_rate_->mtx[from][to].value(); }
 
 		double obs_log_lik() const { return obs_log_lik_.value(); }
 
@@ -90,14 +91,14 @@ namespace hsp
 		size_t size() const noexcept { return members_.size(); }
 
 	private:
-		std::string house_id_ = "";							/// User house id
-		size_t ridx_ = -1;							/// Restricted unique index
-		std::vector<Individual> members_ = {};				/// Household members
-		std::vector<size_t> infected_list_;					/// hh indexes of infected members
-		std::vector<size_t> healthy_list_;					/// hh indexes of susceptible members
-		std::vector<size_t> missing_list_;					/// hh indexes of members with missing status
-		std::vector<std::vector<Attribute>> contact_rates_; /// contact rates
-		LogLike obs_log_lik_;								/// pointwise observation log-likelihood
+		std::string house_id_ = "";						/// User house id
+		size_t ridx_ = -1;								/// Restricted unique index
+		std::vector<Individual> members_ = {};			/// Household members
+		std::vector<size_t> infected_list_;				/// hh indexes of infected members
+		std::vector<size_t> healthy_list_;				/// hh indexes of susceptible members
+		std::vector<size_t> missing_list_;				/// hh indexes of members with missing status
+		const House::Contact *pcontact_rate_ = nullptr; /// contact rates (see ContactRate)
+		LogLike obs_log_lik_;							/// pointwise observation log-likelihood
 
 		/// Change_status of individual i to new status (without controls).
 		///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.

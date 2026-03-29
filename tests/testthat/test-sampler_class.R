@@ -2,25 +2,25 @@ library(testthat)
 
 test_that("IndividualSampler initialization works as expected", {
   # no arguments
-  expect_error(housepi:::IndividualSampler$new(),
+  expect_error(IndividualSampler$new(),
                regexp = "No definition provided")
   # non-list argument
-  expect_error(housepi:::IndividualSampler$new(sex = c("M", "F")),
+  expect_error(IndividualSampler$new(sex = c("M", "F")),
                regexp = "only lists")
   # missing breaks/levels
-  expect_error(housepi:::IndividualSampler$new(sex = list(foo = "bar")),
+  expect_error(IndividualSampler$new(sex = list(foo = "bar")),
                regexp = "Incomplete encoding")
 
   # with levels encoding
-  sampler <- housepi:::IndividualSampler$new(sex = list(levels = c("M", "F")))
+  sampler <- IndividualSampler$new(sex = list(levels = c("M", "F")))
   expect_s3_class(sampler, "IndividualSampler")
   # with breaks encoding
-  sampler <- housepi:::IndividualSampler$new(age = list(breaks = c(18, 65)))
+  sampler <- IndividualSampler$new(age = list(breaks = c(18, 65)))
   expect_s3_class(sampler, "IndividualSampler")
 })
 
 test_that("IndividualSampler encode/decode works correctly", {
-  sampler <- housepi:::IndividualSampler$new(sex = list(levels = c("M", "F")))
+  sampler <- IndividualSampler$new(sex = list(levels = c("M", "F")))
 
   # create test data with levels only
   input <- data.frame(sex = c("M", "F", "M"), stringsAsFactors = FALSE)
@@ -41,7 +41,7 @@ test_that("IndividualSampler multi-feature encode/decode works", {
                       vaccinated = c(TRUE, FALSE, FALSE, TRUE),
                       stringsAsFactors = FALSE)
 
-  sampler <- housepi:::IndividualSampler$new(
+  sampler <- IndividualSampler$new(
     sex = list(levels = unique(input$sex)),
     vaccinated = list(levels = unique(input$vaccinated))
   )
@@ -53,7 +53,7 @@ test_that("IndividualSampler multi-feature encode/decode works", {
 })
 
 test_that("HousepiSampler initializes and sets ascending", {
-  sampler <- housepi:::HousepiSampler$new(
+  sampler <- HousepiSampler$new(
     sex = list(levels = c("M", "F")),
     ascending = TRUE
   )
@@ -109,7 +109,7 @@ test_that("sample_households exported function validates input", {
 })
 
 test_that("HousepiSampler sample_households size validation", {
-  sampler <- housepi:::HousepiSampler$new(sex = list(levels = c("M", "F")))
+  sampler <- HousepiSampler$new(sex = list(levels = c("M", "F")))
   expect_error(sampler$sample_households(size = 0), regexp = "greater than 0")
 })
 

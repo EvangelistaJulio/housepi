@@ -17,11 +17,6 @@ aux_add <- function(self, name, by, prefix = NA_character_,
   invisible(self)
 }
 
-aux_load <- function(self, ..., append = FALSE) {
-  self$load_quosures(rlang::enquos(...), append = append)
-  invisible(self)
-}
-
 # a dummy dataset and relative information for factorization
 dummy_df <- data.frame(age_group = c("young", "young", "old", "young"),
                        sex = c("M", "F", "M", "M"),
@@ -31,7 +26,7 @@ dummy_factor_info <- list(age_group = list(levels = c("young", "old")),
 
 test_that("Group rates logic table computes combinations and counts", {
 
-  tbl <- housepi:::group_rate_logic_table(dummy_df, by = c("age_group", "sex"))
+  tbl <- group_rate_logic_table(dummy_df, c("age_group", "sex"))
 
   # counts should sum to number of rows and include expected frequencies
   expect_equal(sum(tbl$n), nrow(dummy_df))
@@ -41,13 +36,13 @@ test_that("Group rates logic table computes combinations and counts", {
 })
 
 test_that("Remove warns when removing unknown group rate", {
-  grp <- housepi:::HousepiGroupRate$new()
+  grp <- HousepiGroupRate$new()
   expect_warning(grp$remove(list("does_not_exist"), warn_removal = TRUE))
 })
 
 test_that("Associate param names decorates table and marks reference", {
-  tbl <- housepi:::group_rate_logic_table(dummy_df, by = c("age_group", "sex"))
-  res <- housepi:::associate_param_names(tbl, prefix = "g", reference = NULL)
+  tbl <- group_rate_logic_table(dummy_df, c("age_group", "sex"))
+  res <- associate_param_names(tbl, prefix = "g", reference = NULL)
 
   expect_true("param_name" %in% colnames(res))
   # exactly one .reference row (largest group)
@@ -58,7 +53,7 @@ test_that("Associate param names decorates table and marks reference", {
 })
 
 test_that("Group rates integrate with data and exposes to Cpp format", {
-  grp <- housepi:::HousepiGroupRate$new()
+  grp <- HousepiGroupRate$new()
   aux_add(grp, "contact", by = c("age_group", "sex"), prefix = "ct",
           independent = FALSE)
   # implement should build logic_tables without errors
@@ -77,11 +72,11 @@ test_that("Group rates integrate with data and exposes to Cpp format", {
   expect_true(all(cpp_tbl$sex %in% c(1L, 2L)))
 
   # mcmc setup is default
-  expect_equal(grp$parameters[[1]], housepi:::group_rates_default_mcmc_setup)
+  expect_equal(grp$parameters[[1]], group_rates_default_mcmc_setup)
 })
 
 test_that("Parameter options work correctly", {
-  grp <- housepi:::HousepiGroupRate$new()
+  grp <- HousepiGroupRate$new()
   aux_add(grp, "contact", by = c("age_group", "sex"), prefix = "ct",
           prior = "uniform", min = 0, max = 10,
           independent = FALSE)
@@ -90,7 +85,7 @@ test_that("Parameter options work correctly", {
                list(value = 1, prior = "uniform", min = 0, max = 10,
                     proposal = NA_character_, proposal_scale = NA_real_))
 
-  grp <- housepi:::HousepiGroupRate$new()
+  grp <- HousepiGroupRate$new()
   aux_add(grp, "contact", by = c("age_group", "sex"), prefix = "ct",
           prior = "gamma", shape = 2, scale = 1, independent = FALSE)
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
@@ -101,12 +96,14 @@ test_that("Parameter options work correctly", {
 })
 
 test_that("Load list works as expected", {
-  grp <- housepi:::HousepiGroupRate$new()
-  aux_load(grp,
-           contact = list(by = c("age_group", "sex"), prefix = "ct",
-                          prior = "uniform", min = 0, max = 10),
-           susceptibility = list(by = c("age_group", "sex"),
-                                 prior = "lognormal", sdlog = 3))
+  grp <- HousepiGroupRate$new()
+  helper_test_aux_load(
+    grp,
+    contact = list(by = c("age_group", "sex"), prefix = "ct",
+                   prior = "uniform", min = 0, max = 10),
+    susceptibility = list(by = c("age_group", "sex"),
+                          prior = "lognormal", sdlog = 3)
+  )
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
   grp$parameters
 })

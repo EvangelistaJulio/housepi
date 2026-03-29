@@ -6,6 +6,7 @@
 \alias{get_parameters}
 \alias{get_augmented}
 \alias{get_group_rates}
+\alias{get_contact_rates}
 \alias{get_infec_profile}
 \title{Get current definitions}
 \usage{
@@ -18,6 +19,8 @@ get_parameters(hhmodel)
 get_augmented(hhmodel)
 
 get_group_rates(hhmodel)
+
+get_contact_rates(hhmodel)
 
 get_infec_profile(hhmodel)
 }

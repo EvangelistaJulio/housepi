@@ -163,11 +163,11 @@ namespace hsp
             // read individual data into external storage
             Indiv::Wide &idata = indiv_data_[i];
             idata.status = status;
-            idata.data_vec.resize(pRegistry->size());
-            for (size_t d = 0; d < idata.data_vec.size(); ++d)
+            idata.vec.resize(pRegistry->size());
+            for (size_t d = 0; d < idata.vec.size(); ++d)
             {
                 const std::string datastring = pRegistry->as_string(d);
-                idata.data_vec[d] = str::tod(input.at(datastring)[i], "data '" + datastring + "'");
+                idata.vec[d] = str::tod(input.at(datastring)[i], "data '" + datastring + "'");
             }
 
             // if household index doesn't exist, add new household
@@ -476,7 +476,7 @@ namespace hsp
             const Household &house = restricted(R);
 
             for (size_t i : house.infected_hhindexes())
-                if (house.member(i).paugm_->augm_log_lik.is_inf())
+                if (house.member(i).paugm_->log_lik.is_inf())
                     throw std::runtime_error(
                         "Initial augmented log-likelihood computation returned infinity for " +
                         house.member(i).err_name() + ".");
@@ -504,7 +504,7 @@ namespace hsp
             Household &house = restricted(R);
             double x = house.obs_log_lik();
             for (size_t i : house.infected_hhindexes())
-                x += house.member(i).paugm_->augm_log_lik.value();
+                x += house.member(i).paugm_->log_lik.value();
             smpl_values[R][smpl_count] = x;
         }
     }

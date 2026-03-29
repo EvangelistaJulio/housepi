@@ -110,7 +110,7 @@ namespace hsp
 #ifndef _STANDALONE
             check_user_interrupt_();
             unsigned width = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width"));
-            barwidth_ = std::min(width, 80u) / 2;
+            barwidth_ = std::min(width, 78u) / 2;
             if (!Rcpp::as<bool>(Rcpp::Function("interactive")()))
                 mode_ = Mode::Static;
 #endif
@@ -175,9 +175,14 @@ namespace hsp
             }
             else if (!is_bar_print_ && static_cast<unsigned long>(missing.count()) > thintime_)
             {
-                // eventually print initial message
                 std::ostringstream oss;
-                oss << text_ << " ...";
+                oss << text_
+                    << bar_(0.)
+                    << std::fixed << std::setprecision(0) << 0. << "% "
+                    << "0s<?s"
+                    << std::string(10, ' ');
+
+                // NOTE: initial message must not print '\r', eventually '\n'
                 if (mode_ == Mode::Static)
                     oss << "\n";
                 msg::info(oss.str());
@@ -220,7 +225,7 @@ namespace hsp
 
     private:
         const std::string symbol_ = "\u25A0"; /// bar decorator
-        unsigned barwidth_ = 35;              /// bar total size
+        unsigned barwidth_ = 33;              /// bar total size
         bool verbose_ = true;                 /// wheter to show bar
         bool is_bar_print_ = false;           /// wheter bar is printing
         unsigned long state_ = 0;             /// current iteration
@@ -236,14 +241,14 @@ namespace hsp
         {
             const unsigned where = progress * barwidth_;
             std::ostringstream oss;
-            oss << " ";
+            oss << " |";
             if (mode_ == Mode::Interactive)
                 oss << ansi::green;
             for (unsigned u = 0; u < where; ++u)
                 oss << symbol_;
             if (mode_ == Mode::Interactive)
                 oss << ansi::reset;
-            oss << std::string(barwidth_ - where, ' ') << " ";
+            oss << std::string(barwidth_ - where, ' ') << "| ";
             return oss.str();
         }
 

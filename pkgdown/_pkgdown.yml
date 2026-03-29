@@ -97,11 +97,12 @@ articles:
     contents:
       - bayesian_mcmc_options
       - data_augmentation
-      - group_rates
       - infectivity_profiles
+      - group_rates
+      - contact_rates
       - posterior_predictive_checks
-      - user_functions
       - sample_dataset
+      - user_functions
 
 # Navigation Bar
 navbar:

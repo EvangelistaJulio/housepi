@@ -85,27 +85,52 @@ housepi_assert_args <- function(gear, last = FALSE) {
   }
 }
 
-# Assert that given definition name is valid.
-assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
-  sms <- c()
-  if (length(x) != 1 || is.na(x) || !is.character(x) || nchar(x) == 0) {
-    sms <- c(
-      sprintf("Definition name of %s must be a non-empty character(1).", family)
-    )
-    if (isTRUE(is_implicit)) sms <- c(sms,
-      "Did you provide a list and forgot rlang injection operator `!!!`?"
-    )
+# Assert that character respect convention.
+assert_valid_character <- function(x, family, arg_name) {
+  if (nchar(x) == 0) {
+    stop_h(sprintf("%s of %s must be a non-empty string.", arg_name, family))
   } else if (!grepl("^[A-Za-z0-9_.]+$", x)) {
-    sms <- c(
-      sprintf("Definition name of %s '%s' contained invalid characters.",
-              family, x),
+    stop_h(
+      sprintf("%s of %s '%s' contained invalid characters.",
+              arg_name, family, x),
       "Only letters, numbers, underscores '_' and dots '.' are allowed."
     )
-  } else if (x %in% .reserved_math_consts) {
-    sms <- sprintf("Definition name of %s '%s' is reserved for constants.",
-                   family, x)
   }
-  if (!is.null(sms)) stop_h(sms)
+}
+
+# Assert that x can be treated as a feature value.
+assert_valid_feature <- function(x, family, arg_name = "Feature value") {
+  if (length(x) != 1 || is.na(x)) {
+    stop_h(sprintf("%s of %s must be a scalar.", arg_name, family))
+  } else if (!any(c(is.factor(x), is.logical(x),
+                    is.numeric(x), is.character(x)))) {
+    # UPDATE: is there something more robust than checking types?
+    stop_h(
+      sprintf("%s of %s must be a unidimensional type.", arg_name, family),
+      format_type_error(x)
+    )
+  } else if (is.factor(x) || is.character(x)) {
+    assert_valid_character(as.character(x), family, arg_name)
+  }
+}
+
+# Assert that given definition name is valid.
+assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
+  if (length(x) != 1 || is.na(x) || !is.character(x)) {
+    stop_h(
+      sprintf("Name of %s must be a non-empty string.", family),
+      ifelse(
+        isTRUE(is_implicit),
+        "Did you provide a list and forgot rlang injection operator `!!!`?",
+        format_type_error(x)
+      )
+    )
+  } else if (is.character(x)) {
+    assert_valid_character(x, family, "Name")
+    if (x %in% .reserved_math_consts) stop_h(
+      sprintf("Name '%s' for %s is reserved for constants.", x, family)
+    )
+  }
 }
 
 # Assert that given status(es) name is(are) valid.

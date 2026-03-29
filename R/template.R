@@ -399,17 +399,3 @@ fmt_assert_cli <- function(section, sms, minor = FALSE) {
     c(v = paste(section, "definitions are complete."))
   }
 }
-
-############################################################################
-############################################################################
-############################################################################
-
-#' Template data_wide associated to 'blank' model.
-#' @return `data.frame`
-#' @keywords internal
-#' @noRd
-template_blank_data_wide_ <- function() {
-  data.frame(id = c("tommy", "gina"),
-             house_id = "house",
-             status = c(1, 0))
-}

@@ -6,6 +6,7 @@ MODEL ?= ../models/blank
 # Standard fields used for debugging
 # exported by private$.export_to_cpp_standalone
 STD_IN := -A augm.csv \
+-C contact_rates.csv \
 -D data_wide.csv \
 -L data_long.csv \
 -G group_rates.csv \

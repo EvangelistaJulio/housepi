@@ -32,7 +32,10 @@ helper_default_source <- function(types, values) {
         else if (y %in% .reserved_math_consts) types[i] <- "N"
         else types[i] <- "A"
       } else {
-        stop_h(sprintf("Unsupported definition type value %s", typeof(y)))
+        stop_h(
+          "Found an unsupported definition type value.",
+          format_type_error(y)
+        )
       }
 
     } else if (!(toupper(k) %in% names(valid_sources_lst))) {
@@ -203,12 +206,12 @@ housepi_smart_unwrap <- function(x, arg_name = NULL) {
     lapply(result, rlang::quo_get_expr)
   },
   error = function(e) {
-    stop_h(sprintf(
-      "%s must be character, numeric, or logical, not %s.",
-      ifelse(is.null(arg_name), "Defused arguments",
-             sprintf("Argument '%s'", arg_name)),
-      class(result)[1]
-    ))
+    stop_h(
+      sprintf("%s must be character, numeric, or logical.",
+              ifelse(is.null(arg_name), "Defused arguments",
+                     sprintf("Argument '%s'", arg_name))),
+      format_type_error(result)
+    )
   })
 }
 
@@ -261,12 +264,18 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos) {
     def_quo <- xquos[[i]]
     def_expr <- rlang::quo_get_expr(def_quo)
 
+
     if (rlang::is_call(def_expr, c("list", "c"))) {
       # pass arguments as quosures to add_quo
       args_quos <- lapply(rlang::call_args(def_expr),
                           rlang::new_quosure,
                           env = rlang::quo_get_env(def_quo))
+
+      if (all(names(args_quos) == "")) {
+        args_quos <- rlang::set_names(list(def_quo), implicit_name)
+      }
       rlang::inject(self$add_quo(name = nm, !!!args_quos, .warn_over = FALSE))
+
     } else if (is.list(def_expr)) {
       # arguments are not quosures
       rlang::inject(self$add_quo(name = nm, !!!def_expr, .warn_over = FALSE))

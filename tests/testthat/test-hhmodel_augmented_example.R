@@ -188,7 +188,8 @@ test_that("Augmentation example on incubation from delays is coherent", {
 test_that("Known errors are unchanged", {
   # Known infinity (values below minimum, i. e. proba 0)
   hhmodel <- new_housepi_model("augmented_example") |>
-    add_data_wide(housepi::survey) |>
+    add_data_wide(helper_test_get_data("sarscov2_2021_icofs"))
+  hhmodel |>
     load_augmented_list(
       value = list(model = "uniform", min = 0, max = 1),
       proba = list(func = "lognormal",
@@ -199,9 +200,8 @@ test_that("Known errors are unchanged", {
     expect_equal(-Inf)
 
   # Known NaN: qlnorm(15, meanlog = 4, sdlog = 0.01) = 0, impossible truncation
-  # UPDATE: this should raise a warning instead
-  new_housepi_model("augmented_example") |>
-    add_data_wide(housepi::survey) |>
+  # UPDATE: shouldn't this raise a warning instead?
+  hhmodel |>
     load_augmented_list(
       value = list(model = "uniform", min = 1, max = 10, discr = TRUE),
       proba = list(func = "lognormal",

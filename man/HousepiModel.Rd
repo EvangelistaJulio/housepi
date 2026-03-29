@@ -25,6 +25,8 @@ and variable definitions from a single class.
 \item{\code{infec_profile}}{\code{data.frame}. Infectivity profile definitions.}
 
 \item{\code{group_rates}}{\code{data.frame}. Group rate definitions.}
+
+\item{\code{contact_rates}}{\code{data.frame}. Contact rate definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -47,6 +49,7 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-load_augmented_template}{\code{HousepiModel$load_augmented_template()}}
 \item \href{#method-HousepiModel-add_group_rate}{\code{HousepiModel$add_group_rate()}}
 \item \href{#method-HousepiModel-load_group_rate_list}{\code{HousepiModel$load_group_rate_list()}}
+\item \href{#method-HousepiModel-add_contact_rate}{\code{HousepiModel$add_contact_rate()}}
 \item \href{#method-HousepiModel-add_infec_profile}{\code{HousepiModel$add_infec_profile()}}
 \item \href{#method-HousepiModel-load_infec_profile_list}{\code{HousepiModel$load_infec_profile_list()}}
 \item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
@@ -57,6 +60,7 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-drop_parameters}{\code{HousepiModel$drop_parameters()}}
 \item \href{#method-HousepiModel-drop_augmented}{\code{HousepiModel$drop_augmented()}}
 \item \href{#method-HousepiModel-drop_group_rates}{\code{HousepiModel$drop_group_rates()}}
+\item \href{#method-HousepiModel-drop_contact_rates}{\code{HousepiModel$drop_contact_rates()}}
 \item \href{#method-HousepiModel-drop_infectivity_profile}{\code{HousepiModel$drop_infectivity_profile()}}
 \item \href{#method-HousepiModel-drop_all}{\code{HousepiModel$drop_all()}}
 }
@@ -522,6 +526,60 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-add_contact_rate"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_contact_rate}{}}}
+\subsection{Method \code{add_contact_rate()}}{
+Define contact rates between household members.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_contact_rate(
+  by,
+  prefix = "cr",
+  reference = NULL,
+  prior = NA_character_,
+  ...,
+  min = NULL,
+  max = NULL,
+  proposal = NA_character_,
+  proposal_scale = NA_real_
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{by}}{\code{character()}. Data column names for from/to matching.}
+
+\item{\code{prefix}}{\code{character(1)}. Prefix for generated parameter names.}
+
+\item{\code{reference}}{Named vector with from_/to_ prefixed feature values,
+or un-prefixed names (applied to both from and to).}
+
+\item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
+
+\item{\code{...}}{named arguments for the prior distribution.}
+
+\item{\code{min}}{\code{numeric(1)} Truncate to a minimum value.}
+
+\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.}
+
+\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.\cr
+One between:\cr
+\itemize{
+\item 'sample': sampled from the \%s distribution;\cr
+\item 'uniform': increments drawn from uniform distribution;\cr
+\item 'normal': increments drawn from normal distribution;\cr
+\item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+\item \code{NA} (default): same as 'sample'.
+}}
+
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
+Changed automatically during inference if \code{n_adapt}>0.\cr
+Ignored if proposal is 'sample'.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-add_infec_profile"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_infec_profile}{}}}
 \subsection{Method \code{add_infec_profile()}}{
@@ -755,6 +813,16 @@ Drop augmented variable definitions.
 Drop group rates definitions.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_group_rates()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-drop_contact_rates"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-drop_contact_rates}{}}}
+\subsection{Method \code{drop_contact_rates()}}{
+Drop contact rate definitions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_contact_rates()}\if{html}{\out{</div>}}
 }
 
 }

@@ -255,11 +255,11 @@ namespace hsp
             for (Individual &member : house)
             {
                 Indiv::Augm &iaugm = *member.paugm_;
-                iaugm.augm_vec.resize(n);
+                iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                 {
-                    iaugm.augm_vec[a].name(pRegistry->as_string(a));
-                    iaugm.augm_vec[a].set_err_type("augmented");
+                    iaugm.vec[a].name(pRegistry->as_string(a));
+                    iaugm.vec[a].set_err_type("augmented");
                 }
                 if (member.is_infected_status())
                     all_infected_statuses.emplace(member.status());
@@ -547,14 +547,14 @@ namespace hsp
     {
         for (Household &house : *pDataWide_)
             for (size_t i : house.infected_hhindexes())
-                for (Variable &xaugm : house.member(i).paugm_->augm_vec)
+                for (Variable &xaugm : house.member(i).paugm_->vec)
                     xaugm.clear();
     }
 
     void Augmented::init_missing(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (member.paugm_->augm_vec[pRegistry->from_string(deftable_["name"][k])].is_empty())
+            if (member.paugm_->vec[pRegistry->from_string(deftable_["name"][k])].is_empty())
                 helper_init_attributes_(member, k);
     }
 
@@ -567,7 +567,7 @@ namespace hsp
         if (it != map_status_to_block_.end())
         {
             const size_t i = it->second;
-            member.paugm_->augm_idx = i;
+            member.paugm_->idx = i;
             return status_blocks_[i].order;
         }
 
@@ -577,7 +577,7 @@ namespace hsp
         {
             const size_t i = generic_it->second;
             map_status_to_block_.emplace(status, i);
-            member.paugm_->augm_idx = i;
+            member.paugm_->idx = i;
             return status_blocks_[i].order;
         }
 
@@ -598,7 +598,7 @@ namespace hsp
 
         try
         {
-            Variable &xaugm = member.paugm_->augm_vec[a];
+            Variable &xaugm = member.paugm_->vec[a];
             // xaugm.clear(); UPDATE: is this necessaryy? I think no
 
             if (str::tobool(deftable_["const"][k]))
@@ -637,7 +637,7 @@ namespace hsp
     void Augmented::helper_init_model_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        Variable &xaugm = member.paugm_->augm_vec[pRegistry->from_string(astr)];
+        Variable &xaugm = member.paugm_->vec[pRegistry->from_string(astr)];
         parse::Definition parser(deftable_["model"][k]);
         xaugm.init_distr(parser.root.func);
 
@@ -656,7 +656,7 @@ namespace hsp
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        Variable &xaugm = member.paugm_->augm_vec[pRegistry->from_string(astr)];
+        Variable &xaugm = member.paugm_->vec[pRegistry->from_string(astr)];
         std::string str_val = deftable_["value"][k];
         parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
@@ -697,9 +697,9 @@ namespace hsp
     void Augmented::user_reset(rnd_gen &prng, Individual &member)
     {
         for (size_t a : list_sample(member))
-            member.paugm_->augm_vec[a].user_reset(prng);
+            member.paugm_->vec[a].user_reset(prng);
 
-        for (Variable &xaugm : member.paugm_->augm_vec)
+        for (Variable &xaugm : member.paugm_->vec)
             xaugm.optimize();
     }
 
@@ -719,15 +719,15 @@ namespace hsp
 
     const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
     {
-        return status_blocks_[member.paugm_->augm_idx].sample;
+        return status_blocks_[member.paugm_->idx].sample;
     }
     const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
     {
-        return status_blocks_[member.paugm_->augm_idx].draws;
+        return status_blocks_[member.paugm_->idx].draws;
     }
     const std::vector<size_t> &Augmented::list_models(const Individual &member) const
     {
-        return status_blocks_[member.paugm_->augm_idx].models;
+        return status_blocks_[member.paugm_->idx].models;
     }
 
     std::string format_exception_for(Individual &member, const std::exception &e)
@@ -748,8 +748,8 @@ namespace hsp
                 return 0.;
             double new_ll = 0.0;
             for (size_t a : models)
-                new_ll += member.paugm_->augm_vec[a].get_distr_log_pdf();
-            member.paugm_->augm_log_lik.set(new_ll);
+                new_ll += member.paugm_->vec[a].get_distr_log_pdf();
+            member.paugm_->log_lik.set(new_ll);
             return new_ll;
         }
         catch (const std::exception &e)
@@ -762,14 +762,14 @@ namespace hsp
     {
         try
         {
-            const StatusBlock_ &block = status_blocks_[member.paugm_->augm_idx];
+            const StatusBlock_ &block = status_blocks_[member.paugm_->idx];
             if (block.depen[a].empty())
                 return 0.;
             double delta_ll = 0;
             // NOTE: vector of dependencies 'depen' includes also 'a'
             for (size_t b : block.depen[a])
-                delta_ll += member.paugm_->augm_vec[b].get_distr_log_ratio();
-            member.paugm_->augm_log_lik.increment(delta_ll);
+                delta_ll += member.paugm_->vec[b].get_distr_log_ratio();
+            member.paugm_->log_lik.increment(delta_ll);
             return delta_ll;
         }
         catch (const std::exception &e)
@@ -850,7 +850,7 @@ namespace hsp
 
             size_t c = 0;
             for (size_t a : list_draws(member_ptr))
-                member_matrix[c++][smpl_count] = member_ptr.paugm_->augm_vec[a].value();
+                member_matrix[c++][smpl_count] = member_ptr.paugm_->vec[a].value();
         }
     }
 }
