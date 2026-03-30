@@ -17,6 +17,7 @@ RcppExport SEXP _rcpp_module_boot_augmented_example();
 RcppExport SEXP _rcpp_module_boot_augmented_infection_time();
 RcppExport SEXP _rcpp_module_boot_blank();
 RcppExport SEXP _rcpp_module_boot_chain_binomial();
+RcppExport SEXP _rcpp_module_boot_chain_binomial_grouped();
 RcppExport SEXP _rcpp_module_boot_chain_binomial_heterogeneous();
 
 static const R_CallMethodDef CallEntries[] = {
@@ -25,6 +26,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rcpp_module_boot_augmented_infection_time", (DL_FUNC) &_rcpp_module_boot_augmented_infection_time, 0},
     {"_rcpp_module_boot_blank", (DL_FUNC) &_rcpp_module_boot_blank, 0},
     {"_rcpp_module_boot_chain_binomial", (DL_FUNC) &_rcpp_module_boot_chain_binomial, 0},
+    {"_rcpp_module_boot_chain_binomial_grouped", (DL_FUNC) &_rcpp_module_boot_chain_binomial_grouped, 0},
     {"_rcpp_module_boot_chain_binomial_heterogeneous", (DL_FUNC) &_rcpp_module_boot_chain_binomial_heterogeneous, 0},
     {NULL, NULL, 0}
 };
