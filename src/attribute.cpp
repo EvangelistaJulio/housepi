@@ -57,6 +57,28 @@ namespace hsp
         std::swap(pFunc_, other.pFunc_);
     }
 
+    bool Attribute::operator==(const Attribute &other) const noexcept
+    {
+        if (mode_ != other.mode_)
+            return false;
+        if (is_constant() != other.is_constant())
+            return false;
+        if (is_discrete() != other.is_discrete())
+            return false;
+        
+        switch (mode_)
+        {
+        case Mode::Numeric:
+            return value_ == other.value_;
+        case Mode::Pointer:
+            return pAttr_ == other.pAttr_;
+        case Mode::Function:
+            return pFunc_ == other.pFunc_;
+        default:
+            return true;
+        }
+    }
+
     std::string Attribute::str_val() const
     {
         switch (mode_)
@@ -257,7 +279,7 @@ namespace hsp
         std::string sms = "Tried to change non numeric ";
         if (na::is(name()))
             sms += "empty " + err_type_;
-        else 
+        else
             sms += err_name();
         throw std::runtime_error(sms + ".");
     }
@@ -266,7 +288,7 @@ namespace hsp
         std::string sms = "Impossible to return value for ";
         if (na::is(name()))
             sms += "empty " + err_type_;
-        else 
+        else
             sms += err_name();
         throw std::runtime_error(sms + ".");
     }

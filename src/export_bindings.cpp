@@ -1485,5 +1485,6 @@ RCPP_MODULE(augmented_example) {}
 RCPP_MODULE(augmented_infection_time) {}
 RCPP_MODULE(blank) {}
 RCPP_MODULE(chain_binomial) {}
+RCPP_MODULE(chain_binomial_grouped) {}
 RCPP_MODULE(chain_binomial_heterogeneous) {}
 #endif

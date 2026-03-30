@@ -46,70 +46,16 @@ public:
 	double person_to_person_risk() const { return par(ParamKey::beta); }
 
 	/// Compute the log-likelihood within household.
-	double compute_house_obs_log_lik(Household &house) override final;
+	double compute_house_obs_log_lik(Household &house) override final
+	{
+		return hsp::bino::chain_binom_homogeneous_log_lik(
+			house.n_infected_status(), house.size(),
+			community_risk(), person_to_person_risk());
+	}
 
 	/// Simulate the infection within a household.
 	void simulate_single_house(Household &house) override final;
 };
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Model::compute_house_obs_log_lik(Household &house)
-{
-	auto n_positive = house.n_infected_status();
-	double log_commu_esc_proba = -community_risk();
-
-	if (n_positive == 0)
-		return house.size() * log_commu_esc_proba;
-
-	double log_commu_infec_proba = std::log1p(-std::exp(log_commu_esc_proba));
-	double log_p2p_esc_proba = -person_to_person_risk();
-
-	///////////////////////////////////////////
-	/////////  Sero-Negatives Members  ////////
-	///////////////////////////////////////////
-
-	double log_likelihood = (house.size() - n_positive) * (log_commu_esc_proba + n_positive * log_p2p_esc_proba);
-
-	///////////////////////////////////////////
-	/////////  Sero-Positives Members  ////////
-	///////////////////////////////////////////
-
-	// sum over all possible generations
-	double sero_positive_term = 0., tmp = 0.;
-	for (unsigned long c = 0; c < bino::get_num_generations(n_positive); ++c)
-	{
-		// reference to the LUT
-		const auto &gen_counts = bino::get_generation_vector(n_positive, c);
-
-		// generation (0) : infected by community
-		tmp = gen_counts[0] * log_commu_infec_proba;
-		// generation (0) : escaped by community
-		tmp += (n_positive - gen_counts[0]) * log_commu_esc_proba;
-
-		// generation (i) : within house, i > 0
-		for (size_t i = 1; i < gen_counts.size(); ++i)
-		{
-			// generation (i) : infected by previous generation i - 1
-			tmp += gen_counts[i] * std::log1p(-std::exp(gen_counts[i - 1] * log_p2p_esc_proba));
-
-			// generation (i) : escaped from other generations g, i. e. 0 <= g < i - 1
-			for (size_t j = 0; j < i - 1; ++j)
-				tmp += gen_counts[i] * gen_counts[j] * log_p2p_esc_proba;
-		}
-
-		// times n. of equivalent configurations returning the same kind of generation
-		sero_positive_term += bino::get_generation_multipl(n_positive, c) * std::exp(tmp);
-	}
-
-	log_likelihood += std::log(sero_positive_term);
-
-	return log_likelihood;
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////

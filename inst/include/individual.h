@@ -46,10 +46,10 @@ namespace hsp
 		//////  OPERATORS  //////
 		/////////////////////////
 
-		/// Sugar to tell if the corresponding members are the same.
+		/// Equal to operator.
 		bool operator==(const Individual &other) const noexcept { return index_ == other.index_; }
-		/// Sugar to tell if the corresponding members are different
-		bool operator!=(const Individual &other) const noexcept { return index_ != other.index_; }
+		/// Not equal to operator.
+		bool operator!=(const Individual &other) const noexcept { return !(*this == other); }
 
 		//////////////////////
 		//////  SETTER  //////

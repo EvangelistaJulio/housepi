@@ -1,4 +1,4 @@
-# print works without error
+# Print behavior is stable
 
     Code
       print(local_results)

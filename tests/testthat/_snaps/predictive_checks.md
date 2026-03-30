@@ -4,7 +4,7 @@
       print(ppc)
     Message
       i Posterior predictions for model chain binomial.
-      Computed measures:
+      Stored measures:
       - cases_table_by_size
       - sec_attack_rate
       Credible interval level set to 95%.
@@ -15,7 +15,7 @@
       print(ppc)
     Message
       i Posterior predictions for model chain binomial.
-      Computed measures:
+      Stored measures:
       - sar
       Credible interval level set to 95%.
 

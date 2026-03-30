@@ -82,7 +82,7 @@ double Model::compute_house_obs_log_lik(Household &house)
 	fill_house_escape_matrix(house);
 
 	// compute corresponding loglikelihood times house multiplicity
-	return bino::chain_binomial_heter_log_lik(
+	return bino::chain_binom_heterogeneous_log_lik(
 		house.n_infected_status(),
 		cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
 		cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));

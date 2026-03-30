@@ -8,5 +8,6 @@
       * augmented infection time
       * blank
       * chain binomial
+      * chain binomial grouped
       * chain binomial heterogeneous
 
