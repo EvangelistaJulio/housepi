@@ -26,8 +26,8 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
-	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order, types)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizeKey, num_types)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order, type_counts, type_indexes)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
@@ -60,39 +60,59 @@ public:
 		/////////////  TYPES  ////////////
 		//////////////////////////////////
 
-		// initialize types for house escape matrix
-		// NOTE: cache vector initialized to 0
-		auto &types = cache_size_vector(house, HHsizevecKey::types);
+		struct AttrSet
+		{
+			const Attribute *community, *infectivity, *susceptibility;
+			bool operator==(const AttrSet &other) const
+			{
+				return *community == *other.community &&
+					   *infectivity == *other.infectivity &&
+					   *susceptibility == *other.susceptibility;
+			}
+		};
 
-		// identify distinct types among seropositives
-		// by checking known group rate attributes direct comparison
-		// UPDATE: can't I use DataWide multiplicituy mechanism instead?
-		size_t n_infec = house.n_infected_status();
-		std::vector<const Attribute *> community_attr(n_infec);
-		std::vector<const Attribute *> infectivity_attr(n_infec);
-		std::vector<const Attribute *> susceptibility_attr(n_infec);
+		const size_t n_infec = house.n_infected_status();
+		std::vector<AttrSet> attrs(n_infec);
+		std::vector<size_t> types(n_infec);
+		std::vector<unsigned> type_counts;
+		std::vector<size_t> type_indexes;
 
-		// progressive: first infected type always 1, then 2, etc. seronegative always type 0
-		size_t type_counter = 0;
+		size_t K = 0;
 		for (size_t i = 0; i < n_infec; ++i)
 		{
-			const Individual &member_i = house.member(order[i]);
-			community_attr[i] = &member_i.get_group_rate_attribute(GroupRateKey::community);
-			infectivity_attr[i] = &member_i.get_group_rate_attribute(GroupRateKey::infectivity);
-			susceptibility_attr[i] = &member_i.get_group_rate_attribute(GroupRateKey::susceptibility);
+			const auto &member_i = house.member(order[i]);
+			auto &attr_i = attrs[i];
+			attr_i.community = &member_i.get_group_rate_attribute(GroupRateKey::community);
+			attr_i.infectivity = &member_i.get_group_rate_attribute(GroupRateKey::infectivity);
+			attr_i.susceptibility = &member_i.get_group_rate_attribute(GroupRateKey::susceptibility);
 
-			++type_counter;
-			types[i] = type_counter;
+			types[i] = K + 1; // tentatively a new type
 			for (size_t j = 0; j < i; ++j)
-				if (*community_attr[j] == *community_attr[i] &&
-					*infectivity_attr[j] == *infectivity_attr[i] &&
-					*susceptibility_attr[j] == *susceptibility_attr[i])
+				if (attrs[j] == attrs[i])
 				{
-					--type_counter;
 					types[i] = types[j];
 					break;
 				}
+
+			if (types[i] > K)
+			{
+				// new type
+				type_counts.push_back(1);
+				type_indexes.push_back(i);
+				K = types[i];
+			}
+			else
+				// already existing type
+				++type_counts[types[i] - 1];
 		}
+
+		// store in the cache
+		for (size_t i = 0; i < K; ++i)
+		{
+			cache_size_vector(house, HHsizevecKey::type_counts)[i] = type_counts[i];
+			cache_size_vector(house, HHsizevecKey::type_indexes)[i] = type_indexes[i];
+		}
+		cache_size(house, HHsizeKey::num_types) = K;
 	}
 
 	/// Risk of infection from the community.
@@ -110,7 +130,9 @@ public:
 
 		return bino::chain_binom_grouped_log_lik(
 			house.n_infected_status(),
-			cache_size_vector(house, HHsizevecKey::types),
+			cache_size(house, HHsizeKey::num_types),
+			cache_size_vector(house, HHsizevecKey::type_counts),
+			cache_size_vector(house, HHsizevecKey::type_indexes),
 			cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
 			cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
 	}
@@ -125,6 +147,7 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// UPDATE: I don't need to compute for all infected members, just for types
 void Model::fill_house_escape_matrix(Household &house)
 {
 	const auto &order = cache_size_vector(house, HHsizevecKey::order);

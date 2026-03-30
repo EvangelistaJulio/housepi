@@ -708,12 +708,15 @@ namespace hsp::bino
     /// permutations. Multinomial coefficients account for within-type interchangeability.
     ///
     /// @param n_infec number of infected members
-    /// @param types in-house type of seropositive (> 0), seronegatives are marked as 0
+    /// @param n_types number of types
+    /// @param type_counts counts of in-house seropositives
+    /// @param type_indexes indexes of household member representative for type
     /// @param commu_esc_rate per-individual community escape rates
     /// @param p2p_esc_rate per-individual p2p escape rates
     double chain_binom_grouped_log_lik(
-        unsigned n_infec,
-        const std::vector<size_t> &types,
+        size_t n_infec, size_t n_types,
+        const std::vector<size_t> &type_counts,
+        const std::vector<size_t> &type_indexes,
         const std::vector<double> &commu_esc_rate,
         const std::vector<std::vector<double>> &p2p_esc_rate)
     {
@@ -741,33 +744,14 @@ namespace hsp::bino
         if (n_infec == 1)
             return ll + std::log1p(-std::exp(-commu_esc_rate[0]));
 
-        // find number of types and count types
-        // NOTE: unique types are ordered 1 to K because build is progressive
-        size_t K = 0;
-        vector<unsigned> type_counts = {};
-        vector<size_t> type_indexes = {};
-        for (size_t i = 0; i < n_infec; ++i)
-        {
-            size_t this_type = types[i];
-
-            if (this_type > K)
-            {
-                type_counts.push_back(1);
-                type_indexes.push_back(i);
-                K = this_type;
-            }
-            else
-                ++type_counts[this_type - 1];
-        }
-
         // precompute log escape/infection quantities per type
-        vector<double> log_commu_inf(K), log_commu_esc(K);
-        matrix<double> log_p2p_esc(K, vector<double>(K));
+        vector<double> log_commu_inf(n_types), log_commu_esc(n_types);
+        matrix<double> log_p2p_esc(n_types, vector<double>(n_types));
 
-        for (unsigned tau = 0; tau < K; ++tau)
+        for (unsigned tau = 0; tau < n_types; ++tau)
         {
             log_commu_esc[tau] = -commu_esc_rate[type_indexes[tau]];
-            for (unsigned sigma = 0; sigma < K; ++sigma)
+            for (unsigned sigma = 0; sigma < n_types; ++sigma)
                 log_p2p_esc[tau][sigma] = -p2p_esc_rate[type_indexes[tau]][type_indexes[sigma]];
         }
 
@@ -778,13 +762,13 @@ namespace hsp::bino
             const auto &gen_counts = lut.generations[n_infec][c];
 
             vector<unsigned> remaining(type_counts.begin(), type_counts.end());
-            vector<unsigned> prev(K, 0), cumul(K, 0);
+            vector<unsigned> prev(n_types, 0), cumul(n_types, 0);
 
             seropos_term += recurse_generations_(
                 0, gen_counts.size(),
                 gen_counts,
                 remaining,
-                prev, cumul, K,
+                prev, cumul, n_types,
                 log_commu_esc, log_p2p_esc);
         }
 

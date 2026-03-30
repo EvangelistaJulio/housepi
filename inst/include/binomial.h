@@ -44,12 +44,15 @@ namespace hsp::bino
     /// permutations. Multinomial coefficients account for within-type interchangeability.
     ///
     /// @param n_infec number of infected members
-    /// @param types in-house type of seropositive (> 0), seronegatives are marked as 0
+    /// @param n_types number of types
+    /// @param type_counts counts of in-house seropositives
+    /// @param type_indexes indexes of household member representative for type
     /// @param commu_esc_rate per-individual community escape rates
     /// @param p2p_esc_rate per-individual p2p escape rates
     double chain_binom_grouped_log_lik(
-        unsigned n_infec,
-        const std::vector<size_t> &types,
+        size_t n_infec, size_t n_types,
+        const std::vector<size_t> &type_counts,
+        const std::vector<size_t> &type_indexes,
         const std::vector<double> &commu_esc_rate,
         const std::vector<std::vector<double>> &p2p_esc_rate);
 }
