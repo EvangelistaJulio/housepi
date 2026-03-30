@@ -98,6 +98,38 @@ namespace hsp::bino
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  GroupedTree (cached recursion)  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    struct GroupedTreeNode
+    {
+        double log_weight;               // pre-computed lgamma multinomial coefficient
+        unsigned gen;                    // generation index
+        vector<unsigned> comp;           // composition at this node (size K)
+        vector<unsigned> prev;           // prev_by_type (size K)
+        vector<unsigned> cumul;          // cumul_by_type (size K)
+        vector<unsigned> remaining;      // remaining before subtracting comp (size K)
+        vector<size_t> children;         // indices into flat node array
+    };
+
+    struct GroupedTree
+    {
+        vector<GroupedTreeNode> nodes;
+        vector<size_t> roots; // top-level node indices
+
+        double evaluate_node_(
+            size_t idx,
+            const vector<double> &log_commu_esc,
+            const matrix<double> &log_p2p_esc) const;
+
+        double evaluate(
+            const vector<double> &log_commu_esc,
+            const matrix<double> &log_p2p_esc) const;
+    };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////  LookUpTables  ////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,6 +148,10 @@ namespace hsp::bino
         // EscapePatterns
         vector<EscapePattern> chain_binomial;
         matrix<EscapePattern> escape_patterns;
+
+        // Grouped chain-binomial cached trees
+        // Key: (n_infec, type_counts); Value: one tree per generation pattern
+        std::map<std::pair<unsigned, vector<unsigned>>, vector<GroupedTree>> grouped_patterns;
     } lut;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,6 +171,73 @@ namespace hsp::bino
             output *= esc_mtx[entries_[c]];
 
         return output;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  GroupedTree : implementations  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    double GroupedTree::evaluate_node_(
+        size_t idx,
+        const vector<double> &log_commu_esc,
+        const matrix<double> &log_p2p_esc) const
+    {
+        const auto &node = nodes[idx];
+        const unsigned K = node.comp.size();
+
+        // Compute log_prob from cached integer coefficients + runtime escape rates
+        double log_prob = 0.;
+
+        if (node.gen == 0)
+        {
+            for (unsigned tau = 0; tau < K; ++tau)
+            {
+                log_prob += node.comp[tau] * std::log1p(-std::exp(log_commu_esc[tau]));
+                log_prob += (node.remaining[tau] - node.comp[tau]) * log_commu_esc[tau];
+            }
+        }
+        else
+        {
+            for (unsigned tau = 0; tau < K; ++tau)
+            {
+                if (node.comp[tau] == 0)
+                    continue;
+
+                for (unsigned sigma = 0; sigma < K; ++sigma)
+                    log_prob += node.comp[tau] * node.cumul[sigma] * log_p2p_esc[sigma][tau];
+
+                double log_esc_prev = 0.;
+                for (unsigned sigma = 0; sigma < K; ++sigma)
+                    log_esc_prev += node.prev[sigma] * log_p2p_esc[sigma][tau];
+
+                log_prob += node.comp[tau] * std::log1p(-std::exp(log_esc_prev));
+            }
+        }
+
+        // Evaluate children (next generation)
+        double child_result;
+        if (node.children.empty())
+            child_result = 1.0;
+        else
+        {
+            child_result = 0.;
+            for (size_t ci : node.children)
+                child_result += evaluate_node_(ci, log_commu_esc, log_p2p_esc);
+        }
+
+        return std::exp(node.log_weight + log_prob) * child_result;
+    }
+
+    double GroupedTree::evaluate(
+        const vector<double> &log_commu_esc,
+        const matrix<double> &log_p2p_esc) const
+    {
+        double sum = 0.;
+        for (size_t ri : roots)
+            sum += evaluate_node_(ri, log_commu_esc, log_p2p_esc);
+        return sum;
     }
 
     /*
@@ -203,6 +306,7 @@ namespace hsp::bino
         lut.num_generations.clear();
         lut.multiplicity_generation.clear();
         lut.generations.clear();
+        lut.grouped_patterns.clear();
 
         // Allocate LUT memory
         lut.num_generations.resize(max_N + 1);
@@ -697,6 +801,90 @@ namespace hsp::bino
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  Grouped Tree Builder  ///////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Recursively build the cached tree for one generation pattern.
+    void build_grouped_tree_recursive_(
+        unsigned g,
+        unsigned num_gens,
+        const gentype &gen_counts,
+        vector<unsigned> &remaining,
+        const vector<unsigned> &prev_by_type,
+        const vector<unsigned> &cumul_by_type,
+        unsigned K,
+        GroupedTree &tree,
+        vector<size_t> &parent_children)
+    {
+        if (g == num_gens)
+            return;
+
+        unsigned n_g = gen_counts[g];
+
+        auto callback = [&](const vector<unsigned> &comp)
+        {
+            GroupedTreeNode node;
+            node.gen = g;
+            node.comp = comp;
+            node.prev = prev_by_type;
+            node.cumul = cumul_by_type;
+            node.remaining.assign(remaining.begin(), remaining.end());
+
+            // Pre-compute log_weight (multinomial coefficient)
+            node.log_weight = 0.;
+            for (unsigned tau = 0; tau < K; ++tau)
+                node.log_weight += std::lgamma(remaining[tau] + 1)
+                                 - std::lgamma(comp[tau] + 1)
+                                 - std::lgamma(remaining[tau] - comp[tau] + 1);
+
+            size_t my_idx = tree.nodes.size();
+            tree.nodes.push_back(std::move(node));
+            parent_children.push_back(my_idx);
+
+            // Recurse into next generation
+            // NOTE: collect children into a local vector because tree.nodes
+            // may reallocate during recursion, invalidating references.
+            vector<unsigned> new_remaining(K), new_cumul(K);
+            for (unsigned tau = 0; tau < K; ++tau)
+            {
+                new_remaining[tau] = remaining[tau] - comp[tau];
+                new_cumul[tau] = cumul_by_type[tau] + (g > 0 ? prev_by_type[tau] : 0);
+            }
+
+            vector<size_t> my_children;
+            build_grouped_tree_recursive_(
+                g + 1, num_gens, gen_counts,
+                new_remaining, comp, new_cumul, K,
+                tree, my_children);
+            tree.nodes[my_idx].children = std::move(my_children);
+        };
+
+        vector<unsigned> comp(K, 0);
+        std::function<void(const vector<unsigned> &)> cb = callback;
+        enumerate_compositions_(0, n_g, remaining, comp, K, cb);
+    }
+
+    /// Build a GroupedTree for one generation pattern.
+    GroupedTree build_grouped_tree_(
+        const gentype &gen_counts,
+        unsigned K,
+        const vector<unsigned> &type_counts)
+    {
+        GroupedTree tree;
+        vector<unsigned> remaining(type_counts.begin(), type_counts.end());
+        vector<unsigned> prev(K, 0), cumul(K, 0);
+
+        build_grouped_tree_recursive_(
+            0, gen_counts.size(), gen_counts,
+            remaining, prev, cumul, K,
+            tree, tree.roots);
+
+        return tree;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  GROUPED Chain-Binomial LogLikelihood  //////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -745,7 +933,7 @@ namespace hsp::bino
             return ll + std::log1p(-std::exp(-commu_esc_rate[0]));
 
         // precompute log escape/infection quantities per type
-        vector<double> log_commu_inf(n_types), log_commu_esc(n_types);
+        vector<double> log_commu_esc(n_types);
         matrix<double> log_p2p_esc(n_types, vector<double>(n_types));
 
         for (unsigned tau = 0; tau < n_types; ++tau)
@@ -755,22 +943,25 @@ namespace hsp::bino
                 log_p2p_esc[tau][sigma] = -p2p_esc_rate[type_indexes[tau]][type_indexes[sigma]];
         }
 
-        // sum over generation patterns from LUT
+        // lookup or build cached trees for this (n_infec, type_counts)
+        vector<unsigned> tc_key(type_counts.begin(), type_counts.end());
+        auto cache_key = std::make_pair(static_cast<unsigned>(n_infec), tc_key);
+
+        auto it = lut.grouped_patterns.find(cache_key);
+        if (it == lut.grouped_patterns.end())
+        {
+            vector<GroupedTree> trees;
+            trees.reserve(lut.num_generations[n_infec]);
+            for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
+                trees.push_back(build_grouped_tree_(
+                    lut.generations[n_infec][c], n_types, tc_key));
+            it = lut.grouped_patterns.emplace(cache_key, std::move(trees)).first;
+        }
+
+        // sum over generation patterns using cached trees
         double seropos_term = 0.;
         for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
-        {
-            const auto &gen_counts = lut.generations[n_infec][c];
-
-            vector<unsigned> remaining(type_counts.begin(), type_counts.end());
-            vector<unsigned> prev(n_types, 0), cumul(n_types, 0);
-
-            seropos_term += recurse_generations_(
-                0, gen_counts.size(),
-                gen_counts,
-                remaining,
-                prev, cumul, n_types,
-                log_commu_esc, log_p2p_esc);
-        }
+            seropos_term += it->second[c].evaluate(log_commu_esc, log_p2p_esc);
 
         ll += std::log(seropos_term);
         return ll;
