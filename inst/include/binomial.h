@@ -37,18 +37,19 @@ namespace hsp::bino
         const std::vector<double> &commu_esc_rate,
         const std::vector<std::vector<double>> &p2p_esc_rate);
 
-    /// Grouped chain binomial log-likelihood exploiting type degeneracy.
-    /// @param n_infec n. of infected
-    /// @param type_counts count of each type among infected
-    /// @param commu_esc_rate_type community escape rate per type
-    /// @param p2p_esc_rate_type person-to-person escape rate by type pair
-    /// @param commu_esc_rate per-individual community escape rates (all members)
-    /// @param p2p_esc_rate per-individual p2p escape rates (all members)
+    /// Grouped chain binomial log-likelihood.
+    ///
+    /// Exploits type degeneracy: when multiple seropositives share the same type, the algorithm enumerates
+    /// distinct type-composition sequences per generation instead of all individual
+    /// permutations. Multinomial coefficients account for within-type interchangeability.
+    ///
+    /// @param n_infec number of infected members
+    /// @param types in-house type of seropositive (> 0), seronegatives are marked as 0
+    /// @param commu_esc_rate per-individual community escape rates
+    /// @param p2p_esc_rate per-individual p2p escape rates
     double chain_binom_grouped_log_lik(
         unsigned n_infec,
-        const std::vector<unsigned> &type_counts,
-        const std::vector<double> &commu_esc_rate_type,
-        const std::vector<std::vector<double>> &p2p_esc_rate_type,
+        const std::vector<size_t> &types,
         const std::vector<double> &commu_esc_rate,
         const std::vector<std::vector<double>> &p2p_esc_rate);
 }

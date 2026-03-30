@@ -7,10 +7,12 @@
 
 // #include <string>
 // #include <sstream>
+#include <algorithm>
 #include <cmath>
 #include <functional> // UPDATE: drop this dependency
 #include <map>
 
+#include "tools/messages.h"
 #include "tools/operators.h" // UPDATE: drop this dependency
 #include "binomial.h"
 
@@ -284,16 +286,16 @@ namespace hsp::bino
         const double log_commu_infec_proba = std::log1p(-std::exp(log_commu_esc_proba));
         const double log_p2p_esc_proba = -p2p_escape_rate;
 
-        ///////////////////////////////////////////
-        /////////  Sero-Negatives Members  ////////
-        ///////////////////////////////////////////
+        ///////////////////////////////////////////////////
+        /////////  (-) Sero-Negative Contribution  ////////
+        ///////////////////////////////////////////////////
 
         const double log_sero_neg_term = (house_size - n_infec) *
                                          (log_commu_esc_proba + n_infec * log_p2p_esc_proba);
 
-        ///////////////////////////////////////////
-        /////////  Sero-Positives Members  ////////
-        ///////////////////////////////////////////
+        ///////////////////////////////////////////////////
+        /////////  (+) Sero-Positive Contribution  ////////
+        ///////////////////////////////////////////////////
 
         // sum over all possible generations
         double sero_positive_term = 0., tmp = 0.;
@@ -519,7 +521,10 @@ namespace hsp::bino
     {
         double ll = 0.;
 
-        // (-) seronegatives contribution
+        ///////////////////////////////////////////////////
+        /////////  (-) Sero-Negative Contribution  ////////
+        ///////////////////////////////////////////////////
+
         for (size_t i = n_infec; i < commu_escape_rate.size(); ++i)
         {
             // community : i escaped from community
@@ -529,7 +534,10 @@ namespace hsp::bino
                 ll -= p2p_escape_rate[k][i];
         }
 
-        // (+) seropositives contribution
+        ///////////////////////////////////////////////////
+        /////////  (+) Sero-Positive Contribution  ////////
+        ///////////////////////////////////////////////////
+
         if (n_infec == 1) // single case
             ll += std::log1p(-std::exp(-commu_escape_rate[0]));
 
@@ -594,7 +602,7 @@ namespace hsp::bino
         }
     }
 
-    /// Core generation-by-generation recursion for the grouped chain binomial.
+    /// Core generation-by-generation recursion for chain binomial grouped by type.
     /// Returns the (un-logged) probability contribution summed over all valid
     /// type-composition allocations from generation g onward.
     ///
@@ -605,7 +613,6 @@ namespace hsp::bino
     /// @param prev_by_type  type composition of generation g-1
     /// @param cumul_by_type cumulative type counts from gen 0..g-2 (for escape terms)
     /// @param K             number of types
-    /// @param log_commu_inf log(1 - B_tau) per type (community infection)
     /// @param log_commu_esc log(B_tau) per type (community escape)
     /// @param log_p2p_esc   log(Q_{sigma->tau}) K x K matrix
     double recurse_generations_(
@@ -616,7 +623,6 @@ namespace hsp::bino
         const vector<unsigned> &prev_by_type,
         const vector<unsigned> &cumul_by_type,
         unsigned K,
-        const vector<double> &log_commu_inf,
         const vector<double> &log_commu_esc,
         const matrix<double> &log_p2p_esc)
     {
@@ -641,7 +647,7 @@ namespace hsp::bino
                 for (unsigned tau = 0; tau < K; ++tau)
                 {
                     // infected by community
-                    log_prob += comp[tau] * log_commu_inf[tau];
+                    log_prob += comp[tau] * std::log1p(-std::exp(log_commu_esc[tau]));
                     // escaped community (those in later generations)
                     log_prob += (remaining[tau] - comp[tau]) * log_commu_esc[tau];
                 }
@@ -677,7 +683,7 @@ namespace hsp::bino
             double sub = recurse_generations_(
                 g + 1, num_gens, gen_counts, new_remaining,
                 comp, new_cumul, K,
-                log_commu_inf, log_commu_esc, log_p2p_esc);
+                log_commu_esc, log_p2p_esc);
 
             result += std::exp(log_weight + log_prob) * sub;
         };
@@ -697,43 +703,62 @@ namespace hsp::bino
 
     /// Grouped chain binomial log-likelihood.
     ///
-    /// Exploits type degeneracy: when multiple seropositives share the same
-    /// (community, susceptibility, infectivity) profile, the algorithm enumerates
-    /// distinct type-composition sequences per generation instead of all individual
+    /// When multiple seropositives share the same type,
+    /// use distinct type-composition sequences per generation instead of all individual
     /// permutations. Multinomial coefficients account for within-type interchangeability.
     ///
-    /// @param N_star            number of seropositives
-    /// @param type_counts       count of each type among seropositives (K values)
-    /// @param commu_esc_rate_type community escape rate per type (K values)
-    /// @param p2p_esc_rate_type person-to-person escape rate by type pair (K x K)
-    /// @param commu_esc_rate    per-individual community escape rates (all members)
-    /// @param p2p_esc_rate      per-individual p2p escape rates (all members)
+    /// @param n_infec number of infected members
+    /// @param types in-house type of seropositive (> 0), seronegatives are marked as 0
+    /// @param commu_esc_rate per-individual community escape rates
+    /// @param p2p_esc_rate per-individual p2p escape rates
     double chain_binom_grouped_log_lik(
-        unsigned N_star,
-        const vector<unsigned> &type_counts,
-        const vector<double> &commu_esc_rate_type,
-        const matrix<double> &p2p_esc_rate_type,
-        const vector<double> &commu_esc_rate,
-        const matrix<double> &p2p_esc_rate)
+        unsigned n_infec,
+        const std::vector<size_t> &types,
+        const std::vector<double> &commu_esc_rate,
+        const std::vector<std::vector<double>> &p2p_esc_rate)
     {
         double ll = 0.;
-        unsigned K = type_counts.size();
 
-        // (-) seronegatives contribution (same as heterogeneous)
-        for (size_t i = N_star; i < commu_esc_rate.size(); ++i)
+        ///////////////////////////////////////////////////
+        /////////  (-) Sero-Negative Contribution  ////////
+        ///////////////////////////////////////////////////
+
+        for (size_t i = n_infec; i < commu_esc_rate.size(); ++i)
         {
             ll -= commu_esc_rate[i];
-            for (unsigned k = 0; k < N_star; ++k)
+            for (unsigned k = 0; k < n_infec; ++k)
                 ll -= p2p_esc_rate[k][i];
         }
 
-        // (+) seropositives contribution
-        if (N_star == 0)
+        ///////////////////////////////////////////////////
+        /////////  (+) Sero-Positive Contribution  ////////
+        ///////////////////////////////////////////////////
+
+        if (n_infec == 0)
             return ll;
 
         // single seropositive: log(1 - B_tau)
-        if (N_star == 1)
+        if (n_infec == 1)
             return ll + std::log1p(-std::exp(-commu_esc_rate[0]));
+
+        // find number of types and count types
+        // NOTE: unique types are ordered 1 to K because build is progressive
+        size_t K = 0;
+        vector<unsigned> type_counts = {};
+        vector<size_t> type_indexes = {};
+        for (size_t i = 0; i < n_infec; ++i)
+        {
+            size_t this_type = types[i];
+
+            if (this_type > K)
+            {
+                type_counts.push_back(1);
+                type_indexes.push_back(i);
+                K = this_type;
+            }
+            else
+                ++type_counts[this_type - 1];
+        }
 
         // precompute log escape/infection quantities per type
         vector<double> log_commu_inf(K), log_commu_esc(K);
@@ -741,18 +766,16 @@ namespace hsp::bino
 
         for (unsigned tau = 0; tau < K; ++tau)
         {
-            log_commu_esc[tau] = -commu_esc_rate_type[tau];
-            log_commu_inf[tau] = std::log1p(-std::exp(log_commu_esc[tau]));
+            log_commu_esc[tau] = -commu_esc_rate[type_indexes[tau]];
+            for (unsigned sigma = 0; sigma < K; ++sigma)
+                log_p2p_esc[tau][sigma] = -p2p_esc_rate[type_indexes[tau]][type_indexes[sigma]];
         }
-        for (unsigned sigma = 0; sigma < K; ++sigma)
-            for (unsigned tau = 0; tau < K; ++tau)
-                log_p2p_esc[sigma][tau] = -p2p_esc_rate_type[sigma][tau];
 
         // sum over generation patterns from LUT
         double seropos_term = 0.;
-        for (unsigned long c = 0; c < lut.num_generations[N_star]; ++c)
+        for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
         {
-            const auto &gen_counts = lut.generations[N_star][c];
+            const auto &gen_counts = lut.generations[n_infec][c];
 
             vector<unsigned> remaining(type_counts.begin(), type_counts.end());
             vector<unsigned> prev(K, 0), cumul(K, 0);
@@ -762,7 +785,7 @@ namespace hsp::bino
                 gen_counts,
                 remaining,
                 prev, cumul, K,
-                log_commu_inf, log_commu_esc, log_p2p_esc);
+                log_commu_esc, log_p2p_esc);
         }
 
         ll += std::log(seropos_term);

@@ -48,6 +48,15 @@ namespace hsp
 
         void swap(Attribute &other) noexcept;
 
+		/////////////////////////
+		//////  OPERATORS  //////
+		/////////////////////////
+        
+		/// Equal to operator.
+		bool operator==(const Attribute &other) const noexcept;
+		/// Not equal to operator.
+		bool operator!=(const Attribute &other) const noexcept { return !(*this == other); }
+
         //////////////////////
         //////  SETTER  //////
         //////////////////////

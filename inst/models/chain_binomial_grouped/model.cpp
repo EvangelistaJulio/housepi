@@ -11,11 +11,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <algorithm>
-#include <iterator>
-#include <map>
-#include <tuple>
-
 #include "housepi.h"
 #include "binomial.h"
 
@@ -32,7 +27,7 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizeKey)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order, types)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
@@ -42,18 +37,62 @@ public:
 	void init_model_for_evaluation() override final
 	{
 		assert_no_missing_status();
+		/// UPDATE: is this actually used?
 		bino::init_generations_lookuptable(get_max_hh_cases());
 	}
 
-	/// Initialize internal order for house escape matrix
-	/// ordered members : 1) infectious, 2) susceptibles
+	/// Initialize hosuehold for evaluation
 	void init_house_for_evaluation(Household &house) override final
 	{
+		//////////////////////////////////
+		/////////////  ORDER  ////////////
+		//////////////////////////////////
+
+		// initialize internal order for house escape matrix
+		// ordered members : 1) infectious, 2) susceptibles
 		auto &order = cache_size_vector(house, HHsizevecKey::order);
 		order.clear();
 		order.reserve(house.size());
 		order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
 		order.insert(order.end(), house.susceptible_hhindexes().begin(), house.susceptible_hhindexes().end());
+
+		//////////////////////////////////
+		/////////////  TYPES  ////////////
+		//////////////////////////////////
+
+		// initialize types for house escape matrix
+		// NOTE: cache vector initialized to 0
+		auto &types = cache_size_vector(house, HHsizevecKey::types);
+
+		// identify distinct types among seropositives
+		// by checking known group rate attributes direct comparison
+		// UPDATE: can't I use DataWide multiplicituy mechanism instead?
+		size_t n_infec = house.n_infected_status();
+		std::vector<const Attribute *> community_attr(n_infec);
+		std::vector<const Attribute *> infectivity_attr(n_infec);
+		std::vector<const Attribute *> susceptibility_attr(n_infec);
+
+		// progressive: first infected type always 1, then 2, etc. seronegative always type 0
+		size_t type_counter = 0;
+		for (size_t i = 0; i < n_infec; ++i)
+		{
+			const Individual &member_i = house.member(order[i]);
+			community_attr[i] = &member_i.get_group_rate_attribute(GroupRateKey::community);
+			infectivity_attr[i] = &member_i.get_group_rate_attribute(GroupRateKey::infectivity);
+			susceptibility_attr[i] = &member_i.get_group_rate_attribute(GroupRateKey::susceptibility);
+
+			++type_counter;
+			types[i] = type_counter;
+			for (size_t j = 0; j < i; ++j)
+				if (*community_attr[j] == *community_attr[i] &&
+					*infectivity_attr[j] == *infectivity_attr[i] &&
+					*susceptibility_attr[j] == *susceptibility_attr[i])
+				{
+					--type_counter;
+					types[i] = types[j];
+					break;
+				}
+		}
 	}
 
 	/// Risk of infection from the community.
@@ -64,7 +103,17 @@ public:
 	void fill_house_escape_matrix(Household &house);
 
 	/// Compute the log-likelihood for a single household.
-	double compute_house_obs_log_lik(Household &house) override final;
+	double compute_house_obs_log_lik(Household &house) override final
+	{
+		// fill per-individual escape rate matrices
+		fill_house_escape_matrix(house);
+
+		return bino::chain_binom_grouped_log_lik(
+			house.n_infected_status(),
+			cache_size_vector(house, HHsizevecKey::types),
+			cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
+			cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
+	}
 
 	/// Simulate the infection within a household.
 	void simulate_single_house(Household &house) override final;
@@ -75,65 +124,6 @@ public:
 ///////////////////////////  Model : compute single house loglike  /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Model::compute_house_obs_log_lik(Household &house)
-{
-	// fill per-individual escape rate matrices
-	fill_house_escape_matrix(house);
-
-	const auto &order = cache_size_vector(house, HHsizevecKey::order);
-	const auto &commu_mtx = cache_double_vector(house, HHdoublevecKey::commu_escape_rate);
-	const auto &p2p_mtx = cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate);
-	const unsigned n_infec = house.n_infected_status();
-	const double commu_rate = community_risk();
-	const double p2p_rate = person_to_person_risk();
-
-	// identify distinct types among seropositives
-	using type_key = std::tuple<double, double, double>;
-	std::map<type_key, unsigned> type_map;
-	std::vector<unsigned> type_counts;
-	
-	std::vector<double> commu_esc_rate_type;
-	std::vector<double> infectivity_type;
-	std::vector<double> susceptibility_type;
-
-	for (unsigned i = 0; i < n_infec; ++i)
-	{
-		const Individual &member_i = house.member(order[i]);
-		double com_i = member_i.group_rate(GroupRateKey::community);
-		double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
-		double inf_i = member_i.group_rate(GroupRateKey::infectivity);
-
-		type_key key = std::make_tuple(com_i, sus_i, inf_i);
-		auto it = type_map.find(key);
-		if (it == type_map.end())
-		{
-			unsigned tid = type_map.size();
-			type_map[key] = tid;
-			type_counts.push_back(1);
-			commu_esc_rate_type.push_back(commu_rate * com_i);
-			infectivity_type.push_back(inf_i);
-			susceptibility_type.push_back(sus_i);
-		}
-		else
-		{
-			type_counts[it->second]++;
-		}
-	}
-
-	// build K x K p2p escape rate matrix by type
-	unsigned K = type_counts.size();
-	std::vector<std::vector<double>> p2p_esc_rate_type(K, std::vector<double>(K));
-	for (unsigned sigma = 0; sigma < K; ++sigma)
-		for (unsigned tau = 0; tau < K; ++tau)
-			p2p_esc_rate_type[sigma][tau] = p2p_rate
-				* infectivity_type[sigma] * susceptibility_type[tau];
-
-	return bino::chain_binom_grouped_log_lik(
-		n_infec, type_counts,
-		commu_esc_rate_type, p2p_esc_rate_type,
-		commu_mtx, p2p_mtx);
-}
 
 void Model::fill_house_escape_matrix(Household &house)
 {
@@ -156,7 +146,9 @@ void Model::fill_house_escape_matrix(Household &house)
 		commu_mtx[i] = commu_rate * member_i.group_rate(GroupRateKey::community);
 
 		// person-to-person
-		for (size_t k = 0; k < i; ++k)
+		// NOTE: with respect to heterogeneous, I need to compute also diagonal terms
+		// UPDATE: I would like a unifying approach...
+		for (size_t k = 0; k <= i; ++k)
 		{
 			const Individual &member_k = house.member(order[k]);
 			// [i] : infector -> [k] : infectee

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "tools/messages.h"
 #ifdef _STANDALONE
 #include "mcmc.h"
 #include "standalone.h"
