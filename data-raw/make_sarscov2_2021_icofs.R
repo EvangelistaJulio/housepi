@@ -13,7 +13,7 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
     end_followup = if(!all(is.na(last_neg))) {
       max(date_fmt(last_neg), na.rm = TRUE)
     } else {
-      date_fmt(dplyr::first(index_first_pos_pcr)) + 45
+      date_fmt(dplyr::first(index_first_pos_pcr)) + 21
     }
   ) |>
   dplyr::ungroup() |> 
@@ -38,6 +38,11 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
     ),
     isolation = isolation != "no quarantine",
     asymptomatic = as.logical(asymptomatic)
+  ) |>
+  # drop positive status if test after end followup
+  dplyr::mutate(
+    status = ifelse(test_date > end_followup, 0, status),
+    test_date = ifelse(test_date > end_followup, NA, test_date),
   ) |>
   dplyr::select(id, house_id, status, end_followup, test_date, age, sex,
                 vacc_status, isolation, asymptomatic)

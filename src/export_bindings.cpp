@@ -1211,7 +1211,7 @@ namespace
             const size_t n_shared(shared_df.size());
             const size_t n_augm_cols(augm_cols.size());
             Rcpp::List sim_list(n_shared + 1 + n_augm_cols);
-            for (int i = 0; i < n_shared; ++i)
+            for (size_t i = 0; i < n_shared; ++i)
                 sim_list[i] = shared_df[i];
             sim_list[n_shared] = status_col;
             for (size_t c = 0; c < n_augm_cols; ++c)
