@@ -48,11 +48,14 @@ test_that("Status specific definition work fine", {
   expect_warning(aux_add(infec, func = "another_generic"),
                  regexp = "Overwriting")
 
-  helper_test_aux_load(infec,
-                       list(func = "lognormal", status = 1),
-                       list(func = "ferretti20", status = 2),
-                       v1 = "uniform")
-  expect_equal(infec$defs$func, c("lognormal", "ferretti20", "uniform"))
+  helper_test_aux_load(
+    infec,
+    list(func = "lognormal", status = 1),
+    list(func = "ferretti20", incub_period = 5, status = 2),
+    v1 = "uniform"
+  )
+  expect_equal(infec$defs$func,
+               c("lognormal", "ferretti20|incub_period|{5|N}", "uniform"))
   expect_equal(infec$defs$status, c(1, 2, NA_integer_))
 })
 

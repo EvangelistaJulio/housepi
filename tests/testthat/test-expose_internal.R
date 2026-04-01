@@ -151,7 +151,7 @@ test_that("Weibull distribution is correct", {
 
 test_that("Ferretti20 infectivity profile behave has expected", {
   x <- seq(0, 15, 0.001)
-  profile <- expose_infec_profile("ferretti20")
+  profile <- expose_infec_profile("ferretti20", incub_period = 5)
 
   trapezoid <- function(x, y) {
     0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
@@ -163,6 +163,6 @@ test_that("Ferretti20 infectivity profile behave has expected", {
 
   # left discretization works as expected
   x <- seq(1.0, 1.9, 0.1)
-  profile <- expose_infec_profile("ferretti20", discr = TRUE)
+  profile <- expose_infec_profile("ferretti20", incub_period = 5, discr = TRUE)
   expect_true(all(profile$inst(x) == profile$cumul(1)))
 })

@@ -290,6 +290,12 @@ HousepiModel <- R6::R6Class(
     export_to_standalone_ = function(outpath = "inst/standalone/") {
       private$build_group_rates_()
 
+      write.csv(private$augm_$defs,
+                file.path(outpath, "augm.csv"),
+                quote = FALSE, row.names = FALSE)
+      write.csv(private$contact_rates_$expose_to_cpp(private$info_data_wide_),
+                file.path(outpath, "contact_rates.csv"),
+                quote = FALSE, row.names = FALSE)
       write.csv(.engine$export_data_wide(private$mcmc_ptr_),
                 file.path(outpath, "data_wide.csv"),
                 quote = FALSE, row.names = FALSE)
@@ -299,17 +305,14 @@ HousepiModel <- R6::R6Class(
       write.csv(private$group_rates_$expose_to_cpp(private$info_data_wide_),
                 file.path(outpath, "group_rates.csv"),
                 quote = FALSE, row.names = FALSE)
-      write.csv(private$augm_$defs,
-                file.path(outpath, "augm.csv"),
+      write.csv(private$infec_profile_$defs,
+                file.path(outpath, "infec.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(private$param_$defs,
                 file.path(outpath, "param.csv"),
                 quote = FALSE, row.names = FALSE)
       write.csv(char_setup_input_(self$setup),
                 file.path(outpath, "setup.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(private$infec_profile_$defs,
-                file.path(outpath, "infec.csv"),
                 quote = FALSE, row.names = FALSE)
       invisible(self)
     },
@@ -835,7 +838,7 @@ HousepiModel <- R6::R6Class(
     #' @param by `r rd_grr_by_`
     #' @param prefix `r rd_grr_prefix_`
     #' @param reference `r rd_grr_refer_`
-    #' @param independent `r rd_grr_indep_`
+    #' @param joint `r rd_grr_joint_`
     #' @param prior `r rd_par_model_`
     #' @param ... `r rd_par_args_`
     #' @param min `r rd_var_min_`
@@ -843,14 +846,14 @@ HousepiModel <- R6::R6Class(
     #' @param proposal `r rd_var_proposal_`
     #' @param proposal_scale `r rd_proposal_scale_`
     add_group_rate = function(name, by, prefix = NA_character_,
-                              reference = NULL, independent = TRUE,
+                              reference = NULL, joint = FALSE,
                               prior = NA_character_, ...,
                               min = NULL, max = NULL,
                               proposal = NA_character_,
                               proposal_scale = NA_real_) {
       private$group_rates_$add_quo(name = name, by = by, prefix = prefix,
                                    reference = reference,
-                                   independent = independent,
+                                   joint = joint,
                                    prior = prior, rlang::enquos(...),
                                    min = rlang::enquo(min),
                                    max = rlang::enquo(max),

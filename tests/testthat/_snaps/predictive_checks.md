@@ -1,4 +1,4 @@
-# predicted_cases_by_house_size works end-to-end
+# Predicted cases by house size works as expected
 
     Code
       print(ppc)

@@ -137,7 +137,7 @@ We can proceed with the inference as shown in [Get started](housepi.html):
 hhmodel <- hhmodel |>
   # load group rates from definition list
   load_group_rate_list(
-    infectivity = c("isolation", "asymptomatic"),
+    infectivity = "isolation",
     susceptibility = list(by = "vacc_status", reference = "unvaccinated")
   )
 
@@ -170,14 +170,16 @@ hhmodel <- hhmodel |>
     #> Symptomatic (status = 2, here as generic definition)
     infec_time = .onset_time - .incub_period,
     .onset_time = list(model = "normal", mean = test_date@D, sd = 1),
-    .incub_period = list(model = "gamma_meanvar", mean = 3.9, var = 2.1^2)
+    .incub_period = list(model = "gamma_meanvar", mean = 3, var = 2)
   ) |>
   # infectivity profile definitions
-  add_infec_profile("ferretti20")
+  # FIXME: this needs to be clarified
+  add_infec_profile("gamma_meanvar", mean = 4, var = 2.5)
 
 # perform inference
 results <- hhmodel |>
-  run_inference(steps = 1000, thin = 10, adapt = 500, chains = 3, progress = 4)
+  run_inference(steps = 1000, thin = 10, 
+                adapt = 1000, chains = 3, progress = 4)
 
 bayesplot::mcmc_trace(get_param_draws(results))
 ```

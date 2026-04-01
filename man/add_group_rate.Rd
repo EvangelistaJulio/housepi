@@ -10,7 +10,7 @@ add_group_rate(
   by,
   prefix = NA_character_,
   reference = NULL,
-  independent = TRUE,
+  joint = FALSE,
   prior = NA_character_,
   ...,
   min = NULL,
@@ -33,8 +33,8 @@ If \code{NA} uses the first 3 letters of rate name (default).}
 \item{reference}{named \code{list} Features associated to reference group.\cr
 Default is the group with the largest sample size.}
 
-\item{independent}{\code{logical(1)} Consider features as independent.\cr
-If \code{FALSE} features are combined (default).}
+\item{joint}{\code{logical(1)} Consider features as joint.\cr
+If \code{FALSE} features are independent (default).}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
 

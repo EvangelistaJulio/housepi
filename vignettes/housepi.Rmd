@@ -254,9 +254,9 @@ associated from a list by calling `load_augmented_list()`.
 hhsimul <- hhsimul |>
   load_augmented_list(
     # define default infection times of introduction cases
-    # so that they all have symptom onset on day 30
+    # so that they all have symptom onset on day 0
     # secondary infection times are taken care by the simulation
-    infec_time = 30 - incub_period,
+    infec_time = - incub_period,
 
     # define an incubation period for each individual
     # arguments are linked to parameters
@@ -301,7 +301,7 @@ We then propose a simple observation process, where we assume onsets after 6 PM 
 # load a dataset for the data structure
 community_structure <- housepi::sarscov2_2021_icofs |> 
   dplyr::select(id, house_id, age, sex) |> 
-  dplyr::mutate(status = NA, end_followup = 45)
+  dplyr::mutate(status = NA, end_followup = 21)
 
 # define an observation process after the outbreak simulation
 obs_process <- function(x) {

@@ -235,9 +235,8 @@ namespace hsp
         }
 
         model->init_model_for_evaluation(); // user initialization of model for inference
+        data_wide.allocate_all_cache();     // allocate all cache dependencies
 
-        // init cache dependencies for all households and individuals
-        data_wide.allocate_all_cache();
         for (size_t R = 0; R < data_wide.restricted_size(); ++R)
         {
             Household &house = data_wide.restricted(R);

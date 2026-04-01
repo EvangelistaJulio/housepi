@@ -41,13 +41,15 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
   ) |>
   # drop positive status if test after end followup
   dplyr::mutate(
-    status = ifelse(status > 0 & test_date > end_followup,
-                    0, status),
-    test_date = ifelse(status > 0 & test_date > end_followup,
-                       NA, test_date),
+    status = ifelse(status > 0 & test_date > end_followup, 0, status),
+    test_date = ifelse(status == 0, NA, test_date),
   ) |>
+  # drop resulting households with no cases
+  dplyr::group_by(house_id) |>
+  dplyr::filter(sum(status > 0) > 0) |>
+  dplyr::ungroup() |>
   dplyr::select(id, house_id, status, end_followup, test_date, age, sex,
-                vacc_status, isolation, asymptomatic) |> 
+                vacc_status, isolation, asymptomatic) |>
   as.data.frame()
 
 usethis::use_data(sarscov2_2021_icofs, overwrite = TRUE)

@@ -274,7 +274,7 @@ test_that("predicted_measures errors when no measure is provided", {
 ## Integration: PPC with chain_binomial model
 ############################################################################
 
-test_that("predicted_cases_by_house_size works end-to-end", {
+test_that("Predicted cases by house size works as expected", {
   hhmodel <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
     add_data_wide(helper_test_get_data("flu_1918_frederick"))

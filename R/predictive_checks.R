@@ -29,7 +29,11 @@ measure_sar_by_house_size <- function(data_wide) {
                                              as.integer(.data$status > 0)))
   # aggregate data by house_id
   y <- dplyr::group_by(y, .data$house_id)
-  y <- dplyr::summarise(y, house_size =  dplyr::n(), cases = sum(.data$status))
+  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(.data$status))
+
+  # compute data sizes before filtering
+  min_hh_size <- max(min(y$house_size), 2)
+  max_hh_size <- max(y$house_size)
 
   # compute sar according to definition
   y <- dplyr::filter(y, .data$cases > 0, .data$house_size > 1)
@@ -38,9 +42,7 @@ measure_sar_by_house_size <- function(data_wide) {
   y <- dplyr::summarise(y, sar = mean(.data$sar))
 
   # complete grid of size sar
-  y <- tidyr::complete(
-    y, house_size = min(.data$house_size):max(.data$house_size)
-  )
+  y <- tidyr::complete(y, house_size = seq(min_hh_size, max_hh_size, 1))
   as.data.frame(y)
 }
 
@@ -109,33 +111,41 @@ ppc_helper_print <- function(model_name, is_posterior, measure_names, cri) {
 #' @param func `function`. To be applied to corresponding data elements.
 #' @return A `data.frame` of the same dimensions as the input dataframes.
 #' Columns and rownames of the first data.frame in the list.
+#' @param name `character(1)` Measure name.
 #' @keywords internal
 #' @noRd
-ppc_frame_apply <- function(frame_list, func) {
-  # FIXME: missing a control on the dimensions of the objects
+ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
+  # ensure all elements share the same dimensions
   elem_n1 <- frame_list[[1]]
+  dims_match <- vapply(frame_list[-1],
+                       function(f) identical(dim(f), dim(elem_n1)),
+                       logical(1))
+  if (!all(dims_match)) stop_h(
+    sprintf("Not all computed measures%s share identical dimensions.",
+            ifelse(!is.na(name), sprintf(" of '%s'", name), "")),
+    "Check output of your posterior measure function."
+  )
 
-  # perform element-wise operations
   if (is.null(dim(elem_n1))) {
-    # on scalar/vectors
-    output <- sapply(seq_along(elem_n1), function(x) {
-      func(sapply(frame_list, "[[", x))
-    })
+    # scalar or vector
+    output <- sapply(seq_along(elem_n1),
+                     function(x) func(sapply(frame_list, `[[`, x)))
     names(output) <- names(elem_n1)
     if (is.list(elem_n1)) output <- as.list(output)
 
   } else {
-    # on matrix/data.frames
-    output <- matrix(
-      sapply(seq_along(elem_n1), function(x) {
-        apply(sapply(frame_list, "[[", x), 1, func)
+    # matrix or data.frame
+    # NOTE: I need operations to be column-wise for eventual mixed types
+    nr <- nrow(elem_n1)
+
+    output <- as.data.frame(setNames(
+      lapply(seq_len(ncol(elem_n1)), function(x) {
+        apply(matrix(unlist(lapply(frame_list, `[[`, x)), nrow = nr), 1L, func)
       }),
-      nrow = nrow(elem_n1),
-      byrow = FALSE
-    )
-    colnames(output) <- colnames(elem_n1)
+      colnames(elem_n1)
+    ), check.names = FALSE)
     rownames(output) <- rownames(elem_n1)
-    if (is.data.frame(elem_n1)) output <- as.data.frame(output)
+    if (!is.data.frame(elem_n1)) output <- as.matrix(output)
   }
 
   output
@@ -143,47 +153,54 @@ ppc_frame_apply <- function(frame_list, func) {
 
 #' Compute the mean across different dataframes.
 #' @param frame_list `list` of `data.frame`s.
+#' @param name `character(1)` Measure name.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
-ppc_frame_apply_mean <- function(frame_list) {
+ppc_frame_apply_mean <- function(frame_list, name = NA_character_) {
   ppc_frame_apply(frame_list, function(x) {
     if (all(is.na(x))) NA_real_
     else if (all(is.numeric(x))) mean(x, na.rm = TRUE)
     else if (length(unique(x)) == 1) unique(x)
     else stop_h(
-      "Undefined mean for non numeric, non unique values.",
-      "Check output of your posterioir measure function."
+      sprintf("Undefined mean for non-numeric, non-unique values%s.",
+              ifelse(!is.na(name), sprintf(" in measure '%s'", name), "")),
+      "Check output of your posterior measure function."
     )
-  })
+  }, name = name)
 }
 
 #' Compute the credible interval across different dataframes.
 #' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
 #' @param cri_level `r rd_smpl_cri_level_`
-#' @param upper `logical(1)`. Compute the upper credible interval.
+#' @param upper `logical(1)` Compute the upper credible interval.
 #' If `FALSE`, compute the lower.
+#' @param name `character(1)` Measure name.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
-ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95, upper = TRUE) {
+ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95,
+                                upper = TRUE, name = NA_character_) {
   p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
   ppc_frame_apply(frame_list, function(x) {
     if (all(is.na(x))) NA_real_
     else if (all(is.numeric(x))) stats::quantile(x, probs = p, na.rm = TRUE)
     else if (length(unique(x)) == 1) unique(x)
     else stop_h(
-      "Undefined credible interval for non numeric, non unique values.",
-      "Check output of your posterioir measure function."
+      sprintf(
+        "Undefined credible interval for non numeric, non unique values%s.",
+        ifelse(!is.na(name), sprintf(" in measure '%s'", name), "")
+      ),
+      "Check output of your posterior measure function."
     )
-  })
+  }, name = name)
 }
 
 # extract predicted quantities from cases-by-house-size table list
-ppc_extract_predicted_results <- function(x, cri) {
-  list(predicted = ppc_frame_apply_mean(x),
-       cri_lower = ppc_frame_apply_cri(x, cri, upper = FALSE),
-       cri_upper = ppc_frame_apply_cri(x, cri, upper = TRUE))
+ppc_extract_predicted_results <- function(x, cri, name = NULL) {
+  list(predicted = ppc_frame_apply_mean(x, name = name),
+       cri_lower = ppc_frame_apply_cri(x, cri, upper = FALSE, name = name),
+       cri_upper = ppc_frame_apply_cri(x, cri, upper = TRUE, name = name))
 }
 
 #' @title Prediction class
@@ -296,8 +313,11 @@ HousepiPrediction <- R6::R6Class(
       )
       names(parsed) <- all_measure_names
 
-      predictions <- lapply(parsed, ppc_extract_predicted_results,
-                            cri = private$cri_level_)
+      predictions <- Map(
+        ppc_extract_predicted_results,
+        x = parsed, name = names(parsed),
+        MoreArgs = list(cri = private$cri_level_)
+      )
 
       # change environment according to measures
       for (mn in all_measure_names) self[[mn]] <- list(
@@ -500,7 +520,7 @@ PredictedCasesBySize <- R6::R6Class(
         cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
       )
       names(output) <- cri_set_name_convention(names(output),
-                                                  private$cri_level_)
+                                               private$cri_level_)
       output
     }
   ),

@@ -547,11 +547,16 @@ namespace hsp
     {
         for (Household &house : *pDataWide_)
             for (size_t i : house.infected_hhindexes())
-                for (Variable &xaugm : house.member(i).paugm_->vec)
-                    xaugm.clear();
+                clear_definitions(house.member(i));
     }
 
-    void Augmented::init_missing(Individual &member)
+    void Augmented::clear_definitions(Individual &member)
+    {
+        for (Variable &xaugm : member.paugm_->vec)
+            xaugm.clear();
+    }
+
+    void Augmented::init_missing_definitions(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
             if (member.paugm_->vec[pRegistry->from_string(deftable_["name"][k])].is_empty())

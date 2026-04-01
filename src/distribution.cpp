@@ -983,7 +983,7 @@ namespace
     {
     public:
         Ferretti20_()
-            : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", 5.42}}, 0.) {}
+            : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", na::DOUBLE}}, 0.) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Ferretti20_)
         HOUSEPI_OVERRIDE_NAME_METHOD(ferretti20)
 

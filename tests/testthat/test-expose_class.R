@@ -60,41 +60,34 @@ test_that("add_data_long and get_data_long work", {
   expect_equal(nrow(out), 2)
 })
 
-############################################################################
-## Definition wrappers on blank model
-############################################################################
-
-test_that("add_parameter wrapper works on blank model", {
+test_that("Wrappers work as expected on blank model", {
   hhmodel <- new_housepi_model("blank")
+
+  #parameters
   result <- add_parameter(hhmodel, name = "alpha", value = 0.5)
   pars <- get_parameters(result)
   expect_true(is.data.frame(pars))
   expect_true("alpha" %in% pars$name)
-})
+  
+  result <- load_parameter_list(hhmodel, alpha = 1, beta = 2)
+  pars <- get_parameters(result)
+  expect_true(all(c("alpha", "beta") %in% pars$name))
+  
+  #infectivity profile
+  expect_null(get_infec_profile(hhmodel))
 
-test_that("add_augmented wrapper works on blank model", {
-  hhmodel <- new_housepi_model("blank")
+  # augmented
   result <- add_augmented(hhmodel, name = "dummy", value = 3)
   aug <- get_augmented(result)
   expect_true(is.data.frame(aug))
   expect_true("dummy" %in% aug$name)
-})
-
-test_that("load_parameter_list wrapper works", {
-  hhmodel <- new_housepi_model("blank")
-  result <- load_parameter_list(hhmodel, alpha = 1, beta = 2)
-  pars <- get_parameters(result)
-  expect_true(all(c("alpha", "beta") %in% pars$name))
-})
-
-test_that("load_augmented_list wrapper works", {
-  hhmodel <- new_housepi_model("blank")
+  
   result <- load_augmented_list(hhmodel,
-    dummy = list(model = "uniform")
-  )
+                                dummy = list(model = "uniform"))
   aug <- get_augmented(result)
   expect_true("dummy" %in% aug$name)
 })
+
 
 ############################################################################
 ## Template loaders on blank model warn
@@ -205,25 +198,16 @@ test_that("add_infec_profile and load_infec_profile_list work", {
   hhmodel <- new_housepi_model("augmented_infection_time")
   data_ait <- dplyr::mutate(helper_test_get_data("sarscov2_2021_icofs"))
   hhmodel$add_data_wide(data_ait)
-  result <- add_infec_profile(hhmodel, func = "ferretti20")
+  result <- add_infec_profile(hhmodel, func = "lognormal")
   ip <- get_infec_profile(result)
   expect_false(is.null(ip))
-  expect_true("ferretti20" %in% ip$func)
+  expect_true("lognormal" %in% ip$func)
 
   # load_infec_profile_list
   result2 <- load_infec_profile_list(hhmodel,
-    ip1 = list(func = "ferretti20")
+    ip1 = list(func = "lognormal")
   )
   ip2 <- get_infec_profile(result2)
   expect_false(is.null(ip2))
-  expect_true("ferretti20" %in% ip2$func)
-})
-
-############################################################################
-## get_infec_profile on template model
-############################################################################
-
-test_that("get_infec_profile returns NULL or data.frame", {
-  hhmodel <- new_housepi_model("blank")
-  expect_null(get_infec_profile(hhmodel))
+  expect_true("lognormal" %in% ip2$func)
 })

@@ -264,7 +264,6 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos) {
     def_quo <- xquos[[i]]
     def_expr <- rlang::quo_get_expr(def_quo)
 
-
     if (rlang::is_call(def_expr, c("list", "c"))) {
       # pass arguments as quosures to add_quo
       args_quos <- lapply(rlang::call_args(def_expr),

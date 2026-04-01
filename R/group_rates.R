@@ -347,6 +347,7 @@ HousepiGroupRate <- R6::R6Class(
       by <- housepi_smart_unwrap(by, "by")
       prefix <- housepi_smart_unwrap(prefix, "prefix")
       reference <- housepi_smart_unwrap(reference, "reference")
+      joint <- isTRUE(housepi_smart_unwrap(joint, "joint"))
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
@@ -385,8 +386,7 @@ HousepiGroupRate <- R6::R6Class(
 
       # add new definition
       self$defs[[name]] <- list(by = by, prefix = prefix,
-                                reference = reference,
-                                joint = isTRUE(joint))
+                                reference = reference, joint = joint)
 
       # add parameter definitions
       self$raw_params[[name]] <- set_group_rates_mcmc_setup(

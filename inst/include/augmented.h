@@ -66,10 +66,12 @@ namespace hsp
         /// Assign augmented variables to all individuals.
         void build(const str_table &input);
 
-        /// Set all definition to empty. Used in simulations.
+        /// Set all augmented definitions to empty for all individuals.
         void clear_all();
+        /// Set individual augmented definitions to empty. Used in simulations.
+        void clear_definitions(Individual &member);
         /// Initialize augmented variables only if missing.
-        void init_missing(Individual &member);
+        void init_missing_definitions(Individual &member);
         /// Initialize augmented dependecies for evaluations.
         /// NOTE: not to be called before simulation which builds on demand.
         void init();

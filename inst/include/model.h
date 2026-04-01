@@ -92,16 +92,21 @@ namespace hsp
 		//////  SETTER  //////
 		//////////////////////
 
+		/// Initialize advanced setup.
 		virtual void init_advanced_setup() {}
 
+		/// Initialize templated infecvitiy profile.
 		void init_infec_profile_template(dict<std::string> x) { infec_profile_->init_template(x); }
-		
+
+		/// Drop all augmented definitions of given individual.
+		void clear_augm(Individual &member) { augm_->clear_definitions(member); }
+
 		/// User call. Initialize all augmented variables of given individual.
 		/// If a variable has been set by the user, it's skipped.
-		/// NOTE: simulations assignments must be order independent.
+		/// UPDATE: right now simulations assignments must be order independent.
 		void init_missing_augm(Individual &member)
 		{
-			augm_->init_missing(member); 
+			augm_->init_missing_definitions(member);
 			augm_->user_reset(setup_->prng(), member);
 		}
 

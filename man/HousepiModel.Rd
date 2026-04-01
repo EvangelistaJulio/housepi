@@ -453,7 +453,7 @@ If no MCMC options are provided, the prior is assumed to be\cr
   by,
   prefix = NA_character_,
   reference = NULL,
-  independent = TRUE,
+  joint = FALSE,
   prior = NA_character_,
   ...,
   min = NULL,
@@ -477,8 +477,8 @@ If \code{NA} uses the first 3 letters of rate name (default).}
 \item{\code{reference}}{named \code{list} Features associated to reference group.\cr
 Default is the group with the largest sample size.}
 
-\item{\code{independent}}{\code{logical(1)} Consider features as independent.\cr
-If \code{FALSE} features are combined (default).}
+\item{\code{joint}}{\code{logical(1)} Consider features as joint.\cr
+If \code{FALSE} features are independent (default).}
 
 \item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 
