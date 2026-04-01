@@ -1,5 +1,5 @@
-library(tidyverse)
 
+# path to public pre-processed data
 url <- "https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt"
 
 date_fmt <- function(x) as.numeric(as.Date(x) - as.Date("2020-01-01"))
@@ -32,7 +32,7 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
     vacc_status = dplyr::case_when(
       vacc_status == "2doses" ~ ifelse(
         date_fmt(index_first_pos_pcr) - date_fmt(last_vacc) <= 90,
-        "2doses<=90", "2doses>90"
+        "2doses_leq90", "2doses_gtr90"
       ),
       .default = vacc_status
     ),
@@ -41,10 +41,13 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
   ) |>
   # drop positive status if test after end followup
   dplyr::mutate(
-    status = ifelse(test_date > end_followup, 0, status),
-    test_date = ifelse(test_date > end_followup, NA, test_date),
+    status = ifelse(status > 0 & test_date > end_followup,
+                    0, status),
+    test_date = ifelse(status > 0 & test_date > end_followup,
+                       NA, test_date),
   ) |>
   dplyr::select(id, house_id, status, end_followup, test_date, age, sex,
-                vacc_status, isolation, asymptomatic)
+                vacc_status, isolation, asymptomatic) |> 
+  as.data.frame()
 
 usethis::use_data(sarscov2_2021_icofs, overwrite = TRUE)

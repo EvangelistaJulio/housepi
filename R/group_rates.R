@@ -336,7 +336,7 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @inherit add_group_rate
     add_quo = function(name, by, prefix = NA_character_,
-                       reference = NULL, independent = TRUE,
+                       reference = NULL, joint = FALSE,
                        prior = NA_character_, ...,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
@@ -386,7 +386,7 @@ HousepiGroupRate <- R6::R6Class(
       # add new definition
       self$defs[[name]] <- list(by = by, prefix = prefix,
                                 reference = reference,
-                                independent = isTRUE(independent))
+                                joint = isTRUE(joint))
 
       # add parameter definitions
       self$raw_params[[name]] <- set_group_rates_mcmc_setup(
@@ -427,8 +427,8 @@ HousepiGroupRate <- R6::R6Class(
           features <- sort(as.character(features[!is.na(features)]))
           assert_data_features(features, colnames(data_wide))
 
-          # cast to list if independent
-          if (isFALSE(this_def[["independent"]])) features <- list(features)
+          # cast to list if joint
+          if (isTRUE(this_def[["joint"]])) features <- list(features)
 
           # default prefix
           prefix <- as.character(this_def[["prefix"]])
@@ -627,7 +627,8 @@ HousepiContactRate <- R6::R6Class(
       new_params
     },
 
-    #' @field data_required `character()`. Data required by contact rates.
+    #' @field data_required `character()`.
+    #' Data required by contact rates.
     data_required = function(value) {
       if (!missing(value)) stop_h("'data_required' is read only.")
       required <- self$defs[["by"]]
@@ -636,7 +637,8 @@ HousepiContactRate <- R6::R6Class(
       set_source_name_(required, self$family)
     },
 
-    #' @field param_required `character()`. Parameters required by contact rates.
+    #' @field param_required `character()`.
+    #' Parameters required by contact rates.
     param_required = function(value) {
       if (!missing(value)) stop_h("'param_required' is read only.")
       if (is.null(self$logic_table)) return(character(0))

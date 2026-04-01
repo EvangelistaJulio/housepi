@@ -238,3 +238,29 @@ test_that("Augmented model log-likelihoods are correctly computed", {
   expect_equal(get_log_lik_draws(results)$hh01,
                rowSums(log(df * dgamma(df, shape = shape, scale = scale))))
 })
+
+test_that("export_augmented_data works after evaluate_log_lik", {
+  hhmodel <- new_housepi_model("augmented_example")
+  hhmodel$add_data_wide(
+    data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0))
+  )
+  hhmodel$add_augmented(name = "proba", model = "uniform")
+  hhmodel$evaluate_log_lik()
+  result <- hhmodel$export_augmented_data()
+  expect_true(is.data.frame(result))
+  expect_true("proba" %in% colnames(result))
+})
+
+test_that("export_house_snapshot returns correct structure", {
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel$load_parameter_template()
+  hhmodel$evaluate_log_lik()
+  
+  hid <- helper_test_get_data("flu_1918_frederick")$house_id[1]
+  snapshot <- hhmodel$export_house_snapshot(hid)
+  expect_true(is.list(snapshot))
+  expect_true("data_wide" %in% names(snapshot))
+  expect_true("param" %in% names(snapshot))
+  expect_true(is.data.frame(snapshot$data_wide))
+})

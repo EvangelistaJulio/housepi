@@ -118,8 +118,8 @@ rd_grr_prefix_ <- "`character(1)` Prefix to names of associated parameters.\\cr
 If `NA` uses the first 3 letters of rate name (default)."
 rd_grr_refer_ <- "named `list` Features associated to reference group.\\cr
 Default is the group with the largest sample size."
-rd_grr_indep_ <- "`logical(1)` Consider features as independent.\\cr
-If `FALSE` features are combined (default)."
+rd_grr_joint_ <- "`logical(1)` Consider features as joint.\\cr
+If `FALSE` features are independent (default)."
 
 ############################################################################
 ############################################################################

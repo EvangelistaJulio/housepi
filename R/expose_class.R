@@ -329,7 +329,7 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param by `r rd_grr_by_`
 #' @param prefix `r rd_grr_prefix_`
 #' @param reference `r rd_grr_refer_`
-#' @param independent `r rd_grr_indep_`
+#' @param joint `r rd_grr_joint_`
 #' @param prior `r rd_par_model_`
 #' @param ... `r rd_par_args_`
 #' @param min `r rd_var_min_`
@@ -346,7 +346,7 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @export
 add_group_rate <-  function(hhmodel,
                             name, by, prefix = NA_character_,
-                            reference = NULL, independent = TRUE,
+                            reference = NULL, joint = FALSE,
                             prior = NA_character_, ...,
                             min = NULL, max = NULL,
                             proposal = NA_character_,
@@ -355,7 +355,7 @@ add_group_rate <-  function(hhmodel,
   new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private$group_rates_$add_quo(
     name = name, by = by, prefix = prefix,
-    reference = reference, independent = independent,
+    reference = reference, joint = joint,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale

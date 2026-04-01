@@ -228,6 +228,10 @@ cpp_data_refactor <- function(data, info, headers) {
       }
     }
   }
+
+  if ("status" %in% colnames(data)) {
+    data[["status"]] <- replace(data[["status"]], data[["status"]] < 0, NA)
+  }
   # re-order data and append eventual extra columns
   data[c(headers, setdiff(colnames(data), headers))]
 }

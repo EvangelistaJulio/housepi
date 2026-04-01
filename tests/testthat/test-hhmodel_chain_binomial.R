@@ -306,3 +306,30 @@ test_that("Grouped model matches heterogeneous for complex dataset", {
 
   expect_equal(hhmodel_1$evaluate_log_lik(), hhmodel_2$evaluate_log_lik())
 })
+
+test_that("Simulation with observation process is correct", {
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$load_parameter_template()
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
+  withr::with_seed(
+    1, result1 <- hhmodel$run_simulation(obs_process = rand_observ)
+  )
+  # ensure simulation is correct
+  expect_true("flag" %in% colnames(result1))
+  withr::with_seed(
+    1, result1encore <- hhmodel$run_simulation(obs_process = rand_observ)
+  )
+  expect_identical(result1, result1encore)
+})
+
+test_that("Run simulation with nsim > 1 returns list of dataframes", {
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel$load_parameter_template()
+  nsim <- 3
+  result <- hhmodel$run_simulation(nsim = nsim)
+  expect_true(is.list(result))
+  expect_length(result, nsim)
+  expect_true(is.data.frame(result[[1]]))
+})

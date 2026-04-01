@@ -83,24 +83,24 @@ Manually set a `reference` by providing the corresponding group factor values:
 ```{r}
 #| label: susceptibility-by-sex-age
 hhmodel |>
-  # independent group rates, adult female chosen as reference
+  # multipicative group rates, adult female chosen as reference
   add_group_rate("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult")) |>
-  # show corresponding tables with independent associations
+  # show corresponding tables with associations
   get_group_rates()
 ```
 
 By default, parameters associated to each grouping are assumed independent,
-i.e. the group rate is the product of the two parameters.
+i.e. the group rate is the product of two parameters, one for the feature "sex", another for "age".
+In alternative, we can make the rate joint between the features:
 
 ```{r}
-#| label: susceptibility-dependent
+#| label: susceptibility-joint
 hhmodel |>
-  # here covariates are not assumed independent
+  # here covariates are assumed to be joint
   add_group_rate("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult"),
-                 independent = FALSE) |>
-  # show table with dependent associations
+                 joint = TRUE) |>
   get_group_rates()
 ```
 
