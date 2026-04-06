@@ -26,6 +26,7 @@
 #include "mcmc.h"
 #include "registry.h"
 #include "augmented.h"
+#include "data_store.h"
 #include "data_wide.h"
 #include "data_long.h"
 #include "distribution.h"
@@ -343,13 +344,81 @@ namespace
         }                                                        \
     }
     MAKE_RCPP_IMPORT_METHOD(setup, "setup")
-    MAKE_RCPP_IMPORT_METHOD(data_wide, "data-wide")
-    MAKE_RCPP_IMPORT_METHOD(data_long, "data-long")
     MAKE_RCPP_IMPORT_METHOD(param, "parameters")
-    MAKE_RCPP_IMPORT_METHOD(group_rate, "group rates")
-    MAKE_RCPP_IMPORT_METHOD(contact_rate, "contact rates")
-    MAKE_RCPP_IMPORT_METHOD(infec_profile, "infectivity profile")
-    MAKE_RCPP_IMPORT_METHOD(augm, "augmented")
+
+    void import_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    {
+        try
+        {
+            mcmc_ptr->detach_data_store();
+            mcmc_ptr->data_wide().build(rdataframe_to_strmap(input));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While importing data-wide:\n") + e.what());
+        }
+    }
+
+    void import_data_long(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    {
+        try
+        {
+            /// FIXME: copy-on-write should be also on long? Not clear...
+            mcmc_ptr->data_long().build(mcmc_ptr->data_wide(), rdataframe_to_strmap(input));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While importing data-long:\n") + e.what());
+        }
+    }
+
+    void import_group_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    {
+        try
+        {
+            mcmc_ptr->group_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While importing group rates:\n") + e.what());
+        }
+    }
+
+    void import_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    {
+        try
+        {
+            mcmc_ptr->contact_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While importing contact rates:\n") + e.what());
+        }
+    }
+
+    void import_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    {
+        try
+        {
+            mcmc_ptr->infec_profile.build(mcmc_ptr->param, rdataframe_to_strmap(input));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While importing infectivity profile:\n") + e.what());
+        }
+    }
+
+    void import_augm(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    {
+        try
+        {
+            mcmc_ptr->augm.build(mcmc_ptr->infec_profile, rdataframe_to_strmap(input));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While importing augmented:\n") + e.what());
+        }
+    }
 
     void import_param_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
@@ -471,14 +540,14 @@ namespace
 
     Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        const DataWide &data_wide = mcmc_ptr->data_wide;
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         return Rcpp::DataFrame(helper_export_data_wide(data_wide, data_wide.pKeys->get_all(), true));
     }
 
     /// Export to R all augmented variables at the current state.
     Rcpp::DataFrame export_augmented_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        const DataWide &data_wide = mcmc_ptr->data_wide;
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
 
         size_t n_cols = augm.list_export.size();
@@ -515,8 +584,8 @@ namespace
     /// Export current data configurations to R DataFrame.
     Rcpp::DataFrame export_data_long(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        const DataWide &data_wide = mcmc_ptr->data_wide;
-        const DataLong &data_long = mcmc_ptr->data_long;
+        const DataWide &data_wide = mcmc_ptr->data_wide();
+        const DataLong &data_long = mcmc_ptr->data_long();
 
         try
         {
@@ -572,7 +641,7 @@ namespace
     /// Export current data configurations to R DataFrame.
     Rcpp::DataFrame summarise_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        const DataWide &data_wide = mcmc_ptr->data_wide;
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHousehold &report_house = data_wide.report_house;
 
@@ -631,7 +700,7 @@ namespace
     /// Export current data configurations to R DataFrame.
     Rcpp::DataFrame summarise_house_sizes(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        const DataWide &data_wide = mcmc_ptr->data_wide;
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHouseSizes &report_hh_size = data_wide.report_hh_size;
 
@@ -802,7 +871,7 @@ namespace
     /// Export all sampled values of the log-likelihood for all household.
     Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        DataWide &data_wide = mcmc_ptr->data_wide;
+        DataWide &data_wide = mcmc_ptr->data_wide();
         const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
 
         try
@@ -1104,17 +1173,17 @@ namespace
     {
         try
         {
-            if (mcmc_ptr->data_wide.is_empty())
+            if (mcmc_ptr->data_wide().is_empty())
                 return Rcpp::List::create();
 
-            const Household &house = mcmc_ptr->data_wide.at(house_id);
+            const Household &house = mcmc_ptr->data_wide().at(house_id);
 
             return Rcpp::List::create(
                 Rcpp::_["obs_log_lik"] = house.obs_log_lik(),
                 Rcpp::_["augm_log_lik"] = helper_augm_log_lik_rcpp_snapshot(mcmc_ptr->augm, house),
                 Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr->param),
-                Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide, house),
-                Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long, house),
+                Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide(), house),
+                Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long(), house),
                 Rcpp::_["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr->group_rate, house),
                 Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr->infec_profile, house),
                 Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr->augm, house));
@@ -1169,7 +1238,7 @@ namespace
                                std::vector<Rcpp::NumericVector> &augm_cols,
                                const std::vector<size_t> &row_offsets)
         {
-            DataWide &data_wide = engine.data_wide;
+            DataWide &data_wide = engine.data_wide();
             const Augmented &augm = engine.augm;
 
 #pragma omp parallel for
@@ -1230,7 +1299,7 @@ namespace
         MCMC &engine = *mcmc_ptr;
         Setup &setup = engine.setup;
         const Augmented &augm = engine.augm;
-        const DataWide &data_wide = engine.data_wide;
+        const DataWide &data_wide = engine.data_wide();
 
         try
         {
@@ -1289,7 +1358,7 @@ namespace
             for (size_t r = 0; r < setup.n_steps; ++r, setup.prog_update())
             {
                 engine.augm.clear_all();
-                engine.data_wide.recover_all_status();
+                engine.data_wide().recover_all_status();
                 engine.param.load_sample_values(r);
 
                 // run single repetition
@@ -1396,6 +1465,12 @@ namespace
         return Rcpp::XPtr<MCMC>(new MCMC(std::unique_ptr<ModelBase>(raw)), true);
     }
 
+    /// Share the DataStore between two MCMC objects (COW copy).
+    void share_data_store(Rcpp::XPtr<MCMC> dest, Rcpp::XPtr<MCMC> src)
+    {
+        dest->set_data_store(src->pDataStore);
+    }
+
     bool has_contact_rates(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         return mcmc_ptr->model->has_contact_rates();
@@ -1463,6 +1538,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);
+    Rcpp::function("share_data_store", &share_data_store);
     Rcpp::function("import_group_rate", &import_group_rate);
     Rcpp::function("import_contact_rate", &import_contact_rate);
     Rcpp::function("import_setup", &import_setup);

@@ -12,11 +12,7 @@
 
 #include "tools/types.h"
 
-#include "setup.h"
-#include "data_wide.h"
-#include "parameter.h"
-#include "infec_profile.h"
-#include "augmented.h"
+#include "mcmc_base.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -39,18 +35,7 @@ namespace hsp
 		ModelBase() = default;
 		virtual ~ModelBase() = default;
 
-		void bind_solver(Parameter *param,
-						 DataWide *data_wide,
-						 Setup *setup,
-						 InfecProfile *infec_profile,
-						 Augmented *augm) noexcept
-		{
-			param_ = param;
-			data_wide_ = data_wide;
-			setup_ = setup;
-			infec_profile_ = infec_profile;
-			augm_ = augm;
-		}
+		void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
 
 		virtual std::vector<std::string> compile_flags() const { return {""}; }
 		virtual const std::vector<std::string> get_DataKey() const = 0;
@@ -96,35 +81,35 @@ namespace hsp
 		virtual void init_advanced_setup() {}
 
 		/// Initialize templated infecvitiy profile.
-		void init_infec_profile_template(dict<std::string> x) { infec_profile_->init_template(x); }
+		void init_infec_profile_template(dict<std::string> x) { mcmc_->infec_profile.init_template(mcmc_->param, x); }
 
 		/// Drop all augmented definitions of given individual.
-		void clear_augm(Individual &member) { augm_->clear_definitions(member); }
+		void clear_augm(Individual &member) { mcmc_->augm.clear_definitions(member); }
 
 		/// User call. Initialize all augmented variables of given individual.
 		/// If a variable has been set by the user, it's skipped.
 		/// UPDATE: right now simulations assignments must be order independent.
 		void init_missing_augm(Individual &member)
 		{
-			augm_->init_missing_definitions(member);
-			augm_->user_reset(setup_->prng(), member);
+			mcmc_->augm.init_missing_definitions(member);
+			mcmc_->augm.user_reset(mcmc_->setup.prng(), member);
 		}
 
 		/// User call. Request discrete parameter definition.
-		void request_discrete_param(size_t p) { param_->request_discrete(p); }
+		void request_discrete_param(size_t p) { mcmc_->param.request_discrete(p); }
 		/// User call. Request discrete augmented definition.
-		void request_discrete_augm(size_t a) { augm_->request_discrete(a); }
+		void request_discrete_augm(size_t a) { mcmc_->augm.request_discrete(a); }
 		/// User call. Request discrete infectivity profile definition.
-		void request_discrete_infec_profile() { infec_profile_->request_discrete(); }
+		void request_discrete_infec_profile() { mcmc_->infec_profile.request_discrete(); }
 
 		/// Auxiliary method to initialize simulations.
 		/// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
 		void helper_init_simulation()
 		{
-			data_wide_->assert_non_empty(); // check if data is empty
-			setup_->n_chains = 0;			// use 0 chains as a state variable
-			setup_->n_threads = 1;			// impose no parallelization
-			setup_->set_n_threads();		// change accordingly
+			mcmc_->data_wide().assert_non_empty(); // check if data is empty
+			mcmc_->setup.n_chains = 0;           // use 0 chains as a state variable
+			mcmc_->setup.n_threads = 1;          // impose no parallelization
+			mcmc_->setup.set_n_threads();        // change accordingly
 		}
 
 		//////////////////////
@@ -132,43 +117,39 @@ namespace hsp
 		//////////////////////
 
 		/// Sample a uniform-distributed variable between 0 and 1.
-		double uniform() const { return setup_->uniform(); }
+		double uniform() const { return mcmc_->setup.uniform(); }
 		/// Sample a exponential-distributed variable between 0 and Inf.
-		double exponential() const { return setup_->exponential(); }
+		double exponential() const { return mcmc_->setup.exponential(); }
 
 		/// Get parameter value.
-		double par(size_t p) const { return param_->at(p).value(); }
+		double par(size_t p) const { return mcmc_->param.at(p).value(); }
 
 		/// Return maximum number of observed infected household members.
-		size_t get_max_hh_cases() const noexcept { return data_wide_->get_max_hh_cases(); }
+		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }
 		/// Throw an exception if at least a member as missing status.
-		void assert_no_missing_status() const { data_wide_->assert_no_missing_status(); }
+		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
 
-		double infec_profile_inst(const Individual &i, double t) const { return infec_profile_->inst(&i, t); }
-		double infec_profile_cumul(const Individual &i, double t) const { return infec_profile_->cumul(&i, t); }
+		double infec_profile_inst(const Individual &i, double t) const { return mcmc_->infec_profile.inst(&i, t); }
+		double infec_profile_cumul(const Individual &i, double t) const { return mcmc_->infec_profile.cumul(&i, t); }
 
 		/// Return reference to cached size_t value.
-		size_t &cache_size(Household &house, size_t e) { return data_wide_->cache_size(house, e); }
+		size_t &cache_size(Household &house, size_t e) { return mcmc_->data_wide().cache_size(house, e); }
 		/// Return cached size_t value.
-		size_t cache_size(const Household &house, size_t e) const { return data_wide_->cache_size(house, e); }
+		size_t cache_size(const Household &house, size_t e) const { return mcmc_->data_wide().cache_size(house, e); }
 
 		/// Return cached size_t vector.
-		std::vector<size_t> &cache_size_vector(Household &house, size_t e) { return data_wide_->cache_size_vector(house, e); }
-		const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const { return data_wide_->cache_size_vector(house, e); }
+		std::vector<size_t> &cache_size_vector(Household &house, size_t e) { return mcmc_->data_wide().cache_size_vector(house, e); }
+		const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const { return mcmc_->data_wide().cache_size_vector(house, e); }
 
 		/// Return cached double vector.
-		std::vector<double> &cache_double_vector(Household &house, size_t e) { return data_wide_->cache_double_vector(house, e); }
-		const std::vector<double> &cache_double_vector(const Household &house, size_t e) const { return data_wide_->cache_double_vector(house, e); }
+		std::vector<double> &cache_double_vector(Household &house, size_t e) { return mcmc_->data_wide().cache_double_vector(house, e); }
+		const std::vector<double> &cache_double_vector(const Household &house, size_t e) const { return mcmc_->data_wide().cache_double_vector(house, e); }
 
 		/// Return cached double matrix.
-		std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) { return data_wide_->cache_double_matrix(house, e); }
-		const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const { return data_wide_->cache_double_matrix(house, e); }
+		std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) { return mcmc_->data_wide().cache_double_matrix(house, e); }
+		const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const { return mcmc_->data_wide().cache_double_matrix(house, e); }
 
 	private:
-		Parameter *param_;
-		DataWide *data_wide_;
-		Setup *setup_;
-		InfecProfile *infec_profile_;
-		Augmented *augm_;
+		MCMCBase *mcmc_;
 	};
 }

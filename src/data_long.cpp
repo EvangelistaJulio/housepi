@@ -31,8 +31,7 @@
 
 namespace hsp
 {
-    DataLong::DataLong(DataWide *ptr)
-        : pDataWide_(ptr) {}
+    DataLong::DataLong() = default;
     DataLong::~DataLong() = default;
 
     void DataLong::init_registry(const std::vector<std::string> &keys)
@@ -40,7 +39,7 @@ namespace hsp
         pKeys = std::make_unique<KeyHolder>(keys);
     }
 
-    void DataLong::build(const str_table &input)
+    void DataLong::build(DataWide &data_wide, const str_table &input)
     {
         pKeys->clear();
 
@@ -48,16 +47,16 @@ namespace hsp
             return;
 
         helper_build_clear_data_();
-        helper_build_data_headers_(input);
+        helper_build_data_headers_(data_wide, input);
 
         // data-long allocation
-        size_t n_indiv = pDataWide_->report_indiv.total;
+        size_t n_indiv = data_wide.report_indiv.total;
         indiv_datalist.resize(n_indiv);
 
         // individual map for id -> index
         dict<size_t> id_to_index = {};
         size_t c = 0;
-        for (const Household &house : *pDataWide_)
+        for (const Household &house : data_wide)
             for (const Individual &member : house)
                 id_to_index.emplace(member.id(), c++);
 
@@ -89,7 +88,7 @@ namespace hsp
         // NOTE: adopted paradigm return empty on dangling pointer
         // UPDATE: just store indexes and access indiv_datalist by index...
         c = 0;
-        for (Household &house : *pDataWide_)
+        for (Household &house : data_wide)
             for (Individual &member : house)
             {
                 if (indiv_datalist.at(c).vec.size() > 0)
@@ -105,9 +104,9 @@ namespace hsp
         indiv_datalist.clear();
     }
 
-    void DataLong::helper_build_data_headers_(const str_table &input)
+    void DataLong::helper_build_data_headers_(const DataWide &data_wide, const str_table &input)
     {
-        if (pDataWide_->is_empty())
+        if (data_wide.is_empty())
             throw std::invalid_argument(
                 "Tried to define data long format before wide format.");
 

@@ -163,13 +163,79 @@ namespace hsp
     }
 
     STANDALONE_MAKE_READ_METHOD_(setup, "setup")
-    STANDALONE_MAKE_READ_METHOD_(data_wide, "data-wide")
-    STANDALONE_MAKE_READ_METHOD_(data_long, "data-long")
     STANDALONE_MAKE_READ_METHOD_(param, "parameters")
-    STANDALONE_MAKE_READ_METHOD_(group_rate, "group rate")
-    STANDALONE_MAKE_READ_METHOD_(contact_rate, "contact rate")
-    STANDALONE_MAKE_READ_METHOD_(infec_profile, "infectivity profile")
-    STANDALONE_MAKE_READ_METHOD_(augm, "augmented")
+
+    void Options::read_data_wide(MCMCBase &model)
+    {
+        try
+        {
+            model.data_wide().build(read::csv_table(file.data_long));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While reading data-wide definitions:\n") + e.what());
+        }
+    }
+
+    void Options::read_data_long(MCMCBase &model)
+    {
+        try
+        {
+            model.data_long().build(model.data_wide(), read::csv_table(file.data_long));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While reading data-long definitions:\n") + e.what());
+        }
+    }
+
+    void Options::read_group_rate(MCMCBase &model)
+    {
+        try
+        {
+            model.group_rate.build(model.data_wide(), model.param, read::csv_table(file.group_rate));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While reading group rate definitions:\n") + e.what());
+        }
+    }
+
+    void Options::read_contact_rate(MCMCBase &model)
+    {
+        try
+        {
+            model.contact_rate.build(model.data_wide(), model.param, read::csv_table(file.contact_rate));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While reading contact rate definitions:\n") + e.what());
+        }
+    }
+
+    void Options::read_infec_profile(MCMCBase &model)
+    {
+        try
+        {
+            model.infec_profile.build(model.param, read::csv_table(file.infec_profile));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While reading infectivity profile definitions:\n") + e.what());
+        }
+    }
+
+    void Options::read_augm(MCMCBase &model)
+    {
+        try
+        {
+            model.augm.build(model.infec_profile, read::csv_table(file.augm));
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While reading augmented definitions:\n") + e.what());
+        }
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -304,7 +370,7 @@ namespace hsp
 
     void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile)
     {
-        DataWide &data_wide = engine.data_wide;
+        DataWide &data_wide = engine.data_wide();
         const Augmented &augm = engine.augm;
 
         // initialization

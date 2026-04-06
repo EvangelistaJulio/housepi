@@ -40,13 +40,17 @@ namespace hsp
 	class MCMC : public MCMCBase
 	{
 	public:
+		/// UPDATE: can I transition to template now?
+		std::unique_ptr<ModelBase> model;
+
 		///////////////////////////
 		//////  CONSTRUCTOR  //////
 		///////////////////////////
 
-		std::unique_ptr<ModelBase> model;
-
 		explicit MCMC(std::unique_ptr<ModelBase> m);
+
+		/// Detach shared DataStore before mutation. Used for copy-on-write logic.
+		void detach_data_store();
 
 		//////////////////////////
 		//////  EVALUATION  //////

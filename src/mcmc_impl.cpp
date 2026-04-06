@@ -39,13 +39,15 @@
 
 namespace hsp
 {
-    MCMCBase::MCMCBase()
-        : data_long(&data_wide),
-          group_rate(&data_wide, &param),
-          contact_rate(&data_wide, &param),
-          infec_profile(&param),
-          augm(&data_wide, &param, &infec_profile) {}
+    MCMCBase::MCMCBase() : pDataStore(std::make_shared<DataStore>()), augm(this) {}
     MCMCBase::~MCMCBase() = default;
+
+    void MCMCBase::set_data_store(std::shared_ptr<DataStore> ds)
+    {
+        pDataStore = std::move(ds);
+        DataWide *dw = &pDataStore->data_wide;
+        param.bind_to_data_wide(dw->pKeys.get());
+    }
 
     void MCMCBase::init_registry(const std::vector<std::string> &data_wide_keys,
                                  const std::vector<std::string> &hh_size_keys,
@@ -57,18 +59,18 @@ namespace hsp
                                  const std::vector<std::string> &group_rate_keys,
                                  const std::vector<std::string> &augm_keys)
     {
-        data_wide.init_registry(data_wide_keys,
-                                hh_size_keys,
-                                hh_size_vec_keys,
-                                hh_double_vec_keys,
-                                hh_double_mtx_keys);
-        data_long.init_registry(data_long_keys);
+        data_wide().init_registry(data_wide_keys,
+                                  hh_size_keys,
+                                  hh_size_vec_keys,
+                                  hh_double_vec_keys,
+                                  hh_double_mtx_keys);
+        data_long().init_registry(data_long_keys);
         param.init_registry(param_keys);
         group_rate.init_registry(group_rate_keys);
         augm.init_registry(augm_keys);
 
         /// UPDATE: waiting for refactoring of read_attribute
-        param.bind_to_data_wide(data_wide.pKeys.get());
+        param.bind_to_data_wide(data_wide().pKeys.get());
         param.bind_to_group_rate(group_rate.pKeys.get());
         param.bind_to_augm(augm.pKeys.get());
     }
@@ -113,9 +115,9 @@ namespace hsp
         tot_log_lik.recover();
 
         // recover old log-likelihood values for households
-        for (size_t R = 0; R < data_wide.restricted_size(); ++R)
+        for (size_t R = 0; R < data_wide().restricted_size(); ++R)
         {
-            Household &house = data_wide.restricted(R);
+            Household &house = data_wide().restricted(R);
             house.obs_log_lik_.recover();
 
             if (augm.is_any_sample())
@@ -125,7 +127,7 @@ namespace hsp
 
         if (is_cache_depen)
         {
-            data_wide.recover_old_cached();
+            data_wide().recover_old_cached();
             infec_profile.recover();
         }
     }
@@ -139,7 +141,7 @@ namespace hsp
         unsigned long sample_size = setup.c_sample_size * setup.n_chains;
         if (!setup.is_power_post())
         {
-            data_wide.init_draws(sample_size);
+            data_wide().init_draws(sample_size);
             param.init_draws(sample_size);
 
             augm.init_individual_sample(setup.id_draws);
@@ -152,7 +154,7 @@ namespace hsp
     {
         if (!setup.is_power_post())
         {
-            data_wide.store_draws(tot_log_lik.count());
+            data_wide().store_draws(tot_log_lik.count());
             param.store_draws(tot_log_lik.count());
             augm.store_draws(tot_log_lik.count());
         }
@@ -178,8 +180,23 @@ namespace hsp
                       model->get_ParamKey(),
                       model->get_GroupRateKey(),
                       model->get_AugmKey());
-        model->bind_solver(&param, &data_wide, &setup, &infec_profile, &augm);
+        model->bind_solver(this);
         model->init_advanced_setup();
+    }
+
+    void MCMC::detach_data_store()
+    {
+        if (pDataStore.use_count() <= 1)
+            return;
+        auto new_ds = std::make_shared<DataStore>();
+        new_ds->data_wide.init_registry(
+            model->get_DataKey(),
+            model->get_HHsizeKey(),
+            model->get_HHsizevecKey(),
+            model->get_HHdoublevecKey(),
+            model->get_HHdoublemtxKey());
+        new_ds->data_long.init_registry(model->get_LongKey());
+        set_data_store(std::move(new_ds));
     }
 
     //////////////////////////
@@ -195,7 +212,7 @@ namespace hsp
         if (!na::is(house_id))
         {
             infec_profile.update(); // eventually recompute infectivity profile
-            double output = atomic_commit_house_log_lik_(data_wide.at(house_id), true);
+            double output = atomic_commit_house_log_lik_(data_wide().at(house_id), true);
             atomic_error.throw_exception(); // catch and throw if previous failed
             return output;
         }
@@ -223,10 +240,10 @@ namespace hsp
 
     void MCMC::init_evaluate_(bool is_reset)
     {
-        data_wide.assert_non_empty();                      // check if data is empty
-        data_wide.assert_not_all_missing_status();         // warn if all missing status
-        augm.init();                                       // initialize individual augmented relations
-        data_wide.init_multiplicity(augm.is_any_sample()); // multiplicity
+        data_wide().assert_non_empty();                      // check if data is empty
+        data_wide().assert_not_all_missing_status();         // warn if all missing status
+        augm.init();                                         // initialize individual augmented relations
+        data_wide().init_multiplicity(augm.is_any_sample()); // multiplicity
 
         if (is_reset)
         {
@@ -235,10 +252,10 @@ namespace hsp
         }
 
         model->init_model_for_evaluation(); // user initialization of model for inference
-        data_wide.allocate_all_cache();     // allocate all cache dependencies
+        data_wide().allocate_all_cache();     // allocate all cache dependencies
 
-        for (size_t R = 0; R < data_wide.restricted_size(); ++R)
-            model->init_house_for_evaluation(data_wide.restricted(R));
+        for (size_t R = 0; R < data_wide().restricted_size(); ++R)
+            model->init_house_for_evaluation(data_wide().restricted(R));
     }
 
     double MCMC::commit_total_log_lik_(bool is_cache_depen)
@@ -248,18 +265,18 @@ namespace hsp
         // save infectivity profile if lookup tables are active
         if (is_cache_depen)
         {
-            data_wide.save_all_cached();
+            data_wide().save_all_cached();
             infec_profile.update();
         }
 
 #pragma omp parallel for reduction(+ : new_ll)
-        for (size_t R = 0; R < data_wide.restricted_size(); ++R)
+        for (size_t R = 0; R < data_wide().restricted_size(); ++R)
         {
             if (atomic_error.is_pending())
                 continue;
 
-            Household &house = data_wide.restricted(R);
-            new_ll += data_wide.multiplicity(R) *
+            Household &house = data_wide().restricted(R);
+            new_ll += data_wide().multiplicity(R) *
                       atomic_commit_house_log_lik_(house, is_cache_depen);
         }
         atomic_error.throw_exception();
@@ -287,7 +304,7 @@ namespace hsp
 
                 // assert that initial log-likelihood value is finite
                 if (tot_log_lik.is_inf())
-                    data_wide.assert_finite_log_lik();
+                    data_wide().assert_finite_log_lik();
             }
             catch (const std::exception &e)
             {
@@ -388,7 +405,7 @@ namespace hsp
         double delta_ll = 0.;
 
 #pragma omp parallel for reduction(+ : delta_ll)
-        for (size_t H = 0; H < data_wide.report_house.total; ++H)
+        for (size_t H = 0; H < data_wide().report_house.total; ++H)
         {
             if (atomic_error.is_pending())
                 continue;
@@ -401,7 +418,7 @@ namespace hsp
 
     double MCMC::atomic_move_augm_single_house_(size_t H)
     {
-        Household &house = data_wide.at(H);
+        Household &house = data_wide().at(H);
         double delta_ll = 0.;
 
         try
@@ -434,7 +451,7 @@ namespace hsp
         {
             size_t i = member.hhindex();
             // update dependencies to perform computations
-            data_wide.save_member_cache(house, i);
+            data_wide().save_member_cache(house, i);
             model->update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
@@ -447,7 +464,7 @@ namespace hsp
             // else recover cached values
             member.paugm_->log_lik.recover();
             house.obs_log_lik_.recover();
-            data_wide.recover_member_old_cached(house, i);
+            data_wide().recover_member_old_cached(house, i);
         }
         // else recover old value
         xaugm.recover();

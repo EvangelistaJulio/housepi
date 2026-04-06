@@ -38,7 +38,7 @@ namespace hsp
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        DataLong(DataWide *ptr);
+        DataLong();
         ~DataLong();
 
         void init_registry(const std::vector<std::string> &keys);
@@ -48,14 +48,13 @@ namespace hsp
         //////////////////////
 
         /// Assign data (long format) after pre-processing.
-        void build(const str_table &input);
+        void build(DataWide &data_wide, const str_table &input);
 
     private:
-        DataWide *pDataWide_; // pointer to external DataWide struct
 
         /// Clear previous data report.
         void helper_build_clear_data_();
         /// Assert that data headers are correct.
-        void helper_build_data_headers_(const str_table &input);
+        void helper_build_data_headers_(const DataWide &data_wide, const str_table &input);
     };
 }

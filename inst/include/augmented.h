@@ -28,10 +28,9 @@
 namespace hsp
 {
     struct KeyHolder;
-    struct DataWide;
-    struct Parameter;
     struct InfecProfile;
     class Individual;
+    class MCMCBase;
 
     struct Augmented
     {
@@ -48,9 +47,7 @@ namespace hsp
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        Augmented(DataWide *dataptr,
-                  Parameter *paramptr,
-                  InfecProfile *infprofptr);
+        Augmented(MCMCBase *mcmc);
         ~Augmented();
 
         void init_registry(const std::vector<std::string> &keys);
@@ -60,7 +57,7 @@ namespace hsp
         //////////////////////
 
         /// Assign augmented variables to all individuals.
-        void build(const str_table &input);
+        void build(InfecProfile &infec_profile, const str_table &input);
 
         /// Set all augmented definitions to empty for all individuals.
         void clear_all();
@@ -113,20 +110,14 @@ namespace hsp
         bool is_any_draw() const noexcept { return !smpl_individuals.empty(); }
 
     private:
+        MCMCBase *mcmc_;                      /// pointer to owning MCMCBase
         std::vector<Indiv::Augm> indiv_augm_; /// External storage for individual augmented data
-
-        DataWide *pDataWide_;         /// pointer to external DataWide struct
-        Parameter *pParameter_;       /// pointer to external Parameter struct
-        InfecProfile *pInfecProfile_; /// pointer to external InfecProfile struct
-
-        str_table deftable_ = {}; /// store definition table (no names)
-
-        bool is_any_sample_ = false; /// whether at least one augmented model is provided
-        bool is_any_model_ = false;  /// whether at least one augmented model is provided
+        str_table deftable_ = {};             /// store definition table (no names)
+        bool is_any_sample_ = false;          /// whether at least one augmented model is provided
+        bool is_any_model_ = false;           /// whether at least one augmented model is provided
 
         /// User defined discrete parameters
         std::unordered_set<size_t> user_discrete_set_ = {};
-
         /// Status to definition row.
         std::unordered_map<int, std::vector<size_t>> map_status_to_def_row_ = {};
         /// Status to internal index.
@@ -155,7 +146,7 @@ namespace hsp
         void helper_assert_augm_input_(const str_table &input);
 
         /// Eventually append infectivity profile definitions.
-        void helper_build_append_infec_profile_();
+        void helper_build_append_infec_profile_(InfecProfile &infec_profile);
 
         /// Assert that augmented status/generic definitions are non degenerate.
         /// Also, assert that status-specific definitions are for infected status only.

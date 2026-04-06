@@ -30,18 +30,16 @@
 
 namespace hsp
 {
-    ContactRate::ContactRate(DataWide *dataptr, const Parameter *paramptr)
-        : pDataWide_(dataptr),
-          pParameter_(paramptr) {}
+    ContactRate::ContactRate() = default;
     ContactRate::~ContactRate() = default;
 
-    void ContactRate::build(const str_table &input)
+    void ContactRate::build(DataWide &data_wide, const Parameter &param, const str_table &input)
     {
         try
         {
             // allocate external contact rate storage
             house_contact_rates_.clear();
-            house_contact_rates_.resize(pDataWide_->report_house.total);
+            house_contact_rates_.resize(data_wide.report_house.total);
 
             // parse column headers to separate from_ and to_ prefixes
             std::vector<std::string> from_headers, to_headers;
@@ -69,18 +67,18 @@ namespace hsp
                         "Mismatched number of 'from_' and 'to_' columns in contact rate definitions.");
 
                 // register data columns for multiplicity
-                pDataWide_->set_multiplicity_data(data_names);
+                data_wide.set_multiplicity_data(data_names);
             }
 
             size_t n_rows = read::csv_n_rows(input);
 
             // resolve data column indices
-            std::vector<size_t> data_indices = pDataWide_->pKeys->from_string(data_names);
+            std::vector<size_t> data_indices = data_wide.pKeys->from_string(data_names);
 
             // loop over all households
-            for (size_t H = 0; H < pDataWide_->report_house.total; ++H)
+            for (size_t H = 0; H < data_wide.report_house.total; ++H)
             {
-                Household &house = pDataWide_->at(H);
+                Household &house = data_wide.at(H);
                 house.pcontact_rate_ = &house_contact_rates_[H];
 
                 // initialize contact rate matrix to reference
@@ -113,7 +111,7 @@ namespace hsp
                                 if (!na::is(paramstr) && paramstr != rates::REFERENCE)
                                 {
                                     Attribute &attr = house_contact_rates_[H].mtx[member_from.hhindex()][member_to.hhindex()];
-                                    attr.init_pointer(pParameter_->at(pParameter_->pKeys->from_string(paramstr)).pointer());
+                                    attr.init_pointer(param.at(param.pKeys->from_string(paramstr)).pointer());
                                 }
                                 break;
                             }

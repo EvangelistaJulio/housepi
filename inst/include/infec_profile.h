@@ -88,16 +88,16 @@ namespace hsp
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        InfecProfile(Parameter *paramptr);
+        InfecProfile();
         ~InfecProfile();
 
         //////////////////////
         //////  SETTER  //////
         //////////////////////
 
-        void build(const str_table &input);
-        void init_template(str_table input);
-        void init_template(dict<std::string> input);
+        void build(Parameter &param, const str_table &input);
+        void init_template(Parameter &param, str_table input);
+        void init_template(Parameter &param, dict<std::string> input);
 
         /// If infectivity profile is a lookup table, store its values.
         /// NOTE: infectivity is set to 0 on day 0.
@@ -184,14 +184,13 @@ namespace hsp
         } mode_ = Mode::Generic;
 
         bool is_discrete_requested_ = false; /// wheter is requested as discrete
-        Parameter *pParameter_;              /// pointer to external Parameter struct
         infprof::LookUpTable lookup_;        /// discrete time lookup table
 
         /// Build for generic infectivity profile (no status dependence).
-        void build_generic_(const str_table &input);
+        void build_generic_(Parameter &param, const str_table &input);
         /// Build for individual augmented function infectivity profile.
-        void build_augmented_(const str_table &input);
+        void build_augmented_(Parameter &param, const str_table &input);
         /// Helper to build profile.
-        std::unique_ptr<Distribution> helper_build_(const str_table &input);
+        std::unique_ptr<Distribution> helper_build_(Parameter &param, const str_table &input);
     };
 }

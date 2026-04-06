@@ -32,10 +32,7 @@
 namespace hsp
 {
 
-    GroupRate::GroupRate(DataWide *dataptr,
-                         const Parameter *paramptr)
-        : pDataWide_(dataptr),
-          pParameter_(paramptr) {}
+    GroupRate::GroupRate() = default;
     GroupRate::~GroupRate() = default;
 
     void GroupRate::init_registry(const std::vector<std::string> &keys)
@@ -43,26 +40,26 @@ namespace hsp
         pKeys = std::make_unique<KeyHolder>(keys);
     }
 
-    void GroupRate::build(const str_table &input)
+    void GroupRate::build(DataWide &data_wide, const Parameter &param, const str_table &input)
     {
         pKeys->clear();
         indiv_group_rates_.clear();
 
         std::vector<std::string> data_headers = {};
         if (!input.empty())
-            data_headers = helper_assert_definitions_(input);
+            data_headers = helper_assert_definitions_(data_wide, input);
         else if (pKeys->empty())
             return;
 
         // set headers to be multiplicity-relevat
-        pDataWide_->set_multiplicity_data(data_headers);
+        data_wide.set_multiplicity_data(data_headers);
 
         // allocate external group rate storage
-        indiv_group_rates_.resize(pDataWide_->report_indiv.total);
+        indiv_group_rates_.resize(data_wide.report_indiv.total);
 
         // loop over all household members
         size_t n_rows = read::csv_n_rows(input);
-        for (Household &house : *pDataWide_)
+        for (Household &house : data_wide)
             for (Individual &member : house)
             {
                 member.pgroup_rate_ = &indiv_group_rates_[member.index_];
@@ -74,18 +71,18 @@ namespace hsp
                     bool match = true;
                     for (const std::string &dstr : data_headers)
                         if (!na::is(input.at(dstr)[r]))
-                            match &= member.pwide_->vec[pDataWide_->pKeys->from_string(dstr)] == str::tod(input.at(dstr)[r]);
+                            match &= member.pwide_->vec[data_wide.pKeys->from_string(dstr)] == str::tod(input.at(dstr)[r]);
 
                     // if it's the case, add the parameter name
                     if (match)
                         these_rates[input.at("group_rate")[r]].push_back(input.at("param_name")[r]);
                 }
 
-                helper_init_all_rates_(member, these_rates);
+                helper_init_all_rates_(param, member, these_rates);
             }
     }
 
-    std::vector<std::string> GroupRate::helper_assert_definitions_(const str_table &input)
+    std::vector<std::string> GroupRate::helper_assert_definitions_(DataWide &data_wide, const str_table &input)
     {
         const std::vector<std::string> file_headers = {"group_rate", "param_name"};
 
@@ -96,7 +93,7 @@ namespace hsp
         // remove template headers to keep only data
         data_headers = data_headers - file_headers;
         // check that required data columns are present
-        str::assert_no_unused_entries(data_headers, pDataWide_->pKeys->get_all());
+        str::assert_no_unused_entries(data_headers, data_wide.pKeys->get_all());
 
         // assert the group rate names are allowed
         for (const std::string &groupstr : input.at("group_rate"))
@@ -114,7 +111,7 @@ namespace hsp
         return data_headers;
     }
 
-    void GroupRate::helper_init_all_rates_(Individual &member, const str_table &these_rates)
+    void GroupRate::helper_init_all_rates_(const Parameter &param, Individual &member, const str_table &these_rates)
     {
         // initialize group rates to reference (access storage directly)
         Indiv::Group &igr = indiv_group_rates_[member.index_];
@@ -140,7 +137,7 @@ namespace hsp
                         "' was missing for " + member.err_name() + ".");
                 if (paramstr != rates::REFERENCE)
                     param_pointers.emplace_back(
-                        pParameter_->at(pParameter_->pKeys->from_string(paramstr)).pointer());
+                        param.at(param.pKeys->from_string(paramstr)).pointer());
             }
 
             if (!param_pointers.empty())

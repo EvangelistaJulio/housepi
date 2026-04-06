@@ -12,6 +12,8 @@ add_parameter(
   discr = FALSE,
   prior = NA_character_,
   ...,
+  func = NULL,
+  func_args = NULL,
   min = NULL,
   max = NULL,
   proposal = NA_character_,
@@ -37,6 +39,14 @@ Default is \code{FALSE}.}
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
 
 \item{...}{named arguments for the prior distribution.}
+
+\item{func}{One between:\cr
+\itemize{
+\item \code{character(1)} Name of augmented function;\cr
+\item rlang expression.
+}}
+
+\item{func_args}{named \code{list} Arguments of the augmented function.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.}
 

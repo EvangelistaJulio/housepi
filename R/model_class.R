@@ -584,20 +584,13 @@ HousepiModel <- R6::R6Class(
       # use cloned paths to create new Rcpp pointers
       obj_encl$create_new_pointers_()
 
-      # UPDATE: this transfer shall be cleaned
+      # transfer setup
       .engine$import_setup(
         obj_encl$mcmc_ptr_,
         char_setup_input_(.engine$export_setup(private$mcmc_ptr_))
       )
-      # UPDATE: avoid continuos re-importing data
-      .engine$import_data_wide(
-        obj_encl$mcmc_ptr_,
-        char_data_input_(.engine$export_data_wide(private$mcmc_ptr_))
-      )
-      .engine$import_data_long(
-        obj_encl$mcmc_ptr_,
-        char_data_input_(.engine$export_data_long(private$mcmc_ptr_))
-      )
+      # share data store (just copy-on-write)
+      .engine$share_data_store(obj_encl$mcmc_ptr_, private$mcmc_ptr_)
 
       obj
     },

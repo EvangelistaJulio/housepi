@@ -83,12 +83,11 @@ namespace hsp
         }
     }
 
-    InfecProfile::InfecProfile(Parameter *paramptr)
-        : pParameter_(paramptr) {}
+    InfecProfile::InfecProfile() = default;
     InfecProfile::~InfecProfile() = default;
 
     /// Set model template while constructiing model.
-    void InfecProfile::init_template(str_table input)
+    void InfecProfile::init_template(Parameter &param, str_table input)
     {
         // if not previous build, proceed with template
         // if no template, assume no need for an infectivity profile
@@ -118,7 +117,7 @@ namespace hsp
                     if (!na::is(input.at("discr")[r]))
                         input["discr"][r] = input.at("discr")[r];
 
-            build(input); // run build as if external input
+            build(param, input); // run build as if external input
 
             // forbid augmented infectivity profile for template
             if (is_augmented())
@@ -134,17 +133,17 @@ namespace hsp
         }
     }
 
-    void InfecProfile::init_template(dict<std::string> input)
+    void InfecProfile::init_template(Parameter &param, dict<std::string> input)
     {
         str_table new_input = {};
         for (const auto &[key, val] : input)
             new_input[key] = {val};
-        init_template(std::move(new_input));
+        init_template(param, std::move(new_input));
     }
 
     /// Build infectivity profile distribution.
     /// NOTE: at the moment I am ignoring minimum
-    void InfecProfile::build(const str_table &input)
+    void InfecProfile::build(Parameter &param, const str_table &input)
     {
         augm_definitions.clear();
 
@@ -170,15 +169,15 @@ namespace hsp
             parse::Definition(input.at("func")[0]).is_augmented_depen() ||
             parse::Definition(input.at("max")[0]).is_augmented_depen() ||
             !na::is(input.at("status")[0]))
-            build_augmented_(input);
+            build_augmented_(param, input);
         else
-            build_generic_(input);
+            build_generic_(param, input);
     }
 
-    void InfecProfile::build_generic_(const str_table &input)
+    void InfecProfile::build_generic_(Parameter &param, const str_table &input)
     {
         mode_ = Mode::Generic;
-        generic = helper_build_(
+        generic = helper_build_(param,
             {{"func", {input.at("func")[0]}},
              {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
         lookup_.clear();
@@ -188,11 +187,11 @@ namespace hsp
         std::string min_expr = generic->is_discrete() ? "1|N" : "0|N"; // default
         if (input.count("min"))
             min_expr = input.at("min")[0];
-        generic->init_attr("min", pParameter_->read_attribute(min_expr));
+        generic->init_attr("min", param.read_attribute(min_expr));
 
         // range maximum
         if (input.count("max"))
-            generic->init_attr("max", pParameter_->read_attribute(input.at("max")[0]));
+            generic->init_attr("max", param.read_attribute(input.at("max")[0]));
 
         // range truncation
         generic->init_truncation();
@@ -208,7 +207,7 @@ namespace hsp
         }
     }
 
-    void InfecProfile::build_augmented_(const str_table &input)
+    void InfecProfile::build_augmented_(Parameter &param, const str_table &input)
     {
         // drop generic definition
         mode_ = Mode::Augmented;
@@ -218,8 +217,8 @@ namespace hsp
 
         // use helper to check profile name and discretization
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
-            helper_build_({{"func", {parse::Definition(input.at("func")[r]).root.func}},
-                           {"discr", {input.at("discr")[r]}}});
+            helper_build_(param, {{"func", {parse::Definition(input.at("func")[r]).root.func}},
+                                  {"discr", {input.at("discr")[r]}}});
 
         // match infectivity profile and augmented variable definition
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
@@ -241,7 +240,7 @@ namespace hsp
         }
     }
 
-    std::unique_ptr<Distribution> InfecProfile::helper_build_(const str_table &input)
+    std::unique_ptr<Distribution> InfecProfile::helper_build_(Parameter &param, const str_table &input)
     {
         parse::Definition parser(parse::Definition(input.at("func")[0]));
         auto output = compose_distr_registries(parser.root.func,
@@ -249,8 +248,8 @@ namespace hsp
                                                {"infecprofile", "continuos", "discrete"});
         for (const auto &node : parser.root.children)
         {
-            output->init_attr(node.key, pParameter_->read_attribute(node));
-            pParameter_->make_cache_dependent(node);
+            output->init_attr(node.key, param.read_attribute(node));
+            param.make_cache_dependent(node);
         }
 
         // discretization

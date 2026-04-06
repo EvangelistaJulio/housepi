@@ -24,6 +24,7 @@
 #include "tools/types.h"
 
 #include "augmented.h"
+#include "mcmc_base.h"
 #include "data_wide.h"
 #include "function.h"
 #include "household.h"
@@ -40,12 +41,8 @@
 
 namespace hsp
 {
-    Augmented::Augmented(DataWide *dataptr,
-                         Parameter *paramptr,
-                         InfecProfile *infprofptr)
-        : pDataWide_(dataptr),
-          pParameter_(paramptr),
-          pInfecProfile_(infprofptr) {}
+    Augmented::Augmented(MCMCBase *mcmc)
+        : mcmc_(mcmc) {}
     Augmented::~Augmented() = default;
 
     void Augmented::init_registry(const std::vector<std::string> &keys)
@@ -53,7 +50,7 @@ namespace hsp
         pKeys = std::make_unique<KeyHolder>(keys);
     }
 
-    void Augmented::build(const str_table &input)
+    void Augmented::build(InfecProfile &infec_profile, const str_table &input)
     {
         // drop previous definitions
         is_any_sample_ = false;
@@ -70,19 +67,19 @@ namespace hsp
         helper_build_allocate_storage_();
 
         // skip if no augmented definitions
-        if (input.empty() && !pInfecProfile_->is_augmented())
+        if (input.empty() && !infec_profile.is_augmented())
             return;
 
-        helper_assert_augm_input_(input);     // check entries
-        helper_build_append_infec_profile_(); // add infectivity profile
+        helper_assert_augm_input_(input);                    // check entries
+        helper_build_append_infec_profile_(infec_profile);   // add infectivity profile
         helper_build_definition_by_status_(); // process definition by status
         helper_build_allocation_order_();     // allocation and order
     }
 
     void Augmented::helper_build_allocate_storage_()
     {
-        indiv_augm_.resize(pDataWide_->report_indiv.total);
-        for (Household &house : *pDataWide_)
+        indiv_augm_.resize(mcmc_->data_wide().report_indiv.total);
+        for (Household &house : mcmc_->data_wide())
             for (Individual &member : house)
                 member.paugm_ = &indiv_augm_[member.index_];
     }
@@ -113,20 +110,20 @@ namespace hsp
         deftable_ = input; // store user definitions
     }
 
-    void Augmented::helper_build_append_infec_profile_()
+    void Augmented::helper_build_append_infec_profile_(InfecProfile &infec_profile)
     {
-        if (!pInfecProfile_->is_augmented())
+        if (!infec_profile.is_augmented())
             return;
 
         for (const std::string &col : read::extract_keys(deftable_))
-            deftable_[col] += pInfecProfile_->augm_definitions.at(col);
+            deftable_[col] += infec_profile.augm_definitions.at(col);
 
         pKeys->add(infprof::AUGM_FUNC);
-        pInfecProfile_->augm_key = pKeys->from_string(infprof::AUGM_FUNC);
+        infec_profile.augm_key = pKeys->from_string(infprof::AUGM_FUNC);
 
         // append discrete infectivity profile definitions if any
-        if (pInfecProfile_->is_discrete_requested())
-            user_discrete_set_.emplace(pInfecProfile_->augm_key);
+        if (infec_profile.is_discrete_requested())
+            user_discrete_set_.emplace(infec_profile.augm_key);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,7 +176,7 @@ namespace hsp
 
         // NOTE: storage already allocated and pointers set by helper_build_allocate_storage_()
         size_t n = pKeys->size();
-        for (Household &house : *pDataWide_)
+        for (Household &house : mcmc_->data_wide())
             for (Individual &member : house)
             {
                 Indiv::Augm &iaugm = *member.paugm_;
@@ -363,7 +360,7 @@ namespace hsp
         const parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
         // Set potentially multiplicity data
-        pDataWide_->set_multiplicity_data(parser.list_data_wide_depen());
+        mcmc_->data_wide().set_multiplicity_data(parser.list_data_wide_depen());
 
         // NOTE: do not export if not callable (otherwise crashes)
         if (!parser.is_callable_implicitly("x"))
@@ -372,8 +369,8 @@ namespace hsp
         bool all_consts = true; // start assuming all constants
         for (const std::string &pstr : parser.list_parameter_depen())
         {
-            size_t p = pParameter_->pKeys->from_string(pstr);
-            all_consts &= pParameter_->at(p).is_constant();
+            size_t p = mcmc_->param.pKeys->from_string(pstr);
+            all_consts &= mcmc_->param.at(p).is_constant();
         }
 
         // inspect status specific augmented definitions and check if to draw (i. e. not const)
@@ -403,7 +400,7 @@ namespace hsp
         helper_init_model_list_();
 
         // define augmented variables for all augmented individuals in ordefr
-        for (Household &house : *pDataWide_)
+        for (Household &house : mcmc_->data_wide())
             for (size_t i : house.infected_hhindexes())
             {
                 Individual &member = house.member(i);
@@ -473,7 +470,7 @@ namespace hsp
 
     void Augmented::clear_all()
     {
-        for (Household &house : *pDataWide_)
+        for (Household &house : mcmc_->data_wide())
             for (size_t i : house.infected_hhindexes())
                 clear_definitions(house.member(i));
     }
@@ -536,7 +533,7 @@ namespace hsp
             if (str::tobool(deftable_["const"][k]))
             {
                 xaugm.init_numeric(
-                    pParameter_->read_numeric(deftable_["value"][k], &member).value());
+                    mcmc_->param.read_numeric(deftable_["value"][k], &member).value());
                 xaugm.enforce_user_const(); // enforce user constant choice
             }
             else
@@ -578,10 +575,10 @@ namespace hsp
             return;
 
         for (const auto &child : parser.root.children)
-            xaugm.init_distr_attr(child.key, pParameter_->read_attribute(child, &member));
+            xaugm.init_distr_attr(child.key, mcmc_->param.read_attribute(child, &member));
 
         for (const auto key : {"min", "max"})
-            xaugm.init_distr_attr(key, pParameter_->read_attribute(deftable_[key][k], &member));
+            xaugm.init_distr_attr(key, mcmc_->param.read_attribute(deftable_[key][k], &member));
 
         xaugm.init_distr_reshaping(str::tobool(deftable_["discr"][k]));
     }
@@ -596,7 +593,7 @@ namespace hsp
         // pointer mode
         if (parser.is_terminal())
         {
-            xaugm.transfer(pParameter_->read_attribute(parser.root, &member));
+            xaugm.transfer(mcmc_->param.read_attribute(parser.root, &member));
             return;
         }
 
@@ -611,13 +608,13 @@ namespace hsp
         // attribute
         for (const auto &child : parser.root.children)
         {
-            xaugm.init_func_attr(child.key, pParameter_->read_attribute(child, &member));
-            pParameter_->make_cache_dependent(child);
+            xaugm.init_func_attr(child.key, mcmc_->param.read_attribute(child, &member));
+            mcmc_->param.make_cache_dependent(child);
         }
 
         // range
         for (const auto key : {"min", "max"})
-            xaugm.init_func_attr(key, pParameter_->read_attribute(deftable_[key][k], &member));
+            xaugm.init_func_attr(key, mcmc_->param.read_attribute(deftable_[key][k], &member));
 
         // discretization and truncation
         xaugm.init_func_reshaping(str::tobool(deftable_["discr"][k]));
@@ -641,7 +638,7 @@ namespace hsp
         if (pKeys->empty())
             return;
 
-        for (Household &house : *pDataWide_)
+        for (Household &house : mcmc_->data_wide())
             for (size_t i : house.infected_hhindexes())
                 user_reset(prng, house.member(i));
     }
@@ -732,7 +729,7 @@ namespace hsp
 
         smpl_individuals.reserve(id_draws.size());
         std::vector<std::string> existing_ids = {};
-        for (const Household &house : *pDataWide_)
+        for (const Household &house : mcmc_->data_wide())
             for (const Individual &member : house)
             {
                 if (std::find(id_draws.begin(), id_draws.end(), member.id()) == id_draws.end())

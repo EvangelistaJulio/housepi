@@ -37,8 +37,7 @@ namespace hsp
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        GroupRate(DataWide *dataptr,
-                  const Parameter *paramptr);
+        GroupRate();
         ~GroupRate();
 
         void init_registry(const std::vector<std::string> &keys);
@@ -49,17 +48,14 @@ namespace hsp
 
         /// Update model report and set group rates associate to new individual.
         /// NOTE: this has to run even if input is empty to initialize existing rates to reference.
-        void build(const str_table &deftable);
+        void build(DataWide &data_wide, const Parameter &param, const str_table &deftable);
 
     private:
         std::vector<Indiv::Group> indiv_group_rates_; /// External storage for individual group rates
 
-        DataWide *pDataWide_;         /// pointer to external DataWide struct
-        const Parameter *pParameter_; /// pointer to external Parameter struct
-
         /// Verify that group rates definitions are correct.
-        std::vector<std::string> helper_assert_definitions_(const str_table &input);
+        std::vector<std::string> helper_assert_definitions_(DataWide &data_wide, const str_table &input);
         /// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
-        void helper_init_all_rates_(Individual &member, const str_table &these_rates);
+        void helper_init_all_rates_(const Parameter &param, Individual &member, const str_table &these_rates);
     };
 }

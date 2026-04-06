@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -15,8 +16,7 @@
 #include "tools/nan.h"
 
 #include "setup.h"
-#include "data_wide.h"
-#include "data_long.h"
+#include "data_store.h"
 #include "parameter.h"
 #include "group_rate.h"
 #include "contact_rate.h"
@@ -53,17 +53,16 @@ namespace hsp
 	{
 	public:
 		atomic::Error atomic_error;
+		TotalLogLike tot_log_lik;
+
+		std::shared_ptr<DataStore> pDataStore;
 
 		Setup setup;
-		DataWide data_wide;
-		DataLong data_long;
 		Parameter param;
 		GroupRate group_rate;
 		ContactRate contact_rate;
 		InfecProfile infec_profile;
 		Augmented augm;
-
-		TotalLogLike tot_log_lik;
 
 		///////////////////////////
 		//////  CONSTRUCTOR  //////
@@ -71,6 +70,17 @@ namespace hsp
 
 		MCMCBase();
 		virtual ~MCMCBase();
+
+		////////////////////////////
+		//////  DATA ACCESS  //////
+		////////////////////////////
+
+		DataWide &data_wide() { return pDataStore->data_wide; }
+		const DataWide &data_wide() const { return pDataStore->data_wide; }
+		DataLong &data_long() { return pDataStore->data_long; }
+		const DataLong &data_long() const { return pDataStore->data_long; }
+
+		void set_data_store(std::shared_ptr<DataStore> ds);
 
 		void init_registry(const std::vector<std::string> &data_wide_keys,
 						   const std::vector<std::string> &hh_size_keys,

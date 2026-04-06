@@ -31,16 +31,13 @@ namespace hsp
     struct ContactRate
     {
     public:
-        ContactRate(DataWide *dataptr, const Parameter *paramptr);
+        ContactRate();
         ~ContactRate();
 
         /// Build symmetric contact rates from table definitions.
-        void build(const str_table &input);
+        void build(DataWide &data_wide, const Parameter &param, const str_table &input);
 
     private:
         std::vector<House::Contact> house_contact_rates_; /// External storage for household contact rates
-
-        DataWide *pDataWide_;         /// pointer to external DataWide struct
-        const Parameter *pParameter_; /// pointer to external Parameter struct
     };
 }
