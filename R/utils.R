@@ -21,6 +21,13 @@ warning_h <- function(...) {
                 call. = FALSE)
 }
 
+#' Standard error message for read only error message.
+#' @param active `character(1)` Name of the active method.
+#' @noRd
+stop_read_only <- function(active) {
+  stop_h(sprintf("'%s' is read only.", active))
+}
+
 #' Collapse a character vector into string of quoted words.
 #' @param mylist `character()`. List to be printed.
 #' @param max_print `integer(1)`. Maximum number of elements to print.
@@ -236,20 +243,25 @@ cpp_data_refactor <- function(data, info, headers) {
   data[c(headers, setdiff(colnames(data), headers))]
 }
 
-#' @title Set the theme for housepi visualizations
+#' @title Set a warm theme for housepi visualizations
+#' @param base_size Base font size (pts). Default `11`.
+#' @param base_family Base font family. Default `""` (device default).
 #' @description
-#' If suggested packages are installad, sets the theme used
-#' in housepi vignettes for `ggplot2`, `bayesplot` and `flextable`.
+#' If suggested packages are installed, sets corresponding `ggplot2`,
+#' `bayesplot` and `flextable` themes as used in housepi vignettes.
 #' @export
-housepi_theme_set <- function() {
+housepi_theme_set <- function(base_size = 11, base_family = "") {
   # ggplot theme
   if (requireNamespace("ggplot2", quietly = TRUE)) {
-    my_elem_text <- ggplot2::element_text(size = 12, face = "plain")
+    my_elem_text <- ggplot2::element_text(size = base_size,
+                                          color = "black",
+                                          face = "plain")
     my_panel <- ggplot2::element_rect(fill = "#FEF9EC", color = NA)
     my_strip <- ggplot2::element_rect(fill = "#FBE09B", color = NA)
-    my_grid <- ggplot2::element_line(color = "white", linewidth = 1)
+    my_grid <- ggplot2::element_line(color = "#FDFEFE", linewidth = 1)
     ggplot2::theme_set(
-      ggplot2::theme_gray() +
+      ggplot2::theme_minimal(base_size = base_size,
+                             base_family = base_family) +
         ggplot2::theme(text = my_elem_text,
                        axis.text = my_elem_text,
                        strip.text = my_elem_text,
@@ -284,7 +296,9 @@ housepi_theme_set <- function() {
 
   # flextable theme
   if (requireNamespace("flextable", quietly = TRUE)) {
-    flextable::set_flextable_defaults(font.color = "#111111",
+    flextable::set_flextable_defaults(font.family = base_family,
+                                      font.size = base_size,
+                                      font.color = "black",
                                       background.color = "white",
                                       theme_fun = "theme_vanilla")
   }

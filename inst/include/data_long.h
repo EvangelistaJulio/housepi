@@ -23,16 +23,13 @@
 
 namespace hsp
 {
-    namespace key
-    {
-        struct Registry;
-    }
+    struct KeyHolder;
     struct DataWide;
 
     struct DataLong
     {
     public:
-        std::unique_ptr<key::Registry> pRegistry; /// pointer to registry
+        std::unique_ptr<KeyHolder> pKeys; /// pointer to registry
 
         std::vector<std::string> headers = {};
         std::vector<Indiv::Long> indiv_datalist = {};

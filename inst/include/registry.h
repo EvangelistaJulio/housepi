@@ -66,9 +66,10 @@ namespace hsp
         /// @details This template method automatically creates and stores a factory lambda
         /// that can be invoked later to create instances of type T.
         template <typename T>
-        void register_member()
+        void register_factory()
         {
-            factory_map_.emplace(std::string(T().name()), []()
+            factory_map_.emplace(std::string(T().name()),
+                                 []() -> std::unique_ptr<T>
                                  { return std::make_unique<T>(); });
         }
 
@@ -115,24 +116,12 @@ namespace hsp
     };
 
 /// Define instance method of registry.
+/// NOTE: I define instance in source to avoid duplication across DLLs.
 #define HOUSEPI_DEFINE_REGISTRY_INSTANCE_(ClassName)     \
     ClassName##Registry &ClassName##Registry::instance() \
     {                                                    \
         static ClassName##Registry _inst;                \
         return _inst;                                    \
-    }
-
-#define HOUSEPI_REGISTER_FUNCTION(T, R)                                \
-    namespace                                                          \
-    {                                                                  \
-        struct T##R##_AutoRegister                                     \
-        {                                                              \
-            T##R##_AutoRegister()                                      \
-            {                                                          \
-                R##Registry::instance().template register_member<T>(); \
-            }                                                          \
-        };                                                             \
-        static T##R##_AutoRegister T##R##_auto_register;               \
     }
 
 HOUSEPI_DECLARE_REGISTRY_(Custom, Function)
@@ -141,3 +130,73 @@ HOUSEPI_DECLARE_REGISTRY_(Transcendental, Function)
 HOUSEPI_DECLARE_REGISTRY_(ContinuosDistrib, Distribution)
 HOUSEPI_DECLARE_REGISTRY_(DiscreteDistrib, Distribution)
 HOUSEPI_DECLARE_REGISTRY_(InfecProfile, Distribution)
+
+#define HOUSEPI_REGISTER_FUNCTION(T, R)                                 \
+    namespace                                                           \
+    {                                                                   \
+        struct T##R##_AutoRegister                                      \
+        {                                                               \
+            T##R##_AutoRegister()                                       \
+            {                                                           \
+                R##Registry::instance().template register_factory<T>(); \
+            }                                                           \
+        };                                                              \
+        static T##R##_AutoRegister T##R##_auto_register;                \
+    }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  *** ModelRegistry : class ***  ////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace hsp
+{
+    class ModelBase;
+
+    /// @class ModelRegistry
+    /// @brief Registry for dynamic model creation by name.
+    ///
+    /// Model DLLs auto-register their factory into this singleton at load time.
+    /// The singleton lives in housepi.so, so all model DLLs share the same instance.
+    class ModelRegistry
+    {
+    public:
+        using func_uptr = std::unique_ptr<ModelBase>;
+
+        /// @brief Get the global ModelRegistry instance.
+        /// NOTE: I define instance in source to avoid duplication across DLLs.
+        static ModelRegistry &instance();
+
+        /// @brief Register a model factory under the given name.
+        /// @tparam T The model class type to register.
+        /// @param name The name of the model.
+        template <typename T>
+        void register_factory(const std::string &name)
+        {
+            factory_map_.emplace(name,
+                                 []() -> std::unique_ptr<T>
+                                 { return std::make_unique<T>(); });
+        }
+
+        /// @brief Create a model by name.
+        /// @throws std::runtime_error if the name is not registered.
+        func_uptr create(const std::string &name) const;
+
+    private:
+        std::map<std::string, std::function<func_uptr()>, std::less<>> factory_map_;
+    };
+}
+
+#define HOUSEPI_REGISTER_MODEL(module)                                                        \
+    namespace                                                                                 \
+    {                                                                                         \
+        struct module##_ModelAutoRegister                                                     \
+        {                                                                                     \
+            module##_ModelAutoRegister()                                                      \
+            {                                                                                 \
+                hsp::ModelRegistry::instance().register_factory<hsp::module::Model>(#module); \
+            }                                                                                 \
+        };                                                                                    \
+        static module##_ModelAutoRegister module##_model_auto_register;                       \
+    }

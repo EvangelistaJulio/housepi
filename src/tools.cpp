@@ -41,9 +41,9 @@ namespace hsp::msg
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp::key
+namespace hsp
 {
-    std::vector<std::string> Registry::get_all() const
+    std::vector<std::string> KeyHolder::get_all() const
     {
         std::vector<std::string> vec;
         vec.reserve(declared_.size() + optional_.size());
@@ -54,7 +54,7 @@ namespace hsp::key
         return vec;
     }
 
-    std::string Registry::as_string(size_t index) const
+    std::string KeyHolder::as_string(size_t index) const
     {
         if (index < declared_.size())
             return declared_[index];
@@ -63,7 +63,7 @@ namespace hsp::key
             return optional_[index];
         throw std::out_of_range("Registration failed: key index out of range.");
     }
-    std::vector<std::string> Registry::as_string(std::vector<size_t> indexes)
+    std::vector<std::string> KeyHolder::as_string(std::vector<size_t> indexes)
     {
         std::vector<std::string> output;
         output.reserve(indexes.size());
@@ -72,7 +72,7 @@ namespace hsp::key
         return output;
     }
 
-    size_t Registry::from_string(std::string_view name) const
+    size_t KeyHolder::from_string(std::string_view name) const
     {
         auto it = std::find(declared_.begin(), declared_.end(), name);
         if (it != declared_.end())
@@ -82,7 +82,7 @@ namespace hsp::key
             return declared_.size() + static_cast<size_t>(std::distance(optional_.begin(), it2));
         throw std::out_of_range("Registration failed: key name '" + std::string(name) + "' was not found.");
     }
-    std::vector<size_t> Registry::from_string(const std::vector<std::string> &names) const
+    std::vector<size_t> KeyHolder::from_string(const std::vector<std::string> &names) const
     {
         std::vector<size_t> output;
         output.reserve(names.size());
@@ -91,46 +91,10 @@ namespace hsp::key
         return output;
     }
 
-    bool Registry::count(std::string_view name) const
+    bool KeyHolder::count(std::string_view name) const
     {
         return std::find(declared_.begin(), declared_.end(), name) != declared_.end() ||
                std::find(optional_.begin(), optional_.end(), name) != optional_.end();
-    }
-
-    /// Parse comma-separated enum names from stringified VA_ARGS.
-    std::vector<std::string> helper_parse_names(std::string input)
-    {
-        std::vector<std::string> result;
-        size_t start = 0;
-
-        while (start < input.size())
-        {
-            // skip whitespace
-            while (start < input.size() &&
-                   std::isspace(static_cast<unsigned char>(input[start])))
-                ++start;
-
-            if (start >= input.size())
-                break;
-
-            // find end of identifier (alphanumeric + underscore)
-            size_t end = start;
-            while (end < input.size() &&
-                   (std::isalnum(static_cast<unsigned char>(input[end])) || input[end] == '_'))
-                ++end;
-
-            // add the identifier if found
-            if (end > start)
-                result.push_back(input.substr(start, end - start));
-
-            // skip to next comma or assignment
-            while (end < input.size() && input[end] != ',')
-                ++end;
-
-            start = end + 1;
-        }
-
-        return result;
     }
 }
 
@@ -427,8 +391,7 @@ namespace hsp::str
 
 namespace hsp::read
 {
-    /// Clean string from forbidden characters and convert to UNDEFINED.
-    const std::string strcleaner_(std::string tkn)
+    std::string strcleaner(std::string tkn)
     {
         // forbidden characters
         for (char r : {'"', '\r', '\n'})
@@ -439,52 +402,10 @@ namespace hsp::read
         return tkn;
     }
 
-    /// Read column headers and compare to required headers.
-    std::vector<std::string> read_column_headers_(std::ifstream &input)
-    {
-        // clean headers
-        std::vector<std::string> headers = {};
-
-        // read first line
-        std::string line, tkn;
-        std::getline(input, line);
-        std::istringstream iss(line);
-
-        // get headers from first line
-        while (std::getline(iss, tkn, DELIMITER))
-            headers.push_back(strcleaner_(tkn));
-
-        return headers;
-    }
-
-    /// Load files from the row with headers.
-    bool read_row_by_headers_(std::ifstream &input,
-                              const std::vector<std::string> &headers,
-                              dict<std::string> &this_row)
-    {
-        std::string line, tkn;
-
-        if (!std::getline(input, line))
-            return false;
-
-        std::istringstream iss(line);
-        size_t n_cols = 0;
-
-        while (std::getline(iss, tkn, DELIMITER))
-            this_row.emplace(headers[n_cols++], strcleaner_(tkn));
-
-        // last column is empty
-        for (size_t i = n_cols; i < headers.size(); i++)
-            this_row.emplace(headers[i], "");
-
-        return true;
-    }
-
-    /// Parse the list from the string.
     std::vector<std::string> parse_list(const std::string &tkn)
     {
         std::vector<std::string> output = {};
-        std::istringstream args_ss(strcleaner_(tkn));
+        std::istringstream args_ss(strcleaner(tkn));
         std::string tmp;
 
         // rea the entries of the dictionary
@@ -493,38 +414,107 @@ namespace hsp::read
         return output;
     }
 
-    /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
-    str_table csv_table(const std::string &pathtofile)
+    // UPDATE: can't I merge this and the previous 'parse_list'?
+    std::vector<std::string> helper_parse_names(std::string input)
     {
-        if (na::is(pathtofile))
-            return {};
+        std::vector<std::string> result;
+        size_t start = 0;
 
-        std::ifstream input(pathtofile.c_str());
-        if (!input.is_open())
-            throw std::runtime_error(
-                "Unable to open file '" + pathtofile + "'.");
-
-        // read and check for valid headers
-        const std::vector<std::string> headers = read_column_headers_(input);
-
-        str_table output = {};
-        dict<std::string> this_row = {};
-        while (read_row_by_headers_(input, headers, this_row))
+        while (start < input.size())
         {
-            for (const auto &[key, val] : this_row)
-                output[key].push_back(val);
-            this_row.clear();
+            // skip whitespace
+            while (start < input.size() &&
+                   std::isspace(static_cast<unsigned char>(input[start])))
+                ++start;
+
+            if (start >= input.size())
+                break;
+
+            // find end of identifier (alphanumeric + underscore)
+            size_t end = start;
+            while (end < input.size() &&
+                   (std::isalnum(static_cast<unsigned char>(input[end])) || input[end] == '_'))
+                ++end;
+
+            // add the identifier if found
+            if (end > start)
+                result.push_back(input.substr(start, end - start));
+
+            // skip to next comma or assignment
+            while (end < input.size() && input[end] != ',')
+                ++end;
+
+            start = end + 1;
         }
 
-        // ensure all columns have the same number of rows
-        size_t n_rows = csv_n_rows(output);
-        for (const auto &[col, vec] : output)
-            if (vec.size() != n_rows)
-                throw std::runtime_error(
-                    "Inconsistent number of rows found in column '" + col +
-                    "' while reading file '" + pathtofile + "'.");
+        return result;
+    }
+}
 
-        return output;
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////  Dependencies Checking ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace hsp::dependency
+{
+    void walk_tree(const std::string &entry,
+                   const str_table &tree,
+                   std::vector<std::string> &visited,
+                   std::vector<std::string> &recursion_stack,
+                   std::vector<std::string> &ordered)
+    {
+        if (!tree.count(entry))
+            throw std::invalid_argument(
+                "Could not find a definition for '" + entry + "'");
+
+        if (std::find(recursion_stack.begin(), recursion_stack.end(), entry) != recursion_stack.end())
+            throw std::invalid_argument(
+                "Found inadmissible cyclic definition for '" + entry + "'");
+
+        if (std::find(visited.begin(), visited.end(), entry) != visited.end())
+            return;
+
+        recursion_stack.push_back(entry);
+        for (const std::string &dep : tree.at(entry))
+            walk_tree(dep, tree, visited, recursion_stack, ordered);
+
+        recursion_stack = recursion_stack - std::vector<std::string>({entry});
+        visited.push_back(entry);
+        ordered.push_back(entry);
+    }
+
+    std::vector<std::string> order_dependencies(const str_table &graph)
+    {
+        std::vector<std::string> visited, recursion_stack, ordered;
+        for (const auto &[a, vec] : graph)
+            if (std::find(visited.begin(), visited.end(), a) == visited.end())
+                walk_tree(a, graph, visited, recursion_stack, ordered);
+        return ordered;
+    }
+
+    std::vector<std::string> order_conditioned_on(const std::string &start, const str_table &graph)
+    {
+        // construct a reversed graph for dependents
+        str_table reverse_graph;
+        for (const auto &[node, dependents] : graph)
+        {
+            for (const std::string &dep : dependents)
+                reverse_graph[dep].push_back(node);
+
+            // ensure isolated nodes are present
+            if (!reverse_graph.count(node))
+                reverse_graph[node] = {};
+        }
+
+        // walk dependents of start
+        std::vector<std::string> visited, recursion_stack, ordered;
+        for (const std::string &dep : reverse_graph.at(start))
+            walk_tree(dep, reverse_graph, visited, recursion_stack, ordered);
+
+        std::reverse(ordered.begin(), ordered.end());
+        return std::vector<std::string>({start}) + ordered;
     }
 }
 

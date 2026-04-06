@@ -232,7 +232,7 @@ HousepiGroupRate <- R6::R6Class(
     #' @field parameters `list`.
     #' Parameter definitions associated to group rates.
     parameters = function(value) {
-      if (!missing(value)) stop_h("'parameters' is read only.")
+      if (!missing(value)) stop_read_only("parameters")
       new_params <- list()
       for (rate_id in names(self$logic_tables)) {
         for (this_table in self$logic_tables[[rate_id]]) {
@@ -246,7 +246,7 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @field data_required `character()`. Data required by group rates.
     data_required = function(value) {
-      if (!missing(value)) stop_h("'data_required' is read only.")
+      if (!missing(value)) stop_read_only("data_required")
       required <- unique(unlist(lapply(self$defs, `[[`, "by")))
       required <- required[!is.na(required)]
       set_source_name_(required, self$family)
@@ -254,7 +254,7 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @field param_required `character()`. Parameters required by group rates.
     param_required = function(value) {
-      if (!missing(value)) stop_h("'param_required' is read only.")
+      if (!missing(value)) stop_read_only("param_required")
       required <- c()
       for (rate_id in names(self$logic_tables)) {
         for (this_table in self$logic_tables[[rate_id]]) {
@@ -268,7 +268,7 @@ HousepiGroupRate <- R6::R6Class(
     #' @field tidy_table `data.frame()`.
     #' Combined list with group rate and parameter definitions.
     tidy_table = function(value) {
-      if (!missing(value)) stop_h("'tidy_table' is read only.")
+      if (!missing(value)) stop_read_only("tidy_table")
       tidyup_group_rate_tables(self$logic_tables)
     }
   ),
@@ -617,7 +617,7 @@ HousepiContactRate <- R6::R6Class(
     #' @field parameters `list`.
     #' Parameter definitions associated to contact rates.
     parameters = function(value) {
-      if (!missing(value)) stop_h("'parameters' is read only.")
+      if (!missing(value)) stop_read_only("parameters")
       new_params <- list()
       if (!is.null(self$logic_table)) {
         for (par_id in setdiff(self$logic_table$param_name, ".reference")) {
@@ -630,7 +630,7 @@ HousepiContactRate <- R6::R6Class(
     #' @field data_required `character()`.
     #' Data required by contact rates.
     data_required = function(value) {
-      if (!missing(value)) stop_h("'data_required' is read only.")
+      if (!missing(value)) stop_read_only("data_required")
       required <- self$defs[["by"]]
       if (is.null(required) || all(is.na(required))) return(character(0))
       required <- required[!is.na(required)]
@@ -640,7 +640,7 @@ HousepiContactRate <- R6::R6Class(
     #' @field param_required `character()`.
     #' Parameters required by contact rates.
     param_required = function(value) {
-      if (!missing(value)) stop_h("'param_required' is read only.")
+      if (!missing(value)) stop_read_only("param_required")
       if (is.null(self$logic_table)) return(character(0))
       required <- setdiff(unique(self$logic_table$param_name), ".reference")
       set_source_name_(required, self$family)
@@ -649,7 +649,7 @@ HousepiContactRate <- R6::R6Class(
     #' @field tidy_table `data.frame()`.
     #' Contact rate definitions table.
     tidy_table = function(value) {
-      if (!missing(value)) stop_h("'tidy_table' is read only.")
+      if (!missing(value)) stop_read_only("tidy_table")
       if (is.null(self$logic_table)) return(data.frame())
       self$logic_table
     }

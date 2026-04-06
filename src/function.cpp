@@ -20,94 +20,8 @@
 #include "function.h"
 #include "registry.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// *** FunctionRegistry : class ***  /////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Custom)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Arithmetic)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Transcendental)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(ContinuosDistrib)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(DiscreteDistrib)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(InfecProfile)
-
 namespace hsp
 {
-    std::vector<std::string> FunctionRegistry::get_options() const
-    {
-        std::vector<std::string> entries;
-        entries.reserve(factory_map_.size());
-        for (const auto &[key, val] : factory_map_)
-            entries.push_back(key);
-        return entries;
-    }
-
-    std::unique_ptr<Function> FunctionRegistry::create(std::string_view opt, bool is_primitive) const
-    {
-        auto it = factory_map_.find(opt);
-        if (it == factory_map_.end())
-            return nullptr;
-
-        auto output = it->second();
-        if (is_primitive)
-            output->set_eval_primitive();
-
-        return output;
-    }
-
-    std::unique_ptr<Function> compose_func_registries(std::string_view opt,
-                                                      const std::string &err_type,
-                                                      const std::vector<std::string> &registries,
-                                                      bool is_prim)
-    {
-        if (registries.empty())
-            throw std::invalid_argument(
-                "No registries were provided for '" + err_type + "'.");
-
-        if (na::is(opt))
-            return nullptr;
-
-        std::vector<const FunctionRegistry *> registry_ptrs = {};
-        for (const std::string &r : registries)
-            if (r == "custom")
-                registry_ptrs.push_back(&CustomRegistry::instance());
-
-            else if (r == "transcendental")
-                registry_ptrs.push_back(&TranscendentalRegistry::instance());
-
-            else if (r == "arithmetic")
-                registry_ptrs.push_back(&ArithmeticRegistry::instance());
-
-            else if (r == "continuos")
-                registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
-
-            else if (r == "discrete")
-                registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
-
-            else if (r == "infecprofile")
-                registry_ptrs.push_back(&InfecProfileRegistry::instance());
-
-            else
-                throw std::invalid_argument(
-                    "Unknown " + err_type + " registry '" + r + "'.");
-
-        std::vector<std::string> options = {};
-        for (const FunctionRegistry *ptr : registry_ptrs)
-        {
-            if (ptr->count(opt))
-                return ptr->create(opt, is_prim);
-            const std::vector<std::string> &y = ptr->get_options();
-            options.reserve(options.size() + y.size());
-            options.insert(options.end(), y.begin(), y.end());
-        }
-
-        throw std::invalid_argument(
-            "Unknown " + err_type + " '" + std::string(opt) + "'." +
-            str::find_closest(opt, options));
-    }
-
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////  *** Function : class ***  ////////////////////////////////////
@@ -310,6 +224,7 @@ namespace hsp
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifndef NDEBUG
     /// Return formatted function summary.
     std::string Function::str_summary(bool show_x_arg) const
     {
@@ -325,6 +240,7 @@ namespace hsp
         }
         return sms + ") : " + str_range();
     }
+#endif
 
     /// Return formatted range.
     std::string Function::str_range() const

@@ -101,7 +101,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field param_draws `posterior::draws_df`.
     #' Draws of parameters.
     param_draws = function(value) {
-      if (!missing(value)) stop_h("'param_draws' is read only.")
+      if (!missing(value)) stop_read_only("param_draws")
       if (is.null(private$param_draws_)) private$empty_draws_()
       else private$param_draws_
     },
@@ -109,7 +109,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field prior_draws `posterior::draws_df`.
     #' Draws of parameter priors.
     prior_draws = function(value) {
-      if (!missing(value)) stop_h("'prior_draws' is read only.")
+      if (!missing(value)) stop_read_only("prior_draws")
       if (is.null(private$prior_draws_)) private$empty_draws_()
       else posterior::mutate_variables(
         private$prior_draws_,
@@ -120,7 +120,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field augm_draws `posterior::draws_df`.
     #' Draws selected individuals augmented variables.
     augm_draws = function(value) {
-      if (!missing(value)) stop_h("'augm_draws' is read only.")
+      if (!missing(value)) stop_read_only("augm_draws")
       if (is.null(private$augm_draws_)) private$empty_draws_()
       else private$augm_draws_
     },
@@ -128,21 +128,21 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field log_lik_draws `posterior::draws_df`.
     #' Draws of households pointwise log-likelihood.
     log_lik_draws = function(value) {
-      if (!missing(value)) stop_h("'log_lik_draws' is read only.")
+      if (!missing(value)) stop_read_only("log_lik_draws")
       private$point_log_lik_draws_
     },
 
     #' @field total_log_lik_draws `posterior::draws_df`.
     #' Draws of the total log-likelihood.
     total_log_lik_draws = function(value) {
-      if (!missing(value)) stop_h("'total_log_lik_draws' is read only.")
+      if (!missing(value)) stop_read_only("total_log_lik_draws")
       private$total_log_lik_draws_
     },
 
     #' @field complete_draws `posterior::draws_df`.
     #' Draws of parameters, priors and pointwise log-likelihood values.
     complete_draws = function(value) {
-      if (!missing(value)) stop_h("'complete_draws' is read only.")
+      if (!missing(value)) stop_read_only("complete_draws")
       # rename pointwise log-likelihood
       aux <- private$point_log_lik_draws_
       n_vars <- posterior::nvariables(aux)

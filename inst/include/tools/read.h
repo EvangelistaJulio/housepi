@@ -17,8 +17,14 @@ namespace hsp::read
     constexpr char DELIMITER = ',';      /// CSV file delimiter.
     constexpr char LIST_DELIMITER = ':'; /// List conventional delimiter
 
+    /// Clean string from forbidden characters and convert to UNDEFINED.
+    std::string strcleaner(std::string tkn);
+
     /// Parse a list from a string.
     std::vector<std::string> parse_list(const std::string &txt);
+
+    /// Parse comma-separated enum names from stringified variadic arguments.
+    std::vector<std::string> helper_parse_names(std::string input);
 
     /// Get number of rows in CSV table.
     template <typename T>
@@ -28,9 +34,6 @@ namespace hsp::read
             return 0;
         return table.begin()->second.size();
     }
-
-    /// Read CSV dataframe.
-    str_table csv_table(const std::string &pathtofile);
 
     /// Extract keys from dictionary.
     template <typename T>

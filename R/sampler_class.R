@@ -130,7 +130,7 @@ IndividualSampler <- R6::R6Class(
     #' @field hierarchy
     #' A `data.frame` with features as hierchically reordered by the sampler.
     hierarchy = function(value) {
-      if (!missing(value)) stop_h("'hierarchy' is read only.")
+      if (!missing(value)) stop_read_only("hierarchy")
       output <- private$get_distinct_features_()
       output$.features <- self$encode(output)
       private$reorder_(output)

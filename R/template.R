@@ -52,32 +52,13 @@ is_dll_loaded <- function(dll) {
   any(vapply(getLoadedDLLs(), function(x) x[["path"]] == dll, FALSE))
 }
 
-# Get Rcpp module associated to dll.
-get_rcpp_module <- local({
-  # static private cache
-  .cache <- list()
-
-  function(dll = NA, module_name = NA) {
-    if (is.null(dll) || is.na(dll)) {
-      if (is.na(get_template_dir(module_name))) stop_h(
-        "Impossible to load housepi module from empty DLL."
-      )
-      package <- "housepi"
-    } else {
-      # enforce naming convention if dll is provided
-      module_name <- get_template_from_dll(dll)
-      package <- module_name
-      # load DLL if necessary
-      if (!is_dll_loaded(dll)) dyn.load(dll)
-    }
-    # load module in the cache if necessary
-    if (!module_name %in% names(.cache)) {
-      .cache[[module_name]] <<- Rcpp::Module(module_name, PACKAGE = package)
-    }
-
-    .cache[[module_name]]
+# Load model DLL if not already loaded.
+# Auto-registration in the DLL's static init populates the ModelRegistry.
+load_model_dll_ <- function(dll) {
+  if (!is.null(dll) && !is.na(dll) && !is_dll_loaded(dll)) {
+    dyn.load(dll)
   }
-})
+}
 
 #' @title
 #' Get template model directory

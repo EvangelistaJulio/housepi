@@ -148,8 +148,9 @@ namespace hsp
                 return generic->pdf(t);
             case Mode::LookUp:
                 return lookup_.inst(t);
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
         double cumul(const Individual *member_ptr, double t) const
         {
@@ -161,8 +162,9 @@ namespace hsp
                 return generic->cdf(t);
             case Mode::LookUp:
                 return generic->is_below(t) ? 0. : lookup_.cumul(t);
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /////////////////////

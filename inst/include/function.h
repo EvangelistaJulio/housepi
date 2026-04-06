@@ -48,14 +48,14 @@ namespace hsp
 
         void swap(Attribute &other) noexcept;
 
-		/////////////////////////
-		//////  OPERATORS  //////
-		/////////////////////////
-        
-		/// Equal to operator.
-		bool operator==(const Attribute &other) const noexcept;
-		/// Not equal to operator.
-		bool operator!=(const Attribute &other) const noexcept { return !(*this == other); }
+        /////////////////////////
+        //////  OPERATORS  //////
+        /////////////////////////
+
+        /// Equal to operator.
+        bool operator==(const Attribute &other) const noexcept;
+        /// Not equal to operator.
+        bool operator!=(const Attribute &other) const noexcept { return !(*this == other); }
 
         //////////////////////
         //////  SETTER  //////
@@ -94,8 +94,9 @@ namespace hsp
             case Mode::Pointer:
             case Mode::Function:
                 raise_set_error_();
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /// Initialize function attribute by assigning from another one.
@@ -120,8 +121,9 @@ namespace hsp
                 return pAttr_->pointer();
             case Mode::Function:
                 return this;
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
         /// Get pointer to attribute function.
         /// FIXME: this should not be a constant method.
@@ -136,8 +138,9 @@ namespace hsp
                 return pAttr_->function();
             case Mode::Function:
                 return pFunc_.get();
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /////////////////////
@@ -171,8 +174,10 @@ namespace hsp
         std::string err_name() const { return err_type_ + " '" + std::string(name()) + "'"; }
         /// Get attribute value to display in errors.
         std::string str_val() const;
+#ifndef NDEBUG
         /// Get a summary of the attribute.
         virtual std::string str_summary() const;
+#endif
 
     protected:
         enum class Mode : std::uint8_t
@@ -320,8 +325,9 @@ namespace hsp
                 return pdf(x);
             case Mode::Evaluate::Cumulative:
                 return cdf(x);
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /// Return value as for a probability density/mass function.
@@ -359,8 +365,9 @@ namespace hsp
                 return delocate_(x) <= lower_.value();
             case Mode::Interval::Closed:
                 return delocate_(x) < lower_.value();
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /// Returns TRUE if value x is above range maximum.
@@ -374,8 +381,9 @@ namespace hsp
                 return delocate_(x) >= upper_.value();
             case Mode::Interval::Closed:
                 return delocate_(x) > upper_.value();
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /// Returns TRUE if value x is within range.
@@ -392,8 +400,12 @@ namespace hsp
         /// Get function name complete with type to display in errors.
         virtual std::string err_name() const { return "function '" + std::string(name()) + "'"; }
 
+        /// Get a summary of the range.
         std::string str_range() const;
+#ifndef NDEBUG
+        /// Get a summary of the function.
         std::string str_summary(bool show_x_arg = true) const;
+#endif
 
     protected:
         std::vector<Attribute> arguments_ = {}; /// array with arguments
@@ -445,8 +457,9 @@ namespace hsp
             }
             case Mode::Discrete::Defined:
                 return raw_function_(std::floor(x));
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /// Polymorphic log-function method.
@@ -468,8 +481,9 @@ namespace hsp
             }
             case Mode::Discrete::Defined:
                 return raw_log_func_(std::floor(x));
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /// Polymorphic primitive method.
@@ -485,8 +499,9 @@ namespace hsp
                 return raw_primitive_(std::floor(x) + 1.);
             case Mode::Discrete::Defined:
                 return raw_primitive_(std::floor(x));
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /// Polymorphic log_ratio method.
@@ -514,8 +529,9 @@ namespace hsp
             }
             case Mode::Discrete::Defined:
                 return raw_log_ratio_(std::floor(xo), std::floor(xn));
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /////////////////////////////////////////////////////////////////////////////////////////////
@@ -532,8 +548,9 @@ namespace hsp
                 return x;
             case Mode::Location::Active:
                 return x - loc_.value();
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /// Relocate according to mode. Used for random number generation.
@@ -545,8 +562,9 @@ namespace hsp
                 return x;
             case Mode::Location::Active:
                 return x + loc_.value();
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /////////////////////////////////////////////////////////////////////////////////////////////

@@ -47,6 +47,99 @@ namespace hsp
         void seed(result_type seed) { state = seed; }
     };
 
+#if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
+    /// Xor Shift Rotate 256 Star Star.
+    /// Adapted from David Blackman and Sebastiano Vigna (2018).
+    /// https://prng.di.unimi.it/xoshiro256starstar.c
+    class XoShiRo256ss
+    {
+    public:
+        using result_type = std::uint64_t;
+
+        ///////////////////////////
+        //////  CONSTRUCTOR  //////
+        ///////////////////////////
+
+        XoShiRo256ss() = default;
+        explicit XoShiRo256ss(result_type seed) { this->seed(seed); }
+
+        /////////////////////////
+        //////  OPERATORS  //////
+        /////////////////////////
+
+        result_type operator()() noexcept
+        {
+            const result_type r = rotl_(s_[1] * 5, 7) * 9;
+            const result_type t = s_[1] << 17;
+
+            s_[2] ^= s_[0];
+            s_[3] ^= s_[1];
+            s_[1] ^= s_[2];
+            s_[0] ^= s_[3];
+
+            s_[2] ^= t;
+            s_[3] = rotl_(s_[3], 45);
+
+            return r;
+        }
+
+        //////////////////////
+        //////  SETTER  //////
+        //////////////////////
+
+        /// Seed with SplitMix64.
+        void seed(result_type seed)
+        {
+            SplitMix64 sm(seed);
+            for (result_type &x : s_)
+                x = sm();
+        }
+
+        /// Jump of 2^128 steps (for parallel stream splitting).
+        void jump() noexcept
+        {
+            static constexpr result_type J[4] = {
+                0x180ec6d33cfd0abaULL,
+                0xd5a61266f0c9392cULL,
+                0xa9582618e03fc9aaULL,
+                0x39abdc4529b1661cULL};
+
+            result_type s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+
+            for (int i = 0; i < 4; ++i)
+                for (int b = 0; b < 64; ++b)
+                {
+                    if (J[i] & (result_type(1) << b))
+                    {
+                        s0 ^= s_[0];
+                        s1 ^= s_[1];
+                        s2 ^= s_[2];
+                        s3 ^= s_[3];
+                    }
+                    (*this)();
+                }
+
+            s_[0] = s0;
+            s_[1] = s1;
+            s_[2] = s2;
+            s_[3] = s3;
+        }
+
+        //////////////////////
+        //////  GETTER  //////
+        //////////////////////
+
+        static constexpr result_type min() noexcept { return std::numeric_limits<result_type>::min(); }
+        static constexpr result_type max() noexcept { return std::numeric_limits<result_type>::max(); }
+
+    private:
+        result_type s_[4]{};
+
+        static result_type rotl_(result_type x, int k) noexcept { return (x << k) | (x >> (64 - k)); }
+    };
+    using rnd_gen = XoShiRo256ss;
+#else
+
     /// Xor Shift Rotate 128 Star Star.
     /// Adapted from David Blackman and Sebastiano Vigna (2018).
     /// https://prng.di.unimi.it/xoshiro128starstar.c
@@ -142,99 +235,6 @@ namespace hsp
         static result_type rotl_(result_type x, int k) noexcept { return (x << k) | (x >> (32 - k)); }
     };
 
-    /// Xor Shift Rotate 256 Star Star.
-    /// Adapted from David Blackman and Sebastiano Vigna (2018).
-    /// https://prng.di.unimi.it/xoshiro256starstar.c
-    class XoShiRo256ss
-    {
-    public:
-        using result_type = std::uint64_t;
-
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
-
-        XoShiRo256ss() = default;
-        explicit XoShiRo256ss(result_type seed) { this->seed(seed); }
-
-        /////////////////////////
-        //////  OPERATORS  //////
-        /////////////////////////
-
-        result_type operator()() noexcept
-        {
-            const result_type r = rotl_(s_[1] * 5, 7) * 9;
-            const result_type t = s_[1] << 17;
-
-            s_[2] ^= s_[0];
-            s_[3] ^= s_[1];
-            s_[1] ^= s_[2];
-            s_[0] ^= s_[3];
-
-            s_[2] ^= t;
-            s_[3] = rotl_(s_[3], 45);
-
-            return r;
-        }
-
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
-
-        /// Seed with SplitMix64.
-        void seed(result_type seed)
-        {
-            SplitMix64 sm(seed);
-            for (result_type &x : s_)
-                x = sm();
-        }
-
-        /// Jump of 2^128 steps (for parallel stream splitting).
-        void jump() noexcept
-        {
-            static constexpr result_type J[4] = {
-                0x180ec6d33cfd0abaULL,
-                0xd5a61266f0c9392cULL,
-                0xa9582618e03fc9aaULL,
-                0x39abdc4529b1661cULL};
-
-            result_type s0 = 0, s1 = 0, s2 = 0, s3 = 0;
-
-            for (int i = 0; i < 4; ++i)
-                for (int b = 0; b < 64; ++b)
-                {
-                    if (J[i] & (result_type(1) << b))
-                    {
-                        s0 ^= s_[0];
-                        s1 ^= s_[1];
-                        s2 ^= s_[2];
-                        s3 ^= s_[3];
-                    }
-                    (*this)();
-                }
-
-            s_[0] = s0;
-            s_[1] = s1;
-            s_[2] = s2;
-            s_[3] = s3;
-        }
-
-        //////////////////////
-        //////  GETTER  //////
-        //////////////////////
-
-        static constexpr result_type min() noexcept { return std::numeric_limits<result_type>::min(); }
-        static constexpr result_type max() noexcept { return std::numeric_limits<result_type>::max(); }
-
-    private:
-        result_type s_[4]{};
-
-        static result_type rotl_(result_type x, int k) noexcept { return (x << k) | (x >> (64 - k)); }
-    };
-
-#if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
-    using rnd_gen = XoShiRo256ss;
-#else
     using rnd_gen = XoShiRo128ss;
 #endif
 }

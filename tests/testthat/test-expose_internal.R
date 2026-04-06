@@ -21,18 +21,26 @@ test_that("Expose function has no leaks", {
 test_that("Function exported from housepi are correct", {
   x <- seq(0, 1000, 1)
 
-  expect_error(expose_function("pow")$func(x),
-               regexp = "Missing non default")
-  expect_error(expose_function("pow", 5),
-               regexp = "Unnamed argument")
-
-  expect_equal(expose_function("pow", x2 = 2)$func(x), x^2)
+  expect_error(expose_function("pow")$func(x), regexp = "Missing non default")
+  expect_error(expose_function("pow", 5), regexp = "Unnamed argument")
+  
   expect_equal(expose_function("pow", x2 = -3)$func(x), x^(-3))
+  expect_equal(expose_function("pow", x2 = 0.5)$func(x), 
+               expose_function("sqrt")$func(x))
+
+  expect_equal(expose_function("sqrt")$prim(x),
+               expose_function("pow", x2 = 1.5)$func(x) / 1.5)
+  
   expect_equal(expose_function("exp")$func(x), exp(x))
+  expect_equal(expose_function("exp")$prim(x), exp(x))
+  
   expect_equal(expose_function("log")$func(x), log(x))
+  expect_equal(expose_function("log")$prim(x), x * log(x) - x)
+  
   expect_equal(expose_function("sin")$func(x), sin(x))
-  expect_equal(expose_function("cos")$func(x), cos(x))
-  expect_equal(expose_function("sin")$func(x), sin(x))
+  expect_equal(expose_function("sin")$prim(x), 
+               -expose_function("cos")$func(x))
+  
   expect_equal(expose_function("tan")$func(x), tan(x))
 
   args <- c(3.3, 5.5, 6.6)
@@ -40,6 +48,20 @@ test_that("Function exported from housepi are correct", {
   expect_equal(expose_function("prod", args)$func(1), prod(args))
   expect_equal(expose_function("min", args)$func(2), 2)
   expect_equal(expose_function("max", args)$func(2), 6.6)
+  
+  expect_error(expose_function("pow", discr = TRUE)$func(x), 
+               regexp = "undefined method")
+  
+  expect_error(expose_function("max", args)$prim(2), 
+               regexp = "undefined method")
+})
+
+test_that("Location parameter works as expected", {
+  x <- seq(-10, 10, 0.1)
+  sin_func <- expose_function("sin", loc = -0.5 * pi)$func(x)
+  cos_func <- expose_function("cos")$func(x)
+  
+  expect_equal(sin_func, cos_func)
 })
 
 test_that("Numerical recipes and distributions are correct", {

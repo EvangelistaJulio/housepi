@@ -23,11 +23,7 @@
 
 namespace hsp
 {
-    namespace key
-    {
-        struct Registry;
-    }
-
+    struct KeyHolder;
     struct DataWide;
     struct Parameter;
     class Individual;
@@ -35,7 +31,7 @@ namespace hsp
     struct GroupRate
     {
     public:
-        std::unique_ptr<key::Registry> pRegistry; /// pointer to registry
+        std::unique_ptr<KeyHolder> pKeys; /// pointer to registry
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////

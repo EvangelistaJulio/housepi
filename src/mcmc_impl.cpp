@@ -68,9 +68,9 @@ namespace hsp
         augm.init_registry(augm_keys);
 
         /// UPDATE: waiting for refactoring of read_attribute
-        param.bind_to_data_wide(data_wide.pRegistry.get());
-        param.bind_to_group_rate(group_rate.pRegistry.get());
-        param.bind_to_augm(augm.pRegistry.get());
+        param.bind_to_data_wide(data_wide.pKeys.get());
+        param.bind_to_group_rate(group_rate.pKeys.get());
+        param.bind_to_augm(augm.pKeys.get());
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -238,10 +238,7 @@ namespace hsp
         data_wide.allocate_all_cache();     // allocate all cache dependencies
 
         for (size_t R = 0; R < data_wide.restricted_size(); ++R)
-        {
-            Household &house = data_wide.restricted(R);
-            model->init_house_for_evaluation(house);
-        }
+            model->init_house_for_evaluation(data_wide.restricted(R));
     }
 
     double MCMC::commit_total_log_lik_(bool is_cache_depen)

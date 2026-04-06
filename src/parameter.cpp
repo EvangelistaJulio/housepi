@@ -11,8 +11,10 @@
 #include <string>
 #include <vector>
 
+#include "tools/dependency.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
+#include "tools/nan.h"
 #include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/random.h"
@@ -40,18 +42,19 @@ namespace hsp
 
     void Parameter::init_registry(const std::vector<std::string> &keys)
     {
-        pRegistry = std::make_unique<key::Registry>(keys);
+        pKeys = std::make_unique<KeyHolder>(keys);
     }
 
     void Parameter::build(const str_table &input)
     {
-        pRegistry->clear();
+        pKeys->clear();
 
         if (input.empty())
             return;
 
         // check entries
         const std::vector<std::string> file_headers = {"name", "value", "const", "discr",
+                                                       "func",
                                                        "prior", "min", "max",
                                                        "proposal", "proposal_scale"};
         const std::vector<std::string> headers = read::extract_keys(input);
@@ -63,22 +66,69 @@ namespace hsp
             throw std::invalid_argument(
                 "Found multiple definitions for the same parameter.");
 
-        init_param_vec_();
-        clear_lists_();
-        // load parameters from the row with options
+        // build dependency graph and validate function parameters
+        bool has_func_params = false;
+        dict<size_t> name_to_row;
         for (size_t k = 0; k < input.at("name").size(); ++k)
         {
-            const std::string &pstr = input.at("name")[k]; // parameter name
+            const std::string &pstr = input.at("name")[k];
+            name_to_row[pstr] = k;
 
-            if (!pRegistry->count(pstr))
+            // validate: function parameters can only depend on other parameters
+            if (!na::is(input.at("func")[k]))
             {
-                pRegistry->add(pstr);
+                has_func_params = true;
+                parse::Definition parser(input.at("func")[k]);
+                if (parser.is_augmented_depen())
+                    throw std::invalid_argument(
+                        "Parameter function '" + pstr +
+                        "' cannot depend on augmented variables.");
+                if (parser.is_data_wide_depen())
+                    throw std::invalid_argument(
+                        "Parameter function '" + pstr +
+                        "' cannot depend on data variables.");
+            }
+        }
+
+        // topological sort only when function parameters exist (preserves input order otherwise)
+        std::vector<std::string> ordered;
+        if (has_func_params)
+        {
+            // use input order as iteration base for stable topological sort
+            str_table dep_graph;
+            for (size_t k = 0; k < input.at("name").size(); ++k)
+            {
+                const std::string &pstr = input.at("name")[k];
+                std::vector<std::string> deps;
+                for (const auto col : {"func", "min", "max"})
+                    deps += parse::Definition(input.at(col)[k]).list_parameter_depen();
+                dep_graph[pstr] = str::unique(deps);
+            }
+            ordered = dependency::order_dependencies(dep_graph);
+        }
+        else
+        {
+            ordered = input.at("name");
+        }
+
+        init_param_vec_();
+        clear_lists_();
+        // load parameters in dependency order
+        for (const std::string &pstr : ordered)
+        {
+            size_t k = name_to_row.at(pstr);
+
+            if (!pKeys->count(pstr))
+            {
+                pKeys->add(pstr);
                 param_vec_.emplace_back();
                 param_vec_.back().name(pstr);
                 param_vec_.back().set_err_type("parameter");
             }
 
-            if (str::tobool(input.at("const")[k]))
+            if (!na::is(input.at("func")[k]))
+                helper_build_function_(input, k);
+            else if (str::tobool(input.at("const")[k]))
                 helper_build_constant_(input, k);
             else
                 helper_build_to_sample_(input, k);
@@ -106,13 +156,13 @@ namespace hsp
 
         clear_lists_();
         // update list of constant parameters to all parameters
-        list_const = pRegistry->from_string(pRegistry->get_all());
+        list_const = pKeys->from_string(pKeys->get_all());
 
         // store as sample values
         smpl_values.clear();
 
         // reset definition dictionary to all constants NAs.
-        for (const std::string &pstr : pRegistry->get_all())
+        for (const std::string &pstr : pKeys->get_all())
             if (std::find(headers.begin(), headers.end(), pstr) == headers.end())
                 smpl_values.emplace_back();
             else
@@ -121,12 +171,12 @@ namespace hsp
 
     void Parameter::init_param_vec_()
     {
-        size_t n = pRegistry->size();
+        size_t n = pKeys->size();
         param_vec_.clear();
         param_vec_.resize(n);
         for (size_t p = 0; p < n; ++p)
         {
-            param_vec_[p].name(pRegistry->as_string(p));
+            param_vec_[p].name(pKeys->as_string(p));
             param_vec_[p].set_err_type("parameter");
         }
     }
@@ -134,6 +184,7 @@ namespace hsp
     void Parameter::clear_lists_()
     {
         list_const.clear();
+        list_func.clear();
         list_sample.clear();
         list_sample_standard.clear();
         list_adaptable_sample_standard.clear();
@@ -155,7 +206,7 @@ namespace hsp
                 "Constant parameter '" + pstr + "' had undefined value.");
 
         // assign constant parameter to the set of variables
-        size_t p = pRegistry->from_string(pstr);
+        size_t p = pKeys->from_string(pstr);
         param_vec_[p].transfer(read_numeric(input.at("value")[k]));
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !param_vec_[p].is_discrete())
@@ -177,7 +228,7 @@ namespace hsp
                 "Non-constant parameter '" + pstr + "' had undefined prior.");
 
         // create a new parameter Variable
-        size_t p = pRegistry->from_string(pstr);
+        size_t p = pKeys->from_string(pstr);
         Variable &xparam = at(p);
         xparam.transfer(read_numeric(input.at("value")[k]));
 
@@ -207,6 +258,50 @@ namespace hsp
         list_sample.push_back(p);
     }
 
+    void Parameter::helper_build_function_(const str_table &input, size_t k)
+    {
+        const std::string &pstr = input.at("name")[k];
+        size_t p = pKeys->from_string(pstr);
+        Variable &xparam = at(p);
+
+        parse::Definition parser(input.at("func")[k]);
+
+        // pointer mode (terminal = alias for another parameter)
+        if (parser.is_terminal())
+        {
+            xparam.transfer(read_attribute(parser.root));
+            list_const.push_back(p);
+            list_func.push_back(p);
+            return;
+        }
+
+        // function mode
+        xparam.init_function(compose_func_registries(
+            parser.root.func, "function",
+            {"custom", "transcendental", "arithmetic"}));
+
+        // bind function arguments
+        for (const auto &child : parser.root.children)
+            xparam.init_func_attr(child.key, read_attribute(child));
+
+        // range
+        for (const auto key : {"min", "max"})
+            xparam.init_func_attr(key, read_attribute(input.at(key)[k]));
+
+        // discretization
+        xparam.init_func_reshaping(str::tobool(input.at("discr")[k]));
+
+        // check if discrete as requested
+        if (user_discrete_set_.count(p) && !xparam.is_discrete())
+            throw std::invalid_argument(
+                "Definition of " + xparam.err_name() +
+                " did not return a discrete object as requested by model.");
+
+        // classify: deterministic, not sampled
+        list_const.push_back(p);
+        list_func.push_back(p);
+    }
+
     void Parameter::make_cache_dependent(size_t p)
     {
         // remove a parameter from standard if it was defined as such
@@ -234,13 +329,13 @@ namespace hsp
         for (size_t p : list_sample)
             at(p).user_reset(prng);
 
-        for (size_t p = 0; p < pRegistry->size(); ++p)
+        for (size_t p = 0; p < pKeys->size(); ++p)
             at(p).optimize();
     }
 
     void Parameter::load_sample_values(size_t r)
     {
-        for (size_t p = 0; p < pRegistry->size(); ++p)
+        for (size_t p = 0; p < pKeys->size(); ++p)
         {
             const std::vector<double> &vec = smpl_values[p];
             if (!vec.empty())
@@ -253,7 +348,7 @@ namespace hsp
         // cache dependecy if an augmented function depends on a parameter to be inferred
         if (parse::is_parameter(node.type))
         {
-            size_t p = pRegistry->from_string(node.value);
+            size_t p = pKeys->from_string(node.value);
             if (!at(p).is_constant())
                 make_cache_dependent(p);
         }
@@ -327,7 +422,7 @@ namespace hsp
         }
         else if (parse::is_parameter(node.type))
         {
-            return at(pRegistry->from_string(node.value));
+            return at(pKeys->from_string(node.value));
         }
         else if (!node.is_empty())
         {
@@ -337,18 +432,18 @@ namespace hsp
 
             if (parse::is_data_wide(node.type))
             {
-                size_t d = pDataWideRegistry_->from_string(node.value);
+                size_t d = pDataWideKeys_->from_string(node.value);
                 storage_.init_numeric(member_ptr->data(d));
                 storage_.name(node.value);
                 storage_.set_err_type("data");
             }
             else if (parse::is_augmented(node.type))
             {
-                return member_ptr->get_augm_variable(pAugmRegistry_->from_string(node.value));
+                return member_ptr->get_augm_variable(pAugmKeys_->from_string(node.value));
             }
             else if (parse::is_group_rate(node.type))
             {
-                return member_ptr->get_group_rate_attribute(pGroupRateRegistry_->from_string(node.value));
+                return member_ptr->get_group_rate_attribute(pGroupRateKeys_->from_string(node.value));
             }
             else
                 throw std::invalid_argument(

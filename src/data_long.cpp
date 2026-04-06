@@ -37,12 +37,12 @@ namespace hsp
 
     void DataLong::init_registry(const std::vector<std::string> &keys)
     {
-        pRegistry = std::make_unique<key::Registry>(keys);
+        pKeys = std::make_unique<KeyHolder>(keys);
     }
 
     void DataLong::build(const str_table &input)
     {
-        pRegistry->clear();
+        pKeys->clear();
 
         if (input.empty())
             return;
@@ -76,20 +76,26 @@ namespace hsp
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
-            idat.vec.resize(pRegistry->size());
-            for (size_t d = 0; d < pRegistry->size(); ++d)
+            idat.vec.resize(pKeys->size());
+            for (size_t d = 0; d < pKeys->size(); ++d)
             {
-                const std::string &datastring = pRegistry->as_string(d);
+                const std::string &datastring = pKeys->as_string(d);
                 idat.vec[d].emplace_back(
                     str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
             }
         }
 
         // assign pointers to relative data-long to all individuals
+        // NOTE: adopted paradigm return empty on dangling pointer
+        // UPDATE: just store indexes and access indiv_datalist by index...
         c = 0;
         for (Household &house : *pDataWide_)
             for (Individual &member : house)
-                member.plong_ = &indiv_datalist.at(c++);
+            {
+                if (indiv_datalist.at(c).vec.size() > 0)
+                    member.plong_ = &indiv_datalist.at(c);
+                ++c;
+            }
     }
 
     void DataLong::helper_build_clear_data_()
@@ -114,10 +120,10 @@ namespace hsp
         headers = headers - std::vector<std::string>({"id"});
 
         // pedantic check for declared data keys
-        str::assert_no_missing_entries(headers, pRegistry->get_all());
+        str::assert_no_missing_entries(headers, pKeys->get_all());
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
-            pRegistry->add(datastring);
+            pKeys->add(datastring);
     }
 }

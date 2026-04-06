@@ -2,11 +2,16 @@
 % Please edit documentation in R/utils.R
 \name{housepi_theme_set}
 \alias{housepi_theme_set}
-\title{Set the theme for housepi visualizations}
+\title{Set a warm theme for housepi visualizations}
 \usage{
-housepi_theme_set()
+housepi_theme_set(base_size = 11, base_family = "")
+}
+\arguments{
+\item{base_size}{Base font size (pts). Default \code{11}.}
+
+\item{base_family}{Base font family. Default \code{""} (device default).}
 }
 \description{
-If suggested packages are installad, sets the theme used
-in housepi vignettes for \code{ggplot2}, \code{bayesplot} and \code{flextable}.
+If suggested packages are installed, sets corresponding \code{ggplot2},
+\code{bayesplot} and \code{flextable} themes as used in housepi vignettes.
 }

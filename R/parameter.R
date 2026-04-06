@@ -45,7 +45,23 @@ HousepiParameter <- R6::R6Class(
   cloneable = TRUE,
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value)
+    deep_clone = function(name, value) helper_clone(value),
+    # Definitions required by parameter definitions
+    # according to the "type" of the definition.
+    find_required_def_ = function(type) {
+      find_required_definitions(
+        self$defs, type, c("value", "func", "min", "max"), self$family
+      )
+    }
+  ),
+
+  active = list(
+    #' @field param_required `character()`.
+    #' Find parameters required by parameter function definitions.
+    param_required = function(value) {
+      if (!missing(value)) stop_read_only("param_required")
+      private$find_required_def_("P")
+    }
   ),
 
   ############################################################################
@@ -95,6 +111,7 @@ HousepiParameter <- R6::R6Class(
     add_quo = function(name, value = NULL,
                        const = NA, discr = FALSE,
                        prior = NA_character_, ...,
+                       func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
                        proposal_scale = NA_real_,
@@ -109,6 +126,7 @@ HousepiParameter <- R6::R6Class(
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
       # load quosures
       value <- housepi_extractor(!!value)
+      func <- housepi_extractor(!!func)
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
       # load dots # UPDATE: not super elegant...
@@ -116,16 +134,31 @@ HousepiParameter <- R6::R6Class(
       # flatten if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
       args <- housepi_extractor(!!!dots)
+      # flatten function arguments if quosures
+      if (rlang::is_quosure(func_args)) {
+        func_args <- housepi_extractor(!!func_args)
+      } else {
+        func_args <- housepi_extractor(!!!func_args)
+      }
 
       # control valid name
       assert_valid_definition_name(name, self$family, !is.na(value))
-      if (all(is.null(value), is.na(prior))) stop_h(
+      if (all(is.null(c(value, func)), is.na(prior))) stop_h(
         sprintf("Incomplete definition for parameter '%s'.", name),
-        "Provide at least one between 'value' and 'prior'."
+        "Provide at least one between 'value', 'prior', and 'func'."
+      )
+      if (!is.null(func) && !is.na(prior)) stop_h(
+        sprintf("Wrong definition for parameter '%s'.", name),
+        "Provide only one between 'func' and 'prior'."
+      )
+      if (!is.null(value) && !is.null(func)) stop_h(
+        sprintf("Wrong definition for parameter '%s'.", name),
+        "Provide only one between 'value' and 'func'."
       )
 
       opts <- list(name = as.character(name), value = NA_real_,
                    const = TRUE, discr = FALSE,
+                   func = NA_character_,
                    prior = NA_character_,
                    min = NA_real_, max = NA_real_,
                    proposal = NA_character_,
@@ -137,13 +170,22 @@ HousepiParameter <- R6::R6Class(
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       # assume it's a constant if a prior is not provided
-      if (is.na(const)) const <- is.na(prior)
+      if (is.na(const)) const <- is.na(prior) && is.null(func)
 
       # parse initial value
       if (is.null(value)) opts$value <- NA_real_
       else opts$value <- value
 
-      if (isTRUE(const)) {
+      if (!is.null(func)) {
+        # function parameter: deterministic, not sampled
+        opts$func <- housepi_combine_to_call(func_name = func,
+                                             func_args = func_args,
+                                             is_func = TRUE)
+        opts$const <- FALSE
+        opts$discr <- isTRUE(discr)
+        if (!is.null(min)) opts$min <- min
+        if (!is.null(max)) opts$max <- max
+      } else if (isTRUE(const)) {
         # check that a value is provided
         if (is.na(opts$value)) stop_h(
           sprintf("Missing value for constant parameter '%s'.", opts$name)

@@ -104,26 +104,26 @@ namespace hsp
         const std::vector<std::string> &double_vec_keys,
         const std::vector<std::string> &double_mtx_keys)
     {
-        pRegistry = std::make_unique<key::Registry>(keys);
-        p_size_Registry = std::make_unique<key::Registry>(size_keys);
-        p_size_vec_Registry = std::make_unique<key::Registry>(size_vec_keys);
-        p_double_vec_Registry = std::make_unique<key::Registry>(double_vec_keys);
-        p_double_mtx_Registry = std::make_unique<key::Registry>(double_mtx_keys);
+        pKeys = std::make_unique<KeyHolder>(keys);
+        pKeys_size_val = std::make_unique<KeyHolder>(size_keys);
+        pKeys_size_vec = std::make_unique<KeyHolder>(size_vec_keys);
+        pKeys_double_vec = std::make_unique<KeyHolder>(double_vec_keys);
+        pKeys_double_mtx = std::make_unique<KeyHolder>(double_mtx_keys);
     }
 
     void DataWide::build(const str_table &input)
     {
-        pRegistry->clear();
-        p_size_Registry->clear();
-        p_size_vec_Registry->clear();
-        p_double_vec_Registry->clear();
-        p_double_mtx_Registry->clear();
+        pKeys->clear();
+        pKeys_size_val->clear();
+        pKeys_size_vec->clear();
+        pKeys_double_vec->clear();
+        pKeys_double_mtx->clear();
 
         if (input.empty())
             return;
 
         // initialize multiplicity-relevant data entries to only model dependent
-        set_multiplicity_data(pRegistry->get_all());
+        set_multiplicity_data(pKeys->get_all());
 
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
@@ -163,10 +163,10 @@ namespace hsp
             // read individual data into external storage
             Indiv::Wide &idata = indiv_data_[i];
             idata.status = status;
-            idata.vec.resize(pRegistry->size());
+            idata.vec.resize(pKeys->size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
             {
-                const std::string datastring = pRegistry->as_string(d);
+                const std::string datastring = pKeys->as_string(d);
                 idata.vec[d] = str::tod(input.at(datastring)[i], "data '" + datastring + "'");
             }
 
@@ -227,11 +227,11 @@ namespace hsp
         headers = headers - std::vector<std::string>({"id", "house_id", "status"});
 
         // pedantic check for declared data keys
-        str::assert_no_missing_entries(headers, pRegistry->get_all());
+        str::assert_no_missing_entries(headers, pKeys->get_all());
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
-            pRegistry->add(datastring);
+            pKeys->add(datastring);
     }
 
     void DataWide::build_helper_fill_report_data_()
@@ -292,7 +292,7 @@ namespace hsp
 
     void DataWide::set_multiplicity_data(const std::vector<std::string> &data_list)
     {
-        for (size_t d : pRegistry->from_string(data_list))
+        for (size_t d : pKeys->from_string(data_list))
             multiplicity_data_.emplace(d);
     }
 
@@ -387,12 +387,12 @@ namespace hsp
             Cached_::State_ &curr = cached_.current[R];
 
             // size_t
-            size_t s_size = p_size_Registry->size();
+            size_t s_size = pKeys_size_val->size();
             curr.size_val.assign(s_size, 0);
             prev.size_val.assign(s_size, 0);
 
             // size_t vector
-            size_t s_size_vec = p_size_vec_Registry->size();
+            size_t s_size_vec = pKeys_size_vec->size();
             curr.size_vec.resize(s_size_vec);
             prev.size_vec.resize(s_size_vec);
             for (size_t e = 0; e < s_size_vec; ++e)
@@ -402,7 +402,7 @@ namespace hsp
             }
 
             // double vector
-            size_t s_double_vec = p_double_vec_Registry->size();
+            size_t s_double_vec = pKeys_double_vec->size();
             curr.dbl_vec.resize(s_double_vec);
             prev.dbl_vec.resize(s_double_vec);
             for (size_t e = 0; e < s_double_vec; ++e)
@@ -412,7 +412,7 @@ namespace hsp
             }
 
             // double matrix
-            size_t s_double_mtx = p_double_mtx_Registry->size();
+            size_t s_double_mtx = pKeys_double_mtx->size();
             curr.dbl_mtx.resize(s_double_mtx);
             prev.dbl_mtx.resize(s_double_mtx);
             for (size_t e = 0; e < s_double_mtx; ++e)

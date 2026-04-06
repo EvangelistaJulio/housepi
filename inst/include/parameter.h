@@ -26,25 +26,23 @@
 
 namespace hsp
 {
-    namespace key
-    {
-        struct Registry;
-    }
-
+    struct KeyHolder;
     class Individual;
 
     /// Implementation of Parameters.
     struct Parameter
     {
-        std::unique_ptr<key::Registry> pRegistry; /// pointer to registry
+        std::unique_ptr<KeyHolder> pKeys; /// pointer to keys
 
         /// NOTE:
         /// list_const + list_sample = all parameters in param_vec_
+        /// list_func < list_const (function-based parameters are deterministic)
         /// list_sample_standard + list_sample_cached = list_sample
         /// list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
         /// list_adaptable_sample_cached + list_non_adapt_sample_cached = list_sample_cached
 
         std::vector<size_t> list_const = {};  /// list of constant parameters
+        std::vector<size_t> list_func = {};   /// list of function-based parameters
         std::vector<size_t> list_sample = {}; /// list of parameters to sample
 
         std::vector<size_t> list_sample_standard = {};
@@ -117,9 +115,9 @@ namespace hsp
         /// UPDATE: these are just temporary fixes.
 
         /// Links used just by read_attribute.
-        void bind_to_data_wide(const key::Registry *pRegistry) { pDataWideRegistry_ = pRegistry; }
-        void bind_to_group_rate(const key::Registry *pRegistry) { pGroupRateRegistry_ = pRegistry; }
-        void bind_to_augm(const key::Registry *pRegistry) { pAugmRegistry_ = pRegistry; }
+        void bind_to_data_wide(const KeyHolder *pKeys) { pDataWideKeys_ = pKeys; }
+        void bind_to_group_rate(const KeyHolder *pKeys) { pGroupRateKeys_ = pKeys; }
+        void bind_to_augm(const KeyHolder *pKeys) { pAugmKeys_ = pKeys; }
 
         /// Auxiliary method to read a definition as a single attribute.
         const Attribute &read_attribute(const parse::Entry &node, const Individual *member_ptr = nullptr) const;
@@ -149,12 +147,14 @@ namespace hsp
         void helper_build_constant_(const str_table &deftable, size_t k);
         /// Helper to build parameter to sample.
         void helper_build_to_sample_(const str_table &deftable, size_t k);
+        /// Helper to build function-based parameter.
+        void helper_build_function_(const str_table &deftable, size_t k);
 
         /// UPDATE: waiting for an updated read_attribute framework...
-        mutable Attribute storage_;               /// auxiliary storage attribute used for reading.
-        const key::Registry *pDataWideRegistry_;  /// pointer to external registry
-        const key::Registry *pGroupRateRegistry_; /// pointer to external registry
-        const key::Registry *pAugmRegistry_;      /// pointer to external registry
+        mutable Attribute storage_;       /// auxiliary storage attribute used for reading.
+        const KeyHolder *pDataWideKeys_;  /// pointer to external registry
+        const KeyHolder *pGroupRateKeys_; /// pointer to external registry
+        const KeyHolder *pAugmKeys_;      /// pointer to external registry
 
         void helper_store_read_function_(const parse::Entry &node, const Individual *member_ptr) const;
     };

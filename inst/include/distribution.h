@@ -59,8 +59,9 @@ namespace hsp
 				return relocate_(cast_discr_(raw_rand_(prng)));
 			case Trunc::Active:
 				return relocate_(cast_discr_(inverse_sampling_(prng)));
+			default:
+				__builtin_unreachable();
 			}
-			__builtin_unreachable();
 		}
 		/// Return value of log-probability density/mass function.
 		double log_pdf(double x) const { return log_func_(delocate_(x)); }
@@ -203,8 +204,9 @@ namespace hsp
 			}
 			case Mode::Discrete::Defined:
 				return raw_log_ratio_(std::floor(xo), std::floor(xn));
+			default:
+				__builtin_unreachable();
 			}
-			__builtin_unreachable();
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////
@@ -222,8 +224,9 @@ namespace hsp
 			case Mode::Discrete::Defined:
 			case Mode::Discrete::None:
 				return x;
+			default:
+				__builtin_unreachable();
 			}
-			__builtin_unreachable();
 		}
 
 		double inverse_sampling_(rnd_gen &prng) const
@@ -284,8 +287,9 @@ namespace hsp
 				return 0;
 			case Trunc::Active:
 				return std::log((this->*trunc_)());
+			default:
+				__builtin_unreachable();
 			}
-			__builtin_unreachable();
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////

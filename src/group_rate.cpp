@@ -40,18 +40,18 @@ namespace hsp
 
     void GroupRate::init_registry(const std::vector<std::string> &keys)
     {
-        pRegistry = std::make_unique<key::Registry>(keys);
+        pKeys = std::make_unique<KeyHolder>(keys);
     }
 
     void GroupRate::build(const str_table &input)
     {
-        pRegistry->clear();
+        pKeys->clear();
         indiv_group_rates_.clear();
 
         std::vector<std::string> data_headers = {};
         if (!input.empty())
             data_headers = helper_assert_definitions_(input);
-        else if (pRegistry->empty())
+        else if (pKeys->empty())
             return;
 
         // set headers to be multiplicity-relevat
@@ -74,7 +74,7 @@ namespace hsp
                     bool match = true;
                     for (const std::string &dstr : data_headers)
                         if (!na::is(input.at(dstr)[r]))
-                            match &= member.pwide_->vec[pDataWide_->pRegistry->from_string(dstr)] == str::tod(input.at(dstr)[r]);
+                            match &= member.pwide_->vec[pDataWide_->pKeys->from_string(dstr)] == str::tod(input.at(dstr)[r]);
 
                     // if it's the case, add the parameter name
                     if (match)
@@ -96,7 +96,7 @@ namespace hsp
         // remove template headers to keep only data
         data_headers = data_headers - file_headers;
         // check that required data columns are present
-        str::assert_no_unused_entries(data_headers, pDataWide_->pRegistry->get_all());
+        str::assert_no_unused_entries(data_headers, pDataWide_->pKeys->get_all());
 
         // assert the group rate names are allowed
         for (const std::string &groupstr : input.at("group_rate"))
@@ -108,7 +108,7 @@ namespace hsp
             if (na::is(groupstr))
                 throw std::invalid_argument(
                     "Found a missing group rate name in the definitions.");
-            pRegistry->add(groupstr);
+            pKeys->add(groupstr);
         }
 
         return data_headers;
@@ -119,11 +119,11 @@ namespace hsp
         // initialize group rates to reference (access storage directly)
         Indiv::Group &igr = indiv_group_rates_[member.index_];
         igr.vec.clear();
-        igr.vec.reserve(pRegistry->size());
-        for (size_t g = 0; g < pRegistry->size(); ++g)
+        igr.vec.reserve(pKeys->size());
+        for (size_t g = 0; g < pKeys->size(); ++g)
         {
             igr.vec.emplace_back(rates::VALUE_REFERENCE);
-            igr.vec.back().name(pRegistry->as_string(g));
+            igr.vec.back().name(pKeys->as_string(g));
             igr.vec.back().set_err_type("group rate");
         }
 
@@ -140,12 +140,12 @@ namespace hsp
                         "' was missing for " + member.err_name() + ".");
                 if (paramstr != rates::REFERENCE)
                     param_pointers.emplace_back(
-                        pParameter_->at(pParameter_->pRegistry->from_string(paramstr)).pointer());
+                        pParameter_->at(pParameter_->pKeys->from_string(paramstr)).pointer());
             }
 
             if (!param_pointers.empty())
             {
-                size_t g = pRegistry->from_string(groupstr);
+                size_t g = pKeys->from_string(groupstr);
                 igr.vec[g].init_product(param_pointers);
             }
         }

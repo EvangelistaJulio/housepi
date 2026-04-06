@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "tools/dependency.h"
 #include "tools/keys.h"
 #include "tools/loglike.h"
 #include "tools/messages.h"
@@ -33,79 +34,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Dependency Tree Helpers  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace
-{
-    using namespace hsp;
-
-    /// Helper to build augmented definition order and assert for acyclic.
-    void walk_dependency_tree(const std::string &entry,
-                              const str_table &tree,
-                              std::vector<std::string> &visited,
-                              std::vector<std::string> &recursion_stack,
-                              std::vector<std::string> &ordered)
-    {
-        if (!tree.count(entry))
-            throw std::invalid_argument(
-                "Could not find a definition for augmented '" + entry + "'");
-
-        if (std::find(recursion_stack.begin(), recursion_stack.end(), entry) != recursion_stack.end())
-            throw std::invalid_argument(
-                "Found inadmissible cyclic definition for augmented '" + entry + "'");
-
-        if (std::find(visited.begin(), visited.end(), entry) != visited.end())
-            return;
-
-        recursion_stack.push_back(entry);
-        for (const std::string &dep : tree.at(entry))
-            walk_dependency_tree(dep, tree, visited, recursion_stack, ordered);
-
-        recursion_stack = recursion_stack - std::vector<std::string>({entry});
-        visited.push_back(entry);
-        ordered.push_back(entry);
-    }
-
-    /// Get topological order of definitions dependencies.
-    std::vector<std::string> extract_all_dependencies_order(const str_table &graph)
-    {
-        // inspect dependency tree for cycles and missing entries
-        std::vector<std::string> visited, recursion_stack, ordered;
-        for (const auto &[a, vec] : graph)
-            if (std::find(visited.begin(), visited.end(), a) == visited.end())
-                walk_dependency_tree(a, graph, visited, recursion_stack, ordered);
-        return ordered;
-    }
-
-    /// Get topological order of definitions depending on 'start' (start included).
-    std::vector<std::string> extract_dependents_order(const std::string &start, const str_table &graph)
-    {
-        // construct a reversed graph for dependents
-        str_table reverse_graph;
-        for (const auto &[node, dependents] : graph)
-        {
-            for (const std::string &dep : dependents)
-                reverse_graph[dep].push_back(node);
-
-            // ensure isolated nodes are present
-            if (!reverse_graph.count(node))
-                reverse_graph[node] = {};
-        }
-
-        // walk dependents of start
-        std::vector<std::string> visited, recursion_stack, ordered;
-        for (const std::string &dep : reverse_graph.at(start))
-            walk_dependency_tree(dep, reverse_graph, visited, recursion_stack, ordered);
-
-        std::reverse(ordered.begin(), ordered.end());
-        return std::vector<std::string>({start}) + ordered;
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  *** Augmented : class ***  //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +50,7 @@ namespace hsp
 
     void Augmented::init_registry(const std::vector<std::string> &keys)
     {
-        pRegistry = std::make_unique<key::Registry>(keys);
+        pKeys = std::make_unique<KeyHolder>(keys);
     }
 
     void Augmented::build(const str_table &input)
@@ -132,7 +60,7 @@ namespace hsp
         is_any_model_ = false;
 
         indiv_augm_.clear();
-        pRegistry->clear();
+        pKeys->clear();
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();
@@ -193,8 +121,8 @@ namespace hsp
         for (const std::string &col : read::extract_keys(deftable_))
             deftable_[col] += pInfecProfile_->augm_definitions.at(col);
 
-        pRegistry->add(infprof::AUGM_FUNC);
-        pInfecProfile_->augm_key = pRegistry->from_string(infprof::AUGM_FUNC);
+        pKeys->add(infprof::AUGM_FUNC);
+        pInfecProfile_->augm_key = pKeys->from_string(infprof::AUGM_FUNC);
 
         // append discrete infectivity profile definitions if any
         if (pInfecProfile_->is_discrete_requested())
@@ -211,7 +139,7 @@ namespace hsp
         {
             // fill registry with optional augmented definitions
             const std::string astr = deftable_["name"][k];
-            pRegistry->add(astr);
+            pKeys->add(astr);
 
             // check associated status
             int status = status::MISSING;
@@ -250,7 +178,7 @@ namespace hsp
         std::unordered_set<int> all_infected_statuses = {};
 
         // NOTE: storage already allocated and pointers set by helper_build_allocate_storage_()
-        size_t n = pRegistry->size();
+        size_t n = pKeys->size();
         for (Household &house : *pDataWide_)
             for (Individual &member : house)
             {
@@ -258,7 +186,7 @@ namespace hsp
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                 {
-                    iaugm.vec[a].name(pRegistry->as_string(a));
+                    iaugm.vec[a].name(pKeys->as_string(a));
                     iaugm.vec[a].set_err_type("augmented");
                 }
                 if (member.is_infected_status())
@@ -323,10 +251,10 @@ namespace hsp
 
             // Ignore spurios private definition if no public definition depends on it
             // NOTE: but ensure private infectivity is stored.
-            for (const std::string &astr : extract_all_dependencies_order(tree))
+            for (const std::string &astr : dependency::order_dependencies(tree))
                 if (astr == infprof::AUGM_FUNC ||
                     !str::is_private(astr) ||
-                    !str::drop_private(extract_dependents_order(astr, tree)).empty())
+                    !str::drop_private(dependency::order_conditioned_on(astr, tree)).empty())
                     status_blocks_.back().order.emplace_back(name_to_row[astr]);
 
             // define usage lists respecting definition order
@@ -375,14 +303,14 @@ namespace hsp
             set_sample_list_for_single_defininition_(status, k);
 
         // NOTE: by construction of draws list, I am forced to drop private at the end
-        list_export = pRegistry->from_string(str::drop_private(pRegistry->as_string(list_export)));
-        block.draws = pRegistry->from_string(str::drop_private(pRegistry->as_string(block.draws)));
+        list_export = pKeys->from_string(str::drop_private(pKeys->as_string(list_export)));
+        block.draws = pKeys->from_string(str::drop_private(pKeys->as_string(block.draws)));
     }
 
     void Augmented::set_sample_list_for_single_defininition_(int status, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        size_t a = pRegistry->from_string(astr);
+        size_t a = pKeys->from_string(astr);
 
         bool is_to_export = true;
         bool is_to_draw = true;
@@ -444,7 +372,7 @@ namespace hsp
         bool all_consts = true; // start assuming all constants
         for (const std::string &pstr : parser.list_parameter_depen())
         {
-            size_t p = pParameter_->pRegistry->from_string(pstr);
+            size_t p = pParameter_->pKeys->from_string(pstr);
             all_consts &= pParameter_->at(p).is_constant();
         }
 
@@ -453,7 +381,7 @@ namespace hsp
         for (const std::string &bstr : parser.list_augmented_depen())
         {
             const std::vector<size_t> &v = status_blocks_[map_status_to_block_.at(status)].draws;
-            if (std::find(v.begin(), v.end(), pRegistry->from_string(bstr)) != v.end())
+            if (std::find(v.begin(), v.end(), pKeys->from_string(bstr)) != v.end())
                 all_consts = false;
         }
 
@@ -469,7 +397,7 @@ namespace hsp
 
     void Augmented::init()
     {
-        if (pRegistry->empty())
+        if (pKeys->empty())
             return;
 
         helper_init_model_list_();
@@ -492,17 +420,17 @@ namespace hsp
     {
         for (StatusBlock_ &block : status_blocks_)
         {
-            block.depen.resize(pRegistry->size());
+            block.depen.resize(pKeys->size());
 
             // associate blocks for ordered model lists
             const str_table &ordered_models = get_ordered_models_(block);
             if (!ordered_models.empty())
             {
                 is_any_model_ = true;
-                block.models = pRegistry->from_string(read::extract_keys(ordered_models));
+                block.models = pKeys->from_string(read::extract_keys(ordered_models));
 
                 for (const auto &[astr, others] : ordered_models)
-                    block.depen[pRegistry->from_string(astr)] = pRegistry->from_string(others);
+                    block.depen[pKeys->from_string(astr)] = pKeys->from_string(others);
             }
         }
     }
@@ -534,7 +462,7 @@ namespace hsp
 
         // assign order of dependents for augmented model computation
         for (const auto &[key, vec] : tree)
-            ordered_models.emplace(key, extract_dependents_order(key, tree));
+            ordered_models.emplace(key, dependency::order_conditioned_on(key, tree));
 
         return ordered_models;
     }
@@ -559,7 +487,7 @@ namespace hsp
     void Augmented::init_missing_definitions(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (member.paugm_->vec[pRegistry->from_string(deftable_["name"][k])].is_empty())
+            if (member.paugm_->vec[pKeys->from_string(deftable_["name"][k])].is_empty())
                 helper_init_attributes_(member, k);
     }
 
@@ -599,12 +527,11 @@ namespace hsp
     void Augmented::helper_init_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        size_t a = pRegistry->from_string(astr);
+        size_t a = pKeys->from_string(astr);
 
         try
         {
             Variable &xaugm = member.paugm_->vec[a];
-            // xaugm.clear(); UPDATE: is this necessaryy? I think no
 
             if (str::tobool(deftable_["const"][k]))
             {
@@ -642,8 +569,9 @@ namespace hsp
     void Augmented::helper_init_model_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        Variable &xaugm = member.paugm_->vec[pRegistry->from_string(astr)];
+        Variable &xaugm = member.paugm_->vec[pKeys->from_string(astr)];
         parse::Definition parser(deftable_["model"][k]);
+
         xaugm.init_distr(parser.root.func);
 
         if (!xaugm.has_model())
@@ -661,7 +589,7 @@ namespace hsp
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        Variable &xaugm = member.paugm_->vec[pRegistry->from_string(astr)];
+        Variable &xaugm = member.paugm_->vec[pKeys->from_string(astr)];
         std::string str_val = deftable_["value"][k];
         parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
@@ -710,7 +638,7 @@ namespace hsp
 
     void Augmented::user_reset(rnd_gen &prng)
     {
-        if (pRegistry->empty())
+        if (pKeys->empty())
             return;
 
         for (Household &house : *pDataWide_)

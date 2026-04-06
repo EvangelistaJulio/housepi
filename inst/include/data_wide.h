@@ -36,18 +36,15 @@ namespace hsp
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    namespace key
-    {
-        struct Registry;
-    }
+    struct KeyHolder;
 
     struct DataWide
     {
-        std::unique_ptr<key::Registry> pRegistry;
-        std::unique_ptr<key::Registry> p_size_Registry;
-        std::unique_ptr<key::Registry> p_size_vec_Registry;
-        std::unique_ptr<key::Registry> p_double_vec_Registry;
-        std::unique_ptr<key::Registry> p_double_mtx_Registry;
+        std::unique_ptr<KeyHolder> pKeys;
+        std::unique_ptr<KeyHolder> pKeys_size_val;
+        std::unique_ptr<KeyHolder> pKeys_size_vec;
+        std::unique_ptr<KeyHolder> pKeys_double_vec;
+        std::unique_ptr<KeyHolder> pKeys_double_mtx;
 
         ReportIndividual report_indiv;
         ReportHousehold report_house;
@@ -122,8 +119,9 @@ namespace hsp
                 return 1;
             case Mode::Multiple:
                 return multiplicity_[R].value_;
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
         /// Index to household multiplicity group.
         size_t get_restricted_index(size_t H) const
@@ -134,8 +132,9 @@ namespace hsp
                 return H;
             case Mode::Multiple:
                 return house_vector_[H].ridx_;
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
         /// Number of household multiplicity groups.
         size_t restricted_size() const noexcept
@@ -146,8 +145,9 @@ namespace hsp
                 return report_house.total;
             case Mode::Multiple:
                 return multiplicity_.size();
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
         /// Restrict to head of household multiplicity group.
         Household &restricted(size_t R)
@@ -158,8 +158,9 @@ namespace hsp
                 return at(R);
             case Mode::Multiple:
                 return at(multiplicity_[R].head_);
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
         const Household &restricted(size_t R) const
         {
@@ -169,8 +170,9 @@ namespace hsp
                 return at(R);
             case Mode::Multiple:
                 return at(multiplicity_[R].head_);
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         /////////////////////

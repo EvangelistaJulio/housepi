@@ -9,8 +9,6 @@ Description: This is the core implementation the package housepi. Direct access 
 License: GPL (>= 3)
 NeedsCompilation: yes
 Encoding: UTF-8
-Depends: Rcpp (>= 1.0.0)
 LinkingTo:
-    Rcpp (>= 1.0.0), 
     BH (>= 1.0.0)
 RoxygenNote: 7.3.3

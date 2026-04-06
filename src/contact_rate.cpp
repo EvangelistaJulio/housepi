@@ -75,7 +75,7 @@ namespace hsp
             size_t n_rows = read::csv_n_rows(input);
 
             // resolve data column indices
-            std::vector<size_t> data_indices = pDataWide_->pRegistry->from_string(data_names);
+            std::vector<size_t> data_indices = pDataWide_->pKeys->from_string(data_names);
 
             // loop over all households
             for (size_t H = 0; H < pDataWide_->report_house.total; ++H)
@@ -113,7 +113,7 @@ namespace hsp
                                 if (!na::is(paramstr) && paramstr != rates::REFERENCE)
                                 {
                                     Attribute &attr = house_contact_rates_[H].mtx[member_from.hhindex()][member_to.hhindex()];
-                                    attr.init_pointer(pParameter_->at(pParameter_->pRegistry->from_string(paramstr)).pointer());
+                                    attr.init_pointer(pParameter_->at(pParameter_->pKeys->from_string(paramstr)).pointer());
                                 }
                                 break;
                             }

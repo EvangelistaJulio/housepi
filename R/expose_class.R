@@ -223,6 +223,8 @@ get_infec_profile <- function(hhmodel) {
 #' @param prior `r rd_par_model_`
 #' @param ... `r rd_par_args_`
 #' @param min `r rd_var_min_`
+#' @param func `r rd_aug_func_`
+#' @param func_args `r rd_aug_funargs_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_par_proposal_`
 #' @param proposal_scale `r rd_proposal_scale_`
@@ -232,6 +234,7 @@ add_parameter <- function(hhmodel,
                           name = NA_character_, value = NULL,
                           const = NA, discr = FALSE,
                           prior = NA_character_, ...,
+                          func = NULL, func_args = NULL,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
@@ -241,6 +244,7 @@ add_parameter <- function(hhmodel,
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
     prior = prior, rlang::enquos(...),
+    func = rlang::enquo(func), func_args = rlang::enquos(func_args),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale,
     .assert = TRUE

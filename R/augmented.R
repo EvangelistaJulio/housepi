@@ -121,28 +121,28 @@ HousepiAugmented <- R6::R6Class(
     #' @field augm_required `character()`.
     #' Find augmented required by augmented variable definitions.
     augm_required = function(value) {
-      if (!missing(value)) stop_h("'augm_required' is read only.")
+      if (!missing(value)) stop_read_only("augm_required")
       private$find_required_def_("A")
     },
 
     #' @field data_required `character()`.
     #' Find data required by augmented variable definitions.
     data_required = function(value) {
-      if (!missing(value)) stop_h("'data_required' is read only.")
+      if (!missing(value)) stop_read_only("data_required")
       private$find_required_def_("D")
     },
 
     #' @field group_rates_required `character()`.
     #' Find group rates required by augmented variable definitions.
     group_rates_required = function(value) {
-      if (!missing(value)) stop_h("'group_rates_required' is read only.")
+      if (!missing(value)) stop_read_only("group_rates_required")
       private$find_required_def_("G")
     },
 
     #' @field param_required `character()`.
     #' Find parameters required by augmented variable definitions.
     param_required = function(value) {
-      if (!missing(value)) stop_h("'param_required' is read only.")
+      if (!missing(value)) stop_read_only("param_required")
       private$find_required_def_("P")
     }
   ),

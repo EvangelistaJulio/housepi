@@ -65,7 +65,7 @@ namespace hsp
             return false;
         if (is_discrete() != other.is_discrete())
             return false;
-        
+
         switch (mode_)
         {
         case Mode::Numeric:
@@ -93,10 +93,12 @@ namespace hsp
             if (pFunc_->is_callable_implicitly())
                 return str::format(pFunc_->evaluate());
             return "<>";
+        default:
+            __builtin_unreachable();
         }
-        __builtin_unreachable();
     }
 
+#ifndef NDEBUG
     std::string Attribute::str_summary() const
     {
         std::string sms = err_name() + " ";
@@ -115,9 +117,11 @@ namespace hsp
             return sms + " pointer -> " + pAttr_->err_name();
         case Mode::Function:
             return sms + " function " + pFunc_->str_summary();
+        default:
+            __builtin_unreachable();
         }
-        __builtin_unreachable();
     }
+#endif
 
     bool Attribute::is_constant() const noexcept
     {
@@ -131,8 +135,9 @@ namespace hsp
             return pAttr_->is_constant();
         case Mode::Function:
             return pFunc_->is_constant();
+        default:
+            __builtin_unreachable();
         }
-        __builtin_unreachable();
     }
 
     bool Attribute::is_discrete() const noexcept
@@ -147,8 +152,9 @@ namespace hsp
             return pAttr_->is_discrete();
         case Mode::Function:
             return pFunc_->is_discrete();
+        default:
+            __builtin_unreachable();
         }
-        __builtin_unreachable();
     }
 
     bool Attribute::is_callable() const noexcept
@@ -163,8 +169,9 @@ namespace hsp
             return pAttr_->is_callable();
         case Mode::Function:
             return pFunc_->is_callable_implicitly();
+        default:
+            __builtin_unreachable();
         }
-        __builtin_unreachable();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -243,8 +250,9 @@ namespace hsp
         case Mode::Function:
             init_function(other.function()->clone());
             return;
+        default:
+            __builtin_unreachable();
         }
-        __builtin_unreachable();
     }
     void Attribute::optimize()
     {

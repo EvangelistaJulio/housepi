@@ -11,28 +11,36 @@
 #include <string_view>
 #include <vector>
 
-namespace hsp::key
+namespace hsp
 {
-    struct Registry
+    struct KeyHolder
     {
     public:
         ///////////////////////////
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        Registry(const std::vector<std::string> &keys) : declared_(keys) {}
+        KeyHolder(const std::vector<std::string> &keys)
+            : declared_(keys) { size_ = declared_.size(); }
 
         //////////////////////
         //////  SETTER  //////
         //////////////////////
 
         /// Drop all optional definitions.
-        void clear() { optional_.clear(); }
+        void clear()
+        {
+            optional_.clear();
+            size_ = declared_.size();
+        }
         /// Add a new definition.
         void add(std::string_view name)
         {
             if (!count(name))
+            {
                 optional_.emplace_back(name);
+                ++size_;
+            }
         }
 
         //////////////////////
@@ -40,7 +48,7 @@ namespace hsp::key
         //////////////////////
 
         /// Total number of definition names.
-        size_t size() const noexcept { return declared_.size() + optional_.size(); }
+        size_t size() const noexcept { return size_; }
 
         /// Return all definition names.
         std::vector<std::string> get_all() const;
@@ -63,6 +71,7 @@ namespace hsp::key
         bool count(std::string_view name) const;
 
     private:
+        size_t size_ = 0;                        /// Store registry size
         std::vector<std::string> declared_ = {}; /// Model declared definitions
         std::vector<std::string> optional_ = {}; /// User optional definitions
     };

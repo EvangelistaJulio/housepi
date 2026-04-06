@@ -138,7 +138,7 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
     # NOTE: I need operations to be column-wise for eventual mixed types
     nr <- nrow(elem_n1)
 
-    output <- as.data.frame(setNames(
+    output <- as.data.frame(stats::setNames(
       lapply(seq_len(ncol(elem_n1)), function(x) {
         apply(matrix(unlist(lapply(frame_list, `[[`, x)), nrow = nr), 1L, func)
       }),
@@ -481,7 +481,7 @@ PredictedCasesBySize <- R6::R6Class(
     #' Observed and predicted secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
     formatted_sec_attack_rate = function(value) {
-      if (!missing(value)) stop_h("'formatted_sec_attack_rate' is read only.")
+      if (!missing(value)) stop_read_only("formatted_sec_attack_rate")
       # convert internal list to data.frame
       output <- data.frame(
         house_size = self$sec_attack_rate$observed$house_size,
@@ -504,7 +504,7 @@ PredictedCasesBySize <- R6::R6Class(
     #' Formatted observed and predicted cases by household size.
     #' If a maximum household size is set, larger sizes are not returned.
     formatted_cases_table = function(value) {
-      if (!missing(value)) stop_h("'formatted_case_table' is read only.")
+      if (!missing(value)) stop_read_only("formatted_case_table")
       # filter according to max_house_size
       cases <- helper_filter_tables(self$cases_table_by_size,
                                     private$max_hh_size_)

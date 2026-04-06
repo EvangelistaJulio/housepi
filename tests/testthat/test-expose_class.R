@@ -181,14 +181,17 @@ test_that("run_simulation wrapper returns data.frame", {
 
 test_that("Group rate and infectivity profile wrappers", {
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  
+
   # UPDATE: deep copy of data is slowing everything down!
   hhmodel$add_data_wide(helper_test_get_data("flu_2014_matsumoto"))
+  # FIXME: this is taking forever... it's the copy!
   hhmodel <- add_group_rate(hhmodel, "community", by = "member")
+  # FIXME: ...this also!
   groups_1 <- get_group_rates(hhmodel)
   expect_true(is.data.frame(groups_1))
   expect_true(nrow(groups_1) > 0)
 
+  # FIXME: similarly is the following
   result <- load_group_rate_list(hhmodel, community = "member")
   groups_2 <- get_group_rates(result)
   expect_identical(groups_1, groups_2)

@@ -122,8 +122,10 @@ HousepiGenerator <- R6::R6Class(
         if (length(private$last_flags_) == 0) return(TRUE)
         else return(FALSE)
       }
-      m <- get_rcpp_module(private$dll_, private$name_)
-      flags_dll <- .engine$compile_flags(m$new_model())
+      load_model_dll_(private$dll_)
+      module_name <- get_template_from_dll(private$dll_)
+      if (is.na(module_name)) module_name <- private$name_
+      flags_dll <- .engine$compile_flags(.engine$new_model(module_name))
       setequal(private$last_flags_, flags_dll)
     },
 
@@ -317,7 +319,7 @@ HousepiGenerator <- R6::R6Class(
     # Generate flags used for environment compilation.
     build_compile_flags_ = function(paths = NULL, flags = NULL, libs = NULL) {
       flags <- c(
-        # flag to pass the name of the custom Rcpp module
+        # flag to pass the model name for ModelRegistry auto-registration
         paste0("_HOUSEPI_MODULE=", get_template_from_dll(private$dll_)),
         flags
       )
@@ -369,8 +371,10 @@ HousepiGenerator <- R6::R6Class(
     # @description Initialize new Rcpp pointers to Model and MCMC.
     create_new_pointers_ = function() {
       if (!is.null(private$mcmc_ptr_)) return(invisible())
-      model_ptr_ <- get_rcpp_module(private$dll_,
-                                    private$name_)$new_model()
+      load_model_dll_(private$dll_)
+      module_name <- get_template_from_dll(private$dll_)
+      if (is.na(module_name)) module_name <- private$name_
+      model_ptr_ <- .engine$new_model(module_name)
       private$mcmc_ptr_ <- .engine$create_mcmc_runner(model_ptr_)
     },
 
@@ -425,13 +429,13 @@ HousepiGenerator <- R6::R6Class(
     #' @field name `character(1)`. Model name.
     #' Assign a new `character(1)` to change model name.
     name = function(value) {
-      if (!missing(value)) stop_h("'name' is read only.")
+      if (!missing(value)) stop_read_only("name")
       spaced_template_choice(private$name_)
     },
 
     #' @field setup `list`. Last setup used by the build process.
     setup = function(value) {
-      if (!missing(value)) stop_h("'setup' is read only.")
+      if (!missing(value)) stop_read_only("setup")
       .engine$export_setup(private$mcmc_ptr_)
     }
   ),

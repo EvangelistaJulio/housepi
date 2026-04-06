@@ -15,18 +15,19 @@
 #include "tools/string.h"
 #include "tools/random.h"
 
-#include "variable.h"
-#include "function.h"
 #include "distribution.h"
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  *** Proposal : class ***  /////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "function.h"
+#include "registry.h"
+#include "variable.h"
 
 namespace hsp
 {
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  *** Proposal : class ***  /////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
     /// Base class for Metropolis proposals.
     class Proposal
     {
@@ -70,6 +71,23 @@ namespace hsp
     std::string_view name() const noexcept override final { return #name_; }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  *** NullProposal_ : class ***  /////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class NullProposal_ final : public Proposal
+    {
+    public:
+        NullProposal_() {}
+        MAKE_PROPOSAL_CLONE_METHOD(NullProposal_)
+        MAKE_PROPOSAL_NAME_METHOD()
+
+        double propose(rnd_gen &, double xo) const override final { return xo; }
+        double log_ratio(double, double) const override final { return 0.; }
+
+        bool is_adaptable() const noexcept override final { return false; }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////  *** SampleProposal_ : class ***  ////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -80,7 +98,7 @@ namespace hsp
         MAKE_PROPOSAL_CLONE_METHOD(SampleProposal_)
         MAKE_PROPOSAL_NAME_METHOD(sample)
 
-        void rebind_distrib(const Distribution *new_distr) override { pDistr_ = new_distr; }
+        void rebind_distrib(const Distribution *new_distr) override final { pDistr_ = new_distr; }
 
         double propose(rnd_gen &prng, double) const override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
@@ -287,9 +305,6 @@ namespace hsp
     {
         const std::vector<std::string> options = {"sample", "uniform", "normal", "lognormal"};
 
-        if (na::is(name))
-            return nullptr;
-
         if (name == "uniform")
             return std::make_unique<UniformProposal_>(scale, is_discrete);
 
@@ -337,7 +352,6 @@ namespace hsp
         std::swap(pDistr_, other.pDistr_);
         std::swap(pProp_, other.pProp_);
     }
-
     void Variable::init_func_attr(std::string_view key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
 
     void Variable::init_func_reshaping(bool discr)
@@ -354,7 +368,10 @@ namespace hsp
 
     void Variable::init_distr(std::string_view opt)
     {
-        pDistr_ = compose_distr_registries(opt, "distribution", {"continuos", "discrete"});
+        if (na::is(opt))
+            return;
+        else
+            pDistr_ = compose_distr_registries(opt, "distribution", {"continuos", "discrete"});
     }
 
     void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
@@ -381,31 +398,37 @@ namespace hsp
 
     void Variable::helper_assert_non_degenerate_range_()
     {
+        const Attribute &lower = pDistr_->lower();
+        const Attribute &upper = pDistr_->upper();
+
         // skip if one of the range extremes is not provided
-        if (!pDistr_->lower().is_callable() || !pDistr_->upper().is_callable())
+        if (!lower.is_callable() || !upper.is_callable())
             return;
 
         // skip if range is not degenerate
-        const double sx = pDistr_->lower().value();
-        const double dx = pDistr_->upper().value();
+        const double sx = lower.value();
+        const double dx = upper.value();
         if (sx < dx)
             return;
 
         // case empty interval, lower and upper are "open"
         if (sx > dx || !pDistr_->is_valid(sx) || !pDistr_->is_valid(dx))
             throw std::invalid_argument(
-                "Definition produced a inconsistent range " + pDistr_->str_range() +
+                "Definition produced an inconsistent range " + pDistr_->str_range() +
                 " for " + err_name() + ".");
 
-        if (!pDistr_->lower().is_constant() || !pDistr_->upper().is_constant())
+        if (!lower.is_constant() || !upper.is_constant())
             return;
 
         // warn user if it was not chosen as constant
         if (!is_user_const_)
         {
             msg::warning(
-                "Turned at least one " + err_name() + " to constant as range was degenerate.");
+                "Collapsed (at least) one " + err_name() + " to constant.\n" +
+                "Definitions of 'min' as " + lower.err_name() + " and 'max' as " + upper.err_name() +
+                " produced a degenerate range.");
             init_numeric(sx);
+            helper_init_null_proposal_();
         }
     }
 
@@ -429,6 +452,16 @@ namespace hsp
             helper_init_sample_proposal_();
         else
             helper_init_monte_carlo_proposal_(proposal, proposal_scale);
+    }
+
+    void Variable::helper_init_null_proposal_()
+    {
+        // assign the pointer to the proposer
+        pProp_ = std::make_unique<NullProposal_>();
+
+        // setup sample proposal functional methods
+        ratio_mode_ = Ratio::None;
+        valid_mode_ = Validity::Always;
     }
 
     void Variable::helper_init_sample_proposal_()
@@ -461,10 +494,8 @@ namespace hsp
     {
         if (is_constant())
             return;
-
         if (has_model())
             set(pDistr_->rand(prng));
-
         if (pProp_)
             pProp_->user_reset();
     }
@@ -472,7 +503,6 @@ namespace hsp
     void Variable::optimize()
     {
         Attribute::optimize();
-
         if (pDistr_)
             pDistr_->optimize();
     }
@@ -488,8 +518,9 @@ namespace hsp
                 "Called undefined evaluate operator for non-function " + err_name() + ".");
         case Mode::Function:
             return pFunc_->evaluate(x);
+        default:
+            __builtin_unreachable();
         }
-        __builtin_unreachable();
     }
 
     void Variable::clear() noexcept
@@ -515,8 +546,9 @@ namespace hsp
             return true;
         case Validity::Check:
             return pDistr_->is_valid(value_);
+        default:
+            __builtin_unreachable();
         }
-        __builtin_unreachable();
     }
 
     double Variable::get_distr_log_pdf() const { return pDistr_->log_pdf(value_); }
@@ -527,8 +559,10 @@ namespace hsp
     void Variable::reset_accept_rate() { pProp_->reset_accept_rate(); }
     void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }
 
+#ifndef NDEBUG
     std::string Variable::str_summary() const
     {
         return Attribute::str_summary() + (has_model() ? " | ~" + pDistr_->str_summary(false) : "");
     }
+#endif
 }

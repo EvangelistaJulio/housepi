@@ -115,3 +115,26 @@ test_that("Symbolic definitions are equivalent", {
   # check that all rows are identical
   expect_equal(nrow(unique(aux)), 1)
 })
+
+# test_that("Parameter functions workd as expected", {
+#   hhmodel <- new_housepi_model("blank")
+#
+#   # FIXME: implicit function interpreted as a constant
+#   hhmodel$load_parameter_list(
+#     alpha = list(prior = "uniform"),
+#     beta = list(prior = "uniform"),
+#     delta = alpha@P + beta@P
+#   )
+#   hhmodel$run_inference()
+#   hhmodel$parameters
+#
+#   # FIXME: function not exported
+#   hhmodel$load_parameter_list(
+#     alpha = list(prior = "uniform"),
+#     beta = list(prior = "uniform"),
+#     delta = list(func = "sum",
+#                  func_args  = list(x1 = alpha@P, x2 = beta@P))
+#   )
+#   results <- hhmodel$run_inference()
+#   results$param_draws
+# })

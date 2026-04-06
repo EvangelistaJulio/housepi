@@ -127,37 +127,37 @@ namespace hsp
                 return 0;
             case Ratio::Compute:
                 return get_distr_log_ratio() - get_propose_log_ratio();
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         void update_accept_rate(bool is_accepted);
         void reset_accept_rate();
         void adapt_proposal(double ratio);
 
+#ifndef NDEBUG
         ////////////////////
         //////  SHOW  //////
         ////////////////////
 
         /// Get a description about the functional status.
         std::string str_summary() const override final;
+#endif
 
     private:
         enum class Validity : std::uint8_t
         {
             Always,
             Check
-        } valid_mode_ = Validity::Check;
+        } valid_mode_ = Validity::Always;
         enum class Ratio : std::uint8_t
         {
             None,
             Compute
-        } ratio_mode_ = Ratio::Compute;
+        } ratio_mode_ = Ratio::None;
 
-        double old_ = na::DOUBLE; /// old value
-
-        /// NOTE: Household must be copyable for simulations
-        /// UPDATE: pointers should become unique -> Function clonable.
+        double old_ = na::DOUBLE;              /// old value
         std::unique_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
         std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposer
 
@@ -167,6 +167,9 @@ namespace hsp
 
         /// Assert that range is non-degenerate.
         void helper_assert_non_degenerate_range_();
+
+        /// Initialize null proposal.
+        void helper_init_null_proposal_();
         /// Initialize proposal of direct sample from prior/model.
         void helper_init_sample_proposal_();
         /// Initialize parametric Monte Carlo proposal.

@@ -75,6 +75,7 @@ HousepiModel <- R6::R6Class(
     get_all_required_param_ = function() {
       required <- private$param_$require(private$get_reference_())
       c(required,                                # by the model
+        private$param_$param_required,           # by parameter functions
         private$group_rates_$param_required,     # by group rates
         private$contact_rates_$param_required,   # by contact rates
         private$augm_$param_required,            # by augmented
@@ -472,33 +473,33 @@ HousepiModel <- R6::R6Class(
   active = list(
     #' @field data_wide `data.frame`. Individual level data (wide format).
     data_wide = function(value) {
-      if (!missing(value)) stop_h("'data_wide' is read only.")
+      if (!missing(value)) stop_read_only("data_wide")
       private$refactor_data_wide_(.engine$export_data_wide(private$mcmc_ptr_))
     },
 
     #' @field data_long
     #' `data.frame`. Additional data rows indexed by individual (long format).
     data_long = function(value) {
-      if (!missing(value)) stop_h("'data_long' is read only.")
+      if (!missing(value)) stop_read_only("data_long")
       private$refactor_data_long_(.engine$export_data_long(private$mcmc_ptr_))
     },
 
     #' @field parameters `data.frame`. Parameter definitions.
     parameters = function(value) {
-      if (!missing(value)) stop_h("'parameters' is read only.")
+      if (!missing(value)) stop_read_only("parameters")
       private$build_group_rates_()
       housepi_defin_showcaser(private$param_$defs)
     },
 
     #' @field augmented `data.frame`. Augmented definitions.
     augmented = function(value) {
-      if (!missing(value)) stop_h("'augmented' is read only.")
+      if (!missing(value)) stop_read_only("augmented")
       housepi_defin_showcaser(private$augm_$defs)
     },
 
     #' @field infec_profile `data.frame`. Infectivity profile definitions.
     infec_profile = function(value) {
-      if (!missing(value)) stop_h("'infec_profile' is read only.")
+      if (!missing(value)) stop_read_only("infec_profile")
       # get custom definition
       custom <- private$infec_profile_$showcase()
       if (length(custom) > 0) return(custom)
@@ -517,7 +518,7 @@ HousepiModel <- R6::R6Class(
 
     #' @field group_rates `data.frame`. Group rate definitions.
     group_rates = function(value) {
-      if (!missing(value)) stop_h("'group_rates' is read only.")
+      if (!missing(value)) stop_read_only("group_rates")
       private$assert_group_rates_()
       private$build_group_rates_()
       private$group_rates_$tidy_table
@@ -525,7 +526,7 @@ HousepiModel <- R6::R6Class(
 
     #' @field contact_rates `data.frame`. Contact rate definitions.
     contact_rates = function(value) {
-      if (!missing(value)) stop_h("'contact_rates' is read only.")
+      if (!missing(value)) stop_read_only("contact_rates")
       private$build_contact_rates_()
       private$contact_rates_$tidy_table
     }

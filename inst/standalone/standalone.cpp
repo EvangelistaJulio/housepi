@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <sstream>
 #include <iostream>
 #include <iomanip>
 
@@ -69,6 +70,84 @@ namespace hsp::msg
 
 namespace hsp
 {
+    namespace read
+    {
+        /// Load files from the row with headers.
+        bool read_row_by_headers_(std::ifstream &input,
+                                  const std::vector<std::string> &headers,
+                                  dict<std::string> &this_row)
+        {
+            std::string line, tkn;
+
+            if (!std::getline(input, line))
+                return false;
+
+            std::istringstream iss(line);
+            size_t n_cols = 0;
+
+            while (std::getline(iss, tkn, DELIMITER))
+                this_row.emplace(headers[n_cols++], strcleaner(tkn));
+
+            // last column is empty
+            for (size_t i = n_cols; i < headers.size(); i++)
+                this_row.emplace(headers[i], "");
+
+            return true;
+        }
+
+        /// Read column headers and compare to required headers.
+        std::vector<std::string> read_column_headers_(std::ifstream &input)
+        {
+            // clean headers
+            std::vector<std::string> headers = {};
+
+            // read first line
+            std::string line, tkn;
+            std::getline(input, line);
+            std::istringstream iss(line);
+
+            // get headers from first line
+            while (std::getline(iss, tkn, DELIMITER))
+                headers.push_back(strcleaner(tkn));
+
+            return headers;
+        }
+
+        /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
+        str_table csv_table(const std::string &pathtofile)
+        {
+            if (na::is(pathtofile))
+                return {};
+
+            std::ifstream input(pathtofile.c_str());
+            if (!input.is_open())
+                throw std::runtime_error(
+                    "Unable to open file '" + pathtofile + "'.");
+
+            // read and check for valid headers
+            const std::vector<std::string> headers = read_column_headers_(input);
+
+            str_table output = {};
+            dict<std::string> this_row = {};
+            while (read_row_by_headers_(input, headers, this_row))
+            {
+                for (const auto &[key, val] : this_row)
+                    output[key].push_back(val);
+                this_row.clear();
+            }
+
+            // ensure all columns have the same number of rows
+            size_t n_rows = csv_n_rows(output);
+            for (const auto &[col, vec] : output)
+                if (vec.size() != n_rows)
+                    throw std::runtime_error(
+                        "Inconsistent number of rows found in column '" + col +
+                        "' while reading file '" + pathtofile + "'.");
+
+            return output;
+        }
+    }
+
 #define STANDALONE_MAKE_READ_METHOD_(module, section_name)           \
     void Options::read_##module(MCMCBase &model)                     \
     {                                                                \
@@ -123,14 +202,14 @@ namespace hsp
 
         // header parameters
         for (const size_t p : param.list_sample)
-            ofs << read::DELIMITER << param.pRegistry->as_string(p);
+            ofs << read::DELIMITER << param.pKeys->as_string(p);
 
         // header augmented variable of id trace
         if (augm.is_any_draw())
             for (const Individual *member_ptr : augm.smpl_individuals)
                 for (size_t a : augm.list_draws(*member_ptr))
                     ofs << read::DELIMITER << member_ptr->id()
-                        << "_" << augm.pRegistry->as_string(a);
+                        << "_" << augm.pKeys->as_string(a);
 
         // header chain
         ofs << read::DELIMITER << "_chain_" << std::endl;
@@ -230,8 +309,8 @@ namespace hsp
 
         // initialization
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
-                                                   data_wide.pRegistry->get_all(),
-                                                   augm.pRegistry->as_string(augm.list_export));
+                                                   data_wide.pKeys->get_all(),
+                                                   augm.pKeys->as_string(augm.list_export));
         data_wide.assert_non_empty();              // check if data is empty
         engine.model->init_model_for_simulation(); // model specific initialization
 
@@ -240,7 +319,7 @@ namespace hsp
             {
                 engine.model->simulate_single_house(house);
                 update_ofstream_datawide(ofs, house,
-                                         data_wide.pRegistry->size(),
+                                         data_wide.pKeys->size(),
                                          augm.list_export);
             }
             catch (const std::exception &e)

@@ -263,8 +263,9 @@ namespace hsp
             case Mode::Static:
                 msg::info(sms + "\n");
                 return;
+            default:
+                __builtin_unreachable();
             }
-            __builtin_unreachable();
         }
 
         void check_user_interrupt_() const
