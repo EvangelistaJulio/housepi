@@ -374,8 +374,7 @@ HousepiGenerator <- R6::R6Class(
       load_model_dll_(private$dll_)
       module_name <- get_template_from_dll(private$dll_)
       if (is.na(module_name)) module_name <- private$name_
-      model_ptr_ <- .engine$new_model(module_name)
-      private$mcmc_ptr_ <- .engine$create_mcmc_runner(model_ptr_)
+      private$mcmc_ptr_ <- .engine$create_mcmc_runner(module_name)
     },
 
     ############################################################################

@@ -181,7 +181,7 @@ namespace hsp
 
         /// @brief Create a model by name.
         /// @throws std::runtime_error if the name is not registered.
-        func_uptr create(const std::string &name) const;
+        func_uptr create(std::string_view name) const;
 
     private:
         std::map<std::string, std::function<func_uptr()>, std::less<>> factory_map_;

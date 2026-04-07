@@ -186,12 +186,12 @@ namespace hsp
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::unique_ptr<ModelBase> ModelRegistry::create(const std::string &name) const
+    std::unique_ptr<ModelBase> ModelRegistry::create(std::string_view name) const
     {
         auto it = factory_map_.find(name);
         if (it == factory_map_.end())
             msg::error(
-                "Model registration failed: unknown model '" + name + "'.\n" );
+                "Model registration failed: unknown model '" + std::string(name) + "'.\n" );
         return it->second();
     }
 }

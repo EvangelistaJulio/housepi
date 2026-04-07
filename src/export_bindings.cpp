@@ -1458,11 +1458,20 @@ namespace
         return Rcpp::XPtr<ModelBase>(model.release(), true);
     }
 
-    Rcpp::XPtr<MCMC> create_mcmc_runner(Rcpp::XPtr<ModelBase> model_xptr)
+    Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
     {
-        ModelBase *raw = model_xptr.get();
-        R_ClearExternalPtr(model_xptr);
-        return Rcpp::XPtr<MCMC>(new MCMC(std::unique_ptr<ModelBase>(raw)), true);
+        auto mcmc = Rcpp::XPtr<MCMC>(new MCMC(module_name), true);
+
+        // options to be passed to progress setup 
+        const unsigned width = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width"));
+        const bool is_interactive = Rcpp::as<bool>(Rcpp::Function("interactive")());
+        mcmc->setup.init_R_context(
+            std::min(width, 78u) / 2,
+            is_interactive,
+            []
+            { Rcpp::checkUserInterrupt(); });
+
+        return mcmc;
     }
 
     /// Share the DataStore between two MCMC objects (COW copy).

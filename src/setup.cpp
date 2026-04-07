@@ -6,6 +6,7 @@
  */
 
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <sstream>
 
@@ -25,10 +26,6 @@
 #include "tools/types.h"
 
 #include "setup.h"
-
-#ifndef _STANDALONE
-#include <Rcpp.h>
-#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,15 +102,12 @@ namespace hsp
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        ProgressBar()
+        ProgressBar(unsigned barwidth = 33, bool is_interactive = true,
+                    std::function<void()> interrupt_func = {})
+            : barwidth_(barwidth), interrupt_func_(std::move(interrupt_func))
         {
-#ifndef _STANDALONE
-            check_user_interrupt_();
-            unsigned width = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width"));
-            barwidth_ = std::min(width, 78u) / 2;
-            if (!Rcpp::as<bool>(Rcpp::Function("interactive")()))
+            if (!is_interactive)
                 mode_ = Mode::Static;
-#endif
         };
         ~ProgressBar() = default;
 
@@ -224,13 +218,14 @@ namespace hsp
         }
 
     private:
-        const std::string symbol_ = "\u25A0"; /// bar decorator
-        unsigned barwidth_ = 33;              /// bar total size
-        bool verbose_ = true;                 /// wheter to show bar
-        bool is_bar_print_ = false;           /// wheter bar is printing
-        unsigned long state_ = 0;             /// current iteration
-        unsigned long total_ = 0;             /// total number of iterations
-        std::string text_ = "";               /// current text to show
+        const std::string symbol_ = "\u25A0";  /// bar decorator
+        unsigned barwidth_ = 33;               /// bar total size
+        std::function<void()> interrupt_func_; /// user-interrupt callback
+        bool verbose_ = true;                  /// wheter to show bar
+        bool is_bar_print_ = false;            /// wheter bar is printing
+        unsigned long state_ = 0;              /// current iteration
+        unsigned long total_ = 0;              /// total number of iterations
+        std::string text_ = "";                /// current text to show
 
         steady_clock::time_point start_;
         steady_clock::time_point lastprint_;
@@ -270,9 +265,8 @@ namespace hsp
 
         void check_user_interrupt_() const
         {
-#ifndef _STANDALONE
-            Rcpp::checkUserInterrupt();
-#endif
+            if (interrupt_func_)
+                interrupt_func_();
         }
     };
 
@@ -286,6 +280,13 @@ namespace hsp
         : uniform_(0., 1.),
           progressbar_(std::make_unique<ProgressBar>()) {}
     Setup::~Setup() = default;
+
+    void Setup::init_R_context(unsigned barwidth, bool is_interactive,
+                               std::function<void()> interrupt_func)
+    {
+        progressbar_ = std::make_unique<ProgressBar>(barwidth, is_interactive,
+                                                     std::move(interrupt_func));
+    }
 
     void Setup::build(const str_table &input)
     {

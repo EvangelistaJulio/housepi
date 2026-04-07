@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <random>
 #include <string>
@@ -57,6 +58,11 @@ namespace hsp
 
         Setup();
         ~Setup();
+
+        /// Configure progress bar for R sessions.
+        /// Must be called once after construction when running from R.
+        void init_R_context(unsigned barwidth, bool is_interactive,
+                            std::function<void()> interrupt_func);
 
         //////////////////////
         //////  SETTER  //////

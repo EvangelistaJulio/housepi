@@ -47,7 +47,7 @@ namespace hsp
 		//////  CONSTRUCTOR  //////
 		///////////////////////////
 
-		explicit MCMC(std::unique_ptr<ModelBase> m);
+		explicit MCMC(std::string_view model_name);
 
 		/// Detach shared DataStore before mutation. Used for copy-on-write logic.
 		void detach_data_store();

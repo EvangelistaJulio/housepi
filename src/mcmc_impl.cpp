@@ -22,6 +22,7 @@
 #include "tools/types.h"
 
 #include "mcmc.h"
+#include "registry.h"
 #include "data_wide.h"
 #include "household.h"
 #include "data_long.h"
@@ -168,8 +169,8 @@ namespace hsp
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    MCMC::MCMC(std::unique_ptr<ModelBase> m)
-        : model(std::move(m))
+    MCMC::MCMC(std::string_view model_name)
+        : model(ModelRegistry::instance().create(model_name))
     {
         init_registry(model->get_DataKey(),
                       model->get_HHsizeKey(),
