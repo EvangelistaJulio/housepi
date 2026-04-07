@@ -669,7 +669,7 @@ Run inference with Bayesian Markov chain Monte Carlo.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_inference(
   steps = 200,
-  burnin = 0,
+  burn = 0,
   thin = 1,
   adapt = 0,
   chains = 1,
@@ -684,7 +684,7 @@ Run inference with Bayesian Markov chain Monte Carlo.
 \describe{
 \item{\code{steps}}{\code{integer(1)} Total number of MCMC steps per chain.}
 
-\item{\code{burnin}}{\code{integer(1)} Number of initial steps to discard.}
+\item{\code{burn}}{\code{integer(1)} Number of initial steps to discard.}
 
 \item{\code{thin}}{\code{integer(1)} Number of steps to skip between samples.}
 

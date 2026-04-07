@@ -226,7 +226,7 @@ HousepiModel <- R6::R6Class(
     # @description
     # Full model build with complete list of definitions.
     build_full_ = function(steps = 0, adapt = 0,
-                           burnin = 0, thin = 1,
+                           burn = 0, thin = 1,
                            chains = 1, threads = 1,
                            id_draws = NULL,
                            progress = FALSE) {
@@ -234,7 +234,7 @@ HousepiModel <- R6::R6Class(
       .engine$import_setup(private$mcmc_ptr_, char_setup_input_(list(
         steps = as.integer(steps),
         adapt = as.integer(adapt),
-        burnin = as.integer(burnin),
+        burn = as.integer(burn),
         thin = as.integer(thin),
         chains = as.integer(chains),
         threads = as.integer(threads),
@@ -430,7 +430,7 @@ HousepiModel <- R6::R6Class(
     # @param scheme `r rd_evi_scheme_`
     # @param rungs `r rd_evi_rungs_`
     # @param steps `r rd_smpl_steps_`
-    # @param burnin `r rd_smpl_burn_`
+    # @param burn `r rd_smpl_burn_`
     # @param thin `r rd_smpl_thin_`
     # @param adapt `r rd_smpl_adapt_`
     # @param chains `r rd_smpl_chain_`
@@ -439,7 +439,7 @@ HousepiModel <- R6::R6Class(
     #
     # @return `numeric(1)`
     logevidence_ = function(scheme = "power-fractions", rungs = 40,
-                            steps = 10000, burnin = 0,
+                            steps = 10000, burn = 0,
                             thin = 1, adapt = 0,
                             chains = 1, threads = 1,
                             progress = TRUE) {
@@ -449,7 +449,7 @@ HousepiModel <- R6::R6Class(
       )
 
       # internal build function
-      private$build_full_(steps = steps, burnin = burnin,
+      private$build_full_(steps = steps, burn = burn,
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           progress = progress)
@@ -942,7 +942,7 @@ HousepiModel <- R6::R6Class(
 
     #' @description Run inference with Bayesian Markov chain Monte Carlo.
     #' @param steps `r rd_smpl_steps_`
-    #' @param burnin `r rd_smpl_burn_`
+    #' @param burn `r rd_smpl_burn_`
     #' @param thin `r rd_smpl_thin_`
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
@@ -950,12 +950,12 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param progress `r rd_progress_`
     #' @return An object of class `HousepiPosteriorDraws`.
-    run_inference = function(steps = 200, burnin = 0,
+    run_inference = function(steps = 200, burn = 0,
                              thin = 1, adapt = 0,
                              chains = 1, threads = 1,
                              id_draws = NULL,
                              progress = TRUE) {
-      private$build_full_(steps = steps, burnin = burnin,
+      private$build_full_(steps = steps, burn = burn,
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, progress = progress)

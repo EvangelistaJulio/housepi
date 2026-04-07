@@ -1,14 +1,5 @@
 library(testthat)
 
-test_that("Family mapping to model column is fixed", {
-  expect_equal(family2model_col("augmented"), c("model", "func"))
-  expect_equal(family2model_col("parameter"), "prior")
-  expect_equal(family2model_col("infectivity profile"), "func")
-  expect_equal(family2model_col("group rate"), "prior")
-  expect_error(family2model_col("unknown"),
-               regexp = "Unrecognized module family")
-})
-
 test_that("Helper format errors drops pedantic While doing stuff etc etc", {
   # single error: returns last line
   expect_equal(helper_format_error(list("first line\nlast line")),

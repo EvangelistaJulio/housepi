@@ -12,6 +12,13 @@ test_that("Rlang standard functions work as expected", {
                "log|x|{alpha|P}")
 })
 
+test_that("Rlang paranthesis are interpreted correctly", {
+  expect_equal(housepi_extractor(((alpha / beta))),
+               housepi_extractor(alpha / beta))
+  expect_equal(housepi_extractor((delta * (alpha / beta) ^ gamma)),
+               housepi_extractor(delta * pow(alpha / beta, gamma)))
+})
+
 test_that("Rlang basic identity assignments work as expected", {
   expect_equal(housepi_extractor(+3), "3|N")
   expect_equal(housepi_extractor(-1), "-1|N")

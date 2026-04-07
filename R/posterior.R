@@ -47,13 +47,13 @@ HousepiPosteriorDraws <- R6::R6Class(
     # Store auxiliary tags from inference setup.
     pre_process_setup_ = function(setup) {
       n_steps <- setup[["steps"]]
-      n_burnin <- setup[["burnin"]]
+      n_burn <- setup[["burn"]]
       n_thin <- setup[["thin"]]
       n_chains <- setup[["chains"]]
-      c_sample_size <- (n_steps - n_burnin) %/% n_thin
+      c_sample_size <- (n_steps - n_burn) %/% n_thin
 
       private$chain_tags_ <- rep(seq_len(n_chains), each = c_sample_size)
-      private$iter_names_ <- n_burnin + seq_len(c_sample_size) * n_thin
+      private$iter_names_ <- n_burn + seq_len(c_sample_size) * n_thin
       invisible(self)
     },
 

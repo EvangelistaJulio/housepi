@@ -76,10 +76,7 @@ strip_useless_parens <- function(x) {
   while (rlang::is_call(x) &&
            rlang::call_name(x) == "(" &&
            length(rlang::call_args(x)) == 1) {
-    inner_arg <- rlang::call_args(x)[[1]]
-    if (rlang::is_symbol(inner_arg)) x <- inner_arg
-    else if (rlang::call_name(inner_arg) == "@") x <- inner_arg
-    else break
+    x <- rlang::call_args(x)[[1]]
   }
   x
 }
@@ -225,6 +222,7 @@ housepi_extractor <- function(...) {
 
     # expand formula in case
     if (rlang::is_formula(x_expr)) x_expr <- rlang::f_rhs(x_expr)
+    x_expr <- strip_useless_parens(x_expr)
 
     if (is.null(x_expr)) {
       NULL

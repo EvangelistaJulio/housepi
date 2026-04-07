@@ -40,8 +40,8 @@ test_that("Undefined definitions are controoled", {
   augm <- HousepiAugmented$new()
   expect_error(aux_add(augm, name = "test", proposal = "sample", value = NA),
                regexp = "No model")
-
-  expect_no_error(aux_add(augm, name = "test", value = NA))
+  expect_error(aux_add(augm, name = "test", value = NA),
+               regexp = "Missing value")
 
   augm <- HousepiAugmented$new()
   aux_add(augm, name = "test", value = 3, const = TRUE, proposal = "sample")

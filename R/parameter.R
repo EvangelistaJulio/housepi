@@ -5,36 +5,6 @@
 ## See the LICENSE file for details.
 ##
 
-# Helper to associate prior definition.
-parameter_helper_prior <- function(opts, prior, args) {
-  # prior to tell if constant
-  if (is.na(prior)) stop_h(
-    sprintf("No prior provided for parameter '%s'.", opts$name)
-  )
-  opts$const <- FALSE
-  opts$prior <- housepi_combine_to_call(prior, args)
-  opts
-}
-
-# Helper with Monte Carlo proposal.
-parameter_helper_proposal <- function(opts, discr, proposal, proposal_scale) {
-  opts$discr <- isTRUE(discr)
-
-  # default proposal
-  opts$proposal <- "sample"
-  if (!is.na(proposal)) {
-    opts$proposal <- proposal
-    opts$proposal_scale <- ifelse(is.na(proposal_scale), 1, proposal_scale)
-  }
-  opts
-}
-
-############################################################################
-############################################################################
-############################# Housepi Parameter ############################
-############################################################################
-############################################################################
-
 #' @title Housepi Parameter
 #' @description
 #' Help with parameter definitions of model Rcpp object.
@@ -108,7 +78,7 @@ HousepiParameter <- R6::R6Class(
     },
 
     #' @inherit add_parameter
-    add_quo = function(name, value = NULL,
+    add_quo = function(name = NA_character_, value = NULL,
                        const = NA, discr = FALSE,
                        prior = NA_character_, ...,
                        func = NULL, func_args = NULL,
@@ -124,16 +94,19 @@ HousepiParameter <- R6::R6Class(
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
+
       # load quosures
       value <- housepi_extractor(!!value)
       func <- housepi_extractor(!!func)
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
+
       # load dots # UPDATE: not super elegant...
       dots <- list(...)
       # flatten if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
       args <- housepi_extractor(!!!dots)
+
       # flatten function arguments if quosures
       if (rlang::is_quosure(func_args)) {
         func_args <- housepi_extractor(!!func_args)
@@ -156,12 +129,15 @@ HousepiParameter <- R6::R6Class(
         "Provide only one between 'value' and 'func'."
       )
 
-      opts <- list(name = as.character(name), value = NA_real_,
-                   const = TRUE, discr = FALSE,
+      opts <- list(name = as.character(name),
+                   value = NA_real_,
+                   const = as.logical(const),
+                   discr = isTRUE(discr),
                    func = NA_character_,
-                   prior = NA_character_,
-                   min = NA_real_, max = NA_real_,
-                   proposal = NA_character_,
+                   prior = as.character(prior),
+                   min = NA_real_,
+                   max = NA_real_,
+                   proposal = as.character(proposal),
                    proposal_scale = NA_real_)
 
       # drop previous definition eventually
@@ -169,37 +145,17 @@ HousepiParameter <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      # assume it's a constant if a prior is not provided
-      if (is.na(const)) const <- is.na(prior) && is.null(func)
+      opts <- helper_variable_core(opts, self$family, value, func, func_args)
+      opts <- helper_variable_model(opts, self$family, args)
+      opts <- helper_variable_move(opts, self$family, proposal_scale)
 
-      # parse initial value
-      if (is.null(value)) opts$value <- NA_real_
-      else opts$value <- value
-
-      if (!is.null(func)) {
-        # function parameter: deterministic, not sampled
-        opts$func <- housepi_combine_to_call(func_name = func,
-                                             func_args = func_args,
-                                             is_func = TRUE)
-        opts$const <- FALSE
-        opts$discr <- isTRUE(discr)
+      if (!isTRUE(const)) {
         if (!is.null(min)) opts$min <- min
         if (!is.null(max)) opts$max <- max
-      } else if (isTRUE(const)) {
-        # check that a value is provided
-        if (is.na(opts$value)) stop_h(
-          sprintf("Missing value for constant parameter '%s'.", opts$name)
-        )
-      } else {
-        opts <- parameter_helper_prior(opts, prior, args)
-        if (!is.null(min)) opts$min <- min
-        if (!is.null(max)) opts$max <- max
-        opts <- parameter_helper_proposal(opts, discr, proposal, proposal_scale)
       }
 
-      # append as a row
+      # append definition(s)
       self$defs <- rbind(self$defs, data.frame(opts))
-
       # assert last definition is correct
       if (isTRUE(.assert)) housepi_assert_args(self, last = TRUE)
 

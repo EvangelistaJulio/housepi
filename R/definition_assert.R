@@ -5,14 +5,17 @@
 ## See the LICENSE file for details.
 ##
 
+# Function columns associated to module family.
 family2model_col <- function(family) {
+  if (family == "augmented") "model"
+  else "prior" # family is "parameter"
+}
+
+# Function columns associated to module family.
+family2function_col <- function(family) {
   if (family == "augmented") c("model", "func")
-  else if (family == "parameter") "prior"
   else if (family == "infectivity profile") "func"
-  else if (family == "group rate") "prior"
-  else stop_h(sprintf(
-    "[Internal] Unrecognized module family '%s'.", family
-  ))
+  else "prior" # family is "parameter" or "group rate"
 }
 
 helper_format_error <- function(err) {
@@ -70,7 +73,7 @@ housepi_assert_args <- function(gear, last = FALSE) {
   family <- gear$family
 
   # load requested faimily definitions
-  for (col in family2model_col(family)) {
+  for (col in family2function_col(family)) {
     col_args <- ifelse(col == "func", "func_args", "args")
 
     readable_defs <- housepi_defin_showcaser(defs)

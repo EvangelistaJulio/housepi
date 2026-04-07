@@ -126,8 +126,8 @@ test_that("housepi stop and warning format multi-line messages", {
 
 test_that("Char setup input formats setup options correctly", {
   # id_draws with multiple values
-  setup <- list(steps = 100L, burnin = 10L, thin = 1L,
-                chains = 1L, id_draws = c("id1", "id2"))
+  setup <- list(steps = 100, burnin = 10, thin = 1,
+                chains = 1, id_draws = c("id1", "id2"))
   result <- char_setup_input_(setup)
   expect_true(is.data.frame(result))
   expect_equal(result$id_draws, "id1:id2")

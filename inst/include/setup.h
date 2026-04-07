@@ -30,27 +30,26 @@ namespace hsp
     struct Setup
     {
         /// Expected header keys for configuration input file.
-        const std::vector<std::string> file_headers = {"steps", "burnin", "thin",
+        const std::vector<std::string> file_headers = {"steps", "burn", "thin",
                                                        "adapt", "chains", "threads",
                                                        "id_draws", "seed", "progress"};
 
+        std::int32_t seed;          /// Seed for pseudo-random number generator initialization.
+        unsigned n_threads = 1;     /// Number of OpenMP threads for parallelization.
         unsigned long n_steps = 1;  /// Total number of MCMC iterations per chain.
-        unsigned long n_burnin = 0; /// Number of initial burn-in iterations to discard.
+        unsigned long n_burn = 0;   /// Number of initial burn-in iterations to discard.
         unsigned long n_thin = 1;   /// Thinning interval (store every n_thin-th iteration).
         unsigned long n_adapt = 0;  /// Number of adaptive MCMC steps (0 = no adaptation).
         unsigned long n_chains = 1; /// Number of independent MCMC chains to run in parallel.
-        unsigned n_threads = 1;     /// Number of OpenMP threads for parallelization.
-        std::int32_t seed;          /// Seed for pseudo-random number generator initialization.
         unsigned long progress = 1; /// Progress bar update interval in seconds.
         unsigned long n_rungs = 0;  /// Number of rungs for power posterior analysis (0 = standard MCMC).
 
+        unsigned long chain = 1;                /// Current active MCMC chain (1-indexed).
+        unsigned long rung = 0;                 /// Current active rung in power posterior analysis (0-indexed).
         unsigned long c_sample_size = 0;        /// Sample size for a single chain after thinning.
         unsigned long c_n_sweeps = 0;           /// Total number of sweeps per chain.
         double inv_T = 1.;                      /// Inverse temperature for power posterior (1.0 = posterior).
         std::vector<std::string> id_draws = {}; /// IDs of augmented variables to trace and save.
-
-        unsigned long chain = 1; /// Current active MCMC chain (1-indexed).
-        unsigned long rung = 0;  /// Current active rung in power posterior analysis (0-indexed).
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////

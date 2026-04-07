@@ -5,8 +5,8 @@ local_results <- local({
   hhmodel <- new_housepi_model("chain_binomial")
   hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   hhmodel$load_parameter_template()
-  hhmodel$run_inference(steps = 20, burnin = 0, thin = 1,
-                        chains = 1, progress = FALSE)
+  hhmodel$run_inference(steps = 25, thin = 1, burn = 5,
+                        chains = 1, adapt = 5, progress = FALSE)
 })
 
 test_that("Draws active fields are correct", {

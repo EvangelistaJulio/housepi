@@ -514,7 +514,7 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' Run inference with Bayesian Markov Chain Monte Carlo.
 #' @param hhmodel `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
-#' @param burnin `r rd_smpl_burn_`
+#' @param burn `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
@@ -524,13 +524,13 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @export
 run_inference <- function(hhmodel,
-                          steps = 200, burnin = 0,
+                          steps = 200, burn = 0,
                           thin = 1, adapt = 0,
                           chains = 1, threads = 1,
                           id_draws = NULL,
                           progress = TRUE) {
   stopifnothousepi(hhmodel)
-  hhmodel$run_inference(steps = steps, burnin = burnin,
+  hhmodel$run_inference(steps = steps, burn = burn,
                         thin = thin, adapt = adapt,
                         chains = chains, threads = threads,
                         id_draws = id_draws,
@@ -568,7 +568,7 @@ run_simulation <- function(hhmodel,
 #' @param scheme `r rd_evi_scheme_`
 #' @param rungs `r rd_evi_rungs_`
 #' @param steps `r rd_smpl_steps_`
-#' @param burnin `r rd_smpl_burn_`
+#' @param burn `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
@@ -583,13 +583,13 @@ run_simulation <- function(hhmodel,
 #' @noRd
 # logevidence <- function(hhmodel,
 #                         scheme = "power-fractions", rungs = 40,
-#                         steps = 5000, burnin = 0,
+#                         steps = 5000, burn = 0,
 #                         thin = 1, adapt = 0,
 #                         chains = 1, threads = 1,
 #                         progress = TRUE) {
 #   stopifnothousepi(hhmodel)
 #   hhmodel$logevidence(scheme = scheme, rungs = rungs,
-#                       steps = steps, burnin = burnin,
+#                       steps = steps, burn = burn,
 #                       thin = thin, adapt = adapt,
 #                       chains = chains, threads = threads,
 #                       progress = progress)

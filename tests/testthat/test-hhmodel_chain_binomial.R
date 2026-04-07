@@ -74,7 +74,7 @@ test_that("Log-likelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
     add_data_wide(helper_test_get_data("flu_1918_frederick")) |>
-    run_inference(steps = 10, thin = 1, adapt = 0, burnin = 0)
+    run_inference(steps = 10, thin = 2, adapt = 2, burn = 2)
 
   pointwise <- results$log_lik_draws |>
     posterior::as_draws_matrix() |>

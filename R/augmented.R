@@ -5,89 +5,6 @@
 ## See the LICENSE file for details.
 ##
 
-# Parse augmented implicit function/value.
-helper_augmented_core <- function(opts, value, func, func_args) {
-  if (is.null(value) && is.null(func)) return(opts)
-  if (is.numeric(showcaser_extract_numeric(value))) {
-    # implicit numeric definition
-    opts$value <- value
-    if (is.na(opts$const)) {
-      opts$const <- isTRUE(all(is.na(c(opts$model, opts$proposal))))
-    }
-  } else {
-    # NOTE: ensured just one between the 2 is not NULL
-    x <- if (is.null(value)) func else value
-    # distinguish purely implicit function to plain name
-    y <- housepi_combine_to_call(func_name = x,
-                                 func_args = func_args,
-                                 is_func = is.null(value))
-    if (housepi_is_sourced_value(y)) opts$value <- y
-    else opts$func <- y
-
-    # note: a priori a function is not constant
-    if (is.na(opts$const)) opts$const <- FALSE
-  }
-  opts
-}
-
-# process model arguments
-helper_augmented_model <- function(opts, args) {
-  if (is.null(args)) return(opts)
-  if (is.na(opts$model)) {
-    sms <- sprintf("Spare arguments for augmented '%s'.", opts$name)
-    if (!is.na(opts$func)) sms <- c(sms, "Did you mean 'func_args'?")
-    stop_h(sms)
-  }
-  opts$model <- housepi_combine_to_call(opts$model, args)
-  opts
-}
-
-# Interpret user choice for Monte Carlo move.
-helper_augmented_move <- function(opts, proposal_scale) {
-  # infer if sampling proposal but no constant parameter provided
-  if (is.na(opts$const) && !(is.na(opts$proposal) && is.na(opts$model))) {
-    opts$const <- FALSE
-  }
-
-  if (isTRUE(opts$const)) {
-    opts$proposal <- NA_character_
-    return(opts)
-  }
-
-  if (is.na(opts$proposal)) {
-    if (is.na(opts$model)) {
-      if (is.na(opts$func) && is.numeric(opts$value)) opts$const <- TRUE
-    } else {
-      opts$proposal <- "sample"
-    }
-  } else {
-    if (is.na(opts$model)) stop_h(
-      sprintf("No model to sample from for augmented '%s'.", opts$name)
-    )
-    if (opts$proposal != "sample")  {
-      if (is.na(proposal_scale)) opts$proposal_scale <- 1
-      else if (is.numeric(proposal_scale) &&
-                 proposal_scale > 0) opts$proposal_scale <- proposal_scale
-      else stop_h("Proposal scale must be a numeric greater than 0.")
-    }
-  }
-  opts
-}
-
-# Process constant or random.
-helper_augmented_const_vs_rand <- function(opts, value) {
-  if (!is.null(value)) opts$value <- value
-
-  if (isFALSE(opts$const) && all(is.na(c(opts$value, opts$model)))) stop_h(
-    sprintf("Impossible to randomly initialize undefined augmented '%s'.",
-            opts$name),
-    "Provide one between value and model."
-  )
-  else if (is.na(opts$const)) opts$const <- TRUE
-
-  opts
-}
-
 #' @title Housepi Augmented
 #' @description
 #' Help with augmented variable definitions of model Rcpp object.
@@ -203,7 +120,8 @@ HousepiAugmented <- R6::R6Class(
 
     #' @inherit add_augmented
     add_quo = function(name = NA_character_, value = NULL,
-                       status = NA_integer_, const = NA, discr = FALSE,
+                       status = NA_integer_,
+                       const = NA, discr = FALSE,
                        model = NA_character_, ...,
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
@@ -272,9 +190,9 @@ HousepiAugmented <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      opts <- helper_augmented_core(opts, value, func, func_args)
-      opts <- helper_augmented_model(opts, args)
-      opts <- helper_augmented_move(opts, proposal_scale)
+      opts <- helper_variable_core(opts, self$family, value, func, func_args)
+      opts <- helper_variable_model(opts, self$family, args)
+      opts <- helper_variable_move(opts, self$family, proposal_scale)
 
       # domain
       if (!is.null(min)) opts$min <- min

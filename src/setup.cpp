@@ -349,8 +349,8 @@ namespace hsp
             n_thin = str::toul(input.at("thin")[0], "thin");
 
         // N. of Steps to "Burn-In"
-        if (input.count("burnin") && !na::is(input.at("burnin")[0]))
-            n_burnin = str::toul(input.at("burnin")[0], "burnin");
+        if (input.count("burn") && !na::is(input.at("burn")[0]))
+            n_burn = str::toul(input.at("burn")[0], "burn");
 
         // Individual ID for Augmented Trace
         if (input.count("id_draws") && !na::is(input.at("id_draws")[0]))
@@ -425,17 +425,17 @@ namespace hsp
         if (n_steps < 1)
             throw std::out_of_range(
                 "N. of steps was not greater than 0.");
-        if (n_burnin >= n_steps)
+        if (n_burn >= n_steps)
             throw std::out_of_range(
                 "Burn-in must was not smaller than n. of steps.");
         if (n_thin > n_steps)
             throw std::out_of_range(
                 "Thinning was not be smaller than (or equal to) n. of steps. ");
 
-        c_sample_size = (n_steps - n_burnin) / n_thin;
+        c_sample_size = (n_steps - n_burn) / n_thin;
         // adjust steps and sample size
-        c_sample_size += (n_steps - n_burnin) % n_thin > 0;
-        n_steps = n_burnin + c_sample_size * n_thin;
+        c_sample_size += (n_steps - n_burn) % n_thin > 0;
+        n_steps = n_burn + c_sample_size * n_thin;
 
         if (c_sample_size == 0)
             throw std::out_of_range(
@@ -444,7 +444,7 @@ namespace hsp
         // assign number of sweeps
         // NOTE: because of rounding I can't put all in the same line
         c_n_sweeps = n_adapt / n_thin;
-        c_n_sweeps += n_burnin / n_thin;
+        c_n_sweeps += n_burn / n_thin;
         c_n_sweeps += c_sample_size;
     }
 
@@ -457,7 +457,7 @@ namespace hsp
         n_adapt = 0;
 
         // re-assign number of sweeps
-        c_n_sweeps = n_burnin / n_thin;
+        c_n_sweeps = n_burn / n_thin;
         c_n_sweeps += c_sample_size;
     }
 

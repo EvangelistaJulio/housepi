@@ -60,9 +60,10 @@ test_that("Default parameter definitions are correct", {
 
 test_that("Constant parameter definitions are correct", {
   param <- HousepiParameter$new()
-  expect_error(aux_add(param, name = "dummy"), regexp = "Incomplete definition")
+  expect_error(aux_add(param, name = "dummy"), regexp = "Incomplete")
   expect_error(aux_add(param, name = "dummy", prior = "uniform",
-                       min = 0, max = 5, const = TRUE))
+                       min = 0, max = 5, const = TRUE),
+               regexp = "Missing value")
 
   # load_list and single add should be coherent
   helper_test_aux_load(param, dummy = 3)

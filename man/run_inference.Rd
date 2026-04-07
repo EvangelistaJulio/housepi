@@ -7,7 +7,7 @@
 run_inference(
   hhmodel,
   steps = 200,
-  burnin = 0,
+  burn = 0,
   thin = 1,
   adapt = 0,
   chains = 1,
@@ -21,7 +21,7 @@ run_inference(
 
 \item{steps}{\code{integer(1)} Total number of MCMC steps per chain.}
 
-\item{burnin}{\code{integer(1)} Number of initial steps to discard.}
+\item{burn}{\code{integer(1)} Number of initial steps to discard.}
 
 \item{thin}{\code{integer(1)} Number of steps to skip between samples.}
 

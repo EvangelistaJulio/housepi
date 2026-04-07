@@ -470,7 +470,7 @@ namespace
 
         return Rcpp::List::create(
             Rcpp::_["steps"] = setup.n_steps,
-            Rcpp::_["burnin"] = setup.n_burnin,
+            Rcpp::_["burn"] = setup.n_burn,
             Rcpp::_["thin"] = setup.n_thin,
             Rcpp::_["adapt"] = setup.n_adapt,
             Rcpp::_["chains"] = setup.n_chains,

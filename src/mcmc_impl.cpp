@@ -321,12 +321,12 @@ namespace hsp
                 }
 
             // Burn-in iterations
-            for (unsigned long i = 0; i < setup.n_burnin; i += setup.n_thin, setup.prog_update())
+            for (unsigned long i = 0; i < setup.n_burn; i += setup.n_thin, setup.prog_update())
                 for (unsigned long t = 1; t <= setup.n_thin; ++t)
                     move_all_();
 
             // Posterior sampling
-            for (unsigned long i = setup.n_burnin; i < setup.n_steps; i += setup.n_thin, setup.prog_update())
+            for (unsigned long i = setup.n_burn; i < setup.n_steps; i += setup.n_thin, setup.prog_update())
             {
                 for (unsigned long t = 1; t <= setup.n_thin; ++t)
                     move_all_();
