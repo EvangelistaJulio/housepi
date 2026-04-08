@@ -35,18 +35,18 @@ or un-prefixed names (applied to both from and to).}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.\cr
-One between:\cr
+\item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
+One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;\cr
-\item 'uniform': increments drawn from uniform distribution;\cr
-\item 'normal': increments drawn from normal distribution;\cr
+\item 'sample': sampled from the \%s distribution;
+\item 'uniform': increments drawn from uniform distribution;
+\item 'normal': increments drawn from normal distribution;
 \item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
-Changed automatically during inference if \code{n_adapt}>0.\cr
+\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
+Changed automatically during inference if \code{n_adapt}>0.
 Ignored if proposal is 'sample'.}
 }
 \value{

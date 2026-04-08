@@ -31,14 +31,14 @@ run_inference(
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
-\item{id_draws}{\code{character()} Individuals identifiers.\cr
+\item{id_draws}{\code{character()} Individuals identifiers.
 Store draws of public augmented variables for the chosen individuals.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.\cr
-One between:\cr
+\item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
+One between:
 \itemize{
-\item If \code{integer}, prints progress every \code{progress} seconds;\cr
-\item If \code{TRUE} prints progress every second (default);\cr
+\item If \code{integer}, prints progress every \code{progress} seconds;
+\item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 }

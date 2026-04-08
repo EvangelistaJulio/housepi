@@ -24,16 +24,16 @@ add_group_rate(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{by}{\code{list} Features associated to group rate as data headers.\cr
+\item{by}{\code{list} Features associated to group rate as data headers.
 Corresponding data columns have to be categorical.}
 
-\item{prefix}{\code{character(1)} Prefix to names of associated parameters.\cr
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters.
 If \code{NA} uses the first 3 letters of rate name (default).}
 
-\item{reference}{named \code{list} Features associated to reference group.\cr
+\item{reference}{named \code{list} Features associated to reference group.
 Default is the group with the largest sample size.}
 
-\item{joint}{\code{logical(1)} Consider features as joint.\cr
+\item{joint}{\code{logical(1)} Consider features as joint.
 If \code{FALSE} features are independent (default).}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
@@ -44,27 +44,27 @@ If \code{FALSE} features are independent (default).}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.\cr
-One between:\cr
+\item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
+One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;\cr
-\item 'uniform': increments drawn from uniform distribution;\cr
-\item 'normal': increments drawn from normal distribution;\cr
+\item 'sample': sampled from the \%s distribution;
+\item 'uniform': increments drawn from uniform distribution;
+\item 'normal': increments drawn from normal distribution;
 \item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
-Changed automatically during inference if \code{n_adapt}>0.\cr
+\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
+Changed automatically during inference if \code{n_adapt}>0.
 Ignored if proposal is 'sample'.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add definitions of a group rate by given data feature(s).\cr
-Group rates are relative to a reference class that can be specified.\cr
-If no MCMC options are provided, the prior is assumed to be\cr
+Add definitions of a group rate by given data feature(s).
+Group rates are relative to a reference class that can be specified.
+If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 }
 \references{

@@ -41,7 +41,7 @@ stopifnothousepi <- function(hhmodel) {
 #' @description
 #' Make an internal copy of the provided household data.
 #' @param hhmodel `r rd_model_in_`
-#' @param data_wide `r rd_add_data_wide_`
+#' @param data_wide `r rd_add_wide_`
 #' @return `r rd_model_out_`
 #' @export
 add_data_wide  <- function(hhmodel, data_wide) {

@@ -13,30 +13,30 @@ new_housepi_model(
 )
 }
 \arguments{
-\item{choice}{\code{character(1)} Choice for the model.\cr
-One between:\cr
+\item{choice}{\code{character(1)} Choice for the model.
+One between:
 \itemize{
-\item template name;\cr
-\item path/to/folder with implementation file 'model.cpp';\cr
+\item template name;
+\item path/to/folder with implementation file 'model.cpp';
 \item path/to/folder with previously compiled model;
 \item 'blank': template name for blank model.
 \item \code{NA}: fall back to 'blank' (default).
 }}
 
-\item{as_template}{\code{logical(1)} Store dynamic library as a local template.\cr
+\item{as_template}{\code{logical(1)} Store dynamic library as a local template.
 If \code{FALSE} recompile the model at every new session (default).}
 
-\item{force}{\code{logical(1)} Compile even if cached model already exists.\cr
+\item{force}{\code{logical(1)} Compile even if cached model already exists.
 Default is \code{FALSE}.}
 
-\item{quiet}{\code{logical(1)} If \code{TRUE} hide compilation commands.\cr
+\item{quiet}{\code{logical(1)} If \code{TRUE} hide compilation commands.
 Default is \code{FALSE}.}
 
-\item{...}{Named arguments. Additional compilation options:\cr
+\item{...}{Named arguments. Additional compilation options:
 \itemize{
-\item \code{discr} : \code{logical(1)} If \code{TRUE} compile to discrete time.\cr
-\item \code{flags} : \code{character()} Compilation flags.\cr
-\item \code{libs} : \code{character()} Links to libraries.\cr
+\item \code{discr} : \code{logical(1)} If \code{TRUE} compile to discrete time.
+\item \code{flags} : \code{character()} Compilation flags.
+\item \code{libs} : \code{character()} Links to libraries.
 \item \code{paths} : \code{character()} Include paths.
 }}
 }

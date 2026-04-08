@@ -117,7 +117,7 @@ The `Model` class defines a minimal augmented model with a single augmented vari
 #| echo: false
 #| results: asis
 start <- grep("class Model", lines)
-end <- grep("HOUSEPI_CLOSE_MODULE", lines)[1]
+end <- grep("HOUSEPI_CLOSE_MODULE", lines)[1] - 1
 cat("```cpp\n")
 cat(lines[start:end], sep = "\n")
 cat("\n```\n")

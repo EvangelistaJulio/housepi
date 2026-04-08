@@ -207,7 +207,7 @@ IndividualSampler <- R6::R6Class(
     #' @description
     #' Encode individuals from data_wide according to encoding dictionary.
     #'
-    #' @param data_wide `r rd_add_data_wide_`
+    #' @param data_wide `r rd_add_wide_`
     encode = function(data_wide) {
       # initialize output
       output <- rep(0, nrow(data_wide))
@@ -331,7 +331,7 @@ HousepiSampler <- R6::R6Class(
     #' @description
     #' Computes marginal distributions for household hierarchical features
     #' from a given dataset.
-    #' @param data_wide `r rd_add_data_wide_`
+    #' @param data_wide `r rd_add_wide_`
     #' @param ascending `r rd_hhsampler_asc_`
     compute_household_marginals = function(data_wide, ascending = NA) {
       if (!is.na(ascending)) private$is_ascending_ <- ascending
@@ -549,7 +549,7 @@ new_household_sampler <- function(...) {
 #' Computes marginal distributions for household hierarchical features
 #' from a given dataset.
 #' @param hhsampler `HousepiSampler` object.
-#' @param data_wide `r rd_add_data_wide_`
+#' @param data_wide `r rd_add_wide_`
 #' @param ascending `r rd_hhsampler_asc_`
 #' @export
 compute_household_marginals <- function(hhsampler, data_wide, ascending = NA) {

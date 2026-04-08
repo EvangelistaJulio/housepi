@@ -149,11 +149,7 @@ test_that("format_credible_intervals formats vectors correctly", {
   expect_true(is.character(result))
 })
 
-############################################################################
-## ppc_helper_print
-############################################################################
-
-test_that("ppc_helper_print formats messages correctly", {
+test_that("PPC print helper formats messages correctly", {
   sms <- ppc_helper_print("test_model", TRUE, c("sar", "cases"), 0.95)
   expect_true(is.character(sms))
   expect_true(any(grepl("Posterior predictions", sms)))
@@ -168,26 +164,17 @@ test_that("ppc_helper_print formats messages correctly", {
   expect_true(any(grepl("80%", sms2)))
 })
 
-############################################################################
-## ppc_extract_predicted_results
-############################################################################
-
-test_that("ppc_extract_predicted_results returns correct structure", {
+test_that("PPC extract-predicted-results returns correct structure", {
   df1 <- data.frame(a = c(1, 2))
   df2 <- data.frame(a = c(3, 4))
   df3 <- data.frame(a = c(5, 6))
-  result <- ppc_extract_predicted_results(list(df1, df2, df3),
-                                          cri = 0.95)
+  result <- ppc_extract_predicted_results(list(df1, df2, df3), cri = 0.95)
   expect_true(is.list(result))
   expect_true(all(c("predicted", "cri_lower", "cri_upper") %in% names(result)))
   expect_true(is.data.frame(result$predicted))
 })
 
-############################################################################
-## helper_count_non_zero_cases
-############################################################################
-
-test_that("helper_count_non_zero_cases counts correctly", {
+test_that("Helper to count non-zero-cases behaves correctly", {
   df <- data.frame(
     house_id = c(rep("hh1", 2), rep("hh2", 3), rep("hh3", 2)),
     status = c(1, 1, 1, 0, 0, 1, 0)
@@ -210,11 +197,7 @@ test_that("CRI set name convention renames correctly", {
   expect_equal(result2, c("mean", "q10", "q90"))
 })
 
-############################################################################
-## helper_filter_tables
-############################################################################
-
-test_that("helper_filter_tables filters by max_house_size", {
+test_that("Helper to filter tables by max_house_size behaves correctly", {
   obs <- data.frame(house_size = 2:4,
                     `0` = c(1, 2, 3), `1` = c(4, 5, 0), `2` = c(0, 1, 0),
                     check.names = FALSE)
@@ -237,11 +220,7 @@ test_that("helper_filter_tables filters by max_house_size", {
   expect_true(all(result2$observed$house_size <= 3))
 })
 
-############################################################################
-## helper_combine_obs_pred
-############################################################################
-
-test_that("helper_combine_obs_pred interleaves rows", {
+test_that("Helper to combine observations and predictions interleaves rows", {
   obsdf <- data.frame(house_size = c(2, 3), `0` = c(1, 2), `1` = c(3, 4),
                       check.names = FALSE)
   preddf <- data.frame(`0` = c(1.1, 2.1), `1` = c(3.1, 4.1),
@@ -255,24 +234,14 @@ test_that("helper_combine_obs_pred interleaves rows", {
   expect_equal(nrow(result), 4)
 })
 
-############################################################################
-## HousepiPrediction errors when no measure provided
-############################################################################
-
-test_that("predicted_measures errors when no measure is provided", {
+test_that("Predicted-measures raises error when no measure is provided", {
   hhmodel <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
     add_data_wide(helper_test_get_data("flu_1918_frederick"))
   results <- run_inference(hhmodel, steps = 5, progress = FALSE)
-  expect_error(
-    predicted_measures(hhmodel, results, progress = FALSE),
-    regexp = "No measure was provided"
-  )
+  expect_error(predicted_measures(hhmodel, results, progress = FALSE),
+               regexp = "No measure was provided")
 })
-
-############################################################################
-## Integration: PPC with chain_binomial model
-############################################################################
 
 test_that("Predicted cases by house size works as expected", {
   hhmodel <- new_housepi_model("chain_binomial") |>
@@ -319,7 +288,8 @@ test_that("predicted_measures works with custom measure", {
 
   ppc <- predicted_measures(hhmodel, results,
                             sar = measure_sar_by_house_size,
-                            progress = FALSE)
+                            progress = FALSE,
+                            ess = FALSE)
   expect_s3_class(ppc, "HousepiPrediction")
   expect_true(!is.null(ppc$sar))
   expect_true("observed" %in% names(ppc$sar))

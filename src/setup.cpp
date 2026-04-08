@@ -131,7 +131,7 @@ namespace hsp
             start_ = steady_clock::now();
             lastprint_ = start_;
             state_ = 0;
-            is_bar_print_ = false;
+            has_bar_print_ = false;
             verbose_ = thintime > 0;
             thintime_ = thintime - 1;
         }
@@ -165,9 +165,9 @@ namespace hsp
                 print_(oss.str());
 
                 lastprint_ = steady_clock::now();
-                is_bar_print_ = true;
+                has_bar_print_ = true;
             }
-            else if (!is_bar_print_ && static_cast<unsigned long>(missing.count()) > thintime_)
+            else if (!has_bar_print_ && static_cast<unsigned long>(missing.count()) > thintime_)
             {
                 std::ostringstream oss;
                 oss << text_
@@ -181,7 +181,7 @@ namespace hsp
                     oss << "\n";
                 msg::info(oss.str());
 
-                is_bar_print_ = true;
+                has_bar_print_ = true;
             }
         }
 
@@ -189,7 +189,7 @@ namespace hsp
         void crash() const
         {
             check_user_interrupt_();
-            if (is_bar_print_)
+            if (has_bar_print_)
                 msg::info("\n");
         }
 
@@ -197,8 +197,11 @@ namespace hsp
         void close()
         {
             check_user_interrupt_();
-            is_bar_print_ = false;
-            state_ = total_;
+
+            // close only if it was opened
+            if (!has_bar_print_)
+                return;
+            has_bar_print_ = false;
 
             if (!verbose_)
                 return;
@@ -222,7 +225,7 @@ namespace hsp
         unsigned barwidth_ = 33;               /// bar total size
         std::function<void()> interrupt_func_; /// user-interrupt callback
         bool verbose_ = true;                  /// wheter to show bar
-        bool is_bar_print_ = false;            /// wheter bar is printing
+        bool has_bar_print_ = false;           /// wheter bar has printed once
         unsigned long state_ = 0;              /// current iteration
         unsigned long total_ = 0;              /// total number of iterations
         std::string text_ = "";                /// current text to show
@@ -281,11 +284,15 @@ namespace hsp
           progressbar_(std::make_unique<ProgressBar>()) {}
     Setup::~Setup() = default;
 
-    void Setup::init_R_context(unsigned barwidth, bool is_interactive,
-                               std::function<void()> interrupt_func)
+    void Setup::init_R_context(
+        unsigned barwidth,
+        bool is_interactive,
+        std::function<void()> interrupt_func)
     {
-        progressbar_ = std::make_unique<ProgressBar>(barwidth, is_interactive,
-                                                     std::move(interrupt_func));
+        progressbar_ = std::make_unique<ProgressBar>(
+            barwidth,
+            is_interactive,
+            std::move(interrupt_func));
     }
 
     void Setup::build(const str_table &input)

@@ -84,30 +84,30 @@ used to run inference and simulation routines.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{choice}}{\code{character(1)} Choice for the model.\cr
-One between:\cr
+\item{\code{choice}}{\code{character(1)} Choice for the model.
+One between:
 \itemize{
-\item template name;\cr
-\item path/to/folder with implementation file 'model.cpp';\cr
+\item template name;
+\item path/to/folder with implementation file 'model.cpp';
 \item path/to/folder with previously compiled model;
 \item 'blank': template name for blank model.
 \item \code{NA}: fall back to 'blank' (default).
 }}
 
-\item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.\cr
+\item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.
 If \code{FALSE} recompile the model at every new session (default).}
 
-\item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.\cr
+\item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.
 Default is \code{FALSE}.}
 
-\item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.\cr
+\item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.
 Default is \code{FALSE}.}
 
-\item{\code{...}}{Named arguments. Additional compilation options:\cr
+\item{\code{...}}{Named arguments. Additional compilation options:
 \itemize{
-\item \code{discr} : \code{logical(1)} If \code{TRUE} compile to discrete time.\cr
-\item \code{flags} : \code{character()} Compilation flags.\cr
-\item \code{libs} : \code{character()} Links to libraries.\cr
+\item \code{discr} : \code{logical(1)} If \code{TRUE} compile to discrete time.
+\item \code{flags} : \code{character()} Compilation flags.
+\item \code{libs} : \code{character()} Links to libraries.
 \item \code{paths} : \code{character()} Include paths.
 }}
 }
@@ -233,15 +233,15 @@ If the parameter already exists, it is updated.
 \describe{
 \item{\code{name}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{value}}{\code{numeric(1)} Initial value.\cr
+\item{\code{value}}{\code{numeric(1)} Initial value.
 Required only if constant or random initialization has been disabled.}
 
-\item{\code{const}}{\code{logical(1)} Treat definition as constant.\cr
-If \code{TRUE}, additional Monte Carlo details are ignored.\cr
+\item{\code{const}}{\code{logical(1)} Treat definition as constant.
+If \code{TRUE}, additional Monte Carlo details are ignored.
 Default is \code{FALSE}.}
 
-\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.\cr
-If applicable, the prior is discretized.\cr
+\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.
+If applicable, the prior is discretized.
 Default is \code{FALSE}.}
 
 \item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
@@ -252,18 +252,18 @@ Default is \code{FALSE}.}
 
 \item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.\cr
-One between:\cr
+\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
+One between:
 \itemize{
-\item 'sample': sampled from the prior distribution;\cr
-\item 'uniform': increments drawn from uniform distribution;\cr
-\item 'normal': increments drawn from normal distribution;\cr
+\item 'sample': sampled from the prior distribution;
+\item 'uniform': increments drawn from uniform distribution;
+\item 'normal': increments drawn from normal distribution;
 \item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
-Changed automatically during inference if \code{n_adapt}>0.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
+Changed automatically during inference if \code{n_adapt}>0.
 Ignored if proposal is 'sample'.}
 }
 \if{html}{\out{</div>}}
@@ -283,7 +283,7 @@ Load parameter definitions as named arguments.
 \describe{
 \item{\code{...}}{Named arguments. Respective list of definition details.}
 
-\item{\code{append}}{\code{logical(1)} Append to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -301,7 +301,7 @@ Load parameter definitions from template.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{append}}{\code{logical(1)} Append only missing definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append only missing definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -336,29 +336,29 @@ If the augmented variable already exists, it is updated.
 \describe{
 \item{\code{name}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{value}}{\code{numeric(1)} | \code{character(1)}. Initial value. \cr
-One between:\cr
+\item{\code{value}}{\code{numeric(1)} | \code{character(1)}. Initial value.
+One between:
 \itemize{
-\item Scalar value;\cr
-\item Parameter name (followed by \verb{@P});\cr
+\item Scalar value;
+\item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{status}}{\code{integer(1)} Individual positive status.\cr
+\item{\code{status}}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{\code{const}}{\code{logical(1)} Treat definition as constant.\cr
-If \code{TRUE}, additional Monte Carlo details are ignored.\cr
+\item{\code{const}}{\code{logical(1)} Treat definition as constant.
+If \code{TRUE}, additional Monte Carlo details are ignored.
 Default is \code{FALSE}.}
 
-\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.\cr
-If applicable, the model is discretized.\cr
+\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.
+If applicable, the model is discretized.
 Default is \code{FALSE}.}
 
-\item{\code{func}}{One between:\cr
+\item{\code{func}}{One between:
 \itemize{
-\item \code{character(1)} Name of augmented function;\cr
+\item \code{character(1)} Name of augmented function;
 \item rlang expression.
 }}
 
@@ -368,34 +368,34 @@ Default is \code{FALSE}.}
 
 \item{\code{...}}{named arguments for the model distribution.}
 
-\item{\code{min}}{\code{numeric(1)} Truncate to a minimum value. \cr
-One between:\cr
+\item{\code{min}}{\code{numeric(1)} Truncate to a minimum value.
+One between:
 \itemize{
-\item Scalar value;\cr
-\item Parameter name (followed by \verb{@P});\cr
+\item Scalar value;
+\item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value. \cr
-One between:\cr
+\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.
+One between:
 \itemize{
-\item Scalar value;\cr
-\item Parameter name (followed by \verb{@P});\cr
+\item Scalar value;
+\item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.\cr
-One between:\cr
+\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
+One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;\cr
-\item 'uniform': increments drawn from uniform distribution;\cr
-\item 'normal': increments drawn from normal distribution;\cr
+\item 'sample': sampled from the \%s distribution;
+\item 'uniform': increments drawn from uniform distribution;
+\item 'normal': increments drawn from normal distribution;
 \item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
-Changed automatically during inference if \code{n_adapt}>0.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
+Changed automatically during inference if \code{n_adapt}>0.
 Ignored if proposal is 'sample'.}
 }
 \if{html}{\out{</div>}}
@@ -415,7 +415,7 @@ Load augmented definitions as named arguments.
 \describe{
 \item{\code{...}}{Named arguments. Respective list of definition details.}
 
-\item{\code{append}}{\code{logical(1)} Append to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -433,7 +433,7 @@ Load augmented definitions from template.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{append}}{\code{logical(1)} Append only missing definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append only missing definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -443,9 +443,9 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_group_rate"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
-Add definitions of a group rate by given data feature(s).\cr
-Group rates are relative to a reference class that can be specified.\cr
-If no MCMC options are provided, the prior is assumed to be\cr
+Add definitions of a group rate by given data feature(s).
+Group rates are relative to a reference class that can be specified.
+If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_group_rate(
@@ -468,16 +468,16 @@ If no MCMC options are provided, the prior is assumed to be\cr
 \describe{
 \item{\code{name}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{by}}{\code{list} Features associated to group rate as data headers.\cr
+\item{\code{by}}{\code{list} Features associated to group rate as data headers.
 Corresponding data columns have to be categorical.}
 
-\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.\cr
+\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.
 If \code{NA} uses the first 3 letters of rate name (default).}
 
-\item{\code{reference}}{named \code{list} Features associated to reference group.\cr
+\item{\code{reference}}{named \code{list} Features associated to reference group.
 Default is the group with the largest sample size.}
 
-\item{\code{joint}}{\code{logical(1)} Consider features as joint.\cr
+\item{\code{joint}}{\code{logical(1)} Consider features as joint.
 If \code{FALSE} features are independent (default).}
 
 \item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
@@ -488,18 +488,18 @@ If \code{FALSE} features are independent (default).}
 
 \item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.\cr
-One between:\cr
+\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
+One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;\cr
-\item 'uniform': increments drawn from uniform distribution;\cr
-\item 'normal': increments drawn from normal distribution;\cr
+\item 'sample': sampled from the \%s distribution;
+\item 'uniform': increments drawn from uniform distribution;
+\item 'normal': increments drawn from normal distribution;
 \item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
-Changed automatically during inference if \code{n_adapt}>0.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
+Changed automatically during inference if \code{n_adapt}>0.
 Ignored if proposal is 'sample'.}
 }
 \if{html}{\out{</div>}}
@@ -519,7 +519,7 @@ Load group rate definitions as direct arguments.
 \describe{
 \item{\code{...}}{\verb{ r rd_list_args_}}
 
-\item{\code{append}}{\code{logical(1)} Append to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -562,18 +562,18 @@ or un-prefixed names (applied to both from and to).}
 
 \item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.\cr
-One between:\cr
+\item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
+One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;\cr
-\item 'uniform': increments drawn from uniform distribution;\cr
-\item 'normal': increments drawn from normal distribution;\cr
+\item 'sample': sampled from the \%s distribution;
+\item 'uniform': increments drawn from uniform distribution;
+\item 'normal': increments drawn from normal distribution;
 \item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
-Changed automatically during inference if \code{n_adapt}>0.\cr
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
+Changed automatically during inference if \code{n_adapt}>0.
 Ignored if proposal is 'sample'.}
 }
 \if{html}{\out{</div>}}
@@ -599,21 +599,21 @@ Add definition of infectivity profile.
 \describe{
 \item{\code{func}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{status}}{\code{integer(1)} Individual positive status.\cr
+\item{\code{status}}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.\cr
-If applicable, the profile is discretized.\cr
+\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.
+If applicable, the profile is discretized.
 Default is \code{FALSE}.}
 
 \item{\code{...}}{named arguments for the profile distribution.}
 
-\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value. \cr
-One between:\cr
+\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.
+One between:
 \itemize{
-\item Scalar value;\cr
-\item Parameter name (followed by \verb{@P});\cr
+\item Scalar value;
+\item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
 }
@@ -634,7 +634,7 @@ Load infectivity profile definitions as named arguments.
 \describe{
 \item{\code{...}}{Named arguments. Respective list of definition details.}
 
-\item{\code{append}}{\code{logical(1)} Append to current definitions.\cr
+\item{\code{append}}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \if{html}{\out{</div>}}
@@ -694,14 +694,14 @@ Run inference with Bayesian Markov chain Monte Carlo.
 
 \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
 
-\item{\code{id_draws}}{\code{character()} Individuals identifiers.\cr
+\item{\code{id_draws}}{\code{character()} Individuals identifiers.
 Store draws of public augmented variables for the chosen individuals.}
 
-\item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.\cr
-One between:\cr
+\item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
+One between:
 \itemize{
-\item If \code{integer}, prints progress every \code{progress} seconds;\cr
-\item If \code{TRUE} prints progress every second (default);\cr
+\item If \code{integer}, prints progress every \code{progress} seconds;
+\item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
 }
@@ -762,22 +762,22 @@ It assumes the same community structure of the loaded data.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{obs_process}}{\code{function} Observation process.\cr
-Function expects as input the \code{data.frame} generated by simulation.\cr
+\item{\code{obs_process}}{\code{function} Observation process.
+Function expects as input the \code{data.frame} generated by simulation.
 If \code{NULL}, observation process is ignored.}
 
-\item{\code{obs_process_long}}{\code{function} Optional function.\cr
-Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.\cr
+\item{\code{obs_process_long}}{\code{function} Optional function.
+Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
-\item{\code{param_table}}{One between\cr
+\item{\code{param_table}}{One between
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
 \item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
 }}
 
-\item{\code{nsim}}{\code{integer(1)} Number of simulated outbreaks.\cr
+\item{\code{nsim}}{\code{integer(1)} Number of simulated outbreaks.
 Ignored if \code{param_table} is provided, else simulations share parameters.}
 }
 \if{html}{\out{</div>}}

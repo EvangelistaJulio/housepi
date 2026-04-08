@@ -14,6 +14,8 @@ This reduces computational cost from O(N!) to a function of the number of distin
 \itemize{
 \item \code{alpha} \eqn{\alpha} : community transmission rate
 \item \code{beta} \eqn{\beta} : person to person transmission rate
+\item \code{gamma} \eqn{\gamma} : parameter to model dilution of contacts
+\item \code{size_ref} \eqn{n_{\ast}} : size of reference household (required constant)
 }
 \if{html}{\out{<hr>}}
 }

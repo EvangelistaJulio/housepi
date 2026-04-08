@@ -11,7 +11,7 @@ NULL
 #' @title Measure SAR by household size
 #' @description
 #' Retrieve secondary attack rates (SAR) from household data.
-#' @param data_wide `r rd_add_data_wide_`
+#' @param data_wide `r rd_add_wide_`
 #' @return `data.frame`
 #' @details
 #' The secondary attack rate is computed for all household
@@ -49,7 +49,7 @@ measure_sar_by_house_size <- function(data_wide) {
 #' @title Measure household cases by size
 #' @description
 #' Retrieve cases by household size from household data.
-#' @param data_wide `r rd_add_data_wide_`
+#' @param data_wide `r rd_add_wide_`
 #' @return `data.frame`
 #' @export
 measure_cases_by_house_size <- function(data_wide) {
@@ -96,13 +96,13 @@ ppc_set_cri_level <- function(value) {
 
 # store print messages at initialization
 ppc_helper_print <- function(model_name, is_posterior, measure_names, cri) {
-  sms <- c(i = sprintf("%s for model {.pkg %s}.",
-                       ifelse(is_posterior, "Posterior predictions",
-                              "Predictions"),
-                       model_name),
-           "Stored measures:")
-  for (m in measure_names) sms <- c(sms, sprintf(" - {.emph %s}", m))
-  c(sms, sprintf("Credible interval level set to %.0f%%.", 100 * cri))
+  sms <- c(
+    i = sprintf("%s for model {.pkg %s}:",
+                ifelse(is_posterior, "Posterior predictions", "Predictions"),
+                model_name)
+  )
+  for (m in measure_names) sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
+  c(sms, sprintf("Credible Interval level: %.0f%%", 100 * cri))
 }
 
 #' Apply function `func` to corresponding elements
@@ -235,6 +235,7 @@ HousepiPrediction <- R6::R6Class(
     #' @param obs_process `r rd_simul_observ_`
     #' @param obs_process_long `r rd_simul_obs_long_`
     #' @param ... `r rd_measure_dots_`
+    #' @param ess `r rd_ess_`
     #' @param measures_long `r rd_measure_long_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
@@ -245,6 +246,7 @@ HousepiPrediction <- R6::R6Class(
                           obs_process_long = NULL,
                           ...,
                           measures_long = NULL,
+                          ess = TRUE,
                           threads = 1,
                           progress = TRUE,
                           cri_level = 0.95) {
@@ -297,6 +299,7 @@ HousepiPrediction <- R6::R6Class(
         apply_long = apply_long,
         obs_proc_wide = obs_process,
         obs_proc_long = obs_process_long,
+        ess = ess,
         threads = threads,
         progress = progress
       )
@@ -533,22 +536,26 @@ PredictedCasesBySize <- R6::R6Class(
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param obs_process `r rd_simul_observ_`
+    #' @param ess `r rd_ess_`
+    #' @param cri_level `r rd_smpl_cri_level_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
-    #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(hhmodel,
                           param_table,
                           obs_process = NULL,
+                          ess = TRUE,
+                          cri_level = 0.95,
                           threads = 1,
-                          progress = TRUE,
-                          cri_level = 0.95) {
+                          progress = TRUE) {
       # ininitialize parent class HousepiPrediction
       super$initialize(hhmodel = hhmodel, param_table = param_table,
                        cases_table_by_size = measure_cases_by_house_size,
                        sec_attack_rate = measure_sar_by_house_size,
                        obs_process = obs_process,
-                       threads = threads, progress = progress,
-                       cri_level = cri_level)
+                       ess = ess,
+                       cri_level = cri_level,
+                       threads = threads,
+                       progress = progress)
       private$counts_ <- helper_count_non_zero_cases(hhmodel$data_wide)
 
       invisible(self)
@@ -594,6 +601,7 @@ PredictedCasesBySize <- R6::R6Class(
 #' @param ... `r rd_measure_dots_`
 #' @param obs_process `r rd_simul_observ_`
 #' @param obs_process_long `r rd_simul_obs_long_`
+#' @param ess `r rd_ess_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return An object of class
@@ -604,10 +612,14 @@ predicted_measures <- function(hhmodel,
                                ...,
                                obs_process = NULL,
                                obs_process_long = NULL,
+                               ess = TRUE,
                                threads = 1,
                                progress = TRUE) {
   stopifnothousepi(hhmodel)
-  HousepiPrediction$new(hhmodel$copy(), param_table, ...,
+  HousepiPrediction$new(hhmodel$copy(),
+                        param_table,
+                        ...,
+                        ess = ess,
                         obs_process = obs_process,
                         obs_process_long = obs_process_long,
                         threads = threads,
@@ -621,6 +633,8 @@ predicted_measures <- function(hhmodel,
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param obs_process `r rd_simul_observ_`
+#' @param ess `r rd_ess_`
+#' @param cri_level `r rd_smpl_cri_level_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return
@@ -631,11 +645,16 @@ predicted_measures <- function(hhmodel,
 predicted_cases_by_house_size <- function(hhmodel,
                                           param_table,
                                           obs_process = NULL,
+                                          ess = TRUE,
+                                          cri_level = 0.95,
                                           threads = 1,
                                           progress = TRUE) {
   stopifnothousepi(hhmodel)
-  PredictedCasesBySize$new(hhmodel$copy(), param_table,
+  PredictedCasesBySize$new(hhmodel$copy(),
+                           param_table,
                            obs_process = obs_process,
+                           ess = ess,
+                           cri_level = cri_level,
                            threads = threads,
                            progress = progress)
 }

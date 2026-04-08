@@ -30,7 +30,13 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
-	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
+	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
+
+	/// General advanced inscrition for the setup.
+	void init_advanced_setup() override final
+	{
+		request_discrete_param(ParamKey::size_ref);
+	}
 
 	/// Initialize the LookUp Tables to largest possible values.
 	/// NOTE: missing status are not modeled
@@ -43,14 +49,19 @@ public:
 	/// Risk of infection from the community.
 	double community_risk() const { return par(ParamKey::alpha); }
 	/// Risk of infection from another household member.
-	double person_to_person_risk() const { return par(ParamKey::beta); }
+	double person_to_person_risk(size_t house_size) const
+	{
+		return par(ParamKey::beta) *
+			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
+	}
 
 	/// Compute the log-likelihood within household.
 	double compute_house_obs_log_lik(Household &house) override final
 	{
+		size_t house_size = house.size();
 		return hsp::bino::chain_binom_homogeneous_log_lik(
-			house.n_infected_status(), house.size(),
-			community_risk(), person_to_person_risk());
+			house.n_infected_status(), house_size,
+			community_risk(), person_to_person_risk(house_size));
 	}
 
 	/// Simulate the infection within a household.
@@ -66,7 +77,7 @@ public:
 void Model::simulate_single_house(Household &house)
 {
 	double commu_esc_proba = std::exp(-community_risk());
-	double p2p_rate = person_to_person_risk();
+	double p2p_rate = person_to_person_risk(house.size());
 
 	//////////////////////////////////////////////////////////////////
 	/////////////  Generation 0 : infection by community  ////////////

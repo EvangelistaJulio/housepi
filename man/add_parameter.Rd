@@ -25,24 +25,24 @@ add_parameter(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} Initial value.\cr
+\item{value}{\code{numeric(1)} Initial value.
 Required only if constant or random initialization has been disabled.}
 
-\item{const}{\code{logical(1)} Treat definition as constant.\cr
-If \code{TRUE}, additional Monte Carlo details are ignored.\cr
+\item{const}{\code{logical(1)} Treat definition as constant.
+If \code{TRUE}, additional Monte Carlo details are ignored.
 Default is \code{FALSE}.}
 
-\item{discr}{\code{logical(1)} Treat definition as discrete.\cr
-If applicable, the prior is discretized.\cr
+\item{discr}{\code{logical(1)} Treat definition as discrete.
+If applicable, the prior is discretized.
 Default is \code{FALSE}.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
 
 \item{...}{named arguments for the prior distribution.}
 
-\item{func}{One between:\cr
+\item{func}{One between:
 \itemize{
-\item \code{character(1)} Name of augmented function;\cr
+\item \code{character(1)} Name of augmented function;
 \item rlang expression.
 }}
 
@@ -52,18 +52,18 @@ Default is \code{FALSE}.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.}
 
-\item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.\cr
-One between:\cr
+\item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
+One between:
 \itemize{
-\item 'sample': sampled from the prior distribution;\cr
-\item 'uniform': increments drawn from uniform distribution;\cr
-\item 'normal': increments drawn from normal distribution;\cr
+\item 'sample': sampled from the prior distribution;
+\item 'uniform': increments drawn from uniform distribution;
+\item 'normal': increments drawn from normal distribution;
 \item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 
-\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).\cr
-Changed automatically during inference if \code{n_adapt}>0.\cr
+\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
+Changed automatically during inference if \code{n_adapt}>0.
 Ignored if proposal is 'sample'.}
 }
 \value{

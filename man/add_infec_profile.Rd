@@ -18,21 +18,21 @@ add_infec_profile(
 
 \item{func}{\code{character(1)} Name used by internal calls.}
 
-\item{status}{\code{integer(1)} Individual positive status.\cr
+\item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{discr}{\code{logical(1)} Treat definition as discrete.\cr
-If applicable, the profile is discretized.\cr
+\item{discr}{\code{logical(1)} Treat definition as discrete.
+If applicable, the profile is discretized.
 Default is \code{FALSE}.}
 
 \item{...}{named arguments for the profile distribution.}
 
-\item{max}{\code{numeric(1)} Truncate to a maximum value. \cr
-One between:\cr
+\item{max}{\code{numeric(1)} Truncate to a maximum value.
+One between:
 \itemize{
-\item Scalar value;\cr
-\item Parameter name (followed by \verb{@P});\cr
+\item Scalar value;
+\item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
 }

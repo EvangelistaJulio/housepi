@@ -5,7 +5,7 @@ list(
   beta = list(value = 0.07,
               prior = "uniform",
               proposal = "lognormal"),
-  gamma = list(value = 0.9,
+  gamma = list(value = 1,
                prior = "uniform",
                max = 4,
                proposal = "normal"),

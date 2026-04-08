@@ -286,14 +286,26 @@ HousepiModel <- R6::R6Class(
     },
 
     # Helper with parameter table import.
-    helper_read_param_table_ = function(param_table) {
+    helper_read_param_table_ = function(param_table, ess = TRUE) {
       # extract parameter draws from table
       if (inherits(param_table, "HousepiPosteriorDraws")) {
         param_table <- param_table$param_draws
       }
+
       if (posterior::is_draws(param_table)) {
         param_table <- posterior::as_draws_matrix(param_table)
+        # reduce sample to effective sample size (ESS)
+        if (isTRUE(ess)) {
+          vals <- posterior::summarise_draws(param_table, "ess_bulk")
+          # suppress posterior message
+          suppressMessages(
+            param_table <- posterior::resample_draws(
+              param_table, ndraws = ceiling(min(vals$ess_bulk))
+            )
+          )
+        }
       }
+
       tryCatch({
         return(as.data.frame(param_table))
       }, error = function(e) {
@@ -304,7 +316,8 @@ HousepiModel <- R6::R6Class(
     # Helper with simulation build.
     # FIXME: If there's a param table, build should change
     helper_simulation_build_ = function(param_table = NULL,
-                                        nsim = NA_integer_) {
+                                        nsim = NA_integer_,
+                                        ess = TRUE) {
       # read param table
       if (is.null(param_table)) {
         if (is.na(nsim)) nsim <- 1
@@ -312,7 +325,7 @@ HousepiModel <- R6::R6Class(
           "Number of simulations should be a positive integer."
         )
       } else {
-        param_table <- private$helper_read_param_table_(param_table)
+        param_table <- private$helper_read_param_table_(param_table, ess = ess)
         nsim <- dim(param_table)[1]
         # don't overwrite
         if (dim(self$parameters)[1] == 0) {
@@ -366,9 +379,10 @@ HousepiModel <- R6::R6Class(
                             apply_long = NULL,
                             obs_proc_wide = NULL,
                             obs_proc_long = NULL,
+                            ess = TRUE,
                             threads = 1,
                             progress = TRUE) {
-      param_table <- private$helper_read_param_table_(param_table)
+      param_table <- private$helper_read_param_table_(param_table, ess = ess)
       nsim <- dim(param_table)[1]
 
       # internal build function
@@ -610,7 +624,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description Store a copy of provided household data.
-    #' @param data_wide `r rd_add_data_wide_`
+    #' @param data_wide `r rd_add_wide_`
     add_data_wide = function(data_wide) {
       # check that data_wide type is correct
       if (!is.data.frame(data_wide)) stop_h(
@@ -1063,7 +1077,7 @@ HousepiModel <- R6::R6Class(
   )
 )
 
-#' @title Export to Cpp standalone
+#' @title Export to Cpp Standalone
 #' @description
 #' Export definitions in standalone folder in order to run debuggin in Cpp.
 #' @param hhmodel `r rd_model_in_`
@@ -1072,33 +1086,34 @@ HousepiModel <- R6::R6Class(
 #' by creating a standalone folder somewhere with correct links to headers
 #' @keywords internal
 #' @noRd
-export_to_standalone <- function(hhmodel, outpath = "inst/standalone/") {
+export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   stopifnothousepi(hhmodel)
   private <- hhmodel$.__enclos_env__$private
   private$build_group_rates_()
 
-  write.csv(private$augm_$defs,
-            file.path(outpath, "augm.csv"),
-            quote = FALSE, row.names = FALSE)
-  write.csv(private$contact_rates_$expose_to_cpp(private$info_data_wide_),
-            file.path(outpath, "contact_rates.csv"),
-            quote = FALSE, row.names = FALSE)
-  write.csv(.engine$export_data_wide(private$mcmc_ptr_),
-            file.path(outpath, "data_wide.csv"),
-            quote = FALSE, row.names = FALSE)
-  write.csv(.engine$export_data_long(private$mcmc_ptr_),
-            file.path(outpath, "data_long.csv"),
-            quote = FALSE, row.names = FALSE)
-  write.csv(private$group_rates_$expose_to_cpp(private$info_data_wide_),
-            file.path(outpath, "group_rates.csv"),
-            quote = FALSE, row.names = FALSE)
-  write.csv(private$infec_profile_$defs,
-            file.path(outpath, "infec.csv"),
-            quote = FALSE, row.names = FALSE)
-  write.csv(private$param_$defs,
-            file.path(outpath, "param.csv"),
-            quote = FALSE, row.names = FALSE)
-  write.csv(char_setup_input_(hhmodel$setup),
-            file.path(outpath, "setup.csv"),
-            quote = FALSE, row.names = FALSE)
+  info_wide <- private$info_data_wide_
+  utils::write.csv(private$augm_$defs,
+                   file.path(outpath, "augm.csv"),
+                   quote = FALSE, row.names = FALSE)
+  utils::write.csv(private$contact_rates_$expose_to_cpp(info_wide),
+                   file.path(outpath, "contact_rates.csv"),
+                   quote = FALSE, row.names = FALSE)
+  utils::write.csv(.engine$export_data_wide(private$mcmc_ptr_),
+                   file.path(outpath, "data_wide.csv"),
+                   quote = FALSE, row.names = FALSE)
+  utils::write.csv(.engine$export_data_long(private$mcmc_ptr_),
+                   file.path(outpath, "data_long.csv"),
+                   quote = FALSE, row.names = FALSE)
+  utils::write.csv(private$group_rates_$expose_to_cpp(info_wide),
+                   file.path(outpath, "group_rates.csv"),
+                   quote = FALSE, row.names = FALSE)
+  utils::write.csv(private$infec_profile_$defs,
+                   file.path(outpath, "infec.csv"),
+                   quote = FALSE, row.names = FALSE)
+  utils::write.csv(private$param_$defs,
+                   file.path(outpath, "param.csv"),
+                   quote = FALSE, row.names = FALSE)
+  utils::write.csv(char_setup_input_(hhmodel$setup),
+                   file.path(outpath, "setup.csv"),
+                   quote = FALSE, row.names = FALSE)
 }

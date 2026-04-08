@@ -30,7 +30,13 @@ public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order, part_counts, part_indexes)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
-	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
+	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
+
+	/// General advanced inscrition for the setup.
+	void init_advanced_setup() override final
+	{
+		request_discrete_param(ParamKey::size_ref);
+	}
 
 	/// Initialize the LookUp Tables to largest possible values.
 	/// NOTE: missing status are not modeled.
@@ -123,7 +129,11 @@ public:
 	/// Risk of infection from the community.
 	double community_risk() const { return par(ParamKey::alpha); }
 	/// Risk of infection from another household member.
-	double person_to_person_risk() const { return par(ParamKey::beta); }
+	double person_to_person_risk(size_t house_size) const
+	{
+		return par(ParamKey::beta) *
+			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
+	}
 	/// Store person-to-person escape probabilities inside a cache.
 	void fill_house_escape_matrix(Household &house);
 
@@ -155,16 +165,17 @@ public:
 // UPDATE: I don't need to compute for all infected members, just for types
 void Model::fill_house_escape_matrix(Household &house)
 {
+	size_t house_size = house.size();
 	const auto &order = cache_size_vector(house, HHsizevecKey::order);
 	const double commu_rate = community_risk();
-	const double p2p_rate = person_to_person_risk();
+	const double p2p_rate = person_to_person_risk(house_size);
 
 	// assign values to escape matrix
 	auto &commu_mtx = cache_double_vector(house, HHdoublevecKey::commu_escape_rate);
 	auto &p2p_mtx = cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate);
 
 	// fill matrix according to order
-	for (size_t i = 0; i < house.size(); ++i)
+	for (size_t i = 0; i < house_size; ++i)
 	{
 		const Individual &member_i = house.member(order[i]);
 		double inf_i = member_i.group_rate(GroupRateKey::infectivity);
@@ -196,7 +207,7 @@ void Model::fill_house_escape_matrix(Household &house)
 void Model::simulate_single_house(Household &house)
 {
 	const double commu_rate = community_risk();
-	const double p2p_rate = person_to_person_risk();
+	const double p2p_rate = person_to_person_risk(house.size());
 
 	//////////////////////////////////////////////////////////////////
 	/////////////  Generation 0 : infection by community  ////////////

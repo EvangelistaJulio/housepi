@@ -6,21 +6,22 @@ library(testthat)
 groups <- list(community = list("class", reference = "a"),
                susceptibility = list("class", reference = "a"),
                infectivity = list("class", reference = "a"))
+
 # fixed group rates
 # `a` is the reference class
 rates_1 <- list(a = list(com = 1., sus = 1., inf = 1.),
                 b = list(com = 1.41, sus = 1.03, inf = 1.3))
-rates_3 <- c(rates_1,
-             list(c = list(com = 0.73, sus = 0.89, inf = 1.51)))
+rates_3 <- c(rates_1, list(c = list(com = 0.73, sus = 0.89, inf = 1.51)))
+
 # parameters matching automatic names
-par_1 <- list(alpha = 0.15, beta = 0.22,
-              com_class_b = rates_1$b$com,
-              sus_class_b = rates_1$b$sus,
-              inf_class_b = rates_1$b$inf)
-par_3 <- c(par_1,
-           list(com_class_c = rates_3$c$com,
-                sus_class_c = rates_3$c$sus,
-                inf_class_c = rates_3$c$inf))
+par_0 <- list(alpha = 0.15, beta = 0.22, gamma = 1, size_ref = 4)
+par_1 <- c(par_0, list(com_class_b = rates_1$b$com,
+                       sus_class_b = rates_1$b$sus,
+                       inf_class_b = rates_1$b$inf))
+par_3 <- c(par_1, list(com_class_c = rates_3$c$com,
+                       sus_class_c = rates_3$c$sus,
+                       inf_class_c = rates_3$c$inf))
+
 # members sorted infected, susceptible
 house_3 <- data.frame(
   id = sprintf("hh_01_%s", seq(1, 4)),
@@ -88,7 +89,8 @@ test_that("Single infected member log-likelihood is correct", {
   house <- house_1
   # fill house escape rate matrices
   commu_esc_rate <- par$alpha * house$community
-  p2p_esc_rate <- par$beta * house$infectivity %o% house$susceptibility
+  p2p_esc_rate <- par$beta * (par$size_ref / dim(house)[1]) ^ par$gamma *
+    house$infectivity %o% house$susceptibility
 
   # susceptible member
   log_lik <- - commu_esc_rate[2] - p2p_esc_rate[1, 2] +
@@ -103,17 +105,15 @@ test_that("Single infected member log-likelihood is correct", {
 })
 
 test_that("Chain binomial models are coherent", {
-  par <- par_1[c("alpha", "beta")]
-
   # log-likelihood from chain binomial model
   hhmodel_1 <- new_housepi_model("chain_binomial")
-  hhmodel_1$load_parameter_list(!!!par)
+  hhmodel_1$load_parameter_list(!!!par_0)
   hhmodel_1$add_data_wide(helper_test_get_data("sarscov2_2021_icofs"))
 
   # log-likelihood from heterogeneous chain binomial model
   # with homogenous rates
   hhmodel_2 <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel_2$load_parameter_list(!!!par)
+  hhmodel_2$load_parameter_list(!!!par_0)
   hhmodel_2$add_data_wide(helper_test_get_data("sarscov2_2021_icofs"))
 
   expect_equal(hhmodel_1$evaluate_log_lik(), hhmodel_2$evaluate_log_lik())
@@ -175,17 +175,15 @@ test_that("Three infected members likelihood is correct", {
 })
 
 test_that("Grouped model with single type matches homogeneous", {
-  par <- par_1[c("alpha", "beta")]
-
   # log-likelihood from homogeneous chain binomial model
   hhmodel_1 <- new_housepi_model("chain_binomial")
-  hhmodel_1$load_parameter_list(!!!par)
+  hhmodel_1$load_parameter_list(!!!par_0)
   hhmodel_1$add_data_wide(helper_test_get_data("flu_1918_frederick"))
 
   # log-likelihood from grouped chain binomial model
   # with homogeneous rates (single type)
   hhmodel_2 <- new_housepi_model("chain_binomial_grouped")
-  hhmodel_2$load_parameter_list(!!!par)
+  hhmodel_2$load_parameter_list(!!!par_0)
   hhmodel_2$add_data_wide(helper_test_get_data("flu_1918_frederick"))
 
   expect_equal(hhmodel_1$evaluate_log_lik(), hhmodel_2$evaluate_log_lik())
@@ -295,7 +293,7 @@ test_that("Grouped model matches heterogeneous for complex dataset", {
   # UPDATE: this is a workaround to have constant group rates
   param_names <- hhmodel_1$parameters$name
   values <- runif(length(param_names), min = 0.2, max = 1.8)
-  params <- c(par_1[c("alpha", "beta")],
+  params <- c(par_0,
               setNames(as.list(values), param_names))
   hhmodel_1$load_parameter_list(!!!params)
 

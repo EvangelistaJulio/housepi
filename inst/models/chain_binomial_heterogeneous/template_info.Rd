@@ -11,6 +11,8 @@ The index cases are not known a priori and represent the initial generation.
 \itemize{
 \item \code{alpha} \eqn{\alpha} : community transmission rate
 \item \code{beta} \eqn{\beta} : person to person transmission rate
+\item \code{gamma} \eqn{\gamma} : parameter to model dilution of contacts
+\item \code{size_ref} \eqn{n_{\ast}} : size of reference household (required constant)
 }
 \if{html}{\out{<hr>}}
 }

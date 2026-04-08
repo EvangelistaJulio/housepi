@@ -164,7 +164,20 @@ hhmodel <- hhmodel |>
   add_parameter("beta", prior = "uniform", proposal = "lognormal")
 ```
 
-At any moment we can turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE` (in such case a `value` must be provided).
+For a quick test, we can load parameter definitions directly from the template:
+
+```{r}
+#| label: load-parameter-template
+# use housepi templated definitions
+hhmodel <- hhmodel |>
+  load_parameter_template()
+
+# inspect current definitions
+hhmodel |> 
+  get_parameters()
+```
+
+We can also turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE`. In such case a `value` must be provided  .
 To inspect current definitions, simply call `get_parameters` on the model object.
 
 For further information on the available options for the definition of the parameter priors and MCMC proposal, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
@@ -182,10 +195,11 @@ The draws come as [posterior](https://CRAN.R-project.org/package=posterior) obje
 #| label: run-inference
 # run the Monte Carlo specifying setup options
 results <- hhmodel |>
-  run_inference(steps = 1000, # MCMC steps per chain
-                thin = 5,     # delay between stored samples
+  run_inference(steps = 2000, # MCMC steps per chain
+                burn = 500,   # steps to drop before storing sample
+                thin = 10,    # delay between stored samples
                 adapt = 500,  # preliminary finite adaptation steps
-                chains = 3,   # independent chains
+                chains = 4,   # independent chains
                 threads = 1)  # parallel threads
 
 # summarize posterior draws of parameters

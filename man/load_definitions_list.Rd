@@ -20,7 +20,7 @@ load_infec_profile_list(hhmodel, ..., append = FALSE)
 
 \item{...}{Named arguments. Respective list of definition details.}
 
-\item{append}{\code{logical(1)} Append to current definitions.\cr
+\item{append}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \value{

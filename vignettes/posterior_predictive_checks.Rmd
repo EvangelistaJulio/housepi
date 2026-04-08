@@ -33,12 +33,11 @@ In this vignette we show how to compute common household measures according to t
 set.seed(42)
 hhmodel <- new_housepi_model("chain_binomial") |>
   add_data_wide(housepi::flu_1918_frederick) |>
-  load_parameter_list(alpha = list(prior = "uniform", proposal = "lognormal"),
-                      beta = list(prior = "uniform", proposal = "lognormal"))
+  load_parameter_template()
 
 # estimate parameters
 results <- hhmodel |>
-  run_inference(steps = 1000, thin = 10, adapt = 500, chains = 3)
+  run_inference(steps = 2000, thin = 10, burn = 500, adapt = 500, chains = 4)
 estimates <- get_param_draws(results) |>
   posterior::summarise_draws()
 estimates
@@ -53,7 +52,7 @@ We can use the simulation process to challenge the validity of the inferred mode
 # compute posterior predictive checks
 ppc <- hhmodel |>
   # run simulations according to previous posterior traces in results
-  predicted_cases_by_house_size(results, progress = 3)
+  predicted_cases_by_house_size(results)
 ```
 
 To show both observed and predicted cases by size, we can extract the formatted cases table from our output object as follows.
