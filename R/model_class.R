@@ -285,39 +285,6 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # UPDATE:
-    # this could be designed to be more helpful
-    # e. g. create a standalone folder somewhere with correct links to headers
-    export_to_standalone_ = function(outpath = "inst/standalone/") {
-      private$build_group_rates_()
-
-      write.csv(private$augm_$defs,
-                file.path(outpath, "augm.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(private$contact_rates_$expose_to_cpp(private$info_data_wide_),
-                file.path(outpath, "contact_rates.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(.engine$export_data_wide(private$mcmc_ptr_),
-                file.path(outpath, "data_wide.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(.engine$export_data_long(private$mcmc_ptr_),
-                file.path(outpath, "data_long.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(private$group_rates_$expose_to_cpp(private$info_data_wide_),
-                file.path(outpath, "group_rates.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(private$infec_profile_$defs,
-                file.path(outpath, "infec.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(private$param_$defs,
-                file.path(outpath, "param.csv"),
-                quote = FALSE, row.names = FALSE)
-      write.csv(char_setup_input_(self$setup),
-                file.path(outpath, "setup.csv"),
-                quote = FALSE, row.names = FALSE)
-      invisible(self)
-    },
-
     # Helper with parameter table import.
     helper_read_param_table_ = function(param_table) {
       # extract parameter draws from table
@@ -1095,3 +1062,43 @@ HousepiModel <- R6::R6Class(
     }
   )
 )
+
+#' @title Export to Cpp standalone
+#' @description
+#' Export definitions in standalone folder in order to run debuggin in Cpp.
+#' @param hhmodel `r rd_model_in_`
+#' @details
+#' This could be designed to be more helpful, e. g.
+#' by creating a standalone folder somewhere with correct links to headers
+#' @keywords internal
+#' @noRd
+export_to_standalone <- function(hhmodel, outpath = "inst/standalone/") {
+  stopifnothousepi(hhmodel)
+  private <- hhmodel$.__enclos_env__$private
+  private$build_group_rates_()
+
+  write.csv(private$augm_$defs,
+            file.path(outpath, "augm.csv"),
+            quote = FALSE, row.names = FALSE)
+  write.csv(private$contact_rates_$expose_to_cpp(private$info_data_wide_),
+            file.path(outpath, "contact_rates.csv"),
+            quote = FALSE, row.names = FALSE)
+  write.csv(.engine$export_data_wide(private$mcmc_ptr_),
+            file.path(outpath, "data_wide.csv"),
+            quote = FALSE, row.names = FALSE)
+  write.csv(.engine$export_data_long(private$mcmc_ptr_),
+            file.path(outpath, "data_long.csv"),
+            quote = FALSE, row.names = FALSE)
+  write.csv(private$group_rates_$expose_to_cpp(private$info_data_wide_),
+            file.path(outpath, "group_rates.csv"),
+            quote = FALSE, row.names = FALSE)
+  write.csv(private$infec_profile_$defs,
+            file.path(outpath, "infec.csv"),
+            quote = FALSE, row.names = FALSE)
+  write.csv(private$param_$defs,
+            file.path(outpath, "param.csv"),
+            quote = FALSE, row.names = FALSE)
+  write.csv(char_setup_input_(hhmodel$setup),
+            file.path(outpath, "setup.csv"),
+            quote = FALSE, row.names = FALSE)
+}
