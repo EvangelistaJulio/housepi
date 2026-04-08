@@ -104,13 +104,13 @@ namespace hsp::bino
 
     struct GroupedTreeNode
     {
-        double log_weight;               // pre-computed lgamma multinomial coefficient
-        unsigned gen;                    // generation index
-        vector<unsigned> comp;           // composition at this node (size K)
-        vector<unsigned> prev;           // prev_by_type (size K)
-        vector<unsigned> cumul;          // cumul_by_type (size K)
-        vector<unsigned> remaining;      // remaining before subtracting comp (size K)
-        vector<size_t> children;         // indices into flat node array
+        double log_weight;          // pre-computed lgamma multinomial coefficient
+        unsigned gen;               // generation index
+        vector<unsigned> comp;      // composition at this node (size K)
+        vector<unsigned> prev;      // prev_by_type (size K)
+        vector<unsigned> cumul;     // cumul_by_type (size K)
+        vector<unsigned> remaining; // remaining before subtracting comp (size K)
+        vector<size_t> children;    // indices into flat node array
     };
 
     struct GroupedTree
@@ -136,21 +136,34 @@ namespace hsp::bino
 
     struct LookUpTables
     {
-        // Transmission Generations
+        /////////////////////////////////////////////
+        /////////  Transmission Generations  ////////
+        /////////////////////////////////////////////
+
         vector<unsigned long> num_generations;         /// n. of generations
         matrix<unsigned long> multiplicity_generation; /// n. of multiplicites per generation
         matrix<gentype> generations;                   /// generation vectors
 
-        // Combinations
+        /////////////////////////////////
+        /////////  Combinations  ////////
+        /////////////////////////////////
+
         matrix<unsigned long> num_combinations; /// LUT wiht n.e number of combinations
         matrix<matrix<unsigned>> combinations;  /// LUT wiht combinations and complements
 
-        // EscapePatterns
+        ////////////////////////////////////
+        /////////  Escape Patterns  ////////
+        ////////////////////////////////////
+
         vector<EscapePattern> chain_binomial;
         matrix<EscapePattern> escape_patterns;
 
-        // Grouped chain-binomial cached trees
-        // Key: (n_infec, type_counts); Value: one tree per generation pattern
+        /////////////////////////////////////////
+        /////////  Cached Grouped Trees  ////////
+        /////////////////////////////////////////
+
+        /// Grouped chain-binomial cached trees
+        /// Key: (n_infec, type_counts); Value: one tree per generation pattern
         std::map<std::pair<unsigned, vector<unsigned>>, vector<GroupedTree>> grouped_patterns;
     } lut;
 
@@ -834,9 +847,7 @@ namespace hsp::bino
             // Pre-compute log_weight (multinomial coefficient)
             node.log_weight = 0.;
             for (unsigned tau = 0; tau < K; ++tau)
-                node.log_weight += std::lgamma(remaining[tau] + 1)
-                                 - std::lgamma(comp[tau] + 1)
-                                 - std::lgamma(remaining[tau] - comp[tau] + 1);
+                node.log_weight += std::lgamma(remaining[tau] + 1) - std::lgamma(comp[tau] + 1) - std::lgamma(remaining[tau] - comp[tau] + 1);
 
             size_t my_idx = tree.nodes.size();
             tree.nodes.push_back(std::move(node));
@@ -891,34 +902,33 @@ namespace hsp::bino
 
     /// Grouped chain binomial log-likelihood.
     ///
-    /// When multiple seropositives share the same type,
-    /// use distinct type-composition sequences per generation instead of all individual
-    /// permutations. Multinomial coefficients account for within-type interchangeability.
+    /// When multiple seropositives share the same contribution,
+    /// use partition sequences per generation instead of all individual permutations.
     ///
     /// @param n_infec number of infected members
-    /// @param n_types number of types
-    /// @param type_counts counts of in-house seropositives
-    /// @param type_indexes indexes of household member representative for type
+    /// @param n_parts number of parts
+    /// @param part_counts counts of in-house seropositives parts 
+    /// @param part_indexes indexes of household member representative of part
     /// @param commu_esc_rate per-individual community escape rates
     /// @param p2p_esc_rate per-individual p2p escape rates
     double chain_binom_grouped_log_lik(
-        size_t n_infec, size_t n_types,
-        const std::vector<size_t> &type_counts,
-        const std::vector<size_t> &type_indexes,
+        size_t n_infec,
+        size_t n_parts,
+        const std::vector<size_t> &part_counts,
+        const std::vector<size_t> &part_indexes,
         const std::vector<double> &commu_esc_rate,
         const std::vector<std::vector<double>> &p2p_esc_rate)
     {
-        double ll = 0.;
-
         ///////////////////////////////////////////////////
         /////////  (-) Sero-Negative Contribution  ////////
         ///////////////////////////////////////////////////
 
+        double log_neg_term = 0.;
         for (size_t i = n_infec; i < commu_esc_rate.size(); ++i)
         {
-            ll -= commu_esc_rate[i];
+            log_neg_term -= commu_esc_rate[i];
             for (unsigned k = 0; k < n_infec; ++k)
-                ll -= p2p_esc_rate[k][i];
+                log_neg_term -= p2p_esc_rate[k][i];
         }
 
         ///////////////////////////////////////////////////
@@ -926,25 +936,25 @@ namespace hsp::bino
         ///////////////////////////////////////////////////
 
         if (n_infec == 0)
-            return ll;
+            return log_neg_term;
 
         // single seropositive: log(1 - B_tau)
         if (n_infec == 1)
-            return ll + std::log1p(-std::exp(-commu_esc_rate[0]));
+            return log_neg_term + std::log1p(-std::exp(-commu_esc_rate[0]));
 
-        // precompute log escape/infection quantities per type
-        vector<double> log_commu_esc(n_types);
-        matrix<double> log_p2p_esc(n_types, vector<double>(n_types));
+        // pre-compute log-escape probabilities per type
+        vector<double> log_commu_esc(n_parts);
+        matrix<double> log_p2p_esc(n_parts, vector<double>(n_parts));
 
-        for (unsigned tau = 0; tau < n_types; ++tau)
+        for (unsigned t = 0; t < n_parts; ++t)
         {
-            log_commu_esc[tau] = -commu_esc_rate[type_indexes[tau]];
-            for (unsigned sigma = 0; sigma < n_types; ++sigma)
-                log_p2p_esc[tau][sigma] = -p2p_esc_rate[type_indexes[tau]][type_indexes[sigma]];
+            log_commu_esc[t] = -commu_esc_rate[part_indexes[t]];
+            for (unsigned s = 0; s < n_parts; ++s)
+                log_p2p_esc[t][s] = -p2p_esc_rate[part_indexes[t]][part_indexes[s]];
         }
 
         // lookup or build cached trees for this (n_infec, type_counts)
-        vector<unsigned> tc_key(type_counts.begin(), type_counts.end());
+        vector<unsigned> tc_key(part_counts.begin(), part_counts.end());
         auto cache_key = std::make_pair(static_cast<unsigned>(n_infec), tc_key);
 
         auto it = lut.grouped_patterns.find(cache_key);
@@ -954,17 +964,16 @@ namespace hsp::bino
             trees.reserve(lut.num_generations[n_infec]);
             for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
                 trees.push_back(build_grouped_tree_(
-                    lut.generations[n_infec][c], n_types, tc_key));
+                    lut.generations[n_infec][c], n_parts, tc_key));
             it = lut.grouped_patterns.emplace(cache_key, std::move(trees)).first;
         }
 
         // sum over generation patterns using cached trees
-        double seropos_term = 0.;
+        double pos_term = 0.;
         for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
-            seropos_term += it->second[c].evaluate(log_commu_esc, log_p2p_esc);
+            pos_term += it->second[c].evaluate(log_commu_esc, log_p2p_esc);
 
-        ll += std::log(seropos_term);
-        return ll;
+        return log_neg_term + std::log(pos_term);
     }
 
     /*

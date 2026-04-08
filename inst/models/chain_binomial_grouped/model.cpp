@@ -26,8 +26,8 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizeKey, num_types)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order, type_counts, type_indexes)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizeKey, num_parts)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order, part_counts, part_indexes)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta)
@@ -71,13 +71,12 @@ public:
 			}
 		};
 
+		// associate partition
 		const size_t n_infec = house.n_infected_status();
+		std::vector<size_t> partition_indexes;
+		std::vector<unsigned> partition_counts;
 		std::vector<AttrSet> attrs(n_infec);
-		std::vector<size_t> types(n_infec);
-		std::vector<unsigned> type_counts;
-		std::vector<size_t> type_indexes;
 
-		size_t K = 0;
 		for (size_t i = 0; i < n_infec; ++i)
 		{
 			const auto &member_i = house.member(order[i]);
@@ -86,33 +85,39 @@ public:
 			attr_i.infectivity = &member_i.get_group_rate_attribute(GroupRateKey::infectivity);
 			attr_i.susceptibility = &member_i.get_group_rate_attribute(GroupRateKey::susceptibility);
 
-			types[i] = K + 1; // tentatively a new type
-			for (size_t j = 0; j < i; ++j)
-				if (attrs[j] == attrs[i])
-				{
-					types[i] = types[j];
-					break;
-				}
+			// search existing partitions for a match
+			size_t K = partition_indexes.size(); // tentatively new
+			for (size_t j = 0; j < K; ++j)
+				if (attrs[partition_indexes[j]] == attrs[i])
+					K = j;
 
-			if (types[i] > K)
+			if (K == partition_indexes.size())
 			{
-				// new type
-				type_counts.push_back(1);
-				type_indexes.push_back(i);
-				K = types[i];
+				// append new partition at the end
+				partition_counts.push_back(1);
+				partition_indexes.push_back(i);
 			}
 			else
-				// already existing type
-				++type_counts[types[i] - 1];
+			{
+				// increment and bubble up to guarantee descending order
+				++partition_counts[K];
+				while (K > 0 && partition_counts[K] > partition_counts[K - 1])
+				{
+					std::swap(partition_counts[K], partition_counts[K - 1]);
+					std::swap(partition_indexes[K], partition_indexes[K - 1]);
+					--K;
+				}
+			}
 		}
 
 		// store in the cache
+		size_t K = partition_indexes.size();
 		for (size_t i = 0; i < K; ++i)
 		{
-			cache_size_vector(house, HHsizevecKey::type_counts)[i] = type_counts[i];
-			cache_size_vector(house, HHsizevecKey::type_indexes)[i] = type_indexes[i];
+			cache_size_vector(house, HHsizevecKey::part_counts)[i] = partition_counts[i];
+			cache_size_vector(house, HHsizevecKey::part_indexes)[i] = partition_indexes[i];
 		}
-		cache_size(house, HHsizeKey::num_types) = K;
+		cache_size(house, HHsizeKey::num_parts) = K;
 	}
 
 	/// Risk of infection from the community.
@@ -130,9 +135,9 @@ public:
 
 		return bino::chain_binom_grouped_log_lik(
 			house.n_infected_status(),
-			cache_size(house, HHsizeKey::num_types),
-			cache_size_vector(house, HHsizevecKey::type_counts),
-			cache_size_vector(house, HHsizevecKey::type_indexes),
+			cache_size(house, HHsizeKey::num_parts),
+			cache_size_vector(house, HHsizevecKey::part_counts),
+			cache_size_vector(house, HHsizevecKey::part_indexes),
 			cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
 			cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
 	}
