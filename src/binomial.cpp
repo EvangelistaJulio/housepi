@@ -98,24 +98,24 @@ namespace hsp::bino
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  GroupedTree (cached recursion)  ////////////////////////////////
+    /////////////////////////////////  *** GroupedTree : Class ***  /////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    struct GroupedTreeNode
-    {
-        double log_weight;          // pre-computed lgamma multinomial coefficient
-        unsigned gen;               // generation index
-        vector<unsigned> comp;      // composition at this node (size K)
-        vector<unsigned> prev;      // prev_by_type (size K)
-        vector<unsigned> cumul;     // cumul_by_type (size K)
-        vector<unsigned> remaining; // remaining before subtracting comp (size K)
-        vector<size_t> children;    // indices into flat node array
-    };
 
     struct GroupedTree
     {
-        vector<GroupedTreeNode> nodes;
+        struct Node
+        {
+            double log_weight;          // pre-computed lgamma multinomial coefficient
+            unsigned gen;               // generation index
+            vector<unsigned> comp;      // composition at this node (size K)
+            vector<unsigned> prev;      // prev_by_type (size K)
+            vector<unsigned> cumul;     // cumul_by_type (size K)
+            vector<unsigned> remaining; // remaining before subtracting comp (size K)
+            vector<size_t> children;    // indices into flat node array
+        };
+
+        vector<Node> nodes;
         vector<size_t> roots; // top-level node indices
 
         double evaluate_node_(
@@ -164,127 +164,8 @@ namespace hsp::bino
 
         /// Grouped chain-binomial cached trees
         /// Key: (n_infec, type_counts); Value: one tree per generation pattern
-        std::map<std::pair<unsigned, vector<unsigned>>, vector<GroupedTree>> grouped_patterns;
+        std::map<vector<unsigned>, vector<GroupedTree>> grouped_patterns;
     } lut;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  EscapePattern : implementations  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    double EscapePattern::likelihood(const vector<double> &esc_mtx) const
-    {
-        double output = 1.;
-
-        for (size_t c = 0; c < n_patterns_; ++c)
-            output -= lut.escape_patterns[N_star_][pattern_idxs_[c]].likelihood(esc_mtx);
-
-        for (size_t c = 0; c < n_entries_; ++c)
-            output *= esc_mtx[entries_[c]];
-
-        return output;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  GroupedTree : implementations  ////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    double GroupedTree::evaluate_node_(
-        size_t idx,
-        const vector<double> &log_commu_esc,
-        const matrix<double> &log_p2p_esc) const
-    {
-        const auto &node = nodes[idx];
-        const unsigned K = node.comp.size();
-
-        // Compute log_prob from cached integer coefficients + runtime escape rates
-        double log_prob = 0.;
-
-        if (node.gen == 0)
-        {
-            for (unsigned tau = 0; tau < K; ++tau)
-            {
-                log_prob += node.comp[tau] * std::log1p(-std::exp(log_commu_esc[tau]));
-                log_prob += (node.remaining[tau] - node.comp[tau]) * log_commu_esc[tau];
-            }
-        }
-        else
-        {
-            for (unsigned tau = 0; tau < K; ++tau)
-            {
-                if (node.comp[tau] == 0)
-                    continue;
-
-                for (unsigned sigma = 0; sigma < K; ++sigma)
-                    log_prob += node.comp[tau] * node.cumul[sigma] * log_p2p_esc[sigma][tau];
-
-                double log_esc_prev = 0.;
-                for (unsigned sigma = 0; sigma < K; ++sigma)
-                    log_esc_prev += node.prev[sigma] * log_p2p_esc[sigma][tau];
-
-                log_prob += node.comp[tau] * std::log1p(-std::exp(log_esc_prev));
-            }
-        }
-
-        // Evaluate children (next generation)
-        double child_result;
-        if (node.children.empty())
-            child_result = 1.0;
-        else
-        {
-            child_result = 0.;
-            for (size_t ci : node.children)
-                child_result += evaluate_node_(ci, log_commu_esc, log_p2p_esc);
-        }
-
-        return std::exp(node.log_weight + log_prob) * child_result;
-    }
-
-    double GroupedTree::evaluate(
-        const vector<double> &log_commu_esc,
-        const matrix<double> &log_p2p_esc) const
-    {
-        double sum = 0.;
-        for (size_t ri : roots)
-            sum += evaluate_node_(ri, log_commu_esc, log_p2p_esc);
-        return sum;
-    }
-
-    /*
-    /// String with the formula of the likelihood.
-    const std::string EscapePattern::str()
-    {
-        std::ostringstream oss;
-
-        for (size_t c = 0; c < n_entries_; ++c)
-        {
-            unsigned u = entries_[c];
-            if (u < N_star_)
-                oss << "B" << u + 1;
-            else
-                oss << "Q" << u / N_star_ << "_" << u % N_star_ + 1;
-
-            if (c < n_entries_ - 1)
-                oss << "*";
-        }
-
-        if (n_patterns_ > 0)
-        {
-            if (n_entries_ > 0)
-                oss << "*(";
-            oss << "1";
-            for (size_t c = 0; c < n_patterns_; ++c)
-                oss << " - " << lut.EscapePatterns[N_star_][pattern_idxs_[c]].str();
-            if (n_entries_ > 0)
-                oss << ")";
-        }
-
-        return oss.str();
-    }
-    */
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -446,7 +327,7 @@ namespace hsp::bino
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  Combinations Recursive Span  /////////////////////////////////
+    ///////////////////////////////////  COMBINATIONS Recursive Span  /////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -540,9 +421,55 @@ namespace hsp::bino
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  Recursive Escape Patterns Functions  /////////////////////////////
+    ///////////////////////////////  ESCAPE PATTERNS Recursive Functions  /////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /*
+    /// String with the formula of the likelihood.
+    const std::string EscapePattern::str()
+    {
+        std::ostringstream oss;
+
+        for (size_t c = 0; c < n_entries_; ++c)
+        {
+            unsigned u = entries_[c];
+            if (u < N_star_)
+                oss << "B" << u + 1;
+            else
+                oss << "Q" << u / N_star_ << "_" << u % N_star_ + 1;
+
+            if (c < n_entries_ - 1)
+                oss << "*";
+        }
+
+        if (n_patterns_ > 0)
+        {
+            if (n_entries_ > 0)
+                oss << "*(";
+            oss << "1";
+            for (size_t c = 0; c < n_patterns_; ++c)
+                oss << " - " << lut.EscapePatterns[N_star_][pattern_idxs_[c]].str();
+            if (n_entries_ > 0)
+                oss << ")";
+        }
+
+        return oss.str();
+    }
+    */
+
+    double EscapePattern::likelihood(const vector<double> &esc_mtx) const
+    {
+        double output = 1.;
+
+        for (size_t c = 0; c < n_patterns_; ++c)
+            output -= lut.escape_patterns[N_star_][pattern_idxs_[c]].likelihood(esc_mtx);
+
+        for (size_t c = 0; c < n_entries_; ++c)
+            output *= esc_mtx[entries_[c]];
+
+        return output;
+    }
 
     /// Recursive function to generate all possible escape patterns for a given number of seropositives N_star.
     void recursive_escape_patterns_function_(unsigned N_star, unsigned N, vector<unsigned> access_matrix,
@@ -629,353 +556,6 @@ namespace hsp::bino
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
-    double chain_binom_heterogeneous_log_lik(
-        unsigned n_infec,
-        const std::vector<double> &commu_escape_rate,
-        const std::vector<std::vector<double>> &p2p_escape_rate)
-
-    {
-        double ll = 0.;
-
-        ///////////////////////////////////////////////////
-        /////////  (-) Sero-Negative Contribution  ////////
-        ///////////////////////////////////////////////////
-
-        for (size_t i = n_infec; i < commu_escape_rate.size(); ++i)
-        {
-            // community : i escaped from community
-            ll -= commu_escape_rate[i];
-            // person-to-person : i escaped from k
-            for (unsigned k = 0; k < n_infec; ++k)
-                ll -= p2p_escape_rate[k][i];
-        }
-
-        ///////////////////////////////////////////////////
-        /////////  (+) Sero-Positive Contribution  ////////
-        ///////////////////////////////////////////////////
-
-        if (n_infec == 1) // single case
-            ll += std::log1p(-std::exp(-commu_escape_rate[0]));
-
-        else if (n_infec > 1) // multiple cases
-        {
-            // flatten sub-matrix with only seropositives
-            // UPDATE: can I avoid this re-allocation?
-            thread_local vector<double> escape_matrix;
-            escape_matrix.assign((n_infec + 1) * n_infec, 1.);
-
-            for (unsigned i = 0; i < n_infec; ++i)
-            {
-                // community : i escaped from community
-                escape_matrix[i] = std::exp(-commu_escape_rate[i]);
-
-                // person-to-person : i escaped from k
-                for (unsigned k = 0; k < n_infec; ++k)
-                    escape_matrix[n_infec * (k + 1) + i] = std::exp(-p2p_escape_rate[k][i]);
-
-                // infector always "escapes" himself (check if actually relevant)
-                escape_matrix[n_infec * (i + 1) + i] = 1.;
-            }
-
-            ll += std::log(lut.chain_binomial[n_infec].likelihood(escape_matrix));
-        }
-
-        return ll;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  Composition functions  //////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Recursive enumeration of compositions of n into K types, where each
-    /// type tau contributes at most remaining[tau] individuals.
-    /// Calls callback(composition) for each valid composition.
-    void enumerate_compositions_(
-        unsigned type_idx,
-        unsigned remaining_n,
-        const vector<unsigned> &remaining,
-        vector<unsigned> &current,
-        unsigned K,
-        const std::function<void(const vector<unsigned> &)> &callback)
-    {
-        if (type_idx == K - 1)
-        {
-            if (remaining_n <= remaining[type_idx])
-            {
-                current[type_idx] = remaining_n;
-                callback(current);
-            }
-            return;
-        }
-        unsigned max_c = std::min(remaining_n, remaining[type_idx]);
-        for (unsigned c = 0; c <= max_c; ++c)
-        {
-            current[type_idx] = c;
-            enumerate_compositions_(type_idx + 1, remaining_n - c,
-                                    remaining, current, K, callback);
-        }
-    }
-
-    /// Core generation-by-generation recursion for chain binomial grouped by type.
-    /// Returns the (un-logged) probability contribution summed over all valid
-    /// type-composition allocations from generation g onward.
-    ///
-    /// @param g             current generation index
-    /// @param num_gens      total number of generations in this generation vector
-    /// @param gen_counts    count-compressed generation vector [n_0, n_1, ...]
-    /// @param remaining     remaining type counts to assign to gen g..G
-    /// @param prev_by_type  type composition of generation g-1
-    /// @param cumul_by_type cumulative type counts from gen 0..g-2 (for escape terms)
-    /// @param K             number of types
-    /// @param log_commu_esc log(B_tau) per type (community escape)
-    /// @param log_p2p_esc   log(Q_{sigma->tau}) K x K matrix
-    double recurse_generations_(
-        unsigned g,
-        unsigned num_gens,
-        const gentype &gen_counts,
-        vector<unsigned> &remaining,
-        const vector<unsigned> &prev_by_type,
-        const vector<unsigned> &cumul_by_type,
-        unsigned K,
-        const vector<double> &log_commu_esc,
-        const matrix<double> &log_p2p_esc)
-    {
-        if (g == num_gens)
-            return 1.0;
-
-        unsigned n_g = gen_counts[g];
-        double result = 0.;
-
-        auto callback = [&](const vector<unsigned> &comp)
-        {
-            // 1. Multinomial weight: product over types of C(remaining_tau, c_tau)
-            double log_weight = 0.;
-            for (unsigned tau = 0; tau < K; ++tau)
-                log_weight += std::lgamma(remaining[tau] + 1) - std::lgamma(comp[tau] + 1) - std::lgamma(remaining[tau] - comp[tau] + 1);
-
-            // 2. Log-probability for this generation
-            double log_prob = 0.;
-
-            if (g == 0)
-                // Generation 0: infected by community + escaped community
-                for (unsigned tau = 0; tau < K; ++tau)
-                {
-                    // infected by community
-                    log_prob += comp[tau] * std::log1p(-std::exp(log_commu_esc[tau]));
-                    // escaped community (those in later generations)
-                    log_prob += (remaining[tau] - comp[tau]) * log_commu_esc[tau];
-                }
-            else
-                // Generation g > 0: infected by gen g-1
-                for (unsigned tau = 0; tau < K; ++tau)
-                {
-                    if (comp[tau] == 0)
-                        continue;
-
-                    // escaped from earlier generations j < g-1
-                    for (unsigned sigma = 0; sigma < K; ++sigma)
-                        log_prob += comp[tau] * cumul_by_type[sigma] * log_p2p_esc[sigma][tau];
-
-                    // infected by generation g-1
-                    double log_esc_prev = 0.;
-                    for (unsigned sigma = 0; sigma < K; ++sigma)
-                        log_esc_prev += prev_by_type[sigma] * log_p2p_esc[sigma][tau];
-
-                    log_prob += comp[tau] * std::log1p(-std::exp(log_esc_prev));
-                }
-
-            // 3. Recurse into next generation
-            vector<unsigned> new_remaining(K);
-            vector<unsigned> new_cumul(K);
-            for (unsigned tau = 0; tau < K; ++tau)
-            {
-                new_remaining[tau] = remaining[tau] - comp[tau];
-                // cumul absorbs prev_by_type from g-1 (for g > 0)
-                new_cumul[tau] = cumul_by_type[tau] + (g > 0 ? prev_by_type[tau] : 0);
-            }
-
-            double sub = recurse_generations_(
-                g + 1, num_gens, gen_counts, new_remaining,
-                comp, new_cumul, K,
-                log_commu_esc, log_p2p_esc);
-
-            result += std::exp(log_weight + log_prob) * sub;
-        };
-
-        vector<unsigned> comp(K, 0);
-        std::function<void(const vector<unsigned> &)> cb = callback;
-        enumerate_compositions_(0, n_g, remaining, comp, K, cb);
-
-        return result;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  Grouped Tree Builder  ///////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Recursively build the cached tree for one generation pattern.
-    void build_grouped_tree_recursive_(
-        unsigned g,
-        unsigned num_gens,
-        const gentype &gen_counts,
-        vector<unsigned> &remaining,
-        const vector<unsigned> &prev_by_type,
-        const vector<unsigned> &cumul_by_type,
-        unsigned K,
-        GroupedTree &tree,
-        vector<size_t> &parent_children)
-    {
-        if (g == num_gens)
-            return;
-
-        unsigned n_g = gen_counts[g];
-
-        auto callback = [&](const vector<unsigned> &comp)
-        {
-            GroupedTreeNode node;
-            node.gen = g;
-            node.comp = comp;
-            node.prev = prev_by_type;
-            node.cumul = cumul_by_type;
-            node.remaining.assign(remaining.begin(), remaining.end());
-
-            // Pre-compute log_weight (multinomial coefficient)
-            node.log_weight = 0.;
-            for (unsigned tau = 0; tau < K; ++tau)
-                node.log_weight += std::lgamma(remaining[tau] + 1) - std::lgamma(comp[tau] + 1) - std::lgamma(remaining[tau] - comp[tau] + 1);
-
-            size_t my_idx = tree.nodes.size();
-            tree.nodes.push_back(std::move(node));
-            parent_children.push_back(my_idx);
-
-            // Recurse into next generation
-            // NOTE: collect children into a local vector because tree.nodes
-            // may reallocate during recursion, invalidating references.
-            vector<unsigned> new_remaining(K), new_cumul(K);
-            for (unsigned tau = 0; tau < K; ++tau)
-            {
-                new_remaining[tau] = remaining[tau] - comp[tau];
-                new_cumul[tau] = cumul_by_type[tau] + (g > 0 ? prev_by_type[tau] : 0);
-            }
-
-            vector<size_t> my_children;
-            build_grouped_tree_recursive_(
-                g + 1, num_gens, gen_counts,
-                new_remaining, comp, new_cumul, K,
-                tree, my_children);
-            tree.nodes[my_idx].children = std::move(my_children);
-        };
-
-        vector<unsigned> comp(K, 0);
-        std::function<void(const vector<unsigned> &)> cb = callback;
-        enumerate_compositions_(0, n_g, remaining, comp, K, cb);
-    }
-
-    /// Build a GroupedTree for one generation pattern.
-    GroupedTree build_grouped_tree_(
-        const gentype &gen_counts,
-        unsigned K,
-        const vector<unsigned> &type_counts)
-    {
-        GroupedTree tree;
-        vector<unsigned> remaining(type_counts.begin(), type_counts.end());
-        vector<unsigned> prev(K, 0), cumul(K, 0);
-
-        build_grouped_tree_recursive_(
-            0, gen_counts.size(), gen_counts,
-            remaining, prev, cumul, K,
-            tree, tree.roots);
-
-        return tree;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  GROUPED Chain-Binomial LogLikelihood  //////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Grouped chain binomial log-likelihood.
-    ///
-    /// When multiple seropositives share the same contribution,
-    /// use partition sequences per generation instead of all individual permutations.
-    ///
-    /// @param n_infec number of infected members
-    /// @param n_parts number of parts
-    /// @param part_counts counts of in-house seropositives parts 
-    /// @param part_indexes indexes of household member representative of part
-    /// @param commu_esc_rate per-individual community escape rates
-    /// @param p2p_esc_rate per-individual p2p escape rates
-    double chain_binom_grouped_log_lik(
-        size_t n_infec,
-        size_t n_parts,
-        const std::vector<size_t> &part_counts,
-        const std::vector<size_t> &part_indexes,
-        const std::vector<double> &commu_esc_rate,
-        const std::vector<std::vector<double>> &p2p_esc_rate)
-    {
-        ///////////////////////////////////////////////////
-        /////////  (-) Sero-Negative Contribution  ////////
-        ///////////////////////////////////////////////////
-
-        double log_neg_term = 0.;
-        for (size_t i = n_infec; i < commu_esc_rate.size(); ++i)
-        {
-            log_neg_term -= commu_esc_rate[i];
-            for (unsigned k = 0; k < n_infec; ++k)
-                log_neg_term -= p2p_esc_rate[k][i];
-        }
-
-        ///////////////////////////////////////////////////
-        /////////  (+) Sero-Positive Contribution  ////////
-        ///////////////////////////////////////////////////
-
-        if (n_infec == 0)
-            return log_neg_term;
-
-        // single seropositive: log(1 - B_tau)
-        if (n_infec == 1)
-            return log_neg_term + std::log1p(-std::exp(-commu_esc_rate[0]));
-
-        // pre-compute log-escape probabilities per type
-        vector<double> log_commu_esc(n_parts);
-        matrix<double> log_p2p_esc(n_parts, vector<double>(n_parts));
-
-        for (unsigned t = 0; t < n_parts; ++t)
-        {
-            log_commu_esc[t] = -commu_esc_rate[part_indexes[t]];
-            for (unsigned s = 0; s < n_parts; ++s)
-                log_p2p_esc[t][s] = -p2p_esc_rate[part_indexes[t]][part_indexes[s]];
-        }
-
-        // lookup or build cached trees for this (n_infec, type_counts)
-        vector<unsigned> tc_key(part_counts.begin(), part_counts.end());
-        auto cache_key = std::make_pair(static_cast<unsigned>(n_infec), tc_key);
-
-        auto it = lut.grouped_patterns.find(cache_key);
-        if (it == lut.grouped_patterns.end())
-        {
-            vector<GroupedTree> trees;
-            trees.reserve(lut.num_generations[n_infec]);
-            for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
-                trees.push_back(build_grouped_tree_(
-                    lut.generations[n_infec][c], n_parts, tc_key));
-            it = lut.grouped_patterns.emplace(cache_key, std::move(trees)).first;
-        }
-
-        // sum over generation patterns using cached trees
-        double pos_term = 0.;
-        for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
-            pos_term += it->second[c].evaluate(log_commu_esc, log_p2p_esc);
-
-        return log_neg_term + std::log(pos_term);
-    }
-
     /*
     /// UPDATE: to be moved to a separate file.
     /// Debug mode, to check values of the likelihood and print formulation.
@@ -1026,4 +606,304 @@ namespace hsp::bino
         std::cerr << std::endl;
     }
     */
+
+    /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
+    double chain_binom_heterogeneous_log_lik(
+        unsigned n_infec,
+        const std::vector<double> &commu_escape_rate,
+        const std::vector<std::vector<double>> &p2p_escape_rate)
+    {
+        ///////////////////////////////////////////////////
+        /////////  (-) Sero-Negative Contribution  ////////
+        ///////////////////////////////////////////////////
+
+        double log_neg_term = 0.;
+        for (size_t i = n_infec; i < commu_escape_rate.size(); ++i)
+        {
+            // community : i escaped from community
+            log_neg_term -= commu_escape_rate[i];
+            // person-to-person : i escaped from k
+            for (unsigned k = 0; k < n_infec; ++k)
+                log_neg_term -= p2p_escape_rate[k][i];
+        }
+
+        if (n_infec == 0)
+            return log_neg_term;
+
+        ///////////////////////////////////////////////////
+        /////////  (+) Sero-Positive Contribution  ////////
+        ///////////////////////////////////////////////////
+
+        // single seropositive
+        if (n_infec == 1)
+            return log_neg_term + std::log1p(-std::exp(-commu_escape_rate[0]));
+
+        // flatten sub-matrix with only seropositives
+        // UPDATE: can I avoid this re-allocation?
+        thread_local vector<double> escape_matrix;
+        escape_matrix.assign((n_infec + 1) * n_infec, 1.);
+
+        for (unsigned i = 0; i < n_infec; ++i)
+        {
+            // community : i escaped from community
+            escape_matrix[i] = std::exp(-commu_escape_rate[i]);
+
+            // person-to-person : i escaped from k
+            for (unsigned k = 0; k < n_infec; ++k)
+                escape_matrix[n_infec * (k + 1) + i] = std::exp(-p2p_escape_rate[k][i]);
+
+            // infector always "escapes" himself (check if actually relevant)
+            escape_matrix[n_infec * (i + 1) + i] = 1.;
+        }
+
+        return log_neg_term + std::log(lut.chain_binomial[n_infec].likelihood(escape_matrix));
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  GroupedTree : implementations  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Recursive enumeration of partitions of n into K parts, where each
+    /// part t contributes at most remaining[tau] individuals.
+    /// Calls callback(composition) for each valid composition.
+    void enumerate_partitions_(
+        unsigned type_idx,
+        unsigned remaining_n,
+        const vector<unsigned> &remaining,
+        vector<unsigned> &current,
+        unsigned K,
+        const std::function<void(const vector<unsigned> &)> &callback)
+    {
+        if (type_idx == K - 1)
+        {
+            if (remaining_n <= remaining[type_idx])
+            {
+                current[type_idx] = remaining_n;
+                callback(current);
+            }
+            return;
+        }
+        unsigned max_c = std::min(remaining_n, remaining[type_idx]);
+        for (unsigned c = 0; c <= max_c; ++c)
+        {
+            current[type_idx] = c;
+            enumerate_partitions_(type_idx + 1, remaining_n - c,
+                                  remaining, current, K, callback);
+        }
+    }
+
+    double GroupedTree::evaluate_node_(
+        size_t idx,
+        const vector<double> &log_commu_esc,
+        const matrix<double> &log_p2p_esc) const
+    {
+        const auto &node = nodes[idx];
+        const unsigned K = node.comp.size();
+
+        // compute log probability from cached integer coefficients + runtime escape rates
+        double log_prob = 0.;
+
+        if (node.gen == 0)
+            for (unsigned t = 0; t < K; ++t)
+                log_prob += node.comp[t] * std::log1p(-std::exp(log_commu_esc[t])) +
+                            (node.remaining[t] - node.comp[t]) * log_commu_esc[t];
+        else
+            for (unsigned t = 0; t < K; ++t)
+            {
+                if (node.comp[t] == 0)
+                    continue;
+
+                for (unsigned s = 0; s < K; ++s)
+                    log_prob += node.comp[t] * node.cumul[s] * log_p2p_esc[s][t];
+
+                double log_esc_prev = 0.;
+                for (unsigned s = 0; s < K; ++s)
+                    log_esc_prev += node.prev[s] * log_p2p_esc[s][t];
+
+                log_prob += node.comp[t] * std::log1p(-std::exp(log_esc_prev));
+            }
+
+        // evaluate children (next generation)
+        double child_result = 0.;
+        if (node.children.empty())
+            child_result = 1.0;
+        else
+            for (size_t ci : node.children)
+                child_result += evaluate_node_(ci, log_commu_esc, log_p2p_esc);
+
+        return std::exp(node.log_weight + log_prob) * child_result;
+    }
+
+    double GroupedTree::evaluate(
+        const vector<double> &log_commu_esc,
+        const matrix<double> &log_p2p_esc) const
+    {
+        double sum = 0.;
+        for (size_t r : roots)
+            sum += evaluate_node_(r, log_commu_esc, log_p2p_esc);
+        return sum;
+    }
+
+    /// Recursively build the cached tree for one generation pattern.
+    void build_grouped_tree_recursive_(
+        unsigned g,
+        unsigned num_gens,
+        const gentype &gen_counts,
+        vector<unsigned> &remaining,
+        const vector<unsigned> &prev_by_type,
+        const vector<unsigned> &cumul_by_type,
+        unsigned K,
+        GroupedTree &tree,
+        vector<size_t> &parent_children)
+    {
+        if (g == num_gens)
+            return;
+
+        unsigned n_g = gen_counts[g];
+
+        auto callback = [&](const vector<unsigned> &comp)
+        {
+            GroupedTree::Node node;
+            node.gen = g;
+            node.comp = comp;
+            node.prev = prev_by_type;
+            node.cumul = cumul_by_type;
+            node.remaining.assign(remaining.begin(), remaining.end());
+
+            // Pre-compute log_weight (multinomial coefficient)
+            node.log_weight = 0.;
+            for (unsigned t = 0; t < K; ++t)
+                node.log_weight += std::lgamma(remaining[t] + 1) - std::lgamma(comp[t] + 1) -
+                                   std::lgamma(remaining[t] - comp[t] + 1);
+
+            size_t my_idx = tree.nodes.size();
+            tree.nodes.push_back(std::move(node));
+            parent_children.push_back(my_idx);
+
+            // Recurse into next generation
+            // NOTE: collect children into a local vector because tree.nodes
+            // may reallocate during recursion, invalidating references.
+            vector<unsigned> new_remaining(K), new_cumul(K);
+            for (unsigned t = 0; t < K; ++t)
+            {
+                new_remaining[t] = remaining[t] - comp[t];
+                new_cumul[t] = cumul_by_type[t] + (g > 0 ? prev_by_type[t] : 0);
+            }
+
+            vector<size_t> my_children;
+            build_grouped_tree_recursive_(
+                g + 1, num_gens, gen_counts,
+                new_remaining, comp, new_cumul, K,
+                tree, my_children);
+            tree.nodes[my_idx].children = std::move(my_children);
+        };
+
+        vector<unsigned> comp(K, 0);
+        std::function<void(const vector<unsigned> &)> cb = callback;
+        enumerate_partitions_(0, n_g, remaining, comp, K, cb);
+    }
+
+    /// Build a GroupedTree for one generation pattern.
+    GroupedTree build_grouped_tree_(
+        const gentype &gen_counts,
+        unsigned K,
+        const vector<unsigned> &type_counts)
+    {
+        GroupedTree tree;
+        vector<unsigned> remaining(type_counts.begin(), type_counts.end());
+        vector<unsigned> prev(K, 0), cumul(K, 0);
+
+        build_grouped_tree_recursive_(
+            0, gen_counts.size(), gen_counts,
+            remaining, prev, cumul, K,
+            tree, tree.roots);
+
+        return tree;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  GROUPED Chain-Binomial LogLikelihood  //////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Grouped chain binomial log-likelihood.
+    ///
+    /// When multiple seropositives share the same contribution,
+    /// use partition sequences per generation instead of all individual permutations.
+    ///
+    /// @param n_infec number of infected members
+    /// @param n_parts number of parts
+    /// @param part_counts counts of in-house seropositives parts
+    /// @param part_indexes indexes of household member representative of part
+    /// @param commu_esc_rate per-individual community escape rates
+    /// @param p2p_esc_rate per-individual p2p escape rates
+    double chain_binom_grouped_log_lik(
+        size_t n_infec,
+        size_t n_parts,
+        const std::vector<size_t> &part_counts,
+        const std::vector<size_t> &part_indexes,
+        const std::vector<double> &commu_esc_rate,
+        const std::vector<std::vector<double>> &p2p_esc_rate)
+    {
+        ///////////////////////////////////////////////////
+        /////////  (-) Sero-Negative Contribution  ////////
+        ///////////////////////////////////////////////////
+
+        double log_neg_term = 0.;
+        for (size_t i = n_infec; i < commu_esc_rate.size(); ++i)
+        {
+            log_neg_term -= commu_esc_rate[i];
+            for (unsigned k = 0; k < n_infec; ++k)
+                log_neg_term -= p2p_esc_rate[k][i];
+        }
+
+        if (n_infec == 0)
+            return log_neg_term;
+
+        ///////////////////////////////////////////////////
+        /////////  (+) Sero-Positive Contribution  ////////
+        ///////////////////////////////////////////////////
+
+        // single seropositive
+        if (n_infec == 1)
+            return log_neg_term + std::log1p(-std::exp(-commu_esc_rate[0]));
+
+        // pre-compute log-escape probabilities per type
+        thread_local vector<double> log_commu_esc;
+        log_commu_esc.assign(n_parts, 0.);
+        thread_local matrix<double> log_p2p_esc;
+        log_p2p_esc.assign(n_parts, vector<double>(n_parts, 0.));
+
+        for (unsigned t = 0; t < n_parts; ++t)
+        {
+            log_commu_esc[t] = -commu_esc_rate[part_indexes[t]];
+            for (unsigned s = 0; s < n_parts; ++s)
+                log_p2p_esc[t][s] = -p2p_esc_rate[part_indexes[t]][part_indexes[s]];
+        }
+
+        // lookup or build cached trees for this (n_infec, type_counts)
+        // UPDATE: I am keeping this just to cast size_t to unsigned
+        vector<unsigned> tc_key(part_counts.begin(), part_counts.begin() + n_parts);
+
+        auto it = lut.grouped_patterns.find(tc_key);
+        if (it == lut.grouped_patterns.end())
+        {
+            vector<GroupedTree> trees;
+            trees.reserve(lut.num_generations[n_infec]);
+            for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
+                trees.push_back(build_grouped_tree_(
+                    lut.generations[n_infec][c], n_parts, tc_key));
+            it = lut.grouped_patterns.emplace(tc_key, std::move(trees)).first;
+        }
+
+        // sum over generation patterns using cached trees
+        double pos_term = 0.;
+        for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
+            pos_term += it->second[c].evaluate(log_commu_esc, log_p2p_esc);
+
+        return log_neg_term + std::log(pos_term);
+    }
 }
