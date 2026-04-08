@@ -80,5 +80,5 @@ namespace hsp
     */
 
     /// Main function for the standalone version of 'housepi'.
-    int standalone(MCMC &engine, int argc, char *argv[]);
+    int standalone(std::string_view model_name, int argc, char *argv[]);
 }

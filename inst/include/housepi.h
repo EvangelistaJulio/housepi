@@ -51,13 +51,15 @@
     }
 
 #ifdef _STANDALONE
-#define HOUSEPI_EXTRA_FLAG_SUPPORT()
-#define HOUSEPI_REGISTER_MODULE_INTERFACE_IMPL_(module)           \
-    int main(int argc, char *argv[])                              \
-    {                                                             \
-        hsp::MCMC engine(std::make_unique<hsp::module::Model>()); \
-        return standalone(engine, argc, argv);                    \
+#define HOUSEPI_STANDALONE_MAIN(module)              \
+    int main(int argc, char *argv[])                 \
+    {                                                \
+        return hsp::standalone(#module, argc, argv); \
     }
+#define HOUSEPI_EXTRA_FLAG_SUPPORT()
+#define HOUSEPI_REGISTER_MODULE_INTERFACE_IMPL_(module) \
+    HOUSEPI_REGISTER_MODEL(module)                      \
+    HOUSEPI_STANDALONE_MAIN(module)
 
 #else
 #define HOUSEPI_EXTRA_FLAG_SUPPORT()                                          \

@@ -169,7 +169,7 @@ namespace hsp
     {
         try
         {
-            model.data_wide().build(read::csv_table(file.data_long));
+            model.data_wide().build(read::csv_table(file.data_wide));
         }
         catch (const std::exception &e)
         {
@@ -287,7 +287,7 @@ namespace hsp
                 size_t i = k + c * setup.c_sample_size;
 
                 // print iteration
-                unsigned long sweep = setup.n_burnin + (k + 1) * setup.n_thin;
+                unsigned long sweep = setup.n_burn + (k + 1) * setup.n_thin;
                 ofs << sweep;
 
                 // print log-likelihood
@@ -514,8 +514,10 @@ namespace hsp
     */
 
     /// Main function for the standalone version of 'housepi'.
-    int standalone(MCMC &engine, int argc, char *argv[])
+    int standalone(std::string_view model_name, int argc, char *argv[])
     {
+        MCMC engine(model_name);
+
         ///////////////////////
         //////  OPTIONS  //////
         ///////////////////////
