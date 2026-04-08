@@ -50,8 +50,6 @@ namespace hsp
         ReportHousehold report_house;
         ReportHouseSizes report_hh_size;
 
-        std::vector<std::vector<double>> smpl_values = {};
-
         ///////////////////////////
         //////  CONSTRUCTOR  //////
         ///////////////////////////
@@ -93,10 +91,8 @@ namespace hsp
         /// Raise error log-likelihood is not finite.
         void assert_finite_log_lik() const;
 
-        /// Initialize posterior sample of parameters.
-        void init_draws(unsigned long sample_size);
-        /// Store current sample of log-likelihood for restricted households.
-        void store_draws(unsigned long smpl_count);
+        /// Compute log-likelihood for restricted household R (obs + augmented).
+        double house_log_lik(size_t R) const;
 
         /// Recover all status.
         void recover_all_status() noexcept;

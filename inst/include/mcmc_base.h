@@ -22,6 +22,7 @@
 #include "contact_rate.h"
 #include "infec_profile.h"
 #include "augmented.h"
+#include "posterior.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -31,29 +32,12 @@
 
 namespace hsp
 {
-	struct TotalLogLike : public LogLike
-	{
-	public:
-		std::vector<double> smpl_values = {}; /// total log-likelihood samples
-
-		void init_draws(unsigned long sample_size)
-		{
-			count_ = 0;
-			smpl_values.clear();
-			smpl_values.assign(sample_size, na::DOUBLE);
-		}
-		void store_draws() { smpl_values[count_++] = value_; }
-		unsigned long count() const noexcept { return count_; }
-
-	private:
-		unsigned long count_ = 0; /// count of stored samples
-	};
-
 	class MCMCBase
 	{
 	public:
 		atomic::Error atomic_error;
-		TotalLogLike tot_log_lik;
+		LogLike tot_log_lik;
+		Posterior posterior;
 
 		std::shared_ptr<DataStore> pDataStore;
 
@@ -104,12 +88,5 @@ namespace hsp
 
 		/// Recover the old parameter value.
 		void recover_parameter_(size_t p, bool is_cache_depen);
-
-		/// Init posterior sampling.
-		//// UPDATE: I would like to store also power posterior sample.
-		/// NOTE: it will depend on chosen rungs in that case.
-		void init_posterior_sample_();
-		/// Store current Bayesian posterior sample.
-		void store_posterior_sample_();
 	};
 }

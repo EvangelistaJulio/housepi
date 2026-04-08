@@ -487,26 +487,13 @@ namespace hsp
         }
     }
 
-    void DataWide::init_draws(unsigned long sample_size)
+    double DataWide::house_log_lik(size_t R) const
     {
-        // sample over households
-        smpl_values.clear();
-        smpl_values.reserve(restricted_size());
-        for (size_t R = 0; R < restricted_size(); ++R)
-            smpl_values.emplace_back(sample_size, na::DOUBLE);
-    }
-
-    void DataWide::store_draws(unsigned long smpl_count)
-    {
-        // store sample for restricted households
-        for (size_t R = 0; R < restricted_size(); ++R)
-        {
-            Household &house = restricted(R);
-            double x = house.obs_log_lik();
-            for (size_t i : house.infected_hhindexes())
-                x += house.member(i).paugm_->log_lik.value();
-            smpl_values[R][smpl_count] = x;
-        }
+        const Household &house = restricted(R);
+        double x = house.obs_log_lik();
+        for (size_t i : house.infected_hhindexes())
+            x += house.member(i).paugm_->log_lik.value();
+        return x;
     }
 
     void DataWide::assert_non_empty() const

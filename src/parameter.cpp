@@ -155,18 +155,16 @@ namespace hsp
                 "Found multiple definitions for the same parameters.");
 
         clear_lists_();
+        simulation_values.clear();
         // update list of constant parameters to all parameters
         list_const = pKeys->from_string(pKeys->get_all());
-
-        // store as sample values
-        smpl_values.clear();
 
         // reset definition dictionary to all constants NAs.
         for (const std::string &pstr : pKeys->get_all())
             if (std::find(headers.begin(), headers.end(), pstr) == headers.end())
-                smpl_values.emplace_back();
+                simulation_values.emplace_back();
             else
-                smpl_values.emplace_back(input.at(pstr));
+                simulation_values.emplace_back(input.at(pstr));
     }
 
     void Parameter::init_param_vec_()
@@ -193,8 +191,7 @@ namespace hsp
         list_adaptable_sample_cached.clear();
         list_non_adapt_sample_cached.clear();
 
-        smpl_values.clear();
-        smpl_priors.clear();
+        simulation_values.clear();
     }
 
     void Parameter::helper_build_constant_(const str_table &input, size_t k)
@@ -337,7 +334,7 @@ namespace hsp
     {
         for (size_t p = 0; p < pKeys->size(); ++p)
         {
-            const std::vector<double> &vec = smpl_values[p];
+            const std::vector<double> &vec = simulation_values[p];
             if (!vec.empty())
                 at(p).set(vec[r]);
         }
@@ -380,32 +377,6 @@ namespace hsp
         // adapt all parameters with cached dependecies
         for (size_t p : list_adaptable_sample_cached)
             at(p).adapt_proposal(ratio);
-    }
-
-    void Parameter::init_draws(unsigned long sample_size)
-    {
-        size_t n = list_sample.size();
-        smpl_values.clear();
-        smpl_priors.clear();
-        smpl_values.reserve(n);
-        smpl_priors.reserve(n);
-        for (size_t i = 0; i < n; ++i)
-        {
-            smpl_values.emplace_back(sample_size, na::DOUBLE);
-            smpl_priors.emplace_back(sample_size, na::DOUBLE);
-        }
-    }
-
-    void Parameter::store_draws(unsigned long smpl_count)
-    {
-        size_t i = 0;
-        for (size_t p : list_sample)
-        {
-            const Variable &this_par = at(p);
-            smpl_values[i][smpl_count] = this_par.value();
-            smpl_priors[i][smpl_count] = this_par.get_distr_log_pdf();
-            ++i;
-        }
     }
 
     const Attribute &Parameter::read_attribute(const parse::Entry &node, const Individual *member_ptr) const

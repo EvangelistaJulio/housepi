@@ -166,7 +166,8 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$name_ <- as.character(name)
       # process inference setup
       private$pre_process_setup_(.engine$export_setup(ptr))
-      # store cpp draws concverted to posterior
+
+      # store cpp draws converted to posterior
       private$total_log_lik_draws_ <- private$to_posterior_draws_(
         .engine$flush_total_log_lik_draws(ptr)
       )
@@ -174,7 +175,7 @@ HousepiPosteriorDraws <- R6::R6Class(
         .engine$flush_param_draws(ptr)
       )
       private$prior_draws_ <- private$to_posterior_draws_(
-        .engine$flush_param_lprior_draws(ptr)
+        .engine$flush_param_log_prior_draws(ptr)
       )
       private$augm_draws_ <- private$to_posterior_draws_(
         .engine$flush_augm_draws(ptr)

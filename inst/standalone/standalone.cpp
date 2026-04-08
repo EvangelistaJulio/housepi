@@ -252,8 +252,7 @@ namespace hsp
             return;
 
         const Setup &setup = engine.setup;
-        const Parameter &param = engine.param;
-        const Augmented &augm = engine.augm;
+        const Posterior &post = engine.posterior;
 
         std::ofstream ofs;
         ofs.open(out_file);
@@ -267,15 +266,12 @@ namespace hsp
         ofs << "iteration" << read::DELIMITER << "log_lik";
 
         // header parameters
-        for (const size_t p : param.list_sample)
-            ofs << read::DELIMITER << param.pKeys->as_string(p);
+        for (const auto &name : post.param_names)
+            ofs << read::DELIMITER << name;
 
         // header augmented variable of id trace
-        if (augm.is_any_draw())
-            for (const Individual *member_ptr : augm.smpl_individuals)
-                for (size_t a : augm.list_draws(*member_ptr))
-                    ofs << read::DELIMITER << member_ptr->id()
-                        << "_" << augm.pKeys->as_string(a);
+        for (const auto &name : post.augm_col_names)
+            ofs << read::DELIMITER << name;
 
         // header chain
         ofs << read::DELIMITER << "_chain_" << std::endl;
@@ -292,19 +288,20 @@ namespace hsp
 
                 // print log-likelihood
                 ofs << read::DELIMITER << std::setprecision(2)
-                    << std::fixed << engine.tot_log_lik.smpl_values[i];
+                    << std::fixed << post.total_log_lik[0][i];
 
                 // print parameter values
-                for (size_t u = 0; u < param.list_sample.size(); ++u)
+                for (size_t u = 0; u < post.param_values.size(); ++u)
                     ofs << read::DELIMITER << std::setprecision(5)
-                        << std::fixed << param.smpl_values[u][i];
+                        << std::fixed << post.param_values[u][i];
 
                 // print augmented variable of id trace
-                if (!augm.smpl_values.empty())
-                    for (size_t j = 0; j < augm.smpl_individuals.size(); ++j)
-                        for (size_t u = 0; u < augm.list_draws(*augm.smpl_individuals[j]).size(); ++u)
+                {
+                    for (auto &member_matrix : post.augm_values)
+                        for (auto &var_vec : member_matrix)
                             ofs << read::DELIMITER << std::setprecision(5)
-                                << std::fixed << augm.smpl_values[j][u][i];
+                                << std::fixed << var_vec[i];
+                }
 
                 // print which chain
                 ofs << read::DELIMITER << (c + 1) << std::endl;

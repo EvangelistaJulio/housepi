@@ -238,7 +238,7 @@ test_that("Predicted-measures raises error when no measure is provided", {
   hhmodel <- new_housepi_model("chain_binomial") |>
     load_parameter_template() |>
     add_data_wide(helper_test_get_data("flu_1918_frederick"))
-  results <- run_inference(hhmodel, steps = 5, progress = FALSE)
+  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
   expect_error(predicted_measures(hhmodel, results, progress = FALSE),
                regexp = "No measure was provided")
 })
@@ -248,7 +248,7 @@ test_that("Predicted cases by house size works as expected", {
     load_parameter_template() |>
     add_data_wide(helper_test_get_data("flu_1918_frederick"))
 
-  results <- run_inference(hhmodel, steps = 10, progress = FALSE)
+  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
 
   ppc <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE)
   expect_s3_class(ppc, "PredictedCasesBySize")
@@ -284,7 +284,7 @@ test_that("predicted_measures works with custom measure", {
     load_parameter_template() |>
     add_data_wide(helper_test_get_data("flu_1918_frederick"))
 
-  results <- run_inference(hhmodel, steps = 10, progress = FALSE)
+  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
 
   ppc <- predicted_measures(hhmodel, results,
                             sar = measure_sar_by_house_size,

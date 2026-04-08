@@ -133,36 +133,6 @@ namespace hsp
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  MCMCBase : posterior sample  //////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    void MCMCBase::init_posterior_sample_()
-    {
-        unsigned long sample_size = setup.c_sample_size * setup.n_chains;
-        if (!setup.is_power_post())
-        {
-            data_wide().init_draws(sample_size);
-            param.init_draws(sample_size);
-
-            augm.init_individual_sample(setup.id_draws);
-            augm.init_draws(sample_size);
-        }
-        tot_log_lik.init_draws(sample_size);
-    }
-
-    void MCMCBase::store_posterior_sample_()
-    {
-        if (!setup.is_power_post())
-        {
-            data_wide().store_draws(tot_log_lik.count());
-            param.store_draws(tot_log_lik.count());
-            augm.store_draws(tot_log_lik.count());
-        }
-        // store total log-likelihood and update count
-        tot_log_lik.store_draws();
-    }
-
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////  *** MCMC : class ***  /////////////////////////////////
@@ -292,7 +262,7 @@ namespace hsp
 
     void MCMC::run_monte_carlo_()
     {
-        init_posterior_sample_(); // initialize posterior sample
+        posterior.init(*this); // initialize posterior sample
 
         // run multiple MCMC chains&
         for (setup.chain = 1; setup.chain <= setup.n_chains; ++setup.chain)
@@ -331,7 +301,7 @@ namespace hsp
             {
                 for (unsigned long t = 1; t <= setup.n_thin; ++t)
                     move_all_();
-                store_posterior_sample_();
+                posterior.store(*this);
             }
         }
     }
@@ -551,7 +521,7 @@ namespace hsp
         setup.rung = 0;
         setup.inv_T = 0.0;
         run_monte_carlo_();
-        const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+        const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
 
         itm.push_back(setup.inv_T);
         avg.push_back(stats_avg);
@@ -565,7 +535,7 @@ namespace hsp
             setup.rung = 1;
             setup.inv_T = 1.0;
             run_monte_carlo_();
-            const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
 
             itm.push_back(setup.inv_T);
             avg.push_back(stats_avg);
@@ -589,7 +559,7 @@ namespace hsp
             // power posterior sampling
             setup.inv_T = new_t;
             run_monte_carlo_();
-            const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
 
             // find larger rectangular discretization error
             is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats_avg) > (new_t - itm[k]) * (stats_avg - avg[k]);
@@ -612,7 +582,7 @@ namespace hsp
             setup.inv_T = std::pow(static_cast<double>(setup.rung) / static_cast<double>(setup.n_rungs), 5.);
             run_monte_carlo_();
 
-            const auto [stats_avg, stats_var] = compute_stats(tot_log_lik.smpl_values);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
             itm.push_back(setup.inv_T);
             avg.push_back(stats_avg);
             var.push_back(stats_var);

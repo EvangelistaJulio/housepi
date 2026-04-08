@@ -53,8 +53,7 @@ namespace hsp
         std::vector<size_t> list_adaptable_sample_cached = {};
         std::vector<size_t> list_non_adapt_sample_cached = {};
 
-        std::vector<std::vector<double>> smpl_values = {}; /// values of the sample
-        std::vector<std::vector<double>> smpl_priors = {}; /// prior values of the sample
+        std::vector<std::vector<double>> simulation_values = {}; /// simulation values
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -91,10 +90,6 @@ namespace hsp
         /// Adpat the proposal of model parameters.
         void adapt_proposal_of_sampled(unsigned long step, unsigned long tot);
 
-        /// Initialize posterior sample of parameters and respective priors.
-        void init_draws(unsigned long sample_size);
-        /// Store current sample of parameters and respective priors.
-        void store_draws(unsigned long smpl_count);
 
         //////////////////////
         //////  GETTER  //////

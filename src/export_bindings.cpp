@@ -24,6 +24,7 @@
 #include "tools/types.h"
 
 #include "mcmc.h"
+#include "posterior.h"
 #include "registry.h"
 #include "augmented.h"
 #include "data_store.h"
@@ -320,14 +321,6 @@ namespace
     double format_percentage(size_t value, size_t total)
     {
         return std::round(10000. * static_cast<double>(value) / static_cast<double>(total)) / 100.;
-    }
-
-    // Copies src into dest. If destroy_src is true, releases src's storage after copy.
-    template <typename DestNumeric>
-    void helper_vector_flush(DestNumeric dest, std::vector<double> &src)
-    {
-        std::copy(src.begin(), src.end(), dest.begin());
-        std::vector<double>().swap(src);
     }
 
 #define MAKE_RCPP_IMPORT_METHOD(module, section_name)            \
@@ -741,124 +734,93 @@ namespace
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  MCMCBase : export draws  ////////////////////////////////////
+    /////////////////////////////////  Posterior : Rcpp export methods  ///////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Export MCMC draws of total log-likelihood posterior samples.
-    Rcpp::NumericMatrix flush_total_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Helper to copy vector into matrix column and release storage.
+    template <typename DestNumeric>
+    void helper_vector_flush(DestNumeric dest, std::vector<double> &src)
     {
-        TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
-
-        try
-        {
-            Rcpp::NumericMatrix output(tot_log_lik.count(), 1);
-            helper_vector_flush(output(Rcpp::_, 0), tot_log_lik.smpl_values);
-            colnames(output) = Rcpp::CharacterVector({"log_lik"});
-            return output;
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While exporting total log-likelihood draws:\n" +
-                       std::string(e.what()));
-        }
+        std::copy(src.begin(), src.end(), dest.begin());
+        std::vector<double>().swap(src);
     }
 
-    /// Export MCMC draws of parameter values posterior samples.
-    Rcpp::NumericMatrix flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Copy each vector<double> into a matrix column, release all storage, set colnames.
+    Rcpp::NumericMatrix flush_2d_draws_to_matrix(
+        std::vector<std::vector<double>> &draws,
+        const std::vector<std::string> &col_names,
+        size_t n_rows,
+        const char *err_type)
     {
-        Parameter &param = mcmc_ptr->param;
-        const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
-
-        if (param.list_sample.empty())
+        if (draws.empty())
             return Rcpp::NumericMatrix();
 
         try
         {
-            size_t n_cols = param.list_sample.size();
-            Rcpp::CharacterVector headers = Rcpp::wrap(param.pKeys->as_string(param.list_sample));
-            Rcpp::NumericMatrix output(tot_log_lik.count(), n_cols);
+            size_t n_cols = draws.size();
+            Rcpp::NumericMatrix output(n_rows, n_cols);
 
             for (size_t c = 0; c < n_cols; ++c)
-                helper_vector_flush(output(Rcpp::_, c), param.smpl_values[c]);
+                helper_vector_flush(output(Rcpp::_, c), draws[c]);
+            std::vector<std::vector<double>>().swap(draws);
 
-            colnames(output) = std::move(headers);
-            param.smpl_values.clear();
+            colnames(output) = Rcpp::wrap(col_names);
             return output;
         }
         catch (const std::exception &e)
         {
-            msg::error("While exporting parameters draws:\n" +
-                       std::string(e.what()));
+            msg::error(std::string("While exporting ") + err_type +
+                       " draws:\n" + e.what());
         }
     }
 
-    /// Export MCMC draws of parameter log-priors posterior samples.
-    Rcpp::NumericMatrix flush_param_lprior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Flush total log-likelihood draws as NumericMatrix.
+    Rcpp::NumericMatrix flush_total_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        Parameter &param = mcmc_ptr->param;
-        const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
-
-        if (param.list_sample.empty())
-            return Rcpp::NumericMatrix();
-
-        try
-        {
-            size_t n_cols = param.list_sample.size();
-            Rcpp::CharacterVector headers(n_cols);
-            Rcpp::NumericMatrix output(tot_log_lik.count(), n_cols);
-
-            size_t c = 0;
-            for (size_t p : param.list_sample)
-            {
-                headers[c] = "lprior_" + param.pKeys->as_string(p);
-                helper_vector_flush(output(Rcpp::_, c), param.smpl_priors[c]);
-                ++c;
-            }
-            colnames(output) = std::move(headers);
-            param.smpl_priors.clear();
-            return output;
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While exporting parameter log-priors draws:\n" +
-                       std::string(e.what()));
-        }
+        Posterior &post = mcmc_ptr->posterior;
+        return flush_2d_draws_to_matrix(post.total_log_lik, post.total_log_lik_names,
+                                        post.count(), "total log-likelihood");
     }
 
-    /// Export MCMC draws of augmented posterior samples.
+    /// Rcpp wrapper: parameter value draws as NumericMatrix.
+    Rcpp::NumericMatrix flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    {
+        Posterior &post = mcmc_ptr->posterior;
+        return flush_2d_draws_to_matrix(post.param_values, post.param_names,
+                                        post.count(), "parameter");
+    }
+
+    /// Rcpp wrapper: parameter log-prior draws as NumericMatrix.
+    Rcpp::NumericMatrix flush_param_log_prior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    {
+        Posterior &post = mcmc_ptr->posterior;
+        return flush_2d_draws_to_matrix(post.param_priors, post.param_prior_names,
+                                        post.count(), "parameter log-prior");
+    }
+
+    /// Rcpp wrapper: augmented variable draws as NumericMatrix.
     Rcpp::NumericMatrix flush_augm_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        Augmented &augm = mcmc_ptr->augm;
-        const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
+        Posterior &post = mcmc_ptr->posterior;
 
-        if (augm.smpl_values.empty())
+        if (post.augm_values.empty())
             return Rcpp::NumericMatrix();
 
         try
         {
-            size_t n_cols = 0;
-            for (const Individual *member : augm.smpl_individuals)
-                n_cols += augm.list_draws(*member).size();
-
-            Rcpp::CharacterVector headers(n_cols);
-            Rcpp::NumericMatrix output(tot_log_lik.count(), n_cols);
+            size_t n_cols = post.augm_col_names.size();
+            Rcpp::NumericMatrix output(post.count(), n_cols);
 
             size_t col = 0;
-            for (size_t i = 0; i < augm.smpl_values.size(); ++i)
+            for (auto &member_matrix : post.augm_values)
             {
-                const Individual &member = *augm.smpl_individuals[i];
-                auto &member_matrix = augm.smpl_values[i];
-
-                size_t j = 0;
-                for (size_t a : augm.list_draws(member))
-                {
-                    headers[col] = member.id() + "_" + augm.pKeys->as_string(a);
-                    helper_vector_flush(output(Rcpp::_, col++), member_matrix[j++]);
-                }
+                for (auto &var_vec : member_matrix)
+                    helper_vector_flush(output(Rcpp::_, col++), var_vec);
+                std::vector<std::vector<double>>().swap(member_matrix);
             }
+            std::vector<std::vector<std::vector<double>>>().swap(post.augm_values);
 
-            colnames(output) = headers;
-            augm.smpl_values.clear();
+            colnames(output) = Rcpp::wrap(post.augm_col_names);
             return output;
         }
         catch (const std::exception &e)
@@ -868,43 +830,38 @@ namespace
         }
     }
 
-    /// Export all sampled values of the log-likelihood for all household.
+    /// Rcpp wrapper: household log-likelihood draws as NumericMatrix.
+    /// Kept as a free function because it needs DataWide for multiplicity expansion.
     Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        DataWide &data_wide = mcmc_ptr->data_wide();
-        const TotalLogLike &tot_log_lik = mcmc_ptr->tot_log_lik;
+        Posterior &post = mcmc_ptr->posterior;
+        const DataWide &data_wide = mcmc_ptr->data_wide();
 
         try
         {
-            if (data_wide.smpl_values.empty())
+            if (post.house_log_lik.empty())
                 return Rcpp::NumericMatrix();
 
-            // create a NumericMatrix with n_house columns
             size_t n_houses = data_wide.report_house.total;
-            Rcpp::NumericMatrix output(tot_log_lik.count(), n_houses);
-            Rcpp::CharacterVector headers(n_houses);
+            Rcpp::NumericMatrix output(post.count(), n_houses);
 
-            // retrieve restricted index by general index of multiplicity head class
+            // map restricted index to all household columns
             size_t n_classes = data_wide.restricted_size();
             std::vector<std::vector<size_t>> house_classes(n_classes);
 
             for (size_t H = 0; H < n_houses; ++H)
-            {
-                size_t R = data_wide.get_restricted_index(H);
-                house_classes[R].push_back(H);
-                headers[H] = data_wide.at(H).house_id();
-            }
+                house_classes[data_wide.get_restricted_index(H)].push_back(H);
 
             for (size_t R = 0; R < n_classes; ++R)
             {
-                std::vector<double> &src = data_wide.smpl_values[R];
-
+                std::vector<double> &src = post.house_log_lik[R];
                 for (size_t H : house_classes[R])
                     std::copy(src.begin(), src.end(), output(Rcpp::_, H).begin());
                 std::vector<double>().swap(src);
             }
-            colnames(output) = std::move(headers);
+            std::vector<std::vector<double>>().swap(post.house_log_lik);
 
+            colnames(output) = Rcpp::wrap(post.house_names);
             return output;
         }
         catch (const std::exception &e)
@@ -1462,7 +1419,7 @@ namespace
     {
         auto mcmc = Rcpp::XPtr<MCMC>(new MCMC(module_name), true);
 
-        // options to be passed to progress setup 
+        // options to be passed to progress setup
         const unsigned width = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width"));
         const bool is_interactive = Rcpp::as<bool>(Rcpp::Function("interactive")());
         mcmc->setup.init_R_context(
@@ -1565,7 +1522,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("export_infec_profile", &export_infec_profile);
     Rcpp::function("flush_total_log_lik_draws", &flush_total_log_lik_draws);
     Rcpp::function("flush_param_draws", &flush_param_draws);
-    Rcpp::function("flush_param_lprior_draws", &flush_param_lprior_draws);
+    Rcpp::function("flush_param_log_prior_draws", &flush_param_log_prior_draws);
     Rcpp::function("flush_augm_draws", &flush_augm_draws);
     Rcpp::function("flush_house_log_lik_draws", &flush_house_log_lik_draws);
     Rcpp::function("export_house_snapshot", &export_house_snapshot);

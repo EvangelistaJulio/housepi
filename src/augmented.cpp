@@ -712,22 +712,21 @@ namespace hsp
     ////////////////////////////////////  Augmented : sample draws  ///////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::init_individual_sample(std::vector<std::string> &id_draws)
+    std::vector<const Individual *> Augmented::init_individual_sample(const std::vector<std::string> &id_draws) const
     {
-        smpl_individuals.clear();
+        std::vector<const Individual *> output;
 
         if (id_draws.empty())
-            return;
+            return output;
 
         if (!is_any_sample())
         {
             msg::warning(
                 "Ignored id draws. No augmented variables to sample were defined.");
-            id_draws.clear();
-            return;
+            return output;
         }
 
-        smpl_individuals.reserve(id_draws.size());
+        output.reserve(id_draws.size());
         std::vector<std::string> existing_ids = {};
         for (const Household &house : mcmc_->data_wide())
             for (const Individual &member : house)
@@ -740,47 +739,15 @@ namespace hsp
 
                 // check status of chosen individual
                 if (member.is_infected_status())
-                    smpl_individuals.emplace_back(&member);
+                    output.emplace_back(&member);
                 else
                     msg::warning(
                         "Ignored draws of non infected " + member.err_name() + ".");
             }
-        smpl_individuals.shrink_to_fit();
+        output.shrink_to_fit();
 
         // check all user request are satisfied
         str::assert_no_missing_entries(existing_ids, id_draws, "draws id");
-    }
-
-    void Augmented::init_draws(unsigned long sample_size)
-    {
-        if (!is_any_draw())
-            return;
-
-        smpl_values.clear();
-        smpl_values.resize(smpl_individuals.size());
-        for (size_t i = 0; i < smpl_individuals.size(); ++i)
-        {
-            auto &member_matrix = smpl_values[i];
-            size_t n = list_draws(*smpl_individuals[i]).size();
-            member_matrix.reserve(n);
-            for (size_t j = 0; j < n; ++j)
-                member_matrix.emplace_back(sample_size, na::DOUBLE);
-        }
-    }
-
-    void Augmented::store_draws(unsigned long smpl_count)
-    {
-        if (!is_any_draw())
-            return;
-
-        for (size_t i = 0; i < smpl_individuals.size(); ++i)
-        {
-            const Individual &member_ptr = *smpl_individuals[i];
-            auto &member_matrix = smpl_values[i];
-
-            size_t c = 0;
-            for (size_t a : list_draws(member_ptr))
-                member_matrix[c++][smpl_count] = member_ptr.paugm_->vec[a].value();
-        }
+        return output;
     }
 }

@@ -39,9 +39,6 @@ namespace hsp
 
         std::vector<size_t> list_export = {};
 
-        // optional augmented posterior sample
-        std::vector<const Individual *> smpl_individuals = {};
-        std::vector<std::vector<std::vector<double>>> smpl_values = {};
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -77,12 +74,8 @@ namespace hsp
         /// Initialize augmented initial values for all individuals.
         void user_reset(rnd_gen &prng);
 
-        /// Set individual id for augmented draws follow-up.
-        void init_individual_sample(std::vector<std::string> &id_draws);
-        /// Initialize sample for individual augmented variable followup.
-        void init_draws(unsigned long sample_size);
-        /// Store sample for individual augmented variable followup.
-        void store_draws(unsigned long smpl_count);
+        /// Resolve individual ids for augmented draws and return tracked pointers.
+        std::vector<const Individual *> init_individual_sample(const std::vector<std::string> &id_draws) const;
 
         //////////////////////
         //////  GETTER  //////
@@ -106,8 +99,6 @@ namespace hsp
         bool is_any_sample() const noexcept { return is_any_sample_; }
         /// Whether there are augmented definitions with a model.
         bool is_any_model() const noexcept { return is_any_model_; }
-        /// Whether augmented draws are stored.
-        bool is_any_draw() const noexcept { return !smpl_individuals.empty(); }
 
     private:
         MCMCBase *mcmc_;                      /// pointer to owning MCMCBase

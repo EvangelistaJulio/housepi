@@ -5,14 +5,13 @@ local_results <- local({
   hhmodel <- new_housepi_model("chain_binomial")
   hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   hhmodel$load_parameter_template()
-  hhmodel$run_inference(steps = 25, thin = 1, burn = 5,
-                        chains = 1, adapt = 5, progress = FALSE)
+  hhmodel$run_inference(steps = 100, progress = FALSE)
 })
 
 test_that("Draws active fields are correct", {
   pd <- local_results$param_draws
   expect_true(posterior::is_draws(pd))
-  expect_true(posterior::niterations(pd) == 20)
+  expect_true(posterior::niterations(pd) == 100)
 
   pr <- local_results$prior_draws
   expect_true(posterior::is_draws(pr))
