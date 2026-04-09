@@ -195,7 +195,7 @@ housepi_smart_unwrap <- function(x, arg_name = NULL) {
 
   # check if is one of the allowed types
   if (is.character(result) || is.numeric(result) ||
-        is.logical(result)) return(result)
+        is.logical(result) || is.list(result)) return(result)
 
   if (length(result) == 0) return(NULL)
 

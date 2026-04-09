@@ -150,11 +150,10 @@ HousepiModel <- R6::R6Class(
       # proceed only if definitions exist and data loaded
       if (length(private$group_rates_$defs) == 0) return(invisible(self))
 
-      # check if any defs actually need data (non-logic_table mode)
+      # check if any defs actually need data
       needs_data <- any(sapply(private$group_rates_$defs, function(d) {
-        !identical(d[["mode"]], "logic_table") && !all(is.na(d[["by"]]))
+        !all(is.na(d[["by"]]))
       }))
-
       if (needs_data && length(private$cols_data_wide_) == 0) {
         warning_h(
           "Missing data needed for building group rates.",
@@ -162,12 +161,11 @@ HousepiModel <- R6::R6Class(
         )
         return(invisible(self))
       }
+
       # load data_wide
-      # UPDATE: this "back & forth" of data_wide is not optimal!
-      # UPDATE: count in the wrapper while storing data_wide_levels
-      data_wide <- if (length(private$cols_data_wide_) > 0) {
-        self$data_wide
-      } else NULL
+      # UPDATE: this "back & forth" of data_wide is sub-optimal...
+      data_wide <- NULL
+      if (length(private$cols_data_wide_) > 0) data_wide <- self$data_wide
 
       # implement group rates
       private$group_rates_$implement(data_wide, private$info_data_wide_)
@@ -191,20 +189,21 @@ HousepiModel <- R6::R6Class(
       # proceed only if definitions exist and data loaded
       if (length(private$contact_rates_$defs) == 0) return(invisible(self))
 
-      # logic_table mode does not require data
-      is_logic_table <- identical(private$contact_rates_$defs[["mode"]],
-                                  "logic_table")
+      # custom mode does not require data
+      is_auto <- private$contact_rates_$defs[["mode"]] == "auto"
 
-      if (!is_logic_table && length(private$cols_data_wide_) == 0) {
+      if (is_auto && length(private$cols_data_wide_) == 0) {
         warning_h(
           "Missing data needed for building contact rates.",
           "Ensure to provide all necessary data before proceeding."
         )
         return(invisible(self))
       }
-      data_wide <- if (length(private$cols_data_wide_) > 0) {
-        self$data_wide
-      } else NULL
+
+      # load data_wide
+      # UPDATE: this "back & forth" of data_wide is sub-optimal...
+      data_wide <- NULL
+      if (length(private$cols_data_wide_) > 0) data_wide <- self$data_wide
 
       # implement contact rates
       private$contact_rates_$implement(data_wide, private$info_data_wide_)
@@ -834,21 +833,28 @@ HousepiModel <- R6::R6Class(
     #' @param prefix `r rd_grr_prefix_`
     #' @param reference `r rd_grr_refer_`
     #' @param joint `r rd_grr_joint_`
+    #' @param logic_table `r rd_grr_ltab_`
+    #' @param append `r rd_grr_append_`
+    #' @param params `r rd_grr_params_`
     #' @param prior `r rd_par_model_`
     #' @param ... `r rd_par_args_`
     #' @param min `r rd_var_min_`
     #' @param max `r rd_var_max_`
     #' @param proposal `r rd_var_proposal_`
     #' @param proposal_scale `r rd_proposal_scale_`
-    add_group_rate = function(name, by, prefix = NA_character_,
+    add_group_rate = function(name,
+                              by = NA_character_, prefix = NA_character_,
                               reference = NULL, joint = FALSE,
+                              logic_table = NULL, append = FALSE,
+                              params = NULL,
                               prior = NA_character_, ...,
                               min = NULL, max = NULL,
                               proposal = NA_character_,
                               proposal_scale = NA_real_) {
       private$group_rates_$add_quo(name = name, by = by, prefix = prefix,
-                                   reference = reference,
-                                   joint = joint,
+                                   reference = reference, joint = joint,
+                                   logic_table = logic_table,
+                                   append = append, params = params,
                                    prior = prior, rlang::enquos(...),
                                    min = rlang::enquo(min),
                                    max = rlang::enquo(max),

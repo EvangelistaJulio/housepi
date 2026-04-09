@@ -111,7 +111,8 @@ rd_aug_max_ <- paste(rd_var_max_, rd_types_)
 rd_grr_desc_ <- "Add definitions of a group rate by given data feature(s).
 Group rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
-\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]} with support \\eqn{[0, 10]}."
+\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]} with support \\eqn{[0, 10]}.
+Bypass automatic generation by providing a custom pre-built logic table."
 rd_grr_by_ <- "`list` Features associated to group rate as data headers.
 Corresponding data columns have to be categorical."
 rd_grr_prefix_ <- "`character(1)` Prefix to names of associated parameters.
@@ -120,6 +121,14 @@ rd_grr_refer_ <- "named `list` Features associated to reference group.
 Default is the group with the largest sample size."
 rd_grr_joint_ <- "`logical(1)` Consider features as joint.
 If `FALSE` features are independent (default)."
+rd_grr_ltab_ <- "`data.frame` Custom feature values and relative `param_name`.
+Use `.reference` in `param_name` for the reference group."
+rd_grr_append_ <- paste(
+  rd_list_append_, "Ignored if automatic definition."
+)
+rd_grr_params_ <- "named `list` Per-parameter MCMC setups as in `param_name`.
+Overrides shared prior/args for parameters specificied in the list.
+Ignored if automatic definition."
 
 ############################################################################
 ############################################################################

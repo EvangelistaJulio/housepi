@@ -447,13 +447,17 @@ Add definitions of a group rate by given data feature(s).
 Group rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
+Bypass automatic generation by providing a custom pre-built logic table.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_group_rate(
   name,
-  by,
+  by = NA_character_,
   prefix = NA_character_,
   reference = NULL,
   joint = FALSE,
+  logic_table = NULL,
+  append = FALSE,
+  params = NULL,
   prior = NA_character_,
   ...,
   min = NULL,
@@ -479,6 +483,16 @@ Default is the group with the largest sample size.}
 
 \item{\code{joint}}{\code{logical(1)} Consider features as joint.
 If \code{FALSE} features are independent (default).}
+
+\item{\code{logic_table}}{\code{data.frame} Custom feature values and relative \code{param_name}.
+Use \code{.reference} in \code{param_name} for the reference group.}
+
+\item{\code{append}}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions (default). Ignored if automatic definition.}
+
+\item{\code{params}}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
+Overrides shared prior/args for parameters specificied in the list.
+Ignored if automatic definition.}
 
 \item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 

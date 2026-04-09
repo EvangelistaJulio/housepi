@@ -334,6 +334,9 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param prefix `r rd_grr_prefix_`
 #' @param reference `r rd_grr_refer_`
 #' @param joint `r rd_grr_joint_`
+#' @param logic_table `r rd_grr_ltab_`
+#' @param append `r rd_grr_append_`
+#' @param params `r rd_grr_params_`
 #' @param prior `r rd_par_model_`
 #' @param ... `r rd_par_args_`
 #' @param min `r rd_var_min_`
@@ -349,8 +352,9 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @return `r rd_model_out_`
 #' @export
 add_group_rate <-  function(hhmodel,
-                            name, by, prefix = NA_character_,
+                            name, by = NA_character_, prefix = NA_character_,
                             reference = NULL, joint = FALSE,
+                            logic_table = NULL, append = FALSE, params = NULL,
                             prior = NA_character_, ...,
                             min = NULL, max = NULL,
                             proposal = NA_character_,
@@ -360,49 +364,10 @@ add_group_rate <-  function(hhmodel,
   new_obj$.__enclos_env__$private$group_rates_$add_quo(
     name = name, by = by, prefix = prefix,
     reference = reference, joint = joint,
+    logic_table = logic_table, append = append, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
-  )
-  new_obj
-}
-
-#' @title Add group rate from logic table
-#' @description
-#' Define a group rate by providing a pre-built logic table directly,
-#' bypassing automatic generation from data.
-#' @param hhmodel `r rd_model_in_`
-#' @param name `r rd_grr_name_`
-#' @param logic_table `data.frame` with a `param_name` column and
-#' feature columns. Use `.reference` in `param_name` for the reference group.
-#' @param params `list`. Named list of per-parameter MCMC setups
-#' (keyed by `param_name`). Overrides shared prior/args for specific
-#' parameters.
-#' @param prior `r rd_par_model_`
-#' @param ... `r rd_par_args_`
-#' @param min `r rd_var_min_`
-#' @param max `r rd_var_max_`
-#' @param proposal `r rd_var_proposal_`
-#' @param proposal_scale `r rd_proposal_scale_`
-#' @param append `logical(1)`. If `TRUE`, appends to an existing
-#' logic-table-mode entry for the same rate name.
-#' @return `r rd_model_out_`
-#' @export
-add_group_rate_table <- function(hhmodel, name, logic_table,
-                                 params = list(),
-                                 prior = NA_character_, ...,
-                                 min = NULL, max = NULL,
-                                 proposal = NA_character_,
-                                 proposal_scale = NA_real_,
-                                 append = FALSE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$group_rates_$add_logic_table(
-    name = name, logic_table = logic_table, params = params,
-    prior = prior, rlang::enquos(...),
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale,
-    append = append
   )
   new_obj
 }

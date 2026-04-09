@@ -179,22 +179,37 @@ test_that("run_simulation wrapper returns data.frame", {
   expect_true(all(c("id", "house_id", "status") %in% colnames(result)))
 })
 
-test_that("Group rate and infectivity profile wrappers", {
+test_that("Group rate wrappers", {
   hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-
-  # UPDATE: deep copy of data is slowing everything down!
   hhmodel$add_data_wide(helper_test_get_data("flu_2014_matsumoto"))
-  # FIXME: this is taking forever... it's the copy!
   hhmodel <- add_group_rate(hhmodel, "community", by = "member")
-  # FIXME: ...this also!
   groups_1 <- get_group_rates(hhmodel)
   expect_true(is.data.frame(groups_1))
   expect_true(nrow(groups_1) > 0)
 
-  # FIXME: similarly is the following
   result <- load_group_rate_list(hhmodel, community = "member")
   groups_2 <- get_group_rates(result)
   expect_identical(groups_1, groups_2)
+  
+  # load custom definitions
+  hhmodel <- hhmodel |>
+    load_group_rate_list(
+      susceptibility = list(
+        logic_table = data.frame(member = c("student", NA),
+                                 param_name = c("sus_student", ".reference")),
+        params = list(sus_student = 1.23)
+      )
+  )
+  expect_equal(subset(hhmodel$parameters, name == "sus_student")$value, 1.23)
+  
+  # check for non-existing custom features
+  hhmodel <- drop_group_rates(hhmodel)
+  hhmodel <- add_group_rate(
+    hhmodel, "susceptibility",
+    logic_table = data.frame(member = c("kaiju", NA),
+                             param_name = c("sus_student", ".reference"))
+  )
+  expect_error(hhmodel$group_rates, regexp = "unobserved")
 })
 
 test_that("add_infec_profile and load_infec_profile_list work", {

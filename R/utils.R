@@ -28,6 +28,15 @@ stop_read_only <- function(active) {
   stop_h(sprintf("'%s' is read only.", active))
 }
 
+#' Return 's' if length of input is larger than 1.
+#' @param input `vector()`
+#' @param true `character(1)`
+#' @param false `character(1)`
+#' @noRd
+as_plural <- function(input, true = "s", false = "") {
+  ifelse(length(input) > 1, true, false)
+}
+
 #' Collapse a character vector into string of quoted words.
 #' @param mylist `character()`. List to be printed.
 #' @param max_print `integer(1)`. Maximum number of elements to print.
@@ -81,7 +90,7 @@ find_closest_match <- function(input, options, min_dist = 1) {
 
     if (!all(idxs)) output <- c(output,
       sprintf("Available option%s %s",
-              ifelse(length(options) > 1, "s are:", " is"),
+              as_plural(options, "s are:", " is"),
               character_to_string_list(options))
     )
   }

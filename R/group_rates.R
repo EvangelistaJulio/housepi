@@ -23,7 +23,7 @@ assert_valid_features <- function(features) {
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
     sprintf("Impossible to associate rate to feature%s %s",
-            ifelse(length(forbidden) > 1, "s:", ""),
+            as_plural(forbidden, "s:"),
             character_to_string_list(forbidden)),
     "These names are reserved.",
     "Please, change feature and/or corresponding data columns."
@@ -40,7 +40,7 @@ assert_data_features <- function(features, headers) {
   missing <- setdiff(features, headers)
   if (length(missing) > 0) stop_h(
     sprintf("Unknown feature%s %s",
-            ifelse(length(missing) > 1, "s:", ""),
+            as_plural(missing, "s:"),
             character_to_string_list(missing)),
     "Please check your data headers."
   )
@@ -246,7 +246,168 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value)
+    deep_clone = function(name, value) helper_clone(value),
+
+    # Add rate definition in automatic mode.
+    helper_auto_add_ = function(name, by,
+                                prefix = NA_character_,
+                                reference = NULL,
+                                joint = FALSE,
+                                .warn_over = TRUE) {
+      assert_valid_features(by)
+      # remove previous definition if it exists
+      rmv_name <- self$remove(name)
+
+      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
+      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+
+      # load reference
+      if (!is.null(reference)) {
+        if (length(by) != length(reference)) stop_h(
+          "Arguments 'by' and 'reference' should have the same dimension."
+        )
+        else if (length(setdiff(names(reference), by)) != 0) stop_h(
+          "Unrecognized names in reference list."
+        )
+        reference <- as.list(reference)
+        reference <- stats::setNames(reference, by)
+      }
+
+      # add new definition
+      self$defs[[name]] <- list(by = by, prefix = prefix,
+                                reference = reference, joint = joint,
+                                mode = "auto")
+      invisible(self)
+    },
+
+    # Add rate definition in custom mode.
+    helper_custom_add_ = function(name, logic_table,
+                                  append = FALSE,
+                                  params = NULL,
+                                  .warn_over = TRUE) {
+      assert_valid_logic_table(logic_table)
+      # validate params keys against logic table param_names
+      if (length(params) > 0) {
+        valid_names <- setdiff(logic_table$param_name, ".reference")
+        unknown <- setdiff(names(params), valid_names)
+        if (length(unknown) > 0) stop_h(
+          sprintf("Unknown parameter%s %s in 'params'.",
+                  as_plural(unknown),
+                  character_to_string_list(unknown))
+        )
+      }
+      # handle append vs replace
+      if (isFALSE(append) || self$defs[[name]][["mode"]] == "auto") {
+        # remove previous definition
+        self$logic_tables[[name]] <- NULL
+        self$param_overrides[[name]] <- NULL
+        rmv_name <- self$remove(name)
+        if (.warn_over) template_overwrite_warn(rmv_name, self$family)
+        else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+      }
+
+      # append to existing logic_table-mode entry
+      self$logic_tables[[name]] <- c(self$logic_tables[[name]],
+                                     list(logic_table))
+      # merge param overrides
+      self$param_overrides[[name]] <- c(self$param_overrides[[name]],
+                                        params)
+
+      # store a sentinel definition
+      by <- setdiff(unique(unlist(lapply(self$logic_tables[[name]], colnames))),
+                    "param_name")
+      self$defs[[name]] <- list(by = by, prefix = NA_character_,
+                                reference = NULL, joint = FALSE,
+                                mode = "custom")
+      invisible(self)
+    },
+
+    # Implement through automatic mode.
+    helper_implement_auto_ = function(rate_id, data_wide, factor_info) {
+      this_def <- self$defs[[rate_id]] # definition of the rate
+      features <- as.list(this_def[["by"]]) # data features
+
+      if (all(is.na(features))) {
+        self$logic_tables[[rate_id]] <- list()
+        return(invisible(self))
+      }
+
+      features <- sort(as.character(features[!is.na(features)]))
+      assert_data_features(features, colnames(data_wide))
+
+      # cast to list if joint
+      if (isTRUE(this_def[["joint"]])) features <- list(features)
+
+      # default prefix
+      prefix <- as.character(this_def[["prefix"]])
+      if (is.na(prefix)) prefix <- substring(tolower(rate_id), 1, 3)
+
+      new_logic_table <- list()
+      for (this_feat in features) {
+        # 1. create logic table with group rates
+        this_table <- group_rate_logic_table(data_wide, this_feat)
+        # associate names for parameters
+        this_table <- associate_param_names(
+          this_table, prefix, this_def$reference
+        )
+        new_logic_table[[length(new_logic_table) + 1]] <- this_table
+
+        # 2. create relative cpp script chunk
+        # factorize according to external factor information
+        for (col in names(factor_info)) {
+          lv <- factor_info[[col]]$levels
+          if (is.null(lv)) stop_h(
+            "Wrong group rate definition: '", col, "' has no levels."
+          )
+
+          if (col %in% colnames(this_table)) {
+            this_table[[col]] <- factor(this_table[[col]],
+                                        levels = lv,
+                                        labels = seq_along(lv))
+          }
+        }
+        # concatenate new lines to the script
+        # mask reference case
+        mask <- this_table$param_name == ".reference"
+
+        # store the new rate logic table
+        self$logic_tables[[rate_id]] <- new_logic_table
+      }
+    },
+
+    # Validate custom mode logic table against data, then add counts.
+    helper_implement_custom_ = function(rate_id, data_wide) {
+      for (ti in seq_along(self$logic_tables[[rate_id]])) {
+        tbl <- self$logic_tables[[rate_id]][[ti]]
+        feat_cols <- setdiff(colnames(tbl), c("param_name", "n"))
+        # validate that feature columns exist in data
+        assert_data_features(feat_cols, colnames(data_wide))
+        # validate that feature values exist in data
+        for (col in feat_cols) {
+          vals <- tbl[[col]][!is.na(tbl[[col]])]
+          data_vals <- unique(data_wide[[col]])
+          missing_vals <- setdiff(as.character(vals),
+                                  as.character(data_vals))
+          if (length(missing_vals) > 0) stop_h(
+            sprintf("Data column '%s' contains unobserved value%s %s",
+                    col, as_plural(missing_vals, "s:"),
+                    character_to_string_list(missing_vals))
+          )
+        }
+        # add counts
+        tbl$n <- apply(tbl[feat_cols], 1, function(row) {
+          mask <- rep(TRUE, nrow(data_wide))
+          for (col in feat_cols) {
+            if (is.na(row[[col]])) next
+            mask <- mask & (as.character(data_wide[[col]]) ==
+                              as.character(row[[col]]))
+          }
+          sum(mask)
+        })
+        self$logic_tables[[rate_id]][[ti]] <- tbl
+      }
+      invisible(self)
+    }
   ),
 
   ############################################################################
@@ -371,25 +532,31 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @inherit add_group_rate
-    add_quo = function(name, by,
-                       prefix = NA_character_,
-                       reference = NULL,
-                       joint = FALSE,
+    add_quo = function(name,
+                       by = NA_character_, prefix = NA_character_,
+                       reference = NULL, joint = FALSE,
+                       logic_table = NULL, append = FALSE, params = NULL,
                        prior = NA_character_, ...,
                        min = NULL, max = NULL,
-                       proposal = NA_character_,
-                       proposal_scale = NA_real_,
+                       proposal = NA_character_, proposal_scale = NA_real_,
                        .warn_over = TRUE) {
-      # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       by <- housepi_smart_unwrap(by, "by")
+      # control valid name
+      assert_valid_definition_name(name, self$family, !is.na(by))
+      logic_table <- housepi_smart_unwrap(logic_table, "logic_table")
+      params <- housepi_smart_unwrap(params, "params")
+
+      # automatic definition
       prefix <- housepi_smart_unwrap(prefix, "prefix")
       reference <- housepi_smart_unwrap(reference, "reference")
       joint <- isTRUE(housepi_smart_unwrap(joint, "joint"))
+
+      # raw parameter definition
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
-      # load quosures # to be UPDATEd
+      # load quosures
       min <- housepi_smart_unwrap(min, "min")
       if (is.null(min)) min <- NA_real_
       max <- housepi_smart_unwrap(max, "max")
@@ -398,35 +565,25 @@ HousepiGroupRate <- R6::R6Class(
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
       args <- housepi_extractor(!!!dots)
 
-      # control valid name
-      assert_valid_definition_name(name, self$family, !is.na(by))
+      # distinguish between automatic and custom definitions
+      is_auto <- !all(is.na(by))
+      is_custom <- !is.null(logic_table)
 
-      # remove previous definition if it exists
-      rmv_name <- self$remove(name)
+      if (is_auto && is_custom) stop_h(
+        "Impossible to provide at the same time 'by' and 'logic_table'.",
+        "Choose 'by' for automatic definitions, 'logic_table' for custom."
+      )
+      else if (is_auto) private$helper_auto_add_(
+        name = name, by = by, prefix = prefix, reference = reference,
+        joint = joint, .warn_over = .warn_over
+      )
+      else if (is_custom) private$helper_custom_add_(
+        name = name, logic_table = logic_table, append = append,
+        params = params, .warn_over = .warn_over
+      )
+      else return(invisible(self))
 
-      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
-      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
-
-      # check that features are correct
-      assert_valid_features(by)
-
-      # load reference
-      if (!is.null(reference)) {
-        if (length(by) != length(reference)) stop_h(
-          "Arguments 'by' and 'reference' should have the same dimension."
-        )
-        else if (length(setdiff(names(reference), by)) != 0) stop_h(
-          "Unrecognized names in reference list."
-        )
-        reference <- as.list(reference)
-        reference <- stats::setNames(reference, by)
-      }
-
-      # add new definition
-      self$defs[[name]] <- list(by = by, prefix = prefix,
-                                reference = reference, joint = joint)
-
-      # add parameter definitions
+      # store shared MCMC setup (eventually overwrite)
       self$raw_params[[name]] <- set_group_rates_mcmc_setup(
         prior = prior, args = args, min = min, max = max,
         proposal = proposal, proposal_scale = proposal_scale
@@ -448,149 +605,24 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @description
-    #' Add a group rate from a user-provided logic table.
-    #' @param name `character(1)`. Name of the group rate.
-    #' @param logic_table `data.frame` with `param_name` column
-    #' and feature columns.
-    #' @param params `list`. Named list of per-parameter MCMC setups.
-    #' @param prior,min,max,proposal,proposal_scale
-    #' Shared MCMC setup (fallback for parameters not in `params`).
-    #' @param ... Additional prior arguments.
-    #' @param append `logical(1)`. Append to existing logic table.
-    #' @param .warn_over `logical(1)`. Show overwrite warning.
-    add_logic_table = function(name, logic_table,
-                               append = FALSE,
-                               params = NULL,
-                               prior = NA_character_, ...,
-                               min = NULL, max = NULL,
-                               proposal = NA_character_,
-                               proposal_scale = NA_real_,
-                               .warn_over = TRUE) {
-      # unwrap quosures
-      name <- housepi_smart_unwrap(name, "name")
-      prior <- housepi_smart_unwrap(prior, "prior")
-      proposal <- housepi_smart_unwrap(proposal, "proposal")
-      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
-      min <- housepi_smart_unwrap(min, "min")
-      if (is.null(min)) min <- NA_real_
-      max <- housepi_smart_unwrap(max, "max")
-      if (is.null(max)) max <- NA_real_
-      dots <- list(...)
-      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      args <- housepi_extractor(!!!dots)
-
-      # validate name
-      assert_valid_definition_name(name, self$family, TRUE)
-
-      # validate logic table
-      assert_valid_logic_table(logic_table)
-
-      # add n column if missing
-      # FLAG
-      if (!"n" %in% colnames(logic_table)) {
-        logic_table$n <- NA_integer_
-      }
-
-      # handle append vs replace
-      if (isTRUE(append) && self$defs[[name]][["mode"]] == "logic_table") {
-        # append to existing logic_table-mode entry
-        self$logic_tables[[name]] <- c(self$logic_tables[[name]],
-                                       list(logic_table))
-        # merge param overrides
-        self$param_overrides[[name]] <- c(self$param_overrides[[name]], params)
-      } else {
-        # remove previous definition
-        rmv_name <- self$remove(name)
-        if (.warn_over) template_overwrite_warn(rmv_name, self$family)
-        else self$store_warn_over <- c(self$store_warn_over, rmv_name)
-
-        # store sentinel definition
-        self$defs[[name]] <- list(by = NA_character_, prefix = NA_character_,
-                                  reference = NULL, joint = FALSE,
-                                  mode = "logic_table")
-
-        # store shared MCMC setup
-        self$raw_params[[name]] <- set_group_rates_mcmc_setup(
-          prior = prior, args = args, min = min, max = max,
-          proposal = proposal, proposal_scale = proposal_scale
-        )
-
-        # store logic table and param overrides
-        self$logic_tables[[name]] <- list(logic_table)
-        self$param_overrides[[name]] <- params
-      }
-
-      # reorder
-      y <- sort(names(self$defs))
-      self$defs <- self$defs[y]
-      self$raw_params <- self$raw_params[y]
-
-      invisible(self)
-    },
-
-    #' @description
     #' Implement group rate definition according to data.
     #' @param data_wide
     #' A `data.frame` with the dataset to be considered.
     #' @param factor_info
     #' A `list` with the levels for each factorized feature.
     implement = function(data_wide, factor_info) {
-      # preserve logic_table-mode entries, clear only by-mode entries
-      lt_mode <- names(Filter(
-        function(d) identical(d[["mode"]], "logic_table"), self$defs
-      ))
-      self$logic_tables <- self$logic_tables[lt_mode]
+      # preserve custom-mode entries and drop auto-mode entries
+      mask_custom <- names(which(vapply(
+        self$defs, function(d) d[["mode"]] == "custom", logical(1)
+      )))
+      self$logic_tables <- self$logic_tables[mask_custom]
 
       for (rate_id in names(self$defs)) {
-        this_def <- self$defs[[rate_id]] # definition of the rate
-
-        # skip logic_table mode -- already stored directly
-        if (identical(this_def[["mode"]], "logic_table")) next
-        features <- as.list(this_def[["by"]]) # data features
-
-        new_logic_table <- list()
-        if (!all(is.na(features))) {
-          features <- sort(as.character(features[!is.na(features)]))
-          assert_data_features(features, colnames(data_wide))
-
-          # cast to list if joint
-          if (isTRUE(this_def[["joint"]])) features <- list(features)
-
-          # default prefix
-          prefix <- as.character(this_def[["prefix"]])
-          if (is.na(prefix)) prefix <- substring(tolower(rate_id), 1, 3)
-
-          for (this_feat in features) {
-            # 1. create logic table with group rates
-            this_table <- group_rate_logic_table(data_wide, this_feat)
-            # associate names for parameters
-            this_table <- associate_param_names(
-              this_table, prefix, this_def$reference
-            )
-            new_logic_table[[length(new_logic_table) + 1]] <- this_table
-
-            # 2. create relative cpp script chunk
-            # factorize according to external factor information
-            for (col in names(factor_info)) {
-              lv <- factor_info[[col]]$levels
-              if (is.null(lv)) stop_h(
-                "Wrong group rate definition: '", col, "' has no levels."
-              )
-
-              if (col %in% colnames(this_table)) {
-                this_table[[col]] <- factor(this_table[[col]],
-                                            levels = lv,
-                                            labels = seq_along(lv))
-              }
-            }
-            # concatenate new lines to the script
-            # mask reference case
-            mask <- this_table$param_name == ".reference"
-          }
+        if (self$defs[[rate_id]][["mode"]] == "auto") {
+          private$helper_implement_auto_(rate_id, data_wide, factor_info)
+        } else {
+          private$helper_implement_custom_(rate_id, data_wide)
         }
-
-        # store the new rate logic table
-        self$logic_tables[[rate_id]] <- new_logic_table
       }
 
       invisible(self)
@@ -611,7 +643,7 @@ HousepiGroupRate <- R6::R6Class(
       if (length(notused) > 0) {
         sms <- c(
           sprintf("Dropped unused group rate%s %s",
-                  ifelse(length(notused) > 1, "s:", ""),
+                  as_plural(notused, "s:"),
                   character_to_string_list(notused)),
           find_closest_match(notused, required, min_dist = 3)
         )
@@ -701,10 +733,8 @@ associate_contact_param_names <- function(this_table, prefix, reference) {
   }
 
   # format prefix
-  prefix <- ifelse(
-    prefix == "" || !is.character(prefix),
-    "", paste0(prefix, "_")
-  )
+  prefix <- ifelse(prefix == "" || !is.character(prefix),
+                   "", paste0(prefix, "_"))
 
   # associate parameter names
   this_table$param_name <- apply(
@@ -931,7 +961,7 @@ HousepiContactRate <- R6::R6Class(
 
       # store sentinel definition
       self$defs <- list(by = NA_character_, prefix = NA_character_,
-                        reference = NULL, mode = "logic_table")
+                        reference = NULL, mode = "custom")
 
       # store shared MCMC setup
       self$raw_params <- set_group_rates_mcmc_setup(
@@ -952,7 +982,7 @@ HousepiContactRate <- R6::R6Class(
     #' @param factor_info A list with levels for each factorized feature.
     implement = function(data_wide, factor_info) {
       # skip if logic_table mode -- already stored directly
-      if (identical(self$defs[["mode"]], "logic_table")) {
+      if (self$defs[["mode"]] == "custom") {
         return(invisible(self))
       }
 
@@ -984,7 +1014,7 @@ HousepiContactRate <- R6::R6Class(
     assert = function(mcmc_ptr) {
       has_defs <- length(self$defs) > 0 &&
         (!all(is.na(self$defs[["by"]])) ||
-           identical(self$defs[["mode"]], "logic_table"))
+           self$defs[["mode"]] == "custom")
       has_model <- .engine$has_contact_rates(mcmc_ptr)
       if (has_defs && !has_model) stop_h(
         "Contact rates are defined but the loaded model does not use them.",
