@@ -367,6 +367,46 @@ add_group_rate <-  function(hhmodel,
   new_obj
 }
 
+#' @title Add group rate from logic table
+#' @description
+#' Define a group rate by providing a pre-built logic table directly,
+#' bypassing automatic generation from data.
+#' @param hhmodel `r rd_model_in_`
+#' @param name `r rd_grr_name_`
+#' @param logic_table `data.frame` with a `param_name` column and
+#' feature columns. Use `.reference` in `param_name` for the reference group.
+#' @param params `list`. Named list of per-parameter MCMC setups
+#' (keyed by `param_name`). Overrides shared prior/args for specific
+#' parameters.
+#' @param prior `r rd_par_model_`
+#' @param ... `r rd_par_args_`
+#' @param min `r rd_var_min_`
+#' @param max `r rd_var_max_`
+#' @param proposal `r rd_var_proposal_`
+#' @param proposal_scale `r rd_proposal_scale_`
+#' @param append `logical(1)`. If `TRUE`, appends to an existing
+#' logic-table-mode entry for the same rate name.
+#' @return `r rd_model_out_`
+#' @export
+add_group_rate_table <- function(hhmodel, name, logic_table,
+                                 params = list(),
+                                 prior = NA_character_, ...,
+                                 min = NULL, max = NULL,
+                                 proposal = NA_character_,
+                                 proposal_scale = NA_real_,
+                                 append = FALSE) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$.__enclos_env__$private$group_rates_$add_logic_table(
+    name = name, logic_table = logic_table, params = params,
+    prior = prior, rlang::enquos(...),
+    min = rlang::enquo(min), max = rlang::enquo(max),
+    proposal = proposal, proposal_scale = proposal_scale,
+    append = append
+  )
+  new_obj
+}
+
 ############################################################################
 ############################################################################
 ############################################################################
@@ -399,6 +439,41 @@ add_contact_rate <- function(hhmodel, by, prefix = "cr",
   new_obj$.__enclos_env__$private$contact_rates_$add_quo(
     by = by, prefix = prefix,
     reference = reference,
+    prior = prior, rlang::enquos(...),
+    min = rlang::enquo(min), max = rlang::enquo(max),
+    proposal = proposal, proposal_scale = proposal_scale
+  )
+  new_obj
+}
+
+#' @title Add contact rate from logic table
+#' @description
+#' Define a contact rate by providing a pre-built logic table directly,
+#' bypassing automatic generation from data.
+#' @param hhmodel `r rd_model_in_`
+#' @param logic_table `data.frame` with a `param_name` column and
+#' feature columns. Use `.reference` in `param_name` for the reference pair.
+#' @param params `list`. Named list of per-parameter MCMC setups
+#' (keyed by `param_name`). Overrides shared prior/args for specific
+#' parameters.
+#' @param prior `r rd_par_model_`
+#' @param ... `r rd_par_args_`
+#' @param min `r rd_var_min_`
+#' @param max `r rd_var_max_`
+#' @param proposal `r rd_var_proposal_`
+#' @param proposal_scale `r rd_proposal_scale_`
+#' @return `r rd_model_out_`
+#' @export
+add_contact_rate_table <- function(hhmodel, logic_table,
+                                   params = list(),
+                                   prior = NA_character_, ...,
+                                   min = NULL, max = NULL,
+                                   proposal = NA_character_,
+                                   proposal_scale = NA_real_) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$.__enclos_env__$private$contact_rates_$add_logic_table(
+    logic_table = logic_table, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale

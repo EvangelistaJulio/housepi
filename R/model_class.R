@@ -149,7 +149,13 @@ HousepiModel <- R6::R6Class(
     build_group_rates_ = function() {
       # proceed only if definitions exist and data loaded
       if (length(private$group_rates_$defs) == 0) return(invisible(self))
-      if (length(private$cols_data_wide_) == 0) {
+
+      # check if any defs actually need data (non-logic_table mode)
+      needs_data <- any(sapply(private$group_rates_$defs, function(d) {
+        !identical(d[["mode"]], "logic_table") && !all(is.na(d[["by"]]))
+      }))
+
+      if (needs_data && length(private$cols_data_wide_) == 0) {
         warning_h(
           "Missing data needed for building group rates.",
           "Ensure to provide all necessary data before proceeding."
@@ -159,7 +165,9 @@ HousepiModel <- R6::R6Class(
       # load data_wide
       # UPDATE: this "back & forth" of data_wide is not optimal!
       # UPDATE: count in the wrapper while storing data_wide_levels
-      data_wide <- self$data_wide
+      data_wide <- if (length(private$cols_data_wide_) > 0) {
+        self$data_wide
+      } else NULL
 
       # implement group rates
       private$group_rates_$implement(data_wide, private$info_data_wide_)
@@ -182,14 +190,21 @@ HousepiModel <- R6::R6Class(
     build_contact_rates_ = function() {
       # proceed only if definitions exist and data loaded
       if (length(private$contact_rates_$defs) == 0) return(invisible(self))
-      if (length(private$cols_data_wide_) == 0) {
+
+      # logic_table mode does not require data
+      is_logic_table <- identical(private$contact_rates_$defs[["mode"]],
+                                  "logic_table")
+
+      if (!is_logic_table && length(private$cols_data_wide_) == 0) {
         warning_h(
           "Missing data needed for building contact rates.",
           "Ensure to provide all necessary data before proceeding."
         )
         return(invisible(self))
       }
-      data_wide <- self$data_wide
+      data_wide <- if (length(private$cols_data_wide_) > 0) {
+        self$data_wide
+      } else NULL
 
       # implement contact rates
       private$contact_rates_$implement(data_wide, private$info_data_wide_)

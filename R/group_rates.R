@@ -60,6 +60,31 @@ assess_feature_values <- function(this_table) {
   colmask
 }
 
+#' Assert that a user-provided logic table is valid.
+#' @param logic_table `data.frame` with a `param_name` column.
+#' @keywords internal
+#' @noRd
+assert_valid_logic_table <- function(logic_table) {
+  if (!is.data.frame(logic_table)) stop_h(
+    "Argument 'logic_table' must be a data.frame."
+  )
+  if (!"param_name" %in% colnames(logic_table)) stop_h(
+    "Logic table must contain a 'param_name' column."
+  )
+  if (nrow(logic_table) == 0) stop_h(
+    "Logic table must contain at least one row."
+  )
+  # check for duplicate param_names
+  dupes <- duplicated(logic_table$param_name)
+  if (any(dupes)) stop_h(
+    sprintf("Duplicate param_name values: %s",
+            character_to_string_list(unique(logic_table$param_name[dupes])))
+  )
+  # validate feature column names
+  feature_cols <- setdiff(colnames(logic_table), c("param_name", "n"))
+  assert_valid_features(feature_cols)
+}
+
 #' Return logic table of group rates
 #' @param data_wide Data from which to extract group rates
 #' @param this_feat Feature as list of data column names.
@@ -235,9 +260,14 @@ HousepiGroupRate <- R6::R6Class(
       if (!missing(value)) stop_read_only("parameters")
       new_params <- list()
       for (rate_id in names(self$logic_tables)) {
+        overrides <- self$param_overrides[[rate_id]]
         for (this_table in self$logic_tables[[rate_id]]) {
           for (par_id in setdiff(this_table$param_name, c(".reference"))) {
-            new_params[[par_id]] <- self$raw_params[[rate_id]]
+            if (!is.null(overrides) && !is.null(overrides[[par_id]])) {
+              new_params[[par_id]] <- overrides[[par_id]]
+            } else {
+              new_params[[par_id]] <- self$raw_params[[rate_id]]
+            }
           }
         }
       }
@@ -290,6 +320,10 @@ HousepiGroupRate <- R6::R6Class(
     #' @field raw_params `list`. Raw parameter definitions.
     raw_params = list(),
 
+    #' @field param_overrides `list`.
+    #' Per-parameter MCMC overrides keyed by rate name.
+    param_overrides = list(),
+
     #' @field logic_tables `list`.
     #' Table of parameters associated to each group rate.
     logic_tables = list(),
@@ -300,6 +334,7 @@ HousepiGroupRate <- R6::R6Class(
       self$defs <- list()
       self$logic_tables <- list()
       self$raw_params <- list()
+      self$param_overrides <- list()
       invisible(self)
     },
 
@@ -325,6 +360,7 @@ HousepiGroupRate <- R6::R6Class(
         self$defs[name] <- NULL
         self$logic_tables[name] <- NULL
         self$raw_params[name] <- NULL
+        self$param_overrides[name] <- NULL
         if (!placeholder) return(name)
 
       } else if (isTRUE(warn_removal)) {
@@ -335,8 +371,10 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @inherit add_group_rate
-    add_quo = function(name, by, prefix = NA_character_,
-                       reference = NULL, joint = FALSE,
+    add_quo = function(name, by,
+                       prefix = NA_character_,
+                       reference = NULL,
+                       joint = FALSE,
                        prior = NA_character_, ...,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
@@ -410,16 +448,104 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @description
+    #' Add a group rate from a user-provided logic table.
+    #' @param name `character(1)`. Name of the group rate.
+    #' @param logic_table `data.frame` with `param_name` column
+    #' and feature columns.
+    #' @param params `list`. Named list of per-parameter MCMC setups.
+    #' @param prior,min,max,proposal,proposal_scale
+    #' Shared MCMC setup (fallback for parameters not in `params`).
+    #' @param ... Additional prior arguments.
+    #' @param append `logical(1)`. Append to existing logic table.
+    #' @param .warn_over `logical(1)`. Show overwrite warning.
+    add_logic_table = function(name, logic_table,
+                               append = FALSE,
+                               params = NULL,
+                               prior = NA_character_, ...,
+                               min = NULL, max = NULL,
+                               proposal = NA_character_,
+                               proposal_scale = NA_real_,
+                               .warn_over = TRUE) {
+      # unwrap quosures
+      name <- housepi_smart_unwrap(name, "name")
+      prior <- housepi_smart_unwrap(prior, "prior")
+      proposal <- housepi_smart_unwrap(proposal, "proposal")
+      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
+      min <- housepi_smart_unwrap(min, "min")
+      if (is.null(min)) min <- NA_real_
+      max <- housepi_smart_unwrap(max, "max")
+      if (is.null(max)) max <- NA_real_
+      dots <- list(...)
+      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
+      args <- housepi_extractor(!!!dots)
+
+      # validate name
+      assert_valid_definition_name(name, self$family, TRUE)
+
+      # validate logic table
+      assert_valid_logic_table(logic_table)
+
+      # add n column if missing
+      # FLAG
+      if (!"n" %in% colnames(logic_table)) {
+        logic_table$n <- NA_integer_
+      }
+
+      # handle append vs replace
+      if (isTRUE(append) && self$defs[[name]][["mode"]] == "logic_table") {
+        # append to existing logic_table-mode entry
+        self$logic_tables[[name]] <- c(self$logic_tables[[name]],
+                                       list(logic_table))
+        # merge param overrides
+        self$param_overrides[[name]] <- c(self$param_overrides[[name]], params)
+      } else {
+        # remove previous definition
+        rmv_name <- self$remove(name)
+        if (.warn_over) template_overwrite_warn(rmv_name, self$family)
+        else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+
+        # store sentinel definition
+        self$defs[[name]] <- list(by = NA_character_, prefix = NA_character_,
+                                  reference = NULL, joint = FALSE,
+                                  mode = "logic_table")
+
+        # store shared MCMC setup
+        self$raw_params[[name]] <- set_group_rates_mcmc_setup(
+          prior = prior, args = args, min = min, max = max,
+          proposal = proposal, proposal_scale = proposal_scale
+        )
+
+        # store logic table and param overrides
+        self$logic_tables[[name]] <- list(logic_table)
+        self$param_overrides[[name]] <- params
+      }
+
+      # reorder
+      y <- sort(names(self$defs))
+      self$defs <- self$defs[y]
+      self$raw_params <- self$raw_params[y]
+
+      invisible(self)
+    },
+
+    #' @description
     #' Implement group rate definition according to data.
     #' @param data_wide
     #' A `data.frame` with the dataset to be considered.
     #' @param factor_info
     #' A `list` with the levels for each factorized feature.
     implement = function(data_wide, factor_info) {
-      self$logic_tables <- list()
+      # preserve logic_table-mode entries, clear only by-mode entries
+      lt_mode <- names(Filter(
+        function(d) identical(d[["mode"]], "logic_table"), self$defs
+      ))
+      self$logic_tables <- self$logic_tables[lt_mode]
 
       for (rate_id in names(self$defs)) {
         this_def <- self$defs[[rate_id]] # definition of the rate
+
+        # skip logic_table mode -- already stored directly
+        if (identical(this_def[["mode"]], "logic_table")) next
         features <- as.list(this_def[["by"]]) # data features
 
         new_logic_table <- list()
@@ -621,7 +747,11 @@ HousepiContactRate <- R6::R6Class(
       new_params <- list()
       if (!is.null(self$logic_table)) {
         for (par_id in setdiff(self$logic_table$param_name, ".reference")) {
-          new_params[[par_id]] <- self$raw_params
+          if (!is.null(self$param_overrides[[par_id]])) {
+            new_params[[par_id]] <- self$param_overrides[[par_id]]
+          } else {
+            new_params[[par_id]] <- self$raw_params
+          }
         }
       }
       new_params
@@ -673,12 +803,17 @@ HousepiContactRate <- R6::R6Class(
     #' Table of parameters associated to contact rate pairs.
     logic_table = NULL,
 
+    #' @field param_overrides `list`.
+    #' Per-parameter MCMC overrides.
+    param_overrides = list(),
+
     #' @description
     #' New object of class [HousepiContactRate][housepi::HousepiContactRate].
     initialize = function() {
       self$defs <- list()
       self$raw_params <- list()
       self$logic_table <- NULL
+      self$param_overrides <- list()
       invisible(self)
     },
 
@@ -760,10 +895,67 @@ HousepiContactRate <- R6::R6Class(
     },
 
     #' @description
+    #' Add a contact rate from a user-provided logic table.
+    #' @param logic_table `data.frame` with `param_name` column
+    #' and feature columns.
+    #' @param params `list`. Named list of per-parameter MCMC setups.
+    #' @param prior,min,max,proposal,proposal_scale
+    #' Shared MCMC setup (fallback for parameters not in `params`).
+    #' @param ... Additional prior arguments.
+    #' @param .warn_over `logical(1)`. Show overwrite warning.
+    add_logic_table = function(logic_table, params = list(),
+                               prior = NA_character_, ...,
+                               min = NULL, max = NULL,
+                               proposal = NA_character_,
+                               proposal_scale = NA_real_,
+                               .warn_over = TRUE) {
+      # unwrap quosures
+      prior <- housepi_smart_unwrap(prior, "prior")
+      proposal <- housepi_smart_unwrap(proposal, "proposal")
+      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
+      min <- housepi_smart_unwrap(min, "min")
+      if (is.null(min)) min <- NA_real_
+      max <- housepi_smart_unwrap(max, "max")
+      if (is.null(max)) max <- NA_real_
+      dots <- list(...)
+      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
+      args <- housepi_extractor(!!!dots)
+
+      # validate logic table
+      assert_valid_logic_table(logic_table)
+
+      # warn overwrite
+      if (.warn_over && length(self$defs) > 0) {
+        warning_h("Overwriting previous contact rate definition.")
+      }
+
+      # store sentinel definition
+      self$defs <- list(by = NA_character_, prefix = NA_character_,
+                        reference = NULL, mode = "logic_table")
+
+      # store shared MCMC setup
+      self$raw_params <- set_group_rates_mcmc_setup(
+        prior = prior, args = args, min = min, max = max,
+        proposal = proposal, proposal_scale = proposal_scale
+      )
+
+      # store logic table and param overrides
+      self$logic_table <- logic_table
+      self$param_overrides <- params
+
+      invisible(self)
+    },
+
+    #' @description
     #' Implement contact rate definition according to data.
     #' @param data_wide A data.frame with the dataset.
     #' @param factor_info A list with levels for each factorized feature.
     implement = function(data_wide, factor_info) {
+      # skip if logic_table mode -- already stored directly
+      if (identical(self$defs[["mode"]], "logic_table")) {
+        return(invisible(self))
+      }
+
       self$logic_table <- NULL
 
       by <- self$defs[["by"]]
@@ -790,7 +982,9 @@ HousepiContactRate <- R6::R6Class(
     #' Assert that contact rate definitions are compatible with model.
     #' @param mcmc_ptr Rcpp pointer to MCMC object.
     assert = function(mcmc_ptr) {
-      has_defs <- length(self$defs) > 0 && !all(is.na(self$defs[["by"]]))
+      has_defs <- length(self$defs) > 0 &&
+        (!all(is.na(self$defs[["by"]])) ||
+           identical(self$defs[["mode"]], "logic_table"))
       has_model <- .engine$has_contact_rates(mcmc_ptr)
       if (has_defs && !has_model) stop_h(
         "Contact rates are defined but the loaded model does not use them.",
