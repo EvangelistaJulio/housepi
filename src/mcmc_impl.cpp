@@ -21,6 +21,7 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
+#include "model.h"
 #include "mcmc.h"
 #include "registry.h"
 #include "data_wide.h"
@@ -32,14 +33,51 @@
 #include "infec_profile.h"
 #include "augmented.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  *** MCMCBase : class ***  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
 namespace hsp
 {
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  *** ModelBase : class ***  ///////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Wheter hosuehold members i and j are equivalent in terms of rates.
+    /// Two members are in the same if group-rate attributes and
+    /// every contact-rate involving one matches the corresponding one involving the
+    /// other, both outgoing and incoming, across all other members.
+    bool ModelBase::is_same_rate_partition(const Household &house, size_t i, size_t j) const
+    {
+        if (i == j)
+            return true;
+
+        const Individual &member_i = house.member(i);
+        const Individual &member_j = house.member(j);
+
+        // check all rates
+        for (size_t g = 0; g < mcmc_->group_rate.pKeys->size(); ++g)
+            if (member_i.get_group_rate_attribute(g) != member_j.get_group_rate_attribute(g))
+                return false;
+
+        // check all contact rates
+        for (size_t k = 0; k < house.size(); ++k)
+        {
+            if (k == j || k == i)
+                continue;
+            if (house.get_contact_rate_attribute(i, k) != house.get_contact_rate_attribute(j, k))
+                return false;
+            if (house.get_contact_rate_attribute(k, i) != house.get_contact_rate_attribute(k, j))
+                return false;
+        }
+
+        return true;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  *** MCMCBase : class ***  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
     MCMCBase::MCMCBase() : pDataStore(std::make_shared<DataStore>()), augm(this) {}
     MCMCBase::~MCMCBase() = default;
 
@@ -223,7 +261,7 @@ namespace hsp
         }
 
         model->init_model_for_evaluation(); // user initialization of model for inference
-        data_wide().allocate_all_cache();     // allocate all cache dependencies
+        data_wide().allocate_all_cache();   // allocate all cache dependencies
 
         for (size_t R = 0; R < data_wide().restricted_size(); ++R)
             model->init_house_for_evaluation(data_wide().restricted(R));

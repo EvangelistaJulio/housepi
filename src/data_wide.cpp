@@ -34,12 +34,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 namespace hsp
 {
-    void Household::init_member(size_t index,
+    void Household::add_member(size_t index,
                                 const std::string &id,
                                 const Indiv::Wide *data_ptr)
     {
         size_t hhindex = size();
         members_.emplace_back();
+        ++house_size_;
 
         Individual &last = members_.back();
         last.index_ = index;
@@ -57,14 +58,16 @@ namespace hsp
             missing_list_.emplace_back(hhindex);
     }
 
-    void Household::helper_set_status_(Individual &member, int new_status)
+    void Household::helper_set_status_(size_t i, int new_status)
     {
+        Individual &member = members_[i];
+
+        // change member status and lists if setting a new status
         int old_status = member.status();
         if (new_status == old_status)
             return;
-
-        member.status_ = new_status; // change member status
-        size_t i = member.hhindex(); // get within house index
+        else
+            member.status_ = new_status;
 
         if (status::is_infected(old_status))
             infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
@@ -184,7 +187,7 @@ namespace hsp
             Household &house = house_vector_.at(hhid_to_index_.at(house_id));
 
             // assign the individual the respective household
-            house.init_member(i, id, &idata);
+            house.add_member(i, id, &idata);
         }
 
         // update report for data
@@ -519,8 +522,8 @@ namespace hsp
 
     void DataWide::recover_all_status() noexcept
     {
-        for(Household &house: house_vector_)
-            for(Individual &member : house)
-                house.helper_set_status_(member, member.pwide_->status);
+        for (Household &house : house_vector_)
+            for (size_t i = 0; i < house.size(); ++i)
+                house.helper_set_status_(i, house.member(i).pwide_->status);
     }
 }

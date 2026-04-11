@@ -41,6 +41,9 @@ public:
 		request_discrete_param(ParamKey::size_ref);
 	}
 
+	/// Allow for contact rate definitions.
+	bool has_contact_rates() const override final { return true; }
+
 	/// Initialize the LookUp Tables to largest possible values.
 	/// NOTE: missing status are not modeled.
 	void init_model_for_evaluation() override final
@@ -120,13 +123,15 @@ void Model::fill_house_escape_matrix(Household &house)
 		commu_mtx[i] = commu_rate * member_i.group_rate(GroupRateKey::community);
 
 		// person-to-person
-		for (size_t k = 0; k < i; ++k)
+		for (size_t j = 0; j < i; ++j)
 		{
-			const Individual &member_k = house.member(order[k]);
-			// [i] : infector -> [r] : infectee
-			p2p_mtx[i][k] = inf_i * p2p_rate * member_k.group_rate(GroupRateKey::susceptibility);
-			// [r] : infector -> [i] : infectee
-			p2p_mtx[k][i] = member_k.group_rate(GroupRateKey::infectivity) * p2p_rate * sus_i;
+			const Individual &member_j = house.member(order[j]);
+			// [i] : infector -> [j] : infectee
+			p2p_mtx[i][j] = inf_i * p2p_rate * house.contact_rate(i, j) *
+							member_j.group_rate(GroupRateKey::susceptibility);
+			// [j] : infector -> [i] : infectee
+			p2p_mtx[j][i] = member_j.group_rate(GroupRateKey::infectivity) *
+							p2p_rate * house.contact_rate(j, i) * sus_i;
 		}
 	}
 }
@@ -146,42 +151,45 @@ void Model::simulate_single_house(Household &house)
 	/////////////  Generation 0 : infection by community  ////////////
 	//////////////////////////////////////////////////////////////////
 
-	std::vector<Individual *> new_gen_set = {};
+	std::vector<size_t> new_gen_set = {};
 
-	for (Individual &member : house)
-		if (exponential() > commu_rate * member.group_rate(GroupRateKey::community))
-			house.set_susceptible_status(member);
+	for (size_t i = 0; i < house.size(); ++i)
+		if (exponential() > commu_rate * house.member(i).group_rate(GroupRateKey::community))
+			house.set_susceptible_status(i);
 		else
 		{
-			house.set_infected_status(member);
-			new_gen_set.push_back(&member);
+			house.set_infected_status(i);
+			new_gen_set.push_back(i);
 		}
 
 	//////////////////////////////////////////////////////////////////
 	//////  Generation >=1 : infection by previous generation  ///////
 	//////////////////////////////////////////////////////////////////
 
-	std::vector<Individual *> old_gen_set = {};
+	std::vector<size_t> old_gen_set = {};
 
 	while (house.n_susceptible_status() > 0 && !new_gen_set.empty())
 	{
 		std::swap(old_gen_set, new_gen_set);
 		new_gen_set.clear();
 
-		for (Individual &member_i : house)
+		for (size_t i = 0; i < house.size(); ++i)
 		{
+			Individual &member_i = house.member(i);
+
 			if (member_i.is_infected_status())
 				continue;
 
 			double r = 0.;
-			for (Individual *member_k : old_gen_set)
-				r += member_k->group_rate(GroupRateKey::infectivity);
+			for (size_t j : old_gen_set)
+				r += house.member(j).group_rate(GroupRateKey::infectivity) *
+					 house.contact_rate(j, i);
 
 			double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
 			if (exponential() < r * p2p_rate * sus_i)
 			{
-				house.set_infected_status(member_i);
-				new_gen_set.push_back(&member_i);
+				house.set_infected_status(i);
+				new_gen_set.push_back(i);
 			}
 		}
 	}

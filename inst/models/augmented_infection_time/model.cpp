@@ -47,6 +47,9 @@ public:
 		init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
 	}
 
+	/// Allow for contact rate definitions.
+	bool has_contact_rates() const override final { return true; }
+
 	/// NOTE: missing status are not modeled
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
@@ -111,11 +114,11 @@ public:
 		const double beta = transmission_rate(house.size());
 
 		double output = 0.;
-		for (size_t k : house.susceptible_hhindexes())
+		for (size_t s : house.susceptible_hhindexes())
 		{
-			const Individual &member_k = house.member(k);
-			const double alpha_cumul = alpha * (member_k.data(DataKey::end_followup) - t_intro);
-			output -= alpha_cumul * member_k.group_rate(GroupRateKey::community);
+			const Individual &member_s = house.member(s);
+			const double alpha_cumul = alpha * (member_s.data(DataKey::end_followup) - t_intro);
+			output -= alpha_cumul * member_s.group_rate(GroupRateKey::community);
 		}
 
 		for (size_t i : house.infected_hhindexes())
@@ -123,9 +126,10 @@ public:
 			const Individual &member_i = house.member(i);
 			const double mu_i = house.member(i).group_rate(GroupRateKey::infectivity);
 
-			for (size_t k : house.susceptible_hhindexes())
-				output -= mu_i * beta * cumul_mtx[i][k] *
-						  house.member(k).group_rate(GroupRateKey::susceptibility);
+			for (size_t s : house.susceptible_hhindexes())
+				output -= mu_i * beta * cumul_mtx[i][s] *
+						  house.contact_rate(i, s) *
+						  house.member(s).group_rate(GroupRateKey::susceptibility);
 
 			if (i == i0)
 				continue;
@@ -133,14 +137,15 @@ public:
 			// Risk of infection from other household members `k`
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
-			for (size_t k : house.infected_hhindexes())
+			for (size_t j : house.infected_hhindexes())
 			{
-				if (k == i)
+				if (j == i)
 					continue;
 
-				const double mu_k = house.member(k).group_rate(GroupRateKey::infectivity);
-				roi_inst_i += mu_k * inst_mtx[k][i];
-				roi_cumul_i += mu_k * cumul_mtx[k][i];
+				const double mu_ji = house.member(j).group_rate(GroupRateKey::infectivity) *
+									 house.contact_rate(j, i);
+				roi_inst_i += mu_ji * inst_mtx[j][i];
+				roi_cumul_i += mu_ji * cumul_mtx[j][i];
 			}
 
 			const double a_i = alpha * member_i.group_rate(GroupRateKey::community);
@@ -170,43 +175,43 @@ public:
 		std::vector<std::vector<double>> &inst_mtx,
 		std::vector<std::vector<double>> &cumul_mtx,
 		const Individual &member_i,
-		const Individual &member_k,
+		const Individual &member_j,
 		double t_infec_i,
-		double t_infec_k)
+		double t_infec_j)
 	{
 		const size_t i = member_i.hhindex();
-		const size_t k = member_k.hhindex();
-		const double gentime = t_infec_k - t_infec_i;
+		const size_t j = member_j.hhindex();
+		const double gentime = t_infec_j - t_infec_i;
 
 		// note: setting lut to 0 this is necessary because ROI is brute force
 		if (gentime > 0)
-		{ // `i` : infector, `k` : infectee
-			inst_mtx[i][k] = infec_profile_inst(member_i, gentime);
+		{ // `i` : infector, `j` : infectee
+			inst_mtx[i][j] = infec_profile_inst(member_i, gentime);
 #ifdef _HOUSEPI_DISCRETE_TIME
-			cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime - 1);
+			cumul_mtx[i][j] = infec_profile_cumul(member_i, gentime - 1);
 #else
-			cumul_mtx[i][k] = infec_profile_cumul(member_i, gentime);
+			cumul_mtx[i][j] = infec_profile_cumul(member_i, gentime);
 #endif
-			inst_mtx[k][i] = 0.0;
-			cumul_mtx[k][i] = 0.0;
+			inst_mtx[j][i] = 0.0;
+			cumul_mtx[j][i] = 0.0;
 		}
 		else if (gentime < 0)
 		{ // `k` : infector, `i` : infectee
-			inst_mtx[i][k] = 0.0;
-			cumul_mtx[i][k] = 0.0;
-			inst_mtx[k][i] = infec_profile_inst(member_k, -gentime);
+			inst_mtx[i][j] = 0.0;
+			cumul_mtx[i][j] = 0.0;
+			inst_mtx[j][i] = infec_profile_inst(member_j, -gentime);
 #ifdef _HOUSEPI_DISCRETE_TIME
-			cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime - 1);
+			cumul_mtx[j][i] = infec_profile_cumul(member_j, -gentime - 1);
 #else
-			cumul_mtx[k][i] = infec_profile_cumul(member_k, -gentime);
+			cumul_mtx[j][i] = infec_profile_cumul(member_j, -gentime);
 #endif
 		}
 		else
 		{
-			inst_mtx[i][k] = 0.0;
-			cumul_mtx[i][k] = 0.0;
-			inst_mtx[k][i] = 0.0;
-			cumul_mtx[k][i] = 0.0;
+			inst_mtx[i][j] = 0.0;
+			cumul_mtx[i][j] = 0.0;
+			inst_mtx[j][i] = 0.0;
+			cumul_mtx[j][i] = 0.0;
 		}
 	}
 
@@ -233,11 +238,11 @@ public:
 			//////  Susceptible Members  //////
 			///////////////////////////////////
 
-			for (size_t k : house.susceptible_hhindexes())
+			for (size_t s : house.susceptible_hhindexes())
 			{
-				double exposure = house.member(k).data(DataKey::end_followup) - t_infec_i;
-				cumul_mtx[i][k] = infec_profile_cumul(member_i, exposure);
-				cumul_mtx[k][i] = 0.0;
+				double exposure = house.member(s).data(DataKey::end_followup) - t_infec_i;
+				cumul_mtx[i][s] = infec_profile_cumul(member_i, exposure);
+				cumul_mtx[s][i] = 0.0;
 			}
 
 			///////////////////////////////////
@@ -246,13 +251,13 @@ public:
 
 			for (size_t b = a + 1; b < n_infec; ++b)
 			{
-				const size_t k = infected_hhindexes[b];
-				const Individual &member_k = house.member(k);
-				const double t_infec_k = member_k.aug(AugmKey::infec_time);
+				const size_t j = infected_hhindexes[b];
+				const Individual &member_j = house.member(j);
+				const double t_infec_j = member_j.aug(AugmKey::infec_time);
 
 				helper_update_pairwise_cache(inst_mtx, cumul_mtx,
-											 member_i, member_k,
-											 t_infec_i, t_infec_k);
+											 member_i, member_j,
+											 t_infec_i, t_infec_j);
 			}
 
 			// update household introduction case
@@ -278,11 +283,11 @@ public:
 		//////  Susceptible Members  //////
 		///////////////////////////////////
 
-		for (size_t k : house.susceptible_hhindexes())
+		for (size_t s : house.susceptible_hhindexes())
 		{
-			double exposure = house.member(k).data(DataKey::end_followup) - t_infec_i;
-			cumul_mtx[i][k] = infec_profile_cumul(member_i, exposure);
-			cumul_mtx[k][i] = 0.0;
+			double exposure = house.member(s).data(DataKey::end_followup) - t_infec_i;
+			cumul_mtx[i][s] = infec_profile_cumul(member_i, exposure);
+			cumul_mtx[s][i] = 0.0;
 		}
 
 		///////////////////////////////////
@@ -296,23 +301,23 @@ public:
 		i0 = i;
 		double new_t0 = t_infec_i;
 
-		for (size_t k : house.infected_hhindexes())
+		for (size_t j : house.infected_hhindexes())
 		{
-			if (k == i)
+			if (j == i)
 				continue;
 
-			const Individual &member_k = house.member(k);
-			const double t_infec_k = member_k.aug(AugmKey::infec_time);
+			const Individual &member_j = house.member(j);
+			const double t_infec_j = member_j.aug(AugmKey::infec_time);
 
 			helper_update_pairwise_cache(inst_mtx, cumul_mtx,
-										 member_i, member_k,
-										 t_infec_i, t_infec_k);
+										 member_i, member_j,
+										 t_infec_i, t_infec_j);
 
 			// update household introduction case
-			if (t_infec_k < new_t0)
+			if (t_infec_j < new_t0)
 			{
-				new_t0 = t_infec_k;
-				i0 = k;
+				new_t0 = t_infec_j;
+				i0 = j;
 			}
 		}
 	}
@@ -423,14 +428,17 @@ public:
 		double alpha,
 		double beta) const
 	{
+		size_t i = member_i.hhindex();
 		double roi = 0.; // instantaneous risk of infection
 
-		// `k` : infector, `i` : infectee
-		for (size_t k : house.infected_hhindexes())
+		// `j` : infector, `i` : infectee
+		for (size_t j : house.infected_hhindexes())
 		{
-			const Individual &member_k = house.member(k);
-			const double gentime = t_infec_i - member_k.aug(AugmKey::infec_time);
-			roi += member_k.group_rate(GroupRateKey::infectivity) * infec_profile_inst(member_k, gentime);
+			const Individual &member_j = house.member(j);
+			const double gentime = t_infec_i - member_j.aug(AugmKey::infec_time);
+			roi += member_j.group_rate(GroupRateKey::infectivity) *
+				   house.contact_rate(j, i) *
+				   infec_profile_inst(member_j, gentime);
 		}
 
 		return alpha * member_i.group_rate(GroupRateKey::community) +

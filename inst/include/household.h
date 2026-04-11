@@ -43,15 +43,20 @@ namespace hsp
 		//////////////////////
 
 		/// Emplace a new individual in the household.
-		void init_member(size_t index, const std::string &id, const Indiv::Wide *data_ptr);
+		void add_member(size_t index, const std::string &id, const Indiv::Wide *data_ptr);
 
-		void set_susceptible_status(Individual &member) { helper_set_status_(member, status::SUSCEPTIBLE); }
-		void set_infected_status(Individual &member) { helper_set_status_(member, status::INFECTED); }
-		void set_infected_status(Individual &member, int new_status)
+		void set_susceptible_status(size_t i) { helper_set_status_(i, status::SUSCEPTIBLE); }
+		void set_susceptible_status(Individual &member) { set_susceptible_status(member.hhindex()); }
+
+		void set_infected_status(size_t i, int new_status = status::INFECTED)
 		{
 			if (!status::is_infected(new_status))
 				raise_set_non_infec_status_(new_status);
-			helper_set_status_(member, new_status);
+			helper_set_status_(i, new_status);
+		}
+		void set_infected_status(Individual &member, int new_status = status::INFECTED)
+		{
+			set_infected_status(member.hhindex(), new_status);
 		}
 
 		//////////////////////
@@ -69,7 +74,8 @@ namespace hsp
 		size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
 		size_t n_missing_status() const noexcept { return missing_list_.size(); }
 
-		double contact_rate(size_t from, size_t to) const { return pcontact_rate_->mtx[from][to].value(); }
+		const Attribute &get_contact_rate_attribute(size_t from, size_t to) const { return pcontact_rate_->mtx[from][to]; }
+		double contact_rate(size_t from, size_t to) const { return get_contact_rate_attribute(from, to).value(); }
 
 		double obs_log_lik() const { return obs_log_lik_.value(); }
 
@@ -88,12 +94,13 @@ namespace hsp
 
 		const std::string &house_id() const noexcept { return house_id_; }
 		std::string err_name() const { return "household '" + house_id_ + "'"; }
-		size_t size() const noexcept { return members_.size(); }
+		size_t size() const noexcept { return house_size_; }
 
 	private:
 		std::string house_id_ = "";						/// User house id
 		size_t ridx_ = -1;								/// Restricted unique index
 		std::vector<Individual> members_ = {};			/// Household members
+		size_t house_size_ = 0;							/// Number of household members
 		std::vector<size_t> infected_list_;				/// hh indexes of infected members
 		std::vector<size_t> healthy_list_;				/// hh indexes of susceptible members
 		std::vector<size_t> missing_list_;				/// hh indexes of members with missing status
@@ -102,7 +109,7 @@ namespace hsp
 
 		/// Change_status of individual i to new status (without controls).
 		///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.
-		void helper_set_status_(Individual &member, int new_status);
+		void helper_set_status_(size_t i, int new_status);
 		/// Raise error if status doesn't satisfy infected convention.
 		[[noreturn]] void raise_set_non_infec_status_(int new_status) const;
 	};

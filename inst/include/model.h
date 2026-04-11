@@ -118,8 +118,12 @@ namespace hsp
 
 		/// Sample a uniform-distributed variable between 0 and 1.
 		double uniform() const { return mcmc_->setup.uniform(); }
+
 		/// Sample a exponential-distributed variable between 0 and Inf.
 		double exponential() const { return mcmc_->setup.exponential(); }
+
+		/// Wheter hosuehold members i and j are equivalent in terms of rates.
+		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;
 
 		/// Get parameter value.
 		double par(size_t p) const { return mcmc_->param.at(p).value(); }

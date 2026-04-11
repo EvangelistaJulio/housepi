@@ -88,8 +88,8 @@ namespace hsp
 		Variable &get_augm_variable(size_t a) { return paugm_->vec[a]; }
 		const Variable &get_augm_variable(size_t a) const { return paugm_->vec[a]; }
 
-		double group_rate(size_t g) const { return pgroup_rate_->vec[g].value(); }
 		const Attribute &get_group_rate_attribute(size_t g) const { return pgroup_rate_->vec[g]; }
+		double group_rate(size_t g) const { return get_group_rate_attribute(g).value(); }
 
 		/////////////////////
 		//////  FLAGS  //////
