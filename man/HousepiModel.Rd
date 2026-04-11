@@ -444,7 +444,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
 Add definitions of a group rate by given data feature(s).
-Group rates are relative to a reference class that can be specified.
+Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table.
@@ -456,12 +456,12 @@ Bypass automatic generation by providing a custom pre-built logic table.
   reference = NULL,
   joint = FALSE,
   logic_table = NULL,
-  append = FALSE,
   params = NULL,
+  append = FALSE,
   prior = NA_character_,
   ...,
-  min = NULL,
-  max = NULL,
+  min = NA_real_,
+  max = NA_real_,
   proposal = NA_character_,
   proposal_scale = NA_real_
 )}\if{html}{\out{</div>}}
@@ -485,14 +485,15 @@ Default is the group with the largest sample size.}
 If \code{FALSE} features are independent (default).}
 
 \item{\code{logic_table}}{\code{data.frame} Custom feature values and relative \code{param_name}.
-Use \code{.reference} in \code{param_name} for the reference group.}
-
-\item{\code{append}}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default). Ignored if automatic definition.}
+Use \code{.reference} in \code{param_name} for the reference group.
+Mutually exclusive with \code{by}.}
 
 \item{\code{params}}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
 Overrides shared prior/args for parameters specificied in the list.
 Ignored if automatic definition.}
+
+\item{\code{append}}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions (default). Ignored if automatic definition.}
 
 \item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 
@@ -543,16 +544,22 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_contact_rate"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_contact_rate}{}}}
 \subsection{Method \code{add_contact_rate()}}{
-Define contact rates between household members.
+Add definitions of a contact rate by given data feature(s).
+Rates are relative to a reference class that can be specified.
+If no MCMC options are provided, the prior is assumed to be
+\eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
+Bypass automatic generation by providing a custom pre-built logic table.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_contact_rate(
-  by,
-  prefix = "cr",
+  by = NA_character_,
   reference = NULL,
+  prefix = "ctr",
+  logic_table = NULL,
+  params = NULL,
   prior = NA_character_,
   ...,
-  min = NULL,
-  max = NULL,
+  min = NA_real_,
+  max = NA_real_,
   proposal = NA_character_,
   proposal_scale = NA_real_
 )}\if{html}{\out{</div>}}
@@ -561,12 +568,23 @@ Define contact rates between household members.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{by}}{\code{character()}. Data column names for from/to matching.}
+\item{\code{by}}{\code{character()} Features for from/to matching as data headers.
+Corresponding data columns have to be categorical.}
 
-\item{\code{prefix}}{\code{character(1)}. Prefix for generated parameter names.}
-
-\item{\code{reference}}{Named vector with from_/to_ prefixed feature values,
+\item{\code{reference}}{named \code{list} Features associated to reference pair.
+Names can use \code{from_}/\code{to_} prefixes matching \code{by},
 or un-prefixed names (applied to both from and to).}
+
+\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.
+Default is \code{'cr'}.}
+
+\item{\code{logic_table}}{\code{data.frame} Custom feature values and relative \code{param_name}.
+Use \code{.reference} in \code{param_name} for the reference group.
+Mutually exclusive with \code{by}.}
+
+\item{\code{params}}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
+Overrides shared prior/args for parameters specificied in the list.
+Ignored if automatic definition.}
 
 \item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 

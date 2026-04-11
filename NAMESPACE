@@ -2,7 +2,6 @@
 
 export(add_augmented)
 export(add_contact_rate)
-export(add_contact_rate_table)
 export(add_data_long)
 export(add_data_wide)
 export(add_group_rate)

@@ -6,13 +6,15 @@
 \usage{
 add_contact_rate(
   hhmodel,
-  by,
-  prefix = "cr",
+  by = NA_character_,
   reference = NULL,
+  prefix = "cr",
+  logic_table = NULL,
+  params = NULL,
   prior = NA_character_,
   ...,
-  min = NULL,
-  max = NULL,
+  min = NA_real_,
+  max = NA_real_,
   proposal = NA_character_,
   proposal_scale = NA_real_
 )
@@ -20,12 +22,23 @@ add_contact_rate(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{by}{\code{character()}. Data column names for from/to matching.}
+\item{by}{\code{character()} Features for from/to matching as data headers.
+Corresponding data columns have to be categorical.}
 
-\item{prefix}{\code{character(1)}. Prefix for generated parameter names.}
-
-\item{reference}{Named vector with from_/to_ prefixed feature values,
+\item{reference}{named \code{list} Features associated to reference pair.
+Names can use \code{from_}/\code{to_} prefixes matching \code{by},
 or un-prefixed names (applied to both from and to).}
+
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters.
+Default is \code{'cr'}.}
+
+\item{logic_table}{\code{data.frame} Custom feature values and relative \code{param_name}.
+Use \code{.reference} in \code{param_name} for the reference group.
+Mutually exclusive with \code{by}.}
+
+\item{params}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
+Overrides shared prior/args for parameters specificied in the list.
+Ignored if automatic definition.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
 
@@ -53,6 +66,9 @@ Ignored if proposal is 'sample'.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Define contact rates between household members based on paired individual
-features (from/to).
+Add definitions of a contact rate by given data feature(s).
+Rates are relative to a reference class that can be specified.
+If no MCMC options are provided, the prior is assumed to be
+\eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
+Bypass automatic generation by providing a custom pre-built logic table.
 }

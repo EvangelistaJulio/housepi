@@ -96,7 +96,7 @@ NULL
 #' @keywords datasets
 #' @name sarscov2_2021_icofs
 #' @usage data(sarscov2_2021_icofs)
-#' @format A data frame with 4,168 rows and 9 columns
+#' @format A data frame with 4,164 rows and 11 columns
 #' @source <https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt>
 #'
 #' @details

@@ -5,6 +5,14 @@
 ## See the LICENSE file for details.
 ##
 
+# Throw error for ambiguos rate definition.
+stop_ambiguos_definition <- function() {
+  stop_h(
+    "Impossible to provide at the same time 'by' and 'logic_table'.",
+    "Choose 'by' for automatic definitions, 'logic_table' for custom."
+  )
+}
+
 #' Assert that features choice is valid.
 #' @param features Features as list of data column names.
 #' @keywords internal
@@ -73,12 +81,6 @@ assert_valid_logic_table <- function(logic_table) {
   )
   if (nrow(logic_table) == 0) stop_h(
     "Logic table must contain at least one row."
-  )
-  # check for duplicate param_names
-  dupes <- duplicated(logic_table$param_name)
-  if (any(dupes)) stop_h(
-    sprintf("Duplicate param_name values: %s",
-            character_to_string_list(unique(logic_table$param_name[dupes])))
   )
   # validate feature column names
   feature_cols <- setdiff(colnames(logic_table), c("param_name", "n"))
@@ -196,21 +198,13 @@ tidyup_group_rate_tables <- function(all_tables) {
   combined_df
 }
 
-#' Default MCMC Setup
+#' Return list with default MCMC setup if user choice is missing.
 #' @references
 #' Cauchemez, et al. (2009)
 #' Household Transmission of 2009 Pandemic Influenza A (H1N1)
 #' Virus in the United States.
 #' New England Journal of Medicine. 361: 2619-2627.
 #' \doi{10.1056/NEJMoa0905498}
-#' @keywords internal
-#' @noRd
-group_rates_default_mcmc_setup <- list(
-  value = 1, prior = "lognormal", meanlog = 0, sdlog = 3,
-  min = NA_real_, max = 10, proposal = "lognormal", proposal_scale = 1
-)
-
-#' Return list with default MCMC setup if user choice is missing.
 #' @return `list`
 #' @keywords internal
 #' @noRd
@@ -220,7 +214,11 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
   is_default <- sapply(c(prior, args, min, max, proposal, proposal_scale),
                        function(x) is.na(x) || is.null(x))
   # if all defaults, provide default choice
-  if (all(is_default)) group_rates_default_mcmc_setup
+  if (all(is_default)) list(
+    value = NA_real_, prior = "lognormal", meanlog = 0, sdlog = 3,
+    min = 0, max = 10,
+    proposal = "lognormal", proposal_scale = 1
+  )
   # else go with user choice
   else c(list(value = 1, prior = prior), args,
          list(min = min, max = max,
@@ -274,16 +272,16 @@ HousepiGroupRate <- R6::R6Class(
       }
 
       # add new definition
-      self$defs[[name]] <- list(by = by, prefix = prefix,
-                                reference = reference, joint = joint,
+      self$defs[[name]] <- list(by = by, reference = reference,
+                                prefix = prefix, joint = joint,
                                 mode = "auto")
       invisible(self)
     },
 
     # Add rate definition in custom mode.
     helper_custom_add_ = function(name, logic_table,
-                                  append = FALSE,
                                   params = NULL,
+                                  append = FALSE,
                                   .warn_over = TRUE) {
       assert_valid_logic_table(logic_table)
       # validate params keys against logic table param_names
@@ -535,32 +533,32 @@ HousepiGroupRate <- R6::R6Class(
     add_quo = function(name,
                        by = NA_character_, prefix = NA_character_,
                        reference = NULL, joint = FALSE,
-                       logic_table = NULL, append = FALSE, params = NULL,
+                       logic_table = NULL, params = NULL, append = FALSE,
                        prior = NA_character_, ...,
-                       min = NULL, max = NULL,
+                       min = NA_real_, max = NA_real_,
                        proposal = NA_character_, proposal_scale = NA_real_,
                        .warn_over = TRUE) {
       name <- housepi_smart_unwrap(name, "name")
       by <- housepi_smart_unwrap(by, "by")
-      # control valid name
+      # control valid name # NOTE: `by` is the injected default variable
       assert_valid_definition_name(name, self$family, !is.na(by))
-      logic_table <- housepi_smart_unwrap(logic_table, "logic_table")
-      params <- housepi_smart_unwrap(params, "params")
 
       # automatic definition
       prefix <- housepi_smart_unwrap(prefix, "prefix")
       reference <- housepi_smart_unwrap(reference, "reference")
       joint <- isTRUE(housepi_smart_unwrap(joint, "joint"))
 
+      # custom definition
+      logic_table <- housepi_smart_unwrap(logic_table, "logic_table")
+      params <- housepi_smart_unwrap(params, "params")
+      append <- housepi_smart_unwrap(append, "append")
+
       # raw parameter definition
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
-      # load quosures
       min <- housepi_smart_unwrap(min, "min")
-      if (is.null(min)) min <- NA_real_
       max <- housepi_smart_unwrap(max, "max")
-      if (is.null(max)) max <- NA_real_
       dots <- list(...)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
       args <- housepi_extractor(!!!dots)
@@ -569,17 +567,14 @@ HousepiGroupRate <- R6::R6Class(
       is_auto <- !all(is.na(by))
       is_custom <- !is.null(logic_table)
 
-      if (is_auto && is_custom) stop_h(
-        "Impossible to provide at the same time 'by' and 'logic_table'.",
-        "Choose 'by' for automatic definitions, 'logic_table' for custom."
-      )
+      if (is_auto && is_custom) stop_ambiguos_definition()
       else if (is_auto) private$helper_auto_add_(
-        name = name, by = by, prefix = prefix, reference = reference,
+        name = name, by = by, reference = reference, prefix = prefix,
         joint = joint, .warn_over = .warn_over
       )
       else if (is_custom) private$helper_custom_add_(
-        name = name, logic_table = logic_table, append = append,
-        params = params, .warn_over = .warn_over
+        name = name, logic_table = logic_table, params = params,
+        append = append, .warn_over = .warn_over
       )
       else return(invisible(self))
 
@@ -762,7 +757,46 @@ HousepiContactRate <- R6::R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value)
+    deep_clone = function(name, value) helper_clone(value),
+
+    # Add rate definition in automatic mode.
+    helper_auto_add_ = function(by, reference, prefix) {
+      # validate features
+      assert_valid_features(by)
+
+      # validate reference names
+      if (!is.null(reference)) {
+        valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
+        # convenience: allow un-prefixed names (apply to both from_ and to_)
+        if (length(reference) == length(by) &&
+              all(names(reference) %in% by)) {
+          reference <- c(stats::setNames(reference[by], paste0("from_", by)),
+                         stats::setNames(reference[by], paste0("to_", by)))
+        }
+        if (length(setdiff(names(reference), valid_names)) != 0) stop_h(
+          "Reference does not use 'from_' and 'to_' prefixes matching 'by'."
+        )
+        reference <- as.list(reference)
+      }
+
+      # store definition
+      self$defs <- list(by = by, reference = reference, prefix = prefix,
+                        mode = "auto")
+      self$logic_table <- NULL
+      self$param_overrides <- list()
+      invisible(self)
+    },
+
+    # Add rate definition in custom mode.
+    helper_custom_add_ = function(logic_table, params) {
+      assert_valid_logic_table(logic_table)
+      # store sentinel definition
+      self$defs <- list(by = NA_character_, prefix = NA_character_,
+                        reference = NULL, mode = "custom")
+      self$logic_table <- logic_table
+      self$param_overrides <- if (is.null(params)) list() else params
+      invisible(self)
+    }
   ),
 
   ############################################################################
@@ -847,73 +881,46 @@ HousepiContactRate <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Define contact rate.
-    #' @param by `character()`. Data column names for matching.
-    #' @param prefix `character(1)`. Prefix for generated parameter names.
-    #' @param reference Named vector with from_/to_ prefixed feature values.
-    #' @param prior,min,max,proposal,proposal_scale MCMC setup.
-    #' @param ... Additional prior arguments.
-    #' @param .warn_over Show overwrite warning.
-    add_quo = function(by, prefix = "cr",
-                       reference = NULL,
+    #' @inherit add_contact_rate
+    add_quo = function(by = NA_character_,
+                       reference = NULL, prefix = "cr",
+                       logic_table = NULL, params = NULL,
                        prior = NA_character_, ...,
-                       min = NULL, max = NULL,
+                       min = NA_real_, max = NA_real_,
                        proposal = NA_character_,
                        proposal_scale = NA_real_,
                        .warn_over = TRUE) {
-      # unwrap quosures
+      # automatic definition
       by <- housepi_smart_unwrap(by, "by")
       prefix <- housepi_smart_unwrap(prefix, "prefix")
       reference <- housepi_smart_unwrap(reference, "reference")
+
+      # custom definition
+      logic_table <- housepi_smart_unwrap(logic_table, "logic_table")
+      params <- housepi_smart_unwrap(params, "params")
+
+      # raw parameter definition
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
       min <- housepi_smart_unwrap(min, "min")
-      if (is.null(min)) min <- NA_real_
       max <- housepi_smart_unwrap(max, "max")
-      if (is.null(max)) max <- NA_real_
       dots <- list(...)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
       args <- housepi_extractor(!!!dots)
 
-      # validate by
-      if (isFALSE(is.character(by)) || all(is.na(by))) stop_h(
-        "Argument 'by' must be a non-empty character vector."
-      )
-      forbidden <- c("param_name")
-      if (any(by %in% forbidden)) stop_h(
-        sprintf("Feature name '%s' is a reserved word.", by[by %in% forbidden]),
-        "Please, rename feature and corresponding data column."
-      )
+      # distinguish between automatic and custom definitions
+      is_auto <- !all(is.na(by))
+      is_custom <- !is.null(logic_table)
+      if (is_auto && is_custom) stop_ambiguos_definition()
 
       # warn overwrite
-      if (.warn_over && length(self$defs) > 0) {
-        warning_h("Overwriting previous contact rate definition.")
-      }
-
-      # validate reference names
-      if (!is.null(reference)) {
-        expected_names <- c(paste0("from_", sort(by)),
-                            paste0("to_", sort(by)))
-        # convenience: allow un-prefixed names (apply to both from_ and to_)
-        if (length(reference) == length(by) && all(names(reference) %in% by)) {
-          expanded <- c(
-            stats::setNames(reference[by], paste0("from_", by)),
-            stats::setNames(reference[by], paste0("to_", by))
-          )
-          reference <- expanded
-        }
-        if (length(setdiff(names(reference), expected_names)) != 0) stop_h(
-          "Reference names must use 'from_' and 'to_' prefixes matching 'by'.",
-          sprintf("Expected names: %s",
-                  character_to_string_list(expected_names))
-        )
-        reference <- as.list(reference)
-      }
-
-      # store definition
-      self$defs <- list(by = by, prefix = prefix, reference = reference)
+      if (.warn_over && length(self$defs) > 0) warning_h(
+        "Overwriting previous contact rate definition."
+      )
+      if (is_auto) private$helper_auto_add_(by, reference, prefix)
+      else if (is_custom) private$helper_custom_add_(logic_table, params)
+      else return(invisible(self))
 
       # store MCMC parameter setup
       self$raw_params <- set_group_rates_mcmc_setup(
@@ -925,66 +932,12 @@ HousepiContactRate <- R6::R6Class(
     },
 
     #' @description
-    #' Add a contact rate from a user-provided logic table.
-    #' @param logic_table `data.frame` with `param_name` column
-    #' and feature columns.
-    #' @param params `list`. Named list of per-parameter MCMC setups.
-    #' @param prior,min,max,proposal,proposal_scale
-    #' Shared MCMC setup (fallback for parameters not in `params`).
-    #' @param ... Additional prior arguments.
-    #' @param .warn_over `logical(1)`. Show overwrite warning.
-    add_logic_table = function(logic_table, params = list(),
-                               prior = NA_character_, ...,
-                               min = NULL, max = NULL,
-                               proposal = NA_character_,
-                               proposal_scale = NA_real_,
-                               .warn_over = TRUE) {
-      # unwrap quosures
-      prior <- housepi_smart_unwrap(prior, "prior")
-      proposal <- housepi_smart_unwrap(proposal, "proposal")
-      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
-      min <- housepi_smart_unwrap(min, "min")
-      if (is.null(min)) min <- NA_real_
-      max <- housepi_smart_unwrap(max, "max")
-      if (is.null(max)) max <- NA_real_
-      dots <- list(...)
-      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      args <- housepi_extractor(!!!dots)
-
-      # validate logic table
-      assert_valid_logic_table(logic_table)
-
-      # warn overwrite
-      if (.warn_over && length(self$defs) > 0) {
-        warning_h("Overwriting previous contact rate definition.")
-      }
-
-      # store sentinel definition
-      self$defs <- list(by = NA_character_, prefix = NA_character_,
-                        reference = NULL, mode = "custom")
-
-      # store shared MCMC setup
-      self$raw_params <- set_group_rates_mcmc_setup(
-        prior = prior, args = args, min = min, max = max,
-        proposal = proposal, proposal_scale = proposal_scale
-      )
-
-      # store logic table and param overrides
-      self$logic_table <- logic_table
-      self$param_overrides <- params
-
-      invisible(self)
-    },
-
-    #' @description
     #' Implement contact rate definition according to data.
     #' @param data_wide A data.frame with the dataset.
     #' @param factor_info A list with levels for each factorized feature.
     implement = function(data_wide, factor_info) {
       # skip if logic_table mode -- already stored directly
-      if (self$defs[["mode"]] == "custom") {
-        return(invisible(self))
-      }
+      if (self$defs[["mode"]] == "custom") return(invisible(self))
 
       self$logic_table <- NULL
 
@@ -1013,8 +966,7 @@ HousepiContactRate <- R6::R6Class(
     #' @param mcmc_ptr Rcpp pointer to MCMC object.
     assert = function(mcmc_ptr) {
       has_defs <- length(self$defs) > 0 &&
-        (!all(is.na(self$defs[["by"]])) ||
-           self$defs[["mode"]] == "custom")
+        (!all(is.na(self$defs[["by"]])) || self$defs[["mode"]] == "custom")
       has_model <- .engine$has_contact_rates(mcmc_ptr)
       if (has_defs && !has_model) stop_h(
         "Contact rates are defined but the loaded model does not use them.",

@@ -145,18 +145,19 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Pre-build to deal with group rates.
-    build_group_rates_ = function() {
+    # Helper to assert and re-build group and contact rates.
+    # @param family
+    helper_build_rates_ = function(module) {
       # proceed only if definitions exist and data loaded
-      if (length(private$group_rates_$defs) == 0) return(invisible(self))
+      if (length(module$defs) == 0) return(invisible(self))
 
       # check if any defs actually need data
-      needs_data <- any(sapply(private$group_rates_$defs, function(d) {
+      needs_data <- any(sapply(module$defs, function(d) {
         !all(is.na(d[["by"]]))
       }))
       if (needs_data && length(private$cols_data_wide_) == 0) {
         warning_h(
-          "Missing data needed for building group rates.",
+          sprintf("Missing data needed for building %ss.", module$family),
           "Ensure to provide all necessary data before proceeding."
         )
         return(invisible(self))
@@ -168,10 +169,10 @@ HousepiModel <- R6::R6Class(
       if (length(private$cols_data_wide_) > 0) data_wide <- self$data_wide
 
       # implement group rates
-      private$group_rates_$implement(data_wide, private$info_data_wide_)
+      module$implement(data_wide, private$info_data_wide_)
 
       # append parameter definitions if missing
-      new_parameters <- private$group_rates_$parameters
+      new_parameters <- module$parameters
       # find missing parameter definitions
       mask <- setdiff(names(new_parameters), private$param_$defs$name)
       new_parameters <- new_parameters[mask]
@@ -184,40 +185,17 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Pre-build to deal with contact rates.
+    # Assert and pre-build group rates.
+    build_group_rates_ = function() {
+      private$assert_group_rates_()
+      private$helper_build_rates_(private$group_rates_)
+    },
+
+    # @description
+    # Assert and pre-build contact rates.
     build_contact_rates_ = function() {
-      # proceed only if definitions exist and data loaded
-      if (length(private$contact_rates_$defs) == 0) return(invisible(self))
-
-      # custom mode does not require data
-      is_auto <- private$contact_rates_$defs[["mode"]] == "auto"
-
-      if (is_auto && length(private$cols_data_wide_) == 0) {
-        warning_h(
-          "Missing data needed for building contact rates.",
-          "Ensure to provide all necessary data before proceeding."
-        )
-        return(invisible(self))
-      }
-
-      # load data_wide
-      # UPDATE: this "back & forth" of data_wide is sub-optimal...
-      data_wide <- NULL
-      if (length(private$cols_data_wide_) > 0) data_wide <- self$data_wide
-
-      # implement contact rates
-      private$contact_rates_$implement(data_wide, private$info_data_wide_)
-
-      # append parameter definitions if missing
-      new_parameters <- private$contact_rates_$parameters
-      mask <- setdiff(names(new_parameters), private$param_$defs$name)
-      new_parameters <- new_parameters[mask]
-      if (length(new_parameters) > 0) {
-        xquos <- convert_list_to_quosures(new_parameters)
-        private$param_$load_quosures(xquos, append = TRUE)
-      }
-
-      invisible(self)
+      private$assert_contact_rates_()
+      private$helper_build_rates_(private$contact_rates_)
     },
 
     # @description
@@ -261,29 +239,24 @@ HousepiModel <- R6::R6Class(
       # assert headers of last imported data_wide
       private$assert_data_wide_()
 
-      # assert group rate definitions
-      private$assert_group_rates_()
-      # build group rate definitions
+      # assert and build all rates
       private$build_group_rates_()
-
-      # assert and build contact rates
-      private$assert_contact_rates_()
       private$build_contact_rates_()
-      .engine$import_contact_rate(
-        private$mcmc_ptr_,
-        private$contact_rates_$expose_to_cpp(private$info_data_wide_)
-      )
 
       # assert parameter definitions
       private$assert_param_()
       # import parameters
-      .engine$import_param(private$mcmc_ptr_,
-                           private$param_$defs)
+      .engine$import_param(private$mcmc_ptr_, private$param_$defs)
 
       # import group rates
       .engine$import_group_rate(
         private$mcmc_ptr_,
         private$group_rates_$expose_to_cpp(private$info_data_wide_)
+      )
+      # import contact rates
+      .engine$import_contact_rate(
+        private$mcmc_ptr_,
+        private$contact_rates_$expose_to_cpp(private$info_data_wide_)
       )
 
       # assert augmented variable definitions
@@ -294,42 +267,38 @@ HousepiModel <- R6::R6Class(
                                    private$infec_profile_$defs)
 
       # import augmented variables
-      .engine$import_augm(private$mcmc_ptr_,
-                          private$augm_$defs)
+      .engine$import_augm(private$mcmc_ptr_, private$augm_$defs)
       invisible(self)
     },
 
     # Helper with parameter table import.
-    helper_read_param_table_ = function(param_table, ess = TRUE) {
+    # @param ptab Table with parameter values
+    # param ess `logical(1)`
+    helper_read_param_table_ = function(ptab, ess = TRUE) {
       # extract parameter draws from table
-      if (inherits(param_table, "HousepiPosteriorDraws")) {
-        param_table <- param_table$param_draws
-      }
+      if (inherits(ptab, "HousepiPosteriorDraws")) ptab <- ptab$param_draws
 
-      if (posterior::is_draws(param_table)) {
-        param_table <- posterior::as_draws_matrix(param_table)
+      if (posterior::is_draws(ptab)) {
+        ptab <- posterior::as_draws_matrix(ptab)
         # reduce sample to effective sample size (ESS)
         if (isTRUE(ess)) {
-          vals <- posterior::summarise_draws(param_table, "ess_bulk")
-          ess_min <- min(vals$ess_bulk)
+          ess_bulk <- posterior::summarise_draws(ptab, "ess_bulk")$ess_bulk
           # check no NA values in ESS
-          if (is.na(ess_min)) stop_h(
+          if (any(is.na(ess_bulk))) stop_h(
             "ESS values return NA. Check your draws for degenerate parameters."
           )
           # suppress posterior message
+          ndraws <- ceiling(min(ess_bulk))
           suppressMessages(
-            param_table <- posterior::resample_draws(
-              param_table, ndraws = ceiling(ess_min)
-            )
+            ptab <- posterior::resample_draws(ptab, ndraws = ndraws)
           )
         }
       }
 
       tryCatch({
-        return(as.data.frame(param_table))
-      }, error = function(e) {
-        stop_h("Type of param_table not supported.")
-      })
+        return(as.data.frame(ptab))
+      }, error = function(e) stop_h("Type of param_table not supported.")
+      )
     },
 
     # Helper with simulation build.
@@ -488,6 +457,7 @@ HousepiModel <- R6::R6Class(
     parameters = function(value) {
       if (!missing(value)) stop_read_only("parameters")
       private$build_group_rates_()
+      private$build_contact_rates_()
       housepi_defin_showcaser(private$param_$defs)
     },
 
@@ -519,7 +489,6 @@ HousepiModel <- R6::R6Class(
     #' @field group_rates `data.frame`. Group rate definitions.
     group_rates = function(value) {
       if (!missing(value)) stop_read_only("group_rates")
-      private$assert_group_rates_()
       private$build_group_rates_()
       private$group_rates_$tidy_table
     },
@@ -834,8 +803,8 @@ HousepiModel <- R6::R6Class(
     #' @param reference `r rd_grr_refer_`
     #' @param joint `r rd_grr_joint_`
     #' @param logic_table `r rd_grr_ltab_`
-    #' @param append `r rd_grr_append_`
     #' @param params `r rd_grr_params_`
+    #' @param append `r rd_grr_append_`
     #' @param prior `r rd_par_model_`
     #' @param ... `r rd_par_args_`
     #' @param min `r rd_var_min_`
@@ -845,16 +814,16 @@ HousepiModel <- R6::R6Class(
     add_group_rate = function(name,
                               by = NA_character_, prefix = NA_character_,
                               reference = NULL, joint = FALSE,
-                              logic_table = NULL, append = FALSE,
-                              params = NULL,
+                              logic_table = NULL, params = NULL,
+                              append = FALSE,
                               prior = NA_character_, ...,
-                              min = NULL, max = NULL,
+                              min = NA_real_, max = NA_real_,
                               proposal = NA_character_,
                               proposal_scale = NA_real_) {
       private$group_rates_$add_quo(name = name, by = by, prefix = prefix,
                                    reference = reference, joint = joint,
-                                   logic_table = logic_table,
-                                   append = append, params = params,
+                                   logic_table = logic_table, params = params,
+                                   append = append,
                                    prior = prior, rlang::enquos(...),
                                    min = rlang::enquo(min),
                                    max = rlang::enquo(max),
@@ -875,27 +844,28 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Define contact rates between household members.
-    #' @param by `character()`. Data column names for from/to matching.
-    #' @param prefix `character(1)`. Prefix for generated parameter names.
-    #' @param reference Named vector with from_/to_ prefixed feature values,
-    #'   or un-prefixed names (applied to both from and to).
+    #' @description `r rd_ctr_desc_`
+    #' @param by `r rd_ctr_by_`
+    #' @param reference `r rd_ctr_refer_`
+    #' @param prefix `r rd_ctr_prefix_`
+    #' @param logic_table `r rd_ctr_ltab_`
+    #' @param params `r rd_ctr_params_`
     #' @param prior `r rd_par_model_`
     #' @param ... `r rd_par_args_`
     #' @param min `r rd_var_min_`
     #' @param max `r rd_var_max_`
     #' @param proposal `r rd_var_proposal_`
     #' @param proposal_scale `r rd_proposal_scale_`
-    add_contact_rate = function(by, prefix = "cr",
-                                reference = NULL,
+    add_contact_rate = function(by = NA_character_,
+                                reference = NULL, prefix = "ctr",
+                                logic_table = NULL, params = NULL,
                                 prior = NA_character_, ...,
-                                min = NULL, max = NULL,
+                                min = NA_real_, max = NA_real_,
                                 proposal = NA_character_,
                                 proposal_scale = NA_real_) {
       private$contact_rates_$add_quo(
-        by = by, prefix = prefix,
-        reference = reference,
+        by = by, reference = reference, prefix = prefix,
+        logic_table = logic_table, params = params,
         prior = prior, rlang::enquos(...),
         min = rlang::enquo(min),
         max = rlang::enquo(max),
@@ -1116,6 +1086,7 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   stopifnothousepi(hhmodel)
   private <- hhmodel$.__enclos_env__$private
   private$build_group_rates_()
+  private$build_contact_rates_()
 
   info_wide <- private$info_data_wide_
   utils::write.csv(private$augm_$defs,

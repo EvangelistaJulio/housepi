@@ -27,6 +27,8 @@ house_3 <- data.frame(
   id = sprintf("hh_01_%s", seq(1, 4)),
   house_id = "hh_01",
   status = c(rep(1, 3), 0),
+  age = rep(c("adult", "child"), 2),
+  active = c(TRUE, TRUE, FALSE, FALSE),
   class = c("a", "b", rep("c", 2)),
   community = c(1, rates_3$b$com, rep(rates_3$c$com, 2)),
   susceptibility = c(1, rates_3$b$sus, rep(rates_3$c$sus, 2)),

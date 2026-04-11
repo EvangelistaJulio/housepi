@@ -49,7 +49,7 @@ namespace hsp
 		/// Equal to operator.
 		bool operator==(const Individual &other) const noexcept { return index_ == other.index_; }
 		/// Not equal to operator.
-		bool operator!=(const Individual &other) const noexcept { return !(*this == other); }
+		bool operator!=(const Individual &other) const noexcept { return index_ != other.index_; }
 
 		//////////////////////
 		//////  SETTER  //////

@@ -292,14 +292,14 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
   output <- c()
   if (len_miss > 0) output <- c(
     sprintf("There %s %s missing %s definition%s: %s",
-            as_plural(len_miss, "were", "was"),
+            as_plural(miss, "were", "was"),
             ifelse(len_miss > max_print,
                    paste0("more than ", max_print), len_miss),
             family,
-            as_plural(len_miss),
+            as_plural(miss),
             character_to_string_list(miss, max_print)),
     sprintf("%s required by %s definitions.",
-            as_plural(len_miss, "They were", "It was"),
+            as_plural(miss, "They were", "It was"),
             character_to_phrase(sources))
   )
   output
@@ -318,7 +318,7 @@ template_overwrite_warn <- function(all_rmv, family, max_print = 5) {
     ifelse(len_rmv > max_print,
            paste0("more than ", max_print), len_rmv),
     family,
-    as_plural(len_rmv, "s for:\n", " for "),
+    as_plural(all_rmv, "s for:\n", " for "),
     character_to_string_list(all_rmv, max_print)
   ))
 }
@@ -352,11 +352,11 @@ template_not_used_warn <- function(required, defined, family, max_print = 5) {
   len_not_used <- length(notused)
   if (len_not_used > 0) warning_h(
     sprintf("There %s %s unused %s definition%s%s",
-            as_plural(len_not_used, "were", "was"),
+            as_plural(notused, "were", "was"),
             ifelse(len_not_used > max_print,
                    paste0("more than ", max_print), len_not_used),
             family,
-            as_plural(len_not_used, "s:\n", ": "),
+            as_plural(notused, "s:\n", ": "),
             character_to_string_list(notused, max_print))
   )
   invisible()

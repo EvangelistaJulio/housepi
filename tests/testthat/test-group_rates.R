@@ -5,16 +5,16 @@ aux_add <- function(self, name,
                     prefix = NA_character_,
                     reference = NULL,
                     joint = FALSE,
-                    logic_table = NULL, 
+                    logic_table = NULL,
                     append = FALSE,
                     params = NULL,
                     prior = NA_character_, ...,
-                    min = NULL, max = NULL,
+                    min = NA_real_, max = NA_real_,
                     proposal = NA_character_,
                     proposal_scale = NA_real_) {
   self$add_quo(name = name, by = by, prefix = prefix,
                reference = reference, joint = joint,
-               logic_table = logic_table, 
+               logic_table = logic_table,
                append = append, params = params,
                prior = prior, rlang::enquos(...),
                min = rlang::enquo(min),
@@ -82,7 +82,10 @@ test_that("Group rates integrate with data and exposes to Cpp format", {
   expect_true(all(cpp_tbl$sex %in% c(1L, 2L)))
 
   # mcmc setup is default
-  expect_equal(grp$parameters[[1]], group_rates_default_mcmc_setup)
+  default_mcmc_setup <- list(value = NA_real_, prior = "lognormal",
+                             meanlog = 0, sdlog = 3, min = 0, max = 10,
+                             proposal = "lognormal", proposal_scale = 1)
+  expect_equal(grp$parameters[[1]], default_mcmc_setup)
 })
 
 test_that("Parameter options work correctly", {
@@ -114,9 +117,6 @@ test_that("Assert-valid-logic-table validates input", {
   # must have at least one row
   expect_error(assert_valid_logic_table(data.frame(param_name = character(0))),
                regexp = "at least one row")
-  # no duplicate parameters
-  expect_error(assert_valid_logic_table(data.frame(param_name = rep("a", 2))),
-               regexp = "Duplicate")
   # reserved feature column names rejected
   expect_error(assert_valid_logic_table(data.frame(param_name = "a", id = 1)),
                regexp = "reserved")
@@ -147,7 +147,7 @@ test_that("Group rates deal with custom logic table correctly", {
   expect_true(is.data.frame(tidy))
   expect_true("group_rate" %in% colnames(tidy))
   expect_true(all(tidy$group_rate == "infectivity"))
-  
+
   # remove logic
   grp$remove("infectivity")
   expect_false("infectivity" %in% names(grp$defs))
@@ -173,10 +173,10 @@ test_that("Group rate parameter overrides work", {
   expect_equal(grp$parameters$sus_old, 1.73)
   expect_equal(grp$parameters$sus_elderly$prior, "lognormal")
   expect_equal(grp$parameters$sus_elderly$sdlog, 1.2)
-  
+
   # FIXME: params 'unknown' is not introduced in this definition
   expect_error(aux_add(
-    grp, name = "susceptibility", 
+    grp, name = "susceptibility",
     logic_table = data.frame(sex = c("M", "F"),
                              param_name = c("something", ".reference")),
     append = TRUE, params = list(unknown = 2.4)
@@ -204,12 +204,12 @@ test_that("Group Rate append logic table in custom mode works", {
 
 test_that("Group rate implementation preserves logic_table entries", {
   grp <- HousepiGroupRate$new()
-  
+
   # add a standard auto-mode rate
   aux_add(grp, "community", by = "age_group", prefix = "com")
-  
+
   # add a custom-mode rate
-  aux_add(grp, name = "infectivity", 
+  aux_add(grp, name = "infectivity",
           logic_table = data.frame(age_group = c("old", "young"),
                                    param_name = c("inf_old", ".reference")))
 
@@ -221,7 +221,7 @@ test_that("Group rate implementation preserves logic_table entries", {
   # logic_table entry is unchanged
   expect_equal(grp$logic_tables$infectivity[[1]]$param_name,
                c("inf_old", ".reference"))
-  
+
   expect_warning(aux_add(grp, "infectivity", by = "age_group"),
                  regexp = "infectivity")
   expect_warning(aux_add(grp, "community", logic_table = dummy_logic_table),
@@ -234,20 +234,20 @@ test_that("Group rate mixed auto and custom modes", {
   aux_add(grp, "community", by = "age_group", prefix = "com")
   grp$implement(dummy_df, dummy_factor_info)
   expect_true("community" %in% names(grp$logic_tables))
-  
+
   aux_add(grp, name = "infectivity", logic_table = dummy_logic_table)
   expect_true("infectivity" %in% names(grp$logic_tables))
-  
+
   # param_required should include both
   required <- grp$param_required
   expect_true("inf_isol" %in% required)
   expect_true(any(grepl("^com_", required)))
-  
+
   # data required
   data_req <- grp$data_required
   expect_true(all(c("age_group", "isolation") %in% data_req))
-  
-  # trigger error (unknown feature in dummy_logic_table) 
+
+  # trigger error (unknown feature in dummy_logic_table)
   expect_error(grp$implement(dummy_df, dummy_factor_info),
                regexp = "Unknown")
 })
@@ -263,4 +263,80 @@ test_that("Load list works as expected", {
   )
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
   grp$parameters
+})
+
+############################################################################
+
+test_that("HousepiContactRate add_quo custom mode stores correctly", {
+  cr <- HousepiContactRate$new()
+  lt <- data.frame(
+    from_age = c("adult", "adult", "child", "child"),
+    to_age   = c("adult", "child", "adult", "child"),
+    param_name = c(".reference", "cr_a2c", "cr_c2a", "cr_c2c")
+  )
+  cr$add_quo(logic_table = lt, prior = "lognormal", sdlog = 3)
+
+  # defs stored with mode sentinel
+  expect_equal(cr$defs$mode, "custom")
+  expect_true(is.na(cr$defs$by))
+
+  # logic table stored
+  expect_true(is.data.frame(cr$logic_table))
+  expect_equal(nrow(cr$logic_table), 4)
+
+  # parameters generated for non-reference
+  params <- cr$parameters
+  expect_length(params, 3)
+  expect_true(all(c("cr_a2c", "cr_c2a", "cr_c2c") %in% names(params)))
+})
+
+test_that("HousepiContactRate add_quo custom param_overrides work", {
+  cr <- HousepiContactRate$new()
+  lt <- data.frame(
+    from_age = c("adult", "child"),
+    param_name = c(".reference", "cr_child")
+  )
+  overrides <- list(
+    cr_child = list(value = 1, prior = "uniform", min = 0, max = 5,
+                    proposal = "normal", proposal_scale = 0.5)
+  )
+  cr$add_quo(logic_table = lt, params = overrides)
+
+  params <- cr$parameters
+  expect_equal(params$cr_child$prior, "uniform")
+  expect_equal(params$cr_child$min, 0)
+})
+
+test_that("HousepiContactRate custom mode skips implement", {
+  cr <- HousepiContactRate$new()
+  lt <- data.frame(
+    from_age = c("adult", "child"),
+    param_name = c(".reference", "cr_child")
+  )
+  cr$add_quo(logic_table = lt)
+
+  # implement should not clear the logic table
+  cr$implement(dummy_df, dummy_factor_info)
+  expect_true(is.data.frame(cr$logic_table))
+  expect_equal(cr$logic_table$param_name, c(".reference", "cr_child"))
+})
+
+test_that("HousepiContactRate tidy_table works with custom mode", {
+  cr <- HousepiContactRate$new()
+  lt <- data.frame(
+    from_age = c("adult", "child"),
+    param_name = c(".reference", "cr_child")
+  )
+  cr$add_quo(logic_table = lt)
+
+  tidy <- cr$tidy_table
+  expect_true(is.data.frame(tidy))
+  expect_equal(nrow(tidy), 2)
+})
+
+test_that("HousepiContactRate add_quo rejects by and logic_table together", {
+  cr <- HousepiContactRate$new()
+  lt <- data.frame(from_age = "adult", param_name = ".reference")
+  expect_error(cr$add_quo(by = "age", logic_table = lt),
+               regexp = "Impossible")
 })

@@ -4,19 +4,19 @@ url <- "https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/m
 
 date_fmt <- function(x) as.numeric(as.Date(x) - as.Date("2020-01-01"))
 
-sarscov2_2021_icofs <- utils::read.table(url) |> 
+sarscov2_2021_icofs <- utils::read.table(url) |>
   dplyr::group_by(hhid) |>
   # define followup period
   dplyr::mutate(
     house_id = sprintf("hh%03d", dplyr::cur_group_id()),
     id = sprintf("%sm%02d", house_id, dplyr::row_number()),
-    end_followup = if(!all(is.na(last_neg))) {
+    end_followup = if (!all(is.na(last_neg))) {
       max(date_fmt(last_neg), na.rm = TRUE)
     } else {
       date_fmt(dplyr::first(index_first_pos_pcr)) + 21
     }
   ) |>
-  dplyr::ungroup() |> 
+  dplyr::ungroup() |>
   # format variables
   dplyr::mutate(
     status = as.integer(!is.na(first_pos)),
@@ -49,7 +49,7 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
   dplyr::filter(sum(status > 0) > 0) |>
   dplyr::ungroup() |>
   dplyr::select(id, house_id, status, end_followup, test_date, age, sex,
-                vacc_status, isolation, asymptomatic) |>
+                vacc_status, recovered, isolation, asymptomatic) |>
   as.data.frame()
 
 usethis::use_data(sarscov2_2021_icofs, overwrite = TRUE)

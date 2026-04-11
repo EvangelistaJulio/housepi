@@ -169,8 +169,10 @@ public:
 	void helper_update_pairwise_cache(
 		std::vector<std::vector<double>> &inst_mtx,
 		std::vector<std::vector<double>> &cumul_mtx,
-		const Individual &member_i, const Individual &member_k,
-		double t_infec_i, double t_infec_k)
+		const Individual &member_i,
+		const Individual &member_k,
+		double t_infec_i,
+		double t_infec_k)
 	{
 		const size_t i = member_i.hhindex();
 		const size_t k = member_k.hhindex();
@@ -415,8 +417,11 @@ public:
 
 	/// Instantaneous risk of Infection for individual i. Used in simulation.
 	double roi_inst_simulation(
-		const Household &house, const Individual &member_i,
-		double t_infec_i, double alpha, double beta) const
+		const Household &house,
+		const Individual &member_i,
+		double t_infec_i,
+		double alpha,
+		double beta) const
 	{
 		double roi = 0.; // instantaneous risk of infection
 
@@ -427,9 +432,9 @@ public:
 			const double gentime = t_infec_i - member_k.aug(AugmKey::infec_time);
 			roi += member_k.group_rate(GroupRateKey::infectivity) * infec_profile_inst(member_k, gentime);
 		}
-		roi *= beta * member_i.group_rate(GroupRateKey::susceptibility);
 
-		return alpha + roi;
+		return alpha * member_i.group_rate(GroupRateKey::community) +
+			   beta * member_i.group_rate(GroupRateKey::susceptibility) * roi;
 	}
 };
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

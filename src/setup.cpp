@@ -160,8 +160,12 @@ namespace hsp
                 oss << text_
                     << bar_(progress)
                     << std::fixed << std::setprecision(0) << 100. * progress << "% "
-                    << format_time_(elapsed) << "<" << format_time_(missing)
-                    << std::string(10, ' ');
+                    << format_time_(elapsed) << "<";
+                if (elapsed.count() > 2)
+                    oss << format_time_(missing);
+                else 
+                    oss << "?s";
+                oss << std::string(10, ' ');
                 print_(oss.str());
 
                 lastprint_ = steady_clock::now();

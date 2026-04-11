@@ -16,8 +16,8 @@ add_group_rate(
   params = NULL,
   prior = NA_character_,
   ...,
-  min = NULL,
-  max = NULL,
+  min = NA_real_,
+  max = NA_real_,
   proposal = NA_character_,
   proposal_scale = NA_real_
 )
@@ -40,7 +40,8 @@ Default is the group with the largest sample size.}
 If \code{FALSE} features are independent (default).}
 
 \item{logic_table}{\code{data.frame} Custom feature values and relative \code{param_name}.
-Use \code{.reference} in \code{param_name} for the reference group.}
+Use \code{.reference} in \code{param_name} for the reference group.
+Mutually exclusive with \code{by}.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions (default). Ignored if automatic definition.}
@@ -76,7 +77,7 @@ Ignored if proposal is 'sample'.}
 }
 \description{
 Add definitions of a group rate by given data feature(s).
-Group rates are relative to a reference class that can be specified.
+Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table.
