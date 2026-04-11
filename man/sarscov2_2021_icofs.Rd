@@ -5,7 +5,7 @@
 \alias{sarscov2_2021_icofs}
 \title{SARS-CoV-2 2021 Israeli Covid-19 Family Study}
 \format{
-A data frame with 4,168 rows and 9 columns
+A data frame with 4,164 rows and 11 columns
 }
 \source{
 \url{https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt}
