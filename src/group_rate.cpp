@@ -45,20 +45,14 @@ namespace hsp
     void GroupRate::build(DataWide &data_wide, const Parameter &param, const str_table &input)
     {
         pKeys->clear();
-        indiv_group_rates_.clear();
+        unique_groups_.clear();
 
+        // load required data headers
         std::vector<std::string> data_headers = {};
         if (!input.empty())
-            data_headers = helper_assert_definitions_(data_wide, input);
+            data_headers = helper_process_definitions_(data_wide, input);
         else if (pKeys->empty())
             return;
-
-        // set headers to be multiplicity-relevat
-        data_wide.set_multiplicity_data(data_headers);
-
-        // allocate external group rate storage
-        // UPDATE: this should just be resized at number of unique rates
-        indiv_group_rates_.resize(data_wide.report_indiv.total);
 
         // load column with group rate names, if any
         std::vector<std::string> g_input_vec = {};
@@ -71,46 +65,50 @@ namespace hsp
             if (std::find(g_input_vec.begin(), g_input_vec.end(), gstr) == g_input_vec.end())
                 undefined_rates[gstr].push_back(rates::REFERENCE);
 
-        // loop over all household members
-        size_t n_rows = read::csv_n_rows(input);
+        // unique definition map
+        std::map<str_table, size_t> unique_defin_map;
+        const size_t n_rows = read::csv_n_rows(input);
         for (Household &house : data_wide)
             for (Individual &member : house)
             {
-                member.pgroup_rate_ = &indiv_group_rates_[member.index_];
                 str_table these_rates = undefined_rates;
 
                 for (size_t r = 0; r < n_rows; ++r)
                 {
-                    // check if all conditions are satisfied
                     bool match = true;
                     for (const std::string &dstr : data_headers)
                         if (!na::is(input.at(dstr)[r]))
                             match &= member.pwide_->vec[data_wide.pKeys->from_string(dstr)] == str::tod(input.at(dstr)[r]);
 
-                    // if it's the case, add the parameter name
                     if (match)
                         these_rates[g_input_vec[r]].push_back(input.at("param_name")[r]);
                 }
 
-                helper_init_all_rates_(param, member, these_rates);
+                auto it = unique_defin_map.find(these_rates);
+                if (it == unique_defin_map.end())
+                {
+                    it = unique_defin_map.emplace(these_rates, unique_groups_.size()).first;
+                    helper_init_unique_rate_(param, member, these_rates);
+                }
+                member.pgroup_rate_ = &unique_groups_[it->second];
             }
     }
 
-    std::vector<std::string> GroupRate::helper_assert_definitions_(DataWide &data_wide, const str_table &input)
+    std::vector<std::string> GroupRate::helper_process_definitions_(DataWide &data_wide, const str_table &input)
     {
         const std::vector<std::string> file_headers = {"group_rate", "param_name"};
 
         // check that tempalte headers are present
         std::vector<std::string> data_headers = read::extract_keys(input);
         str::assert_no_missing_entries(data_headers, file_headers);
-
         // remove template headers to keep only data
         data_headers = data_headers - file_headers;
         // check that required data columns are present
         str::assert_no_unused_entries(data_headers, data_wide.pKeys->get_all());
 
         // assert the group rate names are allowed
-        for (const std::string &gstr : input.at("group_rate"))
+        dict<size_t> definition_counts = {};
+        for (const std::string &gstr : str::unique(input.at("group_rate")))
         {
             if (gstr == rates::CONTACT)
                 throw std::invalid_argument(
@@ -120,16 +118,28 @@ namespace hsp
                 throw std::invalid_argument(
                     "Found a missing group rate name in the definitions.");
             pKeys->add(gstr);
+            definition_counts.emplace(gstr, 0);
         }
+
+        // allocate unique group rate definitions
+        // NOTE: reserve cartesian product of distinct definitions per group rate
+        for (const std::string &gstr : input.at("group_rate"))
+            ++definition_counts[gstr];
+        size_t max_unique = 1;
+        for (auto &[gstr, count] : definition_counts)
+            max_unique *= count;
+        unique_groups_.reserve(max_unique);
+
+        // set headers to be multiplicity-relevat
+        data_wide.set_multiplicity_data(data_headers);
 
         return data_headers;
     }
 
-    void GroupRate::helper_init_all_rates_(const Parameter &param, Individual &member, const str_table &these_rates)
+    void GroupRate::helper_init_unique_rate_(const Parameter &param, const Individual &member, const str_table &these_rates)
     {
-        // initialize group rates to reference (access storage directly)
-        Indiv::Group &igr = indiv_group_rates_[member.index_];
-        igr.vec.clear();
+        unique_groups_.emplace_back();
+        Indiv::Group &igr = unique_groups_.back();
         igr.vec.reserve(pKeys->size());
         for (const std::string &gstr : pKeys->get_all())
         {

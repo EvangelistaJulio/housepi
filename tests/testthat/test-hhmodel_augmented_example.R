@@ -256,7 +256,7 @@ test_that("export_house_snapshot returns correct structure", {
   hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   hhmodel$load_parameter_template()
   hhmodel$evaluate_log_lik()
-  
+
   hid <- helper_test_get_data("flu_1918_frederick")$house_id[1]
   snapshot <- hhmodel$export_house_snapshot(hid)
   expect_true(is.list(snapshot))

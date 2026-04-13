@@ -153,9 +153,7 @@ HousepiModel <- R6::R6Class(
       if (length(module$defs) == 0) return(invisible(self))
 
       # check if any defs actually need data
-      needs_data <- any(sapply(module$defs, function(d) {
-        !all(is.na(d[["by"]]))
-      }))
+      needs_data <- length(module$data_required) > 0
       if (needs_data && length(private$cols_data_wide_) == 0) {
         warning_h(
           sprintf("Missing data needed for building %ss.", module$family),

@@ -1006,6 +1006,30 @@ namespace
         return Rcpp::DataFrame(output);
     }
 
+    /// Export to R a snapshot of current contact rate attribute values
+    /// for a household as a (from x to) numeric matrix with member id dimnames.
+    /// Returns an empty 0x0 matrix when no contact rate was defined.
+    Rcpp::NumericMatrix helper_contact_rates_rcpp_snapshot(const ContactRate &contact_rate,
+                                                           const Household &house)
+    {
+        if (contact_rate.is_empty())
+            return Rcpp::NumericMatrix(0, 0);
+
+        const size_t n = house.size();
+        Rcpp::NumericMatrix mtx(n, n);
+        Rcpp::CharacterVector ids(n);
+
+        for (size_t i = 0; i < n; ++i)
+        {
+            ids[i] = house.member(i).id();
+            for (size_t j = 0; j < n; ++j)
+                mtx(i, j) = hsp_to_rcpp(house.contact_rate(i, j));
+        }
+
+        mtx.attr("dimnames") = Rcpp::List::create(ids, ids);
+        return mtx;
+    }
+
     /// Export to R a snapshot of current state of house infectivity profile.
     Rcpp::List helper_infec_profile_rcpp_snapshot(const InfecProfile &infec_profile,
                                                   const Household &house)
@@ -1142,6 +1166,7 @@ namespace
                 Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide(), house),
                 Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long(), house),
                 Rcpp::_["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr->group_rate, house),
+                Rcpp::_["contact_rate"] = helper_contact_rates_rcpp_snapshot(mcmc_ptr->contact_rate, house),
                 Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr->infec_profile, house),
                 Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr->augm, house));
         }

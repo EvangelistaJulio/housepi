@@ -37,38 +37,43 @@ namespace hsp
     {
         try
         {
-            // allocate external contact rate storage
+            // UPDATE I should just allocate for restricted houses
+            // reset external contact rate storage and unbind households
             house_contact_rates_.clear();
+            for (size_t H = 0; H < data_wide.report_house.total; ++H)
+                data_wide.at(H).pcontact_rate_ = nullptr;
+
+            // no definitions provided -> leave empty as sentinel
+            if (input.empty())
+                return;
+
             house_contact_rates_.resize(data_wide.report_house.total);
 
             // parse column headers to separate from_ and to_ prefixes
             std::vector<std::string> from_headers, to_headers;
             std::vector<std::string> data_names;
 
-            if (!input.empty())
+            for (const auto &key : read::extract_keys(input))
             {
-                for (const auto &key : read::extract_keys(input))
+                if (key == "param_name")
+                    continue;
+                if (key.size() > 5 && key.substr(0, 5) == "from_")
                 {
-                    if (key == "param_name")
-                        continue;
-                    if (key.size() > 5 && key.substr(0, 5) == "from_")
-                    {
-                        from_headers.push_back(key);
-                        data_names.push_back(key.substr(5));
-                    }
-                    else if (key.size() > 3 && key.substr(0, 3) == "to_")
-                    {
-                        to_headers.push_back(key);
-                    }
+                    from_headers.push_back(key);
+                    data_names.push_back(key.substr(5));
                 }
-
-                if (from_headers.size() != to_headers.size())
-                    throw std::invalid_argument(
-                        "Mismatched number of 'from_' and 'to_' columns in contact rate definitions.");
-
-                // register data columns for multiplicity
-                data_wide.set_multiplicity_data(data_names);
+                else if (key.size() > 3 && key.substr(0, 3) == "to_")
+                {
+                    to_headers.push_back(key);
+                }
             }
+
+            if (from_headers.size() != to_headers.size())
+                throw std::invalid_argument(
+                    "Mismatched number of 'from_' and 'to_' columns in contact rate definitions.");
+
+            // register data columns for multiplicity
+            data_wide.set_multiplicity_data(data_names);
 
             size_t n_rows = read::csv_n_rows(input);
 

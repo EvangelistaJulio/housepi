@@ -74,8 +74,10 @@ namespace hsp
 		size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
 		size_t n_missing_status() const noexcept { return missing_list_.size(); }
 
-		const Attribute &get_contact_rate_attribute(size_t from, size_t to) const { return pcontact_rate_->mtx[from][to]; }
-		double contact_rate(size_t from, size_t to) const { return get_contact_rate_attribute(from, to).value(); }
+		double contact_rate(size_t from, size_t to) const
+		{
+			return pcontact_rate_ ? pcontact_rate_->mtx[from][to].value() : 1.0;
+		}
 
 		double obs_log_lik() const { return obs_log_lik_.value(); }
 

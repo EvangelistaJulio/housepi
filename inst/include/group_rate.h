@@ -51,11 +51,11 @@ namespace hsp
         void build(DataWide &data_wide, const Parameter &param, const str_table &deftable);
 
     private:
-        std::vector<Indiv::Group> indiv_group_rates_; /// External storage for individual group rates
+        std::vector<Indiv::Group> unique_groups_; /// Unique group rate definitions
 
-        /// Verify that group rates definitions are correct.
-        std::vector<std::string> helper_assert_definitions_(DataWide &data_wide, const str_table &input);
+        /// Verify that group rates definitions are correct and pre-process theme.
+        std::vector<std::string> helper_process_definitions_(DataWide &data_wide, const str_table &input);
         /// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
-        void helper_init_all_rates_(const Parameter &param, Individual &member, const str_table &these_rates);
+        void helper_init_unique_rate_(const Parameter &param, const Individual &member, const str_table &these_rates);
     };
 }

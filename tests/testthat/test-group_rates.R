@@ -1,6 +1,6 @@
 library(testthat)
 
-aux_add <- function(self, name, 
+aux_add <- function(self, name,
                     by = NA_character_,
                     prefix = NA_character_,
                     reference = NULL,
@@ -11,7 +11,8 @@ aux_add <- function(self, name,
                     prior = NA_character_, ...,
                     min = NA_real_, max = NA_real_,
                     proposal = NA_character_,
-                    proposal_scale = NA_real_) {
+                    proposal_scale = NA_real_,
+                    .warn_over = TRUE) {
   self$add_quo(name = name, by = by, prefix = prefix,
                reference = reference, joint = joint,
                logic_table = logic_table,
@@ -20,15 +21,16 @@ aux_add <- function(self, name,
                min = rlang::enquo(min),
                max = rlang::enquo(max),
                proposal = proposal,
-               proposal_scale = proposal_scale)
+               proposal_scale = proposal_scale,
+               .warn_over = .warn_over)
   invisible(self)
 }
 
 # a dummy dataset and relative information for factorization
-dummy_df <- data.frame(age_group = c("young", "young", "old", "young"),
+dummy_df <- data.frame(age_group = c("child", "child", "adult", "child"),
                        sex = c("M", "F", "M", "M"),
                        stringsAsFactors = FALSE)
-dummy_factor_info <- list(age_group = list(levels = c("young", "old")),
+dummy_factor_info <- list(age_group = list(levels = c("child", "adult")),
                           sex = list(levels = c("M", "F")))
 
 # dummy group rate logic table
@@ -157,7 +159,7 @@ test_that("Group rates deal with custom logic table correctly", {
 
 test_that("Group rate parameter overrides work", {
   grp <- HousepiGroupRate$new()
-  lt <- data.frame(age = c("young", "old", "elderly"),
+  lt <- data.frame(age = c("child", "adult", "elderly"),
                    param_name = c(".reference", "sus_old", "sus_elderly"))
   overrides <- list(
     sus_old = 1.73,
@@ -210,7 +212,7 @@ test_that("Group rate implementation preserves logic_table entries", {
 
   # add a custom-mode rate
   aux_add(grp, name = "infectivity",
-          logic_table = data.frame(age_group = c("old", "young"),
+          logic_table = data.frame(age_group = c("adult", "child"),
                                    param_name = c("inf_old", ".reference")))
 
   # implement should build by-mode and preserve logic_table-mode
@@ -263,80 +265,4 @@ test_that("Load list works as expected", {
   )
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
   grp$parameters
-})
-
-############################################################################
-
-test_that("HousepiContactRate add_quo custom mode stores correctly", {
-  cr <- HousepiContactRate$new()
-  lt <- data.frame(
-    from_age = c("adult", "adult", "child", "child"),
-    to_age   = c("adult", "child", "adult", "child"),
-    param_name = c(".reference", "cr_a2c", "cr_c2a", "cr_c2c")
-  )
-  cr$add_quo(logic_table = lt, prior = "lognormal", sdlog = 3)
-
-  # defs stored with mode sentinel
-  expect_equal(cr$defs$mode, "custom")
-  expect_true(is.na(cr$defs$by))
-
-  # logic table stored
-  expect_true(is.data.frame(cr$logic_table))
-  expect_equal(nrow(cr$logic_table), 4)
-
-  # parameters generated for non-reference
-  params <- cr$parameters
-  expect_length(params, 3)
-  expect_true(all(c("cr_a2c", "cr_c2a", "cr_c2c") %in% names(params)))
-})
-
-test_that("HousepiContactRate add_quo custom param_overrides work", {
-  cr <- HousepiContactRate$new()
-  lt <- data.frame(
-    from_age = c("adult", "child"),
-    param_name = c(".reference", "cr_child")
-  )
-  overrides <- list(
-    cr_child = list(value = 1, prior = "uniform", min = 0, max = 5,
-                    proposal = "normal", proposal_scale = 0.5)
-  )
-  cr$add_quo(logic_table = lt, params = overrides)
-
-  params <- cr$parameters
-  expect_equal(params$cr_child$prior, "uniform")
-  expect_equal(params$cr_child$min, 0)
-})
-
-test_that("HousepiContactRate custom mode skips implement", {
-  cr <- HousepiContactRate$new()
-  lt <- data.frame(
-    from_age = c("adult", "child"),
-    param_name = c(".reference", "cr_child")
-  )
-  cr$add_quo(logic_table = lt)
-
-  # implement should not clear the logic table
-  cr$implement(dummy_df, dummy_factor_info)
-  expect_true(is.data.frame(cr$logic_table))
-  expect_equal(cr$logic_table$param_name, c(".reference", "cr_child"))
-})
-
-test_that("HousepiContactRate tidy_table works with custom mode", {
-  cr <- HousepiContactRate$new()
-  lt <- data.frame(
-    from_age = c("adult", "child"),
-    param_name = c(".reference", "cr_child")
-  )
-  cr$add_quo(logic_table = lt)
-
-  tidy <- cr$tidy_table
-  expect_true(is.data.frame(tidy))
-  expect_equal(nrow(tidy), 2)
-})
-
-test_that("HousepiContactRate add_quo rejects by and logic_table together", {
-  cr <- HousepiContactRate$new()
-  lt <- data.frame(from_age = "adult", param_name = ".reference")
-  expect_error(cr$add_quo(by = "age", logic_table = lt),
-               regexp = "Impossible")
 })

@@ -8,7 +8,6 @@
 #pragma once
 
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "tools/types.h"
@@ -25,8 +24,6 @@ namespace hsp
 {
     struct DataWide;
     struct Parameter;
-    class Household;
-    class Individual;
 
     struct ContactRate
     {
@@ -37,7 +34,10 @@ namespace hsp
         /// Build symmetric contact rates from table definitions.
         void build(DataWide &data_wide, const Parameter &param, const str_table &input);
 
+        /// Whether no contact rate definitions were provided in the last build.
+        bool is_empty() const noexcept { return house_contact_rates_.empty(); }
+
     private:
-        std::vector<House::Contact> house_contact_rates_; /// External storage for household contact rates
+        std::vector<House::Contact> house_contact_rates_; /// Storage for household contact rates
     };
 }

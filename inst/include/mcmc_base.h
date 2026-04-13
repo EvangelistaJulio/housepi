@@ -75,6 +75,8 @@ namespace hsp
 						   const std::vector<std::string> &param_keys,
 						   const std::vector<std::string> &group_rate_keys,
 						   const std::vector<std::string> &augm_keys);
+						   
+	bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;
 
 	protected:
 		///////////////////////////////////

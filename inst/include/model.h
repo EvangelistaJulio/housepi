@@ -102,16 +102,6 @@ namespace hsp
 		/// User call. Request discrete infectivity profile definition.
 		void request_discrete_infec_profile() { mcmc_->infec_profile.request_discrete(); }
 
-		/// Auxiliary method to initialize simulations.
-		/// UPDATE: once I allow for multi-treading and a flag other than n_chains = 0, I can drop this.
-		void helper_init_simulation()
-		{
-			mcmc_->data_wide().assert_non_empty(); // check if data is empty
-			mcmc_->setup.n_chains = 0;           // use 0 chains as a state variable
-			mcmc_->setup.n_threads = 1;          // impose no parallelization
-			mcmc_->setup.set_n_threads();        // change accordingly
-		}
-
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
@@ -123,7 +113,10 @@ namespace hsp
 		double exponential() const { return mcmc_->setup.exponential(); }
 
 		/// Wheter hosuehold members i and j are equivalent in terms of rates.
-		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;
+		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const
+		{
+			return mcmc_->is_same_rate_partition(house, i, j);
+		}
 
 		/// Get parameter value.
 		double par(size_t p) const { return mcmc_->param.at(p).value(); }
