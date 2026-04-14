@@ -382,6 +382,8 @@ add_group_rate <-  function(hhmodel,
 #' @param by `r rd_ctr_by_`
 #' @param reference `r rd_ctr_refer_`
 #' @param prefix `r rd_ctr_prefix_`
+#' @param joint `r rd_ctr_joint_`
+#' @param symmetric `r rd_ctr_symmetric_`
 #' @param logic_table `r rd_ctr_ltab_`
 #' @param params `r rd_ctr_params_`
 #' @param prior `r rd_par_model_`
@@ -393,7 +395,8 @@ add_group_rate <-  function(hhmodel,
 #' @return `r rd_model_out_`
 #' @export
 add_contact_rate <- function(hhmodel, by = NA_character_,
-                             reference = NULL, prefix = "cr",
+                             reference = NULL, prefix = "ctr",
+                             joint = TRUE, symmetric = TRUE,
                              logic_table = NULL, params = NULL,
                              prior = NA_character_, ...,
                              min = NA_real_, max = NA_real_,
@@ -403,6 +406,7 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
   new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private$contact_rates_$add_quo(
     by = by, reference = reference, prefix = prefix,
+    joint = joint, symmetric = symmetric,
     logic_table = logic_table, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),

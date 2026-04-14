@@ -18,7 +18,7 @@ namespace hsp::msg
     /// Display a warning message if not already displayed before.
     void warning(const std::string &txt);
     /// Wheter text represent a previously unseen warning.
-    bool is_new_housepi_warning(const std::string &txt) noexcept;
+    bool is_new_warning(const std::string &txt) noexcept;
     /// Mark given text as an already seen warning.
-    void add_new_housepi_warning(const std::string &txt) noexcept;
+    void add_new_warning(const std::string &txt) noexcept;
 }

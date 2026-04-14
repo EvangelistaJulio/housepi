@@ -41,7 +41,7 @@ namespace hsp
 
     void DataLong::build(DataWide &data_wide, const str_table &input)
     {
-        pKeys->clear();
+        pKeys->clear_optional();
 
         if (input.empty())
             return;
@@ -71,7 +71,7 @@ namespace hsp
             // UPDATE: these errors should be more self-explicative
             if (!id_to_index.count(id))
                 throw std::invalid_argument(
-                    "Id '" + id + "' from data long format had no match in loaded data wide format.");
+                    "Id '" + id + "' from data long-format had no match in loaded data wide-format.");
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
@@ -89,12 +89,9 @@ namespace hsp
         // UPDATE: just store indexes and access indiv_datalist by index...
         c = 0;
         for (Household &house : data_wide)
-            for (Individual &member : house)
-            {
+            for (size_t i = 0; i < house.size(); ++i, ++c)
                 if (indiv_datalist.at(c).vec.size() > 0)
-                    member.plong_ = &indiv_datalist.at(c);
-                ++c;
-            }
+                    house.member(i).plong_ = &indiv_datalist.at(c);
     }
 
     void DataLong::helper_build_clear_data_()

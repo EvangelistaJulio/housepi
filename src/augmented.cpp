@@ -57,7 +57,7 @@ namespace hsp
         is_any_model_ = false;
 
         indiv_augm_.clear();
-        pKeys->clear();
+        pKeys->clear_optional();
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();

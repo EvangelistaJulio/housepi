@@ -47,7 +47,7 @@ namespace hsp
 
     void Parameter::build(const str_table &input)
     {
-        pKeys->clear();
+        pKeys->clear_optional();
 
         if (input.empty())
             return;

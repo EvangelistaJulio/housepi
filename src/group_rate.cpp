@@ -44,10 +44,14 @@ namespace hsp
 
     void GroupRate::build(DataWide &data_wide, const Parameter &param, const str_table &input)
     {
-        pKeys->clear();
+        // reset group rate storage and unbind individuals
+        pKeys->clear_optional();
         unique_groups_.clear();
+        for (Household &house : data_wide)
+            for (Individual &member : house)
+                member.pgroup_rate_ = nullptr;
 
-        // load required data headers
+        // load required data headers or skip if no definitions provided
         std::vector<std::string> data_headers = {};
         if (!input.empty())
             data_headers = helper_process_definitions_(data_wide, input);

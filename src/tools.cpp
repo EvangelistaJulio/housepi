@@ -27,12 +27,10 @@
 namespace hsp::msg
 {
     /// Set of already issued warnings.
-    std::unordered_set<std::string> housepi_issued_warnings_set;
+    std::unordered_set<std::string> issued_warnings_set_;
 
-    /// Wheter text represent a previously unseen warning.
-    bool is_new_housepi_warning(const std::string &txt) noexcept { return !housepi_issued_warnings_set.count(txt); }
-    /// Mark given text as an already seen warning.
-    void add_new_housepi_warning(const std::string &txt) noexcept { housepi_issued_warnings_set.insert(txt); }
+    bool is_new_warning(const std::string &txt) noexcept { return !issued_warnings_set_.count(txt); }
+    void add_new_warning(const std::string &txt) noexcept { issued_warnings_set_.insert(txt); }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,9 +104,7 @@ namespace hsp
 
 namespace hsp::na
 {
-    /// Wheter double represents NA.
     bool is(double x) noexcept { return std::isnan(x); }
-    /// Wheter string represents NA.
     bool is(std::string_view txt) noexcept
     {
         return txt.empty() ||
@@ -137,7 +133,6 @@ namespace hsp::str
     //////////////////////////////////  Converter Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Convert to lower case.
     std::string tolow(std::string s)
     {
         std::transform(s.begin(), s.end(), s.begin(),
@@ -146,7 +141,6 @@ namespace hsp::str
         return s;
     }
 
-    /// Convert to upper case.
     std::string toup(std::string s)
     {
         std::transform(s.begin(), s.end(), s.begin(),
@@ -155,7 +149,6 @@ namespace hsp::str
         return s;
     }
 
-    /// Convert string to boolean variable. NA is assumed as FALSE.
     bool tobool(const std::string &tkn)
     {
         if (na::is(tkn))
@@ -170,8 +163,9 @@ namespace hsp::str
     }
 
     /// Template function to wrap conversion functions with try-catch.
+    /// Using function pointer casting.
     template <typename Func, typename... Args>
-    auto converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
+    auto helper_converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
     {
         try
         {
@@ -185,30 +179,23 @@ namespace hsp::str
         }
     }
 
-    /// Converter to double using stod with function pointer casting.
     double tod(const std::string &input, const std::string &errtxt)
     {
         if (na::is(input))
             return na::DOUBLE;
-        // UPDATE: maube not the most robust approach...
+        // UPDATE: this is not a robust approach...
         if (input == "pi")
             return M_PI;
-        return converter_(static_cast<double (*)(const std::string &, size_t *)>(std::stod), input, errtxt, nullptr);
+        return helper_converter_(static_cast<double (*)(const std::string &, size_t *)>(std::stod), input, errtxt, nullptr);
     }
-
-    /// Converter to int using stoi with function pointer casting.
     int toi(const std::string &input, const std::string &errtxt)
     {
-        return converter_(static_cast<int (*)(const std::string &, size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
+        return helper_converter_(static_cast<int (*)(const std::string &, size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
     }
-
-    /// Converter to unsigned long using stoul with function pointer casting.
     unsigned long toul(const std::string &input, const std::string &errtxt)
     {
-        return converter_(static_cast<unsigned long (*)(const std::string &, size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
+        return helper_converter_(static_cast<unsigned long (*)(const std::string &, size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
     }
-
-    /// Converter to unsigned 32bit integer (for R compatibility).
     std::int32_t toi32(const std::string &input, const std::string &errtxt)
     {
         return static_cast<std::int32_t>(toul(input, errtxt));
@@ -243,14 +230,11 @@ namespace hsp::str
     ////////////////////////////////  String Vector Functions  //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Wheter a name has been tagged as private.
-    bool is_private(std::string_view s) noexcept
+    bool starts_with(std::string_view s, std::string_view pattern) noexcept
     {
-        return s.size() >= HIDDEN_PREFIX.size() &&
-               s.compare(0, HIDDEN_PREFIX.size(), HIDDEN_PREFIX) == 0;
+        return s.size() >= pattern.size() && s.compare(0, pattern.size(), pattern) == 0;
     }
 
-    /// Make list composed of distinct entries.
     std::vector<std::string> unique(const std::vector<std::string> &vec)
     {
         std::vector<std::string> out;
@@ -261,7 +245,6 @@ namespace hsp::str
         return out;
     }
 
-    /// Drop private entries from list.
     std::vector<std::string> drop_private(std::vector<std::string> vec)
     {
         auto new_end = std::remove_if(vec.begin(), vec.end(), is_private);
@@ -274,7 +257,7 @@ namespace hsp::str
     /// (modified from) Ref.
     /// -----
     /// Hjelmqvist, Sten (26 March 2012), Fast, memory efficient Levenshtein algorithm.
-    size_t levenshtein(std::string_view seq_A, std::string_view seq_B)
+    size_t helper_levenshtein_(std::string_view seq_A, std::string_view seq_B)
     {
         size_t len_A = seq_A.size();
         size_t len_B = seq_B.size();
@@ -305,7 +288,6 @@ namespace hsp::str
         return prev[len_B];
     }
 
-    /// Function to find the closest match.
     std::string find_closest(std::string_view input,
                              const std::vector<std::string> &options,
                              size_t min_dist,
@@ -316,7 +298,7 @@ namespace hsp::str
 
         for (const std::string &x : options)
         {
-            size_t d = levenshtein(input, x);
+            size_t d = helper_levenshtein_(input, x);
             if (d <= dist_closest)
             {
                 dist_closest = d;
@@ -338,7 +320,6 @@ namespace hsp::str
         return "\nAvailable options are: " + format(options);
     }
 
-    /// Check for missing entries given a vector of options.
     void assert_no_missing_entries(const std::vector<std::string> &entries,
                                    const std::vector<std::string> &options,
                                    const std::string &where)
@@ -361,7 +342,6 @@ namespace hsp::str
                 "Missing " + where + "s: " + str::format(missing));
     }
 
-    /// Check for unused entries given a vector of options.
     void assert_no_unused_entries(const std::vector<std::string> &entries,
                                   const std::vector<std::string> &options,
                                   const std::string &where)

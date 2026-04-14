@@ -37,6 +37,7 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
       .default = vacc_status
     ),
     isolation = isolation != "no quarantine",
+    recovered = as.logical(recovered),
     asymptomatic = as.logical(asymptomatic)
   ) |>
   # drop positive status if test after end followup

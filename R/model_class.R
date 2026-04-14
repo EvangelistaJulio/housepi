@@ -566,7 +566,7 @@ HousepiModel <- R6::R6Class(
       # share data store (just copy-on-write)
       .engine$share_data_store(obj_encl$mcmc_ptr_, private$mcmc_ptr_)
 
-      # the fresh pointer still needs definitions pushed to it
+      # NOTE: fresh pointer needs definitions to be injected
       obj_encl$needs_rebuild_ <- TRUE
 
       obj
@@ -864,6 +864,8 @@ HousepiModel <- R6::R6Class(
     #' @param by `r rd_ctr_by_`
     #' @param reference `r rd_ctr_refer_`
     #' @param prefix `r rd_ctr_prefix_`
+    #' @param joint `r rd_ctr_joint_`
+    #' @param symmetric `r rd_ctr_symmetric_`
     #' @param logic_table `r rd_ctr_ltab_`
     #' @param params `r rd_ctr_params_`
     #' @param prior `r rd_par_model_`
@@ -874,6 +876,7 @@ HousepiModel <- R6::R6Class(
     #' @param proposal_scale `r rd_proposal_scale_`
     add_contact_rate = function(by = NA_character_,
                                 reference = NULL, prefix = "ctr",
+                                joint = TRUE, symmetric = TRUE,
                                 logic_table = NULL, params = NULL,
                                 prior = NA_character_, ...,
                                 min = NA_real_, max = NA_real_,
@@ -881,6 +884,7 @@ HousepiModel <- R6::R6Class(
                                 proposal_scale = NA_real_) {
       private$contact_rates_$add_quo(
         by = by, reference = reference, prefix = prefix,
+        joint = joint, symmetric = symmetric,
         logic_table = logic_table, params = params,
         prior = prior, rlang::enquos(...),
         min = rlang::enquo(min),

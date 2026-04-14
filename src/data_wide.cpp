@@ -35,8 +35,8 @@
 namespace hsp
 {
     void Household::add_member(size_t index,
-                                const std::string &id,
-                                const Indiv::Wide *data_ptr)
+                               const std::string &id,
+                               const Indiv::Wide *data_ptr)
     {
         size_t hhindex = size();
         members_.emplace_back();
@@ -116,11 +116,11 @@ namespace hsp
 
     void DataWide::build(const str_table &input)
     {
-        pKeys->clear();
-        pKeys_size_val->clear();
-        pKeys_size_vec->clear();
-        pKeys_double_vec->clear();
-        pKeys_double_mtx->clear();
+        pKeys->clear_optional();
+        pKeys_size_val->clear_optional();
+        pKeys_size_vec->clear_optional();
+        pKeys_double_vec->clear_optional();
+        pKeys_double_mtx->clear_optional();
 
         if (input.empty())
             return;
@@ -197,10 +197,10 @@ namespace hsp
     size_t DataWide::house_id_to_index_(std::string_view house_id) const
     {
         auto it = hhid_to_index_.find(house_id);
-        if (it != hhid_to_index_.end())
-            return it->second;
-        throw std::invalid_argument(
-            "Index '" + std::string(house_id) + "' did not match any household in the data.");
+        if (it == hhid_to_index_.end())
+            throw std::invalid_argument(
+                "Index '" + std::string(house_id) + "' did not match any household in the data.");
+        return it->second;
     }
 
     void DataWide::helper_build_clear_data_()

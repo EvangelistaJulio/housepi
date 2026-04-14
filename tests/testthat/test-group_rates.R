@@ -84,9 +84,8 @@ test_that("Group rates integrate with data and exposes to Cpp format", {
   expect_true(all(cpp_tbl$sex %in% c(1L, 2L)))
 
   # mcmc setup is default
-  default_mcmc_setup <- list(value = NA_real_, prior = "lognormal",
-                             meanlog = 0, sdlog = 3, min = 0, max = 10,
-                             proposal = "lognormal", proposal_scale = 1)
+  default_mcmc_setup <- list(prior = "lognormal", meanlog = 0, sdlog = 3,
+                             min = 0, max = 10, proposal = "lognormal")
   expect_equal(grp$parameters[[1]], default_mcmc_setup)
 })
 
@@ -96,7 +95,7 @@ test_that("Parameter options work correctly", {
           prior = "uniform", min = 0, max = 10, joint = TRUE)
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
   expect_equal(grp$parameters[[1]],
-               list(value = 1, prior = "uniform", min = 0, max = 10,
+               list(prior = "uniform", min = 0, max = 10,
                     proposal = NA_character_, proposal_scale = NA_real_))
 
   grp <- HousepiGroupRate$new()
@@ -104,7 +103,7 @@ test_that("Parameter options work correctly", {
           prior = "gamma", shape = 2, scale = 1, joint = TRUE)
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
   expect_equal(grp$parameters[[1]],
-               list(value = 1, prior = "gamma", shape = "2|N", scale = "1|N",
+               list(prior = "gamma", shape = "2|N", scale = "1|N",
                     min = NA_real_, max = NA_real_,
                     proposal = NA_character_, proposal_scale = NA_real_))
 })

@@ -25,7 +25,7 @@ predicted_measures(
 \item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
 }}
 
-\item{...}{Named arguments. \code{function}s to compute respective measures from data.
+\item{...}{Named arguments. \code{function}s to compute measures from data.
 Each function should return one between \code{numeric()}, \code{list} or \code{data.frame}.}
 
 \item{obs_process}{\code{function} Observation process.

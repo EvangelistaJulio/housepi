@@ -54,10 +54,10 @@ namespace hsp::msg
     /// Display a warning message if not already displayed before.
     void warning(const std::string &txt)
     {
-        if (is_new_housepi_warning(txt))
+        if (is_new_warning(txt))
         {
             std::cerr << "Warning: " << txt << std::endl;
-            add_new_housepi_warning(txt);
+            add_new_warning(txt);
         }
     }
 }

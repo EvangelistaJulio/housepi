@@ -53,9 +53,9 @@ rd_var_max_ <- "`numeric(1)` Truncate to a maximum value."
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
 One between:
 - 'sample': sampled from the %s distribution;
-- 'uniform': increments drawn from uniform distribution;
-- 'normal': increments drawn from normal distribution;
-- 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+- 'uniform': increments drawn from uniform;
+- 'normal': increments drawn from normal;
+- 'lognormal': log-increments drawn from lognormal (for positive values only);
 - `NA` (default): same as 'sample'.
 "
 rd_proposal_scale_ <- "`numeric(1)` Scale of the proposal (default is `1`).
@@ -141,6 +141,9 @@ Default is `'cr'`."
 rd_ctr_refer_ <- "named `list` Features associated to reference pair.
 Names can use `from_`/`to_` prefixes matching `by`,
 or un-prefixed names (applied to both from and to)."
+rd_ctr_joint_ <- rd_grr_joint_
+rd_ctr_symmetric_ <- "`logical(1)` Consider features as joint.
+If `FALSE` features are independent (default)."
 rd_ctr_ltab_ <- rd_grr_ltab_
 rd_ctr_params_ <- rd_grr_params_
 
@@ -191,10 +194,11 @@ It must be a value in (0.5, 1.0). Default is 0.95."
 ############################################################################
 ############################################################################
 
-rd_evi_scheme_ <- "`character(1)` Scheme used for evidence estimation.
+rd_pwr_frac_ <- "\\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5}"
+rd_evi_scheme_ <- sprintf("`character(1)` Scheme used for evidence estimation.
 One between
-- 'power-fractions': uses inverse temperatures \\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).
-- 'adaptive': uses adaptive thermodynamic ladder."
+- 'power-fractions': uses inverse temperatures %s (default).
+- 'adaptive': uses adaptive thermodynamic ladder.", rd_pwr_frac_)
 rd_evi_rungs_ <- "`integer(1)` Number of rungs in thermodynamic ladder."
 rd_param_table_ <- "One between
 - `data.frame`;
@@ -203,10 +207,13 @@ rd_param_table_ <- "One between
 "
 rd_ess_ <- "`logical(1) Whether to resample `param_table` to ESS.
 Ignored if `param_table` has no posterior draws. Default is `TRUE`."
-rd_measure_dots_ <- "Named arguments. `function`s to compute respective measures from data.
+rd_measure_dots_ <- "Named arguments. `function`s to compute measures from data.
 Each function should return one between `numeric()`, `list` or `data.frame`."
 
-rd_measure_long_ <- "`function` | `list` of `function`s. Applied to `data_long` (derived via `obs_process_long`)."
+rd_measure_long_ <- paste(
+  "`function` | `list` of `function`s.",
+  "Applied to `data_long` (derived via `obs_process_long`)."
+)
 
 rd_ppc_observ_ <- paste(rd_simul_observ_,
                         "This applies only on simulations, not on data.")
@@ -216,5 +223,5 @@ rd_ppc_observ_ <- paste(rd_simul_observ_,
 ############################################################################
 
 rd_hhsampler_size_ <- "`integer(1)` Number of households to sample."
-rd_hhsampler_asc_ <- "`logical(1)` Set ascending hierarchy between feature numbers.
+rd_hhsampler_asc_ <- "`logical(1)` Set ascending hierarchy between features.
 If `FALSE` is descending (default)."

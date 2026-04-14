@@ -56,7 +56,7 @@ If \code{NULL}, observation process is ignored.}
 Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
-\item{\code{...}}{Named arguments. \code{function}s to compute respective measures from data.
+\item{\code{...}}{Named arguments. \code{function}s to compute measures from data.
 Each function should return one between \code{numeric()}, \code{list} or \code{data.frame}.}
 
 \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s. Applied to \code{data_long} (derived via \code{obs_process_long}).}

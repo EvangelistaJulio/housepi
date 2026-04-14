@@ -8,7 +8,9 @@ add_contact_rate(
   hhmodel,
   by = NA_character_,
   reference = NULL,
-  prefix = "cr",
+  prefix = "ctr",
+  joint = TRUE,
+  symmetric = TRUE,
   logic_table = NULL,
   params = NULL,
   prior = NA_character_,
@@ -32,6 +34,12 @@ or un-prefixed names (applied to both from and to).}
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters.
 Default is \code{'cr'}.}
 
+\item{joint}{\code{logical(1)} Consider features as joint.
+If \code{FALSE} features are independent (default).}
+
+\item{symmetric}{\code{logical(1)} Consider features as joint.
+If \code{FALSE} features are independent (default).}
+
 \item{logic_table}{\code{data.frame} Custom feature values and relative \code{param_name}.
 Use \code{.reference} in \code{param_name} for the reference group.
 Mutually exclusive with \code{by}.}
@@ -52,9 +60,9 @@ Ignored if automatic definition.}
 One between:
 \itemize{
 \item 'sample': sampled from the \%s distribution;
-\item 'uniform': increments drawn from uniform distribution;
-\item 'normal': increments drawn from normal distribution;
-\item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+\item 'uniform': increments drawn from uniform;
+\item 'normal': increments drawn from normal;
+\item 'lognormal': log-increments drawn from lognormal (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 

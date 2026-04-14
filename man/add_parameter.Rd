@@ -56,9 +56,9 @@ Default is \code{FALSE}.}
 One between:
 \itemize{
 \item 'sample': sampled from the prior distribution;
-\item 'uniform': increments drawn from uniform distribution;
-\item 'normal': increments drawn from normal distribution;
-\item 'lognormal': log-increments drawn from lognormal distribution (for positive values only);
+\item 'uniform': increments drawn from uniform;
+\item 'normal': increments drawn from normal;
+\item 'lognormal': log-increments drawn from lognormal (for positive values only);
 \item \code{NA} (default): same as 'sample'.
 }}
 

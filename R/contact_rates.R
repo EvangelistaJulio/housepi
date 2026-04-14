@@ -12,23 +12,43 @@
 #' @keywords internal
 #' @noRd
 contact_rate_logic_table <- function(data_wide, features) {
-  # unique values per feature
-  uni_values <- lapply(features, function(f) sort(unique(data_wide[[f]])))
-  names(uni_values) <- features
+  # convention: no house_id implies households of size 1: no pairs possible
+  if (!"house_id" %in% colnames(data_wide)) return(NULL)
+  # use existing "id" column or assign a row id
+  if (!"id" %in% colnames(data_wide)) data_wide$id <- seq_len(nrow(data_wide))
 
-  # build from and to grids
-  from_grid <- do.call(expand.grid, stats::setNames(
-    uni_values, paste0("from_", features)
-  ))
-  to_grid <- do.call(expand.grid, stats::setNames(
-    uni_values, paste0("to_", features)
-  ))
+  # subset to needed column, and coerce features to character
+  features <- as.character(unlist(features))
+  data_wide <- data_wide[, c("house_id", "id", features), drop = FALSE]
+  data_wide[] <- lapply(data_wide, as.character)
 
-  # full cross of from x to
+  # vectorised self-join to retrieve every within-household ordered pair
+  pairs <- merge(data_wide, data_wide, by = "house_id",
+                 suffixes = c(".from", ".to"))
+  pairs <- pairs[pairs$id.from != pairs$id.to, , drop = FALSE]
+
+  # hash using unprintable separators '\x1E' and '\x1F'
+  make_key <- function(x, cols) do.call(paste, c(x[cols], list(sep = "\x1F")))
+
+  # hash-based counting of pair types
+  pair_key <- paste(make_key(pairs, paste0(features, ".from")),
+                    make_key(pairs, paste0(features, ".to")),
+                    sep = "\x1E")
+  cnt <- table(pair_key)
+
+  # build the full observed grid
+  observed <- unique(data_wide[, features, drop = FALSE])
+  from_grid <- stats::setNames(observed, paste0("from_", features))
+  to_grid <- stats::setNames(observed, paste0("to_", features))
   y <- merge(from_grid, to_grid, by = NULL)
+  rownames(y) <- NULL
 
-  # convert factors to character
-  for (col in colnames(y)) y[[col]] <- as.character(y[[col]])
+  # look up counts by the same key
+  grid_key <- paste(make_key(y, names(from_grid)),
+                    make_key(y, names(to_grid)),
+                    sep = "\x1E")
+  y$n <- as.integer(cnt[grid_key])
+  y$n[is.na(y$n)] <- 0L
 
   y
 }
@@ -40,28 +60,43 @@ contact_rate_logic_table <- function(data_wide, features) {
 #' @return `data.frame` with param_name column added.
 #' @keywords internal
 #' @noRd
-associate_contact_param_names <- function(this_table, prefix, reference) {
+associate_contact_param_names <- function(this_table, prefix, reference,
+                                          symmetric = TRUE) {
   colmask <- assess_feature_values(this_table)
+  from_cols <- grep("^from_", colmask, value = TRUE)
+  to_cols <- grep("^to_", colmask, value = TRUE)
+  features <- sub("^from_", "", from_cols)
 
   # find reference index
   if (length(reference) == 0) {
-    idx_refer <- integer(0)
+    idx_refer <- which.max(this_table$n)
   } else {
-    idx_refer <- unname(which(
-      apply(this_table[colmask], 1,
-            function(row) all(row == unlist(reference[colmask])))
-    ))
-    if (length(idx_refer) != 1) stop_h("Provided reference group is not valid.")
+    refer_mask <- apply(this_table[colmask], 1, function(row) {
+      all(row == unlist(reference[colmask]))
+    })
+    idx_refer <- unname(which(refer_mask))
+    if (length(idx_refer) != 1) stop_h(
+      "Provided reference group is not valid.",
+      "Reference should be a vector with names starting with 'from_X', 'to_Y'."
+    )
   }
 
   # format prefix
   prefix <- ifelse(prefix == "" || !is.character(prefix),
                    "", paste0(prefix, "_"))
 
-  # associate parameter names
+  # build param names with one "from" and one "to" token
   this_table$param_name <- apply(
     this_table[colmask], 1, function(row) {
-      paste0(prefix, paste(paste(colmask, row, sep = "_"), collapse = "_"))
+      from_part <- paste(features, row[from_cols], sep = "_", collapse = "_")
+      to_part <- paste(features, row[to_cols], sep = "_", collapse = "_")
+      if (isTRUE(symmetric) && from_part > to_part) {
+        # order convention: smaller key is always "from"
+        tmp <- from_part
+        from_part <- to_part
+        to_part <- tmp
+      }
+      paste0(prefix, "from_", from_part, "_to_", to_part)
     }
   )
   if (length(idx_refer) == 1) {
@@ -71,11 +106,64 @@ associate_contact_param_names <- function(this_table, prefix, reference) {
   this_table
 }
 
+#' Fill symmetric gaps in a custom contact rate logic table.
+#' For each row, if the reverse from/to pair is missing,
+#' add it with the same param_name.
+#' @param tbl `data.frame` with from_X, to_Y, and param_name columns.
+#' @return `data.frame` with missing reverse pairs added.
+#' @keywords internal
+#' @noRd
+fill_symmetric_gaps <- function(tbl) {
+  feat_cols <- setdiff(colnames(tbl), c("param_name", "n"))
+  from_cols <- grep("^from_", feat_cols, value = TRUE)
+  features <- sub("^from_", "", from_cols)
+
+  new_rows <- list()
+  for (i in seq_len(nrow(tbl))) {
+    rev_row <- tbl[i, , drop = FALSE]
+    for (f in features) {
+      rev_row[[paste0("from_", f)]] <- tbl[i, paste0("to_", f)]
+      rev_row[[paste0("to_", f)]] <- tbl[i, paste0("from_", f)]
+    }
+    exists <- any(apply(tbl[feat_cols], 1, function(row) {
+      all(row == rev_row[feat_cols])
+    }))
+    if (!exists) new_rows[[length(new_rows) + 1]] <- rev_row
+  }
+
+  if (length(new_rows) > 0) {
+    tbl <- rbind(tbl, do.call(rbind, new_rows))
+    rownames(tbl) <- NULL
+  }
+  tbl
+}
+
 ############################################################################
 ############################################################################
 ########################### Housepi Contact Rate ###########################
 ############################################################################
 ############################################################################
+
+#' Combine list of contact rate sub-tables into a single data.frame.
+#' @param tables `list` of `data.frame`s.
+#' @return `data.frame` with columns unified across sub-tables.
+#' @keywords internal
+#' @noRd
+tidyup_contact_rate_tables <- function(tables) {
+  if (length(tables) == 0) return(data.frame())
+
+  all_cols <- unique(c("param_name", "n",
+                       sort(unlist(lapply(tables, names)))))
+
+  combined <- do.call(rbind, lapply(seq_along(tables), function(i) {
+    df <- tables[[i]]
+    missing_cols <- setdiff(all_cols, names(df))
+    df[missing_cols] <- NA_character_
+    df[all_cols]
+  }))
+  rownames(combined) <- NULL
+  combined
+}
 
 #' @title Housepi Contact Rate
 #' @description Help with contact rate definitions of model Rcpp object.
@@ -93,16 +181,15 @@ HousepiContactRate <- R6::R6Class(
     deep_clone = function(name, value) helper_clone(value),
 
     # Add rate definition in automatic mode.
-    helper_auto_add_ = function(by, reference, prefix) {
+    helper_auto_add_ = function(by, reference, prefix, joint, symmetric) {
       # validate features
       assert_valid_features(by)
 
       # validate reference names
       if (!is.null(reference)) {
         valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
-        # convenience: allow un-prefixed names (apply to both from_ and to_)
-        if (length(reference) == length(by) &&
-              all(names(reference) %in% by)) {
+        # convenience: allow un-prefixed names
+        if (length(reference) == length(by) && all(names(reference) %in% by)) {
           reference <- c(stats::setNames(reference[by], paste0("from_", by)),
                          stats::setNames(reference[by], paste0("to_", by)))
         }
@@ -114,19 +201,24 @@ HousepiContactRate <- R6::R6Class(
 
       # store definition
       self$defs <- list(by = by, reference = reference, prefix = prefix,
-                        mode = "auto")
-      self$logic_table <- NULL
+                        joint = joint, symmetric = symmetric, mode = "auto")
+      self$logic_tables <- list()
       self$param_overrides <- list()
       invisible(self)
     },
 
     # Add rate definition in custom mode.
-    helper_custom_add_ = function(logic_table, params) {
+    helper_custom_add_ = function(logic_table, params, symmetric) {
       assert_valid_logic_table(logic_table)
+      if (!".reference" %in% logic_table$param_name) stop_h(
+        "Custom logic table must contain a '.reference' row.",
+        "Designate one row's param_name as '.reference'."
+      )
       # store sentinel definition
       self$defs <- list(by = NA_character_, prefix = NA_character_,
-                        reference = NULL, mode = "custom")
-      self$logic_table <- logic_table
+                        reference = NULL, joint = TRUE,
+                        symmetric = symmetric, mode = "custom")
+      self$logic_tables <- list(logic_table)
       self$param_overrides <- if (is.null(params)) list() else params
       invisible(self)
     }
@@ -142,8 +234,8 @@ HousepiContactRate <- R6::R6Class(
     parameters = function(value) {
       if (!missing(value)) stop_read_only("parameters")
       new_params <- list()
-      if (!is.null(self$logic_table)) {
-        for (par_id in setdiff(self$logic_table$param_name, ".reference")) {
+      for (ptbl in self$logic_tables) {
+        for (par_id in setdiff(ptbl$param_name, ".reference")) {
           if (!is.null(self$param_overrides[[par_id]])) {
             new_params[[par_id]] <- self$param_overrides[[par_id]]
           } else {
@@ -168,8 +260,10 @@ HousepiContactRate <- R6::R6Class(
     #' Parameters required by contact rates.
     param_required = function(value) {
       if (!missing(value)) stop_read_only("param_required")
-      if (is.null(self$logic_table)) return(character(0))
-      required <- setdiff(unique(self$logic_table$param_name), ".reference")
+      required <- c()
+      for (ptbl in self$logic_tables) required <- c(required, ptbl$param_name)
+      required <- setdiff(unique(required), ".reference")
+      if (length(required) == 0) return(character(0))
       set_source_name_(required, self$family)
     },
 
@@ -177,8 +271,7 @@ HousepiContactRate <- R6::R6Class(
     #' Contact rate definitions table.
     tidy_table = function(value) {
       if (!missing(value)) stop_read_only("tidy_table")
-      if (is.null(self$logic_table)) return(data.frame())
-      self$logic_table
+      tidyup_contact_rate_tables(self$logic_tables)
     }
   ),
 
@@ -196,9 +289,9 @@ HousepiContactRate <- R6::R6Class(
     #' @field raw_params `list`. Raw parameter definitions.
     raw_params = list(),
 
-    #' @field logic_table `data.frame`.
-    #' Table of parameters associated to contact rate pairs.
-    logic_table = NULL,
+    #' @field logic_tables `list`.
+    #' List of tables for contact rate pair definitions.
+    logic_tables = list(),
 
     #' @field param_overrides `list`.
     #' Per-parameter MCMC overrides.
@@ -209,14 +302,15 @@ HousepiContactRate <- R6::R6Class(
     initialize = function() {
       self$defs <- list()
       self$raw_params <- list()
-      self$logic_table <- NULL
+      self$logic_tables <- list()
       self$param_overrides <- list()
       invisible(self)
     },
 
     #' @inherit add_contact_rate
     add_quo = function(by = NA_character_,
-                       reference = NULL, prefix = "cr",
+                       reference = NULL, prefix = "ctr",
+                       joint = TRUE, symmetric = TRUE,
                        logic_table = NULL, params = NULL,
                        prior = NA_character_, ...,
                        min = NA_real_, max = NA_real_,
@@ -227,6 +321,8 @@ HousepiContactRate <- R6::R6Class(
       by <- housepi_smart_unwrap(by, "by")
       prefix <- housepi_smart_unwrap(prefix, "prefix")
       reference <- housepi_smart_unwrap(reference, "reference")
+      joint <- isTRUE(housepi_smart_unwrap(joint, "joint"))
+      symmetric <- isTRUE(housepi_smart_unwrap(symmetric, "symmetric"))
 
       # custom definition
       logic_table <- housepi_smart_unwrap(logic_table, "logic_table")
@@ -251,9 +347,13 @@ HousepiContactRate <- R6::R6Class(
       if (.warn_over && length(self$defs) > 0) warning_h(
         "Overwriting previous contact rate definition."
       )
-      if (is_auto) private$helper_auto_add_(by, reference, prefix)
-      else if (is_custom) private$helper_custom_add_(logic_table, params)
-      else return(invisible(self))
+      if (is_auto) {
+        private$helper_auto_add_(by, reference, prefix, joint, symmetric)
+      } else if (is_custom) {
+        private$helper_custom_add_(logic_table, params, symmetric)
+      } else {
+        return(invisible(self))
+      }
 
       # store MCMC parameter setup
       self$raw_params <- set_group_rates_mcmc_setup(
@@ -264,69 +364,88 @@ HousepiContactRate <- R6::R6Class(
       invisible(self)
     },
 
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
     #' @description
     #' Implement contact rate definition according to data.
     #' @param data_wide A data.frame with the dataset.
-    #' @param factor_info A list with levels for each factorized feature.
+    #' @param factor_info A list with factor levels.
     implement = function(data_wide, factor_info) {
-      # skip if logic_table mode -- already stored directly
-      if (self$defs[["mode"]] == "custom") return(invisible(self))
+      symmetric <- isTRUE(self$defs[["symmetric"]])
 
-      self$logic_table <- NULL
+      # custom mode
+      if (self$defs[["mode"]] == "custom") {
+        if (!symmetric) return(invisible(self))
+        # optionally fill symmetric gaps
+        for (i in seq_along(self$logic_tables)) {
+          self$logic_tables[[i]] <- fill_symmetric_gaps(self$logic_tables[[i]])
+        }
+        return(invisible(self))
+      }
+
+      self$logic_tables <- list()
 
       by <- self$defs[["by"]]
       if (is.null(by) || all(is.na(by))) return(invisible(self))
       assert_data_features(by, colnames(data_wide))
 
-      # build the paired logic table
-      this_table <- contact_rate_logic_table(data_wide, by)
+      # cast features: joint wraps all together
+      features <- as.list(by)
+      if (isTRUE(self$defs[["joint"]])) features <- list(features)
 
       # default prefix
       prefix <- as.character(self$defs[["prefix"]])
-      if (is.na(prefix)) prefix <- "cr"
+      if (is.na(prefix)) prefix <- "ctr"
 
-      # associate parameter names
-      this_table <- associate_contact_param_names(
-        this_table, prefix, self$defs$reference
-      )
-
-      self$logic_table <- this_table
+      new_tables <- list()
+      for (this_feat in features) {
+        this_table <- contact_rate_logic_table(data_wide, this_feat)
+        # extract reference entries for this sub-table
+        ref_cols <- c(paste0("from_", this_feat), paste0("to_", this_feat))
+        relevant_ref <- self$defs$reference[
+          names(self$defs$reference) %in% ref_cols
+        ]
+        this_table <- associate_contact_param_names(
+          this_table, prefix, relevant_ref, symmetric
+        )
+        new_tables[[length(new_tables) + 1]] <- this_table
+      }
+      self$logic_tables <- new_tables
       invisible(self)
     },
 
     #' @description
-    #' Assert that contact rate definitions are compatible with model.
+    #' Assert that contact rate definitions are compatible.
     #' @param mcmc_ptr Rcpp pointer to MCMC object.
     assert = function(mcmc_ptr) {
       has_defs <- length(self$defs) > 0 &&
         (!all(is.na(self$defs[["by"]])) || self$defs[["mode"]] == "custom")
       has_model <- .engine$has_contact_rates(mcmc_ptr)
       if (has_defs && !has_model) stop_h(
-        "Contact rates are defined but the loaded model does not use them.",
-        "Check 'has_contact_rates()' in your model implementation."
+        "Contact rates are defined but the loaded model does not use them."
       )
     },
 
     #' @description
-    #' Tidy table of contact rate definitions to be passed to Cpp.
-    #' @param info list of lists with factor levels for data columns.
+    #' Tidy table of contact rate definitions for Cpp.
+    #' @param info list of lists with factor levels.
     expose_to_cpp = function(info) {
       defs <- self$tidy_table
       if (nrow(defs) == 0) return(defs)
 
-      # integer-encode feature columns using factor info
-      for (k in intersect(colnames(defs), names(info))) {
-        defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
-      }
-      # also encode from_X and to_X using the base column info
-      for (by_col in self$defs[["by"]]) {
-        if (!is.null(info[[by_col]])) {
-          lv <- info[[by_col]]$levels
-          for (prefix in c("from_", "to_")) {
-            col <- paste0(prefix, by_col)
-            if (col %in% colnames(defs)) {
-              defs[[col]] <- as.integer(factor(defs[[col]], levels = lv))
-            }
+      # encode from_X and to_X columns using factor info
+      features <- self$defs[["by"]]
+      if (is.null(features)) return(defs)
+
+      for (this_feat in features[!is.na(features)]) {
+        if (is.null(info[[this_feat]])) next
+        lv <- info[[this_feat]]$levels
+        for (prefix in c("from_", "to_")) {
+          col <- paste0(prefix, this_feat)
+          if (col %in% colnames(defs)) {
+            defs[[col]] <- as.integer(factor(defs[[col]], levels = lv))
           }
         }
       }

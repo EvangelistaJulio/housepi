@@ -209,7 +209,7 @@ test_that("Group rate wrappers", {
     logic_table = data.frame(member = c("kaiju", NA),
                              param_name = c("sus_student", ".reference"))
   )
-  expect_error(hhmodel$group_rates, regexp = "unobserved")
+  expect_warning(hhmodel$group_rates, regexp = "not found")
 })
 
 test_that("add_infec_profile and load_infec_profile_list work", {

@@ -28,7 +28,7 @@ namespace hsp
         //////////////////////
 
         /// Drop all optional definitions.
-        void clear()
+        void clear_optional()
         {
             optional_.clear();
             size_ = declared_.size();

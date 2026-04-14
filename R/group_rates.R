@@ -25,9 +25,9 @@ assert_valid_features <- function(features) {
     format_type_error(features)
   )
 
-  # avoid group rates associated to reserved data
-  reserved_data <- c("id", "house_id", "status",
-                     "n", "param_name", "group_rate")
+  # avoid group rates associated to reserved data/definition names
+  reserved_data <- c("id", "house_id", "status", "n",
+                     "param_name", "group_rate")
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
     sprintf("Impossible to associate rate to feature%s %s",
@@ -215,12 +215,11 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
                        function(x) is.na(x) || is.null(x))
   # if all defaults, provide default choice
   if (all(is_default)) list(
-    value = NA_real_, prior = "lognormal", meanlog = 0, sdlog = 3,
-    min = 0, max = 10,
-    proposal = "lognormal", proposal_scale = 1
+    prior = "lognormal", meanlog = 0, sdlog = 3,
+    min = 0, max = 10, proposal = "lognormal"
   )
   # else go with user choice
-  else c(list(value = NA_real_, prior = prior), args,
+  else c(list(prior = prior), args,
          list(min = min, max = max,
               proposal = proposal, proposal_scale = proposal_scale))
 }
@@ -384,12 +383,12 @@ HousepiGroupRate <- R6::R6Class(
         for (col in feat_cols) {
           vals <- tbl[[col]][!is.na(tbl[[col]])]
           data_vals <- unique(data_wide[[col]])
-          missing_vals <- setdiff(as.character(vals),
-                                  as.character(data_vals))
-          if (length(missing_vals) > 0) stop_h(
-            sprintf("Data column '%s' contains unobserved value%s %s",
-                    col, as_plural(missing_vals, "s:"),
-                    character_to_string_list(missing_vals))
+          missing_vals <- setdiff(as.character(vals), as.character(data_vals))
+          if (length(missing_vals) > 0) warning_h(
+            sprintf("Rate '%s' definition value%s not found in data '%s': %s",
+                    rate_id, as_plural(missing_vals, "s"), col,
+                    character_to_string_list(missing_vals)),
+            "Corresponding logic table entry will be skipped."
           )
         }
         # add counts
@@ -402,6 +401,8 @@ HousepiGroupRate <- R6::R6Class(
           }
           sum(mask)
         })
+        # skip entries with no matching data
+        tbl <- tbl[tbl$n > 0, , drop = FALSE]
         self$logic_tables[[rate_id]][[ti]] <- tbl
       }
       invisible(self)
@@ -598,6 +599,10 @@ HousepiGroupRate <- R6::R6Class(
       housepi_load_defin_quos(self, "by", xquos)
       invisible(self)
     },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
 
     #' @description
     #' Implement group rate definition according to data.

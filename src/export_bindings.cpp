@@ -71,10 +71,10 @@ namespace hsp::msg
     /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
     void warning(const std::string &txt)
     {
-        if (!is_new_housepi_warning(txt))
+        if (!is_new_warning(txt))
             return;
         Rf_warningcall(R_NilValue, "%s", txt.c_str());
-        add_new_housepi_warning(txt);
+        add_new_warning(txt);
     }
 }
 
