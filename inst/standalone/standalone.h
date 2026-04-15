@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace hsp
+namespace housepi
 {
     class MCMCBase;
     class MCMC;

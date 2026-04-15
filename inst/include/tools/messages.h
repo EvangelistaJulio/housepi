@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace hsp::msg
+namespace housepi::msg
 {
     /// Throw an error message.
     [[noreturn]] void error(const std::string &txt);

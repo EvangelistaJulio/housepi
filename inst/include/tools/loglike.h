@@ -12,7 +12,7 @@
 
 #include "tools/nan.h"
 
-namespace hsp
+namespace housepi
 {
     struct LogLike
     {
@@ -27,7 +27,7 @@ namespace hsp
             old_ = value_;
             value_ = new_ll;
 
-            if (hsp::na::is(new_ll))
+            if (housepi::na::is(new_ll))
                 raise_nan_error_();
         }
         /// Increment log-likelihood by a delta. Store old value.

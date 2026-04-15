@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace hsp
+namespace housepi
 {
     /// Split Mix 64. Used for seeding.
     /// Adapted from Sebastiano Vigna (2015).

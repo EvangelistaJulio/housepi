@@ -19,7 +19,7 @@
 #include "parameter.h"
 #include "setup.h"
 
-namespace hsp
+namespace housepi
 {
     // Help initializing parameter draws,
     void helper_init_param_draws(

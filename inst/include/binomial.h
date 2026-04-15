@@ -9,7 +9,7 @@
 
 #include <vector>
 
-namespace hsp::bino
+namespace housepi::bino
 {
     /// Functions for the generations lookup table.
     void init_generations_lookuptable(unsigned max_N);

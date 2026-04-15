@@ -20,7 +20,7 @@
 #include "function.h"
 #include "registry.h"
 
-namespace hsp
+namespace housepi
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -350,7 +350,7 @@ namespace hsp
 
 namespace
 {
-    using namespace hsp;
+    using namespace housepi;
 
 #define MAKE_REAL_TO_INTEGER_FUNCTION(Name, call)                                    \
     class Name final : public Function                                               \

@@ -10,7 +10,7 @@
 #include "data_wide.h"
 #include "data_long.h"
 
-namespace hsp
+namespace housepi
 {
     struct DataStore
     {

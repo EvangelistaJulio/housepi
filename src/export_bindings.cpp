@@ -46,7 +46,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp::msg
+namespace housepi::msg
 {
     /// Throw an error message.
     /// Ref:
@@ -89,7 +89,7 @@ namespace hsp::msg
 
 namespace
 {
-    using namespace hsp;
+    using namespace housepi;
 
     // Base class to wrap internal hosuepi functions
     class ExposeBase
@@ -1390,7 +1390,7 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define MAKE_EXPORT_CHARACTER_VECTOR(method)                            \
-    Rcpp::CharacterVector method(Rcpp::XPtr<hsp::ModelBase> model_xptr) \
+    Rcpp::CharacterVector method(Rcpp::XPtr<housepi::ModelBase> model_xptr) \
     {                                                                   \
         return Rcpp::wrap(model_xptr->method());                        \
     }
@@ -1407,7 +1407,7 @@ namespace
     {
         try
         {
-            auto model = hsp::ModelRegistry::instance().create(module_name);
+            auto model = housepi::ModelRegistry::instance().create(module_name);
             return Rcpp::XPtr<ModelBase>(model.release(), true);
         }
         catch (const std::exception &e)

@@ -12,7 +12,7 @@
 
 #include "tools/nan.h"
 
-namespace hsp
+namespace housepi
 {
     class Individual;
     class MCMCBase;

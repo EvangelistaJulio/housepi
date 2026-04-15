@@ -38,7 +38,7 @@ using no_promote_policy = boost::math::policies::policy<
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp
+namespace housepi
 {
     void Distribution::helper_init_distr_truncation_()
     {
@@ -125,7 +125,7 @@ namespace hsp
 
 namespace
 {
-    using namespace hsp;
+    using namespace housepi;
     using std::exp;
     using std::lgamma;
     using std::log;

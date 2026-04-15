@@ -13,7 +13,7 @@
 
 #include "tools/openmp.h"
 
-namespace hsp::atomic
+namespace housepi::atomic
 {
     struct Error
     {

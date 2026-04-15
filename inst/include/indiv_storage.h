@@ -15,7 +15,7 @@
 #include "function.h"
 #include "variable.h"
 
-namespace hsp
+namespace housepi
 {
 	struct Indiv
 	{

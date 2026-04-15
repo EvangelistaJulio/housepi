@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace hsp
+namespace housepi
 {
 	/// Report for all individuals in the data.
 	struct ReportIndividual

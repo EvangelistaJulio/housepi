@@ -12,7 +12,7 @@
 
 #include "tools/types.h"
 
-namespace hsp::read
+namespace housepi::read
 {
     constexpr char DELIMITER = ',';      /// CSV file delimiter.
     constexpr char LIST_DELIMITER = ':'; /// List conventional delimiter

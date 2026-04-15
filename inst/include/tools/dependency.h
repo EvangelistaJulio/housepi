@@ -12,7 +12,7 @@
 
 #include "types.h"
 
-namespace hsp::dependency
+namespace housepi::dependency
 {
     /// Helper to build definition order and assert for acyclic dependencies.
     void walk_tree(const std::string &entry,

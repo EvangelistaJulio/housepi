@@ -27,7 +27,7 @@ HOUSEPI_DEFINE_REGISTRY_INSTANCE_(ContinuosDistrib)
 HOUSEPI_DEFINE_REGISTRY_INSTANCE_(DiscreteDistrib)
 HOUSEPI_DEFINE_REGISTRY_INSTANCE_(InfecProfile)
 
-namespace hsp
+namespace housepi
 {
     ModelRegistry &ModelRegistry::instance()
     {
@@ -36,7 +36,7 @@ namespace hsp
     }
 }
 
-namespace hsp
+namespace housepi
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////

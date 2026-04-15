@@ -22,7 +22,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp
+namespace housepi
 {
     class ProgressBar;
 
@@ -72,7 +72,7 @@ namespace hsp
         void set_n_threads();
 
         /// Build Setup configuration from input table.
-        void build(const hsp::str_table &input);
+        void build(const housepi::str_table &input);
 
         /// Validate MCMC setup parameters for consistency and feasibility.
         void assert_mcmc_setup();
@@ -96,7 +96,7 @@ namespace hsp
         /// Initialize random number generator with configured seed.
         void set_prng_seed();
         /// Get reference to the active pseudo-random number generator.
-        hsp::rnd_gen &prng() const;
+        housepi::rnd_gen &prng() const;
 
         /// Sample a uniform-distributed variable in [0, 1).
         double uniform() const { return uniform_(prng()); }
@@ -125,12 +125,12 @@ namespace hsp
         [[noreturn]] void crash(const std::exception &e);
 
     private:
-        mutable std::vector<hsp::rnd_gen> prng_parallel_ = {};      /// Thread-local PRNGs for parallel chains.
+        mutable std::vector<housepi::rnd_gen> prng_parallel_ = {};      /// Thread-local PRNGs for parallel chains.
         mutable std::uniform_real_distribution<double> uniform_;    /// Uniform [0, 1) distribution sampler.
         mutable std::exponential_distribution<double> exponential_; /// Exponential distribution sampler.
-        std::unique_ptr<hsp::ProgressBar> progressbar_;             /// Progress bar UI component.
+        std::unique_ptr<housepi::ProgressBar> progressbar_;             /// Progress bar UI component.
 
         /// Associate non-default user setup.
-        void helper_non_default_build_(const hsp::str_table &input);
+        void helper_non_default_build_(const housepi::str_table &input);
     };
 }

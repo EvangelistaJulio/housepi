@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace hsp::measure
+namespace housepi::measure
 {
     namespace cases
     {

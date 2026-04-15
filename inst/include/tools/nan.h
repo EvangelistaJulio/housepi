@@ -10,7 +10,7 @@
 #include <string>
 #include <limits>
 
-namespace hsp::na
+namespace housepi::na
 {
     constexpr double DOUBLE = std::numeric_limits<double>::quiet_NaN(); /// NA double value
 

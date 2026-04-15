@@ -20,7 +20,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp
+namespace housepi
 {
     class Function;
     class Distribution;
@@ -102,13 +102,13 @@ namespace hsp
 #define HOUSEPI_OVERRIDE_NAME_METHOD(name_) \
     std::string_view name() const noexcept override final { return #name_; }
 #define HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_) \
-    std::unique_ptr<hsp::Function> clone() const override final { return std::make_unique<Class_>(*this); }
+    std::unique_ptr<housepi::Function> clone() const override final { return std::make_unique<Class_>(*this); }
 #define HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Class_) \
-    std::unique_ptr<hsp::Distribution> clone_distrib() const override final { return std::make_unique<Class_>(*this); }
+    std::unique_ptr<housepi::Distribution> clone_distrib() const override final { return std::make_unique<Class_>(*this); }
 
 /// Declare housepi functions registry.
 #define HOUSEPI_DECLARE_REGISTRY_(ClassName, Type)         \
-    class ClassName##Registry : public hsp::Type##Registry \
+    class ClassName##Registry : public housepi::Type##Registry \
     {                                                      \
     public:                                                \
         HOUSEPI_OVERRIDE_NAME_METHOD(ClassName)            \
@@ -150,7 +150,7 @@ HOUSEPI_DECLARE_REGISTRY_(InfecProfile, Distribution)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp
+namespace housepi
 {
     class ModelBase;
 
@@ -195,7 +195,7 @@ namespace hsp
         {                                                                                     \
             module##_ModelAutoRegister()                                                      \
             {                                                                                 \
-                hsp::ModelRegistry::instance().register_factory<hsp::module::Model>(#module); \
+                housepi::ModelRegistry::instance().register_factory<housepi::module::Model>(#module); \
             }                                                                                 \
         };                                                                                    \
         static module##_ModelAutoRegister module##_model_auto_register;                       \

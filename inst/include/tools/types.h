@@ -11,7 +11,7 @@
 #include <vector>
 #include <map>
 
-namespace hsp
+namespace housepi
 {
     template <typename T>
     using dict = std::map<std::string, T, std::less<>>;

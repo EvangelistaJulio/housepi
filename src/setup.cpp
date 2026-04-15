@@ -33,7 +33,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace hsp
+namespace housepi
 {
     using namespace std::chrono;
 
@@ -318,7 +318,7 @@ namespace hsp
         set_prng_seed();                  // pseudo-random number generator seeding
     }
 
-    void Setup::helper_non_default_build_(const hsp::str_table &input)
+    void Setup::helper_non_default_build_(const housepi::str_table &input)
     {
         if (input.empty())
             return;

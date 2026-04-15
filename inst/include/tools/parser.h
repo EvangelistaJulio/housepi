@@ -13,7 +13,7 @@
 
 #include "tools/nan.h"
 
-namespace hsp::parse
+namespace housepi::parse
 {
     /// Wheter definitions is 'augmented'.
     inline bool is_augmented(std::string_view s) { return s == "A"; }

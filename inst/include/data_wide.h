@@ -20,7 +20,7 @@
 #include "indiv_storage.h"
 #include "household.h"
 
-namespace hsp
+namespace housepi
 {
     namespace rates
     {

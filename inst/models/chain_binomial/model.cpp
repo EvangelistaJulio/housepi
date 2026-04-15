@@ -59,7 +59,7 @@ public:
 	double compute_house_obs_log_lik(Household &house) override final
 	{
 		size_t house_size = house.size();
-		return hsp::bino::chain_binom_homogeneous_log_lik(
+		return housepi::bino::chain_binom_homogeneous_log_lik(
 			house.n_infected_status(), house_size,
 			community_risk(), person_to_person_risk(house_size));
 	}
