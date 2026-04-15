@@ -269,10 +269,10 @@ test_that("Snapshot respects constant contact rate definitions", {
     prior = "lognormal", sdlog = 1
   )
   # override as constants for deterministic checking
-  # symmetric: M->F and F->M share param cr_from_sex_F_to_sex_M
+  # symmetric: M->F and F->M share param cr_sex_F_to_sex_M
   hhmodel$load_parameter_list(
-    cr_from_sex_F_to_sex_M = 2.0,
-    cr_from_sex_F_to_sex_F = 1.5,
+    cr_sex_F_to_sex_M = 2.0,
+    cr_sex_F_to_sex_F = 1.5,
     append = TRUE
   )
 

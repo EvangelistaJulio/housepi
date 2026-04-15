@@ -49,8 +49,7 @@ contact_rate_logic_table <- function(data_wide, features) {
                     sep = "\x1E")
   y$n <- as.integer(cnt[grid_key])
   y$n[is.na(y$n)] <- 0L
-
-  y
+  y[y$n > 0, ]
 }
 
 #' Associate parameter names to contact rate logic table.
@@ -76,8 +75,11 @@ associate_contact_param_names <- function(this_table, prefix, reference,
     })
     idx_refer <- unname(which(refer_mask))
     if (length(idx_refer) != 1) stop_h(
-      "Provided reference group is not valid.",
-      "Reference should be a vector with names starting with 'from_X', 'to_Y'."
+      "Provided reference contact rate is not valid.",
+      sprintf("The pair %s %s %s is never observed.",
+              character_to_phrase(reference$from, quote = TRUE, and = FALSE),
+              ifelse(symmetric, "<->", "-->"),
+              character_to_phrase(reference$to, quote = TRUE, and = FALSE))
     )
   }
 
@@ -96,7 +98,7 @@ associate_contact_param_names <- function(this_table, prefix, reference,
         from_part <- to_part
         to_part <- tmp
       }
-      paste0(prefix, "from_", from_part, "_to_", to_part)
+      paste0(prefix, from_part, "_to_", to_part)
     }
   )
   if (length(idx_refer) == 1) {
@@ -193,8 +195,12 @@ HousepiContactRate <- R6::R6Class(
           reference <- c(stats::setNames(reference[by], paste0("from_", by)),
                          stats::setNames(reference[by], paste0("to_", by)))
         }
-        if (length(setdiff(names(reference), valid_names)) != 0) stop_h(
-          "Reference does not use 'from_' and 'to_' prefixes matching 'by'."
+        wrong_entries <- setdiff(names(reference), valid_names)
+        if (length(wrong_entries) != 0) stop_h(
+          sprintf("Unrecognized choice%s for reference: %s",
+                  as_plural(wrong_entries),
+                  character_to_string_list(wrong_entries)),
+          "Reference should match 'by' and use 'from_' and/or 'to_' prefixes."
         )
         reference <- as.list(reference)
       }
@@ -208,9 +214,9 @@ HousepiContactRate <- R6::R6Class(
     },
 
     # Add rate definition in custom mode.
-    helper_custom_add_ = function(logic_table, params, symmetric) {
-      assert_valid_logic_table(logic_table)
-      if (!".reference" %in% logic_table$param_name) stop_h(
+    helper_custom_add_ = function(strata, params, symmetric) {
+      assert_valid_logic_table(strata)
+      if (!".reference" %in% strata$param_name) stop_h(
         "Custom logic table must contain a '.reference' row.",
         "Designate one row's param_name as '.reference'."
       )
@@ -218,7 +224,7 @@ HousepiContactRate <- R6::R6Class(
       self$defs <- list(by = NA_character_, prefix = NA_character_,
                         reference = NULL, joint = TRUE,
                         symmetric = symmetric, mode = "custom")
-      self$logic_tables <- list(logic_table)
+      self$logic_tables <- list(strata)
       self$param_overrides <- if (is.null(params)) list() else params
       invisible(self)
     }
@@ -309,9 +315,9 @@ HousepiContactRate <- R6::R6Class(
 
     #' @inherit add_contact_rate
     add_quo = function(by = NA_character_,
-                       reference = NULL, prefix = "ctr",
+                       reference = NULL, prefix = "",
                        joint = TRUE, symmetric = TRUE,
-                       logic_table = NULL, params = NULL,
+                       strata = NULL, params = NULL,
                        prior = NA_character_, ...,
                        min = NA_real_, max = NA_real_,
                        proposal = NA_character_,
@@ -325,7 +331,7 @@ HousepiContactRate <- R6::R6Class(
       symmetric <- isTRUE(housepi_smart_unwrap(symmetric, "symmetric"))
 
       # custom definition
-      logic_table <- housepi_smart_unwrap(logic_table, "logic_table")
+      strata <- housepi_smart_unwrap(strata, "strata")
       params <- housepi_smart_unwrap(params, "params")
 
       # raw parameter definition
@@ -340,7 +346,7 @@ HousepiContactRate <- R6::R6Class(
 
       # distinguish between automatic and custom definitions
       is_auto <- !all(is.na(by))
-      is_custom <- !is.null(logic_table)
+      is_custom <- !is.null(strata)
       if (is_auto && is_custom) stop_ambiguos_definition()
 
       # warn overwrite
@@ -350,9 +356,9 @@ HousepiContactRate <- R6::R6Class(
       if (is_auto) {
         private$helper_auto_add_(by, reference, prefix, joint, symmetric)
       } else if (is_custom) {
-        private$helper_custom_add_(logic_table, params, symmetric)
+        private$helper_custom_add_(strata, params, symmetric)
       } else {
-        return(invisible(self))
+        stop_empty_definition()
       }
 
       # store MCMC parameter setup
@@ -397,7 +403,7 @@ HousepiContactRate <- R6::R6Class(
 
       # default prefix
       prefix <- as.character(self$defs[["prefix"]])
-      if (is.na(prefix)) prefix <- "ctr"
+      if (is.na(prefix)) prefix <- ""
 
       new_tables <- list()
       for (this_feat in features) {
@@ -418,14 +424,9 @@ HousepiContactRate <- R6::R6Class(
 
     #' @description
     #' Assert that contact rate definitions are compatible.
-    #' @param mcmc_ptr Rcpp pointer to MCMC object.
-    assert = function(mcmc_ptr) {
-      has_defs <- length(self$defs) > 0 &&
+    assert = function() {
+      length(self$defs) > 0 &&
         (!all(is.na(self$defs[["by"]])) || self$defs[["mode"]] == "custom")
-      has_model <- .engine$has_contact_rates(mcmc_ptr)
-      if (has_defs && !has_model) stop_h(
-        "Contact rates are defined but the loaded model does not use them."
-      )
     },
 
     #' @description

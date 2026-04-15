@@ -8,10 +8,10 @@ add_contact_rate(
   hhmodel,
   by = NA_character_,
   reference = NULL,
-  prefix = "ctr",
-  joint = TRUE,
+  prefix = NA_character_,
+  joint = FALSE,
   symmetric = TRUE,
-  logic_table = NULL,
+  strata = NULL,
   params = NULL,
   prior = NA_character_,
   ...,
@@ -24,24 +24,24 @@ add_contact_rate(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{by}{\code{character()} Features for from/to matching as data headers.
+\item{by}{\code{character()} Covariates for from/to matching as data headers.
 Corresponding data columns have to be categorical.}
 
-\item{reference}{named \code{list} Features associated to reference pair.
+\item{reference}{named \code{list} Covariates associated to reference pair.
 Names can use \code{from_}/\code{to_} prefixes matching \code{by},
 or un-prefixed names (applied to both from and to).}
 
-\item{prefix}{\code{character(1)} Prefix to names of associated parameters.
-Default is \code{'cr'}.}
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters.}
 
-\item{joint}{\code{logical(1)} Consider features as joint.
-If \code{FALSE} features are independent (default).}
+\item{joint}{\code{logical(1)} Treat covariates as joint.
+If \code{FALSE}, covariates are independent (default).}
 
-\item{symmetric}{\code{logical(1)} Consider features as joint.
-If \code{FALSE} features are independent (default).}
+\item{symmetric}{\code{logical(1)} Treat covariates as joint.
+If \code{FALSE}, covariates are independent (default).}
 
-\item{logic_table}{\code{data.frame} Custom feature values and relative \code{param_name}.
-Use \code{.reference} in \code{param_name} for the reference group.
+\item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
+Each row defines one stratum. If \code{NA}, then match any value.
+Use \code{.reference} in \code{param_name} to designate the reference group.
 Mutually exclusive with \code{by}.}
 
 \item{params}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
@@ -74,7 +74,7 @@ Ignored if proposal is 'sample'.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add definitions of a contact rate by given data feature(s).
+Add definitions of a contact rate by given data covariate(s).
 Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.

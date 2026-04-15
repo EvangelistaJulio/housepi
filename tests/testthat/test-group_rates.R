@@ -5,8 +5,7 @@ aux_add <- function(self, name,
                     prefix = NA_character_,
                     reference = NULL,
                     joint = FALSE,
-                    logic_table = NULL,
-                    append = FALSE,
+                    strata = NULL,
                     params = NULL,
                     prior = NA_character_, ...,
                     min = NA_real_, max = NA_real_,
@@ -15,8 +14,7 @@ aux_add <- function(self, name,
                     .warn_over = TRUE) {
   self$add_quo(name = name, by = by, prefix = prefix,
                reference = reference, joint = joint,
-               logic_table = logic_table,
-               append = append, params = params,
+               strata = strata, params = params,
                prior = prior, rlang::enquos(...),
                min = rlang::enquo(min),
                max = rlang::enquo(max),
@@ -34,8 +32,8 @@ dummy_factor_info <- list(age_group = list(levels = c("child", "adult")),
                           sex = list(levels = c("M", "F")))
 
 # dummy group rate logic table
-dummy_logic_table <- data.frame(isolation = c(FALSE, TRUE),
-                                param_name = c(".reference", "inf_isol"))
+dummy_strata <- data.frame(isolation = c(FALSE, TRUE),
+                           param_name = c(".reference", "inf_isol"))
 
 test_that("Group rates logic table computes combinations and counts", {
   tbl <- group_rate_logic_table(dummy_df, c("age_group", "sex"))
@@ -125,7 +123,7 @@ test_that("Assert-valid-logic-table validates input", {
 
 test_that("Group rates deal with custom logic table correctly", {
   grp <- HousepiGroupRate$new()
-  aux_add(grp, name = "infectivity", logic_table = dummy_logic_table,
+  aux_add(grp, name = "infectivity", strata = dummy_strata,
           prior = "lognormal", meanlog = 0, sdlog = 2)
 
   # defs stored with mode sentinel
@@ -158,15 +156,15 @@ test_that("Group rates deal with custom logic table correctly", {
 
 test_that("Group rate parameter overrides work", {
   grp <- HousepiGroupRate$new()
-  lt <- data.frame(age = c("child", "adult", "elderly"),
-                   param_name = c(".reference", "sus_old", "sus_elderly"))
+  strata <- data.frame(age = c("child", "adult", "elderly"),
+                       param_name = c(".reference", "sus_old", "sus_elderly"))
   overrides <- list(
     sus_old = 1.73,
     sus_elderly = list(value = 0.5, prior = "lognormal", sdlog = 1.2,
                        min = NA_real_, max = 10,
                        proposal = "lognormal", proposal_scale = 1)
   )
-  aux_add(grp, name = "susceptibility", logic_table = lt,
+  aux_add(grp, name = "susceptibility", strata = strata,
           params = overrides, prior = "gamma", shape = 2, scale = 1)
 
   expect_length(grp$parameters, 2)
@@ -175,35 +173,15 @@ test_that("Group rate parameter overrides work", {
   expect_equal(grp$parameters$sus_elderly$prior, "lognormal")
   expect_equal(grp$parameters$sus_elderly$sdlog, 1.2)
 
-  # FIXME: params 'unknown' is not introduced in this definition
   expect_error(aux_add(
     grp, name = "susceptibility",
-    logic_table = data.frame(sex = c("M", "F"),
-                             param_name = c("something", ".reference")),
-    append = TRUE, params = list(unknown = 2.4)
+    strata = data.frame(sex = c("M", "F"),
+                        param_name = c("something", ".reference")),
+    params = list(unknown = 2.4)
   ), regexp = "unknown")
 })
 
-test_that("Group Rate append logic table in custom mode works", {
-  grp <- HousepiGroupRate$new()
-  lt1 <- dummy_logic_table
-  lt2 <- data.frame(vaccinated = c(FALSE, TRUE),
-                    param_name = c(".reference", "inf_vax"))
-  aux_add(grp, name = "infectivity", logic_table = lt1)
-  aux_add(grp, name = "infectivity", logic_table = lt2, append = TRUE)
-
-  # two tables stored under the same rate
-  expect_length(grp$logic_tables$infectivity, 2)
-
-  # parameters from both tables
-  params <- grp$parameters
-  expect_true("inf_isol" %in% names(params))
-  expect_true("inf_vax" %in% names(params))
-
-  expect_true(all(c("isolation", "vaccinated") %in% grp$data_required))
-})
-
-test_that("Group rate implementation preserves logic_table entries", {
+test_that("Group rate implementation preserves strata entries", {
   grp <- HousepiGroupRate$new()
 
   # add a standard auto-mode rate
@@ -211,21 +189,21 @@ test_that("Group rate implementation preserves logic_table entries", {
 
   # add a custom-mode rate
   aux_add(grp, name = "infectivity",
-          logic_table = data.frame(age_group = c("adult", "child"),
-                                   param_name = c("inf_old", ".reference")))
+          strata = data.frame(age_group = c("adult", "child"),
+                              param_name = c("inf_old", ".reference")))
 
-  # implement should build by-mode and preserve logic_table-mode
+  # implement should build by-mode and preserve strata-mode
   grp$implement(dummy_df, dummy_factor_info)
 
   expect_true("infectivity" %in% names(grp$logic_tables))
   expect_true("community" %in% names(grp$logic_tables))
-  # logic_table entry is unchanged
+  # strata entry is unchanged
   expect_equal(grp$logic_tables$infectivity[[1]]$param_name,
                c("inf_old", ".reference"))
 
   expect_warning(aux_add(grp, "infectivity", by = "age_group"),
                  regexp = "infectivity")
-  expect_warning(aux_add(grp, "community", logic_table = dummy_logic_table),
+  expect_warning(aux_add(grp, "community", strata = dummy_strata),
                  regexp = "community")
 })
 
@@ -236,7 +214,7 @@ test_that("Group rate mixed auto and custom modes", {
   grp$implement(dummy_df, dummy_factor_info)
   expect_true("community" %in% names(grp$logic_tables))
 
-  aux_add(grp, name = "infectivity", logic_table = dummy_logic_table)
+  aux_add(grp, name = "infectivity", strata = dummy_strata)
   expect_true("infectivity" %in% names(grp$logic_tables))
 
   # param_required should include both
@@ -248,7 +226,7 @@ test_that("Group rate mixed auto and custom modes", {
   data_req <- grp$data_required
   expect_true(all(c("age_group", "isolation") %in% data_req))
 
-  # trigger error (unknown feature in dummy_logic_table)
+  # trigger error (unknown feature in dummy_strata)
   expect_error(grp$implement(dummy_df, dummy_factor_info),
                regexp = "Unknown")
 })

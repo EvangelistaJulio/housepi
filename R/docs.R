@@ -108,23 +108,24 @@ rd_aug_max_ <- paste(rd_var_max_, rd_types_)
 ############################################################################
 ############################################################################
 
-rd_rate_desc_ <- "Add definitions of a %s rate by given data feature(s).
+rd_rate_desc_ <- "Add definitions of a %s rate by given data covariate(s).
 Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]} with support \\eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table."
 
 rd_grr_desc_ <- sprintf(rd_rate_desc_, "group")
-rd_grr_by_ <- "`list` Features associated to group rate as data headers.
+rd_grr_by_ <- "`list` Covariates associated to group rate as data headers.
 Corresponding data columns have to be categorical."
 rd_grr_prefix_ <- "`character(1)` Prefix to names of associated parameters.
 If `NA` uses the first 3 letters of rate name (default)."
-rd_grr_refer_ <- "named `list` Features associated to reference group.
+rd_grr_refer_ <- "named `list` Covariates associated to reference group.
 Default is the group with the largest sample size."
-rd_grr_joint_ <- "`logical(1)` Consider features as joint.
-If `FALSE` features are independent (default)."
-rd_grr_ltab_ <- "`data.frame` Custom feature values and relative `param_name`.
-Use `.reference` in `param_name` for the reference group.
+rd_grr_joint_ <- "`logical(1)` Treat covariates as joint.
+If `FALSE`, covariates are independent (default)."
+rd_grr_strata_ <- "`data.frame` Individual covariates and relative `param_name`.
+Each row defines one stratum. If `NA`, then match any value.
+Use `.reference` in `param_name` to designate the reference group.
 Mutually exclusive with `by`."
 rd_grr_append_ <- paste(
   rd_list_append_, "Ignored if automatic definition."
@@ -134,17 +135,16 @@ Overrides shared prior/args for parameters specificied in the list.
 Ignored if automatic definition."
 
 rd_ctr_desc_ <- sprintf(rd_rate_desc_, "contact")
-rd_ctr_by_ <- "`character()` Features for from/to matching as data headers.
+rd_ctr_by_ <- "`character()` Covariates for from/to matching as data headers.
 Corresponding data columns have to be categorical."
-rd_ctr_prefix_ <- "`character(1)` Prefix to names of associated parameters.
-Default is `'cr'`."
-rd_ctr_refer_ <- "named `list` Features associated to reference pair.
+rd_ctr_prefix_ <- "`character(1)` Prefix to names of associated parameters."
+rd_ctr_refer_ <- "named `list` Covariates associated to reference pair.
 Names can use `from_`/`to_` prefixes matching `by`,
 or un-prefixed names (applied to both from and to)."
 rd_ctr_joint_ <- rd_grr_joint_
-rd_ctr_symmetric_ <- "`logical(1)` Consider features as joint.
-If `FALSE` features are independent (default)."
-rd_ctr_ltab_ <- rd_grr_ltab_
+rd_ctr_symmetric_ <- "`logical(1)` Treat covariates as joint.
+If `FALSE`, covariates are independent (default)."
+rd_ctr_strata_ <- rd_grr_strata_
 rd_ctr_params_ <- rd_grr_params_
 
 ############################################################################
@@ -223,5 +223,5 @@ rd_ppc_observ_ <- paste(rd_simul_observ_,
 ############################################################################
 
 rd_hhsampler_size_ <- "`integer(1)` Number of households to sample."
-rd_hhsampler_asc_ <- "`logical(1)` Set ascending hierarchy between features.
+rd_hhsampler_asc_ <- "`logical(1)` Set ascending hierarchy between covariates.
 If `FALSE` is descending (default)."

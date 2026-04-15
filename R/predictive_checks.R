@@ -8,6 +8,13 @@
 #' @importFrom rlang .data
 NULL
 
+helper_process_data <- function(data_wide) {
+  df <- as.data.frame(data_wide)
+  df$status <- as.integer(df$status)
+  df$house_id <- as.character(df$house_id)
+  df
+}
+
 #' @title Measure SAR by household size
 #' @description
 #' Retrieve secondary attack rates (SAR) from household data.
@@ -19,31 +26,7 @@ NULL
 #' \eqn{\frac{\mathbb{E}[n_{+}\vert{n}] - 1}{n - 1}}
 #' @export
 measure_sar_by_house_size <- function(data_wide) {
-  # check that data_wide is consistent
-  if (length(data_wide) == 0) stop_h("No valid data_wide was provided.")
-  else data_wide <- as.data.frame(data_wide)
-
-  # cast to 0\1 values
-  y <- dplyr::mutate(data_wide,
-                     status = dplyr::if_else(is.na(.data$status), 0,
-                                             as.integer(.data$status > 0)))
-  # aggregate data by house_id
-  y <- dplyr::group_by(y, .data$house_id)
-  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(.data$status))
-
-  # compute data sizes before filtering
-  min_hh_size <- max(min(y$house_size), 2)
-  max_hh_size <- max(y$house_size)
-
-  # compute sar according to definition
-  y <- dplyr::filter(y, .data$cases > 0, .data$house_size > 1)
-  y <- dplyr::mutate(y, sar = (.data$cases - 1) / (.data$house_size - 1))
-  y <- dplyr::group_by(y, .data$house_size)
-  y <- dplyr::summarise(y, sar = mean(.data$sar))
-
-  # complete grid of size sar
-  y <- tidyr::complete(y, house_size = seq(min_hh_size, max_hh_size, 1))
-  as.data.frame(y)
+  .engine$measure_sar_by_house_size(helper_process_data(data_wide))
 }
 
 #' @title Measure household cases by size
@@ -53,30 +36,7 @@ measure_sar_by_house_size <- function(data_wide) {
 #' @return `data.frame`
 #' @export
 measure_cases_by_house_size <- function(data_wide) {
-  # check that data_wide is consistent
-  if (length(data_wide) == 0) stop_h("No valid data_wide was provided.")
-
-  # cast to 0\1 values
-  y <- dplyr::mutate(data_wide,
-                     status = dplyr::if_else(is.na(.data$status), 0,
-                                             as.integer(.data$status > 0)))
-  # aggregate data by house_id
-  y <- dplyr::group_by(y, .data$house_id)
-  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(.data$status))
-  y <- dplyr::count(y, .data$house_size, .data$cases)
-  # create a complete grid of size and cases
-  y <- tidyr::complete(
-    y, house_size = min(.data$house_size):max(.data$house_size),
-    cases = 0:max(.data$house_size)
-  )
-  # merge NAs with 0
-  y <- dplyr::mutate(
-    y, n = dplyr::if_else(is.na(.data$n) & .data$cases <= .data$house_size,
-                          0L, .data$n)
-  )
-  # reshape to wide format
-  y <- tidyr::pivot_wider(y, names_from = "cases", values_from = "n")
-  as.data.frame(y)
+  .engine$measure_cases_by_house_size(helper_process_data(data_wide))
 }
 
 ############################################################################
@@ -95,14 +55,18 @@ ppc_set_cri_level <- function(value) {
 }
 
 # store print messages at initialization
-ppc_helper_print <- function(model_name, is_posterior, measure_names, cri) {
+ppc_helper_print <- function(model_name, is_posterior,
+                             measure_names, n_simul, ess, cri) {
   sms <- c(
     i = sprintf("%s for model {.pkg %s}:",
                 ifelse(is_posterior, "Posterior predictions", "Predictions"),
                 model_name)
   )
   for (m in measure_names) sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
-  c(sms, sprintf("Credible Interval level: %.0f%%", 100 * cri))
+  c(sms,
+    sprintf("Sample size: %d%s", n_simul,
+            ifelse(isTRUE(ess), " (ESS)", "")),
+    sprintf("Credible interval: %.0f%%", 100 * cri))
 }
 
 #' Apply function `func` to corresponding elements
@@ -337,6 +301,7 @@ HousepiPrediction <- R6::R6Class(
         inherits(param_table, "HousepiPosteriorDraws") ||
           posterior::is_draws(param_table),
         all_measure_names,
+        length(parsed[[1]]), ess,
         private$cri_level_
       )
 
@@ -363,22 +328,7 @@ HousepiPrediction <- R6::R6Class(
 #
 # @return `data.frame`
 helper_count_non_zero_cases <- function(data_wide) {
-  # cast to 0\1 values
-  y <- dplyr::mutate(
-    data_wide,
-    status = dplyr::if_else(is.na(.data$status),
-                            0, as.integer(.data$status > 0))
-  )
-  y <- dplyr::group_by(y, .data$house_id)
-  y <- dplyr::summarise(y, house_size = dplyr::n(), cases = sum(.data$status))
-  y <- dplyr::filter(y, .data$cases > 0, .data$house_size > 1)
-  y <- dplyr::group_by(y, .data$house_size)
-  y <- dplyr::summarise(y, count = dplyr::n())
-  y <- tidyr::complete(
-    y, house_size = 2:max(.data$house_size),
-    fill = list(count = 0)
-  )
-  as.data.frame(y)
+  .engine$count_non_zero_cases(helper_process_data(data_wide))
 }
 
 # @description

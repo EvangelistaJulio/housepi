@@ -11,7 +11,7 @@ compute_household_marginals(hhsampler, data_wide, ascending = NA)
 
 \item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
 
-\item{ascending}{\code{logical(1)} Set ascending hierarchy between features.
+\item{ascending}{\code{logical(1)} Set ascending hierarchy between covariates.
 If \code{FALSE} is descending (default).}
 }
 \description{

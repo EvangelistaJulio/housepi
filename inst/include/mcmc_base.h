@@ -75,8 +75,15 @@ namespace hsp
 						   const std::vector<std::string> &param_keys,
 						   const std::vector<std::string> &group_rate_keys,
 						   const std::vector<std::string> &augm_keys);
-						   
-	bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;
+
+		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;
+
+		/// Column names of data shared across simulations.
+		std::vector<std::string> get_static_data_names() const;
+		/// Column name vector for the per-iteration shallow list.
+		std::vector<std::string> get_col_names() const;
+		// Pre-compute per-household row offsets. Used to fix OpenMP race in simulations.
+		std::vector<size_t> get_row_offsets() const;
 
 	protected:
 		///////////////////////////////////

@@ -10,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <Rcpp.h>
@@ -20,10 +21,12 @@
 #include "tools/nan.h"
 #include "tools/openmp.h"
 #include "tools/operators.h"
+#include "tools/string.h"
 #include "tools/read.h"
 #include "tools/types.h"
 
 #include "mcmc.h"
+#include "measures.h"
 #include "posterior.h"
 #include "registry.h"
 #include "augmented.h"
@@ -1183,37 +1186,6 @@ namespace
 
     namespace simulate
     {
-        // pre-compute per-household row offsets (fixes OpenMP race on row counter)
-        std::vector<size_t> get_row_offsets(const DataWide &data_wide)
-        {
-            std::vector<size_t> output(data_wide.report_house.total + 1, 0);
-            for (size_t H = 0; H < data_wide.report_house.total; ++H)
-                output[H + 1] = output[H] + data_wide.at(H).size();
-            return output;
-        }
-
-        // pre-compute per-household row offsets (fixes OpenMP race on row counter)
-        std::vector<std::string> get_col_names(const Augmented &augm,
-                                               const std::vector<std::string> &static_data_names)
-        {
-            // pre-build the column name vector for the per-iteration shallow list
-            const size_t n_shared = static_data_names.size();
-            const size_t n_augm_cols = augm.list_export.size();
-
-            std::vector<std::string> output(2 + n_shared + 1 + n_augm_cols);
-
-            output[0] = "id";
-            output[1] = "house_id";
-            for (size_t i = 0; i < n_shared; ++i)
-                output[2 + i] = static_data_names[i];
-
-            output[2 + n_shared] = "status";
-            for (size_t c = 0; c < n_augm_cols; ++c)
-                output[3 + n_shared + c] = augm.pKeys->as_string(augm.list_export[c]);
-
-            return output;
-        }
-
         /// Perform a single repetition.
         void single_repetition(MCMC &engine,
                                Rcpp::IntegerVector &status_col,
@@ -1315,16 +1287,13 @@ namespace
             if (f_long)
                 out_long = Rcpp::List(setup.n_steps);
 
-            // column names of data shared across simulations
-            const std::vector<std::string> static_data_names = data_wide.pKeys->get_all() -
-                                                               augm.pKeys->as_string(augm.list_export);
+            const std::vector<std::string> static_data_names = engine.get_static_data_names();
             const Rcpp::List shared_df = helper_export_data_wide(data_wide, static_data_names, false);
 
             // simulated data column name vector
-            Rcpp::CharacterVector sim_names = Rcpp::wrap(simulate::get_col_names(augm, static_data_names));
-
+            Rcpp::CharacterVector sim_names = Rcpp::wrap(engine.get_col_names());
             // row offsets for house parallelization
-            const std::vector<size_t> row_offsets = simulate::get_row_offsets(data_wide);
+            const std::vector<size_t> row_offsets = engine.get_row_offsets();
 
             // pre-allocate mutable output columns once (reused across iterations)
             Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
@@ -1416,7 +1385,7 @@ namespace
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  *** housepi - Rcpp exports ***  ///////////////////////////////
+    ///////////////////////////////////////  *** Rcpp exports ***  ////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1436,13 +1405,20 @@ namespace
     // UPDATE: I am just using this to check flags
     Rcpp::XPtr<ModelBase> new_model(std::string module_name)
     {
-        auto model = hsp::ModelRegistry::instance().create(module_name);
-        return Rcpp::XPtr<ModelBase>(model.release(), true);
+        try
+        {
+            auto model = hsp::ModelRegistry::instance().create(module_name);
+            return Rcpp::XPtr<ModelBase>(model.release(), true);
+        }
+        catch (const std::exception &e)
+        {
+            msg::error("While creating new model: " + std::string(e.what()));
+        }
     }
 
     Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
     {
-        auto mcmc = Rcpp::XPtr<MCMC>(new MCMC(module_name), true);
+        Rcpp::XPtr<MCMC> mcmc(new MCMC(module_name), true);
 
         // options to be passed to progress setup
         const unsigned width = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width"));
@@ -1489,6 +1465,82 @@ namespace
             mcmc_ptr->setup.crash(e);
         }
     }
+
+    /// Aggregate individuals by house_id. NA status becomes negative (NA_INTEGER is INT_MIN).
+    measure::cases::Report summarise_houses_from_df(Rcpp::DataFrame data_wide)
+    {
+        Rcpp::CharacterVector col_names = data_wide.names();
+
+        std::vector<std::string> house_id = {};
+         if(std::find(col_names.begin(), col_names.end(), "house_id") != col_names.end())
+            house_id = Rcpp::as<std::vector<std::string>>(data_wide["house_id"]);
+
+        std::vector<int> status = {};
+         if(std::find(col_names.begin(), col_names.end(), "status") != col_names.end())
+            status =  Rcpp::as<std::vector<int>>(data_wide["status"]);
+            
+        return measure::summarise_houses(house_id, status);
+    }
+
+    Rcpp::DataFrame measure_sar_by_house_size(Rcpp::DataFrame data_wide)
+    {
+        measure::SecAttackRates res = measure::sar_by_house_size(summarise_houses_from_df(data_wide));
+        unsigned grid_len = static_cast<unsigned>(res.sar_mean.size());
+
+        Rcpp::IntegerVector out_size(grid_len);
+        Rcpp::NumericVector out_sar(grid_len);
+        for (unsigned i = 0; i < grid_len; ++i)
+        {
+            out_size[i] = res.grid_min + i;
+            out_sar[i] = res.count[i] > 0 ? res.sar_mean[i] : NA_REAL;
+        }
+        return Rcpp::DataFrame::create(
+            Rcpp::_["house_size"] = out_size,
+            Rcpp::_["sar"] = out_sar);
+    }
+
+    Rcpp::DataFrame measure_cases_by_house_size(Rcpp::DataFrame data_wide)
+    {
+        measure::cases::Table res = measure::cases_by_house_size(summarise_houses_from_df(data_wide));
+        unsigned n_rows = static_cast<unsigned>(res.counts.size());
+
+        Rcpp::IntegerVector out_size(n_rows);
+        for (unsigned i = 0; i < n_rows; ++i)
+            out_size[i] = res.min_size + i;
+
+        Rcpp::List result;
+        result.push_back(out_size, "house_size");
+
+        unsigned n_case_cols = res.max_size + 1;
+        for (unsigned c = 0; c < n_case_cols; ++c)
+        {
+            Rcpp::IntegerVector col(n_rows);
+            for (unsigned r = 0; r < n_rows; ++r)
+                col[r] = (c > res.min_size + r) ? NA_INTEGER : res.counts[r][c];
+
+            result.push_back(col, std::to_string(c));
+        }
+        Rcpp::DataFrame df(result);
+        df.attr("names") = result.names();
+        return df;
+    }
+
+    Rcpp::DataFrame count_non_zero_cases(Rcpp::DataFrame data_wide)
+    {
+        measure::cases::NonZero res = measure::non_zero_cases(summarise_houses_from_df(data_wide));
+        unsigned grid_len = static_cast<unsigned>(res.count.size());
+
+        Rcpp::IntegerVector out_size(grid_len);
+        Rcpp::IntegerVector out_count(grid_len);
+        for (unsigned i = 0; i < grid_len; ++i)
+        {
+            out_size[i] = 2 + i;
+            out_count[i] = res.count[i];
+        }
+        return Rcpp::DataFrame::create(
+            Rcpp::_["house_size"] = out_size,
+            Rcpp::_["count"] = out_count);
+    }
 }
 
 RCPP_MODULE(housepi)
@@ -1521,6 +1573,10 @@ RCPP_MODULE(housepi)
     Rcpp::function("get_ParamKey", &get_ParamKey);
     Rcpp::function("get_GroupRateKey", &get_GroupRateKey);
     Rcpp::function("get_AugmKey", &get_AugmKey);
+
+    Rcpp::function("measure_sar_by_house_size", &measure_sar_by_house_size);
+    Rcpp::function("measure_cases_by_house_size", &measure_cases_by_house_size);
+    Rcpp::function("count_non_zero_cases", &count_non_zero_cases);
 
     Rcpp::function("new_model", &new_model);
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);

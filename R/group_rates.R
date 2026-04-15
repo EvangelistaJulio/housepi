@@ -5,11 +5,21 @@
 ## See the LICENSE file for details.
 ##
 
+rate_stop_hint <- "Choose 'by' for automatic definitions, 'strata' for custom."
+
+# Throw error if empty definition.
+stop_empty_definition <- function() {
+  stop_h(
+    "Invalid rate definition: provide one between 'by' and 'strata'.",
+    rate_stop_hint
+  )
+}
+
 # Throw error for ambiguos rate definition.
 stop_ambiguos_definition <- function() {
   stop_h(
     "Impossible to provide at the same time 'by' and 'logic_table'.",
-    "Choose 'by' for automatic definitions, 'logic_table' for custom."
+    rate_stop_hint
   )
 }
 
@@ -278,14 +288,13 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     # Add rate definition in custom mode.
-    helper_custom_add_ = function(name, logic_table,
+    helper_custom_add_ = function(name, strata,
                                   params = NULL,
-                                  append = FALSE,
                                   .warn_over = TRUE) {
-      assert_valid_logic_table(logic_table)
+      assert_valid_logic_table(strata)
       # validate params keys against logic table param_names
       if (length(params) > 0) {
-        valid_names <- setdiff(logic_table$param_name, ".reference")
+        valid_names <- setdiff(strata$param_name, ".reference")
         unknown <- setdiff(names(params), valid_names)
         if (length(unknown) > 0) stop_h(
           sprintf("Unknown parameter%s %s in 'params'.",
@@ -293,8 +302,10 @@ HousepiGroupRate <- R6::R6Class(
                   character_to_string_list(unknown))
         )
       }
-      # handle append vs replace
-      if (isFALSE(append) || self$defs[[name]][["mode"]] == "auto") {
+
+      # handle replace
+      if (name %in% names(self$defs) &&
+            self$defs[[name]][["mode"]] == "auto") {
         # remove previous definition
         self$logic_tables[[name]] <- NULL
         self$param_overrides[[name]] <- NULL
@@ -302,13 +313,8 @@ HousepiGroupRate <- R6::R6Class(
         if (.warn_over) template_overwrite_warn(rmv_name, self$family)
         else self$store_warn_over <- c(self$store_warn_over, rmv_name)
       }
-
-      # append to existing logic_table-mode entry
-      self$logic_tables[[name]] <- c(self$logic_tables[[name]],
-                                     list(logic_table))
-      # merge param overrides
-      self$param_overrides[[name]] <- c(self$param_overrides[[name]],
-                                        params)
+      self$logic_tables[[name]] <- list(strata)
+      self$param_overrides[[name]] <- params
 
       # store a sentinel definition
       by <- setdiff(unique(unlist(lapply(self$logic_tables[[name]], colnames))),
@@ -534,7 +540,7 @@ HousepiGroupRate <- R6::R6Class(
     add_quo = function(name,
                        by = NA_character_, prefix = NA_character_,
                        reference = NULL, joint = FALSE,
-                       logic_table = NULL, params = NULL, append = FALSE,
+                       strata = NULL, params = NULL,
                        prior = NA_character_, ...,
                        min = NA_real_, max = NA_real_,
                        proposal = NA_character_, proposal_scale = NA_real_,
@@ -550,9 +556,8 @@ HousepiGroupRate <- R6::R6Class(
       joint <- isTRUE(housepi_smart_unwrap(joint, "joint"))
 
       # custom definition
-      logic_table <- housepi_smart_unwrap(logic_table, "logic_table")
+      strata <- housepi_smart_unwrap(strata, "strata")
       params <- housepi_smart_unwrap(params, "params")
-      append <- housepi_smart_unwrap(append, "append")
 
       # raw parameter definition
       prior <- housepi_smart_unwrap(prior, "prior")
@@ -566,7 +571,7 @@ HousepiGroupRate <- R6::R6Class(
 
       # distinguish between automatic and custom definitions
       is_auto <- !all(is.na(by))
-      is_custom <- !is.null(logic_table)
+      is_custom <- !is.null(strata)
 
       if (is_auto && is_custom) stop_ambiguos_definition()
       else if (is_auto) private$helper_auto_add_(
@@ -574,10 +579,10 @@ HousepiGroupRate <- R6::R6Class(
         joint = joint, .warn_over = .warn_over
       )
       else if (is_custom) private$helper_custom_add_(
-        name = name, logic_table = logic_table, params = params,
-        append = append, .warn_over = .warn_over
+        name = name, strata = strata, params = params,
+        .warn_over = .warn_over
       )
-      else return(invisible(self))
+      else stop_empty_definition()
 
       # store shared MCMC setup (eventually overwrite)
       self$raw_params[[name]] <- set_group_rates_mcmc_setup(
@@ -654,11 +659,6 @@ HousepiGroupRate <- R6::R6Class(
         warning_h(sms)
       }
 
-      # UPDATE: this is not necessary anymore!
-      # find missing group rates and set as default
-      if (isTRUE(capital)) for (g in template_missing_find(required, defined)) {
-        self$add_quo(g, by = NA_character_)
-      }
       template_missing_stop(required, defined, self$family)
     },
 

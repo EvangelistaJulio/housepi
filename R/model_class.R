@@ -120,7 +120,15 @@ HousepiModel <- R6::R6Class(
     # @description
     # Assert contact rate definitions are compatible with the model.
     assert_contact_rates_ = function() {
-      private$contact_rates_$assert(private$mcmc_ptr_)
+      has_defs <- private$contact_rates_$assert()
+      if (has_defs && !.engine$has_contact_rates(private$mcmc_ptr_)) {
+        self$drop_contact_rates()
+        stop_h(
+          sprintf("Contact rates are not supported for model '%s'.",
+                  self$name),
+          "Definitions will be dropped."
+        )
+      }
     },
 
     # @description
@@ -816,9 +824,8 @@ HousepiModel <- R6::R6Class(
     #' @param prefix `r rd_grr_prefix_`
     #' @param reference `r rd_grr_refer_`
     #' @param joint `r rd_grr_joint_`
-    #' @param logic_table `r rd_grr_ltab_`
+    #' @param strata `r rd_grr_strata_`
     #' @param params `r rd_grr_params_`
-    #' @param append `r rd_grr_append_`
     #' @param prior `r rd_par_model_`
     #' @param ... `r rd_par_args_`
     #' @param min `r rd_var_min_`
@@ -828,16 +835,14 @@ HousepiModel <- R6::R6Class(
     add_group_rate = function(name,
                               by = NA_character_, prefix = NA_character_,
                               reference = NULL, joint = FALSE,
-                              logic_table = NULL, params = NULL,
-                              append = FALSE,
+                              strata = NULL, params = NULL,
                               prior = NA_character_, ...,
                               min = NA_real_, max = NA_real_,
                               proposal = NA_character_,
                               proposal_scale = NA_real_) {
       private$group_rates_$add_quo(name = name, by = by, prefix = prefix,
                                    reference = reference, joint = joint,
-                                   logic_table = logic_table, params = params,
-                                   append = append,
+                                   strata = strata, params = params,
                                    prior = prior, rlang::enquos(...),
                                    min = rlang::enquo(min),
                                    max = rlang::enquo(max),
@@ -866,7 +871,7 @@ HousepiModel <- R6::R6Class(
     #' @param prefix `r rd_ctr_prefix_`
     #' @param joint `r rd_ctr_joint_`
     #' @param symmetric `r rd_ctr_symmetric_`
-    #' @param logic_table `r rd_ctr_ltab_`
+    #' @param strata `r rd_ctr_strata_`
     #' @param params `r rd_ctr_params_`
     #' @param prior `r rd_par_model_`
     #' @param ... `r rd_par_args_`
@@ -875,9 +880,9 @@ HousepiModel <- R6::R6Class(
     #' @param proposal `r rd_var_proposal_`
     #' @param proposal_scale `r rd_proposal_scale_`
     add_contact_rate = function(by = NA_character_,
-                                reference = NULL, prefix = "ctr",
+                                reference = NULL, prefix = NA_character_,
                                 joint = TRUE, symmetric = TRUE,
-                                logic_table = NULL, params = NULL,
+                                strata = NULL, params = NULL,
                                 prior = NA_character_, ...,
                                 min = NA_real_, max = NA_real_,
                                 proposal = NA_character_,
@@ -885,7 +890,7 @@ HousepiModel <- R6::R6Class(
       private$contact_rates_$add_quo(
         by = by, reference = reference, prefix = prefix,
         joint = joint, symmetric = symmetric,
-        logic_table = logic_table, params = params,
+        strata = strata, params = params,
         prior = prior, rlang::enquos(...),
         min = rlang::enquo(min),
         max = rlang::enquo(max),
@@ -907,8 +912,7 @@ HousepiModel <- R6::R6Class(
     #' @param ... `r rd_inf_args_`
     #' @param max `r rd_aug_max_`
     add_infec_profile = function(func, status = NA_integer_,
-                                 discr = FALSE,
-                                 ..., max = NULL) {
+                                 discr = FALSE, ..., max = NULL) {
       private$infec_profile_$add_quo(func = func,
                                      status = status, discr = discr,
                                      rlang::enquos(...),

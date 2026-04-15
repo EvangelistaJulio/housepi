@@ -11,7 +11,7 @@ test_that("Character to string list formats vectors correctly", {
                "'a', 'b', 'c', 'd', ...")
   # max_print larger than vector
   expect_equal(character_to_string_list(str_list, max_print = 10),
-               "'a', 'b', 'c', 'd', 'e'.")
+               "'a', 'b', 'c', 'd' and 'e'.")
 })
 
 test_that("Character to phrase produce phrases as expected", {

@@ -443,7 +443,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_group_rate"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_group_rate}{}}}
 \subsection{Method \code{add_group_rate()}}{
-Add definitions of a group rate by given data feature(s).
+Add definitions of a group rate by given data covariate(s).
 Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
@@ -455,9 +455,8 @@ Bypass automatic generation by providing a custom pre-built logic table.
   prefix = NA_character_,
   reference = NULL,
   joint = FALSE,
-  logic_table = NULL,
+  strata = NULL,
   params = NULL,
-  append = FALSE,
   prior = NA_character_,
   ...,
   min = NA_real_,
@@ -472,28 +471,26 @@ Bypass automatic generation by providing a custom pre-built logic table.
 \describe{
 \item{\code{name}}{\code{character(1)} Name used by internal calls.}
 
-\item{\code{by}}{\code{list} Features associated to group rate as data headers.
+\item{\code{by}}{\code{list} Covariates associated to group rate as data headers.
 Corresponding data columns have to be categorical.}
 
 \item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.
 If \code{NA} uses the first 3 letters of rate name (default).}
 
-\item{\code{reference}}{named \code{list} Features associated to reference group.
+\item{\code{reference}}{named \code{list} Covariates associated to reference group.
 Default is the group with the largest sample size.}
 
-\item{\code{joint}}{\code{logical(1)} Consider features as joint.
-If \code{FALSE} features are independent (default).}
+\item{\code{joint}}{\code{logical(1)} Treat covariates as joint.
+If \code{FALSE}, covariates are independent (default).}
 
-\item{\code{logic_table}}{\code{data.frame} Custom feature values and relative \code{param_name}.
-Use \code{.reference} in \code{param_name} for the reference group.
+\item{\code{strata}}{\code{data.frame} Individual covariates and relative \code{param_name}.
+Each row defines one stratum. If \code{NA}, then match any value.
+Use \code{.reference} in \code{param_name} to designate the reference group.
 Mutually exclusive with \code{by}.}
 
 \item{\code{params}}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
 Overrides shared prior/args for parameters specificied in the list.
 Ignored if automatic definition.}
-
-\item{\code{append}}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default). Ignored if automatic definition.}
 
 \item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 
@@ -544,7 +541,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_contact_rate"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_contact_rate}{}}}
 \subsection{Method \code{add_contact_rate()}}{
-Add definitions of a contact rate by given data feature(s).
+Add definitions of a contact rate by given data covariate(s).
 Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
@@ -553,10 +550,10 @@ Bypass automatic generation by providing a custom pre-built logic table.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_contact_rate(
   by = NA_character_,
   reference = NULL,
-  prefix = "ctr",
+  prefix = NA_character_,
   joint = TRUE,
   symmetric = TRUE,
-  logic_table = NULL,
+  strata = NULL,
   params = NULL,
   prior = NA_character_,
   ...,
@@ -570,24 +567,24 @@ Bypass automatic generation by providing a custom pre-built logic table.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{by}}{\code{character()} Features for from/to matching as data headers.
+\item{\code{by}}{\code{character()} Covariates for from/to matching as data headers.
 Corresponding data columns have to be categorical.}
 
-\item{\code{reference}}{named \code{list} Features associated to reference pair.
+\item{\code{reference}}{named \code{list} Covariates associated to reference pair.
 Names can use \code{from_}/\code{to_} prefixes matching \code{by},
 or un-prefixed names (applied to both from and to).}
 
-\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.
-Default is \code{'cr'}.}
+\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.}
 
-\item{\code{joint}}{\code{logical(1)} Consider features as joint.
-If \code{FALSE} features are independent (default).}
+\item{\code{joint}}{\code{logical(1)} Treat covariates as joint.
+If \code{FALSE}, covariates are independent (default).}
 
-\item{\code{symmetric}}{\code{logical(1)} Consider features as joint.
-If \code{FALSE} features are independent (default).}
+\item{\code{symmetric}}{\code{logical(1)} Treat covariates as joint.
+If \code{FALSE}, covariates are independent (default).}
 
-\item{\code{logic_table}}{\code{data.frame} Custom feature values and relative \code{param_name}.
-Use \code{.reference} in \code{param_name} for the reference group.
+\item{\code{strata}}{\code{data.frame} Individual covariates and relative \code{param_name}.
+Each row defines one stratum. If \code{NA}, then match any value.
+Use \code{.reference} in \code{param_name} to designate the reference group.
 Mutually exclusive with \code{by}.}
 
 \item{\code{params}}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.

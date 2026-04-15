@@ -44,7 +44,7 @@ New object of class
 \describe{
 \item{\code{...}}{Named features with respective list of definition details.}
 
-\item{\code{ascending}}{\code{logical(1)} Set ascending hierarchy between features.
+\item{\code{ascending}}{\code{logical(1)} Set ascending hierarchy between covariates.
 If \code{FALSE} is descending (default).}
 }
 \if{html}{\out{</div>}}
@@ -65,7 +65,7 @@ from a given dataset.
 \describe{
 \item{\code{data_wide}}{\code{data.frame} Household data used for analysis (wide format).}
 
-\item{\code{ascending}}{\code{logical(1)} Set ascending hierarchy between features.
+\item{\code{ascending}}{\code{logical(1)} Set ascending hierarchy between covariates.
 If \code{FALSE} is descending (default).}
 }
 \if{html}{\out{</div>}}

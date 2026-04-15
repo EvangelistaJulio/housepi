@@ -13,7 +13,7 @@
     Message
       i Household model chain binomial (template).
       x Parameters:
-      There are 4 missing parameter definitions: 'alpha', 'beta', 'gamma', 'size_ref'.
+      There are 4 missing parameter definitions: 'alpha', 'beta', 'gamma' and 'size_ref'.
       They are required by model definitions.
 
 ---

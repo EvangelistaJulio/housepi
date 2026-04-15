@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "tools/keys.h"
-#include "tools/messages.h"
 #include "tools/parser.h"
 #include "tools/read.h"
 #include "tools/string.h"
@@ -86,7 +85,6 @@ namespace hsp
     InfecProfile::InfecProfile() = default;
     InfecProfile::~InfecProfile() = default;
 
-    /// Set model template while constructiing model.
     void InfecProfile::init_template(Parameter &param, str_table input)
     {
         // if not previous build, proceed with template
@@ -141,8 +139,6 @@ namespace hsp
         init_template(param, std::move(new_input));
     }
 
-    /// Build infectivity profile distribution.
-    /// NOTE: at the moment I am ignoring minimum
     void InfecProfile::build(Parameter &param, const str_table &input)
     {
         augm_definitions.clear();
@@ -256,7 +252,7 @@ namespace hsp
         if (input.count("discr") && str::tobool(input.at("discr")[0]))
             output->init_discretization();
         else if (is_discrete_requested_)
-            msg::error(
+            throw std::invalid_argument(
                 "Definition of infectivity profile did not return a discrete object as requested by the model.");
         return output;
     }

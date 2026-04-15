@@ -11,7 +11,6 @@
 #include <string_view>
 #include <vector>
 
-#include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/string.h"
 #include "tools/types.h"
@@ -190,7 +189,7 @@ namespace hsp
     {
         auto it = factory_map_.find(name);
         if (it == factory_map_.end())
-            msg::error(
+            throw std::invalid_argument(
                 "Model registration failed: unknown model '" + std::string(name) + "'.\n" );
         return it->second();
     }

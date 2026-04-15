@@ -64,7 +64,9 @@ namespace hsp
                 std::vector<double> inst = {};  /// instantaneous
                 std::vector<double> cumul = {}; /// cumulative
 
+                /// Clear lookup table.
                 void clear() noexcept;
+                /// Allocate lookup table.
                 void assign(size_t n, double v);
             } value_, old_;
 
@@ -95,7 +97,10 @@ namespace hsp
         //////  SETTER  //////
         //////////////////////
 
+        /// Build infectivity profile distribution.
+        /// NOTE: at the moment I am ignoring minimum
         void build(Parameter &param, const str_table &input);
+        /// Set model template while constructiing model.
         void init_template(Parameter &param, str_table input);
         void init_template(Parameter &param, dict<std::string> input);
 

@@ -17,6 +17,7 @@
 #include "tools/loglike.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
+#include "tools/operators.h"
 #include "tools/openmp.h"
 #include "tools/string.h"
 #include "tools/types.h"
@@ -163,6 +164,40 @@ namespace hsp
             data_wide().recover_old_cached();
             infec_profile.recover();
         }
+    }
+
+    std::vector<std::string> MCMCBase::get_static_data_names() const
+    {
+        return data_wide().pKeys->get_all() - augm.pKeys->as_string(augm.list_export);
+    }
+
+    std::vector<size_t> MCMCBase::get_row_offsets() const
+    {
+        size_t n_houses = data_wide().report_house.total;
+        std::vector<size_t> output(n_houses + 1, 0);
+        for (size_t H = 0; H < n_houses; ++H)
+            output[H + 1] = output[H] + data_wide().at(H).size();
+        return output;
+    }
+
+    std::vector<std::string> MCMCBase::get_col_names() const
+    {
+        std::vector<std::string> static_data_names = get_static_data_names();
+        const size_t n_shared = static_data_names.size();
+        const size_t n_augm_cols = augm.list_export.size();
+
+        std::vector<std::string> output(2 + n_shared + 1 + n_augm_cols);
+
+        output[0] = "id";
+        output[1] = "house_id";
+        for (size_t i = 0; i < n_shared; ++i)
+            output[2 + i] = static_data_names[i];
+
+        output[2 + n_shared] = "status";
+        for (size_t c = 0; c < n_augm_cols; ++c)
+            output[3 + n_shared + c] = augm.pKeys->as_string(augm.list_export[c]);
+
+        return output;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

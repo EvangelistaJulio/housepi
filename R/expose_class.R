@@ -334,8 +334,7 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param prefix `r rd_grr_prefix_`
 #' @param reference `r rd_grr_refer_`
 #' @param joint `r rd_grr_joint_`
-#' @param logic_table `r rd_grr_ltab_`
-#' @param append `r rd_grr_append_`
+#' @param strata `r rd_grr_strata_`
 #' @param params `r rd_grr_params_`
 #' @param prior `r rd_par_model_`
 #' @param ... `r rd_par_args_`
@@ -354,7 +353,7 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 add_group_rate <-  function(hhmodel,
                             name, by = NA_character_, prefix = NA_character_,
                             reference = NULL, joint = FALSE,
-                            logic_table = NULL, append = FALSE, params = NULL,
+                            strata = NULL, params = NULL,
                             prior = NA_character_, ...,
                             min = NA_real_, max = NA_real_,
                             proposal = NA_character_,
@@ -364,7 +363,7 @@ add_group_rate <-  function(hhmodel,
   new_obj$.__enclos_env__$private$group_rates_$add_quo(
     name = name, by = by, prefix = prefix,
     reference = reference, joint = joint,
-    logic_table = logic_table, append = append, params = params,
+    strata = strata, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
@@ -384,7 +383,7 @@ add_group_rate <-  function(hhmodel,
 #' @param prefix `r rd_ctr_prefix_`
 #' @param joint `r rd_ctr_joint_`
 #' @param symmetric `r rd_ctr_symmetric_`
-#' @param logic_table `r rd_ctr_ltab_`
+#' @param strata `r rd_ctr_strata_`
 #' @param params `r rd_ctr_params_`
 #' @param prior `r rd_par_model_`
 #' @param ... `r rd_par_args_`
@@ -395,9 +394,9 @@ add_group_rate <-  function(hhmodel,
 #' @return `r rd_model_out_`
 #' @export
 add_contact_rate <- function(hhmodel, by = NA_character_,
-                             reference = NULL, prefix = "ctr",
-                             joint = TRUE, symmetric = TRUE,
-                             logic_table = NULL, params = NULL,
+                             reference = NULL, prefix = NA_character_,
+                             joint = FALSE, symmetric = TRUE,
+                             strata = NULL, params = NULL,
                              prior = NA_character_, ...,
                              min = NA_real_, max = NA_real_,
                              proposal = NA_character_,
@@ -407,7 +406,7 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
   new_obj$.__enclos_env__$private$contact_rates_$add_quo(
     by = by, reference = reference, prefix = prefix,
     joint = joint, symmetric = symmetric,
-    logic_table = logic_table, params = params,
+    strata = strata, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale

@@ -16,9 +16,6 @@ test_that("measure_sar_by_house_size computes SAR correctly", {
   # size 3: SAR = (1-1)/(3-1) = 0
   expect_equal(result[result$house_size == 3, "sar"], 0)
 
-  # empty input errors
-  expect_error(measure_sar_by_house_size(data.frame()),
-               regexp = "No valid data_wide")
 })
 
 test_that("measure_cases_by_house_size produces correct contingency table", {
@@ -33,9 +30,6 @@ test_that("measure_cases_by_house_size produces correct contingency table", {
   # grid should be complete
   expect_true(nrow(result) > 0)
 
-  # empty input errors
-  expect_error(measure_cases_by_house_size(data.frame()),
-               regexp = "No valid data_wide")
 })
 
 test_that("ppc_set_cri_level validates credible interval", {
@@ -149,21 +143,6 @@ test_that("format_credible_intervals formats vectors correctly", {
   expect_true(is.character(result))
 })
 
-test_that("PPC print helper formats messages correctly", {
-  sms <- ppc_helper_print("test_model", TRUE, c("sar", "cases"), 0.95)
-  expect_true(is.character(sms))
-  expect_true(any(grepl("Posterior predictions", sms)))
-  expect_true(any(grepl("test_model", sms)))
-  expect_true(any(grepl("sar", sms)))
-  expect_true(any(grepl("cases", sms)))
-  expect_true(any(grepl("95%", sms)))
-
-  # non-posterior
-  sms2 <- ppc_helper_print("m", FALSE, "sar", 0.8)
-  expect_true(any(grepl("Predictions", sms2)))
-  expect_true(any(grepl("80%", sms2)))
-})
-
 test_that("PPC extract-predicted-results returns correct structure", {
   df1 <- data.frame(a = c(1, 2))
   df2 <- data.frame(a = c(3, 4))
@@ -274,9 +253,6 @@ test_that("Predicted cases by house size works as expected", {
   chi <- ppc$chisq_test()
   expect_true(is.list(chi))
   expect_true(all(c("chisq_value", "ddof", "p_value") %in% names(chi)))
-
-  # print
-  expect_snapshot(print(ppc))
 })
 
 test_that("predicted_measures works with custom measure", {

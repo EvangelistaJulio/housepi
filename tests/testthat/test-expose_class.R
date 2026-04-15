@@ -195,8 +195,8 @@ test_that("Group rate wrappers", {
   hhmodel <- hhmodel |>
     load_group_rate_list(
       susceptibility = list(
-        logic_table = data.frame(member = c("student", NA),
-                                 param_name = c("sus_student", ".reference")),
+        strata = data.frame(member = c("student", NA),
+                            param_name = c("sus_student", ".reference")),
         params = list(sus_student = 1.23)
       )
   )
@@ -206,8 +206,8 @@ test_that("Group rate wrappers", {
   hhmodel <- drop_group_rates(hhmodel)
   hhmodel <- add_group_rate(
     hhmodel, "susceptibility",
-    logic_table = data.frame(member = c("kaiju", NA),
-                             param_name = c("sus_student", ".reference"))
+    strata = data.frame(member = c("kaiju", NA),
+                        param_name = c("sus_student", ".reference"))
   )
   expect_warning(hhmodel$group_rates, regexp = "not found")
 })

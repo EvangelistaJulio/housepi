@@ -37,35 +37,39 @@ as_plural <- function(input, true = "s", false = "") {
   ifelse(length(input) > 1, true, false)
 }
 
+#' Collapse a character vector into a phrase.
+#' @param mylist `character()`. Vector to print.
+#' @param quote `logical(1)`. Whether to add quotes.
+#' @param and `logical(1)`. Whether to include a 'and'.
+#' @return `character(1)`
+#' @noRd
+character_to_phrase <- function(mylist, quote = FALSE, and = TRUE) {
+  len_list <- length(mylist)
+  if (len_list == 0) return(NULL)
+  if (len_list == 1) and <- FALSE
+
+  # eventually add quotes
+  if (isTRUE(quote)) mylist <- paste0("'", mylist, "'")
+  # collapse w\o 'and'
+  if (isFALSE(and)) return(paste(mylist, collapse = ", "))
+  # collapse with 'and'
+  sms <- paste(mylist[1:(len_list - 1)], collapse = ", ")
+  paste(sms, "and", mylist[len_list])
+}
+
 #' Collapse a character vector into string of quoted words.
 #' @param mylist `character()`. List to be printed.
 #' @param max_print `integer(1)`. Maximum number of elements to print.
 #' @return `character(1)`
 #' @noRd
 character_to_string_list <- function(mylist, max_print = 4) {
-  max_print <- min(max_print, length(mylist), na.rm = TRUE)
-  sms <- paste(lapply(mylist[seq_len(max_print)],
-                      function(x) paste0("'", x, "'")),
-               collapse = ", ")
-  if (length(mylist) > max_print) paste0(sms, ", ...")
-  else paste0(sms, ".")
-}
-
-#' Collapse a character vector into a phrase.
-#' @param mylist `character()`. vector.
-#' @return `character(1)`
-#' @noRd
-character_to_phrase <- function(mylist) {
   len_list <- length(mylist)
-  if (len_list == 0) {
-    return(NULL)
-  } else if (len_list == 1) {
-    sms <- mylist
-  } else {
-    sms <- paste(mylist[1:(len_list - 1)], collapse = ", ")
-    sms <- paste(sms, "and", mylist[len_list])
-  }
-  sms
+  max_print <- min(max_print, len_list, na.rm = TRUE)
+  overflow <- len_list > max_print
+  sms <- character_to_phrase(mylist[seq_len(max_print)],
+                             quote = TRUE, and = !overflow)
+  if (overflow) paste0(sms, ", ...")
+  else paste0(sms, ".")
 }
 
 #' Find closest match across list of options.

@@ -224,7 +224,7 @@ namespace hsp
         // assess individual IDs are unique
         if (std::find(headers.begin(), headers.end(), "id") != headers.end() &&
             input.at("id").size() != str::unique(input.at("id")).size())
-            msg::error("Provided individual IDs are not unique.");
+            throw std::invalid_argument("Provided individual IDs are not unique.");
 
         // remove standard headers
         headers = headers - std::vector<std::string>({"id", "house_id", "status"});

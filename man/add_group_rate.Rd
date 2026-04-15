@@ -11,8 +11,7 @@ add_group_rate(
   prefix = NA_character_,
   reference = NULL,
   joint = FALSE,
-  logic_table = NULL,
-  append = FALSE,
+  strata = NULL,
   params = NULL,
   prior = NA_character_,
   ...,
@@ -27,24 +26,22 @@ add_group_rate(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{by}{\code{list} Features associated to group rate as data headers.
+\item{by}{\code{list} Covariates associated to group rate as data headers.
 Corresponding data columns have to be categorical.}
 
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters.
 If \code{NA} uses the first 3 letters of rate name (default).}
 
-\item{reference}{named \code{list} Features associated to reference group.
+\item{reference}{named \code{list} Covariates associated to reference group.
 Default is the group with the largest sample size.}
 
-\item{joint}{\code{logical(1)} Consider features as joint.
-If \code{FALSE} features are independent (default).}
+\item{joint}{\code{logical(1)} Treat covariates as joint.
+If \code{FALSE}, covariates are independent (default).}
 
-\item{logic_table}{\code{data.frame} Custom feature values and relative \code{param_name}.
-Use \code{.reference} in \code{param_name} for the reference group.
+\item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
+Each row defines one stratum. If \code{NA}, then match any value.
+Use \code{.reference} in \code{param_name} to designate the reference group.
 Mutually exclusive with \code{by}.}
-
-\item{append}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default). Ignored if automatic definition.}
 
 \item{params}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
 Overrides shared prior/args for parameters specificied in the list.
@@ -76,7 +73,7 @@ Ignored if proposal is 'sample'.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add definitions of a group rate by given data feature(s).
+Add definitions of a group rate by given data covariate(s).
 Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
