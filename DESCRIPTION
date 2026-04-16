@@ -12,14 +12,12 @@ NeedsCompilation: yes
 Encoding: UTF-8
 Imports:
     cli (>= 3.0.0),
-    dplyr (>= 1.0.0),
     pkgbuild (>= 1.0.0),
     posterior (>= 1.0.0),
     R6 (>= 2.0.0),
     Rcpp (>= 1.0.0),
     rlang (>= 1.0.0),
     stringr (>= 1.0.0),
-    tidyr (>= 1.0.0),
     utils (>= 4.0.0),
     withr (>= 3.0.0)
 LinkingTo: 
@@ -30,6 +28,7 @@ RoxygenNote: 7.3.3
 Suggests:
     bayesplot,
     BH,
+    dplyr,
     flextable,
     ggplot2,
     knitr,
@@ -38,7 +37,8 @@ Suggests:
     priorsense,
     rmarkdown,
     rstudioapi,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    tidyr
 VignetteBuilder: knitr
 Depends: 
     R (>= 3.5.0)

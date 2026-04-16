@@ -341,16 +341,15 @@ HousepiModel <- R6::R6Class(
       # NOTE: there might be not parameters at all
       if (dim(self$parameters)[1] == 0) return(nsim)
 
-      # attach table with parameters
       if (is.null(param_table)) {
-        param_table <- self$parameters
-        param_table <- dplyr::select(param_table, name, value)
-        param_table <- tidyr::pivot_wider(param_table,
-                                          names_from = "name",
-                                          values_from = "value")
-        param_table <- dplyr::mutate(param_table, n = nsim)
-        param_table <- tidyr::uncount(param_table, n)
+        # replicates the single row nsim times
+        param_table <- as.data.frame(stats::setNames(
+          as.list(self$parameters$value), self$parameters$name
+        ))
+        param_table <- param_table[rep(1L, nsim), , drop = FALSE]
+        rownames(param_table) <- NULL
       }
+      # attach table with parameters
       .engine$import_param_table(private$mcmc_ptr_, param_table)
 
       nsim
