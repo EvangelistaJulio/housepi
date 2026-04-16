@@ -8,13 +8,13 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <vector>
 
 #include "tools/data_reports.h"
+#include "tools/keys.h"
 #include "tools/types.h"
 
 #include "indiv_storage.h"
@@ -24,9 +24,8 @@ namespace housepi
 {
     namespace rates
     {
-        constexpr const char *REFERENCE = ".reference";  /// Rate reference choice.
-        constexpr const char *CONTACT = ".contact";      /// Contanct rate.
-        constexpr double VALUE_REFERENCE = 1.0;          /// Alias for reference value.
+        constexpr const char *REFERENCE = ".reference"; /// Rate reference choice.
+        constexpr double VALUE_REFERENCE = 1.0;         /// Alias for reference value.
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,36 +34,27 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    struct KeyHolder;
-
-    struct DataWide
+    struct DataWide : public KeyModule
     {
-        std::unique_ptr<KeyHolder> pKeys;
-        std::unique_ptr<KeyHolder> pKeys_size_val;
-        std::unique_ptr<KeyHolder> pKeys_size_vec;
-        std::unique_ptr<KeyHolder> pKeys_double_vec;
-        std::unique_ptr<KeyHolder> pKeys_double_mtx;
+        KeyHolder khold_size_val;   /// cache key-holder size_t values
+        KeyHolder khold_size_vec;   /// cache key-holder size_t vectors
+        KeyHolder khold_double_vec; /// cache key-holder double vectors
+        KeyHolder khold_double_mtx; /// cache key-holder double matrices
 
-        ReportIndividual report_indiv;
-        ReportHousehold report_house;
-        ReportHouseSizes report_hh_size;
-
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
-
-        DataWide();
-        ~DataWide();
-
-        void init_registry(const std::vector<std::string> &keys,
-                           const std::vector<std::string> &size_keys,
-                           const std::vector<std::string> &size_vec_keys,
-                           const std::vector<std::string> &double_vec_keys,
-                           const std::vector<std::string> &double_mtx_keys);
+        ReportIndividual report_indiv;   /// individuals report
+        ReportHousehold report_house;    /// households report
+        ReportHouseSizes report_hh_size; /// house-sizes report
 
         //////////////////////
         //////  SETTER  //////
         //////////////////////
+
+        /// Initialize cache key-holder with model declared keys.
+        void init_cache_key_holders(
+            const std::vector<std::string> &size_keys,
+            const std::vector<std::string> &size_vec_keys,
+            const std::vector<std::string> &double_vec_keys,
+            const std::vector<std::string> &double_mtx_keys);
 
         /// Assign data (wide format).
         void build(const str_table &input);

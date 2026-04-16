@@ -7,10 +7,10 @@
 
 #pragma once
 
-#include <memory>
 #include <string>
 #include <vector>
 
+#include "tools/keys.h"
 #include "tools/types.h"
 
 #include "indiv_storage.h"
@@ -23,29 +23,13 @@
 
 namespace housepi
 {
-    struct KeyHolder;
     struct DataWide;
     struct Parameter;
     class Individual;
 
-    struct GroupRate
+    struct GroupRate : public KeyModule
     {
     public:
-        std::unique_ptr<KeyHolder> pKeys; /// pointer to registry
-
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
-
-        GroupRate();
-        ~GroupRate();
-
-        void init_registry(const std::vector<std::string> &keys);
-
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
-
         /// Update model report and set group rates associate to new individual.
         /// NOTE: this has to run even if input is empty to initialize existing rates to reference.
         void build(DataWide &data_wide, const Parameter &param, const str_table &deftable);

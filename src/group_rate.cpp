@@ -6,7 +6,6 @@
  */
 
 #include <algorithm>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -32,19 +31,10 @@
 
 namespace housepi
 {
-
-    GroupRate::GroupRate() = default;
-    GroupRate::~GroupRate() = default;
-
-    void GroupRate::init_registry(const std::vector<std::string> &keys)
-    {
-        pKeys = std::make_unique<KeyHolder>(keys);
-    }
-
     void GroupRate::build(DataWide &data_wide, const Parameter &param, const str_table &input)
     {
         // reset group rate storage and unbind individuals
-        pKeys->clear_optional();
+        khold_.clear_optional();
         unique_groups_.clear();
         for (Household &house : data_wide)
             for (Individual &member : house)
@@ -54,7 +44,7 @@ namespace housepi
         std::vector<std::string> data_headers = {};
         if (!input.empty())
             data_headers = helper_process_definitions_(data_wide, input);
-        else if (pKeys->empty())
+        else if (khold_.empty())
             return;
 
         // load column with group rate names, if any
@@ -64,7 +54,7 @@ namespace housepi
 
         // check for undefined group rates, assumed to be equal to reference
         str_table undefined_rates = {};
-        for (const std::string &gstr : pKeys->get_all())
+        for (const std::string &gstr : khold_.get_all())
             if (std::find(g_input_vec.begin(), g_input_vec.end(), gstr) == g_input_vec.end())
                 undefined_rates[gstr].push_back(rates::REFERENCE);
 
@@ -81,7 +71,7 @@ namespace housepi
                     bool match = true;
                     for (const std::string &dstr : data_headers)
                         if (!na::is(input.at(dstr)[r]))
-                            match &= member.pwide_->vec[data_wide.pKeys->from_string(dstr)] == str::tod(input.at(dstr)[r]);
+                            match &= member.pwide_->vec[data_wide.khold().from_string(dstr)] == str::tod(input.at(dstr)[r]);
 
                     if (match)
                         these_rates[g_input_vec[r]].push_back(input.at("param_name")[r]);
@@ -107,20 +97,16 @@ namespace housepi
         // remove template headers to keep only data
         data_headers = data_headers - file_headers;
         // check that required data columns are present
-        str::assert_no_unused_entries(data_headers, data_wide.pKeys->get_all());
+        str::assert_no_unused_entries(data_headers, data_wide.khold().get_all());
 
         // assert the group rate names are allowed
         dict<size_t> definition_counts = {};
         for (const std::string &gstr : str::unique(input.at("group_rate")))
         {
-            if (gstr == rates::CONTACT)
-                throw std::invalid_argument(
-                    "Tried to use the reserved group rate name '" + gstr +
-                    "'.\nPlease, choose a different name.");
             if (na::is(gstr))
                 throw std::invalid_argument(
                     "Found a missing group rate name in the definitions.");
-            pKeys->add(gstr);
+            khold_.add(gstr);
             definition_counts.emplace(gstr, 0);
         }
 
@@ -143,8 +129,8 @@ namespace housepi
     {
         unique_groups_.emplace_back();
         Indiv::Group &igr = unique_groups_.back();
-        igr.vec.reserve(pKeys->size());
-        for (const std::string &gstr : pKeys->get_all())
+        igr.vec.reserve(khold_.size());
+        for (const std::string &gstr : khold_.get_all())
         {
             if (!these_rates.count(gstr))
                 throw std::invalid_argument(
@@ -164,10 +150,10 @@ namespace housepi
             for (const std::string &pstr : pstr_vec)
                 if (pstr != rates::REFERENCE)
                     param_pointers.emplace_back(
-                        param.at(param.pKeys->from_string(pstr)).pointer());
+                        param.at(param.khold().from_string(pstr)).pointer());
 
             if (!param_pointers.empty())
-                igr.vec[pKeys->from_string(gstr)].init_product(param_pointers);
+                igr.vec[khold_.from_string(gstr)].init_product(param_pointers);
         }
     }
 }

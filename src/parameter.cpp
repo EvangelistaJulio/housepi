@@ -6,7 +6,6 @@
  */
 
 #include <algorithm>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -37,17 +36,9 @@
 
 namespace housepi
 {
-    Parameter::Parameter() = default;
-    Parameter::~Parameter() = default;
-
-    void Parameter::init_registry(const std::vector<std::string> &keys)
-    {
-        pKeys = std::make_unique<KeyHolder>(keys);
-    }
-
     void Parameter::build(const str_table &input)
     {
-        pKeys->clear_optional();
+        khold_.clear_optional();
 
         if (input.empty())
             return;
@@ -118,9 +109,9 @@ namespace housepi
         {
             size_t k = name_to_row.at(pstr);
 
-            if (!pKeys->count(pstr))
+            if (!khold_.count(pstr))
             {
-                pKeys->add(pstr);
+                khold_.add(pstr);
                 param_vec_.emplace_back();
                 param_vec_.back().name(pstr);
                 param_vec_.back().set_err_type("parameter");
@@ -157,10 +148,10 @@ namespace housepi
         clear_lists_();
         simulation_values.clear();
         // update list of constant parameters to all parameters
-        list_const = pKeys->from_string(pKeys->get_all());
+        list_const = khold_.from_string(khold_.get_all());
 
         // reset definition dictionary to all constants NAs.
-        for (const std::string &pstr : pKeys->get_all())
+        for (const std::string &pstr : khold_.get_all())
             if (std::find(headers.begin(), headers.end(), pstr) == headers.end())
                 simulation_values.emplace_back();
             else
@@ -169,12 +160,12 @@ namespace housepi
 
     void Parameter::init_param_vec_()
     {
-        size_t n = pKeys->size();
+        size_t n = khold_.size();
         param_vec_.clear();
         param_vec_.resize(n);
         for (size_t p = 0; p < n; ++p)
         {
-            param_vec_[p].name(pKeys->as_string(p));
+            param_vec_[p].name(khold_.as_string(p));
             param_vec_[p].set_err_type("parameter");
         }
     }
@@ -203,7 +194,7 @@ namespace housepi
                 "Constant parameter '" + pstr + "' had undefined value.");
 
         // assign constant parameter to the set of variables
-        size_t p = pKeys->from_string(pstr);
+        size_t p = khold_.from_string(pstr);
         param_vec_[p].transfer(read_numeric(input.at("value")[k]));
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !param_vec_[p].is_discrete())
@@ -225,7 +216,7 @@ namespace housepi
                 "Non-constant parameter '" + pstr + "' had undefined prior.");
 
         // create a new parameter Variable
-        size_t p = pKeys->from_string(pstr);
+        size_t p = khold_.from_string(pstr);
         Variable &xparam = at(p);
         xparam.transfer(read_numeric(input.at("value")[k]));
 
@@ -258,7 +249,7 @@ namespace housepi
     void Parameter::helper_build_function_(const str_table &input, size_t k)
     {
         const std::string &pstr = input.at("name")[k];
-        size_t p = pKeys->from_string(pstr);
+        size_t p = khold_.from_string(pstr);
         Variable &xparam = at(p);
 
         parse::Definition parser(input.at("func")[k]);
@@ -326,13 +317,13 @@ namespace housepi
         for (size_t p : list_sample)
             at(p).user_reset(prng);
 
-        for (size_t p = 0; p < pKeys->size(); ++p)
+        for (size_t p = 0; p < khold_.size(); ++p)
             at(p).optimize();
     }
 
     void Parameter::load_sample_values(size_t r)
     {
-        for (size_t p = 0; p < pKeys->size(); ++p)
+        for (size_t p = 0; p < khold_.size(); ++p)
         {
             const std::vector<double> &vec = simulation_values[p];
             if (!vec.empty())
@@ -345,7 +336,7 @@ namespace housepi
         // cache dependecy if an augmented function depends on a parameter to be inferred
         if (parse::is_parameter(node.type))
         {
-            size_t p = pKeys->from_string(node.value);
+            size_t p = khold_.from_string(node.value);
             if (!at(p).is_constant())
                 make_cache_dependent(p);
         }
@@ -393,7 +384,7 @@ namespace housepi
         }
         else if (parse::is_parameter(node.type))
         {
-            return at(pKeys->from_string(node.value));
+            return at(khold_.from_string(node.value));
         }
         else if (!node.is_empty())
         {

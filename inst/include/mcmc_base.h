@@ -66,15 +66,16 @@ namespace housepi
 
 		void set_data_store(std::shared_ptr<DataStore> ds);
 
-		void init_registry(const std::vector<std::string> &data_wide_keys,
-						   const std::vector<std::string> &hh_size_keys,
-						   const std::vector<std::string> &hh_size_vec_keys,
-						   const std::vector<std::string> &hh_double_vec_keys,
-						   const std::vector<std::string> &hh_double_mtx_keys,
-						   const std::vector<std::string> &data_long_keys,
-						   const std::vector<std::string> &param_keys,
-						   const std::vector<std::string> &group_rate_keys,
-						   const std::vector<std::string> &augm_keys);
+		void init_key_holder(
+			const std::vector<std::string> &data_wide_keys,
+			const std::vector<std::string> &hh_size_keys,
+			const std::vector<std::string> &hh_size_vec_keys,
+			const std::vector<std::string> &hh_double_vec_keys,
+			const std::vector<std::string> &hh_double_mtx_keys,
+			const std::vector<std::string> &data_long_keys,
+			const std::vector<std::string> &param_keys,
+			const std::vector<std::string> &group_rate_keys,
+			const std::vector<std::string> &augm_keys);
 
 		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;
 

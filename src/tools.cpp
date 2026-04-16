@@ -41,6 +41,27 @@ namespace housepi::msg
 
 namespace housepi
 {
+    void KeyHolder::init(const std::vector<std::string> &keys)
+    {
+        declared_ = keys;
+        optional_.clear();
+        size_ = declared_.size();
+    }
+
+    void KeyHolder::clear_optional()
+    {
+        optional_.clear();
+        size_ = declared_.size();
+    }
+
+    void KeyHolder::add(std::string_view name)
+    {
+        if (count(name))
+            return;
+        optional_.emplace_back(name);
+        ++size_;
+    }
+
     std::vector<std::string> KeyHolder::get_all() const
     {
         std::vector<std::string> vec;
@@ -61,7 +82,7 @@ namespace housepi
             return optional_[index];
         throw std::out_of_range("Registration failed: key index out of range.");
     }
-    std::vector<std::string> KeyHolder::as_string(std::vector<size_t> indexes)
+    std::vector<std::string> KeyHolder::as_string(std::vector<size_t> indexes) const
     {
         std::vector<std::string> output;
         output.reserve(indexes.size());

@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "tools/keys.h"
 #include "tools/parser.h" // UPDATE: this shouldn't be public
 #include "tools/random.h"
 #include "tools/types.h"
@@ -26,14 +27,11 @@
 
 namespace housepi
 {
-    struct KeyHolder;
     class Individual;
 
     /// Implementation of Parameters.
-    struct Parameter
+    struct Parameter : public KeyModule
     {
-        std::unique_ptr<KeyHolder> pKeys; /// pointer to keys
-
         /// NOTE:
         /// list_const + list_sample = all parameters in param_vec_
         /// list_func < list_const (function-based parameters are deterministic)
@@ -54,15 +52,6 @@ namespace housepi
         std::vector<size_t> list_non_adapt_sample_cached = {};
 
         std::vector<std::vector<double>> simulation_values = {}; /// simulation values
-
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
-
-        Parameter();
-        ~Parameter();
-
-        void init_registry(const std::vector<std::string> &keys);
 
         //////////////////////
         //////  SETTER  //////
@@ -90,7 +79,6 @@ namespace housepi
         /// Adpat the proposal of model parameters.
         void adapt_proposal_of_sampled(unsigned long step, unsigned long tot);
 
-
         //////////////////////
         //////  GETTER  //////
         //////////////////////
@@ -110,9 +98,9 @@ namespace housepi
         /// UPDATE: these are just temporary fixes.
 
         /// Links used just by read_attribute.
-        void bind_to_data_wide(const KeyHolder *pKeys) { pDataWideKeys_ = pKeys; }
-        void bind_to_group_rate(const KeyHolder *pKeys) { pGroupRateKeys_ = pKeys; }
-        void bind_to_augm(const KeyHolder *pKeys) { pAugmKeys_ = pKeys; }
+        void bind_to_data_wide(const KeyHolder *khold) { pDataWideKeys_ = khold; }
+        void bind_to_group_rate(const KeyHolder *khold) { pGroupRateKeys_ = khold; }
+        void bind_to_augm(const KeyHolder *khold) { pAugmKeys_ = khold; }
 
         /// Auxiliary method to read a definition as a single attribute.
         const Attribute &read_attribute(const parse::Entry &node, const Individual *member_ptr = nullptr) const;

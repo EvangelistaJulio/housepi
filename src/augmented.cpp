@@ -6,7 +6,6 @@
  */
 
 #include <algorithm>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -45,11 +44,6 @@ namespace housepi
         : mcmc_(mcmc) {}
     Augmented::~Augmented() = default;
 
-    void Augmented::init_registry(const std::vector<std::string> &keys)
-    {
-        pKeys = std::make_unique<KeyHolder>(keys);
-    }
-
     void Augmented::build(InfecProfile &infec_profile, const str_table &input)
     {
         // drop previous definitions
@@ -57,7 +51,7 @@ namespace housepi
         is_any_model_ = false;
 
         indiv_augm_.clear();
-        pKeys->clear_optional();
+        khold_.clear_optional();
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();
@@ -118,8 +112,8 @@ namespace housepi
         for (const std::string &col : read::extract_keys(deftable_))
             deftable_[col] += infec_profile.augm_definitions.at(col);
 
-        pKeys->add(infprof::AUGM_FUNC);
-        infec_profile.augm_key = pKeys->from_string(infprof::AUGM_FUNC);
+        khold_.add(infprof::AUGM_FUNC);
+        infec_profile.augm_key = khold_.from_string(infprof::AUGM_FUNC);
 
         // append discrete infectivity profile definitions if any
         if (infec_profile.is_discrete_requested())
@@ -136,7 +130,7 @@ namespace housepi
         {
             // fill registry with optional augmented definitions
             const std::string astr = deftable_["name"][k];
-            pKeys->add(astr);
+            khold_.add(astr);
 
             // check associated status
             int status = status::MISSING;
@@ -175,7 +169,7 @@ namespace housepi
         std::unordered_set<int> all_infected_statuses = {};
 
         // NOTE: storage already allocated and pointers set by helper_build_allocate_storage_()
-        size_t n = pKeys->size();
+        size_t n = khold_.size();
         for (Household &house : mcmc_->data_wide())
             for (Individual &member : house)
             {
@@ -183,7 +177,7 @@ namespace housepi
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                 {
-                    iaugm.vec[a].name(pKeys->as_string(a));
+                    iaugm.vec[a].name(khold_.as_string(a));
                     iaugm.vec[a].set_err_type("augmented");
                 }
                 if (member.is_infected_status())
@@ -300,14 +294,14 @@ namespace housepi
             set_sample_list_for_single_defininition_(status, k);
 
         // NOTE: by construction of draws list, I am forced to drop private at the end
-        list_export = pKeys->from_string(str::drop_private(pKeys->as_string(list_export)));
-        block.draws = pKeys->from_string(str::drop_private(pKeys->as_string(block.draws)));
+        list_export = khold_.from_string(str::drop_private(khold_.as_string(list_export)));
+        block.draws = khold_.from_string(str::drop_private(khold_.as_string(block.draws)));
     }
 
     void Augmented::set_sample_list_for_single_defininition_(int status, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        size_t a = pKeys->from_string(astr);
+        size_t a = khold_.from_string(astr);
 
         bool is_to_export = true;
         bool is_to_draw = true;
@@ -369,7 +363,7 @@ namespace housepi
         bool all_consts = true; // start assuming all constants
         for (const std::string &pstr : parser.list_parameter_depen())
         {
-            size_t p = mcmc_->param.pKeys->from_string(pstr);
+            size_t p = mcmc_->param.khold().from_string(pstr);
             all_consts &= mcmc_->param.at(p).is_constant();
         }
 
@@ -378,7 +372,7 @@ namespace housepi
         for (const std::string &bstr : parser.list_augmented_depen())
         {
             const std::vector<size_t> &v = status_blocks_[map_status_to_block_.at(status)].draws;
-            if (std::find(v.begin(), v.end(), pKeys->from_string(bstr)) != v.end())
+            if (std::find(v.begin(), v.end(), khold_.from_string(bstr)) != v.end())
                 all_consts = false;
         }
 
@@ -394,7 +388,7 @@ namespace housepi
 
     void Augmented::init()
     {
-        if (pKeys->empty())
+        if (khold_.empty())
             return;
 
         helper_init_model_list_();
@@ -417,17 +411,17 @@ namespace housepi
     {
         for (StatusBlock_ &block : status_blocks_)
         {
-            block.depen.resize(pKeys->size());
+            block.depen.resize(khold_.size());
 
             // associate blocks for ordered model lists
             const str_table &ordered_models = get_ordered_models_(block);
             if (!ordered_models.empty())
             {
                 is_any_model_ = true;
-                block.models = pKeys->from_string(read::extract_keys(ordered_models));
+                block.models = khold_.from_string(read::extract_keys(ordered_models));
 
                 for (const auto &[astr, others] : ordered_models)
-                    block.depen[pKeys->from_string(astr)] = pKeys->from_string(others);
+                    block.depen[khold_.from_string(astr)] = khold_.from_string(others);
             }
         }
     }
@@ -484,7 +478,7 @@ namespace housepi
     void Augmented::init_missing_definitions(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (member.paugm_->vec[pKeys->from_string(deftable_["name"][k])].is_empty())
+            if (member.paugm_->vec[khold_.from_string(deftable_["name"][k])].is_empty())
                 helper_init_attributes_(member, k);
     }
 
@@ -524,7 +518,7 @@ namespace housepi
     void Augmented::helper_init_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        size_t a = pKeys->from_string(astr);
+        size_t a = khold_.from_string(astr);
 
         try
         {
@@ -566,7 +560,7 @@ namespace housepi
     void Augmented::helper_init_model_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        Variable &xaugm = member.paugm_->vec[pKeys->from_string(astr)];
+        Variable &xaugm = member.paugm_->vec[khold_.from_string(astr)];
         parse::Definition parser(deftable_["model"][k]);
 
         xaugm.init_distr(parser.root.func);
@@ -586,7 +580,7 @@ namespace housepi
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_["name"][k];
-        Variable &xaugm = member.paugm_->vec[pKeys->from_string(astr)];
+        Variable &xaugm = member.paugm_->vec[khold_.from_string(astr)];
         std::string str_val = deftable_["value"][k];
         parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
@@ -635,7 +629,7 @@ namespace housepi
 
     void Augmented::user_reset(rnd_gen &prng)
     {
-        if (pKeys->empty())
+        if (khold_.empty())
             return;
 
         for (Household &house : mcmc_->data_wide())

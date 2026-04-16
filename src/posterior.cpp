@@ -36,8 +36,8 @@ namespace housepi
         {
             post->param_values.emplace_back(sample_size, na::DOUBLE);
             post->param_priors.emplace_back(sample_size, na::DOUBLE);
-            post->param_names.push_back(param.pKeys->as_string(p));
-            post->param_prior_names.push_back("lprior_" + param.pKeys->as_string(p));
+            post->param_names.push_back(param.khold().as_string(p));
+            post->param_prior_names.push_back("lprior_" + param.khold().as_string(p));
         }
     }
 
@@ -80,7 +80,7 @@ namespace housepi
             for (size_t a : draws_list)
             {
                 member_matrix.emplace_back(sample_size, na::DOUBLE);
-                post->augm_col_names.push_back(member.id() + "_" + augm.pKeys->as_string(a));
+                post->augm_col_names.push_back(member.id() + "_" + augm.khold().as_string(a));
             }
         }
     }

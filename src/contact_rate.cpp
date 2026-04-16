@@ -66,7 +66,7 @@ namespace housepi
         data_wide.set_multiplicity_data(data_names);
 
         // resolve data column indices
-        std::vector<size_t> data_indices = data_wide.pKeys->from_string(data_names);
+        std::vector<size_t> data_indices = data_wide.khold().from_string(data_names);
 
         // loop over all households
         // UPDATE: this should be just over restricted households.
@@ -110,7 +110,7 @@ namespace housepi
                         const std::string &paramstr = input.at("param_name")[r];
                         if (!na::is(paramstr) && paramstr != rates::REFERENCE)
                             param_ptrs.push_back(
-                                param.at(param.pKeys->from_string(paramstr)).pointer());
+                                param.at(param.khold().from_string(paramstr)).pointer());
                     }
 
                     if (!param_ptrs.empty())

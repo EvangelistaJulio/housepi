@@ -12,7 +12,7 @@
 
 #include "tools/status.h"
 
-namespace hsp::measure
+namespace housepi::measure
 {
     cases::Report helper_summarise_single_individuals_(
         const std::vector<int> &status)

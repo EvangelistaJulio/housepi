@@ -16,32 +16,16 @@ namespace housepi
     struct KeyHolder
     {
     public:
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
-
-        KeyHolder(const std::vector<std::string> &keys)
-            : declared_(keys) { size_ = declared_.size(); }
-
         //////////////////////
         //////  SETTER  //////
         //////////////////////
 
+        /// Assign the vector of model declared keys.
+        void init(const std::vector<std::string> &keys);
         /// Drop all optional definitions.
-        void clear_optional()
-        {
-            optional_.clear();
-            size_ = declared_.size();
-        }
+        void clear_optional();
         /// Add a new definition.
-        void add(std::string_view name)
-        {
-            if (!count(name))
-            {
-                optional_.emplace_back(name);
-                ++size_;
-            }
-        }
+        void add(std::string_view name);
 
         //////////////////////
         //////  GETTER  //////
@@ -55,7 +39,7 @@ namespace housepi
 
         /// Convert index to definition name.
         std::string as_string(size_t index) const;
-        std::vector<std::string> as_string(std::vector<size_t> indexes);
+        std::vector<std::string> as_string(std::vector<size_t> indexes) const;
 
         /// Convert definition name to index.
         size_t from_string(std::string_view name) const;
@@ -74,5 +58,18 @@ namespace housepi
         size_t size_ = 0;                        /// Store registry size
         std::vector<std::string> declared_ = {}; /// Model declared definitions
         std::vector<std::string> optional_ = {}; /// User optional definitions
+    };
+
+    struct KeyModule
+    {
+    public:
+        /// Initialize key-holder with model declared keys.
+        void init_key_holder(const std::vector<std::string> &keys) { khold_.init(keys); }
+
+        /// Reference to key-holder.
+        const KeyHolder &khold() const { return khold_; }
+
+    protected:
+        KeyHolder khold_; /// definitions key-holder
     };
 }

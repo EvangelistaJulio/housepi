@@ -7,10 +7,10 @@
 
 #pragma once
 
-#include <memory>
 #include <string>
 #include <vector>
 
+#include "tools/keys.h"
 #include "tools/types.h"
 
 #include "indiv_storage.h"
@@ -23,35 +23,18 @@
 
 namespace housepi
 {
-    struct KeyHolder;
     struct DataWide;
 
-    struct DataLong
+    struct DataLong : public KeyModule
     {
     public:
-        std::unique_ptr<KeyHolder> pKeys; /// pointer to registry
-
         std::vector<std::string> headers = {};
         std::vector<Indiv::Long> indiv_datalist = {};
-
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
-
-        DataLong();
-        ~DataLong();
-
-        void init_registry(const std::vector<std::string> &keys);
-
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
 
         /// Assign data (long format) after pre-processing.
         void build(DataWide &data_wide, const str_table &input);
 
     private:
-
         /// Clear previous data report.
         void helper_build_clear_data_();
         /// Assert that data headers are correct.

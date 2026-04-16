@@ -500,7 +500,7 @@ namespace
             Rcpp::IntegerVector status_col = Rcpp::IntegerVector(n_rows);
 
             // other non standard data columns
-            std::vector<size_t> list_export = data_wide.pKeys->from_string(columns);
+            std::vector<size_t> list_export = data_wide.khold().from_string(columns);
             std::vector<Rcpp::NumericVector> data_col(columns.size());
             for (size_t d = 0; d < columns.size(); ++d)
                 data_col[d] = Rcpp::NumericVector(n_rows);
@@ -537,7 +537,7 @@ namespace
     Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
-        return Rcpp::DataFrame(helper_export_data_wide(data_wide, data_wide.pKeys->get_all(), true));
+        return Rcpp::DataFrame(helper_export_data_wide(data_wide, data_wide.khold().get_all(), true));
     }
 
     /// Export to R all augmented variables at the current state.
@@ -553,8 +553,8 @@ namespace
         for (size_t i = 0; i < n_cols; ++i)
             augm_cols[i] = Rcpp::NumericVector(n_rows);
 
-        const std::vector<std::string> data_names = data_wide.pKeys->get_all() -
-                                                    augm.pKeys->as_string(augm.list_export);
+        const std::vector<std::string> data_names = data_wide.khold().get_all() -
+                                                    augm.khold().as_string(augm.list_export);
 
         size_t row = 0;
         for (const Household &house : data_wide)
@@ -569,7 +569,7 @@ namespace
         Rcpp::List output = helper_export_data_wide(data_wide, data_names, true);
         size_t i = 0;
         for (size_t a : augm.list_export)
-            output[augm.pKeys->as_string(a)] = augm_cols[i++];
+            output[augm.khold().as_string(a)] = augm_cols[i++];
         return Rcpp::DataFrame(output);
     }
 
@@ -597,7 +597,7 @@ namespace
             Rcpp::CharacterVector datalist_index(n_rows);
 
             // other non standard data-long columns
-            std::vector<Rcpp::NumericVector> datalist_dbl(data_long.pKeys->size());
+            std::vector<Rcpp::NumericVector> datalist_dbl(data_long.khold().size());
             for (size_t d = 0; d < datalist_dbl.size(); ++d)
                 datalist_dbl[d] = Rcpp::NumericVector(n_rows);
 
@@ -620,7 +620,7 @@ namespace
             Rcpp::List output;
             output["id"] = datalist_index;
             for (size_t d = 0; d < datalist_dbl.size(); ++d)
-                output.push_back(datalist_dbl[d], data_long.pKeys->as_string(d));
+                output.push_back(datalist_dbl[d], data_long.khold().as_string(d));
 
             return Rcpp::DataFrame(output);
         }
@@ -882,10 +882,10 @@ namespace
     /// NOTE: there are not private parameters so far.
     Rcpp::NumericVector helper_param_rcpp_snapshot(const Parameter &param)
     {
-        if (param.pKeys->empty())
+        if (param.khold().empty())
             return Rcpp::NumericVector::create();
 
-        size_t n = param.pKeys->size();
+        size_t n = param.khold().size();
         Rcpp::NumericVector output(n);
         Rcpp::CharacterVector headers(n);
         for (size_t p = 0; p < n; ++p)
@@ -902,7 +902,7 @@ namespace
     Rcpp::DataFrame helper_data_wide_rcpp_snapshot(const DataWide &data_wide,
                                                    const Household &house)
     {
-        const std::vector<std::string> &headers = data_wide.pKeys->get_all();
+        const std::vector<std::string> &headers = data_wide.khold().get_all();
 
         size_t n_rows = house.size();
         Rcpp::CharacterVector id_col(n_rows);
@@ -950,7 +950,7 @@ namespace
         }
 
         Rcpp::CharacterVector datalist_id(n_rows);
-        std::vector<Rcpp::NumericVector> df_double(data_long.pKeys->size());
+        std::vector<Rcpp::NumericVector> df_double(data_long.khold().size());
         for (size_t d = 0; d < df_double.size(); ++d)
             df_double[d] = Rcpp::NumericVector(n_rows);
 
@@ -971,7 +971,7 @@ namespace
         Rcpp::List output;
         output["id"] = datalist_id;
         for (size_t d = 0; d < df_double.size(); ++d)
-            output[data_long.pKeys->as_string(d)] = df_double[d];
+            output[data_long.khold().as_string(d)] = df_double[d];
 
         return Rcpp::DataFrame(output);
     }
@@ -980,7 +980,7 @@ namespace
     Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const GroupRate &group_rate,
                                                      const Household &house)
     {
-        const std::vector<std::string> &headers = group_rate.pKeys->get_all();
+        const std::vector<std::string> &headers = group_rate.khold().get_all();
 
         if (headers.empty())
             return Rcpp::DataFrame::create();
@@ -1114,7 +1114,7 @@ namespace
         output["id"] = id_col;
         size_t c = 0;
         for (size_t a : augm.list_export)
-            output.push_back(df_double[c++], augm.pKeys->as_string(a));
+            output.push_back(df_double[c++], augm.khold().as_string(a));
 
         return Rcpp::DataFrame(output);
     }
@@ -1147,7 +1147,7 @@ namespace
         output["id"] = id_col;
         size_t i = 0;
         for (size_t a : augm.list_export)
-            output.push_back(df_double[i++], augm.pKeys->as_string(a));
+            output.push_back(df_double[i++], augm.khold().as_string(a));
 
         return Rcpp::DataFrame(output);
     }

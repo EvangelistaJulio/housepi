@@ -97,36 +97,31 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    DataWide::DataWide() = default;
-    DataWide::~DataWide() = default;
-
-    void DataWide::init_registry(
-        const std::vector<std::string> &keys,
+    void DataWide::init_cache_key_holders(
         const std::vector<std::string> &size_keys,
         const std::vector<std::string> &size_vec_keys,
         const std::vector<std::string> &double_vec_keys,
         const std::vector<std::string> &double_mtx_keys)
     {
-        pKeys = std::make_unique<KeyHolder>(keys);
-        pKeys_size_val = std::make_unique<KeyHolder>(size_keys);
-        pKeys_size_vec = std::make_unique<KeyHolder>(size_vec_keys);
-        pKeys_double_vec = std::make_unique<KeyHolder>(double_vec_keys);
-        pKeys_double_mtx = std::make_unique<KeyHolder>(double_mtx_keys);
+        khold_size_val.init(size_keys);
+        khold_size_vec.init(size_vec_keys);
+        khold_double_vec.init(double_vec_keys);
+        khold_double_mtx.init(double_mtx_keys);
     }
 
     void DataWide::build(const str_table &input)
     {
-        pKeys->clear_optional();
-        pKeys_size_val->clear_optional();
-        pKeys_size_vec->clear_optional();
-        pKeys_double_vec->clear_optional();
-        pKeys_double_mtx->clear_optional();
+        khold_.clear_optional();
+        khold_size_val.clear_optional();
+        khold_size_vec.clear_optional();
+        khold_double_vec.clear_optional();
+        khold_double_mtx.clear_optional();
 
         if (input.empty())
             return;
 
         // initialize multiplicity-relevant data entries to only model dependent
-        set_multiplicity_data(pKeys->get_all());
+        set_multiplicity_data(khold_.get_all());
 
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
@@ -166,10 +161,10 @@ namespace housepi
             // read individual data into external storage
             Indiv::Wide &idata = indiv_data_[i];
             idata.status = status;
-            idata.vec.resize(pKeys->size());
+            idata.vec.resize(khold_.size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
             {
-                const std::string datastring = pKeys->as_string(d);
+                const std::string datastring = khold_.as_string(d);
                 idata.vec[d] = str::tod(input.at(datastring)[i], "data '" + datastring + "'");
             }
 
@@ -230,11 +225,11 @@ namespace housepi
         headers = headers - std::vector<std::string>({"id", "house_id", "status"});
 
         // pedantic check for declared data keys
-        str::assert_no_missing_entries(headers, pKeys->get_all());
+        str::assert_no_missing_entries(headers, khold_.get_all());
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
-            pKeys->add(datastring);
+            khold_.add(datastring);
     }
 
     void DataWide::build_helper_fill_report_data_()
@@ -295,7 +290,7 @@ namespace housepi
 
     void DataWide::set_multiplicity_data(const std::vector<std::string> &data_list)
     {
-        for (size_t d : pKeys->from_string(data_list))
+        for (size_t d : khold_.from_string(data_list))
             multiplicity_data_.emplace(d);
     }
 
@@ -390,12 +385,12 @@ namespace housepi
             Cached_::State_ &curr = cached_.current[R];
 
             // size_t
-            size_t s_size = pKeys_size_val->size();
+            size_t s_size = khold_size_val.size();
             curr.size_val.assign(s_size, 0);
             prev.size_val.assign(s_size, 0);
 
             // size_t vector
-            size_t s_size_vec = pKeys_size_vec->size();
+            size_t s_size_vec = khold_size_vec.size();
             curr.size_vec.resize(s_size_vec);
             prev.size_vec.resize(s_size_vec);
             for (size_t e = 0; e < s_size_vec; ++e)
@@ -405,7 +400,7 @@ namespace housepi
             }
 
             // double vector
-            size_t s_double_vec = pKeys_double_vec->size();
+            size_t s_double_vec = khold_double_vec.size();
             curr.dbl_vec.resize(s_double_vec);
             prev.dbl_vec.resize(s_double_vec);
             for (size_t e = 0; e < s_double_vec; ++e)
@@ -415,7 +410,7 @@ namespace housepi
             }
 
             // double matrix
-            size_t s_double_mtx = pKeys_double_mtx->size();
+            size_t s_double_mtx = khold_double_mtx.size();
             curr.dbl_mtx.resize(s_double_mtx);
             prev.dbl_mtx.resize(s_double_mtx);
             for (size_t e = 0; e < s_double_mtx; ++e)

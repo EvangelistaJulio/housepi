@@ -42,40 +42,43 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    MCMCBase::MCMCBase() : pDataStore(std::make_shared<DataStore>()), augm(this) {}
+    MCMCBase::MCMCBase()
+        : pDataStore(std::make_shared<DataStore>()),
+          augm(this) {}
     MCMCBase::~MCMCBase() = default;
 
     void MCMCBase::set_data_store(std::shared_ptr<DataStore> ds)
     {
         pDataStore = std::move(ds);
         DataWide *dw = &pDataStore->data_wide;
-        param.bind_to_data_wide(dw->pKeys.get());
+        param.bind_to_data_wide(&dw->khold());
     }
 
-    void MCMCBase::init_registry(const std::vector<std::string> &data_wide_keys,
-                                 const std::vector<std::string> &hh_size_keys,
-                                 const std::vector<std::string> &hh_size_vec_keys,
-                                 const std::vector<std::string> &hh_double_vec_keys,
-                                 const std::vector<std::string> &hh_double_mtx_keys,
-                                 const std::vector<std::string> &data_long_keys,
-                                 const std::vector<std::string> &param_keys,
-                                 const std::vector<std::string> &group_rate_keys,
-                                 const std::vector<std::string> &augm_keys)
+    void MCMCBase::init_key_holder(
+        const std::vector<std::string> &data_wide_keys,
+        const std::vector<std::string> &hh_size_keys,
+        const std::vector<std::string> &hh_size_vec_keys,
+        const std::vector<std::string> &hh_double_vec_keys,
+        const std::vector<std::string> &hh_double_mtx_keys,
+        const std::vector<std::string> &data_long_keys,
+        const std::vector<std::string> &param_keys,
+        const std::vector<std::string> &group_rate_keys,
+        const std::vector<std::string> &augm_keys)
     {
-        data_wide().init_registry(data_wide_keys,
-                                  hh_size_keys,
-                                  hh_size_vec_keys,
-                                  hh_double_vec_keys,
-                                  hh_double_mtx_keys);
-        data_long().init_registry(data_long_keys);
-        param.init_registry(param_keys);
-        group_rate.init_registry(group_rate_keys);
-        augm.init_registry(augm_keys);
+        data_wide().init_key_holder(data_wide_keys);
+        data_wide().init_cache_key_holders(hh_size_keys,
+                                           hh_size_vec_keys,
+                                           hh_double_vec_keys,
+                                           hh_double_mtx_keys);
+        data_long().init_key_holder(data_long_keys);
+        param.init_key_holder(param_keys);
+        group_rate.init_key_holder(group_rate_keys);
+        augm.init_key_holder(augm_keys);
 
         /// UPDATE: waiting for refactoring of read_attribute
-        param.bind_to_data_wide(data_wide().pKeys.get());
-        param.bind_to_group_rate(group_rate.pKeys.get());
-        param.bind_to_augm(augm.pKeys.get());
+        param.bind_to_data_wide(&data_wide().khold());
+        param.bind_to_group_rate(&group_rate.khold());
+        param.bind_to_augm(&augm.khold());
     }
 
     /// Wheter hosuehold members i and j are equivalent in terms of rates.
@@ -168,7 +171,7 @@ namespace housepi
 
     std::vector<std::string> MCMCBase::get_static_data_names() const
     {
-        return data_wide().pKeys->get_all() - augm.pKeys->as_string(augm.list_export);
+        return data_wide().khold().get_all() - augm.khold().as_string(augm.list_export);
     }
 
     std::vector<size_t> MCMCBase::get_row_offsets() const
@@ -195,7 +198,7 @@ namespace housepi
 
         output[2 + n_shared] = "status";
         for (size_t c = 0; c < n_augm_cols; ++c)
-            output[3 + n_shared + c] = augm.pKeys->as_string(augm.list_export[c]);
+            output[3 + n_shared + c] = augm.khold().as_string(augm.list_export[c]);
 
         return output;
     }
@@ -209,15 +212,15 @@ namespace housepi
     MCMC::MCMC(std::string_view model_name)
         : model(ModelRegistry::instance().create(model_name))
     {
-        init_registry(model->get_DataKey(),
-                      model->get_HHsizeKey(),
-                      model->get_HHsizevecKey(),
-                      model->get_HHdoublevecKey(),
-                      model->get_HHdoublemtxKey(),
-                      model->get_LongKey(),
-                      model->get_ParamKey(),
-                      model->get_GroupRateKey(),
-                      model->get_AugmKey());
+        init_key_holder(model->get_DataKey(),
+                        model->get_HHsizeKey(),
+                        model->get_HHsizevecKey(),
+                        model->get_HHdoublevecKey(),
+                        model->get_HHdoublemtxKey(),
+                        model->get_LongKey(),
+                        model->get_ParamKey(),
+                        model->get_GroupRateKey(),
+                        model->get_AugmKey());
         model->bind_solver(this);
         model->init_advanced_setup();
     }
@@ -227,13 +230,13 @@ namespace housepi
         if (pDataStore.use_count() <= 1)
             return;
         auto new_ds = std::make_shared<DataStore>();
-        new_ds->data_wide.init_registry(
-            model->get_DataKey(),
+        new_ds->data_wide.init_key_holder(model->get_DataKey());
+        new_ds->data_wide.init_cache_key_holders(
             model->get_HHsizeKey(),
             model->get_HHsizevecKey(),
             model->get_HHdoublevecKey(),
             model->get_HHdoublemtxKey());
-        new_ds->data_long.init_registry(model->get_LongKey());
+        new_ds->data_long.init_key_holder(model->get_LongKey());
         set_data_store(std::move(new_ds));
     }
 

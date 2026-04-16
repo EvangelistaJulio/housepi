@@ -7,13 +7,13 @@
 
 #pragma once
 
-#include <memory>
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "tools/keys.h"
 #include "tools/random.h"
 #include "tools/types.h"
 
@@ -27,18 +27,13 @@
 
 namespace housepi
 {
-    struct KeyHolder;
     struct InfecProfile;
     class Individual;
     class MCMCBase;
 
-    struct Augmented
+    struct Augmented : public KeyModule
     {
-        /// UPATE: once read_attribute goes back to MCMCImpl, this can become private
-        std::unique_ptr<KeyHolder> pKeys; /// pointer to registry
-
-        std::vector<size_t> list_export = {};
-
+        std::vector<size_t> list_export = {}; /// list of keys to export
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -46,8 +41,6 @@ namespace housepi
 
         Augmented(MCMCBase *mcmc);
         ~Augmented();
-
-        void init_registry(const std::vector<std::string> &keys);
 
         //////////////////////
         //////  SETTER  //////
@@ -101,7 +94,7 @@ namespace housepi
         bool is_any_model() const noexcept { return is_any_model_; }
 
     private:
-        MCMCBase *mcmc_;                      /// pointer to owning MCMCBase
+        MCMCBase *mcmc_;                      /// pointer to owning MCMCBase // UPDATE drop
         std::vector<Indiv::Augm> indiv_augm_; /// External storage for individual augmented data
         str_table deftable_ = {};             /// store definition table (no names)
         bool is_any_sample_ = false;          /// whether at least one augmented model is provided

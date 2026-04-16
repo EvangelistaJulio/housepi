@@ -31,17 +31,9 @@
 
 namespace housepi
 {
-    DataLong::DataLong() = default;
-    DataLong::~DataLong() = default;
-
-    void DataLong::init_registry(const std::vector<std::string> &keys)
-    {
-        pKeys = std::make_unique<KeyHolder>(keys);
-    }
-
     void DataLong::build(DataWide &data_wide, const str_table &input)
     {
-        pKeys->clear_optional();
+        khold_.clear_optional();
 
         if (input.empty())
             return;
@@ -75,10 +67,10 @@ namespace housepi
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
-            idat.vec.resize(pKeys->size());
-            for (size_t d = 0; d < pKeys->size(); ++d)
+            idat.vec.resize(khold_.size());
+            for (size_t d = 0; d < khold_.size(); ++d)
             {
-                const std::string &datastring = pKeys->as_string(d);
+                const std::string &datastring = khold_.as_string(d);
                 idat.vec[d].emplace_back(
                     str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
             }
@@ -116,10 +108,10 @@ namespace housepi
         headers = headers - std::vector<std::string>({"id"});
 
         // pedantic check for declared data keys
-        str::assert_no_missing_entries(headers, pKeys->get_all());
+        str::assert_no_missing_entries(headers, khold_.get_all());
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
-            pKeys->add(datastring);
+            khold_.add(datastring);
     }
 }
