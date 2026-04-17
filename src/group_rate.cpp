@@ -15,6 +15,7 @@
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
+#include "tools/winner.h"
 
 #include "group_rate.h"
 #include "function.h"
@@ -58,23 +59,51 @@ namespace housepi
             if (std::find(g_input_vec.begin(), g_input_vec.end(), gstr) == g_input_vec.end())
                 undefined_rates[gstr].push_back(rates::REFERENCE);
 
+        const size_t n_rows = read::csv_n_rows(input);
+
+        // resolve data column indices once
+        const auto data_ix = data_wide.khold().from_string(data_headers);
+
+        // per-rule rule_group and specificity (count of non-NA feature cells)
+        std::vector<size_t> row_group(n_rows), row_spec(n_rows);
+        for (size_t r = 0; r < n_rows; ++r)
+        {
+            row_group[r] = static_cast<size_t>(str::toi(input.at("rule_group")[r]));
+            for (const std::string &dstr : data_headers)
+                row_spec[r] += !na::is(input.at(dstr)[r]);
+        }
+
+        // predicate: does rule row r match this member's feature vector?
+        auto matches = [&](size_t r, const Individual &mb) {
+            for (size_t d = 0; d < data_headers.size(); ++d)
+            {
+                const auto &fv = input.at(data_headers[d])[r];
+                if (!na::is(fv) && mb.pwide_->vec[data_ix[d]] != str::tod(fv)) return false;
+            }
+            return true;
+        };
+
         // unique definition map
         std::map<str_table, size_t> unique_defin_map;
-        const size_t n_rows = read::csv_n_rows(input);
         for (Household &house : data_wide)
             for (Individual &member : house)
             {
                 str_table these_rates = undefined_rates;
 
+                // per-(rate_name, rule_group): keep the most-specific matching rule
+                std::map<std::pair<std::string, size_t>, Winner> best;
                 for (size_t r = 0; r < n_rows; ++r)
-                {
-                    bool match = true;
-                    for (const std::string &dstr : data_headers)
-                        if (!na::is(input.at(dstr)[r]))
-                            match &= member.pwide_->vec[data_wide.khold().from_string(dstr)] == str::tod(input.at(dstr)[r]);
+                    if (matches(r, member))
+                        update_winner(best[{g_input_vec[r], row_group[r]}],
+                                      row_spec[r], r);
 
-                    if (match)
-                        these_rates[g_input_vec[r]].push_back(input.at("param_name")[r]);
+                for (auto &[key, w] : best)
+                {
+                    const size_t r = resolve_winner(w, input,
+                        "group rate '" + key.first + "' for " +
+                        member.err_name() + " (group " +
+                        std::to_string(key.second) + ")");
+                    these_rates[key.first].push_back(input.at("param_name")[r]);
                 }
 
                 auto it = unique_defin_map.find(these_rates);
@@ -89,7 +118,7 @@ namespace housepi
 
     std::vector<std::string> GroupRate::helper_process_definitions_(DataWide &data_wide, const str_table &input)
     {
-        const std::vector<std::string> file_headers = {"group_rate", "param_name"};
+        const std::vector<std::string> file_headers = {"group_rate", "param_name", "rule_group"};
 
         // check that tempalte headers are present
         std::vector<std::string> data_headers = read::extract_keys(input);
@@ -119,7 +148,7 @@ namespace housepi
             max_unique *= count;
         unique_groups_.reserve(max_unique);
 
-        // set headers to be multiplicity-relevat
+        // set headers to be multiplicity-relevant
         data_wide.set_multiplicity_data(data_headers);
 
         return data_headers;

@@ -6,14 +6,13 @@
  */
 
 #include <map>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#include "tools/keys.h"
 #include "tools/read.h"
 #include "tools/string.h"
+#include "tools/winner.h"
 
 #include "contact_rate.h"
 #include "function.h"
@@ -30,88 +29,158 @@
 
 namespace housepi
 {
-    ContactRate::ContactRate() = default;
-    ContactRate::~ContactRate() = default;
-
-    void ContactRate::build(DataWide &data_wide, const Parameter &param, const str_table &input)
+    namespace
     {
-        // reset contact rate storage and unbind households
+        using idx_vec = std::vector<size_t>;
+
+        /// Auxiliary helper to extract contact rate definition.
+        struct ContactDefinitions_
+        {
+        public:
+            const str_table &input; /// user tidy definition table
+            const size_t n_rows;    /// rows in input
+
+            std::vector<std::string> from; /// 'from'-prefixed covariates
+            std::vector<std::string> to;   /// 'to'-prefixed covariates
+            std::vector<std::string> data; /// covariates
+            idx_vec keys;                  /// data-wide keys
+
+            idx_vec row_gid;  /// rule group id
+            idx_vec row_spec; /// rule group specificity
+
+            /// Extract from/to definitions from input headers.
+            ContactDefinitions_(
+                const str_table &input_,
+                const DataWide &data_wide)
+                : input(input_),
+                  n_rows(read::csv_n_rows(input_)),
+                  row_gid(n_rows),
+                  row_spec(n_rows)
+            {
+                const std::vector<std::string> input_headers = read::extract_keys(input);
+                str::assert_no_missing_entries(input_headers, {"param_name", "rule_group"});
+
+                for (const auto &key : input_headers)
+                    if (str::starts_with(key, "from_"))
+                    {
+                        from.push_back(key);
+                        // extract data column from 'from_' headers
+                        data.push_back(key.substr(5));
+                    }
+                    else if (str::starts_with(key, "to_"))
+                        to.push_back(key);
+
+                // from and expect to have the same size
+                if (from.size() != to.size())
+                    throw std::invalid_argument(
+                        "Mismatching number of 'from_' and 'to_' columns in contact rate definitions.");
+
+                helper_set_rule_groups_();
+                // internally store data keys
+                keys = data_wide.khold().from_string(data);
+            }
+
+            /// Associate parameter pointers to pair.
+            std::vector<const Attribute *> associate_param_ptrs(
+                const Parameter &param,
+                const Individual &member_from,
+                const Individual &member_to) const
+            {
+                // per-group: keep the most-specific matching rule
+                std::map<size_t, Winner> best;
+                for (size_t r = 0; r < n_rows; ++r)
+                    if (matches_(r, member_from, member_to))
+                        update_winner(best[row_gid[r]], row_spec[r], r);
+
+                // across groups: multiply the winning params (skip reference)
+                std::vector<const Attribute *> param_ptrs;
+                param_ptrs.reserve(best.size());
+                for (auto &[gid, w] : best)
+                {
+                    const std::string err_text = "contact rate from " +
+                                                 member_from.err_name() + " to " +
+                                                 member_to.err_name();
+                    const size_t r = resolve_winner(w, input, err_text);
+                    const auto &pstr = input.at("param_name")[r];
+                    if (!na::is(pstr) && pstr != rates::REFERENCE)
+                        param_ptrs.push_back(
+                            param.at(param.khold().from_string(pstr)).pointer());
+                }
+                return param_ptrs;
+            }
+
+        private:
+            /// Precompute per-row rule group and specificity (count of non-NA cells).
+            void helper_set_rule_groups_()
+            {
+                for (size_t r = 0; r < n_rows; ++r)
+                {
+                    row_gid[r] = static_cast<size_t>(str::toi(input.at("rule_group")[r]));
+                    for (size_t d = 0; d < data.size(); ++d)
+                    {
+                        row_spec[r] += !na::is(input.at(from[d])[r]);
+                        row_spec[r] += !na::is(input.at(to[d])[r]);
+                    }
+                }
+            }
+
+            /// Wheter the pair of members match the contact rule at row 'r'.
+            bool matches_(
+                size_t r,
+                const Individual &member_from,
+                const Individual &member_to) const
+            {
+                for (size_t i = 0; i < from.size(); ++i)
+                {
+                    const std::string &fval = input.at(from[i])[r];
+                    if (!na::is(fval) && member_from.data(keys[i]) != str::tod(fval))
+                        return false;
+
+                    const std::string &tval = input.at(to[i])[r];
+                    if (!na::is(tval) && member_to.data(keys[i]) != str::tod(tval))
+                        return false;
+                }
+                return true;
+            };
+        };
+    }
+
+    void ContactRate::build(
+        DataWide &data_wide,
+        const Parameter &param,
+        const str_table &input)
+    {
+        // reset storage and unbind households
         house_contact_rates_.clear();
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
             data_wide.at(H).pcontact_rate_ = nullptr;
-
-        // skip if no definitions provided
         if (input.empty())
             return;
 
-        // parse column headers to separate 'from_' and 'to_' prefixes
-        std::vector<std::string> from_headers, to_headers;
-        for (const auto &key : read::extract_keys(input))
-            if (str::starts_with(key, "from_"))
-                from_headers.push_back(key);
-            else if (str::starts_with(key, "to_"))
-                to_headers.push_back(key);
-            else
-                continue;
-        if (from_headers.size() != to_headers.size())
-            throw std::invalid_argument(
-                "Mismatching number of 'from_' and 'to_' columns in contact rate definitions.");
+        // load contact rate definitions
+        ContactDefinitions_ defs(input, data_wide);
 
-        // extract corresponding data names
-        std::vector<std::string> data_names;
-        for (const std::string &from : from_headers)
-            data_names.push_back(from.substr(5));
-
-        // register data columns for multiplicity
-        data_wide.set_multiplicity_data(data_names);
-
-        // resolve data column indices
-        std::vector<size_t> data_indices = data_wide.khold().from_string(data_names);
+        // set headers to be multiplicity-relevant
+        data_wide.set_multiplicity_data(defs.data);
 
         // loop over all households
         // UPDATE: this should be just over restricted households.
         house_contact_rates_.resize(data_wide.report_house.total);
-        const size_t n_rows = read::csv_n_rows(input);
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
         {
             Household &house = data_wide.at(H);
-            house.pcontact_rate_ = &house_contact_rates_[H];
+            size_t house_size = house.size();
 
-            // initialize contact rate matrix to reference
+            house.pcontact_rate_ = &house_contact_rates_[H];
             house_contact_rates_[H].mtx.assign(
-                house.size(), std::vector<Attribute>(house.size(), rates::VALUE_REFERENCE));
+                house_size, std::vector<Attribute>(house_size, rates::VALUE_REFERENCE));
 
             // NOTE: a priori contact rates are non-symmetric
-            for (size_t from = 0; from < house.size(); ++from)
-                for (size_t to = 0; to < house.size(); ++to)
+            for (size_t from = 0; from < house_size; ++from)
+                for (size_t to = 0; to < house_size; ++to)
                 {
-                    if (from == to)
-                        continue;
-
-                    const Individual &member_from = house.member(from);
-                    const Individual &member_to = house.member(to);
-
-                    std::vector<const Attribute *> param_ptrs = {};
-                    for (size_t r = 0; r < n_rows; ++r)
-                    {
-                        bool match = true;
-                        for (size_t d = 0; d < from_headers.size(); ++d)
-                        {
-                            if (!na::is(input.at(from_headers[d])[r]))
-                                match &= member_from.data(data_indices[d]) ==
-                                         str::tod(input.at(from_headers[d])[r]);
-                            if (!na::is(input.at(to_headers[d])[r]))
-                                match &= member_to.data(data_indices[d]) ==
-                                         str::tod(input.at(to_headers[d])[r]);
-                        }
-                        if (!match)
-                            continue;
-
-                        const std::string &paramstr = input.at("param_name")[r];
-                        if (!na::is(paramstr) && paramstr != rates::REFERENCE)
-                            param_ptrs.push_back(
-                                param.at(param.khold().from_string(paramstr)).pointer());
-                    }
+                    std::vector<const Attribute *> param_ptrs =
+                        defs.associate_param_ptrs(param, house.member(from), house.member(to));
 
                     if (!param_ptrs.empty())
                         house_contact_rates_[H].mtx[from][to].init_product(param_ptrs);

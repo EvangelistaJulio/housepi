@@ -47,14 +47,14 @@
                                                                   \
     const std::vector<std::string> get_##T() const override final \
     {                                                             \
-        return housepi::read::helper_parse_names(#__VA_ARGS__);       \
+        return housepi::read::helper_parse_names(#__VA_ARGS__);   \
     }
 
 #ifdef _STANDALONE
-#define HOUSEPI_STANDALONE_MAIN(module)              \
-    int main(int argc, char *argv[])                 \
-    {                                                \
-        return hsp::standalone(#module, argc, argv); \
+#define HOUSEPI_STANDALONE_MAIN(module)                  \
+    int main(int argc, char *argv[])                     \
+    {                                                    \
+        return housepi::standalone(#module, argc, argv); \
     }
 #define HOUSEPI_EXTRA_FLAG_SUPPORT()
 #define HOUSEPI_REGISTER_MODULE_INTERFACE_IMPL_(module) \
@@ -62,9 +62,9 @@
     HOUSEPI_STANDALONE_MAIN(module)
 
 #else
-#define HOUSEPI_EXTRA_FLAG_SUPPORT()                                          \
-    std::vector<std::string> compile_flags() const override final             \
-    {                                                                         \
+#define HOUSEPI_EXTRA_FLAG_SUPPORT()                                              \
+    std::vector<std::string> compile_flags() const override final                 \
+    {                                                                             \
         return housepi::read::helper_parse_names(FLAG_STR_HOUSEPI_DISCRETE_TIME); \
     }
 #define HOUSEPI_REGISTER_MODULE_INTERFACE_IMPL_(module) \
@@ -75,7 +75,7 @@
     HOUSEPI_REGISTER_MODULE_INTERFACE_IMPL_(_HOUSEPI_MODULE)
 
 #define HOUSEPI_OPEN_MODULE_NAMESPACE_IMPL_(module) \
-    namespace housepi::module                           \
+    namespace housepi::module                       \
     {
 #define HOUSEPI_OPEN_MODULE_NAMESPACE() \
     HOUSEPI_OPEN_MODULE_NAMESPACE_IMPL_(_HOUSEPI_MODULE)

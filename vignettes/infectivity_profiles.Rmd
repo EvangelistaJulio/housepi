@@ -35,7 +35,7 @@ Note that for technical reasons, infectivity profiles in housepi can only depend
 In short, assuming $i$ the infector and $k$ the infectee, the time intervals supported by the infectivity profiles in housepi are
 
 <div style="display: flex; justify-content: center;">
-<div>
+<div style="white-space: nowrap;">
 
 | Time Interval |  | Profile | Support |
 |---------------|--|---------|:-------:|

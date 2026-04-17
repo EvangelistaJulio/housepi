@@ -124,7 +124,7 @@ assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
       sprintf("Name of %s must be a non-empty string.", family),
       ifelse(
         isTRUE(is_implicit),
-        "Did you provide a list and forgot rlang injection operator `!!!`?",
+        "Did you provide a list and forgot rlang injection operator '!!!'?",
         format_type_error(x)
       )
     )

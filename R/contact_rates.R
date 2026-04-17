@@ -116,7 +116,7 @@ associate_contact_param_names <- function(this_table, prefix, reference,
 #' @keywords internal
 #' @noRd
 fill_symmetric_gaps <- function(tbl) {
-  feat_cols <- setdiff(colnames(tbl), c("param_name", "n"))
+  feat_cols <- setdiff(colnames(tbl), rate_reserved_cols)
   from_cols <- grep("^from_", feat_cols, value = TRUE)
   features <- sub("^from_", "", from_cols)
 
@@ -127,10 +127,13 @@ fill_symmetric_gaps <- function(tbl) {
       rev_row[[paste0("from_", f)]] <- tbl[i, paste0("to_", f)]
       rev_row[[paste0("to_", f)]] <- tbl[i, paste0("from_", f)]
     }
-    exists <- any(apply(tbl[feat_cols], 1, function(row) {
-      all(row == rev_row[feat_cols])
+
+    def_exists <- any(apply(tbl[feat_cols], 1, function(row) {
+      rv <- unlist(rev_row[feat_cols])
+      all(mapply(function(a, b) (is.na(a) && is.na(b)) || isTRUE(a == b),
+                 row, rv))
     }))
-    if (!exists) new_rows[[length(new_rows) + 1]] <- rev_row
+    if (!def_exists) new_rows[[length(new_rows) + 1]] <- rev_row
   }
 
   if (length(new_rows) > 0) {
@@ -164,7 +167,7 @@ tidyup_contact_rate_tables <- function(tables) {
     df[all_cols]
   }))
   rownames(combined) <- NULL
-  combined
+  compute_rule_groups(combined)
 }
 
 #' @title Housepi Contact Rate
@@ -220,6 +223,9 @@ HousepiContactRate <- R6::R6Class(
         "Custom logic table must contain a '.reference' row.",
         "Designate one row's param_name as '.reference'."
       )
+      # cast feature columns to character (consistent with auto mode)
+      feat_cols <- setdiff(colnames(strata), rate_reserved_cols)
+      strata[feat_cols] <- lapply(strata[feat_cols], as.character)
       # store sentinel definition
       self$defs <- list(by = NA_character_, prefix = NA_character_,
                         reference = NULL, joint = TRUE,
@@ -438,7 +444,12 @@ HousepiContactRate <- R6::R6Class(
 
       # encode from_X and to_X columns using factor info
       features <- self$defs[["by"]]
-      if (is.null(features)) return(defs)
+      # for custom mode (by is NA), infer features from column names
+      if (is.null(features) || all(is.na(features))) {
+        from_cols <- grep("^from_", colnames(defs), value = TRUE)
+        features <- sub("^from_", "", from_cols)
+      }
+      if (is.null(features) || length(features) == 0) return(defs)
 
       for (this_feat in features[!is.na(features)]) {
         if (is.null(info[[this_feat]])) next

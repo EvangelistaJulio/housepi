@@ -42,6 +42,8 @@ namespace housepi::parse
 
         /// Rebuild string from node with recursion.
         std::string str() const;
+        /// Human readable string used for errors.
+        std::string err_str() const;
 
         /// Wheter node is a terminal node. Otherwise it is a function node.
         bool is_terminal() const noexcept { return func.empty(); }

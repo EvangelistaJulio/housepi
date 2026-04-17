@@ -1,5 +1,9 @@
 library(testthat)
 
+##################################
+## MODEL CLASS : STANDARD CALLS ##
+##################################
+
 test_that("Model class inconsistent calls", {
   # Default blank
   expect_warning(new_housepi_model(), regexp = "Falling back to")
@@ -9,9 +13,27 @@ test_that("Model class inconsistent calls", {
 
   # inference without definitions
   expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
+
+  # Add data type errors are conserved
+  expect_error(hhmodel$add_data_wide(data.frame()), regexp = "empty")
+  expect_error(hhmodel$add_data_wide("ground"), regexp = "data.frame")
+  expect_error(hhmodel$add_data_long("zero"), regexp = "data.frame")
 })
 
-test_that("Model class blank calls", {
+test_that("Active fields are read-only", {
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  expect_error(hhmodel$data_wide <- "La", regexp = "read only")
+  expect_error(hhmodel$data_long <- "Li", regexp = "read only")
+  expect_error(hhmodel$parameters <- "Lu", regexp = "read only")
+  expect_error(hhmodel$augmented <- "Le", regexp = "read only")
+  expect_error(hhmodel$infec_profile <- "Lo", regexp = "read only")
+  expect_error(hhmodel$group_rates <- "The", regexp = "read only")
+  expect_error(hhmodel$name <- "Patriots", regexp = "read only")
+  expect_error(hhmodel$setup <- "Cipher", regexp = "read only")
+})
+
+test_that("Model class 'blank' calls", {
   # blank household model object
   hhmodel <- new_housepi_model("blank")
   snapshot <- hhmodel$export_house_snapshot("house")
@@ -52,6 +74,94 @@ test_that("Model class blank calls", {
   )
 })
 
+test_that("Print behavior works as expected", {
+  # with data and parameters
+  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel$load_parameter_template()
+  expect_snapshot(print(hhmodel))
+
+  # without parameters
+  hhmodel2 <- new_housepi_model("chain_binomial")
+  hhmodel2$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  expect_snapshot(print(hhmodel2))
+
+  # blank model
+  expect_snapshot(print(new_housepi_model("blank")))
+})
+
+######################################
+## MODEL CLASS : POSTERIOR SAMPLING ##
+######################################
+
+test_that("Wrong definitions throw errors", {
+  hhmodel <- new_housepi_model("blank")
+
+  hhmodel$load_parameter_list(a = list(prior = "uniform", min = ~min_val@D))
+  expect_error(results <- hhmodel$run_inference(),
+               regexp = "not supported")
+  # hint
+  hhmodel$load_parameter_list(b = list(prior = "uniform", min = min_val))
+  expect_error(results <- hhmodel$run_inference(),
+               regexp = "rlang injection")
+})
+
+test_that("Discretization is enabled as expected", {
+  discr <- TRUE
+  val <- list(min = 1, max = 5)
+  hhmodel <- new_housepi_model("blank")
+  hhmodel$load_parameter_list(
+    sample = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                  proposal = "sample", min = !!val$min, max = !!val$max),
+    uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                   proposal = "uniform", min = !!val$min, max = !!val$max),
+    normal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                  proposal = "normal", min = !!val$min, max = !!val$max),
+    lognormal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                     proposal = "lognormal", min = !!val$min, max = !!val$max)
+  )
+
+  results <- hhmodel$run_inference()
+  y <- posterior::as_draws_matrix(get_param_draws(results))
+  expect_true(all(y == floor(y)))
+  expect_true(all(y >= val$min))
+  expect_true(all(y <= val$max))
+})
+
+#########################################
+## MODEL CLASS : AUGMENTED DEFINITIONS ##
+#########################################
+
+test_that("Modules do not get overwritten", {
+  # NOTE: I use profile as a  status flag for models
+  hhmodel_1 <- new_housepi_model("augmented_infection_time")
+  out_1 <- hhmodel_1$infec_profile
+  expect_gt(length(out_1), 0)
+
+  hhmodel_2 <- new_housepi_model("chain_binomial")
+  out_2 <- hhmodel_2$infec_profile
+  expect_length(out_2, 0)
+
+  # reload first model
+  hhmodel_3 <- new_housepi_model("augmented_infection_time")
+  out_3 <- hhmodel_3$infec_profile
+  expect_identical(out_1, out_3)
+})
+
+test_that("Custom models shares function registries", {
+  hhmodel_0 <- new_housepi_model("blank")
+  expect_error(expose_function("growth"), regexp = "Unknown function")
+
+  # compile example
+  custom <- system.file(file.path("examples", "custom"), package = "housepi")
+  hhmodel_1 <- new_housepi_model(custom, quiet = TRUE)
+  expect_no_error(expose_function("growth")$func(seq(3)))
+})
+
+#########################################
+## MODEL CLASS : AUGMENTED DEFINITIONS ##
+#########################################
+
 test_that("Rlang calls work as expected", {
   hhmodel <- new_housepi_model("blank")
 
@@ -76,24 +186,6 @@ test_that("Rlang calls work as expected", {
   aux <- hhmodel$augmented
   aux$name <- NULL
   expect_equal(nrow(unique(aux)), 1)
-})
-
-test_that("Discretization is enabled as expected", {
-  # blank household model object
-  hhmodel <- new_housepi_model("blank")
-  hhmodel$load_parameter_list(
-    sample = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE),
-    uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                   proposal = "uniform"),
-    normal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                  proposal = "normal"),
-    lognormal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                     proposal = "lognormal")
-  )
-
-  results <- hhmodel$run_inference()
-  y <- posterior::as_draws_matrix(get_param_draws(results))
-  expect_true(all(y == floor(y)))
 })
 
 test_that("Augmented aliasing works as expected", {
@@ -181,311 +273,58 @@ test_that("Augmented traces export only relevant variables", {
   )
 })
 
-test_that("Custom models shares function registries", {
-  hhmodel_0 <- new_housepi_model("blank")
-  expect_error(expose_function("growth"), regexp = "Unknown function")
+############################################
+## MODEL CLASS : CONTACT RATE DEFINITIONS ##
+############################################
 
-  custom <- system.file(file.path("examples", "custom"), package = "housepi")
-  hhmodel_1 <- new_housepi_model(custom, quiet = TRUE)
-  expect_no_error(expose_function("growth")$func(seq(3)))
-})
-
-test_that("Modules do not get overwritten", {
-  # NOTE: I use profile as model status flag
-  hhmodel_1 <- new_housepi_model("augmented_infection_time")
-  out_1 <- hhmodel_1$infec_profile
-  expect_gt(length(out_1), 0)
-
-  hhmodel_2 <- new_housepi_model("chain_binomial")
-  out_2 <- hhmodel_2$infec_profile
-  expect_length(out_2, 0)
-
-  # reload first model base Model again
-  hhmodel_3 <- new_housepi_model("augmented_infection_time")
-  out_3 <- hhmodel_3$infec_profile
-  expect_identical(out_1, out_3)
-})
-
-test_that("Print behavior works as expected", {
-  # with data and parameters
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
-  hhmodel$load_parameter_template()
-  expect_snapshot(print(hhmodel))
-
-  # without parameters
-  hhmodel2 <- new_housepi_model("chain_binomial")
-  hhmodel2$add_data_wide(helper_test_get_data("flu_1918_frederick"))
-  expect_snapshot(print(hhmodel2))
-
-  # blank model
-  expect_snapshot(print(new_housepi_model("blank")))
-})
-
-test_that("Active fields are read-only", {
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
-  expect_error(hhmodel$data_wide <- "La", regexp = "read only")
-  expect_error(hhmodel$data_long <- "Li", regexp = "read only")
-  expect_error(hhmodel$parameters <- "Lu", regexp = "read only")
-  expect_error(hhmodel$augmented <- "Le", regexp = "read only")
-  expect_error(hhmodel$infec_profile <- "Lo", regexp = "read only")
-  expect_error(hhmodel$group_rates <- "The", regexp = "read only")
-  expect_error(hhmodel$name <- "Patriots", regexp = "read only")
-  expect_error(hhmodel$setup <- "Cipher", regexp = "read only")
-})
-
-###########################################################################
-# Contact rate snapshot tests
-###########################################################################
-
-test_that("Snapshot without contact rates returns empty matrix", {
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  data_wide <- helper_test_get_data("sarscov2_2021_icofs")
+test_that("Contact rate definition work as expected", {
+  hhmodel <- new_housepi_model("chain_binomial_grouped")
+  data_wide <- helper_test_get_data("flu_2014_matsumoto")
   hhmodel$add_data_wide(data_wide)
   hhmodel$load_parameter_template()
 
-  hid <- unique(data_wide$house_id)[1]
-  snapshot <- hhmodel$export_house_snapshot(hid)
+  # NOTE: larger households at the end
+  hhid <- data_wide$house_id[length(data_wide$house_id)]
 
   # no contact rate defs -> empty matrix
-  cr_mtx <- snapshot$contact_rate
+  hhsnapshot <- hhmodel$export_house_snapshot(hhid)
+  cr_mtx <- hhsnapshot$contact_rate
   expect_true(is.matrix(cr_mtx))
   expect_equal(nrow(cr_mtx), 0)
   expect_equal(ncol(cr_mtx), 0)
-})
 
-test_that("Snapshot respects constant contact rate definitions", {
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  data_wide <- helper_test_get_data("sarscov2_2021_icofs")
-  hhmodel$add_data_wide(data_wide)
-  hhmodel$load_parameter_template()
-
-  # define contact rates by sex with reference M->M (symmetric by default)
-  hhmodel$add_contact_rate(
-    by = "sex",
-    reference = c(from_sex = "M", to_sex = "M"),
-    prefix = "cr",
-    prior = "lognormal", sdlog = 1
+  # mutually exclusive strata
+  strata <- data.frame(
+    from_member = c(
+      "student", "student", "sibling", "mother",
+      "mother", "father", "other", NA
+    ),
+    to_member = c(
+      "student", "sibling", "sibling", "student",
+      "sibling", "mother", "other", NA
+    ),
+    param_name = c(
+      "child_child", "child_child", "child_child", "mother_child",
+      "mother_child", ".reference", "other_other", "cross_gen"
+    )
   )
-  # override as constants for deterministic checking
-  # symmetric: M->F and F->M share param cr_sex_F_to_sex_M
-  hhmodel$load_parameter_list(
-    cr_sex_F_to_sex_M = 2.0,
-    cr_sex_F_to_sex_F = 1.5,
-    append = TRUE
-  )
+  # prime numbers as param values to ensure non duplicate pair productes
+  params <- c(2, 3, 5, 7, 11, 13, 17, 19)
+  names(params) <- strata$param_name
+  hhmodel$add_contact_rate(strata = strata, params = params)
 
-  # pick a household with mixed sexes
-  house_ids <- unique(data_wide$house_id)
-  mixed <- NULL
-  for (hid in house_ids) {
-    sub <- data_wide[data_wide$house_id == hid, ]
-    sexes <- unique(sub$sex)
-    if (length(sexes) > 1 && nrow(sub) >= 2) {
-      mixed <- hid
-      break
-    }
-  }
-  expect_false(is.null(mixed))
-
-  snapshot <- hhmodel$export_house_snapshot(mixed)
-  cr_mtx <- snapshot$contact_rate
-  snap_wide <- snapshot$data_wide
-  n <- nrow(snap_wide)
+  # matrix is n x n
+  hhsnapshot <- hhmodel$export_house_snapshot(hhid)
+  cr_mtx <- hhsnapshot$contact_rate
+  n <- nrow(hhsnapshot$data_wide)
 
   expect_true(is.matrix(cr_mtx))
   expect_equal(nrow(cr_mtx), n)
   expect_equal(ncol(cr_mtx), n)
+  # diagonal is 0
+  expect_equal(unname(diag(cr_mtx)), rep(0., n))
 
-  # diagonal should be reference (1.0)
-  expect_equal(unname(diag(cr_mtx)), rep(1, n))
-
-  # M->M off-diagonal pairs: reference (1.0)
-  m_ids <- snap_wide$id[snap_wide$sex == "M"]
-  for (i in m_ids) for (j in m_ids) {
-    expect_equal(cr_mtx[i, j], 1.0)
-  }
-
-  # symmetric: M->F and F->M should both be 2.0
-  f_ids <- snap_wide$id[snap_wide$sex == "F"]
-  if (length(m_ids) > 0 && length(f_ids) > 0) {
-    expect_equal(cr_mtx[m_ids[1], f_ids[1]], 2.0)
-    expect_equal(cr_mtx[f_ids[1], m_ids[1]], 2.0)
-  }
-  # F->F should be 1.5
-  if (length(f_ids) > 1) {
-    expect_equal(
-      cr_mtx[f_ids[1], f_ids[2]], 1.5
-    )
-  }
-})
-
-test_that("Snapshot with multi-dim contact rates (joint)", {
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  data_wide <- helper_test_get_data("sarscov2_2021_icofs")
-  # discretize age for a small number of levels
-  data_wide$age_class <- ifelse(data_wide$age < 18, "child", "adult")
-  hhmodel$add_data_wide(data_wide)
-  hhmodel$load_parameter_template()
-
-  # two features jointly: age_class x sex -> 4 from x 4 to = 16
-  hhmodel$add_contact_rate(
-    by = c("age_class", "sex"),
-    reference = c(
-      from_age_class = "adult", from_sex = "M",
-      to_age_class = "adult", to_sex = "M"
-    ),
-    prefix = "cr",
-    prior = "lognormal", sdlog = 1
-  )
-
-  # verify logic table dimensions
-  ct <- hhmodel$contact_rates
-  expect_equal(nrow(ct), 16)
-  expect_equal(sum(ct$param_name == ".reference"), 1)
-
-  # set all non-reference params to constant 2.0
-  pnames <- setdiff(ct$param_name, ".reference")
-  plist <- stats::setNames(
-    as.list(rep(2.0, length(pnames))), pnames
-  )
-  expect_warning(
-    do.call(hhmodel$load_parameter_list,
-            c(plist, list(append = TRUE))),
-    regexp = "Overwriting"
-  )
-
-  # pick a household with >= 2 members
-  house_ids <- unique(data_wide$house_id)
-  hid <- NULL
-  for (h in house_ids) {
-    if (sum(data_wide$house_id == h) >= 3) {
-      hid <- h
-      break
-    }
-  }
-  expect_false(is.null(hid))
-
-  snapshot <- hhmodel$export_house_snapshot(hid)
-  cr_mtx <- snapshot$contact_rate
-  snap_wide <- snapshot$data_wide
-
-  expect_true(is.matrix(cr_mtx))
-  expect_equal(nrow(cr_mtx), nrow(snap_wide))
-
-  # diagonal is 1.0 (self-contact)
-  expect_equal(unname(diag(cr_mtx)), rep(1, nrow(snap_wide)))
-
-  # adult-M -> adult-M off-diag should be 1.0 (reference)
-  am_ids <- snap_wide$id[
-    snap_wide$age_class == "adult" & snap_wide$sex == "M"
-  ]
-  for (i in am_ids) for (j in am_ids) {
-    expect_equal(cr_mtx[i, j], 1.0)
-  }
-
-  # any non-reference pair should be 2.0
-  other_ids <- setdiff(snap_wide$id, am_ids)
-  if (length(am_ids) > 0 && length(other_ids) > 0) {
-    expect_equal(
-      cr_mtx[am_ids[1], other_ids[1]], 2.0
-    )
-  }
-})
-
-test_that("Snapshot with non-joint contact rates (multiplicative)", {
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  data_wide <- helper_test_get_data("sarscov2_2021_icofs")
-  data_wide$age_class <- ifelse(data_wide$age < 18, "child", "adult")
-  hhmodel$add_data_wide(data_wide)
-  hhmodel$load_parameter_template()
-
-  # two features independently: 2 sub-tables of 4 rows each
-  hhmodel$add_contact_rate(
-    by = c("age_class", "sex"),
-    joint = FALSE,
-    reference = c(age_class = "adult", sex = "M"),
-    prefix = "cr",
-    prior = "lognormal", sdlog = 1
-  )
-
-  ct <- hhmodel$contact_rates
-  expect_equal(nrow(ct), 8) # 4 + 4
-
-  # set age non-reference params to 2.0 and sex to 3.0
-  age_params <- setdiff(
-    ct$param_name[!is.na(ct$from_age_class)], ".reference"
-  )
-  sex_params <- setdiff(
-    ct$param_name[!is.na(ct$from_sex)], ".reference"
-  )
-  plist <- c(
-    stats::setNames(as.list(rep(2.0, length(age_params))),
-                    age_params),
-    stats::setNames(as.list(rep(3.0, length(sex_params))),
-                    sex_params)
-  )
-  expect_warning(
-    do.call(hhmodel$load_parameter_list,
-            c(plist, list(append = TRUE))),
-    regexp = "Overwriting"
-  )
-
-  # pick a household with >= 3 members
-  house_ids <- unique(data_wide$house_id)
-  hid <- NULL
-  for (h in house_ids) {
-    if (sum(data_wide$house_id == h) >= 3) {
-      hid <- h
-      break
-    }
-  }
-  expect_false(is.null(hid))
-
-  snapshot <- hhmodel$export_house_snapshot(hid)
-  cr_mtx <- snapshot$contact_rate
-  snap_wide <- snapshot$data_wide
-
-  expect_true(is.matrix(cr_mtx))
-  expect_equal(unname(diag(cr_mtx)), rep(1, nrow(snap_wide)))
-
-  # adult-M -> adult-M: both reference -> 1.0
-  am_ids <- snap_wide$id[
-    snap_wide$age_class == "adult" & snap_wide$sex == "M"
-  ]
-  for (i in am_ids) for (j in am_ids) {
-    expect_equal(cr_mtx[i, j], 1.0)
-  }
-
-  # adult-M -> child-M: age=2.0, sex=ref -> 2.0
-  cm_ids <- snap_wide$id[
-    snap_wide$age_class == "child" & snap_wide$sex == "M"
-  ]
-  if (length(am_ids) > 0 && length(cm_ids) > 0) {
-    expect_equal(cr_mtx[am_ids[1], cm_ids[1]], 2.0)
-  }
-
-  # adult-M -> adult-F: age=ref, sex=3.0 -> 3.0
-  af_ids <- snap_wide$id[
-    snap_wide$age_class == "adult" & snap_wide$sex == "F"
-  ]
-  if (length(am_ids) > 0 && length(af_ids) > 0) {
-    expect_equal(cr_mtx[am_ids[1], af_ids[1]], 3.0)
-  }
-
-  # adult-M -> child-F: age=2.0 * sex=3.0 -> 6.0
-  cf_ids <- snap_wide$id[
-    snap_wide$age_class == "child" & snap_wide$sex == "F"
-  ]
-  if (length(am_ids) > 0 && length(cf_ids) > 0) {
-    expect_equal(cr_mtx[am_ids[1], cf_ids[1]], 6.0)
-  }
-})
-
-test_that("Add data type errors are conserved", {
-  hhmodel <- new_housepi_model("blank")
-  expect_error(hhmodel$add_data_wide(data.frame()), regexp = "empty")
-  expect_error(hhmodel$add_data_wide("ground"), regexp = "data.frame")
-  expect_error(hhmodel$add_data_long("zero"), regexp = "data.frame")
+  # every off-diagonal cell resolves to the reference (1)
+  # or to exactly one param value: no multiplications
+  expect_true(all(cr_mtx %in% c(0, 1, params)))
 })

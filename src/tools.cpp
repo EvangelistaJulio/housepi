@@ -217,10 +217,6 @@ namespace housepi::str
     {
         return helper_converter_(static_cast<unsigned long (*)(const std::string &, size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
     }
-    std::int32_t toi32(const std::string &input, const std::string &errtxt)
-    {
-        return static_cast<std::int32_t>(toul(input, errtxt));
-    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  Formatter Functions  ////////////////////////////////////
@@ -651,14 +647,12 @@ namespace housepi::parse
         return node;
     }
 
-    /// Definition Entry constructor.
     Entry::Entry(const std::string &value_, const std::string &type_)
     {
         value = value_;
         type = str::toup(type_);
     }
 
-    /// Rebuild string from node using recursion.
     std::string Entry::str() const
     {
         if (is_empty())
@@ -688,7 +682,29 @@ namespace housepi::parse
         return func + "|" + str_args + "|" + str_children;
     }
 
-    /// Wheter is implicitely callable.
+    std::string Entry::err_str() const
+    {
+        if (is_empty())
+            return "empty expression";
+        if (is_terminal())
+        {
+            std::string str_type;
+            if (is_augmented(type))
+                str_type = "augmented";
+            else if (is_data_wide(type))
+                str_type = "data";
+            else if (is_group_rate(type))
+                str_type = "group_rate";
+            else if (is_parameter(type))
+                str_type = "parameter";
+            else // is_numeric
+                str_type = "numeric";
+            return str_type + " '" + value + "'";
+        }
+
+        return "expression '" + str() + "'";
+    }
+
     bool Entry::is_callable_implicitly(std::string_view point) const noexcept
     {
         if (is_terminal())
@@ -709,7 +725,6 @@ namespace housepi::parse
     MAKE_NODE_LIST_TYPE_DEPEN(data_wide)
     MAKE_NODE_LIST_TYPE_DEPEN(parameter)
 
-    /// Construct and parse expression into AST (and flattens it).
     Definition::Definition(std::string_view expr) { root = parse_expression_(expr); }
 
     MAKE_PARSER_LIST_TYPE_DEPEN(augmented)

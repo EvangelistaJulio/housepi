@@ -7,20 +7,19 @@
 
 rate_stop_hint <- "Choose 'by' for automatic definitions, 'strata' for custom."
 
+# Reserved column names (non-feature) in a logic table.
+rate_reserved_cols <- c("group_rate", "param_name", "n", "rule_group")
+
 # Throw error if empty definition.
 stop_empty_definition <- function() {
-  stop_h(
-    "Invalid rate definition: provide one between 'by' and 'strata'.",
-    rate_stop_hint
-  )
+  stop_h("Invalid rate definition: provide one between 'by' and 'strata'.",
+         rate_stop_hint)
 }
 
 # Throw error for ambiguos rate definition.
 stop_ambiguos_definition <- function() {
-  stop_h(
-    "Impossible to provide at the same time 'by' and 'logic_table'.",
-    rate_stop_hint
-  )
+  stop_h("Impossible to provide at the same time 'by' and 'logic_table'.",
+         rate_stop_hint)
 }
 
 #' Assert that features choice is valid.
@@ -36,15 +35,15 @@ assert_valid_features <- function(features) {
   )
 
   # avoid group rates associated to reserved data/definition names
-  reserved_data <- c("id", "house_id", "status", "n",
-                     "param_name", "group_rate")
+  reserved_data <- c("id", "house_id", "status", rate_reserved_cols)
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
     sprintf("Impossible to associate rate to feature%s %s",
             as_plural(forbidden, "s:"),
             character_to_string_list(forbidden)),
     "These names are reserved.",
-    "Please, change feature and/or corresponding data columns."
+    sprintf("Please, change feature%s and/or corresponding data column%s.",
+            as_plural(forbidden), as_plural(forbidden))
   )
 }
 
@@ -71,7 +70,7 @@ assert_data_features <- function(features, headers) {
 #' @noRd
 assess_feature_values <- function(this_table) {
   # column names to consider
-  colmask <- setdiff(names(this_table), c("n", "param_name"))
+  colmask <- setdiff(names(this_table), rate_reserved_cols)
   for (col in colmask) {
     sapply(this_table[[col]], function(x) assert_valid_feature(x, col))
   }
@@ -93,8 +92,73 @@ assert_valid_logic_table <- function(logic_table) {
     "Logic table must contain at least one row."
   )
   # validate feature column names
-  feature_cols <- setdiff(colnames(logic_table), c("param_name", "n"))
+  feature_cols <- setdiff(colnames(logic_table), rate_reserved_cols)
   assert_valid_features(feature_cols)
+}
+
+#' @title Assign rule_group to each rule of logic table.
+#' @description Rules belong to specificity groups.
+#' A group is identified by the unique `maximal` non-NA covariates.
+#' Rules with the same maximal pattern share a group.
+#' Rules that are subset of multiple groups are ambiguous.
+#' @param tbl `data.frame` logic table.
+#' @return `data.frame` with integer `rule_group` column appended.
+#' @keywords internal
+#' @noRd
+compute_rule_groups <- function(tbl) {
+  if (nrow(tbl) == 0) {
+    tbl$rule_group <- integer(0)
+    return(tbl)
+  }
+  feat_cols <- setdiff(colnames(tbl), rate_reserved_cols)
+
+  # pattern of each row: names of non-NA feature columns
+  patterns <- lapply(seq_len(nrow(tbl)), function(i) {
+    sort(feat_cols[!is.na(unlist(tbl[i, feat_cols, drop = FALSE]))])
+  })
+
+  # unique patterns for maximality check
+  uniq_patterns <- unique(patterns)
+  is_max <- vapply(uniq_patterns, function(p) {
+    !any(vapply(uniq_patterns, function(q)
+      length(q) > length(p) && all(p %in% q), logical(1)))
+  }, logical(1))
+  max_patterns <- uniq_patterns[is_max]
+
+  # deterministic ordering: by serialized column set
+  ord <- order(vapply(
+    max_patterns, function(p) paste(p, collapse = "\x1F"), character(1)
+  ))
+  max_patterns <- max_patterns[ord]
+
+  # assign each rule to exactly one maximal pattern
+  gids <- integer(nrow(tbl))
+  for (i in seq_along(patterns)) {
+    p <- patterns[[i]]
+    candidates <- which(vapply(max_patterns,
+                               function(m) all(p %in% m), logical(1)))
+    if (length(candidates) == 1) {
+      gids[i] <- candidates
+    } else if (length(candidates) == 0) {
+      stop_h("Rule grouping failed: no maximal pattern contains row's columns.")
+    } else {
+      fmt <- function(x) {
+        ifelse(length(x) == 0, "{}",
+               paste0("{", paste(x, collapse = ", "), "}"))
+      }
+      stop_h(
+        sprintf(
+          "Ambiguous rule %d: pattern %s is subset of %d maximal patterns: %s.",
+          i, fmt(p), length(candidates),
+          paste(vapply(max_patterns[candidates], fmt, character(1)),
+                collapse = " and ")
+        ),
+        "Add a disambiguating column to the rule."
+      )
+    }
+  }
+  tbl$rule_group <- gids
+  tbl
 }
 
 #' Return logic table of group rates
@@ -186,15 +250,25 @@ tidyup_group_rate_tables <- function(all_tables) {
   for (rate in names(all_tables)) {
     this_table <- all_tables[[rate]]
     if (length(this_table) == 0) {
-      df <- list(data.frame(group_rate = rate, param_name = ".reference"))
+      df <- list(data.frame(group_rate = rate, param_name = ".reference",
+                            rule_group = 1L))
     } else {
-      df <- lapply(this_table, function(x) cbind_rate(x, rate))
+      # concat this rate's sub-tables, then compute rule_groups within rate
+      sub_cols <- unique(c("param_name", "n",
+                           sort(unlist(lapply(this_table, names)))))
+      sub_combined <- do.call(rbind, lapply(this_table, function(x) {
+        miss <- setdiff(sub_cols, names(x))
+        x[miss] <- NA_character_
+        x[sub_cols]
+      }))
+      sub_combined <- compute_rule_groups(sub_combined)
+      df <- list(cbind_rate(sub_combined, rate))
     }
     df_list <- c(df_list, df)
   }
 
   # all unique column names reordered
-  all_cols <- unique(c("group_rate", "param_name", "n",
+  all_cols <- unique(c(rate_reserved_cols,
                        sort(unlist(lapply(df_list, names)))))
 
   # Add missing columns with NA
@@ -382,7 +456,7 @@ HousepiGroupRate <- R6::R6Class(
     helper_implement_custom_ = function(rate_id, data_wide) {
       for (ti in seq_along(self$logic_tables[[rate_id]])) {
         tbl <- self$logic_tables[[rate_id]][[ti]]
-        feat_cols <- setdiff(colnames(tbl), c("param_name", "n"))
+        feat_cols <- setdiff(colnames(tbl), rate_reserved_cols)
         # validate that feature columns exist in data
         assert_data_features(feat_cols, colnames(data_wide))
         # validate that feature values exist in data

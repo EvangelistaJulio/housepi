@@ -372,8 +372,8 @@ namespace housepi
 
         // initialization
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
-                                                   data_wide.khold.get_all(),
-                                                   augm.khold.as_string(augm.list_export));
+                                                   data_wide.khold().get_all(),
+                                                   augm.khold().as_string(augm.list_export));
         data_wide.assert_non_empty();              // check if data is empty
         engine.model->init_model_for_simulation(); // model specific initialization
 
@@ -382,7 +382,7 @@ namespace housepi
             {
                 engine.model->simulate_single_house(house);
                 update_ofstream_datawide(ofs, house,
-                                         data_wide.khold.size(),
+                                         data_wide.khold().size(),
                                          augm.list_export);
             }
             catch (const std::exception &e)

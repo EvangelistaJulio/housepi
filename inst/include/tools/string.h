@@ -30,8 +30,6 @@ namespace housepi::str
     int toi(const std::string &input, const std::string &errtxt = "");
     /// Convert to unsigned long using stoul.
     unsigned long toul(const std::string &input, const std::string &errtxt = "");
-    /// Convert to unsigned 32bit integer (for R compatibility).
-    std::int32_t toi32(const std::string &input, const std::string &errtxt = "");
 
     /// Format a boolean value.
     std::string format(bool condition);

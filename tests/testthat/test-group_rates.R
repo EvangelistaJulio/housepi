@@ -25,85 +25,40 @@ aux_add <- function(self, name,
 }
 
 # a dummy dataset and relative information for factorization
-dummy_df <- data.frame(age_group = c("child", "child", "adult", "child"),
-                       sex = c("M", "F", "M", "M"),
-                       stringsAsFactors = FALSE)
-dummy_factor_info <- list(age_group = list(levels = c("child", "adult")),
+dummy_df <- data.frame(house_id = 1,
+                       age = c(rep("child", 2), rep("adult", 2)),
+                       sex = c("M", "F", "M", "M"))
+# corresponding factors levels
+dummy_factor_info <- list(age = list(levels = c("child", "adult")),
                           sex = list(levels = c("M", "F")))
-
 # dummy group rate logic table
 dummy_strata <- data.frame(isolation = c(FALSE, TRUE),
                            param_name = c(".reference", "inf_isol"))
 
+####################################
+## GROUP RATES : HELPER FUNCTIONS ##
+####################################
+
 test_that("Group rates logic table computes combinations and counts", {
-  tbl <- group_rate_logic_table(dummy_df, c("age_group", "sex"))
+  tbl <- group_rate_logic_table(dummy_df, c("age", "sex"))
 
   # counts should sum to number of rows and include expected frequencies
   expect_equal(sum(tbl$n), nrow(dummy_df))
   expect_true(all(sort(tbl$n) == sort(c(2L, 1L, 1L))))
   # ensure columns are present
-  expect_true(all(c("age_group", "sex", "n") %in% colnames(tbl)))
-})
-
-test_that("Remove warns when removing unknown group rate", {
-  grp <- HousepiGroupRate$new()
-  expect_warning(grp$remove(list("does_not_exist"), warn_removal = TRUE))
+  expect_true(all(c("age", "sex", "n") %in% colnames(tbl)))
 })
 
 test_that("Associate param names decorates table and marks reference", {
-  tbl <- group_rate_logic_table(dummy_df, c("age_group", "sex"))
-  res <- associate_param_names(tbl, prefix = "g", reference = NULL)
+  tbl <- group_rate_logic_table(dummy_df, c("age", "sex"))
+  res <- associate_param_names(tbl, prefix = "mgs", reference = NULL)
 
   expect_true("param_name" %in% colnames(res))
   # exactly one .reference row (largest group)
   expect_equal(sum(res$param_name == ".reference"), 1L)
   # other param_names should start with provided prefix
   others <- res$param_name[res$param_name != ".reference"]
-  expect_true(all(grepl("^g_", others)))
-})
-
-test_that("Group rates integrate with data and exposes to Cpp format", {
-  grp <- HousepiGroupRate$new()
-  aux_add(grp, "contact", by = c("age_group", "sex"), prefix = "ct",
-          joint = TRUE)
-  # implement should build logic_tables without errors
-  expect_silent(grp$implement(dummy_df, dummy_factor_info))
-
-  expect_true("contact" %in% names(grp$logic_tables))
-  tidy <- grp$tidy_table
-  expect_true(is.data.frame(tidy))
-  # expose_to_cpp convert factor columns into integers according to factors
-  cpp_tbl <- grp$expose_to_cpp(dummy_factor_info)
-  expect_true(is.data.frame(cpp_tbl))
-
-  # columns corresponding to features are factorized
-  expect_true(all(c("age_group", "sex") %in% colnames(cpp_tbl)))
-  expect_true(all(cpp_tbl$age_group %in% c(1L, 2L)))
-  expect_true(all(cpp_tbl$sex %in% c(1L, 2L)))
-
-  # mcmc setup is default
-  default_mcmc_setup <- list(prior = "lognormal", meanlog = 0, sdlog = 3,
-                             min = 0, max = 10, proposal = "lognormal")
-  expect_equal(grp$parameters[[1]], default_mcmc_setup)
-})
-
-test_that("Parameter options work correctly", {
-  grp <- HousepiGroupRate$new()
-  aux_add(grp, "contact", by = c("age_group", "sex"), prefix = "ct",
-          prior = "uniform", min = 0, max = 10, joint = TRUE)
-  expect_silent(grp$implement(dummy_df, dummy_factor_info))
-  expect_equal(grp$parameters[[1]],
-               list(prior = "uniform", min = 0, max = 10,
-                    proposal = NA_character_, proposal_scale = NA_real_))
-
-  grp <- HousepiGroupRate$new()
-  aux_add(grp, "contact", by = c("age_group", "sex"), prefix = "ct",
-          prior = "gamma", shape = 2, scale = 1, joint = TRUE)
-  expect_silent(grp$implement(dummy_df, dummy_factor_info))
-  expect_equal(grp$parameters[[1]],
-               list(prior = "gamma", shape = "2|N", scale = "1|N",
-                    min = NA_real_, max = NA_real_,
-                    proposal = NA_character_, proposal_scale = NA_real_))
+  expect_true(all(grepl("^mgs_", others)))
 })
 
 test_that("Assert-valid-logic-table validates input", {
@@ -120,6 +75,73 @@ test_that("Assert-valid-logic-table validates input", {
   expect_error(assert_valid_logic_table(data.frame(param_name = "a", id = 1)),
                regexp = "reserved")
 })
+
+##################################
+## GROUP RATES : STANDARD CALLS ##
+##################################
+
+test_that("Group rates integrate with data and exposes to Cpp format", {
+  grp <- HousepiGroupRate$new()
+
+  # remove warns when removing unknown group rate
+  expect_warning(grp$remove(list("does_not_exist"), warn_removal = TRUE))
+
+  # implement should build logic_tables without errors
+  aux_add(grp, "foxhound", by = c("age", "sex"), joint = TRUE)
+  expect_silent(grp$implement(dummy_df, dummy_factor_info))
+  expect_true("foxhound" %in% names(grp$logic_tables))
+  tidy <- grp$tidy_table
+  expect_true(is.data.frame(tidy))
+
+  # mcmc setup is default (Cauchemez et al., 2009)
+  default_mcmc_setup <- list(prior = "lognormal", meanlog = 0, sdlog = 3,
+                             min = 0, max = 10, proposal = "lognormal")
+  expect_equal(grp$parameters[[1]], default_mcmc_setup)
+
+  # expose_to_cpp convert factor columns into integers according to factors
+  # UPDATE: this will change when cpp will allow for characters
+  cpp_tbl <- grp$expose_to_cpp(dummy_factor_info)
+  expect_true(is.data.frame(cpp_tbl))
+  # columns corresponding to features are factorized
+  expect_true(all(c("age", "sex") %in% colnames(cpp_tbl)))
+  expect_true(all(cpp_tbl$age %in% c(1L, 2L)))
+  expect_true(all(cpp_tbl$sex %in% c(1L, 2L)))
+})
+
+test_that("Parameter options work correctly", {
+  grp <- HousepiGroupRate$new()
+  aux_add(grp, "peace", by = c("age", "sex"),
+          prior = "uniform", min = 0, max = 10, joint = TRUE)
+  expect_silent(grp$implement(dummy_df, dummy_factor_info))
+  expect_equal(grp$parameters[[1]],
+               list(prior = "uniform", min = 0, max = 10,
+                    proposal = NA_character_, proposal_scale = NA_real_))
+
+  grp <- HousepiGroupRate$new()
+  aux_add(grp, "walker", by = c("age", "sex"),
+          prior = "gamma", shape = 2, scale = 1, joint = TRUE)
+  expect_silent(grp$implement(dummy_df, dummy_factor_info))
+  expect_equal(grp$parameters[[1]],
+               list(prior = "gamma", shape = "2|N", scale = "1|N",
+                    min = NA_real_, max = NA_real_,
+                    proposal = NA_character_, proposal_scale = NA_real_))
+})
+
+test_that("Load list works as expected", {
+  grp <- HousepiGroupRate$new()
+  helper_test_aux_load(
+    grp,
+    whatever = list(by = c("age", "sex"), prefix = "ct",
+                    prior = "uniform", min = 0, max = 10),
+    susceptibility = list(by = c("age", "sex"),
+                          prior = "lognormal", sdlog = 3)
+  )
+  expect_silent(grp$implement(dummy_df, dummy_factor_info))
+})
+
+#############################################
+## GROUP RATES : CUSTOM STRATA DEFINITIONS ##
+#############################################
 
 test_that("Group rates deal with custom logic table correctly", {
   grp <- HousepiGroupRate$new()
@@ -185,11 +207,11 @@ test_that("Group rate implementation preserves strata entries", {
   grp <- HousepiGroupRate$new()
 
   # add a standard auto-mode rate
-  aux_add(grp, "community", by = "age_group", prefix = "com")
+  aux_add(grp, "community", by = "age", prefix = "com")
 
   # add a custom-mode rate
   aux_add(grp, name = "infectivity",
-          strata = data.frame(age_group = c("adult", "child"),
+          strata = data.frame(age = c("adult", "child"),
                               param_name = c("inf_old", ".reference")))
 
   # implement should build by-mode and preserve strata-mode
@@ -201,7 +223,7 @@ test_that("Group rate implementation preserves strata entries", {
   expect_equal(grp$logic_tables$infectivity[[1]]$param_name,
                c("inf_old", ".reference"))
 
-  expect_warning(aux_add(grp, "infectivity", by = "age_group"),
+  expect_warning(aux_add(grp, "infectivity", by = "age"),
                  regexp = "infectivity")
   expect_warning(aux_add(grp, "community", strata = dummy_strata),
                  regexp = "community")
@@ -210,7 +232,7 @@ test_that("Group rate implementation preserves strata entries", {
 test_that("Group rate mixed auto and custom modes", {
   grp <- HousepiGroupRate$new()
 
-  aux_add(grp, "community", by = "age_group", prefix = "com")
+  aux_add(grp, "community", by = "age", prefix = "com")
   grp$implement(dummy_df, dummy_factor_info)
   expect_true("community" %in% names(grp$logic_tables))
 
@@ -224,22 +246,9 @@ test_that("Group rate mixed auto and custom modes", {
 
   # data required
   data_req <- grp$data_required
-  expect_true(all(c("age_group", "isolation") %in% data_req))
+  expect_true(all(c("age", "isolation") %in% data_req))
 
   # trigger error (unknown feature in dummy_strata)
   expect_error(grp$implement(dummy_df, dummy_factor_info),
                regexp = "Unknown")
-})
-
-test_that("Load list works as expected", {
-  grp <- HousepiGroupRate$new()
-  helper_test_aux_load(
-    grp,
-    contact = list(by = c("age_group", "sex"), prefix = "ct",
-                   prior = "uniform", min = 0, max = 10),
-    susceptibility = list(by = c("age_group", "sex"),
-                          prior = "lognormal", sdlog = 3)
-  )
-  expect_silent(grp$implement(dummy_df, dummy_factor_info))
-  grp$parameters
 })

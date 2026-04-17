@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "tools/types.h"
-
 #include "house_storage.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,9 +27,6 @@ namespace housepi
     struct ContactRate
     {
     public:
-        ContactRate();
-        ~ContactRate();
-
         /// Build symmetric contact rates from table definitions.
         void build(DataWide &data_wide, const Parameter &param, const str_table &input);
 

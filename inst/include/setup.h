@@ -35,7 +35,7 @@ namespace housepi
                                                        "adapt", "chains", "threads",
                                                        "id_draws", "seed", "progress"};
 
-        std::int32_t seed;          /// Seed for pseudo-random number generator initialization.
+        std::int32_t seed = 1;      /// Seed for pseudo-random number generator initialization.
         unsigned n_threads = 1;     /// Number of OpenMP threads for parallelization.
         unsigned long n_steps = 1;  /// Total number of MCMC iterations per chain.
         unsigned long n_burn = 0;   /// Number of initial burn-in iterations to discard.
@@ -125,10 +125,10 @@ namespace housepi
         [[noreturn]] void crash(const std::exception &e);
 
     private:
-        mutable std::vector<housepi::rnd_gen> prng_parallel_ = {};      /// Thread-local PRNGs for parallel chains.
+        mutable std::vector<housepi::rnd_gen> prng_parallel_ = {};  /// Thread-local PRNGs for parallel chains.
         mutable std::uniform_real_distribution<double> uniform_;    /// Uniform [0, 1) distribution sampler.
         mutable std::exponential_distribution<double> exponential_; /// Exponential distribution sampler.
-        std::unique_ptr<housepi::ProgressBar> progressbar_;             /// Progress bar UI component.
+        std::unique_ptr<housepi::ProgressBar> progressbar_;         /// Progress bar UI component.
 
         /// Associate non-default user setup.
         void helper_non_default_build_(const housepi::str_table &input);

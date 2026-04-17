@@ -113,25 +113,27 @@ void Model::fill_house_escape_matrix(Household &house)
 	auto &p2p_mtx = cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate);
 
 	// fill matrix according to order
-	for (size_t i = 0; i < house_size; ++i)
+	for (size_t oi = 0; oi < house_size; ++oi)
 	{
-		const Individual &member_i = house.member(order[i]);
+		size_t i = order[oi]; // retrieve household member index
+		const Individual &member_i = house.member(i);
 		double inf_i = member_i.group_rate(GroupRateKey::infectivity);
 		double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
 
 		// community
-		commu_mtx[i] = commu_rate * member_i.group_rate(GroupRateKey::community);
+		commu_mtx[oi] = commu_rate * member_i.group_rate(GroupRateKey::community);
 
 		// person-to-person
-		for (size_t j = 0; j < i; ++j)
+		for (size_t oj = 0; oj < oi; ++oj)
 		{
-			const Individual &member_j = house.member(order[j]);
+			size_t j = order[oj];
+			const Individual &member_j = house.member(j);
 			// [i] : infector -> [j] : infectee
-			p2p_mtx[i][j] = inf_i * p2p_rate * house.contact_rate(i, j) *
-							member_j.group_rate(GroupRateKey::susceptibility);
+			p2p_mtx[oi][oj] = inf_i * p2p_rate * house.contact_rate(i, j) *
+							  member_j.group_rate(GroupRateKey::susceptibility);
 			// [j] : infector -> [i] : infectee
-			p2p_mtx[j][i] = member_j.group_rate(GroupRateKey::infectivity) *
-							p2p_rate * house.contact_rate(j, i) * sus_i;
+			p2p_mtx[oj][oi] = member_j.group_rate(GroupRateKey::infectivity) *
+							  p2p_rate * house.contact_rate(j, i) * sus_i;
 		}
 	}
 }

@@ -37,37 +37,50 @@ namespace housepi
 {
     using namespace std::chrono;
 
-    /// Format elapsed time in seconds.
-    std::string format_time_(seconds scs)
+    namespace
     {
-        std::ostringstream oss;
+        /// Check that seed is unsigned and enforce 32bit integer.
+        std::int32_t read_seed_(const std::string &input)
+        {
+            int val = str::toi(input, "seed");
+            if (val < 1)
+                throw std::invalid_argument(
+                    "Seed must be a positive non-zero integer.");
+            return val;
+        }
 
-        const auto dys = duration_cast<duration<int, std::ratio<86400>>>(scs);
-        scs -= duration_cast<seconds>(dys);
+        /// Format elapsed time in seconds.
+        std::string format_time_(seconds scs)
+        {
+            std::ostringstream oss;
 
-        const auto hrs = duration_cast<hours>(scs);
-        scs -= duration_cast<seconds>(hrs);
+            const auto dys = duration_cast<duration<int, std::ratio<86400>>>(scs);
+            scs -= duration_cast<seconds>(dys);
 
-        const auto mns = duration_cast<minutes>(scs);
-        scs -= duration_cast<seconds>(mns);
+            const auto hrs = duration_cast<hours>(scs);
+            scs -= duration_cast<seconds>(hrs);
 
-        // show large time scales only if relevant
-        if (dys.count() > 0)
-            oss << dys.count() << "d"
-                << std::setfill('0') << std::setw(2) << hrs.count() << "h";
+            const auto mns = duration_cast<minutes>(scs);
+            scs -= duration_cast<seconds>(mns);
 
-        else if (hrs.count() > 0)
-            oss << hrs.count() << "h"
-                << std::setfill('0') << std::setw(2) << mns.count() << "m";
+            // show large time scales only if relevant
+            if (dys.count() > 0)
+                oss << dys.count() << "d"
+                    << std::setfill('0') << std::setw(2) << hrs.count() << "h";
 
-        else if (mns.count() > 0)
-            oss << mns.count() << "m"
-                << std::setfill('0') << std::setw(2) << scs.count() << "s";
+            else if (hrs.count() > 0)
+                oss << hrs.count() << "h"
+                    << std::setfill('0') << std::setw(2) << mns.count() << "m";
 
-        else
-            oss << scs.count() << "s";
+            else if (mns.count() > 0)
+                oss << mns.count() << "m"
+                    << std::setfill('0') << std::setw(2) << scs.count() << "s";
 
-        return oss.str();
+            else
+                oss << scs.count() << "s";
+
+            return oss.str();
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -163,7 +176,7 @@ namespace housepi
                     << format_time_(elapsed) << "<";
                 if (elapsed.count() > 2)
                     oss << format_time_(missing);
-                else 
+                else
                     oss << "?s";
                 oss << std::string(10, ' ');
                 print_(oss.str());
@@ -342,7 +355,7 @@ namespace housepi
 
         // PRNG Seed
         if (input.count("seed") && !na::is(input.at("seed")[0]))
-            seed = str::toi32(input.at("seed")[0], "seed");
+            seed = read_seed_(input.at("seed")[0]);
 
         // N. of Chains
         if (input.count("chains") && !na::is(input.at("chains")[0]))

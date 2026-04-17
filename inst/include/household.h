@@ -32,12 +32,6 @@ namespace housepi
 		friend class MCMC;
 
 	public:
-		///////////////////////////
-		//////  CONSTRUCTOR  //////
-		///////////////////////////
-
-		Household() = default;
-
 		//////////////////////
 		//////  SETTER  //////
 		//////////////////////
@@ -45,9 +39,11 @@ namespace housepi
 		/// Emplace a new individual in the household.
 		void add_member(size_t index, const std::string &id, const Indiv::Wide *data_ptr);
 
+		/// Set status of member 'i' to susceptible.
 		void set_susceptible_status(size_t i) { helper_set_status_(i, status::SUSCEPTIBLE); }
 		void set_susceptible_status(Individual &member) { set_susceptible_status(member.hhindex()); }
 
+		/// Set status of member 'i' to infected.
 		void set_infected_status(size_t i, int new_status = status::INFECTED)
 		{
 			if (!status::is_infected(new_status))
@@ -74,9 +70,22 @@ namespace housepi
 		size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
 		size_t n_missing_status() const noexcept { return missing_list_.size(); }
 
+		/// Contact rate 'from' household member 'to member.
+		/// No self-contact (set 0 for safety).
 		double contact_rate(size_t from, size_t to) const
 		{
-			return pcontact_rate_ ? pcontact_rate_->mtx[from][to].value() : 1.0;
+			if (from == to)
+				return 0.;
+			if (!pcontact_rate_)
+				return 1.;
+			return pcontact_rate_->mtx[from][to].value();
+		}
+		/// Contact rate intra member partition (self-contact).
+		double intra_partition_contact_rate(size_t i) const
+		{
+			if (!pcontact_rate_)
+				return 1.;
+			return pcontact_rate_->mtx[i][i].value();
 		}
 
 		double obs_log_lik() const { return obs_log_lik_.value(); }

@@ -370,7 +370,9 @@ namespace housepi
             at(p).adapt_proposal(ratio);
     }
 
-    const Attribute &Parameter::read_attribute(const parse::Entry &node, const Individual *member_ptr) const
+    const Attribute &Parameter::read_attribute(
+        const parse::Entry &node,
+        const Individual *member_ptr) const
     {
         storage_ = Attribute(); // reset auxiliary storage to default empty
 
@@ -389,8 +391,14 @@ namespace housepi
         else if (!node.is_empty())
         {
             if (!member_ptr)
-                throw std::invalid_argument(
-                    "Not supported individidual specific definition found while parsing '" + node.str() + "'.");
+            {
+                std::string sms = "Individual specific definitions as " + node.err_str() +
+                                  " are not supported here.";
+                // add tip if augmented (which does not require '@')
+                if (parse::is_augmented(node.type) && node.is_terminal())
+                    sms += "\nDid you forget rlang injection operator `!!`?";
+                throw std::invalid_argument(sms);
+            }
 
             if (parse::is_data_wide(node.type))
             {
@@ -409,13 +417,16 @@ namespace housepi
             }
             else
                 throw std::invalid_argument(
-                    "Unrecognized source type '" + node.type + "' found while parsing '" + node.str() + "'.");
+                    "Unrecognized source type '" + node.type +
+                    "' found while parsing " + node.err_str() + ".");
         }
 
         return storage_;
     }
 
-    void Parameter::helper_store_read_function_(const parse::Entry &node, const Individual *member_ptr) const
+    void Parameter::helper_store_read_function_(
+        const parse::Entry &node,
+        const Individual *member_ptr) const
     {
         Attribute parent;
         parent.init_function(compose_func_registries(
@@ -429,12 +440,15 @@ namespace housepi
         storage_ = parent;
     }
 
-    const Attribute &Parameter::read_numeric(const parse::Entry &node, const Individual *member_ptr) const
+    const Attribute &Parameter::read_numeric(
+        const parse::Entry &node,
+        const Individual *member_ptr) const
     {
         storage_ = read_attribute(node, member_ptr);
         if (!storage_.is_numeric() && !storage_.is_empty())
             throw std::invalid_argument(
-                "Definition '" + node.str() + "' could not be interpreted as a numeric constant.");
+                "Definition " + node.err_str() +
+                " could not be interpreted as a numeric constant.");
         return storage_;
     }
 }

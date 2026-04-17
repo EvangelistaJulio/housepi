@@ -69,28 +69,29 @@ public:
 		/////////////  PARTITIONS  ////////////
 		///////////////////////////////////////
 
-		// associate partition
+		// associate infected integer-partition
 		const size_t n_infec = house.n_infected_status();
-		std::vector<size_t> partition_indexes;
-		std::vector<unsigned> partition_counts;
+		std::vector<size_t> partition_indexes = {};	 // representatives
+		std::vector<unsigned> partition_counts = {}; // counts
 
-		for (size_t i = 0; i < n_infec; ++i)
+		// UPDATE: I will move this in a ModelBase helper function
+		for (size_t oi = 0; oi < n_infec; ++oi)
 		{
 			// search existing partitions for a match
 			size_t K = partition_indexes.size(); // tentatively new
-			for (size_t j = 0; j < K; ++j)
-				if (is_same_rate_partition(house, order[partition_indexes[j]], order[i]))
-					K = j;
+			for (size_t oj = 0; oj < K; ++oj)
+				if (is_same_rate_partition(house, order[partition_indexes[oj]], order[oi]))
+					K = oj; // this acts as a break
 
 			if (K == partition_indexes.size())
 			{
 				// append new partition at the end
 				partition_counts.push_back(1);
-				partition_indexes.push_back(i);
+				partition_indexes.push_back(oi);
 			}
 			else
 			{
-				// increment and bubble up to guarantee descending order
+				// update counts, then bubble-up to guarantee descending order
 				++partition_counts[K];
 				while (K > 0 && partition_counts[K] > partition_counts[K - 1])
 				{
@@ -102,7 +103,7 @@ public:
 		}
 
 		// store in the cache
-		size_t K = partition_indexes.size();
+		size_t K = partition_indexes.size(); // n. of infected partitions
 		for (size_t i = 0; i < K; ++i)
 		{
 			cache_size_vector(house, HHsizevecKey::part_counts)[i] = partition_counts[i];
@@ -160,28 +161,33 @@ void Model::fill_house_escape_matrix(Household &house)
 	auto &p2p_mtx = cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate);
 
 	// fill matrix according to order
-	for (size_t i = 0; i < house_size; ++i)
+	for (size_t oi = 0; oi < house_size; ++oi)
 	{
-		const Individual &member_i = house.member(order[i]);
+		size_t i = order[oi]; // retrieve household member index (partition representative)
+		const Individual &member_i = house.member(i);
 		double inf_i = member_i.group_rate(GroupRateKey::infectivity);
 		double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
 
-		// community
-		commu_mtx[i] = commu_rate * member_i.group_rate(GroupRateKey::community);
+		// community filled in order
+		commu_mtx[oi] = commu_rate * member_i.group_rate(GroupRateKey::community);
 
 		// person-to-person
-		// NOTE: with respect to heterogeneous, I need to compute also diagonal terms
-		// UPDATE: I would like a unifying approach...
-		for (size_t j = 0; j <= i; ++j)
+		for (size_t oj = 0; oj < oi; ++oj)
 		{
-			const Individual &member_j = house.member(order[j]);
+			size_t j = order[oj];
+			const Individual &member_j = house.member(j);
 			// [i] : infector -> [k] : infectee
-			p2p_mtx[i][j] = inf_i * p2p_rate * house.contact_rate(i, j) *
-							member_j.group_rate(GroupRateKey::susceptibility);
+			p2p_mtx[oi][oj] = inf_i * p2p_rate * house.contact_rate(i, j) *
+							  member_j.group_rate(GroupRateKey::susceptibility);
 			// [k] : infector -> [i] : infectee
-			p2p_mtx[j][i] = member_j.group_rate(GroupRateKey::infectivity) *
-							house.contact_rate(j, i) * p2p_rate * sus_i;
+			p2p_mtx[oj][oi] = member_j.group_rate(GroupRateKey::infectivity) *
+							  house.contact_rate(j, i) * p2p_rate * sus_i;
 		}
+
+		// NOTE: four partitions, I need to compute also diagonal terms:
+		// i. e. from partition 'i' to partition 'i' (intra-partition)
+		// NOTE: by definition house.contact_rate(i, i) = 0
+		p2p_mtx[oi][oi] = inf_i * house.intra_partition_contact_rate(i) * p2p_rate * sus_i;
 	}
 }
 
