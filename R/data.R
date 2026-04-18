@@ -137,7 +137,7 @@ NULL
 #' @keywords datasets
 #' @name flu_2014_matsumoto
 #' @usage data(flu_2014_matsumoto)
-#' @format A data frame with 42,045 rows and 3 columns
+#' @format A data frame with 47,213 rows and 3 columns
 #' @source <https://raw.githubusercontent.com/akira-endo/HHstudy_FluMatsumoto2014-15/master/HHdata_FluMatsumoto2014-15.csv>
 #'
 #' @details

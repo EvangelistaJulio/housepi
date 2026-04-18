@@ -5,7 +5,7 @@
 \alias{flu_2014_matsumoto}
 \title{Flu 2014-15 Matsumoto}
 \format{
-A data frame with 42,045 rows and 3 columns
+A data frame with 47,213 rows and 3 columns
 }
 \source{
 \url{https://raw.githubusercontent.com/akira-endo/HHstudy_FluMatsumoto2014-15/master/HHdata_FluMatsumoto2014-15.csv}

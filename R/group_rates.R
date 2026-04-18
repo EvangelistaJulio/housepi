@@ -298,14 +298,20 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
   is_default <- sapply(c(prior, args, min, max, proposal, proposal_scale),
                        function(x) is.na(x) || is.null(x))
   # if all defaults, provide default choice
-  if (all(is_default)) list(
-    prior = "lognormal", meanlog = 0, sdlog = 3,
-    min = 0, max = 10, proposal = "lognormal"
-  )
-  # else go with user choice
-  else c(list(prior = prior), args,
-         list(min = min, max = max,
-              proposal = proposal, proposal_scale = proposal_scale))
+  if (all(is_default)) {
+    list(prior = "lognormal", meanlog = 0, sdlog = 3,
+         min = 0, max = 10, proposal = "lognormal")
+  } else {
+    # if prior is default -> spare arguments
+    if (is_default[1]) stop_h(
+      "If any prior argument is provided for rate, 'prior' must be specified.",
+      "Either leave all arguments as defaults or provide a new definition."
+    )
+    # else go with user choice
+    c(list(prior = prior), args,
+      list(min = min, max = max,
+           proposal = proposal, proposal_scale = proposal_scale))
+  }
 }
 
 ############################################################################

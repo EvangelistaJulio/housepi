@@ -707,20 +707,24 @@ namespace housepi::bino
 
         if (node.gen == 0)
             for (unsigned t = 0; t < K; ++t)
-                log_prob += node.comp[t] * std::log1p(-std::exp(log_commu_esc[t])) +
-                            (node.remaining[t] - node.comp[t]) * log_commu_esc[t];
+            {
+                if (node.comp[t] > 0)
+                    log_prob += node.comp[t] * std::log1p(-std::exp(log_commu_esc[t]));
+                if (node.remaining[t] > node.comp[t])
+                    log_prob += (node.remaining[t] - node.comp[t]) * log_commu_esc[t];
+            }
         else
             for (unsigned t = 0; t < K; ++t)
             {
                 if (node.comp[t] == 0)
                     continue;
 
-                for (unsigned s = 0; s < K; ++s)
-                    log_prob += node.comp[t] * node.cumul[s] * log_p2p_esc[s][t];
-
                 double log_esc_prev = 0.;
                 for (unsigned s = 0; s < K; ++s)
+                {
+                    log_prob += node.comp[t] * node.cumul[s] * log_p2p_esc[s][t];
                     log_esc_prev += node.prev[s] * log_p2p_esc[s][t];
+                }
 
                 log_prob += node.comp[t] * std::log1p(-std::exp(log_esc_prev));
             }

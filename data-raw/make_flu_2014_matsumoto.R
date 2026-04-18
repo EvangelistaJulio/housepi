@@ -7,15 +7,14 @@ flu_2014_matsumoto <- read.csv(url) |>
   dplyr::mutate(house_id = seq_len(dplyr::n())) |>
   tidyr::pivot_longer(cols = matches("\\.(num|inf)$"),
                       names_to = c("member", ".value"),
-                      names_sep = "\\.",
-                      values_drop_na = FALSE) |>
-  dplyr::filter(num > 0, num > inf) |>
-  dplyr::mutate(
-    status = lapply(seq_len(dplyr::n()), function(i) {
-      c(rep(1L, inf[i]), rep(0L, num[i] - inf[i]))
-    }),
-    member = stringr::str_to_lower(member)
-  ) |>
+                      names_sep = "\\.") |>
+  # assume under-reporting if more infected than members (Endo, et al. '19)
+  dplyr::mutate(num = pmax(num, inf)) |>
+  dplyr::filter(num > 0L) |>
+  dplyr::mutate(status = lapply(seq_len(dplyr::n()), function(i) {
+                  c(rep(1L, inf[i]), rep(0L, num[i] - inf[i]))
+                }),
+                member = stringr::str_to_lower(member)) |>
   tidyr::unnest(status) |>
   dplyr::select(house_id, status, member) |>
   as.data.frame()

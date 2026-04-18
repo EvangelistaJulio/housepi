@@ -64,6 +64,12 @@ public:
 		order.insert(order.end(), house.susceptible_hhindexes().begin(), house.susceptible_hhindexes().end());
 	}
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////  Model : compute single house loglike  //////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+
 	/// Risk of infection from the community.
 	double community_risk() const { return par(ParamKey::alpha); }
 	/// Risk of infection from another household member.
@@ -74,126 +80,114 @@ public:
 	}
 	/// Store person-to-person escape probabilities inside a cache.
 	/// Important: it must be re-ordered to have seropositives first.
-	void fill_house_escape_matrix(Household &house);
-
-	/// Compute the log-likelihood for a single household.
-	double compute_house_obs_log_lik(Household &house) override final;
-
-	/// Simulate the infection within a household.
-	void simulate_single_house(Household &house) override final;
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////  Model : compute single house loglike  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-double Model::compute_house_obs_log_lik(Household &house)
-{
-	// fill matrix with escape probabilities
-	fill_house_escape_matrix(house);
-
-	// compute corresponding loglikelihood times house multiplicity
-	return bino::chain_binom_heterogeneous_log_lik(
-		house.n_infected_status(),
-		cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
-		cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
-}
-
-void Model::fill_house_escape_matrix(Household &house)
-{
-	size_t house_size = house.size();
-	const auto &order = cache_size_vector(house, HHsizevecKey::order);
-	const double commu_rate = community_risk();
-	const double p2p_rate = person_to_person_risk(house_size);
-
-	// assign values to escape matrix
-	auto &commu_mtx = cache_double_vector(house, HHdoublevecKey::commu_escape_rate);
-	auto &p2p_mtx = cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate);
-
-	// fill matrix according to order
-	for (size_t oi = 0; oi < house_size; ++oi)
+	void fill_house_escape_matrix(Household &house)
 	{
-		size_t i = order[oi]; // retrieve household member index
-		const Individual &member_i = house.member(i);
-		double inf_i = member_i.group_rate(GroupRateKey::infectivity);
-		double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
+		size_t house_size = house.size();
+		const auto &order = cache_size_vector(house, HHsizevecKey::order);
+		const double commu_rate = community_risk();
+		const double p2p_rate = person_to_person_risk(house_size);
 
-		// community
-		commu_mtx[oi] = commu_rate * member_i.group_rate(GroupRateKey::community);
+		// assign values to escape matrix
+		auto &commu_mtx = cache_double_vector(house, HHdoublevecKey::commu_escape_rate);
+		auto &p2p_mtx = cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate);
 
-		// person-to-person
-		for (size_t oj = 0; oj < oi; ++oj)
+		// fill matrix according to order
+		for (size_t oi = 0; oi < house_size; ++oi)
 		{
-			size_t j = order[oj];
-			const Individual &member_j = house.member(j);
-			// [i] : infector -> [j] : infectee
-			p2p_mtx[oi][oj] = inf_i * p2p_rate * house.contact_rate(i, j) *
-							  member_j.group_rate(GroupRateKey::susceptibility);
-			// [j] : infector -> [i] : infectee
-			p2p_mtx[oj][oi] = member_j.group_rate(GroupRateKey::infectivity) *
-							  p2p_rate * house.contact_rate(j, i) * sus_i;
+			size_t i = order[oi]; // retrieve household member index
+			const Individual &member_i = house.member(i);
+			const double inf_i_scl = member_i.group_rate(GroupRateKey::infectivity) * p2p_rate;
+			const double sus_i_scl = p2p_rate * member_i.group_rate(GroupRateKey::susceptibility);
+
+			// community
+			commu_mtx[oi] = commu_rate * member_i.group_rate(GroupRateKey::community);
+
+			// person-to-person
+			for (size_t oj = 0; oj < oi; ++oj)
+			{
+				size_t j = order[oj];
+				const Individual &member_j = house.member(j);
+				// [i] : infector -> [j] : infectee
+				p2p_mtx[oi][oj] = inf_i_scl * house.contact_rate(i, j) *
+								  member_j.group_rate(GroupRateKey::susceptibility);
+				// [j] : infector -> [i] : infectee
+				p2p_mtx[oj][oi] = member_j.group_rate(GroupRateKey::infectivity) *
+								  house.contact_rate(j, i) * sus_i_scl;
+			}
 		}
 	}
-}
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  Model : simulate single house  //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Model::simulate_single_house(Household &house)
-{
-	const double commu_rate = community_risk();
-	const double p2p_rate = person_to_person_risk(house.size());
-
-	//////////////////////////////////////////////////////////////////
-	/////////////  Generation 0 : infection by community  ////////////
-	//////////////////////////////////////////////////////////////////
-
-	std::vector<size_t> new_gen_set = {};
-
-	for (size_t i = 0; i < house.size(); ++i)
-		if (exponential() > commu_rate * house.member(i).group_rate(GroupRateKey::community))
-			house.set_susceptible_status(i);
-		else
-		{
-			house.set_infected_status(i);
-			new_gen_set.push_back(i);
-		}
-
-	//////////////////////////////////////////////////////////////////
-	//////  Generation >=1 : infection by previous generation  ///////
-	//////////////////////////////////////////////////////////////////
-
-	std::vector<size_t> old_gen_set = {};
-
-	while (house.n_susceptible_status() > 0 && !new_gen_set.empty())
+	/// Compute the log-likelihood for a single household.
+	double compute_house_obs_log_lik(Household &house) override final
 	{
-		std::swap(old_gen_set, new_gen_set);
-		new_gen_set.clear();
+		// fill matrix with escape probabilities
+		fill_house_escape_matrix(house);
+
+		// compute corresponding loglikelihood times house multiplicity
+		return bino::chain_binom_heterogeneous_log_lik(
+			house.n_infected_status(),
+			cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
+			cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
+	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////  Model : simulate single house  //////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+
+	/// Simulate the infection within a household.
+	void simulate_single_house(Household &house) override final
+	{
+		const double commu_rate = community_risk();
+		const double p2p_rate = person_to_person_risk(house.size());
+
+		//////////////////////////////////////////////////////////////////
+		/////////////  Generation 0 : infection by community  ////////////
+		//////////////////////////////////////////////////////////////////
+
+		std::vector<size_t> new_gen_set = {};
 
 		for (size_t i = 0; i < house.size(); ++i)
-		{
-			Individual &member_i = house.member(i);
-
-			if (member_i.is_infected_status())
-				continue;
-
-			double r = 0.;
-			for (size_t j : old_gen_set)
-				r += house.member(j).group_rate(GroupRateKey::infectivity) *
-					 house.contact_rate(j, i);
-
-			double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
-			if (exponential() < r * p2p_rate * sus_i)
+			if (exponential() > commu_rate * house.member(i).group_rate(GroupRateKey::community))
+				house.set_susceptible_status(i);
+			else
 			{
 				house.set_infected_status(i);
 				new_gen_set.push_back(i);
 			}
+
+		//////////////////////////////////////////////////////////////////
+		//////  Generation >=1 : infection by previous generation  ///////
+		//////////////////////////////////////////////////////////////////
+
+		std::vector<size_t> old_gen_set = {};
+
+		while (house.n_susceptible_status() > 0 && !new_gen_set.empty())
+		{
+			std::swap(old_gen_set, new_gen_set);
+			new_gen_set.clear();
+
+			for (size_t i = 0; i < house.size(); ++i)
+			{
+				Individual &member_i = house.member(i);
+
+				if (member_i.is_infected_status())
+					continue;
+
+				double r = 0.;
+				for (size_t j : old_gen_set)
+					r += house.member(j).group_rate(GroupRateKey::infectivity) *
+						 house.contact_rate(j, i);
+
+				double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
+				if (exponential() < r * p2p_rate * sus_i)
+				{
+					house.set_infected_status(i);
+					new_gen_set.push_back(i);
+				}
+			}
 		}
 	}
-}
+};
 HOUSEPI_CLOSE_MODULE_NAMESPACE()
