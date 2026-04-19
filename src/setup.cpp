@@ -272,14 +272,12 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Interactive:
-                msg::info("\r" + sms);
-                return;
             case Mode::Static:
                 msg::info(sms + "\n");
                 return;
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Interactive:
+                msg::info("\r" + sms);
+                return;
             }
         }
 

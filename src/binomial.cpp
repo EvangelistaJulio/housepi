@@ -42,12 +42,10 @@ namespace housepi::bino
     /// Binomial coefficient of N elements in k positions
     inline unsigned long binom_coeff(unsigned N, unsigned k)
     {
-        if (N == 0 || k == N)
-            return 1;
+        unsigned long result = 1;
         // note: use symmetry
         if (k > N - k)
             k = N - k;
-        unsigned long result = 1;
         for (unsigned i = 1; i <= k; ++i)
             result = result * (N - k + i) / i;
         return result;

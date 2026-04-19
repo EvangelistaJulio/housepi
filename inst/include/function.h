@@ -91,11 +91,8 @@ namespace housepi
             case Mode::Numeric:
                 value_ = x;
                 return;
-            case Mode::Pointer:
-            case Mode::Function:
+            default: // cases Mode::Pointer,  Mode::Function
                 raise_set_error_();
-            default:
-                __builtin_unreachable();
             }
         }
 
@@ -114,15 +111,10 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Empty:
-            case Mode::Numeric:
-                return this;
             case Mode::Pointer:
                 return pAttr_->pointer();
-            case Mode::Function:
+            default: // cases Mode::Empty, Mode::Numeric, Mode::Function
                 return this;
-            default:
-                __builtin_unreachable();
             }
         }
         /// Get pointer to attribute function.
@@ -131,15 +123,12 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Empty:
-            case Mode::Numeric:
-                return nullptr;
             case Mode::Pointer:
                 return pAttr_->function();
             case Mode::Function:
                 return pFunc_.get();
-            default:
-                __builtin_unreachable();
+            default: // cases Mode::Empty, Mode::Numeric
+                return nullptr;
             }
         }
 
@@ -273,14 +262,12 @@ namespace housepi
         /// NOTE: always to be called ONLY after init_discretization.
         virtual void init_truncation() { helper_init_standard_range_(); };
 
-        /// Select function method for return value.
-        void set_eval_call() noexcept { eval_mode_ = Mode::Evaluate::Function; }
-        /// Select primitive method for return value.
-        void set_eval_primitive() noexcept { eval_mode_ = Mode::Evaluate::Primitive; }
-        /// Select call as a distributin method for return value.
-        void set_eval_as_distr_call() noexcept { eval_mode_ = Mode::Evaluate::Probability; }
-        /// Select primitive as a distributin method for return value.
-        void set_eval_as_distr_primitive() noexcept { eval_mode_ = Mode::Evaluate::Cumulative; }
+        /// Select primitive method for implicit evaluate.
+        void set_eval_as_prim() noexcept { eval_mode_ = Mode::Evaluate::Primitive; }
+        /// Select pdf as implicit evaluate (default for distributions).
+        void set_eval_as_pdf() noexcept { eval_mode_ = Mode::Evaluate::Probability; }
+        /// Select cdf as implicit evaluate.
+        void set_eval_as_cdf() noexcept { eval_mode_ = Mode::Evaluate::Cumulative; }
 
         /// Set argument value.
         /// UPDATE: just required by AdaptableProposal.
@@ -317,24 +304,43 @@ namespace housepi
         {
             switch (eval_mode_)
             {
-            case Mode::Evaluate::Function:
-                return function_(delocate_(x));
             case Mode::Evaluate::Primitive:
                 return primitive_(delocate_(x));
             case Mode::Evaluate::Probability:
                 return pdf(x);
             case Mode::Evaluate::Cumulative:
                 return cdf(x);
-            default:
-                __builtin_unreachable();
+            default: // case  Mode::Evaluate::Function:
+                return function_(delocate_(x));
             }
         }
 
+        /// Return function value at x (with delocation applied).
+        double func(double x) const { return function_(delocate_(x)); }
+        /// Return log-function value at x (with delocation applied).
+        double log_func(double x) const { return log_func_(delocate_(x)); }
+        /// Return primitive value at x (with delocation applied).
+        double prim(double x) const { return primitive_(delocate_(x)); }
+
         /// Return value as for a probability density/mass function.
         double pdf(double x) const { return is_valid(x) ? function_(delocate_(x)) : 0.; }
-
         /// Return value as for a cumulative distribution function.
         double cdf(double x) const { return is_below(x) ? 0 : primitive_(delocate_(is_above(x) ? upper_.value() : x)); }
+
+        /// Return value of log-ratio of probability density/mass functions.
+        double log_ratio(double xo, double xn) const { return log_ratio_(delocate_(xo), delocate_(xn)); }
+        /// Check for validity, then return value of log-ratio of probability density/mass functions.
+        double log_ratio_safe(double xo, double xn) const
+        {
+            bool ov = is_valid(xo), nv = is_valid(xn);
+            if (ov && nv)
+                return log_ratio_(delocate_(xo), delocate_(xn));
+            else if (!ov && nv)
+                return std::numeric_limits<double>::infinity();
+            else if (ov && !nv)
+                return -std::numeric_limits<double>::infinity();
+            return na::DOUBLE;
+        }
 
         /////////////////////
         //////  FLAGS  //////
@@ -359,14 +365,12 @@ namespace housepi
         {
             switch (below_mode_)
             {
-            case Mode::Interval::None:
-                return false;
             case Mode::Interval::Open:
                 return delocate_(x) <= lower_.value();
             case Mode::Interval::Closed:
                 return delocate_(x) < lower_.value();
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Interval::None:
+                return false;
             }
         }
 
@@ -375,14 +379,12 @@ namespace housepi
         {
             switch (above_mode_)
             {
-            case Mode::Interval::None:
-                return false;
             case Mode::Interval::Open:
                 return delocate_(x) >= upper_.value();
             case Mode::Interval::Closed:
                 return delocate_(x) > upper_.value();
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Interval::None:
+                return false;
             }
         }
 
@@ -431,6 +433,8 @@ namespace housepi
         virtual double raw_log_func_(double) const { raise_undefined_call_err_("log_func"); }
         /// Raw primitive method.
         virtual double raw_primitive_(double) const { raise_undefined_call_err_("primitive"); }
+        /// Raw quantile method.
+        virtual double raw_quantile_(double) const { raise_undefined_call_err_("quantile"); }
         /// Raw log-ratio method. NOTE: empty function return 0 by convention.
         virtual double raw_log_ratio_(double, double) const { return 0.; }
 
@@ -443,8 +447,6 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::None:
-                return raw_function_(x);
             case Mode::Discrete::Center:
             {
                 const double i = std::round(x);
@@ -457,8 +459,8 @@ namespace housepi
             }
             case Mode::Discrete::Defined:
                 return raw_function_(std::floor(x));
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Discrete::None:
+                return raw_function_(x);
             }
         }
 
@@ -467,8 +469,6 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::None:
-                return raw_log_func_(x);
             case Mode::Discrete::Center:
             {
                 const double i = std::round(x);
@@ -481,8 +481,8 @@ namespace housepi
             }
             case Mode::Discrete::Defined:
                 return raw_log_func_(std::floor(x));
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Discrete::None:
+                return raw_log_func_(x);
             }
         }
 
@@ -491,16 +491,14 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::None:
-                return raw_primitive_(x);
             case Mode::Discrete::Center:
                 return raw_primitive_(std::round(x) + 0.5);
             case Mode::Discrete::Left:
                 return raw_primitive_(std::floor(x) + 1.);
             case Mode::Discrete::Defined:
                 return raw_primitive_(std::floor(x));
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Discrete::None:
+                return raw_primitive_(x);
             }
         }
 
@@ -509,8 +507,6 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::None:
-                return raw_log_ratio_(xo, xn);
             case Mode::Discrete::Center:
             {
                 const double io = std::round(xo), in = std::round(xn);
@@ -529,8 +525,8 @@ namespace housepi
             }
             case Mode::Discrete::Defined:
                 return raw_log_ratio_(std::floor(xo), std::floor(xn));
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Discrete::None:
+                return raw_log_ratio_(xo, xn);
             }
         }
 
@@ -544,12 +540,10 @@ namespace housepi
         {
             switch (deloc_mode_)
             {
-            case Mode::Location::None:
-                return x;
             case Mode::Location::Active:
                 return x - loc_.value();
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Location::None:
+                return x;
             }
         }
 
@@ -558,12 +552,10 @@ namespace housepi
         {
             switch (deloc_mode_)
             {
-            case Mode::Location::None:
-                return x;
             case Mode::Location::Active:
                 return x + loc_.value();
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Location::None:
+                return x;
             }
         }
 
@@ -585,16 +577,14 @@ namespace housepi
     {
         switch (mode_)
         {
-        case Mode::Empty:
-            raise_get_error_();
         case Mode::Numeric:
             return value_;
         case Mode::Pointer:
             return pAttr_->value();
         case Mode::Function:
             return pFunc_->evaluate();
-        default:
-            __builtin_unreachable();
+        default: // case Mode::Empty:
+            raise_get_error_();
         }
     }
 

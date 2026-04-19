@@ -100,12 +100,10 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Unique:
-                return 1;
             case Mode::Multiple:
                 return multiplicity_[R].value_;
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Unique:
+                return 1;
             }
         }
         /// Index to household multiplicity group.
@@ -113,12 +111,10 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Unique:
-                return H;
             case Mode::Multiple:
                 return house_vector_[H].ridx_;
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Unique:
+                return H;
             }
         }
         /// Number of household multiplicity groups.
@@ -126,12 +122,10 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Unique:
-                return report_house.total;
             case Mode::Multiple:
                 return multiplicity_.size();
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Unique:
+                return report_house.total;
             }
         }
         /// Restrict to head of household multiplicity group.
@@ -139,24 +133,20 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Unique:
-                return at(R);
             case Mode::Multiple:
                 return at(multiplicity_[R].head_);
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Unique:
+                return at(R);
             }
         }
         const Household &restricted(size_t R) const
         {
             switch (mode_)
             {
-            case Mode::Unique:
-                return at(R);
             case Mode::Multiple:
                 return at(multiplicity_[R].head_);
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Unique:
+                return at(R);
             }
         }
 

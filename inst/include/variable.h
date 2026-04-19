@@ -123,12 +123,10 @@ namespace housepi
         {
             switch (ratio_mode_)
             {
-            case Ratio::None:
-                return 0;
             case Ratio::Compute:
                 return get_distr_log_ratio() - get_propose_log_ratio();
-            default:
-                __builtin_unreachable();
+            default: // case Ratio::None:
+                return 0;
             }
         }
 

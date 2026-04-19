@@ -61,9 +61,6 @@ HousepiPosteriorDraws <- R6::R6Class(
     # @param x `matrix` or `data.frame`. Draws exported from Rcpp core.
     # @return `posterior::draws_df`
     to_posterior_draws_ = function(x) {
-      if (!is.matrix(x)) stop_h(
-        "Something went wrong while exporting posterior draws."
-      )
       if (length(x) == 0) return(NULL)
 
       # split into a list of matrix

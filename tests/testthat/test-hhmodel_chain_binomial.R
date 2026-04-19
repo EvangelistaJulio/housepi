@@ -181,8 +181,24 @@ test_that("Single infected member log-likelihood is correct", {
 test_that("Three infected members likelihood is correct", {
   par <- par_3
   house <- house_3
-  # fill house escape rate matrices
+  # fill community escape rate matrices
   commu_infec_rate <- par$alpha * house$community
+
+  # define housepi heterogeneous model
+  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
+  hhmodel$load_group_rate_list(!!!groups)
+  do.call(hhmodel$add_contact_rate, contacts)
+  hhmodel$add_data_wide(dplyr::mutate(house, status = 0))
+  hhmodel$load_parameter_list(!!!par)
+
+  # CASE 1: no infected
+  log_lik <- -sum(commu_infec_rate)
+  expect_equal(hhmodel$evaluate_log_lik(), log_lik)
+
+  # CASE 2: mixed infected and susceptible
+  hhmodel$add_data_wide(house)
+
+  # fill person-to-person within-house escape rate matrices
   p2p_infec_rate <- par$beta * house$infectivity %o% house$susceptibility *
     make_ctr_mtx(house, crates_3)
 
@@ -226,13 +242,8 @@ test_that("Three infected members likelihood is correct", {
           lik_2(1, 2, 3) + lik_2(2, 3, 1) + lik_2(3, 1, 2) +
           lik_3(1, 2, 3) + lik_3(2, 3, 1) + lik_3(3, 1, 2))
 
-  # define housepi heterogeneous model
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel$load_group_rate_list(!!!groups)
-  do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$add_data_wide(house)
-  hhmodel$load_parameter_list(!!!par)
-  expect_equal(log_lik, hhmodel$evaluate_log_lik())
+  # compare to model housepi heterogeneous model
+  expect_equal(hhmodel$evaluate_log_lik(), log_lik)
 })
 
 #####################################################
@@ -299,7 +310,7 @@ test_that("Grouped model with all unique types matches heterogeneous", {
   house$id <- sprintf("hh_01_%s", seq(1, dim(house)[1]))
   house$status <- c(rep(1, 3), 0)
   # remove unused parameters to avoid warnings
-  par <- par_3[!stringr::str_ends(names(par_3), "_c") & 
+  par <- par_3[!stringr::str_ends(names(par_3), "_c") &
                  !stringr::str_detect(names(par_3), "class_c")]
   # add missing intra-partition contact parameter
   par <- c(par, list(class_b_to_class_b = 0.75))
@@ -360,7 +371,7 @@ test_that("Grouped model matches heterogeneous for mixed types (size 6)", {
   # add missing intra-partition contact parameters
   par <- c(par, list(class_a_to_class_a = 0.33,
                      class_b_to_class_b = 0.75))
-  
+
   house$id <- sprintf("hh_01_%s", seq(1, dim(house)[1]))
   house$status <- c(rep(1, 5), 0)
 

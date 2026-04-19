@@ -110,14 +110,11 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Generic:
-            case Mode::Augmented:
-                return;
             case Mode::LookUp:
                 lookup_.update();
                 break;
-            default:
-                __builtin_unreachable();
+            default: // cases Mode::Generic, Mode::Augmented
+                return;
             }
         }
 
@@ -126,14 +123,11 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Generic:
-            case Mode::Augmented:
-                return;
             case Mode::LookUp:
                 lookup_.recover();
                 break;
-            default:
-                __builtin_unreachable();
+            default: // cases Mode::Generic, Mode::Augmented
+                return;
             }
         }
 
@@ -149,12 +143,10 @@ namespace housepi
             {
             case Mode::Augmented:
                 return member_ptr->get_augm_variable(augm_key).function()->pdf(t);
-            case Mode::Generic:
-                return generic->pdf(t);
             case Mode::LookUp:
                 return lookup_.inst(t);
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Generic
+                return generic->pdf(t);
             }
         }
         double cumul(const Individual *member_ptr, double t) const
@@ -163,12 +155,10 @@ namespace housepi
             {
             case Mode::Augmented:
                 return member_ptr->get_augm_variable(augm_key).function()->cdf(t);
-            case Mode::Generic:
-                return generic->cdf(t);
             case Mode::LookUp:
                 return generic->is_below(t) ? 0. : lookup_.cumul(t);
-            default:
-                __builtin_unreachable();
+            default: // case Mode::Generic
+                return generic->cdf(t);
             }
         }
 

@@ -124,7 +124,7 @@ If you are more comfortable with R6, another way to associate data (and definiti
 #| label: import-data
 # import data in wide format using R6 active field
 hhmodel <- hhmodel |>
-  add_data_wide(housepi::flu_1918_frederick)
+  add_data_wide(flu_1918_frederick)
 ```
 
 The housepi package comes with a few public datasets to be used for testing.
@@ -313,7 +313,7 @@ We then propose a simple observation process, where we assume onsets after 6 PM 
 ```{r}
 #| label: run-simulation
 # load a dataset for the data structure
-community_structure <- housepi::sarscov2_2021_icofs |> 
+community_structure <- sarscov2_2021_icofs |> 
   dplyr::select(id, house_id, age, sex) |> 
   dplyr::mutate(status = NA, end_followup = 21)
 

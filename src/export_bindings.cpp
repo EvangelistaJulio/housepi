@@ -98,6 +98,7 @@ namespace
         ///////////////////////////
         //////  CONSTRUCTOR  //////
         ///////////////////////////
+
         ExposeBase(std::string name, const std::string &family,
                    std::vector<std::string> registry_types)
             : family_(family)
@@ -173,14 +174,38 @@ namespace
         std::unique_ptr<Function> ptr_;
         std::string family_;
 
-        Rcpp::NumericVector call_(Rcpp::NumericVector x) const
+        template <class Fn>
+        Rcpp::NumericVector call_(Fn fn, Rcpp::NumericVector x) const
         {
             try
             {
                 const R_xlen_t n = x.size();
                 Rcpp::NumericVector y(n);
                 for (R_xlen_t i = 0; i < n; ++i)
-                    y[i] = ptr_->evaluate(x[i]);
+                    y[i] = fn(x[i]);
+                return y;
+            }
+            catch (const std::exception &e)
+            {
+                msg::error(
+                    "While calling " + family_ + " '" + std::string(ptr_->name()) + "':\n" + e.what());
+            }
+        }
+
+        template <class Fn>
+        Rcpp::NumericVector call_ratio_(Fn fn,
+                                        Rcpp::NumericVector xo,
+                                        Rcpp::NumericVector xn) const
+        {
+            try
+            {
+                const R_xlen_t n = xo.size();
+                if (xn.size() != n)
+                    throw std::invalid_argument(
+                        "Size of 'xo' must be identical to size of 'xn'.");
+                Rcpp::NumericVector y(n);
+                for (R_xlen_t i = 0; i < n; ++i)
+                    y[i] = fn(xo[i], xn[i]);
                 return y;
             }
             catch (const std::exception &e)
@@ -191,6 +216,17 @@ namespace
         }
     };
 
+#define MAKE_EXPOSE_METHOD_CALL(name, expr)                 \
+    Rcpp::NumericVector name(Rcpp::NumericVector x) const   \
+    {                                                       \
+        return call_([this](double v) { return expr; }, x); \
+    }
+#define MAKE_EXPOSE_METHOD_CALL_RATIO(name, expr)                                  \
+    Rcpp::NumericVector name(Rcpp::NumericVector xo, Rcpp::NumericVector xn) const \
+    {                                                                              \
+        return call_ratio_([this](double vo, double vn) { return expr; }, xo, xn); \
+    }
+
     class ExposeFunction : public ExposeBase
     {
     public:
@@ -198,16 +234,10 @@ namespace
             : ExposeBase(name_, "function",
                          {"custom", "transcendental", "arithmetic"}) {}
 
-        Rcpp::NumericVector func(Rcpp::NumericVector x) const
-        {
-            ptr_->set_eval_call();
-            return call_(x);
-        }
-        Rcpp::NumericVector prim(Rcpp::NumericVector x) const
-        {
-            ptr_->set_eval_primitive();
-            return call_(x);
-        }
+        MAKE_EXPOSE_METHOD_CALL(func, ptr_->func(v))
+        MAKE_EXPOSE_METHOD_CALL(log_func, ptr_->log_func(v))
+        MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, ptr_->log_ratio_safe(vo, vn))
+        MAKE_EXPOSE_METHOD_CALL(prim, ptr_->prim(v))
     };
 
     class ExposeDistribution : public ExposeBase
@@ -217,16 +247,14 @@ namespace
             : ExposeBase(name_, "distribution",
                          {"continuos", "discrete"}) {}
 
-        Rcpp::NumericVector pdf(Rcpp::NumericVector x) const
-        {
-            ptr_->set_eval_as_distr_call();
-            return call_(x);
-        }
-        Rcpp::NumericVector cdf(Rcpp::NumericVector x) const
-        {
-            ptr_->set_eval_as_distr_primitive();
-            return call_(x);
-        }
+        MAKE_EXPOSE_METHOD_CALL(pdf, ptr_->pdf(v))
+        MAKE_EXPOSE_METHOD_CALL(log_pdf, distr_()->log_pdf_safe(v))
+        MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, distr_()->log_ratio_safe(vo, vn))
+        MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
+        MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile_safe(v))
+
+    private:
+        Distribution *distr_() const { return static_cast<Distribution *>(ptr_.get()); }
     };
 
     class ExposeInfecProfile : public ExposeBase
@@ -236,16 +264,8 @@ namespace
             : ExposeBase(name_, "infectivity profile",
                          {"infecprofile", "continuos", "discrete"}) {}
 
-        Rcpp::NumericVector inst(Rcpp::NumericVector x) const
-        {
-            ptr_->set_eval_as_distr_call();
-            return call_(x);
-        }
-        Rcpp::NumericVector cumul(Rcpp::NumericVector x) const
-        {
-            ptr_->set_eval_as_distr_primitive();
-            return call_(x);
-        }
+        MAKE_EXPOSE_METHOD_CALL(inst, ptr_->pdf(v))
+        MAKE_EXPOSE_METHOD_CALL(cumul, ptr_->cdf(v))
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1389,10 +1409,10 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAKE_EXPORT_CHARACTER_VECTOR(method)                            \
+#define MAKE_EXPORT_CHARACTER_VECTOR(method)                                \
     Rcpp::CharacterVector method(Rcpp::XPtr<housepi::ModelBase> model_xptr) \
-    {                                                                   \
-        return Rcpp::wrap(model_xptr->method());                        \
+    {                                                                       \
+        return Rcpp::wrap(model_xptr->method());                            \
     }
 
     MAKE_EXPORT_CHARACTER_VECTOR(compile_flags)
@@ -1472,13 +1492,13 @@ namespace
         Rcpp::CharacterVector col_names = data_wide.names();
 
         std::vector<std::string> house_id = {};
-         if(std::find(col_names.begin(), col_names.end(), "house_id") != col_names.end())
+        if (std::find(col_names.begin(), col_names.end(), "house_id") != col_names.end())
             house_id = Rcpp::as<std::vector<std::string>>(data_wide["house_id"]);
 
         std::vector<int> status = {};
-         if(std::find(col_names.begin(), col_names.end(), "status") != col_names.end())
-            status =  Rcpp::as<std::vector<int>>(data_wide["status"]);
-            
+        if (std::find(col_names.begin(), col_names.end(), "status") != col_names.end())
+            status = Rcpp::as<std::vector<int>>(data_wide["status"]);
+
         return measure::summarise_houses(house_id, status);
     }
 
@@ -1553,13 +1573,18 @@ RCPP_MODULE(housepi)
         .constructor<std::string>()
         .derives<ExposeBase>("ExposeBase")
         .method("func", &ExposeFunction::func)
+        .method("log_func", &ExposeFunction::log_func)
+        .method("log_ratio", &ExposeFunction::log_ratio)
         .method("prim", &ExposeFunction::prim);
 
     Rcpp::class_<ExposeDistribution>("ExposeDistribution")
         .constructor<std::string>()
         .derives<ExposeBase>("ExposeBase")
         .method("pdf", &ExposeDistribution::pdf)
-        .method("cdf", &ExposeDistribution::cdf);
+        .method("log_pdf", &ExposeDistribution::log_pdf)
+        .method("log_ratio", &ExposeDistribution::log_ratio)
+        .method("cdf", &ExposeDistribution::cdf)
+        .method("quantile", &ExposeDistribution::quantile);
 
     Rcpp::class_<ExposeInfecProfile>("ExposeInfecProfile")
         .constructor<std::string>()

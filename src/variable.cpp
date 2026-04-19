@@ -181,7 +181,8 @@ namespace housepi
         double adapt_scale_(double xold, double ratio)
         {
             xold *= 1. + (1. - ratio) * (accept_rate_ - 0.25);
-            return (xold < PROPOSAL_XTOL_SCALE) ? PROPOSAL_XTOL_SCALE : xold;
+            return (xold < PROPOSAL_XTOL_SCALE) ? PROPOSAL_XTOL_SCALE
+                                                : xold;
         }
     };
 
@@ -487,7 +488,8 @@ namespace housepi
 
         // set modes
         ratio_mode_ = Ratio::Compute;
-        valid_mode_ = pDistr_ ? Validity::Check : Validity::Always;
+        valid_mode_ = pDistr_ ? Validity::Check
+                              : Validity::Always;
     }
 
     void Variable::user_reset(rnd_gen &prng)
@@ -511,15 +513,11 @@ namespace housepi
     {
         switch (mode_)
         {
-        case Mode::Empty:
-        case Mode::Numeric:
-        case Mode::Pointer:
-            throw std::runtime_error(
-                "Called undefined evaluate operator for non-function " + err_name() + ".");
         case Mode::Function:
             return pFunc_->evaluate(x);
-        default:
-            __builtin_unreachable();
+        default: // cases Mode::Empty, Mode::Numeric, Mode::Pointer
+            throw std::runtime_error(
+                "Called undefined evaluate operator for non-function " + err_name() + ".");
         }
     }
 
@@ -533,7 +531,8 @@ namespace housepi
         pProp_ = nullptr;
     }
 
-    bool Variable::is_discrete() const noexcept { return has_model() ? pDistr_->is_discrete() : Attribute::is_discrete(); }
+    bool Variable::is_discrete() const noexcept { return has_model() ? pDistr_->is_discrete()
+                                                                     : Attribute::is_discrete(); }
     bool Variable::has_model() const noexcept { return pDistr_ != nullptr; }
     bool Variable::is_adaptable() const noexcept { return pProp_ && pProp_->is_adaptable(); }
 
@@ -542,12 +541,10 @@ namespace housepi
     {
         switch (valid_mode_)
         {
-        case Validity::Always:
-            return true;
         case Validity::Check:
             return pDistr_->is_valid(value_);
-        default:
-            __builtin_unreachable();
+        default: // case Validity::Always:
+            return true;
         }
     }
 
@@ -562,7 +559,9 @@ namespace housepi
 #ifndef NDEBUG
     std::string Variable::str_summary() const
     {
-        return Attribute::str_summary() + (has_model() ? " | ~" + pDistr_->str_summary(false) : "");
+        return Attribute::str_summary() +
+               (has_model() ? " | ~" + pDistr_->str_summary(false)
+                            : "");
     }
 #endif
 }

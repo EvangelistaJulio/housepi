@@ -27,6 +27,14 @@ using no_promote_policy = boost::math::policies::policy<
     boost::math::policies::promote_float<false>,
     boost::math::policies::promote_double<false>>;
 
+/// Discrete quantile policy matching R's convention: min{k : P(X<=k) >= p}.
+/// Boost's default `integer_round_outwards` rounds toward the distribution tails
+/// which differs from R for p < 0.5. `integer_round_up` matches R exactly.
+using discrete_up_policy = boost::math::policies::policy<
+    boost::math::policies::promote_float<false>,
+    boost::math::policies::promote_double<false>,
+    boost::math::policies::discrete_quantile<boost::math::policies::integer_round_up>>;
+
 #include "tools/string.h"
 
 #include "distribution.h"
@@ -42,78 +50,17 @@ namespace housepi
 {
     void Distribution::helper_init_distr_truncation_()
     {
-        trunc_mode_ = Trunc::Active;
+        const bool has_min = below_mode_ != Mode::Interval::None;
+        const bool has_max = above_mode_ != Mode::Interval::None;
 
-        if (below_mode_ == Mode::Interval::None &&
-            above_mode_ == Mode::Interval::None) // No Truncation
-        {
-            trunc_ = &Distribution::do_trunc_dummy_;
-            shift_ = &Distribution::do_shift_dummy_;
+        if (!has_min && !has_max)
             trunc_mode_ = Trunc::None;
-        }
-        else if (below_mode_ != Mode::Interval::None &&
-                 above_mode_ == Mode::Interval::None) // Lower Range Truncation
-        {
-            switch (discr_mode_)
-            {
-            case Mode::Discrete::Defined: // discrete defined
-                trunc_ = &Distribution::do_trunc_min_discr_defined_;
-                shift_ = &Distribution::do_shift_min_discr_defined_;
-
-                break;
-            case Mode::Discrete::Center: // centered discretization
-                trunc_ = &Distribution::do_trunc_min_discr_center_;
-                shift_ = &Distribution::do_shift_min_discr_center_;
-                break;
-            case Mode::Discrete::Left: // left discretization
-                trunc_ = &Distribution::do_trunc_min_discr_left_;
-                shift_ = &Distribution::do_shift_min_discr_left_;
-                break;
-            default: // no discretization
-                trunc_ = &Distribution::do_trunc_min_;
-                shift_ = &Distribution::do_shift_min_;
-            }
-        }
-        else if (below_mode_ == Mode::Interval::None &&
-                 above_mode_ != Mode::Interval::None) // Upper Range Truncation
-        {
-            shift_ = &Distribution::do_shift_dummy_;
-            switch (discr_mode_)
-            {
-            case Mode::Discrete::Defined: // discrete defined
-                trunc_ = &Distribution::do_trunc_max_discr_defined_;
-                break;
-            case Mode::Discrete::Center: // centered discretization
-                trunc_ = &Distribution::do_trunc_max_discr_center_;
-                break;
-            case Mode::Discrete::Left: // left discretization
-                trunc_ = &Distribution::do_trunc_max_discr_left_;
-                break;
-            default: // no discretization
-                trunc_ = &Distribution::do_trunc_max_;
-            }
-        }
-        else // Both Sides Truncation
-        {
-            switch (discr_mode_)
-            {
-            case Mode::Discrete::Defined: // discrete defined
-                trunc_ = &Distribution::do_trunc_both_sides_discr_defined_;
-                shift_ = &Distribution::do_shift_min_discr_defined_;
-                break;
-            case Mode::Discrete::Center: // centered discretization
-                trunc_ = &Distribution::do_trunc_both_sides_discr_center_;
-                shift_ = &Distribution::do_shift_min_discr_center_;
-                break;
-            case Mode::Discrete::Left: // left discretization
-                trunc_ = &Distribution::do_trunc_both_sides_discr_left_;
-                shift_ = &Distribution::do_shift_min_discr_left_;
-                break;
-            default: // no discretization
-                trunc_ = &Distribution::do_trunc_both_sides_;
-                shift_ = &Distribution::do_shift_min_;
-            }
-        }
+        else if (has_min && !has_max)
+            trunc_mode_ = Trunc::Min;
+        else if (!has_min && has_max)
+            trunc_mode_ = Trunc::Max;
+        else
+            trunc_mode_ = Trunc::Both;
     }
 }
 
@@ -163,7 +110,6 @@ namespace
             return 0;
         return lgamma(ko + 1) + lgamma(N - ko + 1) - lgamma(kn + 1) - lgamma(N - kn + 1);
     }
-
     /// Logarithm of beta function.
     double lbeta(double a, double b)
     {
@@ -216,7 +162,7 @@ namespace
 
         double raw_pdf_(double) const override final { return 1. / (upper_.value() - lower_.value()); }
         double raw_cdf_(double x) const override final { return (x - lower_.value()) / (upper_.value() - lower_.value()); }
-        double raw_log_pdf_(double) const override final { return 0.; }
+        double raw_log_pdf_(double) const override final { return -std::log(upper_.value() - lower_.value()); }
         double raw_log_ratio_(double, double) const override final { return 0.; }
         double raw_rand_(rnd_gen &prng) const override final
         {
@@ -242,7 +188,8 @@ namespace
 
         void init_discretization() override final
         {
-            discr_mode_ = lower_.is_empty() ? Mode::Discrete::Center : Mode::Discrete::Left;
+            discr_mode_ = lower_.is_empty() ? Mode::Discrete::Center
+                                            : Mode::Discrete::Left;
         }
         void init_truncation() override final
         {
@@ -349,8 +296,8 @@ namespace
             : Distribution({{"shape1", na::DOUBLE}, {"shape2", na::DOUBLE}},
                            0., 1.)
         {
-            below_mode_ = Mode::Interval::Closed;
-            above_mode_ = Mode::Interval::Closed;
+            below_mode_ = Mode::Interval::Open;
+            above_mode_ = Mode::Interval::Open;
         }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Beta_)
         HOUSEPI_OVERRIDE_NAME_METHOD(beta)
@@ -444,6 +391,15 @@ namespace
         }
         double raw_log_pdf_(double x) const override final
         {
+            if (x == 0.)
+            {
+                const double shape = arg(0);
+                if (shape < 1.)
+                    return std::numeric_limits<double>::infinity();
+                if (shape == 1.)
+                    return -std::log(arg(1));
+                return -std::numeric_limits<double>::infinity();
+            }
             const double shape = arg(0);
             const double t = x / arg(1);
             return shape * log(t) - log(x) - lgamma(shape) - t;
@@ -508,6 +464,14 @@ namespace
             const double m = arg(0);
             const double v = arg(1);
             const double shape = m * m / v;
+            if (x == 0.)
+            {
+                if (shape < 1.)
+                    return std::numeric_limits<double>::infinity();
+                if (shape == 1.)
+                    return -std::log(v / m);
+                return -std::numeric_limits<double>::infinity();
+            }
             const double t = x * m / v;
             return shape * log(t) - log(x) - lgamma(shape) - t;
         }
@@ -717,7 +681,8 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::poisson_distribution<double>(arg(0)), p);
+            return boost::math::quantile(
+                boost::math::poisson_distribution<double, discrete_up_policy>(arg(0)), p);
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
@@ -791,7 +756,8 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::binomial_distribution<double>(arg(0), arg(1)), p);
+            return boost::math::quantile(
+                boost::math::binomial_distribution<double, discrete_up_policy>(arg(0), arg(1)), p);
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
@@ -835,11 +801,12 @@ namespace
         {
             const double size = arg(0);
             const double prob = arg(1);
-            return logratio_binom_coeff(size, xo, xn) + (xn - xo) * log1p(-prob);
+            return lgamma(xn + size) + lgamma(xo + 1) - lgamma(xo + size) - lgamma(xn + 1) + (xn - xo) * log1p(-prob);
         }
         double raw_quantile_(double p) const override final
         {
-            return boost::math::quantile(boost::math::negative_binomial_distribution<double>(arg(0), arg(1)), p);
+            return boost::math::quantile(
+                boost::math::negative_binomial_distribution<double, discrete_up_policy>(arg(0), arg(1)), p);
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
@@ -883,7 +850,8 @@ namespace
         }
         double raw_quantile_(double p) const override final
         {
-            return std::floor(log1p(-p) / log1p(-arg(0)));
+            p *= 1. - 64. * std::numeric_limits<double>::epsilon();
+            return std::ceil(log1p(-p) / log1p(-arg(0)) - 1.);
         }
         double raw_rand_(rnd_gen &prng) const override final
         {

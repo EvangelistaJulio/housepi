@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <random>
 #include <string>
@@ -39,7 +41,7 @@ namespace housepi
 		Distribution(const std::vector<std::pair<std::string, double>> &args = {},
 					 double domain_min = na::DOUBLE,
 					 double domain_max = na::DOUBLE)
-			: Function(args, domain_min, domain_max) { set_eval_as_distr_call(); }
+			: Function(args, domain_min, domain_max) { set_eval_as_pdf(); }
 		virtual ~Distribution() = default;
 
 		virtual std::unique_ptr<Distribution> clone_distrib() const = 0;
@@ -57,16 +59,32 @@ namespace housepi
 			{
 			case Trunc::None:
 				return relocate_(cast_discr_(raw_rand_(prng)));
-			case Trunc::Active:
-				return relocate_(cast_discr_(inverse_sampling_(prng)));
 			default:
-				__builtin_unreachable();
+				return relocate_(cast_discr_(inverse_sampling_(prng)));
 			}
 		}
 		/// Return value of log-probability density/mass function.
 		double log_pdf(double x) const { return log_func_(delocate_(x)); }
-		/// Return value of log-ratio of probability density/mass functions.
-		double log_ratio(double xo, double xn) const { return log_ratio_(delocate_(xo), delocate_(xn)); }
+		/// Check for validity, then return value of log-probability density/mass function
+		double log_pdf_safe(double x) const
+		{
+			return is_valid(x) ? log_pdf(x)
+							   : -std::numeric_limits<double>::infinity();
+		}
+
+		/// Check for validity, then  return the quantile (inverse CDF) at probability p.
+		double quantile_safe(double p) const
+		{
+			if (p < 0 || p > 1)
+				return na::DOUBLE;
+			if (p <= 0.)
+				return lower_.is_empty() ? -std::numeric_limits<double>::infinity()
+										 : relocate_(lower_.value());
+			if (p >= 1.)
+				return upper_.is_empty() ? std::numeric_limits<double>::infinity()
+										 : relocate_(upper_.value());
+			return relocate_(raw_quantile_(p));
+		}
 
 	protected:
 		/////////////////////////////////////////////////////////////////////////////////////////////
@@ -86,9 +104,6 @@ namespace housepi
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double) const = 0;
 
-		/// Raw quantile.
-		virtual double raw_quantile_(double) const { raise_undefined_call_err_("quantile"); }
-
 		/// Raw method to call.
 		double raw_function_(double) const override final { raise_undefined_call_err_("function"); }
 
@@ -98,9 +113,6 @@ namespace housepi
 			double y;
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::None:
-				y = raw_pdf_(x);
-				break;
 			case Mode::Discrete::Center:
 			{
 				const double i = std::round(x);
@@ -116,11 +128,12 @@ namespace housepi
 			case Mode::Discrete::Defined:
 				y = raw_pdf_(std::floor(x));
 				break;
-			default:
-				__builtin_unreachable();
+			default: // case Mode::Discrete::None:
+				y = raw_pdf_(x);
+				break;
 			}
 
-			return y / (this->*trunc_)();
+			return y / trunc_();
 		}
 
 		/// Polymorphic log-function method.
@@ -129,9 +142,6 @@ namespace housepi
 			double y;
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::None:
-				y = raw_log_pdf_(x);
-				break;
 			case Mode::Discrete::Center:
 			{
 				const double i = std::round(x);
@@ -147,8 +157,9 @@ namespace housepi
 			case Mode::Discrete::Defined:
 				y = raw_log_pdf_(std::floor(x));
 				break;
-			default:
-				__builtin_unreachable();
+			default: // case Mode::Discrete::None:
+				y = raw_log_pdf_(x);
+				break;
 			}
 
 			return y - logtrunc_();
@@ -160,9 +171,6 @@ namespace housepi
 			double adjusted_x;
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::None:
-				adjusted_x = x;
-				break;
 			case Mode::Discrete::Center:
 				adjusted_x = std::round(x) + 0.5;
 				break;
@@ -172,11 +180,12 @@ namespace housepi
 			case Mode::Discrete::Defined:
 				adjusted_x = std::floor(x);
 				break;
-			default:
-				__builtin_unreachable();
+			default: // case Mode::Discrete::None:
+				adjusted_x = x;
+				break;
 			}
 
-			return (raw_cdf_(adjusted_x) - (this->*shift_)()) / (this->*trunc_)();
+			return (raw_cdf_(adjusted_x) - shift_()) / trunc_();
 		}
 
 		/// Polymorphic log_ratio method.
@@ -184,8 +193,6 @@ namespace housepi
 		{
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::None:
-				return raw_log_ratio_(xo, xn);
 			case Mode::Discrete::Center:
 			{
 				const double io = std::round(xo), in = std::round(xn);
@@ -204,8 +211,8 @@ namespace housepi
 			}
 			case Mode::Discrete::Defined:
 				return raw_log_ratio_(std::floor(xo), std::floor(xn));
-			default:
-				__builtin_unreachable();
+			default: // case Mode::Discrete::None:
+				return raw_log_ratio_(xo, xn);
 			}
 		}
 
@@ -221,11 +228,8 @@ namespace housepi
 				return static_cast<double>(std::lround(x));
 			case Mode::Discrete::Left:
 				return std::floor(x);
-			case Mode::Discrete::Defined:
-			case Mode::Discrete::None:
+			default: // cases Mode::Discrete::Defined, Mode::Discrete::None
 				return x;
-			default:
-				__builtin_unreachable();
 			}
 		}
 
@@ -244,64 +248,86 @@ namespace housepi
 
 		enum class Trunc : std::uint8_t
 		{
-			None,  /// No truncation
-			Active /// Active truncation
+			None, /// No truncation
+			Min,  /// Lower-bound truncation
+			Max,  /// Upper-bound truncation
+			Both  /// Two-sided truncation
 		} trunc_mode_ = Trunc::None;
 
-		/// Select functional method in case of truncation.
+		/// Select truncation mode from below_/above_mode_.
 		void helper_init_distr_truncation_();
 
-		/// UPDATE: if values don't change, I should just cache!
-		/// UPDATE: truncation should become a switch too
+		/// CDF at the lower bound, with discretization correction.
+		double cdf_lower_() const
+		{
+			switch (discr_mode_)
+			{
+			case Mode::Discrete::Defined:
+				return raw_cdf_(lower_.value() - 1);
+			case Mode::Discrete::Center:
+				return raw_cdf_(std::ceil(lower_.value()) - 0.5);
+			case Mode::Discrete::Left:
+				return raw_cdf_(std::floor(lower_.value()));
+			default: // case Mode::Discrete::None:
+				return raw_cdf_(lower_.value());
+			}
+		}
 
-		double (Distribution::*trunc_)() const = &Distribution::do_trunc_dummy_;
+		/// CDF at the upper bound, with discretization correction.
+		double cdf_upper_() const
+		{
+			switch (discr_mode_)
+			{
+			case Mode::Discrete::Defined:
+				return raw_cdf_(upper_.value() + 1);
+			case Mode::Discrete::Center:
+				return raw_cdf_(std::floor(upper_.value()) + 0.5);
+			case Mode::Discrete::Left:
+				return raw_cdf_(std::ceil(upper_.value() + 1));
+			default: // case Mode::Discrete::None:
+				return raw_cdf_(upper_.value());
+			}
+		}
 
-		// default case
-		double do_trunc_dummy_() const { return 1.; }
+		/// Normalizing constant for the truncated distribution.
+		double trunc_() const
+		{
+			switch (trunc_mode_)
+			{
+			case Trunc::Min:
+				return 1. - cdf_lower_();
+			case Trunc::Max:
+				return cdf_upper_();
+			case Trunc::Both:
+				return cdf_upper_() - cdf_lower_();
+			default: // case Trunc::None:
+				return 1.;
+			}
+		}
 
-		// continuos case
-		double do_trunc_min_() const { return 1. - raw_cdf_(lower_.value()); }
-		double do_trunc_max_() const { return raw_cdf_(upper_.value()); }
-		double do_trunc_both_sides_() const { return raw_cdf_(upper_.value()) - raw_cdf_(lower_.value()); }
-
-		// case of discrete defined
-		double do_trunc_min_discr_defined_() const { return 1. - raw_cdf_(lower_.value() - 1); }
-		double do_trunc_max_discr_defined_() const { return raw_cdf_(upper_.value() + 1); }
-		double do_trunc_both_sides_discr_defined_() const { return raw_cdf_(upper_.value() + 1) - raw_cdf_(lower_.value() - 1); }
-
-		// case of center discretization
-		double do_trunc_min_discr_center_() const { return 1. - raw_cdf_(std::ceil(lower_.value()) - 0.5); }
-		double do_trunc_max_discr_center_() const { return raw_cdf_(std::floor(upper_.value()) + 0.5); }
-		double do_trunc_both_sides_discr_center_() const { return raw_cdf_(std::floor(upper_.value()) + 0.5) - raw_cdf_(std::ceil(lower_.value()) - 0.5); }
-
-		// case of left discretization
-		double do_trunc_min_discr_left_() const { return 1. - raw_cdf_(std::floor(lower_.value())); }
-		double do_trunc_max_discr_left_() const { return raw_cdf_(std::ceil(upper_.value() + 1)); }
-		double do_trunc_both_sides_discr_left_() const { return raw_cdf_(std::ceil(upper_.value() + 1)) - raw_cdf_(std::floor(lower_.value())); }
+		/// CDF offset subtracted by the primitive for truncated distributions.
+		double shift_() const
+		{
+			switch (trunc_mode_)
+			{
+			case Trunc::Min:
+			case Trunc::Both:
+				return cdf_lower_();
+			default: // cases Trunc::None, Trunc::Max
+				return 0.;
+			}
+		}
 
 		double logtrunc_() const
 		{
 			switch (trunc_mode_)
 			{
 			case Trunc::None:
-				return 0;
-			case Trunc::Active:
-				return std::log((this->*trunc_)());
+				return 0.;
 			default:
-				__builtin_unreachable();
+				return std::log(trunc_());
 			}
 		}
-
-		/////////////////////////////////////////////////////////////////////////////////////////////
-		/////////////////////////  Distribution : functional shift [private] ////////////////////////
-		/////////////////////////////////////////////////////////////////////////////////////////////
-
-		double (Distribution::*shift_)() const = &Distribution::do_shift_dummy_;
-		double do_shift_dummy_() const { return 0.; }
-		double do_shift_min_() const { return raw_cdf_(lower_.value()); }
-		double do_shift_min_discr_defined_() const { return raw_cdf_(lower_.value() - 1); }
-		double do_shift_min_discr_center_() const { return raw_cdf_(std::floor(lower_.value()) - 0.5); }
-		double do_shift_min_discr_left_() const { return raw_cdf_(std::floor(lower_.value())); }
 	};
 
 	/// Compose registries to get a distribution from them.

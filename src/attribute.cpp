@@ -83,8 +83,6 @@ namespace housepi
     {
         switch (mode_)
         {
-        case Mode::Empty:
-            return str::format(na::DOUBLE);
         case Mode::Numeric:
             return str::format(value_);
         case Mode::Pointer:
@@ -93,8 +91,8 @@ namespace housepi
             if (pFunc_->is_callable_implicitly())
                 return str::format(pFunc_->evaluate());
             return "<>";
-        default:
-            __builtin_unreachable();
+        default: // case Mode::Empty:
+            return str::format(na::DOUBLE);
         }
     }
 
@@ -103,22 +101,23 @@ namespace housepi
     {
         std::string sms = err_name() + " ";
 
-        sms += (is_function() && !pFunc_->is_callable_implicitly()) ? "<> | " : str_val() + " | ";
-        sms += is_discrete() ? "discrete" : "real";
-        sms += is_constant() ? " constant" : " variable";
+        sms += (is_function() && !pFunc_->is_callable_implicitly()) ? "<> | "
+                                                                    : str_val() + " | ";
+        sms += is_discrete() ? "discrete"
+                             : "real";
+        sms += is_constant() ? " constant"
+                             : " variable";
 
         switch (mode_)
         {
-        case Mode::Empty:
-            return sms + " empty";
         case Mode::Numeric:
             return sms + " numeric";
         case Mode::Pointer:
             return sms + " pointer -> " + pAttr_->err_name();
         case Mode::Function:
             return sms + " function " + pFunc_->str_summary();
-        default:
-            __builtin_unreachable();
+        default: // case Mode::Empty:
+            return sms + " empty";
         }
     }
 #endif
@@ -127,16 +126,14 @@ namespace housepi
     {
         switch (mode_)
         {
-        case Mode::Empty:
-            return false;
         case Mode::Numeric:
             return is_user_const_;
         case Mode::Pointer:
             return pAttr_->is_constant();
         case Mode::Function:
             return pFunc_->is_constant();
-        default:
-            __builtin_unreachable();
+        default: // case Mode::Empty:
+            return false;
         }
     }
 
@@ -144,16 +141,14 @@ namespace housepi
     {
         switch (mode_)
         {
-        case Mode::Empty:
-            return false;
         case Mode::Numeric:
             return value_ == std::floor(value_);
         case Mode::Pointer:
             return pAttr_->is_discrete();
         case Mode::Function:
             return pFunc_->is_discrete();
-        default:
-            __builtin_unreachable();
+        default: // case Mode::Empty:
+            return false;
         }
     }
 
@@ -161,16 +156,14 @@ namespace housepi
     {
         switch (mode_)
         {
-        case Mode::Empty:
-            return false;
         case Mode::Numeric:
             return !na::is(value_);
         case Mode::Pointer:
             return pAttr_->is_callable();
         case Mode::Function:
             return pFunc_->is_callable_implicitly();
-        default:
-            __builtin_unreachable();
+        default: // case Mode::Empty:
+            return false;
         }
     }
 
@@ -233,11 +226,6 @@ namespace housepi
     {
         switch (other.mode_)
         {
-        case Mode::Empty:
-            // NOTE: nothing to transfer if other is pure empty
-            if (other.err_type_ != "empty")
-                init_pointer(other.pointer());
-            return;
         case Mode::Numeric:
             if (other.is_user_const_)
                 init_numeric(other.value());
@@ -250,8 +238,11 @@ namespace housepi
         case Mode::Function:
             init_function(other.function()->clone());
             return;
-        default:
-            __builtin_unreachable();
+        default: // case Mode::Empty:
+            // NOTE: nothing to transfer if other is pure empty
+            if (other.err_type_ != "empty")
+                init_pointer(other.pointer());
+            return;
         }
     }
     void Attribute::optimize()

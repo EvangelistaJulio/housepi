@@ -73,7 +73,8 @@ namespace housepi::measure
     SecAttackRates sar_by_house_size(const cases::Report &report)
     {
         unsigned grid_min = std::max(report.min_size, 2u);
-        unsigned grid_len = report.max_size >= grid_min ? report.max_size - grid_min + 1 : 0;
+        unsigned grid_len = report.max_size >= grid_min ? report.max_size - grid_min + 1
+                                                        : 0;
 
         SecAttackRates output;
         output.grid_min = grid_min;

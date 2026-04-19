@@ -53,15 +53,16 @@ namespace housepi
         return entries;
     }
 
-    std::unique_ptr<Function> FunctionRegistry::create(std::string_view opt, bool is_primitive) const
+    std::unique_ptr<Function> FunctionRegistry::create(std::string_view opt, bool is_prim) const
     {
         auto it = factory_map_.find(opt);
         if (it == factory_map_.end())
             return nullptr;
 
         auto output = it->second();
-        if (is_primitive)
-            output->set_eval_primitive();
+        if (is_prim)
+            output->set_eval_as_prim();
+        // evaluate as function by default
 
         return output;
     }
@@ -131,9 +132,10 @@ namespace housepi
             return nullptr;
 
         auto output = it->second();
-        output->set_eval_as_distr_call();
         if (is_prim)
-            output->set_eval_as_distr_primitive();
+            output->set_eval_as_cdf();
+        else
+            output->set_eval_as_pdf();
 
         return output;
     }
@@ -190,7 +192,7 @@ namespace housepi
         auto it = factory_map_.find(name);
         if (it == factory_map_.end())
             throw std::invalid_argument(
-                "Model registration failed: unknown model '" + std::string(name) + "'.\n" );
+                "Model registration failed: unknown model '" + std::string(name) + "'.\n");
         return it->second();
     }
 }

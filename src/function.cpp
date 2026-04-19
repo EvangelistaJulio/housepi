@@ -252,28 +252,25 @@ namespace housepi
 
         switch (below_mode_)
         {
-        case Mode::Interval::None:
-            output = "(-Inf";
-            break;
         case Mode::Interval::Open:
             output = "(" + str_min;
             break;
         case Mode::Interval::Closed:
             output = "[" + str_min;
             break;
-        default:
-            __builtin_unreachable();
+        default: // case Mode::Interval::None:
+            output = "(-Inf";
+            break;
         }
         switch (above_mode_)
         {
-        case Mode::Interval::None:
-            return output + ", Inf)";
         case Mode::Interval::Open:
             return output + ", " + str_max + ")";
         case Mode::Interval::Closed:
             return output + ", " + str_max + "]";
+        default: // case Mode::Interval::None:
+            return output + ", Inf)";
         }
-        __builtin_unreachable();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -554,8 +551,8 @@ namespace
             return arguments_.back();
         }
 
-        // If any constant, erase all other constants arguments.
-        void remove_if_not_first_const(Attribute *first_const)
+        /// If any attribute provided as first constant, drop all other constants arguments.
+        void remove_if_not_first_const_(Attribute *first_const)
         {
             if (!first_const)
                 return;
@@ -592,7 +589,7 @@ namespace
                     else                                                            \
                         first_const = &attr;                                        \
                 }                                                                   \
-            remove_if_not_first_const(first_const);                                 \
+            remove_if_not_first_const_(first_const);                                \
         }                                                                           \
                                                                                     \
     protected:                                                                      \
@@ -634,7 +631,7 @@ namespace
                     else                                         \
                         first_const = &attr;                     \
                 }                                                \
-            remove_if_not_first_const(first_const);              \
+            remove_if_not_first_const_(first_const);             \
         }                                                        \
                                                                  \
     protected:                                                   \

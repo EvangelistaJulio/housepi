@@ -23,3 +23,11 @@
     Message
       i Household model blank (template).
 
+# Nested definitions works as expected
+
+    Code
+      print(hhmodel)
+    Message
+      i Household model blank (template).
+      v Augmented definitions are complete.
+
