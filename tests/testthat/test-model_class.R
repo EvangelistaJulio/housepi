@@ -95,6 +95,41 @@ test_that("Print behavior works as expected", {
   expect_snapshot(print(new_housepi_model(model = "blank")))
 })
 
+##################################
+## MODEL CLASS : DATA SUMMARIES ##
+##################################
+
+test_that("Flu 2014 Matsumoto is correctly pre-processed", {
+  hhmodel <- flu_2014_matsumoto |>
+    new_housepi_model("chain_binomial_grouped")
+
+  case_summary <- summarise_cases(hhmodel)
+  expect_true(is.data.frame(case_summary))
+  # expect same household count as in Endo, et al. ('19)
+  expect_equal(
+    subset(case_summary, type == "household" & comment == "total")$counts,
+    10486
+  )
+  # house_size vs status equivalence groups correspond to measure non-zeros
+  aux <- measure_cases_by_house_size(flu_2014_matsumoto)
+  aux$house_size <- NULL
+  expect_equal(
+    subset(case_summary, type == "household" & comment == "distinct")$counts,
+    sum(aux[!is.na(aux)] > 0)
+  )
+
+  # fix expected equivalence classes by member composition
+  case_summary <- hhmodel |>
+    add_group_rate(by = "member") |>
+    summarise_cases()
+  expect_equal(
+    subset(case_summary, type == "household" & comment == "distinct")$counts,
+    454
+  )
+
+  expect_true(is.data.frame(summarise_house_sizes(hhmodel)))
+})
+
 ######################################
 ## MODEL CLASS : POSTERIOR SAMPLING ##
 ######################################

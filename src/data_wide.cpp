@@ -118,9 +118,6 @@ namespace housepi
         khold_double_vec.clear_optional();
         khold_double_mtx.clear_optional();
 
-        if (input.empty())
-            return;
-
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
         report_indiv.total = read::csv_n_rows(input);
@@ -351,10 +348,9 @@ namespace housepi
             frequencies_data_.emplace(d);
     }
 
-    void DataWide::init_frequencies(bool is_any_augm)
+    void DataWide::init_frequencies(bool force_unique)
     {
-        // NOTE: frequency incompatible with sampling augmented data
-        if (is_any_augm)
+        if (force_unique)
         {
             helper_init_unique_frequencies_();
             return;
@@ -375,6 +371,7 @@ namespace housepi
         }
 
         // compute frequency heads and weights
+        frequencies_.clear();
         frequencies_.reserve(report_house.distinct);
         for (const auto &[hash, group] : hash_groups)
         {
@@ -388,6 +385,10 @@ namespace housepi
 
     void DataWide::helper_init_unique_frequencies_()
     {
+        // skip if already unique equivalence classes
+        if (frequencies_.size() == report_house.total)
+            return;
+
         frequencies_.clear();
         frequencies_.resize(report_house.total);
         for (size_t H = 0; H < report_house.total; ++H)
@@ -406,12 +407,12 @@ namespace housepi
         cached_.previous.resize(distinct_size());
         cached_.current.resize(distinct_size());
 
-        for (size_t R = 0; R < distinct_size(); ++R)
+        for (size_t M = 0; M < distinct_size(); ++M)
         {
-            Household &house = distinct_head(R);
+            Household &house = distinct_head(M);
             size_t hh_size = house.size();
-            Cached_::State_ &prev = cached_.previous[R];
-            Cached_::State_ &curr = cached_.current[R];
+            Cached_::State_ &prev = cached_.previous[M];
+            Cached_::State_ &curr = cached_.current[M];
 
             // size_t
             size_t s_size = khold_size_val.size();
@@ -496,17 +497,18 @@ namespace housepi
     ///////////////////////////////////  DataWide : posterior draws  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void DataWide::assert_finite_log_lik() const
+    void DataWide::assert_finite_log_lik(bool is_any_augm) const
     {
-        for (size_t R = 0; R < distinct_size(); ++R)
+        for (size_t M = 0; M < distinct_size(); ++M)
         {
-            const Household &house = distinct_head(R);
+            const Household &house = distinct_head(M);
 
-            for (size_t i : house.infected_hhindexes())
-                if (house.member(i).paugm_->log_lik.is_inf())
-                    throw std::runtime_error(
-                        "Initial augmented log-likelihood computation returned infinity for " +
-                        house.member(i).err_name() + ".");
+            if (is_any_augm)
+                for (size_t i : house.infected_hhindexes())
+                    if (house.member(i).paugm_->log_lik.is_inf())
+                        throw std::runtime_error(
+                            "Initial augmented log-likelihood computation returned infinity for " +
+                            house.member(i).err_name() + ".");
 
             if (house.obs_log_lik_.is_inf())
                 throw std::runtime_error(
@@ -514,20 +516,14 @@ namespace housepi
         }
     }
 
-    double DataWide::house_log_lik(size_t R) const
+    double DataWide::house_log_lik(size_t M, bool is_any_augm) const
     {
-        const Household &house = distinct_head(R);
+        const Household &house = distinct_head(M);
         double x = house.obs_log_lik();
-        for (size_t i : house.infected_hhindexes())
-            x += house.member(i).paugm_->log_lik.value();
+        if (is_any_augm)
+            for (size_t i : house.infected_hhindexes())
+                x += house.member(i).paugm_->log_lik.value();
         return x;
-    }
-
-    void DataWide::assert_non_empty() const
-    {
-        if (report_house.total == 0)
-            throw std::length_error(
-                "Unable to proceed: no data was found.");
     }
 
     void DataWide::assert_not_all_missing_status() const

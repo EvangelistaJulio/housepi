@@ -374,8 +374,8 @@ namespace housepi
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.khold().get_all(),
                                                    augm.khold().as_string(augm.list_export));
-        data_wide.assert_non_empty();              // check if data is empty
-        engine.model->init_model_for_simulation(); // model specific initialization
+        // model specific initialization
+        engine.model->init_model_for_simulation();
 
         for (Household &house : data_wide)
             try

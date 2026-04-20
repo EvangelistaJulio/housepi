@@ -50,24 +50,22 @@ namespace housepi
         is_any_sample_ = false;
         is_any_model_ = false;
 
-        indiv_augm_.clear();
         khold_.clear_optional();
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();
         list_export.clear();
-
-        // UPDATE: I am allocating augmented storage even if no definitions...
-        helper_build_allocate_storage_();
+        indiv_augm_.clear();
 
         // skip if no augmented definitions
         if (input.empty() && !infec_profile.is_augmented())
             return;
 
-        helper_assert_augm_input_(input);                    // check entries
-        helper_build_append_infec_profile_(infec_profile);   // add infectivity profile
-        helper_build_definition_by_status_(); // process definition by status
-        helper_build_allocation_order_();     // allocation and order
+        helper_build_allocate_storage_();                  // allocate and plug-in
+        helper_build_assert_augm_input_(input);            // check entries
+        helper_build_append_infec_profile_(infec_profile); // add infectivity profile
+        helper_build_definition_by_status_();              // process definition by status
+        helper_build_set_allocation_order_();              // allocation and order
     }
 
     void Augmented::helper_build_allocate_storage_()
@@ -79,7 +77,7 @@ namespace housepi
     }
 
     /// Check augmented names and assert no reserved names are used.
-    void Augmented::helper_assert_augm_input_(const str_table &input)
+    void Augmented::helper_build_assert_augm_input_(const str_table &input)
     {
         const std::vector<std::string> file_headers = {"name", "status",
                                                        "func", "fcumul",
@@ -164,7 +162,7 @@ namespace housepi
     /////////////////////////////////  Augmented : build definition order  ////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::helper_build_allocation_order_()
+    void Augmented::helper_build_set_allocation_order_()
     {
         std::unordered_set<int> all_infected_statuses = {};
 
@@ -464,6 +462,9 @@ namespace housepi
 
     void Augmented::clear_all()
     {
+        if (khold_.empty())
+            return;
+
         for (Household &house : mcmc_->data_wide())
             for (size_t i : house.infected_hhindexes())
                 clear_definitions(house.member(i));

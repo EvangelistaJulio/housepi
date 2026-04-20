@@ -124,8 +124,9 @@ namespace housepi
 
             // household log-likelihoods
             const DataWide &data_wide = mcmc.data_wide();
+            const bool is_any_augm = mcmc.augm.is_any_sample();
             for (size_t R = 0; R < data_wide.distinct_size(); ++R)
-                house_log_lik[R][count_] = data_wide.house_log_lik(R);
+                house_log_lik[R][count_] = data_wide.house_log_lik(R, is_any_augm);
 
             // augmented variable draws
             const Augmented &augm = mcmc.augm;

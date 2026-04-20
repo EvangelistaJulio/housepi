@@ -127,7 +127,7 @@ namespace housepi
         void helper_build_allocate_storage_();
 
         /// Check augmented names and assert no reserved names are used.
-        void helper_assert_augm_input_(const str_table &input);
+        void helper_build_assert_augm_input_(const str_table &input);
 
         /// Eventually append infectivity profile definitions.
         void helper_build_append_infec_profile_(InfecProfile &infec_profile);
@@ -139,7 +139,7 @@ namespace housepi
 
         /// Deal with the definition 'k' of augmented to be sampled (const = FALSE).
         /// NOTE: this assume definitions are univocal and status correct.
-        void helper_build_allocation_order_();
+        void helper_build_set_allocation_order_();
 
         /// Set dependecies ordering for ininitializiation fo given status.
         /// At the same time assert that definition are complet and acyclic.

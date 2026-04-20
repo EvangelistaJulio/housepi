@@ -61,8 +61,8 @@ namespace housepi
 
         /// Set covariates as frequency-relevant by providing data_wide column names.
         void set_frequency_covariates(const std::vector<std::string> &data_list);
-        /// Build frequency_weights from household data.
-        void init_frequencies(bool is_any_augm);
+        /// Initialize frequency weights for equivalence classes from household data.
+        void init_frequencies(bool force_unique);
 
         /// Initialize cached structeres according to household size.
         void allocate_all_cache();
@@ -78,10 +78,10 @@ namespace housepi
         void recover_member_old_cached(Household &house, size_t i);
 
         /// Raise error log-likelihood is not finite.
-        void assert_finite_log_lik() const;
+        void assert_finite_log_lik(bool is_any_augm) const;
 
         /// Compute log-likelihood for distinct_head household R (obs + augmented).
-        double house_log_lik(size_t R) const;
+        double house_log_lik(size_t R, bool is_any_augm) const;
 
         /// Recover all status.
         void recover_all_status() noexcept;
@@ -130,8 +130,6 @@ namespace housepi
         //////  FLAGS  //////
         /////////////////////
 
-        /// Assert data wide is not empty.
-        void assert_non_empty() const;
         /// Assert that not all individuals have missing status.
         void assert_not_all_missing_status() const;
         /// Assert no individual has missing status.

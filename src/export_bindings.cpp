@@ -368,6 +368,7 @@ namespace
         {
             mcmc_ptr->detach_data_store();
             mcmc_ptr->data_wide().build(rdataframe_to_strmap(input));
+            mcmc_ptr->init_frequency_equivalence_classes();
         }
         catch (const std::exception &e)
         {
@@ -393,6 +394,7 @@ namespace
         try
         {
             mcmc_ptr->group_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+            mcmc_ptr->init_frequency_equivalence_classes();
         }
         catch (const std::exception &e)
         {
@@ -405,6 +407,7 @@ namespace
         try
         {
             mcmc_ptr->contact_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+            mcmc_ptr->init_frequency_equivalence_classes();
         }
         catch (const std::exception &e)
         {
@@ -429,6 +432,7 @@ namespace
         try
         {
             mcmc_ptr->augm.build(mcmc_ptr->infec_profile, rdataframe_to_strmap(input));
+            mcmc_ptr->init_frequency_equivalence_classes();
         }
         catch (const std::exception &e)
         {
@@ -1282,11 +1286,6 @@ namespace
 
         try
         {
-            //////////////////////////
-            //////  Assertions  //////
-            //////////////////////////
-
-            data_wide.assert_non_empty();              // check if data is empty
             engine.model->init_model_for_simulation(); // model specific initialization
 
             //////////////////////////////////////////////

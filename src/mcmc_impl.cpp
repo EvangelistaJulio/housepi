@@ -240,6 +240,18 @@ namespace housepi
         set_data_store(std::move(new_ds));
     }
 
+    void MCMC::init_frequency_equivalence_classes()
+    {
+        // NOTE: frequency incompatible with sampling augmented data
+        bool force_unique = augm.is_any_sample();
+        // however false could also mean definitions not provided
+        // check if required and in such case set unique preventively
+        if (!force_unique && augm.list_export.size() == 0)
+            force_unique = augm.khold().size() > 0;
+
+        data_wide().init_frequencies(force_unique);
+    }
+
     //////////////////////////
     //////  EVALUATION  //////
     //////////////////////////
@@ -281,7 +293,6 @@ namespace housepi
 
     void MCMC::init_evaluate_(bool is_reset)
     {
-        data_wide().assert_non_empty();                     // check if data is empty
         data_wide().assert_not_all_missing_status();        // warn if all missing status
         augm.init();                                        // initialize individual augmented relations
         data_wide().init_frequencies(augm.is_any_sample()); // frequency
@@ -345,7 +356,7 @@ namespace housepi
 
                 // assert that initial log-likelihood value is finite
                 if (tot_log_lik.is_inf())
-                    data_wide().assert_finite_log_lik();
+                    data_wide().assert_finite_log_lik(augm.is_any_sample());
             }
             catch (const std::exception &e)
             {

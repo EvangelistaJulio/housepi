@@ -52,6 +52,10 @@ namespace housepi
 		/// Detach shared DataStore before mutation. Used for copy-on-write logic.
 		void detach_data_store();
 
+		/// Initialize frequency equivalence classes.
+		/// NOTE: assume unique if augmented definitions required, but not imported yet
+		void init_frequency_equivalence_classes();
+
 		//////////////////////////
 		//////  EVALUATION  //////
 		//////////////////////////
