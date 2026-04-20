@@ -59,10 +59,10 @@ namespace housepi
         /// Assign data (wide format).
         void build(const str_table &input);
 
-        /// Set a new multiplicity-relevant data entry.
-        void set_multiplicity_data(const std::vector<std::string> &data_list);
-        /// Build multiplicities from household data.
-        void init_multiplicity(bool is_any_augm);
+        /// Set covariates as frequency-relevant by providing data_wide column names.
+        void set_frequency_covariates(const std::vector<std::string> &data_list);
+        /// Build frequency_weights from household data.
+        void init_frequencies(bool is_any_augm);
 
         /// Initialize cached structeres according to household size.
         void allocate_all_cache();
@@ -80,7 +80,7 @@ namespace housepi
         /// Raise error log-likelihood is not finite.
         void assert_finite_log_lik() const;
 
-        /// Compute log-likelihood for restricted household R (obs + augmented).
+        /// Compute log-likelihood for distinct_head household R (obs + augmented).
         double house_log_lik(size_t R) const;
 
         /// Recover all status.
@@ -90,65 +90,21 @@ namespace housepi
         //////  GETTER  //////
         //////////////////////
 
+        /// Get reference of household by internal absolute indexing position H or by house_id.
         Household &at(size_t H) { return house_vector_[H]; }
         const Household &at(size_t H) const { return house_vector_[H]; }
         Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
         const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
-        /// Number of households in the multiplicity group.
-        size_t multiplicity(size_t R) const
-        {
-            switch (mode_)
-            {
-            case Mode::Multiple:
-                return multiplicity_[R].value_;
-            default: // case Mode::Unique:
-                return 1;
-            }
-        }
-        /// Index to household multiplicity group.
-        size_t get_restricted_index(size_t H) const
-        {
-            switch (mode_)
-            {
-            case Mode::Multiple:
-                return house_vector_[H].ridx_;
-            default: // case Mode::Unique:
-                return H;
-            }
-        }
-        /// Number of household multiplicity groups.
-        size_t restricted_size() const noexcept
-        {
-            switch (mode_)
-            {
-            case Mode::Multiple:
-                return multiplicity_.size();
-            default: // case Mode::Unique:
-                return report_house.total;
-            }
-        }
-        /// Restrict to head of household multiplicity group.
-        Household &restricted(size_t R)
-        {
-            switch (mode_)
-            {
-            case Mode::Multiple:
-                return at(multiplicity_[R].head_);
-            default: // case Mode::Unique:
-                return at(R);
-            }
-        }
-        const Household &restricted(size_t R) const
-        {
-            switch (mode_)
-            {
-            case Mode::Multiple:
-                return at(multiplicity_[R].head_);
-            default: // case Mode::Unique:
-                return at(R);
-            }
-        }
+        /// Frequency weight of households in the distinc group.
+        size_t frequency_weight(size_t R) const { return frequencies_[R].weight_; }
+        /// Index to household frequency head.
+        size_t get_restricted_index(size_t H) const { return house_vector_[H].ridx_; }
+        /// Restricted number of household frequency classes.
+        size_t distinct_size() const noexcept { return report_house.distinct; }
+        /// Restrict to head of distinct household frequency class.
+        Household &distinct_head(size_t R) { return at(frequencies_[R].head_); }
+        const Household &distinct_head(size_t R) const { return at(frequencies_[R].head_); }
 
         /////////////////////
         //////  CACHE  //////
@@ -205,25 +161,20 @@ namespace housepi
         std::vector<Household> house_vector_ = {}; /// All households in data
         dict<size_t> hhid_to_index_ = {};          /// Map house-id to internal index
 
-        ////////////////////////////
-        //////  MULTIPLICITY  //////
-        ////////////////////////////
+        /////////////////////////
+        //////  FREQUENCY  //////
+        /////////////////////////
 
-        enum class Mode : std::uint8_t
+        struct Frequency_
         {
-            Multiple,
-            Unique
-        } mode_ = Mode::Unique;
-
-        struct Multiplicity_
-        {
-            Multiplicity_(const std::vector<size_t> &group) : head_(group.front()),
-                                                              value_(group.size()) {}
-            size_t head_;
-            size_t value_;
+            Frequency_() = default;
+            Frequency_(const std::vector<size_t> &group) : head_(group.front()),
+                                                           weight_(group.size()) {}
+            size_t head_ = -1;
+            size_t weight_ = 1;
         };
-        std::unordered_set<size_t> multiplicity_data_ = {}; /// Multiplicity-relevant data
-        std::vector<Multiplicity_> multiplicity_ = {};      /// Multiplicity groups
+        std::vector<Frequency_> frequencies_ = {};         /// Frequency groups
+        std::unordered_set<size_t> frequencies_data_ = {}; /// Frequency-relevant data indexes
 
         //////////////////////
         //////  CACHED  //////
@@ -256,5 +207,7 @@ namespace housepi
         void helper_build_data_headers_(const str_table &input);
         /// Use the loaded data to fill-in the respective report.
         void build_helper_fill_report_data_();
+        /// Use the fill frequencies for the all distinc case.
+        void helper_init_unique_frequencies_();
     };
 }

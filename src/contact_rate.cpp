@@ -160,11 +160,11 @@ namespace housepi
         // load contact rate definitions
         ContactDefinitions_ defs(input, data_wide);
 
-        // set headers to be multiplicity-relevant
-        data_wide.set_multiplicity_data(defs.data);
+        // set headers to be frequency-relevant
+        data_wide.set_frequency_covariates(defs.data);
 
         // loop over all households
-        // UPDATE: this should be just over restricted households.
+        // UPDATE: this should be just over distinct_head households.
         house_contact_rates_.resize(data_wide.report_house.total);
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
         {

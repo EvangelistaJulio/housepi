@@ -667,34 +667,39 @@ namespace
                 msg::warning("Called 'summarise_cases' on empty data.");
 
             Rcpp::CharacterVector type = Rcpp::wrap(std::vector<std::string>(4, "individual") +
-                                                    std::vector<std::string>(4, "household"));
+                                                    std::vector<std::string>(5, "household"));
             Rcpp::CharacterVector comment = {"total", "missing", "not infected", "infected",
-                                             "total", "no cases", "at least 1 case", "at least 2 cases"};
+                                             "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
             Rcpp::IntegerVector counts(type.size());
             Rcpp::NumericVector pct(type.size());
 
+            // individual total
             counts[0] = report_indiv.total;
             pct[0] = 100.;
-
+            // individual missing
             counts[1] = report_indiv.missing;
             pct[1] = format_percentage(report_indiv.missing, report_indiv.total);
-
+            // individual not infected
             counts[2] = report_indiv.susceptible;
             pct[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
-
+            // individual infected
             counts[3] = report_indiv.infectious;
             pct[3] = format_percentage(report_indiv.infectious, report_indiv.total);
-
+            // household total
             counts[4] = report_house.total;
             pct[4] = 100.;
-            counts[5] = report_house.no_cases;
-            pct[5] = format_percentage(report_house.no_cases, report_house.total);
-
-            counts[6] = report_house.at_least_1_case;
-            pct[6] = format_percentage(report_house.at_least_1_case, report_house.total);
-
-            counts[7] = report_house.at_least_2_cases;
-            pct[7] = format_percentage(report_house.at_least_2_cases, report_house.total);
+            // household distinct
+            counts[5] = report_house.distinct;
+            pct[5] = 100.;
+            // household no cases
+            counts[6] = report_house.no_cases;
+            pct[6] = format_percentage(report_house.no_cases, report_house.total);
+            // household at least 1 case
+            counts[7] = report_house.at_least_1_case;
+            pct[7] = format_percentage(report_house.at_least_1_case, report_house.total);
+            // household at least 2 cases
+            counts[8] = report_house.at_least_2_cases;
+            pct[8] = format_percentage(report_house.at_least_2_cases, report_house.total);
 
             return Rcpp::DataFrame::create(
                 Rcpp::_["type"] = std::move(type),
@@ -854,7 +859,7 @@ namespace
     }
 
     /// Rcpp wrapper: household log-likelihood draws as NumericMatrix.
-    /// Kept as a free function because it needs DataWide for multiplicity expansion.
+    /// Kept as a free function because it needs DataWide for frequency expansion.
     Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
@@ -868,8 +873,8 @@ namespace
             size_t n_houses = data_wide.report_house.total;
             Rcpp::NumericMatrix output(post.count(), n_houses);
 
-            // map restricted index to all household columns
-            size_t n_classes = data_wide.restricted_size();
+            // map distinct_head index to all household columns
+            size_t n_classes = data_wide.distinct_size();
             std::vector<std::vector<size_t>> house_classes(n_classes);
 
             for (size_t H = 0; H < n_houses; ++H)

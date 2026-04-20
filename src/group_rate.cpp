@@ -148,8 +148,8 @@ namespace housepi
             max_unique *= count;
         unique_groups_.reserve(max_unique);
 
-        // set headers to be multiplicity-relevant
-        data_wide.set_multiplicity_data(data_headers);
+        // set headers to be frequency-relevant
+        data_wide.set_frequency_covariates(data_headers);
 
         return data_headers;
     }

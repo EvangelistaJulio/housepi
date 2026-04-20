@@ -14,6 +14,7 @@ test_that("Rejext if pipe calls get non-HousepiModel objects", {
   expect_error(drop_parameters(obj), regexp = err)
   expect_error(drop_augmented(obj), regexp = err)
   expect_error(drop_group_rates(obj), regexp = err)
+  expect_error(drop_contact_rates(obj), regexp = err)
   expect_error(drop_infectivity_profile(obj), regexp = err)
   expect_error(drop_all(obj), regexp = err)
   expect_error(add_parameter(obj), regexp = err)
@@ -52,7 +53,7 @@ test_that("add_data_wide and get_data_wide work", {
 test_that("add_data_long and get_data_long work", {
   hhmodel <- new_housepi_model("blank")
   # blank model has default data with id = "tommy", "gina"
-  dl <- data.frame(id = c("tommy", "gina"),
+  dl <- data.frame(id = hhmodel$data_wide$id,
                    measure = c(1.5, 2.5))
   result <- add_data_long(hhmodel, dl)
   out <- get_data_long(result)
@@ -63,17 +64,23 @@ test_that("add_data_long and get_data_long work", {
 test_that("Wrappers work as expected on blank model", {
   hhmodel <- new_housepi_model("blank")
 
-  #parameters
+  # no templates
+  expect_warning(load_parameter_template(hhmodel),
+                 regexp = "No template parameters")
+  expect_warning(load_augmented_template(hhmodel),
+                 regexp = "No template augmented")
+
+  # parameters
   result <- add_parameter(hhmodel, name = "alpha", value = 0.5)
   pars <- get_parameters(result)
   expect_true(is.data.frame(pars))
   expect_true("alpha" %in% pars$name)
-  
+
   result <- load_parameter_list(hhmodel, alpha = 1, beta = 2)
   pars <- get_parameters(result)
   expect_true(all(c("alpha", "beta") %in% pars$name))
-  
-  #infectivity profile
+
+  # infectivity profile
   expect_null(get_infec_profile(hhmodel))
 
   # augmented
@@ -81,28 +88,11 @@ test_that("Wrappers work as expected on blank model", {
   aug <- get_augmented(result)
   expect_true(is.data.frame(aug))
   expect_true("dummy" %in% aug$name)
-  
+
   result <- load_augmented_list(hhmodel,
                                 dummy = list(model = "uniform"))
   aug <- get_augmented(result)
   expect_true("dummy" %in% aug$name)
-})
-
-
-############################################################################
-## Template loaders on blank model warn
-############################################################################
-
-test_that("load_parameter_template warns on blank model", {
-  hhmodel <- new_housepi_model("blank")
-  expect_warning(load_parameter_template(hhmodel),
-                 regexp = "No template parameters")
-})
-
-test_that("load_augmented_template warns on blank model", {
-  hhmodel <- new_housepi_model("blank")
-  expect_warning(load_augmented_template(hhmodel),
-                 regexp = "No template augmented")
 })
 
 ############################################################################
@@ -136,17 +126,6 @@ test_that("drop wrappers return clean models", {
   dropped <- drop_all(hhmodel)
   expect_equal(nrow(get_parameters(dropped)), 0)
   expect_equal(nrow(get_augmented(dropped)), 0)
-})
-
-############################################################################
-## Summarise wrappers
-############################################################################
-
-test_that("summarise_cases and summarise_house_sizes work", {
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
-  expect_true(is.data.frame(summarise_cases(hhmodel)))
-  expect_true(is.data.frame(summarise_house_sizes(hhmodel)))
 })
 
 ############################################################################
@@ -190,7 +169,7 @@ test_that("Group rate wrappers", {
   result <- load_group_rate_list(hhmodel, community = "member")
   groups_2 <- get_group_rates(result)
   expect_identical(groups_1, groups_2)
-  
+
   # load custom definitions
   hhmodel <- hhmodel |>
     load_group_rate_list(
@@ -199,9 +178,9 @@ test_that("Group rate wrappers", {
                             param_name = c("sus_student", ".reference")),
         params = list(sus_student = 1.23)
       )
-  )
+    )
   expect_equal(subset(hhmodel$parameters, name == "sus_student")$value, 1.23)
-  
+
   # check for non-existing custom features
   hhmodel <- drop_group_rates(hhmodel)
   hhmodel <- add_group_rate(

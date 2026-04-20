@@ -353,8 +353,8 @@ namespace housepi
         const std::string &str_val = deftable_["value"][k];
         const parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
 
-        // Set potentially multiplicity data
-        mcmc_->data_wide().set_multiplicity_data(parser.list_data_wide_depen());
+        // Set potentially frequency data
+        mcmc_->data_wide().set_frequency_covariates(parser.list_data_wide_depen());
 
         // NOTE: do not export if not callable (otherwise crashes)
         if (!parser.is_callable_implicitly("x"))

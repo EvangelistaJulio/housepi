@@ -123,7 +123,7 @@ public:
 		// fill matrix with escape probabilities
 		fill_house_escape_matrix(house);
 
-		// compute corresponding loglikelihood times house multiplicity
+		// compute corresponding loglikelihood times house frequency
 		return bino::chain_binom_heterogeneous_log_lik(
 			house.n_infected_status(),
 			cache_double_vector(house, HHdoublevecKey::commu_escape_rate),

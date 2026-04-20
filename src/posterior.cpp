@@ -47,7 +47,7 @@ namespace housepi
         const DataWide &data_wide,
         unsigned long sample_size)
     {
-        size_t n_restricted = data_wide.restricted_size();
+        size_t n_restricted = data_wide.distinct_size();
         post->house_log_lik.reserve(n_restricted);
         for (size_t R = 0; R < n_restricted; ++R)
             post->house_log_lik.emplace_back(sample_size, na::DOUBLE);
@@ -124,7 +124,7 @@ namespace housepi
 
             // household log-likelihoods
             const DataWide &data_wide = mcmc.data_wide();
-            for (size_t R = 0; R < data_wide.restricted_size(); ++R)
+            for (size_t R = 0; R < data_wide.distinct_size(); ++R)
                 house_log_lik[R][count_] = data_wide.house_log_lik(R);
 
             // augmented variable draws

@@ -27,13 +27,14 @@
 #include "function.h"
 #include "tools/data_reports.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** Household : class ***  ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 namespace housepi
 {
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  *** Household : class ***  ///////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
     void Household::add_member(size_t index,
                                const std::string &id,
                                const Indiv::Wide *data_ptr)
@@ -119,9 +120,6 @@ namespace housepi
 
         if (input.empty())
             return;
-
-        // initialize multiplicity-relevant data entries to only model dependent
-        set_multiplicity_data(khold_.get_all());
 
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
@@ -235,6 +233,7 @@ namespace housepi
     void DataWide::build_helper_fill_report_data_()
     {
         report_house.total = house_vector_.size();
+        report_house.distinct = report_house.total;
 
         // set report counts
         for (const Household &house : house_vector_)
@@ -273,99 +272,129 @@ namespace housepi
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  *** DataWide : frequency weights ***  /////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
     namespace
     {
-        /// Using golden ratio fractional part to ensure bit distribution.
-        /// Ref:
-        /// https://www.boost.org/doc/libs/latest/libs/container_hash/doc/html/hash.html#notes_hash_combine
-        inline void hash_combine(size_t &seed, size_t h)
+        struct FrequencyMapper_
         {
+            FrequencyMapper_(const std::unordered_set<size_t> data_list)
+                : data_list_(data_list) {}
+
+            /// Compute frequency-relevant hash for each household
+            std::map<size_t, std::vector<size_t>> define_hash_groups(
+                const std::vector<Household> &house_vector)
+            {
+                std::map<size_t, std::vector<size_t>> output;
+
+                for (size_t H = 0; H < house_vector.size(); ++H)
+                {
+                    const Household &house = house_vector[H];
+
+                    // sorted member indices
+                    std::vector<size_t> order(house.size());
+                    std::iota(order.begin(), order.end(), 0);
+                    std::sort(order.begin(), order.end(),
+                              [this, &house](size_t i, size_t j)
+                              { return member_less_(house.member(i), house.member(j)); });
+
+                    // equal house sizes share seeding
+                    size_t seed = std::hash<size_t>{}(house.size());
+                    // combine hashes over sorted members
+                    for (size_t i : order)
+                    {
+                        const Individual &member = house.member(i);
+                        hash_combine_(seed, std::hash<int>{}(member.status()));
+                        for (size_t d : data_list_)
+                            hash_combine_(seed, std::hash<double>{}(member.data(d)));
+                    }
+                    output[seed].emplace_back(H);
+                }
+
+                return output;
+            }
+
+        private:
+            /// List of data relevant for frequency groups
+            const std::unordered_set<size_t> data_list_;
+
+            /// Comparison functor: sort members by (status, data[0], data[1], ...)
+            bool member_less_(const Individual &a, const Individual &b) const
+            {
+                if (a.status() != b.status())
+                    return a.status() < b.status();
+                for (size_t d : data_list_)
+                    if (a.data(d) != b.data(d))
+                        return a.data(d) < b.data(d);
+                return false;
+            }
+
+            /// Using golden ratio fractional part to ensure bit distribution.
+            /// Ref:
+            /// https://www.boost.org/doc/libs/latest/libs/container_hash/doc/html/hash.html#notes_hash_combine
+            void hash_combine_(size_t &seed, size_t h)
+            {
 #if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
-            seed ^= h + 0x9e3779b97f4a7c15ULL + (seed << 12) + (seed >> 4);
+                seed ^= h + 0x9e3779b97f4a7c15ULL + (seed << 12) + (seed >> 4);
 #else
-            seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 #endif
-        }
+            }
+        };
     }
 
-    void DataWide::set_multiplicity_data(const std::vector<std::string> &data_list)
+    void DataWide::set_frequency_covariates(const std::vector<std::string> &data_list)
     {
         for (size_t d : khold_.from_string(data_list))
-            multiplicity_data_.emplace(d);
+            frequencies_data_.emplace(d);
     }
 
-    void DataWide::init_multiplicity(bool is_any_augm)
+    void DataWide::init_frequencies(bool is_any_augm)
     {
-        mode_ = Mode::Unique;
-        multiplicity_.clear();
-
-        // initialize household indexes
-        for (Household &house : house_vector_)
-            house.ridx_ = hhid_to_index_[house.house_id()];
-
-        // NOTE: multiplicity incompatible with sampling augmented data
-        if (house_vector_.empty() || is_any_augm)
+        // NOTE: frequency incompatible with sampling augmented data
+        if (is_any_augm)
+        {
+            helper_init_unique_frequencies_();
             return;
-
-        // List of data relevant for multiplicity groups
-        // FIXME: not all data contribute to this!
-        // probably just group rates and model dependencies
-        const std::unordered_set<size_t> data_list = multiplicity_data_;
-
-        // comparison functor: sort members by (status, data[0], data[1], ...)
-        auto member_less = [data_list](const Individual &a, const Individual &b)
-        {
-            if (a.status() != b.status())
-                return a.status() < b.status();
-            for (size_t d : data_list)
-                if (a.data(d) != b.data(d))
-                    return a.data(d) < b.data(d);
-            return false;
-        };
-
-        // compute multiplicity-relevant hash for each household
-        std::map<size_t, std::vector<size_t>> hash_groups;
-
-        for (size_t H = 0; H < report_house.total; ++H)
-        {
-            const Household &house = at(H);
-
-            // sorted member indices
-            std::vector<size_t> order(house.size());
-            std::iota(order.begin(), order.end(), 0);
-            std::sort(order.begin(), order.end(),
-                      [&house, &member_less](size_t i, size_t j)
-                      { return member_less(house.member(i), house.member(j)); });
-
-            // combine hashes over sorted members
-            size_t seed = std::hash<size_t>{}(house.size());
-            for (size_t i : order)
-            {
-                const Individual &member = house.member(i);
-                hash_combine(seed, std::hash<int>{}(member.status()));
-                for (size_t d : data_list)
-                    hash_combine(seed, std::hash<double>{}(member.data(d)));
-            }
-            hash_groups[seed].emplace_back(H);
         }
 
-        // skip if all unique households
-        if (house_vector_.size() == hash_groups.size())
+        // compute frequency-relevant hash for each household
+        std::map<size_t, std::vector<size_t>> hash_groups =
+            FrequencyMapper_(frequencies_data_).define_hash_groups(house_vector_);
+
+        // update number of distinct frequency groups
+        report_house.distinct = hash_groups.size();
+
+        // init all unique households and skip if it's the case
+        if (report_house.total == report_house.distinct)
+        {
+            helper_init_unique_frequencies_();
             return;
+        }
 
-        // build multiplicity structures
-        mode_ = Mode::Multiple;
-        multiplicity_.reserve(hash_groups.size());
-
+        // compute frequency heads and weights
+        frequencies_.reserve(report_house.distinct);
         for (const auto &[hash, group] : hash_groups)
         {
-            const size_t refer_restrict = multiplicity_.size();
+            const size_t refer_restrict = frequencies_.size();
             for (size_t H : group)
                 at(H).ridx_ = refer_restrict;
 
-            multiplicity_.emplace_back(group);
+            frequencies_.emplace_back(group);
         }
-        multiplicity_.shrink_to_fit();
+    }
+
+    void DataWide::helper_init_unique_frequencies_()
+    {
+        frequencies_.clear();
+        frequencies_.resize(report_house.total);
+        for (size_t H = 0; H < report_house.total; ++H)
+        {
+            frequencies_[H].head_ = H;
+            at(H).ridx_ = H;
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -374,12 +403,12 @@ namespace housepi
 
     void DataWide::allocate_all_cache()
     {
-        cached_.previous.resize(restricted_size());
-        cached_.current.resize(restricted_size());
+        cached_.previous.resize(distinct_size());
+        cached_.current.resize(distinct_size());
 
-        for (size_t R = 0; R < restricted_size(); ++R)
+        for (size_t R = 0; R < distinct_size(); ++R)
         {
-            Household &house = restricted(R);
+            Household &house = distinct_head(R);
             size_t hh_size = house.size();
             Cached_::State_ &prev = cached_.previous[R];
             Cached_::State_ &curr = cached_.current[R];
@@ -469,9 +498,9 @@ namespace housepi
 
     void DataWide::assert_finite_log_lik() const
     {
-        for (size_t R = 0; R < restricted_size(); ++R)
+        for (size_t R = 0; R < distinct_size(); ++R)
         {
-            const Household &house = restricted(R);
+            const Household &house = distinct_head(R);
 
             for (size_t i : house.infected_hhindexes())
                 if (house.member(i).paugm_->log_lik.is_inf())
@@ -487,7 +516,7 @@ namespace housepi
 
     double DataWide::house_log_lik(size_t R) const
     {
-        const Household &house = restricted(R);
+        const Household &house = distinct_head(R);
         double x = house.obs_log_lik();
         for (size_t i : house.infected_hhindexes())
             x += house.member(i).paugm_->log_lik.value();

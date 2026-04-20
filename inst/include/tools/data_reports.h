@@ -25,6 +25,7 @@ namespace housepi
 	struct ReportHousehold
 	{
 		size_t total = 0;
+		size_t distinct = 0;
 		size_t no_cases = 0;
 		size_t at_least_1_case = 0;
 		size_t at_least_2_cases = 0;

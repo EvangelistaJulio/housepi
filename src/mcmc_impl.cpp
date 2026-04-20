@@ -152,9 +152,9 @@ namespace housepi
         tot_log_lik.recover();
 
         // recover old log-likelihood values for households
-        for (size_t R = 0; R < data_wide().restricted_size(); ++R)
+        for (size_t M = 0; M < data_wide().distinct_size(); ++M)
         {
-            Household &house = data_wide().restricted(R);
+            Household &house = data_wide().distinct_head(M);
             house.obs_log_lik_.recover();
 
             if (augm.is_any_sample())
@@ -281,10 +281,10 @@ namespace housepi
 
     void MCMC::init_evaluate_(bool is_reset)
     {
-        data_wide().assert_non_empty();                      // check if data is empty
-        data_wide().assert_not_all_missing_status();         // warn if all missing status
-        augm.init();                                         // initialize individual augmented relations
-        data_wide().init_multiplicity(augm.is_any_sample()); // multiplicity
+        data_wide().assert_non_empty();                     // check if data is empty
+        data_wide().assert_not_all_missing_status();        // warn if all missing status
+        augm.init();                                        // initialize individual augmented relations
+        data_wide().init_frequencies(augm.is_any_sample()); // frequency
 
         if (is_reset)
         {
@@ -295,8 +295,8 @@ namespace housepi
         model->init_model_for_evaluation(); // user initialization of model for inference
         data_wide().allocate_all_cache();   // allocate all cache dependencies
 
-        for (size_t R = 0; R < data_wide().restricted_size(); ++R)
-            model->init_house_for_evaluation(data_wide().restricted(R));
+        for (size_t M = 0; M < data_wide().distinct_size(); ++M)
+            model->init_house_for_evaluation(data_wide().distinct_head(M));
     }
 
     double MCMC::commit_total_log_lik_(bool is_cache_depen)
@@ -311,13 +311,13 @@ namespace housepi
         }
 
 #pragma omp parallel for reduction(+ : new_ll)
-        for (size_t R = 0; R < data_wide().restricted_size(); ++R)
+        for (size_t M = 0; M < data_wide().distinct_size(); ++M)
         {
             if (atomic_error.is_pending())
                 continue;
 
-            Household &house = data_wide().restricted(R);
-            new_ll += data_wide().multiplicity(R) *
+            Household &house = data_wide().distinct_head(M);
+            new_ll += data_wide().frequency_weight(M) *
                       atomic_commit_house_log_lik_(house, is_cache_depen);
         }
         atomic_error.throw_exception();
