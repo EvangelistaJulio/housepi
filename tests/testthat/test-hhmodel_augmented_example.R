@@ -1,10 +1,8 @@
 library(testthat)
 
 test_that("Nested definitions raise errors", {
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$add_data_wide(
-    data.frame(house_id = 1, id = seq(4), status = seq(4))
-  )
+  hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
+    new_housepi_model("augmented_example")
 
   expect_no_error(
     hhmodel$load_augmented_list(
@@ -58,9 +56,9 @@ test_that("Nested definitions raise errors", {
 })
 
 test_that("Missing function arguments raise errors", {
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$add_data_wide(data.frame(house_id = seq(3), id = seq(3),
-                                   status = 1, test = c(5.5, NA, -1.5)))
+  hhmodel <- data.frame(house_id = seq(3), id = seq(3),
+                        status = 1, test = c(5.5, NA, -1.5)) |>
+    new_housepi_model("augmented_example")
 
   # non default arguments
   expect_error(
@@ -96,10 +94,9 @@ test_that("Missing function arguments raise errors", {
 })
 
 test_that("Augmented log-likelihood seeding is fine", {
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$add_data_wide(
-    data.frame(house_id = 1, id = seq(4), status = seq(4))
-  )
+  hhmodel <- data.frame(house_id = 1, id = seq(4),
+                        status = seq(4)) |>
+    new_housepi_model("augmented_example")
   hhmodel$load_augmented_list(
     proba = list(model = "uniform", status = 1),
     proba = list(value = .layer, status = c(2, 3, 4)),
@@ -118,10 +115,11 @@ test_that("Augmented log-likelihood seeding is fine", {
 })
 
 test_that("Augmented aliasing works as expected", {
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$add_data_wide(data.frame(
-    house_id = "hh1", id = seq(1, 3), x = 2 + runif(3), status = 1
-  ))
+  hhmodel <- data.frame(house_id = "hh1",
+                        id = seq(1, 3),
+                        x = 2 + runif(3),
+                        status = 1) |>
+    new_housepi_model("augmented_example")
   hhmodel$add_parameter(name = "scale", value = 1)
   hhmodel$load_augmented_list(
     .dummy = x@D,
@@ -144,10 +142,10 @@ test_that("Augmented aliasing works as expected", {
 
   # check normalization of binomial with augmented example
   size <- 10
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$add_data_wide(data.frame(
-    id = seq(0, size), house_id = "hh1", status = 1, X = seq(0, size)
-  ))
+  hhmodel <- data.frame(id = seq(0, size),
+                        house_id = "hh1", status = 1,
+                        X = seq(0, size)) |>
+    new_housepi_model("augmented_example")
   hhmodel$load_augmented_list(
     pdf = list(func = "binomial",
                func_args = c(x = X@D, size = !!size, prob = 0.5)),
@@ -168,27 +166,30 @@ test_that("Augmentation example on incubation from delays is coherent", {
   df <- data.frame(status = 1,
                    ip = rgamma(223, shape = shape, scale = scale))
 
-  # generate an instance of the household model class
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$load_augmented_list(
-    proba = list(func = "gamma",
-                 func_args = c(x = ip@D, shape = !!shape, scale = !!scale))
-  )
+  build_model <- function(data) {
+    hh <- new_housepi_model(data, "augmented_example", quiet = TRUE)
+    hh$load_augmented_list(
+      proba = list(func = "gamma",
+                   func_args = c(x = ip@D, shape = !!shape, scale = !!scale))
+    )
+    hh
+  }
+
   # warning for no structure
-  expect_warning(hhmodel$add_data_wide(df),
+  expect_warning(new_housepi_model(df, "augmented_example"),
                  regexp = "Ignored household structure")
+  hhmodel <- build_model(df)
   expect_equal(hhmodel$evaluate_log_lik(), exact_val(df$ip, shape, scale))
 
   # repeat with degenerated ip values to trigger multiplicity
   df$ip <- floor(df$ip)
-  hhmodel$add_data_wide(df)
+  hhmodel <- build_model(df)
   expect_equal(hhmodel$evaluate_log_lik(), exact_val(df$ip, shape, scale))
 })
 
 test_that("Known errors are unchanged", {
   # Known infinity (values below minimum, i. e. proba 0)
-  hhmodel <- new_housepi_model("augmented_example") |>
-    add_data_wide(helper_test_get_data("sarscov2_2021_icofs"))
+  hhmodel <- new_housepi_model(sarscov2_2021_icofs, "augmented_example")
   hhmodel |>
     load_augmented_list(
       value = list(model = "uniform", min = 0, max = 1),
@@ -221,8 +222,7 @@ test_that("Augmented model log-likelihoods are correctly computed", {
   shape <- 2
   scale <- 1.1
   id_draws <- house[house$status > 0, ]$id
-  results <- new_housepi_model("augmented_example") |>
-    add_data_wide(house) |>
+  results <- new_housepi_model(house, "augmented_example") |>
     load_augmented_list(proba = list(model = "gamma", x = x@D,
                                      shape = !!shape, scale = !!scale)) |>
     run_inference(steps = 5, thin = 1, adapt = 0, chain = 1,
@@ -240,9 +240,9 @@ test_that("Augmented model log-likelihoods are correctly computed", {
 })
 
 test_that("export_augmented_data works after evaluate_log_lik", {
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$add_data_wide(
-    data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0))
+  hhmodel <- new_housepi_model(
+    data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0)),
+    "augmented_example"
   )
   hhmodel$add_augmented(name = "proba", model = "uniform")
   hhmodel$evaluate_log_lik()
@@ -252,12 +252,11 @@ test_that("export_augmented_data works after evaluate_log_lik", {
 })
 
 test_that("export_house_snapshot returns correct structure", {
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$load_parameter_template()
   hhmodel$evaluate_log_lik()
 
-  hid <- helper_test_get_data("flu_1918_frederick")$house_id[1]
+  hid <- hhmodel$data_wide$house_id[1]
   snapshot <- hhmodel$export_house_snapshot(hid)
   expect_true(is.list(snapshot))
   expect_true("data_wide" %in% names(snapshot))

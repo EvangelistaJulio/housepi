@@ -2,8 +2,7 @@ library(testthat)
 
 # Run inference once and reuse across tests
 local_results <- local({
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$load_parameter_template()
   hhmodel$run_inference(steps = 100, progress = FALSE)
 })
@@ -77,8 +76,7 @@ test_that("Print behavior is stable", {
 })
 
 test_that("Multi-chain inference produces correct chain structure", {
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$load_parameter_template()
   results <- hhmodel$run_inference(steps = 10, chains = 2, progress = FALSE)
 
@@ -89,10 +87,10 @@ test_that("Multi-chain inference produces correct chain structure", {
 })
 
 test_that("Augm draws are not empty when id_draws is specified", {
-  hhmodel <- new_housepi_model("augmented_example")
-  hhmodel$add_data_wide(data.frame(house_id = 1,
-                                   id = c("a", "b"),
-                                   status = c(1, 0)))
+  hhmodel <- data.frame(house_id = 1,
+                        id = c("a", "b"),
+                        status = c(1, 0)) |>
+    new_housepi_model("augmented_example")
   hhmodel$add_augmented(name = "proba", model = "uniform")
   results <- hhmodel$run_inference(steps = 5, id_draws = "a",
                                    progress = FALSE)

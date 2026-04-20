@@ -90,12 +90,12 @@ For asymptomatic members we draw the infection time uniformly within the period 
 library(ggplot2)
 
 onset_tommy <- 5
-hhmodel <- new_housepi_model("augmented_infection_time") |>
-  add_data_wide(data.frame(id = c("tommy", "gina"),
-                           status = c(1, 2),
-                           onset_time = c(onset_tommy, NA),
-                           house_id = "house_1",
-                           end_followup = onset_tommy + 10)) |>
+hhmodel <- data.frame(id = c("tommy", "gina"),
+                      status = c(1, 2),
+                      onset_time = c(onset_tommy, NA),
+                      house_id = "house_1",
+                      end_followup = onset_tommy + 10) |>
+  new_housepi_model("augmented_infection_time") |>
   load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9, size_ref = 4) |>
 
   # associate augmented definitions
@@ -158,8 +158,13 @@ Then, we define the augmented variables `infec_time` and `onset_time` as uniform
 ```{r}
 #| label: augmented-example-setup
 # generate an instance of the household model class
-hhmodel <- new_housepi_model("augmented_example") |>
-
+hhmodel <- dataset |>
+  new_housepi_model("augmented_example") |>
+    # define the gamma distribution parameter to be inferred
+  load_parameter_list(
+    mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal"),
+    var = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal")
+  ) |>
   # augmented variable definitions as function calls
   load_augmented_list(
     # explicit declaration of incubation period likelihood
@@ -170,12 +175,9 @@ hhmodel <- new_housepi_model("augmented_example") |>
                     var = var@P),     # and 'var'
       max = 14 # truncate to given maximum
     ),
-
     # declare 'incub_period' as the difference
     # between augmented onset and infection times
     incub_period = .onset_time - .infec_time,
-
-
     # add 'onset_time' time definition
     # here we correct right censoring of maximum values
     # to allow for the event to occur during the whole day
@@ -186,7 +188,6 @@ hhmodel <- new_housepi_model("augmented_example") |>
       proposal = "normal",
       proposal_scale = 0.5
     ),
-
     # add 'infec_time' time definition
     .infec_time = list(
       model = "uniform",
@@ -196,12 +197,6 @@ hhmodel <- new_housepi_model("augmented_example") |>
       proposal = "normal",
       proposal_scale = 0.5
     )
-  ) |>
-
-  # define the gamma distribution parameter to be inferred
-  load_parameter_list(
-    mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal"),
-    var = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal")
   )
 ```
 
@@ -220,8 +215,7 @@ We can do so by providing the `id` of individuals whose augmented variables we w
 #|  Trace plots for mean and variance parameters with three parallel chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
 results <- hhmodel |>
-  add_data_wide(dataset) |>
-  run_inference(steps = 1000, thin = 5, chains = 3, adapt = 500,
+  run_inference(steps = 2000, thin = 10, chains = 3, burn = 500,
                 # store augmented draws of "7" and "13"
                 id_draws = c("7", "13"),
                 progress = FALSE)
@@ -263,7 +257,7 @@ We always recommend a visual assessment before choosing a new move.
 #| warning: false
 
 # with model (default sample)
-results <- new_housepi_model("blank") |>
+results <- new_housepi_model(model = "blank") |>
   add_augmented("sample_model", model = "normal", mean = 14) |>
   run_inference()
 ```

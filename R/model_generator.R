@@ -163,19 +163,24 @@ HousepiGenerator <- R6::R6Class(
 
     # @description
     # Wheter model choice is interpretable.
-    helper_init_choice_ = function(choice) {
-      choice_ <- "blank"
-      if (is.na(choice)) warning_h(
+    helper_init_model_choice_ = function(model) {
+      choice <- "blank"
+      if (all(is.na(model) | is.null(model))) warning_h(
         "No model specified. Falling back to 'blank' model.",
         "To show available templates, run 'template_household_model'."
       )
-      else if (as.character(choice) %in% list(".")) stop_h(
-        sprintf("Invalid choice '%s' for housepi model.", choice),
+      else if (length(model) != 1 || !is.character(model)) stop_h(
+        "Model choice must be a non-empty string.",
+        format_type_error(model)
+      )
+      else if (model %in% list(".")) stop_h(
+        sprintf("Invalid choice '%s' for housepi model.", model),
         "Move your implementation in a different folder."
       )
-      else choice_ <- as.character(choice)
-      private$name_ <- template_name(choice_)
-      choice_
+      else choice <- model
+
+      private$name_ <- template_name(choice)
+      choice
     },
 
     # @description
@@ -446,15 +451,15 @@ HousepiGenerator <- R6::R6Class(
   public = list(
     #' @description
     #' Initialize model generator defining name of dynamic library.
-    #' @param choice `r rd_mdl_choice_`
+    #' @param model `r rd_mdl_choice_`
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
     #' @param quiet `r rd_mdl_quiet_`
     #' @param ... `r rd_mdl_flags_`
-    initialize = function(choice = NA_character_, as_template = FALSE,
+    initialize = function(model = NA_character_, as_template = FALSE,
                           force = FALSE, quiet = FALSE, ...) {
       # assign name to the model
-      choice <- private$helper_init_choice_(choice)
+      choice <- private$helper_init_model_choice_(model)
 
       # assign quiet field and load user options
       user_options <- private$pre_process_user_options_(quiet, ...)

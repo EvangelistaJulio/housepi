@@ -5,7 +5,8 @@
 \title{Generate a new instance of household model class}
 \usage{
 new_housepi_model(
-  choice = NA_character_,
+  data = NULL,
+  model = NA_character_,
   as_template = FALSE,
   force = FALSE,
   quiet = FALSE,
@@ -13,7 +14,9 @@ new_housepi_model(
 )
 }
 \arguments{
-\item{choice}{\code{character(1)} Choice for the model.
+\item{data}{\code{data.frame} Household data used for analysis (wide format).}
+
+\item{model}{\code{character(1)} Choice for the model.
 One between:
 \itemize{
 \item template name;
@@ -48,6 +51,6 @@ Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
 }
 \examples{
-hhmodel <- new_housepi_model("blank")
+hhmodel <- new_housepi_model(model = "blank")
 print(hhmodel)
 }

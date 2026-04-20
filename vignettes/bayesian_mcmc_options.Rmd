@@ -38,7 +38,7 @@ Here's the full list of available continuous distributions present in housepi:
 #|  Density plots for prior distributions available in housepi for Bayesian inference: uniform, normal, lognormal, gamma, Weibull, Rayleigh, beta and exponential.
 #|  Each panel displays the estimated probability density function in blue obtained from MCMC sampling.
 # create an instance of the blank model
-new_housepi_model("blank") |>
+new_housepi_model(model = "blank") |>
   # continuous distributions in housepi
   load_parameter_list(
     uniform = list(prior = "uniform", min = 0, max = 1),
@@ -74,7 +74,7 @@ We do this with the arguments `min` (minimum) and `max` (maximum).
 #|  Orange dashed lines indicate truncation boundaries applied to distributions.
 library(ggplot2)
 
-new_housepi_model("blank") |>
+new_housepi_model(model = "blank") |>
   load_parameter_list(default = list(prior = "normal"),
                       below = list(prior = "normal", min = -1),
                       above = list(prior = "normal", max = 1),
@@ -100,7 +100,7 @@ All functions and distributions in housepi allow for a location parameter `loc` 
 #|  Density plots showing gamma distributions with different location parameters.
 #|  Four panels display gamma distributions with location parameters set to 0, 1, 2, and 3 respectively.
 #|  Vertical dashed lines indicate the minimum of each shifted support.
-new_housepi_model("blank") |>
+new_housepi_model(model = "blank") |>
   load_parameter_list(
     gamma_0 = list(prior = "gamma", shape = 2, scale = 1),
     gamma_1 = list(prior = "gamma", shape = 2, scale = 1, loc = 1),
@@ -135,7 +135,7 @@ Here's the full list of available discrete distributions present in housepi:
 #|  Orange bars represent probability mass functions for integer-valued outcomes obtained from MCMC sampling.
 
 # discrete distributions in housepi
-new_housepi_model("blank") |>
+new_housepi_model(model = "blank") |>
   load_parameter_list(
     poisson = list(prior = "poisson", lambda = 2),
     binomial = list(prior = "binomial", size = 4, prob = 0.5),
@@ -156,7 +156,7 @@ Previous continuous priors can be chosen to be discretized using the argument `d
 #| fig-alt: >
 #|  Seven histograms showing discretized versions of continuous prior distributions: uniform, normal, lognormal, gamma, Weibull, Rayleigh, and exponential.
 
-new_housepi_model("blank") |>
+new_housepi_model(model = "blank") |>
   load_parameter_list(
     uniform = list(prior = "uniform", discr = TRUE),
     normal = list(prior = "normal", discr = TRUE),
@@ -230,7 +230,7 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 #|  Sampling shows poor mixing for all mechanisms except sample.
 
 prop_scale <- 100
-hhmodel <- new_housepi_model("blank") |>
+hhmodel <- new_housepi_model(model = "blank") |>
   # available proposals in housepi
   load_parameter_list(
     proposal_sample = list(prior = "normal", min = 0, proposal = "sample"),

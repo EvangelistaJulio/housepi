@@ -37,7 +37,6 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-copy}{\code{HousepiModel$copy()}}
 \item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
 \item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
-\item \href{#method-HousepiModel-add_data_wide}{\code{HousepiModel$add_data_wide()}}
 \item \href{#method-HousepiModel-summarise_cases}{\code{HousepiModel$summarise_cases()}}
 \item \href{#method-HousepiModel-summarise_house_sizes}{\code{HousepiModel$summarise_house_sizes()}}
 \item \href{#method-HousepiModel-add_data_long}{\code{HousepiModel$add_data_long()}}
@@ -73,7 +72,8 @@ Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$new(
-  choice = NA_character_,
+  data = NULL,
+  model = NA_character_,
   as_template = FALSE,
   force = FALSE,
   quiet = FALSE,
@@ -84,7 +84,9 @@ used to run inference and simulation routines.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{choice}}{\code{character(1)} Choice for the model.
+\item{\code{data}}{\code{data.frame} Household data used for analysis (wide format).}
+
+\item{\code{model}}{\code{character(1)} Choice for the model.
 One between:
 \itemize{
 \item template name;
@@ -146,23 +148,6 @@ Show model description in RStudio Help window.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$help()}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-add_data_wide"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-add_data_wide}{}}}
-\subsection{Method \code{add_data_wide()}}{
-Store a copy of provided household data.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_data_wide(data_wide)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{data_wide}}{\code{data.frame} Household data used for analysis (wide format).}
-}
-\if{html}{\out{</div>}}
-}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-summarise_cases"></a>}}

@@ -9,19 +9,22 @@
 #' @description
 #' Create a new object of class 'HousepiModel'
 #' used to run inference and simulation routines.
-#' @param choice `r rd_mdl_choice_`
+#' @param data `r rd_add_wide_`
+#' @param model `r rd_mdl_choice_`
 #' @param as_template `r rd_mdl_astmpl_`
 #' @param force `r rd_mdl_force_`
 #' @param quiet `r rd_mdl_quiet_`
 #' @param ... `r rd_mdl_flags_`
 #' @return `r rd_model_in_`
 #' @examples
-#' hhmodel <- new_housepi_model("blank")
+#' hhmodel <- new_housepi_model(model = "blank")
 #' print(hhmodel)
 #' @export
-new_housepi_model <- function(choice = NA_character_, as_template = FALSE,
+new_housepi_model <- function(data = NULL, model = NA_character_,
+                              as_template = FALSE,
                               force = FALSE, quiet = FALSE, ...) {
-  HousepiModel$new(choice = choice, as_template = as_template,
+  HousepiModel$new(data = data, model = model,
+                   as_template = as_template,
                    force = force, quiet = quiet, ...)
 }
 
@@ -37,20 +40,6 @@ stopifnothousepi <- function(hhmodel) {
   )
 }
 
-#' @title Add household data in wide format
-#' @description
-#' Make an internal copy of the provided household data.
-#' @param hhmodel `r rd_model_in_`
-#' @param data_wide `r rd_add_wide_`
-#' @return `r rd_model_out_`
-#' @export
-add_data_wide  <- function(hhmodel, data_wide) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$add_data_wide(data_wide)
-  new_obj
-}
-
 #' @title Add additional individual data in long format
 #' @description
 #' Make an internal copy of the provided data in long format.
@@ -62,6 +51,7 @@ add_data_long <- function(hhmodel, data_long) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$add_data_long(data_long)
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -249,6 +239,7 @@ add_parameter <- function(hhmodel,
     proposal = proposal, proposal_scale = proposal_scale,
     .assert = TRUE
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -310,6 +301,7 @@ add_augmented <- function(hhmodel,
     proposal = proposal, proposal_scale = proposal_scale,
     .assert = TRUE
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -368,6 +360,7 @@ add_group_rate <-  function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -411,6 +404,7 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -440,6 +434,7 @@ add_infec_profile <- function(hhmodel,
     rlang::enquos(...), max = rlang::enquo(max),
     .assert = TRUE
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -462,6 +457,7 @@ load_parameter_list <- function(hhmodel, ..., append = FALSE) {
   new_obj$.__enclos_env__$private$param_$load_quosures(
     rlang::enquos(...), append = append
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -473,6 +469,7 @@ load_augmented_list <- function(hhmodel, ..., append = FALSE) {
   new_obj$.__enclos_env__$private$augm_$load_quosures(
     rlang::enquos(...), append = append
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -486,6 +483,7 @@ load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
   new_obj$.__enclos_env__$private$group_rates_$load_quosures(
     rlang::enquos(...), append = append
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
@@ -497,6 +495,7 @@ load_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
   new_obj$.__enclos_env__$private$infec_profile_$load_quosures(
     rlang::enquos(...), append = append
   )
+  new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 

@@ -17,34 +17,28 @@ helper_default_source <- function(types, values) {
                             "P" = "parameter")
 
   for (i in seq_along(types)) {
+    types[i] <- toupper(types[i])
     k <- types[i]
     y <- values[[i]]
 
     # explicit type checking
     if (is.na(k)) {
       # no explicit type provided, then format for default types
-      if (is.na(y)) {
-        types[i] <- NA_character_
-      } else if (is.numeric(y)) {
-        types[i] <- "N"
-      } else if (is.character(y)) {
-        if (!is.na(suppressWarnings(as.numeric(y)))) types[i] <- "N"
-        else if (y %in% .reserved_math_consts) types[i] <- "N"
-        else types[i] <- "A"
-      } else {
-        stop_h(
-          "Found an unsupported definition type value.",
-          format_type_error(y)
-        )
-      }
-
-    } else if (!(toupper(k) %in% names(valid_sources_lst))) {
-      stop_h(
-        paste0("Invalid type '", k, "' for value '", y, "'."),
-        paste(sprintf("'%s'", names(valid_sources_lst)),
-              sprintf("(%s)", unlist(valid_sources_lst)),
-              collapse = ", ")
+      if (is.na(y)) types[i] <- NA_character_
+      else if (is.numeric(y)) types[i] <- "N"
+      else if (!is.character(y)) stop_h(
+        "Found an unsupported definition type value.",
+        format_type_error(y)
       )
+      else if (!is.na(suppressWarnings(as.numeric(y)))) types[i] <- "N"
+      else if (y %in% .reserved_math_consts) types[i] <- "N"
+      else types[i] <- "A"
+
+    } else if (!(k %in% names(valid_sources_lst))) {
+      stop_h(paste0("Invalid type '", k, "' for value '", y, "'."),
+             paste(sprintf("'%s'", names(valid_sources_lst)),
+                   sprintf("(%s)", unlist(valid_sources_lst)),
+                   collapse = ", "))
     }
   }
   types

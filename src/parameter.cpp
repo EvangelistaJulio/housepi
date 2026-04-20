@@ -445,7 +445,7 @@ namespace housepi
         const Individual *member_ptr) const
     {
         storage_ = read_attribute(node, member_ptr);
-        if (!storage_.is_numeric() && !storage_.is_empty())
+        if (!storage_.is_empty() && !storage_.is_constant())
             throw std::invalid_argument(
                 "Definition " + node.err_str() +
                 " could not be interpreted as a numeric constant.");

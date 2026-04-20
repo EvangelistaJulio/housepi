@@ -1,10 +1,9 @@
 library(testthat)
 
 test_that("Flu 2014 Matsumoto is correctly pre-processed", {
-  hhmodel <- new_housepi_model("chain_binomial_grouped")
-  expect_warning(summarise_cases(hhmodel), regexp = "empty")
-  
-  hhmodel$add_data_wide(flu_2014_matsumoto)
+  hhmodel <- flu_2014_matsumoto |>
+    new_housepi_model("chain_binomial_grouped")
+
   cases <- summarise_cases(hhmodel)
   expect_true(is.data.frame(cases))
   # expect same household count as in Endo, et al. ('19)
@@ -18,6 +17,6 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
   #   subset(cases, type == "household" & comment == "distinct")$counts,
   #   465
   # )
-  
+
   expect_true(is.data.frame(summarise_house_sizes(hhmodel)))
 })

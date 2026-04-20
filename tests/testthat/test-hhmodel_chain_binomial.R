@@ -73,15 +73,20 @@ make_ctr_mtx <- function(house, crates, prefix = "") {
 ##############################################
 
 test_that("Chain binomial is not discretizable", {
-  expect_error(new_housepi_model("chain_binomial", discr = TRUE),
-               regexp = "No visible discrete time option")
-  expect_error(new_housepi_model("chain_binomial_heterogeneous", discr = TRUE),
-               regexp = "No visible discrete time option")
+  expect_error(
+    new_housepi_model(blank_house,
+                      "chain_binomial", discr = TRUE),
+    regexp = "No visible discrete time option"
+  )
+  expect_error(
+    new_housepi_model(blank_house,
+                      "chain_binomial_heterogeneous", discr = TRUE),
+    regexp = "No visible discrete time option"
+  )
 })
 
 test_that("Deep clone works as expected", {
-  hhmodel <- new_housepi_model("chain_binomial_grouped")
-  hhmodel$add_data_wide(helper_test_get_data("flu_2014_matsumoto"))
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial_grouped")
   hhmodel$load_parameter_template()
   expect_no_error(out <- hhmodel$run_inference(steps = 2, progress = FALSE))
 
@@ -100,18 +105,16 @@ test_that("Deep clone works as expected", {
 
   # check no backward changes
   hhmodel$add_group_rate("susceptibility", by = "member")
-  hhclone$add_data_wide(
-    dplyr::mutate(helper_test_get_data("flu_2014_matsumoto"),
-                  status = NA)
-  )
+  hhclone <- flu_2014_matsumoto |>
+    dplyr::mutate(status = NA) |>
+    new_housepi_model("chain_binomial_grouped")
   expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
   expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
 })
 
 test_that("Log-likelihood traces and pointwise traces are coherent", {
-  results <- new_housepi_model("chain_binomial") |>
+  results <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
     load_parameter_template() |>
-    add_data_wide(helper_test_get_data("flu_1918_frederick")) |>
     run_inference(steps = 10, thin = 2, adapt = 2, burn = 2)
 
   pointwise <- results$log_lik_draws |>
@@ -122,9 +125,8 @@ test_that("Log-likelihood traces and pointwise traces are coherent", {
 })
 
 test_that("Simulation with observation process is correct", {
-  hhmodel <- new_housepi_model("chain_binomial")
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$load_parameter_template()
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
   rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
   withr::with_seed(
     1, result1 <- hhmodel$run_simulation(obs_process = rand_observ)
@@ -138,8 +140,7 @@ test_that("Simulation with observation process is correct", {
 })
 
 test_that("Run simulation with nsim > 1 returns list of dataframes", {
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$load_parameter_template()
   nsim <- 3
   result <- hhmodel$run_simulation(nsim = nsim)
@@ -166,8 +167,7 @@ test_that("Single infected member log-likelihood is correct", {
     log1p(-exp(-commu_infec_rate[1]))
 
   # define housepi model
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel$add_data_wide(house)
+  hhmodel <- new_housepi_model(house, "chain_binomial_heterogeneous")
   hhmodel$load_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
   hhmodel$load_parameter_list(!!!par)
@@ -184,11 +184,12 @@ test_that("Three infected members likelihood is correct", {
   # fill community escape rate matrices
   commu_infec_rate <- par$alpha * house$community
 
-  # define housepi heterogeneous model
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel$load_group_rate_list(!!!groups)
+  # define housepi heterogeneous model (all-susceptible data)
+  hhmodel <- house |>
+    dplyr::mutate(status = 0) |>
+    new_housepi_model("chain_binomial_heterogeneous") |>
+    load_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$add_data_wide(dplyr::mutate(house, status = 0))
   hhmodel$load_parameter_list(!!!par)
 
   # CASE 1: no infected
@@ -196,7 +197,11 @@ test_that("Three infected members likelihood is correct", {
   expect_equal(hhmodel$evaluate_log_lik(), log_lik)
 
   # CASE 2: mixed infected and susceptible
-  hhmodel$add_data_wide(house)
+  hhmodel <- house |>
+    new_housepi_model("chain_binomial_heterogeneous") |>
+    load_group_rate_list(!!!groups)
+  do.call(hhmodel$add_contact_rate, contacts)
+  hhmodel$load_parameter_list(!!!par)
 
   # fill person-to-person within-house escape rate matrices
   p2p_infec_rate <- par$beta * house$infectivity %o% house$susceptibility *
@@ -252,30 +257,27 @@ test_that("Three infected members likelihood is correct", {
 
 test_that("Chain binomial models are coherent", {
   # log-likelihood from chain binomial model
-  hhmodel_1 <- new_housepi_model("chain_binomial")
+  hhmodel_1 <- new_housepi_model(sarscov2_2021_icofs, "chain_binomial")
   hhmodel_1$load_parameter_list(!!!par_0)
-  hhmodel_1$add_data_wide(helper_test_get_data("sarscov2_2021_icofs"))
 
   # log-likelihood from heterogeneous chain binomial model
   # with homogenous rates
-  hhmodel_2 <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel_2$load_parameter_list(!!!par_0)
-  hhmodel_2$add_data_wide(helper_test_get_data("sarscov2_2021_icofs"))
+  hhmodel_2 <- sarscov2_2021_icofs |>
+    new_housepi_model("chain_binomial_heterogeneous") |>
+    load_parameter_list(!!!par_0)
 
   expect_equal(hhmodel_1$evaluate_log_lik(), hhmodel_2$evaluate_log_lik())
 })
 
 test_that("Grouped model with single type matches homogeneous", {
   # log-likelihood from homogeneous chain binomial model
-  hhmodel_1 <- new_housepi_model("chain_binomial")
+  hhmodel_1 <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel_1$load_parameter_list(!!!par_0)
-  hhmodel_1$add_data_wide(helper_test_get_data("flu_1918_frederick"))
 
   # log-likelihood from grouped chain binomial model
   # with homogeneous rates (single type)
-  hhmodel_2 <- new_housepi_model("chain_binomial_grouped")
+  hhmodel_2 <- new_housepi_model(flu_1918_frederick, "chain_binomial_grouped")
   hhmodel_2$load_parameter_list(!!!par_0)
-  hhmodel_2$add_data_wide(helper_test_get_data("flu_1918_frederick"))
 
   expect_equal(hhmodel_1$evaluate_log_lik(), hhmodel_2$evaluate_log_lik())
 })
@@ -285,15 +287,13 @@ test_that("Grouped model single infected member matches heterogeneous", {
   house <- house_1
 
   # heterogeneous model
-  hhmodel_1 <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel_1$add_data_wide(house)
+  hhmodel_1 <- new_housepi_model(house, "chain_binomial_heterogeneous")
   hhmodel_1$load_group_rate_list(!!!groups)
   do.call(hhmodel_1$add_contact_rate, contacts)
   hhmodel_1$load_parameter_list(!!!par)
 
   # grouped model
-  hhmodel_2 <- new_housepi_model("chain_binomial_grouped")
-  hhmodel_2$add_data_wide(house)
+  hhmodel_2 <- new_housepi_model(house, "chain_binomial_grouped")
   hhmodel_2$load_group_rate_list(!!!groups)
   do.call(hhmodel_2$add_contact_rate, contacts)
   hhmodel_2$load_parameter_list(!!!par)
@@ -316,16 +316,14 @@ test_that("Grouped model with all unique types matches heterogeneous", {
   par <- c(par, list(class_b_to_class_b = 0.75))
 
   # heterogeneous model
-  hhmodel_1 <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel_1$add_data_wide(house)
+  hhmodel_1 <- new_housepi_model(house, "chain_binomial_heterogeneous")
   hhmodel_1$load_group_rate_list(!!!groups)
   do.call(hhmodel_1$add_contact_rate, contacts)
   hhmodel_1$load_parameter_list(!!!par)
   expect_true(all(hhmodel_1$parameters$const))
 
   # grouped model
-  hhmodel_2 <- new_housepi_model("chain_binomial_grouped")
-  hhmodel_2$add_data_wide(house)
+  hhmodel_2 <- new_housepi_model(house, "chain_binomial_grouped")
   hhmodel_2$load_group_rate_list(!!!groups)
   do.call(hhmodel_2$add_contact_rate, contacts)
   hhmodel_2$load_parameter_list(!!!par)
@@ -339,16 +337,14 @@ test_that("Grouped model matches heterogeneous for mixed types", {
   house <- house_3
 
   # heterogeneous model
-  hhmodel_1 <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel_1$add_data_wide(house)
+  hhmodel_1 <- new_housepi_model(house, "chain_binomial_heterogeneous")
   hhmodel_1$load_group_rate_list(!!!groups)
   do.call(hhmodel_1$add_contact_rate, contacts)
   hhmodel_1$load_parameter_list(!!!par)
   expect_true(all(hhmodel_1$parameters$const))
 
   # grouped model
-  hhmodel_2 <- new_housepi_model("chain_binomial_grouped")
-  hhmodel_2$add_data_wide(house)
+  hhmodel_2 <- new_housepi_model(house, "chain_binomial_grouped")
   hhmodel_2$load_group_rate_list(!!!groups)
   do.call(hhmodel_2$add_contact_rate, contacts)
   hhmodel_2$load_parameter_list(!!!par)
@@ -376,16 +372,14 @@ test_that("Grouped model matches heterogeneous for mixed types (size 6)", {
   house$status <- c(rep(1, 5), 0)
 
   # heterogeneous model
-  hhmodel_1 <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel_1$add_data_wide(house)
+  hhmodel_1 <- new_housepi_model(house, "chain_binomial_heterogeneous")
   hhmodel_1$load_group_rate_list(!!!groups)
   do.call(hhmodel_1$add_contact_rate, contacts)
   hhmodel_1$load_parameter_list(!!!par)
   expect_true(all(hhmodel_1$parameters$const))
 
   # grouped model
-  hhmodel_2 <- new_housepi_model("chain_binomial_grouped")
-  hhmodel_2$add_data_wide(house)
+  hhmodel_2 <- new_housepi_model(house, "chain_binomial_grouped")
   hhmodel_2$load_group_rate_list(!!!groups)
   do.call(hhmodel_2$add_contact_rate, contacts)
   hhmodel_2$load_parameter_list(!!!par)
@@ -400,9 +394,9 @@ test_that("Grouped model matches heterogeneous for complex dataset", {
                       community = "sex")
   more_contacts <- "sex"
 
-  hhmodel_1 <- new_housepi_model("chain binomial grouped") |>
+  hhmodel_1 <- sarscov2_2021_icofs |>
+    new_housepi_model("chain binomial grouped") |>
     load_group_rate_list(!!!more_groups) |>
-    add_data_wide(helper_test_get_data("sarscov2_2021_icofs")) |>
     add_contact_rate(more_contacts)
 
   param_names <- hhmodel_1$parameters$name
@@ -410,9 +404,9 @@ test_that("Grouped model matches heterogeneous for complex dataset", {
   params <- c(par_0, setNames(as.list(values), param_names))
   hhmodel_1$load_parameter_list(!!!params)
 
-  hhmodel_2 <- new_housepi_model("chain binomial heterogeneous") |>
+  hhmodel_2 <- sarscov2_2021_icofs |>
+    new_housepi_model("chain binomial heterogeneous") |>
     load_group_rate_list(!!!more_groups) |>
-    add_data_wide(helper_test_get_data("sarscov2_2021_icofs")) |>
     load_parameter_list(!!!params) |>
     add_contact_rate(more_contacts)
 

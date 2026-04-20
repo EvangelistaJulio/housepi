@@ -19,7 +19,7 @@
 ---
 
     Code
-      print(new_housepi_model("blank"))
+      print(new_housepi_model(model = "blank"))
     Message
       i Household model blank (template).
 

@@ -175,7 +175,7 @@ HousepiParameter <- R6::R6Class(
     #' @param required `character()`. Required definitions.
     #' @param capital `logical(1)`. Whether to raise error.
     #' @param warn_unused `logical(1)`. Warn if unused are found.
-    assert = function(required, capital, warn_unused) {
+    assert = function(required, capital, warn_unused = TRUE) {
       defined <- self$defs[["name"]]
       # point out parameters that are not used
       if (isTRUE(warn_unused)) {

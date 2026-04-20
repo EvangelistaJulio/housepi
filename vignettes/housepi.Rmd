@@ -26,49 +26,6 @@ options(housepi.footer.sample = TRUE)
 In this vignette we will walk through the process of loading a housepi model template.
 Then we will explain how to associate necessary definitions in order to perform inference and simulations.
 
-# The housepi model class
-
-The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) `HousepiModel`.
-We show how to generate a new instance of such a class with a template model, the chain binomial:
-
-```{r}
-#| label: load-model
-# import the library housepi
-library(housepi)
-# set general seed
-set.seed(42)
-# set the theme for visualizations
-housepi_theme_set()
-
-# generate an instance of the chain binomial model
-hhmodel <- new_housepi_model("chain_binomial")
-```
-
-At any moment we can retrieve the template model description by using the method `$help()`.
-
-# A collection of models
-
-To see the complete list of available template models, from within RStudio just run
-
-```{r}
-#| label: list-templates
-# present the list of template model name
-template_household_model()
-```
-
-Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i.e. "chain_binomial" is equivalent to "chain binomial".].
-To know more about each model, choose a name from the previous list and run, e.g.
-
-```{r}
-#| label: model-help
-#| eval: false
-# show model description in RStudio help window
-template_household_model("chain_binomial")
-```
-
-This command will open the relative documentation file in the Help window of your RStudio session.
-Our project aims at expanding the present collection of templates, in order to improve off-the-shelf analysis.
-
 # Format of the data
 
 Data can be provided as a numerical data.frame in wide format, where individual information are organised by row.
@@ -82,12 +39,14 @@ Note that this dataset comes automatically with the model "blank", used for test
 #| label: blank-data-table
 #| echo: false
 env <- new.env(parent = emptyenv())
-utils::data(data_name, package = "housepi", envir = env)
-knitr::kable(env[["house_blank"]])
+utils::data("blank_house", package = "housepi", envir = env)
+knitr::kable(env[["blank_house"]])
 ```
 
 </div>
 </div>
+
+The housepi package comes with a few public datasets to be used for testing.
 
 A column `"id"` with individual identifiers is provided to keep track of changes and make errors more readable; otherwise housepi will automatically tag individuals with row numbers.
 
@@ -114,21 +73,30 @@ In this way we can use the status as a label for different classes of infectious
 E.g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ for asymptomatic.
 This is used in advanced augmented definitions, see [Data augmentation](data_augmentation.html) for an example.
 
-# Data importation
+# The housepi model class
 
-To associate a data to a model we can call `add_data_wide()`.
-This will return a copy of the original object, which can then be used for piping^[
-If you are more comfortable with R6, another way to associate data (and definitions in general) is to use active methods like `$data_wide`.].
+The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) `HousepiModel`.
+A dataset in wide format must be provided at model construction via the `data` argument of `new_housepi_model()`. 
+
+We show how to generate a new instance of such a class with a template model, the chain binomial:
 
 ```{r}
-#| label: import-data
-# import data in wide format using R6 active field
-hhmodel <- hhmodel |>
-  add_data_wide(flu_1918_frederick)
+#| label: load-model
+# import the library housepi
+library(housepi)
+# set general seed
+set.seed(42)
+# set the theme for visualizations
+housepi_theme_set()
+
+# generate an instance of the chain binomial model with data
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
 ```
 
-The housepi package comes with a few public datasets to be used for testing.
-We can extract summary information about current loaded data with `summarise_cases()`:
+We can retrieve the template model description by using the method `$help()`.
+
+A brief summary of the loaded data can be obtained via `summarise_cases()`,
+here manipulated with [flextable](https://CRAN.R-project.org/package=flextable):
 
 ```{r}
 #| label: summarise-cases
@@ -142,9 +110,36 @@ summarise_cases(hhmodel) |>
   flextable::autofit()
 ```
 
-Here we manipulated the housepi table with [flextable](https://CRAN.R-project.org/package=flextable).
+At any moment we can re-export the full data by calling `$data_wide`.
 
-At any moment we can re-export the loaded data by calling `get_data_wide`.
+```{r}
+#| label: import-data
+# data was associated to the model at construction above
+head(hhmodel$data_wide)
+```
+
+# A collection of models
+
+To see the complete list of available template models, from within RStudio just run
+
+```{r}
+#| label: list-templates
+# present the list of template model name
+template_household_model()
+```
+
+Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i.e. "chain_binomial" is equivalent to "chain binomial".].
+To know more about each model, choose a name from the previous list and run, e.g.
+
+```{r}
+#| label: model-help
+#| eval: false
+# show model description in RStudio help window
+template_household_model("chain_binomial")
+```
+
+This command will open the relative documentation file in the Help window of your RStudio session.
+Our project aims at expanding the present collection of templates, in order to improve off-the-shelf analysis.
 
 # Associate parameters
 
@@ -251,7 +246,12 @@ We load the parameter definitions directly from the model template.
 
 ```{r}
 #| label: load-augmented-model
-hhsimul <- new_housepi_model("augmented_infection_time") |>
+# load a dataset for the data structure (used later for the simulation)
+community_structure <- sarscov2_2021_icofs |>
+  dplyr::select(id, house_id, age, sex) |>
+  dplyr::mutate(status = NA, end_followup = 21)
+
+hhsimul <- new_housepi_model(community_structure, "augmented_infection_time") |>
   load_parameter_template()
 
 # inspect parameter definitions
@@ -312,11 +312,6 @@ We then propose a simple observation process, where we assume onsets after 6 PM 
 
 ```{r}
 #| label: run-simulation
-# load a dataset for the data structure
-community_structure <- sarscov2_2021_icofs |> 
-  dplyr::select(id, house_id, age, sex) |> 
-  dplyr::mutate(status = NA, end_followup = 21)
-
 # define an observation process after the outbreak simulation
 obs_process <- function(x) {
   onset_date = floor(x$infec_time + x$incub_period + 0.25)
@@ -324,9 +319,8 @@ obs_process <- function(x) {
   x[!names(x) %in% c("incub_period", "infec_time")]
 }
 
-# run simulation using as structure an existing data set
+# run simulation using as structure the dataset associated at construction
 simulated <- hhsimul |>
-  add_data_wide(community_structure) |>
   run_simulation(obs_process = obs_process)
 
 head(simulated)
@@ -339,7 +333,10 @@ It is important to validate our approach checking that inference is able to reco
 
 ```{r}
 #| label: inference-simulated
-hhmodel <- hhsimul |>
+hhmodel <- simulated |>
+  new_housepi_model("augmented_infection_time") |>
+  load_parameter_template() |>
+  load_parameter_list(inc_shape = 2, inc_scale = 1, append = TRUE) |>
   # loading definitions from list drops previous by default
   load_augmented_list(
     infec_time = onset_time - incub_period,
@@ -349,7 +346,6 @@ hhmodel <- hhsimul |>
   )
 
 results <- hhmodel |>
-  add_data_wide(simulated) |>
   run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10)
 ```
 We can visualize traces vs expected values as follows

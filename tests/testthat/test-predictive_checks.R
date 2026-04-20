@@ -214,18 +214,16 @@ test_that("Helper to combine observations and predictions interleaves rows", {
 })
 
 test_that("Predicted-measures raises error when no measure is provided", {
-  hhmodel <- new_housepi_model("chain_binomial") |>
-    load_parameter_template() |>
-    add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    load_parameter_template()
   results <- run_inference(hhmodel, steps = 100, progress = FALSE)
   expect_error(predicted_measures(hhmodel, results, progress = FALSE),
                regexp = "No measure was provided")
 })
 
 test_that("Predicted cases by house size works as expected", {
-  hhmodel <- new_housepi_model("chain_binomial") |>
-    load_parameter_template() |>
-    add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    load_parameter_template()
 
   results <- run_inference(hhmodel, steps = 100, progress = FALSE)
 
@@ -256,10 +254,8 @@ test_that("Predicted cases by house size works as expected", {
 })
 
 test_that("predicted_measures works with custom measure", {
-  hhmodel <- new_housepi_model("chain_binomial") |>
-    load_parameter_template() |>
-    add_data_wide(helper_test_get_data("flu_1918_frederick"))
-
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    load_parameter_template()
   results <- run_inference(hhmodel, steps = 100, progress = FALSE)
 
   ppc <- predicted_measures(hhmodel, results,

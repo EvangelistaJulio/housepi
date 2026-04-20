@@ -36,9 +36,9 @@ This dataset contains household reports of influenza episodes with a `member` co
 
 ```{r}
 #| label: load-model-data
-hhmodel <- new_housepi_model("chain_binomial_heterogeneous") |>
-  load_parameter_template() |>
-  add_data_wide(flu_2014_matsumoto)
+hhmodel <- flu_2014_matsumoto |>
+  new_housepi_model("chain_binomial_heterogeneous") |>
+  load_parameter_template()
 
 # inspect the data
 head(flu_2014_matsumoto)

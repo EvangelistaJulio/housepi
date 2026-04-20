@@ -1,9 +1,8 @@
 library(testthat)
 
-test_that("Rejext if pipe calls get non-HousepiModel objects", {
+test_that("Reject if calling on non-HousepiModel objects", {
   obj <- "not a model"
   err <- "class 'HousepiModel'"
-  expect_error(add_data_wide(obj, data.frame()), regexp = err)
   expect_error(add_data_long(obj, data.frame()), regexp = err)
   expect_error(get_data_wide(obj), regexp = err)
   expect_error(get_data_long(obj), regexp = err)
@@ -33,10 +32,8 @@ test_that("Rejext if pipe calls get non-HousepiModel objects", {
   expect_error(predicted_cases_by_house_size(obj, NULL), regexp = err)
 })
 
-test_that("add_data_wide and get_data_wide work", {
-  original <- helper_test_get_data("flu_1918_baltimora")
-  hhmodel <- new_housepi_model("blank")
-  result <- add_data_wide(hhmodel, original)
+test_that("data_wide provided at construction is exposed via get_data_wide", {
+  result <- new_housepi_model(flu_1918_baltimora, "blank")
   dw <- get_data_wide(result)
   expect_true(is.data.frame(dw))
   expect_true("house_id" %in% colnames(dw))
@@ -45,13 +42,13 @@ test_that("add_data_wide and get_data_wide work", {
   # id automatically added
   expect_identical(dw$id, as.character(seq_len(dim(dw)[1])))
   # house_id cast to character
-  expect_identical(dw$house_id, as.character(original$house_id))
+  expect_identical(dw$house_id, as.character(flu_1918_baltimora$house_id))
   # statuses are integer
-  expect_identical(dw$status, original$status)
+  expect_identical(dw$status, flu_1918_baltimora$status)
 })
 
 test_that("add_data_long and get_data_long work", {
-  hhmodel <- new_housepi_model("blank")
+  hhmodel <- new_housepi_model(model = "blank")
   # blank model has default data with id = "tommy", "gina"
   dl <- data.frame(id = hhmodel$data_wide$id,
                    measure = c(1.5, 2.5))
@@ -62,7 +59,7 @@ test_that("add_data_long and get_data_long work", {
 })
 
 test_that("Wrappers work as expected on blank model", {
-  hhmodel <- new_housepi_model("blank")
+  hhmodel <- new_housepi_model(model = "blank")
 
   # no templates
   expect_warning(load_parameter_template(hhmodel),
@@ -100,7 +97,7 @@ test_that("Wrappers work as expected on blank model", {
 ############################################################################
 
 test_that("drop wrappers return clean models", {
-  hhmodel <- new_housepi_model("blank")
+  hhmodel <- new_housepi_model(model = "blank")
   hhmodel <- add_parameter(hhmodel, name = "alpha", value = 0.5)
   hhmodel <- add_augmented(hhmodel, name = "dummy", value = 3)
 
@@ -118,6 +115,8 @@ test_that("drop wrappers return clean models", {
 
   # drop_group_rates
   expect_no_error(drop_group_rates(hhmodel))
+  # drop_contact_rates
+  expect_no_error(drop_contact_rates(hhmodel))
 
   # drop_infectivity_profile
   expect_no_error(drop_infectivity_profile(hhmodel))
@@ -133,8 +132,7 @@ test_that("drop wrappers return clean models", {
 ############################################################################
 
 test_that("evaluate_log_lik wrapper returns numeric", {
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_1918_frederick"))
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$load_parameter_template()
   ll <- evaluate_log_lik(hhmodel)
   expect_true(is.numeric(ll))
@@ -142,16 +140,14 @@ test_that("evaluate_log_lik wrapper returns numeric", {
 })
 
 test_that("run_inference wrapper returns HousepiPosteriorDraws", {
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_2014_matsumoto"))
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
   hhmodel$load_parameter_template()
   result <- run_inference(hhmodel, steps = 5, progress = FALSE)
   expect_s3_class(result, "HousepiPosteriorDraws")
 })
 
 test_that("run_simulation wrapper returns data.frame", {
-  hhmodel <- new_housepi_model("chain_binomial")
-  hhmodel$add_data_wide(helper_test_get_data("flu_2014_matsumoto"))
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
   hhmodel$load_parameter_template()
   result <- run_simulation(hhmodel)
   expect_true(is.data.frame(result))
@@ -159,8 +155,8 @@ test_that("run_simulation wrapper returns data.frame", {
 })
 
 test_that("Group rate wrappers", {
-  hhmodel <- new_housepi_model("chain_binomial_heterogeneous")
-  hhmodel$add_data_wide(helper_test_get_data("flu_2014_matsumoto"))
+  hhmodel <- new_housepi_model(flu_2014_matsumoto,
+                               "chain_binomial_heterogeneous")
   hhmodel <- add_group_rate(hhmodel, "community", by = "member")
   groups_1 <- get_group_rates(hhmodel)
   expect_true(is.data.frame(groups_1))
@@ -183,18 +179,18 @@ test_that("Group rate wrappers", {
 
   # check for non-existing custom features
   hhmodel <- drop_group_rates(hhmodel)
-  hhmodel <- add_group_rate(
+  expect_warning(add_group_rate(
     hhmodel, "susceptibility",
     strata = data.frame(member = c("kaiju", NA),
                         param_name = c("sus_student", ".reference"))
-  )
-  expect_warning(hhmodel$group_rates, regexp = "not found")
+  ), regexp = "not found")
+
+  hhmodel$group_rates
 })
 
 test_that("add_infec_profile and load_infec_profile_list work", {
-  hhmodel <- new_housepi_model("augmented_infection_time")
-  data_ait <- dplyr::mutate(helper_test_get_data("sarscov2_2021_icofs"))
-  hhmodel$add_data_wide(data_ait)
+  hhmodel <- new_housepi_model(sarscov2_2021_icofs,
+                               "augmented_infection_time")
   result <- add_infec_profile(hhmodel, func = "lognormal")
   ip <- get_infec_profile(result)
   expect_false(is.null(ip))

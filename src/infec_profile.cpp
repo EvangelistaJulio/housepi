@@ -174,8 +174,8 @@ namespace housepi
     {
         mode_ = Mode::Generic;
         generic = helper_build_(param,
-            {{"func", {input.at("func")[0]}},
-             {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
+                                {{"func", {input.at("func")[0]}},
+                                 {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
         lookup_.clear();
         augm_definitions.clear();
 
@@ -248,12 +248,9 @@ namespace housepi
             param.make_cache_dependent(node);
         }
 
-        // discretization
-        if (input.count("discr") && str::tobool(input.at("discr")[0]))
+        if (is_discrete_requested_ ||
+            (input.count("discr") && str::tobool(input.at("discr")[0])))
             output->init_discretization();
-        else if (is_discrete_requested_)
-            throw std::invalid_argument(
-                "Definition of infectivity profile did not return a discrete object as requested by the model.");
         return output;
     }
 }
