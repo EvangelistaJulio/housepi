@@ -8,7 +8,6 @@ add_group_rate(
   hhmodel,
   name,
   by = NA_character_,
-  prefix = NA_character_,
   reference = NULL,
   joint = FALSE,
   strata = NULL,
@@ -18,7 +17,8 @@ add_group_rate(
   min = NA_real_,
   max = NA_real_,
   proposal = NA_character_,
-  proposal_scale = NA_real_
+  proposal_scale = NA_real_,
+  prefix = NA_character_
 )
 }
 \arguments{
@@ -29,10 +29,8 @@ add_group_rate(
 \item{by}{\code{list} Covariates associated to group rate as data headers.
 Corresponding data columns have to be categorical.}
 
-\item{prefix}{\code{character(1)} Prefix to names of associated parameters.
-If \code{NA} uses the first 3 letters of rate name (default).}
-
 \item{reference}{named \code{list} Covariates associated to reference group.
+Pass \code{".none"} to disable reference, giving every rate its own parameter.
 Default is the group with the largest sample size.}
 
 \item{joint}{\code{logical(1)} Treat covariates as joint.
@@ -58,16 +56,18 @@ Ignored if automatic definition.}
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;
-\item 'uniform': increments drawn from uniform;
-\item 'normal': increments drawn from normal;
-\item 'lognormal': log-increments drawn from lognormal (for positive values only);
-\item \code{NA} (default): same as 'sample'.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{"uniform"}: increments drawn from uniform;
+\item \code{"normal"}: increments drawn from normal;
+\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
+\item \code{NA} (default): same as \code{"sample"}.
 }}
 
 \item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
 Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is 'sample'.}
+Ignored if proposal is \code{"sample"}.}
+
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA} uses the first 3 letters of rate name (default).}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

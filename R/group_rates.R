@@ -203,29 +203,27 @@ group_rate_logic_table <- function(data_wide, this_feat) {
 #' input data.frame with logic table with parameter names.
 #' @keywords internal
 #' @noRd
-associate_param_names <- function(this_table, prefix, reference) {
+associate_group_param_names <- function(this_table, prefix, reference) {
   # column names to consider
   colmask <- assess_feature_values(this_table)
 
-  # extract reference index
+  # find reference index
+  idx_refer <- NULL
   if (length(reference) == 0) {
     idx_refer <- which.max(this_table$n)
 
-  } else {
-    # find row
+  } else if (!all(reference == ".none")) {
+    # find definition row
     idx_refer <- unname(which(
       apply(this_table[colmask], 1,
             function(row) all(row == unlist(reference[colmask])))
     ))
-
     if (length(idx_refer) != 1) stop_h("Provided reference group is not valid.")
   }
 
-  # format prefix and associate parameter names
-  prefix <- ifelse(
-    (prefix == "") || (!is.character(prefix)),
-    "", paste0(prefix, "_")
-  )
+  # format prefix
+  prefix <- ifelse(prefix == "" || !is.character(prefix),
+                   "", paste0(prefix, "_"))
 
   # associate parameter names
   this_table$param_name <- apply(
@@ -233,7 +231,7 @@ associate_param_names <- function(this_table, prefix, reference) {
       paste0(prefix, paste(paste(colmask, row, sep = "_"), collapse = "_"))
     }
   )
-  this_table$param_name[idx_refer] <- ".reference"
+  if (length(idx_refer) == 1) this_table$param_name[idx_refer] <- ".reference"
 
   this_table
 }
@@ -335,6 +333,25 @@ HousepiGroupRate <- R6::R6Class(
   private = list(
     deep_clone = function(name, value) helper_clone(value),
 
+    # Help defining the automatic reference.
+    helper_auto_reference_ = function(by, reference) {
+      # UPDATE: when multiple covariates and something is set to ".none"
+      # I think it's ambiguos, but maybe it's not always the case
+      if (isTRUE(any(reference == ".none"))) {
+        if (isTRUE(all(reference == ".none"))) return(".none")
+        else stop_h("Ambigous entry '.none' in reference vector.")
+      }
+
+      if (length(by) != length(reference)) stop_h(
+        "Arguments 'by' and 'reference' should have the same dimension."
+      )
+      else if (length(setdiff(names(reference), by)) != 0) stop_h(
+        "Unrecognized names in reference list."
+      )
+      reference <- as.list(reference)
+      stats::setNames(reference, by)
+    },
+
     # Add rate definition in automatic mode.
     helper_auto_add_ = function(name, by,
                                 prefix = NA_character_,
@@ -348,16 +365,9 @@ HousepiGroupRate <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      # load reference
-      if (!is.null(reference)) {
-        if (length(by) != length(reference)) stop_h(
-          "Arguments 'by' and 'reference' should have the same dimension."
-        )
-        else if (length(setdiff(names(reference), by)) != 0) stop_h(
-          "Unrecognized names in reference list."
-        )
-        reference <- as.list(reference)
-        reference <- stats::setNames(reference, by)
+      # load reference and validate reference names
+      if (length(reference) > 0) {
+        reference <- private$helper_auto_reference_(by, reference)
       }
 
       # add new definition
@@ -370,8 +380,16 @@ HousepiGroupRate <- R6::R6Class(
     # Add rate definition in custom mode.
     helper_custom_add_ = function(name, strata,
                                   params = NULL,
+                                  reference = NULL,
                                   .warn_over = TRUE) {
       assert_valid_logic_table(strata)
+      # require .reference row unless reference is explicitly ".none"
+      none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
+      if (!none_ref && !".reference" %in% strata$param_name) stop_h(
+        "Custom logic table must contain a '.reference' row.",
+        "Designate one row's param_name as '.reference',",
+        "or pass reference = '.none' to opt out."
+      )
       # validate params keys against logic table param_names
       if (length(params) > 0) {
         valid_names <- setdiff(strata$param_name, ".reference")
@@ -430,7 +448,7 @@ HousepiGroupRate <- R6::R6Class(
         # 1. create logic table with group rates
         this_table <- group_rate_logic_table(data_wide, this_feat)
         # associate names for parameters
-        this_table <- associate_param_names(
+        this_table <- associate_group_param_names(
           this_table, prefix, this_def$reference
         )
         new_logic_table[[length(new_logic_table) + 1]] <- this_table
@@ -618,13 +636,13 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @inherit add_group_rate
     add_quo = function(name,
-                       by = NA_character_, prefix = NA_character_,
+                       by = NA_character_,
                        reference = NULL, joint = FALSE,
                        strata = NULL, params = NULL,
                        prior = NA_character_, ...,
                        min = NA_real_, max = NA_real_,
                        proposal = NA_character_, proposal_scale = NA_real_,
-                       .warn_over = TRUE) {
+                       prefix = NA_character_, .warn_over = TRUE) {
       name <- housepi_smart_unwrap(name, "name")
       by <- housepi_smart_unwrap(by, "by")
       # control valid name # NOTE: `by` is the injected default variable
@@ -660,7 +678,7 @@ HousepiGroupRate <- R6::R6Class(
       )
       else if (is_custom) private$helper_custom_add_(
         name = name, strata = strata, params = params,
-        .warn_over = .warn_over
+        reference = reference, .warn_over = .warn_over
       )
       else stop_empty_definition()
 

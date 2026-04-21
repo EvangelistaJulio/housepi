@@ -20,10 +20,10 @@ new_housepi_model(
 One between:
 \itemize{
 \item template name;
-\item path/to/folder with implementation file 'model.cpp';
+\item path/to/folder with implementation file \code{"model.cpp"};
 \item path/to/folder with previously compiled model;
-\item 'blank': template name for blank model.
-\item \code{NA}: fall back to 'blank' (default).
+\item \code{"blank"}: template name for blank model.
+\item \code{NA}: fall back to \code{"blank"} (default).
 }}
 
 \item{as_template}{\code{logical(1)} Store dynamic library as a local template.

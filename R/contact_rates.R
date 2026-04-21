@@ -67,9 +67,12 @@ associate_contact_param_names <- function(this_table, prefix, reference,
   features <- sub("^from_", "", from_cols)
 
   # find reference index
+  idx_refer <- NULL
   if (length(reference) == 0) {
     idx_refer <- which.max(this_table$n)
-  } else {
+
+  } else if (!all(reference == ".none")) {
+    # find definition row
     refer_mask <- apply(this_table[colmask], 1, function(row) {
       all(row == unlist(reference[colmask]))
     })
@@ -87,7 +90,7 @@ associate_contact_param_names <- function(this_table, prefix, reference,
   prefix <- ifelse(prefix == "" || !is.character(prefix),
                    "", paste0(prefix, "_"))
 
-  # build param names with one "from" and one "to" token
+  # associate param names with one "from" and one "to" token
   this_table$param_name <- apply(
     this_table[colmask], 1, function(row) {
       from_part <- paste(features, row[from_cols], sep = "_", collapse = "_")
@@ -101,9 +104,7 @@ associate_contact_param_names <- function(this_table, prefix, reference,
       paste0(prefix, from_part, "_to_", to_part)
     }
   )
-  if (length(idx_refer) == 1) {
-    this_table$param_name[idx_refer] <- ".reference"
-  }
+  if (length(idx_refer) == 1) this_table$param_name[idx_refer] <- ".reference"
 
   this_table
 }
@@ -185,27 +186,37 @@ HousepiContactRate <- R6::R6Class(
   private = list(
     deep_clone = function(name, value) helper_clone(value),
 
+    # Help defining the automatic reference.
+    helper_auto_reference_ = function(by, reference) {
+      if (isTRUE(any(reference == ".none"))) {
+        if (isTRUE(all(reference == ".none"))) return(".none")
+        else stop_h("Ambigous entry '.none' in reference vector.")
+      }
+
+      valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
+      # convenience: allow un-prefixed names
+      if (length(reference) == length(by) && all(names(reference) %in% by)) {
+        reference <- c(stats::setNames(reference[by], paste0("from_", by)),
+                       stats::setNames(reference[by], paste0("to_", by)))
+      }
+      wrong_entries <- setdiff(names(reference), valid_names)
+      if (length(wrong_entries) != 0) stop_h(
+        sprintf("Unrecognized choice%s for reference: %s",
+                as_plural(wrong_entries),
+                character_to_string_list(wrong_entries)),
+        "Reference should match 'by' and use 'from_' and/or 'to_' prefixes."
+      )
+      as.list(reference)
+    },
+
     # Add rate definition in automatic mode.
     helper_auto_add_ = function(by, reference, prefix, joint, symmetric) {
       # validate features
       assert_valid_features(by)
 
-      # validate reference names
-      if (!is.null(reference)) {
-        valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
-        # convenience: allow un-prefixed names
-        if (length(reference) == length(by) && all(names(reference) %in% by)) {
-          reference <- c(stats::setNames(reference[by], paste0("from_", by)),
-                         stats::setNames(reference[by], paste0("to_", by)))
-        }
-        wrong_entries <- setdiff(names(reference), valid_names)
-        if (length(wrong_entries) != 0) stop_h(
-          sprintf("Unrecognized choice%s for reference: %s",
-                  as_plural(wrong_entries),
-                  character_to_string_list(wrong_entries)),
-          "Reference should match 'by' and use 'from_' and/or 'to_' prefixes."
-        )
-        reference <- as.list(reference)
+      # load reference and validate reference names
+      if (length(reference) > 0) {
+        reference <- private$helper_auto_reference_(by, reference)
       }
 
       # store definition
@@ -213,15 +224,18 @@ HousepiContactRate <- R6::R6Class(
                         joint = joint, symmetric = symmetric, mode = "auto")
       self$logic_tables <- list()
       self$param_overrides <- list()
+
       invisible(self)
     },
 
     # Add rate definition in custom mode.
-    helper_custom_add_ = function(strata, params, symmetric) {
+    helper_custom_add_ = function(strata, params, symmetric, reference) {
       assert_valid_logic_table(strata)
-      if (!".reference" %in% strata$param_name) stop_h(
+      none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
+      if (!none_ref && !".reference" %in% strata$param_name) stop_h(
         "Custom logic table must contain a '.reference' row.",
-        "Designate one row's param_name as '.reference'."
+        "Designate one row's param_name as '.reference',",
+        "or pass reference = '.none' to opt out."
       )
       # cast feature columns to character (consistent with auto mode)
       feat_cols <- setdiff(colnames(strata), rate_reserved_cols)
@@ -321,13 +335,14 @@ HousepiContactRate <- R6::R6Class(
 
     #' @inherit add_contact_rate
     add_quo = function(by = NA_character_,
-                       reference = NULL, prefix = "",
+                       reference = NULL,
                        joint = TRUE, symmetric = TRUE,
                        strata = NULL, params = NULL,
                        prior = NA_character_, ...,
                        min = NA_real_, max = NA_real_,
                        proposal = NA_character_,
                        proposal_scale = NA_real_,
+                       prefix = "ctr",
                        .warn_over = TRUE) {
       # automatic definition
       by <- housepi_smart_unwrap(by, "by")
@@ -362,7 +377,7 @@ HousepiContactRate <- R6::R6Class(
       if (is_auto) {
         private$helper_auto_add_(by, reference, prefix, joint, symmetric)
       } else if (is_custom) {
-        private$helper_custom_add_(strata, params, symmetric)
+        private$helper_custom_add_(strata, params, symmetric, reference)
       } else {
         stop_empty_definition()
       }
@@ -414,11 +429,16 @@ HousepiContactRate <- R6::R6Class(
       new_tables <- list()
       for (this_feat in features) {
         this_table <- contact_rate_logic_table(data_wide, this_feat)
-        # extract reference entries for this sub-table
-        ref_cols <- c(paste0("from_", this_feat), paste0("to_", this_feat))
-        relevant_ref <- self$defs$reference[
-          names(self$defs$reference) %in% ref_cols
-        ]
+        # extract reference entries for this sub-table, propagating .none
+        ref <- self$defs$reference
+        if (length(ref) > 0 && isTRUE(all(ref == ".none"))) {
+          relevant_ref <- ".none"
+        } else {
+          ref_cols <- c(paste0("from_", this_feat), paste0("to_", this_feat))
+          relevant_ref <- self$defs$reference[
+            names(self$defs$reference) %in% ref_cols
+          ]
+        }
         this_table <- associate_contact_param_names(
           this_table, prefix, relevant_ref, symmetric
         )

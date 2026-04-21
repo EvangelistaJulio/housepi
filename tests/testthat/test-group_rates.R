@@ -2,7 +2,6 @@ library(testthat)
 
 aux_add <- function(self, name,
                     by = NA_character_,
-                    prefix = NA_character_,
                     reference = NULL,
                     joint = FALSE,
                     strata = NULL,
@@ -11,8 +10,9 @@ aux_add <- function(self, name,
                     min = NA_real_, max = NA_real_,
                     proposal = NA_character_,
                     proposal_scale = NA_real_,
+                    prefix = NA_character_,
                     .warn_over = TRUE) {
-  self$add_quo(name = name, by = by, prefix = prefix,
+  self$add_quo(name = name, by = by,
                reference = reference, joint = joint,
                strata = strata, params = params,
                prior = prior, rlang::enquos(...),
@@ -20,6 +20,7 @@ aux_add <- function(self, name,
                max = rlang::enquo(max),
                proposal = proposal,
                proposal_scale = proposal_scale,
+               prefix = prefix,
                .warn_over = .warn_over)
   invisible(self)
 }
@@ -51,7 +52,7 @@ test_that("Group rates logic table computes combinations and counts", {
 
 test_that("Associate param names decorates table and marks reference", {
   tbl <- group_rate_logic_table(dummy_df, c("age", "sex"))
-  res <- associate_param_names(tbl, prefix = "mgs", reference = NULL)
+  res <- associate_group_param_names(tbl, prefix = "mgs", reference = NULL)
 
   expect_true("param_name" %in% colnames(res))
   # exactly one .reference row (largest group)

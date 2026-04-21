@@ -55,16 +55,16 @@ Default is \code{FALSE}.}
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item 'sample': sampled from the prior distribution;
-\item 'uniform': increments drawn from uniform;
-\item 'normal': increments drawn from normal;
-\item 'lognormal': log-increments drawn from lognormal (for positive values only);
-\item \code{NA} (default): same as 'sample'.
+\item \code{"sample"}: sampled from the prior distribution;
+\item \code{"uniform"}: increments drawn from uniform;
+\item \code{"normal"}: increments drawn from normal;
+\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
+\item \code{NA} (default): same as \code{"sample"}.
 }}
 
 \item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
 Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is 'sample'.}
+Ignored if proposal is \code{"sample"}.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

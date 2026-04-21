@@ -14,10 +14,10 @@ rd_model_out_ <- paste(
 rd_mdl_choice_ <- "`character(1)` Choice for the model.
 One between:
 - template name;
-- path/to/folder with implementation file 'model.cpp';
+- path/to/folder with implementation file `\"model.cpp\"`;
 - path/to/folder with previously compiled model;
-- 'blank': template name for blank model.
-- `NA`: fall back to 'blank' (default)."
+- `\"blank\"`: template name for blank model.
+- `NA`: fall back to `\"blank\"` (default)."
 rd_mdl_astmpl_ <- "`logical(1)` Store dynamic library as a local template.
 If `FALSE` recompile the model at every new session (default)."
 rd_mdl_force_ <- "`logical(1)` Compile even if cached model already exists.
@@ -52,15 +52,15 @@ rd_var_max_ <- "`numeric(1)` Truncate to a maximum value."
 
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
 One between:
-- 'sample': sampled from the %s distribution;
-- 'uniform': increments drawn from uniform;
-- 'normal': increments drawn from normal;
-- 'lognormal': log-increments drawn from lognormal (for positive values only);
-- `NA` (default): same as 'sample'.
+- `\"sample\"`: sampled from the %s distribution;
+- `\"uniform\"`: increments drawn from uniform;
+- `\"normal\"`: increments drawn from normal;
+- `\"lognormal\"`: log-increments drawn from lognormal (positive values only);
+- `NA` (default): same as `\"sample\"`.
 "
 rd_proposal_scale_ <- "`numeric(1)` Scale of the proposal (default is `1`).
 Changed automatically during inference if `n_adapt`>0.
-Ignored if proposal is 'sample'."
+Ignored if proposal is `\"sample\"`."
 
 rd_par_discr_ <- sprintf(rd_var_discr_, "prior")
 rd_par_model_ <- sprintf(rd_var_model_, "prior")
@@ -108,6 +108,7 @@ rd_aug_max_ <- paste(rd_var_max_, rd_types_)
 ############################################################################
 ############################################################################
 
+rd_rate_prefix_ <- "`character(1)` Prefix to names of associated parameters."
 rd_rate_desc_ <- "Add definitions of a %s rate by given data covariate(s).
 Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
@@ -117,9 +118,12 @@ Bypass automatic generation by providing a custom pre-built logic table."
 rd_grr_desc_ <- sprintf(rd_rate_desc_, "group")
 rd_grr_by_ <- "`list` Covariates associated to group rate as data headers.
 Corresponding data columns have to be categorical."
-rd_grr_prefix_ <- "`character(1)` Prefix to names of associated parameters.
-If `NA` uses the first 3 letters of rate name (default)."
+rd_grr_prefix_ <- paste(
+  rd_rate_prefix_,
+  "If `NA` uses the first 3 letters of rate name (default)."
+)
 rd_grr_refer_ <- "named `list` Covariates associated to reference group.
+Pass `\".none\"` to disable reference, giving every rate its own parameter.
 Default is the group with the largest sample size."
 rd_grr_joint_ <- "`logical(1)` Treat covariates as joint.
 If `FALSE`, covariates are independent (default)."
@@ -137,7 +141,7 @@ Ignored if automatic definition."
 rd_ctr_desc_ <- sprintf(rd_rate_desc_, "contact")
 rd_ctr_by_ <- "`character()` Covariates for from/to matching as data headers.
 Corresponding data columns have to be categorical."
-rd_ctr_prefix_ <- "`character(1)` Prefix to names of associated parameters."
+rd_ctr_prefix_ <- paste(rd_rate_prefix_, "Default is `\"ctr\"`.")
 rd_ctr_refer_ <- "named `list` Covariates associated to reference pair.
 Names can use `from_`/`to_` prefixes matching `by`,
 or un-prefixed names (applied to both from and to)."
@@ -197,8 +201,8 @@ It must be a value in (0.5, 1.0). Default is 0.95."
 rd_pwr_frac_ <- "\\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5}"
 rd_evi_scheme_ <- sprintf("`character(1)` Scheme used for evidence estimation.
 One between
-- 'power-fractions': uses inverse temperatures %s (default).
-- 'adaptive': uses adaptive thermodynamic ladder.", rd_pwr_frac_)
+- `\"power-fractions\"`: uses inverse temperatures %s (default).
+- `\"adaptive\"`: uses adaptive thermodynamic ladder.", rd_pwr_frac_)
 rd_evi_rungs_ <- "`integer(1)` Number of rungs in thermodynamic ladder."
 rd_param_table_ <- "One between
 - `data.frame`;

@@ -120,7 +120,7 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
 
   # fix expected equivalence classes by member composition
   case_summary <- hhmodel |>
-    add_group_rate(by = "member") |>
+    add_group_rate("community", by = "member") |>
     summarise_cases()
   expect_equal(
     subset(case_summary, type == "household" & comment == "distinct")$counts,

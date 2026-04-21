@@ -90,10 +90,10 @@ used to run inference and simulation routines.
 One between:
 \itemize{
 \item template name;
-\item path/to/folder with implementation file 'model.cpp';
+\item path/to/folder with implementation file \code{"model.cpp"};
 \item path/to/folder with previously compiled model;
-\item 'blank': template name for blank model.
-\item \code{NA}: fall back to 'blank' (default).
+\item \code{"blank"}: template name for blank model.
+\item \code{NA}: fall back to \code{"blank"} (default).
 }}
 
 \item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.
@@ -240,16 +240,16 @@ Default is \code{FALSE}.}
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item 'sample': sampled from the prior distribution;
-\item 'uniform': increments drawn from uniform;
-\item 'normal': increments drawn from normal;
-\item 'lognormal': log-increments drawn from lognormal (for positive values only);
-\item \code{NA} (default): same as 'sample'.
+\item \code{"sample"}: sampled from the prior distribution;
+\item \code{"uniform"}: increments drawn from uniform;
+\item \code{"normal"}: increments drawn from normal;
+\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
+\item \code{NA} (default): same as \code{"sample"}.
 }}
 
 \item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
 Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is 'sample'.}
+Ignored if proposal is \code{"sample"}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -372,16 +372,16 @@ One between:
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;
-\item 'uniform': increments drawn from uniform;
-\item 'normal': increments drawn from normal;
-\item 'lognormal': log-increments drawn from lognormal (for positive values only);
-\item \code{NA} (default): same as 'sample'.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{"uniform"}: increments drawn from uniform;
+\item \code{"normal"}: increments drawn from normal;
+\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
+\item \code{NA} (default): same as \code{"sample"}.
 }}
 
 \item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
 Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is 'sample'.}
+Ignored if proposal is \code{"sample"}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -459,10 +459,10 @@ Bypass automatic generation by providing a custom pre-built logic table.
 \item{\code{by}}{\code{list} Covariates associated to group rate as data headers.
 Corresponding data columns have to be categorical.}
 
-\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.
-If \code{NA} uses the first 3 letters of rate name (default).}
+\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters. If \code{NA} uses the first 3 letters of rate name (default).}
 
 \item{\code{reference}}{named \code{list} Covariates associated to reference group.
+Pass \code{".none"} to disable reference, giving every rate its own parameter.
 Default is the group with the largest sample size.}
 
 \item{\code{joint}}{\code{logical(1)} Treat covariates as joint.
@@ -488,16 +488,16 @@ Ignored if automatic definition.}
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;
-\item 'uniform': increments drawn from uniform;
-\item 'normal': increments drawn from normal;
-\item 'lognormal': log-increments drawn from lognormal (for positive values only);
-\item \code{NA} (default): same as 'sample'.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{"uniform"}: increments drawn from uniform;
+\item \code{"normal"}: increments drawn from normal;
+\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
+\item \code{NA} (default): same as \code{"sample"}.
 }}
 
 \item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
 Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is 'sample'.}
+Ignored if proposal is \code{"sample"}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -559,7 +559,7 @@ Corresponding data columns have to be categorical.}
 Names can use \code{from_}/\code{to_} prefixes matching \code{by},
 or un-prefixed names (applied to both from and to).}
 
-\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.}
+\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters. Default is \code{"ctr"}.}
 
 \item{\code{joint}}{\code{logical(1)} Treat covariates as joint.
 If \code{FALSE}, covariates are independent (default).}
@@ -587,16 +587,16 @@ Ignored if automatic definition.}
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;
-\item 'uniform': increments drawn from uniform;
-\item 'normal': increments drawn from normal;
-\item 'lognormal': log-increments drawn from lognormal (for positive values only);
-\item \code{NA} (default): same as 'sample'.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{"uniform"}: increments drawn from uniform;
+\item \code{"normal"}: increments drawn from normal;
+\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
+\item \code{NA} (default): same as \code{"sample"}.
 }}
 
 \item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
 Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is 'sample'.}
+Ignored if proposal is \code{"sample"}.}
 }
 \if{html}{\out{</div>}}
 }

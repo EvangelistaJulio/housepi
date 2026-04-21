@@ -8,7 +8,6 @@ add_contact_rate(
   hhmodel,
   by = NA_character_,
   reference = NULL,
-  prefix = NA_character_,
   joint = FALSE,
   symmetric = TRUE,
   strata = NULL,
@@ -18,7 +17,8 @@ add_contact_rate(
   min = NA_real_,
   max = NA_real_,
   proposal = NA_character_,
-  proposal_scale = NA_real_
+  proposal_scale = NA_real_,
+  prefix = "ctr"
 )
 }
 \arguments{
@@ -30,8 +30,6 @@ Corresponding data columns have to be categorical.}
 \item{reference}{named \code{list} Covariates associated to reference pair.
 Names can use \code{from_}/\code{to_} prefixes matching \code{by},
 or un-prefixed names (applied to both from and to).}
-
-\item{prefix}{\code{character(1)} Prefix to names of associated parameters.}
 
 \item{joint}{\code{logical(1)} Treat covariates as joint.
 If \code{FALSE}, covariates are independent (default).}
@@ -59,16 +57,18 @@ Ignored if automatic definition.}
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item 'sample': sampled from the \%s distribution;
-\item 'uniform': increments drawn from uniform;
-\item 'normal': increments drawn from normal;
-\item 'lognormal': log-increments drawn from lognormal (for positive values only);
-\item \code{NA} (default): same as 'sample'.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{"uniform"}: increments drawn from uniform;
+\item \code{"normal"}: increments drawn from normal;
+\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
+\item \code{NA} (default): same as \code{"sample"}.
 }}
 
 \item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
 Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is 'sample'.}
+Ignored if proposal is \code{"sample"}.}
+
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters. Default is \code{"ctr"}.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

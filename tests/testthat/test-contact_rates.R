@@ -1,15 +1,16 @@
 library(testthat)
 
 aux_add <- function(self, by = NA_character_,
-                    reference = NULL, prefix = NA_character_,
+                    reference = NULL, 
                     joint = TRUE, symmetric = TRUE,
                     strata = NULL, params = NULL,
                     prior = NA_character_, ...,
                     min = NA_real_, max = NA_real_,
                     proposal = NA_character_,
                     proposal_scale = NA_real_,
+                    prefix = "ctr",
                     .warn_over = TRUE) {
-  self$add_quo(by = by, prefix = prefix,
+  self$add_quo(by = by,
                reference = reference,
                joint = joint, symmetric = symmetric,
                strata = strata,
@@ -19,6 +20,7 @@ aux_add <- function(self, by = NA_character_,
                max = rlang::enquo(max),
                proposal = proposal,
                proposal_scale = proposal_scale,
+               prefix = prefix,
                .warn_over = .warn_over)
   invisible(self)
 }

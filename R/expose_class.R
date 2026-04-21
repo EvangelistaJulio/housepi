@@ -323,7 +323,6 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `r rd_grr_by_`
-#' @param prefix `r rd_grr_prefix_`
 #' @param reference `r rd_grr_refer_`
 #' @param joint `r rd_grr_joint_`
 #' @param strata `r rd_grr_strata_`
@@ -334,6 +333,7 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
 #' @param proposal_scale `r rd_proposal_scale_`
+#' @param prefix `r rd_grr_prefix_`
 #' @references
 #' Cauchemez, et al. (2009)
 #' Household Transmission of 2009 Pandemic Influenza A (H1N1)
@@ -343,22 +343,24 @@ load_augmented_template <- function(hhmodel, append = FALSE) {
 #' @return `r rd_model_out_`
 #' @export
 add_group_rate <-  function(hhmodel,
-                            name, by = NA_character_, prefix = NA_character_,
+                            name, by = NA_character_,
                             reference = NULL, joint = FALSE,
                             strata = NULL, params = NULL,
                             prior = NA_character_, ...,
                             min = NA_real_, max = NA_real_,
                             proposal = NA_character_,
-                            proposal_scale = NA_real_) {
+                            proposal_scale = NA_real_,
+                            prefix = NA_character_) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private$group_rates_$add_quo(
-    name = name, by = by, prefix = prefix,
+    name = name, by = by,
     reference = reference, joint = joint,
     strata = strata, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale
+    proposal = proposal, proposal_scale = proposal_scale,
+    prefix = prefix
   )
   new_obj$.__enclos_env__$private$rebuild_()
   new_obj
@@ -373,7 +375,6 @@ add_group_rate <-  function(hhmodel,
 #' @param hhmodel `r rd_model_in_`
 #' @param by `r rd_ctr_by_`
 #' @param reference `r rd_ctr_refer_`
-#' @param prefix `r rd_ctr_prefix_`
 #' @param joint `r rd_ctr_joint_`
 #' @param symmetric `r rd_ctr_symmetric_`
 #' @param strata `r rd_ctr_strata_`
@@ -384,25 +385,28 @@ add_group_rate <-  function(hhmodel,
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
 #' @param proposal_scale `r rd_proposal_scale_`
+#' @param prefix `r rd_ctr_prefix_`
 #' @return `r rd_model_out_`
 #' @export
 add_contact_rate <- function(hhmodel, by = NA_character_,
-                             reference = NULL, prefix = NA_character_,
+                             reference = NULL,
                              joint = FALSE, symmetric = TRUE,
                              strata = NULL, params = NULL,
                              prior = NA_character_, ...,
                              min = NA_real_, max = NA_real_,
                              proposal = NA_character_,
-                             proposal_scale = NA_real_) {
+                             proposal_scale = NA_real_,
+                             prefix = "ctr") {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$.__enclos_env__$private$contact_rates_$add_quo(
-    by = by, reference = reference, prefix = prefix,
+    by = by, reference = reference,
     joint = joint, symmetric = symmetric,
     strata = strata, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale
+    proposal = proposal, proposal_scale = proposal_scale,
+    prefix = prefix
   )
   new_obj$.__enclos_env__$private$rebuild_()
   new_obj

@@ -496,8 +496,6 @@ HousepiModel <- R6::R6Class(
     #' @field parameters `data.frame`. Parameter definitions.
     parameters = function(value) {
       if (!missing(value)) stop_read_only("parameters")
-      private$build_group_rates_()
-      private$build_contact_rates_()
       housepi_defin_showcaser(private$param_$defs)
     },
 
@@ -529,14 +527,12 @@ HousepiModel <- R6::R6Class(
     #' @field group_rates `data.frame`. Group rate definitions.
     group_rates = function(value) {
       if (!missing(value)) stop_read_only("group_rates")
-      private$build_group_rates_()
       private$group_rates_$tidy_table
     },
 
     #' @field contact_rates `data.frame`. Contact rate definitions.
     contact_rates = function(value) {
       if (!missing(value)) stop_read_only("contact_rates")
-      private$build_contact_rates_()
       private$contact_rates_$tidy_table
     }
   ),
