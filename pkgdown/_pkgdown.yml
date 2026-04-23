@@ -101,7 +101,6 @@ articles:
       - group_rates
       - contact_rates
       - posterior_predictive_checks
-      - sample_dataset
       - user_functions
 
 # Navigation Bar
