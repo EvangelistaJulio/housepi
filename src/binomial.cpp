@@ -5,15 +5,13 @@
  * See the LICENSE file for details.
  */
 
-// #include <string>
-// #include <sstream>
 #include <algorithm>
 #include <cmath>
-#include <functional> // UPDATE: drop this dependency
+#include <numeric>
 #include <map>
+#include <sstream>
+#include <stdexcept>
 
-#include "tools/messages.h"
-#include "tools/operators.h" // UPDATE: drop this dependency
 #include "binomial.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,8 +58,8 @@ namespace housepi::bino
     class EscapePattern
     {
     public:
-        EscapePattern(unsigned N_star)
-            : N_star_(N_star) {}
+        EscapePattern(unsigned max_n_infec)
+            : max_n_infec_(max_n_infec) {}
         ~EscapePattern() {}
 
         /// Add a new entry for the escape matrix.
@@ -76,17 +74,12 @@ namespace housepi::bino
             pattern_idxs_.push_back(new_pattern_idx);
             ++n_patterns_;
         }
-        /// Compute the likelihood starting from the current escape pattern.
-        ///	NOTE: it requires initialization of the lookup table.
-        double likelihood(const vector<double> &esc_mtx) const;
 
-        /*
         /// String with the formula of the likelihood.
-        const std::string EscapePattern::str();
-        */
+        std::string str() const;
 
     private:
-        const unsigned N_star_;
+        const unsigned max_n_infec_;
         size_t n_entries_ = 0;
         size_t n_patterns_ = 0;
 
@@ -96,34 +89,21 @@ namespace housepi::bino
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  *** GroupedTree : Class ***  /////////////////////////////////
+    ////////////////////////////////  FinalSizeDP : Class  //////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    struct GroupedTree
+    /// Multitype final-size dynamic programming.
+    ///
+    /// Ref:
+    /// ----
+    /// Addy, C. L., Longini, I. M. & Haber, M.
+    /// A Generalized Stochastic Model for the Analysis of Infectious Disease Final Size Data.
+    /// Biometrics 47, 961-974 (1991).
+    struct FinalSizeDP
     {
-        struct Node
-        {
-            double log_weight;          // pre-computed lgamma multinomial coefficient
-            unsigned gen;               // generation index
-            vector<unsigned> comp;      // composition at this node (size K)
-            vector<unsigned> prev;      // prev_by_type (size K)
-            vector<unsigned> cumul;     // cumul_by_type (size K)
-            vector<unsigned> remaining; // remaining before subtracting comp (size K)
-            vector<size_t> children;    // indices into flat node array
-        };
-
-        vector<Node> nodes;
-        vector<size_t> roots; // top-level node indices
-
-        double evaluate_node_(
-            size_t idx,
-            const vector<double> &log_commu_esc,
-            const matrix<double> &log_p2p_esc) const;
-
-        double evaluate(
-            const vector<double> &log_commu_esc,
-            const matrix<double> &log_p2p_esc) const;
+        vector<vector<unsigned>> sub_vecs;
+        vector<vector<std::pair<size_t, double>>> ancestors;
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -160,9 +140,8 @@ namespace housepi::bino
         /////////  Cached Grouped Trees  ////////
         /////////////////////////////////////////
 
-        /// Grouped chain-binomial cached trees
-        /// Key: (n_infec, type_counts); Value: one tree per generation pattern
-        std::map<vector<unsigned>, vector<GroupedTree>> grouped_patterns;
+        /// Cached final-size DPs keyed by type_counts (c_root).
+        std::map<vector<unsigned>, FinalSizeDP> finalsize_patterns;
     } lut;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -184,8 +163,9 @@ namespace housepi::bino
             for (gentype g : recursive_span_generation_(n - root))
             {
                 for (unsigned i = 0; i < n - root; ++i)
-                    g[i] += 1;
-                output.push_back(gentype(root, 0) + g);
+                    ++g[i];
+                output.emplace_back(root, 0);
+                output.back().insert(output.back().end(), g.begin(), g.end());
             }
         return output;
     }
@@ -198,7 +178,7 @@ namespace housepi::bino
         lut.num_generations.clear();
         lut.multiplicity_generation.clear();
         lut.generations.clear();
-        lut.grouped_patterns.clear();
+        lut.finalsize_patterns.clear();
 
         // Allocate LUT memory
         lut.num_generations.resize(max_N + 1);
@@ -269,25 +249,19 @@ namespace housepi::bino
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Homogeneous chain binomial log-likelihood.
-    double chain_binom_homogeneous_log_lik(
+    ///
+    /// Ref:
+    /// ----
+    /// Longini, I. M. & Koopman, J. S.
+    /// Household and Community Transmission Parameters from Final Distributions of Infections in Households
+    /// Biometrics 38, 115-126 (1982).
+    double chain_binom_log_lik_homogeneous_(
         unsigned n_infec, unsigned house_size,
-        double commu_escape_rate, double p2p_escape_rate)
-
+        double commu_infec_rate, double p2p_infec_rate)
     {
-        const double log_commu_esc_proba = -commu_escape_rate;
-
-        if (n_infec == 0)
-            return house_size * log_commu_esc_proba;
-
+        const double log_commu_esc_proba = -commu_infec_rate;
         const double log_commu_infec_proba = std::log1p(-std::exp(log_commu_esc_proba));
-        const double log_p2p_esc_proba = -p2p_escape_rate;
-
-        ///////////////////////////////////////////////////
-        /////////  (-) Sero-Negative Contribution  ////////
-        ///////////////////////////////////////////////////
-
-        const double log_sero_neg_term = (house_size - n_infec) *
-                                         (log_commu_esc_proba + n_infec * log_p2p_esc_proba);
+        const double log_p2p_esc_proba = -p2p_infec_rate;
 
         ///////////////////////////////////////////////////
         /////////  (+) Sero-Positive Contribution  ////////
@@ -320,7 +294,7 @@ namespace housepi::bino
             sero_positive_term += lut.multiplicity_generation[n_infec][c] * std::exp(tmp);
         }
 
-        return log_sero_neg_term + std::log(sero_positive_term);
+        return std::log(sero_positive_term);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -329,10 +303,10 @@ namespace housepi::bino
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Algorithm to generate all possible combinations of N elements in k positions, plus the N - k complements.
-    /// The elements are indexed from 1 to N.
+    /// Algorithm to generate all possible combinations of N elements in k positions.
+    /// The N - k complements are appended at the end. Elements indexed from 1 to N.
     ///
-    /// Ref: (modified from)
+    /// Ref:
     /// ----
     /// Daniel Angel Jimenez
     /// https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
@@ -423,19 +397,18 @@ namespace housepi::bino
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /*
     /// String with the formula of the likelihood.
-    const std::string EscapePattern::str()
+    std::string EscapePattern::str() const
     {
         std::ostringstream oss;
 
         for (size_t c = 0; c < n_entries_; ++c)
         {
             unsigned u = entries_[c];
-            if (u < N_star_)
+            if (u < max_n_infec_)
                 oss << "B" << u + 1;
             else
-                oss << "Q" << u / N_star_ << "_" << u % N_star_ + 1;
+                oss << "Q" << u / max_n_infec_ << "_" << u % max_n_infec_ + 1;
 
             if (c < n_entries_ - 1)
                 oss << "*";
@@ -447,31 +420,20 @@ namespace housepi::bino
                 oss << "*(";
             oss << "1";
             for (size_t c = 0; c < n_patterns_; ++c)
-                oss << " - " << lut.EscapePatterns[N_star_][pattern_idxs_[c]].str();
+                oss << " - " << lut.escape_patterns[max_n_infec_][pattern_idxs_[c]].str();
             if (n_entries_ > 0)
                 oss << ")";
         }
 
         return oss.str();
     }
-    */
-
-    double EscapePattern::likelihood(const vector<double> &esc_mtx) const
-    {
-        double output = 1.;
-
-        for (size_t c = 0; c < n_patterns_; ++c)
-            output -= lut.escape_patterns[N_star_][pattern_idxs_[c]].likelihood(esc_mtx);
-
-        for (size_t c = 0; c < n_entries_; ++c)
-            output *= esc_mtx[entries_[c]];
-
-        return output;
-    }
 
     /// Recursive function to generate all possible escape patterns for a given number of seropositives N_star.
-    void recursive_escape_patterns_function_(unsigned N_star, unsigned N, vector<unsigned> access_matrix,
-                                             EscapePattern &father, vector<EscapePattern> &results)
+    void recursive_escape_patterns_function_(
+        unsigned N_star, unsigned N,
+        vector<unsigned> access_matrix,
+        EscapePattern &father,
+        vector<EscapePattern> &results)
     {
         for (unsigned k = 0; k < N; ++k)
             for (unsigned long c = 0; c < lut.num_combinations[N][k]; ++c)
@@ -512,11 +474,10 @@ namespace housepi::bino
     }
 
     /// Initialize the Look Up Table of escape patterns and the access object.
-    /// UPDATE: Avoid regenerating if already ok...
-    void init_escape_patterns_lookuptable(unsigned max_N, bool clean_combinations)
+    void init_escape_patterns_lookuptable_(unsigned max_n_infec)
     {
         // lookuptable with all combinations + complements
-        init_combinations_lookuptable_(max_N);
+        init_combinations_lookuptable_(max_n_infec);
 
         // assure that LUT are empty before initializing
         lut.chain_binomial.clear();
@@ -528,24 +489,35 @@ namespace housepi::bino
         lut.escape_patterns.push_back(vector<EscapePattern>());
 
         // case N_star > 0
-        for (unsigned N_star = 1; N_star <= max_N; ++N_star)
+        for (unsigned n_infec = 1; n_infec <= max_n_infec; ++n_infec)
         {
-            vector<unsigned> access_matrix((N_star + 1) * N_star);
-            for (unsigned i = 0; i < (N_star + 1) * N_star; ++i)
-                access_matrix[i] = i;
+            vector<unsigned> access_matrix((n_infec + 1) * n_infec);
+            std::iota(access_matrix.begin(), access_matrix.end(), 0);
 
             // store to lookup table
-            lut.chain_binomial.emplace_back(N_star);
+            lut.chain_binomial.emplace_back(n_infec);
             lut.escape_patterns.emplace_back(vector<EscapePattern>());
 
-            recursive_escape_patterns_function_(N_star, N_star, access_matrix,
-                                                lut.chain_binomial[N_star],
-                                                lut.escape_patterns[N_star]);
+            recursive_escape_patterns_function_(n_infec, n_infec, access_matrix,
+                                                lut.chain_binomial[n_infec],
+                                                lut.escape_patterns[n_infec]);
         }
+    }
 
-        // deallocate memory of combinations lookup table
-        if (clean_combinations)
+    /// Auxiliary function to perform debugs
+    std::string auxiliary_chain_binomial_debugger(unsigned max_n_infec)
+    {
+        unsigned limit_max_n_infec = 8;
+        if (max_n_infec < limit_max_n_infec)
+        {
+            init_escape_patterns_lookuptable_(max_n_infec);
+            std::string output = lut.chain_binomial[max_n_infec].str();
             clear_combinations_lookuptable_();
+            return output;
+        }
+        throw std::invalid_argument(
+            "Maximum number of infected members is fixed to " +
+            std::to_string(limit_max_n_infec) + ".");
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -554,275 +526,184 @@ namespace housepi::bino
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /*
-    /// UPDATE: to be moved to a separate file.
-    /// Debug mode, to check values of the likelihood and print formulation.
+    /// Heterogeneous final-size using subset bitmasks and dynamic programming.
     ///
-    /// g++ -Wall -Wextra -std=gnu++11 -g -O2 -o auxiliary_binomial.o auxiliary_binomial.cpp ./auxiliary_binomial.o 7
     ///
-    /// Auxiliary function to perform debugs
-    void auxiliary_chain_binomial_debugger(unsigned max_num, unsigned limit)
+    /// Ref:
+    /// ----
+    /// Ball, F.
+    /// A unified approach to the distribution of total size and total area under the trajectory of infectives in epidemic models.
+    /// Advances in Applied Probability 18, 289-310 (1986).
+    double chain_binom_log_lik_heterogeneous_(
+        size_t n_infec,
+        const std::vector<double> &commu_infec_rate,
+        const std::vector<std::vector<double>> &p2p_infec_rate)
     {
-        using namespace bax;
-        for (unsigned N_star = 0; N_star <= max_num; ++N_star)
-        {
-            size_t n_patterns = lut.escape_patterns[N_star].size();
-            std::cerr << "\n<<" << N_star << ">>"
-                      << " n.terms = " << (n_patterns == 0 ? 0 : 1 + (n_patterns - 1) / 2) << std::endl;
+        const size_t Nsets = size_t(1) << n_infec; // 2^n_infec = total number of subsets R
 
-            // elements for the escape matrix //
-            vector<double> commu_esc_rate(N_star);
-            for (unsigned i = 0; i < N_star; ++i)
+        // pre-compute incrementally all values of log-escape probabilities q 
+        // for all subsets R
+        thread_local vector<double> log_q;
+        log_q.assign(Nsets * n_infec, 0.);
+
+        // case R = 0 (empty): only community escape [O(n)]
+        for (size_t j = 0; j < n_infec; ++j)
+            log_q[j] = -commu_infec_rate[j];
+
+        // case R > 0 (set with at least 1 infected) [O(2^n * n)]
+        for (size_t R = 1; R < Nsets; ++R)
+        {
+            const size_t low = R & (~R + 1);                            // isolate lowest set bit of R
+            const size_t i = static_cast<size_t>(__builtin_ctzll(low)); // index of that bit (= some member of R)
+            const size_t Rprev = R ^ low;                               // R with that member removed
+            for (size_t j = 0; j < n_infec; ++j)
+                log_q[R * n_infec + j] = log_q[Rprev * n_infec + j] - p2p_infec_rate[i][j];
+        }
+
+        thread_local vector<double> log_pi;
+        log_pi.assign(Nsets, 0.); // log pi(empty) = 0
+
+        for (size_t S = 1; S < Nsets; ++S)
+        {
+            double sum = 0.;
+            // enumerate all proper subsets of S in decreasing order
+            for (size_t R = (S - 1) & S;; R = (R - 1) & S)
             {
-                commu_esc_rate[i] = -std::log(0.15 + 0.025 * i);
-                if (N_star < limit)
-                    std::cerr << "B" << i + 1 << " = " << std::exp(-commu_esc_rate[i]) << std::endl;
+                const size_t SmR = S & ~R; // bitmask for S \ R
+                double expo = 0.;
+                for (size_t j = 0; j < n_infec; ++j)
+                    if ((SmR >> j) & size_t(1)) // if j in S \ R?
+                        expo += log_q[R * n_infec + j];
+                sum += std::exp(log_pi[R] + expo);
+                if (R == 0) // last subset
+                    break;
             }
-            matrix<double> p2p_esc_rate(N_star);
-            for (unsigned row = 0; row < N_star; ++row)
+            log_pi[S] = (sum < 1.0) ? std::log1p(-sum)
+                                    : -std::numeric_limits<double>::infinity();
+        }
+
+        return log_pi[Nsets - 1];
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////  FinalSizeDP : build and evaluate  //////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Build the final-size DP for a given infected partition c_root.
+    FinalSizeDP build_finalsize_dyn_prog_(const vector<unsigned> &c_root)
+    {
+        const unsigned K = static_cast<unsigned>(c_root.size());
+
+        size_t total = 1;
+        for (unsigned c : c_root)
+            total *= (c + 1);
+
+        // enumerate all v <= c_root via odometer increment
+        vector<vector<unsigned>> sub_vecs;
+        sub_vecs.reserve(total);
+        {
+            vector<unsigned> cur(K, 0);
+            while (true)
             {
-                p2p_esc_rate[row].resize(N_star);
-                for (unsigned col = 0; col < N_star; ++col)
+                sub_vecs.push_back(cur);
+                unsigned s = 0;
+                while (s < K && cur[s] == c_root[s])
+                    cur[s++] = 0;
+                if (s == K)
+                    break;
+                ++cur[s];
+            }
+        }
+
+        // topological sort: |v|_1 ascending, lex as tiebreak
+        std::sort(sub_vecs.begin(), sub_vecs.end(),
+                  [](const vector<unsigned> &a, const vector<unsigned> &b)
+                  {
+                      unsigned sa = 0, sb = 0;
+                      for (unsigned x : a)
+                          sa += x;
+                      for (unsigned x : b)
+                          sb += x;
+                      return sa != sb ? sa < sb : a < b;
+                  });
+
+        std::map<vector<unsigned>, size_t> idx_of;
+        for (size_t i = 0; i < sub_vecs.size(); ++i)
+            idx_of[sub_vecs[i]] = i;
+
+        FinalSizeDP dp;
+        dp.sub_vecs = std::move(sub_vecs);
+        dp.ancestors.resize(dp.sub_vecs.size());
+
+        for (size_t ti = 1; ti < dp.sub_vecs.size(); ++ti)
+        {
+            const auto &t = dp.sub_vecs[ti];
+            vector<unsigned> w(K, 0);
+            while (true)
+            {
+                if (w != t)
                 {
-                    p2p_esc_rate[row][col] = -std::log(0.25 + 0.0125 * col + 0.0125 * row);
-                    if (N_star < limit)
-                        std::cerr << "Q" << row + 1 << "_" << col + 1 << " = "
-                                  << std::exp(-p2p_esc_proba[row][col]) << std::endl;
+                    double log_C = 0.;
+                    for (unsigned s = 0; s < K; ++s)
+                        log_C += std::lgamma(t[s] + 1) - std::lgamma(w[s] + 1) -
+                                 std::lgamma(t[s] - w[s] + 1);
+                    dp.ancestors[ti].emplace_back(idx_of[w], log_C);
                 }
+                unsigned s = 0;
+                while (s < K && w[s] == t[s])
+                    w[s++] = 0;
+                if (s == K)
+                    break;
+                ++w[s];
             }
-
-            if (N_star < limit)
-                std::cerr << lut.chain_binomial[N_star].str() << std::endl;
-
-            auto start = std::chrono::high_resolution_clock::now();
-            std::cerr << "likelihood: " << std::exp(chain_binom_heterogeneous_log_lik(N_star, commu_esc_rate, p2p_esc_rate));
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> elapsed = end - start;
-            std::cerr << " | time: " << elapsed.count() << " seconds" << std::endl;
         }
 
-        std::cerr << std::endl;
-    }
-    */
-
-    /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
-    double chain_binom_heterogeneous_log_lik(
-        unsigned n_infec,
-        const std::vector<double> &commu_escape_rate,
-        const std::vector<std::vector<double>> &p2p_escape_rate)
-    {
-        ///////////////////////////////////////////////////
-        /////////  (-) Sero-Negative Contribution  ////////
-        ///////////////////////////////////////////////////
-
-        double log_neg_term = 0.;
-        for (size_t i = n_infec; i < commu_escape_rate.size(); ++i)
-        {
-            // community : i escaped from community
-            log_neg_term -= commu_escape_rate[i];
-            // person-to-person : i escaped from k
-            for (unsigned k = 0; k < n_infec; ++k)
-                log_neg_term -= p2p_escape_rate[k][i];
-        }
-
-        if (n_infec == 0)
-            return log_neg_term;
-
-        ///////////////////////////////////////////////////
-        /////////  (+) Sero-Positive Contribution  ////////
-        ///////////////////////////////////////////////////
-
-        // single seropositive
-        if (n_infec == 1)
-            return log_neg_term + std::log1p(-std::exp(-commu_escape_rate[0]));
-
-        // flatten sub-matrix with only seropositives
-        // UPDATE: can I avoid this re-allocation?
-        thread_local vector<double> escape_matrix;
-        escape_matrix.assign((n_infec + 1) * n_infec, 1.);
-
-        for (unsigned i = 0; i < n_infec; ++i)
-        {
-            // community : i escaped from community
-            escape_matrix[i] = std::exp(-commu_escape_rate[i]);
-
-            // person-to-person : i escaped from k
-            for (unsigned k = 0; k < n_infec; ++k)
-                escape_matrix[n_infec * (k + 1) + i] = std::exp(-p2p_escape_rate[k][i]);
-
-            // infector always "escapes" himself (check if actually relevant)
-            escape_matrix[n_infec * (i + 1) + i] = 1.;
-        }
-
-        return log_neg_term + std::log(lut.chain_binomial[n_infec].likelihood(escape_matrix));
+        return dp;
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  GroupedTree : implementations  ////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Recursive enumeration of partitions of n into K parts, where each
-    /// part t contributes at most remaining[tau] individuals.
-    /// Calls callback(composition) for each valid composition.
-    void enumerate_partitions_(
-        unsigned type_idx,
-        unsigned remaining_n,
-        const vector<unsigned> &remaining,
-        vector<unsigned> &current,
-        unsigned K,
-        const std::function<void(const vector<unsigned> &)> &callback)
-    {
-        if (type_idx == K - 1)
-        {
-            if (remaining_n <= remaining[type_idx])
-            {
-                current[type_idx] = remaining_n;
-                callback(current);
-            }
-            return;
-        }
-        unsigned max_c = std::min(remaining_n, remaining[type_idx]);
-        for (unsigned c = 0; c <= max_c; ++c)
-        {
-            current[type_idx] = c;
-            enumerate_partitions_(type_idx + 1, remaining_n - c,
-                                  remaining, current, K, callback);
-        }
-    }
-
-    double GroupedTree::evaluate_node_(
-        size_t idx,
+    /// Evaluate log P(final = c_root | all infecteds in c_root).
+    /// Ball recursion: pi(t|t) = 1 - sum_{w < t} C(t,w) * pi(w|w) * prod_s q_s(w)^(t_s - w_s).
+    double evaluate_finalsize_dyn_prog_(
+        const FinalSizeDP &dp,
         const vector<double> &log_commu_esc,
-        const matrix<double> &log_p2p_esc) const
+        const matrix<double> &log_p2p_esc)
     {
-        const auto &node = nodes[idx];
-        const unsigned K = node.comp.size();
+        const unsigned K = dp.sub_vecs.empty() ? 0u : static_cast<unsigned>(dp.sub_vecs.front().size());
 
-        // compute log probability from cached integer coefficients + runtime escape rates
-        double log_prob = 0.;
+        thread_local vector<double> log_pi;
+        log_pi.assign(dp.sub_vecs.size(), 0.); // log pi(0|0) = 0
 
-        if (node.gen == 0)
-            for (unsigned t = 0; t < K; ++t)
+        for (size_t ti = 1; ti < dp.sub_vecs.size(); ++ti)
+        {
+            const auto &t = dp.sub_vecs[ti];
+            double sum = 0.;
+
+            for (const auto &wc : dp.ancestors[ti])
             {
-                if (node.comp[t] > 0)
-                    log_prob += node.comp[t] * std::log1p(-std::exp(log_commu_esc[t]));
-                if (node.remaining[t] > node.comp[t])
-                    log_prob += (node.remaining[t] - node.comp[t]) * log_commu_esc[t];
-            }
-        else
-            for (unsigned t = 0; t < K; ++t)
-            {
-                if (node.comp[t] == 0)
-                    continue;
+                const size_t wi = wc.first;
+                const double log_C = wc.second;
+                const auto &w = dp.sub_vecs[wi];
 
-                double log_esc_prev = 0.;
+                double expo = 0.;
                 for (unsigned s = 0; s < K; ++s)
                 {
-                    log_prob += node.comp[t] * node.cumul[s] * log_p2p_esc[s][t];
-                    log_esc_prev += node.prev[s] * log_p2p_esc[s][t];
+                    if (t[s] == w[s])
+                        continue;
+                    double log_q_s = log_commu_esc[s];
+                    for (unsigned u = 0; u < K; ++u)
+                        log_q_s += w[u] * log_p2p_esc[u][s];
+                    expo += (t[s] - w[s]) * log_q_s;
                 }
 
-                log_prob += node.comp[t] * std::log1p(-std::exp(log_esc_prev));
+                sum += std::exp(log_C + log_pi[wi] + expo);
             }
+            log_pi[ti] = (sum < 1.0) ? std::log1p(-sum)
+                                     : -std::numeric_limits<double>::infinity();
+        }
 
-        // evaluate children (next generation)
-        double child_result = 0.;
-        if (node.children.empty())
-            child_result = 1.0;
-        else
-            for (size_t ci : node.children)
-                child_result += evaluate_node_(ci, log_commu_esc, log_p2p_esc);
-
-        return std::exp(node.log_weight + log_prob) * child_result;
-    }
-
-    double GroupedTree::evaluate(
-        const vector<double> &log_commu_esc,
-        const matrix<double> &log_p2p_esc) const
-    {
-        double sum = 0.;
-        for (size_t r : roots)
-            sum += evaluate_node_(r, log_commu_esc, log_p2p_esc);
-        return sum;
-    }
-
-    /// Recursively build the cached tree for one generation pattern.
-    void build_grouped_tree_recursive_(
-        unsigned g,
-        unsigned num_gens,
-        const gentype &gen_counts,
-        vector<unsigned> &remaining,
-        const vector<unsigned> &prev_by_type,
-        const vector<unsigned> &cumul_by_type,
-        unsigned K,
-        GroupedTree &tree,
-        vector<size_t> &parent_children)
-    {
-        if (g == num_gens)
-            return;
-
-        unsigned n_g = gen_counts[g];
-
-        auto callback = [&](const vector<unsigned> &comp)
-        {
-            GroupedTree::Node node;
-            node.gen = g;
-            node.comp = comp;
-            node.prev = prev_by_type;
-            node.cumul = cumul_by_type;
-            node.remaining.assign(remaining.begin(), remaining.end());
-
-            // Pre-compute log_weight (multinomial coefficient)
-            node.log_weight = 0.;
-            for (unsigned t = 0; t < K; ++t)
-                node.log_weight += std::lgamma(remaining[t] + 1) - std::lgamma(comp[t] + 1) -
-                                   std::lgamma(remaining[t] - comp[t] + 1);
-
-            size_t my_idx = tree.nodes.size();
-            tree.nodes.push_back(std::move(node));
-            parent_children.push_back(my_idx);
-
-            // Recurse into next generation
-            // NOTE: collect children into a local vector because tree.nodes
-            // may reallocate during recursion, invalidating references.
-            vector<unsigned> new_remaining(K), new_cumul(K);
-            for (unsigned t = 0; t < K; ++t)
-            {
-                new_remaining[t] = remaining[t] - comp[t];
-                new_cumul[t] = cumul_by_type[t] + (g > 0 ? prev_by_type[t] : 0);
-            }
-
-            vector<size_t> my_children;
-            build_grouped_tree_recursive_(
-                g + 1, num_gens, gen_counts,
-                new_remaining, comp, new_cumul, K,
-                tree, my_children);
-            tree.nodes[my_idx].children = std::move(my_children);
-        };
-
-        vector<unsigned> comp(K, 0);
-        std::function<void(const vector<unsigned> &)> cb = callback;
-        enumerate_partitions_(0, n_g, remaining, comp, K, cb);
-    }
-
-    /// Build a GroupedTree for one generation pattern.
-    GroupedTree build_grouped_tree_(
-        const gentype &gen_counts,
-        unsigned K,
-        const vector<unsigned> &type_counts)
-    {
-        GroupedTree tree;
-        vector<unsigned> remaining(type_counts.begin(), type_counts.end());
-        vector<unsigned> prev(K, 0), cumul(K, 0);
-
-        build_grouped_tree_recursive_(
-            0, gen_counts.size(), gen_counts,
-            remaining, prev, cumul, K,
-            tree, tree.roots);
-
-        return tree;
+        return log_pi.back();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -835,31 +716,72 @@ namespace housepi::bino
     ///
     /// When multiple seropositives share the same contribution,
     /// use partition sequences per generation instead of all individual permutations.
+    /// NOTE: I don't think I can use bitmasks tricks here because of
+    /// non analytical solution for number of integer partitions
     ///
     /// @param n_infec number of infected members
     /// @param n_parts number of parts
     /// @param part_counts counts of in-house seropositives parts
     /// @param part_indexes indexes of household member representative of part
-    /// @param commu_esc_rate per-individual community escape rates
-    /// @param p2p_esc_rate per-individual p2p escape rates
-    double chain_binom_grouped_log_lik(
+    /// @param commu_infec_rate per-individual community infection rates
+    /// @param p2p_infec_rate per-individual p2p infection rates
+    double chain_binom_log_lik_partitioned_(
         size_t n_infec,
         size_t n_parts,
         const std::vector<size_t> &part_counts,
         const std::vector<size_t> &part_indexes,
-        const std::vector<double> &commu_esc_rate,
-        const std::vector<std::vector<double>> &p2p_esc_rate)
+        const std::vector<double> &commu_infec_rate,
+        const std::vector<std::vector<double>> &p2p_infec_rate)
+    {
+        // pre-compute log-escape probabilities per type
+        thread_local vector<double> log_commu_esc;
+        log_commu_esc.assign(n_parts, 0.);
+        thread_local matrix<double> log_p2p_esc;
+        log_p2p_esc.assign(n_parts, vector<double>(n_parts, 0.));
+
+        for (unsigned t = 0; t < n_parts; ++t)
+        {
+            log_commu_esc[t] = -commu_infec_rate[part_indexes[t]];
+            for (unsigned s = 0; s < n_parts; ++s)
+                log_p2p_esc[t][s] = -p2p_infec_rate[part_indexes[t]][part_indexes[s]];
+        }
+
+        // lookup or build cached trees for this (n_infec, type_counts)
+        // UPDATE: I am keeping this just to cast size_t to unsigned
+        vector<unsigned> tc_key(part_counts.begin(), part_counts.begin() + n_parts);
+
+        auto itdp = lut.finalsize_patterns.find(tc_key);
+        if (itdp == lut.finalsize_patterns.end())
+            itdp = lut.finalsize_patterns.emplace(tc_key, build_finalsize_dyn_prog_(tc_key)).first;
+
+        return evaluate_finalsize_dyn_prog_(itdp->second, log_commu_esc, log_p2p_esc);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////  Chain-Binomial Dispatcher (Public Entry)  ////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    double chain_binom_log_lik(
+        size_t n_infec, size_t n_parts,
+        const vector<size_t> &part_counts,
+        const vector<size_t> &part_indexes,
+        const vector<double> &commu_infec_rate,
+        const matrix<double> &p2p_infec_rate)
     {
         ///////////////////////////////////////////////////
         /////////  (-) Sero-Negative Contribution  ////////
         ///////////////////////////////////////////////////
 
         double log_neg_term = 0.;
-        for (size_t i = n_infec; i < commu_esc_rate.size(); ++i)
+        for (size_t i = n_infec; i < commu_infec_rate.size(); ++i)
         {
-            log_neg_term -= commu_esc_rate[i];
+            // community : i escaped from community
+            log_neg_term -= commu_infec_rate[i];
+            // person-to-person : i escaped from k
             for (unsigned k = 0; k < n_infec; ++k)
-                log_neg_term -= p2p_esc_rate[k][i];
+                log_neg_term -= p2p_infec_rate[k][i];
         }
 
         if (n_infec == 0)
@@ -869,43 +791,27 @@ namespace housepi::bino
         /////////  (+) Sero-Positive Contribution  ////////
         ///////////////////////////////////////////////////
 
+        double log_pos_term = 0.;
+
         // single seropositive
         if (n_infec == 1)
-            return log_neg_term + std::log1p(-std::exp(-commu_esc_rate[0]));
+            log_pos_term = std::log1p(-std::exp(-commu_infec_rate[0]));
+        // homogeneous case
+        else if (n_parts <= 1)
+            log_pos_term = chain_binom_log_lik_homogeneous_(
+                static_cast<unsigned>(n_infec),
+                static_cast<unsigned>(commu_infec_rate.size()),
+                commu_infec_rate[0], p2p_infec_rate[0][1]);
+        // heterogeneous case
+        else if (n_parts == n_infec)
+            log_pos_term = chain_binom_log_lik_heterogeneous_(
+                n_infec, commu_infec_rate, p2p_infec_rate);
+        // grouped case
+        else
+            log_pos_term = chain_binom_log_lik_partitioned_(
+                n_infec, n_parts, part_counts, part_indexes,
+                commu_infec_rate, p2p_infec_rate);
 
-        // pre-compute log-escape probabilities per type
-        thread_local vector<double> log_commu_esc;
-        log_commu_esc.assign(n_parts, 0.);
-        thread_local matrix<double> log_p2p_esc;
-        log_p2p_esc.assign(n_parts, vector<double>(n_parts, 0.));
-
-        for (unsigned t = 0; t < n_parts; ++t)
-        {
-            log_commu_esc[t] = -commu_esc_rate[part_indexes[t]];
-            for (unsigned s = 0; s < n_parts; ++s)
-                log_p2p_esc[t][s] = -p2p_esc_rate[part_indexes[t]][part_indexes[s]];
-        }
-
-        // lookup or build cached trees for this (n_infec, type_counts)
-        // UPDATE: I am keeping this just to cast size_t to unsigned
-        vector<unsigned> tc_key(part_counts.begin(), part_counts.begin() + n_parts);
-
-        auto it = lut.grouped_patterns.find(tc_key);
-        if (it == lut.grouped_patterns.end())
-        {
-            vector<GroupedTree> trees;
-            trees.reserve(lut.num_generations[n_infec]);
-            for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
-                trees.push_back(build_grouped_tree_(
-                    lut.generations[n_infec][c], n_parts, tc_key));
-            it = lut.grouped_patterns.emplace(tc_key, std::move(trees)).first;
-        }
-
-        // sum over generation patterns using cached trees
-        double pos_term = 0.;
-        for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
-            pos_term += it->second[c].evaluate(log_commu_esc, log_p2p_esc);
-
-        return log_neg_term + std::log(pos_term);
+        return log_neg_term + log_pos_term;
     }
 }

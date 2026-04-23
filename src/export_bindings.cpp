@@ -30,6 +30,7 @@
 #include "posterior.h"
 #include "registry.h"
 #include "augmented.h"
+#include "binomial.h"
 #include "data_store.h"
 #include "data_wide.h"
 #include "data_long.h"
@@ -1378,7 +1379,7 @@ namespace
     ///
     /// Ref.
     /// -----
-    /// Ref: Friel, N., Hurn, M. & Wyse, J.
+    /// Friel, N., Hurn, M. & Wyse, J.
     /// Improving power posterior estimation of statistical evidence.
     /// Stat Comput 24, 709–723 (2014).
     Rcpp::List log_evidence(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
@@ -1606,6 +1607,9 @@ RCPP_MODULE(housepi)
     Rcpp::function("measure_sar_by_house_size", &measure_sar_by_house_size);
     Rcpp::function("measure_cases_by_house_size", &measure_cases_by_house_size);
     Rcpp::function("count_non_zero_cases", &count_non_zero_cases);
+
+    Rcpp::function("auxiliary_chain_binomial_debugger",
+                   &housepi::bino::auxiliary_chain_binomial_debugger);
 
     Rcpp::function("new_model", &new_model);
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);

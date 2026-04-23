@@ -246,6 +246,32 @@ HousepiContactRate <- R6::R6Class(
                         symmetric = symmetric, mode = "custom")
       self$logic_tables <- list(strata)
       self$param_overrides <- if (is.null(params)) list() else params
+
+      invisible(self)
+    },
+
+    # Validate custom mode logic table against data, then add counts.
+    helper_implement_custom_ = function(data_wide, symmetric) {
+      for (i in seq_along(self$logic_tables)) {
+        # optionally fill symmetric gaps
+        this_table <- self$logic_tables[[i]]
+        # retrieve covariates
+        this_feat <- sub("^from_", "",
+                         grep("^from_", names(this_table), value = TRUE))
+
+        if (symmetric) this_table <- fill_symmetric_gaps(this_table)
+        # FIXME: this is a manual fix, I can't find the source of extra 'n'
+        this_table$n <- NULL
+        # FIXME: this is not counting the wildcars...
+        this_table <- merge(
+          this_table,
+          contact_rate_logic_table(data_wide, this_feat),
+          by = setdiff(names(this_table), rate_reserved_cols),
+          all.x = TRUE
+        )
+        this_table$n[is.na(this_table$n)] <- 0
+        self$logic_tables[[i]] <- this_table
+      }
       invisible(self)
     }
   ),
@@ -404,11 +430,7 @@ HousepiContactRate <- R6::R6Class(
 
       # custom mode
       if (self$defs[["mode"]] == "custom") {
-        if (!symmetric) return(invisible(self))
-        # optionally fill symmetric gaps
-        for (i in seq_along(self$logic_tables)) {
-          self$logic_tables[[i]] <- fill_symmetric_gaps(self$logic_tables[[i]])
-        }
+        private$helper_implement_custom_(data_wide, symmetric)
         return(invisible(self))
       }
 

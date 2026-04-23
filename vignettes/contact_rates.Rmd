@@ -31,13 +31,13 @@ We illustrate the API using the Matsumoto influenza household survey.
 
 # Load model and data
 
-We start by loading the heterogeneous chain binomial model and the `flu_2014_matsumoto` dataset.
+We start by loading the chain binomial model and the `flu_2014_matsumoto` dataset.
 This dataset contains household reports of influenza episodes with a `member` column distinguishing "Student" from "Other" household members.
 
 ```{r}
 #| label: load-model-data
 hhmodel <- flu_2014_matsumoto |>
-  new_housepi_model("chain_binomial_heterogeneous") |>
+  new_housepi_model("chain_binomial") |>
   load_parameter_template()
 
 # inspect the data

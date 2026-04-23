@@ -76,3 +76,4 @@ src/model_*.cpp
 /man/hhmodel_*
 *.csv
 *.txt
+.positai

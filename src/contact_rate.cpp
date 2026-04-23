@@ -49,6 +49,7 @@ namespace housepi
             idx_vec row_spec; /// rule group specificity
 
             /// Extract from/to definitions from input headers.
+            // NOTE: 'from' and 'to' expected to have the same size
             ContactDefinitions_(
                 const str_table &input_,
                 const DataWide &data_wide)
@@ -69,11 +70,6 @@ namespace housepi
                     }
                     else if (str::starts_with(key, "to_"))
                         to.push_back(key);
-
-                // from and expect to have the same size
-                if (from.size() != to.size())
-                    throw std::invalid_argument(
-                        "Mismatching number of 'from_' and 'to_' columns in contact rate definitions.");
 
                 helper_set_rule_groups_();
                 // internally store data keys

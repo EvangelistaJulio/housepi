@@ -5,6 +5,9 @@
     Message
       i Household model chain binomial (template).
       v Parameters definitions are complete.
+      ! Group rates:
+      There are 3 missing group rate definitions: 'community', 'infectivity' and 'susceptibility'.
+      They can be specified for model definitions.
 
 ---
 
@@ -15,6 +18,9 @@
       x Parameters:
       There are 4 missing parameter definitions: 'alpha', 'beta', 'gamma' and 'size_ref'.
       They are required by model definitions.
+      ! Group rates:
+      There are 3 missing group rate definitions: 'community', 'infectivity' and 'susceptibility'.
+      They can be specified for model definitions.
 
 ---
 

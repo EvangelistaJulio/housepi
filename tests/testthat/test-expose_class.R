@@ -155,8 +155,7 @@ test_that("run_simulation wrapper returns data.frame", {
 })
 
 test_that("Group rate wrappers", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto,
-                               "chain_binomial_heterogeneous")
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
   hhmodel <- add_group_rate(hhmodel, "community", by = "member")
   groups_1 <- get_group_rates(hhmodel)
   expect_true(is.data.frame(groups_1))

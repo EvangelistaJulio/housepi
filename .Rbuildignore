@@ -19,3 +19,5 @@
 ^CLAUDE\.md$
 ^inst/standalone$
 ^Meta$
+^\.positai$
+^\.claude$

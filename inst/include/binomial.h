@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 
 namespace housepi::bino
@@ -14,45 +15,22 @@ namespace housepi::bino
     /// Functions for the generations lookup table.
     void init_generations_lookuptable(unsigned max_N);
 
-    /// Homogeneous chain binomial log-likelihood.
-    /// @param n_infec n. of infected
-    /// @param house_size n. of household members
-    /// @param commu_esc_rate community escape rate
-    /// @param p2p_esc_rate person-to-person escape rate
-    double chain_binom_homogeneous_log_lik(
-        unsigned n_infec,
-        unsigned house_size,
-        double commu_escape_rate,
-        double p2p_escape_rate);
-
-    /// Recursive likelihood formulation lookuptable.
-    void init_escape_patterns_lookuptable(unsigned max_N, bool clean_combinations = true);
-
-    /// Heterogeneous chain binomial log-likelihood for ordered probabilities (seropositives, seronegatives).
-    /// @param n_infec n. of infected
-    /// @param commu_esc_rate ordered community escape rates
-    /// @param p2p_esc_rate ordered person-to-person escape rates
-    double chain_binom_heterogeneous_log_lik(
-        unsigned n_infec,
+    /// Chain binomial log-likelihood dispatcher.
+    ///
+    /// Routes to the cheapest algorithm consistent with the partition:
+    /// `n_parts == 1` with uniform rates → closed-form homogeneous;
+    /// `n_parts == n_infec` → bitmask DP heterogeneous;
+    /// otherwise → multitype final-size DP (grouped).
+    double chain_binom_log_lik(
+        size_t n_infec, size_t n_parts,
+        const std::vector<size_t> &part_counts,
+        const std::vector<size_t> &part_indexes,
         const std::vector<double> &commu_esc_rate,
         const std::vector<std::vector<double>> &p2p_esc_rate);
 
-    /// Grouped chain binomial log-likelihood.
-    ///
-    /// Exploits type degeneracy: when multiple seropositives share the same type, the algorithm enumerates
-    /// distinct type-composition sequences per generation instead of all individual
-    /// permutations. Multinomial coefficients account for within-type interchangeability.
-    ///
-    /// @param n_infec number of infected members
-    /// @param n_types number of types
-    /// @param type_counts counts of in-house seropositives
-    /// @param type_indexes indexes of household member representative for type
-    /// @param commu_esc_rate per-individual community escape rates
-    /// @param p2p_esc_rate per-individual p2p escape rates
-    double chain_binom_grouped_log_lik(
-        size_t n_infec, size_t n_types,
-        const std::vector<size_t> &type_counts,
-        const std::vector<size_t> &type_indexes,
-        const std::vector<double> &commu_esc_rate,
-        const std::vector<std::vector<double>> &p2p_esc_rate);
+    /// Symbolic chain-binomial polynomial for debugging.
+    /// @param max_n_infec number of seropositives (< 8)
+    /// @return formula string with tokens B<i> (community escape of infected i, 1-indexed)
+    ///         and Q<i>_<j> (p2p escape from infector i to infectee j, 1-indexed; i=0 = community)
+    std::string auxiliary_chain_binomial_debugger(unsigned max_n_infec);
 }

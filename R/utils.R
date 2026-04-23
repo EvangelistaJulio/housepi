@@ -256,6 +256,34 @@ cpp_data_refactor <- function(data, info, headers) {
   data[c(headers, setdiff(colnames(data), headers))]
 }
 
+#' Evaluate the symbolic chain-binomial seropositive-contribution.
+#'
+#' @param community_escape `numeric`. Community escape probabilities.
+#' One entry for each of the $n_\mathrm{infec}$ seropositives.
+#' @param p2p_escape `matrix`. Person-to-person escape-probabilities.
+#' Square matrix $n_\mathrm{infec} \times n_\mathrm{infec}$.
+#' Convention `[i][k]` of infectee `k` from infector `i`.
+#' @return `numeric(1)`. Positive-contribution probability.
+#' @keywords internal
+#' @noRd
+eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {
+  n_infec <- length(community_escape)
+  stopifnot(is.matrix(p2p_escape),
+            identical(dim(p2p_escape), c(n_infec, n_infec)))
+
+  formula <- .engine$auxiliary_chain_binomial_debugger(n_infec)
+
+  for (r in seq_len(n_infec)) for (c in seq_len(n_infec)) {
+    formula <- gsub(paste0("\\bQ", r, "_", c, "\\b"),
+                    format(p2p_escape[r, c], digits = 17), formula)
+  }
+  for (i in seq_len(n_infec)) {
+    formula <- gsub(paste0("\\bB", i, "\\b"),
+                    format(community_escape[i], digits = 17), formula)
+  }
+  eval(str2lang(formula))
+}
+
 #' @title Set a warm theme for housepi visualizations
 #' @param base_size Base font size (pts). Default `11`.
 #' @param base_family Base font family. Default `""` (device default).
@@ -269,6 +297,9 @@ housepi_theme_set <- function(base_size = 11, base_family = "") {
     my_elem_text <- ggplot2::element_text(size = base_size,
                                           color = "black",
                                           face = "plain")
+    my_elem_tag <- ggplot2::element_text(size = base_size + 1,
+                                         color = "black",
+                                         face = "bold")
     my_panel <- ggplot2::element_rect(fill = "#FEF9EC", color = NA)
     my_strip <- ggplot2::element_rect(fill = "#FBE09B", color = NA)
     my_grid <- ggplot2::element_line(color = "#FDFEFE", linewidth = 1)
@@ -278,6 +309,7 @@ housepi_theme_set <- function(base_size = 11, base_family = "") {
         ggplot2::theme(text = my_elem_text,
                        axis.text = my_elem_text,
                        strip.text = my_elem_text,
+                       plot.tag = my_elem_tag,
                        panel.background = my_panel,
                        strip.background = my_strip,
                        legend.position = "bottom",
@@ -288,9 +320,11 @@ housepi_theme_set <- function(base_size = 11, base_family = "") {
     )
 
     # mimic element_geom for older ggplot2 versions
+    my_text_feats <- list(size = (base_size - 1) / ggplot2::.pt)
     my_point_feats <- list(color = "#FF7F50", size = 2)
     my_line_feats <- list(color = "#FF7F50", size = 1)
     my_errbar_feats <- c(my_line_feats, width = 0.1)
+    ggplot2::update_geom_defaults("text", my_text_feats)
     ggplot2::update_geom_defaults("line", my_line_feats)
     ggplot2::update_geom_defaults("point", my_point_feats)
     ggplot2::update_geom_defaults("vline", my_line_feats)

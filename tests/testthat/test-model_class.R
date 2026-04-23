@@ -101,7 +101,7 @@ test_that("Print behavior works as expected", {
 
 test_that("Flu 2014 Matsumoto is correctly pre-processed", {
   hhmodel <- flu_2014_matsumoto |>
-    new_housepi_model("chain_binomial_grouped")
+    new_housepi_model("chain_binomial")
 
   case_summary <- summarise_cases(hhmodel)
   expect_true(is.data.frame(case_summary))
@@ -343,7 +343,7 @@ test_that("Augmented traces export only relevant variables", {
 ############################################
 
 test_that("Contact rate definition work as expected", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial_grouped")
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
   hhmodel$load_parameter_template()
 
   # NOTE: larger households at the end
