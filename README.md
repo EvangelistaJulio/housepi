@@ -1,5 +1,11 @@
 # housepi <img src="man/figures/logo.svg" align="right" alt="" width="120" />
 
+<!-- badges: start -->
+[![pipeline status](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/badges/main/pipeline.svg)](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/commits/main)
+[![coverage report](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/badges/main/coverage.svg)](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/commits/main)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+<!-- badges: end -->
+
 We introduce "housepi", an open source R package for the statistical analysis
 and modeling of epidemiological data from household outbreaks.
 Mathematical modeling has proven to be a valuable tool for estimating
@@ -20,7 +26,7 @@ straightforward analyses and advanced epidemiological investigations.
 Prior to installation, check that `devtools` is installed and test that a working C++ toolchain is present by running:
 ``` r
 if (!requireNamespace("devtools", quietly = TRUE)) {
-	install.packages("devtools")
+  install.packages("devtools")
 }
 pkgbuild::has_build_tools(debug = TRUE)
 ```
@@ -36,8 +42,9 @@ devtools::install()
 
 ## License
 
-housepi is distributed under the terms of the GNU General Public License, Version 3 (GPLv3).
-See the LICENSE file for details.
+GPLv3 © Institut Pasteur, Paris (France).
+Distributed under the terms of the GNU General Public License, Version 3.
+See the [LICENSE](LICENSE) and [LICENSE.md](LICENSE.md) files for details.
 
 > [!CAUTION]
 > The package has not been released. Sharing the package or parts of its code without consent of the authors is strictly forbidden.

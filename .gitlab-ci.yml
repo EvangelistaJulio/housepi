@@ -35,6 +35,13 @@ r-cmd-check:
   only:
     - main
 
+coverage:
+  stage: check
+  script:
+    - R -q -e "pak::pkg_install('covr')"
+    - R -q -e "covr::package_coverage()"
+  coverage: '/Coverage:\s*(\d+\.\d+)%/'
+
 pages:
   stage: deploy
   needs: ["r-cmd-check"]
