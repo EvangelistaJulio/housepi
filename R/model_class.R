@@ -324,14 +324,14 @@ HousepiModel <- R6::R6Class(
         # reduce sample to effective sample size (ESS)
         if (isTRUE(ess)) {
           ess_bulk <- sapply(posterior::variables(ptab),
-                             function(v) posterior::ess_bulk(ptab[[v]]))
+                             function(v) posterior::ess_bulk(ptab[, v]))
           # check no NA values in ESS
           if (any(is.na(ess_bulk))) stop_h(
             "ESS values return NA. Check your draws for degenerate parameters."
           )
           # suppress posterior message
           target_ndraws <- min(ess_bulk)
-          thin <- floor(posterior::ndraws(param_draws) / target_ndraws)
+          thin <- floor(posterior::ndraws(ptab) / target_ndraws)
           ptab <- posterior::thin_draws(ptab, thin = thin)
         }
       }
