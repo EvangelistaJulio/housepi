@@ -3,34 +3,40 @@ image: rocker/r-ver:latest
 variables:
   RSPM: "https://packagemanager.rstudio.com/cran/__linux__/jammy/latest"
   REPOS: $RSPM
-  PAK_CACHE_DIR: "$CI_PROJECT_DIR/.pak-cache"
+  R_LIBS_USER: "$CI_PROJECT_DIR/ci/R-lib"
+  R_USER_CACHE_DIR: "$CI_PROJECT_DIR/ci/R-cache"
+  PKGCACHE_DIR: "$CI_PROJECT_DIR/ci/R-cache/pkgcache"
+  XDG_DATA_HOME: "$CI_PROJECT_DIR/ci/xdg-data"
 
 stages:
   - check
   - deploy
 
 cache:
-  key: "r-pak-cache"
+  key:
+    files:
+      - DESCRIPTION
   paths:
-    - .pak-cache
-    - .cache/R
-    - /.local/share/pak
+    - ci/R-lib/
+    - ci/R-cache/
+    - ci/xdg-data/
   policy: pull-push
 
 before_script:
   - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libgit2-dev pandoc qpdf
-  - R -q -e "install.packages('pak', repos='https://r-lib.github.io/p/pak/stable')"
+  - mkdir -p "$R_LIBS_USER" "$R_USER_CACHE_DIR" "$PKGCACHE_DIR" "$XDG_DATA_HOME"
+  - R -q -e ".libPaths(c(Sys.getenv('R_LIBS_USER'), .libPaths())); if (!requireNamespace('pak', quietly = TRUE)) install.packages('pak', repos='https://r-lib.github.io/p/pak/stable')"
   - R -q -e "pak::local_install_dev_deps(upgrade = FALSE)"
 
 r-cmd-check:
   stage: check
   script:
     - R -q -e "pak::pkg_install('rcmdcheck')"
-    - R -q -e "rcmdcheck::rcmdcheck(args = c('--no-manual'), error_on = 'warning')"
+    - R -q -e "rcmdcheck::rcmdcheck(args = c('--no-manual'), error_on = 'warning', check_dir = 'check')"
   artifacts:
     when: always
     paths:
-      - "*.Rcheck/"
+      - check/*.Rcheck/
     expire_in: 1 week
   only:
     - main
@@ -38,16 +44,27 @@ r-cmd-check:
 coverage:
   stage: check
   script:
-    - R -q -e "pak::pkg_install('covr')"
-    - R -q -e "covr::package_coverage()"
+    - R -q -e "pak::pkg_install(c('covr','xml2'))"
+    - R -q -e 'cov <- covr::package_coverage(); print(cov); covr::to_cobertura(cov, filename = "coverage.xml")'
   coverage: '/Coverage:\s*(\d+\.\d+)%/'
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - coverage.xml
+    expire_in: 1 week
+  only:
+    - main
 
 pages:
   stage: deploy
   needs: ["r-cmd-check"]
-  script:    
-    - R -q -e "pak::pkg_install('pkgdown', 'rmarkdown')"
-    - R -q -e "pak::local_install()" 
+  script:
+    - R -q -e "pak::pkg_install(c('pkgdown', 'rmarkdown'))"
+    - R -q -e "pak::local_install()"
     - Rscript pkgdown/custom_build_site.R
   artifacts:
     paths:
