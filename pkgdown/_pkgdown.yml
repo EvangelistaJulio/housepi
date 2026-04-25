@@ -81,14 +81,6 @@ reference:
   - blank_house
   - starts_with("flu")
   - sarscov2_2021_icofs
-
-- title: "Sample household structure"
-  desc: >
-    Calls to generate a household data following a given demography.
-  contents:
-  - new_household_sampler
-  - compute_household_marginals
-  - sample_households
   
 # Articles 
 articles:
