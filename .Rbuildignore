@@ -5,6 +5,8 @@
 ^\.github$
 ^\.gitlab-ci\.yml$
 ^\.gitlab-ci-local$
+^ci$
+^check$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^.claude$

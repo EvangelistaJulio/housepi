@@ -58,6 +58,8 @@ Thumbs.db
 /doc/
 /docs/
 /Meta/
+/ci/
+/check/
 /vignettes/*.R
 /vignettes/*.html
 /vignettes/*.timestamp
