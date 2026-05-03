@@ -162,8 +162,8 @@ HousepiParameter <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit load_parameter_list
-    load_quosures = function(xquos, append = FALSE) {
+    #' @inherit add_parameter_list
+    add_quo_list = function(xquos, append = FALSE) {
       if (isFALSE(append)) self$initialize()
       housepi_load_defin_quos(self, "value", xquos)
       housepi_assert_args(self)

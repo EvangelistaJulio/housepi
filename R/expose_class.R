@@ -249,12 +249,12 @@ add_parameter <- function(hhmodel,
 #' @param hhmodel `r rd_model_in_`
 #' @param append `r rd_tmpl_append_`
 #' @return `r rd_model_out_`
-#' @rdname load_template_definitions
+#' @rdname add_template_definitions
 #' @export
-load_parameter_template <- function(hhmodel, append = FALSE) {
+add_parameter_template <- function(hhmodel, append = FALSE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$load_parameter_template(append = append)
+  new_obj$add_parameter_template(append = append)
   new_obj
 }
 
@@ -305,12 +305,12 @@ add_augmented <- function(hhmodel,
   new_obj
 }
 
-#' @rdname load_template_definitions
+#' @rdname add_template_definitions
 #' @export
-load_augmented_template <- function(hhmodel, append = FALSE) {
+add_augmented_template <- function(hhmodel, append = FALSE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$load_augmented_template(append = append)
+  new_obj$add_augmented_template(append = append)
   new_obj
 }
 
@@ -453,50 +453,50 @@ add_infec_profile <- function(hhmodel,
 #' @param ... `r rd_list_args_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
-#' @rdname load_definitions_list
+#' @rdname add_definitions_list
 #' @export
-load_parameter_list <- function(hhmodel, ..., append = FALSE) {
+add_parameter_list <- function(hhmodel, ..., append = FALSE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$param_$load_quosures(
+  new_obj$.__enclos_env__$private$param_$add_quo_list(
     rlang::enquos(...), append = append
   )
   new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
-#' @rdname load_definitions_list
+#' @rdname add_definitions_list
 #' @export
-load_augmented_list <- function(hhmodel, ..., append = FALSE) {
+add_augmented_list <- function(hhmodel, ..., append = FALSE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$augm_$load_quosures(
+  new_obj$.__enclos_env__$private$augm_$add_quo_list(
     rlang::enquos(...), append = append
   )
   new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
-#' @rdname load_definitions_list
+#' @rdname add_definitions_list
 #' @export
-load_group_rate_list <- function(hhmodel, ..., append = FALSE) {
+add_group_rate_list <- function(hhmodel, ..., append = FALSE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   # NOTE: dropping group rates might cause parameter drops
   if (isFALSE(append)) new_obj$drop_group_rates()
-  new_obj$.__enclos_env__$private$group_rates_$load_quosures(
+  new_obj$.__enclos_env__$private$group_rates_$add_quo_list(
     rlang::enquos(...), append = append
   )
   new_obj$.__enclos_env__$private$rebuild_()
   new_obj
 }
 
-#' @rdname load_definitions_list
+#' @rdname add_definitions_list
 #' @export
-load_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
+add_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$infec_profile_$load_quosures(
+  new_obj$.__enclos_env__$private$infec_profile_$add_quo_list(
     rlang::enquos(...), append = append
   )
   new_obj$.__enclos_env__$private$rebuild_()

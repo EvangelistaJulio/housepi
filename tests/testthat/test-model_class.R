@@ -65,8 +65,8 @@ test_that("Model class 'blank' calls", {
   expect_equal(complex_model$data_wide, complex_data)
 
   # templates
-  expect_warning(hhmodel$load_parameter_template(), regexp = "blank")
-  expect_warning(hhmodel$load_augmented_template(), regexp = "blank")
+  expect_warning(hhmodel$add_parameter_template(), regexp = "blank")
+  expect_warning(hhmodel$add_augmented_template(), regexp = "blank")
 
   # zero log-likelihood
   expect_warning(x <- hhmodel$evaluate_log_lik(), regexp = "blank")
@@ -84,7 +84,7 @@ test_that("Model class 'blank' calls", {
 test_that("Print behavior works as expected", {
   # with data and parameters
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   expect_snapshot(print(hhmodel))
 
   # without parameters
@@ -139,12 +139,12 @@ test_that("Wrong definitions throw errors", {
 
   # eager rebuild: errors surface at definition, not at run_inference
   expect_error(
-    hhmodel$load_parameter_list(a = list(prior = "uniform", min = ~min_val@D)),
+    hhmodel$add_parameter_list(a = list(prior = "uniform", min = ~min_val@D)),
     regexp = "not supported"
   )
   # hint
   expect_error(
-    hhmodel$load_parameter_list(b = list(prior = "uniform", min = min_val)),
+    hhmodel$add_parameter_list(b = list(prior = "uniform", min = min_val)),
     regexp = "rlang injection"
   )
 })
@@ -153,7 +153,7 @@ test_that("Discretization is enabled as expected", {
   discr <- TRUE
   val <- list(min = 1, max = 5)
   hhmodel <- new_housepi_model(model = "blank")
-  hhmodel$load_parameter_list(
+  hhmodel$add_parameter_list(
     sample = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
                   proposal = "sample", min = !!val$min, max = !!val$max),
     uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
@@ -214,7 +214,7 @@ test_that("Rlang calls work as expected", {
     add_augmented("indiv_shape", model = "normal")
 
   expect_error(
-    hhmodel$load_parameter_list(
+    hhmodel$add_parameter_list(
       var1 = list(prior = "normal", mean = indiv_shape + 1)
     ),
     regexp = "[Ii]ndividual specific"
@@ -222,7 +222,7 @@ test_that("Rlang calls work as expected", {
 
   val <- 1
   # UPDATE: for the moment I am forcing parameter arguments to be co
-  hhmodel$load_parameter_list(
+  hhmodel$add_parameter_list(
     param_shape = 5,
     var1 = list(prior = "normal", mean = param_shape@p + 1),
     var2 = list(prior = "normal", mean = param_shape@p + !!val),
@@ -234,7 +234,7 @@ test_that("Rlang calls work as expected", {
   expect_equal(nrow(unique(aux)), 2L)
 
   val <- 3
-  hhmodel$load_augmented_list(
+  hhmodel$add_augmented_list(
     var1 = list(model = "normal", mean = indiv_shape + 3),
     var2 = list(model = "normal", mean = indiv_shape + !!val),
     var3 = list(model = "normal", mean = ~ indiv_shape + 3),
@@ -250,7 +250,7 @@ test_that("Augmented aliasing works as expected", {
   # check that model arguments are correctly integrated
   hhmodel <- data.frame(id = seq(1, 1000), house_id = 1, status = 1) |>
     new_housepi_model("blank") |>
-    load_augmented_list(
+    add_augmented_list(
       hour = list(model = "uniform", min = day, max = day + 1),
       day = list(model = "gamma", shape = 2, scale = 1)
     )
@@ -263,7 +263,7 @@ test_that("Nested definitions works as expected", {
   hhmodel <- new_housepi_model(model = "blank")
 
   # define Box-Muller transformation
-  hhmodel$load_augmented_list(
+  hhmodel$add_augmented_list(
     norm = list(model = "normal"),
     u1 = list(model = "uniform"),
     u2 = list(model = "uniform"),
@@ -298,19 +298,19 @@ test_that("Load augmented list works fine for external lists", {
 
   external_list <- list(z0 = ~ date@D, z1 = ~ sqrt(log(z0)))
   # raise error for on injection
-  expect_error(hhmodel$load_augmented_list(external_list),
+  expect_error(hhmodel$add_augmented_list(external_list),
                regexp = "injection operator")
 
-  tmp <- hhmodel$load_augmented_list(!!!external_list)$augmented
-  hhmodel$load_augmented_list(z0 = date@D, z1 = sqrt(log(z0)))
+  tmp <- hhmodel$add_augmented_list(!!!external_list)$augmented
+  hhmodel$add_augmented_list(z0 = date@D, z1 = sqrt(log(z0)))
   expect_equal(tmp, hhmodel$augmented)
 })
 
 test_that("Augmented traces export only relevant variables", {
   hhmodel <- new_housepi_model(model = "blank")
   infec_df <- subset(hhmodel$data_wide, status > 0)
-  hhmodel$load_parameter_list(alpha = 1, beta = list(prior = "uniform"))
-  hhmodel$load_augmented_list(
+  hhmodel$add_parameter_list(alpha = 1, beta = list(prior = "uniform"))
+  hhmodel$add_augmented_list(
     # constants
     blocked = 42,
     # private variables
@@ -344,7 +344,7 @@ test_that("Augmented traces export only relevant variables", {
 
 test_that("Contact rate definition work as expected", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
 
   # NOTE: larger households at the end
   hhid <- flu_2014_matsumoto$house_id[length(flu_2014_matsumoto$house_id)]

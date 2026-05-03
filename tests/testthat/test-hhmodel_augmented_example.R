@@ -5,7 +5,7 @@ test_that("Nested definitions raise errors", {
     new_housepi_model("augmented_example")
 
   expect_no_error(
-    hhmodel$load_augmented_list(
+    hhmodel$add_augmented_list(
       .layer = list(model = "uniform", status = 1),
       .layer = list(value = .dummy, status = c(2, 3, 4)),
       .dummy = list(model = "uniform"),
@@ -15,14 +15,14 @@ test_that("Nested definitions raise errors", {
 
   # simple nest
   expect_error(
-    hhmodel$load_augmented_list(.dummy = proba,
+    hhmodel$add_augmented_list(.dummy = proba,
                                 proba = .dummy)$evaluate_log_lik(),
     regexp = "cyclic definition"
   )
 
   # triangular nest
   expect_error(
-    hhmodel$load_augmented_list(proba = .layer,
+    hhmodel$add_augmented_list(proba = .layer,
                                 .layer = .dummy,
                                 .dummy = proba)$evaluate_log_lik(),
     regexp = "cyclic definition"
@@ -30,7 +30,7 @@ test_that("Nested definitions raise errors", {
 
   # first generation of definitions
   err_msg <- as.character(expect_error(
-    hhmodel$load_augmented_list(
+    hhmodel$add_augmented_list(
       .layer = list(model = "normal", status = 1),
       .layer = list(value = .dummy, status = 2),
       #> NO .layer provided for status 3 and 4
@@ -43,7 +43,7 @@ test_that("Nested definitions raise errors", {
 
   # second generation of definitions
   err_msg <- as.character(expect_error(
-    hhmodel$load_augmented_list(
+    hhmodel$add_augmented_list(
       .layer = list(model = "normal", status = 1),
       .layer = list(value = .dummy, status = c(2, 3, 4)),
       #> NO .dummy provided for status 3, 4
@@ -73,23 +73,23 @@ test_that("Missing function arguments raise errors", {
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to return")
 
   # concatenated data with NA values
-  hhmodel$load_augmented_list(
+  hhmodel$add_augmented_list(
     gamma = list(func = "gamma",  func_args = c(shape = 2)),
     proba =  exp(-gamma)
   )
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 
   # check that NaN + something causes errors
-  hhmodel$load_augmented_list(noise = list(model = "normal"),
+  hhmodel$add_augmented_list(noise = list(model = "normal"),
                               proba = exp(test@D + noise))
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 
   # check that log(NaN) causes error
-  hhmodel$load_augmented_list(proba = log(test@D))
+  hhmodel$add_augmented_list(proba = log(test@D))
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 
   # check that log(0) causes error
-  hhmodel$load_augmented_list(noise = 0., proba = log(noise))
+  hhmodel$add_augmented_list(noise = 0., proba = log(noise))
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 })
 
@@ -97,7 +97,7 @@ test_that("Augmented log-likelihood seeding is fine", {
   hhmodel <- data.frame(house_id = 1, id = seq(4),
                         status = seq(4)) |>
     new_housepi_model("augmented_example")
-  hhmodel$load_augmented_list(
+  hhmodel$add_augmented_list(
     proba = list(model = "uniform", status = 1),
     proba = list(value = .layer, status = c(2, 3, 4)),
     .layer = list(model = "uniform")
@@ -121,7 +121,7 @@ test_that("Augmented aliasing works as expected", {
                         status = 1) |>
     new_housepi_model("augmented_example")
   hhmodel$add_parameter(name = "scale", value = 1)
-  hhmodel$load_augmented_list(
+  hhmodel$add_augmented_list(
     .dummy = x@D,
     .layer = list(func = "gamma",
                   func_args = c(x = .dummy, shape = 2, scale = scale@P)),
@@ -132,7 +132,7 @@ test_that("Augmented aliasing works as expected", {
   expect_equal(hhmodel$evaluate_log_lik(), ll)
 
   # check that order does not matter
-  hhmodel$load_augmented_list(
+  hhmodel$add_augmented_list(
     .layer = list(func = "gamma",
                   func_args = c(x = .dummy, shape = 2, scale = scale@P)),
     proba = .layer,
@@ -146,7 +146,7 @@ test_that("Augmented aliasing works as expected", {
                         house_id = "hh1", status = 1,
                         X = seq(0, size)) |>
     new_housepi_model("augmented_example")
-  hhmodel$load_augmented_list(
+  hhmodel$add_augmented_list(
     pdf = list(func = "binomial",
                func_args = c(x = X@D, size = !!size, prob = 0.5)),
     proba = exp(pdf)
@@ -168,7 +168,7 @@ test_that("Augmentation example on incubation from delays is coherent", {
 
   build_model <- function(data) {
     hh <- new_housepi_model(data, "augmented_example", quiet = TRUE)
-    hh$load_augmented_list(
+    hh$add_augmented_list(
       proba = list(func = "gamma",
                    func_args = c(x = ip@D, shape = !!shape, scale = !!scale))
     )
@@ -191,7 +191,7 @@ test_that("Known errors are unchanged", {
   # Known infinity (values below minimum, i. e. proba 0)
   hhmodel <- new_housepi_model(sarscov2_2021_icofs, "augmented_example")
   hhmodel |>
-    load_augmented_list(
+    add_augmented_list(
       value = list(model = "uniform", min = 0, max = 1),
       proba = list(func = "lognormal",
                    func_args = c(x = value, meanlog = 1, sdlog = 1),
@@ -203,7 +203,7 @@ test_that("Known errors are unchanged", {
   # Known NaN: qlnorm(15, meanlog = 4, sdlog = 0.01) = 0, impossible truncation
   # UPDATE: shouldn't this raise a warning instead?
   hhmodel |>
-    load_augmented_list(
+    add_augmented_list(
       value = list(model = "uniform", min = 1, max = 10, discr = TRUE),
       proba = list(func = "lognormal",
                    func_args = c(x = value, meanlog = 4, sdlog = 0.01),
@@ -223,7 +223,7 @@ test_that("Augmented model log-likelihoods are correctly computed", {
   scale <- 1.1
   id_draws <- house[house$status > 0, ]$id
   results <- new_housepi_model(house, "augmented_example") |>
-    load_augmented_list(proba = list(model = "gamma", x = x@D,
+    add_augmented_list(proba = list(model = "gamma", x = x@D,
                                      shape = !!shape, scale = !!scale)) |>
     run_inference(steps = 5, thin = 1, adapt = 0, chain = 1,
                   progress = FALSE, id_draws = id_draws)
@@ -253,7 +253,7 @@ test_that("export_augmented_data works after evaluate_log_lik", {
 
 test_that("export_house_snapshot returns correct structure", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   hhmodel$evaluate_log_lik()
 
   hid <- hhmodel$data_wide$house_id[1]

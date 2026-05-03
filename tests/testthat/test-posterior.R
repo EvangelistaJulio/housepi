@@ -3,7 +3,7 @@ library(testthat)
 # Run inference once and reuse across tests
 local_results <- local({
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   hhmodel$run_inference(steps = 100, progress = FALSE)
 })
 
@@ -77,7 +77,7 @@ test_that("Print behavior is stable", {
 
 test_that("Multi-chain inference produces correct chain structure", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   results <- hhmodel$run_inference(steps = 10, chains = 2, progress = FALSE)
 
   pd <- results$param_draws

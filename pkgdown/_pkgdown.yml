@@ -46,9 +46,12 @@ reference:
     Calls used to customize your model definitions.
   contents:
   - starts_with("add_")
-  - starts_with("load_")
+  - -ends_with("_list")
+  - -ends_with("_template")
+  - ends_with("_list")
+  - ends_with("_template")
   - starts_with("get_")
-  - -ends_with("draws")
+  - -ends_with("_draws")
   - starts_with("drop_")
 
 - title: "Inference results"
@@ -56,7 +59,7 @@ reference:
     Extract draws from inference results.
   contents:
   - HousepiPosteriorDraws
-  - ends_with("draws")
+  - ends_with("_draws")
   
 - title: "Posterior predictions"
   desc: >
@@ -79,7 +82,7 @@ reference:
     Public available datasets used for model testing.
   contents:
   - blank_house
-  - starts_with("flu")
+  - starts_with("flu_")
   - sarscov2_2021_icofs
   
 # Articles 

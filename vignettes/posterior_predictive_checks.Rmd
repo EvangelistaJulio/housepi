@@ -32,7 +32,7 @@ In this vignette we show how to compute common household measures according to t
 # repeat inference as in vignette 'Get Started'
 set.seed(42)
 hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-  load_parameter_template()
+  add_parameter_template()
 
 # estimate parameters
 results <- hhmodel |>

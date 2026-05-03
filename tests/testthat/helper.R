@@ -1,5 +1,5 @@
 # Helper to load definition lists.
 helper_test_aux_load <- function(self, ..., append = FALSE) {
-  self$load_quosures(rlang::enquos(...), append = append)
+  self$add_quo_list(rlang::enquos(...), append = append)
   invisible(self)
 }

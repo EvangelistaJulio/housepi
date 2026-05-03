@@ -172,7 +172,7 @@ HousepiModel <- R6::R6Class(
       new_parameters <- new_parameters[mask]
       if (length(new_parameters) > 0) {
         xquos <- convert_list_to_quosures(new_parameters)
-        private$param_$load_quosures(xquos, append = TRUE)
+        private$param_$add_quo_list(xquos, append = TRUE)
       }
 
       invisible(self)
@@ -360,7 +360,7 @@ HousepiModel <- R6::R6Class(
         # don't overwrite
         if (dim(self$parameters)[1] == 0) {
           param_dummy_list <- as.list(utils::head(param_table, 1))
-          do.call(self$load_parameter_list, param_dummy_list)
+          do.call(self$add_parameter_list, param_dummy_list)
         }
       }
 
@@ -731,20 +731,20 @@ HousepiModel <- R6::R6Class(
     #' Load parameter definitions as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
-    load_parameter_list = function(..., append = FALSE) {
-      private$param_$load_quosures(rlang::enquos(...), append = append)
+    add_parameter_list = function(..., append = FALSE) {
+      private$param_$add_quo_list(rlang::enquos(...), append = append)
       private$rebuild_()
       invisible(self)
     },
 
     #' @description Load parameter definitions from template.
     #' @param append `r rd_tmpl_append_`
-    load_parameter_template = function(append = FALSE) {
+    add_parameter_template = function(append = FALSE) {
       if (private$is_blank_()) warning_h(
         "No template parameters available for blank model."
       )
       # retrieve the template parameters file
-      else self$load_parameter_list(
+      else self$add_parameter_list(
         !!!get_template_def_list(private$source_dir_, "parameter"),
         append = isTRUE(append)
       )
@@ -794,20 +794,20 @@ HousepiModel <- R6::R6Class(
     #' @description Load augmented definitions as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
-    load_augmented_list = function(..., append = FALSE) {
-      private$augm_$load_quosures(rlang::enquos(...), append = append)
+    add_augmented_list = function(..., append = FALSE) {
+      private$augm_$add_quo_list(rlang::enquos(...), append = append)
       private$rebuild_()
       invisible(self)
     },
 
     #' @description Load augmented definitions from template.
     #' @param append `r rd_tmpl_append_`
-    load_augmented_template = function(append = FALSE) {
+    add_augmented_template = function(append = FALSE) {
       if (private$is_blank_()) warning_h(
         "No template augmented variables available for blank model."
       )
       # retrieve the template augmented file
-      else self$load_augmented_list(
+      else self$add_augmented_list(
         !!!get_template_def_list(private$source_dir_, "augmented"),
         append = isTRUE(append)
       )
@@ -857,9 +857,9 @@ HousepiModel <- R6::R6Class(
     #' Load group rate definitions as direct arguments.
     #' @param ... ` r rd_list_args_`
     #' @param append `r rd_list_append_`
-    load_group_rate_list = function(..., append = FALSE) {
+    add_group_rate_list = function(..., append = FALSE) {
       if (isFALSE(append)) self$drop_group_rates()
-      private$group_rates_$load_quosures(rlang::enquos(...), append = append)
+      private$group_rates_$add_quo_list(rlang::enquos(...), append = append)
       # UPDATE: I didn't find a way to assert prior arguments here
       private$rebuild_()
       invisible(self)
@@ -925,8 +925,8 @@ HousepiModel <- R6::R6Class(
     #' @description Load infectivity profile definitions as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
-    load_infec_profile_list = function(..., append = FALSE) {
-      private$infec_profile_$load_quosures(rlang::enquos(...), append = append)
+    add_infec_profile_list = function(..., append = FALSE) {
+      private$infec_profile_$add_quo_list(rlang::enquos(...), append = append)
       private$rebuild_()
       invisible(self)
     },

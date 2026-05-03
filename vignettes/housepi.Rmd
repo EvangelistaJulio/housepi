@@ -165,7 +165,7 @@ For a quick test, we can load parameter definitions directly from the template:
 #| label: load-parameter-template
 # use housepi templated definitions
 hhmodel <- hhmodel |>
-  load_parameter_template()
+  add_parameter_template()
 
 # inspect current definitions
 hhmodel |> 
@@ -252,7 +252,7 @@ community_structure <- sarscov2_2021_icofs |>
   dplyr::mutate(status = NA, end_followup = 21)
 
 hhsimul <- new_housepi_model(community_structure, "augmented_infection_time") |>
-  load_parameter_template()
+  add_parameter_template()
 
 # inspect parameter definitions
 get_parameters(hhsimul)
@@ -261,12 +261,12 @@ get_parameters(hhsimul)
 # Simulate an outbreak
 
 We propose the following definitions for the augmented variables,
-associated from a list by calling `load_augmented_list()`.
+associated from a list by calling `add_augmented_list()`.
 
 ```{r}
 #| label: load-augmented-definitions
 hhsimul <- hhsimul |>
-  load_augmented_list(
+  add_augmented_list(
     # define default infection times of introduction cases
     # so that they all have symptom onset on day 0
     # secondary infection times are taken care by the simulation
@@ -295,7 +295,7 @@ This tells us that in order to proceed we need to provide the missing parameters
 #| label: append-parameters
 # append missing parameters for incubation period
 hhsimul <- hhsimul |>
-  load_parameter_list(inc_shape = 2, inc_scale = 1,
+  add_parameter_list(inc_shape = 2, inc_scale = 1,
                       # set 'append' to TRUE to keep previous definitions
                       append = TRUE)
 ```
@@ -335,10 +335,10 @@ It is important to validate our approach checking that inference is able to reco
 #| label: inference-simulated
 hhmodel <- simulated |>
   new_housepi_model("augmented_infection_time") |>
-  load_parameter_template() |>
-  load_parameter_list(inc_shape = 2, inc_scale = 1, append = TRUE) |>
+  add_parameter_template() |>
+  add_parameter_list(inc_shape = 2, inc_scale = 1, append = TRUE) |>
   # loading definitions from list drops previous by default
-  load_augmented_list(
+  add_augmented_list(
     infec_time = onset_time - incub_period,
     onset_time = list(model = "normal", mean = onset_date@D, sd = 1),
     incub_period = list(model = "gamma",

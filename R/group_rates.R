@@ -696,8 +696,8 @@ HousepiGroupRate <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit load_group_rate_list
-    load_quosures = function(xquos, append = FALSE) {
+    #' @inherit add_group_rate_list
+    add_quo_list = function(xquos, append = FALSE) {
       if (isFALSE(append)) self$initialize()
       housepi_load_defin_quos(self, "by", xquos)
       invisible(self)

@@ -22,12 +22,12 @@ test_that("Reject if calling on non-HousepiModel objects", {
   expect_error(evaluate_log_lik(obj), regexp = err)
   expect_error(run_inference(obj), regexp = err)
   expect_error(run_simulation(obj), regexp = err)
-  expect_error(load_parameter_list(obj), regexp = err)
-  expect_error(load_augmented_list(obj), regexp = err)
-  expect_error(load_parameter_template(obj), regexp = err)
-  expect_error(load_augmented_template(obj), regexp = err)
-  expect_error(load_group_rate_list(obj), regexp = err)
-  expect_error(load_infec_profile_list(obj), regexp = err)
+  expect_error(add_parameter_list(obj), regexp = err)
+  expect_error(add_augmented_list(obj), regexp = err)
+  expect_error(add_parameter_template(obj), regexp = err)
+  expect_error(add_augmented_template(obj), regexp = err)
+  expect_error(add_group_rate_list(obj), regexp = err)
+  expect_error(add_infec_profile_list(obj), regexp = err)
   expect_error(predicted_measures(obj, NULL), regexp = err)
   expect_error(predicted_cases_by_house_size(obj, NULL), regexp = err)
 })
@@ -62,9 +62,9 @@ test_that("Wrappers work as expected on blank model", {
   hhmodel <- new_housepi_model(model = "blank")
 
   # no templates
-  expect_warning(load_parameter_template(hhmodel),
+  expect_warning(add_parameter_template(hhmodel),
                  regexp = "No template parameters")
-  expect_warning(load_augmented_template(hhmodel),
+  expect_warning(add_augmented_template(hhmodel),
                  regexp = "No template augmented")
 
   # parameters
@@ -73,7 +73,7 @@ test_that("Wrappers work as expected on blank model", {
   expect_true(is.data.frame(pars))
   expect_true("alpha" %in% pars$name)
 
-  result <- load_parameter_list(hhmodel, alpha = 1, beta = 2)
+  result <- add_parameter_list(hhmodel, alpha = 1, beta = 2)
   pars <- get_parameters(result)
   expect_true(all(c("alpha", "beta") %in% pars$name))
 
@@ -86,7 +86,7 @@ test_that("Wrappers work as expected on blank model", {
   expect_true(is.data.frame(aug))
   expect_true("dummy" %in% aug$name)
 
-  result <- load_augmented_list(hhmodel,
+  result <- add_augmented_list(hhmodel,
                                 dummy = list(model = "uniform"))
   aug <- get_augmented(result)
   expect_true("dummy" %in% aug$name)
@@ -133,7 +133,7 @@ test_that("drop wrappers return clean models", {
 
 test_that("evaluate_log_lik wrapper returns numeric", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   ll <- evaluate_log_lik(hhmodel)
   expect_true(is.numeric(ll))
   expect_length(ll, 1)
@@ -141,14 +141,14 @@ test_that("evaluate_log_lik wrapper returns numeric", {
 
 test_that("run_inference wrapper returns HousepiPosteriorDraws", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   result <- run_inference(hhmodel, steps = 5, progress = FALSE)
   expect_s3_class(result, "HousepiPosteriorDraws")
 })
 
 test_that("run_simulation wrapper returns data.frame", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   result <- run_simulation(hhmodel)
   expect_true(is.data.frame(result))
   expect_true(all(c("id", "house_id", "status") %in% colnames(result)))
@@ -161,13 +161,13 @@ test_that("Group rate wrappers", {
   expect_true(is.data.frame(groups_1))
   expect_true(nrow(groups_1) > 0)
 
-  result <- load_group_rate_list(hhmodel, community = "member")
+  result <- add_group_rate_list(hhmodel, community = "member")
   groups_2 <- get_group_rates(result)
   expect_identical(groups_1, groups_2)
 
   # load custom definitions
   hhmodel <- hhmodel |>
-    load_group_rate_list(
+    add_group_rate_list(
       susceptibility = list(
         strata = data.frame(member = c("student", NA),
                             param_name = c("sus_student", ".reference")),
@@ -187,7 +187,7 @@ test_that("Group rate wrappers", {
   hhmodel$group_rates
 })
 
-test_that("add_infec_profile and load_infec_profile_list work", {
+test_that("add_infec_profile and add_infec_profile_list work", {
   hhmodel <- new_housepi_model(sarscov2_2021_icofs,
                                "augmented_infection_time")
   result <- add_infec_profile(hhmodel, func = "lognormal")
@@ -195,8 +195,8 @@ test_that("add_infec_profile and load_infec_profile_list work", {
   expect_false(is.null(ip))
   expect_true("lognormal" %in% ip$func)
 
-  # load_infec_profile_list
-  result2 <- load_infec_profile_list(hhmodel,
+  # add_infec_profile_list
+  result2 <- add_infec_profile_list(hhmodel,
     ip1 = list(func = "lognormal")
   )
   ip2 <- get_infec_profile(result2)

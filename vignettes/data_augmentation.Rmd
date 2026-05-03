@@ -96,10 +96,10 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
                       house_id = "house_1",
                       end_followup = onset_tommy + 10) |>
   new_housepi_model("augmented_infection_time") |>
-  load_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9, size_ref = 4) |>
+  add_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9, size_ref = 4) |>
 
   # associate augmented definitions
-  load_augmented_list(
+  add_augmented_list(
     # augmented infection time for symptomatic members
     # here we use a generic definition
     infec_time = onset_time@D - incub_period,
@@ -161,12 +161,12 @@ Then, we define the augmented variables `infec_time` and `onset_time` as uniform
 hhmodel <- dataset |>
   new_housepi_model("augmented_example") |>
     # define the gamma distribution parameter to be inferred
-  load_parameter_list(
+  add_parameter_list(
     mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal"),
     var = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal")
   ) |>
   # augmented variable definitions as function calls
-  load_augmented_list(
+  add_augmented_list(
     # explicit declaration of incubation period likelihood
     proba = list(
       func = "gamma_meanvar",         # gamma distribution by mean/variance

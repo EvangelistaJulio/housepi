@@ -41,16 +41,16 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-summarise_house_sizes}{\code{HousepiModel$summarise_house_sizes()}}
 \item \href{#method-HousepiModel-add_data_long}{\code{HousepiModel$add_data_long()}}
 \item \href{#method-HousepiModel-add_parameter}{\code{HousepiModel$add_parameter()}}
-\item \href{#method-HousepiModel-load_parameter_list}{\code{HousepiModel$load_parameter_list()}}
-\item \href{#method-HousepiModel-load_parameter_template}{\code{HousepiModel$load_parameter_template()}}
+\item \href{#method-HousepiModel-add_parameter_list}{\code{HousepiModel$add_parameter_list()}}
+\item \href{#method-HousepiModel-add_parameter_template}{\code{HousepiModel$add_parameter_template()}}
 \item \href{#method-HousepiModel-add_augmented}{\code{HousepiModel$add_augmented()}}
-\item \href{#method-HousepiModel-load_augmented_list}{\code{HousepiModel$load_augmented_list()}}
-\item \href{#method-HousepiModel-load_augmented_template}{\code{HousepiModel$load_augmented_template()}}
+\item \href{#method-HousepiModel-add_augmented_list}{\code{HousepiModel$add_augmented_list()}}
+\item \href{#method-HousepiModel-add_augmented_template}{\code{HousepiModel$add_augmented_template()}}
 \item \href{#method-HousepiModel-add_group_rate}{\code{HousepiModel$add_group_rate()}}
-\item \href{#method-HousepiModel-load_group_rate_list}{\code{HousepiModel$load_group_rate_list()}}
+\item \href{#method-HousepiModel-add_group_rate_list}{\code{HousepiModel$add_group_rate_list()}}
 \item \href{#method-HousepiModel-add_contact_rate}{\code{HousepiModel$add_contact_rate()}}
 \item \href{#method-HousepiModel-add_infec_profile}{\code{HousepiModel$add_infec_profile()}}
-\item \href{#method-HousepiModel-load_infec_profile_list}{\code{HousepiModel$load_infec_profile_list()}}
+\item \href{#method-HousepiModel-add_infec_profile_list}{\code{HousepiModel$add_infec_profile_list()}}
 \item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
 \item \href{#method-HousepiModel-run_inference}{\code{HousepiModel$run_inference()}}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
@@ -255,12 +255,12 @@ Ignored if proposal is \code{"sample"}.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-load_parameter_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-load_parameter_list}{}}}
-\subsection{Method \code{load_parameter_list()}}{
+\if{html}{\out{<a id="method-HousepiModel-add_parameter_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_parameter_list}{}}}
+\subsection{Method \code{add_parameter_list()}}{
 Load parameter definitions as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_parameter_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -275,12 +275,12 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-load_parameter_template"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-load_parameter_template}{}}}
-\subsection{Method \code{load_parameter_template()}}{
+\if{html}{\out{<a id="method-HousepiModel-add_parameter_template"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_parameter_template}{}}}
+\subsection{Method \code{add_parameter_template()}}{
 Load parameter definitions from template.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_parameter_template(append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter_template(append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -387,12 +387,12 @@ Ignored if proposal is \code{"sample"}.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-load_augmented_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-load_augmented_list}{}}}
-\subsection{Method \code{load_augmented_list()}}{
+\if{html}{\out{<a id="method-HousepiModel-add_augmented_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_augmented_list}{}}}
+\subsection{Method \code{add_augmented_list()}}{
 Load augmented definitions as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -407,12 +407,12 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-load_augmented_template"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-load_augmented_template}{}}}
-\subsection{Method \code{load_augmented_template()}}{
+\if{html}{\out{<a id="method-HousepiModel-add_augmented_template"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_augmented_template}{}}}
+\subsection{Method \code{add_augmented_template()}}{
 Load augmented definitions from template.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_augmented_template(append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented_template(append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -503,12 +503,12 @@ Ignored if proposal is \code{"sample"}.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-load_group_rate_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-load_group_rate_list}{}}}
-\subsection{Method \code{load_group_rate_list()}}{
+\if{html}{\out{<a id="method-HousepiModel-add_group_rate_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_group_rate_list}{}}}
+\subsection{Method \code{add_group_rate_list()}}{
 Load group rate definitions as direct arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_group_rate_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_group_rate_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -643,12 +643,12 @@ One between:
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-load_infec_profile_list"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-load_infec_profile_list}{}}}
-\subsection{Method \code{load_infec_profile_list()}}{
+\if{html}{\out{<a id="method-HousepiModel-add_infec_profile_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_infec_profile_list}{}}}
+\subsection{Method \code{add_infec_profile_list()}}{
 Load infectivity profile definitions as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$load_infec_profile_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{

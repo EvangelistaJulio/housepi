@@ -96,9 +96,9 @@ test_that("Simulations behave as expected", {
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
     dplyr::mutate(status = NA) |>
     new_housepi_model("augmented_infection_time")
-  hhsimul$load_parameter_list(alpha = 0, beta = 0,
+  hhsimul$add_parameter_list(alpha = 0, beta = 0,
                               gamma = 1, size_ref = 4)
-  hhsimul$load_augmented_list(
+  hhsimul$add_augmented_list(
     incub_period = list(model = "gamma", shape = 2, scale = 1),
     infec_time = -incub_period
   )
@@ -142,8 +142,8 @@ test_that("Log-likelihood of augmented infection time model is correct", {
     hhmodel <- house |>
       new_housepi_model("augmented_infection_time",
                         discr = discr, quiet = TRUE) |>
-      load_parameter_list(!!!param) |>
-      load_augmented_list(infec_time = infec_time@D) |>
+      add_parameter_list(!!!param) |>
+      add_augmented_list(infec_time = infec_time@D) |>
       add_infec_profile(func = "gamma", discr = discr,
                         shape = shape@P, scale = scale@P)
 
@@ -186,9 +186,9 @@ test_that("Augmented moves preserve log-likelihood", {
 
   hhmodel <- house |>
     new_housepi_model("augmented_infection_time") |>
-    load_parameter_template() |>
-    load_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
-    load_augmented_list(
+    add_parameter_template() |>
+    add_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
+    add_augmented_list(
       infec_time = onset_time@A - incub_period@A,
       onset_time = list(model = "normal", mean = onset_date@D),
       incub_period = list(model = "weibull", shape = 2, scale = 1)
@@ -237,14 +237,14 @@ test_that("Augmented moves preserve log-likelihood", {
     params_i <- c(param_draws[i, , drop = FALSE], consts)
     join_augm_data(house, get_augm_state(augm_draws, i)) |>
       new_housepi_model("augmented_infection_time", quiet = TRUE) |>
-      load_augmented_list(
+      add_augmented_list(
         infec_time = onset_time@A - incub_period@A,
         onset_time = list(value = onset_time@D, const = TRUE,
                           model = "normal", mean = onset_date@D),
         incub_period = list(value = incub_period@D, const = TRUE,
                             model = "weibull", shape = 2, scale = 1)
       ) |>
-      load_parameter_list(!!!params_i) |>
+      add_parameter_list(!!!params_i) |>
       add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
       evaluate_log_lik()
   }

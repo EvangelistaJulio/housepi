@@ -82,7 +82,7 @@ test_that("Chain binomial is not discretizable", {
 
 test_that("Deep clone works as expected", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   expect_no_error(out <- hhmodel$run_inference(steps = 2, progress = FALSE))
 
   # deep clone
@@ -109,7 +109,7 @@ test_that("Deep clone works as expected", {
 
 test_that("Log-likelihood traces and pointwise traces are coherent", {
   results <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-    load_parameter_template() |>
+    add_parameter_template() |>
     run_inference(steps = 10, thin = 2, adapt = 2, burn = 2)
 
   pointwise <- results$log_lik_draws |>
@@ -121,7 +121,7 @@ test_that("Log-likelihood traces and pointwise traces are coherent", {
 
 test_that("Simulation with observation process is correct", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
   withr::with_seed(
     1, result1 <- hhmodel$run_simulation(obs_process = rand_observ)
@@ -136,7 +136,7 @@ test_that("Simulation with observation process is correct", {
 
 test_that("Run simulation with nsim > 1 returns list of dataframes", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$load_parameter_template()
+  hhmodel$add_parameter_template()
   nsim <- 3
   result <- hhmodel$run_simulation(nsim = nsim)
   expect_true(is.list(result))
@@ -179,9 +179,9 @@ test_that("Single infected member log-likelihood is correct", {
 
   # define housepi model
   hhmodel <- new_housepi_model(house, "chain_binomial")
-  hhmodel$load_group_rate_list(!!!groups)
+  hhmodel$add_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$load_parameter_list(!!!par)
+  hhmodel$add_parameter_list(!!!par)
   expect_equal(log_lik, hhmodel$evaluate_log_lik())
 })
 
@@ -203,9 +203,9 @@ test_that("Three infected members likelihood is correct", {
   hhmodel <- house |>
     dplyr::mutate(status = 0) |>
     new_housepi_model("chain_binomial") |>
-    load_group_rate_list(!!!groups)
+    add_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$load_parameter_list(!!!par)
+  hhmodel$add_parameter_list(!!!par)
   log_lik <- -sum(commu_infec_rate)
   expect_equal(hhmodel$evaluate_log_lik(), log_lik)
 
@@ -213,9 +213,9 @@ test_that("Three infected members likelihood is correct", {
   n_infec <- sum(house$status > 0)
   hhmodel <- house |>
     new_housepi_model("chain_binomial") |>
-    load_group_rate_list(!!!groups)
+    add_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$load_parameter_list(!!!par)
+  hhmodel$add_parameter_list(!!!par)
 
   # escape probabilities restricted to seropositives
   B <- exp(-commu_infec_rate[seq_len(n_infec)])
@@ -236,8 +236,8 @@ test_that("Three infected members likelihood is correct", {
 
 test_that("Chain binomial runs ok on real case with partitions", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$load_parameter_template()
-  hhmodel$load_group_rate_list(
+  hhmodel$add_parameter_template()
+  hhmodel$add_group_rate_list(
     community = list(by = "member", reference = ".none")
   )
   hhmodel$add_contact_rate(
