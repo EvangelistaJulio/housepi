@@ -3,7 +3,7 @@
 \docType{data}
 \name{blank_house}
 \alias{blank_house}
-\title{Household 'blank' house survey}
+\title{Minimal 'blank' household survey for testing}
 \format{
 A data frame with 2 rows and 2 columns
 }

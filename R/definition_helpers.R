@@ -49,7 +49,7 @@ helper_evaluate_defin_block <- function(block, type) {
   output
 }
 
-#' Helper with type extraction from definitions.
+#' Extract a typed argument from an encoded definition string.
 #' @param input `character(1)`. Encoded function string.
 #' @param type `character(1)`. Type to extract.
 #' @return `character()`

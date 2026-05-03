@@ -7,7 +7,7 @@
 \alias{drop_contact_rates}
 \alias{drop_infectivity_profile}
 \alias{drop_all}
-\title{Drop current definitions}
+\title{Drop currently loaded definitions from a housepi model}
 \usage{
 drop_parameters(hhmodel)
 
@@ -29,4 +29,12 @@ drop_all(hhmodel)
 }
 \description{
 Remove current definitions from the housepi model.
+Each variant clears a single category (parameters, augmented variables,
+group rates, contact rates, infectivity profile) while \code{drop_all()} clears
+them all.
+}
+\examples{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  add_parameter_template()
+hhmodel |> drop_parameters() |> get_parameters()
 }

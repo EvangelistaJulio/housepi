@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{evaluate_log_lik}
 \alias{evaluate_log_lik}
-\title{Evaluate log-likelihood of housepi model}
+\title{Evaluate the log-likelihood of a housepi model at current values}
 \usage{
 evaluate_log_lik(hhmodel, house_id = NA_character_)
 }
@@ -17,4 +17,9 @@ If \code{NA} (default) it computes for the whole data.}
 }
 \description{
 Compute the log-likelihood of a \code{HousepiModel} object.
+}
+\examples{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  add_parameter_template()
+evaluate_log_lik(hhmodel)
 }

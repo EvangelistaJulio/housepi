@@ -3,7 +3,7 @@
 \docType{data}
 \name{flu_1918_baltimora}
 \alias{flu_1918_baltimora}
-\title{Flu 1918 Baltimora}
+\title{Reported "Spanish" flu cases in Baltimora (USA), 1918}
 \format{
 A data frame with 28,977 rows and 2 columns
 }

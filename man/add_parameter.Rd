@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{add_parameter}
 \alias{add_parameter}
-\title{Add parameter definition}
+\title{Add or overwrite a single parameter definition}
 \usage{
 add_parameter(
   hhmodel,
@@ -72,4 +72,14 @@ Ignored if proposal is \code{"sample"}.}
 \description{
 Add a new parameter to housepi model definitions.
 If the parameter already exists, it is overwritten.
+}
+\examples{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+
+# alpha : community transmission rate, with uniform prior
+hhmodel <- hhmodel |>
+  add_parameter("alpha", prior = "uniform", proposal = "lognormal")
+
+# beta : person-to-person transmission rate, fixed to a constant
+hhmodel |> add_parameter("beta", value = 0.3, const = TRUE)
 }

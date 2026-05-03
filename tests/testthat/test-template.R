@@ -87,18 +87,89 @@ test_that("fmt_assert_cli formats messages correctly", {
   expect_true(any(grepl("can be specified", result)))
 })
 
-test_that("Template household model branches inform correctly", {
+test_that("browse_housepi_templates branches inform correctly", {
   # print existing templates
-  expect_snapshot(template_household_model())
+  expect_snapshot(browse_housepi_templates())
   # non-character name
-  expect_error(template_household_model(42),
+  expect_error(browse_housepi_templates(42),
                regexp = "not a character")
-  # blank with no path: warning about no description
-  expect_warning(template_household_model("blank"),
-                 regexp = "no description")
-  # unknown name
-  expect_error(template_household_model("foxhound"),
+  # unknown name: error mentions "not a known template" and a hint
+  expect_error(browse_housepi_templates("foxhound"),
                regexp = "not a known template")
+  # unknown name close to a real one: hint should suggest "Did you mean"
+  expect_error(browse_housepi_templates("chain binomia"),
+               regexp = "Did you mean")
+})
+
+test_that("browse_housepi_templates triggers help preview when path is NA", {
+  # mock the internal helper so the test never spawns a real previewer
+  called_with <- NULL
+  with_mocked_bindings(
+    open_model_helper_ = function(path) {
+      called_with <<- path
+      invisible()
+    },
+    code = {
+      browse_housepi_templates("chain_binomial")
+    }
+  )
+  expect_true(!is.null(called_with))
+  expect_true(grepl("chain_binomial$", called_with))
+})
+
+test_that("open_model_helper_ errors when info.Rd is missing", {
+  empty_dir <- tempfile("ocelot_")
+  dir.create(empty_dir)
+  on.exit(unlink(empty_dir, recursive = TRUE), add = TRUE)
+  expect_error(open_model_helper_(empty_dir),
+               regexp = "Impossible to show model description")
+})
+
+test_that("browse_housepi_templates copies template to a new path", {
+  dest <- tempfile("solid_snake_")
+  on.exit(unlink(dest, recursive = TRUE), add = TRUE)
+
+  # first copy: creates the model.cpp
+  browse_housepi_templates("chain_binomial", path = dest)
+  initial_mtime <- file.info(file.path(dest, "model.cpp"))$mtime
+
+  expect_true(dir.exists(dest))
+  expect_true(file.exists(file.path(dest, "model.cpp")))
+  expect_true(file.exists(file.path(dest, "param.R")))
+  expect_true(file.exists(file.path(dest, "info.Rd")))
+  # chain_binomial has no augmented file: nothing should be copied
+  expect_false(file.exists(file.path(dest, "augm.R")))
+
+  # second copy without replace: warns and does NOT overwrite
+  expect_warning(
+    browse_housepi_templates("chain_binomial", path = dest),
+    regexp = "already exists"
+  )
+  expect_equal(file.info(file.path(dest, "model.cpp"))$mtime, initial_mtime)
+
+  # with replace = TRUE: overwrites silently
+  Sys.sleep(1.1)  # ensure mtime resolution captures the rewrite
+  expect_no_warning(
+    browse_housepi_templates("chain_binomial", path = dest, replace = TRUE)
+  )
+  expect_gt(
+    as.numeric(file.info(file.path(dest, "model.cpp"))$mtime),
+    as.numeric(initial_mtime)
+  )
+})
+
+test_that("browse_housepi_templates rejects '.' as destination path", {
+  sandbox <- tempfile("mantis_")
+  dir.create(sandbox)
+  on.exit(unlink(sandbox, recursive = TRUE), add = TRUE)
+  withr::with_dir(sandbox, {
+    expect_warning(
+      browse_housepi_templates("chain_binomial", path = "."),
+      regexp = "current directory"
+    )
+    # helper redirects "." to a folder named after the template
+    expect_true(dir.exists("chain_binomial"))
+  })
 })
 
 test_that("Template name normalization", {
@@ -116,7 +187,7 @@ test_that("Template name normalization", {
   expect_true(any(grepl("Did you mean", result)))
 
   result2 <- find_closest_template_name("")
-  expect_true(any(grepl("template_household_model", result2)))
+  expect_true(any(grepl("browse_housepi_templates", result2)))
 })
 
 test_that("Template extract keys from model.cpp", {

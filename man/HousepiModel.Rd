@@ -3,7 +3,7 @@
 \docType{class}
 \name{HousepiModel}
 \alias{HousepiModel}
-\title{R6 class with the household model}
+\title{R6 class for compiling and running a household-transmission model}
 \description{
 Compile the household model, manage your data
 and variable definitions from a single class.

@@ -16,7 +16,7 @@
 .housepi_env$hollow <- FALSE
 
 #' @title
-#' R6 class with the household model
+#' R6 class for compiling and running a household-transmission model
 #' @description
 #' Compile the household model, manage your data
 #' and variable definitions from a single class.

@@ -5,7 +5,7 @@
 \alias{add_augmented_list}
 \alias{add_group_rate_list}
 \alias{add_infec_profile_list}
-\title{Load list of definitions}
+\title{Load multiple definitions at once via named arguments}
 \usage{
 add_parameter_list(hhmodel, ..., append = FALSE)
 
@@ -28,4 +28,12 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \description{
 Load definitions as named arguments.
+Each variant targets one definition category (parameters, augmented
+variables, group rates, infectivity profile).
+}
+\examples{
+# quick way to fix several parameters to constant values
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  add_parameter_list(alpha = 0.05, beta = 0.3, gamma = 1, size_ref = 4)
+get_parameters(hhmodel)
 }

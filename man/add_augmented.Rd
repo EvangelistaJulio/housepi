@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{add_augmented}
 \alias{add_augmented}
-\title{Add augmented definition}
+\title{Add or update an augmented variable definition}
 \usage{
 add_augmented(
   hhmodel,
@@ -94,4 +94,16 @@ Ignored if proposal is \code{"sample"}.}
 \description{
 Add a new augmented variable/function to housepi model definitions.
 If the augmented variable already exists, it is updated.
+}
+\examples{
+# minimal community structure for the augmented_infection_time template
+df <- data.frame(id = 1:4, house_id = c(1, 1, 2, 2),
+                 status = NA, end_followup = 21)
+hhmodel <- new_housepi_model(df, "augmented_infection_time") |>
+  add_parameter_template()
+
+# define an incubation period drawn from a gamma distribution
+hhmodel |>
+  add_augmented("incub_period",
+                model = "gamma", shape = 2, scale = 1, max = 14)
 }

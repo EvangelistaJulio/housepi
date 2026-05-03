@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{run_simulation}
 \alias{run_simulation}
-\title{Run simulation for housepi model}
+\title{Simulate a household survey from a housepi model}
 \usage{
 run_simulation(
   hhmodel,
@@ -39,4 +39,10 @@ Ignored if \code{param_table} is provided, else simulations share parameters.}
 \description{
 Run simulation to generate a household survey.
 It assumes the same community structure of the loaded data.
+}
+\examples{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  add_parameter_template()
+simulated <- run_simulation(hhmodel)
+head(simulated)
 }

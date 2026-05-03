@@ -5,7 +5,7 @@
 ## See the LICENSE file for details.
 ##
 
-#' Household 'blank' house survey
+#' Minimal 'blank' household survey for testing
 #'
 #' Household data with a single household of 2 individuals.
 #'
@@ -22,7 +22,7 @@
 #' @format A data frame with 2 rows and 2 columns
 NULL
 
-#' Flu 1918 Frederick
+#' Reported "Spanish" flu cases in Frederick (USA), 1918
 #'
 #' Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 #'
@@ -48,7 +48,7 @@ NULL
 #' \doi{10.1093/aje/kwr122}
 NULL
 
-#' Flu 1918 Baltimora
+#' Reported "Spanish" flu cases in Baltimora (USA), 1918
 #'
 #' Reported cases of "Spanish" flu in Baltimora (USA), in 1918.
 #'
@@ -74,7 +74,7 @@ NULL
 #' \doi{10.1093/aje/kwr122}
 NULL
 
-#' SARS-CoV-2 2021 Israeli Covid-19 Family Study
+#' SARS-CoV-2 2021 household survey from the Israeli COVID-19 Family Study
 #'
 #' Prospective cohort conducted during COVID-19 Delta variant wave in Israel, 2021.
 #' Follow-up started with first PCR positive test, symptoms onset were reported.
@@ -87,9 +87,9 @@ NULL
 #'   \item{test_date}{Date of first positive test}
 #'   \item{vacc_status}{Vaccinated before survey}
 #'   \item{age}{Age}
-#'   \item{isolation}{Wheter isolated}
+#'   \item{isolation}{Whether isolated}
 #'   \item{sex}{Sex}
-#'   \item{asymptomatic}{Wheter asymptomatic}
+#'   \item{asymptomatic}{Whether asymptomatic}
 #' }
 #'
 #' @docType data
@@ -121,7 +121,7 @@ NULL
 #' \doi{10.1093/infdis/jiaf001}
 NULL
 
-#' Flu 2014-15 Matsumoto
+#' Flu 2014-15 household survey from Matsumoto, Japan
 #'
 #' Household survey in Matsumoto city (Japan) for parents having children in primary school.
 #' Report on influenza episodes of family members during the season 2014-15.

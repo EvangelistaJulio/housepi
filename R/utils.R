@@ -5,7 +5,7 @@
 ## See the LICENSE file for details.
 ##
 
-#' Utility function for error messages.
+#' Stop execution with a multi-line error message.
 #' @param ... Messages printed in sequence on different lines.
 #' @noRd
 stop_h <- function(...) {
@@ -13,7 +13,7 @@ stop_h <- function(...) {
              call. = FALSE)
 }
 
-#' Utility function for warning messages.
+#' Emit a multi-line warning message.
 #' @param ... Messages printed in sequence on different lines.
 #' @noRd
 warning_h <- function(...) {
@@ -21,7 +21,7 @@ warning_h <- function(...) {
                 call. = FALSE)
 }
 
-#' Standard error message for read only error message.
+#' Standard error message for read-only fields.
 #' @param active `character(1)` Name of the active method.
 #' @noRd
 stop_read_only <- function(active) {
@@ -126,9 +126,9 @@ trunc_mtime <- function(path) {
   max(trunc(file.info(path)$mtime))
 }
 
-#' @title Untracked Changes
+#' @title Detect untracked changes in template source files
 #' @description
-#' Wheter source files have been modified or a more recent installation exists.
+#' Whether source files have been modified or a more recent installation exists.
 #' @param source_dir `character(1)`. Path to source directory.
 #' @param dll `character(1)`. Expected dynamic library file name.
 #' @return `bool`
@@ -147,7 +147,7 @@ untracked_changes <- function(source_dir, dll) {
 
 # Optional helper files
 helper_files <- function(path) {
-  helper_names <- paste0("template_", c("augm.R", "param.R", "info.Rd"))
+  helper_names <- c(paste0("template_", c("augm.R", "param.R")), "info.Rd")
   file.path(path, helper_names)
 }
 
@@ -190,7 +190,7 @@ char_data_input_ <- function(df) {
   else data.frame(lapply(df, as.character))
 }
 
-#' Factorize dates and non numerical quanties from data to pass Cpp.
+#' Factorize dates and non-numerical quantities from data to pass to C++.
 #' @param df `data.frame`. Dataset.
 #' @return `list`
 #' @keywords internal
@@ -223,7 +223,7 @@ cpp_data_factorize <- function(df) {
   list(data = char_data_input_(df), info = info, cols = cols, status = status)
 }
 
-#' Restore factored quanties on data return from Cpp implementation.
+#' Restore factored quantities on data returned from the C++ implementation.
 #' @param data `data.frame`. Output of the Rcpp model object.
 #' @param info `list` of `list`s. Info about class and levels of data columns.
 #' @param headers `character()`. Header columns.
@@ -284,12 +284,15 @@ eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {
   eval(str2lang(formula))
 }
 
-#' @title Set a warm theme for housepi visualizations
+#' @title Set a warm default theme for housepi visualizations
 #' @param base_size Base font size (pts). Default `11`.
 #' @param base_family Base font family. Default `""` (device default).
 #' @description
 #' If suggested packages are installed, sets corresponding `ggplot2`,
 #' `bayesplot` and `flextable` themes as used in housepi vignettes.
+#' @examples
+#' # apply housepi defaults to ggplot2, bayesplot and flextable
+#' housepi_theme_set()
 #' @export
 housepi_theme_set <- function(base_size = 11, base_family = "") {
   # ggplot theme

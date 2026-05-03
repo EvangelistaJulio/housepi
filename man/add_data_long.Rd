@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{add_data_long}
 \alias{add_data_long}
-\title{Add additional individual data in long format}
+\title{Attach individual-level long-format data to a housepi model}
 \usage{
 add_data_long(hhmodel, data_long)
 }

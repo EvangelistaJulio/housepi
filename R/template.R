@@ -26,7 +26,7 @@ random_name <- function(path) {
   paste0(template_name(path), str_name)
 }
 
-# DLL fyle with templated name convention
+# DLL file with templated name convention
 template_dll_file <- function(path) {
   file.path(path, dll_file_ext(template_name(path)))
 }
@@ -82,9 +82,9 @@ get_template_dir <- function(x) {
 }
 
 #' @title
-#' Check if a template with similar name exists
+#' Suggest the closest matching template name
 #' @description
-#' Return the directory of chosen housepi template model.
+#' Return a "did you mean" hint for a mistyped template name.
 #'
 #' @param x
 #' A `character(1)` with the choice of the template.
@@ -99,13 +99,13 @@ find_closest_template_name <- function(x) {
   # NOTE: avoid to attempt a suggestion for silly mistakes
   sms <- find_closest_match(flat_choice, flat_options, 5)
   if (stringr::str_ends(sms, "\\?") && nchar(flat_choice) > 3) return(sms)
-  c("Show available templates calling 'template_household_model' alone.")
+  c("Show available templates calling 'browse_housepi_templates' alone.")
 }
 
 #' @title
-#' Show model names
+#' Show available template model names
 #' @description
-#' Show list of all available template nmodel names.
+#' Show list of all available template model names.
 #'
 #' @keywords internal
 #' @noRd
@@ -142,20 +142,18 @@ copy_template_to_path <- function(name, path) {
   }
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   if (dir.exists(path)) {
-    templ_files <- c("model.cpp",
-                     "template_param.R",
-                     "template_info.Rd")
-    for (f in templ_files) {
-      from_file <- file.path(get_template_dir(name), f)
-      overwrite(from_file, file.path(path, f))
-    }
-    for (f in c("template_augm.R")) {
+    # model.cpp + info.Rd are always present; param.R / augm.R are optional
+    required <- c("model.cpp", "info.Rd")
+    optional <- c("param.R", "augm.R")
+    for (f in c(required, optional)) {
       from_file <- file.path(get_template_dir(name), f)
       if (file.exists(from_file)) {
         overwrite(from_file, file.path(path, f))
+      } else if (f %in% required) {
+        stop_h(sprintf("Template '%s' is missing required file '%s'.",
+                       name, f))
       }
     }
-
   } else {
     stop_h(
       sprintf("Failed to create directory '%s'.", path),
@@ -175,7 +173,7 @@ copy_template_to_path <- function(name, path) {
 #' @noRd
 open_model_helper_ <- function(path) {
   # check for info file
-  info_file <- file.path(path, "template_info.Rd")
+  info_file <- file.path(path, "info.Rd")
   if (!file.exists(info_file)) stop_h(
     "Impossible to show model description.",
     "No template info available for the given model."
@@ -207,16 +205,15 @@ open_model_helper_ <- function(path) {
 #' @param replace
 #' `logical(1)` to replace previous content of the path.
 #'
+#' @examples
+#' # list all available templates
+#' browse_housepi_templates()
 #' @export
-template_household_model <- function(name = NA_character_,
+browse_housepi_templates <- function(name = NA_character_,
                                      path = NA_character_,
                                      replace = FALSE) {
   if (is.na(name)) show_model_names()
   else if (!is.character(name)) stop_h("Model name is not a character.")
-  else if (name == "blank" && is.na(path)) warning_h(
-    "The 'blank' model has no description available.",
-    "It comes without any predefined structure and it is used only for tests."
-  )
   else if (is.na(get_template_dir(name))) stop_h(
     sprintf("Model '%s' was not a known template.", name),
     find_closest_template_name(name)
@@ -228,7 +225,7 @@ template_household_model <- function(name = NA_character_,
     "A model already exists in the specified folder.",
     "If you want to replace it, run again with option 'replace = TRUE'."
   )
-  # askinf for copying template to empty folder
+  # asking for copying template to empty folder
   else copy_template_to_path(name, path)
 }
 
@@ -263,7 +260,7 @@ template_extract_keys <- function(refer_file, key_family) {
   args[nzchar(args)]
 }
 
-#' Compared required definitions to current definitions and find missing ones.
+#' Compare required definitions to current definitions and find missing ones.
 #' @param required `character()`. Required definitions.
 #' @param defined `character()`. Current definitions.
 #' @return `character()`
@@ -305,7 +302,7 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
   output
 }
 
-#' Warn about overwritten definitions.if missing definitions are found
+#' Warn about overwritten definitions if missing definitions are found.
 #' @param all_rmv `character()`. Removed definitions.
 #' @param family `character(1)`. Name of the module family.
 #' @param max_print `integer(1)`. Maximum number of elements to print.
@@ -327,7 +324,7 @@ template_overwrite_warn <- function(all_rmv, family, max_print = 5) {
 ############################################################################
 ############################################################################
 
-#' Compared required definitions to current definitions and find unused ones.
+#' Compare required definitions to current definitions and find unused ones.
 #' @param required `character()`. Required definitions.
 #' @param defined `character()`. Current definitions.
 #' @return `character()`

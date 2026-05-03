@@ -3,7 +3,7 @@
 \docType{class}
 \name{HousepiPrediction}
 \alias{HousepiPrediction}
-\title{Prediction class}
+\title{Posterior predictive check container for user-defined measures}
 \description{
 Class to extract posterior predictive checks over measures on simulations.
 }

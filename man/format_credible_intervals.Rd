@@ -23,7 +23,7 @@ format_credible_intervals(
 Sprintf-style format with 3 '\%s' placeholders.
 Default is \code{"mean [lower, upper]"}.}
 
-\item{as_integer}{\code{logical(1)}. Wheter values are formatted as integers.
+\item{as_integer}{\code{logical(1)}. Whether values are formatted as integers.
 Default is \code{FALSE}.}
 }
 \value{

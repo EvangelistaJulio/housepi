@@ -2,7 +2,7 @@
 % Please edit documentation in R/predictive_checks.R
 \name{predicted_cases_by_house_size}
 \alias{predicted_cases_by_house_size}
-\title{Common measures predicted by the model by household size}
+\title{Predict cases by household size and secondary attack rate}
 \usage{
 predicted_cases_by_house_size(
   hhmodel,

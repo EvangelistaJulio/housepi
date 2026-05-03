@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{summarise_cases}
 \alias{summarise_cases}
-\title{Summarise cases in household data}
+\title{Summarise observed cases in the loaded household data}
 \usage{
 summarise_cases(hhmodel)
 }
@@ -14,4 +14,8 @@ summarise_cases(hhmodel)
 }
 \description{
 Summarise cases as given from the statuses in the loaded household data.
+}
+\examples{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+summarise_cases(hhmodel)
 }

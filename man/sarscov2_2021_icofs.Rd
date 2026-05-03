@@ -3,7 +3,7 @@
 \docType{data}
 \name{sarscov2_2021_icofs}
 \alias{sarscov2_2021_icofs}
-\title{SARS-CoV-2 2021 Israeli Covid-19 Family Study}
+\title{SARS-CoV-2 2021 household survey from the Israeli COVID-19 Family Study}
 \format{
 A data frame with 4,168 rows and 11 columns
 }
@@ -26,9 +26,9 @@ Contacts averaged 3 tests during follow-up.
 \item{test_date}{Date of first positive test}
 \item{vacc_status}{Vaccinated before survey}
 \item{age}{Age}
-\item{isolation}{Wheter isolated}
+\item{isolation}{Whether isolated}
 \item{sex}{Sex}
-\item{asymptomatic}{Wheter asymptomatic}
+\item{asymptomatic}{Whether asymptomatic}
 }
 
 Original data from household transmission study conducted in Israel, 2021.

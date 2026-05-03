@@ -35,7 +35,7 @@ reference:
   contents:
     - HousepiModel
     - new_housepi_model
-    - template_household_model
+    - browse_housepi_templates
     - starts_with("summarise_")
     - evaluate_log_lik
     - starts_with("run_")

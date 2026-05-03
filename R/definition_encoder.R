@@ -295,9 +295,9 @@ convert_list_to_quosures <- function(input_lst, env = rlang::global_env()) {
 # Load a templated list of definitions.
 get_template_def_list <- function(path, family) {
   if (family == "parameter") {
-    templ_file <- file.path(path, "template_param.R")
+    templ_file <- file.path(path, "param.R")
   } else if (family == "augmented") {
-    templ_file <- file.path(path, "template_augm.R")
+    templ_file <- file.path(path, "augm.R")
   } else {
     stop_h(sprintf(
       "[Internal] Unrecognized module family '%s' for template loading.", family

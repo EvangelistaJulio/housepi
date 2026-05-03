@@ -11,8 +11,8 @@
 ############################################################################
 ############################################################################
 
-#' @title Housepi Infectivity Profile
-#' @description Auxiliary class to deal with infectivity profile.
+#' @title Internal R6 holder for housepi infectivity-profile definitions
+#' @description Helper class managing infectivity-profile definitions of the model.
 #' @keywords internal
 #' @noRd
 HousepiInfecProfile <- R6::R6Class(

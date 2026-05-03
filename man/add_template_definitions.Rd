@@ -3,7 +3,7 @@
 \name{add_parameter_template}
 \alias{add_parameter_template}
 \alias{add_augmented_template}
-\title{Load template definitions}
+\title{Load default parameter or augmented definitions from the model template}
 \usage{
 add_parameter_template(hhmodel, append = FALSE)
 
@@ -20,4 +20,9 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 }
 \description{
 Load default definitions from model template.
+}
+\examples{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  add_parameter_template()
+get_parameters(hhmodel)
 }

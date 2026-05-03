@@ -318,8 +318,8 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
 ############################################################################
 ############################################################################
 
-#' @title Housepi Group Rate
-#' @description Help with group rate definitions of model Rcpp object.
+#' @title Internal R6 holder for housepi group-rate definitions
+#' @description Helper class managing group-rate definitions of the model Rcpp object.
 #' @keywords internal
 #' @noRd
 HousepiGroupRate <- R6::R6Class(
@@ -339,7 +339,7 @@ HousepiGroupRate <- R6::R6Class(
       # I think it's ambiguos, but maybe it's not always the case
       if (isTRUE(any(reference == ".none"))) {
         if (isTRUE(all(reference == ".none"))) return(".none")
-        else stop_h("Ambigous entry '.none' in reference vector.")
+        else stop_h("Ambiguous entry '.none' in reference vector.")
       }
 
       if (length(by) != length(reference)) stop_h(

@@ -2,7 +2,7 @@
 % Please edit documentation in R/predictive_checks.R
 \name{predicted_measures}
 \alias{predicted_measures}
-\title{Measures predicted by the model}
+\title{Compute posterior-predictive measures on a housepi model}
 \usage{
 predicted_measures(
   hhmodel,

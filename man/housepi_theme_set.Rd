@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{housepi_theme_set}
 \alias{housepi_theme_set}
-\title{Set a warm theme for housepi visualizations}
+\title{Set a warm default theme for housepi visualizations}
 \usage{
 housepi_theme_set(base_size = 11, base_family = "")
 }
@@ -14,4 +14,8 @@ housepi_theme_set(base_size = 11, base_family = "")
 \description{
 If suggested packages are installed, sets corresponding \code{ggplot2},
 \code{bayesplot} and \code{flextable} themes as used in housepi vignettes.
+}
+\examples{
+# apply housepi defaults to ggplot2, bayesplot and flextable
+housepi_theme_set()
 }

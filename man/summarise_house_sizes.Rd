@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{summarise_house_sizes}
 \alias{summarise_house_sizes}
-\title{Summarise house sizes in household data}
+\title{Summarise household sizes in the loaded household data}
 \usage{
 summarise_house_sizes(hhmodel)
 }
@@ -14,4 +14,8 @@ summarise_house_sizes(hhmodel)
 }
 \description{
 Summarise number of members (size) in the loaded household data.
+}
+\examples{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+summarise_house_sizes(hhmodel)
 }

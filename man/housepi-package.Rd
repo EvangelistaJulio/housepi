@@ -4,7 +4,7 @@
 \name{housepi-package}
 \alias{housepi}
 \alias{housepi-package}
-\title{housepi}
+\title{housepi: Household Epidemiological Modeling and Analysis}
 \description{
 Epidemiological Analysis of Household Outbreaks.
 }
@@ -15,7 +15,7 @@ Mathematical modeling has proven to be a valuable tool for estimating
 key epidemiological parameters from household transmission surveys.
 The relative ease of sampling household data makes it a readily available
 source of information during the early phases of an epidemic
-(e. g. longitudinal studies).
+(e.g. longitudinal studies).
 Additionally, retrospective serological surveys can provide critical insights
 into the history of transmission within a population (final size studies).
 The package aims to combine ease of use with flexibility, supporting both
@@ -38,3 +38,4 @@ Authors:
 }
 
 }
+\keyword{internal}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{add_contact_rate}
 \alias{add_contact_rate}
-\title{Add contact rate definition}
+\title{Add a pairwise contact rate definition}
 \usage{
 add_contact_rate(
   hhmodel,

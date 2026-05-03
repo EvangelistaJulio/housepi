@@ -171,8 +171,8 @@ tidyup_contact_rate_tables <- function(tables) {
   compute_rule_groups(combined)
 }
 
-#' @title Housepi Contact Rate
-#' @description Help with contact rate definitions of model Rcpp object.
+#' @title Internal R6 holder for housepi contact-rate definitions
+#' @description Helper class managing contact-rate definitions of the model Rcpp object.
 #' @keywords internal
 #' @noRd
 HousepiContactRate <- R6::R6Class(

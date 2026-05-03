@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{add_infec_profile}
 \alias{add_infec_profile}
-\title{Add infectivity profile definition}
+\title{Add an infectivity profile definition}
 \usage{
 add_infec_profile(
   hhmodel,

@@ -5,7 +5,7 @@
 ## See the LICENSE file for details.
 ##
 
-#' @title Generate a new instance of household model class
+#' @title Create a new household-transmission model instance
 #' @description
 #' Create a new object of class 'HousepiModel'
 #' used to run inference and simulation routines.
@@ -17,8 +17,12 @@
 #' @param ... `r rd_mdl_flags_`
 #' @return `r rd_model_in_`
 #' @examples
-#' hhmodel <- new_housepi_model(model = "blank")
+#' # build a model from a template using a built-in dataset
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
 #' print(hhmodel)
+#'
+#' # 'blank' template provides a minimal model for testing
+#' new_housepi_model(model = "blank")
 #' @export
 new_housepi_model <- function(data = NULL, model = NA_character_,
                               as_template = FALSE,
@@ -40,7 +44,7 @@ stopifnothousepi <- function(hhmodel) {
   )
 }
 
-#' @title Add additional individual data in long format
+#' @title Attach individual-level long-format data to a housepi model
 #' @description
 #' Make an internal copy of the provided data in long format.
 #' @param hhmodel `r rd_model_in_`
@@ -55,21 +59,27 @@ add_data_long <- function(hhmodel, data_long) {
   new_obj
 }
 
-#' @title Summarise cases in household data
+#' @title Summarise observed cases in the loaded household data
 #' @description
 #' Summarise cases as given from the statuses in the loaded household data.
 #' @param hhmodel `r rd_model_in_`
 #' @return `data.frame`
+#' @examples
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+#' summarise_cases(hhmodel)
 #' @export
 summarise_cases <- function(hhmodel) {
   hhmodel$summarise_cases()
 }
 
-#' @title Summarise house sizes in household data
+#' @title Summarise household sizes in the loaded household data
 #' @description
 #' Summarise number of members (size) in the loaded household data.
 #' @param hhmodel `r rd_model_in_`
 #' @return `data.frame`
+#' @examples
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+#' summarise_house_sizes(hhmodel)
 #' @export
 summarise_house_sizes <- function(hhmodel) {
   hhmodel$summarise_house_sizes()
@@ -79,10 +89,19 @@ summarise_house_sizes <- function(hhmodel) {
 ############################################################################
 ############################################################################
 
-#' @title Drop current definitions
+#' @title Drop currently loaded definitions from a housepi model
 #' @description Remove current definitions from the housepi model.
+#' Each variant clears a single category (parameters, augmented variables,
+#' group rates, contact rates, infectivity profile) while `drop_all()` clears
+#' them all.
 #' @param hhmodel `r rd_model_in_`
 #' @return `r rd_model_out_`
+#' @examples
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+#'   add_parameter_template()
+#' hhmodel |>
+#'   drop_parameters() |>
+#'   get_parameters()
 #' @rdname drop_definitions
 #' @export
 drop_parameters <-  function(hhmodel) {
@@ -141,11 +160,19 @@ drop_all <- function(hhmodel) {
 ############################################################################
 ############################################################################
 
-#' @title Get current definitions
+#' @title Retrieve currently loaded data and definitions from a housepi model
 #' @description
 #' Return the definitions currently stored in the housepi model.
+#' Each variant returns one category (data, parameters, augmented variables,
+#' group rates, contact rates, infectivity profile).
 #' @param hhmodel `r rd_model_in_`
 #' @return `data.frame`
+#' @examples
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+#'   add_parameter_template()
+#' get_data_wide(hhmodel) |>
+#'   head()
+#' get_parameters(hhmodel)
 #' @rdname get_definitions
 #' @export
 get_data_wide <- function(hhmodel) {
@@ -201,7 +228,7 @@ get_infec_profile <- function(hhmodel) {
 ############################################################################
 ############################################################################
 
-#' @title Add parameter definition
+#' @title Add or overwrite a single parameter definition
 #' @description
 #' Add a new parameter to housepi model definitions.
 #' If the parameter already exists, it is overwritten.
@@ -219,6 +246,13 @@ get_infec_profile <- function(hhmodel) {
 #' @param proposal `r rd_par_proposal_`
 #' @param proposal_scale `r rd_proposal_scale_`
 #' @return `r rd_model_out_`
+#' @examples
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("chain_binomial") |>
+#'   # alpha : community transmission rate, with uniform prior
+#'   add_parameter("alpha", prior = "uniform", proposal = "lognormal") |>
+#'   # beta : person-to-person transmission rate, fixed to a constant
+#'   add_parameter("beta", value = 0.3, const = TRUE)
 #' @export
 add_parameter <- function(hhmodel,
                           name = NA_character_, value = NULL,
@@ -243,12 +277,16 @@ add_parameter <- function(hhmodel,
   new_obj
 }
 
-#' @title Load template definitions
+#' @title Load default definitions from the model template
 #' @description
-#' Load default definitions from model template.
+#' Load default parameter or augmented definitions from model template.
 #' @param hhmodel `r rd_model_in_`
 #' @param append `r rd_tmpl_append_`
 #' @return `r rd_model_out_`
+#' @examples
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+#'   add_parameter_template()
+#' get_parameters(hhmodel)
 #' @rdname add_template_definitions
 #' @export
 add_parameter_template <- function(hhmodel, append = FALSE) {
@@ -262,7 +300,7 @@ add_parameter_template <- function(hhmodel, append = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @title Add augmented definition
+#' @title Add or update an augmented variable definition
 #' @description
 #' Add a new augmented variable/function to housepi model definitions.
 #' If the augmented variable already exists, it is updated.
@@ -281,6 +319,12 @@ add_parameter_template <- function(hhmodel, append = FALSE) {
 #' @param proposal `r rd_var_proposal_`
 #' @param proposal_scale `r rd_proposal_scale_`
 #' @return `r rd_model_out_`
+#' @examples
+#' hhmodel <- blank_house |>
+#'   new_housepi_model("augmented_example") |>
+#'   # define an incubation period drawn from a gamma distribution
+#'   add_augmented("incub_period",
+#'                 model = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
 add_augmented <- function(hhmodel,
                           name = NA_character_, value = NULL,
@@ -318,7 +362,7 @@ add_augmented_template <- function(hhmodel, append = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @title Add group rate definition
+#' @title Add a stratified group rate definition
 #' @description `r rd_grr_desc_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
@@ -370,7 +414,7 @@ add_group_rate <-  function(hhmodel,
 ############################################################################
 ############################################################################
 
-#' @title Add contact rate definition
+#' @title Add a pairwise contact rate definition
 #' @description `r rd_ctr_desc_`
 #' @param hhmodel `r rd_model_in_`
 #' @param by `r rd_ctr_by_`
@@ -416,7 +460,7 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
 ############################################################################
 ############################################################################
 
-#' @title Add infectivity profile definition
+#' @title Add an infectivity profile definition
 #' @description
 #' Add definition of infectivity profile.
 #' @param hhmodel `r rd_model_in_`
@@ -446,13 +490,22 @@ add_infec_profile <- function(hhmodel,
 ############################################################################
 ############################################################################
 
-#' @title Load list of definitions
+#' @title Load multiple definitions at once via named arguments
 #' @description
 #' Load definitions as named arguments.
+#' Each variant targets one definition category (parameters, augmented
+#' variables, group rates, infectivity profile).
 #' @param hhmodel `r rd_model_in_`
 #' @param ... `r rd_list_args_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
+#' @examples
+#' # define some constant paramters
+#' flu_1918_frederick |>
+#'   new_housepi_model("chain_binomial") |>
+#'   add_parameter_list(alpha = 0.05, beta = 0.3,
+#'                      gamma = 1, size_ref = 4) |>
+#'   get_parameters(hhmodel)
 #' @rdname add_definitions_list
 #' @export
 add_parameter_list <- function(hhmodel, ..., append = FALSE) {
@@ -507,20 +560,25 @@ add_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @title Evaluate log-likelihood of housepi model
+#' @title Evaluate the log-likelihood of a housepi model at current values
 #' @description
 #' Compute the log-likelihood of a `HousepiModel` object.
 #' @param hhmodel `r rd_model_in_`
 #' @param house_id `r rd_house_id_`
 #' If `NA` (default) it computes for the whole data.
 #' @return `numeric(1)`
+#' @examples
+#' flu_1918_frederick |>
+#'   new_housepi_model("chain_binomial") |>
+#'   add_parameter_template() |>
+#'   evaluate_log_lik()
 #' @export
 evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
   stopifnothousepi(hhmodel)
   hhmodel$evaluate_log_lik(house_id = house_id)
 }
 
-#' @title Run inference for housepi model
+#' @title Run Bayesian MCMC inference on a housepi model
 #' @description
 #' Run inference with Bayesian Markov Chain Monte Carlo.
 #' @param hhmodel `r rd_model_in_`
@@ -533,6 +591,15 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' @param id_draws `r rd_smpl_iddrw_`
 #' @param progress `r rd_progress_`
 #' @return An object of class `HousepiPosteriorDraws`.
+#' @examples
+#' flu_1918_frederick |>
+#'   new_housepi_model("chain_binomial") |>
+#'   add_parameter_template() |>
+#'   run_inference(hhmodel,
+#'                 steps = 50, burn = 10, thin = 2,
+#'                 chains = 2, progress = FALSE) |>
+#'   get_param_draws() |>
+#'   posterior::summarize_draws()
 #' @export
 run_inference <- function(hhmodel,
                           steps = 200, burn = 0,
@@ -548,7 +615,7 @@ run_inference <- function(hhmodel,
                         progress = progress)
 }
 
-#' @title Run simulation for housepi model
+#' @title Simulate a household survey from a housepi model
 #' @description
 #' Run simulation to generate a household survey.
 #' It assumes the same community structure of the loaded data.
@@ -558,6 +625,12 @@ run_inference <- function(hhmodel,
 #' @param param_table `r rd_param_table_`
 #' @param nsim `r rd_simul_nsim_`
 #' @return `data.frame` or `list` (when `obs_process_long` is provided)
+#' @examples
+#' flu_1918_frederick |>
+#'   new_housepi_model("chain_binomial") |>
+#'   add_parameter_template() |>
+#'   run_simulation() |>
+#'   head()
 #' @export
 run_simulation <- function(hhmodel,
                            obs_process = NULL,
@@ -571,7 +644,7 @@ run_simulation <- function(hhmodel,
                          nsim = nsim)
 }
 
-#' @title Estimate logevidence of housepi model
+#' @title Estimate the log-evidence (marginal log-likelihood) of a housepi model
 #' @description
 #' Estimate the logarithm of the marginal likelihood (aka evidence).
 #' It uses the method of power posteriors with different available schemes.

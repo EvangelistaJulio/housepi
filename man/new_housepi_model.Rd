@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{new_housepi_model}
 \alias{new_housepi_model}
-\title{Generate a new instance of household model class}
+\title{Create a new household-transmission model instance}
 \usage{
 new_housepi_model(
   data = NULL,
@@ -51,6 +51,10 @@ Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
 }
 \examples{
-hhmodel <- new_housepi_model(model = "blank")
+# build a model from a template using a built-in dataset
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
 print(hhmodel)
+
+# 'blank' template provides a minimal model for testing
+new_housepi_model(model = "blank")
 }

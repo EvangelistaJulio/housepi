@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{run_inference}
 \alias{run_inference}
-\title{Run inference for housepi model}
+\title{Run Bayesian MCMC inference on a housepi model}
 \usage{
 run_inference(
   hhmodel,
@@ -47,4 +47,14 @@ An object of class \code{HousepiPosteriorDraws}.
 }
 \description{
 Run inference with Bayesian Markov Chain Monte Carlo.
+}
+\examples{
+\donttest{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  add_parameter_template()
+results <- run_inference(hhmodel,
+                         steps = 200, burn = 50, thin = 5,
+                         chains = 2, progress = FALSE)
+posterior::summarize_draws(get_param_draws(results))
+}
 }

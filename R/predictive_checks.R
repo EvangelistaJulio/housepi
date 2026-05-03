@@ -15,25 +15,29 @@ helper_process_data <- function(data_wide) {
   df
 }
 
-#' @title Measure SAR by household size
+#' @title Compute observed secondary attack rate by household size
 #' @description
 #' Retrieve secondary attack rates (SAR) from household data.
 #' @param data_wide `r rd_add_wide_`
 #' @return `data.frame`
 #' @details
-#' The secondary attack rate is computed for all household
+#' The secondary attack rate is computed for all households
 #' with size \eqn{n > 1} according to
 #' \eqn{\frac{\mathbb{E}[n_{+}\vert{n}] - 1}{n - 1}}
+#' @examples
+#' measure_sar_by_house_size(flu_1918_frederick)
 #' @export
 measure_sar_by_house_size <- function(data_wide) {
   .engine$measure_sar_by_house_size(helper_process_data(data_wide))
 }
 
-#' @title Measure household cases by size
+#' @title Tabulate observed household cases by household size
 #' @description
 #' Retrieve cases by household size from household data.
 #' @param data_wide `r rd_add_wide_`
 #' @return `data.frame`
+#' @examples
+#' measure_cases_by_house_size(flu_1918_frederick)
 #' @export
 measure_cases_by_house_size <- function(data_wide) {
   .engine$measure_cases_by_house_size(helper_process_data(data_wide))
@@ -167,7 +171,7 @@ ppc_extract_predicted_results <- function(x, cri, name = NULL) {
        cri_upper = ppc_frame_apply_cri(x, cri, upper = TRUE, name = name))
 }
 
-#' @title Prediction class
+#' @title Posterior predictive check container for user-defined measures
 #' @description
 #' Class to extract posterior predictive checks over measures on simulations.
 #' @docType class
@@ -404,7 +408,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   combined
 }
 
-#' @title Predicted class with common measures of cases by size
+#' @title Posterior predictive check on cases-by-household-size and SAR
 #' @description
 #' Predicted cases by household size, comparing observed and predicted values.
 #' It estimates secondary attack rates and cases by size tables.
@@ -542,7 +546,7 @@ PredictedCasesBySize <- R6::R6Class(
   )
 )
 
-#' @title Measures predicted by the model
+#' @title Compute posterior-predictive measures on a housepi model
 #' @description
 #' Extract the measures prediction according to given table of parameters.
 #' Typically used to perform posterior predictive checks.
@@ -576,7 +580,7 @@ predicted_measures <- function(hhmodel,
                         progress = progress)
 }
 
-#' @title Common measures predicted by the model by household size
+#' @title Predict cases by household size and secondary attack rate
 #' @description
 #' Extract the predicted number of household cases per size.
 #' It can be used to estimate the secondary attack rate (SAR).
@@ -621,7 +625,7 @@ predicted_cases_by_house_size <- function(hhmodel,
 #' @param str_format `character(1)`.
 #' Sprintf-style format with 3 '%s' placeholders.
 #' Default is `"mean [lower, upper]"`.
-#' @param as_integer `logical(1)`. Wheter values are formatted as integers.
+#' @param as_integer `logical(1)`. Whether values are formatted as integers.
 #' Default is `FALSE`.
 #' @return `character()`
 #' @examples
@@ -637,7 +641,7 @@ format_credible_intervals <- function(mean, lower, upper,
     )
 
     if (length(gregexpr("%s", str_format, fixed = TRUE)[[1]]) != 3) stop_h(
-      "Invalid choice for charachter 'str_format'.",
+      "Invalid choice for character 'str_format'.",
       "It must contain exactly three '%s' placeholders."
     )
 

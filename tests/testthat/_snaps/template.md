@@ -1,7 +1,7 @@
-# Template household model branches inform correctly
+# browse_housepi_templates branches inform correctly
 
     Code
-      template_household_model()
+      browse_housepi_templates()
     Message
       i Available template models:
       * augmented example

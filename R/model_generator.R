@@ -15,9 +15,9 @@ NULL
 ############################################################################
 ############################################################################
 
-#' @title Housepi Generator
+#' @title Internal R6 helper for generating the Rcpp model object
 #' @description
-#' Help with generating Rcpp model object.
+#' Helper class that drives compilation and instantiation of the Rcpp model object.
 #' @keywords internal
 #' @noRd
 HousepiGenerator <- R6::R6Class(
@@ -167,7 +167,7 @@ HousepiGenerator <- R6::R6Class(
       choice <- "blank"
       if (all(is.na(model) | is.null(model))) warning_h(
         "No model specified. Falling back to 'blank' model.",
-        "To show available templates, run 'template_household_model'."
+        "To show available templates, run 'browse_housepi_templates'."
       )
       else if (length(model) != 1 || !is.character(model)) stop_h(
         "Model choice must be a non-empty string.",

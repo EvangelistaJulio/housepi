@@ -2,7 +2,7 @@
 
 # locate template Rd files
 model_dirs <- list.dirs("inst/models", recursive = FALSE)
-rd_files <- file.path(model_dirs, "template_info.Rd")
+rd_files <- file.path(model_dirs, "info.Rd")
 # assert files exist
 stopifnot(all(file.exists(rd_files)))
 stopifnot(length(rd_files) == length(model_dirs))

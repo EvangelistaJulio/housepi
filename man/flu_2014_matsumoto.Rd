@@ -3,7 +3,7 @@
 \docType{data}
 \name{flu_2014_matsumoto}
 \alias{flu_2014_matsumoto}
-\title{Flu 2014-15 Matsumoto}
+\title{Flu 2014-15 household survey from Matsumoto, Japan}
 \format{
 A data frame with 47,213 rows and 3 columns
 }

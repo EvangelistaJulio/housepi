@@ -5,9 +5,9 @@
 ## See the LICENSE file for details.
 ##
 
-#' @title Housepi Parameter
+#' @title Internal R6 holder for housepi parameter definitions
 #' @description
-#' Help with parameter definitions of model Rcpp object.
+#' Helper class managing parameter definitions of the model Rcpp object.
 #' @keywords internal
 #' @noRd
 HousepiParameter <- R6::R6Class(

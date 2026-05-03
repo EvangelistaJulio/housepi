@@ -2,7 +2,7 @@
 % Please edit documentation in R/predictive_checks.R
 \name{measure_cases_by_house_size}
 \alias{measure_cases_by_house_size}
-\title{Measure household cases by size}
+\title{Tabulate observed household cases by household size}
 \usage{
 measure_cases_by_house_size(data_wide)
 }
@@ -14,4 +14,7 @@ measure_cases_by_house_size(data_wide)
 }
 \description{
 Retrieve cases by household size from household data.
+}
+\examples{
+measure_cases_by_house_size(flu_1918_frederick)
 }

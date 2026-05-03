@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{add_group_rate}
 \alias{add_group_rate}
-\title{Add group rate definition}
+\title{Add a stratified group rate definition}
 \usage{
 add_group_rate(
   hhmodel,

@@ -2,7 +2,7 @@
 % Please edit documentation in R/predictive_checks.R
 \name{measure_sar_by_house_size}
 \alias{measure_sar_by_house_size}
-\title{Measure SAR by household size}
+\title{Compute observed secondary attack rate by household size}
 \usage{
 measure_sar_by_house_size(data_wide)
 }
@@ -16,7 +16,10 @@ measure_sar_by_house_size(data_wide)
 Retrieve secondary attack rates (SAR) from household data.
 }
 \details{
-The secondary attack rate is computed for all household
+The secondary attack rate is computed for all households
 with size \eqn{n > 1} according to
 \eqn{\frac{\mathbb{E}[n_{+}\vert{n}] - 1}{n - 1}}
+}
+\examples{
+measure_sar_by_house_size(flu_1918_frederick)
 }

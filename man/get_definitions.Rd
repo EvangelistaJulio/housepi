@@ -8,7 +8,7 @@
 \alias{get_group_rates}
 \alias{get_contact_rates}
 \alias{get_infec_profile}
-\title{Get current definitions}
+\title{Retrieve currently loaded data and definitions from a housepi model}
 \usage{
 get_data_wide(hhmodel)
 
@@ -32,4 +32,12 @@ get_infec_profile(hhmodel)
 }
 \description{
 Return the definitions currently stored in the housepi model.
+Each variant returns one category (data, parameters, augmented variables,
+group rates, contact rates, infectivity profile).
+}
+\examples{
+hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  add_parameter_template()
+get_data_wide(hhmodel) |> head()
+get_parameters(hhmodel)
 }
