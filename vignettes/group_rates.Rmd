@@ -227,7 +227,7 @@ get_parameter_draws(results) |>
     variable = stringr::str_remove(variable, "sus_vacc_status") |> 
       stringr::str_replace_all("_", " ")
     ) |> 
-  ggplot(aes(x = variable, y = mean, label = sprintf("[%s]", n))) +
+  ggplot(aes(x = variable, y = median, label = sprintf("[%s]", n))) +
   geom_hline(yintercept = 1, color = "black") +
   geom_point() +
   geom_text(nudge_x = 0.2, nudge_y = 0.1, color = "coral") +

@@ -94,52 +94,55 @@ test_that("ppc_frame_apply_cri computes quantiles", {
   expect_true(is.na(result[["x"]]))
 })
 
-test_that("format_credible_intervals formats vectors correctly", {
+test_that("Format-credible-interval works correctly on vectors", {
   # basic formatting
-  result <- format_credible_intervals(c(1.23), c(0.9), c(1.5))
+  result <- format_credible_interval(1.23, 0.9, 1.5)
   expect_true(is.character(result))
   expect_true(grepl("\\[", result))
 
+  # as_integer
+  expect_equal(
+    format_credible_interval(2.1, 1.7, 2.3,
+                             as_integer = TRUE,
+                             fmt = "%s-%s-%s"),
+    "2-2-2"
+  )
+
   # NA mean returns NA_character_
-  result <- format_credible_intervals(NA, NA, NA)
+  result <- format_credible_interval(NA, NA, NA)
   expect_true(is.na(result))
 
   # equal bounds
-
-  result <- format_credible_intervals(2, 2, 2)
+  result <- format_credible_interval(2, 2, 2)
   expect_true(is.character(result))
 
   # inconsistent interval warns
-  expect_warning(format_credible_intervals(5, 10, 20),
+  expect_warning(format_credible_interval(5, 10, 20),
                  regexp = "inconsistent")
 
-  # as_integer
-  result <- format_credible_intervals(1.7, 1.2, 2.3, as_integer = TRUE)
-  expect_true(is.character(result))
-
   # mismatched lengths error
-  expect_error(format_credible_intervals(c(1, 2), c(1), c(2)),
+  expect_error(format_credible_interval(c(1, 2), c(1), c(2)),
                regexp = "same length")
 
   # wrong str_format error
-  expect_error(format_credible_intervals(1, 0, 2, str_format = "%s only one"),
+  expect_error(format_credible_interval(1, 0, 2, fmt = "%s only one"),
                regexp = "three.*placeholder")
 
   # data.frame input
   mn <- data.frame(a = c(1, 2), b = c(3, 4))
   lo <- data.frame(a = c(0, 1), b = c(2, 3))
   up <- data.frame(a = c(2, 3), b = c(4, 5))
-  result <- format_credible_intervals(mn, lo, up)
+  result <- format_credible_interval(mn, lo, up)
   expect_true(is.data.frame(result))
   expect_equal(dim(result), dim(mn))
 
   # mismatched data.frame dimensions
   lo_bad <- data.frame(a = c(0))
-  expect_error(format_credible_intervals(mn, lo_bad, up),
+  expect_error(format_credible_interval(mn, lo_bad, up),
                regexp = "same dimensions")
 
   # mean == 0 branch for digit calculation
-  result <- format_credible_intervals(0, -0.1, 0.1)
+  result <- format_credible_interval(0, -0.1, 0.1)
   expect_true(is.character(result))
 })
 

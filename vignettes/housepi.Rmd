@@ -251,7 +251,8 @@ community_structure <- sarscov2_2021_icofs |>
   dplyr::select(id, house_id, age, sex) |>
   dplyr::mutate(status = NA, end_followup = 21)
 
-hhsimul <- new_housepi_model(community_structure, "augmented_infection_time") |>
+hhsimul <- community_structure |>
+  new_housepi_model("augmented_infection_time") |>
   add_parameter_template()
 
 # inspect parameter definitions
@@ -397,9 +398,14 @@ Finally we wrap all together to compare to the parameters used for simulation.
 
 ```{r}
 #| label: parameter-comparison-table
-posterior::summarise_draws(param_draws) |>
+param_draws |>
+  posterior::summarise_draws(
+    median,
+    ~posterior::quantile2(.x, probs = c(0.025, 0.975))
+  ) |>
   dplyr::reframe(parameter = variable,
-                 inferred = format_credible_intervals(mean, q5, q95)) |>
+                 inferred = format_credible_interval(
+                   median, q2.5, q97.5, fmt = "%s (95%% CrI, %s-%s)")) |>
   dplyr::inner_join(simul_parameters, by = "parameter") |>
   flextable::flextable() |>
   flextable::separate_header() |>

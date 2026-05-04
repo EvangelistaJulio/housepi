@@ -70,7 +70,7 @@ mask_pred <- cases_df$mean$distr == "Predicted"
 mask_cols <- setdiff(names(cases_df$mean), c("house_size", "distr"))
 
 # format mean with its lower and upper credible interval bounds
-combined[mask_pred, mask_cols] <- format_credible_intervals(
+combined[mask_pred, mask_cols] <- format_credible_interval(
   cases_df$mean[mask_pred, mask_cols],
   cases_df$q5[mask_pred, mask_cols],
   cases_df$q95[mask_pred, mask_cols],

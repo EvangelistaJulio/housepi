@@ -613,7 +613,7 @@ predicted_cases_by_house_size <- function(hhmodel,
                            progress = progress)
 }
 
-#' Format credible intervals into printable strings
+#' Format credible interval into printable string
 #'
 #' @description
 #' Format elementwise mean and credible-interval bounds into a single string.
@@ -622,32 +622,38 @@ predicted_cases_by_house_size <- function(hhmodel,
 #' @param mean `numeric()`. Mean values.
 #' @param lower `numeric()`. Lower bounds of the credible interval.
 #' @param upper `numeric()`. Upper bounds of the credible interval.
-#' @param str_format `character(1)`.
+#' @param fmt `character(1)`.
 #' Sprintf-style format with 3 '%s' placeholders.
 #' Default is `"mean [lower, upper]"`.
 #' @param as_integer `logical(1)`. Whether values are formatted as integers.
 #' Default is `FALSE`.
 #' @return `character()`
 #' @examples
-#' format_credible_intervals(c(1.23, NA), c(0.9, NA), c(1.5, NA))
+#' cri_median <- c(9.9, 7.69e-02, 1.13)
+#' cri_low <- c(2.6, 6.77e-02, NA)
+#' cri_up <- c(23.7, 0.087, 1.53)
+#' format_credible_interval(cri_median, cri_low, cri_up)
+#' # custom format
+#' format_credible_interval(cri_median, cri_low, cri_up,
+#'                          fmt = "%s (95%% CrI, %s-%s)")[2]
 #' @export
-format_credible_intervals <- function(mean, lower, upper,
-                                      str_format = "%s [%s, %s]",
-                                      as_integer = FALSE) {
+format_credible_interval <- function(mean, lower, upper,
+                                     fmt = "%s [%s, %s]",
+                                     as_integer = FALSE) {
   .fmt_vector <- function(mean, lower, upper) {
     if (length(mean) != length(lower) ||
           length(mean) != length(upper)) stop_h(
       "Mean, lower and upper values must be numeric of the same length."
     )
 
-    if (length(gregexpr("%s", str_format, fixed = TRUE)[[1]]) != 3) stop_h(
+    if (length(gregexpr("%s", fmt, fixed = TRUE)[[1]]) != 3) stop_h(
       "Invalid choice for character 'str_format'.",
       "It must contain exactly three '%s' placeholders."
     )
 
     .fmt_num <- function(mn, low, up) {
       if (is.na(mn)) return(NA_character_)
-      if (mn == low && mn == up) return(sprintf(str_format, mn, mn, mn))
+      if (mn == low && mn == up) return(sprintf(fmt, mn, mn, mn))
       if (isTRUE(mn < low) || isTRUE(mn > up)) warning_h(
         "Found an inconsistent credible interval."
       )
@@ -662,7 +668,7 @@ format_credible_intervals <- function(mean, lower, upper,
       up_f <- ifelse(is.na(up), NA_character_,
                      formatC(up, digits = digits, format = "f"))
 
-      sprintf(str_format, mn_f, low_f, up_f)
+      sprintf(fmt, mn_f, low_f, up_f)
     }
 
     mapply(.fmt_num, mean, lower, upper, USE.NAMES = FALSE)

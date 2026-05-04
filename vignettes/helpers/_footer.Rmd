@@ -6,9 +6,9 @@
 `r if (isTRUE(getOption("housepi.footer.warranty"))) paste0(
   cli::symbol$warning,
   " ",
-  "These results are provided for illustrative purposes only.",
+  "For illustration only.",
   " ", 
-  "They expressly exclude any warranty of fitness for use in public health decisions."
+  "Results carry no warranty for health decisions."
 )`
 
 `r if (isTRUE(getOption("housepi.footer.sample"))) paste0(
