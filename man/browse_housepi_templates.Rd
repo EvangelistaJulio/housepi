@@ -26,12 +26,4 @@ get their descriptions or copy source code to custom path.
 \examples{
 # list all available templates
 browse_housepi_templates()
-
-\dontrun{
-  # open the template description in the RStudio Help window
-  browse_housepi_templates("chain_binomial")
-
-  # copy template source code to a custom path
-  browse_housepi_templates("chain_binomial", path = tempfile("hh_"))
-}
 }

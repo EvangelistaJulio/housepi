@@ -52,7 +52,7 @@ new_housepi_model(model = "blank") |>
   ) |>
   # perform the sampling with the inference command
   run_inference() |>
-  get_param_draws() |>
+  get_parameter_draws() |>
   bayesplot::mcmc_dens()
 ```
 
@@ -80,7 +80,7 @@ new_housepi_model(model = "blank") |>
                       above = list(prior = "normal", max = 1),
                       both = list(prior = "normal", min = -1, max = 1) ) |>
   run_inference() |>
-  get_param_draws() |>
+  get_parameter_draws() |>
   bayesplot::mcmc_dens() +
   coord_cartesian(xlim = c(-3, 3), ylim = c(0, 0.65)) +
   geom_vline(data = data.frame(Parameter = c("below", "above", "both", "both"),
@@ -108,7 +108,7 @@ new_housepi_model(model = "blank") |>
     gamma_3 = list(prior = "gamma", shape = 2, scale = 1, loc = 3)
   ) |>
   run_inference() |>
-  get_param_draws() |>
+  get_parameter_draws() |>
   bayesplot::mcmc_dens() +
   coord_cartesian(xlim = c(0, 10)) +
   geom_vline(
@@ -143,7 +143,7 @@ new_housepi_model(model = "blank") |>
     geometric = list(prior = "geometric", prob = 0.5)
   ) |>
   run_inference() |>
-  get_param_draws() |>
+  get_parameter_draws() |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
@@ -167,7 +167,7 @@ new_housepi_model(model = "blank") |>
     exponential = list(prior = "exponential", discr = TRUE)
   ) |>
   run_inference() |>
-  get_param_draws() |>
+  get_parameter_draws() |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
@@ -244,7 +244,7 @@ hhmodel <- new_housepi_model(model = "blank") |>
 
 hhmodel |>
   run_inference() |>
-  get_param_draws() |>
+  get_parameter_draws() |>
   bayesplot::mcmc_trace()
 ```
 
@@ -261,7 +261,7 @@ In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where 
 
 hhmodel |>
   run_inference(adapt = 500) |>
-  get_param_draws() |>
+  get_parameter_draws() |>
   bayesplot::mcmc_trace()
 ```
 

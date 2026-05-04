@@ -19,7 +19,8 @@ If \code{NA} (default) it computes for the whole data.}
 Compute the log-likelihood of a \code{HousepiModel} object.
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-  add_parameter_template()
-evaluate_log_lik(hhmodel)
+flu_1918_frederick |>
+  new_housepi_model("chain_binomial") |>
+  add_parameter_template() |>
+  evaluate_log_lik()
 }

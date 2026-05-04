@@ -74,12 +74,10 @@ Add a new parameter to housepi model definitions.
 If the parameter already exists, it is overwritten.
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-
-# alpha : community transmission rate, with uniform prior
-hhmodel <- hhmodel |>
-  add_parameter("alpha", prior = "uniform", proposal = "lognormal")
-
-# beta : person-to-person transmission rate, fixed to a constant
-hhmodel |> add_parameter("beta", value = 0.3, const = TRUE)
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("chain_binomial") |>
+  # alpha : community transmission rate, with uniform prior
+  add_parameter("alpha", prior = "uniform", proposal = "lognormal") |>
+  # beta : person-to-person transmission rate, fixed to a constant
+  add_parameter("beta", value = 0.3, const = TRUE)
 }

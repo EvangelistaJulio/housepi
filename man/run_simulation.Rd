@@ -41,8 +41,9 @@ Run simulation to generate a household survey.
 It assumes the same community structure of the loaded data.
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-  add_parameter_template()
-simulated <- run_simulation(hhmodel)
-head(simulated)
+flu_1918_frederick |>
+  new_housepi_model("chain_binomial") |>
+  add_parameter_template() |>
+  run_simulation() |>
+  head()
 }

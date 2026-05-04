@@ -165,7 +165,7 @@ test_that("Discretization is enabled as expected", {
   )
 
   results <- hhmodel$run_inference()
-  y <- posterior::as_draws_matrix(get_param_draws(results))
+  y <- posterior::as_draws_matrix(get_parameter_draws(results))
   expect_true(all(y == floor(y)))
   expect_true(all(y >= val$min))
   expect_true(all(y <= val$max))
@@ -272,12 +272,12 @@ test_that("Nested definitions works as expected", {
   results <- hhmodel$run_inference(steps = 1e5, progress = 0)
   # no parameters nor priors
   empty_draws <- posterior::as_draws_df(data.frame())
-  expect_identical(results$param_draws, empty_draws)
+  expect_identical(results$parameter_draws, empty_draws)
   expect_identical(results$prior_draws, empty_draws)
   expect_snapshot(print(hhmodel))
 
-  sample_norm <- results$augm_draws$tommy_norm
-  sample_boxmul <- results$augm_draws$tommy_z0
+  sample_norm <- results$augmented_draws$tommy_norm
+  sample_boxmul <- results$augmented_draws$tommy_z0
 
   expect_equal(mean(sample_norm), 0, tolerance = 0.05)
   expect_equal(sd(sample_norm), 1, tolerance = 0.05)
@@ -333,7 +333,7 @@ test_that("Augmented traces export only relevant variables", {
   )
   result <- hhmodel$run_inference(id_draws = infec_df$id)
   expect_equal(
-    posterior::variables(result$augm_draws),
+    posterior::variables(result$augmented_draws),
     paste(infec_df$id, c("layer", "alias", "alpha_beta", "expl"), sep = "_")
   )
 })

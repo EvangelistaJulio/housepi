@@ -95,9 +95,9 @@ HousepiPosteriorDraws <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field param_draws `posterior::draws_df`.
+    #' @field parameter_draws `posterior::draws_df`.
     #' Draws of parameters.
-    param_draws = function(value) {
+    parameter_draws = function(value) {
       if (!missing(value)) stop_read_only("param_draws")
       if (is.null(private$param_draws_)) private$empty_draws_()
       else private$param_draws_
@@ -114,9 +114,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       )
     },
 
-    #' @field augm_draws `posterior::draws_df`.
+    #' @field augmented_draws `posterior::draws_df`.
     #' Draws selected individuals augmented variables.
-    augm_draws = function(value) {
+    augmented_draws = function(value) {
       if (!missing(value)) stop_read_only("augm_draws")
       if (is.null(private$augm_draws_)) private$empty_draws_()
       else private$augm_draws_
@@ -244,16 +244,16 @@ HousepiPosteriorDraws <- R6::R6Class(
 #' @return `posterior::draws_df`
 #' @rdname get_draws
 #' @export
-get_param_draws <- function(hhdraws) {
+get_parameter_draws <- function(hhdraws) {
   stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  hhdraws$param_draws
+  hhdraws$parameter_draws
 }
 
 #' @rdname get_draws
 #' @export
-get_augm_draws <- function(hhdraws) {
+get_augmented_draws <- function(hhdraws) {
   stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  hhdraws$augm_draws
+  hhdraws$augmented_draws
 }
 
 #' @rdname get_draws

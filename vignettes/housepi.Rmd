@@ -198,20 +198,20 @@ results <- hhmodel |>
                 threads = 1)  # parallel threads
 
 # summarize posterior draws of parameters
-posterior::summarize_draws(get_param_draws(results))
+posterior::summarize_draws(get_parameter_draws(results))
 ```
 
 # Inference and diagnostics
 
 We can proceed as usual with other popular R packages for Bayesian analysis.
-For example, we can extract the parameters draws by calling `get_param_draws` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot)
+For example, we can extract the parameters draws by calling `get_parameter_draws` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot)
 
 ```{r}
 #| label: param-traces
 #| fig-alt: >
 #|  Trace plots for alpha and beta parameters across MCMC iterations with three parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
-get_param_draws(results) |>
+get_parameter_draws(results) |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
 
@@ -360,7 +360,7 @@ We can visualize traces vs expected values as follows
 library(ggplot2)
 
 # extract sample to posterior draws_df
-param_draws <- get_param_draws(results)
+param_draws <- get_parameter_draws(results)
 
 # select original parameters used for the simulation
 simul_parameters <- get_parameters(hhsimul) |>

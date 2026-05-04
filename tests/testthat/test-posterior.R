@@ -8,7 +8,7 @@ local_results <- local({
 })
 
 test_that("Draws active fields are correct", {
-  pd <- local_results$param_draws
+  pd <- local_results$parameter_draws
   expect_true(posterior::is_draws(pd))
   expect_true(posterior::niterations(pd) == 100)
 
@@ -17,7 +17,7 @@ test_that("Draws active fields are correct", {
   expect_true("lprior" %in% posterior::variables(pr))
 
   # empty draws
-  ad <- local_results$augm_draws
+  ad <- local_results$augmented_draws
   expect_true(posterior::is_draws(ad))
   expect_equal(posterior::nvariables(ad), 0)
 
@@ -47,24 +47,24 @@ test_that("Summarize-all-draws is unchanged", {
 
 test_that("Active fields are read-only", {
   regexp <- "read only"
-  expect_error(local_results$param_draws <- "foo", regexp = regexp)
+  expect_error(local_results$parameter_draws <- "foo", regexp = regexp)
   expect_error(local_results$prior_draws <- "foo", regexp = regexp)
-  expect_error(local_results$augm_draws <- "foo", regexp = regexp)
+  expect_error(local_results$augmented_draws <- "foo", regexp = regexp)
   expect_error(local_results$log_lik_draws <- "foo", regexp = regexp)
   expect_error(local_results$total_log_lik_draws <- "foo", regexp = regexp)
   expect_error(local_results$complete_draws <- "foo", regexp = regexp)
 })
 
 test_that("Exported getter functions work correctly", {
-  expect_true(posterior::is_draws(get_param_draws(local_results)))
+  expect_true(posterior::is_draws(get_parameter_draws(local_results)))
   expect_true(posterior::is_draws(get_prior_draws(local_results)))
-  expect_true(posterior::is_draws(get_augm_draws(local_results)))
+  expect_true(posterior::is_draws(get_augmented_draws(local_results)))
   expect_true(posterior::is_draws(get_log_lik_draws(local_results)))
   expect_true(posterior::is_draws(get_total_log_lik_draws(local_results)))
   expect_true(posterior::is_draws(get_complete_draws(local_results)))
 
-  expect_error(get_param_draws("snake.eater"))
-  expect_error(get_augm_draws(42))
+  expect_error(get_parameter_draws("snake.eater"))
+  expect_error(get_augmented_draws(42))
   expect_error(get_log_lik_draws(list()))
   expect_error(get_total_log_lik_draws(NULL))
   expect_error(get_prior_draws(data.frame()))
@@ -80,7 +80,7 @@ test_that("Multi-chain inference produces correct chain structure", {
   hhmodel$add_parameter_template()
   results <- hhmodel$run_inference(steps = 10, chains = 2, progress = FALSE)
 
-  pd <- results$param_draws
+  pd <- results$parameter_draws
   expect_true(posterior::is_draws(pd))
   expect_equal(posterior::nchains(pd), 2)
   expect_equal(posterior::niterations(pd), 10)
@@ -94,7 +94,7 @@ test_that("Augm draws are not empty when id_draws is specified", {
   hhmodel$add_augmented(name = "proba", model = "uniform")
   results <- hhmodel$run_inference(steps = 5, id_draws = "a",
                                    progress = FALSE)
-  ad <- results$augm_draws
+  ad <- results$augmented_draws
   expect_true(posterior::is_draws(ad))
   expect_true(posterior::nvariables(ad) > 0)
 })

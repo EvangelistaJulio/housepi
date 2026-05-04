@@ -137,5 +137,5 @@ test_that("Symbolic definitions are equivalent", {
 #                  func_args  = list(x1 = alpha@P, x2 = beta@P))
 #   )
 #   results <- hhmodel$run_inference()
-#   results$param_draws
+#   results$parameter_draws
 # })

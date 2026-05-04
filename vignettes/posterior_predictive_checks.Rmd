@@ -37,7 +37,7 @@ hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
 # estimate parameters
 results <- hhmodel |>
   run_inference(steps = 2000, thin = 10, burn = 500, adapt = 500, chains = 4)
-estimates <- get_param_draws(results) |>
+estimates <- get_parameter_draws(results) |>
   posterior::summarise_draws()
 estimates
 ```

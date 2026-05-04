@@ -32,8 +32,10 @@ Each variant targets one definition category (parameters, augmented
 variables, group rates, infectivity profile).
 }
 \examples{
-# quick way to fix several parameters to constant values
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-  add_parameter_list(alpha = 0.05, beta = 0.3, gamma = 1, size_ref = 4)
-get_parameters(hhmodel)
+# define some constant paramters
+flu_1918_frederick |>
+  new_housepi_model("chain_binomial") |>
+  add_parameter_list(alpha = 0.05, beta = 0.3,
+                     gamma = 1, size_ref = 4) |>
+  get_parameters(hhmodel)
 }

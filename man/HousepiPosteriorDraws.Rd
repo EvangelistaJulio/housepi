@@ -13,13 +13,13 @@ If requested so during inference, it also stores augmented variables.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{param_draws}}{\code{posterior::draws_df}.
+\item{\code{parameter_draws}}{\code{posterior::draws_df}.
 Draws of parameters.}
 
 \item{\code{prior_draws}}{\code{posterior::draws_df}.
 Draws of parameter priors.}
 
-\item{\code{augm_draws}}{\code{posterior::draws_df}.
+\item{\code{augmented_draws}}{\code{posterior::draws_df}.
 Draws selected individuals augmented variables.}
 
 \item{\code{log_lik_draws}}{\code{posterior::draws_df}.

@@ -49,12 +49,12 @@ An object of class \code{HousepiPosteriorDraws}.
 Run inference with Bayesian Markov Chain Monte Carlo.
 }
 \examples{
-\donttest{
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-  add_parameter_template()
-results <- run_inference(hhmodel,
-                         steps = 200, burn = 50, thin = 5,
-                         chains = 2, progress = FALSE)
-posterior::summarize_draws(get_param_draws(results))
-}
+flu_1918_frederick |>
+  new_housepi_model("chain_binomial") |>
+  add_parameter_template() |>
+  run_inference(hhmodel,
+                steps = 50, burn = 10, thin = 2,
+                chains = 2, progress = FALSE) |>
+  get_parameter_draws() |>
+  posterior::summarize_draws()
 }

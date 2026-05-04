@@ -598,7 +598,7 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #'   run_inference(hhmodel,
 #'                 steps = 50, burn = 10, thin = 2,
 #'                 chains = 2, progress = FALSE) |>
-#'   get_param_draws() |>
+#'   get_parameter_draws() |>
 #'   posterior::summarize_draws()
 #' @export
 run_inference <- function(hhmodel,

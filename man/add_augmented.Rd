@@ -96,14 +96,9 @@ Add a new augmented variable/function to housepi model definitions.
 If the augmented variable already exists, it is updated.
 }
 \examples{
-# minimal community structure for the augmented_infection_time template
-df <- data.frame(id = 1:4, house_id = c(1, 1, 2, 2),
-                 status = NA, end_followup = 21)
-hhmodel <- new_housepi_model(df, "augmented_infection_time") |>
-  add_parameter_template()
-
-# define an incubation period drawn from a gamma distribution
-hhmodel |>
+hhmodel <- blank_house |>
+  new_housepi_model("augmented_example") |>
+  # define an incubation period drawn from a gamma distribution
   add_augmented("incub_period",
                 model = "gamma", shape = 2, scale = 1, max = 14)
 }

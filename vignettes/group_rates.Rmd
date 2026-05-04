@@ -177,7 +177,7 @@ results <- hhmodel |>
   run_inference(steps = 1000, thin = 10, 
                 adapt = 1000, chains = 3, progress = 4)
 
-bayesplot::mcmc_trace(get_param_draws(results))
+bayesplot::mcmc_trace(get_parameter_draws(results))
 ```
 
 # Prior sensitivity
@@ -216,7 +216,7 @@ ylabel <- sprintf("%s (Ref: %s)", rate_id,
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group rates
-get_param_draws(results) |>
+get_parameter_draws(results) |>
   posterior::summarise_draws() |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
   dplyr::left_join(get_group_rates(hhmodel) |>

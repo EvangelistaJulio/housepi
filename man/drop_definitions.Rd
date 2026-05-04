@@ -36,5 +36,7 @@ them all.
 \examples{
 hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
   add_parameter_template()
-hhmodel |> drop_parameters() |> get_parameters()
+hhmodel |>
+  drop_parameters() |>
+  get_parameters()
 }

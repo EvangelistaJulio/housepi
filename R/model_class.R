@@ -317,7 +317,7 @@ HousepiModel <- R6::R6Class(
     # param ess `logical(1)`
     helper_read_param_table_ = function(ptab, ess = TRUE) {
       # extract parameter draws from table
-      if (inherits(ptab, "HousepiPosteriorDraws")) ptab <- ptab$param_draws
+      if (inherits(ptab, "HousepiPosteriorDraws")) ptab <- ptab$parameter_draws
 
       if (posterior::is_draws(ptab)) {
         ptab <- posterior::as_draws_matrix(ptab)

@@ -224,7 +224,7 @@ test_that("Augmented model log-likelihoods are correctly computed", {
   id_draws <- house[house$status > 0, ]$id
   results <- new_housepi_model(house, "augmented_example") |>
     add_augmented_list(proba = list(model = "gamma", x = x@D,
-                                     shape = !!shape, scale = !!scale)) |>
+                                    shape = !!shape, scale = !!scale)) |>
     run_inference(steps = 5, thin = 1, adapt = 0, chain = 1,
                   progress = FALSE, id_draws = id_draws)
 
@@ -233,7 +233,7 @@ test_that("Augmented model log-likelihoods are correctly computed", {
                get_log_lik_draws(results)$hh01)
 
   # coherency between augmented draws and log-likelihood
-  df <- as.data.frame(get_augm_draws(results))
+  df <- as.data.frame(get_augmented_draws(results))
   df <- as.matrix(df[, !startsWith(names(df), "."), drop = FALSE])
   expect_equal(get_log_lik_draws(results)$hh01,
                rowSums(log(df * dgamma(df, shape = shape, scale = scale))))

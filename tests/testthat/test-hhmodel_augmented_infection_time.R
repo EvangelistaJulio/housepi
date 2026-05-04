@@ -204,11 +204,11 @@ test_that("Augmented moves preserve log-likelihood", {
   tot_log_lik <- get_total_log_lik_draws(results)$log_lik
   expect_equal(tot_log_lik, get_log_lik_draws(results)$hh01)
 
-  param_draws <- get_param_draws(results) |>
+  param_draws <- get_parameter_draws(results) |>
     posterior::as_draws_matrix() |>
     as.data.frame()
 
-  augm_draws <- get_augm_draws(results) |>
+  augm_draws <- get_augmented_draws(results) |>
     posterior::as_draws_matrix() |>
     as.data.frame()
 
