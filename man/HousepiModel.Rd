@@ -8,12 +8,13 @@
 Compile the household model, manage your data
 and variable definitions from a single class.
 }
-\section{Super class}{
-\code{housepi::HousepiGenerator} -> \code{HousepiModel}
-}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
+\item{\code{name}}{\code{character(1)}. Model name.}
+
+\item{\code{setup}}{\code{list}. Last setup used by the build process.}
+
 \item{\code{data_wide}}{\code{data.frame}. Individual level data (wide format).}
 
 \item{\code{data_long}}{\code{data.frame}. Additional data rows indexed by individual (long format).}

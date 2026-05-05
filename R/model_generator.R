@@ -380,48 +380,6 @@ HousepiGenerator <- R6::R6Class(
       module_name <- get_template_from_dll(private$dll_)
       if (is.na(module_name)) module_name <- private$name_
       private$mcmc_ptr_ <- .engine$create_mcmc_runner(module_name)
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # @description Wheter model is blank.
-    # @return `logical(1)`
-    is_blank_ = function() {
-      private$name_ == "blank"
-    },
-
-    # @description Wheter model is template.
-    # @return `logical(1)`
-    is_template_ = function() {
-      !is.na(get_template_dir(private$name_))
-    },
-
-    # @description Reference script.
-    # @return `character(1)`
-    get_reference_ = function() {
-      output <- file.path(private$source_dir_, "model.cpp")
-      # check if reference file exists
-      if (!file.exists(output)) stop_h(
-        sprintf("Impossible to find reference file: '%s'.", output),
-        "Try to re-generate the model with 'force = TRUE'."
-      )
-      output
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # UPDATE: I shall drop necessity for refactoring with variant data.
-    refactor_data_wide_ = function(x) {
-      cpp_data_refactor(x, private$info_data_wide_, private$cols_data_wide_)
-    },
-
-    # UPDATE: I shall drop necessity for refactoring with variant data.
-    refactor_data_long_ = function(x) {
-      cpp_data_refactor(x, private$info_data_long_, private$cols_data_long_)
     }
   ),
 
@@ -437,10 +395,61 @@ HousepiGenerator <- R6::R6Class(
       spaced_template_choice(private$name_)
     },
 
+    #' @field raw_name `character(1)`. Internal unformmated model name.
+    raw_name = function(value) {
+      if (!missing(value)) stop_read_only("raw_name")
+      private$name_
+    },
+
     #' @field setup `list`. Last setup used by the build process.
     setup = function(value) {
       if (!missing(value)) stop_read_only("setup")
       .engine$export_setup(private$mcmc_ptr_)
+    },
+
+    #' @field mcmc_ptr Internal Rcpp MCMC runner pointer.
+    mcmc_ptr = function(value) {
+      if (!missing(value)) stop_read_only("mcmc_ptr")
+      private$mcmc_ptr_
+    },
+
+    #' @field source_dir `character(1)`. Model source directory.
+    source_dir = function(value) {
+      if (!missing(value)) stop_read_only("source_dir")
+      private$source_dir_
+    },
+
+    #' @field data_required `character()`. Data required by model definitions.
+    data_required = function(value) {
+      if (!missing(value)) stop_read_only("data_required")
+      set_source_name_(
+        template_extract_keys(self$get_reference(), "DataKey"),
+        "model"
+      )
+    },
+
+    #' @field last_flags `character()`. Compile flags applied to current dll.
+    last_flags = function(value) {
+      if (!missing(value)) stop_read_only("last_flags")
+      private$last_flags_
+    },
+
+    #' @field cols_data_wide `character()`. Columns of the imported wide data.
+    cols_data_wide = function(value) {
+      if (!missing(value)) stop_read_only("cols_data_wide")
+      private$cols_data_wide_
+    },
+
+    #' @field info_data_wide `list`. Levels of factors of the wide data.
+    info_data_wide = function(value) {
+      if (!missing(value)) stop_read_only("info_data_wide")
+      private$info_data_wide_
+    },
+
+    #' @field infec_status_set `integer()`. Positive statuses in the wide data.
+    infec_status_set = function(value) {
+      if (!missing(value)) stop_read_only("infec_status_set")
+      private$infec_status_set_
     }
   ),
 
@@ -458,6 +467,9 @@ HousepiGenerator <- R6::R6Class(
     #' @param ... `r rd_mdl_flags_`
     initialize = function(model = NA_character_, as_template = FALSE,
                           force = FALSE, quiet = FALSE, ...) {
+      # helper construction option for copying
+      if (isTRUE(.housepi_env$hollow)) return(invisible(self))
+
       # assign name to the model
       choice <- private$helper_init_model_choice_(model)
 
@@ -485,6 +497,76 @@ HousepiGenerator <- R6::R6Class(
       # generate the Rcpp model object if missing
       private$create_new_pointers_()
 
+      invisible(self)
+    },
+
+    #' @description Wheter model is blank.
+    #' @return `logical(1)`
+    is_blank = function() {
+      private$name_ == "blank"
+    },
+
+    #' @description Reference script.
+    #' @return `character(1)`
+    get_reference = function() {
+      output <- file.path(private$source_dir_, "model.cpp")
+      # check if reference file exists
+      if (!file.exists(output)) stop_h(
+        sprintf("Impossible to find reference file: '%s'.", output),
+        "Try to re-generate the model with 'force = TRUE'."
+      )
+      output
+    },
+
+    # UPDATE: I shall drop necessity for refactoring with variant data.
+    #' @description Refactor a wide-format data.frame back to user levels.
+    refactor_data_wide = function(x) {
+      cpp_data_refactor(x, private$info_data_wide_, private$cols_data_wide_)
+    },
+
+    # UPDATE: I shall drop necessity for refactoring with variant data.
+    #' @description Refactor a long-format data.frame back to user levels.
+    refactor_data_long = function(x) {
+      cpp_data_refactor(x, private$info_data_long_, private$cols_data_long_)
+    },
+
+    #' @description Allocate fresh Rcpp pointers (used after a copy).
+    init_pointers = function() {
+      private$create_new_pointers_()
+      invisible(self)
+    },
+
+    #' @description
+    #' Validate, factorize, and push wide-format data into the C++ engine.
+    #' @param data `data.frame`.
+    import_data_wide = function(data) {
+      if (!is.data.frame(data)) stop_h(
+        "Data should be an object of class data.frame.",
+        format_type_error(data)
+      )
+      if (dim(data)[[1]] == 0) stop_h("Provided is empty.")
+
+      embed <- cpp_data_factorize(data)
+      private$info_data_wide_ <- embed$info
+      private$cols_data_wide_ <- embed$cols
+      private$infec_status_set_ <- embed$status
+      .engine$import_data_wide(private$mcmc_ptr_, embed$data)
+      invisible(self)
+    },
+
+    #' @description
+    #' Validate, factorize, and push long-format data into the C++ engine.
+    #' @param data_long `data.frame`.
+    import_data_long = function(data_long) {
+      if (!is.data.frame(data_long)) stop_h(
+        "Data-long should be an object of class data.frame.",
+        format_type_error(data_long)
+      )
+
+      embed <- cpp_data_factorize(data_long)
+      private$info_data_long_ <- embed$info
+      private$cols_data_long_ <- embed$cols
+      .engine$import_data_long(private$mcmc_ptr_, embed$data)
       invisible(self)
     }
   )

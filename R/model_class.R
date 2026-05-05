@@ -23,7 +23,6 @@
 #' @docType class
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
-  inherit = HousepiGenerator,
   cloneable = FALSE,
   lock_class = TRUE,
 
@@ -32,6 +31,7 @@ HousepiModel <- R6::R6Class(
   ############################################################################
 
   private = list(
+    generator_ = NULL,
     param_ = NULL,
     augm_ = NULL,
     group_rates_ = NULL,
@@ -45,41 +45,40 @@ HousepiModel <- R6::R6Class(
     # @description
     # Augmented variables required by implementation file and other definitions.
     get_all_required_augm_ = function() {
-      c(private$augm_$require(private$get_reference_()), # by the model
-        private$infec_profile_$augm_required)            # by infec profile
+      refer_file <- private$generator_$get_reference()
+      c(private$augm_$require(refer_file),    # by the model
+        private$infec_profile_$augm_required) # by infec profile
     },
 
     # @description
     # Dataset headers required by implementation file and other definitions.
     get_all_required_data_wide_ = function() {
-      refer_file <- private$get_reference_()
-      output <- template_extract_keys(refer_file, "DataKey")
-      required <- set_source_name_(output, "model")
-      c(required,                               # by the model
-        private$group_rates_$data_required,     # by group rates
-        private$contact_rates_$data_required,   # by contact rates
-        private$augm_$data_required,            # by augmented
-        private$infec_profile_$data_required)   # by infec profile
+      c(private$generator_$data_required,     # by the model
+        private$group_rates_$data_required,   # by group rates
+        private$contact_rates_$data_required, # by contact rates
+        private$augm_$data_required,          # by augmented
+        private$infec_profile_$data_required) # by infec profile
     },
 
     # @description
     # Group rates required by implementation file and other definitions.
     get_all_required_group_rates_ = function() {
-      c(private$group_rates_$require(private$get_reference_()), # by the model
-        private$augm_$group_rates_required,                 # by augmented
-        private$infec_profile_$group_rates_required)        # by infec profile
+      refer_file <- private$generator_$get_reference()
+      c(private$group_rates_$require(refer_file),    # by the model
+        private$augm_$group_rates_required,          # by augmented
+        private$infec_profile_$group_rates_required) # by infec profile
     },
 
     # @description
     # Parameters required by implementation file and other definitions.
     get_all_required_param_ = function() {
-      required <- private$param_$require(private$get_reference_())
-      c(required,                                # by the model
-        private$param_$param_required,           # by parameter functions
-        private$group_rates_$param_required,     # by group rates
-        private$contact_rates_$param_required,   # by contact rates
-        private$augm_$param_required,            # by augmented
-        private$infec_profile_$param_required)   # by infec profile
+      refer_file <- private$generator_$get_reference()
+      c(private$param_$require(refer_file),    # by the model
+        private$param_$param_required,         # by parameter functions
+        private$group_rates_$param_required,   # by group rates
+        private$contact_rates_$param_required, # by contact rates
+        private$augm_$param_required,          # by augmented
+        private$infec_profile_$param_required) # by infec profile
     },
 
     ############################################################################
@@ -90,21 +89,24 @@ HousepiModel <- R6::R6Class(
     # Assert if augmented definitions match the required.
     # @param capital `logical(1)` to raise error.
     assert_augm_ = function(capital = TRUE, warn_unused = TRUE) {
-      private$augm_$assert(private$get_all_required_augm_(),
-                           private$infec_status_set_,
-                           capital = capital,
-                           warn_unused = warn_unused && !private$is_blank_())
+      private$augm_$assert(
+        private$get_all_required_augm_(),
+        private$generator_$infec_status_set,
+        capital = capital,
+        warn_unused = warn_unused && !private$generator_$is_blank()
+      )
     },
 
     # @description
     # Assert if data_wide headers match implementation file.
     # @param capital `logical(1)` to raise error.
     assert_data_wide_ = function(capital = TRUE) {
-      if (isTRUE(capital) && length(private$cols_data_wide_) == 0) stop_h(
+      cols <- private$generator_$cols_data_wide
+      if (isTRUE(capital) && length(cols) == 0) stop_h(
         "Impossible to proceed. No data was provided."
       )
       required <- private$get_all_required_data_wide_()
-      sms <- template_missing_stop(required, private$cols_data_wide_, "data")
+      sms <- template_missing_stop(required, cols, "data")
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
       else sms
     },
@@ -121,7 +123,7 @@ HousepiModel <- R6::R6Class(
     # Assert contact rate definitions are compatible with the model.
     assert_contact_rates_ = function() {
       has_defs <- private$contact_rates_$assert()
-      if (has_defs && !.engine$has_contact_rates(private$mcmc_ptr_)) {
+      if (has_defs && !.engine$has_contact_rates(private$generator_$mcmc_ptr)) {
         self$drop_contact_rates()
         stop_h(
           sprintf("Contact rates are not supported for model '%s'.",
@@ -136,9 +138,11 @@ HousepiModel <- R6::R6Class(
     # @param capital `logical(1)` to raise error.
     # @param warn_unused `logical(1)` warn if unused.
     assert_param_ = function(capital = TRUE, warn_unused = TRUE) {
-      private$param_$assert(private$get_all_required_param_(),
-                            capital = capital,
-                            warn_unused = warn_unused && !private$is_blank_())
+      private$param_$assert(
+        private$get_all_required_param_(),
+        capital = capital,
+        warn_unused = warn_unused && !private$generator_$is_blank()
+      )
     },
 
     ############################################################################
@@ -148,7 +152,7 @@ HousepiModel <- R6::R6Class(
     # @description
     # Get template or previously implemented infectiviyt profile.
     get_internal_infec_profile_ = function() {
-      .engine$export_infec_profile(private$mcmc_ptr_)
+      .engine$export_infec_profile(private$generator_$mcmc_ptr)
     },
 
     ############################################################################
@@ -163,7 +167,7 @@ HousepiModel <- R6::R6Class(
       if (length(module$defs) == 0) return(invisible(self))
 
       # UPDATE: this "back & forth" of data_wide is sub-optimal...
-      module$implement(self$data_wide, private$info_data_wide_)
+      module$implement(self$data_wide, private$generator_$info_data_wide)
 
       # append parameter definitions if missing
       new_parameters <- module$parameters
@@ -193,57 +197,18 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Get individual for blank model augmented draws.
-    # UPDATE: not robust if data has only default columns
-    get_blank_id_draws_ = function(id_draws) {
-      # if no default columns, assume debugging mode
-      if (private$is_blank_() &&
-            is.null(id_draws) &&
-            !is.null(private$augm_$defs) &&
-            length(setdiff(private$cols_data_wide_,
-                           c("house_id", "id", "status"))) == 0) {
-        env <- new.env(parent = emptyenv())
-        utils::data("blank_house", package = "housepi", envir = env)
-        id_draws <- env$blank_house$id[1]
-      }
-      id_draws
-    },
-
-    # @description
-    # Validate, factorize, and push `data` (wide format) into the C++ engine.
-    import_data_wide_ = function(data) {
-      if (!is.data.frame(data)) stop_h(
-        "Data should be an object of class data.frame.",
-        format_type_error(data)
-      )
-      if (dim(data)[[1]] == 0) stop_h("Provided is empty.")
-
-      # convert factors
-      embed <- cpp_data_factorize(data)
-      # store levels
-      private$info_data_wide_ <- embed$info
-      # store column names
-      private$cols_data_wide_ <- embed$cols
-      # store all positive status
-      private$infec_status_set_ <- embed$status
-
-      # assert data_wide headers
-      private$assert_data_wide_()
-
-      # import data.frame in rcpp
-      .engine$import_data_wide(private$mcmc_ptr_, embed$data)
-
-      invisible(self)
-    },
-
-    # @description
     # Tolerabt re-push of R-side definitions to the C++ engine.
     # Hard validation lives in `build_full_`.
     rebuild_ = function() {
-      # guard: pre-init (before super$initialize creates mcmc_ptr_)
-      if (is.null(private$mcmc_ptr_)) return(invisible(self))
+      # guard: pre-init (before generator is created)
+      if (is.null(private$generator_) ||
+            is.null(private$generator_$mcmc_ptr)) {
+        return(invisible(self))
+      }
       # guard: data_wide not yet imported (during initialize drop_all phase)
-      if (length(private$cols_data_wide_) == 0) return(invisible(self))
+      if (length(private$generator_$cols_data_wide) == 0) {
+        return(invisible(self))
+      }
 
       # soft data_wide check (headers vs. implementation file)
       private$assert_data_wide_(FALSE)
@@ -256,29 +221,31 @@ HousepiModel <- R6::R6Class(
         private$build_contact_rates_()
       }
 
+      mcmc_ptr <- private$generator_$mcmc_ptr
+      info_wide <- private$generator_$info_data_wide
+
       #> parameters
       if (length(private$param_$defs) > 0) private$assert_param_(FALSE, FALSE)
-      .engine$import_param(private$mcmc_ptr_, private$param_$defs)
+      .engine$import_param(mcmc_ptr, private$param_$defs)
 
       #> group rates
       .engine$import_group_rate(
-        private$mcmc_ptr_,
-        private$group_rates_$expose_to_cpp(private$info_data_wide_)
+        mcmc_ptr,
+        private$group_rates_$expose_to_cpp(info_wide)
       )
 
       #> contact rates
       .engine$import_contact_rate(
-        private$mcmc_ptr_,
-        private$contact_rates_$expose_to_cpp(private$info_data_wide_)
+        mcmc_ptr,
+        private$contact_rates_$expose_to_cpp(info_wide)
       )
 
       #> infectivity profile
-      .engine$import_infec_profile(private$mcmc_ptr_,
-                                   private$infec_profile_$defs)
+      .engine$import_infec_profile(mcmc_ptr, private$infec_profile_$defs)
 
       #> augmented
       if (length(private$augm_$defs) > 0) private$assert_augm_(FALSE, FALSE)
-      .engine$import_augm(private$mcmc_ptr_, private$augm_$defs)
+      .engine$import_augm(mcmc_ptr, private$augm_$defs)
 
       invisible(self)
     },
@@ -289,14 +256,24 @@ HousepiModel <- R6::R6Class(
     build_full_ = function(steps = 0, adapt = 0, burn = 0,
                            thin = 1, chains = 1, threads = 1,
                            id_draws = NULL, progress = FALSE) {
-      .engine$import_setup(private$mcmc_ptr_, char_setup_input_(list(
+      # if no default columns on a blank model, assume debugging mode
+      if (is.null(id_draws) &&
+            private$generator_$is_blank() &&
+            !is.null(private$augm_$defs) &&
+            length(setdiff(private$generator_$cols_data_wide,
+                           c("house_id", "id", "status"))) == 0) {
+        env <- new.env(parent = emptyenv())
+        utils::data("blank_house", package = "housepi", envir = env)
+        id_draws <- env$blank_house$id[1]
+      }
+      .engine$import_setup(private$generator_$mcmc_ptr, char_setup_input_(list(
         steps = as.integer(steps),
         adapt = as.integer(adapt),
         burn = as.integer(burn),
         thin = as.integer(thin),
         chains = as.integer(chains),
         threads = as.integer(threads),
-        id_draws = private$get_blank_id_draws_(id_draws),
+        id_draws = id_draws,
         # generate a seed for Cpp random number generator
         seed = sample.int(.Machine$integer.max, 1L),
         progress = as.integer(progress)
@@ -379,7 +356,7 @@ HousepiModel <- R6::R6Class(
         rownames(param_table) <- NULL
       }
       # attach table with parameters
-      .engine$import_param_table(private$mcmc_ptr_, param_table)
+      .engine$import_param_table(private$generator_$mcmc_ptr, param_table)
 
       nsim
     },
@@ -388,10 +365,11 @@ HousepiModel <- R6::R6Class(
     # Combine observation process to measures and refactor.
     # UPDATE: I shall drop necessity for refactoring with variant data.
     helper_obs_process_ = function(obs_process) {
+      gen <- private$generator_
       if (is.null(obs_process)) {
-        private$refactor_data_wide_
+        function(x) gen$refactor_data_wide(x)
       } else if (is.function(obs_process)) {
-        function(x) obs_process(private$refactor_data_wide_(x))
+        function(x) obs_process(gen$refactor_data_wide(x))
       } else {
         stop_h(
           "Observation process must be a function.",
@@ -418,14 +396,14 @@ HousepiModel <- R6::R6Class(
       private$build_full_(steps = nsim, threads = threads, progress = progress)
 
       # attach param_table
-      .engine$import_param_table(private$mcmc_ptr_, param_table)
+      .engine$import_param_table(private$generator_$mcmc_ptr, param_table)
 
       if (!is.null(apply_long) &&
             (is.null(obs_proc_long) || !is.function(obs_proc_long))) stop_h(
         "'obs_process_long' must be a function."
       )
       .engine$run_simulation(
-        private$mcmc_ptr_,
+        private$generator_$mcmc_ptr,
         private$helper_obs_process_(obs_proc_wide),
         apply_wide,
         if (is.null(apply_long)) NULL
@@ -467,7 +445,7 @@ HousepiModel <- R6::R6Class(
       scheme <- as.character(scheme)
       rungs <- as.integer(rungs)
       # evaluate marginal from the internal Rcpp object
-      output <- .engine$logevidence(private$mcmc_ptr_, scheme, rungs)
+      output <- .engine$logevidence(private$generator_$mcmc_ptr, scheme, rungs)
       # reformat dataframe
       mask <- c("inv_temper", "mean_log_lik", "var_log_lik")
       output$detail <- as.data.frame(output[mask])
@@ -481,17 +459,33 @@ HousepiModel <- R6::R6Class(
   ############################################################################
 
   active = list(
+    #' @field name `character(1)`. Model name.
+    name = function(value) {
+      if (!missing(value)) stop_read_only("name")
+      private$generator_$name
+    },
+
+    #' @field setup `list`. Last setup used by the build process.
+    setup = function(value) {
+      if (!missing(value)) stop_read_only("setup")
+      private$generator_$setup
+    },
+
     #' @field data_wide `data.frame`. Individual level data (wide format).
     data_wide = function(value) {
       if (!missing(value)) stop_read_only("data_wide")
-      private$refactor_data_wide_(.engine$export_data_wide(private$mcmc_ptr_))
+      private$generator_$refactor_data_wide(
+        .engine$export_data_wide(private$generator_$mcmc_ptr)
+      )
     },
 
     #' @field data_long
     #' `data.frame`. Additional data rows indexed by individual (long format).
     data_long = function(value) {
       if (!missing(value)) stop_read_only("data_long")
-      private$refactor_data_long_(.engine$export_data_long(private$mcmc_ptr_))
+      private$generator_$refactor_data_long(
+        .engine$export_data_long(private$generator_$mcmc_ptr)
+      )
     },
 
     #' @field parameters `data.frame`. Parameter definitions.
@@ -561,21 +555,22 @@ HousepiModel <- R6::R6Class(
       # initialize internal fields
       self$drop_all()
       # generate model wrapper
-      super$initialize(model = model, as_template = as_template,
-                       force = force, quiet = quiet, ...)
+      private$generator_ <- HousepiGenerator$new(
+        model = model, as_template = as_template,
+        force = force, quiet = quiet, ...
+      )
       # import data_wide (invariant: always populated after construction)
-      if (!is.null(data)) {
-        private$import_data_wide_(data)
-      } else if (private$is_blank_()) {
-        env <- new.env(parent = emptyenv())
-        utils::data("blank_house", package = "housepi", envir = env)
-        private$import_data_wide_(env$blank_house)
-      } else {
-        stop_h(sprintf(
+      if (is.null(data)) {
+        if (!private$generator_$is_blank()) stop_h(sprintf(
           "Missing household 'data' argument for model {.pkg %s}.",
           self$name
         ))
+        env <- new.env(parent = emptyenv())
+        utils::data("blank_house", package = "housepi", envir = env)
+        data <- env$blank_house
       }
+      private$generator_$import_data_wide(data)
+      private$assert_data_wide_()
 
       invisible(self)
     },
@@ -586,29 +581,38 @@ HousepiModel <- R6::R6Class(
       .housepi_env$hollow <- TRUE
       on.exit(.housepi_env$hollow <- FALSE)
       obj <- HousepiModel$new()
+      obj_priv <- obj$.__enclos_env__$private
 
-      # clone default fields
-      obj_encl <- obj$.__enclos_env__$private
-      for (field in names(obj_encl)) {
-        val <- private[[field]]
-        if (!field %in% c("mcmc_ptr_") && !is.function(val)) {
-          obj_encl[[field]] <- helper_clone(val)
-        }
+      # clone definition fields
+      for (field in c("param_", "augm_", "group_rates_",
+                      "contact_rates_", "infec_profile_")) {
+        obj_priv[[field]] <- helper_clone(private[[field]])
       }
 
-      # use cloned paths to create new Rcpp pointers
-      obj_encl$create_new_pointers_()
+      # clone the generator (private fields except mcmc_ptr_)
+      # then, re-init pointers
+      new_gen <- HousepiGenerator$new()
+      new_gen_priv <- new_gen$.__enclos_env__$private
+      src_gen_priv <- private$generator_$.__enclos_env__$private
+      for (field in names(new_gen_priv)) {
+        val <- src_gen_priv[[field]]
+        if (field != "mcmc_ptr_" && !is.function(val)) {
+          new_gen_priv[[field]] <- helper_clone(val)
+        }
+      }
+      new_gen$init_pointers()
+      obj_priv$generator_ <- new_gen
 
       # transfer setup
       .engine$import_setup(
-        obj_encl$mcmc_ptr_,
-        char_setup_input_(.engine$export_setup(private$mcmc_ptr_))
+        new_gen$mcmc_ptr,
+        char_setup_input_(.engine$export_setup(private$generator_$mcmc_ptr))
       )
       # share data store (just copy-on-write)
-      .engine$share_data_store(obj_encl$mcmc_ptr_, private$mcmc_ptr_)
+      .engine$share_data_store(new_gen$mcmc_ptr, private$generator_$mcmc_ptr)
 
       # fresh pointer needs definitions pushed to the engine
-      obj_encl$rebuild_()
+      obj_priv$rebuild_()
 
       obj
     },
@@ -616,10 +620,11 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
+      is_tmpl <- !is.na(get_template_dir(private$generator_$raw_name))
       sms <- c(i = sprintf("Household model {.pkg %s}%s.", self$name,
-                           ifelse(private$is_template_(), " (template)", "")))
+                           ifelse(is_tmpl, " (template)", "")))
       # UPDATE: to be rationalize in the future if more options are included
-      if ("_HOUSEPI_DISCRETE_TIME" %in% private$last_flags_) sms <- c(
+      if ("_HOUSEPI_DISCRETE_TIME" %in% private$generator_$last_flags) sms <- c(
         sms, "Model is set to {.emph discrete time} mode."
       )
       if (length(private$get_all_required_data_wide_()) > 0) sms <- c(sms,
@@ -652,7 +657,7 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
-      open_model_helper_(private$source_dir_)
+      open_model_helper_(private$generator_$source_dir)
       invisible(self)
     },
 
@@ -663,32 +668,19 @@ HousepiModel <- R6::R6Class(
     #' @description Summarise statuses in loaded data.
     #' @return`data.frame`
     summarise_cases = function() {
-      .engine$summarise_cases(private$mcmc_ptr_)
+      .engine$summarise_cases(private$generator_$mcmc_ptr)
     },
 
     #' @description Summary house sizes in loaded data.
     #' @return `data.frame`
     summarise_house_sizes = function() {
-      .engine$summarise_house_sizes(private$mcmc_ptr_)
+      .engine$summarise_house_sizes(private$generator_$mcmc_ptr)
     },
 
     #' @description Store a copy of provided individual data.
     #' @param data_long `r rd_add_data_long_`
     add_data_long = function(data_long) {
-      if (!is.data.frame(data_long)) stop_h(
-        "Data-long should be an object of class data.frame.",
-        format_type_error(data_long)
-      )
-
-      # convert factors
-      embed <- cpp_data_factorize(data_long)
-      # store levels
-      private$info_data_long_ <- embed$info
-      # store column names
-      private$cols_data_long_ <- embed$cols
-      # import data.frame in rcpp
-      .engine$import_data_long(private$mcmc_ptr_, embed$data)
-
+      private$generator_$import_data_long(data_long)
       private$rebuild_()
       invisible(self)
     },
@@ -740,12 +732,12 @@ HousepiModel <- R6::R6Class(
     #' @description Load parameter definitions from template.
     #' @param append `r rd_tmpl_append_`
     add_parameter_template = function(append = FALSE) {
-      if (private$is_blank_()) warning_h(
+      if (private$generator_$is_blank()) warning_h(
         "No template parameters available for blank model."
       )
       # retrieve the template parameters file
       else self$add_parameter_list(
-        !!!get_template_def_list(private$source_dir_, "parameter"),
+        !!!get_template_def_list(private$generator_$source_dir, "parameter"),
         append = isTRUE(append)
       )
       invisible(self)
@@ -803,12 +795,12 @@ HousepiModel <- R6::R6Class(
     #' @description Load augmented definitions from template.
     #' @param append `r rd_tmpl_append_`
     add_augmented_template = function(append = FALSE) {
-      if (private$is_blank_()) warning_h(
+      if (private$generator_$is_blank()) warning_h(
         "No template augmented variables available for blank model."
       )
       # retrieve the template augmented file
       else self$add_augmented_list(
-        !!!get_template_def_list(private$source_dir_, "augmented"),
+        !!!get_template_def_list(private$generator_$source_dir, "augmented"),
         append = isTRUE(append)
       )
       invisible(self)
@@ -941,7 +933,7 @@ HousepiModel <- R6::R6Class(
     #' @return `numeric(1)`
     evaluate_log_lik = function(house_id = NA_character_) {
       private$build_full_()
-      .engine$evaluate_log_lik(private$mcmc_ptr_, house_id)
+      .engine$evaluate_log_lik(private$generator_$mcmc_ptr, house_id)
     },
 
     #' @description Run inference with Bayesian Markov chain Monte Carlo.
@@ -963,16 +955,17 @@ HousepiModel <- R6::R6Class(
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, progress = progress)
-      .engine$run_inference(private$mcmc_ptr_)
-      HousepiPosteriorDraws$new(private$name_, private$mcmc_ptr_)
+      .engine$run_inference(private$generator_$mcmc_ptr)
+      HousepiPosteriorDraws$new(private$generator_$raw_name,
+                                private$generator_$mcmc_ptr)
     },
 
     #' @description
     #' Dataset with associated augmented variables for last state.
     #' @return `data.frame`
     export_augmented_data = function() {
-      private$refactor_data_wide_(
-        .engine$export_augmented_data_wide(private$mcmc_ptr_)
+      private$generator_$refactor_data_wide(
+        .engine$export_augmented_data_wide(private$generator_$mcmc_ptr)
       )
     },
 
@@ -983,24 +976,25 @@ HousepiModel <- R6::R6Class(
     export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
       # export household snapshot
-      output <- .engine$export_house_snapshot(private$mcmc_ptr_, house_id)
-      output$data_wide <- private$refactor_data_wide_(output$data_wide)
+      out <- .engine$export_house_snapshot(private$generator_$mcmc_ptr,
+                                           house_id)
+      out$data_wide <- private$generator_$refactor_data_wide(out$data_wide)
       # > data long
-      if (all(dim(output$data_long) == 0)) output$data_long <- NULL
-      else output$data_long <- private$refactor_data_long_(output$data_long)
+      if (all(dim(out$data_long) == 0)) out$data_long <- NULL
+      else out$data_long <- private$generator_$refactor_data_long(out$data_long)
       # > group rates
-      if (all(dim(output$group_rates) == 0)) output$group_rates <- NULL
+      if (all(dim(out$group_rates) == 0)) out$group_rates <- NULL
       # > infectivity profile # UPDATE
-      if (length(output$infec_profile) == 0) {
-        output$infec_profile <- NULL
+      if (length(out$infec_profile) == 0) {
+        out$infec_profile <- NULL
       } else {
-        lst <- output$infec_profile
+        lst <- out$infec_profile
         df <- data.frame(id = lst$id, discr = lst$discr, func = lst$func,
                          min = lst$min, max = lst$max)
         df$func_args <- lst$func_args
-        output$infec_profile <- df
+        out$infec_profile <- df
       }
-      output
+      out
     },
 
     #' @description
@@ -1021,7 +1015,7 @@ HousepiModel <- R6::R6Class(
 
       # run simulations
       output <- .engine$run_simulation(
-        private$mcmc_ptr_,
+        private$generator_$mcmc_ptr,
         # combine observation process to measures and refactor
         private$helper_obs_process_(obs_process),
         NULL, # wide measure
@@ -1126,17 +1120,18 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   private$build_group_rates_()
   private$build_contact_rates_()
 
-  info_wide <- private$info_data_wide_
+  gen <- private$generator_
+  info_wide <- gen$info_data_wide
   utils::write.csv(private$augm_$defs,
                    file.path(outpath, "augm.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(private$contact_rates_$expose_to_cpp(info_wide),
                    file.path(outpath, "contact_rates.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(.engine$export_data_wide(private$mcmc_ptr_),
+  utils::write.csv(.engine$export_data_wide(gen$mcmc_ptr),
                    file.path(outpath, "data_wide.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(.engine$export_data_long(private$mcmc_ptr_),
+  utils::write.csv(.engine$export_data_long(gen$mcmc_ptr),
                    file.path(outpath, "data_long.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(private$group_rates_$expose_to_cpp(info_wide),
