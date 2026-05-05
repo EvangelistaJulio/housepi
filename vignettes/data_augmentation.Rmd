@@ -169,7 +169,7 @@ hhmodel <- dataset |>
   add_augmented_list(
     # explicit declaration of incubation period likelihood
     proba = list(
-      func = "gamma_meanvar",         # gamma distribution by mean/variance
+      func = "gamma",                 # gamma distribution by mean/variance
       func_args = c(x = incub_period, # compute from individual 'incub_period'
                     mean = mean@P,    # use model parameter 'mean'
                     var = var@P),     # and 'var'

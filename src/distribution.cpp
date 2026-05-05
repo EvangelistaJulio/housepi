@@ -363,138 +363,85 @@ namespace
     class Gamma_ final : public Distribution
     {
     public:
+        /// Alternative arametrizations:
+        /// 0. "shape-scale"
+        /// 1. "mean-var"
         Gamma_()
-            : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.) {}
+            : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.)
+        {
+            alts_[0].name = "shape-scale";
+            register_alt_("mean-var", {{"mean", na::DOUBLE}, {"var", na::DOUBLE}});
+        }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Gamma_)
         HOUSEPI_OVERRIDE_NAME_METHOD(gamma)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
+        /// Effective (shape, scale) for the active parametrization.
+        std::pair<double, double> eff_params_() const
+        {
+            switch (alt_idx_)
+            {
+            case 1: // "mean-var"
+            {
+                const double m = arg(0), v = arg(1);
+                return {m * m / v, v / m};
+            }
+            default: // case 0: "shape-scale"
+                return {arg(0), arg(1)};
+            }
+        }
+
         double raw_pdf_(double x) const override final
         {
             if (x != 0.)
                 return exp(raw_log_pdf_(x));
 
-            const double shape = arg(0);
+            const auto [shape, scale] = eff_params_();
             if (shape < 1.)
                 return std::numeric_limits<double>::infinity();
             else if (shape == 1.)
-                return exp(-log(arg(1)) - lgamma(1));
+                return exp(-log(scale) - lgamma(1));
             else
                 return 0.;
         }
         double raw_cdf_(double x) const override final
         {
-            return boost::math::gamma_p(
-                arg(0), x / arg(1), no_promote_policy{});
+            const auto [shape, scale] = eff_params_();
+            return boost::math::gamma_p(shape, x / scale, no_promote_policy{});
         }
         double raw_log_pdf_(double x) const override final
         {
+            const auto [shape, scale] = eff_params_();
             if (x == 0.)
             {
-                const double shape = arg(0);
                 if (shape < 1.)
                     return std::numeric_limits<double>::infinity();
                 if (shape == 1.)
-                    return -std::log(arg(1));
+                    return -std::log(scale);
                 return -std::numeric_limits<double>::infinity();
             }
-            const double shape = arg(0);
-            const double t = x / arg(1);
+            const double t = x / scale;
             return shape * log(t) - log(x) - lgamma(shape) - t;
         }
         double raw_log_ratio_(double xo, double xn) const override final
         {
-            return (arg(0) - 1.) * log(xn / xo) + (xo - xn) / arg(1);
+            const auto [shape, scale] = eff_params_();
+            return (shape - 1.) * log(xn / xo) + (xo - xn) / scale;
         }
         double raw_quantile_(double p) const override final
         {
-            return arg(1) * boost::math::gamma_p_inv(
-                                arg(0), p, no_promote_policy{});
+            const auto [shape, scale] = eff_params_();
+            return scale * boost::math::gamma_p_inv(shape, p, no_promote_policy{});
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
-            return std::gamma_distribution<double>(arg(0), arg(1))(prng);
+            const auto [shape, scale] = eff_params_();
+            return std::gamma_distribution<double>(shape, scale)(prng);
         }
     };
     HOUSEPI_REGISTER_FUNCTION(Gamma_, ContinuosDistrib)
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////  *** Gamma (Mean-Varance) Distribution : class ***  /////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Gamma (Mean-Variance) Distribution.
-    /// UPDATE: this should be collapsed with the previous
-    class GammaMeanVar_ final : public Distribution
-    {
-    public:
-        GammaMeanVar_()
-            : Distribution({{"mean", na::DOUBLE}, {"var", na::DOUBLE}}, 0.) {}
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(GammaMeanVar_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(gamma_meanvar)
-
-        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-    protected:
-        double raw_pdf_(double x) const override final
-        {
-            if (x != 0.)
-                return exp(raw_log_pdf_(x));
-
-            const double m = arg(0);
-            const double v = arg(1);
-            const double shape = m * m / v;
-            if (shape < 1.)
-                return std::numeric_limits<double>::infinity();
-            else if (shape == 1.)
-                return exp(-log(v / m) - lgamma(1));
-            else
-                return 0.;
-        }
-        double raw_cdf_(double x) const override final
-        {
-            const double m = arg(0);
-            const double v = arg(1);
-            return boost::math::gamma_p(
-                m * m / v, x * m / v, no_promote_policy{});
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double m = arg(0);
-            const double v = arg(1);
-            const double shape = m * m / v;
-            if (x == 0.)
-            {
-                if (shape < 1.)
-                    return std::numeric_limits<double>::infinity();
-                if (shape == 1.)
-                    return -std::log(v / m);
-                return -std::numeric_limits<double>::infinity();
-            }
-            const double t = x * m / v;
-            return shape * log(t) - log(x) - lgamma(shape) - t;
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            const double m = arg(0);
-            const double v = arg(1);
-            return (m * m / v - 1.) * log(xn / xo) + (xo - xn) * m / v;
-        }
-        double raw_quantile_(double p) const override final
-        {
-            const double m = arg(0);
-            const double v = arg(1);
-            return v / m * boost::math::gamma_p_inv(m * m / v, p, no_promote_policy{});
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            const double m = arg(0);
-            const double v = arg(1);
-            return std::gamma_distribution<double>(m * m / v, v / m)(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(GammaMeanVar_, ContinuosDistrib)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Rayleigh Distribution : class ***  ////////////////////////////
@@ -702,7 +649,7 @@ namespace
             : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
         {
             discr_mode_ = Mode::Discrete::Defined;
-            upper_.init_pointer(arguments_[0].pointer());
+            upper_.init_pointer(arguments_(0).pointer());
             below_mode_ = Mode::Interval::Closed;
             above_mode_ = Mode::Interval::Closed;
         }
@@ -717,7 +664,7 @@ namespace
                 throw std::invalid_argument(
                     "Invoked invalid min value " + str::format(sx) +
                     " for " + err_name() + ".");
-            if (sx > 0. || arguments_[0].pointer() != upper().pointer())
+            if (sx > 0. || arguments_(0).pointer() != upper().pointer())
             {
                 const double dx = lower_.value();
                 if (dx > arg(0))

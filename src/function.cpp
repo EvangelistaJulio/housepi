@@ -41,27 +41,8 @@ namespace housepi
         lower_.name("min");
         upper_.name("max");
 
-        // allocate other arguments
-        arguments_.reserve(args.size());
-        for (const auto &[key, val] : args)
-            if (key == "x")
-            {
-                x_arg_.init_numeric(val);
-            }
-            else if (key == "loc")
-            {
-                loc_.init_numeric(val);
-            }
-            else
-            {
-                // distinguish empty defaults
-                if (na::is(val))
-                    arguments_.emplace_back();
-                else
-                    arguments_.emplace_back(val);
-                arguments_.back().name(key);
-            }
-        arguments_.shrink_to_fit();
+        // Fill canonical parametrization at construction
+        register_alt_("canonical", args);
 
         // assign domain if any, otherwise leave empty
         if (!na::is(domain_min))
@@ -98,19 +79,34 @@ namespace housepi
             return lower_;
         if (key == "max")
             return upper_;
-        for (Attribute &attr : arguments_)
-            if (attr.name() == key)
-                return attr;
+
+        // search non standard arguments
+        // NOTE: first hit picks/confirms the active alternative set
+        for (size_t i = 0; i < alts_.size(); ++i)
+            for (Attribute &attr : alts_[i].args)
+                if (attr.name() == key)
+                {
+                    const unsigned short new_idx = static_cast<unsigned short>(i);
+                    if (is_user_alt_ && alt_idx_ != new_idx)
+                        throw std::invalid_argument(
+                            "Attempt to mix parametrizations '" +
+                            alts_[alt_idx_].name + "' and '" + alts_[new_idx].name + "' in " + err_name() +
+                            " (argument '" + std::string(key) + "').");
+                    alt_idx_ = new_idx;
+                    is_user_alt_ = true;
+                    return attr;
+                }
 
         // raise error for unnamed argument
         if (na::is(key))
             throw std::invalid_argument(
                 "Unnamed argument passed to " + err_name() + ".");
 
-        // else format the error showing options
+        // else format the error showing options from every parametrization
         std::vector<std::string> options = {"x", "loc", "min", "max"};
-        for (const Attribute &attr : arguments_)
-            options.emplace_back(attr.name());
+        for (const AltArgSet &alt : alts_)
+            for (const Attribute &attr : alt.args)
+                options.emplace_back(attr.name());
         throw std::invalid_argument(
             "Unused argument '" + std::string(key) + "' in " + err_name() + "." +
             str::find_closest(key, options));
@@ -123,8 +119,8 @@ namespace housepi
         if (!x_arg_.is_constant())
             return false;
 
-        // variable arguments
-        for (const Attribute &attr : arguments_)
+        // variable arguments (only the active parametrization matters)
+        for (const Attribute &attr : arguments_())
             if (!attr.is_constant())
                 return false;
 
@@ -140,17 +136,17 @@ namespace housepi
 
     bool Function::is_callable_explicitly() const noexcept
     {
-        for (const Attribute &attr : arguments_)
+        for (const Attribute &attr : arguments_())
             if (attr.is_empty())
                 return false;
         return true;
     }
 
-    /// Collect names of missing arguments.
+    /// Collect names of missing arguments (from the active parametrization).
     std::vector<std::string> Function::get_missing_argument() const
     {
         std::vector<std::string> undefined_args = {};
-        for (const Attribute &attr : arguments_)
+        for (const Attribute &attr : arguments_())
             if (attr.is_empty())
                 undefined_args.emplace_back(attr.name());
         return undefined_args;
@@ -166,6 +162,48 @@ namespace housepi
                 (undefined_args.size() > 1 ? "s " : " ") +
                 str::format(undefined_args, str::MAX_PRINT, false) +
                 " for " + err_name() + ".");
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////  Function : Setter  /////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void Function::register_alt_(const std::string &alt_name,
+                                 const std::vector<std::pair<std::string, double>> &args)
+    {
+        // collect already-known names for collision detection
+        std::vector<std::string> existing_names = {"x", "loc", "min", "max"};
+        for (const AltArgSet &alt : alts_)
+            for (const Attribute &attr : alt.args)
+                existing_names.emplace_back(attr.name());
+
+        // also check alt set names are unique
+        for (const AltArgSet &alt : alts_)
+            if (alt.name == alt_name)
+                throw std::invalid_argument(
+                    "Duplicate parametrization name '" + alt_name + "' in " + err_name() + ".");
+
+        AltArgSet alt;
+        alt.name = alt_name;
+        alt.args.reserve(args.size());
+        for (const auto &[key, val] : args)
+        {
+            for (const std::string &n : existing_names)
+                if (n == key)
+                    throw std::invalid_argument(
+                        "Argument name '" + key + "' from parametrization '" + alt_name +
+                        "' collides with an existing argument in " + err_name() + ".");
+            existing_names.emplace_back(key);
+
+            if (na::is(val))
+                alt.args.emplace_back();
+            else
+                alt.args.emplace_back(val);
+            alt.args.back().name(key);
+        }
+        alts_.emplace_back(std::move(alt));
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,11 +270,12 @@ namespace housepi
         if (show_x_arg)
             sms += std::string(x_arg_.name()) + "=" + x_arg_.str_val();
 
-        for (size_t c = 0; c < arguments_.size(); ++c)
+        const std::vector<Attribute> &active = arguments_();
+        for (size_t c = 0; c < active.size(); ++c)
         {
             if (c > 0 || show_x_arg)
                 sms += ", ";
-            sms += std::string(arguments_[c].name()) + "=" + arguments_[c].str_val();
+            sms += std::string(active[c].name()) + "=" + active[c].str_val();
         }
         return sms + ") : " + str_range();
     }
@@ -330,7 +369,7 @@ namespace housepi
 
     void Function::optimize()
     {
-        for (Attribute &attr : arguments_)
+        for (Attribute &attr : arguments_())
             attr.optimize();
         x_arg_.optimize();
         loc_.optimize();
@@ -384,7 +423,7 @@ namespace
         Subtraction_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Subtraction_)
         HOUSEPI_OVERRIDE_NAME_METHOD(sub)
-        bool is_discrete() const noexcept override final { return arguments_[0].is_discrete() && x_arg_.is_discrete(); }
+        bool is_discrete() const noexcept override final { return arguments_(0).is_discrete() && x_arg_.is_discrete(); }
 
     protected:
         double raw_function_(double x) const override final { return x - arg(0); }
@@ -409,7 +448,7 @@ namespace
         Power_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Power_)
         HOUSEPI_OVERRIDE_NAME_METHOD(pow)
-        bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_[0].is_discrete() && x_arg_.is_discrete()); }
+        bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_(0).is_discrete() && x_arg_.is_discrete()); }
 
     protected:
         double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
@@ -523,7 +562,7 @@ namespace
         {
             if (!x_arg_.is_discrete())
                 return false;
-            for (const Attribute &attr : arguments_)
+            for (const Attribute &attr : arguments_())
                 if (!attr.is_discrete())
                     return false;
             return true;
@@ -532,6 +571,7 @@ namespace
     protected:
         /// Override the find argument method at assigment.
         /// If attribute doesn't exist at initialization, create it.
+        /// NOTE: variadic functions have no alternative parametrizations
         Attribute &find_arg_(std::string_view key) override final
         {
             if (key == "x")
@@ -543,12 +583,13 @@ namespace
             if (key == "max")
                 return upper_;
 
-            for (Attribute &attr : arguments_)
+            std::vector<Attribute> &args = arguments_();
+            for (Attribute &attr : args)
                 if (!na::is(attr.name()) && attr.name() == key)
                     return attr;
 
-            arguments_.emplace_back();
-            return arguments_.back();
+            args.emplace_back();
+            return args.back();
         }
 
         /// If any attribute provided as first constant, drop all other constants arguments.
@@ -557,13 +598,14 @@ namespace
             if (!first_const)
                 return;
 
-            arguments_.erase(
-                std::remove_if(arguments_.begin(), arguments_.end(),
+            std::vector<Attribute> &args = arguments_();
+            args.erase(
+                std::remove_if(args.begin(), args.end(),
                                [&first_const](Attribute &attr)
                                {
                                    return attr.is_constant() && &attr != first_const;
                                }),
-                arguments_.end());
+                args.end());
         }
     };
 
@@ -581,7 +623,7 @@ namespace
             Attribute *first_const = nullptr;                                       \
             if (x_arg_.is_constant())                                               \
                 first_const = &x_arg_;                                              \
-            for (Attribute &attr : arguments_)                                      \
+            for (Attribute &attr : arguments_())                                    \
                 if (attr.is_constant())                                             \
                 {                                                                   \
                     if (first_const)                                                \
@@ -595,7 +637,7 @@ namespace
     protected:                                                                      \
         double raw_function_(double x) const override final                         \
         {                                                                           \
-            for (const Attribute &attr : arguments_)                                \
+            for (const Attribute &attr : arguments_())                              \
                 x = x symbol attr.value();                                          \
             return x;                                                               \
         }                                                                           \
@@ -619,7 +661,7 @@ namespace
             Attribute *first_const = nullptr;                    \
             if (x_arg_.is_constant())                            \
                 first_const = &x_arg_;                           \
-            for (Attribute &attr : arguments_)                   \
+            for (Attribute &attr : arguments_())                 \
                 if (attr.is_constant())                          \
                 {                                                \
                     if (first_const)                             \
@@ -637,7 +679,7 @@ namespace
     protected:                                                   \
         double raw_function_(double x) const override final      \
         {                                                        \
-            for (const Attribute &attr : arguments_)             \
+            for (const Attribute &attr : arguments_())           \
             {                                                    \
                 const double new_val = attr.value();             \
                 if (new_val symbol x)                            \

@@ -166,11 +166,11 @@ hhmodel <- hhmodel |>
     #> Symptomatic (status = 2, here as generic definition)
     infec_time = .onset_time - .incub_period,
     .onset_time = list(model = "normal", mean = test_date@D, sd = 1),
-    .incub_period = list(model = "gamma_meanvar", mean = 3, var = 2)
+    .incub_period = list(model = "gamma", mean = 3, var = 2)
   ) |>
   # infectivity profile definitions
   # FIXME: this needs to be clarified
-  add_infec_profile("gamma_meanvar", mean = 4, var = 2.5)
+  add_infec_profile("gamma", mean = 4, var = 2.5)
 
 # perform inference
 results <- hhmodel |>

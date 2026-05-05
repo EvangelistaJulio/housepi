@@ -63,13 +63,11 @@ reference:
   
 - title: "Posterior predictions"
   desc: >
-    Calls used to perform posterior predicitive checks.
-  contents:
   - starts_with("measure_")
   - starts_with("predicted_")
   - HousepiPrediction
   - PredictedCasesBySize
-  - format_credible_intervals
+  - format_credible_interval
 
 - title: "Expose internal functions"
   desc: >

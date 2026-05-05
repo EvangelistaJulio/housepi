@@ -317,7 +317,7 @@ test_that("Gamma distribution is correct", {
 
 test_that("Gamma (mean/var) distribution is correct", {
   x <- seq(-20, 20, 1)
-  distr <- expose_distribution("gamma_meanvar", mean = 2, var = 1.1)
+  distr <- expose_distribution("gamma", mean = 2, var = 1.1)
   shape <- (2^2) / 1.1
   scale <- 1.1 / 2
   expect_equal(distr$pdf(x), stats::dgamma(x, shape = shape, scale = scale))
@@ -325,6 +325,25 @@ test_that("Gamma (mean/var) distribution is correct", {
   expect_equal(distr$log_pdf(x), log(distr$pdf(x)))
   expect_equal(distr$log_ratio(x, x + pi),
                log(distr$pdf(x + pi) / distr$pdf(x)))
+})
+
+test_that("Gamma mixed parametrizations works correctly", {
+  # parametrizations cannot be mixed
+  expect_error(expose_distribution("gamma", mean = 2, scale = 1.1),
+               "mix")
+  expect_error(expose_distribution("gamma", shape = 2, var = 1.1),
+               "mix")
+
+  m <- 2.5
+  v <- 1.7
+  shape <- m * m / v
+  scale <- v / m
+  x <- seq(0.1, 12, 0.3)
+  d_can <- expose_distribution("gamma", shape = shape, scale = scale)
+  d_alt <- expose_distribution("gamma", mean = m, var = v)
+  expect_equal(d_can$pdf(x), d_alt$pdf(x))
+  expect_equal(d_can$cdf(x), d_alt$cdf(x))
+  expect_equal(d_can$log_pdf(x), d_alt$log_pdf(x))
 })
 
 test_that("Exponential distribution is correct", {
@@ -412,7 +431,7 @@ test_that("CDF and quantile make sense", {
   distrs <- list(list(name = "uniform", min = -3, max = 2),
                  list(name = "normal", mean = 3, sd = 2),
                  list(name = "gamma", shape = 2, scale = 1.5),
-                 list(name = "gamma_meanvar", mean = 2.2, var = 1.1),
+                 list(name = "gamma", mean = 2.2, var = 1.1),
                  list(name = "exponential", rate = 0.4),
                  list(name = "lognormal", meanlog = 1, sdlog = 0.5),
                  list(name = "weibull", shape = 2, scale = 2),

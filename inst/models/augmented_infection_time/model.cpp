@@ -44,7 +44,7 @@ public:
 
 		// template infectivity profile (otherwise user defined)
 		// UPDATE: this should become more user friendly
-		init_infec_profile_template({{"func", "gamma_meanvar|mean:var|{2|N}:{1|N}"}});
+		init_infec_profile_template({{"func", "gamma|mean:var|{2|N}:{1|N}"}});
 	}
 
 	/// Allow for contact rate definitions.

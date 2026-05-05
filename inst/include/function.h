@@ -271,7 +271,7 @@ namespace housepi
 
         /// Set argument value.
         /// UPDATE: just required by AdaptableProposal.
-        void set_arg(size_t i, double x) { arguments_[i].set(x); }
+        void set_arg(size_t i, double x) { alts_[alt_idx_].args[i].set(x); }
         /// Set lower value.
         /// UPDATE: just required by AdaptableProposal.
         void set_lower(double x) { lower_.set(x); }
@@ -289,8 +289,10 @@ namespace housepi
         //////  GETTER  //////
         //////////////////////
 
-        size_t n_args() const noexcept { return arguments_.size(); }
-        double arg(size_t i) const { return arguments_[i].value(); }
+        /// Number of arguments in the *active* parametrization.
+        size_t n_args() const noexcept { return arguments_().size(); }
+        /// Read the i-th argument value of the *active* parametrization.
+        double arg(size_t i) const { return alts_[alt_idx_].args[i].value(); }
 
         const Attribute &loc() const noexcept { return loc_; }
         const Attribute &lower() const noexcept { return lower_; }
@@ -397,8 +399,8 @@ namespace housepi
 
         /// Get function name.
         virtual std::string_view name() const noexcept = 0;
-        /// Get argument name.
-        std::string_view arg_name(unsigned short i) const noexcept { return arguments_[i].name(); }
+        /// Get argument name (from the active parametrization).
+        std::string_view arg_name(unsigned short i) const noexcept { return alts_[alt_idx_].args[i].name(); }
         /// Get function name complete with type to display in errors.
         virtual std::string err_name() const { return "function '" + std::string(name()) + "'"; }
 
@@ -410,14 +412,29 @@ namespace housepi
 #endif
 
     protected:
-        std::vector<Attribute> arguments_ = {}; /// array with arguments
-        Attribute x_arg_ = Attribute();         /// 'x' argument
-        Attribute loc_ = Attribute();           /// 'loc' argument
-        Attribute lower_ = Attribute();         /// lower bound
-        Attribute upper_ = Attribute();         /// upper bound
+        Attribute x_arg_ = Attribute(); /// 'x' argument
+        Attribute loc_ = Attribute();   /// 'loc' argument
+        Attribute lower_ = Attribute(); /// lower bound
+        Attribute upper_ = Attribute(); /// upper bound
 
-        /// Helper to raise call if undefined virtual methods are called.
-        [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
+        /// Alternative arguments for re-parametrization
+        struct AltArgSet
+        {
+            std::string name = {};            /// Alternative set name
+            std::vector<Attribute> args = {}; /// Alternative arguments
+        };
+        std::vector<AltArgSet> alts_;    /// Alternative parametrizations (canonical is 0)
+        unsigned short alt_idx_ = 0;     /// Current select arguments
+        bool is_user_alt_ = false;       /// Whether user has picked a re-parametrization
+
+        /// Register an alternative parametrization.
+        void register_alt_(const std::string &name,
+                           const std::vector<std::pair<std::string, double>> &args);
+
+        std::vector<Attribute> &arguments_() noexcept { return alts_[alt_idx_].args; }
+        const std::vector<Attribute> &arguments_() const noexcept { return alts_[alt_idx_].args; }
+        Attribute &arguments_(size_t i) noexcept { return alts_[alt_idx_].args[i]; }
+        const Attribute &arguments_(size_t i) const noexcept { return alts_[alt_idx_].args[i]; }
 
         /// Find attribute and return its reference.
         /// If doesn't exists, return an empty attribute.
@@ -426,6 +443,9 @@ namespace housepi
         /////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////  Function : virtual methods [protected]  ///////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////
+
+        /// Helper to raise call if undefined virtual methods are called.
+        [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
 
         /// Raw method to call.
         virtual double raw_function_(double) const = 0;
