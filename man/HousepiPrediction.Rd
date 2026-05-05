@@ -29,9 +29,10 @@ performs simulation and compute predicted values of a set of measures.
   obs_process_long = NULL,
   ...,
   measures_long = NULL,
-  ess = TRUE,
+  thin_ess = TRUE,
   threads = 1,
   progress = TRUE,
+  summary_stat = "mean",
   cri_level = 0.95
 )}\if{html}{\out{</div>}}
 }
@@ -61,7 +62,9 @@ Each function should return one between \code{numeric()}, \code{list} or \code{d
 
 \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s. Applied to \code{data_long} (derived via \code{obs_process_long}).}
 
-\item{\code{ess}}{\verb{logical(1) Whether to resample }param_table\verb{to ESS. Ignored if}param_table\verb{has no posterior draws. Default is}TRUE`.}
+\item{\code{thin_ess}}{\code{logical(1)}. Whether to thin \code{param_table} to its
+bulk effective sample size (ESS).
+Ignored if \code{param_table} has no posterior draws. Default is \code{TRUE}.}
 
 \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
 
@@ -72,6 +75,10 @@ One between:
 \item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
+
+\item{\code{summary_stat}}{\code{character(1)} Summary statistic used as the predicted
+point estimate across simulations. One between \code{"mean"} (default) and
+\code{"median"}.}
 
 \item{\code{cri_level}}{\code{numeric(1)} Level for credible interval
 It must be a value in (0.5, 1.0). Default is 0.95.}

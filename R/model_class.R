@@ -291,15 +291,15 @@ HousepiModel <- R6::R6Class(
 
     # Helper with parameter table import.
     # @param ptab Table with parameter values
-    # param ess `logical(1)`
-    helper_read_param_table_ = function(ptab, ess = TRUE) {
+    # param thin_ess `logical(1)`
+    helper_read_param_table_ = function(ptab, thin_ess = TRUE) {
       # extract parameter draws from table
       if (inherits(ptab, "HousepiPosteriorDraws")) ptab <- ptab$parameter_draws
 
       if (posterior::is_draws(ptab)) {
         ptab <- posterior::as_draws_matrix(ptab)
         # reduce sample to effective sample size (ESS)
-        if (isTRUE(ess)) {
+        if (isTRUE(thin_ess)) {
           ess_bulk <- sapply(posterior::variables(ptab),
                              function(v) posterior::ess_bulk(ptab[, v]))
           # check no NA values in ESS
@@ -324,7 +324,7 @@ HousepiModel <- R6::R6Class(
     # FIXME: If there's a param table, build should change
     helper_simulation_build_ = function(param_table = NULL,
                                         nsim = NA_integer_,
-                                        ess = TRUE) {
+                                        thin_ess = TRUE) {
       # read param table
       if (is.null(param_table)) {
         if (is.na(nsim)) nsim <- 1
@@ -332,7 +332,8 @@ HousepiModel <- R6::R6Class(
           "Number of simulations should be a positive integer."
         )
       } else {
-        param_table <- private$helper_read_param_table_(param_table, ess = ess)
+        param_table <- private$helper_read_param_table_(param_table,
+                                                        thin_ess = thin_ess)
         nsim <- dim(param_table)[1]
         # don't overwrite
         if (dim(self$parameters)[1] == 0) {
@@ -386,10 +387,11 @@ HousepiModel <- R6::R6Class(
                             apply_long = NULL,
                             obs_proc_wide = NULL,
                             obs_proc_long = NULL,
-                            ess = TRUE,
+                            thin_ess = TRUE,
                             threads = 1,
                             progress = TRUE) {
-      param_table <- private$helper_read_param_table_(param_table, ess = ess)
+      param_table <- private$helper_read_param_table_(param_table,
+                                                      thin_ess = thin_ess)
       nsim <- dim(param_table)[1]
 
       # internal build function

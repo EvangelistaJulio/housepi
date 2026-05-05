@@ -193,6 +193,9 @@ rd_smpl_iddrw_ <- "`character()` Individuals identifiers.
 Store draws of public augmented variables for the chosen individuals."
 rd_smpl_cri_level_ <- "`numeric(1)` Level for credible interval
 It must be a value in (0.5, 1.0). Default is 0.95."
+rd_summary_stat_ <- "`character(1)` Summary statistic used as the predicted
+point estimate across simulations. One between `\"mean\"` (default) and
+`\"median\"`."
 
 ############################################################################
 ############################################################################
@@ -209,7 +212,8 @@ rd_param_table_ <- "One between
 - `posterior::draws`;
 - [HousepiPosteriorDraws][housepi::HousepiPosteriorDraws].
 "
-rd_ess_ <- "`logical(1) Whether to resample `param_table` to ESS.
+rd_thin_ess_ <- "`logical(1)`. Whether to thin `param_table` to its
+bulk effective sample size (ESS).
 Ignored if `param_table` has no posterior draws. Default is `TRUE`."
 rd_measure_dots_ <- "Named arguments. `function`s to compute measures from data.
 Each function should return one between `numeric()`, `list` or `data.frame`."

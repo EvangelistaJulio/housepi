@@ -57,21 +57,29 @@ test_that("ppc_frame_apply computes element-wise operations", {
   expect_equal(result, c(x = 2, y = 3))
 })
 
-test_that("ppc_frame_apply_mean handles NA and non-numeric", {
+test_that("ppc_frame_apply_summary handles mean/median, NA and non-numeric", {
   # multi-row data.frames required by internal apply() on matrix path
   df1 <- data.frame(a = c(1, 2), b = c(NA_real_, NA_real_))
   df2 <- data.frame(a = c(3, 4), b = c(NA_real_, NA_real_))
 
-  result <- ppc_frame_apply_mean(list(df1, df2))
+  result <- ppc_frame_apply_summary(list(df1, df2), "mean")
   expect_equal(result$a, c(2, 3))
   expect_true(all(is.na(result$b)))
+
+  # median path
+  df3 <- data.frame(a = c(10, 20), b = c(NA_real_, NA_real_))
+  result_med <- ppc_frame_apply_summary(list(df1, df2, df3), "median")
+  expect_equal(result_med$a, c(3, 4))
 
   # named vector path: non-numeric uniform values
   v1 <- c(x = 1, y = NA_real_)
   v2 <- c(x = 3, y = NA_real_)
-  result <- ppc_frame_apply_mean(list(v1, v2))
+  result <- ppc_frame_apply_summary(list(v1, v2), "mean")
   expect_equal(result[["x"]], 2)
   expect_true(is.na(result[["y"]]))
+
+  # invalid summary stat
+  expect_error(ppc_frame_apply_summary(list(df1, df2), "mode"))
 })
 
 test_that("ppc_frame_apply_cri computes quantiles", {
@@ -172,11 +180,17 @@ test_that("Helper to count non-zero-cases behaves correctly", {
 
 test_that("CRI set name convention renames correctly", {
   x <- c("predicted", "cri_lower", "cri_upper")
-  result <- cri_set_name_convention(x, cri = 0.95)
-  expect_equal(result, c("mean", "q5", "q95"))
+  # 95% CrI -> bounds at 2.5% and 97.5% quantiles
+  result <- ppc_format_colnames(x, cri = 0.95)
+  expect_equal(result, c("mean", "q2.5", "q97.5"))
 
-  result2 <- cri_set_name_convention(x, cri = 0.9)
-  expect_equal(result2, c("mean", "q10", "q90"))
+  # 90% CrI -> bounds at 5% and 95% quantiles
+  result2 <- ppc_format_colnames(x, cri = 0.9)
+  expect_equal(result2, c("mean", "q5", "q95"))
+
+  # summary_stat propagates as the predicted column name
+  result3 <- ppc_format_colnames(x, cri = 0.95, summary_stat = "median")
+  expect_equal(result3, c("median", "q2.5", "q97.5"))
 })
 
 test_that("Helper to filter tables by max_house_size behaves correctly", {
@@ -264,7 +278,7 @@ test_that("predicted_measures works with custom measure", {
   ppc <- predicted_measures(hhmodel, results,
                             sar = measure_sar_by_house_size,
                             progress = FALSE,
-                            ess = FALSE)
+                            thin_ess = FALSE)
   expect_s3_class(ppc, "HousepiPrediction")
   expect_true(!is.null(ppc$sar))
   expect_true("observed" %in% names(ppc$sar))

@@ -58,19 +58,39 @@ ppc_set_cri_level <- function(value) {
   value
 }
 
+# Validate summary statistic choice.
+ppc_set_summary_stat <- function(value) {
+  match.arg(value, c("mean", "median"))
+}
+
+# Lower/upper quantile probabilities corresponding to a credible interval level.
+ppc_cri_probs <- function(cri_level) {
+  half_tail <- 0.5 * (1 - cri_level)
+  c(lower = half_tail, upper = 1. - half_tail)
+}
+
+# Format a probability as a "qXX" quantile label.
+ppc_fmt_quantile <- function(q) {
+  paste0("q", format(100 * q, nsmall = 0, drop0trailing = TRUE))
+}
+
 # store print messages at initialization
 ppc_helper_print <- function(model_name, is_posterior,
-                             measure_names, n_simul, ess, cri) {
+                             measure_names, n_simul, thin_ess,
+                             summary_stat, cri) {
   sms <- c(
     i = sprintf("%s for model {.pkg %s}:",
                 ifelse(is_posterior, "Posterior predictions", "Predictions"),
                 model_name)
   )
   for (m in measure_names) sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
+  p <- ppc_cri_probs(cri)
   c(sms,
     sprintf("Sample size: %d%s", n_simul,
-            ifelse(isTRUE(ess), " (ESS)", "")),
-    sprintf("Credible interval: %.0f%%", 100 * cri))
+            ifelse(isTRUE(thin_ess), " (ESS)", "")),
+    sprintf("Point estimate: %s", summary_stat),
+    sprintf("Credible interval: %.0f%% [%s, %s]", 100 * cri,
+            ppc_fmt_quantile(p[["lower"]]), ppc_fmt_quantile(p[["upper"]])))
 }
 
 #' Apply function `func` to corresponding elements
@@ -119,23 +139,46 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
   output
 }
 
-#' Compute the mean across different dataframes.
-#' @param frame_list `list` of `data.frame`s.
+#' Apply a numeric statistic across corresponding elements of dataframes.
+#' Falls back to NA when all values are NA, and to the unique value when
+#' the inputs are non-numeric but all identical.
+#' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
+#' @param stat_fn `function`. Numeric statistic applied to each element.
+#' @param label `character(1)`. Statistic name used in error messages.
 #' @param name `character(1)` Measure name.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
-ppc_frame_apply_mean <- function(frame_list, name = NA_character_) {
+ppc_frame_apply_stat <- function(frame_list, stat_fn, label,
+                                 name = NA_character_) {
   ppc_frame_apply(frame_list, function(x) {
     if (all(is.na(x))) NA_real_
-    else if (all(is.numeric(x))) mean(x, na.rm = TRUE)
+    else if (all(is.numeric(x))) stat_fn(x)
     else if (length(unique(x)) == 1) unique(x)
     else stop_h(
-      sprintf("Undefined mean for non-numeric, non-unique values%s.",
+      sprintf("Undefined %s for non-numeric, non-unique values%s.",
+              label,
               ifelse(!is.na(name), sprintf(" in measure '%s'", name), "")),
       "Check output of your posterior measure function."
     )
   }, name = name)
+}
+
+#' Compute a summary statistic across different dataframes.
+#' @param frame_list `list` of `data.frame`s.
+#' @param summary_stat `character(1)`. Either `"mean"` or `"median"`.
+#' @param name `character(1)` Measure name.
+#' @return `data.frame`
+#' @keywords internal
+#' @noRd
+ppc_frame_apply_summary <- function(frame_list,
+                                    summary_stat = "mean",
+                                    name = NA_character_) {
+  summary_stat <- ppc_set_summary_stat(summary_stat)
+  fn <- switch(summary_stat,
+               mean = function(x) mean(x, na.rm = TRUE),
+               median = function(x) stats::median(x, na.rm = TRUE))
+  ppc_frame_apply_stat(frame_list, fn, label = summary_stat, name = name)
 }
 
 #' Compute the credible interval across different dataframes.
@@ -149,24 +192,17 @@ ppc_frame_apply_mean <- function(frame_list, name = NA_character_) {
 #' @noRd
 ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95,
                                 upper = TRUE, name = NA_character_) {
-  p <- 0.5 + ifelse(isTRUE(upper), 0.5, -0.5) * cri_level
-  ppc_frame_apply(frame_list, function(x) {
-    if (all(is.na(x))) NA_real_
-    else if (all(is.numeric(x))) stats::quantile(x, probs = p, na.rm = TRUE)
-    else if (length(unique(x)) == 1) unique(x)
-    else stop_h(
-      sprintf(
-        "Undefined credible interval for non numeric, non unique values%s.",
-        ifelse(!is.na(name), sprintf(" in measure '%s'", name), "")
-      ),
-      "Check output of your posterior measure function."
-    )
-  }, name = name)
+  p <- ppc_cri_probs(cri_level)[[ifelse(isTRUE(upper), "upper", "lower")]]
+  ppc_frame_apply_stat(frame_list,
+                       function(x) stats::quantile(x, probs = p, na.rm = TRUE),
+                       label = "credible interval",
+                       name = name)
 }
 
 # extract predicted quantities from cases-by-house-size table list
-ppc_extract_predicted_results <- function(x, cri, name = NULL) {
-  list(predicted = ppc_frame_apply_mean(x, name = name),
+ppc_extract_predicted_results <- function(x, summary_stat = "mean", cri,
+                                          name = NULL) {
+  list(predicted = ppc_frame_apply_summary(x, summary_stat, name = name),
        cri_lower = ppc_frame_apply_cri(x, cri, upper = FALSE, name = name),
        cri_upper = ppc_frame_apply_cri(x, cri, upper = TRUE, name = name))
 }
@@ -187,6 +223,7 @@ HousepiPrediction <- R6::R6Class(
   private = list(
     deep_clone = function(name, value) helper_clone(value),
     cri_level_ = 0.95,
+    summary_stat_ = "mean",
     stored_print_ = NULL
   ),
 
@@ -203,10 +240,11 @@ HousepiPrediction <- R6::R6Class(
     #' @param obs_process `r rd_simul_observ_`
     #' @param obs_process_long `r rd_simul_obs_long_`
     #' @param ... `r rd_measure_dots_`
-    #' @param ess `r rd_ess_`
+    #' @param thin_ess `r rd_thin_ess_`
     #' @param measures_long `r rd_measure_long_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
+    #' @param summary_stat `r rd_summary_stat_`
     #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(hhmodel,
                           param_table,
@@ -214,11 +252,13 @@ HousepiPrediction <- R6::R6Class(
                           obs_process_long = NULL,
                           ...,
                           measures_long = NULL,
-                          ess = TRUE,
+                          thin_ess = TRUE,
                           threads = 1,
                           progress = TRUE,
+                          summary_stat = "mean",
                           cri_level = 0.95) {
-      # associate credible interval
+      # associate summary statistic and credible interval
+      private$summary_stat_ <- ppc_set_summary_stat(summary_stat)
       private$cri_level_ <- ppc_set_cri_level(cri_level)
 
       # load and classify measure functions (wide vs long)
@@ -267,7 +307,7 @@ HousepiPrediction <- R6::R6Class(
         apply_long = apply_long,
         obs_proc_wide = obs_process,
         obs_proc_long = obs_process_long,
-        ess = ess,
+        thin_ess = thin_ess,
         threads = threads,
         progress = progress
       )
@@ -287,7 +327,8 @@ HousepiPrediction <- R6::R6Class(
       predictions <- Map(
         ppc_extract_predicted_results,
         x = parsed, name = names(parsed),
-        MoreArgs = list(cri = private$cri_level_)
+        MoreArgs = list(summary_stat = private$summary_stat_,
+                        cri = private$cri_level_)
       )
 
       # change environment according to measures
@@ -305,7 +346,8 @@ HousepiPrediction <- R6::R6Class(
         inherits(param_table, "HousepiPosteriorDraws") ||
           posterior::is_draws(param_table),
         all_measure_names,
-        length(parsed[[1]]), ess,
+        length(parsed[[1]]), thin_ess,
+        private$summary_stat_,
         private$cri_level_
       )
 
@@ -347,7 +389,8 @@ helper_filter_tables <- function(cases_table_by_size, max_house_size) {
   mask_row <- rowSums(obsdf[colnames(obsdf) != "house_size"], na.rm = TRUE) != 0
 
   # remove column with zero cases if none was observed
-  mask_col <- colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf) | colnames(obsdf) != "0"
+  mask_col <- colnames(obsdf) != "0" |
+    colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)
 
   # implement max household size mask
   if (!is.na(max_house_size)) {
@@ -364,12 +407,13 @@ helper_filter_tables <- function(cases_table_by_size, max_house_size) {
        cri_upper = cases_table_by_size$cri_upper[mask_row, mask_col])
 }
 
-# Set naming convention of credible interval.
-cri_set_name_convention <- function(x, cri) {
-  qtag <- 100 * round(cri, 2)
-  x <- gsub("predicted", "mean", x)
-  x <- gsub("cri_lower", sprintf("q%.0f", 100 - qtag), x)
-  x <- gsub("cri_upper", sprintf("q%.0f", qtag), x)
+# Rename the generic ppc column tags ("predicted", "cri_lower", "cri_upper")
+# into the user-facing labels (summary statistic + qXX quantile labels).
+ppc_format_colnames <- function(x, summary_stat = "mean", cri = 0.95) {
+  p <- ppc_cri_probs(cri)
+  x <- gsub("predicted", summary_stat, x)
+  x <- gsub("cri_lower", ppc_fmt_quantile(p[["lower"]]), x)
+  x <- gsub("cri_upper", ppc_fmt_quantile(p[["upper"]]), x)
   x
 }
 
@@ -448,8 +492,9 @@ PredictedCasesBySize <- R6::R6Class(
         cri_upper = self$sec_attack_rate$cri_upper$sar,
         counts = private$counts_$count
       )
-      colnames(output) <- cri_set_name_convention(colnames(output),
-                                                  private$cri_level_)
+      colnames(output) <- ppc_format_colnames(colnames(output),
+                                              private$summary_stat_,
+                                              private$cri_level_)
       # filter to maximum house size if applicable
       if (!is.na(private$max_hh_size_)) {
         output <- output[output$house_size <= private$max_hh_size_, ]
@@ -476,8 +521,9 @@ PredictedCasesBySize <- R6::R6Class(
         cri_lower = helper_combine_obs_pred(na_df, cases$cri_lower),
         cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
       )
-      names(output) <- cri_set_name_convention(names(output),
-                                               private$cri_level_)
+      names(output) <- ppc_format_colnames(names(output),
+                                           summary_stat = private$summary_stat_,
+                                           cri = private$cri_level_)
       output
     }
   ),
@@ -490,14 +536,16 @@ PredictedCasesBySize <- R6::R6Class(
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param obs_process `r rd_simul_observ_`
-    #' @param ess `r rd_ess_`
+    #' @param thin_ess `r rd_thin_ess_`
+    #' @param summary_stat `r rd_summary_stat_`
     #' @param cri_level `r rd_smpl_cri_level_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hhmodel,
                           param_table,
                           obs_process = NULL,
-                          ess = TRUE,
+                          thin_ess = TRUE,
+                          summary_stat = "mean",
                           cri_level = 0.95,
                           threads = 1,
                           progress = TRUE) {
@@ -506,7 +554,8 @@ PredictedCasesBySize <- R6::R6Class(
                        cases_table_by_size = measure_cases_by_house_size,
                        sec_attack_rate = measure_sar_by_house_size,
                        obs_process = obs_process,
-                       ess = ess,
+                       thin_ess = thin_ess,
+                       summary_stat = summary_stat,
                        cri_level = cri_level,
                        threads = threads,
                        progress = progress)
@@ -555,7 +604,9 @@ PredictedCasesBySize <- R6::R6Class(
 #' @param ... `r rd_measure_dots_`
 #' @param obs_process `r rd_simul_observ_`
 #' @param obs_process_long `r rd_simul_obs_long_`
-#' @param ess `r rd_ess_`
+#' @param thin_ess `r rd_thin_ess_`
+#' @param summary_stat `r rd_summary_stat_`
+#' @param cri_level `r rd_smpl_cri_level_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return An object of class
@@ -566,16 +617,20 @@ predicted_measures <- function(hhmodel,
                                ...,
                                obs_process = NULL,
                                obs_process_long = NULL,
-                               ess = TRUE,
+                               thin_ess = TRUE,
+                               summary_stat = "mean",
+                               cri_level = 0.95,
                                threads = 1,
                                progress = TRUE) {
   stopifnothousepi(hhmodel)
   HousepiPrediction$new(hhmodel$copy(),
                         param_table,
                         ...,
-                        ess = ess,
+                        thin_ess = thin_ess,
                         obs_process = obs_process,
                         obs_process_long = obs_process_long,
+                        summary_stat = summary_stat,
+                        cri_level = cri_level,
                         threads = threads,
                         progress = progress)
 }
@@ -587,7 +642,8 @@ predicted_measures <- function(hhmodel,
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param obs_process `r rd_simul_observ_`
-#' @param ess `r rd_ess_`
+#' @param thin_ess `r rd_thin_ess_`
+#' @param summary_stat `r rd_summary_stat_`
 #' @param cri_level `r rd_smpl_cri_level_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
@@ -599,7 +655,8 @@ predicted_measures <- function(hhmodel,
 predicted_cases_by_house_size <- function(hhmodel,
                                           param_table,
                                           obs_process = NULL,
-                                          ess = TRUE,
+                                          thin_ess = TRUE,
+                                          summary_stat = "mean",
                                           cri_level = 0.95,
                                           threads = 1,
                                           progress = TRUE) {
@@ -607,7 +664,8 @@ predicted_cases_by_house_size <- function(hhmodel,
   PredictedCasesBySize$new(hhmodel$copy(),
                            param_table,
                            obs_process = obs_process,
-                           ess = ess,
+                           thin_ess = thin_ess,
+                           summary_stat = summary_stat,
                            cri_level = cri_level,
                            threads = threads,
                            progress = progress)

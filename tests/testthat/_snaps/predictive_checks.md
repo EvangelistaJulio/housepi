@@ -6,5 +6,6 @@
       i Posterior predictions for model chain binomial:
       * sar
       Sample size: 100
-      Credible interval: 95%
+      Point estimate: mean
+      Credible interval: 95% [q2.5, q97.5]
 

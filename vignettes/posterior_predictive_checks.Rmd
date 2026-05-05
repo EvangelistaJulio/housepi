@@ -31,7 +31,8 @@ In this vignette we show how to compute common household measures according to t
 #| label: inference-setup
 # repeat inference as in vignette 'Get Started'
 set.seed(42)
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("chain_binomial") |>
   add_parameter_template()
 
 # estimate parameters
@@ -72,8 +73,8 @@ mask_cols <- setdiff(names(cases_df$mean), c("house_size", "distr"))
 # format mean with its lower and upper credible interval bounds
 combined[mask_pred, mask_cols] <- format_credible_interval(
   cases_df$mean[mask_pred, mask_cols],
-  cases_df$q5[mask_pred, mask_cols],
-  cases_df$q95[mask_pred, mask_cols],
+  cases_df$q2.5[mask_pred, mask_cols],
+  cases_df$q97.5[mask_pred, mask_cols],
   as_integer = TRUE
 )
 
@@ -127,7 +128,7 @@ ggplot(ppc$formatted_sec_attack_rate,
            label = sprintf("[%s]", counts))) +
   # predicted SAR
   geom_point(aes(y = mean, color = "Predicted")) +
-  geom_errorbar(aes(y = mean, ymin = q5, ymax = q95, color = "Predicted")) +
+  geom_errorbar(aes(y = mean, ymin = q2.5, ymax = q97.5, color = "Predicted")) +
   # observed SAR
   geom_point(aes(color = "Observed")) +
   # annotate observed counts
