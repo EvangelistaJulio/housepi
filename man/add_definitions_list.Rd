@@ -37,5 +37,5 @@ flu_1918_frederick |>
   new_housepi_model("chain_binomial") |>
   add_parameter_list(alpha = 0.05, beta = 0.3,
                      gamma = 1, size_ref = 4) |>
-  get_parameters(hhmodel)
+  get_parameters()
 }

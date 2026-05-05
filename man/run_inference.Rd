@@ -52,8 +52,7 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 flu_1918_frederick |>
   new_housepi_model("chain_binomial") |>
   add_parameter_template() |>
-  run_inference(hhmodel,
-                steps = 50, burn = 10, thin = 2,
+  run_inference(steps = 50, burn = 10, thin = 2,
                 chains = 2, progress = FALSE) |>
   get_parameter_draws() |>
   posterior::summarize_draws()

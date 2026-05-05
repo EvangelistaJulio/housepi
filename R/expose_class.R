@@ -505,7 +505,7 @@ add_infec_profile <- function(hhmodel,
 #'   new_housepi_model("chain_binomial") |>
 #'   add_parameter_list(alpha = 0.05, beta = 0.3,
 #'                      gamma = 1, size_ref = 4) |>
-#'   get_parameters(hhmodel)
+#'   get_parameters()
 #' @rdname add_definitions_list
 #' @export
 add_parameter_list <- function(hhmodel, ..., append = FALSE) {
@@ -595,8 +595,7 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' flu_1918_frederick |>
 #'   new_housepi_model("chain_binomial") |>
 #'   add_parameter_template() |>
-#'   run_inference(hhmodel,
-#'                 steps = 50, burn = 10, thin = 2,
+#'   run_inference(steps = 50, burn = 10, thin = 2,
 #'                 chains = 2, progress = FALSE) |>
 #'   get_parameter_draws() |>
 #'   posterior::summarize_draws()

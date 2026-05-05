@@ -1,7 +1,13 @@
 #!/bin/sh
 
-for f in inst/models/*/model.cpp; do
+# Source of truth for template models lives in src/model_<name>.cpp.
+# Mirror them into inst/models/<name>/model.cpp so the template machinery
+# (system.file("models", ...)) can find them at runtime. Strip any CR
+# characters so the copy ends up with LF endings even on Windows.
+for f in src/model_*.cpp; do
   [ -f "$f" ] || continue
-  name=`basename \`dirname "$f"\``
-  cp "$f" "src/model_${name}.cpp"
+  name=`basename "$f" .cpp | sed 's/^model_//'`
+  dir="inst/models/${name}"
+  [ -d "$dir" ] || continue
+  tr -d '\r' < "$f" > "${dir}/model.cpp"
 done
