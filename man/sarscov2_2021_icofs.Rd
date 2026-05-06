@@ -14,7 +14,7 @@ A data frame with 4,168 rows and 11 columns
 data(sarscov2_2021_icofs)
 }
 \description{
-Prospective cohort conducted during COVID-19 Delta variant wave in Israel, 2021.
+Prospective cohort conducted during COVID-19 Delta variant wave, 2021.
 Follow-up started with first PCR positive test, symptoms onset were reported.
 Contacts averaged 3 tests during follow-up.
 }
@@ -45,10 +45,6 @@ To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}
 }
 \references{
-Cortier, et al. (2025)
-Factors Associated With the Transmission of the Delta Severe Acute Respiratory Syndrome Coronavirus 2 Variant in Households:
-The Israeli COVID-19 Family Study (ICoFS)
-The Journal of Infectious Diseases; jiaf001.
-\doi{10.1093/infdis/jiaf001}
+\insertRef{cortier_factors_2025}{housepi}
 }
 \keyword{datasets}

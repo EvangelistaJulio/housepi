@@ -16,6 +16,7 @@ Imports:
     posterior (>= 1.0.0),
     R6 (>= 2.0.0),
     Rcpp (>= 1.0.0),
+    Rdpack (>= 2.0.0),
     rlang (>= 1.0.0),
     stringr (>= 1.0.0),
     utils (>= 4.0.0),
@@ -25,6 +26,7 @@ LinkingTo:
     BH (>= 1.0.0)
 Roxygen: list(markdown = TRUE, r6 = TRUE)
 RoxygenNote: 7.3.3
+RdMacros: Rdpack
 Suggests:
     bayesplot,
     BH,

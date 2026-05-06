@@ -23,9 +23,6 @@ To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_flu_1918_baltimora_frederick.R", package = "housepi")}
 }
 \references{
-Fraser, et al. (2011)
-Influenza Transmission in Households During the 1918 Pandemic.
-American Journal of Epidemiology 174, 505-514.
-\doi{10.1093/aje/kwr122}
+\insertRef{fraser_influenza_2011}{housepi}
 }
 \keyword{datasets}
