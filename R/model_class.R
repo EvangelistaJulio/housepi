@@ -323,18 +323,20 @@ HousepiModel <- R6::R6Class(
     # Helper with simulation build.
     # FIXME: If there's a param table, build should change
     helper_simulation_build_ = function(param_table = NULL,
-                                        nsim = NA_integer_,
+                                        nrep = NA_integer_,
                                         thin_ess = TRUE) {
       # read param table
       if (is.null(param_table)) {
-        if (is.na(nsim)) nsim <- 1
-        else if (!is.numeric(nsim) || nsim < 0) stop_h(
-          "Number of simulations should be a positive integer."
-        )
+        if (is.na(nrep)) nrep <- 1
+        else assert_n_repliactes_(nrep)
       } else {
         param_table <- private$helper_read_param_table_(param_table,
                                                         thin_ess = thin_ess)
-        nsim <- dim(param_table)[1]
+        if (!is.na(nrep)) {
+          assert_n_repliactes_(nrep)
+          param_table <- helper_thin_table_to_n_(param_table, nrep)
+        }
+        nrep <- dim(param_table)[1]
         # don't overwrite
         if (dim(self$parameters)[1] == 0) {
           param_dummy_list <- as.list(utils::head(param_table, 1))
@@ -343,23 +345,23 @@ HousepiModel <- R6::R6Class(
       }
 
       # internal build function
-      private$build_full_(steps = nsim, progress = FALSE)
+      private$build_full_(steps = nrep, progress = FALSE)
 
       # NOTE: there might be not parameters at all
-      if (dim(self$parameters)[1] == 0) return(nsim)
+      if (dim(self$parameters)[1] == 0) return(nrep)
 
       if (is.null(param_table)) {
-        # replicates the single row nsim times
+        # replicates the single row nrep times
         param_table <- as.data.frame(stats::setNames(
           as.list(self$parameters$value), self$parameters$name
         ))
-        param_table <- param_table[rep(1L, nsim), , drop = FALSE]
+        param_table <- param_table[rep(1L, nrep), , drop = FALSE]
         rownames(param_table) <- NULL
       }
       # attach table with parameters
       .engine$import_param_table(private$generator_$mcmc_ptr, param_table)
 
-      nsim
+      nrep
     },
 
     # Helper with observation process import.
@@ -388,10 +390,12 @@ HousepiModel <- R6::R6Class(
                             obs_proc_wide = NULL,
                             obs_proc_long = NULL,
                             thin_ess = TRUE,
+                            max_nrep = NA_integer_,
                             threads = 1,
                             progress = TRUE) {
       param_table <- private$helper_read_param_table_(param_table,
                                                       thin_ess = thin_ess)
+      param_table <- helper_thin_table_to_n_(param_table, max_nrep)
       nsim <- dim(param_table)[1]
 
       # internal build function
@@ -1005,15 +1009,15 @@ HousepiModel <- R6::R6Class(
     #' @param obs_process `r rd_simul_observ_`
     #' @param obs_process_long `r rd_simul_obs_long_`
     #' @param param_table `r rd_param_table_`
-    #' @param nsim `r rd_simul_nsim_`
+    #' @param nrep `r rd_simul_nrep_`
     #' @return `data.frame` or `list` (when `obs_process_long` is provided)
     run_simulation = function(obs_process = NULL,
                               obs_process_long = NULL,
                               param_table = NULL,
-                              nsim = 1) {
+                              nrep = NA_integer_) {
       # simulation specific build
-      nsim <- private$helper_simulation_build_(param_table = param_table,
-                                               nsim = nsim)
+      nrep <- private$helper_simulation_build_(param_table = param_table,
+                                               nrep = nrep)
 
       # run simulations
       output <- .engine$run_simulation(
@@ -1029,8 +1033,8 @@ HousepiModel <- R6::R6Class(
       if (length(output$long) == 0) output$long <- NULL
       if (length(output) == 1) {
         output <- output[[1]]
-        if (nsim == 1) output <- output[[1]]
-      } else if (nsim == 1) {
+        if (nrep == 1) output <- output[[1]]
+      } else if (nrep == 1) {
         output$wide <- output$wide[[1]]
         output$long <- output$long[[1]]
       }

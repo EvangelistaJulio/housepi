@@ -28,6 +28,25 @@ stop_read_only <- function(active) {
   stop_h(sprintf("'%s' is read only.", active))
 }
 
+#' Assert that number of replicates is valid.
+#' @param nrep `integer(1)` Number of replicates.
+#' @noRd
+assert_n_repliactes_ <- function(nrep) {
+  if (!is.numeric(nrep) || nrep < 1) stop_h(
+    "Number of replicates should be a positive integer."
+  )
+}
+
+#' Subsample a data.frame to ~n evenly spaced rows.
+#' Returns the input unchanged when n is NA or n >= nrow(df).
+#' @param df `data.frame`.
+#' @param n `integer(1)`. Target number of rows.
+#' @noRd
+helper_thin_table_to_n_ <- function(df, n) {
+  if (is.null(df) || is.na(n) || nrow(df) <= n) return(df)
+  df[round(seq.int(1L, nrow(df), length.out = n)), , drop = FALSE]
+}
+
 #' Return 's' if length of input is larger than 1.
 #' @param input `vector()`
 #' @param true `character(1)`

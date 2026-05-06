@@ -9,7 +9,7 @@ run_simulation(
   obs_process = NULL,
   obs_process_long = NULL,
   param_table = NULL,
-  nsim = 1
+  nrep = NA_integer_
 )
 }
 \arguments{
@@ -30,8 +30,11 @@ When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 \item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
 }}
 
-\item{nsim}{\code{integer(1)} Number of simulated outbreaks.
-Ignored if \code{param_table} is provided, else simulations share parameters.}
+\item{nrep}{\code{integer(1)} Number of replicates to generate.
+If \code{param_table} is \code{NULL}, all replicates share the same parameters.
+Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows,
+the table is sub-sampled to \code{nrep} evenly-spaced rows.
+Defaults to \code{NA} produces a single repetition.}
 }
 \value{
 \code{data.frame} or \code{list} (when \code{obs_process_long} is provided)

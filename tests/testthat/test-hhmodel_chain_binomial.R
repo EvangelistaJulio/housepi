@@ -134,14 +134,26 @@ test_that("Simulation with observation process is correct", {
   expect_identical(result1, result1encore)
 })
 
-test_that("Run simulation with nsim > 1 returns list of dataframes", {
+test_that("Run simulation with nrep > 1 returns list of dataframes", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$add_parameter_template()
-  nsim <- 3
-  result <- hhmodel$run_simulation(nsim = nsim)
+  nrep <- 3
+  result <- hhmodel$run_simulation(nrep = nrep)
   expect_true(is.list(result))
-  expect_length(result, nsim)
+  expect_length(result, nrep)
   expect_true(is.data.frame(result[[1]]))
+})
+
+test_that("Run simulation thins param_table down to nrep when smaller", {
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+  hhmodel$add_parameter_template()
+  pt <- as.data.frame(stats::setNames(
+    as.list(hhmodel$parameters$value), hhmodel$parameters$name
+  ))
+  pt <- pt[rep(1L, 10), , drop = FALSE]
+  rownames(pt) <- NULL
+  result <- hhmodel$run_simulation(param_table = pt, nrep = 4)
+  expect_length(result, 4)
 })
 
 ####################################################

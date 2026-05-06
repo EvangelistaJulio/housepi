@@ -51,7 +51,8 @@ If a maximum household size is set, larger sizes are not returned.}
   param_table,
   obs_process = NULL,
   thin_ess = TRUE,
-  summary_stat = "mean",
+  max_nrep = 200,
+  point_estimate = "mean",
   cri_level = 0.95,
   threads = 1,
   progress = TRUE
@@ -78,7 +79,11 @@ If \code{NULL}, observation process is ignored.}
 bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws. Default is \code{TRUE}.}
 
-\item{\code{summary_stat}}{\code{character(1)} Summary statistic used as the predicted
+\item{\code{max_nrep}}{\code{integer(1)} Larger number of replicates.
+The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.
+Defaults is \code{200}.}
+
+\item{\code{point_estimate}}{\code{character(1)} Summary statistic used as the predicted
 point estimate across simulations. One between \code{"mean"} (default) and
 \code{"median"}.}
 

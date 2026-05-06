@@ -379,11 +379,7 @@ add_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param proposal_scale `r rd_proposal_scale_`
 #' @param prefix `r rd_grr_prefix_`
 #' @references
-#' Cauchemez, et al. (2009)
-#' Household Transmission of 2009 Pandemic Influenza A (H1N1)
-#' Virus in the United States.
-#' New England Journal of Medicine. 361: 2619-2627.
-#' \doi{10.1056/NEJMoa0905498}
+#' \insertRef{cauchemez_household_2009}{housepi}
 #' @return `r rd_model_out_`
 #' @export
 add_group_rate <-  function(hhmodel,
@@ -622,7 +618,7 @@ run_inference <- function(hhmodel,
 #' @param obs_process `r rd_simul_observ_`
 #' @param obs_process_long `r rd_simul_obs_long_`
 #' @param param_table `r rd_param_table_`
-#' @param nsim `r rd_simul_nsim_`
+#' @param nrep `r rd_simul_nrep_`
 #' @return `data.frame` or `list` (when `obs_process_long` is provided)
 #' @examples
 #' flu_1918_frederick |>
@@ -635,12 +631,12 @@ run_simulation <- function(hhmodel,
                            obs_process = NULL,
                            obs_process_long = NULL,
                            param_table = NULL,
-                           nsim = 1) {
+                           nrep = NA_integer_) {
   stopifnothousepi(hhmodel)
   hhmodel$run_simulation(obs_process = obs_process,
                          obs_process_long = obs_process_long,
                          param_table = param_table,
-                         nsim = nsim)
+                         nrep = nrep)
 }
 
 #' @title Estimate the log-evidence (marginal log-likelihood) of a housepi model
@@ -658,10 +654,7 @@ run_simulation <- function(hhmodel,
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @references
-#' Friel N, Hurn M, Wyse J.
-#' Improving power posterior estimation of statistical evidence.
-#' Stat Comput. 2014;24: 709-723.
-#' \doi{10.1007/s11222-013-9397-1}
+#' \insertRef{friel_improving_2014}{housepi}
 #' @return `list()`
 #' @noRd
 # logevidence <- function(hhmodel,

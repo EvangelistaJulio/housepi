@@ -1360,6 +1360,11 @@ namespace
             }
             setup.prog_close();
 
+            // restore observed status so post-simulation reads of data_wide
+            // return the original data (e.g. running observed measures again).
+            engine.augm.clear_all();
+            engine.data_wide().recover_all_status();
+
             return Rcpp::List::create(Rcpp::_["wide"] = out_wide,
                                       Rcpp::_["long"] = out_long);
         }

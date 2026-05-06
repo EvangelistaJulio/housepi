@@ -66,15 +66,15 @@ ppc$set_max_house_size(5)
 cases_df <- ppc$formatted_cases_table
 
 # format predicted cases
-combined <- cases_df$mean
-mask_pred <- cases_df$mean$distr == "Predicted"
-mask_cols <- setdiff(names(cases_df$mean), c("house_size", "distr"))
+combined <- cases_df$predicted
+mask_pred <- cases_df$predicted$distr == "predicted"
+mask_cols <- setdiff(names(cases_df$predicted), c("house_size", "distr"))
 
-# format mean with its lower and upper credible interval bounds
+# format predicted values with their lower and upper credible interval bounds
 combined[mask_pred, mask_cols] <- format_credible_interval(
-  cases_df$mean[mask_pred, mask_cols],
-  cases_df$q2.5[mask_pred, mask_cols],
-  cases_df$q97.5[mask_pred, mask_cols],
+  cases_df$predicted[mask_pred, mask_cols],
+  cases_df$cri_lower[mask_pred, mask_cols],
+  cases_df$cri_upper[mask_pred, mask_cols],
   as_integer = TRUE
 )
 
@@ -124,11 +124,12 @@ col_dict <- c(Predicted = "coral", Observed = "black")
 
 # extract values for secondary attack rate
 ggplot(ppc$formatted_sec_attack_rate,
-       aes(x = as.factor(house_size), y = observed, 
+       aes(x = as.factor(house_size), y = observed,
            label = sprintf("[%s]", counts))) +
   # predicted SAR
-  geom_point(aes(y = mean, color = "Predicted")) +
-  geom_errorbar(aes(y = mean, ymin = q2.5, ymax = q97.5, color = "Predicted")) +
+  geom_point(aes(y = predicted, color = "Predicted")) +
+  geom_errorbar(aes(y = predicted, ymin = cri_lower, ymax = cri_upper,
+                    color = "Predicted")) +
   # observed SAR
   geom_point(aes(color = "Observed")) +
   # annotate observed counts

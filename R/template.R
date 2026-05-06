@@ -179,12 +179,25 @@ open_model_helper_ <- function(path) {
     "No template info available for the given model."
   )
 
-  if (requireNamespace("rstudioapi", quietly = TRUE)) {
-    # print in RStudio Help window
-    rstudioapi::previewRd(info_file)
+  # load system + Rdpack macros so \doi and \insertRef{key}{housepi}
+  # resolve against inst/REFERENCES.bib at render time
+  sys_macros <- tools::loadRdMacros(
+    file.path(R.home("share"), "Rd", "macros", "system.Rd")
+  )
+  macros <- tools::loadRdMacros(
+    system.file("help/macros/refmacros.Rd", package = "Rdpack"),
+    sys_macros
+  )
+  rd <- tools::parse_Rd(info_file, macros = macros)
+  stages <- c("build", "install", "render")
+
+  if (requireNamespace("rstudioapi", quietly = TRUE) &&
+      rstudioapi::isAvailable()) {
+    tmp <- tempfile(fileext = ".html")
+    tools::Rd2HTML(rd, out = tmp, stages = stages)
+    rstudioapi::viewer(tmp)
   } else if (interactive()) {
-    # print as plain text in the console
-    cat(utils::capture.output(tools::Rd2txt(info_file)), sep = "\n")
+    cat(utils::capture.output(tools::Rd2txt(rd, stages = stages)), sep = "\n")
   } else {
     warning_h("Help method not supported in non-interactive mode.")
   }

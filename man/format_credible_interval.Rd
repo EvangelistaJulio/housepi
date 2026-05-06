@@ -5,23 +5,23 @@
 \title{Format credible interval into printable string}
 \usage{
 format_credible_interval(
-  mean,
-  lower,
-  upper,
+  point_estimate,
+  cri_lower,
+  cri_upper,
   fmt = "\%s [\%s, \%s]",
   as_integer = FALSE
 )
 }
 \arguments{
-\item{mean}{\code{numeric()}. Mean values.}
+\item{point_estimate}{\code{numeric()}. Point estimate values.}
 
-\item{lower}{\code{numeric()}. Lower bounds of the credible interval.}
+\item{cri_lower}{\code{numeric()}. Lower bounds of the credible interval.}
 
-\item{upper}{\code{numeric()}. Upper bounds of the credible interval.}
+\item{cri_upper}{\code{numeric()}. Upper bounds of the credible interval.}
 
 \item{fmt}{\code{character(1)}.
 Sprintf-style format with 3 '\%s' placeholders.
-Default is \code{"mean [lower, upper]"}.}
+Default is \code{"point_estimate [cri_lower, cri_upper]"}.}
 
 \item{as_integer}{\code{logical(1)}. Whether values are formatted as integers.
 Default is \code{FALSE}.}
@@ -30,16 +30,16 @@ Default is \code{FALSE}.}
 \code{character()}
 }
 \description{
-Format elementwise mean and credible-interval bounds into a single string.
-The function is vectorised over its arguments and will return a character
-vector of the same length as the inputs.
+Format elementwise point estimate and credible-interval bounds
+into a single string. The function is vectorised over its arguments
+and will return a character vector of the same length as the inputs.
 }
 \examples{
-cri_median <- c(9.9, 7.69e-02, 1.13)
+pe <- c(9.9, 7.69e-02, 1.13)
 cri_low <- c(2.6, 6.77e-02, NA)
 cri_up <- c(23.7, 0.087, 1.53)
-format_credible_interval(cri_median, cri_low, cri_up)
+format_credible_interval(pe, cri_low, cri_up)
 # custom format
-format_credible_interval(cri_median, cri_low, cri_up,
+format_credible_interval(pe, cri_low, cri_up,
                          fmt = "\%s (95\%\% CrI, \%s-\%s)")[2]
 }
