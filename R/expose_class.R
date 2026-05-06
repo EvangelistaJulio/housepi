@@ -66,10 +66,10 @@ add_data_long <- function(hhmodel, data_long) {
 #' @return `data.frame`
 #' @examples
 #' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-#' summarise_cases(hhmodel)
+#' summarise_house_cases(hhmodel)
 #' @export
-summarise_cases <- function(hhmodel) {
-  hhmodel$summarise_cases()
+summarise_house_cases <- function(hhmodel) {
+  hhmodel$summarise_house_cases()
 }
 
 #' @title Summarise household sizes in the loaded household data

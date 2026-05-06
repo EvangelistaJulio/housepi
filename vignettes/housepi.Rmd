@@ -95,18 +95,18 @@ hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
 
 We can retrieve the template model description by using the method `$help()`.
 
-A brief summary of the loaded data can be obtained via `summarise_cases()`,
+A brief summary of the loaded data can be obtained via `summarise_house_cases()`,
 here manipulated with [flextable](https://CRAN.R-project.org/package=flextable):
 
 ```{r}
-#| label: summarise-cases
+#| label: summarise-house-cases
 # show a summary of cases as a `flextable`
-summarise_cases(hhmodel) |>
+summarise_house_cases(hhmodel) |>
   flextable::flextable() |>
-  flextable::set_formatter(pct = function(x) round(x, 1)) |>
-  flextable::merge_v(j = ~ type) |>
-  flextable::bold(j = ~ type + comment, bold = TRUE) |>
-  flextable::labelizor(labels = c(type = "", comment = "", pct = "[%]")) |>
+  flextable::set_formatter(percent = function(x) round(x, 1)) |>
+  flextable::merge_v(j = ~ level) |>
+  flextable::bold(j = ~ level + metric, bold = TRUE) |>
+  flextable::labelizor(labels = c(level = "", metric = "", percent = "[%]")) |>
   flextable::autofit()
 ```
 

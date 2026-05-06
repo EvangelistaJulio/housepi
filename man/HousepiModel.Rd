@@ -38,7 +38,7 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-copy}{\code{HousepiModel$copy()}}
 \item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
 \item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
-\item \href{#method-HousepiModel-summarise_cases}{\code{HousepiModel$summarise_cases()}}
+\item \href{#method-HousepiModel-summarise_house_cases}{\code{HousepiModel$summarise_house_cases()}}
 \item \href{#method-HousepiModel-summarise_house_sizes}{\code{HousepiModel$summarise_house_sizes()}}
 \item \href{#method-HousepiModel-add_data_long}{\code{HousepiModel$add_data_long()}}
 \item \href{#method-HousepiModel-add_parameter}{\code{HousepiModel$add_parameter()}}
@@ -151,12 +151,12 @@ Show model description in RStudio Help window.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-summarise_cases"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-summarise_cases}{}}}
-\subsection{Method \code{summarise_cases()}}{
+\if{html}{\out{<a id="method-HousepiModel-summarise_house_cases"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-summarise_house_cases}{}}}
+\subsection{Method \code{summarise_house_cases()}}{
 Summarise statuses in loaded data.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_cases()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_house_cases()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{

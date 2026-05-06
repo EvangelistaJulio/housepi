@@ -660,7 +660,7 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export current data configurations to R DataFrame.
-    Rcpp::DataFrame summarise_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
+    Rcpp::DataFrame summarise_house_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const ReportIndividual &report_indiv = data_wide.report_indiv;
@@ -669,48 +669,48 @@ namespace
         try
         {
             if (data_wide.is_empty())
-                msg::warning("Called 'summarise_cases' on empty data.");
+                msg::warning("Called 'summarise_house_cases' on empty data.");
 
-            Rcpp::CharacterVector type = Rcpp::wrap(std::vector<std::string>(4, "individual") +
-                                                    std::vector<std::string>(5, "household"));
-            Rcpp::CharacterVector comment = {"total", "missing", "not infected", "infected",
-                                             "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
-            Rcpp::IntegerVector counts(type.size());
-            Rcpp::NumericVector pct(type.size());
+            Rcpp::CharacterVector level = Rcpp::wrap(std::vector<std::string>(4, "individual") +
+                                                     std::vector<std::string>(5, "household"));
+            Rcpp::CharacterVector metric = {"total", "missing", "not infected", "infected",
+                                            "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
+            Rcpp::IntegerVector count(level.size());
+            Rcpp::NumericVector percent(level.size());
 
             // individual total
-            counts[0] = report_indiv.total;
-            pct[0] = 100.;
+            count[0] = report_indiv.total;
+            percent[0] = 100.;
             // individual missing
-            counts[1] = report_indiv.missing;
-            pct[1] = format_percentage(report_indiv.missing, report_indiv.total);
+            count[1] = report_indiv.missing;
+            percent[1] = format_percentage(report_indiv.missing, report_indiv.total);
             // individual not infected
-            counts[2] = report_indiv.susceptible;
-            pct[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
+            count[2] = report_indiv.susceptible;
+            percent[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
             // individual infected
-            counts[3] = report_indiv.infectious;
-            pct[3] = format_percentage(report_indiv.infectious, report_indiv.total);
+            count[3] = report_indiv.infectious;
+            percent[3] = format_percentage(report_indiv.infectious, report_indiv.total);
             // household total
-            counts[4] = report_house.total;
-            pct[4] = 100.;
+            count[4] = report_house.total;
+            percent[4] = 100.;
             // household distinct
-            counts[5] = report_house.distinct;
-            pct[5] = 100.;
+            count[5] = report_house.distinct;
+            percent[5] = 100.;
             // household no cases
-            counts[6] = report_house.no_cases;
-            pct[6] = format_percentage(report_house.no_cases, report_house.total);
+            count[6] = report_house.no_cases;
+            percent[6] = format_percentage(report_house.no_cases, report_house.total);
             // household at least 1 case
-            counts[7] = report_house.at_least_1_case;
-            pct[7] = format_percentage(report_house.at_least_1_case, report_house.total);
+            count[7] = report_house.at_least_1_case;
+            percent[7] = format_percentage(report_house.at_least_1_case, report_house.total);
             // household at least 2 cases
-            counts[8] = report_house.at_least_2_cases;
-            pct[8] = format_percentage(report_house.at_least_2_cases, report_house.total);
+            count[8] = report_house.at_least_2_cases;
+            percent[8] = format_percentage(report_house.at_least_2_cases, report_house.total);
 
             return Rcpp::DataFrame::create(
-                Rcpp::_["type"] = std::move(type),
-                Rcpp::_["comment"] = std::move(comment),
-                Rcpp::_["counts"] = std::move(counts),
-                Rcpp::_["pct"] = std::move(pct));
+                Rcpp::_["level"] = std::move(level),
+                Rcpp::_["metric"] = std::move(metric),
+                Rcpp::_["count"] = std::move(count),
+                Rcpp::_["percent"] = std::move(percent));
         }
         catch (const std::exception &e)
         {
@@ -732,32 +732,32 @@ namespace
 
         try
         {
-            Rcpp::CharacterVector comment({"max cases", "max miss", "min size", "max size"});
-            R_xlen_t n_rows = comment.size();
-            Rcpp::IntegerVector value(n_rows), counts(n_rows);
-            Rcpp::NumericVector pct(n_rows);
+            Rcpp::CharacterVector metric({"most cases", "most missing", "smallest size", "largest size"});
+            R_xlen_t n_rows = metric.size();
+            Rcpp::IntegerVector value(n_rows), count(n_rows);
+            Rcpp::NumericVector percent(n_rows);
 
             value[0] = report_hh_size.max_cases.first;
-            counts[0] = report_hh_size.max_cases.second;
-            pct[0] = format_percentage(counts[0], report_indiv.total);
+            count[0] = report_hh_size.max_cases.second;
+            percent[0] = format_percentage(count[0], report_indiv.total);
 
             value[1] = report_hh_size.max_miss.first;
-            counts[1] = report_hh_size.max_miss.second;
-            pct[1] = format_percentage(counts[1], report_indiv.total);
+            count[1] = report_hh_size.max_miss.second;
+            percent[1] = format_percentage(count[1], report_indiv.total);
 
             value[2] = report_hh_size.min_size.first;
-            counts[2] = report_hh_size.min_size.second;
-            pct[2] = format_percentage(counts[2], report_indiv.total);
+            count[2] = report_hh_size.min_size.second;
+            percent[2] = format_percentage(count[2], report_indiv.total);
 
             value[3] = report_hh_size.max_size.first;
-            counts[3] = report_hh_size.max_size.second;
-            pct[3] = format_percentage(counts[3], report_indiv.total);
+            count[3] = report_hh_size.max_size.second;
+            percent[3] = format_percentage(count[3], report_indiv.total);
 
             return Rcpp::DataFrame::create(
-                Rcpp::_["comment"] = std::move(comment),
+                Rcpp::_["metric"] = std::move(metric),
                 Rcpp::_["value"] = std::move(value),
-                Rcpp::_["counts"] = std::move(counts),
-                Rcpp::_["pct"] = std::move(pct));
+                Rcpp::_["count"] = std::move(count),
+                Rcpp::_["percent"] = std::move(percent));
         }
         catch (const std::exception &e)
         {
@@ -1634,7 +1634,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("has_contact_rates", &has_contact_rates);
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);
-    Rcpp::function("summarise_cases", &summarise_cases);
+    Rcpp::function("summarise_house_cases", &summarise_house_cases);
     Rcpp::function("summarise_house_sizes", &summarise_house_sizes);
     Rcpp::function("export_setup", &export_setup);
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);

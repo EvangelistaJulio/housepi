@@ -673,8 +673,8 @@ HousepiModel <- R6::R6Class(
 
     #' @description Summarise statuses in loaded data.
     #' @return`data.frame`
-    summarise_cases = function() {
-      .engine$summarise_cases(private$generator_$mcmc_ptr)
+    summarise_house_cases = function() {
+      .engine$summarise_house_cases(private$generator_$mcmc_ptr)
     },
 
     #' @description Summary house sizes in loaded data.

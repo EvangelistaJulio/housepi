@@ -103,27 +103,27 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
   hhmodel <- flu_2014_matsumoto |>
     new_housepi_model("chain_binomial")
 
-  case_summary <- summarise_cases(hhmodel)
+  case_summary <- summarise_house_cases(hhmodel)
   expect_true(is.data.frame(case_summary))
   # expect same household count as in Endo, et al. ('19)
   expect_equal(
-    subset(case_summary, type == "household" & comment == "total")$counts,
+    subset(case_summary, level == "household" & metric == "total")$count,
     10486
   )
   # house_size vs status equivalence groups correspond to measure non-zeros
   aux <- measure_cases_by_house_size(flu_2014_matsumoto)
   aux$house_size <- NULL
   expect_equal(
-    subset(case_summary, type == "household" & comment == "distinct")$counts,
+    subset(case_summary, level == "household" & metric == "distinct")$count,
     sum(aux[!is.na(aux)] > 0)
   )
 
   # fix expected equivalence classes by member composition
   case_summary <- hhmodel |>
     add_group_rate("community", by = "member") |>
-    summarise_cases()
+    summarise_house_cases()
   expect_equal(
-    subset(case_summary, type == "household" & comment == "distinct")$counts,
+    subset(case_summary, level == "household" & metric == "distinct")$count,
     454
   )
 

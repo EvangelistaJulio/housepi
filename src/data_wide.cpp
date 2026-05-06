@@ -265,7 +265,7 @@ namespace housepi
             // minimum house number of members
             UPDATE_REPORT_SIZE(report_hh_size.min_size, house_size, >);
             // maximum house number of members
-            UPDATE_REPORT_SIZE(report_hh_size.max_cases, house_size, <);
+            UPDATE_REPORT_SIZE(report_hh_size.max_size, house_size, <);
         }
     }
 
