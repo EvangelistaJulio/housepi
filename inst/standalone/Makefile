@@ -61,19 +61,15 @@ ifdef DISCRETE
 CXXFLAGS += -D_HOUSEPI_DISCRETE_TIME
 endif
 
-# Change openMP flags according to OS
+# Standalone builds run single-threaded: parallelism is delegated to
+# RcppParallel which only exists inside the R package. Pick up Boost
+# headers from Homebrew on macOS when available.
 ifeq ($(shell uname -s),Linux)
-CXXFLAGS += -fopenmp
+# nothing to add
 else ifeq ($(shell uname -s),Darwin)
-ifeq ($(shell command -v brew),)
-$(info Homebrew is not installed. Falling back to default.)
-else
-ifeq ($(shell brew list --versions llvm),)
-$(info LLVM is not installed via Homebrew. Falling back to default.)
-else
-CXX := $(shell brew --prefix llvm)/bin/clang++
-CXXFLAGS += -fopenmp -I$(shell brew --prefix llvm)/include -I$(shell brew --prefix boost)/include
-LDFLAGS += -L$(shell brew --prefix llvm)/lib/c++ -Wl,-rpath,$(shell brew --prefix llvm)/lib/c++
+ifneq ($(shell command -v brew),)
+ifneq ($(shell brew list --versions boost),)
+CXXFLAGS += -I$(shell brew --prefix boost)/include
 endif
 endif
 else

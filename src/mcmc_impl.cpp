@@ -18,7 +18,7 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
-#include "tools/openmp.h"
+#include "tools/parallel.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
@@ -312,8 +312,6 @@ namespace housepi
 
     double MCMC::commit_total_log_lik_(bool is_cache_depen)
     {
-        double new_ll = 0.0;
-
         // save infectivity profile if lookup tables are active
         if (is_cache_depen)
         {
@@ -321,16 +319,17 @@ namespace housepi
             infec_profile.update();
         }
 
-#pragma omp parallel for reduction(+ : new_ll)
-        for (size_t M = 0; M < data_wide().distinct_size(); ++M)
-        {
-            if (atomic_error.is_pending())
-                continue;
+        double new_ll = housepi::parallel::for_reduce_sum(
+            data_wide().distinct_size(),
+            [&](size_t M) -> double
+            {
+                if (atomic_error.is_pending())
+                    return 0.0;
 
-            Household &house = data_wide().distinct_head(M);
-            new_ll += data_wide().frequency_weight(M) *
-                      atomic_commit_house_log_lik_(house, is_cache_depen);
-        }
+                Household &house = data_wide().distinct_head(M);
+                return data_wide().frequency_weight(M) *
+                       atomic_commit_house_log_lik_(house, is_cache_depen);
+            });
         atomic_error.throw_exception();
         tot_log_lik.set(new_ll);
 
@@ -454,16 +453,14 @@ namespace housepi
 
     void MCMC::move_all_augm_()
     {
-        double delta_ll = 0.;
-
-#pragma omp parallel for reduction(+ : delta_ll)
-        for (size_t H = 0; H < data_wide().report_house.total; ++H)
-        {
-            if (atomic_error.is_pending())
-                continue;
-
-            delta_ll += atomic_move_augm_single_house_(H);
-        }
+        double delta_ll = housepi::parallel::for_reduce_sum(
+            data_wide().report_house.total,
+            [&](size_t H) -> double
+            {
+                if (atomic_error.is_pending())
+                    return 0.0;
+                return atomic_move_augm_single_house_(H);
+            });
         atomic_error.throw_exception();
         tot_log_lik.increment(delta_ll);
     }

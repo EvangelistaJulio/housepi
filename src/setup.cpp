@@ -20,7 +20,7 @@
 
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/openmp.h"
+#include "tools/parallel.h"
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
@@ -386,8 +386,14 @@ namespace housepi
             throw std::invalid_argument(
                 "N. of threads was not greater than 0.");
 
-#ifdef _OPENMP
-        unsigned int max_threads = omp_get_num_procs();
+#ifdef _STANDALONE
+        if (n_threads != 1)
+            msg::warning(
+                "Multi-threading was disabled. RcppParallel is not available in standalone mode.");
+        n_threads = 1;
+
+#else
+        size_t max_threads = housepi::parallel::max_num_threads();
 
         if (n_threads > max_threads)
         {
@@ -396,15 +402,7 @@ namespace housepi
             n_threads = max_threads;
         }
 
-        // declare the global number of omp threads
-        omp_set_num_threads(n_threads);
-
-#else
-        if (n_threads != 1)
-            msg::warning(
-                "Multi-threading was disabled. OpenMP is not supported on current machine.");
-
-        n_threads = 1;
+        housepi::parallel::set_num_threads(n_threads);
 #endif
     }
 
@@ -424,11 +422,7 @@ namespace housepi
     /// Return pseudo random number generator.
     rnd_gen &Setup::prng() const
     {
-#ifdef _OPENMP
-        return prng_parallel_[omp_get_thread_num()];
-#else
-        return prng_parallel_[0];
-#endif
+        return prng_parallel_[housepi::parallel::current_thread_index()];
     }
 
     void Setup::assert_mcmc_setup()

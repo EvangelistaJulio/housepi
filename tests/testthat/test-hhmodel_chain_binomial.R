@@ -108,15 +108,21 @@ test_that("Deep clone works as expected", {
 })
 
 test_that("Log-likelihood traces and pointwise traces are coherent", {
-  results <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-    add_parameter_template() |>
-    run_inference(steps = 10, thin = 2, adapt = 2, burn = 2)
+  # Looping over thread counts exercises the RcppParallel reduction in
+  # commit_total_log_lik_. The invariant (pointwise sum == total) must
+  # hold for any thread count; concrete trace values change because the
+  # per-thread PRNG indexing differs, so do not compare runs across `t`.
+  for (t in c(1L, 2L)) {
+    results <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+      add_parameter_template() |>
+      run_inference(steps = 10, thin = 2, adapt = 2, burn = 2, threads = t)
 
-  pointwise <- results$log_lik_draws |>
-    posterior::as_draws_matrix() |>
-    rowSums() |>
-    unname()
-  expect_equal(results$total_log_lik_draws$log_lik, pointwise)
+    pointwise <- results$log_lik_draws |>
+      posterior::as_draws_matrix() |>
+      rowSums() |>
+      unname()
+    expect_equal(results$total_log_lik_draws$log_lik, pointwise)
+  }
 })
 
 test_that("Simulation with observation process is correct", {

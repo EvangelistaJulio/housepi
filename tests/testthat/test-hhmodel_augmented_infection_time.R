@@ -176,6 +176,39 @@ get_log_lik_i <- function(df, par) {
     sum(dweibull(df$incub_period, shape = 2, scale = 1, log = TRUE))
 }
 
+test_that("Parallel augmented-move reduction preserves log-lik invariant", {
+  # Exercises move_all_augm_'s RcppParallel reduction (only fired when
+  # augmented variables are sampled). We reuse the cheap internal-consistency
+  # check (pointwise sum == total) so this stays decoupled from the analytic
+  # log-lik comparisons done in the dedicated test below.
+  house <- data.frame(house_id = "hh01",
+                      status = c(1, 1, 1, 0, 0, 0, 0),
+                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
+                      end_followup = 21)
+  house$id <- sprintf("hh01m%s", seq_len(nrow(house)))
+
+  build_hh <- function() {
+    new_housepi_model(house, "augmented_infection_time", quiet = TRUE) |>
+      add_parameter_template() |>
+      add_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
+      add_augmented_list(
+        infec_time = onset_time@A - incub_period@A,
+        onset_time = list(model = "normal", mean = onset_date@D),
+        incub_period = list(model = "weibull", shape = 2, scale = 1)
+      ) |>
+      add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+  }
+  id_draws <- house[house$status > 0, ]$id
+
+  for (t in c(1L, 2L)) {
+    results <- build_hh() |>
+      run_inference(steps = 20, thin = 1, adapt = 0, chain = 1, threads = t,
+                    progress = FALSE, id_draws = id_draws)
+    expect_equal(get_total_log_lik_draws(results)$log_lik,
+                 get_log_lik_draws(results)$hh01)
+  }
+})
+
 test_that("Augmented moves preserve log-likelihood", {
   # dummy dataset
   house <- data.frame(house_id = "hh01",

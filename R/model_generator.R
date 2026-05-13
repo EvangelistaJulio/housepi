@@ -331,11 +331,12 @@ HousepiGenerator <- R6::R6Class(
       paths <- c(system.file("include", package = "housepi"), paths)
       housepi_lib <- getLoadedDLLs()[["housepi"]][["path"]]
 
-      c(PKG_CXXFLAGS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
-                                paste0("-D", flags),
+      # UPDATE: I don't think I need this RcppParallel
+      rcpp_parallel_libs <- RcppParallel::RcppParallelLibs()
+      c(PKG_CXXFLAGS = paste0(c(paste0("-D", flags),
                                 paste0("-I", paths)),
                               collapse = " "),
-        PKG_LIBS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
+        PKG_LIBS = paste0(c(rcpp_parallel_libs,
                             if (length(libs)) paste0("-L", libs),
                             housepi_lib),
                           collapse = " "))

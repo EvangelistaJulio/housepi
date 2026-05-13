@@ -7,11 +7,10 @@
 
 #pragma once
 
+#include <atomic>
+#include <mutex>
 #include <stdexcept>
 #include <string>
-#include <atomic>
-
-#include "tools/openmp.h"
 
 namespace housepi::atomic
 {
@@ -29,7 +28,7 @@ namespace housepi::atomic
         {
             if (!has_error_.exchange(true, std::memory_order_relaxed))
             {
-#pragma omp critical
+                std::lock_guard<std::mutex> lock(mutex_);
                 message_ = message;
             }
         }
@@ -50,5 +49,6 @@ namespace housepi::atomic
     private:
         std::atomic<bool> has_error_{false}; /// Wheter error was raised during multi-threading
         std::string message_ = {};           /// Error message for last exception during multi-threading
+        std::mutex mutex_ = {};              /// Guards the first-error message write
     };
 }

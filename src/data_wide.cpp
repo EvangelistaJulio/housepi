@@ -17,7 +17,6 @@
 #include "tools/loglike.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/openmp.h"
 #include "tools/operators.h"
 #include "tools/read.h"
 #include "tools/string.h"

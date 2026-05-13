@@ -19,7 +19,7 @@
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/openmp.h"
+#include "tools/parallel.h"
 #include "tools/operators.h"
 #include "tools/string.h"
 #include "tools/read.h"
@@ -1225,32 +1225,35 @@ namespace
             DataWide &data_wide = engine.data_wide();
             const Augmented &augm = engine.augm;
 
-#pragma omp parallel for
-            for (size_t H = 0; H < data_wide.report_house.total; ++H)
-                try
+            housepi::parallel::for_each(
+                data_wide.report_house.total,
+                [&](size_t H)
                 {
-                    if (engine.atomic_error.is_pending())
-                        continue;
-
-                    Household &house = data_wide.at(H);
-                    engine.model->simulate_single_house(house);
-
-                    size_t row = row_offsets[H]; // thread-local: no shared counter
-                    for (const Individual &member : house)
+                    try
                     {
-                        status_col[row] = member.status();
-                        size_t c = 0;
-                        for (size_t a : augm.list_export)
-                            augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
-                        ++row;
+                        if (engine.atomic_error.is_pending())
+                            return;
+
+                        Household &house = data_wide.at(H);
+                        engine.model->simulate_single_house(house);
+
+                        size_t row = row_offsets[H]; // thread-local: no shared counter
+                        for (const Individual &member : house)
+                        {
+                            status_col[row] = member.status();
+                            size_t c = 0;
+                            for (size_t a : augm.list_export)
+                                augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
+                            ++row;
+                        }
                     }
-                }
-                catch (const std::exception &e)
-                {
-                    engine.atomic_error.set(
-                        "While simulating " + data_wide.at(H).err_name() + ":\n" +
-                        std::string(e.what()));
-                }
+                    catch (const std::exception &e)
+                    {
+                        engine.atomic_error.set(
+                            "While simulating " + data_wide.at(H).err_name() + ":\n" +
+                            std::string(e.what()));
+                    }
+                });
             engine.atomic_error.throw_exception();
         }
 

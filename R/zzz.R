@@ -21,6 +21,7 @@
 "_PACKAGE"
 
 #' @useDynLib housepi, .registration = TRUE
+#' @importFrom RcppParallel RcppParallelLibs
 NULL
 
 .engine <- NULL

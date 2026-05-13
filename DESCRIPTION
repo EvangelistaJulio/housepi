@@ -16,13 +16,15 @@ Imports:
     posterior (>= 1.0.0),
     R6 (>= 2.0.0),
     Rcpp (>= 1.0.0),
+    RcppParallel (>= 5.0.0),
     Rdpack (>= 2.0.0),
     rlang (>= 1.0.0),
     stringr (>= 1.0.0),
     utils (>= 4.0.0),
     withr (>= 3.0.0)
-LinkingTo: 
+LinkingTo:
     Rcpp (>= 1.0.0),
+    RcppParallel (>= 5.0.0),
     BH (>= 1.0.0)
 Roxygen: list(markdown = TRUE, r6 = TRUE)
 RoxygenNote: 7.3.3
