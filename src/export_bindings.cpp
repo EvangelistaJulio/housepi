@@ -15,7 +15,6 @@
 
 #include <Rcpp.h>
 
-#include "tools/atomic.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
@@ -1231,9 +1230,6 @@ namespace
                 {
                     try
                     {
-                        if (engine.atomic_error.is_pending())
-                            return;
-
                         Household &house = data_wide.at(H);
                         engine.model->simulate_single_house(house);
 
@@ -1249,12 +1245,11 @@ namespace
                     }
                     catch (const std::exception &e)
                     {
-                        engine.atomic_error.set(
+                        throw std::runtime_error(
                             "While simulating " + data_wide.at(H).err_name() + ":\n" +
                             std::string(e.what()));
                     }
                 });
-            engine.atomic_error.throw_exception();
         }
 
         // pre-compute per-household row offsets (fixes OpenMP race on row counter)

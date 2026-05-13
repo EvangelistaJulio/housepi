@@ -12,7 +12,6 @@
 #include <string_view>
 #include <vector>
 
-#include "tools/atomic.h"
 #include "tools/loglike.h"
 #include "tools/nan.h"
 
@@ -116,7 +115,7 @@ namespace housepi
 		void run_monte_carlo_();
 
 		/// Update and return contribution of given household to full logliklehood.
-		double atomic_commit_house_log_lik_(Household &house, bool is_cache_depen);
+		double commit_house_log_lik_(Household &house, bool is_cache_depen);
 
 		/// Move all model parameters and augmented variables.
 		void move_all_();
@@ -129,7 +128,7 @@ namespace housepi
 
 		/// Move augmented variables of infectious members inside household.
 		/// The move is performed one member at a time, one augmented variable at a time.
-		double atomic_move_augm_single_house_(size_t H);
+		double move_augm_single_house_(size_t H);
 
 		/// Move a single augmented variable.
 		double metropolis_augm_single_move_(Household &house, Individual &member, size_t a);

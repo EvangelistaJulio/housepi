@@ -12,7 +12,6 @@
 #include <utility>
 #include <vector>
 
-#include "tools/atomic.h"
 #include "tools/keys.h"
 #include "tools/loglike.h"
 #include "tools/messages.h"
@@ -265,9 +264,7 @@ namespace housepi
         if (!na::is(house_id))
         {
             infec_profile.update(); // eventually recompute infectivity profile
-            double output = atomic_commit_house_log_lik_(data_wide().at(house_id), true);
-            atomic_error.throw_exception(); // catch and throw if previous failed
-            return output;
+            return commit_house_log_lik_(data_wide().at(house_id), true);
         }
 
         // mode: total evaluation
@@ -323,14 +320,10 @@ namespace housepi
             data_wide().distinct_size(),
             [&](size_t M) -> double
             {
-                if (atomic_error.is_pending())
-                    return 0.0;
-
                 Household &house = data_wide().distinct_head(M);
                 return data_wide().frequency_weight(M) *
-                       atomic_commit_house_log_lik_(house, is_cache_depen);
+                       commit_house_log_lik_(house, is_cache_depen);
             });
-        atomic_error.throw_exception();
         tot_log_lik.set(new_ll);
 
         return new_ll;
@@ -386,7 +379,7 @@ namespace housepi
         }
     }
 
-    double MCMC::atomic_commit_house_log_lik_(Household &house, bool is_cache_depen)
+    double MCMC::commit_house_log_lik_(Household &house, bool is_cache_depen)
     {
         double output = 0;
         try
@@ -405,8 +398,8 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            atomic_error.set("While computing log-likelihood for " +
-                             house.err_name() + ":\n" + std::string(e.what()));
+            throw std::runtime_error("While computing log-likelihood for " +
+                                     house.err_name() + ":\n" + std::string(e.what()));
         }
 
         return output;
@@ -453,19 +446,14 @@ namespace housepi
 
     void MCMC::move_all_augm_()
     {
-        double delta_ll = housepi::parallel::for_reduce_sum(
+        const double delta_ll = housepi::parallel::for_reduce_sum(
             data_wide().report_house.total,
             [&](size_t H) -> double
-            {
-                if (atomic_error.is_pending())
-                    return 0.0;
-                return atomic_move_augm_single_house_(H);
-            });
-        atomic_error.throw_exception();
+            { return move_augm_single_house_(H); });
         tot_log_lik.increment(delta_ll);
     }
 
-    double MCMC::atomic_move_augm_single_house_(size_t H)
+    double MCMC::move_augm_single_house_(size_t H)
     {
         Household &house = data_wide().at(H);
         double delta_ll = 0.;
@@ -482,8 +470,8 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            atomic_error.set("While sampling augmented variables for " +
-                             house.err_name() + ":\n" + std::string(e.what()));
+            throw std::runtime_error("While sampling augmented variables for " +
+                                     house.err_name() + ":\n" + std::string(e.what()));
         }
 
         return delta_ll;
