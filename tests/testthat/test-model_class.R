@@ -201,7 +201,22 @@ test_that("Custom models shares function registries", {
   custom <- system.file(file.path("examples", "custom"), package = "housepi")
   hhmodel_1 <- flu_1918_frederick |>
     new_housepi_model(custom, quiet = TRUE)
-  expect_no_error(expose_function("growth")$func(seq(3)))
+
+  # Growth_ overrides only raw_function_ and raw_primitive_ — the other
+  # raw_ virtuals fall back to raise_undefined_call_err_, so:
+  #   - func(x)   = I0 * exp(rate * x)         (works)
+  #   - prim(x)   = I0 / rate * exp(rate * x)  (works)
+  #   - log_func  -> undefined method
+  #   - log_ratio -> undefined method
+  x <- seq(0, 3, 0.5)
+  initial <- 2
+  rate <- 0.5
+  fn <- expose_function("growth", initial = initial, rate = rate)
+  expect_equal(fn$func(x), initial * exp(rate * x))
+  expect_equal(fn$prim(x), initial * exp(rate * x) / rate)
+  expect_error(fn$log_func(x), regexp = "undefined")
+  # default raw_log_ratio_ returns 0
+  expect_equal(fn$log_ratio(x, x + 0.1), rep(0, length(x)))
 })
 
 #########################################

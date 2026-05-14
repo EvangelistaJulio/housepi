@@ -253,6 +253,29 @@ namespace
         MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
         MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile_safe(v))
 
+        /// Sample `n` random draws. Pass `seed = 0` to use a fresh,
+        /// nondeterministic seed (default).
+        Rcpp::NumericVector rand(int n, std::uint64_t seed) const
+        {
+            try
+            {
+                if (n < 0)
+                    throw std::invalid_argument("'n' must be non-negative.");
+                rnd_gen prng = (seed == 0) ? rnd_gen(std::random_device{}())
+                                           : rnd_gen(seed);
+                Rcpp::NumericVector y(n);
+                for (int i = 0; i < n; ++i)
+                    y[i] = distr_()->rand(prng);
+                return y;
+            }
+            catch (const std::exception &e)
+            {
+                msg::error(
+                    "While sampling " + family_ + " '" +
+                    std::string(ptr_->name()) + "':\n" + e.what());
+            }
+        }
+
     private:
         Distribution *distr_() const { return static_cast<Distribution *>(ptr_.get()); }
     };
@@ -1592,7 +1615,8 @@ RCPP_MODULE(housepi)
         .method("log_pdf", &ExposeDistribution::log_pdf)
         .method("log_ratio", &ExposeDistribution::log_ratio)
         .method("cdf", &ExposeDistribution::cdf)
-        .method("quantile", &ExposeDistribution::quantile);
+        .method("quantile", &ExposeDistribution::quantile)
+        .method("rand", &ExposeDistribution::rand);
 
     Rcpp::class_<ExposeInfecProfile>("ExposeInfecProfile")
         .constructor<std::string>()

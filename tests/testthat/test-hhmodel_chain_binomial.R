@@ -150,6 +150,27 @@ test_that("Run simulation with nrep > 1 returns list of dataframes", {
   expect_true(is.data.frame(result[[1]]))
 })
 
+test_that("predicted_cases_by_house_size exercises parallel for_each", {
+  # threads > 1 takes the RcppParallel branch in parallel::for_each
+  # (single-thread runs the serial fallback). The C++ simulate path
+  # invoked by predicted_cases_by_house_size goes through for_each,
+  # so this is the surface that covers parallel.h's EachWorker.
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    add_parameter_template()
+  results <- run_inference(hhmodel, steps = 30, progress = FALSE)
+  outs <- list()
+  for (t in c(1L, 2L)) {
+    suppressWarnings(
+      outs[[as.character(t)]] <- predicted_cases_by_house_size(
+        hhmodel, results, max_nrep = 4, threads = t, progress = FALSE
+      )
+    )
+    expect_s3_class(outs[[as.character(t)]], "PredictedCasesBySize")
+  }
+  expect_identical(outs[["1"]]$cases_table_by_size$observed,
+                   outs[["2"]]$cases_table_by_size$observed)
+})
+
 test_that("Run simulation thins param_table down to nrep when smaller", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$add_parameter_template()
