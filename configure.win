@@ -1,9 +1,7 @@
 #!/bin/sh
 
-# Source of truth for template models lives in src/model_<name>.cpp.
-# Mirror them into inst/models/<name>/model.cpp so the template machinery
-# (system.file("models", ...)) can find them at runtime. Strip any CR
-# characters so the copy ends up with LF endings even on Windows.
+# Store models cpp source code as a reference at runtime.
+# NOTE: enforce ending wiht LF even on Windows.
 for f in src/model_*.cpp; do
   [ -f "$f" ] || continue
   name=`basename "$f" .cpp | sed 's/^model_//'`
@@ -11,3 +9,8 @@ for f in src/model_*.cpp; do
   [ -d "$dir" ] || continue
   tr -d '\r' < "$f" > "${dir}/model.cpp"
 done
+
+# Resolve RcppParallel link flags at install time.
+RCPPPARALLEL_LIBS=`"${R_HOME}/bin/Rscript.exe" -e "RcppParallel::RcppParallelLibs()"`
+sed -e "s|@RCPPPARALLEL_LIBS@|${RCPPPARALLEL_LIBS}|" \
+    src/Makevars.in > src/Makevars.win

@@ -22,6 +22,7 @@
 
 #' @useDynLib housepi, .registration = TRUE
 #' @importFrom RcppParallel RcppParallelLibs
+#' @importFrom Rdpack reprompt
 NULL
 
 .engine <- NULL
