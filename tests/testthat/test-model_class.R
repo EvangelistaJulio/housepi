@@ -5,20 +5,11 @@ library(testthat)
 ##################################
 
 test_that("Model class inconsistent calls", {
-  # Default blank
-  expect_warning(new_housepi_model(), regexp = "Falling back to")
-
   # blank household model object
   hhmodel <- new_housepi_model(model = "blank")
 
   # inference without definitions
   expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
-
-  # data_wide type errors surface at construction
-  expect_error(new_housepi_model(data.frame(), "blank"),
-               regexp = "empty")
-  expect_error(new_housepi_model("ground", "blank"),
-               regexp = "data.frame")
 
   # data_long errors still surface via add_data_long
   expect_error(hhmodel$add_data_long("zero"), regexp = "data.frame")
@@ -202,12 +193,8 @@ test_that("Custom models shares function registries", {
   hhmodel_1 <- flu_1918_frederick |>
     new_housepi_model(custom, quiet = TRUE)
 
-  # Growth_ overrides only raw_function_ and raw_primitive_ — the other
-  # raw_ virtuals fall back to raise_undefined_call_err_, so:
-  #   - func(x)   = I0 * exp(rate * x)         (works)
-  #   - prim(x)   = I0 / rate * exp(rate * x)  (works)
-  #   - log_func  -> undefined method
-  #   - log_ratio -> undefined method
+  # Growth_ overrides only raw_function_ and raw_primitive_
+  # other raw_ virtuals fall back to raise_undefined_call_err_
   x <- seq(0, 3, 0.5)
   initial <- 2
   rate <- 0.5

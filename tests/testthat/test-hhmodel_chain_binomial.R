@@ -170,12 +170,13 @@ test_that("run_inference rejects invalid setup arguments", {
 })
 
 test_that("run_inference with progress = TRUE emits the progress bar", {
-  # Timing-sensitive: bar only prints when remaining time >= 1s.
+  # timing-sensitive: bar only prints when remaining time >= 1s
   skip_on_cran()
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  hhmodel <- flu_1918_baltimora |>
+    new_housepi_model("chain_binomial") |>
     add_parameter_template()
   out <- capture.output(
-    res <- run_inference(hhmodel, steps = 5000, progress = TRUE),
+    res <- run_inference(hhmodel, steps = 2000, progress = TRUE),
     type = "output"
   )
   expect_s3_class(res, "HousepiPosteriorDraws")

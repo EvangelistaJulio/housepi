@@ -415,7 +415,7 @@ HousepiModel <- R6::R6Class(
         if (is.null(apply_long)) NULL
         else function(x) apply_long(obs_proc_long(x))
       )
-    },
+    }#,
 
     # @description
     # Estimate the model logevidence (or marginal likelihood).
@@ -432,32 +432,33 @@ HousepiModel <- R6::R6Class(
     # @param progress `r rd_progress_`
     #
     # @return `numeric(1)`
-    logevidence_ = function(scheme = "power-fractions", rungs = 40,
-                            steps = 10000, burn = 0,
-                            thin = 1, adapt = 0,
-                            chains = 1, threads = 1,
-                            progress = TRUE) {
-      warning_h(
-        "[Internal] This method is currently under development.",
-        "Its usage is deprecated."
-      )
-
-      # internal build function
-      private$build_full_(steps = steps, burn = burn,
-                          thin = thin, adapt = adapt,
-                          chains = chains, threads = threads,
-                          progress = progress)
-      # load options
-      scheme <- as.character(scheme)
-      rungs <- as.integer(rungs)
-      # evaluate marginal from the internal Rcpp object
-      output <- .engine$logevidence(private$generator_$mcmc_ptr, scheme, rungs)
-      # reformat dataframe
-      mask <- c("inv_temper", "mean_log_lik", "var_log_lik")
-      output$detail <- as.data.frame(output[mask])
-      output[mask] <- NULL
-      output
-    }
+    # logevidence_ = function(scheme = "power-fractions", rungs = 40,
+    #                         steps = 10000, burn = 0,
+    #                         thin = 1, adapt = 0,
+    #                         chains = 1, threads = 1,
+    #                         progress = TRUE) {
+    #   warning_h(
+    #     "[Internal] This method is currently under development.",
+    #     "Its usage is deprecated."
+    #   )
+    #
+    #   # internal build function
+    #   private$build_full_(steps = steps, burn = burn,
+    #                       thin = thin, adapt = adapt,
+    #                       chains = chains, threads = threads,
+    #                       progress = progress)
+    #   # load options
+    #   scheme <- as.character(scheme)
+    #   rungs <- as.integer(rungs)
+    #   # evaluate marginal from the internal Rcpp object
+    #   output <- .engine$logevidence(private$generator_$mcmc_ptr,
+    #                                 scheme, rungs)
+    #   # reformat dataframe
+    #   mask <- c("inv_temper", "mean_log_lik", "var_log_lik")
+    #   output$detail <- as.data.frame(output[mask])
+    #   output[mask] <- NULL
+    #   output
+    # }
   ),
 
   ############################################################################
