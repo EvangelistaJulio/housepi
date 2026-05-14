@@ -331,8 +331,11 @@ HousepiGenerator <- R6::R6Class(
       paths <- c(system.file("include", package = "housepi"), paths)
       housepi_lib <- getLoadedDLLs()[["housepi"]][["path"]]
 
-      # UPDATE: I don't think I need this RcppParallel
-      rcpp_parallel_libs <- RcppParallel::RcppParallelLibs()
+      # collect RcppParallel flags
+      rcpp_parallel_libs <- paste(utils::capture.output(
+        RcppParallel::RcppParallelLibs()
+      ), collapse = " ")
+
       c(PKG_CXXFLAGS = paste0(c(paste0("-D", flags),
                                 paste0("-I", paths)),
                               collapse = " "),
@@ -340,6 +343,32 @@ HousepiGenerator <- R6::R6Class(
                             if (length(libs)) paste0("-L", libs),
                             housepi_lib),
                           collapse = " "))
+    },
+
+    # @description
+    # macOS only. The custom DLL was linked against housepi.so and the
+    # linker recorded that dependency by its basename ("housepi.so"). If
+    # devtools::load_all has reloaded housepi during this session, two
+    # housepi.so images are mapped under that same basename — dyld would
+    # then bind our custom DLL to the first one, while .engine talks to
+    # the most-recently-loaded one. The C++ ModelRegistry singleton lives
+    # per-image, so the model registers in one and the lookup queries
+    # the other: "unknown model" error.
+    #
+    # Fix: rewrite the dependency to the full path of the housepi image
+    # .engine is actually using. dyld then has no ambiguity.
+    bind_to_active_housepi_ = function(custom_dll) {
+      if (Sys.info()[["sysname"]] != "Darwin") return(invisible())
+      # R's PACKAGE="housepi" lookup picks the last loaded entry, so the
+      # last one is what .engine resolves against.
+      hp_entries <- Filter(function(d) d[["name"]] == "housepi",
+                           getLoadedDLLs())
+      housepi_path <- hp_entries[[length(hp_entries)]][["path"]]
+      system2("install_name_tool",
+              c("-change", "housepi.so",
+                shQuote(housepi_path), shQuote(custom_dll)),
+              stdout = FALSE, stderr = FALSE)
+      invisible()
     },
 
     # @description
@@ -365,6 +394,7 @@ HousepiGenerator <- R6::R6Class(
       # copy DLL outside of the source directory
       custom_dll <- file.path(private$cache_dir_, "src",
                               dll_file_ext("housepi.custom"))
+      private$bind_to_active_housepi_(custom_dll)
       overwrite(custom_dll, private$dll_)
       # drop other files
       unlink(file.path(private$cache_dir_,

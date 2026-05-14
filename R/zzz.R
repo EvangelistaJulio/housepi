@@ -30,3 +30,7 @@ NULL
   pkgbuild::check_build_tools(quiet = TRUE)
   .engine <<- Rcpp::Module(pkgname, PACKAGE = pkgname)
 }
+
+.onUnload <- function(libpath) {
+  library.dynam.unload("housepi", libpath)
+}
