@@ -150,6 +150,39 @@ test_that("Run simulation with nrep > 1 returns list of dataframes", {
   expect_true(is.data.frame(result[[1]]))
 })
 
+test_that("run_inference rejects invalid setup arguments", {
+  # Covers the assert_mcmc_setup throw branches in src/setup.cpp:
+  # n_chains < 1, burn >= n_steps, thin > n_steps.
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    add_parameter_template()
+  bad <- list(
+    list(args = list(steps = 10, chains = 0), regex = "chain"),
+    list(args = list(steps = 5, burn = 10), regex = "[Bb]urn"),
+    list(args = list(steps = 5, thin = 20), regex = "[Tt]hin")
+  )
+  for (case in bad) {
+    expect_error(
+      do.call(run_inference, c(list(hhmodel), case$args,
+                               list(progress = FALSE))),
+      regexp = case$regex
+    )
+  }
+})
+
+test_that("run_inference with progress = TRUE emits the progress bar", {
+  # Timing-sensitive: bar only prints when remaining time >= 1s.
+  skip_on_cran()
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    add_parameter_template()
+  out <- capture.output(
+    res <- run_inference(hhmodel, steps = 5000, progress = TRUE),
+    type = "output"
+  )
+  expect_s3_class(res, "HousepiPosteriorDraws")
+  expect_true(any(grepl("%|sample", out)),
+              info = paste(out, collapse = " | "))
+})
+
 test_that("predicted_cases_by_house_size exercises parallel for_each", {
   # threads > 1 takes the RcppParallel branch in parallel::for_each
   # (single-thread runs the serial fallback). The C++ simulate path

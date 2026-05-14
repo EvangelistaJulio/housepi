@@ -68,6 +68,11 @@ Thumbs.db
 !vignettes/generate_delays.R
 !vignettes/theme.R
 
+# covr files #
+############
+*.gcno
+*.gcda
+
 # Claude files #
 ################
 CLAUDE.md
