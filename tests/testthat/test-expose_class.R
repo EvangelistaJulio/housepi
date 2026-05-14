@@ -14,6 +14,7 @@ test_that("Reject if calling on non-HousepiModel objects", {
   expect_error(drop_augmented(obj), regexp = err)
   expect_error(drop_group_rates(obj), regexp = err)
   expect_error(drop_contact_rates(obj), regexp = err)
+  expect_error(add_contact_rate(obj), regexp = err)
   expect_error(drop_infectivity_profile(obj), regexp = err)
   expect_error(drop_all(obj), regexp = err)
   expect_error(add_parameter(obj), regexp = err)
@@ -185,6 +186,42 @@ test_that("Group rate wrappers", {
   ), regexp = "not found")
 
   hhmodel$group_rates
+})
+
+test_that("add_contact_rate wrapper input branches", {
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
+
+  strata <- data.frame(
+    from_member = c("student", NA),
+    to_member = c("student", NA),
+    param_name = c("ctr_kept_you_waiting", ".reference")
+  )
+
+  # 'by' and 'strata' together is ambiguous
+  expect_error(
+    add_contact_rate(hhmodel, by = "member", strata = strata),
+    regexp = "Impossible"
+  )
+
+  # neither 'by' nor 'strata' is empty
+  expect_error(add_contact_rate(hhmodel), regexp = "Invalid")
+
+  # first call succeeds and returns a NEW model (copy() semantic)
+  result <- add_contact_rate(hhmodel, strata = strata,
+                             params = list(ctr_kept_you_waiting = 1.21))
+  expect_false(identical(hhmodel, result))
+  # original is untouched (tidy contact-rate table stays empty)
+  expect_equal(nrow(hhmodel$contact_rates), 0L)
+  expect_true(nrow(result$contact_rates) > 0L)
+  # rebuild_ ran: param is exposed on the returned model
+  expect_true("ctr_kept_you_waiting" %in% get_parameters(result)$name)
+
+  # second call warns about overwrite
+  expect_warning(
+    add_contact_rate(result, strata = strata,
+                     params = list(ctr_kept_you_waiting = 1.21)),
+    regexp = "Overwriting"
+  )
 })
 
 test_that("add_infec_profile and add_infec_profile_list work", {

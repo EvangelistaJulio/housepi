@@ -16,7 +16,8 @@
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
-#include "tools/winner.h"
+#include "tools/best_match.h"
+#include "tools/rule_table.h"
 
 #include "contact_rate.h"
 #include "group_rate.h"
@@ -61,30 +62,24 @@ namespace housepi
             if (std::find(g_input_vec.begin(), g_input_vec.end(), gstr) == g_input_vec.end())
                 undefined_rates[gstr].push_back(rates::REFERENCE);
 
-        const size_t n_rows = read::csv_n_rows(input);
-
-        // resolve data column indices once
+        // precompute rule_group / specificity and resolve column indices once
+        const RuleTable rules(input, data_headers);
         const auto data_ix = data_wide.khold().from_string(data_headers);
 
-        // per-rule rule_group and specificity (count of non-NA feature cells)
-        std::vector<size_t> row_group(n_rows), row_spec(n_rows);
-        for (size_t r = 0; r < n_rows; ++r)
-        {
-            row_group[r] = static_cast<size_t>(str::toi(input.at("rule_group")[r]));
-            for (const std::string &dstr : data_headers)
-                row_spec[r] += !na::is(input.at(dstr)[r]);
-        }
-
         // predicate: does rule row r match this member's feature vector?
-        auto matches = [&](size_t r, const Individual &mb)
+        using Key = std::pair<std::string, size_t>;
+        auto matches_with = [&](const Individual &mb)
         {
-            for (size_t d = 0; d < data_headers.size(); ++d)
+            return [&, mb_ptr = &mb](size_t r)
             {
-                const auto &fv = input.at(data_headers[d])[r];
-                if (!na::is(fv) && mb.pwide_->vec[data_ix[d]] != str::tod(fv))
-                    return false;
-            }
-            return true;
+                for (size_t d = 0; d < data_headers.size(); ++d)
+                {
+                    const auto &fv = input.at(data_headers[d])[r];
+                    if (!na::is(fv) && mb_ptr->pwide_->vec[data_ix[d]] != str::tod(fv))
+                        return false;
+                }
+                return true;
+            };
         };
 
         // unique definition map
@@ -95,20 +90,17 @@ namespace housepi
                 str_table these_rates = undefined_rates;
 
                 // per-(rate_name, rule_group): keep the most-specific matching rule
-                std::map<std::pair<std::string, size_t>, Winner> best;
-                for (size_t r = 0; r < n_rows; ++r)
-                    if (matches(r, member))
-                        update_winner(best[{g_input_vec[r], row_group[r]}],
-                                      row_spec[r], r);
+                const auto resolved = rules.resolve<Key>(
+                    matches_with(member),
+                    [&](size_t r) { return Key{g_input_vec[r], rules.row_gid[r]}; },
+                    [&](const Key &key) {
+                        return "group rate '" + key.first + "' for " +
+                               member.err_name() + " (group " +
+                               std::to_string(key.second) + ")";
+                    });
 
-                for (auto &[key, w] : best)
-                {
-                    const size_t r = resolve_winner(w, input,
-                                                    "group rate '" + key.first + "' for " +
-                                                        member.err_name() + " (group " +
-                                                        std::to_string(key.second) + ")");
+                for (auto &[key, r] : resolved)
                     these_rates[key.first].push_back(input.at("param_name")[r]);
-                }
 
                 auto it = unique_defin_map.find(these_rates);
                 if (it == unique_defin_map.end())
@@ -200,47 +192,39 @@ namespace housepi
     {
         using idx_vec = std::vector<size_t>;
 
+        /// Concatenate 'from_X' and 'to_X' headers into the spec-column list.
+        std::vector<std::string> concat_(
+            const std::vector<std::string> &a,
+            const std::vector<std::string> &b)
+        {
+            std::vector<std::string> out;
+            out.reserve(a.size() + b.size());
+            out.insert(out.end(), a.begin(), a.end());
+            out.insert(out.end(), b.begin(), b.end());
+            return out;
+        }
+
         /// Auxiliary helper to extract contact rate definition.
         struct ContactDefinitions_
         {
         public:
-            const str_table &input; /// user tidy definition table
-            const size_t n_rows;    /// rows in input
-
             std::vector<std::string> from; /// 'from'-prefixed covariates
             std::vector<std::string> to;   /// 'to'-prefixed covariates
             std::vector<std::string> data; /// covariates
             idx_vec keys;                  /// data-wide keys
-
-            idx_vec row_gid;  /// rule group id
-            idx_vec row_spec; /// rule group specificity
+            RuleTable rules;               /// rule_group / specificity
 
             /// Extract from/to definitions from input headers.
             // NOTE: 'from' and 'to' expected to have the same size
             ContactDefinitions_(
-                const str_table &input_,
+                const str_table &input,
                 const DataWide &data_wide)
-                : input(input_),
-                  n_rows(read::csv_n_rows(input_)),
-                  row_gid(n_rows),
-                  row_spec(n_rows)
+                : from(extract_from_(input)),
+                  to(extract_to_(input)),
+                  data(strip_from_prefix_(from)),
+                  keys(data_wide.khold().from_string(data)),
+                  rules(validate_(input), concat_(from, to))
             {
-                const std::vector<std::string> input_headers = read::extract_keys(input);
-                str::assert_no_missing_entries(input_headers, {"param_name", "rule_group"});
-
-                for (const auto &key : input_headers)
-                    if (str::starts_with(key, "from_"))
-                    {
-                        from.push_back(key);
-                        // extract data column from 'from_' headers
-                        data.push_back(key.substr(5));
-                    }
-                    else if (str::starts_with(key, "to_"))
-                        to.push_back(key);
-
-                helper_set_rule_groups_();
-                // internally store data keys
-                keys = data_wide.khold().from_string(data);
             }
 
             /// Associate parameter pointers to pair.
@@ -250,21 +234,20 @@ namespace housepi
                 const Individual &member_to) const
             {
                 // per-group: keep the most-specific matching rule
-                std::map<size_t, Winner> best;
-                for (size_t r = 0; r < n_rows; ++r)
-                    if (matches_(r, member_from, member_to))
-                        update_winner(best[row_gid[r]], row_spec[r], r);
+                const auto resolved = rules.resolve<size_t>(
+                    [&](size_t r) { return matches_(r, member_from, member_to); },
+                    [&](size_t r) { return rules.row_gid[r]; },
+                    [&](size_t) {
+                        return "contact rate from " + member_from.err_name() +
+                               " to " + member_to.err_name();
+                    });
 
                 // across groups: multiply the winning params (skip reference)
                 std::vector<const Attribute *> param_ptrs;
-                param_ptrs.reserve(best.size());
-                for (auto &[gid, w] : best)
+                param_ptrs.reserve(resolved.size());
+                for (auto &[gid, r] : resolved)
                 {
-                    const std::string err_text = "contact rate from " +
-                                                 member_from.err_name() + " to " +
-                                                 member_to.err_name();
-                    const size_t r = resolve_winner(w, input, err_text);
-                    const auto &pstr = input.at("param_name")[r];
+                    const auto &pstr = rules.input.at("param_name")[r];
                     if (!na::is(pstr) && pstr != rates::REFERENCE)
                         param_ptrs.push_back(
                             param.at(param.khold().from_string(pstr)).pointer());
@@ -273,21 +256,39 @@ namespace housepi
             }
 
         private:
-            /// Precompute per-row rule group and specificity (count of non-NA cells).
-            void helper_set_rule_groups_()
+            static const str_table &validate_(const str_table &input)
             {
-                for (size_t r = 0; r < n_rows; ++r)
-                {
-                    row_gid[r] = static_cast<size_t>(str::toi(input.at("rule_group")[r]));
-                    for (size_t d = 0; d < data.size(); ++d)
-                    {
-                        row_spec[r] += !na::is(input.at(from[d])[r]);
-                        row_spec[r] += !na::is(input.at(to[d])[r]);
-                    }
-                }
+                str::assert_no_missing_entries(
+                    read::extract_keys(input), {"param_name", "rule_group"});
+                return input;
+            }
+            static std::vector<std::string> extract_from_(const str_table &input)
+            {
+                std::vector<std::string> out;
+                for (const auto &key : read::extract_keys(input))
+                    if (str::starts_with(key, "from_"))
+                        out.push_back(key);
+                return out;
+            }
+            static std::vector<std::string> extract_to_(const str_table &input)
+            {
+                std::vector<std::string> out;
+                for (const auto &key : read::extract_keys(input))
+                    if (str::starts_with(key, "to_"))
+                        out.push_back(key);
+                return out;
+            }
+            static std::vector<std::string> strip_from_prefix_(
+                const std::vector<std::string> &from)
+            {
+                std::vector<std::string> out;
+                out.reserve(from.size());
+                for (const auto &k : from)
+                    out.push_back(k.substr(5));
+                return out;
             }
 
-            /// Wheter the pair of members match the contact rule at row 'r'.
+            /// Whether the pair of members match the contact rule at row 'r'.
             bool matches_(
                 size_t r,
                 const Individual &member_from,
@@ -295,11 +296,11 @@ namespace housepi
             {
                 for (size_t i = 0; i < from.size(); ++i)
                 {
-                    const std::string &fval = input.at(from[i])[r];
+                    const std::string &fval = rules.input.at(from[i])[r];
                     if (!na::is(fval) && member_from.data(keys[i]) != str::tod(fval))
                         return false;
 
-                    const std::string &tval = input.at(to[i])[r];
+                    const std::string &tval = rules.input.at(to[i])[r];
                     if (!na::is(tval) && member_to.data(keys[i]) != str::tod(tval))
                         return false;
                 }

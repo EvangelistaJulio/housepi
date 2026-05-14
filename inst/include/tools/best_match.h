@@ -20,33 +20,33 @@ namespace housepi
     /// 'generalia specialibus non derogant'
 
     /// Per-key best rule: (max specificity, rows tied at it).
-    using Winner = std::pair<std::size_t, std::vector<std::size_t>>;
+    using BestMatch = std::pair<std::size_t, std::vector<std::size_t>>;
 
-    /// Register a matching row under its key's current winner.
-    inline void update_winner(
-        Winner &w,
+    /// Register a matching row under its key's current best match.
+    inline void update_best_match(
+        BestMatch &b,
         std::size_t spec,
         std::size_t row)
     {
-        if (w.second.empty() || spec > w.first)
+        if (b.second.empty() || spec > b.first)
         {
-            w.first = spec;
-            w.second.assign(1, row);
+            b.first = spec;
+            b.second.assign(1, row);
         }
-        else if (spec == w.first)
-            w.second.push_back(row);
+        else if (spec == b.first)
+            b.second.push_back(row);
     }
 
     /// Return the surviving row id; throw on tie at max specificity.
-    inline std::size_t resolve_winner(
-        const Winner &w,
+    inline std::size_t resolve_best_match(
+        const BestMatch &b,
         const str_table &input,
         const std::string &ctx)
     {
-        if (w.second.size() == 1)
-            return w.second[0];
+        if (b.second.size() == 1)
+            return b.second[0];
         std::string names;
-        for (std::size_t r : w.second)
+        for (std::size_t r : b.second)
             names += (names.empty() ? "" : ", ") + input.at("param_name")[r];
         throw std::invalid_argument(
             "Ambiguous " + ctx + ": tied rules [" + names + "].\n" +
