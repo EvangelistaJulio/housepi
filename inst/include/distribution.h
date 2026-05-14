@@ -209,7 +209,20 @@ namespace housepi
 		} trunc_mode_ = Trunc::None;
 
 		/// Select truncation mode from below_/above_mode_.
-		void helper_init_distr_truncation_();
+		void helper_init_distr_truncation_()
+		{
+			const bool has_min = below_mode_ != Mode::Interval::None;
+			const bool has_max = above_mode_ != Mode::Interval::None;
+
+			if (!has_min && !has_max)
+				trunc_mode_ = Trunc::None;
+			else if (has_min && !has_max)
+				trunc_mode_ = Trunc::Min;
+			else if (!has_min && has_max)
+				trunc_mode_ = Trunc::Max;
+			else
+				trunc_mode_ = Trunc::Both;
+		}
 
 		/// CDF at the lower bound, with discretization correction.
 		double cdf_lower_() const
