@@ -12,6 +12,7 @@
 
 #ifndef _STANDALONE
 #include <RcppParallel.h>
+#include <tbb/task_arena.h>
 #endif
 
 namespace housepi::parallel
