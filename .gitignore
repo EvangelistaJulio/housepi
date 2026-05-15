@@ -8,6 +8,7 @@
 *.so
 *.tmp
 *.nfs*
+*.gcno
 
 # Packages #
 ############
@@ -67,6 +68,11 @@ Thumbs.db
 !vignettes/generate_delays.R
 !vignettes/theme.R
 
+# covr files #
+############
+*.gcno
+*.gcda
+
 # Claude files #
 ################
 CLAUDE.md
@@ -75,6 +81,8 @@ CLAUDE.md
 # housepi files #
 #################
 inst/models/*/model.cpp
+inst/models/*/model.exe
+inst/standalone/*.o
 /man/hhmodel_*
 *.csv
 *.txt

@@ -106,13 +106,13 @@ HousepiAugmented <- R6::R6Class(
           self$defs <- self$defs[!mask, ]
           return(name)
         } else if (isTRUE(warn_removal)) {
-          warning_h(sprintf(
+          warn_h(sprintf(
             "Attempt to remove unknown augmented '%s' for status %d.",
             name, status
           ))
         }
       } else if (isTRUE(warn_removal)) {
-        warning_h(sprintf("Attempt to remove unknown augmented '%s'.", name))
+        warn_h(sprintf("Attempt to remove unknown augmented '%s'.", name))
       }
 
       c()

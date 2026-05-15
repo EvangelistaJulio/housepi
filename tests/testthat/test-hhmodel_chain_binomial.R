@@ -108,15 +108,21 @@ test_that("Deep clone works as expected", {
 })
 
 test_that("Log-likelihood traces and pointwise traces are coherent", {
-  results <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-    add_parameter_template() |>
-    run_inference(steps = 10, thin = 2, adapt = 2, burn = 2)
+  # Looping over thread counts exercises the RcppParallel reduction in
+  # commit_total_log_lik_. The invariant (pointwise sum == total) must
+  # hold for any thread count; concrete trace values change because the
+  # per-thread PRNG indexing differs, so do not compare runs across `t`.
+  for (t in c(1L, 2L)) {
+    results <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+      add_parameter_template() |>
+      run_inference(steps = 10, thin = 2, adapt = 2, burn = 2, threads = t)
 
-  pointwise <- results$log_lik_draws |>
-    posterior::as_draws_matrix() |>
-    rowSums() |>
-    unname()
-  expect_equal(results$total_log_lik_draws$log_lik, pointwise)
+    pointwise <- results$log_lik_draws |>
+      posterior::as_draws_matrix() |>
+      rowSums() |>
+      unname()
+    expect_equal(results$total_log_lik_draws$log_lik, pointwise)
+  }
 })
 
 test_that("Simulation with observation process is correct", {
@@ -134,14 +140,81 @@ test_that("Simulation with observation process is correct", {
   expect_identical(result1, result1encore)
 })
 
-test_that("Run simulation with nsim > 1 returns list of dataframes", {
+test_that("Run simulation with nrep > 1 returns list of dataframes", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$add_parameter_template()
-  nsim <- 3
-  result <- hhmodel$run_simulation(nsim = nsim)
+  nrep <- 3
+  result <- hhmodel$run_simulation(nrep = nrep)
   expect_true(is.list(result))
-  expect_length(result, nsim)
+  expect_length(result, nrep)
   expect_true(is.data.frame(result[[1]]))
+})
+
+test_that("run_inference rejects invalid setup arguments", {
+  # Covers the assert_mcmc_setup throw branches in src/setup.cpp:
+  # n_chains < 1, burn >= n_steps, thin > n_steps.
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    add_parameter_template()
+  bad <- list(
+    list(args = list(steps = 10, chains = 0), regex = "chain"),
+    list(args = list(steps = 5, burn = 10), regex = "[Bb]urn"),
+    list(args = list(steps = 5, thin = 20), regex = "[Tt]hin")
+  )
+  for (case in bad) {
+    expect_error(
+      do.call(run_inference, c(list(hhmodel), case$args,
+                               list(progress = FALSE))),
+      regexp = case$regex
+    )
+  }
+})
+
+test_that("run_inference with progress = TRUE emits the progress bar", {
+  # timing-sensitive: bar only prints when remaining time >= 1s
+  skip_on_cran()
+  hhmodel <- flu_1918_baltimora |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
+  out <- capture.output(
+    res <- run_inference(hhmodel, steps = 2000, progress = TRUE),
+    type = "output"
+  )
+  expect_s3_class(res, "HousepiPosteriorDraws")
+  expect_true(any(grepl("%|sample", out)),
+              info = paste(out, collapse = " | "))
+})
+
+test_that("predicted_cases_by_house_size exercises parallel for_each", {
+  # threads > 1 takes the RcppParallel branch in parallel::for_each
+  # (single-thread runs the serial fallback). The C++ simulate path
+  # invoked by predicted_cases_by_house_size goes through for_each,
+  # so this is the surface that covers parallel.h's EachWorker.
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    add_parameter_template()
+  results <- run_inference(hhmodel, steps = 30, progress = FALSE)
+  outs <- list()
+  for (t in c(1L, 2L)) {
+    suppressWarnings(
+      outs[[as.character(t)]] <- predicted_cases_by_house_size(
+        hhmodel, results, max_nrep = 4, threads = t, progress = FALSE
+      )
+    )
+    expect_s3_class(outs[[as.character(t)]], "PredictedCasesBySize")
+  }
+  expect_identical(outs[["1"]]$cases_table_by_size$observed,
+                   outs[["2"]]$cases_table_by_size$observed)
+})
+
+test_that("Run simulation thins param_table down to nrep when smaller", {
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+  hhmodel$add_parameter_template()
+  pt <- as.data.frame(stats::setNames(
+    as.list(hhmodel$parameters$value), hhmodel$parameters$name
+  ))
+  pt <- pt[rep(1L, 10), , drop = FALSE]
+  rownames(pt) <- NULL
+  result <- hhmodel$run_simulation(param_table = pt, nrep = 4)
+  expect_length(result, 4)
 })
 
 ####################################################

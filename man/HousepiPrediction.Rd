@@ -7,6 +7,24 @@
 \description{
 Class to extract posterior predictive checks over measures on simulations.
 }
+\section{Active bindings}{
+\if{html}{\out{<div class="r6-active-bindings">}}
+\describe{
+\item{\code{point_estimate}}{\code{character(1)}. Summary statistic name.}
+
+\item{\code{cri_level}}{\code{numeric(1)}. Credible interval level.}
+
+\item{\code{nrep}}{\code{integer(1)}. Number of replicates used for the predictions.}
+
+\item{\code{thin_ess}}{\code{logical(1)}. Whether thinning to ESS was applied.}
+
+\item{\code{is_posterior}}{\code{logical(1)}.
+Whether the predictions are posterior predictions.}
+
+\item{\code{model_name}}{\code{character(1)}. Name of the underlying model.}
+}
+\if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
@@ -29,9 +47,11 @@ performs simulation and compute predicted values of a set of measures.
   obs_process_long = NULL,
   ...,
   measures_long = NULL,
-  ess = TRUE,
+  thin_ess = TRUE,
+  max_nrep = 200,
   threads = 1,
   progress = TRUE,
+  point_estimate = "mean",
   cri_level = 0.95
 )}\if{html}{\out{</div>}}
 }
@@ -61,7 +81,13 @@ Each function should return one between \code{numeric()}, \code{list} or \code{d
 
 \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s. Applied to \code{data_long} (derived via \code{obs_process_long}).}
 
-\item{\code{ess}}{\verb{logical(1) Whether to resample }param_table\verb{to ESS. Ignored if}param_table\verb{has no posterior draws. Default is}TRUE`.}
+\item{\code{thin_ess}}{\code{logical(1)}. Whether to thin \code{param_table} to its
+bulk effective sample size (ESS).
+Ignored if \code{param_table} has no posterior draws. Default is \code{TRUE}.}
+
+\item{\code{max_nrep}}{\code{integer(1)} Larger number of replicates.
+The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.
+Defaults is \code{200}.}
 
 \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
 
@@ -72,6 +98,10 @@ One between:
 \item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
+
+\item{\code{point_estimate}}{\code{character(1)} Summary statistic used as the predicted
+point estimate across simulations. One between \code{"mean"} (default) and
+\code{"median"}.}
 
 \item{\code{cri_level}}{\code{numeric(1)} Level for credible interval
 It must be a value in (0.5, 1.0). Default is 0.95.}

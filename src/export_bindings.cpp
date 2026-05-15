@@ -15,11 +15,10 @@
 
 #include <Rcpp.h>
 
-#include "tools/atomic.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/openmp.h"
+#include "tools/parallel.h"
 #include "tools/operators.h"
 #include "tools/string.h"
 #include "tools/read.h"
@@ -253,6 +252,29 @@ namespace
         MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, distr_()->log_ratio_safe(vo, vn))
         MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
         MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile_safe(v))
+
+        /// Sample `n` random draws. Pass `seed = 0` to use a fresh,
+        /// nondeterministic seed (default).
+        Rcpp::NumericVector rand(int n, std::uint64_t seed) const
+        {
+            try
+            {
+                if (n < 0)
+                    throw std::invalid_argument("'n' must be non-negative.");
+                rnd_gen prng = (seed == 0) ? rnd_gen(std::random_device{}())
+                                           : rnd_gen(seed);
+                Rcpp::NumericVector y(n);
+                for (int i = 0; i < n; ++i)
+                    y[i] = distr_()->rand(prng);
+                return y;
+            }
+            catch (const std::exception &e)
+            {
+                msg::error(
+                    "While sampling " + family_ + " '" +
+                    std::string(ptr_->name()) + "':\n" + e.what());
+            }
+        }
 
     private:
         Distribution *distr_() const { return static_cast<Distribution *>(ptr_.get()); }
@@ -660,7 +682,7 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export current data configurations to R DataFrame.
-    Rcpp::DataFrame summarise_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
+    Rcpp::DataFrame summarise_house_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const ReportIndividual &report_indiv = data_wide.report_indiv;
@@ -669,48 +691,48 @@ namespace
         try
         {
             if (data_wide.is_empty())
-                msg::warning("Called 'summarise_cases' on empty data.");
+                msg::warning("Called 'summarise_house_cases' on empty data.");
 
-            Rcpp::CharacterVector type = Rcpp::wrap(std::vector<std::string>(4, "individual") +
-                                                    std::vector<std::string>(5, "household"));
-            Rcpp::CharacterVector comment = {"total", "missing", "not infected", "infected",
-                                             "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
-            Rcpp::IntegerVector counts(type.size());
-            Rcpp::NumericVector pct(type.size());
+            Rcpp::CharacterVector level = Rcpp::wrap(std::vector<std::string>(4, "individual") +
+                                                     std::vector<std::string>(5, "household"));
+            Rcpp::CharacterVector metric = {"total", "missing", "not infected", "infected",
+                                            "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
+            Rcpp::IntegerVector count(level.size());
+            Rcpp::NumericVector percent(level.size());
 
             // individual total
-            counts[0] = report_indiv.total;
-            pct[0] = 100.;
+            count[0] = report_indiv.total;
+            percent[0] = 100.;
             // individual missing
-            counts[1] = report_indiv.missing;
-            pct[1] = format_percentage(report_indiv.missing, report_indiv.total);
+            count[1] = report_indiv.missing;
+            percent[1] = format_percentage(report_indiv.missing, report_indiv.total);
             // individual not infected
-            counts[2] = report_indiv.susceptible;
-            pct[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
+            count[2] = report_indiv.susceptible;
+            percent[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
             // individual infected
-            counts[3] = report_indiv.infectious;
-            pct[3] = format_percentage(report_indiv.infectious, report_indiv.total);
+            count[3] = report_indiv.infectious;
+            percent[3] = format_percentage(report_indiv.infectious, report_indiv.total);
             // household total
-            counts[4] = report_house.total;
-            pct[4] = 100.;
+            count[4] = report_house.total;
+            percent[4] = 100.;
             // household distinct
-            counts[5] = report_house.distinct;
-            pct[5] = 100.;
+            count[5] = report_house.distinct;
+            percent[5] = 100.;
             // household no cases
-            counts[6] = report_house.no_cases;
-            pct[6] = format_percentage(report_house.no_cases, report_house.total);
+            count[6] = report_house.no_cases;
+            percent[6] = format_percentage(report_house.no_cases, report_house.total);
             // household at least 1 case
-            counts[7] = report_house.at_least_1_case;
-            pct[7] = format_percentage(report_house.at_least_1_case, report_house.total);
+            count[7] = report_house.at_least_1_case;
+            percent[7] = format_percentage(report_house.at_least_1_case, report_house.total);
             // household at least 2 cases
-            counts[8] = report_house.at_least_2_cases;
-            pct[8] = format_percentage(report_house.at_least_2_cases, report_house.total);
+            count[8] = report_house.at_least_2_cases;
+            percent[8] = format_percentage(report_house.at_least_2_cases, report_house.total);
 
             return Rcpp::DataFrame::create(
-                Rcpp::_["type"] = std::move(type),
-                Rcpp::_["comment"] = std::move(comment),
-                Rcpp::_["counts"] = std::move(counts),
-                Rcpp::_["pct"] = std::move(pct));
+                Rcpp::_["level"] = std::move(level),
+                Rcpp::_["metric"] = std::move(metric),
+                Rcpp::_["count"] = std::move(count),
+                Rcpp::_["percent"] = std::move(percent));
         }
         catch (const std::exception &e)
         {
@@ -732,32 +754,32 @@ namespace
 
         try
         {
-            Rcpp::CharacterVector comment({"max cases", "max miss", "min size", "max size"});
-            R_xlen_t n_rows = comment.size();
-            Rcpp::IntegerVector value(n_rows), counts(n_rows);
-            Rcpp::NumericVector pct(n_rows);
+            Rcpp::CharacterVector metric({"most cases", "most missing", "smallest size", "largest size"});
+            R_xlen_t n_rows = metric.size();
+            Rcpp::IntegerVector value(n_rows), count(n_rows);
+            Rcpp::NumericVector percent(n_rows);
 
             value[0] = report_hh_size.max_cases.first;
-            counts[0] = report_hh_size.max_cases.second;
-            pct[0] = format_percentage(counts[0], report_indiv.total);
+            count[0] = report_hh_size.max_cases.second;
+            percent[0] = format_percentage(count[0], report_indiv.total);
 
             value[1] = report_hh_size.max_miss.first;
-            counts[1] = report_hh_size.max_miss.second;
-            pct[1] = format_percentage(counts[1], report_indiv.total);
+            count[1] = report_hh_size.max_miss.second;
+            percent[1] = format_percentage(count[1], report_indiv.total);
 
             value[2] = report_hh_size.min_size.first;
-            counts[2] = report_hh_size.min_size.second;
-            pct[2] = format_percentage(counts[2], report_indiv.total);
+            count[2] = report_hh_size.min_size.second;
+            percent[2] = format_percentage(count[2], report_indiv.total);
 
             value[3] = report_hh_size.max_size.first;
-            counts[3] = report_hh_size.max_size.second;
-            pct[3] = format_percentage(counts[3], report_indiv.total);
+            count[3] = report_hh_size.max_size.second;
+            percent[3] = format_percentage(count[3], report_indiv.total);
 
             return Rcpp::DataFrame::create(
-                Rcpp::_["comment"] = std::move(comment),
+                Rcpp::_["metric"] = std::move(metric),
                 Rcpp::_["value"] = std::move(value),
-                Rcpp::_["counts"] = std::move(counts),
-                Rcpp::_["pct"] = std::move(pct));
+                Rcpp::_["count"] = std::move(count),
+                Rcpp::_["percent"] = std::move(percent));
         }
         catch (const std::exception &e)
         {
@@ -1225,33 +1247,32 @@ namespace
             DataWide &data_wide = engine.data_wide();
             const Augmented &augm = engine.augm;
 
-#pragma omp parallel for
-            for (size_t H = 0; H < data_wide.report_house.total; ++H)
-                try
+            housepi::parallel::for_each(
+                data_wide.report_house.total,
+                [&](size_t H)
                 {
-                    if (engine.atomic_error.is_pending())
-                        continue;
-
-                    Household &house = data_wide.at(H);
-                    engine.model->simulate_single_house(house);
-
-                    size_t row = row_offsets[H]; // thread-local: no shared counter
-                    for (const Individual &member : house)
+                    try
                     {
-                        status_col[row] = member.status();
-                        size_t c = 0;
-                        for (size_t a : augm.list_export)
-                            augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
-                        ++row;
+                        Household &house = data_wide.at(H);
+                        engine.model->simulate_single_house(house);
+
+                        size_t row = row_offsets[H]; // thread-local: no shared counter
+                        for (const Individual &member : house)
+                        {
+                            status_col[row] = member.status();
+                            size_t c = 0;
+                            for (size_t a : augm.list_export)
+                                augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
+                            ++row;
+                        }
                     }
-                }
-                catch (const std::exception &e)
-                {
-                    engine.atomic_error.set(
-                        "While simulating " + data_wide.at(H).err_name() + ":\n" +
-                        std::string(e.what()));
-                }
-            engine.atomic_error.throw_exception();
+                    catch (const std::exception &e)
+                    {
+                        throw std::runtime_error(
+                            "While simulating " + data_wide.at(H).err_name() + ":\n" +
+                            std::string(e.what()));
+                    }
+                });
         }
 
         // pre-compute per-household row offsets (fixes OpenMP race on row counter)
@@ -1359,6 +1380,11 @@ namespace
                     out_long[r] = (*f_long)(simulated);
             }
             setup.prog_close();
+
+            // restore observed status so post-simulation reads of data_wide
+            // return the original data (e.g. running observed measures again).
+            engine.augm.clear_all();
+            engine.data_wide().recover_all_status();
 
             return Rcpp::List::create(Rcpp::_["wide"] = out_wide,
                                       Rcpp::_["long"] = out_long);
@@ -1589,7 +1615,8 @@ RCPP_MODULE(housepi)
         .method("log_pdf", &ExposeDistribution::log_pdf)
         .method("log_ratio", &ExposeDistribution::log_ratio)
         .method("cdf", &ExposeDistribution::cdf)
-        .method("quantile", &ExposeDistribution::quantile);
+        .method("quantile", &ExposeDistribution::quantile)
+        .method("rand", &ExposeDistribution::rand);
 
     Rcpp::class_<ExposeInfecProfile>("ExposeInfecProfile")
         .constructor<std::string>()
@@ -1629,7 +1656,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("has_contact_rates", &has_contact_rates);
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);
-    Rcpp::function("summarise_cases", &summarise_cases);
+    Rcpp::function("summarise_house_cases", &summarise_house_cases);
     Rcpp::function("summarise_house_sizes", &summarise_house_sizes);
     Rcpp::function("export_setup", &export_setup);
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);

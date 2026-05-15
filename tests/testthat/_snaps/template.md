@@ -4,8 +4,8 @@
       browse_housepi_templates()
     Message
       i Available template models:
-      * augmented example
-      * augmented infection time
-      * blank
-      * chain binomial
+      * `augmented_example`
+      * `augmented_infection_time`
+      * `blank`
+      * `chain_binomial`
 

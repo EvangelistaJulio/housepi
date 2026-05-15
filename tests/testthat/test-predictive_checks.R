@@ -57,21 +57,29 @@ test_that("ppc_frame_apply computes element-wise operations", {
   expect_equal(result, c(x = 2, y = 3))
 })
 
-test_that("ppc_frame_apply_mean handles NA and non-numeric", {
+test_that("ppc_frame_apply_summary handles mean/median, NA and non-numeric", {
   # multi-row data.frames required by internal apply() on matrix path
   df1 <- data.frame(a = c(1, 2), b = c(NA_real_, NA_real_))
   df2 <- data.frame(a = c(3, 4), b = c(NA_real_, NA_real_))
 
-  result <- ppc_frame_apply_mean(list(df1, df2))
+  result <- ppc_frame_apply_summary(list(df1, df2), "mean")
   expect_equal(result$a, c(2, 3))
   expect_true(all(is.na(result$b)))
+
+  # median path
+  df3 <- data.frame(a = c(10, 20), b = c(NA_real_, NA_real_))
+  result_med <- ppc_frame_apply_summary(list(df1, df2, df3), "median")
+  expect_equal(result_med$a, c(3, 4))
 
   # named vector path: non-numeric uniform values
   v1 <- c(x = 1, y = NA_real_)
   v2 <- c(x = 3, y = NA_real_)
-  result <- ppc_frame_apply_mean(list(v1, v2))
+  result <- ppc_frame_apply_summary(list(v1, v2), "mean")
   expect_equal(result[["x"]], 2)
   expect_true(is.na(result[["y"]]))
+
+  # invalid summary stat
+  expect_error(ppc_frame_apply_summary(list(df1, df2), "mode"))
 })
 
 test_that("ppc_frame_apply_cri computes quantiles", {
@@ -170,15 +178,6 @@ test_that("Helper to count non-zero-cases behaves correctly", {
   expect_equal(result$count[result$house_size == 3], 1)
 })
 
-test_that("CRI set name convention renames correctly", {
-  x <- c("predicted", "cri_lower", "cri_upper")
-  result <- cri_set_name_convention(x, cri = 0.95)
-  expect_equal(result, c("mean", "q5", "q95"))
-
-  result2 <- cri_set_name_convention(x, cri = 0.9)
-  expect_equal(result2, c("mean", "q10", "q90"))
-})
-
 test_that("Helper to filter tables by max_house_size behaves correctly", {
   obs <- data.frame(house_size = 2:4,
                     `0` = c(1, 2, 3), `1` = c(4, 5, 0), `2` = c(0, 1, 0),
@@ -212,7 +211,7 @@ test_that("Helper to combine observations and predictions interleaves rows", {
   expect_true("distr" %in% colnames(result))
   expect_true("house_size" %in% colnames(result))
   # alternating rows
-  expect_equal(result$distr, rep(c("Observed", "Predicted"), 2))
+  expect_equal(result$distr, rep(c("observed", "predicted"), 2))
   expect_equal(nrow(result), 4)
 })
 
@@ -230,7 +229,9 @@ test_that("Predicted cases by house size works as expected", {
 
   results <- run_inference(hhmodel, steps = 100, progress = FALSE)
 
-  ppc <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE)
+  suppressWarnings(
+    ppc <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE)
+  )
   expect_s3_class(ppc, "PredictedCasesBySize")
 
   # formatted_sec_attack_rate
@@ -256,18 +257,86 @@ test_that("Predicted cases by house size works as expected", {
   expect_true(all(c("chisq_value", "ddof", "p_value") %in% names(chi)))
 })
 
+test_that("PPC does not pollute the engine's data_wide between calls", {
+  # repeated PPC calls must not mutate the model's data_wide; observed
+  # measures must remain identical across calls (regression: simulation
+  # used to leave the engine in the last simulated state).
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    add_parameter_template()
+  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
+
+  dw_before <- hhmodel$data_wide
+  suppressWarnings({
+    ppc1 <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE,
+                                          thin_ess = FALSE, max_nrep = 5)
+  })
+  expect_identical(hhmodel$data_wide, dw_before)
+
+  suppressWarnings({
+    ppc2 <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE,
+                                          thin_ess = FALSE, max_nrep = 5)
+  })
+  expect_identical(ppc1$cases_table_by_size$observed,
+                   ppc2$cases_table_by_size$observed)
+  expect_identical(ppc1$sec_attack_rate$observed,
+                   ppc2$sec_attack_rate$observed)
+})
+
+test_that("ppc_observed_outside_cri flags out-of-range numeric entries", {
+  # numeric vectors: middle is below, last is above, NA propagates as FALSE
+  obs <- c(1, 5, 10, NA)
+  low <- c(0, 6, 0, 0)
+  up  <- c(2, 8, 9, 10)
+  expect_equal(ppc_observed_outside_cri(obs, low, up),
+               c(FALSE, TRUE, TRUE, FALSE))
+
+  # non-numeric input is treated as not-a-mismatch (skipped)
+  expect_equal(ppc_observed_outside_cri(c("a", "b"), c("a", "b"), c("a", "b")),
+               c(FALSE, FALSE))
+
+  # data.frame: numeric column flagged, non-numeric column ignored
+  obs_df <- data.frame(x = c(1, 5), label = c("a", "b"))
+  low_df <- data.frame(x = c(0, 6), label = c("a", "b"))
+  up_df  <- data.frame(x = c(2, 8), label = c("a", "b"))
+  res <- ppc_observed_outside_cri(obs_df, low_df, up_df)
+  expect_true(is.data.frame(res))
+  expect_equal(res$x, c(FALSE, TRUE))
+  expect_equal(res$label, c(FALSE, FALSE))
+})
+
+test_that("HousepiPrediction warns on observed values outside CrI", {
+  # parameter set deliberately incompatible with data: alpha and beta very
+  # large saturate transmission, so predicted SAR collapses to ~1 while the
+  # observed flu data have moderate attack rates -> outside the CrI.
+  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    add_parameter_template()
+  param_table <- data.frame(alpha = 50, beta = 50,
+                            gamma = 1, size_ref = 4)
+  expect_warning(
+    predicted_measures(hhmodel, param_table,
+                       sar = measure_sar_by_house_size,
+                       progress = FALSE, thin_ess = FALSE, max_nrep = 20),
+    regexp = "Measure 'sar':.*outside the.*credible interval"
+  )
+})
+
 test_that("predicted_measures works with custom measure", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
     add_parameter_template()
   results <- run_inference(hhmodel, steps = 100, progress = FALSE)
 
-  ppc <- predicted_measures(hhmodel, results,
-                            sar = measure_sar_by_house_size,
-                            progress = FALSE,
-                            ess = FALSE)
+  suppressWarnings({
+    ppc <- predicted_measures(hhmodel, results,
+                              sar = measure_sar_by_house_size,
+                              progress = FALSE,
+                              thin_ess = FALSE,
+                              max_nrep = 10)
+  })
   expect_s3_class(ppc, "HousepiPrediction")
   expect_true(!is.null(ppc$sar))
   expect_true("observed" %in% names(ppc$sar))
   expect_true("predicted" %in% names(ppc$sar))
   expect_snapshot(print(ppc))
+  # max_nrep caps the number of replicates used for predictions
+  expect_identical(ppc$nrep, 10L)
 })

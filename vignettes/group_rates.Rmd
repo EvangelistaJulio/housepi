@@ -4,6 +4,8 @@ output:
   rmarkdown::html_vignette:
     toc: true
     toc-depth: 3
+bibliography: ../inst/REFERENCES.bib
+link-citations: true
 vignette: >
   %\VignetteIndexEntry{Group rates}
   %\VignetteEngine{knitr::rmarkdown}
@@ -103,7 +105,7 @@ hhmodel |>
 # Parameters associated to rates
 
 To perform inference of the parameters associated to each group we just need to provide options for the Bayesian Monte Carlo.
-By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and lognormal proposal, following [Cauchemez et al. (2009)](https://doi.org/10.1056/NEJMoa0905498).
+By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and lognormal proposal, following @cauchemez_household_2009.
 This can be customized at the moment of the definition of the group rate similarly to parameters (see documentation).
 
 ```{r}
@@ -237,3 +239,5 @@ get_parameter_draws(results) |>
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```
+
+# References

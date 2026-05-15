@@ -113,26 +113,19 @@ namespace housepi
 			double y;
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::Center:
-			{
-				const double i = std::round(x);
-				y = raw_cdf_(i + .5) - raw_cdf_(i - .5);
-				break;
-			}
-			case Mode::Discrete::Left:
-			{
-				const double i = std::floor(x);
-				y = raw_cdf_(i + 1.) - raw_cdf_(i);
-				break;
-			}
-			case Mode::Discrete::Defined:
-				y = raw_pdf_(std::floor(x));
-				break;
-			default: // case Mode::Discrete::None:
+			case Mode::Discrete::None:
 				y = raw_pdf_(x);
 				break;
+			case Mode::Discrete::Center:
+				y = discr_dist_center_(x);
+				break;
+			case Mode::Discrete::Left:
+				y = discr_dist_left_(x);
+				break;
+			default: // Mode::Discrete::Defined:
+				y = raw_pdf_(std::floor(x));
+				break;
 			}
-
 			return y / trunc_();
 		}
 
@@ -142,77 +135,38 @@ namespace housepi
 			double y;
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::Center:
-			{
-				const double i = std::round(x);
-				y = raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
-				break;
-			}
-			case Mode::Discrete::Left:
-			{
-				const double i = std::floor(x);
-				y = raw_cdf_(i + 1.) - raw_cdf_(i);
-				break;
-			}
-			case Mode::Discrete::Defined:
-				y = raw_log_pdf_(std::floor(x));
-				break;
-			default: // case Mode::Discrete::None:
+			case Mode::Discrete::None:
 				y = raw_log_pdf_(x);
 				break;
+			case Mode::Discrete::Center:
+				y = std::log(discr_dist_center_(x));
+				break;
+			case Mode::Discrete::Left:
+				y = std::log(discr_dist_left_(x));
+				break;
+			default: // Mode::Discrete::Defined:
+				y = raw_log_pdf_(std::floor(x));
+				break;
 			}
-
 			return y - logtrunc_();
 		}
 
 		/// Polymorphic primitive method.
-		double primitive_(double x) const override final
-		{
-			double adjusted_x;
-			switch (discr_mode_)
-			{
-			case Mode::Discrete::Center:
-				adjusted_x = std::round(x) + 0.5;
-				break;
-			case Mode::Discrete::Left:
-				adjusted_x = std::floor(x) + 1.0;
-				break;
-			case Mode::Discrete::Defined:
-				adjusted_x = std::floor(x);
-				break;
-			default: // case Mode::Discrete::None:
-				adjusted_x = x;
-				break;
-			}
-
-			return (raw_cdf_(adjusted_x) - shift_()) / trunc_();
-		}
+		double primitive_(double x) const override final { return (raw_cdf_(primitive_x_helper_(x)) - shift_()) / trunc_(); }
 
 		/// Polymorphic log_ratio method.
 		double log_ratio_(double xo, double xn) const override final
 		{
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::Center:
-			{
-				const double io = std::round(xo), in = std::round(xn);
-				if (io == in)
-					return 0.;
-				return std::log(raw_cdf_(in + .5) - raw_cdf_(in - .5)) -
-					   std::log(raw_cdf_(io + .5) - raw_cdf_(io - .5));
-			}
-			case Mode::Discrete::Left:
-			{
-				const double io = std::floor(xo), in = std::floor(xn);
-				if (io == in)
-					return 0.;
-				return std::log(raw_cdf_(in + 1.) - raw_cdf_(in)) -
-					   std::log(raw_cdf_(io + 1.) - raw_cdf_(io));
-			}
-			case Mode::Discrete::Defined:
-				return raw_log_ratio_(std::floor(xo), std::floor(xn));
-			default: // case Mode::Discrete::None:
+			case Mode::Discrete::None:
 				return raw_log_ratio_(xo, xn);
+			case Mode::Discrete::Center:
+				return std::log(discr_dist_center_(xn)) - std::log(discr_dist_center_(xo));
+			case Mode::Discrete::Left:
+				return std::log(discr_dist_left_(xn)) - std::log(discr_dist_left_(xo));
+			default: // Mode::Discrete::Defined:
+				return raw_log_ratio_(std::floor(xo), std::floor(xn));
 			}
 		}
 
@@ -255,7 +209,20 @@ namespace housepi
 		} trunc_mode_ = Trunc::None;
 
 		/// Select truncation mode from below_/above_mode_.
-		void helper_init_distr_truncation_();
+		void helper_init_distr_truncation_()
+		{
+			const bool has_min = below_mode_ != Mode::Interval::None;
+			const bool has_max = above_mode_ != Mode::Interval::None;
+
+			if (!has_min && !has_max)
+				trunc_mode_ = Trunc::None;
+			else if (has_min && !has_max)
+				trunc_mode_ = Trunc::Min;
+			else if (!has_min && has_max)
+				trunc_mode_ = Trunc::Max;
+			else
+				trunc_mode_ = Trunc::Both;
+		}
 
 		/// CDF at the lower bound, with discretization correction.
 		double cdf_lower_() const
@@ -327,6 +294,20 @@ namespace housepi
 			default:
 				return std::log(trunc_());
 			}
+		}
+
+	private:
+		/// Helper for Center discretization.
+		double discr_dist_center_(double x) const
+		{
+			const double i = std::round(x);
+			return raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
+		}
+		/// Helper for Left discretization.
+		double discr_dist_left_(double x) const
+		{
+			const double i = std::floor(x);
+			return raw_cdf_(i + 1.) - raw_cdf_(i);
 		}
 	};
 

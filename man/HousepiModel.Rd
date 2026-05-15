@@ -38,7 +38,7 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-copy}{\code{HousepiModel$copy()}}
 \item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
 \item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
-\item \href{#method-HousepiModel-summarise_cases}{\code{HousepiModel$summarise_cases()}}
+\item \href{#method-HousepiModel-summarise_house_cases}{\code{HousepiModel$summarise_house_cases()}}
 \item \href{#method-HousepiModel-summarise_house_sizes}{\code{HousepiModel$summarise_house_sizes()}}
 \item \href{#method-HousepiModel-add_data_long}{\code{HousepiModel$add_data_long()}}
 \item \href{#method-HousepiModel-add_parameter}{\code{HousepiModel$add_parameter()}}
@@ -151,12 +151,12 @@ Show model description in RStudio Help window.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-summarise_cases"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-summarise_cases}{}}}
-\subsection{Method \code{summarise_cases()}}{
+\if{html}{\out{<a id="method-HousepiModel-summarise_house_cases"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-summarise_house_cases}{}}}
+\subsection{Method \code{summarise_house_cases()}}{
 Summarise statuses in loaded data.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_cases()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$summarise_house_cases()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
@@ -778,7 +778,7 @@ It assumes the same community structure of the loaded data.
   obs_process = NULL,
   obs_process_long = NULL,
   param_table = NULL,
-  nsim = 1
+  nrep = NA_integer_
 )}\if{html}{\out{</div>}}
 }
 
@@ -800,8 +800,11 @@ When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 \item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
 }}
 
-\item{\code{nsim}}{\code{integer(1)} Number of simulated outbreaks.
-Ignored if \code{param_table} is provided, else simulations share parameters.}
+\item{\code{nrep}}{\code{integer(1)} Number of replicates to generate.
+If \code{param_table} is \code{NULL}, all replicates share the same parameters.
+Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows,
+the table is sub-sampled to \code{nrep} evenly-spaced rows.
+Defaults to \code{NA} produces a single repetition.}
 }
 \if{html}{\out{</div>}}
 }

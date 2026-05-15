@@ -8,6 +8,7 @@
 rate_stop_hint <- "Choose 'by' for automatic definitions, 'strata' for custom."
 
 # Reserved column names (non-feature) in a logic table.
+data_reserved_cols <- c("id", "house_id", "status")
 rate_reserved_cols <- c("group_rate", "param_name", "n", "rule_group")
 
 # Throw error if empty definition.
@@ -35,7 +36,7 @@ assert_valid_features <- function(features) {
   )
 
   # avoid group rates associated to reserved data/definition names
-  reserved_data <- c("id", "house_id", "status", rate_reserved_cols)
+  reserved_data <- c(data_reserved_cols, rate_reserved_cols)
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
     sprintf("Impossible to associate rate to feature%s %s",
@@ -281,12 +282,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 }
 
 #' Return list with default MCMC setup if user choice is missing.
-#' @references
-#' Cauchemez, et al. (2009)
-#' Household Transmission of 2009 Pandemic Influenza A (H1N1)
-#' Virus in the United States.
-#' New England Journal of Medicine. 361: 2619-2627.
-#' \doi{10.1056/NEJMoa0905498}
+#' Defaults follow Cauchemez et al. (2009) \doi{10.1056/NEJMoa0905498}.
 #' @return `list`
 #' @keywords internal
 #' @noRd
@@ -488,7 +484,7 @@ HousepiGroupRate <- R6::R6Class(
           vals <- tbl[[col]][!is.na(tbl[[col]])]
           data_vals <- unique(data_wide[[col]])
           missing_vals <- setdiff(as.character(vals), as.character(data_vals))
-          if (length(missing_vals) > 0) warning_h(
+          if (length(missing_vals) > 0) warn_h(
             sprintf("Rate '%s' definition value%s not found in data '%s': %s",
                     rate_id, as_plural(missing_vals, "s"), col,
                     character_to_string_list(missing_vals)),
@@ -628,7 +624,7 @@ HousepiGroupRate <- R6::R6Class(
         if (!placeholder) return(name)
 
       } else if (isTRUE(warn_removal)) {
-        warning_h(sprintf("Attempt to remove unknown group_rate '%s'.", name))
+        warn_h(sprintf("Attempt to remove unknown group_rate '%s'.", name))
       }
 
       c()
@@ -754,7 +750,7 @@ HousepiGroupRate <- R6::R6Class(
           for (which in notused) self$remove(which)
           stop_h(sms)
         }
-        warning_h(sms)
+        warn_h(sms)
       }
 
       template_missing_stop(required, defined, self$family)

@@ -21,6 +21,8 @@
 "_PACKAGE"
 
 #' @useDynLib housepi, .registration = TRUE
+#' @importFrom RcppParallel RcppParallelLibs
+#' @importFrom Rdpack reprompt
 NULL
 
 .engine <- NULL
@@ -28,4 +30,8 @@ NULL
 .onLoad <- function(libname, pkgname) {
   pkgbuild::check_build_tools(quiet = TRUE)
   .engine <<- Rcpp::Module(pkgname, PACKAGE = pkgname)
+}
+
+.onUnload <- function(libpath) {
+  library.dynam.unload("housepi", libpath)
 }

@@ -10,7 +10,10 @@ predicted_measures(
   ...,
   obs_process = NULL,
   obs_process_long = NULL,
-  ess = TRUE,
+  thin_ess = TRUE,
+  max_nrep = 200,
+  point_estimate = "mean",
+  cri_level = 0.95,
   threads = 1,
   progress = TRUE
 )
@@ -36,7 +39,20 @@ If \code{NULL}, observation process is ignored.}
 Expexts processed \code{data_wide} and returns a \code{data_long} data.frame.
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
-\item{ess}{\verb{logical(1) Whether to resample }param_table\verb{to ESS. Ignored if}param_table\verb{has no posterior draws. Default is}TRUE`.}
+\item{thin_ess}{\code{logical(1)}. Whether to thin \code{param_table} to its
+bulk effective sample size (ESS).
+Ignored if \code{param_table} has no posterior draws. Default is \code{TRUE}.}
+
+\item{max_nrep}{\code{integer(1)} Larger number of replicates.
+The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.
+Defaults is \code{200}.}
+
+\item{point_estimate}{\code{character(1)} Summary statistic used as the predicted
+point estimate across simulations. One between \code{"mean"} (default) and
+\code{"median"}.}
+
+\item{cri_level}{\code{numeric(1)} Level for credible interval
+It must be a value in (0.5, 1.0). Default is 0.95.}
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 

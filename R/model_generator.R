@@ -165,7 +165,7 @@ HousepiGenerator <- R6::R6Class(
     # Wheter model choice is interpretable.
     helper_init_model_choice_ = function(model) {
       choice <- "blank"
-      if (all(is.na(model) | is.null(model))) warning_h(
+      if (all(is.na(model) | is.null(model))) warn_h(
         "No model specified. Falling back to 'blank' model.",
         "To show available templates, run 'browse_housepi_templates'."
       )
@@ -219,7 +219,7 @@ HousepiGenerator <- R6::R6Class(
 
           } else {
             private$needs_compile_ <- FALSE
-            warning_h(
+            warn_h(
               "Impossible to replace existing template in current session.",
               "Start a new R session to re-compile your model as a template.",
               "Warning raised because model changed or 'force = TRUE'."
@@ -331,14 +331,44 @@ HousepiGenerator <- R6::R6Class(
       paths <- c(system.file("include", package = "housepi"), paths)
       housepi_lib <- getLoadedDLLs()[["housepi"]][["path"]]
 
-      c(PKG_CXXFLAGS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
-                                paste0("-D", flags),
+      # collect RcppParallel flags
+      rcpp_parallel_libs <- paste(utils::capture.output(
+        RcppParallel::RcppParallelLibs()
+      ), collapse = " ")
+
+      c(PKG_CXXFLAGS = paste0(c(paste0("-D", flags),
                                 paste0("-I", paths)),
                               collapse = " "),
-        PKG_LIBS = paste0(c("$(SHLIB_OPENMP_CXXFLAGS)",
+        PKG_LIBS = paste0(c(rcpp_parallel_libs,
                             if (length(libs)) paste0("-L", libs),
                             housepi_lib),
                           collapse = " "))
+    },
+
+    # @description
+    # macOS only. The custom DLL was linked against housepi.so and the
+    # linker recorded that dependency by its basename ("housepi.so"). If
+    # devtools::load_all has reloaded housepi during this session, two
+    # housepi.so images are mapped under that same basename — dyld would
+    # then bind our custom DLL to the first one, while .engine talks to
+    # the most-recently-loaded one. The C++ ModelRegistry singleton lives
+    # per-image, so the model registers in one and the lookup queries
+    # the other: "unknown model" error.
+    #
+    # Fix: rewrite the dependency to the full path of the housepi image
+    # .engine is actually using. dyld then has no ambiguity.
+    bind_to_active_housepi_ = function(custom_dll) {
+      if (Sys.info()[["sysname"]] != "Darwin") return(invisible())
+      # R's PACKAGE="housepi" lookup picks the last loaded entry, so the
+      # last one is what .engine resolves against.
+      hp_entries <- Filter(function(d) d[["name"]] == "housepi",
+                           getLoadedDLLs())
+      housepi_path <- hp_entries[[length(hp_entries)]][["path"]]
+      system2("install_name_tool",
+              c("-change", "housepi.so",
+                shQuote(housepi_path), shQuote(custom_dll)),
+              stdout = FALSE, stderr = FALSE)
+      invisible()
     },
 
     # @description
@@ -364,6 +394,7 @@ HousepiGenerator <- R6::R6Class(
       # copy DLL outside of the source directory
       custom_dll <- file.path(private$cache_dir_, "src",
                               dll_file_ext("housepi.custom"))
+      private$bind_to_active_housepi_(custom_dll)
       overwrite(custom_dll, private$dll_)
       # drop other files
       unlink(file.path(private$cache_dir_,

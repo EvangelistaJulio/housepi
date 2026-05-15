@@ -1,4 +1,4 @@
 CXX_STD = CXX17
 
-PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -I"../inst/include"
-PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS = -I"../inst/include"
+PKG_LIBS = -L/Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/library/RcppParallel/lib -ltbb -ltbbmalloc

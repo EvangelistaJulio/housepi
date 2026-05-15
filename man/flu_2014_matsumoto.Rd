@@ -14,9 +14,9 @@ A data frame with 47,213 rows and 3 columns
 data(flu_2014_matsumoto)
 }
 \description{
-Household survey in Matsumoto city (Japan) for parents having children in primary school.
+Household survey in Matsumoto city for parents having children in primary school.
 Report on influenza episodes of family members during the season 2014-15.
-Original observational study from Uchida, et al. (2017).
+Original observational study from Uchida et al. (2017).
 }
 \details{
 \describe{
@@ -29,10 +29,8 @@ To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_flu_2014_matsumoto.R", package = "housepi")}
 }
 \references{
-Endo, et al. (2019)
-Fine-scale family structure shapes influenza transmission risk in households:
-Insights from primary schools in Matsumoto city, 2014/15.
-PLOS Computational Biology;15: e1007589.
-\doi{10.1371/journal.pcbi.1007589}
+\insertRef{uchida_effectiveness_2017}{housepi}
+
+\insertRef{endo_fine_scale_2019}{housepi}
 }
 \keyword{datasets}

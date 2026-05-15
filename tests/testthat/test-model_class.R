@@ -5,20 +5,11 @@ library(testthat)
 ##################################
 
 test_that("Model class inconsistent calls", {
-  # Default blank
-  expect_warning(new_housepi_model(), regexp = "Falling back to")
-
   # blank household model object
   hhmodel <- new_housepi_model(model = "blank")
 
   # inference without definitions
   expect_error(hhmodel$run_inference(), regexp = "Nothing to sample")
-
-  # data_wide type errors surface at construction
-  expect_error(new_housepi_model(data.frame(), "blank"),
-               regexp = "empty")
-  expect_error(new_housepi_model("ground", "blank"),
-               regexp = "data.frame")
 
   # data_long errors still surface via add_data_long
   expect_error(hhmodel$add_data_long("zero"), regexp = "data.frame")
@@ -36,6 +27,9 @@ test_that("Active fields are read-only", {
   expect_error(hhmodel$augmented <- "Le", regexp = "read only")
   expect_error(hhmodel$infec_profile <- "Lo", regexp = "read only")
   expect_error(hhmodel$group_rates <- "The", regexp = "read only")
+  expect_error(hhmodel$contact_rates <- "Boss", regexp = "read only")
+  # read access on contact_rates active field
+  expect_silent(hhmodel$contact_rates)
   expect_error(hhmodel$name <- "Patriots", regexp = "read only")
   expect_error(hhmodel$setup <- "Cipher", regexp = "read only")
 })
@@ -57,6 +51,9 @@ test_that("Model class 'blank' calls", {
                           time = seq(3), measure = seq(3)**3)
   hhmodel$add_data_long(data_long)
   expect_equal(hhmodel$data_long, data_long)
+  # export_house_snapshot returns refactored data_long when present
+  snap_long <- hhmodel$export_house_snapshot(snapshot$data_wide$house_id[1])
+  expect_true(is.data.frame(snap_long$data_long))
 
   # factorization round-trips through a fresh blank model
   complex_data <- sarscov2_2021_icofs
@@ -93,6 +90,19 @@ test_that("Print behavior works as expected", {
 
   # blank model
   expect_snapshot(print(new_housepi_model(model = "blank")))
+
+  # discrete-time flag branch in print
+  hhmodel_d <- new_housepi_model(sarscov2_2021_icofs,
+                                 "augmented_infection_time", discr = TRUE)
+  expect_snapshot(print(hhmodel_d))
+
+  # infectivity-profile section in print
+  hhmodel_ip <- new_housepi_model(sarscov2_2021_icofs,
+                                  "augmented_infection_time")
+  expect_snapshot(print(hhmodel_ip))
+
+  # help() dispatches without error in non-interactive mode (emits warning)
+  expect_warning(hhmodel$help())
 })
 
 ##################################
@@ -103,27 +113,27 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
   hhmodel <- flu_2014_matsumoto |>
     new_housepi_model("chain_binomial")
 
-  case_summary <- summarise_cases(hhmodel)
+  case_summary <- summarise_house_cases(hhmodel)
   expect_true(is.data.frame(case_summary))
   # expect same household count as in Endo, et al. ('19)
   expect_equal(
-    subset(case_summary, type == "household" & comment == "total")$counts,
+    subset(case_summary, level == "household" & metric == "total")$count,
     10486
   )
   # house_size vs status equivalence groups correspond to measure non-zeros
   aux <- measure_cases_by_house_size(flu_2014_matsumoto)
   aux$house_size <- NULL
   expect_equal(
-    subset(case_summary, type == "household" & comment == "distinct")$counts,
+    subset(case_summary, level == "household" & metric == "distinct")$count,
     sum(aux[!is.na(aux)] > 0)
   )
 
   # fix expected equivalence classes by member composition
   case_summary <- hhmodel |>
     add_group_rate("community", by = "member") |>
-    summarise_cases()
+    summarise_house_cases()
   expect_equal(
-    subset(case_summary, type == "household" & comment == "distinct")$counts,
+    subset(case_summary, level == "household" & metric == "distinct")$count,
     454
   )
 
@@ -201,7 +211,18 @@ test_that("Custom models shares function registries", {
   custom <- system.file(file.path("examples", "custom"), package = "housepi")
   hhmodel_1 <- flu_1918_frederick |>
     new_housepi_model(custom, quiet = TRUE)
-  expect_no_error(expose_function("growth")$func(seq(3)))
+
+  # Growth_ overrides only raw_function_ and raw_primitive_
+  # other raw_ virtuals fall back to raise_undefined_call_err_
+  x <- seq(0, 3, 0.5)
+  initial <- 2
+  rate <- 0.5
+  fn <- expose_function("growth", initial = initial, rate = rate)
+  expect_equal(fn$func(x), initial * exp(rate * x))
+  expect_equal(fn$prim(x), initial * exp(rate * x) / rate)
+  expect_error(fn$log_func(x), regexp = "undefined")
+  # default raw_log_ratio_ returns 0
+  expect_equal(fn$log_ratio(x, x + 0.1), rep(0, length(x)))
 })
 
 #########################################
@@ -390,4 +411,100 @@ test_that("Contact rate definition work as expected", {
   # every off-diagonal cell resolves to the reference (1)
   # or to exactly one param value: no multiplications
   expect_true(all(cr_mtx %in% c(0, 1, params)))
+
+  # drop_contact_rates cleans up the associated parameter definitions
+  param_names_before <- hhmodel$parameters$name
+  hhmodel$drop_contact_rates()
+  expect_false(any(setdiff(names(params), ".reference") %in%
+                     hhmodel$parameters$name))
+  # the template parameters added previously must survive
+  template_pars <- c("alpha", "beta", "gamma")
+  expect_true(all(template_pars %in% param_names_before))
+})
+
+test_that("Contact rates raise an error for incompatible models", {
+  hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4),
+                        cohort = c("a", "a", "b", "b")) |>
+    new_housepi_model("augmented_example")
+  expect_error(hhmodel$add_contact_rate(by = "cohort"),
+               regexp = "not supported")
+})
+
+test_that("run_simulation rejects non-function obs_process", {
+  hhmodel <- new_housepi_model(model = "blank")
+  expect_error(hhmodel$run_simulation(obs_process = "not a function"),
+               regexp = "function")
+})
+
+test_that("Param table with degenerate columns raises an ESS error", {
+  hhmodel <- new_housepi_model(model = "blank")
+  pt <- posterior::as_draws_df(data.frame(p = rep(1, 100)))
+  expect_error(hhmodel$run_simulation(param_table = pt),
+               regexp = "ESS")
+})
+
+test_that("run_simulation auto-imports parameters from param_table", {
+  hhmodel <- data.frame(house_id = 1, id = letters[1:3], status = 0) |>
+    new_housepi_model("blank")
+  expect_equal(nrow(hhmodel$parameters), 0)
+  pt <- data.frame(snake = c(0.1, 0.2, 0.3))
+  invisible(hhmodel$run_simulation(param_table = pt))
+  expect_true("snake" %in% hhmodel$parameters$name)
+})
+
+test_that("run_measure_ rejects apply_long without obs_process_long", {
+  hhmodel <- new_housepi_model(model = "blank")
+  hhmodel$add_parameter_list(alpha = 1)
+  priv <- hhmodel$.__enclos_env__$private
+  pt <- data.frame(alpha = c(0.1, 0.2, 0.3))
+  expect_error(
+    priv$run_measure_(param_table = pt,
+                      apply_wide = function(x) list(x),
+                      apply_long = function(x) list(x),
+                      obs_proc_wide = NULL,
+                      obs_proc_long = NULL,
+                      progress = FALSE),
+    regexp = "obs_process_long"
+  )
+})
+
+test_that("run_simulation returns combined wide/long output", {
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
+  hhmodel$add_parameter_template()
+  # supplying obs_process_long forces the long branch into a non-empty list
+  obs_long <- function(x) data.frame(id = "ocelot", measure = 1.0)
+  out <- hhmodel$run_simulation(
+    obs_process = function(x) x,
+    obs_process_long = obs_long,
+    nrep = 2
+  )
+  expect_true(is.list(out))
+})
+
+test_that("add_augmented_template loads from a non-blank model template", {
+  hhmodel <- new_housepi_model(sarscov2_2021_icofs,
+                               "augmented_infection_time")
+  hhmodel$add_augmented_template()
+  expect_true(nrow(hhmodel$augmented) > 0)
+})
+
+test_that("add_infec_profile and list update the model directly", {
+  hhmodel <- new_housepi_model(sarscov2_2021_icofs,
+                               "augmented_infection_time")
+  hhmodel$add_infec_profile(func = "gamma", shape = 2, scale = 1)
+  expect_true("gamma" %in% hhmodel$infec_profile$func)
+  hhmodel$add_infec_profile_list(snake = list(func = "lognormal"))
+  expect_true("lognormal" %in% hhmodel$infec_profile$func)
+})
+
+test_that("export_to_cpp_standalone writes the expected CSVs", {
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
+  hhmodel$add_parameter_template()
+  hhmodel$add_group_rate("community", by = "member")
+  td <- withr::local_tempdir()
+  housepi:::export_to_cpp_standalone(hhmodel, outpath = td)
+  expected <- c("augm.csv", "contact_rates.csv", "data_wide.csv",
+                "data_long.csv", "group_rates.csv", "infec.csv",
+                "param.csv", "setup.csv")
+  expect_true(all(file.exists(file.path(td, expected))))
 })

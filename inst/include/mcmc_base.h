@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/atomic.h"
 #include "tools/loglike.h"
 #include "tools/nan.h"
 
@@ -35,7 +34,6 @@ namespace housepi
 	class MCMCBase
 	{
 	public:
-		atomic::Error atomic_error;
 		Setup setup;
 		LogLike tot_log_lik;
 		Posterior posterior;

@@ -392,3 +392,99 @@ test_that("Non-joint sub-tables have correct columns", {
   expect_true(all(c("from_sex", "to_sex") %in% colnames(t2)))
   expect_false("from_age" %in% colnames(t2))
 })
+
+#####################################################
+## CONTACT RATES : C++ RESOLUTION (best_match.h)   ##
+#####################################################
+
+# These tests drive update_best_match / resolve_best_match in src/rates.cpp
+# through the full model build, so the C++ matrix can be read back and
+# inspected via export_house_snapshot.
+
+# Cell-by-cell readout helper.
+ctr_cell_ <- function(hhsnapshot, from, to, key = "member") {
+  ids <- hhsnapshot$data_wide[[key]]
+  hhsnapshot$contact_rate[match(from, ids), match(to, ids)]
+}
+
+test_that("Most-specific rule wins over reference (single feature)", {
+  # house with one of each member type
+  hh <- data.frame(
+    id = c("m1", "m2", "m3", "m4"),
+    house_id = "h1",
+    status = c(0L, 0L, 0L, 0L),
+    member = c("father", "mother", "student", "sibling"),
+    stringsAsFactors = FALSE
+  )
+
+  # one specific pair gets a non-reference param; everything else falls
+  # through to .reference (specificity 0, hits update_best_match's empty
+  # branch then never gets beaten).
+  strata <- data.frame(
+    from_member = c("father", NA),
+    to_member = c("mother", NA),
+    param_name = c("ctr_fm", ".reference"),
+    stringsAsFactors = FALSE
+  )
+
+  hhmodel <- new_housepi_model(hh, "chain_binomial")
+  hhmodel$add_parameter_template()
+  hhmodel$add_contact_rate(strata = strata, symmetric = FALSE,
+                           params = list(ctr_fm = 2))
+  snap <- hhmodel$export_house_snapshot("h1")
+
+  # the explicit pair wins
+  expect_equal(ctr_cell_(snap, "father", "mother"), 2)
+  # symmetric = FALSE: reverse falls back to reference
+  expect_equal(ctr_cell_(snap, "mother", "father"), 1)
+  # unrelated pair falls back to reference (spec=0)
+  expect_equal(ctr_cell_(snap, "student", "sibling"), 1)
+  # diagonal stays 0 (no self-contact)
+  expect_equal(unname(diag(snap$contact_rate)), rep(0., nrow(hh)))
+})
+
+test_that("Distinct rule_groups multiply at the cell", {
+  # two-feature household so 'compute_rule_groups' yields TWO maximal
+  # patterns ({from_age,to_age}, {from_class,to_class}) and the per-group
+  # winners get init_product'd into one Attribute.
+  hh <- data.frame(
+    id = c("m1", "m2", "m3", "m4"),
+    house_id = "h1",
+    status = c(0L, 0L, 0L, 0L),
+    age = c("adult", "adult", "child", "adult"),
+    class = c("a", "a", "b", "b"),
+    stringsAsFactors = FALSE
+  )
+
+  # disjoint patterns -> two rule_groups; prime values catch any
+  # accidental sum / overwrite. .reference is dropped (".none") so the
+  # two maximal patterns don't conflict in compute_rule_groups; the C++
+  # side still fills unmatched cells with VALUE_REFERENCE (= 1).
+  strata <- data.frame(
+    from_age = c("adult", NA),
+    to_age = c("adult", NA),
+    from_class = c(NA, "a"),
+    to_class = c(NA, "a"),
+    param_name = c("ctr_aa", "ctr_class_aa"),
+    stringsAsFactors = FALSE
+  )
+
+  hhmodel <- new_housepi_model(hh, "chain_binomial")
+  hhmodel$add_parameter_template()
+  hhmodel$add_contact_rate(
+    strata = strata, symmetric = FALSE, reference = ".none",
+    params = list(ctr_aa = 3, ctr_class_aa = 5)
+  )
+  snap <- hhmodel$export_house_snapshot("h1")
+
+  # m1 (adult,a) → m2 (adult,a): BOTH rules match → 3 * 5 = 15
+  # (init_product over two Attribute* — rates.cpp's multi-group loop)
+  expect_equal(ctr_cell_(snap, "m1", "m2", key = "id"), 15)
+  # m1 (adult,a) → m4 (adult,b): only age rule matches → 3
+  expect_equal(ctr_cell_(snap, "m1", "m4", key = "id"), 3)
+  # m1 (adult,a) → m3 (child,b): neither rule matches → reference (1)
+  expect_equal(ctr_cell_(snap, "m1", "m3", key = "id"), 1)
+  # diagonal is 0
+  expect_equal(unname(diag(snap$contact_rate)), rep(0., nrow(hh)))
+})
+

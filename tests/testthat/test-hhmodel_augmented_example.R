@@ -222,21 +222,26 @@ test_that("Augmented model log-likelihoods are correctly computed", {
   shape <- 2
   scale <- 1.1
   id_draws <- house[house$status > 0, ]$id
-  results <- new_housepi_model(house, "augmented_example") |>
-    add_augmented_list(proba = list(model = "gamma", x = x@D,
-                                    shape = !!shape, scale = !!scale)) |>
-    run_inference(steps = 5, thin = 1, adapt = 0, chain = 1,
-                  progress = FALSE, id_draws = id_draws)
 
-  # coherency between pointwise and total log-likelihood
-  expect_equal(get_total_log_lik_draws(results)$log_lik,
-               get_log_lik_draws(results)$hh01)
+  # Looping over thread counts exercises the RcppParallel reduction in
+  # commit_total_log_lik_; both invariants must hold for any thread count.
+  for (t in c(1L, 2L)) {
+    results <- new_housepi_model(house, "augmented_example") |>
+      add_augmented_list(proba = list(model = "gamma", x = x@D,
+                                      shape = !!shape, scale = !!scale)) |>
+      run_inference(steps = 5, thin = 1, adapt = 0, chain = 1, threads = t,
+                    progress = FALSE, id_draws = id_draws)
 
-  # coherency between augmented draws and log-likelihood
-  df <- as.data.frame(get_augmented_draws(results))
-  df <- as.matrix(df[, !startsWith(names(df), "."), drop = FALSE])
-  expect_equal(get_log_lik_draws(results)$hh01,
-               rowSums(log(df * dgamma(df, shape = shape, scale = scale))))
+    # coherency between pointwise and total log-likelihood
+    expect_equal(get_total_log_lik_draws(results)$log_lik,
+                 get_log_lik_draws(results)$hh01)
+
+    # coherency between augmented draws and log-likelihood
+    df <- as.data.frame(get_augmented_draws(results))
+    df <- as.matrix(df[, !startsWith(names(df), "."), drop = FALSE])
+    expect_equal(get_log_lik_draws(results)$hh01,
+                 rowSums(log(df * dgamma(df, shape = shape, scale = scale))))
+  }
 })
 
 test_that("export_augmented_data works after evaluate_log_lik", {

@@ -12,6 +12,8 @@
 ^.claude$
 ^cleanup$
 ^cleanup.win$
+^src/Makevars$
+^src/Makevars\.win$
 ^data-raw$
 ^doc$
 ^pkgdown$

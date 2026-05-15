@@ -12,30 +12,201 @@
 #include <utility>
 #include <vector>
 
-#include "tools/atomic.h"
 #include "tools/keys.h"
 #include "tools/loglike.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
-#include "tools/openmp.h"
+#include "tools/parallel.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
-#include "model.h"
-#include "mcmc.h"
-#include "registry.h"
-#include "data_wide.h"
-#include "household.h"
-#include "data_long.h"
-#include "parameter.h"
-#include "group_rate.h"
-#include "contact_rate.h"
-#include "infec_profile.h"
 #include "augmented.h"
+#include "contact_rate.h"
+#include "data_wide.h"
+#include "data_long.h"
+#include "household.h"
+#include "group_rate.h"
+#include "individual.h"
+#include "infec_profile.h"
+#include "mcmc.h"
+#include "mcmc_base.h"
+#include "model.h"
+#include "parameter.h"
+#include "registry.h"
+#include "setup.h"
 
 namespace housepi
 {
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////  *** Posterior : struct ***  ///////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    namespace
+    {
+        // Help initializing parameter draws,
+        void helper_init_param_draws(
+            Posterior *post,
+            const Parameter &param,
+            unsigned long sample_size)
+        {
+            size_t n = param.list_sample.size();
+            post->param_values.reserve(n);
+            post->param_priors.reserve(n);
+            post->param_names.reserve(n);
+            post->param_prior_names.reserve(n);
+            for (size_t p : param.list_sample)
+            {
+                post->param_values.emplace_back(sample_size, na::DOUBLE);
+                post->param_priors.emplace_back(sample_size, na::DOUBLE);
+                post->param_names.push_back(param.khold().as_string(p));
+                post->param_prior_names.push_back("lprior_" + param.khold().as_string(p));
+            }
+        }
+
+        /// Help initializing household log-likelihood draws.
+        void helper_init_house_draws(
+            Posterior *post,
+            const DataWide &data_wide,
+            unsigned long sample_size)
+        {
+            size_t n_restricted = data_wide.distinct_size();
+            post->house_log_lik.reserve(n_restricted);
+            for (size_t R = 0; R < n_restricted; ++R)
+                post->house_log_lik.emplace_back(sample_size, na::DOUBLE);
+
+            size_t n_houses = data_wide.report_house.total;
+            post->house_names.reserve(n_houses);
+            for (Household house : data_wide)
+                post->house_names.push_back(house.house_id());
+        }
+
+        // Help initializing augmented draws,
+        void helper_init_augm_draws(
+            Posterior *post,
+            const Augmented &augm,
+            const std::vector<std::string> &id_draws,
+            unsigned long sample_size)
+        {
+            post->augm_individuals = augm.init_individual_sample(id_draws);
+
+            if (post->augm_individuals.empty())
+                return;
+
+            post->augm_values.resize(post->augm_individuals.size());
+            for (size_t i = 0; i < post->augm_individuals.size(); ++i)
+            {
+                const Individual &member = *post->augm_individuals[i];
+                const auto &draws_list = augm.list_draws(member);
+                auto &member_matrix = post->augm_values[i];
+                member_matrix.reserve(draws_list.size());
+                for (size_t a : draws_list)
+                {
+                    member_matrix.emplace_back(sample_size, na::DOUBLE);
+                    post->augm_col_names.push_back(member.id() + "_" + augm.khold().as_string(a));
+                }
+            }
+        }
+    }
+
+    void Posterior::init(MCMCBase &mcmc)
+    {
+        clear();
+
+        const Setup &setup = mcmc.setup;
+        unsigned long sample_size = setup.c_sample_size * setup.n_chains;
+        is_power_post_ = setup.is_power_post();
+
+        // always allocate total log-likelihood
+        total_log_lik.reserve(1);
+        total_log_lik.emplace_back(sample_size, na::DOUBLE);
+
+        //// UPDATE: I would like to store also power posterior sample.
+        /// NOTE: it will depend on chosen rungs in that case.
+        if (is_power_post_)
+            return;
+
+        helper_init_param_draws(this, mcmc.param, sample_size);
+        helper_init_house_draws(this, mcmc.data_wide(), sample_size);
+        helper_init_augm_draws(this, mcmc.augm, setup.id_draws, sample_size);
+    }
+
+    void Posterior::store(MCMCBase &mcmc)
+    {
+        if (!is_power_post_)
+        {
+            // parameter values and priors
+            const Parameter &param = mcmc.param;
+            size_t i = 0;
+            for (size_t p : param.list_sample)
+            {
+                const Variable &v = param.at(p);
+                param_values[i][count_] = v.value();
+                param_priors[i][count_] = v.get_distr_log_pdf();
+                ++i;
+            }
+
+            // household log-likelihoods
+            const DataWide &data_wide = mcmc.data_wide();
+            const bool is_any_augm = mcmc.augm.is_any_sample();
+            for (size_t R = 0; R < data_wide.distinct_size(); ++R)
+                house_log_lik[R][count_] = data_wide.house_log_lik(R, is_any_augm);
+
+            // augmented variable draws
+            const Augmented &augm = mcmc.augm;
+            for (size_t j = 0; j < augm_individuals.size(); ++j)
+            {
+                const Individual &member = *augm_individuals[j];
+                auto &member_matrix = augm_values[j];
+                size_t c = 0;
+                for (size_t a : augm.list_draws(member))
+                    member_matrix[c++][count_] = member.aug(a);
+            }
+        }
+
+        // total log-likelihood (always stored, including power posterior)
+        total_log_lik[0][count_] = mcmc.tot_log_lik.value();
+        ++count_;
+    }
+
+    void Posterior::clear()
+    {
+        count_ = 0;
+        is_power_post_ = false;
+
+        for (auto &v : total_log_lik)
+            std::vector<double>().swap(v);
+        std::vector<std::vector<double>>().swap(total_log_lik);
+
+        for (auto &v : param_values)
+            std::vector<double>().swap(v);
+        std::vector<std::vector<double>>().swap(param_values);
+
+        for (auto &v : param_priors)
+            std::vector<double>().swap(v);
+        std::vector<std::vector<double>>().swap(param_priors);
+
+        for (auto &v : house_log_lik)
+            std::vector<double>().swap(v);
+        std::vector<std::vector<double>>().swap(house_log_lik);
+
+        for (auto &m : augm_values)
+        {
+            for (auto &v : m)
+                std::vector<double>().swap(v);
+            std::vector<std::vector<double>>().swap(m);
+        }
+        std::vector<std::vector<std::vector<double>>>().swap(augm_values);
+
+        std::vector<const Individual *>().swap(augm_individuals);
+        std::vector<std::string>().swap(param_names);
+        std::vector<std::string>().swap(param_prior_names);
+        std::vector<std::string>().swap(augm_col_names);
+        std::vector<std::string>().swap(house_names);
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  *** MCMCBase : class ***  ////////////////////////////////
@@ -265,9 +436,7 @@ namespace housepi
         if (!na::is(house_id))
         {
             infec_profile.update(); // eventually recompute infectivity profile
-            double output = atomic_commit_house_log_lik_(data_wide().at(house_id), true);
-            atomic_error.throw_exception(); // catch and throw if previous failed
-            return output;
+            return commit_house_log_lik_(data_wide().at(house_id), true);
         }
 
         // mode: total evaluation
@@ -312,8 +481,6 @@ namespace housepi
 
     double MCMC::commit_total_log_lik_(bool is_cache_depen)
     {
-        double new_ll = 0.0;
-
         // save infectivity profile if lookup tables are active
         if (is_cache_depen)
         {
@@ -321,17 +488,14 @@ namespace housepi
             infec_profile.update();
         }
 
-#pragma omp parallel for reduction(+ : new_ll)
-        for (size_t M = 0; M < data_wide().distinct_size(); ++M)
-        {
-            if (atomic_error.is_pending())
-                continue;
-
-            Household &house = data_wide().distinct_head(M);
-            new_ll += data_wide().frequency_weight(M) *
-                      atomic_commit_house_log_lik_(house, is_cache_depen);
-        }
-        atomic_error.throw_exception();
+        double new_ll = housepi::parallel::for_reduce_sum(
+            data_wide().distinct_size(),
+            [&](size_t M) -> double
+            {
+                Household &house = data_wide().distinct_head(M);
+                return data_wide().frequency_weight(M) *
+                       commit_house_log_lik_(house, is_cache_depen);
+            });
         tot_log_lik.set(new_ll);
 
         return new_ll;
@@ -387,7 +551,7 @@ namespace housepi
         }
     }
 
-    double MCMC::atomic_commit_house_log_lik_(Household &house, bool is_cache_depen)
+    double MCMC::commit_house_log_lik_(Household &house, bool is_cache_depen)
     {
         double output = 0;
         try
@@ -406,8 +570,8 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            atomic_error.set("While computing log-likelihood for " +
-                             house.err_name() + ":\n" + std::string(e.what()));
+            throw std::runtime_error("While computing log-likelihood for " +
+                                     house.err_name() + ":\n" + std::string(e.what()));
         }
 
         return output;
@@ -454,21 +618,14 @@ namespace housepi
 
     void MCMC::move_all_augm_()
     {
-        double delta_ll = 0.;
-
-#pragma omp parallel for reduction(+ : delta_ll)
-        for (size_t H = 0; H < data_wide().report_house.total; ++H)
-        {
-            if (atomic_error.is_pending())
-                continue;
-
-            delta_ll += atomic_move_augm_single_house_(H);
-        }
-        atomic_error.throw_exception();
+        const double delta_ll = housepi::parallel::for_reduce_sum(
+            data_wide().report_house.total,
+            [&](size_t H) -> double
+            { return move_augm_single_house_(H); });
         tot_log_lik.increment(delta_ll);
     }
 
-    double MCMC::atomic_move_augm_single_house_(size_t H)
+    double MCMC::move_augm_single_house_(size_t H)
     {
         Household &house = data_wide().at(H);
         double delta_ll = 0.;
@@ -485,8 +642,8 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            atomic_error.set("While sampling augmented variables for " +
-                             house.err_name() + ":\n" + std::string(e.what()));
+            throw std::runtime_error("While sampling augmented variables for " +
+                                     house.err_name() + ":\n" + std::string(e.what()));
         }
 
         return delta_ll;
@@ -670,4 +827,51 @@ namespace housepi
         }
     }
     */
+}
+
+// =============================================================================
+//   originally: src/registry.cpp
+// =============================================================================
+
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "tools/nan.h"
+#include "tools/string.h"
+#include "tools/types.h"
+
+#include "registry.h"
+#include "function.h"
+#include "distribution.h"
+#include "model.h"
+
+
+namespace housepi
+{
+    ModelRegistry &ModelRegistry::instance()
+    {
+        static ModelRegistry _inst;
+        return _inst;
+    }
+}
+
+namespace housepi
+{
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////// *** ModelRegistry : class ***  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    std::unique_ptr<ModelBase> ModelRegistry::create(std::string_view name) const
+    {
+        auto it = factory_map_.find(name);
+        if (it == factory_map_.end())
+            throw std::invalid_argument(
+                "Model registration failed: unknown model '" + std::string(name) + "'.\n");
+        return it->second();
+    }
 }

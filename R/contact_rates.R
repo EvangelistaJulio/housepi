@@ -397,7 +397,7 @@ HousepiContactRate <- R6::R6Class(
       if (is_auto && is_custom) stop_ambiguos_definition()
 
       # warn overwrite
-      if (.warn_over && length(self$defs) > 0) warning_h(
+      if (.warn_over && length(self$defs) > 0) warn_h(
         "Overwriting previous contact rate definition."
       )
       if (is_auto) {

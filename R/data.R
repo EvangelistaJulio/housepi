@@ -42,10 +42,7 @@ NULL
 #' \code{system.file("data-raw", "make_flu_1918_baltimora_frederick.R", package = "housepi")}
 #'
 #' @references
-#' Fraser, et al. (2011)
-#' Influenza Transmission in Households During the 1918 Pandemic.
-#' American Journal of Epidemiology 174, 505-514.
-#' \doi{10.1093/aje/kwr122}
+#' \insertRef{fraser_influenza_2011}{housepi}
 NULL
 
 #' Reported "Spanish" flu cases in Baltimora (USA), 1918
@@ -68,15 +65,12 @@ NULL
 #' \code{system.file("data-raw", "make_flu_1918_baltimora_frederick.R", package = "housepi")}
 #'
 #' @references
-#' Fraser, et al. (2011)
-#' Influenza Transmission in Households During the 1918 Pandemic.
-#' American Journal of Epidemiology 174, 505-514.
-#' \doi{10.1093/aje/kwr122}
+#' \insertRef{fraser_influenza_2011}{housepi}
 NULL
 
 #' SARS-CoV-2 2021 household survey from the Israeli COVID-19 Family Study
 #'
-#' Prospective cohort conducted during COVID-19 Delta variant wave in Israel, 2021.
+#' Prospective cohort conducted during COVID-19 Delta variant wave, 2021.
 #' Follow-up started with first PCR positive test, symptoms onset were reported.
 #' Contacts averaged 3 tests during follow-up.
 #'
@@ -114,18 +108,14 @@ NULL
 #' \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}
 #'
 #' @references
-#' Cortier, et al. (2025)
-#' Factors Associated With the Transmission of the Delta Severe Acute Respiratory Syndrome Coronavirus 2 Variant in Households:
-#' The Israeli COVID-19 Family Study (ICoFS)
-#' The Journal of Infectious Diseases; jiaf001.
-#' \doi{10.1093/infdis/jiaf001}
+#' \insertRef{cortier_factors_2025}{housepi}
 NULL
 
 #' Flu 2014-15 household survey from Matsumoto, Japan
 #'
-#' Household survey in Matsumoto city (Japan) for parents having children in primary school.
+#' Household survey in Matsumoto city for parents having children in primary school.
 #' Report on influenza episodes of family members during the season 2014-15.
-#' Original observational study from Uchida, et al. (2017).
+#' Original observational study from Uchida et al. (2017).
 #'
 #' \describe{
 #'   \item{house_id}{Household identifier}
@@ -145,9 +135,7 @@ NULL
 #' \code{system.file("data-raw", "make_flu_2014_matsumoto.R", package = "housepi")}
 #'
 #' @references
-#' Endo, et al. (2019)
-#' Fine-scale family structure shapes influenza transmission risk in households:
-#' Insights from primary schools in Matsumoto city, 2014/15.
-#' PLOS Computational Biology;15: e1007589.
-#' \doi{10.1371/journal.pcbi.1007589}
+#' \insertRef{uchida_effectiveness_2017}{housepi}
+#'
+#' \insertRef{endo_fine_scale_2019}{housepi}
 NULL

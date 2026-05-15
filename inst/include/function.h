@@ -17,17 +17,16 @@
 
 #include "tools/nan.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////// *** Attribute : class *** ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
 namespace housepi
 {
     class Function;
 
-    /// Attribute parent class.
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////// *** Attribute : class *** ///////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
     class Attribute
     {
     public:
@@ -412,6 +411,10 @@ namespace housepi
 #endif
 
     protected:
+        /////////////////////////
+        //////  ARGUMENTS  //////
+        /////////////////////////
+
         Attribute x_arg_ = Attribute(); /// 'x' argument
         Attribute loc_ = Attribute();   /// 'loc' argument
         Attribute lower_ = Attribute(); /// lower bound
@@ -423,9 +426,9 @@ namespace housepi
             std::string name = {};            /// Alternative set name
             std::vector<Attribute> args = {}; /// Alternative arguments
         };
-        std::vector<AltArgSet> alts_;    /// Alternative parametrizations (canonical is 0)
-        unsigned short alt_idx_ = 0;     /// Current select arguments
-        bool is_user_alt_ = false;       /// Whether user has picked a re-parametrization
+        std::vector<AltArgSet> alts_; /// Alternative parametrizations (canonical is 0)
+        unsigned short alt_idx_ = 0;  /// Current select arguments
+        bool is_user_alt_ = false;    /// Whether user has picked a re-parametrization
 
         /// Register an alternative parametrization.
         void register_alt_(const std::string &name,
@@ -440,9 +443,9 @@ namespace housepi
         /// If doesn't exists, return an empty attribute.
         virtual Attribute &find_arg_(std::string_view arg_name);
 
-        /////////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////  Function : virtual methods [protected]  ///////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////
+        //////  VIRTUAL  //////
+        ///////////////////////
 
         /// Helper to raise call if undefined virtual methods are called.
         [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
@@ -458,29 +461,19 @@ namespace housepi
         /// Raw log-ratio method. NOTE: empty function return 0 by convention.
         virtual double raw_log_ratio_(double, double) const { return 0.; }
 
-        /////////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////  Function : discretization [protected]  ///////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////
-
         /// Polymorphic function method.
         virtual double function_(double x) const
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::Center:
-            {
-                const double i = std::round(x);
-                return raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5);
-            }
-            case Mode::Discrete::Left:
-            {
-                const double i = std::floor(x);
-                return raw_primitive_(i + 1.) - raw_primitive_(i);
-            }
-            case Mode::Discrete::Defined:
-                return raw_function_(std::floor(x));
-            default: // case Mode::Discrete::None:
+            case Mode::Discrete::None:
                 return raw_function_(x);
+            case Mode::Discrete::Center:
+                return discr_func_center_(x);
+            case Mode::Discrete::Left:
+                return discr_func_left_(x);
+            default: // Mode::Discrete::Defined:
+                return raw_function_(std::floor(x));
             }
         }
 
@@ -489,70 +482,59 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::Center:
-            {
-                const double i = std::round(x);
-                return std::log(raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5));
-            }
-            case Mode::Discrete::Left:
-            {
-                const double i = std::floor(x);
-                return std::log(raw_primitive_(i + 1.) - raw_primitive_(i));
-            }
-            case Mode::Discrete::Defined:
-                return raw_log_func_(std::floor(x));
-            default: // case Mode::Discrete::None:
+            case Mode::Discrete::None:
                 return raw_log_func_(x);
+            case Mode::Discrete::Center:
+                return std::log(discr_func_center_(x));
+            case Mode::Discrete::Left:
+                return std::log(discr_func_left_(x));
+            default: // Mode::Discrete::Defined:
+                return raw_log_func_(std::floor(x));
             }
         }
 
         /// Polymorphic primitive method.
-        virtual double primitive_(double x) const
-        {
-            switch (discr_mode_)
-            {
-            case Mode::Discrete::Center:
-                return raw_primitive_(std::round(x) + 0.5);
-            case Mode::Discrete::Left:
-                return raw_primitive_(std::floor(x) + 1.);
-            case Mode::Discrete::Defined:
-                return raw_primitive_(std::floor(x));
-            default: // case Mode::Discrete::None:
-                return raw_primitive_(x);
-            }
-        }
+        virtual double primitive_(double x) const { return raw_primitive_(primitive_x_helper_(x)); }
 
         /// Polymorphic log_ratio method.
         virtual double log_ratio_(double xo, double xn) const
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::Center:
-            {
-                const double io = std::round(xo), in = std::round(xn);
-                if (io == in)
-                    return 0.;
-                return std::log(raw_primitive_(in + .5) - raw_primitive_(in - .5)) -
-                       std::log(raw_primitive_(io + .5) - raw_primitive_(io - .5));
-            }
-            case Mode::Discrete::Left:
-            {
-                const double io = std::floor(xo), in = std::floor(xn);
-                if (io == in)
-                    return 0.;
-                return std::log(raw_primitive_(in + 1.) - raw_primitive_(in)) -
-                       std::log(raw_primitive_(io + 1.) - raw_primitive_(io));
-            }
-            case Mode::Discrete::Defined:
-                return raw_log_ratio_(std::floor(xo), std::floor(xn));
-            default: // case Mode::Discrete::None:
+            case Mode::Discrete::None:
                 return raw_log_ratio_(xo, xn);
+            case Mode::Discrete::Center:
+                return std::log(discr_func_center_(xn)) - std::log(discr_func_center_(xo));
+            case Mode::Discrete::Left:
+                return std::log(discr_func_left_(xn)) - std::log(discr_func_left_(xo));
+            default: // Mode::Discrete::Defined:
+                return raw_log_ratio_(std::floor(xo), std::floor(xn));
             }
         }
 
-        /////////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  Function : lcoation [protected]  //////////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////
+        //////////////////////////////
+        //////  DISCRETIZATION  //////
+        //////////////////////////////
+
+        /// Helper for the primitive method.
+        double primitive_x_helper_(double x) const
+        {
+            switch (discr_mode_)
+            {
+            case Mode::Discrete::Defined:
+                return std::floor(x);
+            case Mode::Discrete::Center:
+                return std::round(x) + 0.5;
+            case Mode::Discrete::Left:
+                return std::floor(x) + 1.;
+            default:
+                return x;
+            }
+        }
+
+        ////////////////////////
+        //////  LOCATION  //////
+        ////////////////////////
 
         /// Delocate according to mode.
         /// FIXME: this hasn't been tested.
@@ -579,19 +561,38 @@ namespace housepi
             }
         }
 
-        /////////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////  Function : helpers [protected]  ///////////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////
-
-        /// Assert that proposed function attribute is valid.
-        void helper_assert_valid_attribute_(std::string_view key, const Attribute &attr);
+        ///////////////////////
+        //////  HELPERS  //////
+        ///////////////////////
 
         /// Set the range of validity of the value, and the corresponding validation function.
         void helper_init_standard_range_(bool is_min_open = false, bool is_max_open = false);
-
         /// Functional range for lower bound and no upper bound.
         bool helper_init_range_min_(double min_val = 0., bool is_min_open = false);
+
+    private:
+        /// Assert that proposed function attribute is valid.
+        void helper_assert_valid_attribute_(std::string_view key, const Attribute &attr);
+
+        /// Helper for Center discretization.
+        double discr_func_center_(double x) const
+        {
+            const double i = std::round(x);
+            return raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5);
+        }
+        /// Helper for Left discretization.
+        double discr_func_left_(double x) const
+        {
+            const double i = std::floor(x);
+            return raw_primitive_(i + 1.) - raw_primitive_(i);
+        }
     };
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////// *** Attribute : getter *** //////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
 
     inline double Attribute::value() const
     {

@@ -43,8 +43,5 @@ where
 \if{html}{\out{<hr>}}
 }
 \section{References}{
-Longini IM, Koopman JS.
-Household and Community Transmission Parameters from Final Distributions of Infections in Households.
-Biometrics. 1982;38: 115-126.
-\url{https://doi.org/10.2307/2530294}
+\insertRef{longini_household_1982}{housepi}
 }

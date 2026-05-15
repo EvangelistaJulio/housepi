@@ -154,14 +154,6 @@ namespace housepi::str
     //////////////////////////////////  Converter Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::string tolow(std::string s)
-    {
-        std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c)
-                       { return std::tolower(c); });
-        return s;
-    }
-
     std::string toup(std::string s)
     {
         std::transform(s.begin(), s.end(), s.begin(),

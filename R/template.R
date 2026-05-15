@@ -111,9 +111,14 @@ find_closest_template_name <- function(x) {
 #' @noRd
 show_model_names <- function() {
   model_names <- list.files(template_models_dir())
-  formatted_names <- tolower(gsub("-|_", " ", model_names))
+  formatted_names <- tolower(gsub("-| |_", "_", model_names))
   sms <- c(i = "Available template models:")
-  for (m in formatted_names) sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
+  for (m in formatted_names) {
+    link <- sprintf(
+      "{.run [%s](housepi::browse_housepi_templates(\"%s\"))}", m, m
+    )
+    sms <- c(sms, paste0(cli::symbol$bullet, " ", link))
+  }
   cli::cli_inform(sms)
 }
 
@@ -135,7 +140,7 @@ copy_template_to_path <- function(name, path) {
   # avoid current directory
   if (path == ".") {
     path <- name
-    warning_h(
+    warn_h(
       "Using current directory is not allowed for copying a template.",
       sprintf("Creating folder '%s' instead.", path)
     )
@@ -179,14 +184,27 @@ open_model_helper_ <- function(path) {
     "No template info available for the given model."
   )
 
-  if (requireNamespace("rstudioapi", quietly = TRUE)) {
-    # print in RStudio Help window
-    rstudioapi::previewRd(info_file)
+  # load system + Rdpack macros so \doi and \insertRef{key}{housepi}
+  # resolve against inst/REFERENCES.bib at render time
+  sys_macros <- tools::loadRdMacros(
+    file.path(R.home("share"), "Rd", "macros", "system.Rd")
+  )
+  macros <- tools::loadRdMacros(
+    system.file("help/macros/refmacros.Rd", package = "Rdpack"),
+    sys_macros
+  )
+  rd <- tools::parse_Rd(info_file, macros = macros)
+  stages <- c("build", "install", "render")
+
+  if (requireNamespace("rstudioapi", quietly = TRUE) &&
+      rstudioapi::isAvailable()) {
+    tmp <- tempfile(fileext = ".html")
+    tools::Rd2HTML(rd, out = tmp, stages = stages)
+    rstudioapi::viewer(tmp)
   } else if (interactive()) {
-    # print as plain text in the console
-    cat(utils::capture.output(tools::Rd2txt(info_file)), sep = "\n")
+    cat(utils::capture.output(tools::Rd2txt(rd, stages = stages)), sep = "\n")
   } else {
-    warning_h("Help method not supported in non-interactive mode.")
+    warn_h("Help method not supported in non-interactive mode.")
   }
   invisible()
 }
@@ -221,7 +239,7 @@ browse_housepi_templates <- function(name = NA_character_,
   # asking for template model description
   else if (is.na(path)) open_model_helper_(get_template_dir(name))
   # asking for copying template to folder with model
-  else if (file.exists(file.path(path, "model.cpp")) && !replace) warning_h(
+  else if (file.exists(file.path(path, "model.cpp")) && !replace) warn_h(
     "A model already exists in the specified folder.",
     "If you want to replace it, run again with option 'replace = TRUE'."
   )
@@ -288,12 +306,12 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
   # show error message
   output <- c()
   if (len_miss > 0) output <- c(
-    sprintf("There %s %s missing %s definition%s: %s",
+    sprintf("There %s %s missing %s definition%s%s",
             as_plural(miss, "were", "was"),
             ifelse(len_miss > max_print,
                    paste0("more than ", max_print), len_miss),
             family,
-            as_plural(miss),
+            as_plural(miss, "s:\n", ": "),
             character_to_string_list(miss, max_print)),
     sprintf("%s required by %s definitions.",
             as_plural(miss, "They were", "It was"),
@@ -310,7 +328,7 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
 #' @noRd
 template_overwrite_warn <- function(all_rmv, family, max_print = 5) {
   len_rmv <- length(all_rmv)
-  if (len_rmv > 0) warning_h(sprintf(
+  if (len_rmv > 0) warn_h(sprintf(
     "Overwriting %s %s definition%s%s",
     ifelse(len_rmv > max_print,
            paste0("more than ", max_print), len_rmv),
@@ -347,7 +365,7 @@ template_not_used_warn <- function(required, defined, family, max_print = 5) {
   notused <- template_not_used_find(required, defined)
 
   len_not_used <- length(notused)
-  if (len_not_used > 0) warning_h(
+  if (len_not_used > 0) warn_h(
     sprintf("There %s %s unused %s definition%s%s",
             as_plural(notused, "were", "was"),
             ifelse(len_not_used > max_print,
@@ -366,14 +384,38 @@ template_not_used_warn <- function(required, defined, family, max_print = 5) {
 #' @keywords internal
 #' @noRd
 fmt_assert_cli <- function(section, sms, minor = FALSE) {
-  if (length(sms) > 0) {
-    sms <- gsub(sms, pattern = " were ", replacement = " are ")
-    sms <- gsub(sms, pattern = " was ", replacement = " is ")
-    if (minor) c(`!` = paste0(cli::col_yellow(section), ":"),
-                 gsub(sms, pattern = " (are|is) required by ",
-                      replacement = " can be specified for "))
-    else c(x = paste0(cli::col_yellow(section), ":"), sms)
-  } else {
-    c(v = paste(section, "definitions are complete."))
+  sms <- gsub(sms, pattern = " were ", replacement = " are ")
+  sms <- gsub(sms, pattern = " was ", replacement = " is ")
+  lower_first <- function(col_sec, x) {
+    paste0(col_sec, ": ", tolower(substr(x, 1, 1)), substr(x, 2, nchar(x)))
   }
+
+  if (length(sms) == 0) {
+    c(v = paste0(cli::col_green(section), ": definitions complete."))
+  } else if (minor) {
+    sms <- gsub(sms, pattern = " (are|is) required by ",
+                replacement = " can be specified for ")
+    c(`!` = lower_first(cli::col_yellow(section), sms[1]), sms[-1])
+  } else {
+    c(x = lower_first(cli::col_red(section), sms[1]), sms[-1])
+  }
+}
+
+#' Format a vector of messages for `cli::cli_alert_info()`.
+#' @param sms `character()`. Messages, optionally named with `!`, `x`, `v`.
+#' @keywords internal
+#' @noRd
+fmt_cli_info <- function(sms) {
+  if (length(sms) == 0) return("")
+  nms <- names(sms)
+  if (is.null(nms)) nms <- rep("", length(sms))
+  glyphs <- list(`!` = cli::col_yellow("!"),
+                 `x` = cli::col_red(cli::symbol$cross),
+                 `v` = cli::col_green(cli::symbol$tick))
+  if (identical(nms[1], "i")) nms[1] <- ""
+  out <- vapply(seq_along(sms), function(k) {
+    g <- glyphs[[nms[k]]]
+    if (is.null(g)) sms[[k]] else paste0(g, " ", sms[[k]])
+  }, character(1))
+  cli::cli_alert_info(paste(out, collapse = "\n"))
 }

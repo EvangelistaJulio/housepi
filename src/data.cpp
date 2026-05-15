@@ -11,21 +11,26 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+#include "tools/data_reports.h"
 #include "tools/keys.h"
 #include "tools/loglike.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/openmp.h"
 #include "tools/operators.h"
 #include "tools/read.h"
+#include "tools/status.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
+#include "data_long.h"
 #include "data_wide.h"
 #include "function.h"
-#include "tools/data_reports.h"
+#include "household.h"
+#include "individual.h"
+#include "measures.h"
 
 namespace housepi
 {
@@ -265,7 +270,7 @@ namespace housepi
             // minimum house number of members
             UPDATE_REPORT_SIZE(report_hh_size.min_size, house_size, >);
             // maximum house number of members
-            UPDATE_REPORT_SIZE(report_hh_size.max_cases, house_size, <);
+            UPDATE_REPORT_SIZE(report_hh_size.max_size, house_size, <);
         }
     }
 
@@ -545,5 +550,221 @@ namespace housepi
         for (Household &house : house_vector_)
             for (size_t i = 0; i < house.size(); ++i)
                 house.helper_set_status_(i, house.member(i).pwide_->status);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////  *** DataLong : struct ***  //////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void DataLong::build(DataWide &data_wide, const str_table &input)
+    {
+        khold_.clear_optional();
+
+        if (input.empty())
+            return;
+
+        helper_build_clear_data_();
+        helper_build_data_headers_(data_wide, input);
+
+        // data-long allocation
+        size_t n_indiv = data_wide.report_indiv.total;
+        indiv_datalist.resize(n_indiv);
+
+        // individual map for id -> index
+        dict<size_t> id_to_index = {};
+        size_t c = 0;
+        for (const Household &house : data_wide)
+            for (const Individual &member : house)
+                id_to_index.emplace(member.id(), c++);
+
+        // load individual data list
+        size_t n_rows = read::csv_n_rows(input);
+        for (size_t r = 0; r < n_rows; ++r)
+        {
+            const std::string &id = input.at("id")[r];
+            if (na::is(id))
+                throw std::invalid_argument(
+                    "Invalid id found in row n." + std::to_string(r + 2) + ".");
+            // UPDATE: these errors should be more self-explicative
+            if (!id_to_index.count(id))
+                throw std::invalid_argument(
+                    "Id '" + id + "' from data long-format had no match in loaded data wide-format.");
+
+            // append (since vector is initialized to empty)
+            auto &idat = indiv_datalist[id_to_index.at(id)];
+            idat.vec.resize(khold_.size());
+            for (size_t d = 0; d < khold_.size(); ++d)
+            {
+                const std::string &datastring = khold_.as_string(d);
+                idat.vec[d].emplace_back(
+                    str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
+            }
+        }
+
+        // assign pointers to relative data-long to all individuals
+        // NOTE: adopted paradigm return empty on dangling pointer
+        // UPDATE: just store indexes and access indiv_datalist by index...
+        c = 0;
+        for (Household &house : data_wide)
+            for (size_t i = 0; i < house.size(); ++i, ++c)
+                if (indiv_datalist.at(c).vec.size() > 0)
+                    house.member(i).plong_ = &indiv_datalist.at(c);
+    }
+
+    void DataLong::helper_build_clear_data_()
+    {
+        // data sequence headers
+        headers.clear();
+        indiv_datalist.clear();
+    }
+
+    void DataLong::helper_build_data_headers_(const DataWide &data_wide, const str_table &input)
+    {
+        if (data_wide.is_empty())
+            throw std::invalid_argument(
+                "Tried to define data long format before wide format.");
+
+        headers = read::extract_keys(input);
+        // check for individual IDs
+        if (std::find(headers.begin(), headers.end(), "id") == headers.end())
+            throw std::invalid_argument(
+                "Individual identifier column 'id' was missing.");
+        // remove 'id'
+        headers = headers - std::vector<std::string>({"id"});
+
+        // pedantic check for declared data keys
+        str::assert_no_missing_entries(headers, khold_.get_all());
+
+        // add optional keys to registry
+        for (const std::string &datastring : headers)
+            khold_.add(datastring);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////  *** Measures ***  ///////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    namespace measure
+    {
+        cases::Report helper_summarise_single_individuals_(
+            const std::vector<int> &status)
+        {
+            cases::Report output;
+            output.houses.reserve(status.size());
+
+            for (int s : status)
+                output.houses.push_back({1u, status::is_infected(s)});
+
+            output.min_size = 1;
+            output.max_size = 1;
+
+            return output;
+        };
+
+        cases::Report summarise_houses(
+            const std::vector<std::string> &house_id,
+            const std::vector<int> &status)
+        {
+            const size_t n_indiv = status.size();
+
+            if (n_indiv == 0)
+                return cases::Report();
+
+            if (house_id.size() == 0)
+                return helper_summarise_single_individuals_(status);
+
+            cases::Report output;
+            output.houses.reserve(n_indiv);
+
+            std::unordered_map<std::string, size_t> id_map;
+            for (size_t i = 0; i < n_indiv; ++i)
+            {
+                auto it = id_map.find(house_id[i]);
+                if (it == id_map.end())
+                {
+                    id_map.emplace(house_id[i], output.houses.size());
+                    output.houses.push_back({1u, status::is_infected(status[i])});
+                }
+                else
+                {
+                    ++output.houses[it->second].house_size;
+                    output.houses[it->second].cases += status::is_infected(status[i]);
+                }
+            }
+
+            output.min_size = -1;
+            for (const auto &h : output.houses)
+                if (h.house_size < output.min_size)
+                    output.min_size = h.house_size;
+                else if (h.house_size > output.max_size)
+                    output.max_size = h.house_size;
+
+            return output;
+        }
+
+        SecAttackRates sar_by_house_size(const cases::Report &report)
+        {
+            unsigned grid_min = std::max(report.min_size, 2u);
+            unsigned grid_len = report.max_size >= grid_min ? report.max_size - grid_min + 1
+                                                            : 0;
+
+            SecAttackRates output;
+            output.grid_min = grid_min;
+            if (grid_len == 0)
+                return output;
+
+            output.sar_mean.assign(grid_len, 0.0);
+            output.count.assign(grid_len, 0);
+
+            for (const auto &h : report.houses)
+                if (h.cases > 0 && h.house_size > 1)
+                {
+                    unsigned idx = h.house_size - grid_min;
+                    output.sar_mean[idx] += static_cast<double>(h.cases - 1.0) / (h.house_size - 1.0);
+                    output.count[idx]++;
+                }
+            for (unsigned i = 0; i < grid_len; ++i)
+                if (output.count[i] > 0)
+                    output.sar_mean[i] /= output.count[i];
+
+            return output;
+        }
+
+        cases::Table cases_by_house_size(const cases::Report &report)
+        {
+            cases::Table output;
+            output.min_size = report.min_size;
+            output.max_size = report.max_size;
+
+            if (report.houses.empty())
+                return output;
+
+            unsigned n_rows = output.max_size - output.min_size + 1;
+            output.counts.assign(n_rows, std::vector<unsigned>(output.max_size + 1, 0));
+            for (const auto &h : report.houses)
+                output.counts[h.house_size - output.min_size][h.cases]++;
+
+            return output;
+        }
+
+        cases::NonZero non_zero_cases(const cases::Report &report)
+        {
+            cases::NonZero output;
+            output.max_size = report.max_size;
+
+            if (output.max_size < 2)
+                return output;
+
+            output.count.assign(output.max_size - 1, 0); // sizes 2 to max_size
+            for (const auto &h : report.houses)
+                if (h.cases > 0 && h.house_size > 1)
+                    output.count[h.house_size - 2]++;
+
+            return output;
+        }
     }
 }

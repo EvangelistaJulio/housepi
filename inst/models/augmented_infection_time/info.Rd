@@ -79,8 +79,5 @@ P_{ I} = \prod_{{i}:s_{i}>0}\left(1-\exp{-\lambda_{i}(t_{i})}\right)\exp{-\sum_{
 \if{html}{\out{<hr>}}
 }
 \section{References}{
-Cauchemez S, Carrat F, Viboud C, Valleron AJ, Boelle PY.
-A Bayesian MCMC approach to study transmission of influenza: application to household longitudinal data.
-Statist Med. 2004;23: 3469-3487.
-\url{https://doi.org/10.1002/sim.1912}
+\insertRef{cauchemez_bayesian_2004}{housepi}
 }
