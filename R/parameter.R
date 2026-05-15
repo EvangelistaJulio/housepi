@@ -72,7 +72,7 @@ HousepiParameter <- R6::R6Class(
         self$defs <- self$defs[!mask, ]
         return(name)
       } else if (isTRUE(warn_removal)) {
-        warning_h(sprintf("Attempt to remove unknown parameter '%s'.", name))
+        warn_h(sprintf("Attempt to remove unknown parameter '%s'.", name))
       }
       c()
     },

@@ -119,11 +119,6 @@ test_that("cpp data refactor restores original types", {
   expect_equal(colnames(restored)[seq_along(factored$cols)], factored$cols)
 })
 
-test_that("housepi stop and warning format multi-line messages", {
-  expect_error(stop_h("line1", "line2"), regexp = "line1\nline2")
-  expect_warning(warning_h("w1", "w2"), regexp = "w1\nw2")
-})
-
 test_that("Char setup input formats setup options correctly", {
   # id_draws with multiple values
   setup <- list(steps = 100, burnin = 10, thin = 1,

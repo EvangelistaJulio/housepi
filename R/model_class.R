@@ -437,7 +437,7 @@ HousepiModel <- R6::R6Class(
     #                         thin = 1, adapt = 0,
     #                         chains = 1, threads = 1,
     #                         progress = TRUE) {
-    #   warning_h(
+    #   warn_h(
     #     "[Internal] This method is currently under development.",
     #     "Its usage is deprecated."
     #   )
@@ -569,7 +569,7 @@ HousepiModel <- R6::R6Class(
       # import data_wide (invariant: always populated after construction)
       if (is.null(data)) {
         if (!private$generator_$is_blank()) stop_h(sprintf(
-          "Missing household 'data' argument for model {.pkg %s}.",
+          "Missing household 'data' argument for model '%s'.",
           self$name
         ))
         env <- new.env(parent = emptyenv())
@@ -628,25 +628,51 @@ HousepiModel <- R6::R6Class(
     #' Override the default printing behavior.
     print = function() {
       is_tmpl <- !is.na(get_template_dir(private$generator_$raw_name))
-      sms <- c(i = sprintf("Household model {.pkg %s}%s.", self$name,
-                           ifelse(is_tmpl, " (template)", "")))
+      tmpl_tag <- if (is_tmpl) sprintf(
+        " ({.run [template](housepi::browse_housepi_templates(\"%s\"))})",
+        self$name
+      ) else ""
+      sms <- sprintf("Household model '%s'%s.", self$name, tmpl_tag)
       # UPDATE: to be rationalize in the future if more options are included
       if ("_HOUSEPI_DISCRETE_TIME" %in% private$generator_$last_flags) sms <- c(
         sms, "Model is set to {.emph discrete time} mode."
       )
+      # data
       if (length(private$get_all_required_data_wide_()) > 0) sms <- c(sms,
         fmt_assert_cli("Data", private$assert_data_wide_(FALSE))
       )
+      # parameters
       if (length(private$get_all_required_param_()) > 0) sms <- c(sms,
         fmt_assert_cli("Parameters", private$assert_param_(FALSE))
       )
+      # augmented
       if (length(private$get_all_required_augm_()) > 0) sms <- c(sms,
         fmt_assert_cli("Augmented", private$assert_augm_(FALSE))
       )
-      if (length(private$get_all_required_group_rates_()) > 0) sms <- c(sms,
-        fmt_assert_cli("Group rates", private$assert_group_rates_(FALSE),
-                       minor = TRUE)
-      )
+
+      # inform about rates id dataset is suitable
+      cols_extra <- setdiff(private$generator_$cols_data_wide,
+                            data_reserved_cols)
+      if (length(cols_extra) > 0) {
+        # group rates
+        if (length(private$get_all_required_group_rates_()) > 0) sms <- c(sms,
+          fmt_assert_cli("Group rates", private$assert_group_rates_(FALSE),
+                         minor = TRUE)
+        )
+        # contact rates
+        sms <- c(sms,
+          fmt_assert_cli(
+            "Contact rates",
+            if (!private$contact_rates_$assert()) c(
+              "Using default contact rates.", "A custom choice can be provided."
+            )
+            else NULL,
+            minor = TRUE
+          )
+        )
+      }
+
+      # infectivity profile
       if (length(private$get_internal_infec_profile_()) > 0) sms <- c(sms,
         fmt_assert_cli(
           "Infectivity profile",
@@ -657,7 +683,8 @@ HousepiModel <- R6::R6Class(
           minor = TRUE
         )
       )
-      cli::cli_inform(sms)
+
+      fmt_cli_info(sms)
       invisible(self)
     },
 
@@ -739,7 +766,7 @@ HousepiModel <- R6::R6Class(
     #' @description Load parameter definitions from template.
     #' @param append `r rd_tmpl_append_`
     add_parameter_template = function(append = FALSE) {
-      if (private$generator_$is_blank()) warning_h(
+      if (private$generator_$is_blank()) warn_h(
         "No template parameters available for blank model."
       )
       # retrieve the template parameters file
@@ -802,7 +829,7 @@ HousepiModel <- R6::R6Class(
     #' @description Load augmented definitions from template.
     #' @param append `r rd_tmpl_append_`
     add_augmented_template = function(append = FALSE) {
-      if (private$generator_$is_blank()) warning_h(
+      if (private$generator_$is_blank()) warn_h(
         "No template augmented variables available for blank model."
       )
       # retrieve the template augmented file

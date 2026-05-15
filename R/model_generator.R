@@ -165,7 +165,7 @@ HousepiGenerator <- R6::R6Class(
     # Wheter model choice is interpretable.
     helper_init_model_choice_ = function(model) {
       choice <- "blank"
-      if (all(is.na(model) | is.null(model))) warning_h(
+      if (all(is.na(model) | is.null(model))) warn_h(
         "No model specified. Falling back to 'blank' model.",
         "To show available templates, run 'browse_housepi_templates'."
       )
@@ -219,7 +219,7 @@ HousepiGenerator <- R6::R6Class(
 
           } else {
             private$needs_compile_ <- FALSE
-            warning_h(
+            warn_h(
               "Impossible to replace existing template in current session.",
               "Start a new R session to re-compile your model as a template.",
               "Warning raised because model changed or 'force = TRUE'."

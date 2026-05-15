@@ -233,7 +233,7 @@ HousepiPrediction <- R6::R6Class(
         n_bad <- sum(unlist(mismatch))
         if (n_bad > 0) {
           all_within <- FALSE
-          warning_h(sprintf(
+          warn_h(sprintf(
             paste0("Measure '%s': %d observed value%s outside ",
                    "the %.0f%% credible interval."),
             m, n_bad, as_plural(seq_len(n_bad)), 100 * private$cri_level_
@@ -418,20 +418,20 @@ HousepiPrediction <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      sms <- c(
-        i = sprintf("%s for model {.pkg %s}:",
-                    ifelse(private$is_posterior_,
-                           "Posterior predictions", "Predictions"),
-                    private$model_name_)
-      )
+      sms <- sprintf("%s for model '%s':",
+                     ifelse(private$is_posterior_,
+                            "Posterior predictions", "Predictions"),
+                     private$model_name_)
       for (m in private$measure_names_) {
         sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
       }
-      cli::cli_inform(c(sms,
+      fmt_cli_info(c(
+        sms,
         sprintf("N. replicates: %d%s", private$nrep_,
                 ifelse(private$thin_ess_, " (ESS)", "")),
         sprintf("Point estimate: %s", private$point_estimate_),
-        sprintf("Credible interval: %.0f%%", 100 * private$cri_level_)))
+        sprintf("Credible interval: %.0f%%", 100 * private$cri_level_)
+      ))
       invisible(self)
     }
   )
@@ -778,8 +778,8 @@ format_credible_interval <- function(point_estimate, cri_lower, cri_upper,
     .fmt_num <- function(pe, low, up) {
       if (is.na(pe)) return(NA_character_)
       if (pe == low && pe == up) return(sprintf(fmt, pe, pe, pe))
-      if (isTRUE(pe < low) || isTRUE(pe > up)) warning_h(sprintf(
-        "Found an inconsistent credible interval: point estimate = %g, CrI = [%g, %g].",
+      if (isTRUE(pe < low) || isTRUE(pe > up)) warn_h(sprintf(
+        "Found an inconsistent credible interval: %g, CrI = [%g, %g].",
         pe, low, up
       ))
 

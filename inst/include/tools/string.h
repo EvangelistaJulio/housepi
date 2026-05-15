@@ -17,8 +17,6 @@ namespace housepi::str
     constexpr size_t MIN_DIST = 2;         /// Similarity threshold distance.
     const std::string PRIVATE_PREFIX = "."; /// Prefix for hidden objects.
 
-    /// Convert to lower case.
-    std::string tolow(std::string s);
     /// Convert to upper case.
     std::string toup(std::string s);
 

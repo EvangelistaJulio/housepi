@@ -41,10 +41,6 @@ namespace housepi
     public:
         using func_uptr = std::unique_ptr<Function>;
 
-        /// @brief Get the registry name.
-        /// @return The name of this registry.
-        virtual std::string_view name() const = 0;
-
         /// @brief Check if a factory for the given option exists.
         /// @param opt The option name to check.
         /// @return true if the option is registered, false otherwise.
@@ -107,12 +103,11 @@ namespace housepi
     std::unique_ptr<housepi::Distribution> clone_distrib() const override final { return std::make_unique<Class_>(*this); }
 
 /// Declare housepi functions registry.
-#define HOUSEPI_DECLARE_REGISTRY_(ClassName, Type)         \
+#define HOUSEPI_DECLARE_REGISTRY_(ClassName, Type)             \
     class ClassName##Registry : public housepi::Type##Registry \
-    {                                                      \
-    public:                                                \
-        HOUSEPI_OVERRIDE_NAME_METHOD(ClassName)            \
-        static ClassName##Registry &instance();            \
+    {                                                          \
+    public:                                                    \
+        static ClassName##Registry &instance();                \
     };
 
 /// Define instance method of registry.

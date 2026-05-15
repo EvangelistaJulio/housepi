@@ -9,16 +9,16 @@
 #' @param ... Messages printed in sequence on different lines.
 #' @noRd
 stop_h <- function(...) {
-  base::stop(paste(unlist(list(...)), collapse = "\n"),
-             call. = FALSE)
+  rlang::abort(paste(unlist(list(...)), collapse = "\n"),
+               call = NULL)
 }
 
 #' Emit a multi-line warning message.
 #' @param ... Messages printed in sequence on different lines.
 #' @noRd
-warning_h <- function(...) {
-  base::warning(paste(unlist(list(...)), collapse = "\n"),
-                call. = FALSE)
+warn_h <- function(...) {
+  rlang::warn(paste(unlist(list(...)), collapse = "\n"),
+              call = NULL)
 }
 
 #' Standard error message for read-only fields.

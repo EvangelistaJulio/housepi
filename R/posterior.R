@@ -199,9 +199,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (is.null(private$augm_draws_)) naugm <- 0
       else naugm <- posterior::nvariables(private$augm_draws_)
 
-      cli::cli_alert_info(sprintf(
-        "Posterior draws of model {.pkg %s}.\n%s",
-        spaced_template_choice(private$name_),
+      fmt_cli_info(c(
+        sprintf("Posterior draws of model '%s'.",
+                spaced_template_choice(private$name_)),
         sprintf(
           "%s iteration%s, %s chain%s%s%s.",
           niter, ifelse(niter > 1, "s", ""),

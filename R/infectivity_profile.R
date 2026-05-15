@@ -100,7 +100,7 @@ HousepiInfecProfile <- R6::R6Class(
         self$defs <- self$defs[!mask, ]
         return(status)
       } else if (isTRUE(warn_removal)) {
-        warning_h(sprintf(
+        warn_h(sprintf(
           "Attempt to remove unknown infectivity profile for status '%s'.",
           status
         ))
