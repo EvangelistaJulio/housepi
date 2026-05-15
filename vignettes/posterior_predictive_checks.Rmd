@@ -39,7 +39,7 @@ hhmodel <- flu_1918_frederick |>
 results <- hhmodel |>
   run_inference(steps = 2000, thin = 10, burn = 500, adapt = 500, chains = 4)
 estimates <- get_parameter_draws(results) |>
-  posterior::summarise_draws()
+  summarise_draws()
 estimates
 ```
 

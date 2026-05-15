@@ -2,9 +2,12 @@
 % Please edit documentation in R/expose_class.R
 \name{summarise_house_cases}
 \alias{summarise_house_cases}
+\alias{summarize_house_cases}
 \title{Summarise observed cases in the loaded household data}
 \usage{
 summarise_house_cases(hhmodel)
+
+summarize_house_cases(hhmodel)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}

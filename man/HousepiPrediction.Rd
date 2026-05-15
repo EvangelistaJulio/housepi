@@ -51,8 +51,7 @@ performs simulation and compute predicted values of a set of measures.
   max_nrep = 200,
   threads = 1,
   progress = TRUE,
-  point_estimate = "mean",
-  cri_level = 0.95
+  point_estimate = "mean"
 )}\if{html}{\out{</div>}}
 }
 
@@ -102,9 +101,6 @@ One between:
 \item{\code{point_estimate}}{\code{character(1)} Summary statistic used as the predicted
 point estimate across simulations. One between \code{"mean"} (default) and
 \code{"median"}.}
-
-\item{\code{cri_level}}{\code{numeric(1)} Level for credible interval
-It must be a value in (0.5, 1.0). Default is 0.95.}
 }
 \if{html}{\out{</div>}}
 }

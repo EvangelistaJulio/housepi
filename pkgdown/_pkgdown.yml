@@ -37,8 +37,11 @@ reference:
     - new_housepi_model
     - browse_housepi_templates
     - starts_with("summarise_")
+    - starts_with("summarize_")
+    - -ends_with("_draws")
     - evaluate_log_lik
     - starts_with("run_")
+    - set_global_cri_level
     - housepi_theme_set
 
 - title: "Model definitions"

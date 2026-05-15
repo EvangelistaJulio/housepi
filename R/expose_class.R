@@ -72,6 +72,10 @@ summarise_house_cases <- function(hhmodel) {
   hhmodel$summarise_house_cases()
 }
 
+#' @rdname summarise_house_cases
+#' @export
+summarize_house_cases <- summarise_house_cases
+
 #' @title Summarise household sizes in the loaded household data
 #' @description
 #' Summarise number of members (size) in the loaded household data.
@@ -84,6 +88,10 @@ summarise_house_cases <- function(hhmodel) {
 summarise_house_sizes <- function(hhmodel) {
   hhmodel$summarise_house_sizes()
 }
+
+#' @rdname summarise_house_sizes
+#' @export
+summarize_house_sizes <- summarise_house_sizes
 
 ############################################################################
 ############################################################################

@@ -197,8 +197,10 @@ results <- hhmodel |>
                 chains = 4,   # independent chains
                 threads = 1)  # parallel threads
 
-# summarize posterior draws of parameters
-posterior::summarize_draws(get_parameter_draws(results))
+# summarise posterior draws of parameters
+results |>
+  get_parameter_draws() |>
+  summarise_draws()
 ```
 
 # Inference and diagnostics
@@ -399,10 +401,7 @@ Finally we wrap all together to compare to the parameters used for simulation.
 ```{r}
 #| label: parameter-comparison-table
 param_draws |>
-  posterior::summarise_draws(
-    median,
-    ~posterior::quantile2(.x, probs = c(0.025, 0.975))
-  ) |>
+  summarise_draws() |>
   dplyr::reframe(parameter = variable,
                  inferred = format_credible_interval(
                    median, q2.5, q97.5, fmt = "%s (95%% CrI, %s-%s)")) |>

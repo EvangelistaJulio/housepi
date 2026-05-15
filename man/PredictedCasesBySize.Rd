@@ -53,7 +53,6 @@ If a maximum household size is set, larger sizes are not returned.}
   thin_ess = TRUE,
   max_nrep = 200,
   point_estimate = "mean",
-  cri_level = 0.95,
   threads = 1,
   progress = TRUE
 )}\if{html}{\out{</div>}}
@@ -86,9 +85,6 @@ Defaults is \code{200}.}
 \item{\code{point_estimate}}{\code{character(1)} Summary statistic used as the predicted
 point estimate across simulations. One between \code{"mean"} (default) and
 \code{"median"}.}
-
-\item{\code{cri_level}}{\code{numeric(1)} Level for credible interval
-It must be a value in (0.5, 1.0). Default is 0.95.}
 
 \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
 

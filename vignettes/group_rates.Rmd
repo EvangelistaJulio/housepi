@@ -219,7 +219,7 @@ ylabel <- sprintf("%s (Ref: %s)", rate_id,
 
 # compare inferred susceptibility group rates
 get_parameter_draws(results) |>
-  posterior::summarise_draws() |>
+  summarise_draws() |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
   dplyr::left_join(get_group_rates(hhmodel) |>
                      dplyr::select(param_name, n) |>
@@ -233,7 +233,7 @@ get_parameter_draws(results) |>
   geom_hline(yintercept = 1, color = "black") +
   geom_point() +
   geom_text(nudge_x = 0.2, nudge_y = 0.1, color = "coral") +
-  geom_errorbar(aes(ymin = q5, ymax = q95)) +
+  geom_errorbar(aes(ymin = q2.5, ymax = q97.5)) +
   labs(x = "", y = ylabel)
 ```
 

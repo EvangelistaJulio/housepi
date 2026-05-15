@@ -49,24 +49,9 @@ measure_cases_by_house_size <- function(data_wide) {
 ############################################################################
 ############################################################################
 
-# Set level for the credible interval.
-ppc_set_cri_level <- function(value) {
-  if (is.na(value)) stop_h("Credible interval cannot be NA.")
-  else if ((value <= 0.5) || (value >= 1)) stop_h(
-    "Credible interval level must be a value between 0.5 and 1."
-  )
-  value
-}
-
 # Validate summary statistic choice.
 ppc_set_point_estimate <- function(value) {
   match.arg(value, c("mean", "median"))
-}
-
-# Lower/upper quantile probabilities corresponding to a credible interval level.
-ppc_cri_probs <- function(cri_level) {
-  half_tail <- 0.5 * (1 - cri_level)
-  c(lower = half_tail, upper = 1. - half_tail)
 }
 
 #' Apply function `func` to corresponding elements
@@ -168,7 +153,7 @@ ppc_frame_apply_summary <- function(frame_list,
 #' @noRd
 ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95,
                                 upper = TRUE, name = NA_character_) {
-  p <- ppc_cri_probs(cri_level)[[ifelse(isTRUE(upper), "upper", "lower")]]
+  p <- cri_level_probs(cri_level)[[ifelse(isTRUE(upper), "upper", "lower")]]
   ppc_frame_apply_stat(frame_list,
                        function(x) stats::quantile(x, probs = p, na.rm = TRUE),
                        label = "credible interval",
@@ -301,7 +286,6 @@ HousepiPrediction <- R6::R6Class(
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     #' @param point_estimate `r rd_point_estimate_`
-    #' @param cri_level `r rd_smpl_cri_level_`
     initialize = function(hhmodel,
                           param_table,
                           obs_process = NULL,
@@ -312,14 +296,13 @@ HousepiPrediction <- R6::R6Class(
                           max_nrep = 200,
                           threads = 1,
                           progress = TRUE,
-                          point_estimate = "mean",
-                          cri_level = 0.95) {
+                          point_estimate = "mean") {
       if (!is.na(max_nrep) && (!is.numeric(max_nrep) || max_nrep < 1)) stop_h(
         "'max_nrep' must be a positive integer or NA."
       )
       # associate summary statistic and credible interval
       private$point_estimate_ <- ppc_set_point_estimate(point_estimate)
-      private$cri_level_ <- ppc_set_cri_level(cri_level)
+      private$cri_level_ <- get_global_cri_level()
 
       # load and classify measure functions (wide vs long)
       m_wide <- list(...)
@@ -596,7 +579,6 @@ PredictedCasesBySize <- R6::R6Class(
     #' @param thin_ess `r rd_thin_ess_`
     #' @param max_nrep `r rd_max_nrep_`
     #' @param point_estimate `r rd_point_estimate_`
-    #' @param cri_level `r rd_smpl_cri_level_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hhmodel,
@@ -605,7 +587,6 @@ PredictedCasesBySize <- R6::R6Class(
                           thin_ess = TRUE,
                           max_nrep = 200,
                           point_estimate = "mean",
-                          cri_level = 0.95,
                           threads = 1,
                           progress = TRUE) {
       # ininitialize parent class HousepiPrediction
@@ -616,7 +597,6 @@ PredictedCasesBySize <- R6::R6Class(
                        thin_ess = thin_ess,
                        max_nrep = max_nrep,
                        point_estimate = point_estimate,
-                       cri_level = cri_level,
                        threads = threads,
                        progress = progress)
       private$counts_ <- helper_count_non_zero_cases(hhmodel$data_wide)
@@ -667,7 +647,6 @@ PredictedCasesBySize <- R6::R6Class(
 #' @param thin_ess `r rd_thin_ess_`
 #' @param max_nrep `r rd_max_nrep_`
 #' @param point_estimate `r rd_point_estimate_`
-#' @param cri_level `r rd_smpl_cri_level_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return An object of class
@@ -681,7 +660,6 @@ predicted_measures <- function(hhmodel,
                                thin_ess = TRUE,
                                max_nrep = 200,
                                point_estimate = "mean",
-                               cri_level = 0.95,
                                threads = 1,
                                progress = TRUE) {
   stopifnothousepi(hhmodel)
@@ -693,7 +671,6 @@ predicted_measures <- function(hhmodel,
                         obs_process = obs_process,
                         obs_process_long = obs_process_long,
                         point_estimate = point_estimate,
-                        cri_level = cri_level,
                         threads = threads,
                         progress = progress)
 }
@@ -708,7 +685,6 @@ predicted_measures <- function(hhmodel,
 #' @param thin_ess `r rd_thin_ess_`
 #' @param max_nrep `r rd_max_nrep_`
 #' @param point_estimate `r rd_point_estimate_`
-#' @param cri_level `r rd_smpl_cri_level_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return
@@ -722,7 +698,6 @@ predicted_cases_by_house_size <- function(hhmodel,
                                           thin_ess = TRUE,
                                           max_nrep = 200,
                                           point_estimate = "mean",
-                                          cri_level = 0.95,
                                           threads = 1,
                                           progress = TRUE) {
   stopifnothousepi(hhmodel)
@@ -732,7 +707,6 @@ predicted_cases_by_house_size <- function(hhmodel,
                            thin_ess = thin_ess,
                            max_nrep = max_nrep,
                            point_estimate = point_estimate,
-                           cri_level = cri_level,
                            threads = threads,
                            progress = progress)
 }

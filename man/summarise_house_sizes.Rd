@@ -2,9 +2,12 @@
 % Please edit documentation in R/expose_class.R
 \name{summarise_house_sizes}
 \alias{summarise_house_sizes}
+\alias{summarize_house_sizes}
 \title{Summarise household sizes in the loaded household data}
 \usage{
 summarise_house_sizes(hhmodel)
+
+summarize_house_sizes(hhmodel)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}

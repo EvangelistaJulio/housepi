@@ -5,9 +5,98 @@
 ## See the LICENSE file for details.
 ##
 
-#' @importFrom posterior summarize_draws
 #' @importFrom posterior subset_draws
 NULL
+
+# Validate a credible interval level.
+validate_cri_level <- function(value) {
+  if (length(value) != 1 || !is.numeric(value) || is.na(value)) stop_h(
+    "Credible interval level must be a single non-NA numeric value."
+  )
+  if ((value <= 0.5) || (value >= 1)) stop_h(
+    "Credible interval level must be a value between 0.5 and 1."
+  )
+  value
+}
+
+#' @title Set the global credible interval level
+#' @description
+#' Set credible interval level used by housepi functions.
+#' It also drives
+#' the quantile bounds returned by [summarise_draws()] when no summary
+#' function is supplied.
+#' @param value `numeric(1)`. Must lie in `(0.5, 1)`. Default is `0.95`.
+#' @return Invisibly returns the previous value.
+#' @examples
+#' old <- set_global_cri_level(0.90)
+#' set_global_cri_level(old)
+#' @export
+set_global_cri_level <- function(value) {
+  value <- validate_cri_level(value)
+  old <- getOption("housepi.cri_level", 0.95)
+  options(housepi.cri_level = value)
+  invisible(old)
+}
+
+# Return the global credible interval level (option "housepi.cri_level").
+# Not exported: housepi internals must always pull through this helper.
+get_global_cri_level <- function() {
+  validate_cri_level(getOption("housepi.cri_level", 0.95))
+}
+
+# Lower/upper quantile probabilities corresponding to a credible interval level.
+cri_level_probs <- function(cri_level) {
+  half_tail <- 0.5 * (1 - cri_level)
+  c(lower = half_tail, upper = 1. - half_tail)
+}
+
+#' @title Summarise posterior draws using the housepi credible interval
+#' @description
+#' Drop-in replacement for [posterior::summarise_draws()] that, when called
+#' without summary functions, returns `median`, the lower/upper credible
+#' interval bounds derived from the global credible interval level
+#' (see [set_global_cri_level()]), `ess_bulk` and `rhat`.
+#' When summary functions are supplied through `...`, the call is forwarded
+#' to [posterior::summarise_draws()] unchanged.
+#' @param .x A `draws` object (or anything coercible to one).
+#' @param ... Summary functions, as in [posterior::summarise_draws()].
+#' If empty, housepi defaults are used.
+#' @param .args,.num_args,.cores Forwarded to [posterior::summarise_draws()].
+#' @return A `draws_summary` `data.frame`.
+#' @examples
+#' if (requireNamespace("posterior", quietly = TRUE)) {
+#'   d <- posterior::example_draws()
+#'   summarise_draws(d)
+#' }
+#' @export
+summarise_draws <- function(.x, ..., .args = list(),
+                            .num_args = getOption("posterior.num_args", list()),
+                            .cores = 1) {
+  funs <- list(...)
+  if (length(funs) == 0) {
+    probs <- unname(cri_level_probs(get_global_cri_level()))
+    return(posterior::summarise_draws(
+      .x,
+      mean,
+      median,
+      sd,
+      mad,
+      ~ posterior::quantile2(.x, probs = probs),
+      rhat = posterior::rhat,
+      ess_bulk = posterior::ess_bulk,
+      ess_tail = posterior::ess_tail,
+      .args = .args,
+      .num_args = .num_args,
+      .cores = .cores
+    ))
+  }
+  posterior::summarise_draws(.x, ..., .args = .args,
+                             .num_args = .num_args, .cores = .cores)
+}
+
+#' @rdname summarise_draws
+#' @export
+summarize_draws <- summarise_draws
 
 ############################################################################
 ############################################################################
@@ -213,22 +302,6 @@ HousepiPosteriorDraws <- R6::R6Class(
         )
       ))
       invisible()
-    },
-
-    #' @description Summarize all posterior draws.
-    #' @return `posterior::draws_df`
-    summarize_all_draws = function() {
-      x1 <- x2 <- x3 <- NULL
-      if (posterior::is_draws(private$param_draws_)) {
-        x1 <- summarize_draws(private$param_draws_)
-      }
-      if (posterior::is_draws(private$augm_draws_)) {
-        x2 <- summarize_draws(private$augm_draws_)
-      }
-      if (posterior::is_draws(private$total_log_lik_draws_)) {
-        x3 <- summarize_draws(private$total_log_lik_draws_)
-      }
-      rbind(x1, x2, x3)
     }
   )
 )

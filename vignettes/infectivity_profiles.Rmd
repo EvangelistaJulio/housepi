@@ -28,9 +28,11 @@ set.seed(42)
 Time dependent transmission models require a choice for the infectivity profile $f$, defined as the instantaneous risk of secondary infection associated to a reference infector.
 An infectivity profile is thus a function of the time from infection $t_{i}$ to transmission at time $t$, the "generation time" $t - t_{i}$. Eventually, the profile could depend on other infector covariates.
 
-In certain applications a profile has to be expressed as a function of the time from symptoms onset $t_{i}^{(\rm ons)}$ to transmission. In such cases, the profile will be a function of the generation time and of the incubation period $\tau_{i}^{(\rm inc)}$ of the infector, remembering that $t_{i} + \tau_{i}^{(\rm inc)} = t_{i}^{(\rm ons)}$.
+In certain applications a profile has to be expressed as a function of the time from symptoms onset $t_{i}^{(\rm ons)}$ to transmission.
+In such cases, the profile will be a function of the generation time and of the incubation period $\tau_{i}^{(\rm inc)}$ of the infector, remembering that $t_{i} + \tau_{i}^{(\rm inc)} = t_{i}^{(\rm ons)}$.
 
-Note that for technical reasons, infectivity profiles in housepi can only depend on covariates of the infector, and not of the infectee. This prevents from using directly quantities as the "serial time" (the time between symptom onsets of infector and infectee) and workarounds need to be implemented manually.
+Note that for technical reasons, infectivity profiles in housepi can only depend on covariates of the infector, and not of the infectee.
+This prevents from using directly quantities as the "serial time" (the time between symptom onsets of infector and infectee) and workarounds need to be implemented manually.
 
 In short, assuming $i$ the infector and $k$ the infectee, the time intervals supported by the infectivity profiles in housepi are
 

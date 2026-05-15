@@ -7,6 +7,55 @@ local_results <- local({
   hhmodel$run_inference(steps = 100, progress = FALSE)
 })
 
+test_that("Invalid cri_level is rejected", {
+  expect_error(set_global_cri_level(0.5), "between 0.5 and 1")
+  expect_error(set_global_cri_level(1), "between 0.5 and 1")
+  expect_error(set_global_cri_level(NA_real_), "non-NA")
+  expect_error(set_global_cri_level("0.9"), "numeric")
+  expect_error(set_global_cri_level(c(0.9, 0.95)), "single")
+})
+
+test_that("Get-global-cri-level behaves correctly", {
+  withr::with_options(list(housepi.cri_level = NULL), {
+    expect_equal(get_global_cri_level(), 0.95)
+  })
+  withr::with_options(list(housepi.cri_level = 0.95), {
+    old <- set_global_cri_level(0.90)
+    expect_equal(old, 0.95)
+    expect_equal(get_global_cri_level(), 0.90)
+  })
+})
+
+test_that("Summarise-draws default columns track cri_level", {
+  skip_if_not_installed("posterior")
+  d <- posterior::example_draws()
+
+  # spelling
+  expect_identical(summarize_draws(d), summarise_draws(d))
+
+  # housepi summarise_draws matches posterior::summarise_draws on every
+  # column except the credible-interval quantile pair, which tracks
+  # the global cri_level option.
+  ref_cols <- setdiff(
+    colnames(posterior::summarise_draws(d)),
+    c("q5", "q95")
+  )
+  withr::with_options(list(housepi.cri_level = 0.95), {
+    s <- summarise_draws(d)
+    expect_true(all(ref_cols %in% colnames(s)))
+    expect_true(all(c("q2.5", "q97.5") %in% colnames(s)))
+  })
+  withr::with_options(list(housepi.cri_level = 0.80), {
+    s <- summarise_draws(d)
+    expect_true(all(ref_cols %in% colnames(s)))
+    expect_true(all(c("q10", "q90") %in% colnames(s)))
+  })
+
+  # custom functions
+  s <- summarise_draws(d, mean, sd)
+  expect_setequal(colnames(s), c("variable", "mean", "sd"))
+})
+
 test_that("Draws active fields are correct", {
   pd <- local_results$parameter_draws
   expect_true(posterior::is_draws(pd))
@@ -35,14 +84,6 @@ test_that("Draws active fields are correct", {
   # should contain param names, log_lik[...], and lprior
   expect_true(any(grepl("log_lik\\[", vars)))
   expect_true("lprior" %in% vars)
-})
-
-test_that("Summarize-all-draws is unchanged", {
-  summary_df <- local_results$summarize_all_draws()
-  expect_true(is.data.frame(summary_df))
-  expect_true("variable" %in% colnames(summary_df))
-  expect_true("mean" %in% colnames(summary_df))
-  expect_true(nrow(summary_df) > 0)
 })
 
 test_that("Active fields are read-only", {

@@ -38,7 +38,6 @@ Draws of parameters, priors and pointwise log-likelihood values.}
 \itemize{
 \item \href{#method-HousepiPosteriorDraws-new}{\code{HousepiPosteriorDraws$new()}}
 \item \href{#method-HousepiPosteriorDraws-print}{\code{HousepiPosteriorDraws$print()}}
-\item \href{#method-HousepiPosteriorDraws-summarize_all_draws}{\code{HousepiPosteriorDraws$summarize_all_draws()}}
 \item \href{#method-HousepiPosteriorDraws-clone}{\code{HousepiPosteriorDraws$clone()}}
 }
 }
@@ -70,19 +69,6 @@ Override the default printing behavior.
 \if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorDraws$print()}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiPosteriorDraws-summarize_all_draws"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-summarize_all_draws}{}}}
-\subsection{Method \code{summarize_all_draws()}}{
-Summarize all posterior draws.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorDraws$summarize_all_draws()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-\code{posterior::draws_df}
-}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiPosteriorDraws-clone"></a>}}

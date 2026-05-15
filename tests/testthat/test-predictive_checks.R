@@ -32,14 +32,14 @@ test_that("measure_cases_by_house_size produces correct contingency table", {
 
 })
 
-test_that("ppc_set_cri_level validates credible interval", {
-  expect_equal(ppc_set_cri_level(0.95), 0.95)
-  expect_equal(ppc_set_cri_level(0.8), 0.8)
+test_that("validate_cri_level validates credible interval", {
+  expect_equal(validate_cri_level(0.95), 0.95)
+  expect_equal(validate_cri_level(0.8), 0.8)
   # boundary and invalid values
-  expect_error(ppc_set_cri_level(0.5), regexp = "between 0.5 and 1")
-  expect_error(ppc_set_cri_level(1.0), regexp = "between 0.5 and 1")
-  expect_error(ppc_set_cri_level(0.3), regexp = "between 0.5 and 1")
-  expect_error(ppc_set_cri_level(NA), regexp = "cannot be NA")
+  expect_error(validate_cri_level(0.5), regexp = "between 0.5 and 1")
+  expect_error(validate_cri_level(1.0), regexp = "between 0.5 and 1")
+  expect_error(validate_cri_level(0.3), regexp = "between 0.5 and 1")
+  expect_error(validate_cri_level(NA_real_), regexp = "non-NA")
 })
 
 test_that("ppc_frame_apply computes element-wise operations", {
