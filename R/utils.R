@@ -199,6 +199,14 @@ char_setup_input_ <- function(defs) {
   data.frame(lapply(defs, as.character))
 }
 
+# Derive (per-chain, total) sample sizes from a setup list, mirroring the
+# ceiling-division formula in Setup::assert_mcmc_setup (src/setup.cpp).
+setup_sample_size_ <- function(setup) {
+  diff <- setup[["steps"]] - setup[["burn"]]
+  c_size <- diff %/% setup[["thin"]] + (diff %% setup[["thin"]] > 0)
+  list(chain = c_size, total = c_size * setup[["chains"]])
+}
+
 #' Format elements of data (wide or long) to pass to import Rcpp method.
 #' @param df `data.frame`. Definition table or list.
 #' @return `character()`

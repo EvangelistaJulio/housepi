@@ -218,7 +218,7 @@ ylabel <- sprintf("%s (Ref: %s)", rate_id,
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group rates
-get_parameter_draws(results) |>
+results |>
   summarise_draws() |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
   dplyr::left_join(get_group_rates(hhmodel) |>

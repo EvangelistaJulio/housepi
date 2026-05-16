@@ -199,7 +199,6 @@ results <- hhmodel |>
 
 # summarise posterior draws of parameters
 results |>
-  get_parameter_draws() |>
   summarise_draws()
 ```
 

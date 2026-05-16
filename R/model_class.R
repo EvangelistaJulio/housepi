@@ -289,6 +289,37 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
+    # Assert peak memory needed to materialise draws is available.
+    assert_posterior_memory_ = function() {
+      setup <- .engine$export_setup(private$generator_$mcmc_ptr)
+      n_sample <- setup_sample_size_(setup)$total
+
+      # UPDATE: n. of augmented/parameters might be smaller if functions/private
+      n_params_defs <- ifelse(is.null(private$param_$defs), 0L,
+                              nrow(private$param_$defs))
+      n_param_cols <- 2L * n_params_defs
+      n_augm_defs <- ifelse(is.null(private$augm_$defs), 0L,
+                            nrow(private$augm_$defs))
+      n_augm_cols <- length(unique(setup$id_draws)) * n_augm_defs
+      n_house_total <- length(unique(self$data_wide$house_id))
+      # total count of columns
+      total_cols <- n_param_cols + n_augm_cols + n_house_total + 1L
+      bytes_final <- 8L * n_sample * total_cols
+
+      # byte budget for posterior draws materialisation
+      # set 80% cap under R vsize, otherwise fall back to 16 GiB
+      budget <- 16 * 2^30
+      vsize_mb <- tryCatch(mem.maxVSize(), error = function(e) Inf)
+      if (is.finite(vsize_mb) && vsize_mb > 0) budget <- 0.8 * vsize_mb * 2^20
+
+      if (bytes_final <= budget) return(invisible())
+      stop_h(c(
+        sprintf("Draws would require ~%.1f GB but only %.1f GB available.",
+                bytes_final / 2^30, budget / 2^30),
+        "Consider increasing 'thin', or reducing 'steps' and 'chains'."
+      ))
+    },
+
     # Helper with parameter table import.
     # @param ptab Table with parameter values
     # param thin_ess `logical(1)`
@@ -437,11 +468,6 @@ HousepiModel <- R6::R6Class(
     #                         thin = 1, adapt = 0,
     #                         chains = 1, threads = 1,
     #                         progress = TRUE) {
-    #   warn_h(
-    #     "[Internal] This method is currently under development.",
-    #     "Its usage is deprecated."
-    #   )
-    #
     #   # internal build function
     #   private$build_full_(steps = steps, burn = burn,
     #                       thin = thin, adapt = adapt,
@@ -989,6 +1015,7 @@ HousepiModel <- R6::R6Class(
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, progress = progress)
+      private$assert_posterior_memory_()
       .engine$run_inference(private$generator_$mcmc_ptr)
       HousepiPosteriorDraws$new(private$generator_$raw_name,
                                 private$generator_$mcmc_ptr)

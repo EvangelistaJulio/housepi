@@ -792,35 +792,46 @@ namespace
     /////////////////////////////////  Posterior : Rcpp export methods  ///////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Helper to copy vector into matrix column and release storage.
-    template <typename DestNumeric>
-    void helper_vector_flush(DestNumeric dest, std::vector<double> &src)
+    /// Move a vector<double> into a fresh NumericVector and release the source.
+    /// One allocation, one copy, no enclosing matrix.
+    Rcpp::NumericVector flush_vector_to_numvec(std::vector<double> &src)
     {
-        std::copy(src.begin(), src.end(), dest.begin());
+        Rcpp::NumericVector col(src.begin(), src.end());
         std::vector<double>().swap(src);
+        return col;
     }
 
-    /// Copy each vector<double> into a matrix column, release all storage, set colnames.
-    Rcpp::NumericMatrix flush_2d_draws_to_matrix(
+    /// Attach data.frame class + row.names to a List of equal-length columns.
+    void helper_set_dataframe_attrs(Rcpp::List &cols, R_xlen_t n_rows)
+    {
+        cols.attr("row.names") = Rcpp::IntegerVector::create(NA_INTEGER, -static_cast<int>(n_rows));
+        cols.attr("class") = "data.frame";
+    }
+
+    /// Flush each vector<double> as a NumericVector column of a data.frame,
+    /// release all C++ storage, set column names. Skips the contiguous
+    /// NumericMatrix intermediate so R can use the columns in place.
+    Rcpp::List flush_2d_draws_to_df(
         std::vector<std::vector<double>> &draws,
         const std::vector<std::string> &col_names,
         size_t n_rows,
         const char *err_type)
     {
         if (draws.empty())
-            return Rcpp::NumericMatrix();
+            return Rcpp::List();
 
         try
         {
             size_t n_cols = draws.size();
-            Rcpp::NumericMatrix output(n_rows, n_cols);
+            Rcpp::List cols(n_cols);
 
             for (size_t c = 0; c < n_cols; ++c)
-                helper_vector_flush(output(Rcpp::_, c), draws[c]);
+                cols[c] = flush_vector_to_numvec(draws[c]);
             std::vector<std::vector<double>>().swap(draws);
 
-            colnames(output) = Rcpp::wrap(col_names);
-            return output;
+            cols.attr("names") = Rcpp::wrap(col_names);
+            helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(n_rows));
+            return cols;
         }
         catch (const std::exception &e)
         {
@@ -829,54 +840,55 @@ namespace
         }
     }
 
-    /// Flush total log-likelihood draws as NumericMatrix.
-    Rcpp::NumericMatrix flush_total_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Flush total log-likelihood draws as a data.frame.
+    Rcpp::List flush_total_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
-        return flush_2d_draws_to_matrix(post.total_log_lik, post.total_log_lik_names,
-                                        post.count(), "total log-likelihood");
+        return flush_2d_draws_to_df(post.total_log_lik, post.total_log_lik_names,
+                                    post.count(), "total log-likelihood");
     }
 
-    /// Rcpp wrapper: parameter value draws as NumericMatrix.
-    Rcpp::NumericMatrix flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Rcpp wrapper: parameter value draws as a data.frame.
+    Rcpp::List flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
-        return flush_2d_draws_to_matrix(post.param_values, post.param_names,
-                                        post.count(), "parameter");
+        return flush_2d_draws_to_df(post.param_values, post.param_names,
+                                    post.count(), "parameter");
     }
 
-    /// Rcpp wrapper: parameter log-prior draws as NumericMatrix.
-    Rcpp::NumericMatrix flush_param_log_prior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Rcpp wrapper: parameter log-prior draws as a data.frame.
+    Rcpp::List flush_param_log_prior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
-        return flush_2d_draws_to_matrix(post.param_priors, post.param_prior_names,
-                                        post.count(), "parameter log-prior");
+        return flush_2d_draws_to_df(post.param_priors, post.param_prior_names,
+                                    post.count(), "parameter log-prior");
     }
 
-    /// Rcpp wrapper: augmented variable draws as NumericMatrix.
-    Rcpp::NumericMatrix flush_augm_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Rcpp wrapper: augmented variable draws as a data.frame.
+    Rcpp::List flush_augm_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
 
         if (post.augm_values.empty())
-            return Rcpp::NumericMatrix();
+            return Rcpp::List();
 
         try
         {
             size_t n_cols = post.augm_col_names.size();
-            Rcpp::NumericMatrix output(post.count(), n_cols);
+            Rcpp::List cols(n_cols);
 
             size_t col = 0;
             for (auto &member_matrix : post.augm_values)
             {
                 for (auto &var_vec : member_matrix)
-                    helper_vector_flush(output(Rcpp::_, col++), var_vec);
+                    cols[col++] = flush_vector_to_numvec(var_vec);
                 std::vector<std::vector<double>>().swap(member_matrix);
             }
             std::vector<std::vector<std::vector<double>>>().swap(post.augm_values);
 
-            colnames(output) = Rcpp::wrap(post.augm_col_names);
-            return output;
+            cols.attr("names") = Rcpp::wrap(post.augm_col_names);
+            helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
+            return cols;
         }
         catch (const std::exception &e)
         {
@@ -885,9 +897,11 @@ namespace
         }
     }
 
-    /// Rcpp wrapper: household log-likelihood draws as NumericMatrix.
-    /// Kept as a free function because it needs DataWide for frequency expansion.
-    Rcpp::NumericMatrix flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Rcpp wrapper: household log-likelihood draws as a data.frame.
+    /// Households of the same distinct class share the *same* NumericVector
+    /// SEXP. R's reference counting keeps storage at n_classes * n_draws
+    /// until a downstream consumer (e.g. as_draws_matrix) materialises it.
+    Rcpp::List flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
         const DataWide &data_wide = mcmc_ptr->data_wide();
@@ -895,29 +909,25 @@ namespace
         try
         {
             if (post.house_log_lik.empty())
-                return Rcpp::NumericMatrix();
+                return Rcpp::List();
 
+            size_t n_classes = post.house_log_lik.size();
             size_t n_houses = data_wide.report_house.total;
-            Rcpp::NumericMatrix output(post.count(), n_houses);
 
-            // map distinct_head index to all household columns
-            size_t n_classes = data_wide.distinct_size();
-            std::vector<std::vector<size_t>> house_classes(n_classes);
-
-            for (size_t H = 0; H < n_houses; ++H)
-                house_classes[data_wide.get_restricted_index(H)].push_back(H);
-
+            // One NumericVector per class; detached copy, C++ source freed.
+            std::vector<Rcpp::NumericVector> class_cols(n_classes);
             for (size_t R = 0; R < n_classes; ++R)
-            {
-                std::vector<double> &src = post.house_log_lik[R];
-                for (size_t H : house_classes[R])
-                    std::copy(src.begin(), src.end(), output(Rcpp::_, H).begin());
-                std::vector<double>().swap(src);
-            }
+                class_cols[R] = flush_vector_to_numvec(post.house_log_lik[R]);
             std::vector<std::vector<double>>().swap(post.house_log_lik);
 
-            colnames(output) = Rcpp::wrap(post.house_names);
-            return output;
+            // Identity case (n_classes == n_houses) is naturally a no-op.
+            Rcpp::List cols(n_houses);
+            for (size_t H = 0; H < n_houses; ++H)
+                cols[H] = class_cols[data_wide.get_restricted_index(H)];
+
+            cols.attr("names") = Rcpp::wrap(post.house_names);
+            helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
+            return cols;
         }
         catch (const std::exception &e)
         {

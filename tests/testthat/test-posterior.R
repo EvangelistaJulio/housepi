@@ -28,32 +28,36 @@ test_that("Get-global-cri-level behaves correctly", {
 
 test_that("Summarise-draws default columns track cri_level", {
   skip_if_not_installed("posterior")
-  d <- posterior::example_draws()
+  plain <- posterior::example_draws()
+  d <- plain
+  class(d) <- unique(c("housepi_draws", class(d)))
 
-  # spelling
-  expect_identical(summarize_draws(d), summarise_draws(d))
+  # spelling alias dispatches to the same handler
+  expect_identical(posterior::summarize_draws(d), posterior::summarise_draws(d))
 
-  # housepi summarise_draws matches posterior::summarise_draws on every
-  # column except the credible-interval quantile pair, which tracks
-  # the global cri_level option.
-  ref_cols <- setdiff(
-    colnames(posterior::summarise_draws(d)),
-    c("q5", "q95")
-  )
+  # housepi method matches posterior::summarise_draws on every column
+  # except the credible-interval quantile pair, which tracks cri_level.
+  ref_cols <- setdiff(colnames(posterior::summarise_draws(plain)),
+                      c("q5", "q95"))
   withr::with_options(list(housepi.cri_level = 0.95), {
-    s <- summarise_draws(d)
+    s <- posterior::summarise_draws(d)
     expect_true(all(ref_cols %in% colnames(s)))
     expect_true(all(c("q2.5", "q97.5") %in% colnames(s)))
   })
   withr::with_options(list(housepi.cri_level = 0.80), {
-    s <- summarise_draws(d)
+    s <- posterior::summarise_draws(d)
     expect_true(all(ref_cols %in% colnames(s)))
     expect_true(all(c("q10", "q90") %in% colnames(s)))
   })
 
-  # custom functions
-  s <- summarise_draws(d, mean, sd)
+  # custom summary functions fall through to vanilla posterior behaviour
+  s <- posterior::summarise_draws(d, mean, sd)
   expect_setequal(colnames(s), c("variable", "mean", "sd"))
+
+  # plain draws remain untouched by housepi (vanilla q5 / q95 quantiles)
+  plain_cols <- colnames(posterior::summarise_draws(plain))
+  expect_true(all(c("q5", "q95") %in% plain_cols))
+  expect_false(any(c("q2.5", "q97.5", "q10", "q90") %in% plain_cols))
 })
 
 test_that("Draws active fields are correct", {

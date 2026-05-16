@@ -5,8 +5,13 @@
 ## See the LICENSE file for details.
 ##
 
-#' @importFrom posterior subset_draws
-NULL
+#' @importFrom posterior summarise_draws
+#' @export
+posterior::summarise_draws
+
+#' @importFrom posterior summarize_draws
+#' @export
+posterior::summarize_draws
 
 # Validate a credible interval level.
 validate_cri_level <- function(value) {
@@ -19,13 +24,10 @@ validate_cri_level <- function(value) {
   value
 }
 
-#' @title Set the global credible interval level
+#' @title Set global credible interval level
 #' @description
-#' Set credible interval level used by housepi functions.
-#' It also drives
-#' the quantile bounds returned by [summarise_draws()] when no summary
-#' function is supplied.
-#' @param value `numeric(1)`. Must lie in `(0.5, 1)`. Default is `0.95`.
+#' Set credible interval level used by housepi objects.
+#' @param value `numeric(1)` Must lie in `(0.5, 1)`. Default is `0.95`.
 #' @return Invisibly returns the previous value.
 #' @examples
 #' old <- set_global_cri_level(0.90)
@@ -50,53 +52,72 @@ cri_level_probs <- function(cri_level) {
   c(lower = half_tail, upper = 1. - half_tail)
 }
 
-#' @title Summarise posterior draws using the housepi credible interval
+# Prepend "housepi_draws" class tag for summarise_draws S3 method dispatch.
+tag_as_housepi_draws <- function(x) {
+  if (is.null(x)) return(x)
+  class(x) <- unique(c("housepi_draws", class(x)))
+  x
+}
+
+#' @title Summarise housepi posterior draws using the global credible interval
 #' @description
-#' Drop-in replacement for [posterior::summarise_draws()] that, when called
-#' without summary functions, returns `median`, the lower/upper credible
-#' interval bounds derived from the global credible interval level
-#' (see [set_global_cri_level()]), `ess_bulk` and `rhat`.
-#' When summary functions are supplied through `...`, the call is forwarded
-#' to [posterior::summarise_draws()] unchanged.
-#' @param .x A `draws` object (or anything coercible to one).
+#' S3 method on [posterior::summarise_draws()] for objects tagged
+#' `"housepi_draws"` (returned by housepi getters and active fields on
+#' [`HousepiPosteriorDraws`]). When no summary functions are passed via
+#' `...`, the housepi defaults are used and the quantile pair tracks
+#' [set_global_cri_level()]. Otherwise dispatch falls through to standard
+#' [posterior::summarise_draws()] behaviour.
+#' @param .x A housepi-tagged draws object, or a [`HousepiPosteriorDraws`].
 #' @param ... Summary functions, as in [posterior::summarise_draws()].
-#' If empty, housepi defaults are used.
 #' @param .args,.num_args,.cores Forwarded to [posterior::summarise_draws()].
 #' @return A `draws_summary` `data.frame`.
-#' @examples
-#' if (requireNamespace("posterior", quietly = TRUE)) {
-#'   d <- posterior::example_draws()
-#'   summarise_draws(d)
-#' }
-#' @export
-summarise_draws <- function(.x, ..., .args = list(),
-                            .num_args = getOption("posterior.num_args", list()),
-                            .cores = 1) {
-  funs <- list(...)
-  if (length(funs) == 0) {
-    probs <- unname(cri_level_probs(get_global_cri_level()))
-    return(posterior::summarise_draws(
-      .x,
-      mean,
-      median,
-      sd,
-      mad,
-      ~ posterior::quantile2(.x, probs = probs),
-      rhat = posterior::rhat,
-      ess_bulk = posterior::ess_bulk,
-      ess_tail = posterior::ess_tail,
-      .args = .args,
-      .num_args = .num_args,
-      .cores = .cores
-    ))
-  }
-  posterior::summarise_draws(.x, ..., .args = .args,
+#' @name summarise_draws.housepi_draws
+#' @exportS3Method posterior::summarise_draws
+summarise_draws.housepi_draws <- function(
+    .x, ..., .args = list(),
+    .num_args = getOption("posterior.num_args", list()),
+    .cores = 1) {
+  # strip the tag so the forwarded call dispatches to the next class
+  class(.x) <- setdiff(class(.x), "housepi_draws")
+  if (length(list(...)) > 0) return(
+    posterior::summarise_draws(.x, ..., .args = .args,
+                               .num_args = .num_args, .cores = .cores)
+  )
+  probs <- unname(cri_level_probs(get_global_cri_level()))
+  quantile_fn <- function(x) posterior::quantile2(x, probs = probs)
+  posterior::summarise_draws(
+    .x,
+    "mean", "median", "sd", "mad",
+    quantile_fn,
+    rhat = posterior::rhat,
+    ess_bulk = posterior::ess_bulk,
+    ess_tail = posterior::ess_tail,
+    .args = .args, .num_args = .num_args, .cores = .cores
+  )
+}
+
+#' @rdname summarise_draws.housepi_draws
+#' @exportS3Method posterior::summarise_draws
+summarise_draws.HousepiPosteriorDraws <- function(
+    .x, ..., .args = list(),
+    .num_args = getOption("posterior.num_args", list()),
+    .cores = 1) {
+  params <- .x$parameter_draws
+  augm <- .x$augmented_draws
+  draws <- if (posterior::nvariables(augm) == 0) params
+  else if (posterior::nvariables(params) == 0) augm
+  else tag_as_housepi_draws(posterior::bind_draws(params, augm))
+  posterior::summarise_draws(draws, ..., .args = .args,
                              .num_args = .num_args, .cores = .cores)
 }
 
-#' @rdname summarise_draws
-#' @export
-summarize_draws <- summarise_draws
+#' @rdname summarise_draws.housepi_draws
+#' @exportS3Method posterior::summarize_draws
+summarize_draws.housepi_draws <- summarise_draws.housepi_draws
+
+#' @rdname summarise_draws.housepi_draws
+#' @exportS3Method posterior::summarize_draws
+summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 
 ############################################################################
 ############################################################################
@@ -135,11 +156,10 @@ HousepiPosteriorDraws <- R6::R6Class(
 
     # Store auxiliary tags from inference setup.
     pre_process_setup_ = function(setup) {
-      n_steps <- setup[["steps"]]
       n_burn <- setup[["burn"]]
       n_thin <- setup[["thin"]]
       n_chains <- setup[["chains"]]
-      c_sample_size <- (n_steps - n_burn) %/% n_thin
+      c_sample_size <- setup_sample_size_(setup)$chain
 
       private$chain_tags_ <- rep(seq_len(n_chains), each = c_sample_size)
       private$iter_names_ <- n_burn + seq_len(c_sample_size) * n_thin
@@ -147,35 +167,21 @@ HousepiPosteriorDraws <- R6::R6Class(
     },
 
     # @description Convert draws from housepi Rcpp to `posterior.`
-    # @param x `matrix` or `data.frame`. Draws exported from Rcpp core.
+    # @param df `data.frame`. Draws exported from Rcpp core.
     # @return `posterior::draws_df`
-    to_posterior_draws_ = function(x) {
-      if (length(x) == 0) return(NULL)
-
-      # split into a list of matrix
-      list_trs <- lapply(split(seq_len(nrow(x)), private$chain_tags_),
-                         function(idx) x[idx, , drop = FALSE])
-
-      # create empty array
-      n_chains <- length(list_trs)
-      par_names <- colnames(x)
-      n_iter <- length(private$iter_names_)
-      array_trs <- array(
-        NA_real_, dim = c(n_iter, n_chains, length(par_names)),
-        dimnames = list(private$iter_names_, seq_len(n_chains), par_names)
-      )
-
-      # associate draws from Cpp
-      for (i in seq_along(list_trs)) array_trs[, i, ] <- list_trs[[i]]
-      output <- posterior::as_draws_df(array_trs)
-      output$.iteration <- rep(private$iter_names_, times = n_chains)
-      output
+    to_posterior_draws_ = function(df) {
+      if (length(df) == 0) return(NULL)
+      n_chains <- length(unique(private$chain_tags_))
+      df$.chain <- private$chain_tags_
+      df$.iteration <- rep(private$iter_names_, times = n_chains)
+      df$.draw <- seq_len(nrow(df))
+      tag_as_housepi_draws(posterior::as_draws_df(df))
     },
 
     # @description Return empty draws.
     # @return `posterior::draws_df`
     empty_draws_ = function() {
-      posterior::as_draws_df(data.frame())
+      tag_as_housepi_draws(posterior::as_draws_df(data.frame()))
     }
   ),
 
@@ -234,7 +240,10 @@ HousepiPosteriorDraws <- R6::R6Class(
       n_vars <- posterior::nvariables(aux)
       names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
       # bind all together
-      posterior::bind_draws(private$param_draws_, aux, self$prior_draws)
+      # NOTE: bind_draws strips the tag, so re-stamp
+      tag_as_housepi_draws(
+        posterior::bind_draws(private$param_draws_, aux, self$prior_draws)
+      )
     }
   ),
 

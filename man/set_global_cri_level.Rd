@@ -2,21 +2,18 @@
 % Please edit documentation in R/posterior.R
 \name{set_global_cri_level}
 \alias{set_global_cri_level}
-\title{Set the global credible interval level}
+\title{Set global credible interval level}
 \usage{
 set_global_cri_level(value)
 }
 \arguments{
-\item{value}{\code{numeric(1)}. Must lie in \verb{(0.5, 1)}. Default is \code{0.95}.}
+\item{value}{\code{numeric(1)} Must lie in \verb{(0.5, 1)}. Default is \code{0.95}.}
 }
 \value{
 Invisibly returns the previous value.
 }
 \description{
-Set credible interval level used by housepi functions.
-It also drives
-the quantile bounds returned by \code{\link[=summarise_draws]{summarise_draws()}} when no summary
-function is supplied.
+Set credible interval level used by housepi objects.
 }
 \examples{
 old <- set_global_cri_level(0.90)

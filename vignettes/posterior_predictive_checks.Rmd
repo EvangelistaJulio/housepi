@@ -35,12 +35,9 @@ hhmodel <- flu_1918_frederick |>
   new_housepi_model("chain_binomial") |>
   add_parameter_template()
 
-# estimate parameters
+# store posterior draws
 results <- hhmodel |>
   run_inference(steps = 2000, thin = 10, burn = 500, adapt = 500, chains = 4)
-estimates <- get_parameter_draws(results) |>
-  summarise_draws()
-estimates
 ```
 
 # Predicted cases by size

@@ -292,9 +292,8 @@ test_that("Nested definitions works as expected", {
   )
   results <- hhmodel$run_inference(steps = 1e5, progress = 0)
   # no parameters nor priors
-  empty_draws <- posterior::as_draws_df(data.frame())
-  expect_identical(results$parameter_draws, empty_draws)
-  expect_identical(results$prior_draws, empty_draws)
+  expect_equal(posterior::nvariables(results$parameter_draws), 0)
+  expect_equal(posterior::nvariables(results$prior_draws), 0)
   expect_snapshot(print(hhmodel))
 
   sample_norm <- results$augmented_draws$tommy_norm
