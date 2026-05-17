@@ -157,6 +157,14 @@ test_that("Wrong definitions throw errors", {
     hhmodel$add_parameter_list(b = list(prior = "uniform", min = min_val)),
     regexp = "rlang injection"
   )
+  # memory budget is exceeded
+  expect_error(
+    flu_2014_matsumoto |>
+      new_housepi_model("chain_binomial") |>
+      add_parameter_template() |>
+      run_inference(steps = 1e20, chains = 1e3, progress = FALSE),
+    regexp = "memory budget"
+  )
 })
 
 test_that("Discretization is enabled as expected", {
@@ -429,10 +437,16 @@ test_that("Contact rates raise an error for incompatible models", {
                regexp = "not supported")
 })
 
-test_that("run_simulation rejects non-function obs_process", {
+test_that("run_simulation rejects wrong arguments", {
   hhmodel <- new_housepi_model(model = "blank")
+  # wrong observation process
   expect_error(hhmodel$run_simulation(obs_process = "not a function"),
                regexp = "function")
+  # wrong number of replicates
+  expect_error(hhmodel$run_simulation(nrep = 0),
+               regexp = "positive integer")
+  expect_error(hhmodel$run_simulation(nrep = -3),
+               regexp = "positive integer")
 })
 
 test_that("Param table with degenerate columns raises an ESS error", {
@@ -494,6 +508,20 @@ test_that("add_infec_profile and list update the model directly", {
   expect_true("gamma" %in% hhmodel$infec_profile$func)
   hhmodel$add_infec_profile_list(snake = list(func = "lognormal"))
   expect_true("lognormal" %in% hhmodel$infec_profile$func)
+})
+
+test_that("run_simulation splits wide/long when nrep=1 and both processes set", {
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
+  hhmodel$add_parameter_template()
+  obs_long <- function(x) data.frame(id = "bigboss", measure = 1.0)
+  out <- hhmodel$run_simulation(
+    obs_process = function(x) x,
+    obs_process_long = obs_long,
+    nrep = 1
+  )
+  expect_true(is.list(out))
+  expect_true(is.data.frame(out$wide))
+  expect_true(is.data.frame(out$long))
 })
 
 test_that("export_to_cpp_standalone writes the expected CSVs", {

@@ -575,7 +575,7 @@ HousepiGenerator <- R6::R6Class(
         "Data should be an object of class data.frame.",
         format_type_error(data)
       )
-      if (dim(data)[[1]] == 0) stop_h("Provided is empty.")
+      if (dim(data)[[1]] == 0) stop_h("Provided dataset is empty.")
 
       embed <- cpp_data_factorize(data)
       private$info_data_wide_ <- embed$info

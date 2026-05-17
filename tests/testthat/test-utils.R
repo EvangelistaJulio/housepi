@@ -1,5 +1,20 @@
 library(testthat)
 
+test_that("overwrite behaves as expected", {
+  # no-op on identical paths
+  p <- tempfile()
+  file.create(p)
+  expect_invisible(overwrite(p, p))
+
+  # overwrite raises on copy failure
+  src <- tempfile()
+  file.create(src)
+  # destination directory does not exist -> file.copy returns FALSE
+  dst <- file.path(tempfile(), "sparklingbeaver", "x")
+  expect_error(suppressWarnings(overwrite(src, dst)),
+               regexp = "user permissions")
+})
+
 test_that("Character to string list formats vectors correctly", {
   expect_equal(character_to_string_list("x"), "'x'.")
   str_list <- letters[1:5]

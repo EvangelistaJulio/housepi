@@ -87,8 +87,8 @@ test_that("Wrappers work as expected on blank model", {
   expect_true(is.data.frame(aug))
   expect_true("dummy" %in% aug$name)
 
-  result <- add_augmented_list(hhmodel,
-                                dummy = list(model = "uniform"))
+  result <- hhmodel |>
+    add_augmented_list(dummy = list(model = "uniform"))
   aug <- get_augmented(result)
   expect_true("dummy" %in% aug$name)
 })
@@ -222,6 +222,12 @@ test_that("add_contact_rate wrapper input branches", {
                      params = list(ctr_kept_you_waiting = 1.21)),
     regexp = "Overwriting"
   )
+
+  # getter
+  cr <- get_contact_rates(result)
+  expect_equal(cr, result$contact_rates)
+  expect_true(is.data.frame(cr))
+  expect_true(nrow(cr) > 0)
 })
 
 test_that("add_infec_profile and add_infec_profile_list work", {

@@ -37,6 +37,8 @@ test_that("Showcaser extract func extracts function names", {
   expect_equal(showcaser_extract_func("alpha|A"), "alpha|A")
   # NA returns NA_real_
   expect_equal(showcaser_extract_func(NA), NA_real_)
+  # numeric
+  expect_equal(showcaser_extract_func(42), 42)
 })
 
 test_that("helper_split_external_semicol splits at depth 0 colons", {
@@ -72,6 +74,11 @@ test_that("Showcase extract args extracts function arguments", {
   # non-function (2 pipe segments)
   result <- showcase_extract_args(list("alpha|A"))
   expect_equal(result[[1]], NA_real_)
+
+  # non-character, non-NA element: returns c(element, NA_real_)
+  # FIXME:
+  result <- showcase_extract_args(list(7))
+  expect_equal(result[[1]], c(7, NA_real_))
 })
 
 test_that("Housepi defininition showcaser converts encoded defs to readable", {

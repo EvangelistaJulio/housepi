@@ -102,9 +102,6 @@ HousepiModel <- R6::R6Class(
     # @param capital `logical(1)` to raise error.
     assert_data_wide_ = function(capital = TRUE) {
       cols <- private$generator_$cols_data_wide
-      if (isTRUE(capital) && length(cols) == 0) stop_h(
-        "Impossible to proceed. No data was provided."
-      )
       required <- private$get_all_required_data_wide_()
       sms <- template_missing_stop(required, cols, "data")
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
@@ -267,16 +264,16 @@ HousepiModel <- R6::R6Class(
         id_draws <- env$blank_house$id[1]
       }
       .engine$import_setup(private$generator_$mcmc_ptr, char_setup_input_(list(
-        steps = as.integer(steps),
-        adapt = as.integer(adapt),
-        burn = as.integer(burn),
-        thin = as.integer(thin),
-        chains = as.integer(chains),
-        threads = as.integer(threads),
+        steps = steps,
+        adapt = adapt,
+        burn = burn,
+        thin = thin,
+        chains = chains,
+        threads = threads,
         id_draws = id_draws,
         # generate a seed for Cpp random number generator
         seed = sample.int(.Machine$integer.max, 1L),
-        progress = as.integer(progress)
+        progress = progress
       )))
       # hard validation before MCMC
       private$assert_data_wide_(capital = TRUE)
@@ -290,9 +287,9 @@ HousepiModel <- R6::R6Class(
     },
 
     # Assert peak memory needed to materialise draws is available.
-    assert_posterior_memory_ = function() {
-      setup <- .engine$export_setup(private$generator_$mcmc_ptr)
-      n_sample <- setup_sample_size_(setup)$total
+    assert_posterior_memory_ = function(steps, burn, thin, chains, id_draws) {
+      n_sample <- setup_sample_size_(steps = steps, burn = burn,
+                                     thin = thin, chains = chains)$total
 
       # UPDATE: n. of augmented/parameters might be smaller if functions/private
       n_params_defs <- ifelse(is.null(private$param_$defs), 0L,
@@ -300,7 +297,7 @@ HousepiModel <- R6::R6Class(
       n_param_cols <- 2L * n_params_defs
       n_augm_defs <- ifelse(is.null(private$augm_$defs), 0L,
                             nrow(private$augm_$defs))
-      n_augm_cols <- length(unique(setup$id_draws)) * n_augm_defs
+      n_augm_cols <- length(unique(id_draws)) * n_augm_defs
       n_house_total <- length(unique(self$data_wide$house_id))
       # total count of columns
       total_cols <- n_param_cols + n_augm_cols + n_house_total + 1L
@@ -314,8 +311,10 @@ HousepiModel <- R6::R6Class(
 
       if (bytes_final <= budget) return(invisible())
       stop_h(c(
-        sprintf("Draws would require ~%.1f GB but only %.1f GB available.",
-                bytes_final / 2^30, budget / 2^30),
+        sprintf(
+          "Posterior draws would exceed the memory budget (%.f GB).",
+          budget / 2^30
+        ),
         "Consider increasing 'thin', or reducing 'steps' and 'chains'."
       ))
     },
@@ -356,17 +355,18 @@ HousepiModel <- R6::R6Class(
     helper_simulation_build_ = function(param_table = NULL,
                                         nrep = NA_integer_,
                                         thin_ess = TRUE) {
+      # assert number of replicates
+      if (!is.na(nrep) && (!is.numeric(nrep) || nrep < 1)) stop_h(
+        "Number of replicates should be a positive integer."
+      )
+
       # read param table
       if (is.null(param_table)) {
         if (is.na(nrep)) nrep <- 1
-        else assert_n_repliactes_(nrep)
       } else {
         param_table <- private$helper_read_param_table_(param_table,
                                                         thin_ess = thin_ess)
-        if (!is.na(nrep)) {
-          assert_n_repliactes_(nrep)
-          param_table <- helper_thin_table_to_n_(param_table, nrep)
-        }
+        if (!is.na(nrep)) param_table <- helper_thin_table_(param_table, nrep)
         nrep <- dim(param_table)[1]
         # don't overwrite
         if (dim(self$parameters)[1] == 0) {
@@ -426,7 +426,7 @@ HousepiModel <- R6::R6Class(
                             progress = TRUE) {
       param_table <- private$helper_read_param_table_(param_table,
                                                       thin_ess = thin_ess)
-      param_table <- helper_thin_table_to_n_(param_table, max_nrep)
+      param_table <- helper_thin_table_(param_table, max_nrep)
       nsim <- dim(param_table)[1]
 
       # internal build function
@@ -1011,11 +1011,13 @@ HousepiModel <- R6::R6Class(
                              chains = 1, threads = 1,
                              id_draws = NULL,
                              progress = TRUE) {
+      private$assert_posterior_memory_(steps = steps, burn = burn,
+                                       thin = thin, chains = chains,
+                                       id_draws = id_draws)
       private$build_full_(steps = steps, burn = burn,
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           id_draws = id_draws, progress = progress)
-      private$assert_posterior_memory_()
       .engine$run_inference(private$generator_$mcmc_ptr)
       HousepiPosteriorDraws$new(private$generator_$raw_name,
                                 private$generator_$mcmc_ptr)

@@ -112,8 +112,10 @@ namespace housepi
 
         /// Open progress bar for standard MCMC sample.
         void prog_open_for_mcmc_sample();
+        /* --FUTURE-LOG-EVIDENCE--
         /// Open progress bar for power posterior analysis.
         void prog_open_for_power_post();
+        */
         /// Open progress bar for simulation.
         void prog_open_for_simulation();
 

@@ -63,7 +63,7 @@ test_that("Summarise-draws default columns track cri_level", {
 test_that("Draws active fields are correct", {
   pd <- local_results$parameter_draws
   expect_true(posterior::is_draws(pd))
-  expect_true(posterior::niterations(pd) == 100)
+  expect_equal(posterior::niterations(pd), 100L)
 
   pr <- local_results$prior_draws
   expect_true(posterior::is_draws(pr))
@@ -127,8 +127,8 @@ test_that("Multi-chain inference produces correct chain structure", {
 
   pd <- results$parameter_draws
   expect_true(posterior::is_draws(pd))
-  expect_equal(posterior::nchains(pd), 2)
-  expect_equal(posterior::niterations(pd), 10)
+  expect_equal(posterior::nchains(pd), 2L)
+  expect_equal(posterior::niterations(pd), 10L)
 })
 
 test_that("Augm draws are not empty when id_draws is specified", {

@@ -45,16 +45,6 @@ namespace housepi
             constexpr const char *green = "\033[32m";
         }
 
-        /// Check that seed is unsigned and enforce 32bit integer.
-        std::int32_t read_seed_(const std::string &input)
-        {
-            int val = str::toi(input, "seed");
-            if (val < 1)
-                throw std::invalid_argument(
-                    "Seed must be a positive non-zero integer.");
-            return val;
-        }
-
         /// Format elapsed time in seconds.
         std::string format_time_(seconds scs)
         {
@@ -325,14 +315,6 @@ namespace housepi
 
     void Setup::helper_non_default_build_(const housepi::str_table &input)
     {
-        if (input.empty())
-            return;
-
-        // check no multiple entries if internal error
-        if (read::csv_n_rows(input) != 1)
-            throw std::runtime_error(
-                "Internal error: multiple entries found in MCMC setup definition.");
-
         // check entries
         const std::vector<std::string> &headers = read::extract_keys(input);
         str::assert_no_unused_entries(headers, file_headers);
@@ -345,9 +327,9 @@ namespace housepi
         if (input.count("threads") && !na::is(input.at("threads")[0]))
             n_threads = str::toi(input.at("threads")[0], "threads");
 
-        // PRNG Seed
+        // PRNG Seed (enforce 32bit integer)
         if (input.count("seed") && !na::is(input.at("seed")[0]))
-            seed = read_seed_(input.at("seed")[0]);
+            seed = static_cast<std::int32_t>(str::toi(input.at("seed")[0], "seed"));
 
         // N. of Chains
         if (input.count("chains") && !na::is(input.at("chains")[0]))
@@ -376,9 +358,7 @@ namespace housepi
 
     void Setup::set_n_threads()
     {
-        if (n_threads == 0)
-            throw std::invalid_argument(
-                "N. of threads was not greater than 0.");
+        n_threads = std::max(1u, n_threads);
 
 #ifdef _STANDALONE
         if (n_threads != 1)
@@ -388,14 +368,12 @@ namespace housepi
 
 #else
         size_t max_threads = housepi::parallel::max_num_threads();
-
         if (n_threads > max_threads)
         {
             msg::warning(
-                "N. of threads reduced to " + std::to_string(max_threads) + " available threads.");
+                "Reducing 'threads' to " + std::to_string(max_threads) + " available threads.");
             n_threads = max_threads;
         }
-
         housepi::parallel::set_num_threads(n_threads);
 #endif
     }
@@ -404,6 +382,7 @@ namespace housepi
     /// Concomitantely create different generators for different parallel threads.
     void Setup::set_prng_seed()
     {
+        seed = std::max(1, seed);
         prng_parallel_.resize(n_threads);
         prng_parallel_[0].seed(seed);
         for (size_t t = 1; t < n_threads; ++t)
@@ -425,32 +404,22 @@ namespace housepi
             throw std::out_of_range(
                 "Inverse temperature " + std::to_string(inv_T) + " was out of range [0, 1].");
 
-        if (n_chains < 1)
-            throw std::out_of_range(
-                "Number of chains was not greater than 0.");
+        // Clip options mistakenly set to 0 has 1.
+        n_steps = std::max(1ul, n_steps);
+        n_chains = std::max(1ul, n_chains);
+        n_thin = std::max(1ul, n_thin);
 
-        // Interpret thinning equal to 0 has been interpreted as 1.
-        if (n_thin == 0)
-            n_thin = 1;
-
-        if (n_steps < 1)
-            throw std::out_of_range(
-                "N. of steps was not greater than 0.");
         if (n_burn >= n_steps)
             throw std::out_of_range(
-                "Burn-in must was not smaller than n. of steps.");
+                "Wrong setup: 'burn' must be smaller than 'steps'.");
         if (n_thin > n_steps)
             throw std::out_of_range(
-                "Thinning was not be smaller than (or equal to) n. of steps. ");
+                "Wrong setup: 'thin' cannot be greater than 'steps'.");
 
         c_sample_size = (n_steps - n_burn) / n_thin;
         // adjust steps and sample size
         c_sample_size += (n_steps - n_burn) % n_thin > 0;
         n_steps = n_burn + c_sample_size * n_thin;
-
-        if (c_sample_size == 0)
-            throw std::out_of_range(
-                "Choice of steps, burn-in and thin generated an empty sample.");
 
         // assign number of sweeps
         // NOTE: because of rounding I can't put all in the same line
@@ -476,8 +445,10 @@ namespace housepi
     {
         if (!na::is(text))
             ;
+        /* --FUTURE-LOG-EVIDENCE--
         else if (is_power_post())
             text = "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
+        */
         else if (n_chains > 1)
             text = "sample " + std::to_string(chain) + "/" + std::to_string(n_chains);
         else
@@ -489,11 +460,13 @@ namespace housepi
         prog_set_text();
         progressbar_->open(c_n_sweeps * n_chains, progress);
     }
+    /* --FUTURE-LOG-EVIDENCE--
     void Setup::prog_open_for_power_post()
     {
         prog_set_text();
         progressbar_->open(c_n_sweeps * n_chains * (n_rungs + 1), progress);
     }
+    */
     void Setup::prog_open_for_simulation()
     {
         prog_set_text("simulate");

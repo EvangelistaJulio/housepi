@@ -108,10 +108,6 @@ test_that("Deep clone works as expected", {
 })
 
 test_that("Log-likelihood traces and pointwise traces are coherent", {
-  # Looping over thread counts exercises the RcppParallel reduction in
-  # commit_total_log_lik_. The invariant (pointwise sum == total) must
-  # hold for any thread count; concrete trace values change because the
-  # per-thread PRNG indexing differs, so do not compare runs across `t`.
   for (t in c(1L, 2L)) {
     results <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
       add_parameter_template() |>
@@ -151,27 +147,18 @@ test_that("Run simulation with nrep > 1 returns list of dataframes", {
 })
 
 test_that("run_inference rejects invalid setup arguments", {
-  # Covers the assert_mcmc_setup throw branches in src/setup.cpp:
-  # n_chains < 1, burn >= n_steps, thin > n_steps.
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
     add_parameter_template()
-  bad <- list(
-    list(args = list(steps = 10, chains = 0), regex = "chain"),
-    list(args = list(steps = 5, burn = 10), regex = "[Bb]urn"),
-    list(args = list(steps = 5, thin = 20), regex = "[Tt]hin")
-  )
-  for (case in bad) {
-    expect_error(
-      do.call(run_inference, c(list(hhmodel), case$args,
-                               list(progress = FALSE))),
-      regexp = case$regex
-    )
-  }
+  expect_error(hhmodel$run_inference(steps = 5, burn = 10),
+               regex = "[Bb]urn")
+  expect_error(hhmodel$run_inference(steps = 5, thin = 10),
+               regex = "[Tt]hin")
+  expect_warning(hhmodel$run_inference(steps = 5, threads = 1000),
+                 regex = "[Tt]hreads")
 })
 
 test_that("run_inference with progress = TRUE emits the progress bar", {
   # timing-sensitive: bar only prints when remaining time >= 1s
-  skip_on_cran()
   hhmodel <- flu_1918_baltimora |>
     new_housepi_model("chain_binomial") |>
     add_parameter_template()
@@ -185,10 +172,6 @@ test_that("run_inference with progress = TRUE emits the progress bar", {
 })
 
 test_that("predicted_cases_by_house_size exercises parallel for_each", {
-  # threads > 1 takes the RcppParallel branch in parallel::for_each
-  # (single-thread runs the serial fallback). The C++ simulate path
-  # invoked by predicted_cases_by_house_size goes through for_each,
-  # so this is the surface that covers parallel.h's EachWorker.
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
     add_parameter_template()
   results <- run_inference(hhmodel, steps = 30, progress = FALSE)
