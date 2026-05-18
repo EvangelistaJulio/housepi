@@ -524,6 +524,53 @@ test_that("run_simulation splits wide/long when nrep=1 and both processes set", 
   expect_true(is.data.frame(out$long))
 })
 
+test_that("Parameter defined as a function tracks its dependencies", {
+  set.seed(1)
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_list(
+      alpha = 1e-4,
+      beta = size_ref@P^-gamma@P,
+      gamma = list(prior = "uniform"),
+      size_ref = 4
+    )
+  res <- hhmodel$run_inference(steps = 2000, progress = 0)
+  vars <- posterior::variables(res$parameter_draws)
+  # both sampled and function-derived parameters appear in the trace
+  expect_true(all(c("gamma", "beta") %in% vars))
+  # the function-derived parameter has no prior contribution
+  expect_false("lprior_beta" %in% posterior::variables(res$prior_draws))
+
+  df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
+  # snake on the trail: every draw of beta equals size_ref^(-gamma) exactly
+  expect_equal(df$beta, 4^(-df$gamma))
+})
+
+test_that("Parameter function rejects non-parameter dependencies", {
+  hhmodel <- flu_1918_frederick |> new_housepi_model("chain_binomial")
+
+  # bare names default to augmented source - rejected by C++ validator
+  expect_error(
+    add_parameter_list(hhmodel,
+      alpha = 1e-4,
+      beta = size_ref^-gamma,
+      gamma = list(prior = "uniform"),
+      size_ref = 4
+    ),
+    regexp = "cannot depend on augmented variables"
+  )
+
+  # explicit reference to a data column is also rejected
+  expect_error(
+    add_parameter_list(hhmodel,
+      alpha = 1e-4,
+      beta = list(prior = "uniform"),
+      gamma = status@D + 1
+    ),
+    regexp = "cannot depend on data variables"
+  )
+})
+
 test_that("export_to_cpp_standalone writes the expected CSVs", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
   hhmodel$add_parameter_template()

@@ -5,9 +5,9 @@
 ## See the LICENSE file for details.
 ##
 
-#' @title Internal R6 holder for housepi augmented-variable definitions
+#' @title Internal R6 holder for housepi augmented definitions
 #' @description
-#' Helper class managing augmented-variable definitions of the model Rcpp object.
+#' Helper class managing augmented definitions of the model Rcpp object.
 #' @keywords internal
 #' @noRd
 HousepiAugmented <- R6::R6Class(

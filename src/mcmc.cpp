@@ -52,17 +52,24 @@ namespace housepi
             const Parameter &param,
             unsigned long sample_size)
         {
-            size_t n = param.list_sample.size();
-            post->param_values.reserve(n);
-            post->param_priors.reserve(n);
-            post->param_names.reserve(n);
-            post->param_prior_names.reserve(n);
+            size_t n_sample = param.list_sample.size();
+            size_t n_func = param.list_func.size();
+            post->param_values.reserve(n_sample + n_func);
+            post->param_priors.reserve(n_sample);
+            post->param_names.reserve(n_sample + n_func);
+            post->param_prior_names.reserve(n_sample);
             for (size_t p : param.list_sample)
             {
                 post->param_values.emplace_back(sample_size, na::DOUBLE);
                 post->param_priors.emplace_back(sample_size, na::DOUBLE);
                 post->param_names.push_back(param.khold().as_string(p));
                 post->param_prior_names.push_back("lprior_" + param.khold().as_string(p));
+            }
+            // Function-derived parameters: value trace only (no prior).
+            for (size_t p : param.list_func)
+            {
+                post->param_values.emplace_back(sample_size, na::DOUBLE);
+                post->param_names.push_back(param.khold().as_string(p));
             }
         }
 
@@ -144,9 +151,11 @@ namespace housepi
             {
                 const Variable &v = param.at(p);
                 param_values[i][count_] = v.value();
-                param_priors[i][count_] = v.get_distr_log_pdf();
-                ++i;
+                param_priors[i++][count_] = v.get_distr_log_pdf();
             }
+            // function-derived parameters: store value, no prior
+            for (size_t p : param.list_func)
+                param_values[i++][count_] = param.at(p).value();
 
             // household log-likelihoods
             const DataWide &data_wide = mcmc.data_wide();

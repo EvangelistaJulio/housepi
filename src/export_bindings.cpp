@@ -538,9 +538,6 @@ namespace
     {
         try
         {
-            if (data_wide.is_empty())
-                return Rcpp::List();
-
             size_t n_rows = data_wide.report_indiv.total;
             Rcpp::CharacterVector id_col = Rcpp::CharacterVector(n_rows);
             Rcpp::CharacterVector house_id_col = Rcpp::CharacterVector(n_rows);
@@ -690,9 +687,6 @@ namespace
 
         try
         {
-            if (data_wide.is_empty())
-                msg::warning("Called 'summarise_house_cases' on empty data.");
-
             Rcpp::CharacterVector level = Rcpp::wrap(std::vector<std::string>(4, "individual") +
                                                      std::vector<std::string>(5, "household"));
             Rcpp::CharacterVector metric = {"total", "missing", "not infected", "infected",
@@ -908,9 +902,6 @@ namespace
 
         try
         {
-            if (post.house_log_lik.empty())
-                return Rcpp::List();
-
             size_t n_classes = post.house_log_lik.size();
             size_t n_houses = data_wide.report_house.total;
 

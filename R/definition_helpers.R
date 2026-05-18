@@ -147,8 +147,9 @@ helper_variable_move <- function(opts, family, proposal_scale) {
     # skip proposal if constant
     return(opts)
   } else {
-    # check for prior if not constant
-    if (family == "parameter" && is.na(opts[[col_model]])) stop_h(
+    # check for prior if not constant (skip for func-defined parameters)
+    if (family == "parameter" && is.na(opts[[col_model]])
+        && is.na(opts$func)) stop_h(
       sprintf("No %s provided for parameter '%s'.", col_model, opts$name)
     )
   }

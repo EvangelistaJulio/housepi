@@ -205,9 +205,9 @@ test_that("Run simulation thins param_table down to nrep when smaller", {
 ####################################################
 
 test_that("Debugger cannot be called on large numbers of infections", {
-  n_infec <- 10 
+  n_infec <- 10L
   B <- runif(n_infec)
-  Q <- matrix(runif(n_infec * n_infec), ncol=n_infec)
+  Q <- matrix(runif(n_infec * n_infec), ncol = n_infec)
   expect_error(housepi:::eval_chain_binomial_debugger_(B, Q),
                regexp = "Maximum number")
 })
@@ -316,4 +316,26 @@ test_that("Chain binomial runs ok on real case with partitions", {
     )
   )
   expect_silent(hhmodel$evaluate_log_lik())
+})
+
+test_that("Chain binomial returns infinite if extreme values are provided", {
+  extreme_params <- list(alpha = 1e-20, beta = 1e-20,
+                         gamma = 1, size_ref = 4)
+  # heterogeneous_house
+  hhmodel <- data.frame(
+    id = c(1, 2), house_id = "hh1", status = c(1, 1),
+    age = c("child", "adult")
+  ) |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_list(!!!extreme_params)
+
+  # homogeneous branch
+  expect_false(is.finite(hhmodel$evaluate_log_lik()))
+
+  # heterogeneous branch
+  expect_false(is.finite(
+    hhmodel |>
+      add_group_rate("susceptibility", by = "age") |>
+      evaluate_log_lik()
+  ))
 })
