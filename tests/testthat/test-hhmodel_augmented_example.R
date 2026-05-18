@@ -5,26 +5,29 @@ test_that("Nested definitions raise errors", {
     new_housepi_model("augmented_example")
 
   expect_no_error(
-    hhmodel$add_augmented_list(
-      .layer = list(model = "uniform", status = 1),
-      .layer = list(value = .dummy, status = c(2, 3, 4)),
-      .dummy = list(model = "uniform"),
-      proba = .layer
-    )$evaluate_log_lik()
+    hhmodel |>
+      add_augmented_list(
+        .layer = list(model = "uniform", status = 1),
+        .layer = list(value = .dummy, status = c(2, 3, 4)),
+        .dummy = list(model = "uniform"),
+        proba = .layer
+      ) |>
+      evaluate_log_lik()
   )
 
   # simple nest
   expect_error(
-    hhmodel$add_augmented_list(.dummy = proba,
-                                proba = .dummy)$evaluate_log_lik(),
+    hhmodel |>
+      add_augmented_list(.dummy = proba, proba = .dummy) |>
+      evaluate_log_lik(),
     regexp = "cyclic definition"
   )
 
   # triangular nest
   expect_error(
-    hhmodel$add_augmented_list(proba = .layer,
-                                .layer = .dummy,
-                                .dummy = proba)$evaluate_log_lik(),
+    hhmodel |>
+      add_augmented_list(proba = .layer, .layer = .dummy, .dummy = proba) |>
+      evaluate_log_lik(),
     regexp = "cyclic definition"
   )
 
@@ -81,7 +84,7 @@ test_that("Missing function arguments raise errors", {
 
   # check that NaN + something causes errors
   hhmodel$add_augmented_list(noise = list(model = "normal"),
-                              proba = exp(test@D + noise))
+                             proba = exp(test@D + noise))
   expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
 
   # check that log(NaN) causes error
@@ -96,12 +99,12 @@ test_that("Missing function arguments raise errors", {
 test_that("Augmented log-likelihood seeding is fine", {
   hhmodel <- data.frame(house_id = 1, id = seq(4),
                         status = seq(4)) |>
-    new_housepi_model("augmented_example")
-  hhmodel$add_augmented_list(
-    proba = list(model = "uniform", status = 1),
-    proba = list(value = .layer, status = c(2, 3, 4)),
-    .layer = list(model = "uniform")
-  )
+    new_housepi_model("augmented_example") |>
+    add_augmented_list(
+      proba = list(model = "uniform", status = 1),
+      proba = list(value = .layer, status = c(2, 3, 4)),
+      .layer = list(model = "uniform")
+    )
 
   withr::with_seed(1, ll1 <- hhmodel$evaluate_log_lik())
   # check if result is correct
@@ -112,6 +115,39 @@ test_that("Augmented log-likelihood seeding is fine", {
   # opposite if same seed
   withr::with_seed(2, ll2encore <- hhmodel$evaluate_log_lik())
   expect_identical(ll2, ll2encore)
+})
+
+test_that("Status-specific augmented variables draw from per-status ranges", {
+  hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
+    new_housepi_model("augmented_example") |>
+    add_augmented_list(
+      proba = list(status = 1, model = "uniform", min = 0, max = 1),
+      proba = list(status = 2, model = "uniform", min = 1, max = 2),
+      proba = list(status = 3, model = "uniform", min = 2, max = 3),
+      proba = list(status = 4, model = "uniform", min = 3, max = 4)
+    )
+
+  # simulation also routes draws into per-status supports
+  withr::with_seed(1, sim <- hhmodel$run_simulation(nrep = 50))
+  sim <- do.call(rbind, sim)
+  for (s in seq(4)) {
+    vals <- sim$proba[sim$status == s]
+    expect_true(all(vals >= s - 1 & vals <= s))
+  }
+
+  # run_inference with adapt > 0 should warn (no parametric proposals to adapt)
+  expect_warning(
+    results <- hhmodel |>
+      run_inference(steps = 5, thin = 1, adapt = 2,
+                    chain = 1, threads = 1, progress = FALSE,
+                    id_draws = hhmodel$data_wide$id),
+    regexp = "adaptation"
+  )
+  draws <- as.data.frame(get_augmented_draws(results))
+  for (s in seq(4)) {
+    col <- draws[[as.character(s)]]
+    expect_true(all(col >= s - 1 & col <= s))
+  }
 })
 
 test_that("Augmented aliasing works as expected", {

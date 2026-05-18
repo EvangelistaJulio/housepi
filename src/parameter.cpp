@@ -52,11 +52,6 @@ namespace housepi
         str::assert_no_missing_entries(headers, file_headers);
         str::assert_no_unused_entries(headers, file_headers);
 
-        // assert that parameter is not already defined
-        if (input.at("name").size() != str::unique(input.at("name")).size())
-            throw std::invalid_argument(
-                "Found multiple definitions for the same parameter.");
-
         // build dependency graph and validate function parameters
         bool has_func_params = false;
         dict<size_t> name_to_row;
@@ -136,9 +131,6 @@ namespace housepi
 
     void Parameter::build_for_predic(const dbl_table &input)
     {
-        if (input.empty())
-            return;
-
         const std::vector<std::string> headers = read::extract_keys(input);
         // assert that parameter is not already defined
         if (headers.size() != str::unique(headers).size())

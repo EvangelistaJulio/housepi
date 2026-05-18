@@ -205,7 +205,7 @@ test_that("Helper to combine observations and predictions interleaves rows", {
   obsdf <- data.frame(house_size = c(2, 3), `0` = c(1, 2), `1` = c(3, 4),
                       check.names = FALSE)
   preddf <- data.frame(`0` = c(1.1, 2.1), `1` = c(3.1, 4.1),
-                        check.names = FALSE)
+                       check.names = FALSE)
   result <- helper_combine_obs_pred(obsdf, preddf)
   expect_true(is.data.frame(result))
   expect_true("distr" %in% colnames(result))
@@ -213,6 +213,31 @@ test_that("Helper to combine observations and predictions interleaves rows", {
   # alternating rows
   expect_equal(result$distr, rep(c("observed", "predicted"), 2))
   expect_equal(nrow(result), 4)
+})
+
+test_that("HousepiPrediction active fields are read-only", {
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
+  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
+  suppressWarnings(
+    ppc <- predicted_measures(hhmodel, results,
+                              sar = measure_sar_by_house_size,
+                              progress = FALSE)
+  )
+  expect_error(ppc$point_estimate <- "La", regexp = "read only")
+  expect_error(ppc$cri_level <- "Li", regexp = "read only")
+  expect_error(ppc$nrep <- "Lu", regexp = "read only")
+  expect_error(ppc$thin_ess <- "Le", regexp = "read only")
+  expect_error(ppc$is_posterior <- "Lo", regexp = "read only")
+  expect_error(ppc$model_name <- "Patriots...", regexp = "read only")
+  # read access works
+  expect_silent(ppc$point_estimate)
+  expect_silent(ppc$cri_level)
+  expect_silent(ppc$nrep)
+  expect_silent(ppc$thin_ess)
+  expect_silent(ppc$is_posterior)
+  expect_silent(ppc$model_name)
 })
 
 test_that("Predicted-measures raises error when no measure is provided", {
@@ -245,6 +270,12 @@ test_that("Predicted cases by house size works as expected", {
   expect_true(is.list(ct))
   expect_true(length(ct) == 3)
 
+  # subclass active fields and inherited dynamic measure fields are read-only
+  expect_error(ppc$formatted_sec_attack_rate <- "La", regexp = "read only")
+  expect_error(ppc$formatted_cases_table <- "Li", regexp = "read only")
+  expect_error(ppc$sec_attack_rate <- "Lu", regexp = "read only")
+  expect_error(ppc$cases_table_by_size <- "Le", regexp = "read only")
+
   # set_max_house_size and drop
   ppc$set_max_house_size(3)
   sar2 <- ppc$formatted_sec_attack_rate
@@ -258,23 +289,24 @@ test_that("Predicted cases by house size works as expected", {
 })
 
 test_that("PPC does not pollute the engine's data_wide between calls", {
-  # repeated PPC calls must not mutate the model's data_wide; observed
-  # measures must remain identical across calls (regression: simulation
-  # used to leave the engine in the last simulated state).
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  # repeated PPC calls must not mutate the model's data_wide
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
     add_parameter_template()
   results <- run_inference(hhmodel, steps = 100, progress = FALSE)
 
   dw_before <- hhmodel$data_wide
   suppressWarnings({
-    ppc1 <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE,
-                                          thin_ess = FALSE, max_nrep = 5)
+    ppc1 <- hhmodel |>
+      predicted_cases_by_house_size(results, progress = FALSE,
+                                    thin_ess = FALSE, max_nrep = 5)
   })
   expect_identical(hhmodel$data_wide, dw_before)
 
   suppressWarnings({
-    ppc2 <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE,
-                                          thin_ess = FALSE, max_nrep = 5)
+    ppc2 <- hhmodel |>
+      predicted_cases_by_house_size(results, progress = FALSE,
+                                    thin_ess = FALSE, max_nrep = 5)
   })
   expect_identical(ppc1$cases_table_by_size$observed,
                    ppc2$cases_table_by_size$observed)

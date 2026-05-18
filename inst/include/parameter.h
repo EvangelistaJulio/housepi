@@ -58,8 +58,10 @@ namespace housepi
         //////////////////////
 
         /// Assign parameter definitions to dictionary.
+        /// Expect unique definitions.
         void build(const str_table &deftable);
         /// Build parameter dictionaries for expected measure on posterior sample.
+        /// Expect a non-empty table.
         void build_for_predic(const dbl_table &deftable);
         /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
         void make_cache_dependent(size_t p);

@@ -40,6 +40,7 @@ test_that("Power function is correct", {
   expect_equal(fn$log_func(x), x2 * log(x))
   expect_equal(fn$log_ratio(x, x + 0.1),
                log(fn$func(x + 0.1) / fn$func(x)))
+  expect_error(fn$log_ratio(x, x[-1]), regexp = "[Ss]ize")
 
   # x2 = -1 primitive uses log(|x|)
   expect_equal(expose_function("pow", x2 = -1)$prim(x), log(abs(x)))
@@ -479,7 +480,7 @@ test_that("rand() draws are reproducible and statistically plausible", {
   expect_equal(mean(big), 2, tolerance = 0.05)
   expect_equal(sd(big), 3, tolerance = 0.05)
 
-  # seed = 0 -> nondeterministic
+  # verify that seed = 0 implies non-deterministic
   expect_false(identical(d$rand(10L, 0L), d$rand(10L, 0L)))
 
   # invalid n

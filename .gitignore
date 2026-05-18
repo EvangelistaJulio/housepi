@@ -37,11 +37,6 @@
 ehthumbs.db
 Thumbs.db
 
-# others #
-###########
-*.vscode/
-*.gitlab-ci-local/
-
 # R files #
 ###########
 *.Rhistory
@@ -55,6 +50,8 @@ Thumbs.db
 *.Rcheck/
 *.Rcheck/**
 .Rproj.user
+src/Makevars
+src/Makevars.win
 /public/
 /doc/
 /docs/
@@ -65,20 +62,19 @@ Thumbs.db
 /vignettes/*.html
 /vignettes/*.timestamp
 
+## exceptions
 !vignettes/generate_delays.R
 !vignettes/theme.R
 
-# covr files #
-############
+# Developer files #
+###################
+*.vscode/
 *.gcno
 *.gcda
-
-# Claude files #
-################
 CLAUDE.md
 .claude/
 
-# housepi files #
+# Package files #
 #################
 inst/models/*/model.cpp
 inst/models/*/model.exe

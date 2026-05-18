@@ -163,11 +163,11 @@ ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95,
 # Element-wise mask of observed values that fall outside [cri_lower, cri_upper].
 # Non-numeric or NA elements are reported as FALSE (not a mismatch).
 ppc_observed_outside_cri <- function(observed, cri_lower, cri_upper) {
-  .vec_outside <- function(o, l, u) {
-    if (!is.numeric(o) || !is.numeric(l) || !is.numeric(u)) {
-      return(rep(FALSE, length(o)))
+  .vec_outside <- function(obs, low, up) {
+    if (!is.numeric(obs) || !is.numeric(low) || !is.numeric(up)) {
+      return(rep(FALSE, length(obs)))
     }
-    !is.na(o) & !is.na(l) & !is.na(u) & (o < l | o > u)
+    !is.na(obs) & !is.na(low) & !is.na(up) & (obs < low | obs > up)
   }
   if (is.data.frame(observed)) {
     return(as.data.frame(Map(.vec_outside, observed, cri_lower, cri_upper)))
@@ -205,6 +205,7 @@ HousepiPrediction <- R6::R6Class(
     is_posterior_ = FALSE,
     model_name_ = NA_character_,
     measure_names_ = character(0),
+    measures_ = list(),
 
     # Compare observed values against the credible interval of each measure.
     # Emits a warning if any observed entry falls outside its
@@ -375,15 +376,24 @@ HousepiPrediction <- R6::R6Class(
                         cri = private$cri_level_)
       )
 
-      # change environment according to measures
-      for (mn in all_measure_names) self[[mn]] <- list(
-        observed = observations[[mn]],
-        predicted = predictions[[mn]]$predicted,
-        cri_lower = predictions[[mn]]$cri_lower,
-        cri_upper = predictions[[mn]]$cri_upper
-      )
-      # restore locked environment
-      lockEnvironment(self, bindings = TRUE)
+      # expose each measure as a read-only active binding
+      for (mn in all_measure_names) {
+        private$measures_[[mn]] <- list(
+          observed = observations[[mn]],
+          predicted = predictions[[mn]]$predicted,
+          cri_lower = predictions[[mn]]$cri_lower,
+          cri_upper = predictions[[mn]]$cri_upper
+        )
+        # make read-only active bindings
+        local({
+          m_name <- mn
+          setter <- function(value) {
+            if (!missing(value)) stop_read_only(m_name)
+            private$measures_[[m_name]]
+          }
+          makeActiveBinding(m_name, setter, self)
+        })
+      }
       # store decorations for print and read-only access
       private$model_name_ <- hhmodel$name
       private$is_posterior_ <-

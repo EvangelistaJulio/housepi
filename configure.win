@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Store models cpp source code as a reference at runtime.
-# NOTE: enforce ending wiht LF even on Windows.
+# store models cpp source code as a reference at runtime
+# NOTE: enforce ending with LF even on Windows.
 for f in src/model_*.cpp; do
   [ -f "$f" ] || continue
   name=`basename "$f" .cpp | sed 's/^model_//'`
@@ -10,7 +10,10 @@ for f in src/model_*.cpp; do
   tr -d '\r' < "$f" > "${dir}/model.cpp"
 done
 
-# Resolve RcppParallel link flags at install time.
+# resolve RcppParallel link flags at install time
 RCPPPARALLEL_LIBS=`"${R_HOME}/bin/Rscript.exe" -e "RcppParallel::RcppParallelLibs()"`
-sed -e "s|@RCPPPARALLEL_LIBS@|${RCPPPARALLEL_LIBS}|" \
-    src/Makevars.in > src/Makevars.win
+cat > src/Makevars.win << EOF
+CXX_STD = CXX17
+PKG_CXXFLAGS = -I"../inst/include"
+PKG_LIBS = ${RCPPPARALLEL_LIBS}
+EOF

@@ -4,12 +4,10 @@
 ^\.git$
 ^\.github$
 ^\.gitlab-ci\.yml$
-^\.gitlab-ci-local$
-^ci$
+^\.lintr$
 ^check$
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^.claude$
 ^cleanup$
 ^cleanup.win$
 ^src/Makevars$
@@ -20,8 +18,11 @@
 ^public$
 ^README\.Rmd$
 ^LICENSE\.md$
-^CLAUDE\.md$
 ^inst/standalone$
 ^Meta$
 ^\.positai$
+^CLAUDE\.md$
 ^\.claude$
+^cran-comments\.md$
+^\.gitignore$
+^\.gitattributes$
