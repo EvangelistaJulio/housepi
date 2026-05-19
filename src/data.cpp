@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -334,8 +334,7 @@ namespace housepi
             }
 
             /// Using golden ratio fractional part to ensure bit distribution.
-            /// Ref:
-            /// https://www.boost.org/doc/libs/latest/libs/container_hash/doc/html/hash.html#notes_hash_combine
+            /// Based on @cite james_boostcontainerhash_2022
             void hash_combine_(size_t &seed, size_t h)
             {
 #if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64

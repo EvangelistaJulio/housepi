@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -25,8 +25,10 @@
 #include "contact_rate.h"
 #include "data_wide.h"
 #include "data_long.h"
-#include "household.h"
+#include "distribution.h"
+#include "function.h"
 #include "group_rate.h"
+#include "household.h"
 #include "individual.h"
 #include "infec_profile.h"
 #include "mcmc.h"
@@ -38,6 +40,27 @@
 
 namespace housepi
 {
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////// *** ModelRegistry : class ***  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    ModelRegistry &ModelRegistry::instance()
+    {
+        static ModelRegistry _inst;
+        return _inst;
+    }
+
+    std::unique_ptr<ModelBase> ModelRegistry::create(std::string_view name) const
+    {
+        auto it = factory_map_.find(name);
+        if (it == factory_map_.end())
+            throw std::invalid_argument(
+                "Model registration failed: unknown model '" + std::string(name) + "'.\n");
+        return it->second();
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////  *** Posterior : struct ***  ///////////////////////////////
@@ -698,9 +721,7 @@ namespace housepi
     namespace
     {
         /// Welford online's algorithm for mean and variance.
-        /// Ref :
-        /// ----
-        /// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+        /// Based on @cite welford_note_1962
         std::pair<double, double> compute_stats(const std::vector<double> &data)
         {
             size_t i = 0;
@@ -836,51 +857,4 @@ namespace housepi
         }
     }
     */
-}
-
-// =============================================================================
-//   originally: src/registry.cpp
-// =============================================================================
-
-#include <memory>
-#include <stdexcept>
-#include <string>
-#include <string_view>
-#include <vector>
-
-#include "tools/nan.h"
-#include "tools/string.h"
-#include "tools/types.h"
-
-#include "registry.h"
-#include "function.h"
-#include "distribution.h"
-#include "model.h"
-
-
-namespace housepi
-{
-    ModelRegistry &ModelRegistry::instance()
-    {
-        static ModelRegistry _inst;
-        return _inst;
-    }
-}
-
-namespace housepi
-{
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////// *** ModelRegistry : class ***  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    std::unique_ptr<ModelBase> ModelRegistry::create(std::string_view name) const
-    {
-        auto it = factory_map_.find(name);
-        if (it == factory_map_.end())
-            throw std::invalid_argument(
-                "Model registration failed: unknown model '" + std::string(name) + "'.\n");
-        return it->second();
-    }
 }

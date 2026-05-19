@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -71,12 +71,7 @@ namespace housepi
 
 		/* --FUTURE-LOG-EVIDENCE--
 		/// Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
-		///
-		/// Ref
-		/// -----
-		/// Friel, N., Hurn, M. & Wyse, J.
-		/// Improving power posterior estimation of statistical evidence.
-		/// Stat Comput 24, 709–723 (2014).
+		/// Based on @cite friel_improving_2014
 		std::vector<std::vector<double>> power_posteriors(std::string_view scheme, unsigned long N);
 		*/
 

@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -49,11 +49,7 @@
 namespace housepi::msg
 {
     /// Throw an error message.
-    /// Ref:
-    /// -----
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    /// @cite weylandt_suppressing_2018
     [[noreturn]] void error(const std::string &txt)
     {
         throw Rcpp::exception(txt.c_str(), false);
@@ -67,11 +63,7 @@ namespace housepi::msg
     }
 
     /// Display a warning message if not already displayed before.
-    /// Ref:
-    /// -----
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    /// Based on @cite weylandt_suppressing_2018
     void warning(const std::string &txt)
     {
         if (!is_new_warning(txt))
@@ -1403,12 +1395,7 @@ namespace
     /* --FUTURE-LOG-EVIDENCE--
     /// Estimate log_evidence according to a given scheme and number of rungs.
     /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
-    ///
-    /// Ref.
-    /// -----
-    /// Friel, N., Hurn, M. & Wyse, J.
-    /// Improving power posterior estimation of statistical evidence.
-    /// Stat Comput 24, 709–723 (2014).
+    /// Based on @cite friel_improving_2014
     Rcpp::List log_evidence(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
     {
         MCMC &engine = *mcmc_ptr;

@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -13,8 +13,7 @@
 namespace housepi
 {
     /// Split Mix 64. Used for seeding.
-    /// Adapted from Sebastiano Vigna (2015).
-    /// https://rosettacode.org/wiki/Pseudo-random_numbers/Splitmix64
+    /// Based on @cite vigna_pseudo_random_2015
     class SplitMix64
     {
     public:
@@ -49,8 +48,7 @@ namespace housepi
 
 #if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
     /// Xor Shift Rotate 256 Star Star.
-    /// Adapted from David Blackman and Sebastiano Vigna (2018).
-    /// https://prng.di.unimi.it/xoshiro256starstar.c
+    /// Based on @cite blackman_xoshiro256starstar_2018
     class XoShiRo256ss
     {
     public:
@@ -141,8 +139,7 @@ namespace housepi
 #else
 
     /// Xor Shift Rotate 128 Star Star.
-    /// Adapted from David Blackman and Sebastiano Vigna (2018).
-    /// https://prng.di.unimi.it/xoshiro128starstar.c
+    /// @cite blackman_xoshiro128starstar_2018
     class XoShiRo128ss
     {
     public:

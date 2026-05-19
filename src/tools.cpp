@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -154,6 +154,16 @@ namespace housepi::str
     //////////////////////////////////  Converter Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef _STANDALONE
+    std::string tolow(std::string s)
+    {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c)
+                       { return std::tolower(c); });
+        return s;
+    }
+#endif
+
     std::string toup(std::string s)
     {
         std::transform(s.begin(), s.end(), s.begin(),
@@ -263,19 +273,11 @@ namespace housepi::str
 
     /// Calcuate the Levenshtein distance.
     /// Distance is equal to seq_B length if seq_A is empty, and viceversa.
-    /// (modified from) Ref.
-    /// -----
-    /// Hjelmqvist, Sten (26 March 2012), Fast, memory efficient Levenshtein algorithm.
+    /// Based on @cite wikipedia_levenshtein_2026
     size_t helper_levenshtein_(std::string_view seq_A, std::string_view seq_B)
     {
         size_t len_A = seq_A.size();
         size_t len_B = seq_B.size();
-
-        if (len_A == 0)
-            return len_B;
-        if (len_B == 0)
-            return len_A;
-
         std::vector<size_t> prev(len_B + 1), curr(len_B + 1);
 
         for (size_t b = 0; b <= len_B; ++b)
@@ -287,9 +289,7 @@ namespace housepi::str
             for (size_t b = 1; b <= len_B; ++b)
             {
                 size_t cost = (seq_A[a - 1] == seq_B[b - 1]) ? 0 : 1;
-                curr[b] = std::min(prev[b] + 1,
-                                   std::min(curr[b - 1] + 1,
-                                            prev[b - 1] + cost));
+                curr[b] = std::min({prev[b] + 1, curr[b - 1] + 1, prev[b - 1] + cost});
             }
             std::swap(prev, curr);
         }

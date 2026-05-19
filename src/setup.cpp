@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -80,12 +80,7 @@ namespace housepi
     }
 
     /// Implementation class for progress bar.
-    ///
-    /// -----
-    /// Adapted from :
-    /// OTHMAN EL HAMMOUCHI, April 15, 2024
-    /// "Fancy thread safe progress bar in R for compiled code"
-    /// https://othmanelhammouchi.com/posts/r-parallel-progress/
+    /// Based on @cite hammouchi_fancy_2024
     class ProgressBar
     {
         enum class Mode : std::uint8_t

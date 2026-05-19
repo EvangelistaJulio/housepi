@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -94,12 +94,7 @@ namespace housepi::bino
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Multitype final-size dynamic programming.
-    ///
-    /// Ref:
-    /// ----
-    /// Addy, C. L., Longini, I. M. & Haber, M.
-    /// A Generalized Stochastic Model for the Analysis of Infectious Disease Final Size Data.
-    /// Biometrics 47, 961-974 (1991).
+    /// Based on @cite FIXME: MISSING
     struct FinalSizeDP
     {
         vector<vector<unsigned>> sub_vecs;
@@ -249,15 +244,9 @@ namespace housepi::bino
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Homogeneous chain binomial log-likelihood.
-    ///
-    /// Ref:
-    /// ----
-    /// Longini, I. M. & Koopman, J. S.
-    /// Household and Community Transmission Parameters from Final Distributions of Infections in Households
-    /// Biometrics 38, 115-126 (1982).
+    /// Based on @cite longini_household_1982
     double chain_binom_log_lik_homogeneous_(
-        unsigned n_infec, unsigned house_size,
-        double commu_infec_rate, double p2p_infec_rate)
+        unsigned n_infec, double commu_infec_rate, double p2p_infec_rate)
     {
         const double log_commu_esc_proba = -commu_infec_rate;
         const double log_commu_infec_proba = std::log1p(-std::exp(log_commu_esc_proba));
@@ -305,11 +294,7 @@ namespace housepi::bino
 
     /// Algorithm to generate all possible combinations of N elements in k positions.
     /// The N - k complements are appended at the end. Elements indexed from 1 to N.
-    ///
-    /// Ref:
-    /// ----
-    /// Daniel Angel Jimenez
-    /// https://www.cs.utexas.edu/users/djimenez/utsa/cs3343/lecture25.html
+    /// Based on @cite jimenez_algorithms_1998
     void recursive_span_combinations_(unsigned N, unsigned k, vector<unsigned> &current,
                                       matrix<unsigned> &results, unsigned start, unsigned loop)
     {
@@ -527,13 +512,7 @@ namespace housepi::bino
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Heterogeneous final-size using subset bitmasks and dynamic programming.
-    ///
-    ///
-    /// Ref:
-    /// ----
-    /// Ball, F.
-    /// A unified approach to the distribution of total size and total area under the trajectory of infectives in epidemic models.
-    /// Advances in Applied Probability 18, 289-310 (1986).
+    /// Based on @cite FIXME: MISSING
     double chain_binom_log_lik_heterogeneous_(
         size_t n_infec,
         const std::vector<double> &commu_infec_rate,
@@ -719,14 +698,12 @@ namespace housepi::bino
     /// NOTE: I don't think I can use bitmasks tricks here because of
     /// non analytical solution for number of integer partitions
     ///
-    /// @param n_infec number of infected members
     /// @param n_parts number of parts
     /// @param part_counts counts of in-house seropositives parts
     /// @param part_indexes indexes of household member representative of part
     /// @param commu_infec_rate per-individual community infection rates
     /// @param p2p_infec_rate per-individual p2p infection rates
     double chain_binom_log_lik_partitioned_(
-        size_t n_infec,
         size_t n_parts,
         const std::vector<size_t> &part_counts,
         const std::vector<size_t> &part_indexes,
@@ -780,7 +757,7 @@ namespace housepi::bino
             // community : i escaped from community
             log_neg_term -= commu_infec_rate[i];
             // person-to-person : i escaped from k
-            for (unsigned k = 0; k < n_infec; ++k)
+            for (size_t k = 0; k < n_infec; ++k)
                 log_neg_term -= p2p_infec_rate[k][i];
         }
 
@@ -800,7 +777,6 @@ namespace housepi::bino
         else if (n_parts <= 1)
             log_pos_term = chain_binom_log_lik_homogeneous_(
                 static_cast<unsigned>(n_infec),
-                static_cast<unsigned>(commu_infec_rate.size()),
                 commu_infec_rate[0], p2p_infec_rate[0][1]);
         // heterogeneous case
         else if (n_parts == n_infec)
@@ -809,7 +785,7 @@ namespace housepi::bino
         // grouped case
         else
             log_pos_term = chain_binom_log_lik_partitioned_(
-                n_infec, n_parts, part_counts, part_indexes,
+                n_parts, part_counts, part_indexes,
                 commu_infec_rate, p2p_infec_rate);
 
         return log_neg_term + log_pos_term;

@@ -158,7 +158,7 @@ test_that("run_inference rejects invalid setup arguments", {
 })
 
 test_that("run_inference with progress = TRUE emits the progress bar", {
-  # timing-sensitive: bar only prints when remaining time >= 1s
+  # FIXME: timing-sensitive
   hhmodel <- flu_1918_baltimora |>
     new_housepi_model("chain_binomial") |>
     add_parameter_template()

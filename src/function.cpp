@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -1171,8 +1171,12 @@ namespace housepi
     ///////////////////////////////  *** AdaptableProposal : class ***  ///////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Threshold for proposal scale.
-    constexpr double PROPOSAL_XTOL_SCALE = 1.e-8;
+    /// Target accept ratio.
+
+    /// Roberts, G.O., Gelman, A., Gilks, W.
+    /// Weak convergence and optimal scaling of random walk Metropolis algorithms.
+    /// Ann. Appl. Probab. 7, 110-120 (1997)
+    constexpr double TARGET_ACCEPT_RATE = 0.44;
 
     /// Adaptable version of Metropolis proposals.
     class AdaptableProposal : public Proposal
@@ -1234,13 +1238,11 @@ namespace housepi
         double accept_rate_ = 0.;              /// acceptance rate
         unsigned long n_proposed_ = 0;         /// n. of proposed moves
 
-        /// Adapt (positive) scale with target accept rate set to 25%.
-        /// Ref: Andrieu and Thomas (2008)
-        double adapt_scale_(double xold, double ratio)
+        /// Adapt positive scale with vanishing Robbins-Monro update.
+        /// Based on @cite andrieu_tutorial_2008
+        double robbins_monro_(double ratio) const
         {
-            xold *= 1. + (1. - ratio) * (accept_rate_ - 0.25);
-            return (xold < PROPOSAL_XTOL_SCALE) ? PROPOSAL_XTOL_SCALE
-                                                : xold;
+            return std::exp((1. - ratio) * (accept_rate_ - TARGET_ACCEPT_RATE));
         }
     };
 
@@ -1266,7 +1268,7 @@ namespace housepi
 
         void adapt(double ratio) override final
         {
-            const double m = adapt_scale_(pDistr_->upper().value(), ratio);
+            const double m = pDistr_->upper().value() * robbins_monro_(ratio);
             pDistr_->set_lower(-m);
             pDistr_->set_upper(m);
         }
@@ -1293,7 +1295,7 @@ namespace housepi
         double log_ratio(double, double) const override final { return 0.; }
 
         /// Adapt standard deviation.
-        void adapt(double ratio) override final { pDistr_->set_arg(1, adapt_scale_(pDistr_->arg(1), ratio)); }
+        void adapt(double ratio) override final { pDistr_->set_arg(1, pDistr_->arg(1) * robbins_monro_(ratio)); }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1333,7 +1335,7 @@ namespace housepi
         double log_ratio(double xo, double xn) const override final { return (this->*logratio_)(xo, xn); }
 
         /// Adapt log of standard deviation.
-        void adapt(double ratio) override final { pDistr_->set_arg(1, adapt_scale_(pDistr_->arg(1), ratio)); }
+        void adapt(double ratio) override final { pDistr_->set_arg(1, pDistr_->arg(1) * robbins_monro_(ratio)); }
 
     private:
         const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location

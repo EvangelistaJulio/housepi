@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -17,6 +17,10 @@ namespace housepi::str
     constexpr size_t MIN_DIST = 2;         /// Similarity threshold distance.
     const std::string PRIVATE_PREFIX = "."; /// Prefix for hidden objects.
 
+#ifdef _STANDALONE
+    /// Convert to lower case.
+    std::string tolow(std::string s);
+#endif
     /// Convert to upper case.
     std::string toup(std::string s);
 
