@@ -36,12 +36,6 @@ namespace housepi
 		friend class MCMC;
 
 	public:
-		///////////////////////////
-		//////  CONSTRUCTOR  //////
-		///////////////////////////
-
-		Individual() = default;
-
 		/////////////////////////
 		//////  OPERATORS  //////
 		/////////////////////////
@@ -67,7 +61,7 @@ namespace housepi
 		//////  GETTER  //////
 		//////////////////////
 
-		double data(size_t d) const { return pwide_->vec[d]; }
+		double data(size_t d) const noexcept { return pwide_->vec[d]; }
 
 		/// Return associated data long format.
 		/// NOTE: return a reference to a static empty vector when no datalong is attached.
@@ -85,10 +79,10 @@ namespace housepi
 		const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return &plong_->vec; }
 
 		double aug(size_t a) const { return paugm_->vec[a].value(); }
-		Variable &get_augm_variable(size_t a) { return paugm_->vec[a]; }
-		const Variable &get_augm_variable(size_t a) const { return paugm_->vec[a]; }
+		Variable &get_augm_variable(size_t a) noexcept { return paugm_->vec[a]; }
+		const Variable &get_augm_variable(size_t a) const noexcept { return paugm_->vec[a]; }
 
-		const Attribute &get_group_rate_attribute(size_t g) const { return pgroup_rate_->vec[g]; }
+		const Attribute &get_group_rate_attribute(size_t g) const noexcept { return pgroup_rate_->vec[g]; }
 		double group_rate(size_t g) const { return get_group_rate_attribute(g).value(); }
 
 		/////////////////////

@@ -74,10 +74,10 @@ namespace housepi
 		/// Associate data storage.
 		void set_data_store(std::shared_ptr<DataStore> ds);
 
-		DataWide &data_wide() { return pDataStore->data_wide; }
-		const DataWide &data_wide() const { return pDataStore->data_wide; }
-		DataLong &data_long() { return pDataStore->data_long; }
-		const DataLong &data_long() const { return pDataStore->data_long; }
+		DataWide &data_wide() noexcept { return pDataStore->data_wide; }
+		const DataWide &data_wide() const noexcept { return pDataStore->data_wide; }
+		DataLong &data_long() noexcept { return pDataStore->data_long; }
+		const DataLong &data_long() const noexcept { return pDataStore->data_long; }
 
 		//////////////////////
 		//////  GETTER  //////
@@ -103,7 +103,8 @@ namespace housepi
 		/// Intialize a single Markov chain for Monte Carlo.
 		void init_monte_carlo_chain_();
 
-		/// Recover the old parameter value.
-		void recover_parameter_(size_t p, bool is_cache_depen);
+		/// Recover the old total log-likelihood.
+		/// NOTE: called after a refused parameter move.
+		void recover_total_log_lik_(bool is_cache_depen);
 	};
 }

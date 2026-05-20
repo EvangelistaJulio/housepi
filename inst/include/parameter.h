@@ -35,21 +35,15 @@ namespace housepi
         /// NOTE:
         /// list_const + list_sample = all parameters in param_vec_
         /// list_func < list_const (function-based parameters are deterministic)
-        /// list_sample_standard + list_sample_cached = list_sample
-        /// list_adaptable_sample_standard + list_non_adapt_sample_standard = list_sample_standard
-        /// list_adaptable_sample_cached + list_non_adapt_sample_cached = list_sample_cached
+        /// list_sample = list_sample_standard + list_sample_cached
 
-        std::vector<size_t> list_const = {};  /// list of constant parameters
-        std::vector<size_t> list_func = {};   /// list of function-based parameters
-        std::vector<size_t> list_sample = {}; /// list of parameters to sample
+        std::vector<size_t> list_const = {};     /// constant parameters
+        std::vector<size_t> list_func = {};      /// function-based parameters
+        std::vector<size_t> list_sample = {};    /// parameters to sample
+        std::vector<size_t> list_adaptable = {}; /// parameters to sample with adaptable proposal
 
         std::vector<size_t> list_sample_standard = {};
         std::vector<size_t> list_sample_cached = {};
-
-        std::vector<size_t> list_adaptable_sample_standard = {};
-        std::vector<size_t> list_non_adapt_sample_standard = {};
-        std::vector<size_t> list_adaptable_sample_cached = {};
-        std::vector<size_t> list_non_adapt_sample_cached = {};
 
         std::vector<std::vector<double>> simulation_values = {}; /// simulation values
 
@@ -76,19 +70,14 @@ namespace housepi
         /// Load parameters values of the n-th posterior sample.
         void load_sample_values(size_t n);
 
-        /// Propose a valid move (return true), otherwise update refusal (false).
-        bool propose_valid_move(size_t p, rnd_gen &prng);
-        /// Adpat the proposal of model parameters.
-        void adapt_proposal_of_sampled(unsigned long step, unsigned long tot);
-
         //////////////////////
         //////  GETTER  //////
         //////////////////////
 
         /// Get reference to parameter Variable class.
-        Variable &at(size_t p) { return param_vec_[p]; }
+        Variable &at(size_t p) noexcept { return param_vec_[p]; }
         /// Get reference to parameter constant Variable class.
-        const Variable &at(size_t p) const { return param_vec_[p]; }
+        const Variable &at(size_t p) const noexcept { return param_vec_[p]; }
         /// Get reference to parameter constant Variable class.
 
         /// Flag to check if there are parameters to sample.

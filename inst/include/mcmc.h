@@ -100,7 +100,7 @@ namespace housepi
 
 		/// Compute new log-likelihood, store old value. Same for households.
 		double commit_total_log_lik_(bool is_cache_depen);
-		
+
 		///////////////////////////////////
 		//////  METROPOLIS-HASTINGS  //////
 		///////////////////////////////////
@@ -108,6 +108,10 @@ namespace housepi
 		/// Markov chain core, used for inference and power posteriors.
 		/// NOTE: sweep is the number of previously completed thin sweeps.
 		void run_monte_carlo_();
+		/// Finite adaptative iterations.
+		void run_mc_finite_adaptation_();
+        // Run MC chain posterior sampling iterations, with optional burn-in.
+		void run_mc_posterior_sampling_();
 
 		/// Update and return contribution of given household to full logliklehood.
 		double commit_house_log_lik_(Household &house, bool is_cache_depen);
@@ -116,7 +120,7 @@ namespace housepi
 		void move_all_();
 
 		/// Attempt to move a single parameter for the given inverse temperature.
-		bool move_single_parameter_(size_t p, bool is_cache_depen);
+		void move_single_parameter_(size_t p, bool is_cache_depen);
 
 		/// Move augmented variables of all infected individuals.
 		void move_all_augm_();

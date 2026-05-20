@@ -30,6 +30,10 @@ namespace housepi
     /// Manages random number generation and progress tracking.
     struct Setup
     {
+        ///////////////////////////
+        //////  USER CONFIG  //////
+        ///////////////////////////
+
         /// Expected header keys for configuration input file.
         const std::vector<std::string> file_headers = {"steps", "burn", "thin",
                                                        "adapt", "chains", "threads",
@@ -45,8 +49,12 @@ namespace housepi
         unsigned long progress = 1; /// Progress bar update interval in seconds.
         unsigned long n_rungs = 0;  /// Number of rungs for power posterior analysis (0 = standard MCMC).
 
-        unsigned long chain = 1;                /// Current active MCMC chain (1-indexed).
-        unsigned long rung = 0;                 /// Current active rung in power posterior analysis (0-indexed).
+        //////////////////////////////
+        //////  DERIVED CONFIG  //////
+        //////////////////////////////
+
+        unsigned long chain_id = 1;             /// Current active MCMC chain (1-indexed).
+        unsigned long rung_id = 0;              /// Current active rung in power posterior analysis (0-indexed).
         unsigned long c_sample_size = 0;        /// Sample size for a single chain after thinning.
         unsigned long c_n_sweeps = 0;           /// Total number of sweeps per chain.
         double inv_T = 1.;                      /// Inverse temperature for power posterior (1.0 = posterior).
@@ -76,7 +84,6 @@ namespace housepi
 
         /// Validate MCMC setup parameters for consistency and feasibility.
         void assert_mcmc_setup();
-
         /// Remove adaptive phase parameters after burn-in completion.
         void drop_mcmc_adapt();
 
@@ -85,9 +92,9 @@ namespace housepi
         /////////////////////
 
         /// Check if running standard sample.
-        bool is_mcmc_sample() const { return n_steps > 1; }
+        bool is_mcmc_sample() const noexcept { return n_steps > 1; }
         /// Check if running power posterior analysis.
-        bool is_power_post() const { return n_rungs > 0; }
+        bool is_power_post() const noexcept { return n_rungs > 0; }
 
         //////////////////////
         //////  RANDOM  //////

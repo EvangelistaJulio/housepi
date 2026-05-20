@@ -91,40 +91,40 @@ namespace housepi
         //////////////////////
 
         /// Get reference of household by internal absolute indexing position H or by house_id.
-        Household &at(size_t H) { return house_vector_[H]; }
-        const Household &at(size_t H) const { return house_vector_[H]; }
+        Household &at(size_t H) noexcept { return house_vector_[H]; }
+        const Household &at(size_t H) const noexcept { return house_vector_[H]; }
         Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
         const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
         /// Frequency weight of households in the distinc group.
-        size_t frequency_weight(size_t R) const { return frequencies_[R].weight_; }
+        size_t frequency_weight(size_t R) const noexcept { return frequencies_[R].weight_; }
         /// Index to household frequency head.
-        size_t get_restricted_index(size_t H) const { return house_vector_[H].ridx_; }
+        size_t get_restricted_index(size_t H) const noexcept { return house_vector_[H].ridx_; }
         /// Restricted number of household frequency classes.
         size_t distinct_size() const noexcept { return report_house.distinct; }
         /// Restrict to head of distinct household frequency class.
-        Household &distinct_head(size_t R) { return at(frequencies_[R].head_); }
-        const Household &distinct_head(size_t R) const { return at(frequencies_[R].head_); }
+        Household &distinct_head(size_t R) noexcept { return at(frequencies_[R].head_); }
+        const Household &distinct_head(size_t R) const noexcept { return at(frequencies_[R].head_); }
 
         /////////////////////
         //////  CACHE  //////
         /////////////////////
 
         /// Return cached size_t value.
-        size_t &cache_size(Household &house, size_t e) { return cached_.current[house.ridx_].size_val[e]; }
-        size_t cache_size(const Household &house, size_t e) const { return cached_.current[house.ridx_].size_val[e]; }
+        size_t &cache_size(Household &house, size_t e) noexcept { return cached_.current[house.ridx_].size_val[e]; }
+        size_t cache_size(const Household &house, size_t e) const noexcept { return cached_.current[house.ridx_].size_val[e]; }
 
         /// Return cached size_t vector.
-        std::vector<size_t> &cache_size_vector(Household &house, size_t e) { return cached_.current[house.ridx_].size_vec[e]; }
-        const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const { return cached_.current[house.ridx_].size_vec[e]; }
+        std::vector<size_t> &cache_size_vector(Household &house, size_t e) noexcept { return cached_.current[house.ridx_].size_vec[e]; }
+        const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const noexcept { return cached_.current[house.ridx_].size_vec[e]; }
 
         /// Return cached double vector.
-        std::vector<double> &cache_double_vector(Household &house, size_t e) { return cached_.current[house.ridx_].dbl_vec[e]; }
-        const std::vector<double> &cache_double_vector(const Household &house, size_t e) const { return cached_.current[house.ridx_].dbl_vec[e]; }
+        std::vector<double> &cache_double_vector(Household &house, size_t e) noexcept { return cached_.current[house.ridx_].dbl_vec[e]; }
+        const std::vector<double> &cache_double_vector(const Household &house, size_t e) const noexcept { return cached_.current[house.ridx_].dbl_vec[e]; }
 
         /// Return cached double matrix.
-        std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) { return cached_.current[house.ridx_].dbl_mtx[e]; }
-        const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const { return cached_.current[house.ridx_].dbl_mtx[e]; }
+        std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) noexcept { return cached_.current[house.ridx_].dbl_mtx[e]; }
+        const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const noexcept { return cached_.current[house.ridx_].dbl_mtx[e]; }
 
         /////////////////////
         //////  FLAGS  //////

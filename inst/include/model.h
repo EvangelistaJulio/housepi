@@ -32,7 +32,6 @@ namespace housepi
 		//////  CONSTRUCTOR  //////
 		///////////////////////////
 
-		ModelBase() = default;
 		virtual ~ModelBase() = default;
 
 		void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
@@ -56,22 +55,22 @@ namespace housepi
 		virtual bool has_contact_rates() const { return false; }
 
 		/// Update cached augmeted dependecies for whole household.
-		virtual void update_house_cache_dependecies(Household &) {}
+		virtual void update_house_cache_dependecies(Household & /*house*/) {}
 		/// Update cached augmeted dependecies for single household member.
-		virtual void update_member_cache_dependecies(Household &, Individual &) {}
+		virtual void update_member_cache_dependecies(Household & /*house*/, Individual & /*member*/) {}
 		/// Compute the log-likelihood for a single household.
-		virtual double compute_house_obs_log_lik(Household &) = 0;
+		virtual double compute_house_obs_log_lik(Household & /*house*/) = 0;
 
 		/// Inference specific initialization (e. g. cache variables, lookup tables, etc).
 		virtual void init_model_for_evaluation() {}
 		/// Inference specific initialization for each household.
 		/// NOTE: it's run right after 'init_model_for_evaluation'.
-		virtual void init_house_for_evaluation(Household &) {}
+		virtual void init_house_for_evaluation(Household & /*house*/) {}
 
 		/// Simulation specific initialization (e. g. cache variables, lookup tables, etc).
 		virtual void init_model_for_simulation() {}
 		/// Simulation for a single household.
-		virtual void simulate_single_house(Household &) = 0;
+		virtual void simulate_single_house(Household & /*house*/) = 0;
 
 		//////////////////////
 		//////  SETTER  //////
@@ -130,21 +129,21 @@ namespace housepi
 		double infec_profile_cumul(const Individual &i, double t) const { return mcmc_->infec_profile.cumul(&i, t); }
 
 		/// Return reference to cached size_t value.
-		size_t &cache_size(Household &house, size_t e) { return mcmc_->data_wide().cache_size(house, e); }
+		size_t &cache_size(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_size(house, e); }
 		/// Return cached size_t value.
-		size_t cache_size(const Household &house, size_t e) const { return mcmc_->data_wide().cache_size(house, e); }
+		size_t cache_size(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_size(house, e); }
 
 		/// Return cached size_t vector.
-		std::vector<size_t> &cache_size_vector(Household &house, size_t e) { return mcmc_->data_wide().cache_size_vector(house, e); }
-		const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const { return mcmc_->data_wide().cache_size_vector(house, e); }
+		std::vector<size_t> &cache_size_vector(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_size_vector(house, e); }
+		const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_size_vector(house, e); }
 
 		/// Return cached double vector.
-		std::vector<double> &cache_double_vector(Household &house, size_t e) { return mcmc_->data_wide().cache_double_vector(house, e); }
-		const std::vector<double> &cache_double_vector(const Household &house, size_t e) const { return mcmc_->data_wide().cache_double_vector(house, e); }
+		std::vector<double> &cache_double_vector(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_double_vector(house, e); }
+		const std::vector<double> &cache_double_vector(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_double_vector(house, e); }
 
 		/// Return cached double matrix.
-		std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) { return mcmc_->data_wide().cache_double_matrix(house, e); }
-		const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const { return mcmc_->data_wide().cache_double_matrix(house, e); }
+		std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_double_matrix(house, e); }
+		const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_double_matrix(house, e); }
 
 	private:
 		MCMCBase *mcmc_;

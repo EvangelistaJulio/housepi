@@ -22,7 +22,6 @@ namespace housepi
         ///////////////////////////
 
         DataStore() = default;
-        ~DataStore() = default;
 
         /// NOTE: I never copy DataStore.
         DataStore(const DataStore &) = delete;

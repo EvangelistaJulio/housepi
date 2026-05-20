@@ -300,8 +300,8 @@ namespace housepi
         // note: constrain to 32bit for compatibility with R (mask sign bit)
         seed = static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
 
-        chain = 1;                        // current chain
-        rung = 0;                         // current thermodynamic rung
+        chain_id = 1;                        // current chain
+        rung_id = 0;                         // current thermodynamic rung
         id_draws.clear();                 // drop previous id
         helper_non_default_build_(input); // read user input
         set_n_threads();                  // define number of threads
@@ -442,10 +442,10 @@ namespace housepi
             ;
         /* --FUTURE-LOG-EVIDENCE--
         else if (is_power_post())
-            text = "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
+            text = "power post " + std::to_string(rung_id) + "/" + std::to_string(n_rungs);
         */
         else if (n_chains > 1)
-            text = "sample " + std::to_string(chain) + "/" + std::to_string(n_chains);
+            text = "sample " + std::to_string(chain_id + 1) + "/" + std::to_string(n_chains);
         else
             text = "sample";
         progressbar_->set_text(text);

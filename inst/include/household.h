@@ -59,8 +59,8 @@ namespace housepi
 		//////  GETTER  //////
 		//////////////////////
 
-		Individual &member(size_t i) { return members_[i]; }
-		const Individual &member(size_t i) const { return members_[i]; }
+		Individual &member(size_t i) noexcept { return members_[i]; }
+		const Individual &member(size_t i) const noexcept { return members_[i]; }
 
 		const std::vector<size_t> &infected_hhindexes() const noexcept { return infected_list_; }
 		const std::vector<size_t> &susceptible_hhindexes() const noexcept { return healthy_list_; }

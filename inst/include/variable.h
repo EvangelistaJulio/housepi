@@ -70,9 +70,6 @@ namespace housepi
             Attribute::set(x);
         }
 
-        /// Recover old value.
-        void recover() noexcept { value_ = old_; }
-
         /// Assign an attribute to function.
         void init_func_attr(std::string_view key, const Attribute &attr);
         /// Finalize reshaping of function.
@@ -113,8 +110,16 @@ namespace housepi
         ///////////////////////////////////
 
         /// Set new proposal internally and store old value.
+        /// NOTE: increments proposed and accepted move counter.
         void propose(rnd_gen &prng);
+        /// Check whether last propose move stored a valid value.
         bool is_valid_move() const;
+        /// Recover old value.
+        void recover() noexcept
+        {
+            value_ = old_;
+            --n_accepted_;
+        }
 
         double get_distr_log_pdf() const;
         double get_distr_log_ratio() const;
@@ -130,8 +135,14 @@ namespace housepi
             }
         }
 
-        void update_accept_rate(bool is_accepted);
-        void reset_accept_rate();
+        /// Zero-out numbers of accepted and proposed moves.
+        void reset_accept_count() noexcept
+        {
+            n_proposed_ = 0;
+            n_accepted_ = 0;
+        }
+        /// Adapt the proposal rule.
+        /// NOTE: it must be called after propose.
         void adapt_proposal(double ratio);
 
 #ifndef NDEBUG
@@ -158,6 +169,9 @@ namespace housepi
         double old_ = na::DOUBLE;              /// old value
         std::unique_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
         std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposer
+
+        unsigned long n_accepted_ = 0.; /// n. of accepted moves
+        unsigned long n_proposed_ = 0;  /// n. of proposed moves
 
         ///////////////////////
         //////  HELPERS  //////

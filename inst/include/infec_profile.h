@@ -119,7 +119,7 @@ namespace housepi
         }
 
         /// If infectivity profile is a lookup table, recover old values.
-        void recover()
+        void recover() noexcept
         {
             switch (mode_)
             {

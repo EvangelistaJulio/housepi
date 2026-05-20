@@ -331,8 +331,7 @@ namespace housepi
 
         // Drop adaptation steps if nothing to adapt
         // UPDATE: if adaptation applied to augmented variables, update this
-        if (param.list_adaptable_sample_cached.empty() &&
-            param.list_adaptable_sample_standard.empty())
+        if (param.list_adaptable.empty())
             setup.drop_mcmc_adapt();
     }
 
@@ -344,13 +343,11 @@ namespace housepi
 
         // init move counts for adaptive
         for (size_t p : param.list_sample)
-            param.at(p).reset_accept_rate();
+            param.at(p).reset_accept_count();
     }
 
-    void MCMCBase::recover_parameter_(size_t p, bool is_cache_depen)
+    void MCMCBase::recover_total_log_lik_(bool is_cache_depen)
     {
-        // recover old value of parameter
-        param.at(p).recover();
         // recover old value of full log-like
         tot_log_lik.recover();
 
@@ -475,23 +472,6 @@ namespace housepi
         return commit_total_log_lik_(true);
     }
 
-    ///////////////////////////////////
-    //////  METROPOLIS-HASTINGS  //////
-    ///////////////////////////////////
-
-    void MCMC::run_inference()
-    {
-        init_monte_carlo_();               // initialize mcmc sampling
-        init_evaluate_(false);             // initialize for evaluation
-        setup.prog_open_for_mcmc_sample(); // open progress bar
-        run_monte_carlo_();                // run Monte Carlo
-        setup.prog_close();                // close progress bar
-    }
-
-    //////////////////////////
-    //////  EVALUATION  //////
-    //////////////////////////
-
     void MCMC::init_evaluate_(bool is_reset)
     {
         data_wide().assert_not_all_missing_status();        // warn if all missing status
@@ -509,78 +489,6 @@ namespace housepi
 
         for (size_t M = 0; M < data_wide().distinct_size(); ++M)
             model->init_house_for_evaluation(data_wide().distinct_head(M));
-    }
-
-    double MCMC::commit_total_log_lik_(bool is_cache_depen)
-    {
-        // save infectivity profile if lookup tables are active
-        if (is_cache_depen)
-        {
-            data_wide().save_all_cached();
-            infec_profile.update();
-        }
-
-        double new_ll = housepi::parallel::for_reduce_sum(
-            data_wide().distinct_size(),
-            [&](size_t M) -> double
-            {
-                Household &house = data_wide().distinct_head(M);
-                return data_wide().frequency_weight(M) *
-                       commit_house_log_lik_(house, is_cache_depen);
-            });
-        tot_log_lik.set(new_ll);
-
-        return new_ll;
-    }
-
-    ///////////////////////////////////
-    //////  METROPOLIS-HASTINGS  //////
-    ///////////////////////////////////
-
-    void MCMC::run_monte_carlo_()
-    {
-        posterior.init(*this); // initialize posterior sample
-
-        // run multiple MCMC chains&
-        for (setup.chain = 1; setup.chain <= setup.n_chains; ++setup.chain)
-        {
-            try
-            {
-                init_monte_carlo_chain_();
-                // NOTE: init all cached with flag `true`
-                commit_total_log_lik_(true);
-
-                // assert that initial log-likelihood value is finite
-                if (tot_log_lik.is_inf())
-                    data_wide().assert_finite_log_lik(augm.is_any_sample());
-            }
-            catch (const std::exception &e)
-            {
-                throw std::runtime_error(
-                    "While initializing Markov chain:\n" + std::string(e.what()));
-            }
-
-            // Finite adaptative iterations
-            for (unsigned long i = 0; i < setup.n_adapt; i += setup.n_thin, setup.prog_update())
-                for (unsigned long t = 1; t <= setup.n_thin; ++t)
-                {
-                    move_all_();
-                    param.adapt_proposal_of_sampled(i + t, setup.n_adapt);
-                }
-
-            // Burn-in iterations
-            for (unsigned long i = 0; i < setup.n_burn; i += setup.n_thin, setup.prog_update())
-                for (unsigned long t = 1; t <= setup.n_thin; ++t)
-                    move_all_();
-
-            // Posterior sampling
-            for (unsigned long i = setup.n_burn; i < setup.n_steps; i += setup.n_thin, setup.prog_update())
-            {
-                for (unsigned long t = 1; t <= setup.n_thin; ++t)
-                    move_all_();
-                posterior.store(*this);
-            }
-        }
     }
 
     double MCMC::commit_house_log_lik_(Household &house, bool is_cache_depen)
@@ -609,47 +517,142 @@ namespace housepi
         return output;
     }
 
+    double MCMC::commit_total_log_lik_(bool is_cache_depen)
+    {
+        // save infectivity profile if lookup tables are active
+        if (is_cache_depen)
+        {
+            data_wide().save_all_cached();
+            infec_profile.update();
+        }
+
+        double new_ll = housepi::parallel::for_reduce_sum(
+            data_wide().distinct_size(),
+            [&](size_t M) -> double
+            {
+                Household &house = data_wide().distinct_head(M);
+                return data_wide().frequency_weight(M) *
+                       commit_house_log_lik_(house, is_cache_depen);
+            });
+        tot_log_lik.set(new_ll);
+
+        return new_ll;
+    }
+
+    ///////////////////////////////////
+    //////  METROPOLIS-HASTINGS  //////
+    ///////////////////////////////////
+
+    void MCMC::run_inference()
+    {
+        init_monte_carlo_();               // initialize mcmc sampling
+        init_evaluate_(false);             // initialize for evaluation
+        setup.prog_open_for_mcmc_sample(); // open progress bar
+        run_monte_carlo_();                // run Monte Carlo
+        setup.prog_close();                // close progress bar
+    }
+
+    void MCMC::run_monte_carlo_()
+    {
+        posterior.init(*this); // initialize posterior sample
+
+        // run multiple MCMC chains&
+        for (setup.chain_id = 0; setup.chain_id < setup.n_chains; ++setup.chain_id)
+        {
+            try
+            {
+                init_monte_carlo_chain_();
+                // NOTE: init all cached with flag `true`
+                commit_total_log_lik_(true);
+
+                // assert that initial log-likelihood value is finite
+                if (tot_log_lik.is_inf())
+                    data_wide().assert_finite_log_lik(augm.is_any_sample());
+            }
+            catch (const std::exception &e)
+            {
+                throw std::runtime_error(
+                    "While initializing Markov chain:\n" + std::string(e.what()));
+            }
+
+            run_mc_finite_adaptation_();
+            run_mc_posterior_sampling_();
+        }
+    }
+
+    void MCMC::run_mc_finite_adaptation_()
+    {
+        for (unsigned long i = 0; i < setup.n_adapt; ++i)
+        {
+            move_all_();
+
+            const double ratio = static_cast<double>(i + 1) / static_cast<double>(setup.n_adapt);
+
+            // adpat all sampled parameters with adaptable proposals
+            for (size_t p : param.list_adaptable)
+                param.at(p).adapt_proposal(ratio);
+        }
+    }
+
+    void MCMC::run_mc_posterior_sampling_()
+    {
+        for (unsigned long i = 0; i < setup.n_burn; ++i)
+            move_all_();
+
+        for (unsigned long i = setup.n_burn; i < setup.n_steps; i += setup.n_thin)
+        {
+            for (unsigned long t = 1; t <= setup.n_thin; ++t)
+                move_all_();
+            posterior.store(*this);
+        }
+    }
+
     void MCMC::move_all_()
     {
         // move augmented variables to sample, if any
-        if (augm.is_any_sample())
-            move_all_augm_();
+        move_all_augm_();
 
-        // move all standard model parameters
-        for (size_t p : param.list_adaptable_sample_standard)
-            param.at(p).update_accept_rate(move_single_parameter_(p, false));
-        for (size_t p : param.list_non_adapt_sample_standard)
+        // move standard model parameters
+        for (size_t p : param.list_sample_standard)
             move_single_parameter_(p, false);
-
         // move parameters with cached dependecies
-        for (size_t p : param.list_adaptable_sample_cached)
-            param.at(p).update_accept_rate(move_single_parameter_(p, true));
-        for (size_t p : param.list_non_adapt_sample_cached)
+        for (size_t p : param.list_sample_cached)
             move_single_parameter_(p, true);
+
+        // update progress bar
+        setup.prog_update();
     }
 
-    bool MCMC::move_single_parameter_(size_t p, bool is_cache_depen)
+    void MCMC::move_single_parameter_(size_t p, bool is_cache_depen)
     {
+        Variable &this_par = param.at(p);
+        // set new value of the parameter and store the old to buffer
+        this_par.propose(setup.prng());
+
         // proceed only if the new value is consistent
         // otherwise automatically refuse move
-        if (param.propose_valid_move(p, setup.prng()))
+        if (this_par.is_valid_move())
         {
             // if parameter is cache dependent, update cache
             commit_total_log_lik_(is_cache_depen);
 
             // perform Metropolis-Hastings to accept or not move
             const double r = setup.inv_T * tot_log_lik.log_ratio() +
-                             param.at(p).get_move_log_ratio();
-
+                             this_par.get_move_log_ratio();
             if (setup.exponential() > -r)
-                return true; // accepted move
-            recover_parameter_(p, is_cache_depen);
+                return;
+            // else move is refused and log-likelihood recovered
+            recover_total_log_lik_(is_cache_depen);
         }
-        return false; // refused move
+        // recover old value of parameter
+        this_par.recover();
     }
 
     void MCMC::move_all_augm_()
     {
+        if (!augm.is_any_sample())
+            return;
+
         const double delta_ll = housepi::parallel::for_reduce_sum(
             data_wide().report_house.total,
             [&](size_t H) -> double
@@ -786,7 +789,7 @@ namespace housepi
         // UPDATE: should I use previous inference for itm = 1 if available?
         // UPDATE: always under-estimate time if starting from itm = 0
 
-        setup.rung = 0;
+        setup.rung_id = 0;
         setup.inv_T = 0.0;
         run_monte_carlo_();
         const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
@@ -800,7 +803,7 @@ namespace housepi
     {
         // Inverse Temperature 1
         {
-            setup.rung = 1;
+            setup.rung_id = 1;
             setup.inv_T = 1.0;
             run_monte_carlo_();
             const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
@@ -813,9 +816,9 @@ namespace housepi
         // Inverse Temperatures (0, 1)
         size_t k = 0; // index to interval lower bound
         bool is_right = false;
-        while (setup.rung < setup.n_rungs)
+        while (setup.rung_id < setup.n_rungs)
         {
-            ++setup.rung;
+            ++setup.rung_id;
 
             // adaptive choice of inverse temperature
             // intersection between tangents
@@ -844,10 +847,10 @@ namespace housepi
 
     void MCMC::power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
     {
-        for (setup.rung = 1; setup.rung <= setup.n_rungs; ++setup.rung)
+        for (setup.rung_id = 1; setup.rung_id <= setup.n_rungs; ++setup.rung_id)
         {
-            // inverse tempearture = (rung / #rungs)^5
-            setup.inv_T = std::pow(static_cast<double>(setup.rung) / static_cast<double>(setup.n_rungs), 5.);
+            // inverse tempearture = (rung_id / #rungs)^5
+            setup.inv_T = std::pow(static_cast<double>(setup.rung_id) / static_cast<double>(setup.n_rungs), 5.);
             run_monte_carlo_();
 
             const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
