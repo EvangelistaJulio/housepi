@@ -468,35 +468,41 @@ test_that("Discretized normal uses center-discretization", {
 
 test_that("rand() draws are reproducible and statistically plausible", {
   d <- expose_distribution("normal", mean = 2, sd = 3)
-  x1 <- d$rand(50L, 42L)
-  x2 <- d$rand(50L, 42L)
-  expect_identical(x1, x2)              # same seed -> same draws
+  set.seed(42L)
+  x1 <- d$rand(50L)
+  set.seed(42L)
+  x2 <- d$rand(50L)
+  expect_identical(x1, x2)              # same R seed -> same draws
   expect_length(x1, 50L)
   # different seed -> different draws
-  expect_false(identical(x1, d$rand(50L, 43L)))
+  set.seed(43L)
+  expect_false(identical(x1, d$rand(50L)))
 
   # mean / sd of 20k draws should be close to the truth
-  big <- d$rand(20000L, 7L)
+  set.seed(7L)
+  big <- d$rand(20000L)
   expect_equal(mean(big), 2, tolerance = 0.05)
   expect_equal(sd(big), 3, tolerance = 0.05)
 
-  # verify that seed = 0 implies non-deterministic
-  expect_false(identical(d$rand(10L, 0L), d$rand(10L, 0L)))
+  # without set.seed, successive calls are non-deterministic
+  expect_false(identical(d$rand(10L), d$rand(10L)))
 
   # invalid n
-  expect_error(d$rand(-1L, 1L), regexp = "non-negative")
+  expect_error(d$rand(-1L), regexp = "non-negative")
 })
 
 test_that("rand() honours location shift (relocate_ Active branch)", {
   loc_val <- 5
   d <- expose_distribution("normal", mean = 0, sd = 1, loc = loc_val)
   expect_equal(d$pdf(loc_val), stats::dnorm(0))
-  expect_equal(mean(d$rand(20000L, 11L)), loc_val, tolerance = 0.05)
+  set.seed(11L)
+  expect_equal(mean(d$rand(20000L)), loc_val, tolerance = 0.05)
 })
 
 test_that("rand() on truncated distribution lands inside the bounds", {
   d <- expose_distribution("normal", mean = 0, sd = 1, min = -1, max = 2)
-  x <- d$rand(5000L, 5L)
+  set.seed(5L)
+  x <- d$rand(5000L)
   expect_true(all(x >= -1 & x <= 2))
 })
 

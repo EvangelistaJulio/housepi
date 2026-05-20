@@ -56,7 +56,6 @@ namespace housepi
         unsigned long chain_id = 1;             /// Current active MCMC chain (1-indexed).
         unsigned long rung_id = 0;              /// Current active rung in power posterior analysis (0-indexed).
         unsigned long c_sample_size = 0;        /// Sample size for a single chain after thinning.
-        unsigned long c_n_sweeps = 0;           /// Total number of sweeps per chain.
         double inv_T = 1.;                      /// Inverse temperature for power posterior (1.0 = posterior).
         std::vector<std::string> id_draws = {}; /// IDs of augmented variables to trace and save.
 

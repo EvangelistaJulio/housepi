@@ -28,8 +28,8 @@ using no_promote_policy = boost::math::policies::policy<
     boost::math::policies::promote_double<false>>;
 
 /// Discrete quantile policy matching R's convention: min{k : P(X<=k) >= p}.
-/// Boost's default `integer_round_outwards` rounds toward the distribution tails
-/// which differs from R for p < 0.5. `integer_round_up` matches R exactly.
+/// Boost's default 'integer_round_outwards' rounds toward the distribution tails
+/// which differs from R for p < 0.5. 'integer_round_up' matches R exactly.
 using discrete_up_policy = boost::math::policies::policy<
     boost::math::policies::promote_float<false>,
     boost::math::policies::promote_double<false>,

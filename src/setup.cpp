@@ -300,8 +300,8 @@ namespace housepi
         // note: constrain to 32bit for compatibility with R (mask sign bit)
         seed = static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
 
-        chain_id = 1;                        // current chain
-        rung_id = 0;                         // current thermodynamic rung
+        chain_id = 1;                     // current chain
+        rung_id = 0;                      // current thermodynamic rung
         id_draws.clear();                 // drop previous id
         helper_non_default_build_(input); // read user input
         set_n_threads();                  // define number of threads
@@ -415,12 +415,6 @@ namespace housepi
         // adjust steps and sample size
         c_sample_size += (n_steps - n_burn) % n_thin > 0;
         n_steps = n_burn + c_sample_size * n_thin;
-
-        // assign number of sweeps
-        // NOTE: because of rounding I can't put all in the same line
-        c_n_sweeps = n_adapt / n_thin;
-        c_n_sweeps += n_burn / n_thin;
-        c_n_sweeps += c_sample_size;
     }
 
     // Drop adaptation steps.
@@ -430,10 +424,6 @@ namespace housepi
             msg::warning(
                 "Dropped adaptation steps: no parametric MCMC proposals were found.");
         n_adapt = 0;
-
-        // re-assign number of sweeps
-        c_n_sweeps = n_burn / n_thin;
-        c_n_sweeps += c_sample_size;
     }
 
     void Setup::prog_set_text(std::string text)
@@ -453,13 +443,13 @@ namespace housepi
     void Setup::prog_open_for_mcmc_sample()
     {
         prog_set_text();
-        progressbar_->open(c_n_sweeps * n_chains, progress);
+        progressbar_->open((n_adapt + n_steps) * n_chains, progress);
     }
     /* --FUTURE-LOG-EVIDENCE--
     void Setup::prog_open_for_power_post()
     {
         prog_set_text();
-        progressbar_->open(c_n_sweeps * n_chains * (n_rungs + 1), progress);
+        progressbar_->open((n_adapt + n_steps) * n_chains * (n_rungs + 1), progress);
     }
     */
     void Setup::prog_open_for_simulation()

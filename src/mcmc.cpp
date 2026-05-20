@@ -562,7 +562,7 @@ namespace housepi
             try
             {
                 init_monte_carlo_chain_();
-                // NOTE: init all cached with flag `true`
+                // NOTE: init all cached with flag true
                 commit_total_log_lik_(true);
 
                 // assert that initial log-likelihood value is finite

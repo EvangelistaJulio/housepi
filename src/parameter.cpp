@@ -882,7 +882,7 @@ namespace housepi
                                   " are not supported here.";
                 // add tip if augmented (which does not require '@')
                 if (parse::is_augmented(node.type) && node.is_terminal())
-                    sms += "\nDid you forget rlang injection operator `!!`?";
+                    sms += "\nDid you forget rlang injection operator '!!'?";
                 throw std::invalid_argument(sms);
             }
 

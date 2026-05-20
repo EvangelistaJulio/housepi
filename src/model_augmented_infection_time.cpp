@@ -134,7 +134,7 @@ public:
 			if (i == i0)
 				continue;
 
-			// Risk of infection from other household members `k`
+			// Risk of infection from other household members k
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
 			for (size_t j : house.infected_hhindexes())
@@ -185,7 +185,7 @@ public:
 
 		// note: setting lut to 0 this is necessary because ROI is brute force
 		if (gentime > 0)
-		{ // `i` : infector, `j` : infectee
+		{ // i : infector, j : infectee
 			inst_mtx[i][j] = infec_profile_inst(member_i, gentime);
 #ifdef _HOUSEPI_DISCRETE_TIME
 			cumul_mtx[i][j] = infec_profile_cumul(member_i, gentime - 1);
@@ -196,7 +196,7 @@ public:
 			cumul_mtx[j][i] = 0.0;
 		}
 		else if (gentime < 0)
-		{ // `k` : infector, `i` : infectee
+		{ // k : infector, i : infectee
 			inst_mtx[i][j] = 0.0;
 			cumul_mtx[i][j] = 0.0;
 			inst_mtx[j][i] = infec_profile_inst(member_j, -gentime);
@@ -431,7 +431,7 @@ public:
 		size_t i = member_i.hhindex();
 		double roi = 0.; // instantaneous risk of infection
 
-		// `j` : infector, `i` : infectee
+		// j : infector, i : infectee
 		for (size_t j : house.infected_hhindexes())
 		{
 			const Individual &member_j = house.member(j);

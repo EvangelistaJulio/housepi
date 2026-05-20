@@ -245,16 +245,21 @@ namespace
         MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
         MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile_safe(v))
 
-        /// Sample `n` random draws. Pass `seed = 0` to use a fresh,
-        /// nondeterministic seed (default).
-        Rcpp::NumericVector rand(int n, std::uint64_t seed) const
+        /// Sample n random draws. Seed is drawn from R's RNG so that
+        /// set.seed() in R controls the result.
+        Rcpp::NumericVector rand(int n) const
         {
             try
             {
                 if (n < 0)
                     throw std::invalid_argument("'n' must be non-negative.");
-                rnd_gen prng = (seed == 0) ? rnd_gen(std::random_device{}())
-                                           : rnd_gen(seed);
+                
+                // generate seed from R 
+                Rcpp::RNGScope scope;
+                std::uint32_t seed = static_cast<std::uint32_t>(
+                    R::unif_rand() * std::numeric_limits<std::uint32_t>::max());
+
+                rnd_gen prng(seed);
                 Rcpp::NumericVector y(n);
                 for (int i = 0; i < n; ++i)
                     y[i] = distr_()->rand(prng);
