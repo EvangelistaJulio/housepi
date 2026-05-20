@@ -162,6 +162,19 @@ compute_rule_groups <- function(tbl) {
   tbl
 }
 
+#' Set ordering for rate logic-tables: `.reference` first, decreasing 'n'.
+#' @param tbl `data.frame` Logic table with `param_name`, `n`.
+#' @return `data.frame`
+#' @keywords internal
+#' @noRd
+reorder_rates_logic_table <- function(tbl) {
+  if (nrow(tbl) == 0) return(tbl)
+  is_ref <- tbl$param_name == ".reference"
+  n_val <- suppressWarnings(as.numeric(tbl[["n"]]))
+  ord <- order(tbl$rule_group, !is_ref, -n_val, method = "radix")
+  tbl[ord, , drop = FALSE]
+}
+
 #' Return logic table of group rates
 #' @param data_wide Data from which to extract group rates
 #' @param this_feat Feature as list of data column names.
@@ -261,6 +274,7 @@ tidyup_group_rate_tables <- function(all_tables) {
         x[sub_cols]
       }))
       sub_combined <- compute_rule_groups(sub_combined)
+      sub_combined <- reorder_rates_logic_table(sub_combined)
       df <- list(cbind_rate(sub_combined, rate))
     }
     df_list <- c(df_list, df)

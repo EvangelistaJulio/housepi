@@ -104,7 +104,14 @@ associate_contact_param_names <- function(this_table, prefix, reference,
       paste0(prefix, from_part, "_to_", to_part)
     }
   )
-  if (length(idx_refer) == 1) this_table$param_name[idx_refer] <- ".reference"
+  if (length(idx_refer) == 1) {
+    if (isTRUE(symmetric)) {
+      ref_name <- this_table$param_name[idx_refer]
+      this_table$param_name[this_table$param_name == ref_name] <- ".reference"
+    } else {
+      this_table$param_name[idx_refer] <- ".reference"
+    }
+  }
 
   this_table
 }
@@ -168,7 +175,10 @@ tidyup_contact_rate_tables <- function(tables) {
     df[all_cols]
   }))
   rownames(combined) <- NULL
-  compute_rule_groups(combined)
+  combined <- compute_rule_groups(combined)
+  combined <- reorder_rates_logic_table(combined)
+  rownames(combined) <- NULL
+  combined
 }
 
 #' @title Internal R6 holder for housepi contact-rate definitions
