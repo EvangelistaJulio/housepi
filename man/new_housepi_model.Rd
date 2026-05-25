@@ -29,11 +29,9 @@ One between:
 \item{as_template}{\code{logical(1)} Store dynamic library as a local template.
 If \code{FALSE} recompile the model at every new session (default).}
 
-\item{force}{\code{logical(1)} Compile even if cached model already exists.
-Default is \code{FALSE}.}
+\item{force}{\code{logical(1)} Compile even if cached model already exists.}
 
-\item{quiet}{\code{logical(1)} If \code{TRUE} hide compilation commands.
-Default is \code{FALSE}.}
+\item{quiet}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
 
 \item{...}{Named arguments. Additional compilation options:
 \itemize{

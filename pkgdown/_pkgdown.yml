@@ -1,8 +1,8 @@
 url: https://mmmi-pasteur.pages.pasteur.fr/housepi
 
 template:
-  bootstrap: 5  
-  light-switch: true  
+  bootstrap: 5
+  light-switch: true
   theme: breeze-light
   theme-dark: breeze-dark
   math-rendering: katex
@@ -63,7 +63,7 @@ reference:
   contents:
   - HousepiPosteriorDraws
   - ends_with("_draws")
-  
+
 - title: "Posterior predictions"
   desc: >
     Calls used to perform posterior predicitive checks.
@@ -87,17 +87,17 @@ reference:
   - blank_house
   - starts_with("flu_")
   - sarscov2_2021_icofs
-  
+
 # Articles 
 articles:
   - title: ""
     navbar: ~
     contents:
-      - bayesian_mcmc_options
-      - data_augmentation
-      - infectivity_profiles
+      - priors_and_proposals
       - group_rates
       - contact_rates
+      - data_augmentation
+      - infectivity_profiles
       - posterior_predictive_checks
       - user_functions
 
@@ -113,7 +113,7 @@ navbar:
       - search
       - gitlab
       - lightswitch
-  components:    
+  components:
     intro:
       text: "Get started"
       href: articles/housepi.html

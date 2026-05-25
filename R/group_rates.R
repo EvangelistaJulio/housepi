@@ -39,12 +39,13 @@ assert_valid_features <- function(features) {
   reserved_data <- c(data_reserved_cols, rate_reserved_cols)
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
-    sprintf("Impossible to associate rate to feature%s %s",
-            as_plural(forbidden, "s:"),
+    sprintf("Impossible to associate rate to %s%s",
+            as_plural("feature", length(forbidden), "s:"),
             character_to_string_list(forbidden)),
     "These names are reserved.",
-    sprintf("Please, change feature%s and/or corresponding data column%s.",
-            as_plural(forbidden), as_plural(forbidden))
+    sprintf("Please, change %s and/or corresponding data %s.",
+            as_plural("feature", length(forbidden)),
+            as_plural("column", length(forbidden)))
   )
 }
 
@@ -57,8 +58,8 @@ assert_data_features <- function(features, headers) {
   # assert that features are present
   missing <- setdiff(features, headers)
   if (length(missing) > 0) stop_h(
-    sprintf("Unknown feature%s %s",
-            as_plural(missing, "s:"),
+    sprintf("Unknown %s%s",
+            as_plural("feature", length(missing), "s:"),
             character_to_string_list(missing)),
     "Please check your data headers."
   )
@@ -405,8 +406,8 @@ HousepiGroupRate <- R6::R6Class(
         valid_names <- setdiff(strata$param_name, ".reference")
         unknown <- setdiff(names(params), valid_names)
         if (length(unknown) > 0) stop_h(
-          sprintf("Unknown parameter%s %s in 'params'.",
-                  as_plural(unknown),
+          sprintf("Unknown %s in 'params':%s",
+                  as_plural("parameter", length(unknown)),
                   character_to_string_list(unknown))
         )
       }
@@ -499,8 +500,8 @@ HousepiGroupRate <- R6::R6Class(
           data_vals <- unique(data_wide[[col]])
           missing_vals <- setdiff(as.character(vals), as.character(data_vals))
           if (length(missing_vals) > 0) warn_h(
-            sprintf("Rate '%s' definition value%s not found in data '%s': %s",
-                    rate_id, as_plural(missing_vals, "s"), col,
+            sprintf("Rate '%s' definition %s not found in data '%s':%s",
+                    rate_id, as_plural("value", length(missing_vals), "s"), col,
                     character_to_string_list(missing_vals)),
             "Corresponding logic table entry will be skipped."
           )
@@ -755,10 +756,10 @@ HousepiGroupRate <- R6::R6Class(
       # drop unused group rates
       if (length(notused) > 0) {
         sms <- c(
-          sprintf("Dropped unused group rate%s %s",
-                  as_plural(notused, "s:"),
+          sprintf("Dropped unused group %s%s",
+                  as_plural("rate", length(notused), "s:"),
                   character_to_string_list(notused)),
-          find_closest_match(notused, required, min_dist = 3)
+          find_closest_match(notused, required)
         )
         if (isTRUE(capital)) {
           for (which in notused) self$remove(which)

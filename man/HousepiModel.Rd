@@ -100,11 +100,9 @@ One between:
 \item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.
 If \code{FALSE} recompile the model at every new session (default).}
 
-\item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.
-Default is \code{FALSE}.}
+\item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.}
 
-\item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.
-Default is \code{FALSE}.}
+\item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
 
 \item{\code{...}}{Named arguments. Additional compilation options:
 \itemize{
@@ -223,12 +221,10 @@ If the parameter already exists, it is updated.
 Required only if constant or random initialization has been disabled.}
 
 \item{\code{const}}{\code{logical(1)} Treat definition as constant.
-If \code{TRUE}, additional Monte Carlo details are ignored.
-Default is \code{FALSE}.}
+If \code{TRUE}, additional Monte Carlo details are ignored.}
 
 \item{\code{discr}}{\code{logical(1)} Treat definition as discrete.
-If applicable, the prior is discretized.
-Default is \code{FALSE}.}
+If applicable, the prior is discretized.}
 
 \item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 
@@ -241,16 +237,17 @@ Default is \code{FALSE}.}
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item \code{"sample"}: sampled from the prior distribution;
 \item \code{"uniform"}: increments drawn from uniform;
 \item \code{"normal"}: increments drawn from normal;
 \item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{NA} (default): same as \code{"sample"}.
+\item \code{"sample"}: sampled from the prior distribution;
+\item \code{NA}: same as \code{"sample"} (default).
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
-Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is \code{"sample"}.}
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal.
+If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
+If a positive numeric, scale is fixed to that value and never adapted.
+Ignored when proposal is \code{"sample"}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -335,12 +332,10 @@ Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
 \item{\code{const}}{\code{logical(1)} Treat definition as constant.
-If \code{TRUE}, additional Monte Carlo details are ignored.
-Default is \code{FALSE}.}
+If \code{TRUE}, additional Monte Carlo details are ignored.}
 
 \item{\code{discr}}{\code{logical(1)} Treat definition as discrete.
-If applicable, the model is discretized.
-Default is \code{FALSE}.}
+If applicable, the model is discretized.}
 
 \item{\code{func}}{One between:
 \itemize{
@@ -373,16 +368,17 @@ One between:
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item \code{"sample"}: sampled from the \%s distribution;
 \item \code{"uniform"}: increments drawn from uniform;
 \item \code{"normal"}: increments drawn from normal;
 \item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{NA} (default): same as \code{"sample"}.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{NA}: same as \code{"sample"} (default).
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
-Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is \code{"sample"}.}
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal.
+If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
+If a positive numeric, scale is fixed to that value and never adapted.
+Ignored when proposal is \code{"sample"}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -464,7 +460,7 @@ Corresponding data columns have to be categorical.}
 
 \item{\code{reference}}{named \code{list} Covariates associated to reference group.
 Pass \code{".none"} to disable reference, giving every rate its own parameter.
-Default is the group with the largest sample size.}
+Default reference group is the one with the largest sample size.}
 
 \item{\code{joint}}{\code{logical(1)} Treat covariates as joint.
 If \code{FALSE}, covariates are independent (default).}
@@ -489,16 +485,17 @@ Ignored if automatic definition.}
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item \code{"sample"}: sampled from the \%s distribution;
 \item \code{"uniform"}: increments drawn from uniform;
 \item \code{"normal"}: increments drawn from normal;
 \item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{NA} (default): same as \code{"sample"}.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{NA}: same as \code{"sample"} (default).
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
-Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is \code{"sample"}.}
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal.
+If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
+If a positive numeric, scale is fixed to that value and never adapted.
+Ignored when proposal is \code{"sample"}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -560,7 +557,7 @@ Corresponding data columns have to be categorical.}
 Names can use \code{from_}/\code{to_} prefixes matching \code{by},
 or un-prefixed names (applied to both from and to).}
 
-\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters. Default is \code{"ctr"}.}
+\item{\code{prefix}}{\code{character(1)} Prefix to names of associated parameters.}
 
 \item{\code{joint}}{\code{logical(1)} Treat covariates as joint.
 If \code{FALSE}, covariates are independent (default).}
@@ -588,16 +585,17 @@ Ignored if automatic definition.}
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item \code{"sample"}: sampled from the \%s distribution;
 \item \code{"uniform"}: increments drawn from uniform;
 \item \code{"normal"}: increments drawn from normal;
 \item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{NA} (default): same as \code{"sample"}.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{NA}: same as \code{"sample"} (default).
 }}
 
-\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
-Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is \code{"sample"}.}
+\item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal.
+If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
+If a positive numeric, scale is fixed to that value and never adapted.
+Ignored when proposal is \code{"sample"}.}
 }
 \if{html}{\out{</div>}}
 }
@@ -627,8 +625,7 @@ Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
 \item{\code{discr}}{\code{logical(1)} Treat definition as discrete.
-If applicable, the profile is discretized.
-Default is \code{FALSE}.}
+If applicable, the profile is discretized.}
 
 \item{\code{...}}{named arguments for the profile distribution.}
 
@@ -691,11 +688,11 @@ If \code{NA} (default) it computes for the whole data.}
 Run inference with Bayesian Markov chain Monte Carlo.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_inference(
-  steps = 200,
+  steps = 1000,
   burn = 0,
-  thin = 1,
-  adapt = 0,
-  chains = 1,
+  thin = 5,
+  adapt = 500,
+  chains = 4,
   threads = 1,
   id_draws = NULL,
   progress = TRUE
@@ -705,13 +702,16 @@ Run inference with Bayesian Markov chain Monte Carlo.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{steps}}{\code{integer(1)} Total number of MCMC steps per chain.}
+\item{\code{steps}}{\code{integer(1)} Number of MCMC iterations per chain.}
 
-\item{\code{burn}}{\code{integer(1)} Number of initial steps to discard.}
+\item{\code{burn}}{\code{integer(1)} Number of initial iterations within \code{steps} to
+discard before storing draws.}
 
-\item{\code{thin}}{\code{integer(1)} Number of steps to skip between samples.}
+\item{\code{thin}}{\code{integer(1)} Keep one iteration every \code{thin} after burn-in.}
 
-\item{\code{adapt}}{\code{integer(1)} Number of adaptation steps before sampling.}
+\item{\code{adapt}}{\code{integer(1)} Number of iterations to adapt proposal scales.
+They are run before \code{steps} and are not stored as draws.
+If no proposals are adaptable  and \code{burn = 0}, repurposed as burn-in instead.}
 
 \item{\code{chains}}{\code{integer(1)} Number of independent MCMC chains to run.}
 
@@ -804,7 +804,7 @@ When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 If \code{param_table} is \code{NULL}, all replicates share the same parameters.
 Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows,
 the table is sub-sampled to \code{nrep} evenly-spaced rows.
-Defaults to \code{NA} produces a single repetition.}
+If \code{NA} produces a single repetition (default).}
 }
 \if{html}{\out{</div>}}
 }

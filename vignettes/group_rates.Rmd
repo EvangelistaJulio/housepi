@@ -150,7 +150,7 @@ get_parameters(hhmodel)
 #|  Six trace plots displaying MCMC sampling behaviour for model parameters: alpha, beta, infectivity by isolation, and susceptibility parameters stratified by vaccination status.
 #|  Multiple chains (1-3) are overlaid across iterations, showing convergence diagnostics and mixing properties of the Markov chains.
 
-test_delay <- 8 # TO BE CHECKED IN PAPER
+test_delay <- 8
 hhmodel <- hhmodel |>
   # parameter definitions
   add_parameter_list(
@@ -176,8 +176,7 @@ hhmodel <- hhmodel |>
 
 # perform inference
 results <- hhmodel |>
-  run_inference(steps = 1000, thin = 10, 
-                adapt = 1000, chains = 3, progress = 4)
+  run_inference(progress = 4)
 
 bayesplot::mcmc_trace(get_parameter_draws(results))
 ```

@@ -135,13 +135,15 @@ test_that("Status-specific augmented variables draw from per-status ranges", {
     expect_true(all(vals >= s - 1 & vals <= s))
   }
 
-  # run_inference with adapt > 0 should warn (no parametric proposals to adapt)
+  # run_inference with adapt > 0 but no parametric proposals: the adapt budget
+  # is silently repurposed as burn-in; only the short-run diagnostic fires
+  # (steps = 5 < 400).
   expect_warning(
     results <- hhmodel |>
       run_inference(steps = 5, thin = 1, adapt = 2,
                     chain = 1, threads = 1, progress = FALSE,
                     id_draws = hhmodel$data_wide$id),
-    regexp = "adaptation"
+    regexp = "below 400"
   )
   draws <- as.data.frame(get_augmented_draws(results))
   for (s in seq(4)) {
@@ -262,11 +264,13 @@ test_that("Augmented model log-likelihoods are correctly computed", {
   # Looping over thread counts exercises the RcppParallel reduction in
   # commit_total_log_lik_; both invariants must hold for any thread count.
   for (t in c(1L, 2L)) {
-    results <- new_housepi_model(house, "augmented_example") |>
-      add_augmented_list(proba = list(model = "gamma", x = x@D,
-                                      shape = !!shape, scale = !!scale)) |>
-      run_inference(steps = 5, thin = 1, adapt = 0, chain = 1, threads = t,
-                    progress = FALSE, id_draws = id_draws)
+    results <- suppressWarnings(
+      new_housepi_model(house, "augmented_example") |>
+        add_augmented_list(proba = list(model = "gamma", x = x@D,
+                                        shape = !!shape, scale = !!scale)) |>
+        run_inference(steps = 5, thin = 1, adapt = 0, chain = 1, threads = t,
+                      progress = FALSE, id_draws = id_draws)
+    )
 
     # coherency between pointwise and total log-likelihood
     expect_equal(get_total_log_lik_draws(results)$log_lik,

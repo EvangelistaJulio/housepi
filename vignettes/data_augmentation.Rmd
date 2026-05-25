@@ -112,13 +112,18 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
   )
 ```
 
+We could run the inference and extract the results as usual.
+However, sometimes it is useful to check if augmented variable draws evolve as expected.
+We can do so by providing the `id` of individuals whose augmented variables we want to store through the argument `id_draws` of `run_inference()`.
+
 ```{r}
 #| label: augmented-infection-time-plot
 #| fig-alt: >
 #|  Density plots of augmented infection times for two household members.
 # run inference following traces of specific individuals
 hhmodel |>
-  run_inference(steps = 500, id_draws = c("tommy", "gina")) |>
+  # store augmented draws of "tommy" and "gina"
+  run_inference(id_draws = c("tommy", "gina")) |>
   get_augmented_draws() |>
   posterior::subset_draws(variable = "infec_time$", regex = TRUE) |>
   bayesplot::mcmc_dens(facet_args = list(ncol = 1)) +
@@ -185,8 +190,7 @@ hhmodel <- dataset |>
       model = "uniform",
       min = onset_min@D,
       max = onset_max@D + 0.99,
-      proposal = "normal",
-      proposal_scale = 0.5
+      proposal = "normal"
     ),
     # add 'infec_time' time definition
     .infec_time = list(
@@ -194,17 +198,10 @@ hhmodel <- dataset |>
       # min = 0 by default for uniform
       # we impose here .infec_time < .onset_time
       max = min(.onset_time, exposure_max@D + 0.99),
-      proposal = "normal",
-      proposal_scale = 0.5
+      proposal = "normal"
     )
   )
 ```
-
-# Extract augmented variable draws
-
-We could run the inference and extract the results as usual.
-However, sometimes we might be interested in extracting augmented variable draws to check if they evolve as expected.
-We can do so by providing the `id` of individuals whose augmented variables we want to store through the argument `id_draws` of `run_inference()`.
 
 ```{r}
 #| label: inference-traces
@@ -215,10 +212,8 @@ We can do so by providing the `id` of individuals whose augmented variables we w
 #|  Trace plots for mean and variance parameters with three parallel chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
 results <- hhmodel |>
-  run_inference(steps = 2000, thin = 10, chains = 3, burn = 500,
-                # store augmented draws of "7" and "13"
-                id_draws = c("7", "13"),
-                progress = FALSE)
+  # store augmented draws of "7" and "13"
+  run_inference(id_draws = c("7", "13"))
 
 # plot traces of parameter draws
 bayesplot::mcmc_trace(get_parameter_draws(results)) +
@@ -249,7 +244,7 @@ bayesplot::color_scheme_set(scheme = "orange")
 
 When it comes to data augmentation, we might need to explore different options for the Monte Carlo moves.
 In the following examples we show the differences between move choices that can be performed.
-As shown in [Bayesian MCMC options](bayesian_mcmc_options.html), we do the testing with the "blank" model.
+As shown in [Priors and proposals](priors_and_proposals.html), we can the testing with the "blank" model.
 We always recommend a visual assessment before choosing a new move.
 
 ```{r}

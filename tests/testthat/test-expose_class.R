@@ -143,7 +143,9 @@ test_that("evaluate_log_lik wrapper returns numeric", {
 test_that("run_inference wrapper returns HousepiPosteriorDraws", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
   hhmodel$add_parameter_template()
-  result <- run_inference(hhmodel, steps = 5, progress = FALSE)
+  result <- suppressWarnings(run_inference(
+    hhmodel, steps = 5, chains = 1, adapt = 0, thin = 1, progress = FALSE
+  ))
   expect_s3_class(result, "HousepiPosteriorDraws")
 })
 

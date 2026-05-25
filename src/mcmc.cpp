@@ -315,6 +315,18 @@ namespace housepi
         return true;
     }
 
+    void MCMCBase::init_frequency_equivalence_classes()
+    {
+        // NOTE: frequency incompatible with sampling augmented data
+        bool force_unique = augm.is_any_sample();
+        // however false could also mean definitions not provided
+        // check if required and in such case set unique preventively
+        if (!force_unique && augm.list_export.size() == 0)
+            force_unique = augm.khold().size() > 0;
+
+        data_wide().init_frequencies(force_unique);
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////  MCMCBase : monte carlo  /////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,13 +338,13 @@ namespace housepi
             throw std::length_error(
                 "Nothing to sample. Check your parameter and augmented definitions.");
 
-        // assert if setup is ok for mcmc
-        setup.assert_mcmc_setup();
+        // whether adaptation is required
+        bool is_adaptive = !param.list_adaptive.empty() || augm.is_any_adaptive();
+        // initialize setup for mcmc
+        setup.init_mcmc_configuration(is_adaptive);
 
-        // Drop adaptation steps if nothing to adapt
-        // UPDATE: if adaptation applied to augmented variables, update this
-        if (param.list_adaptable.empty())
-            setup.drop_mcmc_adapt();
+        // set moving average smoothing factor for every Variable
+        Variable::set_adapt_smoothing(1. / setup.n_adapt_window);
     }
 
     void MCMCBase::init_monte_carlo_chain_()
@@ -341,9 +353,18 @@ namespace housepi
         param.user_reset(setup.prng()); // reset parameter user definitions
         augm.user_reset(setup.prng());  // reset augmented user definitions
 
-        // init move counts for adaptive
-        for (size_t p : param.list_sample)
-            param.at(p).reset_accept_count();
+        // re-initialize the acceptance estimate for every variable
+        for (size_t p : param.list_adaptive)
+            param.at(p).reset_accept_rate();
+
+        if (augm.is_any_adaptive())
+            for (Household &house : data_wide())
+                for (size_t i : house.infected_hhindexes())
+                {
+                    Individual &member = house.member(i);
+                    for (size_t a : augm.list_adaptive(member))
+                        member.get_augm_variable(a).reset_accept_rate();
+                }
     }
 
     void MCMCBase::recover_total_log_lik_(bool is_cache_depen)
@@ -438,18 +459,6 @@ namespace housepi
             model->get_HHdoublemtxKey());
         new_ds->data_long.init_key_holder(model->get_LongKey());
         set_data_store(std::move(new_ds));
-    }
-
-    void MCMC::init_frequency_equivalence_classes()
-    {
-        // NOTE: frequency incompatible with sampling augmented data
-        bool force_unique = augm.is_any_sample();
-        // however false could also mean definitions not provided
-        // check if required and in such case set unique preventively
-        if (!force_unique && augm.list_export.size() == 0)
-            force_unique = augm.khold().size() > 0;
-
-        data_wide().init_frequencies(force_unique);
     }
 
     //////////////////////////
@@ -586,11 +595,20 @@ namespace housepi
         {
             move_all_();
 
-            const double ratio = static_cast<double>(i + 1) / static_cast<double>(setup.n_adapt);
-
-            // adpat all sampled parameters with adaptable proposals
-            for (size_t p : param.list_adaptable)
+            // compute vanishing ratio
+            const double ratio = static_cast<double>(i + 1) / setup.n_adapt;
+            // adapt all adaptive parameters
+            for (size_t p : param.list_adaptive)
                 param.at(p).adapt_proposal(ratio);
+            // adapt all adaptive augmented variables
+            if (augm.is_any_adaptive())
+                for (Household &house : data_wide())
+                    for (size_t i : house.infected_hhindexes())
+                    {
+                        Individual &member_i = house.member(i);
+                        for (size_t a : augm.list_adaptive(member_i))
+                            member_i.get_augm_variable(a).adapt_proposal(ratio);
+                    }
         }
     }
 
@@ -672,7 +690,7 @@ namespace housepi
             {
                 Individual &member_i = house.member(i);
                 for (size_t a : augm.list_sample(member_i))
-                    delta_ll += metropolis_augm_single_move_(house, member_i, a);
+                    delta_ll += move_augm_single_variable_(house, member_i, a);
             }
         }
         catch (const std::exception &e)
@@ -684,7 +702,7 @@ namespace housepi
         return delta_ll;
     }
 
-    double MCMC::metropolis_augm_single_move_(Household &house, Individual &member, size_t a)
+    double MCMC::move_augm_single_variable_(Household &house, Individual &member, size_t a)
     {
         Variable &xaugm = member.get_augm_variable(a);
 

@@ -211,8 +211,8 @@ HousepiContactRate <- R6::R6Class(
       }
       wrong_entries <- setdiff(names(reference), valid_names)
       if (length(wrong_entries) != 0) stop_h(
-        sprintf("Unrecognized choice%s for reference: %s",
-                as_plural(wrong_entries),
+        sprintf("Unrecognized %s for reference:%s",
+                as_plural("choice", length(wrong_entries)),
                 character_to_string_list(wrong_entries)),
         "Reference should match 'by' and use 'from_' and/or 'to_' prefixes."
       )

@@ -40,7 +40,7 @@ namespace housepi
         std::vector<size_t> list_const = {};     /// constant parameters
         std::vector<size_t> list_func = {};      /// function-based parameters
         std::vector<size_t> list_sample = {};    /// parameters to sample
-        std::vector<size_t> list_adaptable = {}; /// parameters to sample with adaptable proposal
+        std::vector<size_t> list_adaptive = {}; /// parameters to sample with adaptive proposal
 
         std::vector<size_t> list_sample_standard = {};
         std::vector<size_t> list_sample_cached = {};

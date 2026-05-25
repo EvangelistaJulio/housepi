@@ -79,9 +79,13 @@ namespace housepi
 		DataLong &data_long() noexcept { return pDataStore->data_long; }
 		const DataLong &data_long() const noexcept { return pDataStore->data_long; }
 
+		/// Initialize frequency equivalence classes.
+		/// NOTE: assume unique if augmented definitions required, but not imported yet
+		void init_frequency_equivalence_classes();
+
 		//////////////////////
 		//////  GETTER  //////
-		//////////////////////	
+		//////////////////////
 
 		/// Whether two household members belong to same partition according to rates.
 		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;

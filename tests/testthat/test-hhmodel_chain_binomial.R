@@ -83,7 +83,10 @@ test_that("Chain binomial is not discretizable", {
 test_that("Deep clone works as expected", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
   hhmodel$add_parameter_template()
-  expect_no_error(out <- hhmodel$run_inference(steps = 2, progress = FALSE))
+  expect_no_error(out <- suppressWarnings(
+    hhmodel$run_inference(steps = 2, chains = 1, adapt = 0, thin = 1,
+                          progress = FALSE)
+  ))
 
   # deep clone
   hhclone <- hhmodel$copy()
@@ -109,9 +112,12 @@ test_that("Deep clone works as expected", {
 
 test_that("Log-likelihood traces and pointwise traces are coherent", {
   for (t in c(1L, 2L)) {
-    results <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-      add_parameter_template() |>
-      run_inference(steps = 10, thin = 2, adapt = 2, burn = 2, threads = t)
+    results <- suppressWarnings(
+      new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+        add_parameter_template() |>
+        run_inference(steps = 10, thin = 2, adapt = 2, burn = 2,
+                      chains = 1, threads = t)
+    )
 
     pointwise <- results$log_lik_draws |>
       posterior::as_draws_matrix() |>
@@ -147,14 +153,20 @@ test_that("Run simulation with nrep > 1 returns list of dataframes", {
 })
 
 test_that("run_inference rejects invalid setup arguments", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
     add_parameter_template()
   expect_error(hhmodel$run_inference(steps = 5, burn = 10),
                regex = "[Bb]urn")
   expect_error(hhmodel$run_inference(steps = 5, thin = 10),
                regex = "[Tt]hin")
-  expect_warning(hhmodel$run_inference(steps = 5, threads = 1000),
-                 regex = "[Tt]hreads")
+  # threads-clamp warning and short-run diagnostic both fire here
+  expect_warning(
+    expect_warning(hhmodel$run_inference(steps = 5, chains = 1, adapt = 0,
+                                         thin = 1, threads = 1000),
+                   regex = "[Tt]hreads"),
+    regex = "sample size was below"
+  )
 })
 
 test_that("run_inference with progress = TRUE emits the progress bar", {
@@ -163,7 +175,10 @@ test_that("run_inference with progress = TRUE emits the progress bar", {
     new_housepi_model("chain_binomial") |>
     add_parameter_template()
   out <- capture.output(
-    res <- run_inference(hhmodel, steps = 2000, progress = TRUE),
+    res <- suppressWarnings(
+      run_inference(hhmodel, steps = 2000, chains = 1,
+                    adapt = 0, thin = 1, progress = TRUE)
+    ),
     type = "output"
   )
   expect_s3_class(res, "HousepiPosteriorDraws")
@@ -174,7 +189,10 @@ test_that("run_inference with progress = TRUE emits the progress bar", {
 test_that("predicted_cases_by_house_size exercises parallel for_each", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
     add_parameter_template()
-  results <- run_inference(hhmodel, steps = 30, progress = FALSE)
+  results <- suppressWarnings(
+    run_inference(hhmodel, steps = 30, chains = 1, adapt = 0, thin = 1,
+                  progress = FALSE)
+  )
   outs <- list()
   for (t in c(1L, 2L)) {
     suppressWarnings(

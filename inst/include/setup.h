@@ -36,18 +36,20 @@ namespace housepi
 
         /// Expected header keys for configuration input file.
         const std::vector<std::string> file_headers = {"steps", "burn", "thin",
-                                                       "adapt", "chains", "threads",
+                                                       "adapt", "adapt_window",
+                                                       "chains", "threads",
                                                        "id_draws", "seed", "progress"};
 
-        std::int32_t seed = 1;      /// Seed for pseudo-random number generator initialization.
-        unsigned n_threads = 1;     /// Number of OpenMP threads for parallelization.
-        unsigned long n_steps = 1;  /// Total number of MCMC iterations per chain.
-        unsigned long n_burn = 0;   /// Number of initial burn-in iterations to discard.
-        unsigned long n_thin = 1;   /// Thinning interval (store every n_thin-th iteration).
-        unsigned long n_adapt = 0;  /// Number of adaptive MCMC steps (0 = no adaptation).
-        unsigned long n_chains = 1; /// Number of independent MCMC chains to run in parallel.
-        unsigned long progress = 1; /// Progress bar update interval in seconds.
-        unsigned long n_rungs = 0;  /// Number of rungs for power posterior analysis (0 = standard MCMC).
+        std::int32_t seed = 1;             /// Seed for pseudo-random number generator initialization.
+        unsigned n_threads = 1;            /// Number of OpenMP threads for parallelization.
+        unsigned long n_steps = 1;         /// Total number of MCMC iterations per chain.
+        unsigned long n_burn = 0;          /// Number of initial burn-in iterations to discard.
+        unsigned long n_thin = 1;          /// Thinning interval (store every n_thin-th iteration).
+        unsigned long n_adapt = 0;         /// Number of adaptive MCMC steps (0 = no adaptation).
+        unsigned long n_adapt_window = 50; /// Effective window for the smoothed accept-rate.
+        unsigned long n_chains = 1;        /// Number of independent MCMC chains to run in parallel.
+        unsigned long progress = 1;        /// Progress bar update interval in seconds.
+        unsigned long n_rungs = 0;         /// Number of rungs for power posterior analysis (0 = standard MCMC).
 
         //////////////////////////////
         //////  DERIVED CONFIG  //////
@@ -77,14 +79,10 @@ namespace housepi
 
         /// Set the number of threads for parrell computations (default is 1).
         void set_n_threads();
-
         /// Build Setup configuration from input table.
         void build(const housepi::str_table &input);
-
-        /// Validate MCMC setup parameters for consistency and feasibility.
-        void assert_mcmc_setup();
-        /// Remove adaptive phase parameters after burn-in completion.
-        void drop_mcmc_adapt();
+        /// Initialize MCMC configuration and assert consistency.
+        void init_mcmc_configuration(bool is_adaptive);
 
         /////////////////////
         //////  FLAGS  //////

@@ -1,10 +1,13 @@
 library(testthat)
 
-# Run inference once and reuse across tests
+# Run inference once and reuse across tests.
+# Short run trips the diagnostic short-run warning — irrelevant here.
 local_results <- local({
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$add_parameter_template()
-  hhmodel$run_inference(steps = 100, progress = FALSE)
+  suppressWarnings(hhmodel$run_inference(
+    steps = 100, chains = 1, adapt = 0, thin = 1, progress = FALSE
+  ))
 })
 
 test_that("Invalid cri_level is rejected", {
@@ -123,7 +126,10 @@ test_that("Print behavior is stable", {
 test_that("Multi-chain inference produces correct chain structure", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$add_parameter_template()
-  results <- hhmodel$run_inference(steps = 10, chains = 2, progress = FALSE)
+  results <- suppressWarnings(
+    hhmodel$run_inference(steps = 10, chains = 2, adapt = 0, thin = 1,
+                          progress = FALSE)
+  )
 
   pd <- results$parameter_draws
   expect_true(posterior::is_draws(pd))
@@ -137,9 +143,39 @@ test_that("Augm draws are not empty when id_draws is specified", {
                         status = c(1, 0)) |>
     new_housepi_model("augmented_example")
   hhmodel$add_augmented(name = "proba", model = "uniform")
-  results <- hhmodel$run_inference(steps = 5, id_draws = "a",
-                                   progress = FALSE)
+  results <- suppressWarnings(
+    hhmodel$run_inference(steps = 5, chains = 1, adapt = 0, thin = 1,
+                          id_draws = "a", progress = FALSE)
+  )
   ad <- results$augmented_draws
   expect_true(posterior::is_draws(ad))
   expect_true(posterior::nvariables(ad) > 0)
+})
+
+test_that("Diagnostic warning fires on short runs", {
+  expect_warning(
+    results <- flu_1918_frederick |>
+      new_housepi_model("chain_binomial") |>
+      add_parameter_template() |>
+      run_inference(steps = 100, chains = 1, adapt = 0, thin = 1,
+                    progress = FALSE),
+    regexp = "sample size was below"
+  )
+})
+
+test_that("Diagnostic warning fires on poor mixing", {
+  # explicitly define micro-steps
+  expect_warning(
+    results <- flu_1918_frederick |>
+      new_housepi_model("chain_binomial") |>
+      add_parameter_list(
+        alpha = list(prior = "uniform", proposal = "lognormal",
+                     proposal_scale = 1e-4),
+        beta  = list(prior = "uniform", proposal = "lognormal",
+                     proposal_scale = 1e-4),
+        gamma = 1, size_ref = 5
+      ) |>
+      run_inference(steps = 1000, thin = 1, adapt = 0, chains = 2,
+                    progress = FALSE)
+  )
 })

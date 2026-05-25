@@ -13,6 +13,13 @@ posterior::summarise_draws
 #' @export
 posterior::summarize_draws
 
+# Thresholds for the post-inference diagnostic warnings.
+diagnostic_ <- list(
+  ss_min = 400,    # min sample size # Vehtari 2021
+  rhat_max = 1.05,
+  neff_min = 0.1   # ESS ratio (see bayesplot::mcmc_neff)
+)
+
 # Validate a credible interval level.
 validate_cri_level <- function(value) {
   if (length(value) != 1 || !is.numeric(value) || is.na(value)) stop_h(
@@ -183,6 +190,70 @@ HousepiPosteriorDraws <- R6::R6Class(
     # @return `posterior::draws_df`
     empty_draws_ = function() {
       tag_as_housepi_draws(posterior::as_draws_df(data.frame()))
+    },
+
+    # Stan-style post-inference diagnostics.
+    # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
+    check_diagnostics_ = function() {
+      niter <- posterior::niterations(private$total_log_lik_draws_)
+      nchains <- posterior::nchains(private$total_log_lik_draws_)
+      ss <- niter * nchains
+      if (ss < diagnostic_[["ss_min"]]) {
+        warn_h(
+          sprintf("Total sample size was below %d.",
+                  diagnostic_[["ss_min"]]),
+          "Convergence diagnostics may be unreliable and were skipped."
+        )
+        return(invisible())
+      }
+
+      private$check_diagnostics_one_(private$param_draws_, "parameter")
+      private$check_diagnostics_one_(private$augm_draws_, "augmented variable")
+      invisible()
+    },
+
+    # Emits at most one warning per family combination.
+    check_diagnostics_one_ = function(d, family) {
+      if (is.null(d) || posterior::nvariables(d) == 0L) return(invisible())
+
+      rhat_max <- diagnostic_[["rhat_max"]]
+      neff_min <- diagnostic_[["neff_min"]]
+      ss <- posterior::niterations(d) * posterior::nchains(d)
+      sm <- posterior::summarise_draws(d)
+
+      bad_rhat <- which(!is.na(sm$rhat) & sm$rhat > rhat_max)
+      bad_bulk <- which(!is.na(sm$ess_bulk) & sm$ess_bulk / ss < neff_min)
+      both <- intersect(bad_rhat, bad_bulk)
+      only_rhat <- setdiff(bad_rhat, both)
+      only_bulk <- setdiff(bad_bulk, both)
+
+      sms <- c()
+      if (length(both) > 0L) sms <- c(sms,
+        sprintf("%s %s with R-hat > %.2f and Bulk ESS < %.0f%%:%s",
+                format_there_were_was(length(both)),
+                as_plural(family, length(both)),
+                rhat_max, 100. * neff_min,
+                character_to_string_list(sm$variable[both])),
+        "Chains may have not mixed; mean and median may be unreliable."
+      )
+      if (length(only_rhat) > 0L) sms <- c(sms,
+        sprintf("%s %s with R-hat > %.2f:%s",
+                format_there_were_was(length(only_rhat)),
+                as_plural(family, length(only_rhat)),
+                rhat_max,
+                character_to_string_list(sm$variable[only_rhat])),
+        "Chains may have not mixed."
+      )
+      if (length(only_bulk) > 0L) sms <- c(sms,
+        sprintf("%s %s with Bulk Effective Sample Size (ESS) < %.0f%%:%s",
+                format_there_were_was(length(only_bulk)),
+                as_plural(family, length(only_bulk)),
+                100. * neff_min,
+                character_to_string_list(sm$variable[only_bulk])),
+        "Mean and median may be unreliable."
+      )
+      if (length(sms) > 0L) warn_h(sms)
+      invisible()
     }
   ),
 
@@ -283,6 +354,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       # free auxiliary memory
       private$chain_tags_ <- NULL
       private$iter_names_ <- NULL
+
+      # Stan-style automatic diagnostics
+      private$check_diagnostics_()
 
       invisible()
     },

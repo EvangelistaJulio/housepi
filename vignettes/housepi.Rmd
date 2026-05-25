@@ -23,7 +23,7 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-In this vignette we will walk through the process of loading a housepi model template.
+Here we will walk through the process of loading a housepi model template.
 Then we will explain how to associate necessary definitions in order to perform inference and simulations.
 
 # Format of the data
@@ -175,7 +175,7 @@ hhmodel |>
 We can also turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE`. In such case a `value` must be provided  .
 To inspect current definitions, simply call `get_parameters` on the model object.
 
-For further information on the available options for the definition of the parameter priors and MCMC proposal, see the vignette [Bayesian MCMC options](bayesian_mcmc_options.html).
+For further information on the available options for priors and MCMC proposals definitions, see [Priors and proposals](priors_and_proposals.html).
 
 # Run inference
 
@@ -188,12 +188,12 @@ The draws come as [posterior](https://CRAN.R-project.org/package=posterior) obje
 
 ```{r}
 #| label: run-inference
-# run the Monte Carlo specifying setup options
+# run the Monte Carlo specifying setup options (equal to default)
 results <- hhmodel |>
-  run_inference(steps = 2000, # MCMC steps per chain
-                burn = 500,   # steps to drop before storing sample
-                thin = 10,    # delay between stored samples
-                adapt = 500,  # preliminary finite adaptation steps
+  run_inference(steps = 1000, # post-adaptation iterations per chain
+                burn = 0,     # iterations to drop before storing draws
+                thin = 5,     # keep one iteration every five
+                adapt = 500,  # adaptation iterations, run before `steps`
                 chains = 4,   # independent chains
                 threads = 1)  # parallel threads
 
@@ -297,15 +297,14 @@ This tells us that in order to proceed we need to provide the missing parameters
 #| label: append-parameters
 # append missing parameters for incubation period
 hhsimul <- hhsimul |>
-  add_parameter_list(inc_shape = 2, inc_scale = 1,
-                      # set 'append' to TRUE to keep previous definitions
-                      append = TRUE)
+  # set 'append' to TRUE to keep previous definitions
+  add_parameter_list(inc_shape = 2, inc_scale = 1, append = TRUE)
 ```
 
-To see how to associate group rates in heterogeneous models, see the vignette [Group rates](group_rates.html).
+To see how to associate group rates in heterogeneous models, see [Group rates](group_rates.html).
 However, by default if no group rate definition is provided all values are set to reference value 1, so we can forget about this alert for the rest of the walkthrough.
 Similarly, we can use the infectivity profile template for the sake of demonstration.
-Provide a custom definition following the vignette [Infectivity profiles](infectivity_profiles.html).
+Provide a custom definition following [Infectivity profiles](infectivity_profiles.html).
 
 We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly.
@@ -348,7 +347,8 @@ hhmodel <- simulated |>
   )
 
 results <- hhmodel |>
-  run_inference(chains = 3, steps = 1000, adapt = 500, thin = 10)
+  # update progress bar every 3 seconds
+  run_inference(progress = 3)
 ```
 We can visualize traces vs expected values as follows
 

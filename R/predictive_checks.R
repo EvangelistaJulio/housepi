@@ -216,13 +216,15 @@ HousepiPrediction <- R6::R6Class(
         mismatch <- ppc_observed_outside_cri(self[[m]]$observed,
                                              self[[m]]$cri_lower,
                                              self[[m]]$cri_upper)
-        n_bad <- sum(unlist(mismatch))
-        if (n_bad > 0) {
+        len_bad <- sum(unlist(mismatch))
+        if (len_bad > 0) {
           all_within <- FALSE
           warn_h(sprintf(
-            paste0("Measure '%s': %d observed value%s outside ",
-                   "the %.0f%% credible interval."),
-            m, n_bad, as_plural(seq_len(n_bad)), 100 * private$cri_level_
+            "%s observed %s outside %.0f%% credible interval for measure %s.",
+            format_there_were_was(len_bad),
+            as_plural("value", len_bad),
+            100 * private$cri_level_,
+            m
           ))
         }
       }

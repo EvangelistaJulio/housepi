@@ -23,8 +23,7 @@ Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
 \item{discr}{\code{logical(1)} Treat definition as discrete.
-If applicable, the profile is discretized.
-Default is \code{FALSE}.}
+If applicable, the profile is discretized.}
 
 \item{...}{named arguments for the profile distribution.}
 

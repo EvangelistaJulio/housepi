@@ -201,9 +201,11 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
   id_draws <- house[house$status > 0, ]$id
 
   for (t in c(1L, 2L)) {
-    results <- build_hh() |>
-      run_inference(steps = 20, thin = 1, adapt = 0, chain = 1, threads = t,
-                    progress = FALSE, id_draws = id_draws)
+    results <- suppressWarnings(
+      build_hh() |>
+        run_inference(steps = 20, thin = 1, adapt = 0, chain = 1, threads = t,
+                      progress = FALSE, id_draws = id_draws)
+    )
     expect_equal(get_total_log_lik_draws(results)$log_lik,
                  get_log_lik_draws(results)$hh01)
   }
@@ -230,9 +232,11 @@ test_that("Augmented moves preserve log-likelihood", {
 
   n_steps <- 100
   id_draws <- house[house$status > 0, ]$id
-  results <- hhmodel |>
-    run_inference(steps = n_steps, thin = 1, adapt = 0, chain = 1,
-                  progress = FALSE, id_draws = id_draws)
+  results <- suppressWarnings(
+    hhmodel |>
+      run_inference(steps = n_steps, thin = 1, adapt = 0, chain = 1,
+                    progress = FALSE, id_draws = id_draws)
+  )
 
   tot_log_lik <- get_total_log_lik_draws(results)$log_lik
   expect_equal(tot_log_lik, get_log_lik_draws(results)$hh01)

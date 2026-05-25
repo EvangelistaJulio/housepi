@@ -62,8 +62,8 @@ namespace housepi
         /// and current adaptation ratio.
         virtual void adapt(double /*accept_rate*/, double /*ratio*/) {};
 
-        /// Check if proposal is adaptable.
-        virtual bool is_adaptable() const noexcept = 0;
+        /// Check if proposal is adaptive.
+        virtual bool is_adaptive() const noexcept = 0;
         /// Get name of proposal distribution.
         virtual std::string_view name() const noexcept = 0;
 
@@ -90,7 +90,7 @@ namespace housepi
         double propose(rnd_gen & /*prng*/, double xo) const override final { return xo; }
         double log_ratio(double /*xo*/, double /*xn*/) const override final { return 0.; }
 
-        bool is_adaptable() const noexcept override final { return false; }
+        bool is_adaptive() const noexcept override final { return false; }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,7 +109,7 @@ namespace housepi
         double propose(rnd_gen &prng, double /*xo*/) const override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
 
-        bool is_adaptable() const noexcept override final { return false; }
+        bool is_adaptive() const noexcept override final { return false; }
 
     private:
         const Distribution *pDistr_;
@@ -119,10 +119,6 @@ namespace housepi
     ///////////////////////////////  *** AdaptableProposal : class ***  ///////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Target accept ratio.
-    /// Based on @cite roberts_weak_1997
-    constexpr double TARGET_ACCEPT_RATE = 0.44;
-
     /// Adaptable version of Metropolis proposals.
     class AdaptableProposal : public Proposal
     {
@@ -131,28 +127,32 @@ namespace housepi
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        AdaptableProposal(const std::string &distr_name, double scale, bool is_discrete)
-            : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"}))
+        AdaptableProposal(
+            const std::string &distr_name,
+            double scale,
+            bool is_adaptive,
+            bool is_discrete)
+            : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"})),
+              user_scale_(std::fabs(scale)),
+              is_adaptive_(is_adaptive)
         {
             if (is_discrete)
                 pDistr_->init_discretization();
             pDistr_->init_truncation();
-
-            if (!na::is(scale))
-                user_scale_ = std::fabs(scale);
         }
         virtual ~AdaptableProposal() = default;
 
         AdaptableProposal(const AdaptableProposal &other)
             : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-              user_scale_(other.user_scale_) {}
+              user_scale_(other.user_scale_),
+              is_adaptive_(other.is_adaptive_) {}
 
         /////////////////////
         //////  FLAGS  //////
         /////////////////////
 
-        /// Wheter proposer can be adapted.
-        bool is_adaptable() const noexcept override final { return true; }
+        /// Wheter proposal is adaptive.
+        bool is_adaptive() const noexcept override final { return is_adaptive_; }
 
         ////////////////////
         //////  SHOW  //////
@@ -163,12 +163,13 @@ namespace housepi
     protected:
         std::unique_ptr<Distribution> pDistr_; /// distribution associated to proposal
         double user_scale_ = 1.;               /// scale of the Metropolis proposal
+        bool is_adaptive_ = true;              /// whether scale is adaptive
 
         /// Vanishing Robbins-Monro multiplier from an observed accept rate.
         /// Based on @cite andrieu_tutorial_2008
         static double robbins_monro_(double accept_rate, double ratio) noexcept
         {
-            return std::exp((1. - ratio) * (accept_rate - TARGET_ACCEPT_RATE));
+            return std::exp((1. - ratio) * (accept_rate - Variable::TARGET_ACCEPT_RATE));
         }
     };
 
@@ -179,8 +180,8 @@ namespace housepi
     class UniformProposal_ final : public AdaptableProposal
     {
     public:
-        UniformProposal_(double scale, bool is_discrete)
-            : AdaptableProposal("uniform", scale, is_discrete) { user_reset(); }
+        UniformProposal_(double scale, bool is_adaptive, bool is_discrete)
+            : AdaptableProposal("uniform", scale, is_adaptive, is_discrete) { user_reset(); }
         MAKE_PROPOSAL_CLONE_METHOD(UniformProposal_)
 
         void user_reset() override final
@@ -207,8 +208,8 @@ namespace housepi
     class NormalProposal_ final : public AdaptableProposal
     {
     public:
-        NormalProposal_(double scale, bool is_discrete)
-            : AdaptableProposal("normal", scale, is_discrete) { user_reset(); }
+        NormalProposal_(double scale, bool is_adaptive, bool is_discrete)
+            : AdaptableProposal("normal", scale, is_adaptive, is_discrete) { user_reset(); }
         MAKE_PROPOSAL_CLONE_METHOD(NormalProposal_)
 
         void user_reset() override final
@@ -234,8 +235,8 @@ namespace housepi
     class LognormProposal_ final : public AdaptableProposal
     {
     public:
-        LognormProposal_(double scale, bool is_discrete)
-            : AdaptableProposal("lognormal", scale, is_discrete) { user_reset(); }
+        LognormProposal_(double scale, bool is_adaptive, bool is_discrete)
+            : AdaptableProposal("lognormal", scale, is_adaptive, is_discrete) { user_reset(); }
         MAKE_PROPOSAL_CLONE_METHOD(LognormProposal_)
 
         void user_reset() override final
@@ -290,25 +291,50 @@ namespace housepi
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  proposer switch  //////////////////////////////////////////
+    //////////////////////////////////////  proposal switch  //////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Switchboard to select the custom metropolis proposal.
-    std::unique_ptr<Proposal> proposal_switch(const std::string &name, double scale, bool is_discrete)
+    std::unique_ptr<Proposal> proposal_switch(
+        const std::string &name,
+        double scale,
+        bool is_adaptive,
+        bool is_discrete)
     {
         const std::vector<std::string> options = {"sample", "uniform", "normal", "lognormal"};
 
         if (name == "uniform")
-            return std::make_unique<UniformProposal_>(scale, is_discrete);
+            return std::make_unique<UniformProposal_>(scale, is_adaptive, is_discrete);
 
         if (name == "normal")
-            return std::make_unique<NormalProposal_>(scale, is_discrete);
+            return std::make_unique<NormalProposal_>(scale, is_adaptive, is_discrete);
 
         if (name == "lognormal")
-            return std::make_unique<LognormProposal_>(scale, is_discrete);
+            return std::make_unique<LognormProposal_>(scale, is_adaptive, is_discrete);
 
         throw std::invalid_argument(
             "Unknown proposal '" + name + "'." + str::find_closest(name, options));
+    }
+
+    /// Prior-aware initial value for the proposal scale. Fallback to 1.
+    double proposal_initial_scale_switch(
+        const std::string &name, const Distribution *distr)
+    {
+        if (distr)
+        {
+            const double q25 = distr->quantile_safe(0.25);
+            const double q75 = distr->quantile_safe(0.75);
+            if (std::isfinite(q25) && std::isfinite(q75) && q75 > q25)
+            {
+                if (name == "normal")
+                    return (q75 - q25) / 1.349;
+                else if (name == "uniform")
+                    return q75 - q25;
+                else if (name == "lognormal" && q25 > 0.)
+                    return std::log(q75 / q25) / 1.349;
+            }
+        }
+        return 1.;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -327,8 +353,7 @@ namespace housepi
           old_(other.old_),
           pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
           pProp_(other.pProp_ ? other.pProp_->clone() : nullptr),
-          n_accepted_(other.n_accepted_),
-          n_proposed_(other.n_proposed_)
+          accept_rate_(other.accept_rate_)
     {
         if (pProp_)
             pProp_->rebind_distrib(pDistr_.get());
@@ -347,8 +372,11 @@ namespace housepi
         std::swap(pDistr_, other.pDistr_);
         std::swap(pProp_, other.pProp_);
     }
-    void Variable::init_func_attr(std::string_view key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
 
+    void Variable::init_func_attr(std::string_view key, const Attribute &attr)
+    {
+        pFunc_->init_attr(key, attr);
+    }
     void Variable::init_func_reshaping(bool discr)
     {
         if (has_model())
@@ -365,8 +393,7 @@ namespace housepi
     {
         if (na::is(opt))
             return;
-        else
-            pDistr_ = compose_distr_registries(opt, "distribution", {"continuos", "discrete"});
+        pDistr_ = compose_distr_registries(opt, "distribution", {"continuos", "discrete"});
     }
 
     void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
@@ -431,7 +458,8 @@ namespace housepi
     /////////////////////////////////  Variable : Setter (Proposal)  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Variable::init_proposal(const std::string &proposal, double proposal_scale)
+    // FIXME: the logic flow can be improved...
+    void Variable::init_proposal(const std::string &proposal, double scale)
     {
         if (mode_ != Mode::Empty && mode_ != Mode::Numeric)
             return;
@@ -446,12 +474,12 @@ namespace housepi
         if (proposal == "sample")
             helper_init_sample_proposal_();
         else
-            helper_init_monte_carlo_proposal_(proposal, proposal_scale);
+            helper_init_monte_carlo_proposal_(proposal, scale);
     }
 
     void Variable::helper_init_null_proposal_()
     {
-        // assign the pointer to the proposer
+        // assign the pointer to the proposal
         pProp_ = std::make_unique<NullProposal_>();
 
         // setup sample proposal functional methods
@@ -461,7 +489,7 @@ namespace housepi
 
     void Variable::helper_init_sample_proposal_()
     {
-        // assign the pointer to the proposer
+        // assign the pointer to the proposal
         pProp_ = std::make_unique<SampleProposal_>(pDistr_.get());
 
         // setup sample proposal functional methods
@@ -469,7 +497,7 @@ namespace housepi
         valid_mode_ = Validity::Always;
     }
 
-    void Variable::helper_init_monte_carlo_proposal_(const std::string &proposal, double proposal_scale)
+    void Variable::helper_init_monte_carlo_proposal_(const std::string &proposal, double scale)
     {
         // raise a warning if "lnorm" proposal when variable can be negative
         if (pDistr_ && proposal == "lnorm" &&
@@ -477,13 +505,15 @@ namespace housepi
             msg::warning(
                 "Provided a lognormal proposal for non-positive " + err_name() + ".");
 
-        // select proposer
-        pProp_ = proposal_switch(proposal, proposal_scale, is_discrete());
+        // select proposal and initialize adaptive configuration
+        const bool is_adaptive = na::is(scale);
+        if (is_adaptive)
+            scale = proposal_initial_scale_switch(proposal, pDistr_.get());
+        pProp_ = proposal_switch(proposal, scale, is_adaptive, is_discrete());
 
         // set modes
         ratio_mode_ = Ratio::Compute;
-        valid_mode_ = pDistr_ ? Validity::Check
-                              : Validity::Always;
+        valid_mode_ = pDistr_ ? Validity::Check : Validity::Always;
     }
 
     void Variable::user_reset(rnd_gen &prng)
@@ -528,13 +558,12 @@ namespace housepi
     bool Variable::is_discrete() const noexcept { return has_model() ? pDistr_->is_discrete()
                                                                      : Attribute::is_discrete(); }
     bool Variable::has_model() const noexcept { return pDistr_ != nullptr; }
-    bool Variable::is_adaptable() const noexcept { return pProp_ && pProp_->is_adaptable(); }
+    bool Variable::is_adaptive() const noexcept { return pProp_ && pProp_->is_adaptive(); }
 
     void Variable::propose(rnd_gen &prng)
     {
         set(pProp_->propose(prng, value_));
-        ++n_accepted_;
-        ++n_proposed_;
+        accept_rate_ += adapt_smoothing_ * (1. - accept_rate_); // EMA for accept = TRUE
     }
     bool Variable::is_valid_move() const
     {
@@ -550,11 +579,7 @@ namespace housepi
     double Variable::get_distr_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
     double Variable::get_propose_log_ratio() const { return pProp_->log_ratio(old_, value_); }
 
-    void Variable::adapt_proposal(double ratio)
-    {
-        const double accept_rate = static_cast<double>(n_accepted_) / static_cast<double>(n_proposed_);
-        pProp_->adapt(accept_rate, ratio);
-    }
+    void Variable::adapt_proposal(double ratio) { pProp_->adapt(accept_rate_, ratio); }
 
 #ifndef NDEBUG
     std::string Variable::str_summary() const
@@ -658,8 +683,8 @@ namespace housepi
         // initialize all parameters to standard (i.e. no cache dependencies)
         list_sample_standard = list_sample;
         for (size_t p : list_sample)
-            if (at(p).is_adaptable())
-                list_adaptable.push_back(p);
+            if (at(p).is_adaptive())
+                list_adaptive.push_back(p);
     }
 
     void Parameter::build_for_predic(const dbl_table &input)
@@ -701,7 +726,7 @@ namespace housepi
         list_func.clear();
         list_sample.clear();
         list_sample_standard.clear();
-        list_adaptable.clear();
+        list_adaptive.clear();
         list_sample_cached.clear();
 
         simulation_values.clear();

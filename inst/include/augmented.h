@@ -75,6 +75,7 @@ namespace housepi
         //////////////////////
 
         const std::vector<size_t> &list_sample(const Individual &member) const;
+        const std::vector<size_t> &list_adaptive(const Individual &member) const;
         const std::vector<size_t> &list_draws(const Individual &member) const;
         const std::vector<size_t> &list_models(const Individual &member) const;
 
@@ -90,6 +91,8 @@ namespace housepi
 
         /// Whether there are non-constant augmented definitions.
         bool is_any_sample() const noexcept { return is_any_sample_; }
+        /// Whether there are augmented definitions with an adaptive proposal.
+        bool is_any_adaptive() const noexcept { return is_any_adaptive_; }
         /// Whether there are augmented definitions with a model.
         bool is_any_model() const noexcept { return is_any_model_; }
 
@@ -97,7 +100,8 @@ namespace housepi
         MCMCBase *mcmc_;                      /// pointer to owning MCMCBase // UPDATE drop
         std::vector<Indiv::Augm> indiv_augm_; /// External storage for individual augmented data
         str_table deftable_ = {};             /// store definition table (no names)
-        bool is_any_sample_ = false;          /// whether at least one augmented model is provided
+        bool is_any_sample_ = false;          /// whether at least one augmented is to sample
+        bool is_any_adaptive_ = false;        /// whether at least one augmented has adaptive proposal
         bool is_any_model_ = false;           /// whether at least one augmented model is provided
 
         /// User defined discrete parameters
@@ -118,6 +122,7 @@ namespace housepi
 
             std::vector<size_t> models = {};             /// keys for models
             std::vector<size_t> sample = {};             /// keys for sample
+            std::vector<size_t> adaptive = {};           /// keys for adaptive (subset of sample)
             std::vector<size_t> draws = {};              /// keys for draws
             std::vector<std::vector<size_t>> depen = {}; /// keys for respective dependecies
         };
@@ -132,9 +137,9 @@ namespace housepi
         /// Eventually append infectivity profile definitions.
         void helper_build_append_infec_profile_(InfecProfile &infec_profile);
 
-        /// Assert that augmented status/generic definitions are non degenerate.
-        /// Also, assert that status-specific definitions are for infected status only.
-        /// By convention, generic defintion are associated to missing status.
+        /// Assert augmented status/generic definitions are non degenerate.
+        /// Assert status-specific definitions are only for infected status.
+        /// NOTE: generic definitions are associated to MISSING status.
         void helper_build_definition_by_status_();
 
         /// Deal with the definition 'k' of augmented to be sampled (const = FALSE).

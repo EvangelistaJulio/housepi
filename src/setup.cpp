@@ -338,6 +338,10 @@ namespace housepi
         if (input.count("adapt") && !na::is(input.at("adapt")[0]))
             n_adapt = str::toul(input.at("adapt")[0], "adpat");
 
+        // EMA window for the smoothed acceptance-rate estimate.
+        if (input.count("adapt_window") && !na::is(input.at("adapt_window")[0]))
+            n_adapt_window = str::toul(input.at("adapt_window")[0], "adapt_window");
+
         // N. of Thinning Steps
         if (input.count("thin") && !na::is(input.at("thin")[0]))
             n_thin = str::toul(input.at("thin")[0], "thin");
@@ -393,7 +397,7 @@ namespace housepi
         return prng_parallel_[housepi::parallel::current_thread_index()];
     }
 
-    void Setup::assert_mcmc_setup()
+    void Setup::init_mcmc_configuration(bool is_adaptive)
     {
         if (inv_T < 0. || inv_T > 1.)
             throw std::out_of_range(
@@ -403,6 +407,7 @@ namespace housepi
         n_steps = std::max(1ul, n_steps);
         n_chains = std::max(1ul, n_chains);
         n_thin = std::max(1ul, n_thin);
+        n_adapt_window = std::max(1ul, n_adapt_window);
 
         if (n_burn >= n_steps)
             throw std::out_of_range(
@@ -415,15 +420,18 @@ namespace housepi
         // adjust steps and sample size
         c_sample_size += (n_steps - n_burn) % n_thin > 0;
         n_steps = n_burn + c_sample_size * n_thin;
-    }
 
-    // Drop adaptation steps.
-    void Setup::drop_mcmc_adapt()
-    {
-        if (n_adapt > 0)
-            msg::warning(
-                "Dropped adaptation steps: no parametric MCMC proposals were found.");
-        n_adapt = 0;
+        // drop adaptation steps if nothing to adapt
+        // if burn = 0, repurpose adaptation budget as burn
+        if (!is_adaptive)
+        {
+            if (n_adapt > 0 && n_burn == 0)
+            {
+                n_burn = n_adapt;
+                n_steps += n_adapt;
+            }
+            n_adapt = 0;
+        }        
     }
 
     void Setup::prog_set_text(std::string text)

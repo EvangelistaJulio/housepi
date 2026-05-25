@@ -561,6 +561,15 @@ namespace housepi
         {
             is_any_sample_ = true;
             status_blocks_[map_status_to_block_.at(status)].sample.emplace_back(a);
+
+            // adaptive if proposal is parametric and scale is NA
+            // NOTE: user defined proposal_scale freezes the scale
+            if (deftable_["proposal"][k] != "sample" &&
+                na::is(deftable_["proposal_scale"][k]))
+            {
+                is_any_adaptive_ = true;
+                status_blocks_[map_status_to_block_.at(status)].adaptive.emplace_back(a);
+            }
         }
 
         // nothing to do if not to export
@@ -877,6 +886,10 @@ namespace housepi
     const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
     {
         return status_blocks_[member.paugm_->idx].sample;
+    }
+    const std::vector<size_t> &Augmented::list_adaptive(const Individual &member) const
+    {
+        return status_blocks_[member.paugm_->idx].adaptive;
     }
     const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
     {

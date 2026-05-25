@@ -52,7 +52,9 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$defs$const, FALSE)
   expect_equal(param$defs$discr, FALSE)
   expect_equal(param$defs$proposal, "normal")
-  expect_equal(param$defs$proposal_scale, 1)
+  # NA_real_ marks the variable as adaptive (C++ side uses NaN as sentinel).
+  # A finite proposal_scale would instead pin the scale (no adaptation).
+  expect_equal(param$defs$proposal_scale, NA_real_)
   expect_equal(param$defs$prior, "uniform")
   expect_equal(param$defs$min, "0|N")
   expect_equal(param$defs$max, "5|N")

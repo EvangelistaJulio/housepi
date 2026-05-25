@@ -1,5 +1,17 @@
 library(testthat)
 
+# Shared fixture: a freshly templated flu_1918_frederick chain-binomial model
+# and one inference run, reused across PPC tests that don't mutate either.
+local_ppc <- local({
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
+  results <- suppressWarnings(run_inference(
+    hhmodel, steps = 100, chains = 1, adapt = 0, thin = 1, progress = FALSE
+  ))
+  list(hhmodel = hhmodel, results = results)
+})
+
 test_that("measure_sar_by_house_size computes SAR correctly", {
   data_wide <- data.frame(
     id = paste0("p", 1:7),
@@ -216,10 +228,8 @@ test_that("Helper to combine observations and predictions interleaves rows", {
 })
 
 test_that("HousepiPrediction active fields are read-only", {
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
-    add_parameter_template()
-  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
+  hhmodel <- local_ppc$hhmodel
+  results <- local_ppc$results
   suppressWarnings(
     ppc <- predicted_measures(hhmodel, results,
                               sar = measure_sar_by_house_size,
@@ -241,19 +251,14 @@ test_that("HousepiPrediction active fields are read-only", {
 })
 
 test_that("Predicted-measures raises error when no measure is provided", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-    add_parameter_template()
-  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
-  expect_error(predicted_measures(hhmodel, results, progress = FALSE),
+  expect_error(predicted_measures(local_ppc$hhmodel, local_ppc$results,
+                                  progress = FALSE),
                regexp = "No measure was provided")
 })
 
 test_that("Predicted cases by house size works as expected", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-    add_parameter_template()
-
-  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
-
+  hhmodel <- local_ppc$hhmodel
+  results <- local_ppc$results
   suppressWarnings(
     ppc <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE)
   )
@@ -290,10 +295,8 @@ test_that("Predicted cases by house size works as expected", {
 
 test_that("PPC does not pollute the engine's data_wide between calls", {
   # repeated PPC calls must not mutate the model's data_wide
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
-    add_parameter_template()
-  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
+  hhmodel <- local_ppc$hhmodel
+  results <- local_ppc$results
 
   dw_before <- hhmodel$data_wide
   suppressWarnings({
@@ -337,26 +340,22 @@ test_that("ppc_observed_outside_cri flags out-of-range numeric entries", {
 })
 
 test_that("HousepiPrediction warns on observed values outside CrI", {
-  # parameter set deliberately incompatible with data: alpha and beta very
-  # large saturate transmission, so predicted SAR collapses to ~1 while the
-  # observed flu data have moderate attack rates -> outside the CrI.
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  # parameter set deliberately so that SAR~1
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
     add_parameter_template()
-  param_table <- data.frame(alpha = 50, beta = 50,
-                            gamma = 1, size_ref = 4)
+  param_table <- data.frame(alpha = 50, beta = 50, gamma = 1, size_ref = 4)
   expect_warning(
     predicted_measures(hhmodel, param_table,
                        sar = measure_sar_by_house_size,
                        progress = FALSE, thin_ess = FALSE, max_nrep = 20),
-    regexp = "Measure 'sar':.*outside the.*credible interval"
+    regexp = ".*outside.*credible interval"
   )
 })
 
 test_that("predicted_measures works with custom measure", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-    add_parameter_template()
-  results <- run_inference(hhmodel, steps = 100, progress = FALSE)
-
+  hhmodel <- local_ppc$hhmodel
+  results <- local_ppc$results
   suppressWarnings({
     ppc <- predicted_measures(hhmodel, results,
                               sar = measure_sar_by_house_size,

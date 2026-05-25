@@ -182,7 +182,9 @@ test_that("Discretization is enabled as expected", {
                      proposal = "lognormal", min = !!val$min, max = !!val$max)
   )
 
-  results <- hhmodel$run_inference()
+  results <- suppressWarnings(hhmodel$run_inference(
+    steps = 200, burn = 0, thin = 1, adapt = 0, chains = 1
+  ))
   y <- posterior::as_draws_matrix(get_parameter_draws(results))
   expect_true(all(y == floor(y)))
   expect_true(all(y >= val$min))
@@ -298,7 +300,8 @@ test_that("Nested definitions works as expected", {
     u2 = list(model = "uniform"),
     z0 = sqrt(- 2 * log(u1)) * cos(2 * pi * u2)
   )
-  results <- hhmodel$run_inference(steps = 1e5, progress = 0)
+  results <- hhmodel$run_inference(steps = 1e5, chains = 1, adapt = 0,
+                                   thin = 1, progress = 0)
   # no parameters nor priors
   expect_equal(posterior::nvariables(results$parameter_draws), 0)
   expect_equal(posterior::nvariables(results$prior_draws), 0)
@@ -359,7 +362,10 @@ test_that("Augmented traces export only relevant variables", {
     # function
     expl = list(func = "gamma", func_args = c(x = alias, shape = 3))
   )
-  result <- hhmodel$run_inference(id_draws = infec_df$id)
+  result <- suppressWarnings(hhmodel$run_inference(
+    steps = 200, burn = 0, thin = 1, adapt = 0, chains = 1,
+    id_draws = infec_df$id
+  ))
   expect_equal(
     posterior::variables(result$augmented_draws),
     paste(infec_df$id, c("layer", "alias", "alpha_beta", "expl"), sep = "_")
@@ -534,7 +540,9 @@ test_that("Parameter defined as a function tracks its dependencies", {
       gamma = list(prior = "uniform"),
       size_ref = 4
     )
-  res <- hhmodel$run_inference(steps = 2000, progress = 0)
+  res <- suppressWarnings(hhmodel$run_inference(
+    steps = 2000, chains = 1, adapt = 0, thin = 1, progress = 0
+  ))
   vars <- posterior::variables(res$parameter_draws)
   # both sampled and function-derived parameters appear in the trace
   expect_true(all(c("gamma", "beta") %in% vars))

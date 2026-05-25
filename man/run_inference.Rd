@@ -6,11 +6,11 @@
 \usage{
 run_inference(
   hhmodel,
-  steps = 200,
+  steps = 1000,
   burn = 0,
-  thin = 1,
-  adapt = 0,
-  chains = 1,
+  thin = 5,
+  adapt = 500,
+  chains = 4,
   threads = 1,
   id_draws = NULL,
   progress = TRUE
@@ -19,13 +19,16 @@ run_inference(
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{steps}{\code{integer(1)} Total number of MCMC steps per chain.}
+\item{steps}{\code{integer(1)} Number of MCMC iterations per chain.}
 
-\item{burn}{\code{integer(1)} Number of initial steps to discard.}
+\item{burn}{\code{integer(1)} Number of initial iterations within \code{steps} to
+discard before storing draws.}
 
-\item{thin}{\code{integer(1)} Number of steps to skip between samples.}
+\item{thin}{\code{integer(1)} Keep one iteration every \code{thin} after burn-in.}
 
-\item{adapt}{\code{integer(1)} Number of adaptation steps before sampling.}
+\item{adapt}{\code{integer(1)} Number of iterations to adapt proposal scales.
+They are run before \code{steps} and are not stored as draws.
+If no proposals are adaptable  and \code{burn = 0}, repurposed as burn-in instead.}
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
