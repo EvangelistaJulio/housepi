@@ -73,8 +73,8 @@ namespace housepi
 		}
 
 		/// Check for validity, then  return the quantile (inverse CDF) at probability p.
-		double quantile_safe(double p) const
-		{
+		double quantile(double p) const
+		{	
 			if (p < 0 || p > 1)
 				return na::DOUBLE;
 			if (p <= 0.)
@@ -83,7 +83,7 @@ namespace housepi
 			if (p >= 1.)
 				return upper_.is_empty() ? std::numeric_limits<double>::infinity()
 										 : relocate_(upper_.value());
-			return relocate_(raw_quantile_(p));
+			return relocate_(cast_discr_(raw_quantile_(shift_() + p * trunc_())));
 		}
 
 	protected:

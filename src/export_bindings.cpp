@@ -243,7 +243,7 @@ namespace
         MAKE_EXPOSE_METHOD_CALL(log_pdf, distr_()->log_pdf_safe(v))
         MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, distr_()->log_ratio_safe(vo, vn))
         MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
-        MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile_safe(v))
+        MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile(v))
 
         /// Sample n random draws. Seed is drawn from R's RNG so that
         /// set.seed() in R controls the result.

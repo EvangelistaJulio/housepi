@@ -779,7 +779,6 @@ namespace housepi
             helper_init_model_attributes_(member, k);
 
             // assign proposal if variable to be sampled
-            // NOTE: not necessarily according to a model
             if (!xaugm.is_constant())
                 xaugm.init_proposal(deftable_["proposal"][k],
                                     str::tod(deftable_["proposal_scale"][k]));

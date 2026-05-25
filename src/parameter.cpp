@@ -130,11 +130,10 @@ namespace housepi
         AdaptableProposal(
             const std::string &distr_name,
             double scale,
-            bool is_adaptive,
             bool is_discrete)
             : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"})),
-              user_scale_(std::fabs(scale)),
-              is_adaptive_(is_adaptive)
+              user_scale_(na::is(scale) ? 1. : std::fabs(scale)),
+              is_adaptive_(na::is(scale))
         {
             if (is_discrete)
                 pDistr_->init_discretization();
@@ -171,6 +170,16 @@ namespace housepi
         {
             return std::exp((1. - ratio) * (accept_rate - Variable::TARGET_ACCEPT_RATE));
         }
+        /// Compute InterQuartile Range (IQR) from prior distribution (Q25, Q75).
+        static std::pair<double, double> get_iqr_from_prior_(const Distribution *prior)
+        {
+            return {prior->quantile(0.25), prior->quantile(0.75)};
+        }
+        /// Wheter IQR is finite and can be used to compute initial proposal scale.
+        static bool is_iqr_finite_(double q25, double q75) noexcept 
+        {
+            return std::isfinite(q25) && std::isfinite(q75) && q75 > q25;
+        }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,8 +189,17 @@ namespace housepi
     class UniformProposal_ final : public AdaptableProposal
     {
     public:
-        UniformProposal_(double scale, bool is_adaptive, bool is_discrete)
-            : AdaptableProposal("uniform", scale, is_adaptive, is_discrete) { user_reset(); }
+        UniformProposal_(double scale, const Distribution *prior)
+            : AdaptableProposal("uniform", scale, prior->is_discrete())
+        {
+            if (is_adaptive_)
+            {
+                const auto [q25, q75] = get_iqr_from_prior_(prior);
+                if (is_iqr_finite_(q25, q75))
+                    user_scale_ = q75 - q25;
+            }
+            user_reset();
+        }
         MAKE_PROPOSAL_CLONE_METHOD(UniformProposal_)
 
         void user_reset() override final
@@ -208,8 +226,17 @@ namespace housepi
     class NormalProposal_ final : public AdaptableProposal
     {
     public:
-        NormalProposal_(double scale, bool is_adaptive, bool is_discrete)
-            : AdaptableProposal("normal", scale, is_adaptive, is_discrete) { user_reset(); }
+        NormalProposal_(double scale, const Distribution *prior)
+            : AdaptableProposal("normal", scale, prior->is_discrete())
+        {
+            if (is_adaptive_)
+            {
+                const auto [q25, q75] = get_iqr_from_prior_(prior);
+                if (is_iqr_finite_(q25, q75))
+                    user_scale_ = (q75 - q25) / 1.349;
+            }
+            user_reset();
+        }
         MAKE_PROPOSAL_CLONE_METHOD(NormalProposal_)
 
         void user_reset() override final
@@ -229,15 +256,27 @@ namespace housepi
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  *** LognormProposal_ : class ***  ////////////////////////////////
+    //////////////////////////////  *** LognormalProposal_ : class ***  ///////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class LognormProposal_ final : public AdaptableProposal
+    class LognormalProposal_ final : public AdaptableProposal
     {
     public:
-        LognormProposal_(double scale, bool is_adaptive, bool is_discrete)
-            : AdaptableProposal("lognormal", scale, is_adaptive, is_discrete) { user_reset(); }
-        MAKE_PROPOSAL_CLONE_METHOD(LognormProposal_)
+        LognormalProposal_(double scale, const Distribution *prior)
+            : AdaptableProposal("lognormal", scale, prior->is_discrete())
+        {
+            if (prior->lower().is_empty() || prior->lower().value() < 0)
+                throw std::out_of_range(
+                    "Provided a lognormal proposal for a non-positive variable.");
+            if (is_adaptive_)
+            {
+                const auto [q25, q75] = get_iqr_from_prior_(prior);
+                if (is_iqr_finite_(q25, q75))
+                    user_scale_ = std::log(q75 / q25) / 1.349;
+            }
+            user_reset();
+        }
+        MAKE_PROPOSAL_CLONE_METHOD(LognormalProposal_)
 
         void user_reset() override final
         {
@@ -248,21 +287,31 @@ namespace housepi
         void associate_location(const Attribute &other) override final
         {
             pAttr_loc_ = other.pointer();
-
-            if (pAttr_loc_)
-            {
-                propose_ = &LognormProposal_::do_propose_loc_;
-                logratio_ = &LognormProposal_::do_logratio_loc_;
-            }
-            else
-            {
-                propose_ = &LognormProposal_::do_propose_;
-                logratio_ = &LognormProposal_::do_logratio_;
-            }
+            mode_ = (pAttr_loc_) ? Location::Active : Location::None;
         };
 
-        double propose(rnd_gen &prng, double xo) const override final { return (this->*propose_)(prng, xo); }
-        double log_ratio(double xo, double xn) const override final { return (this->*logratio_)(xo, xn); }
+        double propose(rnd_gen &prng, double xo) const override final
+        {
+            switch (mode_)
+            {
+            case Location::None:
+                return xo * pDistr_->rand(prng);
+            default: // Location::Active:
+                const double loc = pAttr_loc_->value();
+                return loc + (xo - loc) * pDistr_->rand(prng);
+            }
+        }
+        double log_ratio(double xo, double xn) const override final
+        {
+            switch (mode_)
+            {
+            case Location::None:
+                return std::log(xo / xn);
+            default: // Location::Active:
+                const double loc = pAttr_loc_->value();
+                return std::log((xo - loc) / (xn - loc));
+            }
+        }
 
         /// Adapt log of standard deviation.
         void adapt(double accept_rate, double ratio) override final
@@ -271,71 +320,13 @@ namespace housepi
         }
 
     private:
+        enum class Location : std::uint8_t
+        {
+            None,
+            Active
+        } mode_ = Location::None;
         const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location
-
-        double (LognormProposal_::*propose_)(rnd_gen &, double) const = &LognormProposal_::do_propose_;
-        double do_propose_(rnd_gen &prng, double xo) const { return xo * pDistr_->rand(prng); }
-        double do_propose_loc_(rnd_gen &prng, double xo) const
-        {
-            const double loc = pAttr_loc_->value();
-            return loc + (xo - loc) * pDistr_->rand(prng);
-        }
-
-        double (LognormProposal_::*logratio_)(double, double) const = &LognormProposal_::do_logratio_;
-        double do_logratio_(double xo, double xn) const { return std::log(xo / xn); }
-        double do_logratio_loc_(double xo, double xn) const
-        {
-            const double loc = pAttr_loc_->value();
-            return std::log((xo - loc) / (xn - loc));
-        }
     };
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  proposal switch  //////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Switchboard to select the custom metropolis proposal.
-    std::unique_ptr<Proposal> proposal_switch(
-        const std::string &name,
-        double scale,
-        bool is_adaptive,
-        bool is_discrete)
-    {
-        const std::vector<std::string> options = {"sample", "uniform", "normal", "lognormal"};
-
-        if (name == "uniform")
-            return std::make_unique<UniformProposal_>(scale, is_adaptive, is_discrete);
-
-        if (name == "normal")
-            return std::make_unique<NormalProposal_>(scale, is_adaptive, is_discrete);
-
-        if (name == "lognormal")
-            return std::make_unique<LognormProposal_>(scale, is_adaptive, is_discrete);
-
-        throw std::invalid_argument(
-            "Unknown proposal '" + name + "'." + str::find_closest(name, options));
-    }
-
-    /// Prior-aware initial value for the proposal scale. Fallback to 1.
-    double proposal_initial_scale_switch(
-        const std::string &name, const Distribution *distr)
-    {
-        if (distr)
-        {
-            const double q25 = distr->quantile_safe(0.25);
-            const double q75 = distr->quantile_safe(0.75);
-            if (std::isfinite(q25) && std::isfinite(q75) && q75 > q25)
-            {
-                if (name == "normal")
-                    return (q75 - q25) / 1.349;
-                else if (name == "uniform")
-                    return q75 - q25;
-                else if (name == "lognormal" && q25 > 0.)
-                    return std::log(q75 / q25) / 1.349;
-            }
-        }
-        return 1.;
-    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -454,11 +445,20 @@ namespace housepi
         }
     }
 
+    void Variable::helper_init_null_proposal_()
+    {
+        // assign the pointer to the proposal
+        pProp_ = std::make_unique<NullProposal_>();
+
+        // setup sample proposal functional methods
+        ratio_mode_ = Ratio::None;
+        valid_mode_ = Validity::Always;
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////  Variable : Setter (Proposal)  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // FIXME: the logic flow can be improved...
     void Variable::init_proposal(const std::string &proposal, double scale)
     {
         if (mode_ != Mode::Empty && mode_ != Mode::Numeric)
@@ -477,43 +477,30 @@ namespace housepi
             helper_init_monte_carlo_proposal_(proposal, scale);
     }
 
-    void Variable::helper_init_null_proposal_()
-    {
-        // assign the pointer to the proposal
-        pProp_ = std::make_unique<NullProposal_>();
-
-        // setup sample proposal functional methods
-        ratio_mode_ = Ratio::None;
-        valid_mode_ = Validity::Always;
-    }
-
     void Variable::helper_init_sample_proposal_()
     {
-        // assign the pointer to the proposal
         pProp_ = std::make_unique<SampleProposal_>(pDistr_.get());
-
-        // setup sample proposal functional methods
         ratio_mode_ = Ratio::None;
         valid_mode_ = Validity::Always;
     }
 
     void Variable::helper_init_monte_carlo_proposal_(const std::string &proposal, double scale)
     {
-        // raise a warning if "lnorm" proposal when variable can be negative
-        if (pDistr_ && proposal == "lnorm" &&
-            !pDistr_->lower().is_empty() && pDistr_->lower().value() < 0)
-            msg::warning(
-                "Provided a lognormal proposal for non-positive " + err_name() + ".");
+        const Distribution *prior = pDistr_.get();
 
-        // select proposal and initialize adaptive configuration
-        const bool is_adaptive = na::is(scale);
-        if (is_adaptive)
-            scale = proposal_initial_scale_switch(proposal, pDistr_.get());
-        pProp_ = proposal_switch(proposal, scale, is_adaptive, is_discrete());
+        const std::vector<std::string> options = {"uniform", "normal", "lognormal", "sample"};
+        if (proposal == options[0])
+            pProp_ = std::make_unique<UniformProposal_>(scale, prior);
+        else if (proposal == options[1])
+            pProp_ = std::make_unique<NormalProposal_>(scale, prior);
+        else if (proposal == options[2])
+            pProp_ = std::make_unique<LognormalProposal_>(scale, prior);
+        else
+            throw std::invalid_argument(
+                "Unknown proposal '" + proposal + "'." + str::find_closest(proposal, options));
 
-        // set modes
         ratio_mode_ = Ratio::Compute;
-        valid_mode_ = pDistr_ ? Validity::Check : Validity::Always;
+        valid_mode_ = Validity::Check;
     }
 
     void Variable::user_reset(rnd_gen &prng)
