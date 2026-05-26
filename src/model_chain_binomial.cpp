@@ -41,13 +41,10 @@ public:
 	/// Allow for contact rate definitions.
 	bool has_contact_rates() const override final { return true; }
 
-	/// Initialize the LookUp Tables to largest possible values.
-	/// NOTE: missing status are not modeled.
 	void init_model_for_evaluation() override final
 	{
 		assert_no_missing_status();
-		/// UPDATE: is this actually used?
-		bino::init_generations_lookuptable(get_max_hh_cases());
+		chbi::clear_lookuptables();
 	}
 
 	/// Initialize hosuehold for evaluation
@@ -59,7 +56,7 @@ public:
 
 		// initialize internal order for house escape matrix
 		// ordered members : 1) infectious, 2) susceptibles
-		auto &order = cache_size_vector(house, HHsizevecKey::order);
+		auto &order = cache_uint_vector(house, HHsizevecKey::order);
 		order.clear();
 		order.reserve(house.size());
 		order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
@@ -70,16 +67,16 @@ public:
 		///////////////////////////////////////
 
 		// associate infected integer-partition
-		const size_t n_infec = house.n_infected_status();
-		std::vector<size_t> partition_indexes = {};	 // representatives
-		std::vector<unsigned> partition_counts = {}; // counts
+		const unsigned n_infec = static_cast<unsigned>(house.n_infected_status());
+		std::vector<unsigned> partition_indexes = {}; // representatives
+		std::vector<unsigned> partition_counts = {};  // counts
 
 		// UPDATE: I will move this in a ModelBase helper function
-		for (size_t oi = 0; oi < n_infec; ++oi)
+		for (unsigned oi = 0; oi < n_infec; ++oi)
 		{
 			// search existing partitions for a match
-			size_t K = partition_indexes.size(); // tentatively new
-			for (size_t oj = 0; oj < K; ++oj)
+			unsigned K = static_cast<unsigned>(partition_indexes.size()); // tentatively new
+			for (unsigned oj = 0; oj < K; ++oj)
 				if (is_same_rate_partition(house, order[partition_indexes[oj]], order[oi]))
 					K = oj; // this acts as a break
 
@@ -103,13 +100,20 @@ public:
 		}
 
 		// store in the cache
-		size_t K = partition_indexes.size(); // n. of infected partitions
-		for (size_t i = 0; i < K; ++i)
+		unsigned K = static_cast<unsigned>(partition_indexes.size());
+		for (unsigned i = 0; i < K; ++i)
 		{
-			cache_size_vector(house, HHsizevecKey::part_counts)[i] = partition_counts[i];
-			cache_size_vector(house, HHsizevecKey::part_indexes)[i] = partition_indexes[i];
+			cache_uint_vector(house, HHsizevecKey::part_counts)[i] = partition_counts[i];
+			cache_uint_vector(house, HHsizevecKey::part_indexes)[i] = partition_indexes[i];
 		}
-		cache_size(house, HHsizeKey::num_parts) = K;
+		cache_uint(house, HHsizeKey::num_parts) = K;
+
+		if (K <= 1 && n_infec > 1)
+			chbi::ensure_homogeneous(n_infec);
+		else if (K > 1 && K < n_infec)
+			chbi::ensure_partitioned(
+				house.eq_class(),
+				{partition_counts.begin(), partition_counts.begin() + K});
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +137,7 @@ public:
 	void fill_house_escape_matrix(Household &house)
 	{
 		size_t house_size = house.size();
-		const auto &order = cache_size_vector(house, HHsizevecKey::order);
+		const auto &order = cache_uint_vector(house, HHsizevecKey::order);
 		const double commu_rate = community_risk();
 		const double p2p_rate = person_to_person_risk(house_size);
 
@@ -179,11 +183,11 @@ public:
 		// fill per-individual escape rate matrices
 		fill_house_escape_matrix(house);
 
-		return bino::chain_binom_log_lik(
-			house.n_infected_status(),
-			cache_size(house, HHsizeKey::num_parts),
-			cache_size_vector(house, HHsizevecKey::part_counts),
-			cache_size_vector(house, HHsizevecKey::part_indexes),
+		return chbi::chain_binom_log_lik(
+			house.eq_class(),
+			static_cast<unsigned>(house.n_infected_status()),
+			cache_uint(house, HHsizeKey::num_parts),
+			cache_uint_vector(house, HHsizevecKey::part_indexes),
 			cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
 			cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
 	}

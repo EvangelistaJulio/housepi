@@ -11,7 +11,6 @@
 #include <string>
 
 #include "tools/types.h"
-
 #include "mcmc_base.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,14 +127,14 @@ namespace housepi
 		double infec_profile_inst(const Individual &i, double t) const { return mcmc_->infec_profile.inst(&i, t); }
 		double infec_profile_cumul(const Individual &i, double t) const { return mcmc_->infec_profile.cumul(&i, t); }
 
-		/// Return reference to cached size_t value.
-		size_t &cache_size(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_size(house, e); }
-		/// Return cached size_t value.
-		size_t cache_size(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_size(house, e); }
+		/// Return reference to cached unsigned value.
+		unsigned &cache_uint(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_uint(house, e); }
+		/// Return cached unsigned value.
+		unsigned cache_uint(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_uint(house, e); }
 
-		/// Return cached size_t vector.
-		std::vector<size_t> &cache_size_vector(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_size_vector(house, e); }
-		const std::vector<size_t> &cache_size_vector(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_size_vector(house, e); }
+		/// Return cached unsigned vector.
+		std::vector<unsigned> &cache_uint_vector(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_uint_vector(house, e); }
+		const std::vector<unsigned> &cache_uint_vector(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_uint_vector(house, e); }
 
 		/// Return cached double vector.
 		std::vector<double> &cache_double_vector(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_double_vector(house, e); }

@@ -10,23 +10,29 @@
 #include <string>
 #include <vector>
 
-namespace housepi::bino
+namespace housepi::chbi
 {
-    /// Functions for the generations lookup table.
-    void init_generations_lookuptable(unsigned max_N);
+    /// Clear all lookup tables between successive evaluations.
+    void clear_lookuptables();
+
+    /// Ensure homogeneous generation tables are available up to n infected.
+    void ensure_homogeneous(unsigned n);
+
+    /// Pre-build and store the partition tree for equivalence class idx.
+    void ensure_partitioned(size_t idx, const std::vector<unsigned> &type_counts);
 
     /// Chain binomial log-likelihood dispatcher.
     ///
     /// Routes to the cheapest algorithm consistent with the partition:
     /// `n_parts == 1` with uniform rates → closed-form homogeneous;
     /// `n_parts == n_infec` → bitmask DP heterogeneous;
-    /// otherwise → multitype final-size DP (grouped).
+    /// otherwise → multitype partition tree (grouped), looked up by dp_idx.
     double chain_binom_log_lik(
-        size_t n_infec, size_t n_parts,
-        const std::vector<size_t> &part_counts,
-        const std::vector<size_t> &part_indexes,
-        const std::vector<double> &commu_esc_rate,
-        const std::vector<std::vector<double>> &p2p_esc_rate);
+        size_t dp_idx,
+        unsigned n_infec, unsigned n_parts,
+        const std::vector<unsigned> &part_indexes,
+        const std::vector<double> &commu_infec_rate,
+        const std::vector<std::vector<double>> &p2p_infec_rate);
 
     /// Symbolic chain-binomial polynomial for debugging.
     /// @param max_n_infec number of seropositives (< 8)

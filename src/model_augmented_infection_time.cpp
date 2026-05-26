@@ -56,7 +56,7 @@ public:
 	/// Initialize household introduction case evaluation (fixed for single infector).
 	void init_house_for_evaluation(Household &house) override final
 	{
-		cache_size(house, HHsizeKey::intro_case) = helper_get_intro_case(house);
+		cache_uint(house, HHsizeKey::intro_case) = helper_get_intro_case(house);
 	}
 
 	/// Helper to get house index of introduction case, i. e. earliest infection.
@@ -103,7 +103,7 @@ public:
 	/// Compute the log-likelihood within household.
 	double compute_house_obs_log_lik(Household &house) override final
 	{
-		const size_t i0 = cache_size(house, HHsizeKey::intro_case);
+		const size_t i0 = cache_uint(house, HHsizeKey::intro_case);
 		const Individual &member_0 = house.member(i0);
 		const double t_intro = member_0.aug(AugmKey::infec_time);
 
@@ -224,7 +224,7 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
-		size_t &i0 = cache_size(house, HHsizeKey::intro_case);
+		unsigned &i0 = cache_uint(house, HHsizeKey::intro_case);
 		double new_t0 = 100000;
 
 		size_t n_infec = house.n_infected_status();
@@ -276,7 +276,7 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
-		size_t &i0 = cache_size(house, HHsizeKey::intro_case); // set index to current member
+		unsigned &i0 = cache_uint(house, HHsizeKey::intro_case); // set index to current member
 
 		const size_t i = member_i.hhindex();
 		const double t_infec_i = member_i.aug(AugmKey::infec_time);

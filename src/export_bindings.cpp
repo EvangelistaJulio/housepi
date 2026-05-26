@@ -690,7 +690,7 @@ namespace
         // household total
         count[4] = report_house.total;
         percent[4] = 100.;
-        // household distinct
+        // household equivalence classes
         count[5] = report_house.distinct;
         percent[5] = 100.;
         // household no cases
@@ -863,7 +863,7 @@ namespace
         // Identity case (n_classes == n_houses) is naturally a no-op.
         Rcpp::List cols(n_houses);
         for (size_t H = 0; H < n_houses; ++H)
-            cols[H] = class_cols[data_wide.get_restricted_index(H)];
+            cols[H] = class_cols[data_wide.get_eq_class(H)];
 
         cols.attr("names") = Rcpp::wrap(post.house_names);
         helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
@@ -1575,7 +1575,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("count_non_zero_cases", &count_non_zero_cases);
 
     Rcpp::function("auxiliary_chain_binomial_debugger",
-                   &housepi::bino::auxiliary_chain_binomial_debugger);
+                   &housepi::chbi::auxiliary_chain_binomial_debugger);
 
     Rcpp::function("new_model", &new_model);
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);

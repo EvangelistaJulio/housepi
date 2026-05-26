@@ -109,8 +109,8 @@ namespace housepi
         const std::vector<std::string> &double_vec_keys,
         const std::vector<std::string> &double_mtx_keys)
     {
-        khold_size_val.init(size_keys);
-        khold_size_vec.init(size_vec_keys);
+        khold_uint_val.init(size_keys);
+        khold_uint_vec.init(size_vec_keys);
         khold_double_vec.init(double_vec_keys);
         khold_double_mtx.init(double_mtx_keys);
     }
@@ -118,8 +118,8 @@ namespace housepi
     void DataWide::build(const str_table &input)
     {
         khold_.clear_optional();
-        khold_size_val.clear_optional();
-        khold_size_vec.clear_optional();
+        khold_uint_val.clear_optional();
+        khold_uint_vec.clear_optional();
         khold_double_vec.clear_optional();
         khold_double_mtx.clear_optional();
 
@@ -346,23 +346,23 @@ namespace housepi
         };
     }
 
-    void DataWide::set_frequency_covariates(const std::vector<std::string> &data_list)
+    void DataWide::set_eq_class_data_names(const std::vector<std::string> &data_list)
     {
         for (size_t d : khold_.from_string(data_list))
-            frequencies_data_.emplace(d);
+            eq_class_covariates_.emplace(d);
     }
 
-    void DataWide::init_frequencies(bool force_unique)
+    void DataWide::init_eq_classes(bool force_unique)
     {
         if (force_unique)
         {
-            helper_init_unique_frequencies_();
+            helper_init_unique_eq_classes_();
             return;
         }
 
         // compute frequency-relevant hash for each household
         std::map<size_t, std::vector<size_t>> hash_groups =
-            FrequencyMapper_(frequencies_data_).define_hash_groups(house_vector_);
+            FrequencyMapper_(eq_class_covariates_).define_hash_groups(house_vector_);
 
         // update number of distinct frequency groups
         report_house.distinct = hash_groups.size();
@@ -370,35 +370,35 @@ namespace housepi
         // init all unique households and skip if it's the case
         if (report_house.total == report_house.distinct)
         {
-            helper_init_unique_frequencies_();
+            helper_init_unique_eq_classes_();
             return;
         }
 
         // compute frequency heads and weights
-        frequencies_.clear();
-        frequencies_.reserve(report_house.distinct);
+        eq_classes_.clear();
+        eq_classes_.reserve(report_house.distinct);
         for (const auto &[hash, group] : hash_groups)
         {
-            const size_t refer_restrict = frequencies_.size();
+            const size_t refer_restrict = eq_classes_.size();
             for (size_t H : group)
-                at(H).ridx_ = refer_restrict;
+                at(H).eq_class_ = refer_restrict;
 
-            frequencies_.emplace_back(group);
+            eq_classes_.emplace_back(group);
         }
     }
 
-    void DataWide::helper_init_unique_frequencies_()
+    void DataWide::helper_init_unique_eq_classes_()
     {
         // skip if already unique equivalence classes
-        if (frequencies_.size() == report_house.total)
+        if (eq_classes_.size() == report_house.total)
             return;
 
-        frequencies_.clear();
-        frequencies_.resize(report_house.total);
+        eq_classes_.clear();
+        eq_classes_.resize(report_house.total);
         for (size_t H = 0; H < report_house.total; ++H)
         {
-            frequencies_[H].head_ = H;
-            at(H).ridx_ = H;
+            eq_classes_[H].head_ = H;
+            at(H).eq_class_ = H;
         }
     }
 
@@ -408,29 +408,29 @@ namespace housepi
 
     void DataWide::allocate_all_cache()
     {
-        cached_.previous.resize(distinct_size());
-        cached_.current.resize(distinct_size());
+        cached_.previous.resize(eq_class_size());
+        cached_.current.resize(eq_class_size());
 
-        for (size_t M = 0; M < distinct_size(); ++M)
+        for (size_t M = 0; M < eq_class_size(); ++M)
         {
-            Household &house = distinct_head(M);
+            Household &house = eq_class_head(M);
             size_t hh_size = house.size();
             Cached_::State_ &prev = cached_.previous[M];
             Cached_::State_ &curr = cached_.current[M];
 
             // size_t
-            size_t s_size = khold_size_val.size();
-            curr.size_val.assign(s_size, 0);
-            prev.size_val.assign(s_size, 0);
+            size_t s_size = khold_uint_val.size();
+            curr.uint_val.assign(s_size, 0);
+            prev.uint_val.assign(s_size, 0);
 
             // size_t vector
-            size_t s_size_vec = khold_size_vec.size();
-            curr.size_vec.resize(s_size_vec);
-            prev.size_vec.resize(s_size_vec);
+            size_t s_size_vec = khold_uint_vec.size();
+            curr.uint_vec.resize(s_size_vec);
+            prev.uint_vec.resize(s_size_vec);
             for (size_t e = 0; e < s_size_vec; ++e)
             {
-                curr.size_vec[e].assign(hh_size, 0);
-                prev.size_vec[e].assign(hh_size, 0);
+                curr.uint_vec[e].assign(hh_size, 0);
+                prev.uint_vec[e].assign(hh_size, 0);
             }
 
             // double vector
@@ -457,12 +457,12 @@ namespace housepi
 
     void DataWide::save_member_cache(Household &house, size_t i)
     {
-        Cached_::State_ &prev = cached_.previous[house.ridx_];
-        Cached_::State_ &curr = cached_.current[house.ridx_];
-        prev.size_val = curr.size_val;
+        Cached_::State_ &prev = cached_.previous[house.eq_class_];
+        Cached_::State_ &curr = cached_.current[house.eq_class_];
+        prev.uint_val = curr.uint_val;
 
-        for (size_t e = 0; e < curr.size_vec.size(); ++e)
-            prev.size_vec[e][i] = curr.size_vec[e][i];
+        for (size_t e = 0; e < curr.uint_vec.size(); ++e)
+            prev.uint_vec[e][i] = curr.uint_vec[e][i];
 
         for (size_t e = 0; e < curr.dbl_vec.size(); ++e)
             prev.dbl_vec[e][i] = curr.dbl_vec[e][i];
@@ -478,12 +478,12 @@ namespace housepi
 
     void DataWide::recover_member_old_cached(Household &house, size_t i)
     {
-        Cached_::State_ &prev = cached_.previous[house.ridx_];
-        Cached_::State_ &curr = cached_.current[house.ridx_];
-        curr.size_val.swap(prev.size_val);
+        Cached_::State_ &prev = cached_.previous[house.eq_class_];
+        Cached_::State_ &curr = cached_.current[house.eq_class_];
+        curr.uint_val.swap(prev.uint_val);
 
-        for (size_t e = 0; e < prev.size_vec.size(); ++e)
-            curr.size_vec[e][i] = prev.size_vec[e][i];
+        for (size_t e = 0; e < prev.uint_vec.size(); ++e)
+            curr.uint_vec[e][i] = prev.uint_vec[e][i];
 
         for (size_t e = 0; e < prev.dbl_vec.size(); ++e)
             curr.dbl_vec[e][i] = prev.dbl_vec[e][i];
@@ -503,26 +503,26 @@ namespace housepi
 
     void DataWide::assert_finite_log_lik(bool is_any_augm) const
     {
-        for (size_t M = 0; M < distinct_size(); ++M)
+        for (size_t M = 0; M < eq_class_size(); ++M)
         {
-            const Household &house = distinct_head(M);
+            const Household &house = eq_class_head(M);
 
             if (is_any_augm)
                 for (size_t i : house.infected_hhindexes())
                     if (house.member(i).paugm_->log_lik.is_inf())
                         throw std::runtime_error(
-                            "Initial augmented log-likelihood computation returned infinity for " +
+                            "Initial augmented log-likelihood returned infinity for " +
                             house.member(i).err_name() + ".");
 
             if (house.obs_log_lik_.is_inf())
                 throw std::runtime_error(
-                    "Initial log-likelihood computation returned infinity for " + house.err_name() + ".");
+                    "Initial log-likelihood returned infinity for " + house.err_name() + ".");
         }
     }
 
     double DataWide::house_log_lik(size_t M, bool is_any_augm) const
     {
-        const Household &house = distinct_head(M);
+        const Household &house = eq_class_head(M);
         double x = house.obs_log_lik();
         if (is_any_augm)
             for (size_t i : house.infected_hhindexes())

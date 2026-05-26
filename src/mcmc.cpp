@@ -102,9 +102,8 @@ namespace housepi
             const DataWide &data_wide,
             unsigned long sample_size)
         {
-            size_t n_restricted = data_wide.distinct_size();
-            post->house_log_lik.reserve(n_restricted);
-            for (size_t R = 0; R < n_restricted; ++R)
+            post->house_log_lik.reserve(data_wide.eq_class_size());
+            for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
                 post->house_log_lik.emplace_back(sample_size, na::DOUBLE);
 
             size_t n_houses = data_wide.report_house.total;
@@ -194,7 +193,7 @@ namespace housepi
             // household log-likelihoods
             const DataWide &data_wide = mcmc.data_wide();
             const bool is_any_augm = mcmc.augm.is_any_sample();
-            for (size_t R = 0; R < data_wide.distinct_size(); ++R)
+            for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
                 house_log_lik[R][count_] = data_wide.house_log_lik(R, is_any_augm);
 
             // augmented variable draws
@@ -299,7 +298,7 @@ namespace housepi
         if (!force_unique && augm.list_export.size() == 0)
             force_unique = augm.khold().size() > 0;
 
-        data_wide().init_frequencies(force_unique);
+        data_wide().init_eq_classes(force_unique);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -348,9 +347,9 @@ namespace housepi
         tot_log_lik.recover();
 
         // recover old log-likelihood values for households
-        for (size_t M = 0; M < data_wide().distinct_size(); ++M)
+        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
         {
-            Household &house = data_wide().distinct_head(M);
+            Household &house = data_wide().eq_class_head(R);
             house.obs_log_lik_.recover();
 
             if (augm.is_any_sample())
@@ -460,7 +459,7 @@ namespace housepi
     {
         data_wide().assert_not_all_missing_status();        // warn if all missing status
         augm.init();                                        // initialize individual augmented relations
-        data_wide().init_frequencies(augm.is_any_sample()); // frequency
+        data_wide().init_eq_classes(augm.is_any_sample()); // frequency
 
         if (is_reset)
         {
@@ -471,8 +470,8 @@ namespace housepi
         model->init_model_for_evaluation(); // user initialization of model for inference
         data_wide().allocate_all_cache();   // allocate all cache dependencies
 
-        for (size_t M = 0; M < data_wide().distinct_size(); ++M)
-            model->init_house_for_evaluation(data_wide().distinct_head(M));
+        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
+            model->init_house_for_evaluation(data_wide().eq_class_head(R));
     }
 
     double MCMC::commit_house_log_lik_(Household &house, bool is_cache_depen)
@@ -511,11 +510,11 @@ namespace housepi
         }
 
         double new_ll = housepi::parallel::for_reduce_sum(
-            data_wide().distinct_size(),
-            [&](size_t M) -> double
+            data_wide().eq_class_size(),
+            [&](size_t R) -> double
             {
-                Household &house = data_wide().distinct_head(M);
-                return data_wide().frequency_weight(M) *
+                Household &house = data_wide().eq_class_head(R);
+                return data_wide().eq_class_weight(R) *
                        commit_house_log_lik_(house, is_cache_depen);
             });
         tot_log_lik.set(new_ll);

@@ -146,8 +146,7 @@ namespace housepi
             max_unique *= count;
         unique_groups_.reserve(max_unique);
 
-        // set headers to be frequency-relevant
-        data_wide.set_frequency_covariates(data_headers);
+        data_wide.set_eq_class_data_names(data_headers);
 
         return data_headers;
     }
@@ -326,11 +325,10 @@ namespace housepi
         // load contact rate definitions
         ContactDefinitions_ defs(input, data_wide);
 
-        // set headers to be frequency-relevant
-        data_wide.set_frequency_covariates(defs.data);
+        data_wide.set_eq_class_data_names(defs.data);
 
         // loop over all households
-        // UPDATE: this should be just over distinct_head households.
+        // UPDATE: this should be just over eq_class_head households.
         house_contact_rates_.resize(data_wide.report_house.total);
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
         {

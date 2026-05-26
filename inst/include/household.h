@@ -106,12 +106,13 @@ namespace housepi
 		const std::string &house_id() const noexcept { return house_id_; }
 		std::string err_name() const { return "household '" + house_id_ + "'"; }
 		size_t size() const noexcept { return house_size_; }
+		size_t eq_class() const noexcept { return eq_class_; }
 
 	private:
-		std::string house_id_ = "";						/// User house id
-		size_t ridx_ = -1;								/// Restricted unique index
-		std::vector<Individual> members_ = {};			/// Household members
-		size_t house_size_ = 0;							/// Number of household members
+		std::string house_id_ = "";						/// user house id
+		size_t eq_class_ = -1;							/// equivalence class index for likelihood deduplication
+		std::vector<Individual> members_ = {};			/// household members
+		size_t house_size_ = 0;							/// number of household members
 		std::vector<size_t> infected_list_;				/// hh indexes of infected members
 		std::vector<size_t> healthy_list_;				/// hh indexes of susceptible members
 		std::vector<size_t> missing_list_;				/// hh indexes of members with missing status

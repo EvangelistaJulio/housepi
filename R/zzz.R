@@ -27,6 +27,7 @@ NULL
 
 .engine <- NULL
 
+# nocov start
 .onLoad <- function(libname, pkgname) {
   pkgbuild::check_build_tools(quiet = TRUE)
   .engine <<- Rcpp::Module(pkgname, PACKAGE = pkgname)
@@ -35,3 +36,4 @@ NULL
 .onUnload <- function(libpath) {
   library.dynam.unload("housepi", libpath)
 }
+# nocov end
