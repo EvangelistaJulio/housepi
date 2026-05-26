@@ -31,7 +31,7 @@ Corresponding data columns have to be categorical.}
 
 \item{reference}{named \code{list} Covariates associated to reference group.
 Pass \code{".none"} to disable reference, giving every rate its own parameter.
-Default is the group with the largest sample size.}
+Default reference group is the one with the largest sample size.}
 
 \item{joint}{\code{logical(1)} Treat covariates as joint.
 If \code{FALSE}, covariates are independent (default).}
@@ -56,16 +56,17 @@ Ignored if automatic definition.}
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item \code{"sample"}: sampled from the \%s distribution;
 \item \code{"uniform"}: increments drawn from uniform;
 \item \code{"normal"}: increments drawn from normal;
 \item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{NA} (default): same as \code{"sample"}.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{NA}: same as \code{"sample"} (default).
 }}
 
-\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
-Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is \code{"sample"}.}
+\item{proposal_scale}{\code{numeric(1)} Scale of the proposal.
+If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
+If a positive numeric, scale is fixed to that value and never adapted.
+Ignored when proposal is \code{"sample"}.}
 
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA} uses the first 3 letters of rate name (default).}
 }

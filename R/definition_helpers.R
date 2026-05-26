@@ -1,6 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
 ##
-## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
 ## Distributed under the terms of the GNU General Public License (GPLv3).
 ## See the LICENSE file for details.
 ##
@@ -174,7 +174,9 @@ helper_variable_move <- function(opts, family, proposal_scale) {
       sprintf("No %s to sample from for %s '%s'.", col_model, family, opts$name)
     )
     if (opts$proposal != "sample")  {
-      if (is.na(proposal_scale)) opts$proposal_scale <- 1
+      # NA proposal scale: adaptive
+      # user defined proposal scale disables adaptation
+      if (is.na(proposal_scale)) opts$proposal_scale <- NA_real_
       else if (is.numeric(proposal_scale) &&
                  proposal_scale > 0) opts$proposal_scale <- proposal_scale
       else stop_h("Proposal scale must be a numeric greater than 0.")

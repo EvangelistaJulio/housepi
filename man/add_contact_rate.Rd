@@ -57,18 +57,19 @@ Ignored if automatic definition.}
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
 \itemize{
-\item \code{"sample"}: sampled from the \%s distribution;
 \item \code{"uniform"}: increments drawn from uniform;
 \item \code{"normal"}: increments drawn from normal;
 \item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{NA} (default): same as \code{"sample"}.
+\item \code{"sample"}: sampled from the \%s distribution;
+\item \code{NA}: same as \code{"sample"} (default).
 }}
 
-\item{proposal_scale}{\code{numeric(1)} Scale of the proposal (default is \code{1}).
-Changed automatically during inference if \code{n_adapt}>0.
-Ignored if proposal is \code{"sample"}.}
+\item{proposal_scale}{\code{numeric(1)} Scale of the proposal.
+If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
+If a positive numeric, scale is fixed to that value and never adapted.
+Ignored when proposal is \code{"sample"}.}
 
-\item{prefix}{\code{character(1)} Prefix to names of associated parameters. Default is \code{"ctr"}.}
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

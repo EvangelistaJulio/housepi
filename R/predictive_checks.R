@@ -1,6 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
 ##
-## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
 ## Distributed under the terms of the GNU General Public License (GPLv3).
 ## See the LICENSE file for details.
 ##
@@ -216,13 +216,15 @@ HousepiPrediction <- R6::R6Class(
         mismatch <- ppc_observed_outside_cri(self[[m]]$observed,
                                              self[[m]]$cri_lower,
                                              self[[m]]$cri_upper)
-        n_bad <- sum(unlist(mismatch))
-        if (n_bad > 0) {
+        len_bad <- sum(unlist(mismatch))
+        if (len_bad > 0) {
           all_within <- FALSE
           warn_h(sprintf(
-            paste0("Measure '%s': %d observed value%s outside ",
-                   "the %.0f%% credible interval."),
-            m, n_bad, as_plural(seq_len(n_bad)), 100 * private$cri_level_
+            "%s observed %s outside %.0f%% credible interval for measure %s.",
+            format_there_were_was(len_bad),
+            as_plural("value", len_bad),
+            100 * private$cri_level_,
+            m
           ))
         }
       }
@@ -386,11 +388,12 @@ HousepiPrediction <- R6::R6Class(
         )
         # make read-only active bindings
         local({
+          m_name <- mn
           setter <- function(value) {
-            if (!missing(value)) stop_read_only(mn)
-            private$measures_[[mn]]
+            if (!missing(value)) stop_read_only(m_name)
+            private$measures_[[m_name]]
           }
-          makeActiveBinding(mn, setter, self)
+          makeActiveBinding(m_name, setter, self)
         })
       }
       # store decorations for print and read-only access

@@ -1,6 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
 ##
-## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
 ## Distributed under the terms of the GNU General Public License (GPLv3).
 ## See the LICENSE file for details.
 ##
@@ -123,8 +123,7 @@ HousepiModel <- R6::R6Class(
       if (has_defs && !.engine$has_contact_rates(private$generator_$mcmc_ptr)) {
         self$drop_contact_rates()
         stop_h(
-          sprintf("Contact rates are not supported for model '%s'.",
-                  self$name),
+          sprintf("Contact rates are not supported for model '%s'.", self$name),
           "Definitions will be dropped."
         )
       }
@@ -690,7 +689,8 @@ HousepiModel <- R6::R6Class(
           fmt_assert_cli(
             "Contact rates",
             if (!private$contact_rates_$assert()) c(
-              "Using default contact rates.", "A custom choice can be provided."
+              "Using default contact rates.",
+              "A custom choice can be provided."
             )
             else NULL,
             minor = TRUE
@@ -703,7 +703,8 @@ HousepiModel <- R6::R6Class(
         fmt_assert_cli(
           "Infectivity profile",
           if (length(private$infec_profile_$showcase()) == 0) c(
-            "Using templated profile. A custom choice can be provided."
+            "Using templated profile.",
+            "A custom choice can be provided."
           )
           else NULL,
           minor = TRUE
@@ -1006,9 +1007,9 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param progress `r rd_progress_`
     #' @return An object of class `HousepiPosteriorDraws`.
-    run_inference = function(steps = 200, burn = 0,
-                             thin = 1, adapt = 0,
-                             chains = 1, threads = 1,
+    run_inference = function(steps = 1000, burn = 0,
+                             thin = 5, adapt = 500,
+                             chains = 4, threads = 1,
                              id_draws = NULL,
                              progress = TRUE) {
       private$assert_posterior_memory_(steps = steps, burn = burn,

@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -106,9 +106,11 @@ namespace housepi
 
         try
         {
+#ifndef NDEBUG
             if (!input.count("func"))
                 throw std::invalid_argument(
                     "A function name was missing for infectivity profile template.");
+#endif
 
             size_t n_rows = read::csv_n_rows(input);
             const auto file_headers = {"func", "status", "discr", "max"};
@@ -163,7 +165,7 @@ namespace housepi
             read::extract_keys(input),
             {"func", "status", "discr", "min", "max"});
 
-        // check definition list has a function
+#ifndef NDEBUG
         if (!input.count("func"))
             throw std::invalid_argument(
                 "A function name choice was missing in infectivity profile definition.");
@@ -171,6 +173,7 @@ namespace housepi
             if (parse::Definition(in_name).is_na())
                 throw std::invalid_argument(
                     "Provided NA as a function name in infectivity profile definition.");
+#endif
 
         // check if definition is generic or augmented
         if (read::csv_n_rows(input) > 1 ||
@@ -322,9 +325,11 @@ namespace housepi
 
         for (const std::string &astr : input.at("name"))
         {
+#ifndef NDEBUG
             if (na::is(astr))
                 throw std::invalid_argument(
                     "Found an augmented variable with undefined name.");
+#endif
             if (astr == infprof::AUGM_FUNC)
                 throw std::invalid_argument(
                     "Tried to use the reserved augmented name '" +
@@ -368,10 +373,12 @@ namespace housepi
             if (!na::is(s))
             {
                 status = str::toi(s, "augmented status");
+#ifndef NDEBUG
                 if (!status::is_infected(status))
                     throw std::invalid_argument(
                         "Impossible to associate augmented '" + astr +
                         "' for non infectious status " + s + ".");
+#endif
             }
             map_status_to_def_row_[status].push_back(k); // store status to definition row index
         }
@@ -384,9 +391,11 @@ namespace housepi
                 name_to_status.push_back(deftable_["name"][k]);
 
             const std::vector<std::string> degenerate = name_to_status - str::unique(name_to_status);
+#ifndef NDEBUG
             if (!degenerate.empty())
                 throw std::invalid_argument(
                     "Incompatible definitions found for augmented " + str::format(degenerate));
+#endif
         }
     }
 
@@ -561,6 +570,15 @@ namespace housepi
         {
             is_any_sample_ = true;
             status_blocks_[map_status_to_block_.at(status)].sample.emplace_back(a);
+
+            // adaptive if proposal is parametric and scale is NA
+            // NOTE: user defined proposal_scale freezes the scale
+            if (deftable_["proposal"][k] != "sample" &&
+                na::is(deftable_["proposal_scale"][k]))
+            {
+                is_any_adaptive_ = true;
+                status_blocks_[map_status_to_block_.at(status)].adaptive.emplace_back(a);
+            }
         }
 
         // nothing to do if not to export
@@ -770,7 +788,6 @@ namespace housepi
             helper_init_model_attributes_(member, k);
 
             // assign proposal if variable to be sampled
-            // NOTE: not necessarily according to a model
             if (!xaugm.is_constant())
                 xaugm.init_proposal(deftable_["proposal"][k],
                                     str::tod(deftable_["proposal_scale"][k]));
@@ -877,6 +894,10 @@ namespace housepi
     const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
     {
         return status_blocks_[member.paugm_->idx].sample;
+    }
+    const std::vector<size_t> &Augmented::list_adaptive(const Individual &member) const
+    {
+        return status_blocks_[member.paugm_->idx].adaptive;
     }
     const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
     {

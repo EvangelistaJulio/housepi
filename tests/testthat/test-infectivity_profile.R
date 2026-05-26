@@ -73,3 +73,11 @@ test_that("Spurious names are dropped", {
   defs$status <- NULL
   expect_equal(nrow(unique(defs)), 1)
 })
+
+test_that("Active fields are read-only", {
+  HousepiInfecProfile$new() |>
+    helper_test_read_only(
+      "augm_required", "data_required",
+      "group_rates_required", "param_required"
+    )
+})

@@ -50,8 +50,11 @@ test_that("Power function is correct", {
   # error cases
   expect_error(expose_function("pow")$func(x), regexp = "Missing non default")
   expect_error(expose_function("pow", 5), regexp = "Unnamed argument")
+  expect_error(expose_function("pow", x2 = 5, y2 = 3),
+               regexp = "Unused argument.*y2.*[Dd]id you mean")
   expect_error(expose_function("pow", discr = TRUE)$func(x),
-               regexp = "undefined method")
+    regexp = "undefined method"
+  )
 })
 
 test_that("Square root function is correct", {
@@ -60,8 +63,10 @@ test_that("Square root function is correct", {
   expect_equal(fn$func(x), sqrt(x))
   expect_equal(fn$prim(x), x^1.5 / 1.5)
   expect_equal(fn$log_func(x), 0.5 * log(x))
-  expect_equal(fn$log_ratio(x, x + 0.1),
-               log(fn$func(x + 0.1) / fn$func(x)))
+  expect_equal(
+    fn$log_ratio(x, x + 0.1),
+    log(fn$func(x + 0.1) / fn$func(x))
+  )
 })
 
 test_that("Exponential function is correct", {
@@ -70,8 +75,10 @@ test_that("Exponential function is correct", {
   expect_equal(fn$func(x), exp(x))
   expect_equal(fn$prim(x), exp(x))
   expect_equal(fn$log_func(x), x)
-  expect_equal(fn$log_ratio(x, x + pi),
-               log(fn$func(x + pi) / fn$func(x)))
+  expect_equal(
+    fn$log_ratio(x, x + pi),
+    log(fn$func(x + pi) / fn$func(x))
+  )
 
   # location parameter
   loc_val <- 1.5
@@ -85,8 +92,10 @@ test_that("Logarithm function is correct", {
   expect_equal(fn$func(x), log(x))
   expect_equal(fn$prim(x), x * log(x) - x)
   expect_equal(fn$log_func(x), log(log(x)))
-  expect_equal(fn$log_ratio(x, x + pi),
-               log(fn$func(x + pi) / fn$func(x)))
+  expect_equal(
+    fn$log_ratio(x, x + pi),
+    log(fn$func(x + pi) / fn$func(x))
+  )
 })
 
 test_that("Sine function is correct", {
@@ -95,13 +104,17 @@ test_that("Sine function is correct", {
   expect_equal(fn$func(x), sin(x))
   expect_equal(fn$prim(x), -cos(x))
   expect_equal(fn$log_func(x), log(sin(x)))
-  expect_equal(fn$log_ratio(x, x + 0.1),
-               log(fn$func(x + 0.1) / fn$func(x)))
+  expect_equal(
+    fn$log_ratio(x, x + 0.1),
+    log(fn$func(x + 0.1) / fn$func(x))
+  )
 
   # location parameter: sin(x + pi/2) = cos(x)
   x_full <- seq(-10, 10, 0.1)
-  expect_equal(expose_function("sin", loc = -0.5 * pi)$func(x_full),
-               cos(x_full))
+  expect_equal(
+    expose_function("sin", loc = -0.5 * pi)$func(x_full),
+    cos(x_full)
+  )
 })
 
 test_that("Cosine function is correct", {
@@ -110,8 +123,10 @@ test_that("Cosine function is correct", {
   expect_equal(fn$func(x), cos(x))
   expect_equal(fn$prim(x), sin(x))
   expect_equal(fn$log_func(x), log(cos(x)))
-  expect_equal(fn$log_ratio(x, x + 0.1),
-               log(fn$func(x + 0.1) / fn$func(x)))
+  expect_equal(
+    fn$log_ratio(x, x + 0.1),
+    log(fn$func(x + 0.1) / fn$func(x))
+  )
 })
 
 test_that("Tangent function is correct", {
@@ -119,8 +134,10 @@ test_that("Tangent function is correct", {
   fn <- expose_function("tan")
   expect_equal(fn$func(x), tan(x))
   expect_equal(fn$log_func(x), log(tan(x)))
-  expect_equal(fn$log_ratio(x, x + 0.1),
-               log(fn$func(x + 0.1) / fn$func(x)))
+  expect_equal(
+    fn$log_ratio(x, x + 0.1),
+    log(fn$func(x + 0.1) / fn$func(x))
+  )
   # primitive is undefined
   expect_error(fn$prim(x), regexp = "undefined method")
 })
@@ -238,8 +255,10 @@ expect_distribution_matches <- function(name, args = list(), ref_d, ref_p,
   expect_equal(distr$pdf(x), ref_d(x))
   expect_equal(distr$cdf(x), ref_p(x))
   expect_equal(distr$log_pdf(x), log(distr$pdf(x)))
-  expect_equal(distr$log_ratio(x, x + h),
-               log(distr$pdf(x + h) / distr$pdf(x)))
+  expect_equal(
+    distr$log_ratio(x, x + h),
+    log(distr$pdf(x + h) / distr$pdf(x))
+  )
 }
 
 test_that("Truncated binomial is correct", {
@@ -247,7 +266,8 @@ test_that("Truncated binomial is correct", {
   size <- 12
   prob <- 0.2
   distr <- expose_distribution("binomial", list(size = size, prob = prob),
-                               min = 1)
+    min = 1
+  )
   shift <- stats::pbinom(0, size, prob)
   expect_equal(distr$pdf(x), stats::dbinom(x, size, prob) / (1 - shift))
   expect_equal(distr$cdf(x), (stats::pbinom(x, size, prob) - shift) / (1 - shift))
@@ -257,34 +277,56 @@ test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
   rayleigh_d <- function(x, s) ifelse(x >= 0, x / s^2 * exp(-x^2 / (2 * s^2)), 0)
   rayleigh_p <- function(x, s) ifelse(x >= 0, 1 - exp(-x^2 / (2 * s^2)), 0)
 
-  expect_distribution_matches("normal", list(mean = 2, sd = 3),
-    \(x) stats::dnorm(x, 2, 3), \(x) stats::pnorm(x, 2, 3))
-  expect_distribution_matches("uniform", list(min = -1, max = 5),
-    \(x) stats::dunif(x, -1, 5), \(x) stats::punif(x, -1, 5))
-  expect_distribution_matches("lognormal", list(meanlog = 1, sdlog = 0.5),
-    \(x) stats::dlnorm(x, 1, 0.5), \(x) stats::plnorm(x, 1, 0.5))
+  expect_distribution_matches(
+    "normal", list(mean = 2, sd = 3),
+    function(x) stats::dnorm(x, 2, 3), function(x) stats::pnorm(x, 2, 3)
+  )
+  expect_distribution_matches(
+    "uniform", list(min = -1, max = 5),
+    function(x) stats::dunif(x, -1, 5), function(x) stats::punif(x, -1, 5)
+  )
+  expect_distribution_matches(
+    "lognormal", list(meanlog = 1, sdlog = 0.5),
+    function(x) stats::dlnorm(x, 1, 0.5), function(x) stats::plnorm(x, 1, 0.5)
+  )
   expect_distribution_matches("beta", list(shape1 = 2, shape2 = 1.5),
-    \(x) stats::dbeta(x, 2, 1.5), \(x) stats::pbeta(x, 2, 1.5),
-    x = seq(-10, 10, 0.1), h = 0.1)
-  expect_distribution_matches("gamma", list(shape = 2, scale = 1.2),
-    \(x) stats::dgamma(x, shape = 2, scale = 1.2),
-    \(x) stats::pgamma(x, shape = 2, scale = 1.2))
-  expect_distribution_matches("exponential", list(rate = 0.25),
-    \(x) stats::dexp(x, 0.25), \(x) stats::pexp(x, 0.25))
-  expect_distribution_matches("poisson", list(lambda = 5),
-    \(x) stats::dpois(x, 5), \(x) stats::ppois(x, 5))
-  expect_distribution_matches("binomial", list(size = 10, prob = 0.5),
-    \(x) stats::dbinom(x, 10, 0.5), \(x) stats::pbinom(x, 10, 0.5))
-  expect_distribution_matches("negative_binomial",
+    function(x) stats::dbeta(x, 2, 1.5), function(x) stats::pbeta(x, 2, 1.5),
+    x = seq(-10, 10, 0.1), h = 0.1
+  )
+  expect_distribution_matches(
+    "gamma", list(shape = 2, scale = 1.2),
+    function(x) stats::dgamma(x, shape = 2, scale = 1.2),
+    function(x) stats::pgamma(x, shape = 2, scale = 1.2)
+  )
+  expect_distribution_matches(
+    "exponential", list(rate = 0.25),
+    function(x) stats::dexp(x, 0.25), function(x) stats::pexp(x, 0.25)
+  )
+  expect_distribution_matches(
+    "poisson", list(lambda = 5),
+    function(x) stats::dpois(x, 5), function(x) stats::ppois(x, 5)
+  )
+  expect_distribution_matches(
+    "binomial", list(size = 10, prob = 0.5),
+    function(x) stats::dbinom(x, 10, 0.5), function(x) stats::pbinom(x, 10, 0.5)
+  )
+  expect_distribution_matches(
+    "negative_binomial",
     list(size = 10, prob = 0.5),
-    \(x) stats::dnbinom(x, 10, 0.5), \(x) stats::pnbinom(x, 10, 0.5))
-  expect_distribution_matches("geometric", list(prob = 0.5),
-    \(x) stats::dgeom(x, 0.5), \(x) stats::pgeom(x, 0.5))
-  expect_distribution_matches("weibull", list(shape = 2, scale = 1),
-    \(x) stats::dweibull(x, 2, 1), \(x) stats::pweibull(x, 2, 1))
+    function(x) stats::dnbinom(x, 10, 0.5), function(x) stats::pnbinom(x, 10, 0.5)
+  )
+  expect_distribution_matches(
+    "geometric", list(prob = 0.5),
+    function(x) stats::dgeom(x, 0.5), function(x) stats::pgeom(x, 0.5)
+  )
+  expect_distribution_matches(
+    "weibull", list(shape = 2, scale = 1),
+    function(x) stats::dweibull(x, 2, 1), function(x) stats::pweibull(x, 2, 1)
+  )
   expect_distribution_matches("rayleigh", list(scale = 2),
-    \(x) rayleigh_d(x, 2), \(x) rayleigh_p(x, 2),
-    x = seq(0, 10, 0.5))
+    function(x) rayleigh_d(x, 2), function(x) rayleigh_p(x, 2),
+    x = seq(0, 10, 0.5)
+  )
 })
 
 test_that("Default parameters match R reference for d", {
@@ -305,9 +347,12 @@ test_that("Normal both-sided truncation is correct", {
   zz <- ref_p(up) - ref_p(low)
 
   expect_equal(distr$pdf(x), ifelse(x >= low & x <= up, ref_d(x), 0) / zz)
-  expect_equal(distr$cdf(x),
-               ifelse(x < low, 0,
-                      ifelse(x > up, 1, (ref_p(x) - ref_p(low)) / zz)))
+  expect_equal(
+    distr$cdf(x),
+    ifelse(x < low, 0,
+      ifelse(x > up, 1, (ref_p(x) - ref_p(low)) / zz)
+    )
+  )
 })
 
 test_that("Gamma accepts shape/scale and mean/var parametrizations", {
@@ -332,14 +377,16 @@ test_that("Gamma accepts shape/scale and mean/var parametrizations", {
 test_that("CDF and quantile make sense", {
   x <- seq(-10, 20, 0.1)
   p <- c(0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99)
-  distrs <- list(list(name = "uniform", min = -3, max = 2),
-                 list(name = "normal", mean = 3, sd = 2),
-                 list(name = "gamma", shape = 2, scale = 1.5),
-                 list(name = "gamma", mean = 2.2, var = 1.1),
-                 list(name = "exponential", rate = 0.4),
-                 list(name = "lognormal", meanlog = 1, sdlog = 0.5),
-                 list(name = "weibull", shape = 2, scale = 2),
-                 list(name = "rayleigh", scale = 2))
+  distrs <- list(
+    list(name = "uniform", min = -3, max = 2),
+    list(name = "normal", mean = 3, sd = 2),
+    list(name = "gamma", shape = 2, scale = 1.5),
+    list(name = "gamma", mean = 2.2, var = 1.1),
+    list(name = "exponential", rate = 0.4),
+    list(name = "lognormal", meanlog = 1, sdlog = 0.5),
+    list(name = "weibull", shape = 2, scale = 2),
+    list(name = "rayleigh", scale = 2)
+  )
   for (d in distrs) {
     distr <- do.call(expose_distribution, d)
     cdf_vals <- distr$cdf(x)
@@ -356,19 +403,22 @@ test_that("CDF is the integral of PDF for continuous distributions", {
   x <- seq(0.001, 15, length.out = 3000)
   distr <- expose_distribution("gamma", shape = 2, scale = 1.5)
   expect_equal(trapezoid(x, distr$pdf(x)), distr$cdf(tail(x, 1)),
-               tolerance = 1e-3)
+    tolerance = 1e-3
+  )
 
   # lognormal: integrate pdf from 0 to 20, expect cdf(20)
   x <- seq(0.001, 20, length.out = 3000)
   distr <- expose_distribution("lognormal", meanlog = 1, sdlog = 0.5)
   expect_equal(trapezoid(x, distr$pdf(x)), distr$cdf(tail(x, 1)),
-               tolerance = 1e-3)
+    tolerance = 1e-3
+  )
 
   # rayleigh: integrate pdf from 0 to 12, expect cdf(12)
   x <- seq(0.001, 12, length.out = 3000)
   distr <- expose_distribution("rayleigh", scale = 2)
   expect_equal(trapezoid(x, distr$pdf(x)), distr$cdf(tail(x, 1)),
-               tolerance = 1e-3)
+    tolerance = 1e-3
+  )
 })
 
 test_that("CDF equals cumsum of PDF for discrete distributions", {
@@ -398,8 +448,10 @@ test_that("Lognormal truncation is correct", {
   min_val <- 1
   max_val <- 5
   x <- seq(0, 8, 0.5)
-  distr <- expose_distribution("lognormal", meanlog = 1, sdlog = 0.5,
-                               min = min_val, max = max_val)
+  distr <- expose_distribution("lognormal",
+    meanlog = 1, sdlog = 0.5,
+    min = min_val, max = max_val
+  )
 
   lnpdf <- function(x) stats::dlnorm(x, meanlog = 1, sdlog = 0.5)
   lncdf <- function(x) stats::plnorm(x, meanlog = 1, sdlog = 0.5)
@@ -448,8 +500,10 @@ test_that("Discretized gamma uses left-discretization", {
   shape <- 2
   scale <- 1.5
   x <- seq(0, 10, 1)
-  distr <- expose_distribution("gamma", shape = shape,
-                               scale = scale, discr = TRUE)
+  distr <- expose_distribution("gamma",
+    shape = shape,
+    scale = scale, discr = TRUE
+  )
 
   gammcdf <- function(x) stats::pgamma(x, shape = shape, scale = scale)
   expect_equal(distr$pdf(x), gammcdf(x + 1) - gammcdf(x))
@@ -468,35 +522,41 @@ test_that("Discretized normal uses center-discretization", {
 
 test_that("rand() draws are reproducible and statistically plausible", {
   d <- expose_distribution("normal", mean = 2, sd = 3)
-  x1 <- d$rand(50L, 42L)
-  x2 <- d$rand(50L, 42L)
-  expect_identical(x1, x2)              # same seed -> same draws
+  set.seed(42L)
+  x1 <- d$rand(50L)
+  set.seed(42L)
+  x2 <- d$rand(50L)
+  expect_identical(x1, x2) # same R seed -> same draws
   expect_length(x1, 50L)
   # different seed -> different draws
-  expect_false(identical(x1, d$rand(50L, 43L)))
+  set.seed(43L)
+  expect_false(identical(x1, d$rand(50L)))
 
   # mean / sd of 20k draws should be close to the truth
-  big <- d$rand(20000L, 7L)
+  set.seed(7L)
+  big <- d$rand(20000L)
   expect_equal(mean(big), 2, tolerance = 0.05)
   expect_equal(sd(big), 3, tolerance = 0.05)
 
-  # verify that seed = 0 implies non-deterministic
-  expect_false(identical(d$rand(10L, 0L), d$rand(10L, 0L)))
+  # without set.seed, successive calls are non-deterministic
+  expect_false(identical(d$rand(10L), d$rand(10L)))
 
   # invalid n
-  expect_error(d$rand(-1L, 1L), regexp = "non-negative")
+  expect_error(d$rand(-1L), regexp = "non-negative")
 })
 
 test_that("rand() honours location shift (relocate_ Active branch)", {
   loc_val <- 5
   d <- expose_distribution("normal", mean = 0, sd = 1, loc = loc_val)
   expect_equal(d$pdf(loc_val), stats::dnorm(0))
-  expect_equal(mean(d$rand(20000L, 11L)), loc_val, tolerance = 0.05)
+  set.seed(11L)
+  expect_equal(mean(d$rand(20000L)), loc_val, tolerance = 0.05)
 })
 
 test_that("rand() on truncated distribution lands inside the bounds", {
   d <- expose_distribution("normal", mean = 0, sd = 1, min = -1, max = 2)
-  x <- d$rand(5000L, 5L)
+  set.seed(5L)
+  x <- d$rand(5000L)
   expect_true(all(x >= -1 & x <= 2))
 })
 
@@ -528,8 +588,10 @@ test_that("discretized normal log_pdf, cdf and log_ratio go through Center branc
   expect_equal(distr$cdf(x), normcdf(x + 0.5))
   # log_ratio_ Center branch with distinct rounded values
   xn <- x + 1
-  expect_equal(distr$log_ratio(x, xn),
-               log(distr$pdf(xn) / distr$pdf(x)))
+  expect_equal(
+    distr$log_ratio(x, xn),
+    log(distr$pdf(xn) / distr$pdf(x))
+  )
   # log_ratio when rounded values coincide should be 0
   expect_equal(distr$log_ratio(x, x + 0.1), rep(0, length(x)))
 })
@@ -539,8 +601,10 @@ test_that("discretized lognormal log_pdf equals log(pdf) (Left branch)", {
   # instead of its log. log_ratio_ Left was already correct, so this
   # asymmetry is what made the bug invisible to MCMC delta computations.
   x <- seq(0, 8, 1)
-  distr <- expose_distribution("lognormal", meanlog = 1, sdlog = 0.5,
-                               discr = TRUE)
+  distr <- expose_distribution("lognormal",
+    meanlog = 1, sdlog = 0.5,
+    discr = TRUE
+  )
   expect_equal(distr$log_pdf(x), log(distr$pdf(x)))
 })
 
@@ -571,8 +635,10 @@ test_that("discretized normal with upper-only truncation exercises Center cdf_up
   sd <- 1.5
   max_val <- 4
   x <- seq(-2, 6, 1)
-  distr <- expose_distribution("normal", mean = mu, sd = sd,
-                               max = max_val, discr = TRUE)
+  distr <- expose_distribution("normal",
+    mean = mu, sd = sd,
+    max = max_val, discr = TRUE
+  )
 
   normcdf <- function(x) stats::pnorm(x, mean = mu, sd = sd)
   # Center discretization with truncation at max:
@@ -587,28 +653,210 @@ test_that("discretized normal with upper-only truncation exercises Center cdf_up
 test_that("quantile matches R reference for standard distributions", {
   p <- seq(0, 1, 0.1)
   cases <- list(
-    list(args = list("normal", mean = 2, sd = 3),
-         ref = \(p) stats::qnorm(p, 2, 3)),
-    list(args = list("lognormal", meanlog = 1, sdlog = 0.5),
-         ref = \(p) stats::qlnorm(p, 1, 0.5)),
-    list(args = list("gamma", shape = 2, scale = 1.5),
-         ref = \(p) stats::qgamma(p, shape = 2, scale = 1.5)),
-    list(args = list("exponential", rate = 0.3),
-         ref = \(p) stats::qexp(p, 0.3)),
-    list(args = list("beta", shape1 = 2, shape2 = 3),
-         ref = \(p) stats::qbeta(p, 2, 3)),
-    list(args = list("poisson", lambda = 5),
-         ref = \(p) stats::qpois(p, 5)),
-    list(args = list("binomial", size = 10, prob = 0.4),
-         ref = \(p) stats::qbinom(p, 10, 0.4)),
-    list(args = list("geometric", prob = 0.3),
-         ref = \(p) stats::qgeom(p, 0.3)),
-    list(args = list("negative_binomial", size = 5, prob = 0.4),
-         ref = \(p) stats::qnbinom(p, 5, 0.4))
+    list(
+      args = list("normal", mean = 2, sd = 3),
+      ref = function(p) stats::qnorm(p, 2, 3)
+    ),
+    list(
+      args = list("lognormal", meanlog = 1, sdlog = 0.5),
+      ref = function(p) stats::qlnorm(p, 1, 0.5)
+    ),
+    list(
+      args = list("gamma", shape = 2, scale = 1.5),
+      ref = function(p) stats::qgamma(p, shape = 2, scale = 1.5)
+    ),
+    list(
+      args = list("exponential", rate = 0.3),
+      ref = function(p) stats::qexp(p, 0.3)
+    ),
+    list(
+      args = list("beta", shape1 = 2, shape2 = 3),
+      ref = function(p) stats::qbeta(p, 2, 3)
+    ),
+    list(
+      args = list("poisson", lambda = 5),
+      ref = function(p) stats::qpois(p, 5)
+    ),
+    list(
+      args = list("binomial", size = 10, prob = 0.4),
+      ref = function(p) stats::qbinom(p, 10, 0.4)
+    ),
+    list(
+      args = list("geometric", prob = 0.3),
+      ref = function(p) stats::qgeom(p, 0.3)
+    ),
+    list(
+      args = list("negative_binomial", size = 5, prob = 0.4),
+      ref = function(p) stats::qnbinom(p, 5, 0.4)
+    )
   )
   for (case in cases) {
     distr <- do.call(expose_distribution, case$args)
     expect_equal(distr$quantile(p), case$ref(p), info = case$args[[1]])
+  }
+})
+
+test_that("quantile is truncation-aware", {
+  p <- c(0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99)
+  cases <- list(
+    list(
+      args = list("normal", mean = 0, sd = 1, min = 0),
+      ref = function(p) qnorm(pnorm(0) + p * (1 - pnorm(0)))
+    ),
+    list(
+      args = list("normal", mean = 3, sd = 2, min = 1, max = 5),
+      ref = function(p) qnorm(pnorm(1, 3, 2) + p * (pnorm(5, 3, 2) - pnorm(1, 3, 2)), 3, 2)
+    ),
+    list(
+      args = list("exponential", rate = 1, max = 3),
+      ref = function(p) qexp(p * pexp(3))
+    ),
+    list(
+      args = list("gamma", shape = 2, scale = 1.5, min = 1, max = 8),
+      ref = function(p) {
+        qgamma(
+          pgamma(1, 2, scale = 1.5) +
+            p * (pgamma(8, 2, scale = 1.5) - pgamma(1, 2, scale = 1.5)),
+          2,
+          scale = 1.5
+        )
+      }
+    )
+  )
+  for (case in cases) {
+    distr <- do.call(expose_distribution, case$args)
+    expect_equal(distr$quantile(p), case$ref(p),
+      tolerance = 1e-10, info = case$args[[1]]
+    )
+    expect_true(all(distr$quantile(p) >= case$args$min %||% -Inf),
+      info = paste(case$args[[1]], "above min")
+    )
+    expect_true(all(distr$quantile(p) <= case$args$max %||% Inf),
+      info = paste(case$args[[1]], "below max")
+    )
+  }
+})
+
+test_that("Beta rejects discrete option", {
+  expect_error(
+    expose_distribution("beta", shape1 = 2, shape2 = 3, discr = TRUE),
+    "invalid.*discrete"
+  )
+})
+
+test_that("Beta rejects out-of-domain truncation bounds", {
+  expect_error(
+    expose_distribution("beta", shape1 = 2, shape2 = 3, min = -0.5),
+    "min"
+  )
+  expect_error(
+    expose_distribution("beta", shape1 = 2, shape2 = 3, max = 1.5),
+    "max"
+  )
+})
+
+test_that("Beta truncation normalises correctly", {
+  low <- 0.1
+  up <- 0.8
+  a <- 2
+  b <- 5
+  x <- seq(0, 1, 0.05)
+  d <- expose_distribution("beta", shape1 = a, shape2 = b, min = low, max = up)
+  ref_d <- function(x) stats::dbeta(x, a, b)
+  ref_p <- function(x) stats::pbeta(x, a, b)
+  zz <- ref_p(up) - ref_p(low)
+  expect_equal(d$pdf(x), ifelse(x >= low & x <= up, ref_d(x), 0) / zz)
+})
+
+test_that("Beta rand() produces plausible draws", {
+  a <- 2
+  b <- 5
+  d <- expose_distribution("beta", shape1 = a, shape2 = b)
+  set.seed(99L)
+  x1 <- d$rand(50L)
+  set.seed(99L)
+  x2 <- d$rand(50L)
+  expect_identical(x1, x2)
+  set.seed(1L)
+  big <- d$rand(2000L)
+  expect_true(all(big >= 0 & big <= 1))
+  expect_equal(mean(big), a / (a + b), tolerance = 0.02)
+})
+
+test_that("Gamma pdf and log_pdf handle x == 0 across shape regimes", {
+  scale <- 2
+  # test case: shape < 1
+  d1 <- expose_distribution("gamma", shape = 0.5, scale = scale)
+  expect_equal(d1$pdf(0), Inf)
+  expect_equal(d1$log_pdf(0), Inf)
+
+  # test case: shape == 1
+  d2 <- expose_distribution("gamma", shape = 1, scale = scale)
+  expect_equal(d2$pdf(0), 1 / scale)
+  expect_equal(d2$log_pdf(0), -log(scale))
+
+  # test case: shape > 1
+  d3 <- expose_distribution("gamma", shape = 2, scale = scale)
+  expect_equal(d3$pdf(0), 0)
+  expect_equal(d3$log_pdf(0), -Inf)
+})
+
+test_that("Binomial rejects out-of-domain truncation bounds", {
+  expect_error(
+    expose_distribution("binomial", size = 10, prob = 0.5, min = -1),
+    "min"
+  )
+  expect_error(
+    expose_distribution("binomial", size = 10, prob = 0.5, min = 11),
+    "max"
+  )
+})
+
+test_that("rand() is reproducible and plausible for all distributions", {
+  cases <- list(
+    list(
+      args = list("rayleigh", scale = 2),
+      mean = 2 * sqrt(pi / 2), int = FALSE
+    ),
+    list(
+      args = list("exponential", rate = 0.5),
+      mean = 2, int = FALSE
+    ),
+    list(
+      args = list("poisson", lambda = 5),
+      mean = 5, int = TRUE
+    ),
+    list(
+      args = list("binomial", size = 20, prob = 0.3),
+      mean = 6, int = TRUE, max = 20
+    ),
+    list(
+      args = list("negative_binomial", size = 5, prob = 0.4),
+      mean = 5 * 0.6 / 0.4, int = TRUE
+    ),
+    list(
+      args = list("geometric", prob = 0.3),
+      mean = 0.7 / 0.3, int = TRUE
+    )
+  )
+  for (cc in cases) {
+    d <- do.call(expose_distribution, cc$args)
+    nm <- cc$args[[1]]
+    set.seed(42L)
+    x1 <- d$rand(50L)
+    set.seed(42L)
+    expect_identical(d$rand(50L), x1, info = nm)
+    set.seed(1L)
+    big <- d$rand(2000L)
+    expect_true(all(big >= 0), info = nm)
+    if (cc$int)
+      expect_true(all(big == floor(big)), info = nm)
+    if (!is.null(cc$max))
+      expect_true(all(big <= cc$max), info = nm)
+    expect_equal(
+      mean(big), cc$mean,
+      tolerance = 0.15, info = nm
+    )
   }
 })
 

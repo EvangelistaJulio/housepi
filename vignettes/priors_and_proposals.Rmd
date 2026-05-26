@@ -1,11 +1,11 @@
 ---
-title: "Bayesian MCMC options"
+title: "Priors and proposals"
 output:
   rmarkdown::html_vignette:
     toc: true
     toc-depth: 3
 vignette: >
-  %\VignetteIndexEntry{Bayesian MCMC options}
+  %\VignetteIndexEntry{Priors and proposals}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options:
@@ -25,7 +25,7 @@ housepi_theme_set()
 set.seed(42)
 ```
 
-In this vignette we present all available options for the choice of the prior and Monte Carlo proposal in housepi.
+Here we present all available options for the choice of the prior and Monte Carlo proposal in housepi.
 
 # Continuous priors
 
@@ -215,7 +215,13 @@ We provide a small set of common mechanisms:
 * **normal**: Gaussian perturbations of the current value;
 * **lognormal**: multiplicative log-normal proposals (not appropriate for negative values).
 
-Parametric proposals (all except sample) require a `proposal_scale` (default is `1`).
+All proposals expect `sample` are adaptable:
+By default, housepi tunes the scale on the fly to target an acceptance rate of 44%.
+This is enabled by supplying `adapt = N` to `run_inference()`.
+Here `N` is the number of adaptation iterations run before the MCMC `steps`. 
+The adaption uses a Robbins-Monro update at every iteration 
+on a acceptance rate estimated with exponentially weighted moving average.
+The scale is initialized from the prior's interquartile range.
 
 ```{r}
 #| label: color-scheme-proposals
@@ -224,48 +230,58 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
 ```{r}
-#| label: proposals-trace
+#| label: adaptation-trace
 #| fig-alt: >
-#|  Four trace plots comparing MCMC proposal mechanisms: sample, uniform, normal, and lognormal.
-#|  Sampling shows poor mixing for all mechanisms except sample.
+#|  Four trace plots comparing the same MCMC proposal mechanisms with
+#|  proposal_scale left adaptive.  All chains mix well after a short adaptation phase.
 
-prop_scale <- 100
-hhmodel <- new_housepi_model(model = "blank") |>
-  # available proposals in housepi
+new_housepi_model(model = "blank") |>
   add_parameter_list(
-    proposal_sample = list(prior = "normal", min = 0, proposal = "sample"),
-    proposal_uniform = list(prior = "normal", min = 0, proposal = "uniform",
-                            proposal_scale = prop_scale),
-    proposal_normal = list(prior = "normal", min = 0, proposal = "normal",
-                           proposal_scale = prop_scale),
-    proposal_lognormal = list(prior = "normal", min = 0, proposal = "lognormal",
-                              proposal_scale = prop_scale)
-  )
-
-hhmodel |>
+    sample = list(prior = "normal", min = 0, proposal = "sample"),
+    uniform = list(prior = "normal", min = 0, proposal = "uniform"),
+    normal = list(prior = "normal", min = 0, proposal = "normal"),
+    lognormal = list(prior = "normal", min = 0, proposal = "lognormal")
+  ) |>
   run_inference() |>
   get_parameter_draws() |>
   bayesplot::mcmc_trace()
 ```
 
-# Role of finite adaptation
+Already with the default adaptive steps, mixing is good across the parametric
+proposals — at the cost of the additional steps before sampling.
 
-We use finite adaptation to adjust proposal scales of parametric mechanisms with a target of 25% acceptance rate.
-In housepi this is enabled by supplying `adapt = N` to `run_inference()`, where `N` is the number of finite adaptation steps preceding the MCMC `steps`.
+## Fix proposal scales
+
+The scale of the proposals can be fixed by supplying an explicit `proposal_scale`.
+This pins the scale to the chosen value and disables adaptation for that variable.
 
 ```{r}
-#| label: adaptation-trace
+#| label: proposals-trace
 #| fig-alt: >
-#|  Four trace plots comparing the same MCMC proposal mechanisms as before.
-#|  Mixing for parametric mechanisms shows improvement.
-
-hhmodel |>
-  run_inference(adapt = 500) |>
+#|  Four trace plots comparing MCMC proposal mechanisms with a deliberately
+#|  oversized pinned scale.  Sampling shows poor mixing for all parametric
+#|  mechanisms.
+# select an extremely large proposal scale 'sigma'
+sigma <- 100
+new_housepi_model(model = "blank") |>
+  add_parameter_list(
+    sample = list(prior = "normal", min = 0, proposal = "sample"),
+    uniform = list(prior = "normal", min = 0,
+                   proposal = "uniform", proposal_scale = sigma),
+    normal = list(prior = "normal", min = 0,
+                  proposal = "normal", proposal_scale = sigma),
+    lognormal = list(prior = "normal", min = 0,
+                     proposal = "lognormal", proposal_scale = sigma)
+  ) |>
+  run_inference() |>
   get_parameter_draws() |>
   bayesplot::mcmc_trace()
 ```
 
-We can say that we obtained a better mixing, but at the cost of additional MCMC steps.
+Warnings and trace plots show bad mixing:
+the over-sized scale made the parametric proposals barely moves.
+On the contrary, the `sample` mechanism mixes as usual.
+Handle `proposal_scale` with care!
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

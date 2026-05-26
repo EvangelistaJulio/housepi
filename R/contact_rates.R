@@ -1,6 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
 ##
-## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
 ## Distributed under the terms of the GNU General Public License (GPLv3).
 ## See the LICENSE file for details.
 ##
@@ -104,7 +104,14 @@ associate_contact_param_names <- function(this_table, prefix, reference,
       paste0(prefix, from_part, "_to_", to_part)
     }
   )
-  if (length(idx_refer) == 1) this_table$param_name[idx_refer] <- ".reference"
+  if (length(idx_refer) == 1) {
+    if (isTRUE(symmetric)) {
+      ref_name <- this_table$param_name[idx_refer]
+      this_table$param_name[this_table$param_name == ref_name] <- ".reference"
+    } else {
+      this_table$param_name[idx_refer] <- ".reference"
+    }
+  }
 
   this_table
 }
@@ -168,7 +175,10 @@ tidyup_contact_rate_tables <- function(tables) {
     df[all_cols]
   }))
   rownames(combined) <- NULL
-  compute_rule_groups(combined)
+  combined <- compute_rule_groups(combined)
+  combined <- reorder_rates_logic_table(combined)
+  rownames(combined) <- NULL
+  combined
 }
 
 #' @title Internal R6 holder for housepi contact-rate definitions
@@ -201,8 +211,8 @@ HousepiContactRate <- R6::R6Class(
       }
       wrong_entries <- setdiff(names(reference), valid_names)
       if (length(wrong_entries) != 0) stop_h(
-        sprintf("Unrecognized choice%s for reference: %s",
-                as_plural(wrong_entries),
+        sprintf("Unrecognized %s for reference:%s",
+                as_plural("choice", length(wrong_entries)),
                 character_to_string_list(wrong_entries)),
         "Reference should match 'by' and use 'from_' and/or 'to_' prefixes."
       )

@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -74,14 +74,18 @@ namespace housepi
 		/// Associate data storage.
 		void set_data_store(std::shared_ptr<DataStore> ds);
 
-		DataWide &data_wide() { return pDataStore->data_wide; }
-		const DataWide &data_wide() const { return pDataStore->data_wide; }
-		DataLong &data_long() { return pDataStore->data_long; }
-		const DataLong &data_long() const { return pDataStore->data_long; }
+		DataWide &data_wide() noexcept { return pDataStore->data_wide; }
+		const DataWide &data_wide() const noexcept { return pDataStore->data_wide; }
+		DataLong &data_long() noexcept { return pDataStore->data_long; }
+		const DataLong &data_long() const noexcept { return pDataStore->data_long; }
+
+		/// Initialize frequency equivalence classes.
+		/// NOTE: assume unique if augmented definitions required, but not imported yet
+		void init_frequency_equivalence_classes();
 
 		//////////////////////
 		//////  GETTER  //////
-		//////////////////////	
+		//////////////////////
 
 		/// Whether two household members belong to same partition according to rates.
 		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;
@@ -103,7 +107,8 @@ namespace housepi
 		/// Intialize a single Markov chain for Monte Carlo.
 		void init_monte_carlo_chain_();
 
-		/// Recover the old parameter value.
-		void recover_parameter_(size_t p, bool is_cache_depen);
+		/// Recover the old total log-likelihood.
+		/// NOTE: called after a refused parameter move.
+		void recover_total_log_lik_(bool is_cache_depen);
 	};
 }

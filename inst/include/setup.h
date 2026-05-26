@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -30,25 +30,34 @@ namespace housepi
     /// Manages random number generation and progress tracking.
     struct Setup
     {
+        ///////////////////////////
+        //////  USER CONFIG  //////
+        ///////////////////////////
+
         /// Expected header keys for configuration input file.
         const std::vector<std::string> file_headers = {"steps", "burn", "thin",
-                                                       "adapt", "chains", "threads",
+                                                       "adapt", "adapt_window",
+                                                       "chains", "threads",
                                                        "id_draws", "seed", "progress"};
 
-        std::int32_t seed = 1;      /// Seed for pseudo-random number generator initialization.
-        unsigned n_threads = 1;     /// Number of OpenMP threads for parallelization.
-        unsigned long n_steps = 1;  /// Total number of MCMC iterations per chain.
-        unsigned long n_burn = 0;   /// Number of initial burn-in iterations to discard.
-        unsigned long n_thin = 1;   /// Thinning interval (store every n_thin-th iteration).
-        unsigned long n_adapt = 0;  /// Number of adaptive MCMC steps (0 = no adaptation).
-        unsigned long n_chains = 1; /// Number of independent MCMC chains to run in parallel.
-        unsigned long progress = 1; /// Progress bar update interval in seconds.
-        unsigned long n_rungs = 0;  /// Number of rungs for power posterior analysis (0 = standard MCMC).
+        std::int32_t seed = 1;             /// Seed for pseudo-random number generator initialization.
+        unsigned n_threads = 1;            /// Number of OpenMP threads for parallelization.
+        unsigned long n_steps = 1;         /// Total number of MCMC iterations per chain.
+        unsigned long n_burn = 0;          /// Number of initial burn-in iterations to discard.
+        unsigned long n_thin = 1;          /// Thinning interval (store every n_thin-th iteration).
+        unsigned long n_adapt = 0;         /// Number of adaptive MCMC steps (0 = no adaptation).
+        unsigned long n_adapt_window = 50; /// Effective window for the smoothed accept-rate.
+        unsigned long n_chains = 1;        /// Number of independent MCMC chains to run in parallel.
+        unsigned long progress = 1;        /// Progress bar update interval in seconds.
+        unsigned long n_rungs = 0;         /// Number of rungs for power posterior analysis (0 = standard MCMC).
 
-        unsigned long chain = 1;                /// Current active MCMC chain (1-indexed).
-        unsigned long rung = 0;                 /// Current active rung in power posterior analysis (0-indexed).
+        //////////////////////////////
+        //////  DERIVED CONFIG  //////
+        //////////////////////////////
+
+        unsigned long chain_id = 1;             /// Current active MCMC chain (1-indexed).
+        unsigned long rung_id = 0;              /// Current active rung in power posterior analysis (0-indexed).
         unsigned long c_sample_size = 0;        /// Sample size for a single chain after thinning.
-        unsigned long c_n_sweeps = 0;           /// Total number of sweeps per chain.
         double inv_T = 1.;                      /// Inverse temperature for power posterior (1.0 = posterior).
         std::vector<std::string> id_draws = {}; /// IDs of augmented variables to trace and save.
 
@@ -70,24 +79,19 @@ namespace housepi
 
         /// Set the number of threads for parrell computations (default is 1).
         void set_n_threads();
-
         /// Build Setup configuration from input table.
         void build(const housepi::str_table &input);
-
-        /// Validate MCMC setup parameters for consistency and feasibility.
-        void assert_mcmc_setup();
-
-        /// Remove adaptive phase parameters after burn-in completion.
-        void drop_mcmc_adapt();
+        /// Initialize MCMC configuration and assert consistency.
+        void init_mcmc_configuration(bool is_adaptive);
 
         /////////////////////
         //////  FLAGS  //////
         /////////////////////
 
         /// Check if running standard sample.
-        bool is_mcmc_sample() const { return n_steps > 1; }
+        bool is_mcmc_sample() const noexcept { return n_steps > 1; }
         /// Check if running power posterior analysis.
-        bool is_power_post() const { return n_rungs > 0; }
+        bool is_power_post() const noexcept { return n_rungs > 0; }
 
         //////////////////////
         //////  RANDOM  //////

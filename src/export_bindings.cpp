@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -49,11 +49,7 @@
 namespace housepi::msg
 {
     /// Throw an error message.
-    /// Ref:
-    /// -----
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    /// @cite weylandt_suppressing_2018
     [[noreturn]] void error(const std::string &txt)
     {
         throw Rcpp::exception(txt.c_str(), false);
@@ -67,11 +63,7 @@ namespace housepi::msg
     }
 
     /// Display a warning message if not already displayed before.
-    /// Ref:
-    /// -----
-    /// Suppressing Call Stack Info in Rcpp-Generated Errors and Warnings
-    /// Michael Weylandt — written Mar 27, 2018
-    /// https://gallery.rcpp.org/articles/quiet-stop-and-warning/
+    /// Based on @cite weylandt_suppressing_2018
     void warning(const std::string &txt)
     {
         if (!is_new_warning(txt))
@@ -251,18 +243,23 @@ namespace
         MAKE_EXPOSE_METHOD_CALL(log_pdf, distr_()->log_pdf_safe(v))
         MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, distr_()->log_ratio_safe(vo, vn))
         MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
-        MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile_safe(v))
+        MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile(v))
 
-        /// Sample `n` random draws. Pass `seed = 0` to use a fresh,
-        /// nondeterministic seed (default).
-        Rcpp::NumericVector rand(int n, std::uint64_t seed) const
+        /// Sample n random draws. Seed is drawn from R's RNG so that
+        /// set.seed() in R controls the result.
+        Rcpp::NumericVector rand(int n) const
         {
             try
             {
                 if (n < 0)
                     throw std::invalid_argument("'n' must be non-negative.");
-                rnd_gen prng = (seed == 0) ? rnd_gen(std::random_device{}())
-                                           : rnd_gen(seed);
+                
+                // generate seed from R 
+                Rcpp::RNGScope scope;
+                std::uint32_t seed = static_cast<std::uint32_t>(
+                    R::unif_rand() * std::numeric_limits<std::uint32_t>::max());
+
+                rnd_gen prng(seed);
                 Rcpp::NumericVector y(n);
                 for (int i = 0; i < n; ++i)
                     y[i] = distr_()->rand(prng);
@@ -536,46 +533,39 @@ namespace
                                        const std::vector<std::string> &columns,
                                        bool is_status)
     {
-        try
-        {
-            size_t n_rows = data_wide.report_indiv.total;
-            Rcpp::CharacterVector id_col = Rcpp::CharacterVector(n_rows);
-            Rcpp::CharacterVector house_id_col = Rcpp::CharacterVector(n_rows);
-            Rcpp::IntegerVector status_col = Rcpp::IntegerVector(n_rows);
+        size_t n_rows = data_wide.report_indiv.total;
+        Rcpp::CharacterVector id_col = Rcpp::CharacterVector(n_rows);
+        Rcpp::CharacterVector house_id_col = Rcpp::CharacterVector(n_rows);
+        Rcpp::IntegerVector status_col = Rcpp::IntegerVector(n_rows);
 
-            // other non standard data columns
-            std::vector<size_t> list_export = data_wide.khold().from_string(columns);
-            std::vector<Rcpp::NumericVector> data_col(columns.size());
-            for (size_t d = 0; d < columns.size(); ++d)
-                data_col[d] = Rcpp::NumericVector(n_rows);
+        // other non standard data columns
+        std::vector<size_t> list_export = data_wide.khold().from_string(columns);
+        std::vector<Rcpp::NumericVector> data_col(columns.size());
+        for (size_t d = 0; d < columns.size(); ++d)
+            data_col[d] = Rcpp::NumericVector(n_rows);
 
-            size_t row = 0;
-            for (const Household &house : data_wide)
-                for (const Individual &member : house)
-                {
-                    id_col[row] = member.id();
-                    house_id_col[row] = house.house_id();
-                    status_col[row] = member.status();
+        size_t row = 0;
+        for (const Household &house : data_wide)
+            for (const Individual &member : house)
+            {
+                id_col[row] = member.id();
+                house_id_col[row] = house.house_id();
+                status_col[row] = member.status();
 
-                    for (size_t d = 0; d < columns.size(); ++d)
-                        data_col[d][row] = hsp_to_rcpp(member.data(list_export[d]));
-                    ++row;
-                }
+                for (size_t d = 0; d < columns.size(); ++d)
+                    data_col[d][row] = hsp_to_rcpp(member.data(list_export[d]));
+                ++row;
+            }
 
-            Rcpp::List output;
-            output["id"] = id_col;
-            output["house_id"] = house_id_col;
-            if (is_status)
-                output["status"] = status_col;
-            for (size_t d = 0; d < columns.size(); ++d)
-                output[columns[d]] = data_col[d];
+        Rcpp::List output;
+        output["id"] = id_col;
+        output["house_id"] = house_id_col;
+        if (is_status)
+            output["status"] = status_col;
+        for (size_t d = 0; d < columns.size(); ++d)
+            output[columns[d]] = data_col[d];
 
-            return output;
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While exporting data (wide):\n" + std::string(e.what()));
-        }
+        return output;
     }
 
     Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -627,51 +617,44 @@ namespace
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const DataLong &data_long = mcmc_ptr->data_long();
 
-        try
-        {
-            if (data_long.indiv_datalist.size() == 0)
-                return Rcpp::DataFrame();
+        if (data_long.indiv_datalist.size() == 0)
+            return Rcpp::DataFrame();
 
-            // retrieve total number of rows
-            size_t n_rows = 0;
-            for (const auto &tbl : data_long.indiv_datalist)
-                if (!tbl.vec.empty())
-                    n_rows += tbl.vec.begin()->size();
+        // retrieve total number of rows
+        size_t n_rows = 0;
+        for (const auto &tbl : data_long.indiv_datalist)
+            if (!tbl.vec.empty())
+                n_rows += tbl.vec.begin()->size();
 
-            Rcpp::CharacterVector datalist_index(n_rows);
+        Rcpp::CharacterVector datalist_index(n_rows);
 
-            // other non standard data-long columns
-            std::vector<Rcpp::NumericVector> datalist_dbl(data_long.khold().size());
-            for (size_t d = 0; d < datalist_dbl.size(); ++d)
-                datalist_dbl[d] = Rcpp::NumericVector(n_rows);
+        // other non standard data-long columns
+        std::vector<Rcpp::NumericVector> datalist_dbl(data_long.khold().size());
+        for (size_t d = 0; d < datalist_dbl.size(); ++d)
+            datalist_dbl[d] = Rcpp::NumericVector(n_rows);
 
-            size_t row = 0;
-            for (const Household &house : data_wide)
-                for (const Individual &member : house)
-                {
-                    const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
-                    if (ptr && !ptr->empty())
-                        for (size_t k = 0; k < ptr->begin()->size(); ++k)
-                        {
-                            datalist_index[row] = member.id();
-                            for (size_t d = 0; d < datalist_dbl.size(); ++d)
-                                datalist_dbl[d][row] = hsp_to_rcpp(ptr->at(d)[k]);
-                            ++row;
-                        }
-                }
+        size_t row = 0;
+        for (const Household &house : data_wide)
+            for (const Individual &member : house)
+            {
+                const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
+                if (ptr && !ptr->empty())
+                    for (size_t k = 0; k < ptr->begin()->size(); ++k)
+                    {
+                        datalist_index[row] = member.id();
+                        for (size_t d = 0; d < datalist_dbl.size(); ++d)
+                            datalist_dbl[d][row] = hsp_to_rcpp(ptr->at(d)[k]);
+                        ++row;
+                    }
+            }
 
-            // assign vectors to dataframe
-            Rcpp::List output;
-            output["id"] = datalist_index;
-            for (size_t d = 0; d < datalist_dbl.size(); ++d)
-                output.push_back(datalist_dbl[d], data_long.khold().as_string(d));
+        // assign vectors to dataframe
+        Rcpp::List output;
+        output["id"] = datalist_index;
+        for (size_t d = 0; d < datalist_dbl.size(); ++d)
+            output.push_back(datalist_dbl[d], data_long.khold().as_string(d));
 
-            return Rcpp::DataFrame(output);
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While exporting data (long):\n" + std::string(e.what()));
-        }
+        return Rcpp::DataFrame(output);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -685,54 +668,46 @@ namespace
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHousehold &report_house = data_wide.report_house;
 
-        try
-        {
-            Rcpp::CharacterVector level = Rcpp::wrap(std::vector<std::string>(4, "individual") +
-                                                     std::vector<std::string>(5, "household"));
-            Rcpp::CharacterVector metric = {"total", "missing", "not infected", "infected",
-                                            "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
-            Rcpp::IntegerVector count(level.size());
-            Rcpp::NumericVector percent(level.size());
+        Rcpp::CharacterVector level = Rcpp::wrap(std::vector<std::string>(4, "individual") +
+                                                 std::vector<std::string>(5, "household"));
+        Rcpp::CharacterVector metric = {"total", "missing", "not infected", "infected",
+                                        "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
+        Rcpp::IntegerVector count(level.size());
+        Rcpp::NumericVector percent(level.size());
 
-            // individual total
-            count[0] = report_indiv.total;
-            percent[0] = 100.;
-            // individual missing
-            count[1] = report_indiv.missing;
-            percent[1] = format_percentage(report_indiv.missing, report_indiv.total);
-            // individual not infected
-            count[2] = report_indiv.susceptible;
-            percent[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
-            // individual infected
-            count[3] = report_indiv.infectious;
-            percent[3] = format_percentage(report_indiv.infectious, report_indiv.total);
-            // household total
-            count[4] = report_house.total;
-            percent[4] = 100.;
-            // household distinct
-            count[5] = report_house.distinct;
-            percent[5] = 100.;
-            // household no cases
-            count[6] = report_house.no_cases;
-            percent[6] = format_percentage(report_house.no_cases, report_house.total);
-            // household at least 1 case
-            count[7] = report_house.at_least_1_case;
-            percent[7] = format_percentage(report_house.at_least_1_case, report_house.total);
-            // household at least 2 cases
-            count[8] = report_house.at_least_2_cases;
-            percent[8] = format_percentage(report_house.at_least_2_cases, report_house.total);
+        // individual total
+        count[0] = report_indiv.total;
+        percent[0] = 100.;
+        // individual missing
+        count[1] = report_indiv.missing;
+        percent[1] = format_percentage(report_indiv.missing, report_indiv.total);
+        // individual not infected
+        count[2] = report_indiv.susceptible;
+        percent[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
+        // individual infected
+        count[3] = report_indiv.infectious;
+        percent[3] = format_percentage(report_indiv.infectious, report_indiv.total);
+        // household total
+        count[4] = report_house.total;
+        percent[4] = 100.;
+        // household distinct
+        count[5] = report_house.distinct;
+        percent[5] = 100.;
+        // household no cases
+        count[6] = report_house.no_cases;
+        percent[6] = format_percentage(report_house.no_cases, report_house.total);
+        // household at least 1 case
+        count[7] = report_house.at_least_1_case;
+        percent[7] = format_percentage(report_house.at_least_1_case, report_house.total);
+        // household at least 2 cases
+        count[8] = report_house.at_least_2_cases;
+        percent[8] = format_percentage(report_house.at_least_2_cases, report_house.total);
 
-            return Rcpp::DataFrame::create(
-                Rcpp::_["level"] = std::move(level),
-                Rcpp::_["metric"] = std::move(metric),
-                Rcpp::_["count"] = std::move(count),
-                Rcpp::_["percent"] = std::move(percent));
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While exporting data report:\n" +
-                       std::string(e.what()));
-        }
+        return Rcpp::DataFrame::create(
+            Rcpp::_["level"] = std::move(level),
+            Rcpp::_["metric"] = std::move(metric),
+            Rcpp::_["count"] = std::move(count),
+            Rcpp::_["percent"] = std::move(percent));
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -746,40 +721,32 @@ namespace
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHouseSizes &report_hh_size = data_wide.report_hh_size;
 
-        try
-        {
-            Rcpp::CharacterVector metric({"most cases", "most missing", "smallest size", "largest size"});
-            R_xlen_t n_rows = metric.size();
-            Rcpp::IntegerVector value(n_rows), count(n_rows);
-            Rcpp::NumericVector percent(n_rows);
+        Rcpp::CharacterVector metric({"most cases", "most missing", "smallest size", "largest size"});
+        R_xlen_t n_rows = metric.size();
+        Rcpp::IntegerVector value(n_rows), count(n_rows);
+        Rcpp::NumericVector percent(n_rows);
 
-            value[0] = report_hh_size.max_cases.first;
-            count[0] = report_hh_size.max_cases.second;
-            percent[0] = format_percentage(count[0], report_indiv.total);
+        value[0] = report_hh_size.max_cases.first;
+        count[0] = report_hh_size.max_cases.second;
+        percent[0] = format_percentage(count[0], report_indiv.total);
 
-            value[1] = report_hh_size.max_miss.first;
-            count[1] = report_hh_size.max_miss.second;
-            percent[1] = format_percentage(count[1], report_indiv.total);
+        value[1] = report_hh_size.max_miss.first;
+        count[1] = report_hh_size.max_miss.second;
+        percent[1] = format_percentage(count[1], report_indiv.total);
 
-            value[2] = report_hh_size.min_size.first;
-            count[2] = report_hh_size.min_size.second;
-            percent[2] = format_percentage(count[2], report_indiv.total);
+        value[2] = report_hh_size.min_size.first;
+        count[2] = report_hh_size.min_size.second;
+        percent[2] = format_percentage(count[2], report_indiv.total);
 
-            value[3] = report_hh_size.max_size.first;
-            count[3] = report_hh_size.max_size.second;
-            percent[3] = format_percentage(count[3], report_indiv.total);
+        value[3] = report_hh_size.max_size.first;
+        count[3] = report_hh_size.max_size.second;
+        percent[3] = format_percentage(count[3], report_indiv.total);
 
-            return Rcpp::DataFrame::create(
-                Rcpp::_["metric"] = std::move(metric),
-                Rcpp::_["value"] = std::move(value),
-                Rcpp::_["count"] = std::move(count),
-                Rcpp::_["percent"] = std::move(percent));
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While exporting household size report:\n" +
-                       std::string(e.what()));
-        }
+        return Rcpp::DataFrame::create(
+            Rcpp::_["metric"] = std::move(metric),
+            Rcpp::_["value"] = std::move(value),
+            Rcpp::_["count"] = std::move(count),
+            Rcpp::_["percent"] = std::move(percent));
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -814,24 +781,16 @@ namespace
         if (draws.empty())
             return Rcpp::List();
 
-        try
-        {
-            size_t n_cols = draws.size();
-            Rcpp::List cols(n_cols);
+        size_t n_cols = draws.size();
+        Rcpp::List cols(n_cols);
 
-            for (size_t c = 0; c < n_cols; ++c)
-                cols[c] = flush_vector_to_numvec(draws[c]);
-            std::vector<std::vector<double>>().swap(draws);
+        for (size_t c = 0; c < n_cols; ++c)
+            cols[c] = flush_vector_to_numvec(draws[c]);
+        std::vector<std::vector<double>>().swap(draws);
 
-            cols.attr("names") = Rcpp::wrap(col_names);
-            helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(n_rows));
-            return cols;
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While exporting ") + err_type +
-                       " draws:\n" + e.what());
-        }
+        cols.attr("names") = Rcpp::wrap(col_names);
+        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(n_rows));
+        return cols;
     }
 
     /// Flush total log-likelihood draws as a data.frame.
@@ -866,29 +825,21 @@ namespace
         if (post.augm_values.empty())
             return Rcpp::List();
 
-        try
-        {
-            size_t n_cols = post.augm_col_names.size();
-            Rcpp::List cols(n_cols);
+        size_t n_cols = post.augm_col_names.size();
+        Rcpp::List cols(n_cols);
 
-            size_t col = 0;
-            for (auto &member_matrix : post.augm_values)
-            {
-                for (auto &var_vec : member_matrix)
-                    cols[col++] = flush_vector_to_numvec(var_vec);
-                std::vector<std::vector<double>>().swap(member_matrix);
-            }
-            std::vector<std::vector<std::vector<double>>>().swap(post.augm_values);
-
-            cols.attr("names") = Rcpp::wrap(post.augm_col_names);
-            helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
-            return cols;
-        }
-        catch (const std::exception &e)
+        size_t col = 0;
+        for (auto &member_matrix : post.augm_values)
         {
-            msg::error("While exporting augmented draws:\n" +
-                       std::string(e.what()));
+            for (auto &var_vec : member_matrix)
+                cols[col++] = flush_vector_to_numvec(var_vec);
+            std::vector<std::vector<double>>().swap(member_matrix);
         }
+        std::vector<std::vector<std::vector<double>>>().swap(post.augm_values);
+
+        cols.attr("names") = Rcpp::wrap(post.augm_col_names);
+        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
+        return cols;
     }
 
     /// Rcpp wrapper: household log-likelihood draws as a data.frame.
@@ -900,31 +851,23 @@ namespace
         Posterior &post = mcmc_ptr->posterior;
         const DataWide &data_wide = mcmc_ptr->data_wide();
 
-        try
-        {
-            size_t n_classes = post.house_log_lik.size();
-            size_t n_houses = data_wide.report_house.total;
+        size_t n_classes = post.house_log_lik.size();
+        size_t n_houses = data_wide.report_house.total;
 
-            // One NumericVector per class; detached copy, C++ source freed.
-            std::vector<Rcpp::NumericVector> class_cols(n_classes);
-            for (size_t R = 0; R < n_classes; ++R)
-                class_cols[R] = flush_vector_to_numvec(post.house_log_lik[R]);
-            std::vector<std::vector<double>>().swap(post.house_log_lik);
+        // One NumericVector per class; detached copy, C++ source freed.
+        std::vector<Rcpp::NumericVector> class_cols(n_classes);
+        for (size_t R = 0; R < n_classes; ++R)
+            class_cols[R] = flush_vector_to_numvec(post.house_log_lik[R]);
+        std::vector<std::vector<double>>().swap(post.house_log_lik);
 
-            // Identity case (n_classes == n_houses) is naturally a no-op.
-            Rcpp::List cols(n_houses);
-            for (size_t H = 0; H < n_houses; ++H)
-                cols[H] = class_cols[data_wide.get_restricted_index(H)];
+        // Identity case (n_classes == n_houses) is naturally a no-op.
+        Rcpp::List cols(n_houses);
+        for (size_t H = 0; H < n_houses; ++H)
+            cols[H] = class_cols[data_wide.get_restricted_index(H)];
 
-            cols.attr("names") = Rcpp::wrap(post.house_names);
-            helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
-            return cols;
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While exporting household log-likelihood draws:\n" +
-                       std::string(e.what()));
-        }
+        cols.attr("names") = Rcpp::wrap(post.house_names);
+        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
+        return cols;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1403,12 +1346,7 @@ namespace
     /* --FUTURE-LOG-EVIDENCE--
     /// Estimate log_evidence according to a given scheme and number of rungs.
     /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
-    ///
-    /// Ref.
-    /// -----
-    /// Friel, N., Hurn, M. & Wyse, J.
-    /// Improving power posterior estimation of statistical evidence.
-    /// Stat Comput 24, 709–723 (2014).
+    /// Based on @cite friel_improving_2014
     Rcpp::List log_evidence(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
     {
         MCMC &engine = *mcmc_ptr;

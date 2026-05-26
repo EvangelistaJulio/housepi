@@ -34,7 +34,7 @@ When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 If \code{param_table} is \code{NULL}, all replicates share the same parameters.
 Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows,
 the table is sub-sampled to \code{nrep} evenly-spaced rows.
-Defaults to \code{NA} produces a single repetition.}
+If \code{NA} produces a single repetition (default).}
 }
 \value{
 \code{data.frame} or \code{list} (when \code{obs_process_long} is provided)

@@ -1,18 +1,35 @@
 library(testthat)
 
-# Run inference once and reuse across tests
+# Run inference once and reuse across tests.
+# Short run trips the diagnostic short-run warning — irrelevant here.
 local_results <- local({
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_template()
-  hhmodel$run_inference(steps = 100, progress = FALSE)
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
+  suppressWarnings(hhmodel$run_inference(
+    steps = 100, chains = 1, adapt = 0, thin = 1, progress = FALSE
+  ))
 })
 
-test_that("Invalid cri_level is rejected", {
-  expect_error(set_global_cri_level(0.5), "between 0.5 and 1")
-  expect_error(set_global_cri_level(1), "between 0.5 and 1")
-  expect_error(set_global_cri_level(NA_real_), "non-NA")
-  expect_error(set_global_cri_level("0.9"), "numeric")
-  expect_error(set_global_cri_level(c(0.9, 0.95)), "single")
+test_that("Active fields are read-only", {
+  local_results |>
+    helper_test_read_only(
+      "parameter_draws", "prior_draws", "augmented_draws",
+      "log_lik_draws", "total_log_lik_draws", "complete_draws"
+    )
+})
+
+test_that("Invalid Credibile Interval level is rejected", {
+  set_global_cri_level(0.5) |>
+    expect_error("between 0.5 and 1")
+  set_global_cri_level(1) |>
+    expect_error("between 0.5 and 1")
+  set_global_cri_level(NA_real_) |>
+    expect_error("non-NA")
+  set_global_cri_level("0.9") |>
+    expect_error("numeric")
+  set_global_cri_level(c(0.9, 0.95)) |>
+    expect_error("single")
 })
 
 test_that("Get-global-cri-level behaves correctly", {
@@ -90,16 +107,6 @@ test_that("Draws active fields are correct", {
   expect_true("lprior" %in% vars)
 })
 
-test_that("Active fields are read-only", {
-  regexp <- "read only"
-  expect_error(local_results$parameter_draws <- "foo", regexp = regexp)
-  expect_error(local_results$prior_draws <- "foo", regexp = regexp)
-  expect_error(local_results$augmented_draws <- "foo", regexp = regexp)
-  expect_error(local_results$log_lik_draws <- "foo", regexp = regexp)
-  expect_error(local_results$total_log_lik_draws <- "foo", regexp = regexp)
-  expect_error(local_results$complete_draws <- "foo", regexp = regexp)
-})
-
 test_that("Exported getter functions work correctly", {
   expect_true(posterior::is_draws(get_parameter_draws(local_results)))
   expect_true(posterior::is_draws(get_prior_draws(local_results)))
@@ -123,7 +130,10 @@ test_that("Print behavior is stable", {
 test_that("Multi-chain inference produces correct chain structure", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
   hhmodel$add_parameter_template()
-  results <- hhmodel$run_inference(steps = 10, chains = 2, progress = FALSE)
+  results <- suppressWarnings(
+    hhmodel$run_inference(steps = 10, chains = 2, adapt = 0, thin = 1,
+                          progress = FALSE)
+  )
 
   pd <- results$parameter_draws
   expect_true(posterior::is_draws(pd))
@@ -137,9 +147,39 @@ test_that("Augm draws are not empty when id_draws is specified", {
                         status = c(1, 0)) |>
     new_housepi_model("augmented_example")
   hhmodel$add_augmented(name = "proba", model = "uniform")
-  results <- hhmodel$run_inference(steps = 5, id_draws = "a",
-                                   progress = FALSE)
+  results <- suppressWarnings(
+    hhmodel$run_inference(steps = 5, chains = 1, adapt = 0, thin = 1,
+                          id_draws = "a", progress = FALSE)
+  )
   ad <- results$augmented_draws
   expect_true(posterior::is_draws(ad))
   expect_true(posterior::nvariables(ad) > 0)
+})
+
+test_that("Diagnostic warning fires on short runs", {
+  expect_warning(
+    results <- flu_1918_frederick |>
+      new_housepi_model("chain_binomial") |>
+      add_parameter_template() |>
+      run_inference(steps = 100, chains = 1, adapt = 0, thin = 1,
+                    progress = FALSE),
+    regexp = "sample size was below"
+  )
+})
+
+test_that("Diagnostic warning fires on poor mixing", {
+  # explicitly define micro-steps
+  expect_warning(
+    results <- flu_1918_frederick |>
+      new_housepi_model("chain_binomial") |>
+      add_parameter_list(
+        alpha = list(prior = "uniform", proposal = "lognormal",
+                     proposal_scale = 1e-4),
+        beta  = list(prior = "uniform", proposal = "lognormal",
+                     proposal_scale = 1e-4),
+        gamma = 1, size_ref = 5
+      ) |>
+      run_inference(steps = 1000, thin = 1, adapt = 0, chains = 2,
+                    progress = FALSE)
+  )
 })

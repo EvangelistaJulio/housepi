@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -142,14 +142,14 @@ namespace housepi
                 id = input.at("id")[i]; // user id
                 if (na::is(id))
                     throw std::invalid_argument(
-                        "Individual in row n." + std::to_string(i + 2) + " had missing 'id'.");
+                        "Individual in row n." + std::to_string(i + 1) + " had missing 'id'.");
             }
             if (input.count("house_id"))
             {
                 house_id = input.at("house_id")[i]; // user house_id
                 if (na::is(house_id))
                     throw std::invalid_argument(
-                        "Individual in row n." + std::to_string(i + 2) + " had missing 'house_id'.");
+                        "Individual in row n." + std::to_string(i + 1) + " had missing 'house_id'.");
             }
             if (input.count("status"))
             {
@@ -334,8 +334,7 @@ namespace housepi
             }
 
             /// Using golden ratio fractional part to ensure bit distribution.
-            /// Ref:
-            /// https://www.boost.org/doc/libs/latest/libs/container_hash/doc/html/hash.html#notes_hash_combine
+            /// Based on @cite james_boostcontainerhash_2022
             void hash_combine_(size_t &seed, size_t h)
             {
 #if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
@@ -586,7 +585,7 @@ namespace housepi
             const std::string &id = input.at("id")[r];
             if (na::is(id))
                 throw std::invalid_argument(
-                    "Invalid id found in row n." + std::to_string(r + 2) + ".");
+                    "Invalid id found in row n." + std::to_string(r + 1) + ".");
             // UPDATE: these errors should be more self-explicative
             if (!id_to_index.count(id))
                 throw std::invalid_argument(
@@ -622,9 +621,11 @@ namespace housepi
 
     void DataLong::helper_build_data_headers_(const DataWide &data_wide, const str_table &input)
     {
+#ifndef NDEBUG
         if (data_wide.is_empty())
             throw std::invalid_argument(
                 "Tried to define data long format before wide format.");
+#endif
 
         headers = read::extract_keys(input);
         // check for individual IDs
@@ -709,8 +710,8 @@ namespace housepi
         SecAttackRates sar_by_house_size(const cases::Report &report)
         {
             unsigned grid_min = std::max(report.min_size, 2u);
-            unsigned grid_len = report.max_size >= grid_min ? report.max_size - grid_min + 1
-                                                            : 0;
+            unsigned grid_len = report.max_size < grid_min ? 0
+                                                           : report.max_size - grid_min + 1;
 
             SecAttackRates output;
             output.grid_min = grid_min;

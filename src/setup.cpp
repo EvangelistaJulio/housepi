@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -80,12 +80,7 @@ namespace housepi
     }
 
     /// Implementation class for progress bar.
-    ///
-    /// -----
-    /// Adapted from :
-    /// OTHMAN EL HAMMOUCHI, April 15, 2024
-    /// "Fancy thread safe progress bar in R for compiled code"
-    /// https://othmanelhammouchi.com/posts/r-parallel-progress/
+    /// Based on @cite hammouchi_fancy_2024
     class ProgressBar
     {
         enum class Mode : std::uint8_t
@@ -305,8 +300,8 @@ namespace housepi
         // note: constrain to 32bit for compatibility with R (mask sign bit)
         seed = static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
 
-        chain = 1;                        // current chain
-        rung = 0;                         // current thermodynamic rung
+        chain_id = 1;                     // current chain
+        rung_id = 0;                      // current thermodynamic rung
         id_draws.clear();                 // drop previous id
         helper_non_default_build_(input); // read user input
         set_n_threads();                  // define number of threads
@@ -342,6 +337,10 @@ namespace housepi
         // N. of Adaptive Steps
         if (input.count("adapt") && !na::is(input.at("adapt")[0]))
             n_adapt = str::toul(input.at("adapt")[0], "adpat");
+
+        // EMA window for the smoothed acceptance-rate estimate.
+        if (input.count("adapt_window") && !na::is(input.at("adapt_window")[0]))
+            n_adapt_window = str::toul(input.at("adapt_window")[0], "adapt_window");
 
         // N. of Thinning Steps
         if (input.count("thin") && !na::is(input.at("thin")[0]))
@@ -398,7 +397,7 @@ namespace housepi
         return prng_parallel_[housepi::parallel::current_thread_index()];
     }
 
-    void Setup::assert_mcmc_setup()
+    void Setup::init_mcmc_configuration(bool is_adaptive)
     {
         if (inv_T < 0. || inv_T > 1.)
             throw std::out_of_range(
@@ -408,6 +407,7 @@ namespace housepi
         n_steps = std::max(1ul, n_steps);
         n_chains = std::max(1ul, n_chains);
         n_thin = std::max(1ul, n_thin);
+        n_adapt_window = std::max(1ul, n_adapt_window);
 
         if (n_burn >= n_steps)
             throw std::out_of_range(
@@ -421,24 +421,17 @@ namespace housepi
         c_sample_size += (n_steps - n_burn) % n_thin > 0;
         n_steps = n_burn + c_sample_size * n_thin;
 
-        // assign number of sweeps
-        // NOTE: because of rounding I can't put all in the same line
-        c_n_sweeps = n_adapt / n_thin;
-        c_n_sweeps += n_burn / n_thin;
-        c_n_sweeps += c_sample_size;
-    }
-
-    // Drop adaptation steps.
-    void Setup::drop_mcmc_adapt()
-    {
-        if (n_adapt > 0)
-            msg::warning(
-                "Dropped adaptation steps: no parametric MCMC proposals were found.");
-        n_adapt = 0;
-
-        // re-assign number of sweeps
-        c_n_sweeps = n_burn / n_thin;
-        c_n_sweeps += c_sample_size;
+        // drop adaptation steps if nothing to adapt
+        // if burn = 0, repurpose adaptation budget as burn
+        if (!is_adaptive)
+        {
+            if (n_adapt > 0 && n_burn == 0)
+            {
+                n_burn = n_adapt;
+                n_steps += n_adapt;
+            }
+            n_adapt = 0;
+        }        
     }
 
     void Setup::prog_set_text(std::string text)
@@ -447,10 +440,10 @@ namespace housepi
             ;
         /* --FUTURE-LOG-EVIDENCE--
         else if (is_power_post())
-            text = "power post " + std::to_string(rung) + "/" + std::to_string(n_rungs);
+            text = "power post " + std::to_string(rung_id) + "/" + std::to_string(n_rungs);
         */
         else if (n_chains > 1)
-            text = "sample " + std::to_string(chain) + "/" + std::to_string(n_chains);
+            text = "sample " + std::to_string(chain_id + 1) + "/" + std::to_string(n_chains);
         else
             text = "sample";
         progressbar_->set_text(text);
@@ -458,13 +451,13 @@ namespace housepi
     void Setup::prog_open_for_mcmc_sample()
     {
         prog_set_text();
-        progressbar_->open(c_n_sweeps * n_chains, progress);
+        progressbar_->open((n_adapt + n_steps) * n_chains, progress);
     }
     /* --FUTURE-LOG-EVIDENCE--
     void Setup::prog_open_for_power_post()
     {
         prog_set_text();
-        progressbar_->open(c_n_sweeps * n_chains * (n_rungs + 1), progress);
+        progressbar_->open((n_adapt + n_steps) * n_chains * (n_rungs + 1), progress);
     }
     */
     void Setup::prog_open_for_simulation()

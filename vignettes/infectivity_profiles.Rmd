@@ -162,7 +162,7 @@ plot_profile_demo(profile)
 ```
 
 If the profiles, distributions or functions currently loaded in housepi are not sufficient to deal with your case study, we provide a mechanism to define custom user functions^[Unfortunately, this requires some programming knowledge in C++.].
-We show how to deal with [user functions](user_functions.html) in the namesake vignette.
+We show how to deal with that caser in [User functions](user_functions.html).
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

@@ -21,6 +21,9 @@ test_that("Default parameter definitions are correct", {
   expect_error(aux_add(param, name = "dummy", value = 3, const = FALSE),
                regexp = "No prior")
 
+  # active fields are read-only
+  helper_test_read_only(param, "param_required")
+
   # default sample framework
   helper_test_aux_load(
     param, dummy = list(value = 3, prior = "uniform", min = 0, max = 5)
@@ -52,7 +55,9 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$defs$const, FALSE)
   expect_equal(param$defs$discr, FALSE)
   expect_equal(param$defs$proposal, "normal")
-  expect_equal(param$defs$proposal_scale, 1)
+  # NA_real_ marks the variable as adaptive (C++ side uses NaN as sentinel).
+  # A finite proposal_scale would instead pin the scale (no adaptation).
+  expect_equal(param$defs$proposal_scale, NA_real_)
   expect_equal(param$defs$prior, "uniform")
   expect_equal(param$defs$min, "0|N")
   expect_equal(param$defs$max, "5|N")

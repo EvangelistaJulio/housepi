@@ -1,6 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
 ##
-## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
 ## Distributed under the terms of the GNU General Public License (GPLv3).
 ## See the LICENSE file for details.
 ##
@@ -39,12 +39,13 @@ assert_valid_features <- function(features) {
   reserved_data <- c(data_reserved_cols, rate_reserved_cols)
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
-    sprintf("Impossible to associate rate to feature%s %s",
-            as_plural(forbidden, "s:"),
+    sprintf("Impossible to associate rate to %s%s",
+            as_plural("feature", length(forbidden), "s:"),
             character_to_string_list(forbidden)),
     "These names are reserved.",
-    sprintf("Please, change feature%s and/or corresponding data column%s.",
-            as_plural(forbidden), as_plural(forbidden))
+    sprintf("Please, change %s and/or corresponding data %s.",
+            as_plural("feature", length(forbidden)),
+            as_plural("column", length(forbidden)))
   )
 }
 
@@ -57,8 +58,8 @@ assert_data_features <- function(features, headers) {
   # assert that features are present
   missing <- setdiff(features, headers)
   if (length(missing) > 0) stop_h(
-    sprintf("Unknown feature%s %s",
-            as_plural(missing, "s:"),
+    sprintf("Unknown %s%s",
+            as_plural("feature", length(missing), "s:"),
             character_to_string_list(missing)),
     "Please check your data headers."
   )
@@ -162,6 +163,19 @@ compute_rule_groups <- function(tbl) {
   tbl
 }
 
+#' Set ordering for rate logic-tables: `.reference` first, decreasing 'n'.
+#' @param tbl `data.frame` Logic table with `param_name`, `n`.
+#' @return `data.frame`
+#' @keywords internal
+#' @noRd
+reorder_rates_logic_table <- function(tbl) {
+  if (nrow(tbl) == 0) return(tbl)
+  is_ref <- tbl$param_name == ".reference"
+  n_val <- suppressWarnings(as.numeric(tbl[["n"]]))
+  ord <- order(tbl$rule_group, !is_ref, -n_val, method = "radix")
+  tbl[ord, , drop = FALSE]
+}
+
 #' Return logic table of group rates
 #' @param data_wide Data from which to extract group rates
 #' @param this_feat Feature as list of data column names.
@@ -261,6 +275,7 @@ tidyup_group_rate_tables <- function(all_tables) {
         x[sub_cols]
       }))
       sub_combined <- compute_rule_groups(sub_combined)
+      sub_combined <- reorder_rates_logic_table(sub_combined)
       df <- list(cbind_rate(sub_combined, rate))
     }
     df_list <- c(df_list, df)
@@ -383,16 +398,16 @@ HousepiGroupRate <- R6::R6Class(
       none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
       if (!none_ref && !".reference" %in% strata$param_name) stop_h(
         "Custom logic table must contain a '.reference' row.",
-        "Designate one row's param_name as '.reference',",
-        "or pass reference = '.none' to opt out."
+        paste0("Designate one row's param_name as '.reference',",
+               " or pass reference = '.none' to explicitely drop it.")
       )
       # validate params keys against logic table param_names
       if (length(params) > 0) {
         valid_names <- setdiff(strata$param_name, ".reference")
         unknown <- setdiff(names(params), valid_names)
         if (length(unknown) > 0) stop_h(
-          sprintf("Unknown parameter%s %s in 'params'.",
-                  as_plural(unknown),
+          sprintf("Unknown %s in 'params':%s",
+                  as_plural("parameter", length(unknown)),
                   character_to_string_list(unknown))
         )
       }
@@ -485,8 +500,8 @@ HousepiGroupRate <- R6::R6Class(
           data_vals <- unique(data_wide[[col]])
           missing_vals <- setdiff(as.character(vals), as.character(data_vals))
           if (length(missing_vals) > 0) warn_h(
-            sprintf("Rate '%s' definition value%s not found in data '%s': %s",
-                    rate_id, as_plural(missing_vals, "s"), col,
+            sprintf("Rate '%s' definition %s not found in data '%s':%s",
+                    rate_id, as_plural("value", length(missing_vals), "s"), col,
                     character_to_string_list(missing_vals)),
             "Corresponding logic table entry will be skipped."
           )
@@ -741,10 +756,10 @@ HousepiGroupRate <- R6::R6Class(
       # drop unused group rates
       if (length(notused) > 0) {
         sms <- c(
-          sprintf("Dropped unused group rate%s %s",
-                  as_plural(notused, "s:"),
+          sprintf("Dropped unused group %s%s",
+                  as_plural("rate", length(notused), "s:"),
                   character_to_string_list(notused)),
-          find_closest_match(notused, required, min_dist = 3)
+          find_closest_match(notused, required)
         )
         if (isTRUE(capital)) {
           for (which in notused) self$remove(which)

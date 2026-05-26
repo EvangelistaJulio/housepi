@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -28,8 +28,8 @@ using no_promote_policy = boost::math::policies::policy<
     boost::math::policies::promote_double<false>>;
 
 /// Discrete quantile policy matching R's convention: min{k : P(X<=k) >= p}.
-/// Boost's default `integer_round_outwards` rounds toward the distribution tails
-/// which differs from R for p < 0.5. `integer_round_up` matches R exactly.
+/// Boost's default 'integer_round_outwards' rounds toward the distribution tails
+/// which differs from R for p < 0.5. 'integer_round_up' matches R exactly.
 using discrete_up_policy = boost::math::policies::policy<
     boost::math::policies::promote_float<false>,
     boost::math::policies::promote_double<false>,
@@ -865,12 +865,7 @@ namespace
     ///   4) "incub_period" (individual incubation period);
     /// Note: symtoms can occur after infection (pre-symptomatic transmission),
     /// i. e. 't_ost' can be negative.
-    ///
-    /// Ref:
-    /// ----
-    /// Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al.
-    /// The timing of COVID-19 transmission.
-    /// medRxiv; 2020. p. 2020.09.04.20188516. doi:10.1101/2020.09.04.20188516
+    /// Based on @cite ferretti_timing_2020
     class Ferretti20_ final : public Distribution
     {
     public:

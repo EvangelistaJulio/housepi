@@ -1,6 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
 ##
-## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
 ## Distributed under the terms of the GNU General Public License (GPLv3).
 ## See the LICENSE file for details.
 ##
@@ -605,9 +605,9 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #'   posterior::summarize_draws()
 #' @export
 run_inference <- function(hhmodel,
-                          steps = 200, burn = 0,
-                          thin = 1, adapt = 0,
-                          chains = 1, threads = 1,
+                          steps = 1000, burn = 0,
+                          thin = 5, adapt = 500,
+                          chains = 4, threads = 1,
                           id_draws = NULL,
                           progress = TRUE) {
   stopifnothousepi(hhmodel)

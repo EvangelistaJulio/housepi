@@ -15,20 +15,6 @@ test_that("overwrite behaves as expected", {
                regexp = "user permissions")
 })
 
-test_that("Character to string list formats vectors correctly", {
-  expect_equal(character_to_string_list("x"), "'x'.")
-  str_list <- letters[1:5]
-  # truncation at max_print
-  expect_equal(character_to_string_list(str_list, max_print = 2),
-               "'a', 'b', ...")
-  # default max_print=4, five elements triggers ellipsis
-  expect_equal(character_to_string_list(str_list),
-               "'a', 'b', 'c', 'd', ...")
-  # max_print larger than vector
-  expect_equal(character_to_string_list(str_list, max_print = 10),
-               "'a', 'b', 'c', 'd' and 'e'.")
-})
-
 test_that("Character to phrase produce phrases as expected", {
   expect_null(character_to_phrase(character(0)))
   expect_equal(character_to_phrase("alpha"), "alpha")

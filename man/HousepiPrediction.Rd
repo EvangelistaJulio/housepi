@@ -82,11 +82,10 @@ Each function should return one between \code{numeric()}, \code{list} or \code{d
 
 \item{\code{thin_ess}}{\code{logical(1)}. Whether to thin \code{param_table} to its
 bulk effective sample size (ESS).
-Ignored if \code{param_table} has no posterior draws. Default is \code{TRUE}.}
+Ignored if \code{param_table} has no posterior draws.}
 
 \item{\code{max_nrep}}{\code{integer(1)} Larger number of replicates.
-The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.
-Defaults is \code{200}.}
+The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.}
 
 \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
 
@@ -99,8 +98,8 @@ One between:
 }}
 
 \item{\code{point_estimate}}{\code{character(1)} Summary statistic used as the predicted
-point estimate across simulations. One between \code{"mean"} (default) and
-\code{"median"}.}
+point estimate across simulations.
+One between \code{"mean"} and \code{"median"}.}
 }
 \if{html}{\out{</div>}}
 }

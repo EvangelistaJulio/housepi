@@ -1,6 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
 ##
-## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
 ## Distributed under the terms of the GNU General Public License (GPLv3).
 ## See the LICENSE file for details.
 ##
@@ -30,8 +30,8 @@ stop_read_only <- function(active) {
 
 #' Subsample a data.frame to ~n evenly spaced rows.
 #' Returns the input unchanged when n is NA or n >= nrow(df).
-#' @param df `data.frame`.
-#' @param n `integer(1)`. Target number of rows.
+#' @param df `data.frame` input table.
+#' @param n `integer(1)` Target number of rows.
 #' @noRd
 helper_thin_table_ <- function(df, n) {
   if (is.null(df) || is.na(n) || nrow(df) <= n) return(df)
@@ -39,18 +39,29 @@ helper_thin_table_ <- function(df, n) {
 }
 
 #' Return 's' if length of input is larger than 1.
-#' @param input `vector()`
-#' @param true `character(1)`
-#' @param false `character(1)`
+#' @param txt `character(1)` Leading text.
+#' @param len_list `vector(1)` Reference list length.
+#' @param true `character(1)` What to print if length > 1.
+#' @param false `character(1)` What to print otherwise.
 #' @noRd
-as_plural <- function(input, true = "s", false = "") {
-  ifelse(length(input) > 1, true, false)
+as_plural <- function(txt, len_list, true = "s", false = "") {
+  paste0(txt, ifelse(len_list > 1, true, false))
+}
+
+#' Helper for "there were/was  `1`/`n`/`more than n1`" sentence.
+#' @param len_list `vector(1)` Reference list length.
+#' @param max_print `integer(1)` Maximum number of elements to print.
+#' @noRd
+format_there_were_was <- function(len_list, max_print = 4) {
+  paste0(as_plural("There ", len_list, "were ", "was "),
+         ifelse(len_list > max_print,
+                paste0("more than ", max_print), len_list))
 }
 
 #' Collapse a character vector into a phrase.
-#' @param mylist `character()`. Vector to print.
-#' @param quote `logical(1)`. Whether to add quotes.
-#' @param and `logical(1)`. Whether to include a 'and'.
+#' @param mylist `character()` Vector to print.
+#' @param quote `logical(1)` Whether to add quotes.
+#' @param and `logical(1)` Whether to include a 'and'.
 #' @return `character(1)`
 #' @noRd
 character_to_phrase <- function(mylist, quote = FALSE, and = TRUE) {
@@ -68,32 +79,36 @@ character_to_phrase <- function(mylist, quote = FALSE, and = TRUE) {
 }
 
 #' Collapse a character vector into string of quoted words.
-#' @param mylist `character()`. List to be printed.
-#' @param max_print `integer(1)`. Maximum number of elements to print.
+#' @param mylist `character()` List to be printed.
+#' @param max_print `integer(1)` Maximum number of elements to print.
+#' @param fmt `logical(1)` Format as in message.
 #' @return `character(1)`
 #' @noRd
-character_to_string_list <- function(mylist, max_print = 4) {
+character_to_string_list <- function(mylist, max_print = 4, fmt = TRUE) {
   len_list <- length(mylist)
   max_print <- min(max_print, len_list, na.rm = TRUE)
   overflow <- len_list > max_print
   sms <- character_to_phrase(mylist[seq_len(max_print)],
                              quote = TRUE, and = !overflow)
-  if (overflow) paste0(sms, ", ...")
-  else paste0(sms, ".")
+  out <- paste0(sms, ifelse(overflow, ", ...", "."))
+  if (isTRUE(fmt)) out <- paste0(as_plural("", len_list, "\n", " "), out)
+  out
 }
 
 #' Find closest match across list of options.
 #' Return a string with helpful comments.
-#' @param input `character(1)`. String to be inspected.
-#' @param options `character()`. Options.
-#' @param min_dist `integer(1)`. Threshold for minimal distance.
+#' @param input `character(1)` String to be inspected.
+#' @param options `character()` Options.
+#' @param min_dist `integer(1)` Threshold for minimal distance.
+#' @param max_print `integer(1)` Maximum number of elements to print.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-find_closest_match <- function(input, options, min_dist = 1) {
+find_closest_match <- function(input, options, min_dist = 3, max_print = 4) {
   output <- c()
 
-  if ((length(options) > 0) && (min_dist > 0)) {
+  len_opts <- length(options)
+  if (len_opts > 0 && min_dist > 0) {
     dists <- utils::adist(input, options)
     idxs <- apply(dists, 1, min) <= min_dist
 
@@ -103,9 +118,9 @@ find_closest_match <- function(input, options, min_dist = 1) {
     }
 
     if (!all(idxs)) output <- c(output,
-      sprintf("Available option%s %s",
-              as_plural(options, "s are:", " is"),
-              character_to_string_list(options))
+      sprintf("Available %s %s",
+              as_plural("option", len_opts, "s are:", " is"),
+              character_to_string_list(options, fmt = FALSE))
     )
   }
   output
@@ -139,8 +154,8 @@ trunc_mtime <- function(path) {
 #' @title Detect untracked changes in template source files
 #' @description
 #' Whether source files have been modified or a more recent installation exists.
-#' @param source_dir `character(1)`. Path to source directory.
-#' @param dll `character(1)`. Expected dynamic library file name.
+#' @param source_dir `character(1)` Path to source directory.
+#' @param dll `character(1)` Expected dynamic library file name.
 #' @return `bool`
 #' @keywords internal
 #' @noRd
@@ -174,7 +189,7 @@ helper_clone <- function(x) {
 ############################################################################
 
 #' Format elements of a list to pass to import_setup Rcpp method.
-#' @param defs `list`. Setup options.
+#' @param defs `list` Setup options.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
@@ -204,7 +219,7 @@ setup_sample_size_ <- function(steps, burn, thin, chains) {
 }
 
 #' Format elements of data (wide or long) to pass to import Rcpp method.
-#' @param df `data.frame`. Definition table or list.
+#' @param df `data.frame` Definition table or list.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
@@ -214,7 +229,7 @@ char_data_input_ <- function(df) {
 }
 
 #' Factorize dates and non-numerical quantities from data to pass to C++.
-#' @param df `data.frame`. Dataset.
+#' @param df `data.frame` Dataset.
 #' @return `list`
 #' @keywords internal
 #' @noRd
@@ -247,9 +262,9 @@ cpp_data_factorize <- function(df) {
 }
 
 #' Restore factored quantities on data returned from the C++ implementation.
-#' @param data `data.frame`. Output of the Rcpp model object.
+#' @param data `data.frame` Output of the Rcpp model object.
 #' @param info `list` of `list`s. Info about class and levels of data columns.
-#' @param headers `character()`. Header columns.
+#' @param headers `character()` Header columns.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
@@ -281,12 +296,12 @@ cpp_data_refactor <- function(data, info, headers) {
 
 #' Evaluate the symbolic chain-binomial seropositive-contribution.
 #'
-#' @param community_escape `numeric`. Community escape probabilities.
+#' @param community_escape `numeric` Community escape probabilities.
 #' One entry for each of the $n_\mathrm{infec}$ seropositives.
-#' @param p2p_escape `matrix`. Person-to-person escape-probabilities.
+#' @param p2p_escape `matrix` Person-to-person escape-probabilities.
 #' Square matrix $n_\mathrm{infec} \times n_\mathrm{infec}$.
 #' Convention `[i][k]` of infectee `k` from infector `i`.
-#' @return `numeric(1)`. Positive-contribution probability.
+#' @return `numeric(1)` Positive-contribution probability.
 #' @keywords internal
 #' @noRd
 eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {

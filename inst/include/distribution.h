@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -73,8 +73,8 @@ namespace housepi
 		}
 
 		/// Check for validity, then  return the quantile (inverse CDF) at probability p.
-		double quantile_safe(double p) const
-		{
+		double quantile(double p) const
+		{	
 			if (p < 0 || p > 1)
 				return na::DOUBLE;
 			if (p <= 0.)
@@ -83,7 +83,7 @@ namespace housepi
 			if (p >= 1.)
 				return upper_.is_empty() ? std::numeric_limits<double>::infinity()
 										 : relocate_(upper_.value());
-			return relocate_(raw_quantile_(p));
+			return relocate_(cast_discr_(raw_quantile_(shift_() + p * trunc_())));
 		}
 
 	protected:
@@ -93,19 +93,19 @@ namespace housepi
 
 		/// Raw random sampling method of the distribution.
 		/// @param prng : pseudo-random number generator.
-		virtual double raw_rand_(rnd_gen &) const { raise_undefined_call_err_("rand"); }
+		virtual double raw_rand_(rnd_gen & /*prng*/) const { raise_undefined_call_err_("rand"); }
 
 		/// Raw probability density/mass function of the distribution.
-		virtual double raw_pdf_(double) const = 0;
+		virtual double raw_pdf_(double /*x*/) const = 0;
 
 		/// Raw log-probability density/mass function of the distribution.
-		virtual double raw_log_pdf_(double) const { raise_undefined_call_err_("log_pdf"); }
+		virtual double raw_log_pdf_(double /*x*/) const { raise_undefined_call_err_("log_pdf"); }
 
 		/// Raw cumulative distribution function.
-		virtual double raw_cdf_(double) const = 0;
+		virtual double raw_cdf_(double /*x*/) const = 0;
 
 		/// Raw method to call.
-		double raw_function_(double) const override final { raise_undefined_call_err_("function"); }
+		double raw_function_(double /*x*/) const override final { raise_undefined_call_err_("function"); }
 
 		/// Polymorphic function method.
 		double function_(double x) const override final

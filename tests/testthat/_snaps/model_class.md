@@ -34,14 +34,15 @@
       x Parameters: there are 4 missing parameter definitions:
       'alpha', 'beta', 'gamma' and 'size_ref'.
       They are required by model definitions.
-      x Augmented: there is 1 missing augmented definition: 'infec_time'.
+      x Augmented: there is 1 missing augmented definition 'infec_time'.
       It is required by model definitions.
       ! Group rates: there are 3 missing group rate definitions:
       'community', 'infectivity' and 'susceptibility'.
       They can be specified for model definitions.
       ! Contact rates: using default contact rates.
       A custom choice can be provided.
-      ! Infectivity profile: using templated profile. A custom choice can be provided.
+      ! Infectivity profile: using templated profile.
+      A custom choice can be provided.
 
 ---
 
@@ -53,14 +54,15 @@
       x Parameters: there are 4 missing parameter definitions:
       'alpha', 'beta', 'gamma' and 'size_ref'.
       They are required by model definitions.
-      x Augmented: there is 1 missing augmented definition: 'infec_time'.
+      x Augmented: there is 1 missing augmented definition 'infec_time'.
       It is required by model definitions.
       ! Group rates: there are 3 missing group rate definitions:
       'community', 'infectivity' and 'susceptibility'.
       They can be specified for model definitions.
       ! Contact rates: using default contact rates.
       A custom choice can be provided.
-      ! Infectivity profile: using templated profile. A custom choice can be provided.
+      ! Infectivity profile: using templated profile.
+      A custom choice can be provided.
 
 # Nested definitions works as expected
 

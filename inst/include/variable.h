@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -37,31 +37,20 @@ namespace housepi
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        Variable();
-        ~Variable();
+        Variable();                          /// constructor
+        ~Variable();                         /// destructor
+        Variable(const Variable &other);     /// copy
+        Variable(Variable &&);               /// move
+        Variable &operator=(Variable other); /// copy-assignment
 
-        /// Copy constructor
-        Variable(const Variable &other);
-        /// Move constructor
-        Variable(Variable &&);
-
-        /// Copy assignment
-        Variable &operator=(Variable other);
-
+        /// Swap method.
         void swap(Variable &other) noexcept;
-
         /// Sugar to call variable as a function if applicable, otherwise raise error.
         double operator()(double x) const;
 
         //////////////////////
         //////  SETTER  //////
         //////////////////////
-
-        /// Restore empty. Used in multiple initializations.
-        void clear() noexcept;
-
-        /// Enforce user choice for constant.
-        void enforce_user_const() noexcept { is_user_const_ = true; }
 
         /// Change value. Store old value.
         void set(double x)
@@ -70,15 +59,12 @@ namespace housepi
             Attribute::set(x);
         }
 
-        /// Recover old value.
-        void recover() noexcept { value_ = old_; }
-
         /// Assign an attribute to function.
         void init_func_attr(std::string_view key, const Attribute &attr);
         /// Finalize reshaping of function.
         /// Drop function if it's constant when reshaping.
         /// NOTE: discretization of model has priority
-        ///       e. g. user discr is FALSE, but discrete-defined model
+        /// e. g. user discr is FALSE, but discrete-defined model
         void init_func_reshaping(bool discr);
 
         /// Initialize pointer to distribution.
@@ -88,14 +74,18 @@ namespace housepi
         /// Finalize reshaping of distribution.
         /// NOTE: to be called necessarily.
         void init_distr_reshaping(bool discr);
+        /// Initialize pointer to proposal.
+        /// NOTE: it must be assigned after model initialization.
+        void init_proposal(const std::string &proposal, double scale);
 
+        /// Enforce user choice for constant.
+        void enforce_user_const() noexcept { is_user_const_ = true; }
         /// Restore user defined variable initialization.
         void user_reset(rnd_gen &prng);
         /// Optimizing pruning indirections and setting constants to numeric.
         void optimize() override final;
-        /// Initialize pointer to proposer.
-        /// NOTE: it must be assigned after model initialization.
-        void init_proposal(const std::string &proposal, double proposal_scale);
+        /// Restore empty. Used in multiple initializations.
+        void clear() noexcept;
 
         /////////////////////
         //////  FLAGS  //////
@@ -105,16 +95,24 @@ namespace housepi
         bool is_discrete() const noexcept override final;
         /// Wheter the variable has a prior or a model associated.
         bool has_model() const noexcept;
-        /// Wheter the variable has an adaptable parametric proposal rule.
-        bool is_adaptable() const noexcept;
+        /// Wheter the variable has an adaptive parametric proposal rule.
+        bool is_adaptive() const noexcept;
 
         ///////////////////////////////////
         //////  METROPOLIS-HASTINGS  //////
         ///////////////////////////////////
 
         /// Set new proposal internally and store old value.
+        /// NOTE: tentatively credits the move as accepted.
         void propose(rnd_gen &prng);
+        /// Check whether last propose move stored a valid value.
         bool is_valid_move() const;
+        /// Recover old value and roll back the tentative accept rate update.
+        void recover() noexcept
+        {
+            value_ = old_;
+            accept_rate_ -= adapt_smoothing_;
+        }
 
         double get_distr_log_pdf() const;
         double get_distr_log_ratio() const;
@@ -130,9 +128,15 @@ namespace housepi
             }
         }
 
-        void update_accept_rate(bool is_accepted);
-        void reset_accept_rate();
+        /// Reset the acceptance rate estimate.
+        /// NOTE: initialised at the target to avoid first steps adaptation.
+        void reset_accept_rate() noexcept { accept_rate_ = TARGET_ACCEPT_RATE; }
+        /// Adapt the proposal rule from the acceptance estimate.
         void adapt_proposal(double ratio);
+        /// Set EMA smoothing factor (0, 1). NOTE: shared across variables.
+        static void set_adapt_smoothing(double a) noexcept { adapt_smoothing_ = a; }
+        /// Get EMA smoothing factor.
+        static double get_adapt_smoothing() noexcept { return adapt_smoothing_; }
 
 #ifndef NDEBUG
         ////////////////////
@@ -156,8 +160,23 @@ namespace housepi
         } ratio_mode_ = Ratio::None;
 
         double old_ = na::DOUBLE;              /// old value
-        std::unique_ptr<Distribution> pDistr_; /// prior\model distribution of the variable
-        std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposer
+        std::unique_ptr<Distribution> pDistr_; /// prior\model distribution
+        std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposal
+
+    public:
+        //////////////////////////
+        //////  ADAPTATION  //////
+        //////////////////////////
+
+        /// Target Metropolis acceptance rate.
+        /// Based on @cite roberts_weak_1997
+        static constexpr double TARGET_ACCEPT_RATE = 0.44;
+
+    private:
+        /// Exponentially moving average (EMA) of the acceptance indicator.
+        double accept_rate_ = TARGET_ACCEPT_RATE;
+        /// EMA smoothing factor. NOTE: effective window is 1. / adapt_smoothing_.
+        inline static double adapt_smoothing_ = 1.;
 
         ///////////////////////
         //////  HELPERS  //////
@@ -171,6 +190,6 @@ namespace housepi
         /// Initialize proposal of direct sample from prior/model.
         void helper_init_sample_proposal_();
         /// Initialize parametric Monte Carlo proposal.
-        void helper_init_monte_carlo_proposal_(const std::string &proposal, double proposal_scale);
+        void helper_init_monte_carlo_proposal_(const std::string &proposal, double scale);
     };
 }

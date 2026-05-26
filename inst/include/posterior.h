@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -42,8 +42,6 @@ namespace housepi
         void init(MCMCBase &mcmc);
         /// Update posterior sample storing current values.
         void store(MCMCBase &mcmc);
-        /// Drop all samples
-        void clear();
 
     private:
         unsigned long count_ = 0;    /// Internal count

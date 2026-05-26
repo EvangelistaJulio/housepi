@@ -1,6 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
 ##
-## Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
 ## Distributed under the terms of the GNU General Public License (GPLv3).
 ## See the LICENSE file for details.
 ##
@@ -97,9 +97,9 @@ find_closest_template_name <- function(x) {
   options <- list.files(template_models_dir(), full.names = FALSE)
   flat_options <- spaced_template_choice(options)
   # NOTE: avoid to attempt a suggestion for silly mistakes
-  sms <- find_closest_match(flat_choice, flat_options, 5)
+  sms <- find_closest_match(flat_choice, flat_options)
   if (stringr::str_ends(sms, "\\?") && nchar(flat_choice) > 3) return(sms)
-  c("Show available templates calling 'browse_housepi_templates' alone.")
+  c("Show available templates calling 'browse_housepi_templates'.")
 }
 
 #' @title
@@ -300,21 +300,19 @@ template_missing_find <- function(required, defined) {
 #' @noRd
 template_missing_stop <- function(required, defined, family, max_print = 4) {
   miss <- template_missing_find(required, defined)
-  len_miss <- length(miss)
   # find sources of missing definitions
   sources <- unique(names(required[required %in% miss]))
   # show error message
   output <- c()
+  len_miss <- length(miss)
   if (len_miss > 0) output <- c(
-    sprintf("There %s %s missing %s definition%s%s",
-            as_plural(miss, "were", "was"),
-            ifelse(len_miss > max_print,
-                   paste0("more than ", max_print), len_miss),
+    sprintf("%s missing %s %s%s",
+            format_there_were_was(len_miss, max_print = max_print),
             family,
-            as_plural(miss, "s:\n", ": "),
-            character_to_string_list(miss, max_print)),
+            as_plural("definition", len_miss, "s:"),
+            character_to_string_list(miss, max_print = max_print)),
     sprintf("%s required by %s definitions.",
-            as_plural(miss, "They were", "It was"),
+            as_plural("", len_miss, "They were", "It was"),
             character_to_phrase(sources))
   )
   output
@@ -326,14 +324,14 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
 #' @param max_print `integer(1)`. Maximum number of elements to print.
 #' @keywords internal
 #' @noRd
-template_overwrite_warn <- function(all_rmv, family, max_print = 5) {
+template_overwrite_warn <- function(all_rmv, family, max_print = 4) {
   len_rmv <- length(all_rmv)
   if (len_rmv > 0) warn_h(sprintf(
-    "Overwriting %s %s definition%s%s",
+    "Overwriting %s %s %s%s",
     ifelse(len_rmv > max_print,
            paste0("more than ", max_print), len_rmv),
     family,
-    as_plural(all_rmv, "s for:\n", " for "),
+    as_plural("definition", len_rmv, "s for:", " for"),
     character_to_string_list(all_rmv, max_print)
   ))
 }
@@ -361,17 +359,14 @@ template_not_used_find <- function(required, defined) {
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-template_not_used_warn <- function(required, defined, family, max_print = 5) {
+template_not_used_warn <- function(required, defined, family, max_print = 4) {
   notused <- template_not_used_find(required, defined)
-
-  len_not_used <- length(notused)
-  if (len_not_used > 0) warn_h(
-    sprintf("There %s %s unused %s definition%s%s",
-            as_plural(notused, "were", "was"),
-            ifelse(len_not_used > max_print,
-                   paste0("more than ", max_print), len_not_used),
+  len_unused <- length(notused)
+  if (len_unused > 0) warn_h(
+    sprintf("%s unused %s %s%s",
+            format_there_were_was(len_unused, max_print),
             family,
-            as_plural(notused, "s:\n", ": "),
+            as_plural("definition", len_unused, "s:"),
             character_to_string_list(notused, max_print))
   )
   invisible()

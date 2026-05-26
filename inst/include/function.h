@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -451,15 +451,15 @@ namespace housepi
         [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
 
         /// Raw method to call.
-        virtual double raw_function_(double) const = 0;
+        virtual double raw_function_(double /*x*/) const = 0;
         /// Raw method to call log-function.
-        virtual double raw_log_func_(double) const { raise_undefined_call_err_("log_func"); }
+        virtual double raw_log_func_(double /*x*/) const { raise_undefined_call_err_("log_func"); }
         /// Raw primitive method.
-        virtual double raw_primitive_(double) const { raise_undefined_call_err_("primitive"); }
+        virtual double raw_primitive_(double /*x*/) const { raise_undefined_call_err_("primitive"); }
         /// Raw quantile method.
-        virtual double raw_quantile_(double) const { raise_undefined_call_err_("quantile"); }
+        virtual double raw_quantile_(double /*p*/) const { raise_undefined_call_err_("quantile"); }
         /// Raw log-ratio method. NOTE: empty function return 0 by convention.
-        virtual double raw_log_ratio_(double, double) const { return 0.; }
+        virtual double raw_log_ratio_(double /*xo*/, double /*xn*/) const { return 0.; }
 
         /// Polymorphic function method.
         virtual double function_(double x) const

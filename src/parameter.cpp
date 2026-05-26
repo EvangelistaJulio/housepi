@@ -1,6 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
  *
- * Copyright © 2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
  * Distributed under the terms of the GNU General Public License (GPLv3).
  * See the LICENSE file for details.
  */
@@ -21,21 +21,581 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
-#include "parameter.h"
 #include "data_wide.h"
+#include "distribution.h"
 #include "function.h"
 #include "group_rate.h"
 #include "individual.h"
+#include "parameter.h"
 #include "variable.h"
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** Parameter : struct ***  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace housepi
 {
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  *** Proposal : class ***  /////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Base class for Metropolis proposals.
+    class Proposal
+    {
+    public:
+        /// Default constructor.
+        Proposal() = default;
+        /// Virtual destructor.
+        virtual ~Proposal() = default;
+        /// Clone this proposal object.
+        virtual std::unique_ptr<Proposal> clone() const = 0;
+
+        /// Reset to user-specified scale.
+        virtual void user_reset() {}
+
+        /// Propose a value using random number generator.
+        virtual double propose(rnd_gen & /*prng*/, double /*xo*/) const = 0;
+        /// Compute log-ratio of proposal densities for Metropolis-Hastings.
+        virtual double log_ratio(double /*xo*/, double /*xn*/) const = 0;
+
+        /// Adapt proposal parameters based on observed acceptance rate
+        /// and current adaptation ratio.
+        virtual void adapt(double /*accept_rate*/, double /*ratio*/) {};
+
+        /// Check if proposal is adaptive.
+        virtual bool is_adaptive() const noexcept = 0;
+        /// Get name of proposal distribution.
+        virtual std::string_view name() const noexcept = 0;
+
+        /// Rebind proposal to a new distribution.
+        virtual void rebind_distrib(const Distribution * /*new_distr*/) {}
+    };
+
+#define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
+    std::unique_ptr<Proposal> clone() const override { return std::make_unique<Class_>(*this); }
+#define MAKE_PROPOSAL_NAME_METHOD(name_) \
+    std::string_view name() const noexcept override final { return #name_; }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  *** NullProposal_ : class ***  /////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class NullProposal_ final : public Proposal
+    {
+    public:
+        NullProposal_() {}
+        MAKE_PROPOSAL_CLONE_METHOD(NullProposal_)
+        MAKE_PROPOSAL_NAME_METHOD()
+
+        double propose(rnd_gen & /*prng*/, double xo) const override final { return xo; }
+        double log_ratio(double /*xo*/, double /*xn*/) const override final { return 0.; }
+
+        bool is_adaptive() const noexcept override final { return false; }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  *** SampleProposal_ : class ***  ////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class SampleProposal_ final : public Proposal
+    {
+    public:
+        SampleProposal_(const Distribution *distr) : pDistr_(distr) {}
+        MAKE_PROPOSAL_CLONE_METHOD(SampleProposal_)
+        MAKE_PROPOSAL_NAME_METHOD(sample)
+
+        void rebind_distrib(const Distribution *new_distr) override final { pDistr_ = new_distr; }
+
+        double propose(rnd_gen &prng, double /*xo*/) const override final { return pDistr_->rand(prng); }
+        double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
+
+        bool is_adaptive() const noexcept override final { return false; }
+
+    private:
+        const Distribution *pDistr_;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  *** AdaptableProposal : class ***  ///////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Adaptable version of Metropolis proposals.
+    class AdaptableProposal : public Proposal
+    {
+    public:
+        ///////////////////////////
+        //////  CONSTRUCTOR  //////
+        ///////////////////////////
+
+        AdaptableProposal(
+            const std::string &distr_name,
+            double scale,
+            bool is_discrete)
+            : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"})),
+              user_scale_(na::is(scale) ? 1. : std::fabs(scale)),
+              is_adaptive_(na::is(scale))
+        {
+            if (is_discrete)
+                pDistr_->init_discretization();
+            pDistr_->init_truncation();
+        }
+        virtual ~AdaptableProposal() = default;
+
+        AdaptableProposal(const AdaptableProposal &other)
+            : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
+              user_scale_(other.user_scale_),
+              is_adaptive_(other.is_adaptive_) {}
+
+        /////////////////////
+        //////  FLAGS  //////
+        /////////////////////
+
+        /// Wheter proposal is adaptive.
+        bool is_adaptive() const noexcept override final { return is_adaptive_; }
+
+        ////////////////////
+        //////  SHOW  //////
+        ////////////////////
+
+        std::string_view name() const noexcept override final { return pDistr_->name(); }
+
+    protected:
+        std::unique_ptr<Distribution> pDistr_; /// distribution associated to proposal
+        double user_scale_ = 1.;               /// scale of the Metropolis proposal
+        bool is_adaptive_ = true;              /// whether scale is adaptive
+
+        /// Vanishing Robbins-Monro multiplier from an observed accept rate.
+        /// Based on @cite andrieu_tutorial_2008
+        static double robbins_monro_(double accept_rate, double ratio) noexcept
+        {
+            return std::exp((1. - ratio) * (accept_rate - Variable::TARGET_ACCEPT_RATE));
+        }
+        /// Compute InterQuartile Range (IQR) from prior distribution (Q25, Q75).
+        static std::pair<double, double> get_iqr_from_prior_(const Distribution *prior)
+        {
+            return {prior->quantile(0.25), prior->quantile(0.75)};
+        }
+        /// Wheter IQR is finite and can be used to compute initial proposal scale.
+        static bool is_iqr_finite_(double q25, double q75) noexcept
+        {
+            return std::isfinite(q25) && std::isfinite(q75) && q75 > q25;
+        }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  *** UniformProposal_ : class ***  ////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class UniformProposal_ final : public AdaptableProposal
+    {
+    public:
+        UniformProposal_(double scale, const Distribution *prior)
+            : AdaptableProposal("uniform", scale, prior->is_discrete())
+        {
+            if (is_adaptive_)
+            {
+                const auto [q25, q75] = get_iqr_from_prior_(prior);
+                if (is_iqr_finite_(q25, q75))
+                    user_scale_ = q75 - q25;
+            }
+            user_reset();
+        }
+        MAKE_PROPOSAL_CLONE_METHOD(UniformProposal_)
+
+        void user_reset() override final
+        {
+            pDistr_->init_attr("min", -user_scale_);
+            pDistr_->init_attr("max", user_scale_);
+        }
+
+        double propose(rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
+        double log_ratio(double, double) const override final { return 0.; }
+
+        void adapt(double accept_rate, double ratio) override final
+        {
+            const double m = pDistr_->upper().value() * robbins_monro_(accept_rate, ratio);
+            pDistr_->set_lower(-m);
+            pDistr_->set_upper(m);
+        }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////  *** NormalProposal_ : class ***  /////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class NormalProposal_ final : public AdaptableProposal
+    {
+    public:
+        NormalProposal_(double scale, const Distribution *prior)
+            : AdaptableProposal("normal", scale, prior->is_discrete())
+        {
+            if (is_adaptive_)
+            {
+                const auto [q25, q75] = get_iqr_from_prior_(prior);
+                if (is_iqr_finite_(q25, q75))
+                    user_scale_ = (q75 - q25) / 1.349;
+            }
+            user_reset();
+        }
+        MAKE_PROPOSAL_CLONE_METHOD(NormalProposal_)
+
+        void user_reset() override final
+        {
+            pDistr_->init_attr("mean", 0.);
+            pDistr_->init_attr("sd", user_scale_);
+        }
+
+        double propose(rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
+        double log_ratio(double, double) const override final { return 0.; }
+
+        /// Adapt standard deviation.
+        void adapt(double accept_rate, double ratio) override final
+        {
+            pDistr_->set_arg(1, pDistr_->arg(1) * robbins_monro_(accept_rate, ratio));
+        }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  *** LognormalProposal_ : class ***  ///////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class LognormalProposal_ final : public AdaptableProposal
+    {
+    public:
+        LognormalProposal_(double scale, const Distribution *prior)
+            : AdaptableProposal("lognormal", scale, prior->is_discrete())
+        {
+            // assert that value range is positive
+            if (prior->lower().is_empty() || prior->lower().value() < 0)
+                throw std::invalid_argument(
+                    "Provided proposal '" + std::string(name()) + "' for non-positive");
+
+            // associate location parameter from prior
+            if (prior->loc().is_callable())
+                pAttr_loc_ = prior->loc().pointer();
+            mode_ = pAttr_loc_ ? Location::Active : Location::None;
+
+            // initialize adaptive configuration
+            if (is_adaptive_)
+            {
+                const double loc = pAttr_loc_ ? pAttr_loc_->value() : 0.;
+                const auto [q25, q75] = get_iqr_from_prior_(prior);
+                if (is_iqr_finite_(q25 - loc, q75 - loc))
+                    user_scale_ = std::log((q75 - loc) / (q25 - loc)) / 1.349;
+            }
+            user_reset();
+        }
+        MAKE_PROPOSAL_CLONE_METHOD(LognormalProposal_)
+
+        void user_reset() override final
+        {
+            pDistr_->init_attr("meanlog", 0.);
+            pDistr_->init_attr("sdlog", user_scale_);
+        }
+
+        double propose(rnd_gen &prng, double xo) const override final
+        {
+            switch (mode_)
+            {
+            case Location::None:
+                return xo * pDistr_->rand(prng);
+            default: // Location::Active:
+                const double loc = pAttr_loc_->value();
+                return loc + (xo - loc) * pDistr_->rand(prng);
+            }
+        }
+        double log_ratio(double xo, double xn) const override final
+        {
+            switch (mode_)
+            {
+            case Location::None:
+                return std::log(xo / xn);
+            default: // Location::Active:
+                const double loc = pAttr_loc_->value();
+                return std::log((xo - loc) / (xn - loc));
+            }
+        }
+
+        /// Adapt log of standard deviation.
+        void adapt(double accept_rate, double ratio) override final
+        {
+            pDistr_->set_arg(1, pDistr_->arg(1) * robbins_monro_(accept_rate, ratio));
+        }
+
+    private:
+        enum class Location : std::uint8_t
+        {
+            None,
+            Active
+        } mode_ = Location::None;
+        const Attribute *pAttr_loc_ = nullptr;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  *** Variable : class ***  /////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    Variable::Variable() = default;
+    Variable::~Variable() = default;
+
+    Variable::Variable(const Variable &other)
+        : Attribute(other),
+          valid_mode_(other.valid_mode_),
+          ratio_mode_(other.ratio_mode_),
+          old_(other.old_),
+          pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
+          pProp_(other.pProp_ ? other.pProp_->clone() : nullptr),
+          accept_rate_(other.accept_rate_)
+    {
+        if (pProp_)
+            pProp_->rebind_distrib(pDistr_.get());
+    }
+    Variable::Variable(Variable &&) = default;
+
+    Variable &Variable::operator=(Variable other)
+    {
+        swap(other);
+        return *this;
+    }
+
+    void Variable::swap(Variable &other) noexcept
+    {
+        Attribute::swap(other);
+        std::swap(pDistr_, other.pDistr_);
+        std::swap(pProp_, other.pProp_);
+    }
+
+    void Variable::init_func_attr(std::string_view key, const Attribute &attr)
+    {
+        pFunc_->init_attr(key, attr);
+    }
+    void Variable::init_func_reshaping(bool discr)
+    {
+        if (has_model())
+            discr = pDistr_->is_discrete();
+        if (discr)
+            pFunc_->init_discretization();
+        pFunc_->init_truncation();
+
+        // assert no missing arguments
+        pFunc_->assert_is_callable_explicitly();
+    }
+
+    void Variable::init_distr(std::string_view opt)
+    {
+        if (na::is(opt))
+            return;
+        pDistr_ = compose_distr_registries(opt, "distribution", {"continuos", "discrete"});
+    }
+
+    void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
+    {
+        pDistr_->init_attr(key, attr);
+    }
+
+    void Variable::init_distr_reshaping(bool is_discr)
+    {
+        if (!has_model())
+            return;
+
+        if (is_discr)
+            pDistr_->init_discretization();
+        pDistr_->init_truncation();
+
+        pDistr_->assert_is_callable_explicitly();
+
+        // check that non-constant variable has non-zero dimensional range
+        helper_assert_non_degenerate_range_();
+    }
+
+    void Variable::helper_assert_non_degenerate_range_()
+    {
+        const Attribute &lower = pDistr_->lower();
+        const Attribute &upper = pDistr_->upper();
+
+        // skip if one of the range extremes is not provided
+        if (!lower.is_callable() || !upper.is_callable())
+            return;
+
+        // skip if range is not degenerate
+        const double sx = lower.value();
+        const double dx = upper.value();
+        if (sx < dx)
+            return;
+
+        // case empty interval, lower and upper are "open"
+        if (sx > dx || !pDistr_->is_valid(sx) || !pDistr_->is_valid(dx))
+            throw std::invalid_argument(
+                "Definition produced an inconsistent range " + pDistr_->str_range() +
+                " for " + err_name() + ".");
+
+        if (!lower.is_constant() || !upper.is_constant())
+            return;
+
+        if (!is_user_const_)
+        {
+            const std::string sms = "Definitions of 'min' as " + lower.err_name() +
+                                    " and 'max' as " + upper.err_name() +
+                                    " produced a degenerate range ";
+            // parameter
+            if (err_type_ == "parameter")
+                throw std::invalid_argument(sms + " for " + err_name() + ".");
+
+            // augmented
+            msg::warning("Collapsed (at least) one " + err_name() + " to constant.\n" + sms + ".");
+            init_numeric(sx);
+            helper_init_null_proposal_();
+        }
+    }
+
+    void Variable::helper_init_null_proposal_()
+    {
+        // assign the pointer to the proposal
+        pProp_ = std::make_unique<NullProposal_>();
+
+        // setup sample proposal functional methods
+        ratio_mode_ = Ratio::None;
+        valid_mode_ = Validity::Always;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  Variable : Setter (Proposal)  //////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void Variable::init_proposal(const std::string &proposal, double scale)
+    {
+        if (mode_ != Mode::Empty && mode_ != Mode::Numeric)
+            return;
+
+        if (na::is(proposal))
+            return;
+
+        if (mode_ == Mode::Empty)
+            init_numeric(na::DOUBLE);
+        is_user_const_ = false;
+
+        try
+        {
+            if (proposal == "sample")
+                helper_init_sample_proposal_();
+            else
+                helper_init_monte_carlo_proposal_(proposal, scale);
+        }
+        catch (const std::exception &e)
+        {
+            std::string sm = e.what();
+            if (!sm.empty() && sm.back() == '.')
+                sm.pop_back();
+            throw std::invalid_argument(sm + " for " + err_name() + ".");
+        }
+    }
+
+    void Variable::helper_init_sample_proposal_()
+    {
+        pProp_ = std::make_unique<SampleProposal_>(pDistr_.get());
+        ratio_mode_ = Ratio::None;
+        valid_mode_ = Validity::Always;
+    }
+
+    void Variable::helper_init_monte_carlo_proposal_(const std::string &proposal, double scale)
+    {
+        const Distribution *prior = pDistr_.get();
+
+        const std::vector<std::string> options = {"uniform", "normal", "lognormal", "sample"};
+        if (proposal == options[0])
+            pProp_ = std::make_unique<UniformProposal_>(scale, prior);
+        else if (proposal == options[1])
+            pProp_ = std::make_unique<NormalProposal_>(scale, prior);
+        else if (proposal == options[2])
+            pProp_ = std::make_unique<LognormalProposal_>(scale, prior);
+        else
+            throw std::invalid_argument(
+                "Unknown proposal '" + proposal + "'." + str::find_closest(proposal, options));
+
+        ratio_mode_ = Ratio::Compute;
+        valid_mode_ = Validity::Check;
+    }
+
+    void Variable::user_reset(rnd_gen &prng)
+    {
+        if (is_constant())
+            return;
+        if (has_model())
+            set(pDistr_->rand(prng));
+        if (pProp_)
+            pProp_->user_reset();
+    }
+
+    void Variable::optimize()
+    {
+        Attribute::optimize();
+        if (pDistr_)
+            pDistr_->optimize();
+    }
+
+    double Variable::operator()(double x) const
+    {
+        switch (mode_)
+        {
+        case Mode::Function:
+            return pFunc_->evaluate(x);
+        default: // cases Mode::Empty, Mode::Numeric, Mode::Pointer
+            throw std::runtime_error(
+                "Called undefined evaluate operator for non-function " + err_name() + ".");
+        }
+    }
+
+    void Variable::clear() noexcept
+    {
+        mode_ = Mode::Empty;
+        value_ = na::DOUBLE;
+        pAttr_ = nullptr;
+        pFunc_ = nullptr;
+        pDistr_ = nullptr;
+        pProp_ = nullptr;
+    }
+
+    bool Variable::is_discrete() const noexcept { return has_model() ? pDistr_->is_discrete()
+                                                                     : Attribute::is_discrete(); }
+    bool Variable::has_model() const noexcept { return pDistr_ != nullptr; }
+    bool Variable::is_adaptive() const noexcept { return pProp_ && pProp_->is_adaptive(); }
+
+    void Variable::propose(rnd_gen &prng)
+    {
+        set(pProp_->propose(prng, value_));
+        accept_rate_ += adapt_smoothing_ * (1. - accept_rate_); // EMA for accept = TRUE
+    }
+    bool Variable::is_valid_move() const
+    {
+        switch (valid_mode_)
+        {
+        case Validity::Check:
+            return pDistr_->is_valid(value_);
+        default: // case Validity::Always:
+            return true;
+        }
+    }
+    double Variable::get_distr_log_pdf() const { return pDistr_->log_pdf(value_); }
+    double Variable::get_distr_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
+    double Variable::get_propose_log_ratio() const { return pProp_->log_ratio(old_, value_); }
+
+    void Variable::adapt_proposal(double ratio) { pProp_->adapt(accept_rate_, ratio); }
+
+#ifndef NDEBUG
+    std::string Variable::str_summary() const
+    {
+        return Attribute::str_summary() +
+               (has_model() ? " | ~" + pDistr_->str_summary(false)
+                            : "");
+    }
+#endif
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  *** Parameter : struct ***  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
     void Parameter::build(const str_table &input)
     {
         khold_.clear_optional();
@@ -120,22 +680,21 @@ namespace housepi
                 helper_build_to_sample_(input, k);
         }
 
-        // initialize all parameters to standard
+        // initialize all parameters to standard (i.e. no cache dependencies)
         list_sample_standard = list_sample;
-        for (size_t p : list_sample_standard)
-            if (at(p).is_adaptable())
-                list_adaptable_sample_standard.push_back(p);
-            else
-                list_non_adapt_sample_standard.push_back(p);
+        for (size_t p : list_sample)
+            if (at(p).is_adaptive())
+                list_adaptive.push_back(p);
     }
 
     void Parameter::build_for_predic(const dbl_table &input)
     {
         const std::vector<std::string> headers = read::extract_keys(input);
-        // assert that parameter is not already defined
+#ifndef NDEBUG
         if (headers.size() != str::unique(headers).size())
             throw std::invalid_argument(
                 "Found multiple definitions for the same parameters.");
+#endif
 
         clear_lists_();
         simulation_values.clear();
@@ -168,11 +727,8 @@ namespace housepi
         list_func.clear();
         list_sample.clear();
         list_sample_standard.clear();
-        list_adaptable_sample_standard.clear();
-        list_non_adapt_sample_standard.clear();
+        list_adaptive.clear();
         list_sample_cached.clear();
-        list_adaptable_sample_cached.clear();
-        list_non_adapt_sample_cached.clear();
 
         simulation_values.clear();
     }
@@ -181,9 +737,11 @@ namespace housepi
     {
         const std::string &pstr = input.at("name")[k]; // parameter name
 
+#ifndef NDEBUG
         if (na::is(input.at("value")[k]))
             throw std::invalid_argument(
                 "Constant parameter '" + pstr + "' had undefined value.");
+#endif
 
         // assign constant parameter to the set of variables
         size_t p = khold_.from_string(pstr);
@@ -202,10 +760,11 @@ namespace housepi
     {
         const std::string &pstr = input.at("name")[k]; // parameter name
 
-        // assert parameter to sample has a valid value initialization
+#ifndef NDEBUG
         if (na::is(input.at("value")[k]) && na::is(input.at("prior")[k]))
             throw std::invalid_argument(
                 "Non-constant parameter '" + pstr + "' had undefined prior.");
+#endif
 
         // create a new parameter Variable
         size_t p = khold_.from_string(pstr);
@@ -289,19 +848,11 @@ namespace housepi
         {
             const std::vector<size_t> vec({p});
             list_sample_standard = list_sample_standard - vec;
-            list_adaptable_sample_standard = list_adaptable_sample_standard - vec;
-            list_non_adapt_sample_standard = list_non_adapt_sample_standard - vec;
         }
 
         // add the parameter as cache if not already present
         if (std::find(list_sample_cached.begin(), list_sample_cached.end(), p) == list_sample_cached.end())
-        {
             list_sample_cached.push_back(p);
-            if (at(p).is_adaptable())
-                list_adaptable_sample_cached.push_back(p);
-            else
-                list_non_adapt_sample_cached.push_back(p);
-        }
     }
 
     void Parameter::user_reset(rnd_gen &prng)
@@ -334,34 +885,6 @@ namespace housepi
         }
     }
 
-    bool Parameter::propose_valid_move(size_t p, rnd_gen &prng)
-    {
-        Variable &this_par = at(p);
-
-        // set new value of the parameter and store the old to buffer
-        this_par.propose(prng);
-
-        if (this_par.is_valid_move())
-            return true;
-
-        // recover buffer if not valid move
-        this_par.recover();
-        return false;
-    }
-
-    void Parameter::adapt_proposal_of_sampled(unsigned long step, unsigned long tot)
-    {
-        const double ratio = static_cast<double>(step) / static_cast<double>(tot);
-
-        // adpat all standard model parameters
-        for (size_t p : list_adaptable_sample_standard)
-            at(p).adapt_proposal(ratio);
-
-        // adapt all parameters with cached dependecies
-        for (size_t p : list_adaptable_sample_cached)
-            at(p).adapt_proposal(ratio);
-    }
-
     const Attribute &Parameter::read_attribute(
         const parse::Entry &node,
         const Individual *member_ptr) const
@@ -388,7 +911,7 @@ namespace housepi
                                   " are not supported here.";
                 // add tip if augmented (which does not require '@')
                 if (parse::is_augmented(node.type) && node.is_terminal())
-                    sms += "\nDid you forget rlang injection operator `!!`?";
+                    sms += "\nDid you forget rlang injection operator '!!'?";
                 throw std::invalid_argument(sms);
             }
 

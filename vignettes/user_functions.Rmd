@@ -25,7 +25,7 @@ set.seed(42)
 ```
 
 Sometimes your case study requires a function, distribution or infectivity profile not immediately available in housepi.
-In this vignette we describe an advanced developer-level extension to add them.
+Here we describe an advanced developer-level extension to add them.
 Custom function classes can be registered and made available to models and R.
 It is intended for users who are comfortable reading and editing C++ code, and working with custom housepi models.
 However, if appropriate, authors will evaluate requests to add missing functions to the official package.

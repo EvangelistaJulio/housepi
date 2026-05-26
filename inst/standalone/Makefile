@@ -1,7 +1,7 @@
 # Standalone Makefile
 
 # If MODEL is not provided, set blank as default
-MODEL ?= ../models/blank
+MODEL ?= ../../src/model_blank.cpp
 
 # Standard fields used for debugging
 # exported by private$.export_to_cpp_standalone
@@ -16,14 +16,15 @@ STD_IN := -A augm.csv \
 
 # Lost of source files with exclusions
 SRC := ../../src
-EXCL_FILES := $(SRC)/RcppExports.cpp
-SOURCES := standalone.cpp $(MODEL)/model.cpp $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
+EXCL_FILES := $(SRC)/RcppExports.cpp $(wildcard $(SRC)/model_*.cpp)
+SOURCES := standalone.cpp $(MODEL) $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
 
 # Object files to build (automatic)
 OBJECTS := $(SOURCES:.cpp=.o)
 
 # Executable name
-EXECUTABLE := $(MODEL)/model.exe
+DIRMODEL := $(dir $(MODEL))
+EXECUTABLE := $(DIRMODEL)/model.exe
 
 # compilation flags
 CXX := g++
@@ -43,7 +44,7 @@ endif
 ifdef DEBUG
 CXXFLAGS += -g3 -O0 \
 -Werror -Wuninitialized -Wunused \
--fsanitize=address,undefined,leak \
+-fsanitize=address,undefined \
 -fno-sanitize-recover=all \
 -fno-omit-frame-pointer \
 -fstack-protector-strong \
@@ -84,12 +85,12 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS) -o $(EXECUTABLE)
 
 # For the model object
-$(MODEL)/model.o: $(MODEL)/model.cpp
+$(DIRMODEL)/model.o: $(MODEL)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # For the standalone object
 standalone.o: standalone.cpp
-	$(CXX) $(CXXFLAGS) -I$(MODEL) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I$(DIRMODEL) -c $< -o $@
 
 # For all other objects
 %.o: %.cpp
@@ -98,7 +99,8 @@ standalone.o: standalone.cpp
 # To clean objects
 clean:
 	$(RM) standalone.o
-	$(RM) {$(MODEL),$(SRC),../models/*}/*.{o,tmp,exe,so,dll}
+	$(RM) ../models/*/model.cpp
+	$(RM) {$(DIRMODEL),$(SRC),../models/*}/*.{o,tmp,exe,so,dll}
 
 # Run make in debugging mode
 debug: all
