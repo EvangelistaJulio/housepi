@@ -72,20 +72,32 @@ make_ctr_mtx <- function(house, crates, prefix = "") {
 ## CHAIN BINOMIAL HH MODEL : STANDARD CALLS ##
 ##############################################
 
-test_that("Chain binomial is not discretizable", {
-  expect_error(
-    new_housepi_model(blank_house,
-                      "chain_binomial", discr = TRUE),
-    regexp = "No visible discrete time option"
-  )
+test_that("Chain binomial gaurds against missusage", {
+  # not discretizable
+  blank_house |>
+    new_housepi_model("chain_binomial", discr = TRUE) |>
+    expect_error(regexp = "No visible discrete time option")
+
+  # no support for missing status
+  data.frame(id = c("m1", "m2"), house_id = "h1",
+             status = c(1, NA)) |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template() |>
+    run_inference() |>
+    expect_error("incompatible")
 })
 
 test_that("Deep clone works as expected", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$add_parameter_template()
+  house <- data.frame(
+    house_id = c(1, 1, 2, 2, 2),
+    status = c(1, 0, 1, 0, 0),
+    member = c("student", "other", "student", "mother", "father")
+  )
+  hhmodel <- house |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
   expect_no_error(out <- suppressWarnings(
-    hhmodel$run_inference(steps = 2, chains = 1, adapt = 0, thin = 1,
-                          progress = FALSE)
+    hhmodel$run_inference(steps = 2, chains = 1, adapt = 0, thin = 1)
   ))
 
   # deep clone
@@ -103,7 +115,7 @@ test_that("Deep clone works as expected", {
 
   # check no backward changes
   hhmodel$add_group_rate("susceptibility", by = "member")
-  hhclone <- flu_2014_matsumoto |>
+  hhclone <- house |>
     dplyr::mutate(status = NA) |>
     new_housepi_model("chain_binomial")
   expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
@@ -112,14 +124,16 @@ test_that("Deep clone works as expected", {
 
 test_that("Log-likelihood traces and pointwise traces are coherent", {
   for (t in c(1L, 2L)) {
-    results <- suppressWarnings(
-      new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+    suppressWarnings(
+      results <- flu_1918_frederick |>
+        new_housepi_model("chain_binomial") |>
         add_parameter_template() |>
-        run_inference(steps = 10, thin = 2, adapt = 2, burn = 2,
-                      chains = 1, threads = t)
+        run_inference(steps = 10, thin = 2, adapt = 2,
+                      burn = 2, chains = 1, threads = t)
     )
 
-    pointwise <- results$log_lik_draws |>
+    pointwise <- results |>
+      get_log_lik_draws() |>
       posterior::as_draws_matrix() |>
       rowSums() |>
       unname()
@@ -128,8 +142,9 @@ test_that("Log-likelihood traces and pointwise traces are coherent", {
 })
 
 test_that("Simulation with observation process is correct", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_template()
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
   rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
   withr::with_seed(
     1, result1 <- hhmodel$run_simulation(obs_process = rand_observ)
@@ -143,10 +158,11 @@ test_that("Simulation with observation process is correct", {
 })
 
 test_that("Run simulation with nrep > 1 returns list of dataframes", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_template()
   nrep <- 3
-  result <- hhmodel$run_simulation(nrep = nrep)
+  result <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template() |>
+    run_simulation(nrep = nrep)
   expect_true(is.list(result))
   expect_length(result, nrep)
   expect_true(is.data.frame(result[[1]]))
@@ -156,10 +172,10 @@ test_that("run_inference rejects invalid setup arguments", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("chain_binomial") |>
     add_parameter_template()
-  expect_error(hhmodel$run_inference(steps = 5, burn = 10),
-               regex = "[Bb]urn")
-  expect_error(hhmodel$run_inference(steps = 5, thin = 10),
-               regex = "[Tt]hin")
+  hhmodel$run_inference(steps = 5, burn = 10) |>
+    expect_error(regex = "[Bb]urn")
+  hhmodel$run_inference(steps = 5, thin = 10) |>
+    expect_error(regex = "[Tt]hin")
   # threads-clamp warning and short-run diagnostic both fire here
   expect_warning(
     expect_warning(hhmodel$run_inference(steps = 5, chains = 1, adapt = 0,
@@ -169,7 +185,7 @@ test_that("run_inference rejects invalid setup arguments", {
   )
 })
 
-test_that("run_inference with progress = TRUE emits the progress bar", {
+test_that("run_inference progress bar shows as expected", {
   # FIXME: timing-sensitive
   hhmodel <- flu_1918_baltimora |>
     new_housepi_model("chain_binomial") |>
@@ -187,17 +203,17 @@ test_that("run_inference with progress = TRUE emits the progress bar", {
 })
 
 test_that("predicted_cases_by_house_size exercises parallel for_each", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
     add_parameter_template()
   results <- suppressWarnings(
-    run_inference(hhmodel, steps = 30, chains = 1, adapt = 0, thin = 1,
-                  progress = FALSE)
+    run_inference(hhmodel, steps = 50, chains = 1, adapt = 0, thin = 1)
   )
   outs <- list()
   for (t in c(1L, 2L)) {
     suppressWarnings(
       outs[[as.character(t)]] <- predicted_cases_by_house_size(
-        hhmodel, results, max_nrep = 4, threads = t, progress = FALSE
+        hhmodel, results, max_nrep = 4, threads = t
       )
     )
     expect_s3_class(outs[[as.character(t)]], "PredictedCasesBySize")
@@ -207,8 +223,9 @@ test_that("predicted_cases_by_house_size exercises parallel for_each", {
 })
 
 test_that("Run simulation thins param_table down to nrep when smaller", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_template()
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
   pt <- as.data.frame(stats::setNames(
     as.list(hhmodel$parameters$value), hhmodel$parameters$name
   ))
@@ -252,8 +269,9 @@ test_that("Single infected member log-likelihood is correct", {
   log_lik <- neg_log + log(pos)
 
   # define housepi model
-  hhmodel <- new_housepi_model(house, "chain_binomial")
-  hhmodel$add_group_rate_list(!!!groups)
+  hhmodel <- house |>
+    new_housepi_model("chain_binomial") |>
+    add_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
   hhmodel$add_parameter_list(!!!par)
   expect_equal(log_lik, hhmodel$evaluate_log_lik())
@@ -309,30 +327,29 @@ test_that("Three infected members likelihood is correct", {
 ##################################################
 
 test_that("Chain binomial runs ok on real case with partitions", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$add_parameter_template()
-  hhmodel$add_group_rate_list(
-    community = list(by = "member", reference = ".none")
-  )
-  hhmodel$add_contact_rate(
-    strata = data.frame(
-      from_member = c("student", "student", "sibling",
-                      "mother", "mother",
-                      "father",
+  hhmodel <- flu_2014_matsumoto |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template() |>
+    add_group_rate("community", by = "member", reference = ".none") |>
+    add_contact_rate(
+      strata = data.frame(
+        from_member = c("student", "student", "sibling",
+                        "mother", "mother",
+                        "father",
+                        "other",
+                        NA),
+        to_member = c("student", "sibling", "sibling",
+                      "student", "sibling",
+                      "mother",
                       "other",
                       NA),
-      to_member = c("student", "sibling", "sibling",
-                    "student", "sibling",
-                    "mother",
-                    "other",
-                    NA),
-      param_name = c("ctr_child_child", "ctr_child_child", "ctr_child_child",
-                     "ctr_mother_child", "ctr_mother_child",
-                     ".reference",
-                     "ctr_other_other",
-                     "ctr_cross_generational")
+        param_name = c("ctr_child_child", "ctr_child_child", "ctr_child_child",
+                       "ctr_mother_child", "ctr_mother_child",
+                       ".reference",
+                       "ctr_other_other",
+                       "ctr_cross_generational")
+      )
     )
-  )
   expect_silent(hhmodel$evaluate_log_lik())
 })
 

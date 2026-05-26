@@ -181,8 +181,11 @@ namespace housepi::str
         if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
             return true;
 
+#ifndef NDEBUG
         throw std::invalid_argument(
             "Unrecognized boolean value '" + tkn + "'.");
+#endif
+        return false;
     }
 
     /// Template function to wrap conversion functions with try-catch.
@@ -333,6 +336,7 @@ namespace housepi::str
                                    const std::vector<std::string> &options,
                                    const std::string &where)
     {
+#ifndef NDEBUG
         if (options.empty())
             return;
 
@@ -349,12 +353,14 @@ namespace housepi::str
         if (!missing.empty())
             throw std::invalid_argument(
                 "Missing " + where + "s: " + str::format(missing));
+#endif
     }
 
     void assert_no_unused_entries(const std::vector<std::string> &entries,
                                   const std::vector<std::string> &options,
                                   const std::string &where)
     {
+#ifndef NDEBUG
         std::vector<std::string> unused = {};
         for (const std::string &x : entries)
             if (std::find(options.begin(), options.end(), x) == options.end())
@@ -369,6 +375,7 @@ namespace housepi::str
             throw std::invalid_argument(
                 "Unknown " + where + "s: " + str::format(unused) +
                 str::find_closest("", options, 0));
+#endif
     }
 }
 

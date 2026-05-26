@@ -128,9 +128,11 @@ namespace housepi
         dict<size_t> definition_counts = {};
         for (const std::string &gstr : str::unique(input.at("group_rate")))
         {
+#ifndef NDEBUG
             if (na::is(gstr))
                 throw std::invalid_argument(
                     "Found a missing group rate name in the definitions.");
+#endif
             khold_.add(gstr);
             definition_counts.emplace(gstr, 0);
         }

@@ -5,16 +5,15 @@ test_that("set_source_name_ assigns names to vector", {
   expect_equal(names(result), c("param", "param"))
   expect_equal(unname(result), c("a", "b"))
 
-  # NA name: unchanged
-  result <- set_source_name_(c("a", "b"), NA)
-  expect_null(names(result))
-
   # NULL input: returns NULL
-  expect_null(set_source_name_(NULL, "param"))
-
+  set_source_name_(NULL, "param") |>
+    expect_null()
+  # NA name: unchanged
+  names(set_source_name_(c("a", "b"), NA)) |>
+    expect_null()
   # empty string name: unchanged
-  result <- set_source_name_(c("a"), "")
-  expect_null(names(result))
+  names(set_source_name_(c("a"), "")) |>
+    expect_null()
 })
 
 test_that("Missing template mechanism work as expected", {
@@ -35,34 +34,45 @@ test_that("Missing template mechanism work as expected", {
   expect_true(any(grepl("missing", result)))
 
   # no missing: empty output
-  result <- template_missing_stop(c("a"), c("a"), "parameter")
-  expect_equal(result, c())
+  template_missing_stop(c("a"), c("a"), "parameter") |>
+    expect_equal(c())
 })
 
 test_that("Not Used Template mechanisms work as expected", {
   required <- c(A = "a")
   defined <- c("a", "b", "c")
   # partial overlap
-  expect_equal(template_not_used_find(required, defined), c("b", "c"))
+  template_not_used_find(required, defined) |>
+    expect_equal(c("b", "c"))
   # all used: returns empty (character(0))
-  expect_length(template_not_used_find(defined, defined), 0)
+  template_not_used_find(defined, defined) |>
+    expect_length(0L)
   # no required: returns all defined sorted
-  expect_equal(template_not_used_find(character(0), rev(defined)), defined)
+  template_not_used_find(character(0), rev(defined)) |>
+    expect_equal(defined)
   # no defined
-  expect_null(template_not_used_find(c("a"), character(0)))
+  template_not_used_find(c("a"), character(0)) |>
+    expect_null()
 
   # warning for unused
-  expect_warning(template_not_used_warn(c("a"), defined, "venom"),
-                 regexp = "unused")
+  template_not_used_warn(c("a"), defined, "venom") |>
+    expect_warning(regexp = "unused")
   # all used: no warning
-  expect_no_warning(template_not_used_warn(defined, defined, "gekko"))
+  template_not_used_warn(defined, defined, "gekko") |>
+    expect_no_warning()
 })
 
 test_that("template_overwrite_warn emits warning for overwrites", {
-  expect_warning(template_overwrite_warn(c("x"), "parameter"),
-                 regexp = "Overwriting")
   # empty: no warning
-  expect_no_warning(template_overwrite_warn(character(0), "parameter"))
+  template_overwrite_warn(character(0), "parameter") |>
+    expect_no_warning()
+
+  template_overwrite_warn(c("x"), "parameter") |>
+    expect_warning(regexp = "Overwriting")
+
+  # warn handles many elements
+  template_overwrite_warn(letters[1:10], "Miller", max_print = 3) |>
+    expect_warning(regexp = "more than 3")
 })
 
 test_that("fmt_assert_cli formats messages correctly", {
@@ -91,14 +101,14 @@ test_that("browse_housepi_templates branches inform correctly", {
   # print existing templates
   expect_snapshot(browse_housepi_templates())
   # non-character name
-  expect_error(browse_housepi_templates(42),
-               regexp = "not a character")
+  browse_housepi_templates(42) |>
+    expect_error(regexp = "not a character")
   # unknown name: error mentions "not a known template" and a hint
-  expect_error(browse_housepi_templates("foxhound"),
-               regexp = "not a known template")
+  browse_housepi_templates("foxhound") |>
+    expect_error(regexp = "not a known template")
   # unknown name close to a real one: hint should suggest "Did you mean"
-  expect_error(browse_housepi_templates("chain binomia"),
-               regexp = "Did you mean")
+  browse_housepi_templates("chain binomia") |>
+    expect_error(regexp = "Did you mean")
 })
 
 test_that("browse_housepi_templates triggers help preview when path is NA", {
@@ -121,8 +131,8 @@ test_that("open_model_helper_ errors when info.Rd is missing", {
   empty_dir <- tempfile("ocelot_")
   dir.create(empty_dir)
   on.exit(unlink(empty_dir, recursive = TRUE), add = TRUE)
-  expect_error(open_model_helper_(empty_dir),
-               regexp = "Impossible to show model description")
+  open_model_helper_(empty_dir) |>
+    expect_error(regexp = "Impossible to show model description")
 })
 
 test_that("browse_housepi_templates copies template to a new path", {
@@ -141,10 +151,8 @@ test_that("browse_housepi_templates copies template to a new path", {
   expect_false(file.exists(file.path(dest, "augm.R")))
 
   # second copy without replace: warns and does NOT overwrite
-  expect_warning(
-    browse_housepi_templates("chain_binomial", path = dest),
-    regexp = "already exists"
-  )
+  browse_housepi_templates("chain_binomial", path = dest) |>
+    expect_warning(regexp = "already exists")
   expect_equal(file.info(file.path(dest, "model.cpp"))$mtime, initial_mtime)
 
   # with replace = TRUE: overwrites silently
@@ -174,14 +182,14 @@ test_that("browse_housepi_templates rejects '.' as destination path", {
 
 test_that("Template name normalization", {
   model_name <- "chain binomial"
-  expect_equal(spaced_template_choice("Chain-Binomial"),
-               model_name)
-  expect_equal(spaced_template_choice("chain_binomial"),
-               model_name)
-  expect_equal(spaced_template_choice(" chain binoMial "),
-               model_name)
-  result <- spaced_template_choice("CHAIN BINOMIAL")
-  expect_equal(result, model_name)
+  spaced_template_choice("Chain-Binomial") |>
+    expect_equal(model_name)
+  spaced_template_choice("chain_binomial") |>
+    expect_equal(model_name)
+  spaced_template_choice(" chain binoMial ") |>
+    expect_equal(model_name)
+  spaced_template_choice("CHAIN BINOMIAL") |>
+    expect_equal(model_name)
 
   result <- find_closest_template_name("chain binomia")
   expect_true(any(grepl("Did you mean", result)))
@@ -198,13 +206,6 @@ test_that("Template extract keys from model.cpp", {
   expect_true(is.character(result))
 
   # non-existent key returns empty
-  result2 <- template_extract_keys(model_cpp, "Raiden")
-  expect_equal(result2, character(0))
-})
-
-test_that("Template overwrite warn handles many elements", {
-  expect_warning(
-    template_overwrite_warn(letters[1:10], "Miller", max_print = 3),
-    regexp = "more than 3"
-  )
+  template_extract_keys(model_cpp, "Raiden") |>
+    expect_equal(character(0))
 })

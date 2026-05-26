@@ -145,6 +145,18 @@ test_that("Augmented support rlang double bang", {
   subset(augm$defs, name == "C")
 })
 
+###############################
+## AUGMENTED : ACTIVE FIELDS ##
+###############################
+
+test_that("Active fields are read-only", {
+  HousepiAugmented$new() |>
+    helper_test_read_only(
+      "augm_required", "data_required",
+      "group_rates_required", "param_required"
+    )
+})
+
 test_that("Symbolic definitions are equivalent", {
   augm <- HousepiAugmented$new()
   val <- 1

@@ -33,6 +33,18 @@ dummy_df <- data.frame(house_id = 1,
 dummy_factor_info <- list(age = list(levels = c("child", "adult")),
                           sex = list(levels = c("M", "F")))
 
+###################################
+## CONTACT RATES : ACTIVE FIELDS ##
+###################################
+
+test_that("Active fields are read-only", {
+  HousepiContactRate$new() |>
+    helper_test_read_only(
+      "parameters", "data_required",
+      "param_required", "tidy_table"
+    )
+})
+
 #################################
 ## CONTACT RATES : PAIR COUNTS ##
 #################################
@@ -487,4 +499,3 @@ test_that("Distinct rule_groups multiply at the cell", {
   # diagonal is 0
   expect_equal(unname(diag(snap$contact_rate)), rep(0., nrow(hh)))
 })
-

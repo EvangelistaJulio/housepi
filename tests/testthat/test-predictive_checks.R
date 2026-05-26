@@ -12,7 +12,13 @@ local_ppc <- local({
   list(hhmodel = hhmodel, results = results)
 })
 
-test_that("measure_sar_by_house_size computes SAR correctly", {
+test_that("measure-sar-by-house_size computes SAR correctly", {
+  # empty call: columns c(house_size, 0))
+  measure_sar_by_house_size(NULL) |>
+    dim() |>
+    expect_equal(c(0L, 2L))
+
+  # normal case
   data_wide <- data.frame(
     id = paste0("p", 1:7),
     house_id = c(rep("hh1", 2), rep("hh2", 3), rep("hh3", 2)),
@@ -20,7 +26,6 @@ test_that("measure_sar_by_house_size computes SAR correctly", {
   )
 
   result <- measure_sar_by_house_size(data_wide)
-
   expect_true(is.data.frame(result))
   expect_true(all(c("house_size", "sar") %in% colnames(result)))
   # size 2: mean of SAR 1.0 (hh1) and 0.0 (hh3) = 0.5
@@ -28,9 +33,17 @@ test_that("measure_sar_by_house_size computes SAR correctly", {
   # size 3: SAR = (1-1)/(3-1) = 0
   expect_equal(result[result$house_size == 3, "sar"], 0)
 
+  # FIXME: what should be the behavior here?
+  #data_wide$house_id <- NA
+  #result <- measure_sar_by_house_size(data_wide)
 })
 
 test_that("measure_cases_by_house_size produces correct contingency table", {
+  # empty call: columns c(house_size, 0))
+  measure_cases_by_house_size(NULL) |>
+    dim() |>
+    expect_equal(c(0L, 2L))
+
   data_wide <- data.frame(id = paste0("p", 1:5),
                           house_id = c(rep("hh1", 2), rep("hh2", 3)),
                           status = c(1, 1, 1, 0, 0))
@@ -121,12 +134,10 @@ test_that("Format-credible-interval works correctly on vectors", {
   expect_true(grepl("\\[", result))
 
   # as_integer
-  expect_equal(
-    format_credible_interval(2.1, 1.7, 2.3,
-                             as_integer = TRUE,
-                             fmt = "%s-%s-%s"),
-    "2-2-2"
-  )
+  format_credible_interval(2.1, 1.7, 2.3,
+                           as_integer = TRUE,
+                           fmt = "%s-%s-%s") |>
+    expect_equal("2-2-2")
 
   # NA mean returns NA_character_
   result <- format_credible_interval(NA, NA, NA)
@@ -137,16 +148,16 @@ test_that("Format-credible-interval works correctly on vectors", {
   expect_true(is.character(result))
 
   # inconsistent interval warns
-  expect_warning(format_credible_interval(5, 10, 20),
-                 regexp = "inconsistent")
+  format_credible_interval(5, 10, 20) |>
+    expect_warning(regexp = "inconsistent")
 
   # mismatched lengths error
-  expect_error(format_credible_interval(c(1, 2), c(1), c(2)),
-               regexp = "same length")
+  format_credible_interval(c(1, 2), c(1), c(2)) |>
+    expect_error(regexp = "same length")
 
   # wrong str_format error
-  expect_error(format_credible_interval(1, 0, 2, fmt = "%s only one"),
-               regexp = "three.*placeholder")
+  format_credible_interval(1, 0, 2, fmt = "%s only one") |>
+    expect_error(regexp = "three.*placeholder")
 
   # data.frame input
   mn <- data.frame(a = c(1, 2), b = c(3, 4))
@@ -158,8 +169,8 @@ test_that("Format-credible-interval works correctly on vectors", {
 
   # mismatched data.frame dimensions
   lo_bad <- data.frame(a = c(0))
-  expect_error(format_credible_interval(mn, lo_bad, up),
-               regexp = "same dimensions")
+  format_credible_interval(mn, lo_bad, up) |>
+    expect_error(regexp = "same dimensions")
 
   # mean == 0 branch for digit calculation
   result <- format_credible_interval(0, -0.1, 0.1)
@@ -235,12 +246,13 @@ test_that("HousepiPrediction active fields are read-only", {
                               sar = measure_sar_by_house_size,
                               progress = FALSE)
   )
-  expect_error(ppc$point_estimate <- "La", regexp = "read only")
-  expect_error(ppc$cri_level <- "Li", regexp = "read only")
-  expect_error(ppc$nrep <- "Lu", regexp = "read only")
-  expect_error(ppc$thin_ess <- "Le", regexp = "read only")
-  expect_error(ppc$is_posterior <- "Lo", regexp = "read only")
-  expect_error(ppc$model_name <- "Patriots...", regexp = "read only")
+
+  ppc |>
+    helper_test_read_only(
+      "point_estimate", "cri_level", "nrep",
+      "thin_ess", "is_posterior", "model_name"
+    )
+
   # read access works
   expect_silent(ppc$point_estimate)
   expect_silent(ppc$cri_level)
@@ -251,8 +263,7 @@ test_that("HousepiPrediction active fields are read-only", {
 })
 
 test_that("Predicted-measures raises error when no measure is provided", {
-  expect_error(predicted_measures(local_ppc$hhmodel, local_ppc$results,
-                                  progress = FALSE),
+  expect_error(predicted_measures(local_ppc$hhmodel, local_ppc$results),
                regexp = "No measure was provided")
 })
 
@@ -260,7 +271,7 @@ test_that("Predicted cases by house size works as expected", {
   hhmodel <- local_ppc$hhmodel
   results <- local_ppc$results
   suppressWarnings(
-    ppc <- predicted_cases_by_house_size(hhmodel, results, progress = FALSE)
+    ppc <- predicted_cases_by_house_size(hhmodel, results)
   )
   expect_s3_class(ppc, "PredictedCasesBySize")
 
@@ -276,10 +287,11 @@ test_that("Predicted cases by house size works as expected", {
   expect_true(length(ct) == 3)
 
   # subclass active fields and inherited dynamic measure fields are read-only
-  expect_error(ppc$formatted_sec_attack_rate <- "La", regexp = "read only")
-  expect_error(ppc$formatted_cases_table <- "Li", regexp = "read only")
-  expect_error(ppc$sec_attack_rate <- "Lu", regexp = "read only")
-  expect_error(ppc$cases_table_by_size <- "Le", regexp = "read only")
+  ppc |>
+    helper_test_read_only(
+      "formatted_sec_attack_rate", "formatted_cases_table",
+      "sec_attack_rate", "cases_table_by_size"
+    )
 
   # set_max_house_size and drop
   ppc$set_max_house_size(3)
@@ -301,15 +313,13 @@ test_that("PPC does not pollute the engine's data_wide between calls", {
   dw_before <- hhmodel$data_wide
   suppressWarnings({
     ppc1 <- hhmodel |>
-      predicted_cases_by_house_size(results, progress = FALSE,
-                                    thin_ess = FALSE, max_nrep = 5)
+      predicted_cases_by_house_size(results, thin_ess = FALSE, max_nrep = 5)
   })
   expect_identical(hhmodel$data_wide, dw_before)
 
   suppressWarnings({
     ppc2 <- hhmodel |>
-      predicted_cases_by_house_size(results, progress = FALSE,
-                                    thin_ess = FALSE, max_nrep = 5)
+      predicted_cases_by_house_size(results, thin_ess = FALSE, max_nrep = 5)
   })
   expect_identical(ppc1$cases_table_by_size$observed,
                    ppc2$cases_table_by_size$observed)
@@ -348,7 +358,7 @@ test_that("HousepiPrediction warns on observed values outside CrI", {
   expect_warning(
     predicted_measures(hhmodel, param_table,
                        sar = measure_sar_by_house_size,
-                       progress = FALSE, thin_ess = FALSE, max_nrep = 20),
+                       thin_ess = FALSE, max_nrep = 20),
     regexp = ".*outside.*credible interval"
   )
 })
@@ -359,9 +369,7 @@ test_that("predicted_measures works with custom measure", {
   suppressWarnings({
     ppc <- predicted_measures(hhmodel, results,
                               sar = measure_sar_by_house_size,
-                              progress = FALSE,
-                              thin_ess = FALSE,
-                              max_nrep = 10)
+                              thin_ess = FALSE, max_nrep = 10)
   })
   expect_s3_class(ppc, "HousepiPrediction")
   expect_true(!is.null(ppc$sar))

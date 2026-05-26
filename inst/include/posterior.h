@@ -42,8 +42,6 @@ namespace housepi
         void init(MCMCBase &mcmc);
         /// Update posterior sample storing current values.
         void store(MCMCBase &mcmc);
-        /// Drop all samples
-        void clear();
 
     private:
         unsigned long count_ = 0;    /// Internal count

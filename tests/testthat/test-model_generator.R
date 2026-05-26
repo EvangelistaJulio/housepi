@@ -64,13 +64,12 @@ test_that("Active fields are read-only and expose state", {
   hhgen <- HousepiGenerator$new("blank")
 
   # all active fields error on assignment
-  ro_fields <- c("name", "raw_name", "setup", "mcmc_ptr", "source_dir",
-                 "data_required", "last_flags",
-                 "cols_data_wide", "info_data_wide", "infec_status_set")
-  for (f in ro_fields) {
-    expect_error(eval(parse(text = sprintf("hhgen$%s <- NULL", f))),
-                 regexp = "read only")
-  }
+  hhgen |>
+    helper_test_read_only(
+      "name", "raw_name", "setup", "mcmc_ptr", "source_dir",
+      "data_required", "last_flags",
+      "cols_data_wide", "info_data_wide", "infec_status_set"
+    )
 
   # field values match expected internals
   expect_equal(hhgen$raw_name, "blank")

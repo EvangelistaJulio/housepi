@@ -64,36 +64,45 @@ test_that("Missing function arguments raise errors", {
     new_housepi_model("augmented_example")
 
   # non default arguments
-  expect_error(
-    hhmodel$add_augmented(name = "proba", func = "gamma"),
-    regexp = "Missing non default"
-  )
+  hhmodel |>
+    add_augmented(name = "proba", func = "gamma") |>
+    expect_error(regexp = "Missing non default")
 
   # data with NA values
-  hhmodel$drop_augmented()
-  hhmodel$add_augmented(name = "proba", func = "gamma",
-                        func_args = c(shape = 2))
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to return")
+  hhmodel |>
+    drop_augmented() |>
+    add_augmented(name = "proba", func = "gamma",
+                  func_args = c(shape = 2)) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "Impossible to return")
 
   # concatenated data with NA values
-  hhmodel$add_augmented_list(
-    gamma = list(func = "gamma",  func_args = c(shape = 2)),
-    proba =  exp(-gamma)
-  )
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
+  hhmodel |>
+    add_augmented_list(
+      gamma = list(func = "gamma",  func_args = c(shape = 2)),
+      proba =  exp(-gamma)
+    ) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "Impossible to associate")
 
   # check that NaN + something causes errors
-  hhmodel$add_augmented_list(noise = list(model = "normal"),
-                             proba = exp(test@D + noise))
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
+  hhmodel |>
+    add_augmented_list(noise = list(model = "normal"),
+                       proba = exp(test@D + noise)) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "Impossible to associate")
 
   # check that log(NaN) causes error
-  hhmodel$add_augmented_list(proba = log(test@D))
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
+  hhmodel |>
+    add_augmented_list(proba = log(test@D)) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "Impossible to associate")
 
   # check that log(0) causes error
-  hhmodel$add_augmented_list(noise = 0., proba = log(noise))
-  expect_error(hhmodel$evaluate_log_lik(), regexp = "Impossible to associate")
+  hhmodel |>
+    add_augmented_list(noise = 0., proba = log(noise)) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "Impossible to associate")
 })
 
 test_that("Augmented log-likelihood seeding is fine", {
@@ -135,13 +144,13 @@ test_that("Status-specific augmented variables draw from per-status ranges", {
     expect_true(all(vals >= s - 1 & vals <= s))
   }
 
-  # run_inference with adapt > 0 but no parametric proposals: the adapt budget
-  # is silently repurposed as burn-in; only the short-run diagnostic fires
-  # (steps = 5 < 400).
+  # case adapt > 0 but no parametric proposals
+  # adapt budget is silently repurposed as burn-in
+  # short-run diagnostic fires (steps = 5 < 400)
   expect_warning(
     results <- hhmodel |>
       run_inference(steps = 5, thin = 1, adapt = 2,
-                    chain = 1, threads = 1, progress = FALSE,
+                    chain = 1, threads = 1,
                     id_draws = hhmodel$data_wide$id),
     regexp = "below 400"
   )
@@ -153,49 +162,49 @@ test_that("Status-specific augmented variables draw from per-status ranges", {
 })
 
 test_that("Augmented aliasing works as expected", {
-  hhmodel <- data.frame(house_id = "hh1",
-                        id = seq(1, 3),
-                        x = 2 + runif(3),
-                        status = 1) |>
-    new_housepi_model("augmented_example")
-  hhmodel$add_parameter(name = "scale", value = 1)
-  hhmodel$add_augmented_list(
-    .dummy = x@D,
-    .layer = list(func = "gamma",
-                  func_args = c(x = .dummy, shape = 2, scale = scale@P)),
-    proba = .layer
-  )
+  hhmodel <- data.frame(house_id = "hh1", id = seq(1, 3),
+                        x = 2 + runif(3), status = 1) |>
+    new_housepi_model("augmented_example") |>
+    add_parameter(name = "scale", value = 1) |>
+    add_augmented_list(
+      .dummy = x@D,
+      .layer = list(func = "gamma",
+                    func_args = c(x = .dummy, shape = 2, scale = scale@P)),
+      proba = .layer
+    )
 
   ll <- sum(log(dgamma(hhmodel$data_wide$x, shape = 2, scale = 1)))
   expect_equal(hhmodel$evaluate_log_lik(), ll)
 
   # check that order does not matter
-  hhmodel$add_augmented_list(
-    .layer = list(func = "gamma",
-                  func_args = c(x = .dummy, shape = 2, scale = scale@P)),
-    proba = .layer,
-    .dummy = x@D
-  )
-  expect_equal(hhmodel$evaluate_log_lik(), ll)
+  hhmodel |>
+    add_augmented_list(
+      .layer = list(func = "gamma",
+                    func_args = c(x = .dummy, shape = 2, scale = scale@P)),
+      proba = .layer,
+      .dummy = x@D
+    ) |>
+    evaluate_log_lik() |>
+    expect_equal(ll)
 
   # check normalization of binomial with augmented example
   size <- 10
-  hhmodel <- data.frame(id = seq(0, size),
-                        house_id = "hh1", status = 1,
-                        X = seq(0, size)) |>
-    new_housepi_model("augmented_example")
-  hhmodel$add_augmented_list(
-    pdf = list(func = "binomial",
-               func_args = c(x = X@D, size = !!size, prob = 0.5)),
-    proba = exp(pdf)
-  )
-  expect_equal(hhmodel$evaluate_log_lik(), 1)
+  data.frame(id = seq(0, size), house_id = "hh1",
+             status = 1, X = seq(0, size)) |>
+    new_housepi_model("augmented_example") |>
+    add_augmented_list(
+      pdf = list(func = "binomial",
+                 func_args = c(x = X@D, size = !!size, prob = 0.5)),
+      proba = exp(pdf)
+    ) |>
+    evaluate_log_lik("hh1") |>
+    expect_equal(1.)
 })
 
 test_that("Augmentation example on incubation from delays is coherent", {
   shape <- 1.95
   scale <- 1.13
-  exact_val <- function(x, shape, scale) {
+  get_exact_val <- function(x, shape, scale) {
     sum(log(stats::dgamma(x, shape = shape, scale = scale)))
   }
 
@@ -205,30 +214,30 @@ test_that("Augmentation example on incubation from delays is coherent", {
                    ip = rgamma(223, shape = shape, scale = scale))
 
   build_model <- function(data) {
-    hh <- new_housepi_model(data, "augmented_example", quiet = TRUE)
-    hh$add_augmented_list(
-      proba = list(func = "gamma",
-                   func_args = c(x = ip@D, shape = !!shape, scale = !!scale))
-    )
-    hh
+    data |>
+      new_housepi_model("augmented_example", quiet = TRUE) |>
+      add_augmented(
+        "proba", func = "gamma",
+        func_args = c(x = ip@D, shape = !!shape, scale = !!scale)
+      )
   }
 
   # warning for no structure
-  expect_warning(new_housepi_model(df, "augmented_example"),
-                 regexp = "Ignored household structure")
+  new_housepi_model(df, "augmented_example") |>
+    expect_warning(regexp = "Ignored household structure")
   hhmodel <- build_model(df)
-  expect_equal(hhmodel$evaluate_log_lik(), exact_val(df$ip, shape, scale))
+  expect_equal(hhmodel$evaluate_log_lik(), get_exact_val(df$ip, shape, scale))
 
   # repeat with degenerated ip values to trigger multiplicity
   df$ip <- floor(df$ip)
   hhmodel <- build_model(df)
-  expect_equal(hhmodel$evaluate_log_lik(), exact_val(df$ip, shape, scale))
+  expect_equal(hhmodel$evaluate_log_lik(), get_exact_val(df$ip, shape, scale))
 })
 
 test_that("Known errors are unchanged", {
-  # Known infinity (values below minimum, i. e. proba 0)
-  hhmodel <- new_housepi_model(sarscov2_2021_icofs, "augmented_example")
-  hhmodel |>
+  # known infinity: values below minimum, i. e. probability is 0, log -Inf
+  sarscov2_2021_icofs |>
+    new_housepi_model("augmented_example") |>
     add_augmented_list(
       value = list(model = "uniform", min = 0, max = 1),
       proba = list(func = "lognormal",
@@ -240,7 +249,8 @@ test_that("Known errors are unchanged", {
 
   # Known NaN: qlnorm(15, meanlog = 4, sdlog = 0.01) = 0, impossible truncation
   # UPDATE: shouldn't this raise a warning instead?
-  hhmodel |>
+  sarscov2_2021_icofs |>
+    new_housepi_model("augmented_example") |>
     add_augmented_list(
       value = list(model = "uniform", min = 1, max = 10, discr = TRUE),
       proba = list(func = "lognormal",
@@ -265,11 +275,12 @@ test_that("Augmented model log-likelihoods are correctly computed", {
   # commit_total_log_lik_; both invariants must hold for any thread count.
   for (t in c(1L, 2L)) {
     results <- suppressWarnings(
-      new_housepi_model(house, "augmented_example") |>
-        add_augmented_list(proba = list(model = "gamma", x = x@D,
-                                        shape = !!shape, scale = !!scale)) |>
-        run_inference(steps = 5, thin = 1, adapt = 0, chain = 1, threads = t,
-                      progress = FALSE, id_draws = id_draws)
+      house |>
+        new_housepi_model("augmented_example") |>
+        add_augmented("proba", model = "gamma", x = x@D,
+                      shape = !!shape, scale = !!scale) |>
+        run_inference(steps = 5, thin = 1, adapt = 0, chain = 1,
+                      threads = t, id_draws = id_draws)
     )
 
     # coherency between pointwise and total log-likelihood
@@ -285,11 +296,10 @@ test_that("Augmented model log-likelihoods are correctly computed", {
 })
 
 test_that("export_augmented_data works after evaluate_log_lik", {
-  hhmodel <- new_housepi_model(
-    data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0)),
-    "augmented_example"
-  )
-  hhmodel$add_augmented(name = "proba", model = "uniform")
+  hhmodel <- data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0)) |>
+    new_housepi_model("augmented_example") |>
+    add_augmented(name = "proba", model = "uniform")
+  # UPDATE: I can test here that before export_augmented_data fails...
   hhmodel$evaluate_log_lik()
   result <- hhmodel$export_augmented_data()
   expect_true(is.data.frame(result))
@@ -297,8 +307,10 @@ test_that("export_augmented_data works after evaluate_log_lik", {
 })
 
 test_that("export_house_snapshot returns correct structure", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_template()
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
+  # UPDATE: I can test here that before export_house_snapshot fails...
   hhmodel$evaluate_log_lik()
 
   hid <- hhmodel$data_wide$house_id[1]

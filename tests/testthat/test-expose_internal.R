@@ -52,6 +52,8 @@ test_that("Power function is correct", {
   # error cases
   expect_error(expose_function("pow")$func(x), regexp = "Missing non default")
   expect_error(expose_function("pow", 5), regexp = "Unnamed argument")
+  expect_error(expose_function("pow", x2 = 5, y2 = 3),
+               regexp = "Unused argument.*y2.*[Dd]id you mean")
   expect_error(expose_function("pow", discr = TRUE)$func(x),
     regexp = "undefined method"
   )
@@ -733,6 +735,129 @@ test_that("quantile is truncation-aware", {
     )
     expect_true(all(distr$quantile(p) <= case$args$max %||% Inf),
       info = paste(case$args[[1]], "below max")
+    )
+  }
+})
+
+test_that("Beta rejects discrete option", {
+  expect_error(
+    expose_distribution("beta", shape1 = 2, shape2 = 3, discr = TRUE),
+    "invalid.*discrete"
+  )
+})
+
+test_that("Beta rejects out-of-domain truncation bounds", {
+  expect_error(
+    expose_distribution("beta", shape1 = 2, shape2 = 3, min = -0.5),
+    "min"
+  )
+  expect_error(
+    expose_distribution("beta", shape1 = 2, shape2 = 3, max = 1.5),
+    "max"
+  )
+})
+
+test_that("Beta truncation normalises correctly", {
+  low <- 0.1
+  up <- 0.8
+  a <- 2
+  b <- 5
+  x <- seq(0, 1, 0.05)
+  d <- expose_distribution("beta", shape1 = a, shape2 = b, min = low, max = up)
+  ref_d <- function(x) stats::dbeta(x, a, b)
+  ref_p <- function(x) stats::pbeta(x, a, b)
+  zz <- ref_p(up) - ref_p(low)
+  expect_equal(d$pdf(x), ifelse(x >= low & x <= up, ref_d(x), 0) / zz)
+})
+
+test_that("Beta rand() produces plausible draws", {
+  a <- 2
+  b <- 5
+  d <- expose_distribution("beta", shape1 = a, shape2 = b)
+  set.seed(99L)
+  x1 <- d$rand(50L)
+  set.seed(99L)
+  x2 <- d$rand(50L)
+  expect_identical(x1, x2)
+  set.seed(1L)
+  big <- d$rand(2000L)
+  expect_true(all(big >= 0 & big <= 1))
+  expect_equal(mean(big), a / (a + b), tolerance = 0.02)
+})
+
+test_that("Gamma pdf and log_pdf handle x == 0 across shape regimes", {
+  scale <- 2
+  # test case: shape < 1
+  d1 <- expose_distribution("gamma", shape = 0.5, scale = scale)
+  expect_equal(d1$pdf(0), Inf)
+  expect_equal(d1$log_pdf(0), Inf)
+
+  # test case: shape == 1
+  d2 <- expose_distribution("gamma", shape = 1, scale = scale)
+  expect_equal(d2$pdf(0), 1 / scale)
+  expect_equal(d2$log_pdf(0), -log(scale))
+
+  # test case: shape > 1
+  d3 <- expose_distribution("gamma", shape = 2, scale = scale)
+  expect_equal(d3$pdf(0), 0)
+  expect_equal(d3$log_pdf(0), -Inf)
+})
+
+test_that("Binomial rejects out-of-domain truncation bounds", {
+  expect_error(
+    expose_distribution("binomial", size = 10, prob = 0.5, min = -1),
+    "min"
+  )
+  expect_error(
+    expose_distribution("binomial", size = 10, prob = 0.5, min = 11),
+    "max"
+  )
+})
+
+test_that("rand() is reproducible and plausible for all distributions", {
+  cases <- list(
+    list(
+      args = list("rayleigh", scale = 2),
+      mean = 2 * sqrt(pi / 2), int = FALSE
+    ),
+    list(
+      args = list("exponential", rate = 0.5),
+      mean = 2, int = FALSE
+    ),
+    list(
+      args = list("poisson", lambda = 5),
+      mean = 5, int = TRUE
+    ),
+    list(
+      args = list("binomial", size = 20, prob = 0.3),
+      mean = 6, int = TRUE, max = 20
+    ),
+    list(
+      args = list("negative_binomial", size = 5, prob = 0.4),
+      mean = 5 * 0.6 / 0.4, int = TRUE
+    ),
+    list(
+      args = list("geometric", prob = 0.3),
+      mean = 0.7 / 0.3, int = TRUE
+    )
+  )
+  for (cc in cases) {
+    d <- do.call(expose_distribution, cc$args)
+    nm <- cc$args[[1]]
+    set.seed(42L)
+    x1 <- d$rand(50L)
+    set.seed(42L)
+    expect_identical(d$rand(50L), x1, info = nm)
+    set.seed(1L)
+    big <- d$rand(2000L)
+    expect_true(all(big >= 0), info = nm)
+    if (cc$int)
+      expect_true(all(big == floor(big)), info = nm)
+    if (!is.null(cc$max))
+      expect_true(all(big <= cc$max), info = nm)
+    expect_equal(
+      mean(big), cc$mean,
+      tolerance = 0.15, info = nm
     )
   }
 })

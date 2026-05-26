@@ -143,7 +143,18 @@ namespace housepi
 
     void Posterior::init(MCMCBase &mcmc)
     {
-        clear();
+        count_ = 0;
+        is_power_post_ = false;
+        total_log_lik.clear();
+        param_values.clear();
+        param_priors.clear();
+        house_log_lik.clear();
+        augm_values.clear();
+        augm_individuals.clear();
+        param_names.clear();
+        param_prior_names.clear();
+        augm_col_names.clear();
+        house_names.clear();
 
         const Setup &setup = mcmc.setup;
         unsigned long sample_size = setup.c_sample_size * setup.n_chains;
@@ -201,42 +212,6 @@ namespace housepi
         // total log-likelihood (always stored, including power posterior)
         total_log_lik[0][count_] = mcmc.tot_log_lik.value();
         ++count_;
-    }
-
-    void Posterior::clear()
-    {
-        count_ = 0;
-        is_power_post_ = false;
-
-        for (auto &v : total_log_lik)
-            std::vector<double>().swap(v);
-        std::vector<std::vector<double>>().swap(total_log_lik);
-
-        for (auto &v : param_values)
-            std::vector<double>().swap(v);
-        std::vector<std::vector<double>>().swap(param_values);
-
-        for (auto &v : param_priors)
-            std::vector<double>().swap(v);
-        std::vector<std::vector<double>>().swap(param_priors);
-
-        for (auto &v : house_log_lik)
-            std::vector<double>().swap(v);
-        std::vector<std::vector<double>>().swap(house_log_lik);
-
-        for (auto &m : augm_values)
-        {
-            for (auto &v : m)
-                std::vector<double>().swap(v);
-            std::vector<std::vector<double>>().swap(m);
-        }
-        std::vector<std::vector<std::vector<double>>>().swap(augm_values);
-
-        std::vector<const Individual *>().swap(augm_individuals);
-        std::vector<std::string>().swap(param_names);
-        std::vector<std::string>().swap(param_prior_names);
-        std::vector<std::string>().swap(augm_col_names);
-        std::vector<std::string>().swap(house_names);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

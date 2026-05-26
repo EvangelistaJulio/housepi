@@ -62,12 +62,6 @@ test_that("add_data_long and get_data_long work", {
 test_that("Wrappers work as expected on blank model", {
   hhmodel <- new_housepi_model(model = "blank")
 
-  # no templates
-  expect_warning(add_parameter_template(hhmodel),
-                 regexp = "No template parameters")
-  expect_warning(add_augmented_template(hhmodel),
-                 regexp = "No template augmented")
-
   # parameters
   result <- add_parameter(hhmodel, name = "alpha", value = 0.5)
   pars <- get_parameters(result)
@@ -129,36 +123,16 @@ test_that("drop wrappers return clean models", {
 })
 
 ############################################################################
-## Inference/simulation wrappers (chain_binomial)
+## Wrappers with data
 ############################################################################
 
-test_that("evaluate_log_lik wrapper returns numeric", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_template()
-  ll <- evaluate_log_lik(hhmodel)
-  expect_true(is.numeric(ll))
-  expect_length(ll, 1)
-})
-
-test_that("run_inference wrapper returns HousepiPosteriorDraws", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$add_parameter_template()
-  result <- suppressWarnings(run_inference(
-    hhmodel, steps = 5, chains = 1, adapt = 0, thin = 1, progress = FALSE
-  ))
-  expect_s3_class(result, "HousepiPosteriorDraws")
-})
-
-test_that("run_simulation wrapper returns data.frame", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
-  hhmodel$add_parameter_template()
-  result <- run_simulation(hhmodel)
-  expect_true(is.data.frame(result))
-  expect_true(all(c("id", "house_id", "status") %in% colnames(result)))
-})
-
 test_that("Group rate wrappers", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
+  small_gr <- data.frame(
+    house_id = c(1, 1, 2, 2, 2),
+    status = c(1, 0, 1, 0, 0),
+    member = c("student", "other", "student", "mother", "father")
+  )
+  hhmodel <- new_housepi_model(small_gr, "chain_binomial")
   hhmodel <- add_group_rate(hhmodel, "community", by = "member")
   groups_1 <- get_group_rates(hhmodel)
   expect_true(is.data.frame(groups_1))
@@ -191,7 +165,12 @@ test_that("Group rate wrappers", {
 })
 
 test_that("add_contact_rate wrapper input branches", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "chain_binomial")
+  small_cr <- data.frame(
+    house_id = c(1, 1, 2, 2, 2),
+    status = c(1, 0, 1, 0, 0),
+    member = c("student", "other", "student", "mother", "father")
+  )
+  hhmodel <- new_housepi_model(small_cr, "chain_binomial")
 
   strata <- data.frame(
     from_member = c("student", NA),

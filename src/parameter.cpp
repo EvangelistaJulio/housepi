@@ -50,8 +50,6 @@ namespace housepi
 
         /// Reset to user-specified scale.
         virtual void user_reset() {}
-        /// Associate proposal with a location attribute.
-        virtual void associate_location(const Attribute & /*other*/) {}
 
         /// Propose a value using random number generator.
         virtual double propose(rnd_gen & /*prng*/, double /*xo*/) const = 0;
@@ -176,7 +174,7 @@ namespace housepi
             return {prior->quantile(0.25), prior->quantile(0.75)};
         }
         /// Wheter IQR is finite and can be used to compute initial proposal scale.
-        static bool is_iqr_finite_(double q25, double q75) noexcept 
+        static bool is_iqr_finite_(double q25, double q75) noexcept
         {
             return std::isfinite(q25) && std::isfinite(q75) && q75 > q25;
         }
@@ -265,14 +263,23 @@ namespace housepi
         LognormalProposal_(double scale, const Distribution *prior)
             : AdaptableProposal("lognormal", scale, prior->is_discrete())
         {
+            // assert that value range is positive
             if (prior->lower().is_empty() || prior->lower().value() < 0)
-                throw std::out_of_range(
-                    "Provided a lognormal proposal for a non-positive variable.");
+                throw std::invalid_argument(
+                    "Provided proposal '" + std::string(name()) + "' for non-positive");
+
+            // associate location parameter from prior
+            if (prior->loc().is_callable())
+                pAttr_loc_ = prior->loc().pointer();
+            mode_ = pAttr_loc_ ? Location::Active : Location::None;
+
+            // initialize adaptive configuration
             if (is_adaptive_)
             {
+                const double loc = pAttr_loc_ ? pAttr_loc_->value() : 0.;
                 const auto [q25, q75] = get_iqr_from_prior_(prior);
-                if (is_iqr_finite_(q25, q75))
-                    user_scale_ = std::log(q75 / q25) / 1.349;
+                if (is_iqr_finite_(q25 - loc, q75 - loc))
+                    user_scale_ = std::log((q75 - loc) / (q25 - loc)) / 1.349;
             }
             user_reset();
         }
@@ -283,12 +290,6 @@ namespace housepi
             pDistr_->init_attr("meanlog", 0.);
             pDistr_->init_attr("sdlog", user_scale_);
         }
-
-        void associate_location(const Attribute &other) override final
-        {
-            pAttr_loc_ = other.pointer();
-            mode_ = (pAttr_loc_) ? Location::Active : Location::None;
-        };
 
         double propose(rnd_gen &prng, double xo) const override final
         {
@@ -325,7 +326,7 @@ namespace housepi
             None,
             Active
         } mode_ = Location::None;
-        const Attribute *pAttr_loc_ = nullptr; /// pointer to attribute location
+        const Attribute *pAttr_loc_ = nullptr;
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -390,8 +391,6 @@ namespace housepi
     void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
     {
         pDistr_->init_attr(key, attr);
-        if (key == "loc" && pProp_)
-            pProp_->associate_location(pDistr_->loc());
     }
 
     void Variable::init_distr_reshaping(bool is_discr)
@@ -433,13 +432,17 @@ namespace housepi
         if (!lower.is_constant() || !upper.is_constant())
             return;
 
-        // warn user if it was not chosen as constant
         if (!is_user_const_)
         {
-            msg::warning(
-                "Collapsed (at least) one " + err_name() + " to constant.\n" +
-                "Definitions of 'min' as " + lower.err_name() + " and 'max' as " + upper.err_name() +
-                " produced a degenerate range.");
+            const std::string sms = "Definitions of 'min' as " + lower.err_name() +
+                                    " and 'max' as " + upper.err_name() +
+                                    " produced a degenerate range ";
+            // parameter
+            if (err_type_ == "parameter")
+                throw std::invalid_argument(sms + " for " + err_name() + ".");
+
+            // augmented
+            msg::warning("Collapsed (at least) one " + err_name() + " to constant.\n" + sms + ".");
             init_numeric(sx);
             helper_init_null_proposal_();
         }
@@ -471,10 +474,20 @@ namespace housepi
             init_numeric(na::DOUBLE);
         is_user_const_ = false;
 
-        if (proposal == "sample")
-            helper_init_sample_proposal_();
-        else
-            helper_init_monte_carlo_proposal_(proposal, scale);
+        try
+        {
+            if (proposal == "sample")
+                helper_init_sample_proposal_();
+            else
+                helper_init_monte_carlo_proposal_(proposal, scale);
+        }
+        catch (const std::exception &e)
+        {
+            std::string sm = e.what();
+            if (!sm.empty() && sm.back() == '.')
+                sm.pop_back();
+            throw std::invalid_argument(sm + " for " + err_name() + ".");
+        }
     }
 
     void Variable::helper_init_sample_proposal_()
@@ -677,10 +690,11 @@ namespace housepi
     void Parameter::build_for_predic(const dbl_table &input)
     {
         const std::vector<std::string> headers = read::extract_keys(input);
-        // assert that parameter is not already defined
+#ifndef NDEBUG
         if (headers.size() != str::unique(headers).size())
             throw std::invalid_argument(
                 "Found multiple definitions for the same parameters.");
+#endif
 
         clear_lists_();
         simulation_values.clear();
@@ -723,9 +737,11 @@ namespace housepi
     {
         const std::string &pstr = input.at("name")[k]; // parameter name
 
+#ifndef NDEBUG
         if (na::is(input.at("value")[k]))
             throw std::invalid_argument(
                 "Constant parameter '" + pstr + "' had undefined value.");
+#endif
 
         // assign constant parameter to the set of variables
         size_t p = khold_.from_string(pstr);
@@ -744,10 +760,11 @@ namespace housepi
     {
         const std::string &pstr = input.at("name")[k]; // parameter name
 
-        // assert parameter to sample has a valid value initialization
+#ifndef NDEBUG
         if (na::is(input.at("value")[k]) && na::is(input.at("prior")[k]))
             throw std::invalid_argument(
                 "Non-constant parameter '" + pstr + "' had undefined prior.");
+#endif
 
         // create a new parameter Variable
         size_t p = khold_.from_string(pstr);

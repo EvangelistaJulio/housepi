@@ -206,6 +206,7 @@ public:
 			cumul_mtx[j][i] = infec_profile_cumul(member_j, -gentime);
 #endif
 		}
+#ifdef _HOUSEPI_DISCRETE_TIME
 		else
 		{
 			inst_mtx[i][j] = 0.0;
@@ -213,6 +214,7 @@ public:
 			inst_mtx[j][i] = 0.0;
 			cumul_mtx[j][i] = 0.0;
 		}
+#endif
 	}
 
 	/// WARNING: unpredictable behavior if i is not an infector.

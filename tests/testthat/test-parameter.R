@@ -21,6 +21,9 @@ test_that("Default parameter definitions are correct", {
   expect_error(aux_add(param, name = "dummy", value = 3, const = FALSE),
                regexp = "No prior")
 
+  # active fields are read-only
+  helper_test_read_only(param, "param_required")
+
   # default sample framework
   helper_test_aux_load(
     param, dummy = list(value = 3, prior = "uniform", min = 0, max = 5)

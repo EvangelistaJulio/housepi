@@ -92,38 +92,54 @@ augm_infec_obs_log_lik <- function(house, param, discr = FALSE) {
 }
 
 test_that("Simulations behave as expected", {
-  hhsimul <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
-    dplyr::mutate(status = NA) |>
-    new_housepi_model("augmented_infection_time")
-  hhsimul$add_parameter_list(alpha = 0, beta = 0,
-                              gamma = 1, size_ref = 4)
-  hhsimul$add_augmented_list(
-    incub_period = list(model = "gamma", shape = 2, scale = 1),
-    infec_time = -incub_period
-  )
-
   obs_process <- function(df) {
     df$onset_time <- df$infec_time + df$incub_period
     df
   }
-  # simulate just introduction cases
-  simulated <- hhsimul$run_simulation(obs_process = obs_process)
-  expect_identical(
-    length(unique(simulated$house_id)),
-    sum(simulated$onset_time == 0, na.rm = TRUE)
-  )
+  # simulate with no transmission risk
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
+    # pick introduction randomly
+    dplyr::mutate(status = NA) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_list(alpha = 0, beta = 0,
+                       gamma = 1, size_ref = 4) |>
+    add_augmented_list(
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    run_simulation(obs_process = obs_process)
+  # there are just introduction cases
+  expect_identical(length(unique(simulated$house_id)),
+                   sum(simulated$onset_time == 0, na.rm = TRUE))
 
-  # simulate all infected
-  expect_warning(hhsimul$add_parameter(name = "beta", value = 100),
-                 regexp = "Overwriting")
-  simulated <- hhsimul$run_simulation(obs_process = obs_process)
+  # simulate with saturated transmission risk
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
+    # pick introduction informed by original data
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_list(alpha = 0, beta = 100,
+                       gamma = 1, size_ref = 4) |>
+    add_augmented_list(
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    run_simulation(obs_process = obs_process)
+  # all infected
   expect_true(all(simulated$status > 0))
   expect_false(any(is.na(simulated$infec_time)))
-  expect_equal(
-    simulated$infec_time,
-    simulated$onset_time - simulated$incub_period
-  )
+  expect_equal(simulated$infec_time,
+               simulated$onset_time - simulated$incub_period)
+})
+
+test_that("Sentinel against no introduction throws error", {
+  data.frame(id = seq(2), house_id = "h1", status = 0,
+             end_followup = 21, onset_date = NA) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_template() |>
+    add_augmented_template() |>
+    run_inference() |>
+    expect_error(regexp = "at least one infected member")
 })
 
 test_that("Log-likelihood of augmented infection time model is correct", {
@@ -177,10 +193,6 @@ get_log_lik_i <- function(df, par) {
 }
 
 test_that("Parallel augmented-move reduction preserves log-lik invariant", {
-  # Exercises move_all_augm_'s RcppParallel reduction (only fired when
-  # augmented variables are sampled). We reuse the cheap internal-consistency
-  # check (pointwise sum == total) so this stays decoupled from the analytic
-  # log-lik comparisons done in the dedicated test below.
   house <- data.frame(house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
                       onset_date = c(2, 6, 6, NA, NA, NA, NA),
@@ -188,7 +200,8 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
   house$id <- sprintf("hh01m%s", seq_len(nrow(house)))
 
   build_hh <- function() {
-    new_housepi_model(house, "augmented_infection_time", quiet = TRUE) |>
+    house |>
+      new_housepi_model("augmented_infection_time", quiet = TRUE) |>
       add_parameter_template() |>
       add_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
       add_augmented_list(
@@ -201,10 +214,10 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
   id_draws <- house[house$status > 0, ]$id
 
   for (t in c(1L, 2L)) {
-    results <- suppressWarnings(
-      build_hh() |>
-        run_inference(steps = 20, thin = 1, adapt = 0, chain = 1, threads = t,
-                      progress = FALSE, id_draws = id_draws)
+    suppressWarnings(
+      results <- build_hh() |>
+        run_inference(steps = 30, thin = 1, adapt = 20, chain = 1,
+                      threads = t, id_draws = id_draws)
     )
     expect_equal(get_total_log_lik_draws(results)$log_lik,
                  get_log_lik_draws(results)$hh01)
@@ -234,8 +247,8 @@ test_that("Augmented moves preserve log-likelihood", {
   id_draws <- house[house$status > 0, ]$id
   results <- suppressWarnings(
     hhmodel |>
-      run_inference(steps = n_steps, thin = 1, adapt = 0, chain = 1,
-                    progress = FALSE, id_draws = id_draws)
+      run_inference(steps = n_steps, thin = 1, adapt = 0,
+                    chain = 1, id_draws = id_draws)
   )
 
   tot_log_lik <- get_total_log_lik_draws(results)$log_lik

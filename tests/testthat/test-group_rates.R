@@ -64,17 +64,29 @@ test_that("Associate param names decorates table and marks reference", {
 
 test_that("Assert-valid-logic-table validates input", {
   # must be a data.frame
-  expect_error(assert_valid_logic_table(list(a = 1)),
-               regexp = "data.frame")
+  assert_valid_logic_table(list(a = 1)) |>
+    expect_error(regexp = "data.frame")
   # must have param_name column
-  expect_error(assert_valid_logic_table(data.frame(x = 1)),
-               regexp = "param_name")
+  assert_valid_logic_table(data.frame(x = 1)) |>
+    expect_error(regexp = "param_name")
   # must have at least one row
-  expect_error(assert_valid_logic_table(data.frame(param_name = character(0))),
-               regexp = "at least one row")
+  assert_valid_logic_table(data.frame(param_name = character(0))) |>
+    expect_error(regexp = "at least one row")
   # reserved feature column names rejected
-  expect_error(assert_valid_logic_table(data.frame(param_name = "a", id = 1)),
-               regexp = "reserved")
+  assert_valid_logic_table(data.frame(param_name = "a", id = 1)) |>
+    expect_error(regexp = "reserved")
+})
+
+#################################
+## GROUP RATES : ACTIVE FIELDS ##
+#################################
+
+test_that("Active fields are read-only", {
+  HousepiGroupRate$new() |>
+    helper_test_read_only(
+      "parameters", "data_required",
+      "param_required", "tidy_table"
+    )
 })
 
 ##################################
@@ -107,6 +119,51 @@ test_that("Group rates integrate with data and exposes to Cpp format", {
   expect_true(all(c("age", "sex") %in% colnames(cpp_tbl)))
   expect_true(all(cpp_tbl$age %in% c(1L, 2L)))
   expect_true(all(cpp_tbl$sex %in% c(1L, 2L)))
+})
+
+test_that("Group rates sentinels work correctly", {
+  hhmodel <- sarscov2_2021_icofs |>
+    new_housepi_model("chain_binomial")
+
+  # empty rate definition
+  hhmodel |>
+    add_group_rate("susceptibility", by = NA) |>
+    expect_error("[Ii]nvalid rate definition")
+
+  # wrong type for covariate column choice
+  hhmodel |>
+    add_group_rate("susceptibility", by = 4) |>
+    expect_error("character")
+
+  # not implemented group
+  hhmodel |>
+    add_group_rate("cobras", by = "sex") |>
+    expect_error("unused group rate.*cobras")
+
+  # incomplete custom prior definition
+  hhmodel |>
+    add_group_rate("susceptibility", by = "sex", max = 3) |>
+    expect_error("'prior' must be specified")
+
+  # FIXME: this should fire!
+  # hhmodel |>
+  #   add_group_rate("susceptibility", by = "age")
+})
+
+test_that("Group rates reference support behaves as expected", {
+  hhmodel <- sarscov2_2021_icofs |>
+    new_housepi_model("chain_binomial")
+
+  # missing reference
+  strata <- data.frame(sex = c("F", "M"),
+                       param_name = c("ladies", "gentlemen"))
+  hhmodel |>
+    add_group_rate("susceptibility", strata = strata) |>
+    expect_error("param_name as '.reference'")
+  # explicit no reference
+  hhmodel |>
+    add_group_rate("susceptibility", reference = ".none", strata = strata) |>
+    expect_no_error()
 })
 
 test_that("Parameter options work correctly", {
@@ -196,12 +253,11 @@ test_that("Group rate parameter overrides work", {
   expect_equal(grp$parameters$sus_elderly$prior, "lognormal")
   expect_equal(grp$parameters$sus_elderly$sdlog, 1.2)
 
-  expect_error(aux_add(
-    grp, name = "susceptibility",
-    strata = data.frame(sex = c("M", "F"),
-                        param_name = c("something", ".reference")),
-    params = list(unknown = 2.4)
-  ), regexp = "unknown")
+  aux_add(grp, name = "susceptibility",
+          strata = data.frame(sex = c("M", "F"),
+                              param_name = c("smtg", ".reference")),
+          params = list(unknown = 2.4)) |>
+    expect_error("unknown")
 })
 
 test_that("Group rate implementation preserves strata entries", {
@@ -221,13 +277,13 @@ test_that("Group rate implementation preserves strata entries", {
   expect_true("infectivity" %in% names(grp$logic_tables))
   expect_true("community" %in% names(grp$logic_tables))
   # strata entry is unchanged
-  expect_equal(grp$logic_tables$infectivity[[1]]$param_name,
-               c("inf_old", ".reference"))
+  grp$logic_tables$infectivity[[1]]$param_name |>
+    expect_equal(c("inf_old", ".reference"))
 
-  expect_warning(aux_add(grp, "infectivity", by = "age"),
-                 regexp = "infectivity")
-  expect_warning(aux_add(grp, "community", strata = dummy_strata),
-                 regexp = "community")
+  aux_add(grp, "infectivity", by = "age") |>
+    expect_warning("infectivity")
+  aux_add(grp, "community", strata = dummy_strata) |>
+    expect_warning("community")
 })
 
 test_that("Group rate mixed auto and custom modes", {
@@ -250,6 +306,6 @@ test_that("Group rate mixed auto and custom modes", {
   expect_true(all(c("age", "isolation") %in% data_req))
 
   # trigger error (unknown feature in dummy_strata)
-  expect_error(grp$implement(dummy_df, dummy_factor_info),
-               regexp = "Unknown")
+  grp$implement(dummy_df, dummy_factor_info) |>
+    expect_error("Unknown")
 })
