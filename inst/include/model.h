@@ -58,7 +58,7 @@ namespace housepi
 		/// Update cached augmeted dependecies for single household member.
 		virtual void update_member_cache_dependecies(Household & /*house*/, Individual & /*member*/) {}
 		/// Compute the log-likelihood for a single household.
-		virtual double compute_house_obs_log_lik(Household & /*house*/) = 0;
+		virtual double compute_house_log_lik(Household & /*house*/) = 0;
 
 		/// Inference specific initialization (e. g. cache variables, lookup tables, etc).
 		virtual void init_model_for_evaluation() {}

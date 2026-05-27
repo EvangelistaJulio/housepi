@@ -21,5 +21,14 @@ namespace housepi
 		inline bool is_susceptible(int s) { return s == SUSCEPTIBLE; }
 		/// Wheter individual status is missing.
 		inline bool is_missing(int s) { return s <= MISSING; }
+		// Associate a category (0=infected, 1=susceptible, 2=missing).
+		inline int category(int s)
+		{
+			if (is_infected(s))
+				return 0;
+			if (is_susceptible(s))
+				return 1;
+			return 2;
+		};
 	}
 }

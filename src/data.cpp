@@ -52,49 +52,71 @@ namespace housepi
         last.index_ = index;
         last.hhindex_ = hhindex;
         last.id_ = id;
-        last.status_ = data_ptr->status;
         last.pwide_ = data_ptr;
 
-        // update status lists within the household
-        if (last.is_infected_status())
-            infected_list_.emplace_back(hhindex);
-        else if (last.is_susceptible_status())
-            healthy_list_.emplace_back(hhindex);
-        else
-            missing_list_.emplace_back(hhindex);
+        // new member added as if missing status
+        last.status_ = status::MISSING;
+        status_vec_.push_back(hhindex);
+        if (!status::is_missing(data_ptr->status))
+            helper_set_status_(hhindex, data_ptr->status);
     }
 
-    void Household::helper_set_status_(size_t i, int new_status)
+    void Household::helper_set_status_(size_t i, int snew)
     {
         Individual &member = members_[i];
+        int cold = status::category(member.status());
+        int cnew = status::category(snew);
 
-        // change member status and lists if setting a new status
-        int old_status = member.status();
-        if (new_status == old_status)
+        member.status_ = snew; // NOTE: might just change within infected status
+        if (cold == cnew)
             return;
-        else
-            member.status_ = new_status;
 
-        if (status::is_infected(old_status))
-            infected_list_.erase(std::find(infected_list_.begin(), infected_list_.end(), i));
-        else if (status::is_susceptible(old_status))
-            healthy_list_.erase(std::find(healthy_list_.begin(), healthy_list_.end(), i));
-        else
-            missing_list_.erase(std::find(missing_list_.begin(), missing_list_.end(), i));
+        // segment boundaries [infected | susceptible | missing]
+        size_t bounds[] = {0, ninf_, ninf_ + nsus_, house_size_};
+        // extract old position given the old segment
+        size_t pos = std::find(&status_vec_[bounds[cold]], &status_vec_[bounds[cold + 1]], i) -
+                     &status_vec_[0];
 
-        if (status::is_infected(new_status))
-            infected_list_.emplace_back(i);
-        else if (status::is_susceptible(new_status))
-            healthy_list_.emplace_back(i);
-        else
-            missing_list_.emplace_back(i);
-    }
+        // alias for swap between the status segments
+        auto segment_swap = [&](size_t a, size_t b)
+        { std::swap(status_vec_[a], status_vec_[b]); };
 
-    void Household::raise_set_non_infec_status_(int new_status) const
-    {
-        throw std::invalid_argument(
-            "Tried to set as infected status " + std::to_string(new_status) +
-            " to " + err_name() + ".\nInfected status must be an integer greater than 0.");
+        if (cold == 0 && cnew == 1)
+        {
+            segment_swap(pos, ninf_ - 1);
+            --ninf_;
+            ++nsus_;
+        }
+        else if (cold == 1 && cnew == 0)
+        {
+            segment_swap(pos, ninf_);
+            ++ninf_;
+            --nsus_;
+        }
+        else if (cold == 1 && cnew == 2)
+        {
+            segment_swap(pos, ninf_ + nsus_ - 1);
+            --nsus_;
+        }
+        else if (cold == 2 && cnew == 1)
+        {
+            segment_swap(pos, ninf_ + nsus_);
+            ++nsus_;
+        }
+        else if (cold == 0 && cnew == 2)
+        {
+            segment_swap(pos, ninf_ - 1);
+            if (nsus_ > 0)
+                segment_swap(ninf_ - 1, ninf_ + nsus_ - 1);
+            --ninf_;
+        }
+        else // if (cold == 2 && cnew == 0)
+        {
+            segment_swap(pos, ninf_ + nsus_);
+            if (nsus_ > 0)
+                segment_swap(ninf_ + nsus_, ninf_);
+            ++ninf_;
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -514,7 +536,7 @@ namespace housepi
                             "Initial augmented log-likelihood returned infinity for " +
                             house.member(i).err_name() + ".");
 
-            if (house.obs_log_lik_.is_inf())
+            if (house.log_lik_.is_inf())
                 throw std::runtime_error(
                     "Initial log-likelihood returned infinity for " + house.err_name() + ".");
         }

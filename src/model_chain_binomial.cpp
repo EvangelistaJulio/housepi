@@ -178,7 +178,7 @@ public:
 	}
 
 	/// Compute the log-likelihood for a single household.
-	double compute_house_obs_log_lik(Household &house) override final
+	double compute_house_log_lik(Household &house) override final
 	{
 		// fill per-individual escape rate matrices
 		fill_house_escape_matrix(house);

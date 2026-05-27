@@ -31,6 +31,19 @@ namespace housepi
 		friend class MCMCBase;
 		friend class MCMC;
 
+		/// Auxiliary iterator of household member indexes with same status.
+		struct IndexRange_
+		{
+			const size_t *data_;
+			size_t size_;
+			const size_t *begin() const noexcept { return data_; }
+			const size_t *end() const noexcept { return data_ + size_; }
+			size_t size() const noexcept { return size_; }
+			bool empty() const noexcept { return size_ == 0; }
+			const size_t &operator[](size_t i) const noexcept { return data_[i]; }
+			const size_t &front() const noexcept { return data_[0]; }
+		};
+
 	public:
 		//////////////////////
 		//////  SETTER  //////
@@ -44,16 +57,8 @@ namespace housepi
 		void set_susceptible_status(Individual &member) { set_susceptible_status(member.hhindex()); }
 
 		/// Set status of member 'i' to infected.
-		void set_infected_status(size_t i, int new_status = status::INFECTED)
-		{
-			if (!status::is_infected(new_status))
-				raise_set_non_infec_status_(new_status);
-			helper_set_status_(i, new_status);
-		}
-		void set_infected_status(Individual &member, int new_status = status::INFECTED)
-		{
-			set_infected_status(member.hhindex(), new_status);
-		}
+		void set_infected_status(size_t i, int new_status = status::INFECTED) { helper_set_status_(i, new_status); }
+		void set_infected_status(Individual &member, int new_status = status::INFECTED) { set_infected_status(member.hhindex(), new_status); }
 
 		//////////////////////
 		//////  GETTER  //////
@@ -62,13 +67,19 @@ namespace housepi
 		Individual &member(size_t i) noexcept { return members_[i]; }
 		const Individual &member(size_t i) const noexcept { return members_[i]; }
 
-		const std::vector<size_t> &infected_hhindexes() const noexcept { return infected_list_; }
-		const std::vector<size_t> &susceptible_hhindexes() const noexcept { return healthy_list_; }
-		const std::vector<size_t> &missing_hhindexes() const noexcept { return missing_list_; }
+		/// Iterator for household indexes of members with infected status.
+		IndexRange_ infected_hhindexes() const noexcept { return {status_vec_.data(), ninf_}; }
+		/// Iterator for household indexes of members with susceptible status.
+		IndexRange_ susceptible_hhindexes() const noexcept { return {status_vec_.data() + ninf_, nsus_}; }
+		/// Iterator for household indexes of members with missing status.
+		IndexRange_ missing_hhindexes() const noexcept { return {status_vec_.data() + ninf_ + nsus_, house_size_ - ninf_ - nsus_}; }
 
-		size_t n_infected_status() const noexcept { return infected_list_.size(); }
-		size_t n_susceptible_status() const noexcept { return healthy_list_.size(); }
-		size_t n_missing_status() const noexcept { return missing_list_.size(); }
+		/// Number of members with infected status.
+		size_t n_infected_status() const noexcept { return ninf_; }
+		/// Number of members with susceptible status.
+		size_t n_susceptible_status() const noexcept { return nsus_; }
+		/// Number of members with missing status.
+		size_t n_missing_status() const noexcept { return house_size_ - ninf_ - nsus_; }
 
 		/// Contact rate 'from' household member 'to member.
 		/// No self-contact (set 0 for safety).
@@ -88,7 +99,7 @@ namespace housepi
 			return pcontact_rate_->mtx[i][i].value();
 		}
 
-		double obs_log_lik() const { return obs_log_lik_.value(); }
+		double obs_log_lik() const { return log_lik_.value(); }
 
 		/////////////////////////
 		//////  ITERATORS  //////
@@ -103,26 +114,28 @@ namespace housepi
 		//////  SHOW  //////
 		////////////////////
 
-		const std::string &house_id() const noexcept { return house_id_; }
-		std::string err_name() const { return "household '" + house_id_ + "'"; }
+		/// Number of household members.
 		size_t size() const noexcept { return house_size_; }
+		/// Index of equivalence class.
 		size_t eq_class() const noexcept { return eq_class_; }
+		/// Household ID as in data.
+		const std::string &house_id() const noexcept { return house_id_; }
+		/// Name for error messages.
+		std::string err_name() const { return "household '" + house_id_ + "'"; }
 
 	private:
 		std::string house_id_ = "";						/// user house id
-		size_t eq_class_ = -1;							/// equivalence class index for likelihood deduplication
+		size_t eq_class_ = -1;							/// equivalence class index
 		std::vector<Individual> members_ = {};			/// household members
+		std::vector<size_t> status_vec_ = {};			/// partitioned: [infected | susceptible | missing]
 		size_t house_size_ = 0;							/// number of household members
-		std::vector<size_t> infected_list_;				/// hh indexes of infected members
-		std::vector<size_t> healthy_list_;				/// hh indexes of susceptible members
-		std::vector<size_t> missing_list_;				/// hh indexes of members with missing status
+		size_t ninf_ = 0;								/// number of infected members
+		size_t nsus_ = 0;								/// number of susceptible members
 		const House::Contact *pcontact_rate_ = nullptr; /// contact rates (see ContactRate)
-		LogLike obs_log_lik_;							/// pointwise observation log-likelihood
+		LogLike log_lik_;								/// pointwise observation log-likelihood
 
 		/// Change_status of individual i to new status (without controls).
-		///	NOTE: this introduces augmented variables -> it requires RJMCMC in case of inference.
+		/// NOTE: Using 'partition refinement' to track member statuses.
 		void helper_set_status_(size_t i, int new_status);
-		/// Raise error if status doesn't satisfy infected convention.
-		[[noreturn]] void raise_set_non_infec_status_(int new_status) const;
 	};
 }

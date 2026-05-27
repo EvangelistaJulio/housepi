@@ -350,7 +350,7 @@ namespace housepi
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
         {
             Household &house = data_wide().eq_class_head(R);
-            house.obs_log_lik_.recover();
+            house.log_lik_.recover();
 
             if (augm.is_any_sample())
                 for (size_t i : house.infected_hhindexes())
@@ -484,7 +484,7 @@ namespace housepi
                 model->update_house_cache_dependecies(house);
 
             // compute and set household observation log-likelihood
-            output = commit_house_obs_log_lik_(house);
+            output = commit_house_log_lik_(house);
 
             // compute and set individual augmented log-likelihood
             if (augm.is_any_model())
@@ -691,7 +691,7 @@ namespace housepi
             model->update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
-            const double delta_ll = commit_house_obs_log_ratio_(house) +
+            const double delta_ll = commit_house_log_lik_ratio_(house) +
                                     augm.commit_augm_model_log_ratio(member, a);
 
             if (setup.exponential() > xaugm.get_propose_log_ratio() - setup.inv_T * delta_ll)
@@ -699,7 +699,7 @@ namespace housepi
 
             // else recover cached values
             member.paugm_->log_lik.recover();
-            house.obs_log_lik_.recover();
+            house.log_lik_.recover();
             data_wide().recover_member_old_cached(house, i);
         }
         // else recover old value

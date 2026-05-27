@@ -101,7 +101,7 @@ public:
 	}
 
 	/// Compute the log-likelihood within household.
-	double compute_house_obs_log_lik(Household &house) override final
+	double compute_house_log_lik(Household &house) override final
 	{
 		const size_t i0 = cache_uint(house, HHsizeKey::intro_case);
 		const Individual &member_0 = house.member(i0);

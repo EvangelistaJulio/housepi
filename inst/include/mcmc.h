@@ -66,18 +66,18 @@ namespace housepi
 		double commit_total_log_lik_(bool is_cache_depen);
 		/// Update and return contribution of given household to full logliklehood.
 		double commit_house_log_lik_(Household &house, bool is_cache_depen);
-		/// Compute and set value of observation log-likelihood for given household.
-		double commit_house_obs_log_lik_(Household &house)
+		/// Compute and set value of observation log-likelihood. Return log-like.
+		double commit_house_log_lik_(Household &house)
 		{
-			double output = model->compute_house_obs_log_lik(house);
-			house.obs_log_lik_.set(output);
+			double output = model->compute_house_log_lik(house);
+			house.log_lik_.set(output);
 			return output;
 		}
-		/// Compute and set value of observation log-likelihood for given household.
-		double commit_house_obs_log_ratio_(Household &house)
+		/// Compute and set value of observation log-likelihood. Return log-like ratio.
+		double commit_house_log_lik_ratio_(Household &house)
 		{
-			double output = -house.obs_log_lik_.value();
-			output += commit_house_obs_log_lik_(house);
+			double output = -house.log_lik_.value();
+			output += commit_house_log_lik_(house);
 			return output;
 		}
 

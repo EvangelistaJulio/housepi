@@ -32,7 +32,7 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(ParamKey)
 
 	/// Compute the log-likelihood within household.
-	double compute_house_obs_log_lik(Household &house) override final
+	double compute_house_log_lik(Household &house) override final
 	{
 		double output = 0.0;
 		for (size_t i : house.infected_hhindexes())
