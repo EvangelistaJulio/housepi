@@ -261,8 +261,10 @@ namespace housepi::str
     {
         std::vector<std::string> out;
         out.reserve(vec.size());
+        std::unordered_set<std::string> seen;
+        seen.reserve(vec.size());
         for (const std::string &s : vec)
-            if (std::find(out.begin(), out.end(), s) == out.end())
+            if (seen.insert(s).second)
                 out.push_back(s);
         return out;
     }

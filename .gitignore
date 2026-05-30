@@ -39,6 +39,7 @@ Thumbs.db
 
 # R files #
 ###########
+.positai
 *.Rhistory
 *.Rapp.history
 *.RData
@@ -78,8 +79,7 @@ CLAUDE.md
 #################
 inst/models/*/model.cpp
 inst/models/*/model.exe
-inst/standalone/*.o
+inst/standalone/profile/
 /man/hhmodel_*
 *.csv
 *.txt
-.positai
