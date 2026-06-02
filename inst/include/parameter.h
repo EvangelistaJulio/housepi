@@ -37,9 +37,9 @@ namespace housepi
         /// list_func < list_const (function-based parameters are deterministic)
         /// list_sample = list_sample_standard + list_sample_cached
 
-        std::vector<size_t> list_const = {};     /// constant parameters
-        std::vector<size_t> list_func = {};      /// function-based parameters
-        std::vector<size_t> list_sample = {};    /// parameters to sample
+        std::vector<size_t> list_const = {};    /// constant parameters
+        std::vector<size_t> list_func = {};     /// function-based parameters
+        std::vector<size_t> list_sample = {};   /// parameters to sample
         std::vector<size_t> list_adaptive = {}; /// parameters to sample with adaptive proposal
 
         std::vector<size_t> list_sample_standard = {};
@@ -66,7 +66,9 @@ namespace housepi
         void request_discrete(size_t p) { user_discrete_set_.emplace(p); }
 
         /// Randomly initialize values of the parameters to be inferred.
-        void user_reset(rnd_gen &prng);
+        void restart(rnd_gen &prng);
+        /// Optimize all variables (see Variable::optimize).
+        void optimize();
         /// Load parameters values of the n-th posterior sample.
         void load_sample_values(size_t n);
 

@@ -163,10 +163,12 @@ namespace housepi
         total_log_lik.reserve(1);
         total_log_lik.emplace_back(sample_size, na::DOUBLE);
 
-        //// UPDATE: I would like to store also power posterior sample.
-        /// NOTE: it will depend on chosen rungs in that case.
+        /* --FUTURE-LOG-EVIDENCE--
+        // UPDATE: I would like to store also power posterior sample.
+        // NOTE: it will depend on chosen rungs in that case.
         if (is_power_post_)
             return;
+        */
 
         helper_init_param_draws(this, mcmc.param, sample_size);
         helper_init_house_draws(this, mcmc.data_wide(), sample_size);
@@ -323,9 +325,9 @@ namespace housepi
 
     void MCMCBase::init_monte_carlo_chain_()
     {
-        setup.prog_set_text();          // set progress bar text
-        param.user_reset(setup.prng()); // reset parameter user definitions
-        augm.user_reset(setup.prng());  // reset augmented user definitions
+        setup.prog_set_text();       // set progress bar text
+        param.restart(setup.prng()); // reset parameter user definitions
+        augm.restart(setup.prng());  // reset augmented user definitions
 
         // re-initialize the acceptance estimate for every variable
         for (size_t p : param.list_adaptive)
@@ -441,35 +443,33 @@ namespace housepi
 
     double MCMC::evaluate_log_lik(std::string_view house_id)
     {
-        setup.n_chains = 0;   // use 0 chains as a state variable
-        init_evaluate_(true); // initialize for evaluation
+        setup.n_chains = 0; // using '0 chains' as a state variable
+        init_for_evaluation_();
+        param.restart(setup.prng());
+        augm.restart(setup.prng());
 
-        // mode: single house evaluation
-        if (!na::is(house_id))
-        {
-            infec_profile.update(); // eventually recompute infectivity profile
-            return commit_house_log_lik_(data_wide().at(house_id), true);
-        }
+        // full log-likelihood evaluation
+        if (na::is(house_id))
+            return commit_total_log_lik_(true);
 
-        // mode: total evaluation
-        return commit_total_log_lik_(true);
+        // single house log-likelihood evaluation
+        infec_profile.update(); // eventually recompute infectivity profile
+        return commit_house_log_lik_(data_wide().at(house_id), true);
     }
 
-    void MCMC::init_evaluate_(bool is_reset)
+    void MCMC::init_for_evaluation_()
     {
-        data_wide().assert_not_all_missing_status();        // warn if all missing status
-        augm.init();                                        // initialize individual augmented relations
-        data_wide().init_eq_classes(augm.is_any_sample()); // frequency
+        data_wide().assert_not_all_missing_status();
+        augm.init_for_evaluation();
+        data_wide().init_eq_classes(augm.is_any_sample());
+        data_wide().allocate_all_cache();
 
-        if (is_reset)
-        {
-            param.user_reset(setup.prng()); // initialize non constant parameters
-            augm.user_reset(setup.prng());  // initialize non constant augmented
-        }
+        param.optimize();
+        group_rate.optimize();
+        contact_rate.optimize();
+        augm.optimize();
 
-        model->init_model_for_evaluation(); // user initialization of model for inference
-        data_wide().allocate_all_cache();   // allocate all cache dependencies
-
+        model->init_model_for_evaluation();
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
             model->init_house_for_evaluation(data_wide().eq_class_head(R));
     }
@@ -528,11 +528,11 @@ namespace housepi
 
     void MCMC::run_inference()
     {
-        init_monte_carlo_();               // initialize mcmc sampling
-        init_evaluate_(false);             // initialize for evaluation
-        setup.prog_open_for_mcmc_sample(); // open progress bar
-        run_monte_carlo_();                // run Monte Carlo
-        setup.prog_close();                // close progress bar
+        init_monte_carlo_();
+        init_for_evaluation_();
+        setup.prog_open_for_mcmc_sample();
+        run_monte_carlo_();
+        setup.prog_close();
     }
 
     void MCMC::run_monte_carlo_()
@@ -755,7 +755,7 @@ namespace housepi
         setup.n_rungs = n_rungs;          // NOTE: set before progress bar
         double old_inv_T = setup.inv_T;   // save user setup
         init_monte_carlo_();              // initialize mcmc sampling
-        init_evaluate_(false);            // initialize for evaluation
+        init_for_evaluation_();           // initialize for evaluation
         setup.prog_open_for_power_post(); // print progress bar
 
         // thermodynamic ladder estimates

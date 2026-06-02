@@ -60,7 +60,7 @@ namespace housepi
 
 	private:
 		/// Assert setup definitions, then proceed with initialization for evaluation.
-		void init_evaluate_(bool is_reset);
+		void init_for_evaluation_();
 
 		/// Compute new log-likelihood, store old value. Same for households.
 		double commit_total_log_lik_(bool is_cache_depen);

@@ -14,7 +14,7 @@
 `r if (isTRUE(getOption("housepi.footer.sample"))) paste0(
   cli::symbol$warning,
   " ",
-  "Number of steps were reduced for demonstration.",
+  "The number of steps was reduced for demonstration.",
   " ",
   "Increase them in realistic applications."
 )`

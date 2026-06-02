@@ -55,17 +55,19 @@ namespace housepi
         void clear_definitions(Individual &member);
         /// Initialize augmented variables only if missing.
         void init_missing_definitions(Individual &member);
-        /// Initialize augmented dependecies for evaluations.
-        /// NOTE: not to be called before simulation which builds on demand.
-        void init();
+        /// Initialize augmented dependecies and models.
+        /// NOTE: evaluation-only, never run for simulations.
+        void init_for_evaluation();
 
         /// Request discrete augmented definition.
         void request_discrete(size_t a) { user_discrete_set_.emplace(a); }
 
         /// Reset augmented initial values for given individual.
-        void user_reset(rnd_gen &prng, Individual &member);
+        void restart(rnd_gen &prng, Individual &member);
         /// Initialize augmented initial values for all individuals.
-        void user_reset(rnd_gen &prng);
+        void restart(rnd_gen &prng);
+        /// Optimize all variables (see Variable::optimize).
+        void optimize();
 
         /// Resolve individual ids for augmented draws and return tracked pointers.
         std::vector<const Individual *> init_individual_sample(const std::vector<std::string> &id_draws) const;
@@ -99,7 +101,6 @@ namespace housepi
     private:
         MCMCBase *mcmc_;                      /// pointer to owning MCMCBase // UPDATE drop
         std::vector<Indiv::Augm> indiv_augm_; /// External storage for individual augmented data
-        str_table deftable_ = {};             /// store definition table (no names)
         bool is_any_sample_ = false;          /// whether at least one augmented is to sample
         bool is_any_adaptive_ = false;        /// whether at least one augmented has adaptive proposal
         bool is_any_model_ = false;           /// whether at least one augmented model is provided
@@ -110,6 +111,25 @@ namespace housepi
         std::unordered_map<int, std::vector<size_t>> map_status_to_def_row_ = {};
         /// Status to internal index.
         std::unordered_map<int, size_t> map_status_to_block_ = {};
+
+        /// Auxiliary definition table.
+        struct DefTable_
+        {
+            std::vector<std::string>
+                c_name = {}, c_status = {}, c_func = {}, c_fcumul = {},
+                c_value = {}, c_const = {}, c_discr = {}, c_model = {},
+                c_min = {}, c_max = {}, c_proposal = {}, c_scale = {};
+
+            /// Clear all definitions.
+            void clear();
+            /// Append definitions to current table.
+            void append(const str_table &input);
+            /// Columns presenting definitions possibly containing sources.
+            std::vector<const std::vector<std::string> *> source_cols() const
+            {
+                return {&c_value, &c_model, &c_func, &c_min, &c_max};
+            }
+        } deftable_;
 
         /// Auxiliary block for status-specific models.
         struct StatusBlock_

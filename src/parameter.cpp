@@ -48,8 +48,8 @@ namespace housepi
         /// Clone this proposal object.
         virtual std::unique_ptr<Proposal> clone() const = 0;
 
-        /// Reset to user-specified scale.
-        virtual void user_reset() {}
+        /// If adaptive, reset to default proposal scale.
+        virtual void reset_scale(const Distribution * /*prior*/) {}
 
         /// Propose a value using random number generator.
         virtual double propose(rnd_gen & /*prng*/, double /*xo*/) const = 0;
@@ -62,8 +62,6 @@ namespace housepi
 
         /// Check if proposal is adaptive.
         virtual bool is_adaptive() const noexcept = 0;
-        /// Get name of proposal distribution.
-        virtual std::string_view name() const noexcept = 0;
 
         /// Rebind proposal to a new distribution.
         virtual void rebind_distrib(const Distribution * /*new_distr*/) {}
@@ -71,8 +69,6 @@ namespace housepi
 
 #define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
     std::unique_ptr<Proposal> clone() const override { return std::make_unique<Class_>(*this); }
-#define MAKE_PROPOSAL_NAME_METHOD(name_) \
-    std::string_view name() const noexcept override final { return #name_; }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////  *** NullProposal_ : class ***  /////////////////////////////////
@@ -83,7 +79,6 @@ namespace housepi
     public:
         NullProposal_() {}
         MAKE_PROPOSAL_CLONE_METHOD(NullProposal_)
-        MAKE_PROPOSAL_NAME_METHOD()
 
         double propose(rnd_gen & /*prng*/, double xo) const override final { return xo; }
         double log_ratio(double /*xo*/, double /*xn*/) const override final { return 0.; }
@@ -100,7 +95,6 @@ namespace housepi
     public:
         SampleProposal_(const Distribution *distr) : pDistr_(distr) {}
         MAKE_PROPOSAL_CLONE_METHOD(SampleProposal_)
-        MAKE_PROPOSAL_NAME_METHOD(sample)
 
         void rebind_distrib(const Distribution *new_distr) override final { pDistr_ = new_distr; }
 
@@ -130,7 +124,6 @@ namespace housepi
             double scale,
             bool is_discrete)
             : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"})),
-              user_scale_(na::is(scale) ? 1. : std::fabs(scale)),
               is_adaptive_(na::is(scale))
         {
             if (is_discrete)
@@ -141,8 +134,22 @@ namespace housepi
 
         AdaptableProposal(const AdaptableProposal &other)
             : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-              user_scale_(other.user_scale_),
               is_adaptive_(other.is_adaptive_) {}
+
+        //////////////////////////
+        //////  ADAPTATION  //////
+        //////////////////////////
+
+        void reset_scale(const Distribution *prior) override final
+        {
+            if (is_adaptive())
+                set_scale_(get_default_scale_(prior));
+        }
+
+        void adapt(double accept_rate, double ratio) override final
+        {
+            set_scale_(get_scale_() * robbins_monro_(accept_rate, ratio));
+        }
 
         /////////////////////
         //////  FLAGS  //////
@@ -151,16 +158,16 @@ namespace housepi
         /// Wheter proposal is adaptive.
         bool is_adaptive() const noexcept override final { return is_adaptive_; }
 
-        ////////////////////
-        //////  SHOW  //////
-        ////////////////////
-
-        std::string_view name() const noexcept override final { return pDistr_->name(); }
-
     protected:
         std::unique_ptr<Distribution> pDistr_; /// distribution associated to proposal
-        double user_scale_ = 1.;               /// scale of the Metropolis proposal
         bool is_adaptive_ = true;              /// whether scale is adaptive
+
+        /// Set default proposal scale.
+        virtual double get_default_scale_(const Distribution * /*prior*/) = 0;
+        /// Read the current scale from pDistr_.
+        virtual double get_scale_() const = 0;
+        /// Mechanism to change corresponding scale in pDistr_.
+        virtual void set_scale_(double /*scale*/) = 0;
 
         /// Vanishing Robbins-Monro multiplier from an observed accept rate.
         /// Based on @cite andrieu_tutorial_2008
@@ -190,30 +197,28 @@ namespace housepi
         UniformProposal_(double scale, const Distribution *prior)
             : AdaptableProposal("uniform", scale, prior->is_discrete())
         {
-            if (is_adaptive_)
-            {
-                const auto [q25, q75] = get_iqr_from_prior_(prior);
-                if (is_iqr_finite_(q25, q75))
-                    user_scale_ = q75 - q25;
-            }
-            user_reset();
+            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
         }
         MAKE_PROPOSAL_CLONE_METHOD(UniformProposal_)
-
-        void user_reset() override final
-        {
-            pDistr_->init_attr("min", -user_scale_);
-            pDistr_->init_attr("max", user_scale_);
-        }
 
         double propose(rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
         double log_ratio(double, double) const override final { return 0.; }
 
-        void adapt(double accept_rate, double ratio) override final
+    protected:
+        double get_default_scale_(const Distribution *prior) override final
         {
-            const double m = pDistr_->upper().value() * robbins_monro_(accept_rate, ratio);
-            pDistr_->set_lower(-m);
-            pDistr_->set_upper(m);
+            const auto [q25, q75] = get_iqr_from_prior_(prior);
+            if (is_iqr_finite_(q25, q75))
+                return q75 - q25;
+            return 1.;
+        }
+        /// NOTE: uniform stores its scale in the bounds, not in the args.
+        double get_scale_() const override final { return pDistr_->upper().value(); }
+        /// Adapt standard minimum and maximum.
+        void set_scale_(double scale) override final
+        {
+            pDistr_->set_lower(-scale);
+            pDistr_->set_upper(scale);
         }
     };
 
@@ -227,30 +232,24 @@ namespace housepi
         NormalProposal_(double scale, const Distribution *prior)
             : AdaptableProposal("normal", scale, prior->is_discrete())
         {
-            if (is_adaptive_)
-            {
-                const auto [q25, q75] = get_iqr_from_prior_(prior);
-                if (is_iqr_finite_(q25, q75))
-                    user_scale_ = (q75 - q25) / 1.349;
-            }
-            user_reset();
+            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
         }
         MAKE_PROPOSAL_CLONE_METHOD(NormalProposal_)
-
-        void user_reset() override final
-        {
-            pDistr_->init_attr("mean", 0.);
-            pDistr_->init_attr("sd", user_scale_);
-        }
 
         double propose(rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
         double log_ratio(double, double) const override final { return 0.; }
 
-        /// Adapt standard deviation.
-        void adapt(double accept_rate, double ratio) override final
+    protected:
+        double get_default_scale_(const Distribution *prior) override final
         {
-            pDistr_->set_arg(1, pDistr_->arg(1) * robbins_monro_(accept_rate, ratio));
+            const auto [q25, q75] = get_iqr_from_prior_(prior);
+            if (is_iqr_finite_(q25, q75))
+                return (q75 - q25) / 1.349;
+            return 1.;
         }
+        double get_scale_() const override final { return pDistr_->arg(1); }
+        /// Adapt standard deviation.
+        void set_scale_(double scale) override final { pDistr_->set_arg(1, scale); }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -266,30 +265,16 @@ namespace housepi
             // assert that value range is positive
             if (prior->lower().is_empty() || prior->lower().value() < 0)
                 throw std::invalid_argument(
-                    "Provided proposal '" + std::string(name()) + "' for non-positive");
+                    "Provided proposal 'lognormal' for non-positive");
 
             // associate location parameter from prior
             if (prior->loc().is_callable())
                 pAttr_loc_ = prior->loc().pointer();
             mode_ = pAttr_loc_ ? Location::Active : Location::None;
 
-            // initialize adaptive configuration
-            if (is_adaptive_)
-            {
-                const double loc = pAttr_loc_ ? pAttr_loc_->value() : 0.;
-                const auto [q25, q75] = get_iqr_from_prior_(prior);
-                if (is_iqr_finite_(q25 - loc, q75 - loc))
-                    user_scale_ = std::log((q75 - loc) / (q25 - loc)) / 1.349;
-            }
-            user_reset();
+            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
         }
         MAKE_PROPOSAL_CLONE_METHOD(LognormalProposal_)
-
-        void user_reset() override final
-        {
-            pDistr_->init_attr("meanlog", 0.);
-            pDistr_->init_attr("sdlog", user_scale_);
-        }
 
         double propose(rnd_gen &prng, double xo) const override final
         {
@@ -314,19 +299,25 @@ namespace housepi
             }
         }
 
-        /// Adapt log of standard deviation.
-        void adapt(double accept_rate, double ratio) override final
-        {
-            pDistr_->set_arg(1, pDistr_->arg(1) * robbins_monro_(accept_rate, ratio));
-        }
-
-    private:
+    protected:
         enum class Location : std::uint8_t
         {
             None,
             Active
         } mode_ = Location::None;
         const Attribute *pAttr_loc_ = nullptr;
+
+        double get_default_scale_(const Distribution *prior) override final
+        {
+            const double loc = pAttr_loc_ ? pAttr_loc_->value() : 0.;
+            const auto [q25, q75] = get_iqr_from_prior_(prior);
+            if (is_iqr_finite_(q25 - loc, q75 - loc))
+                return std::log((q75 - loc) / (q25 - loc)) / 1.349;
+            return 1.;
+        }
+        double get_scale_() const override final { return pDistr_->arg(1); }
+        /// Adapt log of standard deviation.
+        void set_scale_(double scale) override final { pDistr_->set_arg(1, scale); }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -371,8 +362,6 @@ namespace housepi
     }
     void Variable::init_func_reshaping(bool discr)
     {
-        if (has_model())
-            discr = pDistr_->is_discrete();
         if (discr)
             pFunc_->init_discretization();
         pFunc_->init_truncation();
@@ -395,9 +384,6 @@ namespace housepi
 
     void Variable::init_distr_reshaping(bool is_discr)
     {
-        if (!has_model())
-            return;
-
         if (is_discr)
             pDistr_->init_discretization();
         pDistr_->init_truncation();
@@ -467,9 +453,6 @@ namespace housepi
         if (mode_ != Mode::Empty && mode_ != Mode::Numeric)
             return;
 
-        if (na::is(proposal))
-            return;
-
         if (mode_ == Mode::Empty)
             init_numeric(na::DOUBLE);
         is_user_const_ = false;
@@ -516,14 +499,13 @@ namespace housepi
         valid_mode_ = Validity::Check;
     }
 
-    void Variable::user_reset(rnd_gen &prng)
+    void Variable::restart(rnd_gen &prng)
     {
-        if (is_constant())
+        if (is_constant() || !has_model())
             return;
-        if (has_model())
-            set(pDistr_->rand(prng));
-        if (pProp_)
-            pProp_->user_reset();
+
+        set(pDistr_->rand(prng));
+        pProp_->reset_scale(pDistr_.get());
     }
 
     void Variable::optimize()
@@ -605,8 +587,7 @@ namespace housepi
 
         // check entries
         const std::vector<std::string> file_headers = {"name", "value", "const", "discr",
-                                                       "func",
-                                                       "prior", "min", "max",
+                                                       "func", "prior", "min", "max",
                                                        "proposal", "proposal_scale"};
         const std::vector<std::string> headers = read::extract_keys(input);
         str::assert_no_missing_entries(headers, file_headers);
@@ -855,12 +836,17 @@ namespace housepi
             list_sample_cached.push_back(p);
     }
 
-    void Parameter::user_reset(rnd_gen &prng)
+    void Parameter::restart(rnd_gen &prng)
     {
         for (size_t p : list_sample)
-            at(p).user_reset(prng);
+            at(p).restart(prng);
+    }
 
-        for (size_t p = 0; p < khold_.size(); ++p)
+    void Parameter::optimize()
+    {
+        for (size_t p : list_const)
+            at(p).optimize();
+        for (size_t p : list_sample)
             at(p).optimize();
     }
 

@@ -80,9 +80,11 @@ namespace housepi
 
         /// Enforce user choice for constant.
         void enforce_user_const() noexcept { is_user_const_ = true; }
-        /// Restore user defined variable initialization.
-        void user_reset(rnd_gen &prng);
-        /// Optimizing pruning indirections and setting constants to numeric.
+        /// If applicable, initialize value from prior.
+        /// Reset default scale for adaptive proposal rule.
+        void restart(rnd_gen &prng);
+        /// Optimize attribute (see Attribute::optimize) and
+        /// distribution arguments (see Function::optimize).
         void optimize() override final;
         /// Restore empty. Used in multiple initializations.
         void clear() noexcept;

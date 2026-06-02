@@ -90,7 +90,7 @@ namespace housepi
 		void init_missing_augm(Individual &member)
 		{
 			mcmc_->augm.init_missing_definitions(member);
-			mcmc_->augm.user_reset(mcmc_->setup.prng(), member);
+			mcmc_->augm.restart(mcmc_->setup.prng(), member);
 		}
 
 		/// User call. Request discrete parameter definition.

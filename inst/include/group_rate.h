@@ -33,6 +33,8 @@ namespace housepi
         /// Update model report and set group rates associate to new individual.
         /// NOTE: this has to run even if input is empty to initialize existing rates to reference.
         void build(DataWide &data_wide, const Parameter &param, const str_table &deftable);
+        /// Optimize all variables (see Variable::optimize).
+        void optimize();
 
     private:
         std::vector<Indiv::Group> unique_groups_; /// Unique group rate definitions

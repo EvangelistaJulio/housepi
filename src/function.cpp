@@ -293,6 +293,21 @@ namespace housepi
         throw std::runtime_error(sms + ".");
     }
 
+    double Attribute::value() const
+    {
+        switch (mode_)
+        {
+        case Mode::Numeric:
+            return value_;
+        case Mode::Pointer:
+            return pAttr_->value(); // UPDATE: not inlineable
+        case Mode::Function:
+            return pFunc_->evaluate();
+        default: // case Mode::Empty:
+            raise_get_error_();
+        }
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////  *** Function : class ***  ////////////////////////////////////

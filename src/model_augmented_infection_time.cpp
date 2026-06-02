@@ -53,38 +53,13 @@ public:
 	/// NOTE: missing status are not modeled
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
-	/// Initialize household introduction case evaluation (fixed for single infector).
+	/// Initialize household for evaluation
 	void init_house_for_evaluation(Household &house) override final
 	{
-		cache_uint(house, HHsizeKey::intro_case) = helper_get_intro_case(house);
-	}
-
-	/// Helper to get house index of introduction case, i. e. earliest infection.
-	size_t helper_get_intro_case(Household &house) const
-	{
-		size_t n_infec = house.n_infected_status();
-		if (n_infec == 0)
+		if (house.n_infected_status() == 0)
 			throw std::logic_error(
 				"No infected member were found in " + house.err_name() +
 				".\nThis model is compatible only with households with at least one infected member.");
-
-		size_t i0 = house.infected_hhindexes().front();
-
-		if (n_infec == 1)
-			return i0;
-
-		double t_intro = house.member(i0).aug(AugmKey::infec_time);
-		for (size_t a = 1; a < n_infec; ++a)
-		{
-			const size_t i = house.infected_hhindexes()[a];
-			double t_infec_i = house.member(i).aug(AugmKey::infec_time);
-			if (t_infec_i < t_intro)
-			{
-				t_intro = t_infec_i;
-				i0 = i;
-			}
-		}
-		return i0;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -276,7 +251,7 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
-		unsigned &i0 = cache_uint(house, HHsizeKey::intro_case); // set index to current member
+		unsigned &i0 = cache_uint(house, HHsizeKey::intro_case);
 
 		const size_t i = member_i.hhindex();
 		const double t_infec_i = member_i.aug(AugmKey::infec_time);
@@ -393,9 +368,26 @@ public:
 	{
 		for (size_t i : house.infected_hhindexes())
 			init_missing_augm(house.member(i));
-		size_t i0 = helper_get_intro_case(house);
-		Individual &member_0 = house.member(i0);
 
+		size_t n_infec = house.n_infected_status();
+		size_t i0 = house.infected_hhindexes().front();
+
+		if (n_infec > 1)
+		{
+			double t_intro = house.member(i0).aug(AugmKey::infec_time);
+			for (size_t a = 1; a < n_infec; ++a)
+			{
+				const size_t i = house.infected_hhindexes()[a];
+				double t_infec_i = house.member(i).aug(AugmKey::infec_time);
+				if (t_infec_i < t_intro)
+				{
+					t_intro = t_infec_i;
+					i0 = i;
+				}
+			}
+		}
+
+		Individual &member_0 = house.member(i0);
 		// set all others members to susceptible and reset augmented definitions
 		for (Individual &member : house)
 			if (member != member_0)

@@ -81,7 +81,7 @@ Manually set a `reference` by providing the corresponding group factor values:
 ```{r}
 #| label: susceptibility-by-sex-age
 hhmodel |>
-  # multipicative group rates, adult female chosen as reference
+  # multiplicative group rates, adult female chosen as reference
   add_group_rate("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult")) |>
   # show corresponding tables with associations

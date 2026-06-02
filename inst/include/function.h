@@ -75,7 +75,8 @@ namespace housepi
         void init_product(const std::vector<const Attribute *> &other_ptrs);
         /// Transfer from other Attribute.
         void transfer(const Attribute &other);
-        /// Optimizing pruning indirections and setting constants to numeric.
+        /// Optimizing by pruning indirections and setting constants to numeric.
+        /// NOTE: evaluation-only, never run for simulations.
         virtual void optimize();
 
         /// Set attribute value.
@@ -90,7 +91,7 @@ namespace housepi
             case Mode::Numeric:
                 value_ = x;
                 return;
-            default: // cases Mode::Pointer,  Mode::Function
+            default: // cases Mode::Pointer, Mode::Function
                 raise_set_error_();
             }
         }
@@ -103,6 +104,7 @@ namespace housepi
         //////////////////////
 
         /// Get attribute numeric value.
+        // UPDATE: Mode::Pointer forces value out-of-line.
         double value() const;
 
         /// Get pointer to attribute value.
@@ -588,30 +590,10 @@ namespace housepi
         }
     };
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////// *** Attribute : getter *** //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    inline double Attribute::value() const
-    {
-        switch (mode_)
-        {
-        case Mode::Numeric:
-            return value_;
-        case Mode::Pointer:
-            return pAttr_->value();
-        case Mode::Function:
-            return pFunc_->evaluate();
-        default: // case Mode::Empty:
-            raise_get_error_();
-        }
-    }
-
     /// Compose registries to get a function from them.
-    std::unique_ptr<Function> compose_func_registries(std::string_view opt,
-                                                      const std::string &err_type,
-                                                      const std::vector<std::string> &registries,
-                                                      bool is_prim = false);
+    std::unique_ptr<Function> compose_func_registries(
+        std::string_view opt,
+        const std::string &err_type,
+        const std::vector<std::string> &registries,
+        bool is_prim = false);
 }

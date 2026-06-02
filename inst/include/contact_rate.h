@@ -29,6 +29,8 @@ namespace housepi
     public:
         /// Build symmetric contact rates from table definitions.
         void build(DataWide &data_wide, const Parameter &param, const str_table &input);
+        /// Optimize all variables (see Variable::optimize).
+        void optimize();
 
         /// Whether no contact rate definitions were provided in the last build.
         bool is_empty() const noexcept { return house_contact_rates_.empty(); }

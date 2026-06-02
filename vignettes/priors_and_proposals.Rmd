@@ -215,12 +215,12 @@ We provide a small set of common mechanisms:
 * **normal**: Gaussian perturbations of the current value;
 * **lognormal**: multiplicative log-normal proposals (not appropriate for negative values).
 
-All proposals expect `sample` are adaptable:
+All proposals except `sample` are adaptable:
 By default, housepi tunes the scale on the fly to target an acceptance rate of 44%.
 This is enabled by supplying `adapt = N` to `run_inference()`.
-Here `N` is the number of adaptation iterations run before the MCMC `steps`. 
-The adaption uses a Robbins-Monro update at every iteration 
-on a acceptance rate estimated with exponentially weighted moving average.
+Here `N` is the number of adaptation iterations run before the MCMC `steps`.
+The adaptation uses a Robbins-Monro update at every iteration
+on an acceptance rate estimated with exponentially weighted moving average.
 The scale is initialized from the prior's interquartile range.
 
 ```{r}
@@ -279,7 +279,7 @@ new_housepi_model(model = "blank") |>
 ```
 
 Warnings and trace plots show bad mixing:
-the over-sized scale made the parametric proposals barely moves.
+the over-sized scale made the parametric proposals barely move.
 On the contrary, the `sample` mechanism mixes as usual.
 Handle `proposal_scale` with care!
 

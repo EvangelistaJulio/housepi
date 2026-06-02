@@ -399,7 +399,7 @@ HousepiGroupRate <- R6::R6Class(
       if (!none_ref && !".reference" %in% strata$param_name) stop_h(
         "Custom logic table must contain a '.reference' row.",
         paste0("Designate one row's param_name as '.reference',",
-               " or pass reference = '.none' to explicitely drop it.")
+               " or pass reference = '.none' to explicitly drop it.")
       )
       # validate params keys against logic table param_names
       if (length(params) > 0) {

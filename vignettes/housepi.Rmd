@@ -28,7 +28,7 @@ Then we will explain how to associate necessary definitions in order to perform 
 
 # Format of the data
 
-Data can be provided as a numerical data.frame in wide format, where individual information are organised by row.
+Data can be provided as a numerical data.frame in wide format, where individual information is organised by row.
 A simplistic dataset would look something like^[
 Note that this dataset comes automatically with the model "blank", used for testing mode.]
 
@@ -51,7 +51,7 @@ The housepi package comes with a few public datasets to be used for testing.
 A column `"id"` with individual identifiers is provided to keep track of changes and make errors more readable; otherwise housepi will automatically tag individuals with row numbers.
 
 To group individuals in households, a column `"house_id"` with the respective household tag needs to be present.
-Individuals with the same household id will then be considered to belong to same household.
+Individuals with the same household id will then be considered to belong to the same household.
 No household id implies that all individuals in the data are living separately.
 
 To perform model inference, a `"status"` must be provided for each individual $i$.
@@ -172,7 +172,7 @@ hhmodel |>
   get_parameters()
 ```
 
-We can also turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE`. In such case a `value` must be provided  .
+We can also turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE`. In such a case a `value` must be provided.
 To inspect current definitions, simply call `get_parameters` on the model object.
 
 For further information on the available options for priors and MCMC proposals definitions, see [Priors and proposals](priors_and_proposals.html).
@@ -309,7 +309,7 @@ Provide a custom definition following [Infectivity profiles](infectivity_profile
 We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly.
 Simulation will associate augmented incubation periods and onset times in addition to status.
-We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `obs_process`:
+We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to the next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `obs_process`:
 
 ```{r}
 #| label: run-simulation

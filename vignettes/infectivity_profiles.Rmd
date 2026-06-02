@@ -59,10 +59,10 @@ The model template comes in continuous time and with a templated generic profile
 
 ```{r}
 #| label: load-continuous-profile
-hhcontinuos <- sarscov2_2021_icofs |>
+hhcontinuous <- sarscov2_2021_icofs |>
   new_housepi_model("augmented infection time")
 # extract current loaded profile definitions
-defs <- get_infec_profile(hhcontinuos)
+defs <- get_infec_profile(hhcontinuous)
 # display definitions
 defs
 # display function arguments
@@ -162,7 +162,7 @@ plot_profile_demo(profile)
 ```
 
 If the profiles, distributions or functions currently loaded in housepi are not sufficient to deal with your case study, we provide a mechanism to define custom user functions^[Unfortunately, this requires some programming knowledge in C++.].
-We show how to deal with that caser in [User functions](user_functions.html).
+We show how to deal with that case in [User functions](user_functions.html).
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

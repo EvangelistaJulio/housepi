@@ -60,7 +60,6 @@ src/Makevars.win
 /ci/
 /check/
 /vignettes/*.R
-/vignettes/*.html
 /vignettes/*.timestamp
 
 ## exceptions
@@ -69,6 +68,7 @@ src/Makevars.win
 
 # Developer files #
 ###################
+*.html
 *.vscode/
 *.gcno
 *.gcda

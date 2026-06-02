@@ -174,8 +174,6 @@ namespace housepi::str
 
     bool tobool(const std::string &tkn)
     {
-        if (na::is(tkn))
-            return false;
         if (tkn == "FALSE" || tkn == "false" || tkn == "False" || tkn == "0")
             return false;
         if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
@@ -394,9 +392,6 @@ namespace housepi::read
         // forbidden characters
         for (char r : {'"', '\r', '\n'})
             tkn.erase(remove(tkn.begin(), tkn.end(), r), tkn.end());
-        // check for undefined
-        if (na::is(tkn))
-            tkn = "";
         return tkn;
     }
 

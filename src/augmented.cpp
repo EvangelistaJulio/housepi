@@ -314,6 +314,9 @@ namespace housepi
     /// Check augmented names and assert no reserved names are used.
     void Augmented::helper_build_assert_augm_input_(const str_table &input)
     {
+        deftable_.clear();
+
+#ifndef NDEBUG
         const std::vector<std::string> file_headers = {"name", "status",
                                                        "func", "fcumul",
                                                        "value", "const", "discr",
@@ -322,6 +325,7 @@ namespace housepi
         const std::vector<std::string> headers = read::extract_keys(input);
         str::assert_no_missing_entries(headers, file_headers);
         str::assert_no_unused_entries(headers, file_headers);
+#endif
 
         for (const std::string &astr : input.at("name"))
         {
@@ -336,7 +340,31 @@ namespace housepi
                     astr + "'.\nPlease, choose a different one.");
         }
 
-        deftable_ = input; // store user definitions
+        deftable_.append(input);
+    }
+
+    void Augmented::DefTable_::clear()
+    {
+        for (auto col : {&c_name, &c_status, &c_func, &c_fcumul,
+                         &c_value, &c_const, &c_discr, &c_model,
+                         &c_min, &c_max, &c_proposal, &c_scale})
+            col->clear();
+    }
+
+    void Augmented::DefTable_::append(const str_table &input)
+    {
+        c_name += input.at("name");
+        c_status += input.at("status");
+        c_func += input.at("func");
+        c_fcumul += input.at("fcumul");
+        c_value += input.at("value");
+        c_const += input.at("const");
+        c_discr += input.at("discr");
+        c_model += input.at("model");
+        c_min += input.at("min");
+        c_max += input.at("max");
+        c_proposal += input.at("proposal");
+        c_scale += input.at("proposal_scale");
     }
 
     void Augmented::helper_build_append_infec_profile_(InfecProfile &infec_profile)
@@ -344,9 +372,7 @@ namespace housepi
         if (!infec_profile.is_augmented())
             return;
 
-        for (const std::string &col : read::extract_keys(deftable_))
-            deftable_[col] += infec_profile.augm_definitions.at(col);
-
+        deftable_.append(infec_profile.augm_definitions);
         khold_.add(infprof::AUGM_FUNC);
         infec_profile.augm_key = khold_.from_string(infprof::AUGM_FUNC);
 
@@ -361,15 +387,15 @@ namespace housepi
 
     void Augmented::helper_build_definition_by_status_()
     {
-        for (size_t k = 0; k < deftable_["name"].size(); ++k)
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
             // fill registry with optional augmented definitions
-            const std::string astr = deftable_["name"][k];
+            const std::string astr = deftable_.c_name[k];
             khold_.add(astr);
 
             // check associated status
             int status = status::MISSING;
-            const std::string &s = deftable_["status"][k];
+            const std::string &s = deftable_.c_status[k];
             if (!na::is(s))
             {
                 status = str::toi(s, "augmented status");
@@ -388,7 +414,7 @@ namespace housepi
         {
             std::vector<std::string> name_to_status = {};
             for (size_t k : idxs)
-                name_to_status.push_back(deftable_["name"][k]);
+                name_to_status.push_back(deftable_.c_name[k]);
 
             const std::vector<std::string> degenerate = name_to_status - str::unique(name_to_status);
 #ifndef NDEBUG
@@ -458,18 +484,15 @@ namespace housepi
                 "No definitions were compatible with augmented status " +
                 std::to_string(status) + ".");
 
-        // columns presenting definitions possibly containing sources
-        const auto columns = {"value", "model", "func", "min", "max"};
-
         str_table tree;           // populate augmented dependency tree
         dict<size_t> name_to_row; // ... and reverse dictionary name-to-row-index
         for (size_t k : get_unsorted_definition_rows_(status))
         {
             std::vector<std::string> xdepen = {};
-            for (const auto c : columns)
-                xdepen += parse::Definition(deftable_[c][k]).list_augmented_depen();
-            tree[deftable_["name"][k]] = str::unique(xdepen);
-            name_to_row[deftable_["name"][k]] = k;
+            for (const std::vector<std::string> *col : deftable_.source_cols())
+                xdepen += parse::Definition((*col)[k]).list_augmented_depen();
+            tree[deftable_.c_name[k]] = str::unique(xdepen);
+            name_to_row[deftable_.c_name[k]] = k;
         }
 
         // check dependecies and translate order from name to deftable row index
@@ -509,14 +532,14 @@ namespace housepi
         // extract names
         std::vector<std::string> name_to_status = {};
         for (size_t k : allrows)
-            name_to_status.push_back(deftable_.find("name")->second[k]);
+            name_to_status.push_back(deftable_.c_name[k]);
 
         // add generic definitions to current list (if not generic already)
         // skip generic if a status-specific already exist
         if (status::is_infected(status) &&
             map_status_to_def_row_.count(status::MISSING))
             for (size_t k : map_status_to_def_row_.at(status::MISSING))
-                if (std::find(name_to_status.begin(), name_to_status.end(), deftable_.find("name")->second[k]) == name_to_status.end())
+                if (std::find(name_to_status.begin(), name_to_status.end(), deftable_.c_name[k]) == name_to_status.end())
                     allrows.push_back(k);
 
         return allrows;
@@ -539,28 +562,28 @@ namespace housepi
 
     void Augmented::set_sample_list_for_single_defininition_(int status, size_t k)
     {
-        const std::string &astr = deftable_["name"][k];
+        const std::string &astr = deftable_.c_name[k];
         size_t a = khold_.from_string(astr);
 
         bool is_to_export = true;
         bool is_to_draw = true;
 
-        if (str::tobool(deftable_["const"][k]))
+        if (str::tobool(deftable_.c_const[k]))
         {
             is_to_draw = false;
         }
-        else if (!(na::is(deftable_["func"][k]) && na::is(deftable_["value"][k])))
+        else if (!(na::is(deftable_.c_func[k]) && na::is(deftable_.c_value[k])))
         {
             auto [is_to_export_, is_to_draw_] = set_sample_list_for_function_(status, k);
             is_to_export = is_to_export_;
             is_to_draw = is_to_draw_;
         }
-        else if (na::is(deftable_["value"][k]) && na::is(deftable_["model"][k]))
+        else if (na::is(deftable_.c_value[k]) && na::is(deftable_.c_model[k]))
         {
             throw std::invalid_argument(
                 "Impossible to initialize augmented '" + astr + "'  without a value or model");
         }
-        else if (na::is(deftable_["proposal"][k]))
+        else if (na::is(deftable_.c_proposal[k]))
         {
             throw std::runtime_error(
                 "No proposal was provided for non-constant definition of augmented '" +
@@ -573,8 +596,8 @@ namespace housepi
 
             // adaptive if proposal is parametric and scale is NA
             // NOTE: user defined proposal_scale freezes the scale
-            if (deftable_["proposal"][k] != "sample" &&
-                na::is(deftable_["proposal_scale"][k]))
+            if (deftable_.c_proposal[k] != "sample" &&
+                na::is(deftable_.c_scale[k]))
             {
                 is_any_adaptive_ = true;
                 status_blocks_[map_status_to_block_.at(status)].adaptive.emplace_back(a);
@@ -598,8 +621,8 @@ namespace housepi
         bool is_to_draw = true;
 
         // NOTE: value definition has priority over function
-        const std::string &str_val = deftable_["value"][k];
-        const parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
+        const std::string &str_val = deftable_.c_value[k];
+        const parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
 
         mcmc_->data_wide().set_eq_class_data_names(parser.list_data_wide_depen());
 
@@ -633,7 +656,7 @@ namespace housepi
     /////////////////////////////////  Augmented : initialize augmented  //////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::init()
+    void Augmented::init_for_evaluation()
     {
         if (khold_.empty())
             return;
@@ -675,20 +698,17 @@ namespace housepi
 
     str_table Augmented::get_ordered_models_(const StatusBlock_ &block) const
     {
-        // columns presenting definitions possibly containing sources
-        const auto columns = {"value", "model", "func", "min", "max"};
-
         str_table tree;                         // populate augmented dependency tree
         str_table ordered_models;               // store hierarchical order of models
         std::vector<std::string> without_model; // list of augmented without models
         for (size_t k : block.order)
         {
-            const std::string &aumgstr = deftable_.at("name")[k];
+            const std::string &aumgstr = deftable_.c_name[k];
             std::vector<std::string> xdepen = {};
-            for (auto c : columns)
-                xdepen += parse::Definition(deftable_.at(c)[k]).list_augmented_depen();
+            for (const std::vector<std::string> *col : deftable_.source_cols())
+                xdepen += parse::Definition((*col)[k]).list_augmented_depen();
 
-            if (na::is(deftable_.at("model")[k]))
+            if (na::is(deftable_.c_model[k]))
                 without_model.push_back(aumgstr);
             else
                 tree[aumgstr] = str::unique(xdepen);
@@ -728,7 +748,7 @@ namespace housepi
     void Augmented::init_missing_definitions(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (member.paugm_->vec[khold_.from_string(deftable_["name"][k])].is_empty())
+            if (member.paugm_->vec[khold_.from_string(deftable_.c_name[k])].is_empty())
                 helper_init_attributes_(member, k);
     }
 
@@ -767,17 +787,17 @@ namespace housepi
 
     void Augmented::helper_init_attributes_(Individual &member, size_t k)
     {
-        const std::string &astr = deftable_["name"][k];
+        const std::string &astr = deftable_.c_name[k];
         size_t a = khold_.from_string(astr);
 
         try
         {
             Variable &xaugm = member.paugm_->vec[a];
 
-            if (str::tobool(deftable_["const"][k]))
+            if (str::tobool(deftable_.c_const[k]))
             {
                 xaugm.init_numeric(
-                    mcmc_->param.read_numeric(deftable_["value"][k], &member).value());
+                    mcmc_->param.read_numeric(deftable_.c_value[k], &member).value());
                 xaugm.enforce_user_const(); // enforce user constant choice
             }
             else
@@ -788,8 +808,8 @@ namespace housepi
 
             // assign proposal if variable to be sampled
             if (!xaugm.is_constant())
-                xaugm.init_proposal(deftable_["proposal"][k],
-                                    str::tod(deftable_["proposal_scale"][k]));
+                xaugm.init_proposal(deftable_.c_proposal[k],
+                                    str::tod(deftable_.c_scale[k]));
 
             // check if satisfies discrete requirement, if any
             if (user_discrete_set_.count(a) && !xaugm.is_discrete())
@@ -808,9 +828,9 @@ namespace housepi
 
     void Augmented::helper_init_model_attributes_(Individual &member, size_t k)
     {
-        const std::string &astr = deftable_["name"][k];
+        const std::string &astr = deftable_.c_name[k];
         Variable &xaugm = member.paugm_->vec[khold_.from_string(astr)];
-        parse::Definition parser(deftable_["model"][k]);
+        parse::Definition parser(deftable_.c_model[k]);
 
         xaugm.init_distr(parser.root.func);
 
@@ -820,18 +840,17 @@ namespace housepi
         for (const auto &child : parser.root.children)
             xaugm.init_distr_attr(child.key, mcmc_->param.read_attribute(child, &member));
 
-        for (const auto key : {"min", "max"})
-            xaugm.init_distr_attr(key, mcmc_->param.read_attribute(deftable_[key][k], &member));
-
-        xaugm.init_distr_reshaping(str::tobool(deftable_["discr"][k]));
+        xaugm.init_distr_attr("min", mcmc_->param.read_attribute(deftable_.c_min[k], &member));
+        xaugm.init_distr_attr("max", mcmc_->param.read_attribute(deftable_.c_max[k], &member));
+        xaugm.init_distr_reshaping(str::tobool(deftable_.c_discr[k]));
     }
 
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
-        const std::string &astr = deftable_["name"][k];
+        const std::string &astr = deftable_.c_name[k];
         Variable &xaugm = member.paugm_->vec[khold_.from_string(astr)];
-        std::string str_val = deftable_["value"][k];
-        parse::Definition parser(na::is(str_val) ? deftable_["func"][k] : str_val);
+        std::string str_val = deftable_.c_value[k];
+        parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
 
         // pointer mode
         if (parser.is_terminal())
@@ -841,7 +860,7 @@ namespace housepi
         }
 
         // function mode
-        bool is_primitive = str::tobool(deftable_["fcumul"][k]);
+        bool is_primitive = str::tobool(deftable_.c_fcumul[k]);
         xaugm.init_function(compose_func_registries(
             parser.root.func, "function",
             {"custom", "transcendental", "arithmetic",
@@ -856,34 +875,45 @@ namespace housepi
         }
 
         // range
-        for (const auto key : {"min", "max"})
-            xaugm.init_func_attr(key, mcmc_->param.read_attribute(deftable_[key][k], &member));
+        xaugm.init_func_attr("min", mcmc_->param.read_attribute(deftable_.c_min[k], &member));
+        xaugm.init_func_attr("max", mcmc_->param.read_attribute(deftable_.c_max[k], &member));
 
         // discretization and truncation
-        xaugm.init_func_reshaping(str::tobool(deftable_["discr"][k]));
+        xaugm.init_func_reshaping(str::tobool(deftable_.c_discr[k]));
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  Augmented : user reset  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::user_reset(rnd_gen &prng, Individual &member)
+    void Augmented::restart(rnd_gen &prng, Individual &member)
     {
         for (size_t a : list_sample(member))
-            member.paugm_->vec[a].user_reset(prng);
-
-        for (Variable &xaugm : member.paugm_->vec)
-            xaugm.optimize();
+            member.paugm_->vec[a].restart(prng);
     }
 
-    void Augmented::user_reset(rnd_gen &prng)
+    void Augmented::restart(rnd_gen &prng)
     {
         if (khold_.empty())
             return;
 
         for (Household &house : mcmc_->data_wide())
             for (size_t i : house.infected_hhindexes())
-                user_reset(prng, house.member(i));
+                restart(prng, house.member(i));
+    }
+
+    void Augmented::optimize()
+    {
+        if (khold_.empty())
+            return;
+
+        for (Household &house : mcmc_->data_wide())
+            for (size_t i : house.infected_hhindexes())
+            {
+                Individual &member = house.member(i);
+                for (Variable &xaugm : member.paugm_->vec)
+                    xaugm.optimize();
+            }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

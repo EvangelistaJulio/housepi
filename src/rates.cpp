@@ -92,8 +92,10 @@ namespace housepi
                 // per-(rate_name, rule_group): keep the most-specific matching rule
                 const auto resolved = rules.resolve<Key>(
                     matches_with(member),
-                    [&](size_t r) { return Key{g_input_vec[r], rules.row_gid[r]}; },
-                    [&](const Key &key) {
+                    [&](size_t r)
+                    { return Key{g_input_vec[r], rules.row_gid[r]}; },
+                    [&](const Key &key)
+                    {
                         return "group rate '" + key.first + "' for " +
                                member.err_name() + " (group " +
                                std::to_string(key.second) + ")";
@@ -110,6 +112,13 @@ namespace housepi
                 }
                 member.pgroup_rate_ = &unique_groups_[it->second];
             }
+    }
+
+    void GroupRate::optimize()
+    {
+        for (Indiv::Group &group : unique_groups_)
+            for (Attribute &rate : group.vec)
+                rate.optimize();
     }
 
     std::vector<std::string> GroupRate::helper_process_definitions_(DataWide &data_wide, const str_table &input)
@@ -236,9 +245,12 @@ namespace housepi
             {
                 // per-group: keep the most-specific matching rule
                 const auto resolved = rules.resolve<size_t>(
-                    [&](size_t r) { return matches_(r, member_from, member_to); },
-                    [&](size_t r) { return rules.row_gid[r]; },
-                    [&](size_t) {
+                    [&](size_t r)
+                    { return matches_(r, member_from, member_to); },
+                    [&](size_t r)
+                    { return rules.row_gid[r]; },
+                    [&](size_t)
+                    {
                         return "contact rate from " + member_from.err_name() +
                                " to " + member_to.err_name();
                     });
@@ -350,5 +362,13 @@ namespace housepi
                         house_contact_rates_[H].mtx[from][to].init_product(param_ptrs);
                 }
         }
+    }
+
+    void ContactRate::optimize()
+    {
+        for (House::Contact &contact : house_contact_rates_)
+            for (std::vector<Attribute> &row : contact.mtx)
+                for (Attribute &rate : row)
+                    rate.optimize();
     }
 }
