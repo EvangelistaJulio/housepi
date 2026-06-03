@@ -1,63 +1,62 @@
 library(testthat)
 
-# Random Metal Gear-flavoured strings used in name-validation cases.
-mgs_codename <- "snake_eater"
-mgs_glitch <- "fox.die"
-
 test_that("Compilation flags are ok", {
   expect_false(system.file("include", package = "BH") == "")
 })
 
-test_that("Model generator inconsistent calls", {
+test_that("Model generator inconsistent calls are caught", {
   # blank household model object
   hhgen <- HousepiGenerator$new("blank")
 
   # helper suggests correect template name
-  expect_error(HousepiGenerator$new("augment example"),
-               regexp = "augmented example")
+  HousepiGenerator$new("augment exemple") |>
+    expect_error("augmented example")
 
   # model name imposed redundancy
-  hhgen1 <- HousepiGenerator$new("augmented example")
-  hhgen2 <- HousepiGenerator$new("augmented_example")
-  hhgen3 <- HousepiGenerator$new("augmented-example")
-  expect_equal(unique(c(hhgen1$name, hhgen2$name, hhgen3$name)),
-               "augmented example")
+  name1 <- HousepiGenerator$new("augmented example")$name
+  name2 <- HousepiGenerator$new("augmented_example")$name
+  name3 <- HousepiGenerator$new("augmented-example")$name
+  unique(c(name1, name2, name3)) |>
+    expect_equal("augmented example")
 
   # inference without definitions
-  expect_error(hhgen$run_inference())
+  hhgen$run_inference() |>
+    expect_error()
 })
 
 test_that("Model choice helper handles malformed input", {
   # NA falls back to 'blank' with a warning
   expect_warning(hhgen <- HousepiGenerator$new(NA_character_),
                  regexp = "blank")
-  expect_equal(hhgen$name, "blank")
-  expect_true(hhgen$is_blank())
+  hhgen$name |>
+    expect_equal("blank")
+  hhgen$is_blank() |>
+    expect_true()
 
   # non-character input is rejected
-  expect_error(HousepiGenerator$new(42), regexp = "non-empty string")
+  HousepiGenerator$new(42) |>
+    expect_error("non-empty string")
 
   # length != 1 character input is rejected
-  expect_error(HousepiGenerator$new(c("blank", mgs_codename)),
-               regexp = "non-empty string")
+  HousepiGenerator$new(c("blank", "snake_eater")) |>
+    expect_error("non-empty string")
 
   # '.' as a model choice is rejected with a clear message
-  expect_error(HousepiGenerator$new("."), regexp = "different folder")
+  HousepiGenerator$new(".") |>
+    expect_error("different folder")
 
   # unknown template suggests closest match (none for unrelated input)
-  expect_error(HousepiGenerator$new(mgs_glitch),
-               regexp = "not a folder nor a template")
+  HousepiGenerator$new("fox.die") |>
+    expect_error("not a folder nor a template")
 })
 
 test_that("Compile flags are validated against model source", {
   # unknown user flag → stop
-  expect_error(
-    HousepiGenerator$new("blank", flags = "_HOUSEPI_NOT_A_REAL_FLAG"),
-    regexp = "No visible option"
-  )
+  HousepiGenerator$new("blank", flags = "_HAIDARAAA") |>
+    expect_error("No visible option")
   # discrete-time flag is only allowed when the model declares it
-  expect_error(HousepiGenerator$new("blank", discr = TRUE),
-               regexp = "discrete time")
+  HousepiGenerator$new("blank", discr = TRUE) |>
+    expect_error("discrete time")
 })
 
 test_that("Active fields are read-only and expose state", {
@@ -92,7 +91,8 @@ test_that("get_reference points to the model source", {
 
 test_that("data_required reflects the underlying template", {
   blank_gen <- HousepiGenerator$new("blank")
-  expect_length(blank_gen$data_required, 0)
+  blank_gen$data_required |>
+    expect_length(0L)
 
   ait_gen <- HousepiGenerator$new("augmented infection time")
   expect_true("end_followup" %in% ait_gen$data_required)
@@ -101,25 +101,109 @@ test_that("data_required reflects the underlying template", {
 test_that("import_data_wide validates inputs and populates state", {
   hhgen <- HousepiGenerator$new("blank")
 
-  expect_error(hhgen$import_data_wide("not a frame"),
-               regexp = "data.frame")
-  expect_error(hhgen$import_data_wide(data.frame()),
-               regexp = "empty")
-  expect_error(hhgen$import_data_long(list(a = 1)),
-               regexp = "data.frame")
+  hhgen$import_data_wide("not a frame") |>
+    expect_error("data.frame")
+  hhgen$import_data_long(list(a = 1)) |>
+    expect_error("data.frame")
+  hhgen$import_data_wide(data.frame()) |>
+    expect_error("empty")
 
   env <- new.env(parent = emptyenv())
   utils::data("blank_house", package = "housepi", envir = env)
   hhgen$import_data_wide(env$blank_house)
-  expect_setequal(hhgen$cols_data_wide, colnames(env$blank_house))
-  expect_equal(hhgen$infec_status_set, 1L)
-  expect_true(is.list(hhgen$info_data_wide))
+  hhgen$cols_data_wide |>
+    expect_setequal(colnames(env$blank_house))
+  hhgen$infec_status_set |>
+    expect_equal(1L)
+  is.list(hhgen$info_data_wide) |>
+    expect_true()
 
   # round-trip refactor keeps the original character columns intact
   reloaded <- hhgen$refactor_data_wide(env$blank_house)
-  expect_equal(reloaded$id, env$blank_house$id)
-  expect_equal(reloaded$house_id, env$blank_house$house_id)
+  reloaded$id |>
+    expect_equal(env$blank_house$id)
+  reloaded$house_id |>
+    expect_equal(env$blank_house$house_id)
 })
+
+test_that("user paths, flags and libs reach the compile command", {
+  log <- suppressMessages(capture.output(
+    hhgen <- HousepiGenerator$new("augmented infection time",
+                                  discr = TRUE, force = TRUE,
+                                  paths = "/tmp/diamond_dogs",
+                                  libs  = "/tmp/mother_base"),
+    type = "output"
+  )) |>
+    paste(collapse = "\n")
+
+  # match across compilation commands
+  expect_match(log, "-I/tmp/diamond_dogs", fixed = TRUE)
+  expect_match(log,
+               paste0("-I", system.file("include", package = "housepi")),
+               fixed = TRUE)
+  expect_match(log, "-D_HOUSEPI_DISCRETE_TIME", fixed = TRUE)
+  expect_match(log, "-L/tmp/mother_base", fixed = TRUE)
+})
+
+test_that("as_template is refused for a built-in template", {
+  expect_warning(hhgen <- HousepiGenerator$new("blank", as_template = TRUE),
+                 regexp = "browse_housepi_templates")
+  # construction still succeeds
+  expect_false(is.null(hhgen$mcmc_ptr))
+})
+
+test_that("as_template is dropped on the blank fallback", {
+  # a missing model falls back to 'blank': only the fallback warning should
+  # fire, not the contradictory 'cannot store template' one stacked on top
+  warns <- character()
+  withCallingHandlers(
+    hhgen <- HousepiGenerator$new(as_template = TRUE),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_true(any(grepl("No model specified", warns)))
+  expect_false(any(grepl("Cannot store template", warns)))
+  expect_false(is.null(hhgen$mcmc_ptr))
+})
+
+test_that("a session-loaded template warns when compile flags change", {
+  path <- file.path(tempdir(), "shadow_moses")
+  on.exit(unlink(path, recursive = TRUE), add = TRUE)
+  browse_housepi_templates("augmented_infection_time", path, replace = TRUE)
+
+  # build + load a discrete template, recording its flags in a sidecar
+  HousepiGenerator$new(path, discr = TRUE, as_template = TRUE, quiet = TRUE)
+  expect_identical(readLines(dll_flags_file(template_dll_file(path))),
+                   "_HOUSEPI_DISCRETE_TIME")
+
+  # the loaded discrete dll cannot be replaced by the continuous variant:
+  # the warning must fire in this direction too (was previously silent)
+  HousepiGenerator$new(path, as_template = TRUE, quiet = TRUE) |>
+    expect_warning("replace existing template")
+})
+
+test_that("custom model directory without model.cpp is rejected", {
+  path <- file.path(tempdir(), "outer_heaven")
+  dir.create(path, showWarnings = FALSE)
+
+  HousepiGenerator$new(path) |>
+    expect_error("outer_heaven.*was not found")
+})
+
+test_that("an error is raised when tracked referen is lost", {
+  dest <- tempfile("solid_snake_")
+  on.exit(unlink(dest, recursive = TRUE), add = TRUE)
+
+  browse_housepi_templates("chain_binomial", path = dest)
+  hhgen <- HousepiGenerator$new(dest, quiet = TRUE)
+  unlink(hhgen$get_reference())
+
+  hhgen$data_required |>
+    expect_error("[Ii]mpossible to find reference file")
+})
+
 
 test_that("init_pointers is a no-op when pointers already exist", {
   hhgen <- HousepiGenerator$new("blank")

@@ -23,12 +23,6 @@
 #include "household.h"
 #include "registry.h"
 
-#ifdef _HOUSEPI_DISCRETE_TIME
-#define FLAG_STR_HOUSEPI_DISCRETE_TIME "_HOUSEPI_DISCRETE_TIME,"
-#else
-#define FLAG_STR_HOUSEPI_DISCRETE_TIME ""
-#endif
-
 #define HOUSEPI_DECLARE_EMPTY_KEYS(T) \
     struct T                          \
     {                                 \
@@ -56,17 +50,11 @@
     {                                                    \
         return housepi::standalone(#module, argc, argv); \
     }
-#define HOUSEPI_EXTRA_FLAG_SUPPORT()
 #define HOUSEPI_REGISTER_MODULE_INTERFACE_IMPL_(module) \
     HOUSEPI_REGISTER_MODEL(module)                      \
     HOUSEPI_STANDALONE_MAIN(module)
 
 #else
-#define HOUSEPI_EXTRA_FLAG_SUPPORT()                                              \
-    std::vector<std::string> compile_flags() const override final                 \
-    {                                                                             \
-        return housepi::read::helper_parse_names(FLAG_STR_HOUSEPI_DISCRETE_TIME); \
-    }
 #define HOUSEPI_REGISTER_MODULE_INTERFACE_IMPL_(module) \
     HOUSEPI_REGISTER_MODEL(module)
 #endif

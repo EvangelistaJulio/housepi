@@ -51,8 +51,8 @@ Thumbs.db
 *.Rcheck/
 *.Rcheck/**
 .Rproj.user
-src/Makevars
-src/Makevars.win
+/src/Makevars
+/src/Makevars.win
 /public/
 /doc/
 /docs/
@@ -62,10 +62,6 @@ src/Makevars.win
 /vignettes/*.R
 /vignettes/*.timestamp
 
-## exceptions
-!vignettes/generate_delays.R
-!vignettes/theme.R
-
 # Developer files #
 ###################
 *.html
@@ -73,13 +69,14 @@ src/Makevars.win
 *.gcno
 *.gcda
 CLAUDE.md
-.claude/
+/covr/
+/.claude/
 
 # Package files #
 #################
-inst/models/*/model.cpp
-inst/models/*/model.exe
-inst/standalone/profile/
+/inst/models/*/model.cpp
+/inst/models/*/model.exe
+/inst/standalone/profile/
 /man/hhmodel_*
 *.csv
 *.txt

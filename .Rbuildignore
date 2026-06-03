@@ -4,8 +4,11 @@
 ^\.git$
 ^\.github$
 ^\.gitlab-ci\.yml$
+^\.gitignore$
+^\.gitattributes$
 ^\.lintr$
 ^check$
+^covr$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^cleanup$
@@ -24,6 +27,4 @@
 ^CLAUDE\.md$
 ^\.claude$
 ^cran-comments\.md$
-^\.gitignore$
-^\.gitattributes$
 ^ci$

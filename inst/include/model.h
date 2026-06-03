@@ -35,7 +35,6 @@ namespace housepi
 
 		void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
 
-		virtual std::vector<std::string> compile_flags() const { return {""}; }
 		virtual const std::vector<std::string> get_DataKey() const = 0;
 		virtual const std::vector<std::string> get_HHsizeKey() const = 0;
 		virtual const std::vector<std::string> get_HHsizevecKey() const = 0;

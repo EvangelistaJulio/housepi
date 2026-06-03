@@ -12,6 +12,11 @@ dll_file_ext <- function(name) {
   paste0(name, .Platform$dynlib.ext)
 }
 
+# Sidecar file recording the compile flags baked into a dll.
+dll_flags_file <- function(dll) {
+  paste0(dll, ".housepi.flags")
+}
+
 # Templated name convention (remove punctuation).
 template_name <- function(path) {
   gsub("[[:punct:] ]", "_", basename(path))
@@ -197,7 +202,7 @@ open_model_helper_ <- function(path) {
   stages <- c("build", "install", "render")
 
   if (requireNamespace("rstudioapi", quietly = TRUE) &&
-      rstudioapi::isAvailable()) {
+        rstudioapi::isAvailable()) {
     tmp <- tempfile(fileext = ".html")
     tools::Rd2HTML(rd, out = tmp, stages = stages)
     rstudioapi::viewer(tmp)

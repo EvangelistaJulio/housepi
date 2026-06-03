@@ -132,14 +132,16 @@ format_type_error <- function(x) {
           paste(rev(class(x)), collapse = "/"))
 }
 
+raise_permissions_error <- function() {
+  stop_h("Failed to generate necessary files.",
+         "Check your user permissions.")
+}
+
 # wrapper to file.copy with overwrite option
 overwrite <- function(from, to, ...) {
   if (from == to) return(invisible())
   # user permission error (tipically)
-  if (!file.copy(from, to, overwrite = TRUE, ...)) stop_h(
-    "Failed to setup necessary files.",
-    "Check your user permissions."
-  )
+  if (!file.copy(from, to, overwrite = TRUE, ...)) raise_permissions_error()
 }
 
 ############################################################################

@@ -61,7 +61,7 @@ namespace housepi
         virtual void adapt(double /*accept_rate*/, double /*ratio*/) {};
 
         /// Check if proposal is adaptive.
-        virtual bool is_adaptive() const noexcept = 0;
+        virtual bool is_adaptive() const noexcept { return false; }
 
         /// Rebind proposal to a new distribution.
         virtual void rebind_distrib(const Distribution * /*new_distr*/) {}
@@ -82,8 +82,6 @@ namespace housepi
 
         double propose(rnd_gen & /*prng*/, double xo) const override final { return xo; }
         double log_ratio(double /*xo*/, double /*xn*/) const override final { return 0.; }
-
-        bool is_adaptive() const noexcept override final { return false; }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -100,8 +98,6 @@ namespace housepi
 
         double propose(rnd_gen &prng, double /*xo*/) const override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
-
-        bool is_adaptive() const noexcept override final { return false; }
 
     private:
         const Distribution *pDistr_;
@@ -150,10 +146,6 @@ namespace housepi
         {
             set_scale_(get_scale_() * robbins_monro_(accept_rate, ratio));
         }
-
-        /////////////////////
-        //////  FLAGS  //////
-        /////////////////////
 
         /// Wheter proposal is adaptive.
         bool is_adaptive() const noexcept override final { return is_adaptive_; }
@@ -916,10 +908,12 @@ namespace housepi
             {
                 return member_ptr->get_group_rate_attribute(pGroupRateKeys_->from_string(node.value));
             }
+#ifndef NDEBUG
             else
                 throw std::invalid_argument(
                     "Unrecognized source type '" + node.type +
                     "' found while parsing " + node.err_str() + ".");
+#endif
         }
 
         return storage_;

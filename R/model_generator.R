@@ -9,6 +9,14 @@
 #' @importFrom pkgbuild compile_dll
 NULL
 
+# Whether the build cache would overlap the model source.
+cache_overlaps_source <- function(cache, source) {
+  norm <- function(p) normalizePath(p, winslash = "/", mustWork = FALSE)
+  cache <- norm(cache)
+  source <- norm(source)
+  cache == source || startsWith(source, paste0(cache, "/"))
+}
+
 ############################################################################
 ############################################################################
 ############################# Housepi Generator ############################
@@ -17,7 +25,7 @@ NULL
 
 #' @title Internal R6 helper for generating the Rcpp model object
 #' @description
-#' Helper class that drives compilation and instantiation of the Rcpp model object.
+#' Helper class for compilation and instantiation of the Rcpp model object.
 #' @keywords internal
 #' @noRd
 HousepiGenerator <- R6::R6Class(
@@ -117,16 +125,17 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Wheter user flags are the same as existing dll.
     has_same_flags_as_dll_ = function() {
-      # FIXME: this is simply wrong!
-      if (is.null(private$mcmc_ptr_)) {
-        if (length(private$last_flags_) == 0) return(TRUE)
-        else return(FALSE)
+      # custom dll carries its flags in a sidecar for comparison
+      if (!is.null(private$dll_) &&
+            !is.na(private$dll_) &&
+            file.exists(private$dll_)) {
+        flags_file <- dll_flags_file(private$dll_)
+        # unknown flags: force a rebuild
+        if (!file.exists(flags_file)) return(FALSE)
+        return(setequal(private$last_flags_, readLines(flags_file)))
       }
-      load_model_dll_(private$dll_)
-      module_name <- get_template_from_dll(private$dll_)
-      if (is.na(module_name)) module_name <- private$name_
-      flags_dll <- .engine$compile_flags(.engine$new_model(module_name))
-      setequal(private$last_flags_, flags_dll)
+      # NOTE: built-in templates have no extra flags
+      length(private$last_flags_) == 0
     },
 
     ############################################################################
@@ -149,10 +158,10 @@ HousepiGenerator <- R6::R6Class(
 
     # @description
     # Initialize template model loading template model name.
-    init_template_model_ = function(choice) {
+    init_template_model_ = function(choice, force) {
       private$store_source_and_filter_flags_(get_template_dir(choice))
-      if (!private$has_same_flags_as_dll_()) {
-        private$build_as_custom_model_(FALSE, FALSE)
+      if (force || !private$has_same_flags_as_dll_()) {
+        private$build_as_custom_model_(FALSE, force)
       }
       invisible(self)
     },
@@ -195,16 +204,18 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
-    # Predispose temporare fodler for the installation.
+    # Predispose temporary folder for the installation.
     build_temporary_cache_ = function(as_template, force) {
       private$cache_dir_ <- file.path(tempdir(), template_name(private$name_))
 
+      # nest one level if cache overlaps source so the latter is never deleted
+      if (cache_overlaps_source(private$cache_dir_, private$source_dir_)) {
+        private$cache_dir_ <- file.path(private$cache_dir_, ".build")
+      }
+
       if (!dir.exists(private$cache_dir_)) {
         if (!dir.create(private$cache_dir_, recursive = TRUE,
-                        showWarnings = FALSE)) stop_h(
-          "Impossibile to create a cache directory for compilation.",
-          "Check your user permissions."
-        )
+                        showWarnings = FALSE)) raise_permissions_error()
       }
 
       if (as_template) {
@@ -346,17 +357,14 @@ HousepiGenerator <- R6::R6Class(
     },
 
     # @description
-    # macOS only. The custom DLL was linked against housepi.so and the
-    # linker recorded that dependency by its basename ("housepi.so"). If
-    # devtools::load_all has reloaded housepi during this session, two
-    # housepi.so images are mapped under that same basename — dyld would
-    # then bind our custom DLL to the first one, while .engine talks to
-    # the most-recently-loaded one. The C++ ModelRegistry singleton lives
-    # per-image, so the model registers in one and the lookup queries
-    # the other: "unknown model" error.
-    #
-    # Fix: rewrite the dependency to the full path of the housepi image
-    # .engine is actually using. dyld then has no ambiguity.
+    # macOS only. Relevant under `devtools::load_all``.
+    # Custom DLL id linked against `housepi.so` with basename linker.
+    # If load_all reloads housepi during the same session,
+    # two images are mapped under that same basename:
+    # * `dyld` binds custom DLL to the first one;
+    # * `.engine` to the most-recently-loaded.
+    # Problem: Cpp Registries are singletons defined per-image.
+    # Fix: rewrite dependency the image .engine is actually using.
     bind_to_active_housepi_ = function(custom_dll) {
       if (Sys.info()[["sysname"]] != "Darwin") return(invisible())
       # R's PACKAGE="housepi" lookup picks the last loaded entry, so the
@@ -396,6 +404,8 @@ HousepiGenerator <- R6::R6Class(
                               dll_file_ext("housepi.custom"))
       private$bind_to_active_housepi_(custom_dll)
       overwrite(custom_dll, private$dll_)
+      # record the flags this dll was compiled with, for later flag checks
+      writeLines(private$last_flags_, dll_flags_file(private$dll_))
       # drop other files
       unlink(file.path(private$cache_dir_,
                        c("NAMESPACE", "DESCRIPTION", "src", "R")),
@@ -503,6 +513,8 @@ HousepiGenerator <- R6::R6Class(
 
       # assign name to the model
       choice <- private$helper_init_model_choice_(model)
+      # if falls back to 'blank', enforce no spurious template
+      if (all(is.na(model) | is.null(model))) as_template <- FALSE
 
       # assign quiet field and load user options
       user_options <- private$pre_process_user_options_(quiet, ...)
@@ -512,7 +524,13 @@ HousepiGenerator <- R6::R6Class(
       if (dir.exists(choice)) {
         private$init_custom_model_(choice, as_template, force)
       } else if (!is.na(get_template_dir(choice))) {
-        private$init_template_model_(choice)
+        if (isTRUE(as_template)) warn_h(
+          sprintf("Cannot store template '%s' as a new template.", self$name),
+          "Copy it to a writable folder first, and then load it:",
+          sprintf("#> browse_housepi_templates('%s', 'your/dir')", self$name),
+          "#> new_housepi_model(data = ..., model = 'your/dir')"
+        )
+        private$init_template_model_(choice, force)
       } else {
         stop_h(sprintf("'%s' is not a folder nor a template name.", choice),
                find_closest_template_name(choice))

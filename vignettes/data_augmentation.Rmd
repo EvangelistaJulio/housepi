@@ -142,7 +142,7 @@ Instead we consider a simulated report documenting the days when a number of cas
 ```{r}
 #| label: generate-delays-data
 # use an example script for generate delays
-source("generate_delays.R")
+source("helpers/generate_delays.R")
 # generate delays according to a gamma distribution
 true_mean <- 2.2
 true_var <- 1.4

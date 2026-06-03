@@ -1385,7 +1385,6 @@ namespace
         return Rcpp::wrap(model_xptr->method());                            \
     }
 
-    MAKE_EXPORT_CHARACTER_VECTOR(compile_flags)
     MAKE_EXPORT_CHARACTER_VECTOR(get_DataKey)
     MAKE_EXPORT_CHARACTER_VECTOR(get_LongKey)
     MAKE_EXPORT_CHARACTER_VECTOR(get_ParamKey)
@@ -1563,7 +1562,6 @@ RCPP_MODULE(housepi)
         .method("inst", &ExposeInfecProfile::inst)
         .method("cumul", &ExposeInfecProfile::cumul);
 
-    Rcpp::function("compile_flags", &compile_flags);
     Rcpp::function("get_DataKey", &get_DataKey);
     Rcpp::function("get_LongKey", &get_LongKey);
     Rcpp::function("get_ParamKey", &get_ParamKey);
