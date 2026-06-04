@@ -89,13 +89,12 @@ find_required_definitions <- function(defs, src, col_with_sources, family) {
 
 # Parse implicit function/value.
 helper_variable_core <- function(opts, family, value, func, func_args) {
-  col_model <- family2model_col(family)
   if (is.null(value) && is.null(func)) return(opts)
   if (is.numeric(showcaser_extract_numeric(value))) {
     # implicit numeric definition
     opts$value <- value
     if (is.na(opts$const)) {
-      opts$const <- isTRUE(all(is.na(c(opts[[col_model]], opts$proposal))))
+      opts$const <- isTRUE(all(is.na(c(opts[["prior"]], opts$proposal))))
     }
   } else {
     # NOTE: ensured just one between the 2 is not NULL
@@ -115,25 +114,21 @@ helper_variable_core <- function(opts, family, value, func, func_args) {
 
 # process model arguments
 helper_variable_model <- function(opts, family, args) {
-  col_model <- family2model_col(family)
-
   if (is.null(args)) return(opts)
-  if (is.na(opts[[col_model]])) {
+  if (is.na(opts[["prior"]])) {
     sms <- sprintf("Spare arguments for %s '%s'.", family, opts$name)
     if (!is.na(opts$func)) sms <- c(sms, "Did you mean 'func_args'?")
     stop_h(sms)
   }
-  opts[[col_model]] <- housepi_combine_to_call(opts[[col_model]], args)
+  opts[["prior"]] <- housepi_combine_to_call(opts[["prior"]], args)
   opts
 }
 
 # Interpret user choice for Monte Carlo move.
 helper_variable_move <- function(opts, family, proposal_scale) {
-  col_model <- family2model_col(family)
-
   # infer if sampling proposal but no constant parameter provided
   if (is.na(opts$const)
-      && !(is.na(opts$proposal) && is.na(opts[[col_model]]))) {
+      && !(is.na(opts$proposal) && is.na(opts[["prior"]]))) {
     opts$const <- FALSE
   }
 
@@ -143,25 +138,24 @@ helper_variable_move <- function(opts, family, proposal_scale) {
     )
     opts$proposal <- NA_character_
     # drop prior if constant
-    if (family == "parameter") opts[[col_model]] <- NA_character_
+    if (family == "parameter") opts[["prior"]] <- NA_character_
     # skip proposal if constant
     return(opts)
   } else {
     # check for prior if not constant (skip for func-defined parameters)
-    if (family == "parameter" && is.na(opts[[col_model]])
+    if (family == "parameter" && is.na(opts[["prior"]])
         && is.na(opts$func)) stop_h(
-      sprintf("No %s provided for parameter '%s'.", col_model, opts$name)
+      sprintf("No prior provided for %s '%s'.", family, opts$name)
     )
   }
 
   if (is.na(opts$proposal)) {
-    if (is.na(opts[[col_model]])) {
+    if (is.na(opts[["prior"]])) {
       if (is.na(opts$func) &&
             is.numeric(showcaser_extract_numeric(opts$value))) {
         # raise error if const is FALSE (not if NA or already TRUE)
         if (isFALSE(opts$const)) stop_h(
-          sprintf("No %s to sample from for %s '%s'.",
-                  col_model, family, opts$name)
+          sprintf("No prior to sample from for %s '%s'.", family, opts$name)
         )
         opts$const <- TRUE
       }
@@ -170,8 +164,8 @@ helper_variable_move <- function(opts, family, proposal_scale) {
       opts$proposal <- "sample"
     }
   } else {
-    if (is.na(opts[[col_model]])) stop_h(
-      sprintf("No %s to sample from for %s '%s'.", col_model, family, opts$name)
+    if (is.na(opts[["prior"]])) stop_h(
+      sprintf("No prior to sample from for %s '%s'.", family, opts$name)
     )
     if (opts$proposal != "sample")  {
       # NA proposal scale: adaptive

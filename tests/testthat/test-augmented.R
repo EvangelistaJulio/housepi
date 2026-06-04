@@ -3,7 +3,7 @@ library(testthat)
 aux_add <- function(self, name = NA_character_,  value = NULL,
                     status = NA_integer_, const = NA, discr = FALSE,
                     func = NULL, func_args = NULL,
-                    model = NA_character_, ...,
+                    prior = NA_character_, ...,
                     min = NULL, max = NULL,
                     proposal = NA_character_,
                     proposal_scale = NA_real_) {
@@ -11,7 +11,7 @@ aux_add <- function(self, name = NA_character_,  value = NULL,
                status = status, const = const, discr = discr,
                func = rlang::enquo(func),
                func_args = rlang::enquos(func_args),
-               model = model, rlang::enquos(...),
+               prior = prior, rlang::enquos(...),
                min = rlang::enquo(min), max = rlang::enquo(max),
                proposal = proposal,
                proposal_scale = proposal_scale)
@@ -20,10 +20,10 @@ aux_add <- function(self, name = NA_character_,  value = NULL,
 
 test_that("Augmented definition error are recognized", {
   augm <- HousepiAugmented$new()
-  expect_error(aux_add(augm, name = "infec@"),
-               regexp = "invalid characters")
-  expect_error(aux_add(augm, name = "infec"),
-               regexp = "Incomplete definition")
+  aux_add(augm, name = "infec@") |>
+    expect_error("invalid characters")
+  aux_add(augm, name = "infec") |>
+    expect_error("Incomplete definition")
 })
 
 test_that("Constant value definition are coherent", {
@@ -38,10 +38,10 @@ test_that("Constant value definition are coherent", {
 
 test_that("Undefined definitions are controoled", {
   augm <- HousepiAugmented$new()
-  expect_error(aux_add(augm, name = "test", proposal = "sample", value = NA),
-               regexp = "No model")
-  expect_error(aux_add(augm, name = "test", value = NA),
-               regexp = "Missing value")
+  aux_add(augm, name = "test", proposal = "sample", value = NA) |>
+    expect_error("No prior")
+  aux_add(augm, name = "test", value = NA) |>
+    expect_error("Missing value")
 
   augm <- HousepiAugmented$new()
   aux_add(augm, name = "test", value = 3, const = TRUE, proposal = "sample")
@@ -62,12 +62,12 @@ test_that("Augmented variable definitions are correct", {
 
   # variable definition
   augm <- HousepiAugmented$new()
-  aux_add(augm, name = "dummy", value = expo@D, model = "uniform",
+  aux_add(augm, name = "dummy", value = expo@D, prior = "uniform",
           min = expo_min@A, max = expo_max@P)
   expect_equal(augm$defs$name, "dummy")
   expect_equal(augm$defs$status, NA_integer_)
   expect_equal(augm$defs$value, "expo|D")
-  expect_equal(augm$defs$model, "uniform")
+  expect_equal(augm$defs$prior, "uniform")
   expect_equal(augm$defs$min, "expo_min|A")
   expect_equal(augm$defs$max, "expo_max|P")
 
@@ -80,7 +80,7 @@ test_that("Augmented variable definitions are correct", {
 
 test_that("Augmented sampling default is correct", {
   augm <- HousepiAugmented$new()
-  aux_add(augm, name = "dummy", model = "norm")
+  aux_add(augm, name = "dummy", prior = "norm")
 
   expect_equal(augm$defs$const, FALSE)
   expect_equal(augm$defs$proposal, "sample")
@@ -96,13 +96,11 @@ test_that("Augmented function definition is correct", {
   expect_equal(augm$defs$value, NA_real_)
 
   # overwriting warnings
-  expect_warning(
-    aux_add(augm, name = "dummy", func = "log", func_args = c(x = infec@A)),
-    regexp = "Overwriting"
-  )
+  aux_add(augm, name = "dummy", func = "log", func_args = c(x = infec@A)) |>
+    expect_warning("Overwriting")
   aux_add(augm, name = "rate", value = 3)
-  expect_warning(aux_add(augm, name = "dummy", func = exp(-rate)),
-                 regexp = "Overwriting")
+  aux_add(augm, name = "dummy", func = exp(-rate)) |>
+    expect_warning("Overwriting")
 })
 
 test_that("Augmented load enable special definitions", {
@@ -114,8 +112,8 @@ test_that("Augmented load enable special definitions", {
   helper_test_aux_load(tmp, dummy = log(infec@A))
   expect_equal(tmp$defs, augm$defs)
 
-  expect_warning(aux_add(tmp, name = "dummy", func = log(infec@A)),
-                 regexp = "Overwriting")
+  aux_add(tmp, name = "dummy", func = log(infec@A)) |>
+    expect_warning("Overwriting")
   expect_equal(tmp$defs, augm$defs)
 
   # multi-status definition
@@ -134,9 +132,9 @@ test_that("Augmented support rlang double bang", {
     augm,
     A = !!external_value,
     B = log(infec@A + !!external_value),
-    C = c(model = "uniform",
+    C = c(prior = "uniform",
           min = !!external_value, max = log(infec@A + !!external_value)),
-    D = list(model = "uniform",
+    D = list(prior = "uniform",
              min = !!external_value, max = log(infec@A + !!external_value))
   )
   expect_equal(subset(augm$defs, name == "A")$value, str_value)
@@ -162,10 +160,10 @@ test_that("Symbolic definitions are equivalent", {
   val <- 1
   helper_test_aux_load(
     augm,
-    var1 = list(model = "normal", mean = indiv_shape + 1),
-    var2 = list(model = "normal", mean = indiv_shape + !!val),
-    var3 = list(model = "normal", mean = ~ indiv_shape + 1),
-    var4 = list(model = "normal", mean = ~ indiv_shape + !!val)
+    var1 = list(prior = "normal", mean = indiv_shape + 1),
+    var2 = list(prior = "normal", mean = indiv_shape + !!val),
+    var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
+    var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
   )
   aux <- augm$defs
   aux$name <- NULL
@@ -177,8 +175,8 @@ test_that("Symbolic definitions are equivalent", {
     some_func = list(func = "gamma",
                      func_args = c(shape = ~ shape, scale = ~ scale))
   )
-  expect_error(helper_test_aux_load(augm, external),
-               regexp = "rlang injection")
+  helper_test_aux_load(augm, external) |>
+    expect_error("rlang injection")
 
   helper_test_aux_load(augm, !!!external)
   expect_equal(augm$defs$func, "gamma|shape:scale|{shape|A}:{scale|A}")

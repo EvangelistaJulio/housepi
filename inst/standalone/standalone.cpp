@@ -286,9 +286,9 @@ namespace housepi
                 unsigned long sweep = setup.n_burn + (k + 1) * setup.n_thin;
                 ofs << sweep;
 
-                // print log-likelihood
+                // print transmission log-likelihood
                 ofs << read::DELIMITER << std::setprecision(2)
-                    << std::fixed << post.total_log_lik[0][i];
+                    << std::fixed << post.tot_transm_log_lik[0][i];
 
                 // print parameter values
                 for (size_t u = 0; u < post.param_values.size(); ++u)

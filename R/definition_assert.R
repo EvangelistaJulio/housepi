@@ -6,14 +6,8 @@
 ##
 
 # Function columns associated to module family.
-family2model_col <- function(family) {
-  if (family == "augmented") "model"
-  else "prior" # family is "parameter"
-}
-
-# Function columns associated to module family.
 family2function_col <- function(family) {
-  if (family == "augmented") c("model", "func")
+  if (family == "augmented") c("prior", "func")
   else if (family == "infectivity profile") "func"
   else "prior" # family is "parameter" or "group rate"
 }

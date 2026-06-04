@@ -53,7 +53,7 @@ public:
     HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha)
 
     /// Compute the log-likelihood within household.
-    double compute_house_log_lik(Household &house) override final
+    double compute_house_transm_log_lik(Household &house) override final
     {
         double output = -ParamKey::alpha;
         for (size_t i : house.infected_hhindexes())

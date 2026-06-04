@@ -245,7 +245,7 @@ get_infec_profile <- function(hhmodel) {
 #' @param value `r rd_var_value_`
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_par_discr_`
-#' @param prior `r rd_par_model_`
+#' @param prior `r rd_var_prior_`
 #' @param ... `r rd_par_args_`
 #' @param min `r rd_var_min_`
 #' @param func `r rd_aug_func_`
@@ -320,7 +320,7 @@ add_parameter_template <- function(hhmodel, append = FALSE) {
 #' @param discr `r rd_aug_discr_`
 #' @param func `r rd_aug_func_`
 #' @param func_args `r rd_aug_funargs_`
-#' @param model `r rd_aug_model_`
+#' @param prior `r rd_var_prior_`
 #' @param ... `r rd_aug_args_`
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
@@ -332,13 +332,13 @@ add_parameter_template <- function(hhmodel, append = FALSE) {
 #'   new_housepi_model("augmented_example") |>
 #'   # define an incubation period drawn from a gamma distribution
 #'   add_augmented("incub_period",
-#'                 model = "gamma", shape = 2, scale = 1, max = 14)
+#'                 prior = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
 add_augmented <- function(hhmodel,
                           name = NA_character_, value = NULL,
                           status = NA_integer_, const = NA, discr = FALSE,
                           func = NULL, func_args = NULL,
-                          model = NA_character_, ...,
+                          prior = NA_character_, ...,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
                           proposal_scale = NA_real_) {
@@ -348,7 +348,7 @@ add_augmented <- function(hhmodel,
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
-    model = model, rlang::enquos(...),
+    prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale,
     .assert = TRUE
@@ -379,7 +379,7 @@ add_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param joint `r rd_grr_joint_`
 #' @param strata `r rd_grr_strata_`
 #' @param params `r rd_grr_params_`
-#' @param prior `r rd_par_model_`
+#' @param prior `r rd_var_prior_`
 #' @param ... `r rd_par_args_`
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
@@ -427,7 +427,7 @@ add_group_rate <-  function(hhmodel,
 #' @param symmetric `r rd_ctr_symmetric_`
 #' @param strata `r rd_ctr_strata_`
 #' @param params `r rd_ctr_params_`
-#' @param prior `r rd_par_model_`
+#' @param prior `r rd_var_prior_`
 #' @param ... `r rd_par_args_`
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`

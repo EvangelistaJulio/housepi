@@ -7,9 +7,9 @@ test_that("Nested definitions raise errors", {
   expect_no_error(
     hhmodel |>
       add_augmented_list(
-        .layer = list(model = "uniform", status = 1),
+        .layer = list(prior = "uniform", status = 1),
         .layer = list(value = .dummy, status = c(2, 3, 4)),
-        .dummy = list(model = "uniform"),
+        .dummy = list(prior = "uniform"),
         proba = .layer
       ) |>
       evaluate_log_lik()
@@ -34,10 +34,10 @@ test_that("Nested definitions raise errors", {
   # first generation of definitions
   err_msg <- as.character(expect_error(
     hhmodel$add_augmented_list(
-      .layer = list(model = "normal", status = 1),
+      .layer = list(prior = "normal", status = 1),
       .layer = list(value = .dummy, status = 2),
       #> NO .layer provided for status 3 and 4
-      .dummy = list(model = "lognormal", status = 2),
+      .dummy = list(prior = "lognormal", status = 2),
       proba = .layer
     )$evaluate_log_lik()
   ))
@@ -47,10 +47,10 @@ test_that("Nested definitions raise errors", {
   # second generation of definitions
   err_msg <- as.character(expect_error(
     hhmodel$add_augmented_list(
-      .layer = list(model = "normal", status = 1),
+      .layer = list(prior = "normal", status = 1),
       .layer = list(value = .dummy, status = c(2, 3, 4)),
       #> NO .dummy provided for status 3, 4
-      .dummy = list(model = "lognormal", status = c(2, 3)),
+      .dummy = list(prior = "lognormal", status = c(2, 3)),
       proba = .layer
     )$evaluate_log_lik()
   ))
@@ -87,7 +87,7 @@ test_that("Missing function arguments raise errors", {
 
   # check that NaN + something causes errors
   hhmodel |>
-    add_augmented_list(noise = list(model = "normal"),
+    add_augmented_list(noise = list(prior = "normal"),
                        proba = exp(test@D + noise)) |>
     evaluate_log_lik() |>
     expect_error(regexp = "Impossible to associate")
@@ -110,9 +110,9 @@ test_that("Augmented log-likelihood seeding is fine", {
                         status = seq(4)) |>
     new_housepi_model("augmented_example") |>
     add_augmented_list(
-      proba = list(model = "uniform", status = 1),
+      proba = list(prior = "uniform", status = 1),
       proba = list(value = .layer, status = c(2, 3, 4)),
-      .layer = list(model = "uniform")
+      .layer = list(prior = "uniform")
     )
 
   withr::with_seed(1, ll1 <- hhmodel$evaluate_log_lik())
@@ -130,10 +130,10 @@ test_that("Status-specific augmented variables draw from per-status ranges", {
   hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
     new_housepi_model("augmented_example") |>
     add_augmented_list(
-      proba = list(status = 1, model = "uniform", min = 0, max = 1),
-      proba = list(status = 2, model = "uniform", min = 1, max = 2),
-      proba = list(status = 3, model = "uniform", min = 2, max = 3),
-      proba = list(status = 4, model = "uniform", min = 3, max = 4)
+      proba = list(status = 1, prior = "uniform", min = 0, max = 1),
+      proba = list(status = 2, prior = "uniform", min = 1, max = 2),
+      proba = list(status = 3, prior = "uniform", min = 2, max = 3),
+      proba = list(status = 4, prior = "uniform", min = 3, max = 4)
     )
 
   # simulation also routes draws into per-status supports
@@ -239,7 +239,7 @@ test_that("Known errors are unchanged", {
   sarscov2_2021_icofs |>
     new_housepi_model("augmented_example") |>
     add_augmented_list(
-      value = list(model = "uniform", min = 0, max = 1),
+      value = list(prior = "uniform", min = 0, max = 1),
       proba = list(func = "lognormal",
                    func_args = c(x = value, meanlog = 1, sdlog = 1),
                    min = 1, max = 15, discr = TRUE)
@@ -252,7 +252,7 @@ test_that("Known errors are unchanged", {
   sarscov2_2021_icofs |>
     new_housepi_model("augmented_example") |>
     add_augmented_list(
-      value = list(model = "uniform", min = 1, max = 10, discr = TRUE),
+      value = list(prior = "uniform", min = 1, max = 10, discr = TRUE),
       proba = list(func = "lognormal",
                    func_args = c(x = value, meanlog = 4, sdlog = 0.01),
                    min = 1, max = 15, discr = TRUE)
@@ -277,7 +277,7 @@ test_that("Augmented model log-likelihoods are correctly computed", {
     results <- suppressWarnings(
       house |>
         new_housepi_model("augmented_example") |>
-        add_augmented("proba", model = "gamma", x = x@D,
+        add_augmented("proba", prior = "gamma", x = x@D,
                       shape = !!shape, scale = !!scale) |>
         run_inference(steps = 5, thin = 1, adapt = 0, chain = 1,
                       threads = t, id_draws = id_draws)
@@ -287,10 +287,13 @@ test_that("Augmented model log-likelihoods are correctly computed", {
     expect_equal(get_total_log_lik_draws(results)$log_lik,
                  get_log_lik_draws(results)$hh01)
 
-    # coherency between augmented draws and log-likelihood
+    # coherency between augmented draws and log-density: the pointwise
+    # transmission likelihood plus the augmented prior recompose log(proba) +
+    # log(dgamma(proba)).
     df <- as.data.frame(get_augmented_draws(results))
     df <- as.matrix(df[, !startsWith(names(df), "."), drop = FALSE])
-    expect_equal(get_log_lik_draws(results)$hh01,
+    augm_prior <- get_augmented_prior_draws(results)$augm_log_prior
+    expect_equal(get_log_lik_draws(results)$hh01 + augm_prior,
                  rowSums(log(df * dgamma(df, shape = shape, scale = scale))))
   }
 })
@@ -298,7 +301,7 @@ test_that("Augmented model log-likelihoods are correctly computed", {
 test_that("export_augmented_data works after evaluate_log_lik", {
   hhmodel <- data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0)) |>
     new_housepi_model("augmented_example") |>
-    add_augmented(name = "proba", model = "uniform")
+    add_augmented(name = "proba", prior = "uniform")
   # UPDATE: I can test here that before export_augmented_data fails...
   hhmodel$evaluate_log_lik()
   result <- hhmodel$export_augmented_data()

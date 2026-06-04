@@ -98,7 +98,7 @@ housepi_defin_showcaser <- function(defs) {
         args = base::I(showcase_extract_args(output[[col]]))
       )
       class(col_args$args) <- "list"
-      if (!col %in% c("model", "prior")) {
+      if (col != "prior") {
         col_args <- stats::setNames(col_args, paste0(col, "_args"))
       }
 

@@ -31,8 +31,8 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(ParamKey)
 
-	/// Compute the log-likelihood within household.
-	double compute_house_log_lik(Household &house) override final
+	/// Compute transmission log-likelihood within household.
+	double compute_house_transm_log_lik(Household &house) override final
 	{
 		double output = 0.0;
 		for (size_t i : house.infected_hhindexes())

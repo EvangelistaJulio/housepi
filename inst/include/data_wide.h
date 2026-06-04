@@ -56,8 +56,8 @@ namespace housepi
 
         /// Raise error log-likelihood is not finite.
         void assert_finite_log_lik(bool is_any_augm) const;
-        /// Compute log-likelihood for eq_class_head household R (obs + augmented).
-        double house_log_lik(size_t R, bool is_any_augm) const;
+        /// Transmission log-likelihood of head of household equivalence class.
+        double house_transm_log_lik(size_t R) const { return eq_class_head(R).transm_log_lik(); }
 
         /////////////////////////
         //////  ITERATORS  //////

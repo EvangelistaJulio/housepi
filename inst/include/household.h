@@ -99,7 +99,8 @@ namespace housepi
 			return pcontact_rate_->mtx[i][i].value();
 		}
 
-		double obs_log_lik() const { return log_lik_.value(); }
+		/// Value of household transmission log-likelihood.
+		double transm_log_lik() const { return transm_log_lik_.value(); }
 
 		/////////////////////////
 		//////  ITERATORS  //////
@@ -132,7 +133,7 @@ namespace housepi
 		size_t ninf_ = 0;								/// number of infected members
 		size_t nsus_ = 0;								/// number of susceptible members
 		const House::Contact *pcontact_rate_ = nullptr; /// contact rates (see ContactRate)
-		LogLike log_lik_;								/// pointwise observation log-likelihood
+		LogDensity transm_log_lik_;						/// transmission log-likelihood
 
 		/// Change_status of individual i to new status (without controls).
 		/// NOTE: Using 'partition refinement' to track member statuses.

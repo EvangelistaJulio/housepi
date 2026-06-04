@@ -103,11 +103,11 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
     # augmented infection time for symptomatic members
     # here we use a generic definition
     infec_time = onset_time@D - incub_period,
-    incub_period = list(model = "gamma", shape = 2, scale = 1),
+    incub_period = list(prior = "gamma", shape = 2, scale = 1),
 
     # augmented infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
-    infec_time = list(status = 2, model = "uniform",
+    infec_time = list(status = 2, prior = "uniform",
                       min = !!onset_tommy, max = end_followup@D)
   )
 ```
@@ -187,14 +187,14 @@ hhmodel <- dataset |>
     # here we correct right censoring of maximum values
     # to allow for the event to occur during the whole day
     .onset_time = list(
-      model = "uniform",
+      prior = "uniform",
       min = onset_min@D,
       max = onset_max@D + 0.99,
       proposal = "normal"
     ),
     # add 'infec_time' time definition
     .infec_time = list(
-      model = "uniform",
+      prior = "uniform",
       # min = 0 by default for uniform
       # we impose here .infec_time < .onset_time
       max = min(.onset_time, exposure_max@D + 0.99),
@@ -253,7 +253,7 @@ We always recommend a visual assessment before choosing a new move.
 
 # with model (default sample)
 results <- new_housepi_model(model = "blank") |>
-  add_augmented("sample_model", model = "normal", mean = 14) |>
+  add_augmented("sample_model", prior = "normal", mean = 14) |>
   run_inference()
 ```
 

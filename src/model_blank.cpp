@@ -39,8 +39,8 @@ public:
 	void init_model_for_simulation() override final { msg::warning(
 		"Performed simulation with 'blank' model."); }
 
-	/// Unitary likelihood.
-	double compute_house_log_lik(Household &) override final { return 0.; }
+	/// Compute transmission log-likelihood within household. Unitary likelihood.
+	double compute_house_transm_log_lik(Household &) override final { return 0.; }
 
 	/// Augmented variable initialization.
 	void simulate_single_house(Household &house) override final

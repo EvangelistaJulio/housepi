@@ -74,8 +74,8 @@ public:
 			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
 	}
 
-	/// Compute the log-likelihood within household.
-	double compute_house_log_lik(Household &house) override final
+	/// Compute transmission log-likelihood within household.
+	double compute_house_transm_log_lik(Household &house) override final
 	{
 		const size_t i0 = cache_uint(house, HHsizeKey::intro_case);
 		const Individual &member_0 = house.member(i0);

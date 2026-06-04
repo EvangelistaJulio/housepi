@@ -319,7 +319,7 @@ test_that("Custom models shares function registries", {
 test_that("Rlang calls work as expected", {
   # declare indiv_shape as an augmented variable so references resolve
   hhmodel <- new_housepi_model(model = "blank") |>
-    add_augmented("indiv_shape", model = "normal")
+    add_augmented("indiv_shape", prior = "normal")
 
   hhmodel$add_parameter("kaz", prior = "normal", mean = indiv_shape + 1) |>
     expect_error("[Ii]ndividual specific")
@@ -339,10 +339,10 @@ test_that("Rlang calls work as expected", {
 
   val <- 3
   hhmodel$add_augmented_list(
-    var1 = list(model = "normal", mean = indiv_shape + 3),
-    var2 = list(model = "normal", mean = indiv_shape + !!val),
-    var3 = list(model = "normal", mean = ~ indiv_shape + 3),
-    var4 = list(model = "normal", mean = ~ indiv_shape + !!val),
+    var1 = list(prior = "normal", mean = indiv_shape + 3),
+    var2 = list(prior = "normal", mean = indiv_shape + !!val),
+    var3 = list(prior = "normal", mean = ~ indiv_shape + 3),
+    var4 = list(prior = "normal", mean = ~ indiv_shape + !!val),
     append = TRUE
   )
   aux <- hhmodel$augmented
@@ -355,8 +355,8 @@ test_that("Augmented aliasing works as expected", {
   simulated <- data.frame(id = seq(1, 1000), house_id = 1, status = 1) |>
     new_housepi_model("blank") |>
     add_augmented_list(
-      hour = list(model = "uniform", min = day, max = day + 1),
-      day = list(model = "gamma", shape = 2, scale = 1)
+      hour = list(prior = "uniform", min = day, max = day + 1),
+      day = list(prior = "gamma", shape = 2, scale = 1)
     ) |>
     run_simulation()
   expect_true(all(
@@ -367,9 +367,9 @@ test_that("Augmented aliasing works as expected", {
 test_that("Nested definitions works as expected", {
   hhmodel <- new_housepi_model(model = "blank") |>
     # define Box-Muller transformation
-    add_augmented_list(norm = list(model = "normal"),
-                       u1 = list(model = "uniform"),
-                       u2 = list(model = "uniform"),
+    add_augmented_list(norm = list(prior = "normal"),
+                       u1 = list(prior = "uniform"),
+                       u2 = list(prior = "uniform"),
                        z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
   expect_snapshot(print(hhmodel))
 
@@ -423,8 +423,8 @@ test_that("Augmented traces export only relevant variables", {
       # constants
       blocked = 42,
       # private variables
-      .hidden = list(model = "uniform"),
-      .secret = list(model = "normal"),
+      .hidden = list(prior = "uniform"),
+      .secret = list(prior = "normal"),
       # public non constant function
       layer = .secret - .hidden,
       # equal to parameters
@@ -454,7 +454,7 @@ test_that("Augmented traces export only relevant variables", {
 test_that("Augmented degenerate range warns and collapses", {
   hhmodel <- new_housepi_model(model = "blank") |>
     add_parameter("d_dog", prior = "uniform") |>
-    add_augmented("d_horse", model = "uniform", min = 5, max = 5)
+    add_augmented("d_horse", prior = "uniform", min = 5, max = 5)
   expect_warning(
     tryCatch(
       hhmodel$run_inference(steps = 10, chains = 1, adapt = 0, thin = 1),

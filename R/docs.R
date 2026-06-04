@@ -40,7 +40,7 @@ If `TRUE`, additional Monte Carlo details are ignored."
 
 rd_var_discr_ <- "`logical(1)` Treat definition as discrete.
 If applicable, the %s is discretized."
-rd_var_model_ <- "`character(1)` Choice for the %s distribution."
+rd_var_prior_ <- "`character(1)` Choice for the prior distribution."
 rd_var_args_ <- "named arguments for the %s distribution."
 
 rd_var_min_ <- "`numeric(1)` Truncate to a minimum value."
@@ -60,14 +60,12 @@ If a positive numeric, scale is fixed to that value and never adapted.
 Ignored when proposal is `\"sample\"`."
 
 rd_par_discr_ <- sprintf(rd_var_discr_, "prior")
-rd_par_model_ <- sprintf(rd_var_model_, "prior")
 rd_par_args_ <- sprintf(rd_var_args_, "prior")
 rd_par_proposal_ <- sprintf(rd_var_proposal_, "prior")
 
-rd_aug_discr_ <- sprintf(rd_var_discr_, "model")
-rd_aug_model_ <- sprintf(rd_var_model_, "model")
-rd_aug_args_ <- sprintf(rd_var_args_, "model")
-rd_aug_proposal_ <- sprintf(rd_var_proposal_, "model")
+rd_aug_discr_ <- sprintf(rd_var_discr_, "prior")
+rd_aug_args_ <- sprintf(rd_var_args_, "prior")
+rd_aug_proposal_ <- sprintf(rd_var_proposal_, "prior")
 
 rd_inf_discr_ <- sprintf(rd_var_discr_, "profile")
 rd_inf_args_ <- sprintf(rd_var_args_, "profile")

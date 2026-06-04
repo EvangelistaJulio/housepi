@@ -305,7 +305,7 @@ If the augmented variable already exists, it is updated.
   discr = FALSE,
   func = NULL,
   func_args = NULL,
-  model = NA_character_,
+  prior = NA_character_,
   ...,
   min = NULL,
   max = NULL,
@@ -335,7 +335,7 @@ If \code{NA}, associate definition to all infectious individuals (default).}
 If \code{TRUE}, additional Monte Carlo details are ignored.}
 
 \item{\code{discr}}{\code{logical(1)} Treat definition as discrete.
-If applicable, the model is discretized.}
+If applicable, the prior is discretized.}
 
 \item{\code{func}}{One between:
 \itemize{
@@ -345,9 +345,9 @@ If applicable, the model is discretized.}
 
 \item{\code{func_args}}{named \code{list} Arguments of the augmented function.}
 
-\item{\code{model}}{\code{character(1)} Choice for the model distribution.}
+\item{\code{prior}}{\code{character(1)} Choice for the prior distribution.}
 
-\item{\code{...}}{named arguments for the model distribution.}
+\item{\code{...}}{named arguments for the prior distribution.}
 
 \item{\code{min}}{\code{numeric(1)} Truncate to a minimum value.
 One between:

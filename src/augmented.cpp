@@ -13,7 +13,7 @@
 
 #include "tools/dependency.h"
 #include "tools/keys.h"
-#include "tools/loglike.h"
+#include "tools/logdensity.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -243,7 +243,7 @@ namespace housepi
             augm_definitions["value"].push_back("");
             augm_definitions["const"].push_back("false");
             augm_definitions["discr"].push_back(str::format(is_discrete));
-            augm_definitions["model"].push_back("");
+            augm_definitions["prior"].push_back("");
             augm_definitions["min"].push_back(is_discrete ? "1|N" : "0|N");
             augm_definitions["max"].push_back(input.at("max")[r]);
             augm_definitions["proposal"].push_back("");
@@ -283,14 +283,14 @@ namespace housepi
     {
         // drop previous definitions
         is_any_sample_ = false;
-        is_any_model_ = false;
+        is_any_prior_ = false;
 
         khold_.clear_optional();
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();
         list_export.clear();
-        indiv_augm_.clear();
+        indiv_augm.clear();
 
         // skip if no augmented definitions
         if (input.empty() && !infec_profile.is_augmented())
@@ -303,12 +303,13 @@ namespace housepi
         helper_build_set_allocation_order_();              // allocation and order
     }
 
+    // UPDATE: no need to wire to individuals
     void Augmented::helper_build_allocate_storage_()
     {
-        indiv_augm_.resize(mcmc_->data_wide().report_indiv.total);
+        indiv_augm.resize(mcmc_->data_wide().report_indiv.total);
         for (Household &house : mcmc_->data_wide())
             for (Individual &member : house)
-                member.paugm_ = &indiv_augm_[member.index_];
+                member.paugm_ = &indiv_augm[member.index_];
     }
 
     /// Check augmented names and assert no reserved names are used.
@@ -320,7 +321,7 @@ namespace housepi
         const std::vector<std::string> file_headers = {"name", "status",
                                                        "func", "fcumul",
                                                        "value", "const", "discr",
-                                                       "model", "min", "max",
+                                                       "prior", "min", "max",
                                                        "proposal", "proposal_scale"};
         const std::vector<std::string> headers = read::extract_keys(input);
         str::assert_no_missing_entries(headers, file_headers);
@@ -346,7 +347,7 @@ namespace housepi
     void Augmented::DefTable_::clear()
     {
         for (auto col : {&c_name, &c_status, &c_func, &c_fcumul,
-                         &c_value, &c_const, &c_discr, &c_model,
+                         &c_value, &c_const, &c_discr, &c_prior,
                          &c_min, &c_max, &c_proposal, &c_scale})
             col->clear();
     }
@@ -360,7 +361,7 @@ namespace housepi
         c_value += input.at("value");
         c_const += input.at("const");
         c_discr += input.at("discr");
-        c_model += input.at("model");
+        c_prior += input.at("prior");
         c_min += input.at("min");
         c_max += input.at("max");
         c_proposal += input.at("proposal");
@@ -578,10 +579,10 @@ namespace housepi
             is_to_export = is_to_export_;
             is_to_draw = is_to_draw_;
         }
-        else if (na::is(deftable_.c_value[k]) && na::is(deftable_.c_model[k]))
+        else if (na::is(deftable_.c_value[k]) && na::is(deftable_.c_prior[k]))
         {
             throw std::invalid_argument(
-                "Impossible to initialize augmented '" + astr + "'  without a value or model");
+                "Impossible to initialize augmented '" + astr + "'  without a value or prior");
         }
         else if (na::is(deftable_.c_proposal[k]))
         {
@@ -661,7 +662,7 @@ namespace housepi
         if (khold_.empty())
             return;
 
-        helper_init_model_list_();
+        helper_init_prior_list_();
 
         // define augmented variables for all augmented individuals in ordefr
         for (Household &house : mcmc_->data_wide())
@@ -674,33 +675,33 @@ namespace housepi
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  Augmented : init augmented models  /////////////////////////////
+    /////////////////////////////////  Augmented : init augmented priors  /////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::helper_init_model_list_()
+    void Augmented::helper_init_prior_list_()
     {
         for (StatusBlock_ &block : status_blocks_)
         {
             block.depen.resize(khold_.size());
 
-            // associate blocks for ordered model lists
-            const str_table &ordered_models = get_ordered_models_(block);
-            if (!ordered_models.empty())
+            // associate blocks for ordered prior lists
+            const str_table &ordered_priors = get_ordered_priors_(block);
+            if (!ordered_priors.empty())
             {
-                is_any_model_ = true;
-                block.models = khold_.from_string(read::extract_keys(ordered_models));
+                is_any_prior_ = true;
+                block.priors = khold_.from_string(read::extract_keys(ordered_priors));
 
-                for (const auto &[astr, others] : ordered_models)
+                for (const auto &[astr, others] : ordered_priors)
                     block.depen[khold_.from_string(astr)] = khold_.from_string(others);
             }
         }
     }
 
-    str_table Augmented::get_ordered_models_(const StatusBlock_ &block) const
+    str_table Augmented::get_ordered_priors_(const StatusBlock_ &block) const
     {
         str_table tree;                         // populate augmented dependency tree
-        str_table ordered_models;               // store hierarchical order of models
-        std::vector<std::string> without_model; // list of augmented without models
+        str_table ordered_priors;               // store hierarchical order of priors
+        std::vector<std::string> without_prior; // list of augmented without priors
         for (size_t k : block.order)
         {
             const std::string &aumgstr = deftable_.c_name[k];
@@ -708,21 +709,21 @@ namespace housepi
             for (const std::vector<std::string> *col : deftable_.source_cols())
                 xdepen += parse::Definition((*col)[k]).list_augmented_depen();
 
-            if (na::is(deftable_.c_model[k]))
-                without_model.push_back(aumgstr);
+            if (na::is(deftable_.c_prior[k]))
+                without_prior.push_back(aumgstr);
             else
                 tree[aumgstr] = str::unique(xdepen);
         }
 
-        // prune dependency tree from augmented without model
+        // prune dependency tree from augmented without prior
         for (auto &[key, vec] : tree)
-            vec = vec - without_model;
+            vec = vec - without_prior;
 
-        // assign order of dependents for augmented model computation
+        // assign order of dependents for augmented prior computation
         for (const auto &[key, vec] : tree)
-            ordered_models.emplace(key, dependency::order_conditioned_on(key, tree));
+            ordered_priors.emplace(key, dependency::order_conditioned_on(key, tree));
 
-        return ordered_models;
+        return ordered_priors;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -803,8 +804,8 @@ namespace housepi
             else
                 helper_init_func_attributes_(member, k);
 
-            // initialize model
-            helper_init_model_attributes_(member, k);
+            // initialize prior
+            helper_init_prior_attributes_(member, k);
 
             // assign proposal if variable to be sampled
             if (!xaugm.is_constant())
@@ -815,7 +816,7 @@ namespace housepi
             if (user_discrete_set_.count(a) && !xaugm.is_discrete())
                 throw std::invalid_argument(
                     "Definition of " + xaugm.err_name() +
-                    " did not return a discrete object as requested by model.");
+                    " did not return a discrete object as requested by prior.");
         }
         catch (const std::exception &e)
         {
@@ -826,23 +827,21 @@ namespace housepi
         }
     }
 
-    void Augmented::helper_init_model_attributes_(Individual &member, size_t k)
+    void Augmented::helper_init_prior_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
         Variable &xaugm = member.paugm_->vec[khold_.from_string(astr)];
-        parse::Definition parser(deftable_.c_model[k]);
+        parse::Definition parser(deftable_.c_prior[k]);
 
-        xaugm.init_distr(parser.root.func);
+        xaugm.init_prior(parser.root.func);
 
-        if (!xaugm.has_model())
+        if (!xaugm.has_prior())
             return;
-
         for (const auto &child : parser.root.children)
-            xaugm.init_distr_attr(child.key, mcmc_->param.read_attribute(child, &member));
-
-        xaugm.init_distr_attr("min", mcmc_->param.read_attribute(deftable_.c_min[k], &member));
-        xaugm.init_distr_attr("max", mcmc_->param.read_attribute(deftable_.c_max[k], &member));
-        xaugm.init_distr_reshaping(str::tobool(deftable_.c_discr[k]));
+            xaugm.init_prior_attr(child.key, mcmc_->param.read_attribute(child, &member));
+        xaugm.init_prior_attr("min", mcmc_->param.read_attribute(deftable_.c_min[k], &member));
+        xaugm.init_prior_attr("max", mcmc_->param.read_attribute(deftable_.c_max[k], &member));
+        xaugm.init_prior_reshaping(str::tobool(deftable_.c_discr[k]));
     }
 
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
@@ -932,9 +931,9 @@ namespace housepi
     {
         return status_blocks_[member.paugm_->idx].draws;
     }
-    const std::vector<size_t> &Augmented::list_models(const Individual &member) const
+    const std::vector<size_t> &Augmented::list_priors(const Individual &member) const
     {
-        return status_blocks_[member.paugm_->idx].models;
+        return status_blocks_[member.paugm_->idx].priors;
     }
 
     std::string format_exception_for(Individual &member, const std::exception &e)
@@ -945,18 +944,18 @@ namespace housepi
         return sms + " for " + member.err_name() + ".";
     }
 
-    double Augmented::commit_augm_model_log_lik(Individual &member)
+    double Augmented::commit_augm_log_prior(Individual &member)
     {
         try
         {
-            const std::vector<size_t> &models = list_models(member);
+            const std::vector<size_t> &priors = list_priors(member);
 
-            if (models.empty())
+            if (priors.empty())
                 return 0.;
             double new_ll = 0.0;
-            for (size_t a : models)
-                new_ll += member.paugm_->vec[a].get_distr_log_pdf();
-            member.paugm_->log_lik.set(new_ll);
+            for (size_t a : priors)
+                new_ll += member.paugm_->vec[a].get_log_prior();
+            member.paugm_->augm_log_prior.set(new_ll);
             return new_ll;
         }
         catch (const std::exception &e)
@@ -965,7 +964,7 @@ namespace housepi
         }
     }
 
-    double Augmented::commit_augm_model_log_ratio(Individual &member, size_t a)
+    double Augmented::commit_log_prior_ratio(Individual &member, size_t a)
     {
         try
         {
@@ -975,8 +974,8 @@ namespace housepi
             double delta_ll = 0;
             // NOTE: vector of dependencies 'depen' includes also 'a'
             for (size_t b : block.depen[a])
-                delta_ll += member.paugm_->vec[b].get_distr_log_ratio();
-            member.paugm_->log_lik.increment(delta_ll);
+                delta_ll += member.paugm_->vec[b].get_prior_log_ratio();
+            member.paugm_->augm_log_prior.increment(delta_ll);
             return delta_ll;
         }
         catch (const std::exception &e)

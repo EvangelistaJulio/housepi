@@ -17,16 +17,20 @@ If requested so during inference, it also stores augmented variables.
 Draws of parameters.}
 
 \item{\code{prior_draws}}{\code{posterior::draws_df}.
-Draws of parameter priors.}
+Draws of parameter priors (per parameter, plus their sum \code{lprior}).}
 
 \item{\code{augmented_draws}}{\code{posterior::draws_df}.
 Draws selected individuals augmented variables.}
 
 \item{\code{log_lik_draws}}{\code{posterior::draws_df}.
-Draws of households pointwise log-likelihood.}
+Draws of households pointwise transmission log-likelihood.}
 
 \item{\code{total_log_lik_draws}}{\code{posterior::draws_df}.
-Draws of the total log-likelihood.}
+Draws of the total (tempered) transmission log-likelihood.}
+
+\item{\code{augmented_prior_draws}}{\code{posterior::draws_df}.
+Draws of the total augmented-variable log-prior.
+Empty when the model defines no augmented prior.}
 
 \item{\code{complete_draws}}{\code{posterior::draws_df}.
 Draws of parameters, priors and pointwise log-likelihood values.}

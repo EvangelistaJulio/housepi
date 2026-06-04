@@ -162,13 +162,13 @@ hhmodel <- hhmodel |>
   # augmented definitions
   add_augmented_list(
     #> Asymptomatic (status = 1)
-    infec_time = list(status = 1, model = "uniform", 
+    infec_time = list(status = 1, prior = "uniform", 
                       min = test_date@D - !!test_delay,
                       max = test_date@D),
     #> Symptomatic (status = 2, here as generic definition)
     infec_time = .onset_time - .incub_period,
-    .onset_time = list(model = "normal", mean = test_date@D, sd = 1),
-    .incub_period = list(model = "gamma", mean = 3, var = 2)
+    .onset_time = list(prior = "normal", mean = test_date@D, sd = 1),
+    .incub_period = list(prior = "gamma", mean = 3, var = 2)
   ) |>
   # infectivity profile definitions
   # FIXME: this needs to be clarified

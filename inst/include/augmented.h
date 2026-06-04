@@ -34,6 +34,7 @@ namespace housepi
     struct Augmented : public KeyModule
     {
         std::vector<size_t> list_export = {}; /// list of keys to export
+        std::vector<Indiv::Augm> indiv_augm;  /// External storage for individual augmented data
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -55,7 +56,7 @@ namespace housepi
         void clear_definitions(Individual &member);
         /// Initialize augmented variables only if missing.
         void init_missing_definitions(Individual &member);
-        /// Initialize augmented dependecies and models.
+        /// Initialize augmented dependecies and priors.
         /// NOTE: evaluation-only, never run for simulations.
         void init_for_evaluation();
 
@@ -79,13 +80,13 @@ namespace housepi
         const std::vector<size_t> &list_sample(const Individual &member) const;
         const std::vector<size_t> &list_adaptive(const Individual &member) const;
         const std::vector<size_t> &list_draws(const Individual &member) const;
-        const std::vector<size_t> &list_models(const Individual &member) const;
+        const std::vector<size_t> &list_priors(const Individual &member) const;
 
-        /// Compute and store log-likelihood associated to augmented variable models.
-        /// NOTE: to be called only if any model is defined.
-        double commit_augm_model_log_lik(Individual &member);
-        /// Change in log-likelihood associated to given augmented.
-        double commit_augm_model_log_ratio(Individual &member, size_t a);
+        /// Compute and store log-prior associated to augmented variables.
+        /// NOTE: to be called only if any prior is defined.
+        double commit_augm_log_prior(Individual &member);
+        /// Compute and store log-ratio of prior of single augmented variable.
+        double commit_log_prior_ratio(Individual &member, size_t a);
 
         /////////////////////
         //////  FLAGS  //////
@@ -95,15 +96,14 @@ namespace housepi
         bool is_any_sample() const noexcept { return is_any_sample_; }
         /// Whether there are augmented definitions with an adaptive proposal.
         bool is_any_adaptive() const noexcept { return is_any_adaptive_; }
-        /// Whether there are augmented definitions with a model.
-        bool is_any_model() const noexcept { return is_any_model_; }
+        /// Whether there are augmented definitions with a prior.
+        bool is_any_prior() const noexcept { return is_any_prior_; }
 
     private:
-        MCMCBase *mcmc_;                      /// pointer to owning MCMCBase // UPDATE drop
-        std::vector<Indiv::Augm> indiv_augm_; /// External storage for individual augmented data
-        bool is_any_sample_ = false;          /// whether at least one augmented is to sample
-        bool is_any_adaptive_ = false;        /// whether at least one augmented has adaptive proposal
-        bool is_any_model_ = false;           /// whether at least one augmented model is provided
+        MCMCBase *mcmc_;               /// pointer to owning MCMCBase // UPDATE drop
+        bool is_any_sample_ = false;   /// whether at least one augmented is to sample
+        bool is_any_adaptive_ = false; /// whether at least one augmented has adaptive proposal
+        bool is_any_prior_ = false;    /// whether at least one augmented prior is provided
 
         /// User defined discrete parameters
         std::unordered_set<size_t> user_discrete_set_ = {};
@@ -115,23 +115,25 @@ namespace housepi
         /// Auxiliary definition table.
         struct DefTable_
         {
-            std::vector<std::string>
-                c_name = {}, c_status = {}, c_func = {}, c_fcumul = {},
-                c_value = {}, c_const = {}, c_discr = {}, c_model = {},
-                c_min = {}, c_max = {}, c_proposal = {}, c_scale = {};
+            using col = std::vector<std::string>;
+            col c_name = {}, c_status = {};
+            col c_func = {}, c_fcumul = {};
+            col c_value = {}, c_const = {}, c_discr = {};
+            col c_prior = {}, c_min = {}, c_max = {};
+            col c_proposal = {}, c_scale = {};
 
             /// Clear all definitions.
             void clear();
             /// Append definitions to current table.
             void append(const str_table &input);
             /// Columns presenting definitions possibly containing sources.
-            std::vector<const std::vector<std::string> *> source_cols() const
+            std::vector<const col *> source_cols() const
             {
-                return {&c_value, &c_model, &c_func, &c_min, &c_max};
+                return {&c_value, &c_prior, &c_func, &c_min, &c_max};
             }
         } deftable_;
 
-        /// Auxiliary block for status-specific models.
+        /// Auxiliary block for status-specific priors.
         struct StatusBlock_
         {
             StatusBlock_(int status_) { status = status_; }
@@ -140,7 +142,7 @@ namespace housepi
 
             std::vector<size_t> order = {}; /// definition order as in the deftable
 
-            std::vector<size_t> models = {};             /// keys for models
+            std::vector<size_t> priors = {};             /// keys for priors
             std::vector<size_t> sample = {};             /// keys for sample
             std::vector<size_t> adaptive = {};           /// keys for adaptive (subset of sample)
             std::vector<size_t> draws = {};              /// keys for draws
@@ -179,20 +181,20 @@ namespace housepi
         /// Inspect if constant definition.
         std::pair<bool, bool> set_sample_list_for_function_(int status, size_t k);
 
-        /// Deal with the definition of augmented variable with a model.
-        /// NOTE: process models only for posterior sampling, not simulations.
-        void helper_init_model_list_();
-        /// Return dictionary of ordered models.
-        str_table get_ordered_models_(const StatusBlock_ &block) const;
+        /// Deal with the definition of augmented variable with a prior.
+        /// NOTE: process priors only for posterior sampling, not simulations.
+        void helper_init_prior_list_();
+        /// Return dictionary of ordered priors.
+        str_table get_ordered_priors_(const StatusBlock_ &block) const;
 
         /// Get the definition order for current member according to its status.
         /// NOTE: if status hasn't been observed in data, build on demand.
         std::vector<size_t> helper_materialize_definition_order_(Individual &member);
-        /// Assign model arguments and range. Same for function, otherwise assign proposer.
+        /// Assign prior arguments and range. Same for function, otherwise assign proposer.
         /// NOTE: a Variable must already be allocated.
         void helper_init_attributes_(Individual &member, size_t k);
-        /// Auxiliary method to assign attributes to augmented model.
-        void helper_init_model_attributes_(Individual &member, size_t k);
+        /// Auxiliary method to assign attributes to augmented prior.
+        void helper_init_prior_attributes_(Individual &member, size_t k);
         /// Auxiliary method to assign attributes to augmented function.
         void helper_init_func_attributes_(Individual &member, size_t k);
     };

@@ -210,7 +210,7 @@ ggplot(dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
 MCMC proposals determine how candidate parameter values are drawn at each step.
 We provide a small set of common mechanisms:
 
-* **sample**: direct sampling from the prior^[Or from model if an augmented variable.];
+* **sample**: direct sampling from the prior;
 * **uniform**: draws uniformly around the current value inside a window;
 * **normal**: Gaussian perturbations of the current value;
 * **lognormal**: multiplicative log-normal proposals (not appropriate for negative values).

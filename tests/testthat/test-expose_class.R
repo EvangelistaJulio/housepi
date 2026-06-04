@@ -82,7 +82,7 @@ test_that("Wrappers work as expected on blank model", {
   expect_true("dummy" %in% aug$name)
 
   result <- hhmodel |>
-    add_augmented_list(dummy = list(model = "uniform"))
+    add_augmented_list(dummy = list(prior = "uniform"))
   aug <- get_augmented(result)
   expect_true("dummy" %in% aug$name)
 })
@@ -155,11 +155,13 @@ test_that("Group rate wrappers", {
 
   # check for non-existing custom features
   hhmodel <- drop_group_rates(hhmodel)
-  expect_warning(add_group_rate(
-    hhmodel, "susceptibility",
-    strata = data.frame(member = c("kaiju", NA),
-                        param_name = c("sus_student", ".reference"))
-  ), regexp = "not found")
+  hhmodel |>
+    add_group_rate(
+      "susceptibility",
+      strata = data.frame(member = c("kaiju", NA),
+                          param_name = c("sus_student", ".reference"))
+    ) |>
+    expect_warning("not found")
 
   hhmodel$group_rates
 })
@@ -179,10 +181,9 @@ test_that("add_contact_rate wrapper input branches", {
   )
 
   # 'by' and 'strata' together is ambiguous
-  expect_error(
-    add_contact_rate(hhmodel, by = "member", strata = strata),
-    regexp = "Impossible"
-  )
+  hhmodel |>
+    add_contact_rate(by = "member", strata = strata) |>
+    expect_error("Impossible")
 
   # neither 'by' nor 'strata' is empty
   expect_error(add_contact_rate(hhmodel), regexp = "Invalid")

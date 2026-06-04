@@ -1,3 +1,3 @@
 list(
-  proba = list(model = "uniform")
+  proba = list(prior = "uniform")
 )

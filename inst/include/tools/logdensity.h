@@ -14,7 +14,7 @@
 
 namespace housepi
 {
-    struct LogLike
+    struct LogDensity
     {
         void recover() noexcept { value_ = old_; }
         double log_ratio() const noexcept { return value_ - old_; }
@@ -27,8 +27,9 @@ namespace housepi
             old_ = value_;
             value_ = new_ll;
 
-            if (housepi::na::is(new_ll))
-                raise_nan_error_();
+            if (na::is(new_ll))
+                throw std::runtime_error(
+                    "Log-likelihood computation returned NaN value.");
         }
         /// Increment log-likelihood by a delta. Store old value.
         /// Raise exception if new value is a NaN.
@@ -40,12 +41,5 @@ namespace housepi
     protected:
         double value_ = 0.; /// Current log-likelihood
         double old_ = 0.;   /// Old log-likelihood
-
-    private:
-        [[noreturn]] void raise_nan_error_() const
-        {
-            throw std::runtime_error(
-                "Log-likelihood computation returned NaN value.");
-        }
     };
 }

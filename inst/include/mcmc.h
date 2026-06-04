@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-#include "tools/loglike.h"
+#include "tools/logdensity.h"
 #include "tools/nan.h"
 
 #include "mcmc_base.h"
@@ -63,21 +63,34 @@ namespace housepi
 		void init_for_evaluation_();
 
 		/// Compute new log-likelihood, store old value. Same for households.
-		double commit_total_log_lik_(bool is_cache_depen);
-		/// Update and return contribution of given household to full logliklehood.
-		double commit_house_log_lik_(Household &house, bool is_cache_depen);
-		/// Compute and set value of observation log-likelihood. Return log-like.
-		double commit_house_log_lik_(Household &house)
+		double commit_total_log_density_(bool is_cache_depen);
+
+        /// Compute and store log-ratio of prior of single augmented variable.
+		double commit_augm_log_prior_ratio(Individual &member, size_t a)
 		{
-			double output = model->compute_house_log_lik(house);
-			house.log_lik_.set(output);
+			return augm.commit_log_prior_ratio(member, a);
+		}
+		/// Sum already store augmented-variable prior densities.
+		double sum_augm_log_prior_();
+		/// Re-evaluate each augmented log-prior. NOTE: after a parameter move.
+		double commit_tot_augm_log_prior();
+
+		/// Update and return contribution of given household to full logliklehood.
+		double commit_transm_log_lik_(Household &house, bool is_cache_depen);
+		
+		/// Compute and set value of observation log-likelihood. Return log-like.
+		double commit_transm_log_lik_(Household &house)
+		{
+			double output = model->compute_house_transm_log_lik(house);
+			house.transm_log_lik_.set(output);
 			return output;
 		}
+
 		/// Compute and set value of observation log-likelihood. Return log-like ratio.
-		double commit_house_log_lik_ratio_(Household &house)
+		double commit_transm_log_lik_ratio_(Household &house)
 		{
-			double output = -house.log_lik_.value();
-			output += commit_house_log_lik_(house);
+			double output = -house.transm_log_lik_.value();
+			output += commit_transm_log_lik_(house);
 			return output;
 		}
 
@@ -86,7 +99,7 @@ namespace housepi
 		//////  METROPOLIS-HASTINGS  //////
 		///////////////////////////////////
 
-		/// Performs the inference using Metropolis-Hastings.
+		/// Performs the inference using Metropolis-Hastings algorithm.
 		void run_inference();
 
 		/* --FUTURE-LOG-EVIDENCE--

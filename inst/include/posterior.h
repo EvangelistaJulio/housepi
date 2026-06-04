@@ -24,15 +24,18 @@ namespace housepi
         unsigned long count() const noexcept { return count_; }
 
         /// Numeric storage
-        std::vector<std::vector<double>> total_log_lik; // NOTE: external vector of size 1 for simplicity
-        std::vector<std::vector<double>> param_values;
-        std::vector<std::vector<double>> param_priors;
-        std::vector<std::vector<double>> house_log_lik;
-        std::vector<const Individual *> augm_individuals;
-        std::vector<std::vector<std::vector<double>>> augm_values;
+        /// NOTE: tot_* are external vectors of size 1 for simplicity
+        std::vector<std::vector<double>> tot_augm_log_prior;       // joint augmented-variable priors
+        std::vector<std::vector<double>> tot_transm_log_lik;       // joint transmission log-likelihood
+        std::vector<std::vector<double>> house_transm_log_lik;     // pointwise transmission likelihood
+        std::vector<std::vector<double>> param_values;             // parameter values
+        std::vector<std::vector<double>> param_priors;             // single parameter priors
+        std::vector<std::vector<std::vector<double>>> augm_values; // selected augmented values
+        std::vector<const Individual *> augm_individuals;          // individuals to track
 
         /// Column name metadata captured at initialization
-        const std::vector<std::string> total_log_lik_names = {"log_lik"};
+        const std::vector<std::string> tot_transm_log_lik_names = {"log_lik"};
+        const std::vector<std::string> tot_augm_log_prior_names = {"augm_log_prior"};
         std::vector<std::string> param_names;
         std::vector<std::string> param_prior_names;
         std::vector<std::string> augm_col_names;

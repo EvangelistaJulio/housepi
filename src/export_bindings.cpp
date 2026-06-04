@@ -253,8 +253,8 @@ namespace
             {
                 if (n < 0)
                     throw std::invalid_argument("'n' must be non-negative.");
-                
-                // generate seed from R 
+
+                // generate seed from R
                 Rcpp::RNGScope scope;
                 std::uint32_t seed = static_cast<std::uint32_t>(
                     R::unif_rand() * std::numeric_limits<std::uint32_t>::max());
@@ -793,12 +793,25 @@ namespace
         return cols;
     }
 
-    /// Flush total log-likelihood draws as a data.frame.
-    Rcpp::List flush_total_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Flush total transmission log-likelihood draws as a data.frame.
+    Rcpp::List flush_tot_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
-        return flush_2d_draws_to_df(post.total_log_lik, post.total_log_lik_names,
+        return flush_2d_draws_to_df(post.tot_transm_log_lik,
+                                    post.tot_transm_log_lik_names,
                                     post.count(), "total log-likelihood");
+    }
+
+    /// Flush total augmented-variable log-prior draws as a data.frame.
+    /// Empty when the model has no augmented prior.
+    Rcpp::List flush_tot_augm_log_prior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    {
+        Posterior &post = mcmc_ptr->posterior;
+        if (post.tot_augm_log_prior.empty())
+            return Rcpp::List();
+        return flush_2d_draws_to_df(post.tot_augm_log_prior,
+                                    post.tot_augm_log_prior_names,
+                                    post.count(), "total augmented log-prior");
     }
 
     /// Rcpp wrapper: parameter value draws as a data.frame.
@@ -843,22 +856,22 @@ namespace
     }
 
     /// Rcpp wrapper: household log-likelihood draws as a data.frame.
-    /// Households of the same distinct class share the *same* NumericVector
-    /// SEXP. R's reference counting keeps storage at n_classes * n_draws
+    /// Households of same equivalence class share NumericVector SEXP.
+    /// R's reference counting keeps storage at n_classes * n_draws
     /// until a downstream consumer (e.g. as_draws_matrix) materialises it.
     Rcpp::List flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
         const DataWide &data_wide = mcmc_ptr->data_wide();
 
-        size_t n_classes = post.house_log_lik.size();
+        size_t n_classes = post.house_transm_log_lik.size();
         size_t n_houses = data_wide.report_house.total;
 
         // One NumericVector per class; detached copy, C++ source freed.
         std::vector<Rcpp::NumericVector> class_cols(n_classes);
         for (size_t R = 0; R < n_classes; ++R)
-            class_cols[R] = flush_vector_to_numvec(post.house_log_lik[R]);
-        std::vector<std::vector<double>>().swap(post.house_log_lik);
+            class_cols[R] = flush_vector_to_numvec(post.house_transm_log_lik[R]);
+        std::vector<std::vector<double>>().swap(post.house_transm_log_lik);
 
         // Identity case (n_classes == n_houses) is naturally a no-op.
         Rcpp::List cols(n_houses);
@@ -1078,7 +1091,7 @@ namespace
             Rcpp::_["max"] = infprof_max);
     }
 
-    Rcpp::DataFrame helper_augm_log_lik_rcpp_snapshot(const Augmented &augm, const Household &house)
+    Rcpp::DataFrame helper_augm_log_prior_rcpp_snapshot(const Augmented &augm, const Household &house)
     {
         size_t n_cols = augm.list_export.size();
 
@@ -1101,8 +1114,8 @@ namespace
             for (size_t a : augm.list_export)
             {
                 const Variable &xaugm = member_i.get_augm_variable(a);
-                if (xaugm.has_model())
-                    df_double[c++][i] = hsp_to_rcpp(xaugm.get_distr_log_pdf());
+                if (xaugm.has_prior())
+                    df_double[c++][i] = hsp_to_rcpp(xaugm.get_log_prior());
             }
         }
 
@@ -1159,8 +1172,8 @@ namespace
             const Household &house = mcmc_ptr->data_wide().at(house_id);
 
             return Rcpp::List::create(
-                Rcpp::_["obs_log_lik"] = house.obs_log_lik(),
-                Rcpp::_["augm_log_lik"] = helper_augm_log_lik_rcpp_snapshot(mcmc_ptr->augm, house),
+                Rcpp::_["transm_log_lik"] = house.transm_log_lik(),
+                Rcpp::_["augm_log_prior"] = helper_augm_log_prior_rcpp_snapshot(mcmc_ptr->augm, house),
                 Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr->param),
                 Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide(), house),
                 Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long(), house),
@@ -1598,7 +1611,8 @@ RCPP_MODULE(housepi)
     Rcpp::function("export_setup", &export_setup);
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);
     Rcpp::function("export_infec_profile", &export_infec_profile);
-    Rcpp::function("flush_total_log_lik_draws", &flush_total_log_lik_draws);
+    Rcpp::function("flush_tot_log_lik_draws", &flush_tot_log_lik_draws);
+    Rcpp::function("flush_tot_augm_log_prior_draws", &flush_tot_augm_log_prior_draws);
     Rcpp::function("flush_param_draws", &flush_param_draws);
     Rcpp::function("flush_param_log_prior_draws", &flush_param_log_prior_draws);
     Rcpp::function("flush_augm_draws", &flush_augm_draws);

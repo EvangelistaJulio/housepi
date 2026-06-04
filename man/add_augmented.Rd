@@ -13,7 +13,7 @@ add_augmented(
   discr = FALSE,
   func = NULL,
   func_args = NULL,
-  model = NA_character_,
+  prior = NA_character_,
   ...,
   min = NULL,
   max = NULL,
@@ -42,7 +42,7 @@ If \code{NA}, associate definition to all infectious individuals (default).}
 If \code{TRUE}, additional Monte Carlo details are ignored.}
 
 \item{discr}{\code{logical(1)} Treat definition as discrete.
-If applicable, the model is discretized.}
+If applicable, the prior is discretized.}
 
 \item{func}{One between:
 \itemize{
@@ -52,9 +52,9 @@ If applicable, the model is discretized.}
 
 \item{func_args}{named \code{list} Arguments of the augmented function.}
 
-\item{model}{\code{character(1)} Choice for the model distribution.}
+\item{prior}{\code{character(1)} Choice for the prior distribution.}
 
-\item{...}{named arguments for the model distribution.}
+\item{...}{named arguments for the prior distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 One between:
@@ -99,5 +99,5 @@ hhmodel <- blank_house |>
   new_housepi_model("augmented_example") |>
   # define an incubation period drawn from a gamma distribution
   add_augmented("incub_period",
-                model = "gamma", shape = 2, scale = 1, max = 14)
+                prior = "gamma", shape = 2, scale = 1, max = 14)
 }

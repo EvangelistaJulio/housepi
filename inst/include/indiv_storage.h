@@ -8,9 +8,8 @@
 #pragma once
 
 #include <vector>
-
 #include "tools/status.h"
-#include "tools/loglike.h"
+#include "tools/logdensity.h"
 
 #include "function.h"
 #include "variable.h"
@@ -35,9 +34,9 @@ namespace housepi
 		/// Individual augmented variables.
 		struct Augm
 		{
-			size_t idx = 0;					/// index of status specific augmented definition
-			std::vector<Variable> vec = {}; /// augmented variable definitions
-			LogLike log_lik;				/// augmented model log-likelihood
+			size_t idx = 0;					/// index of status-specific definition
+			std::vector<Variable> vec = {}; /// definitions
+			LogDensity augm_log_prior;		/// prior log-density
 		};
 
 		/// Individual group rates.

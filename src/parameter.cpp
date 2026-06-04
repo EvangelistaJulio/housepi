@@ -63,8 +63,8 @@ namespace housepi
         /// Check if proposal is adaptive.
         virtual bool is_adaptive() const noexcept { return false; }
 
-        /// Rebind proposal to a new distribution.
-        virtual void rebind_distrib(const Distribution * /*new_distr*/) {}
+        /// Rebind proposal to a new prior distribution.
+        virtual void rebind_prior(const Distribution * /*new_distr*/) {}
     };
 
 #define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
@@ -94,7 +94,7 @@ namespace housepi
         SampleProposal_(const Distribution *distr) : pDistr_(distr) {}
         MAKE_PROPOSAL_CLONE_METHOD(SampleProposal_)
 
-        void rebind_distrib(const Distribution *new_distr) override final { pDistr_ = new_distr; }
+        void rebind_prior(const Distribution *new_distr) override final { pDistr_ = new_distr; }
 
         double propose(rnd_gen &prng, double /*xo*/) const override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
@@ -331,7 +331,7 @@ namespace housepi
           accept_rate_(other.accept_rate_)
     {
         if (pProp_)
-            pProp_->rebind_distrib(pDistr_.get());
+            pProp_->rebind_prior(pDistr_.get());
     }
     Variable::Variable(Variable &&) = default;
 
@@ -362,19 +362,19 @@ namespace housepi
         pFunc_->assert_is_callable_explicitly();
     }
 
-    void Variable::init_distr(std::string_view opt)
+    void Variable::init_prior(std::string_view opt)
     {
         if (na::is(opt))
             return;
         pDistr_ = compose_distr_registries(opt, "distribution", {"continuos", "discrete"});
     }
 
-    void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
+    void Variable::init_prior_attr(std::string_view key, const Attribute &attr)
     {
         pDistr_->init_attr(key, attr);
     }
 
-    void Variable::init_distr_reshaping(bool is_discr)
+    void Variable::init_prior_reshaping(bool is_discr)
     {
         if (is_discr)
             pDistr_->init_discretization();
@@ -493,7 +493,7 @@ namespace housepi
 
     void Variable::restart(rnd_gen &prng)
     {
-        if (is_constant() || !has_model())
+        if (is_constant() || !has_prior())
             return;
 
         set(pDistr_->rand(prng));
@@ -529,15 +529,16 @@ namespace housepi
         pProp_ = nullptr;
     }
 
-    bool Variable::is_discrete() const noexcept { return has_model() ? pDistr_->is_discrete()
+    bool Variable::is_discrete() const noexcept { return has_prior() ? pDistr_->is_discrete()
                                                                      : Attribute::is_discrete(); }
-    bool Variable::has_model() const noexcept { return pDistr_ != nullptr; }
+    bool Variable::has_prior() const noexcept { return pDistr_ != nullptr; }
     bool Variable::is_adaptive() const noexcept { return pProp_ && pProp_->is_adaptive(); }
 
     void Variable::propose(rnd_gen &prng)
     {
         set(pProp_->propose(prng, value_));
-        accept_rate_ += adapt_smoothing_ * (1. - accept_rate_); // EMA for accept = TRUE
+        // NOTE: exponential moving average for accept = TRUE
+        accept_rate_ += adapt_smoothing_ * (1. - accept_rate_);
     }
     bool Variable::is_valid_move() const
     {
@@ -549,9 +550,9 @@ namespace housepi
             return true;
         }
     }
-    double Variable::get_distr_log_pdf() const { return pDistr_->log_pdf(value_); }
-    double Variable::get_distr_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
-    double Variable::get_propose_log_ratio() const { return pProp_->log_ratio(old_, value_); }
+    double Variable::get_log_prior() const { return pDistr_->log_pdf(value_); }
+    double Variable::get_prior_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
+    double Variable::get_proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
 
     void Variable::adapt_proposal(double ratio) { pProp_->adapt(accept_rate_, ratio); }
 
@@ -559,7 +560,7 @@ namespace housepi
     std::string Variable::str_summary() const
     {
         return Attribute::str_summary() +
-               (has_model() ? " | ~" + pDistr_->str_summary(false)
+               (has_prior() ? " | ~" + pDistr_->str_summary(false)
                             : "");
     }
 #endif
@@ -746,15 +747,15 @@ namespace housepi
 
         // assign a prior distribution to the parameter
         parse::Definition parser(input.at("prior")[k]);
-        xparam.init_distr(parser.root.func);
+        xparam.init_prior(parser.root.func);
 
         // load prior arguments
         for (const auto &child : parser.root.children)
-            xparam.init_distr_attr(child.key, read_numeric(child));
+            xparam.init_prior_attr(child.key, read_numeric(child));
         // load parameter range
         for (const auto key : {"min", "max"})
-            xparam.init_distr_attr(key, read_numeric(input.at(key)[k]));
-        xparam.init_distr_reshaping(str::tobool(input.at("discr")[k]));
+            xparam.init_prior_attr(key, read_numeric(input.at(key)[k]));
+        xparam.init_prior_reshaping(str::tobool(input.at("discr")[k]));
 
         // assign proposal
         xparam.init_proposal(input.at("proposal")[k],

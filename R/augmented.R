@@ -25,7 +25,7 @@ HousepiAugmented <- R6::R6Class(
     # according to the "type" of the definition.
     find_required_def_ = function(type) {
       find_required_definitions(
-        self$defs, type, c("value", "func", "model", "min", "max"), self$family
+        self$defs, type, c("value", "func", "prior", "min", "max"), self$family
       )
     }
   ),
@@ -122,7 +122,7 @@ HousepiAugmented <- R6::R6Class(
     add_quo = function(name = NA_character_, value = NULL,
                        status = NA_integer_,
                        const = NA, discr = FALSE,
-                       model = NA_character_, ...,
+                       prior = NA_character_, ...,
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
@@ -134,7 +134,7 @@ HousepiAugmented <- R6::R6Class(
       status <- housepi_smart_unwrap(status, "status")
       const <- housepi_smart_unwrap(const, "const")
       discr <- housepi_smart_unwrap(discr, "discr")
-      model <- housepi_smart_unwrap(model, "model")
+      prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
 
@@ -162,9 +162,9 @@ HousepiAugmented <- R6::R6Class(
       # control valid status
       assert_valid_status(status)
       # control meaningful definition
-      if (all(is.null(c(value, func)), is.na(model))) stop_h(
+      if (all(is.null(c(value, func)), is.na(prior))) stop_h(
         sprintf("Incomplete definition for augmented '%s'.", name),
-        "Provide at least one between 'value', 'model' and 'func'."
+        "Provide at least one between 'value', 'prior' and 'func'."
       )
       if (!is.null(value) && !is.null(func)) stop_h(
         sprintf("Wrong definition for augmented '%s'.", name),
@@ -179,7 +179,7 @@ HousepiAugmented <- R6::R6Class(
                    discr = isTRUE(discr),
                    func = NA_character_,
                    fcumul = FALSE, # UPDATE: can I make this an option?
-                   model = as.character(model),
+                   prior = as.character(prior),
                    min = NA_real_,
                    max = NA_real_,
                    proposal = as.character(proposal),

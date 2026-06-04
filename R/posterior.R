@@ -152,7 +152,8 @@ HousepiPosteriorDraws <- R6::R6Class(
     param_draws_ = NULL,
     prior_draws_ = NULL,
     augm_draws_ = NULL,
-    total_log_lik_draws_ = NULL,
+    augm_prior_draws_ = NULL,
+    tot_log_lik_draws_ = NULL,
     point_log_lik_draws_ = NULL,
     chain_tags_ = NULL,
     iter_names_ = NULL,
@@ -195,8 +196,8 @@ HousepiPosteriorDraws <- R6::R6Class(
     # Stan-style post-inference diagnostics.
     # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
     check_diagnostics_ = function() {
-      niter <- posterior::niterations(private$total_log_lik_draws_)
-      nchains <- posterior::nchains(private$total_log_lik_draws_)
+      niter <- posterior::niterations(private$tot_log_lik_draws_)
+      nchains <- posterior::nchains(private$tot_log_lik_draws_)
       ss <- niter * nchains
       if (ss < diagnostic_[["ss_min"]]) {
         warn_h(
@@ -271,7 +272,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     },
 
     #' @field prior_draws `posterior::draws_df`.
-    #' Draws of parameter priors.
+    #' Draws of parameter priors (per parameter, plus their sum `lprior`).
     prior_draws = function(value) {
       if (!missing(value)) stop_read_only("prior_draws")
       if (is.null(private$prior_draws_)) private$empty_draws_()
@@ -290,17 +291,28 @@ HousepiPosteriorDraws <- R6::R6Class(
     },
 
     #' @field log_lik_draws `posterior::draws_df`.
-    #' Draws of households pointwise log-likelihood.
+    #' Draws of households pointwise transmission log-likelihood.
     log_lik_draws = function(value) {
       if (!missing(value)) stop_read_only("log_lik_draws")
       private$point_log_lik_draws_
     },
 
     #' @field total_log_lik_draws `posterior::draws_df`.
-    #' Draws of the total log-likelihood.
+    #' Draws of the total (tempered) transmission log-likelihood.
     total_log_lik_draws = function(value) {
       if (!missing(value)) stop_read_only("total_log_lik_draws")
-      private$total_log_lik_draws_
+      private$tot_log_lik_draws_
+    },
+
+    #' @field augmented_prior_draws `posterior::draws_df`.
+    #' Draws of the total augmented-variable log-prior.
+    #' Empty when the model defines no augmented prior.
+    augmented_prior_draws = function(value) {
+      if (!missing(value)) stop_read_only("augmented_prior_draws")
+      if (is.null(private$augm_prior_draws_) ||
+            posterior::nvariables(private$augm_prior_draws_) == 0) {
+        private$empty_draws_()
+      } else private$augm_prior_draws_
     },
 
     #' @field complete_draws `posterior::draws_df`.
@@ -335,8 +347,8 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$pre_process_setup_(.engine$export_setup(ptr))
 
       # store cpp draws converted to posterior
-      private$total_log_lik_draws_ <- private$to_posterior_draws_(
-        .engine$flush_total_log_lik_draws(ptr)
+      private$tot_log_lik_draws_ <- private$to_posterior_draws_(
+        .engine$flush_tot_log_lik_draws(ptr)
       )
       private$param_draws_ <- private$to_posterior_draws_(
         .engine$flush_param_draws(ptr)
@@ -346,6 +358,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       )
       private$augm_draws_ <- private$to_posterior_draws_(
         .engine$flush_augm_draws(ptr)
+      )
+      private$augm_prior_draws_ <- private$to_posterior_draws_(
+        .engine$flush_tot_augm_log_prior_draws(ptr)
       )
       private$point_log_lik_draws_ <- private$to_posterior_draws_(
         .engine$flush_house_log_lik_draws(ptr)
@@ -363,8 +378,8 @@ HousepiPosteriorDraws <- R6::R6Class(
 
     #' @description Override the default printing behavior.
     print = function() {
-      niter <- posterior::niterations(private$total_log_lik_draws_)
-      nchains <- posterior::nchains(private$total_log_lik_draws_)
+      niter <- posterior::niterations(private$tot_log_lik_draws_)
+      nchains <- posterior::nchains(private$tot_log_lik_draws_)
 
       if (is.null(private$param_draws_)) nparams <- 0
       else nparams <- posterior::nvariables(private$param_draws_)
@@ -432,6 +447,13 @@ get_total_log_lik_draws <- function(hhdraws) {
 get_prior_draws <- function(hhdraws) {
   stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
   hhdraws$prior_draws
+}
+
+#' @rdname get_draws
+#' @export
+get_augmented_prior_draws <- function(hhdraws) {
+  stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
+  hhdraws$augmented_prior_draws
 }
 
 #' @rdname get_draws

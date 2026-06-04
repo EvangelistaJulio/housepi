@@ -13,15 +13,15 @@
 
 #include "tools/messages.h"
 #include "tools/read.h"
-#ifdef _STANDALONE
-#include "mcmc.h"
-#include "standalone.h"
-#endif
 
 #include "model.h"
 #include "individual.h"
 #include "household.h"
 #include "registry.h"
+#ifdef _STANDALONE
+#include "mcmc.h"
+#include "standalone.h"
+#endif
 
 #define HOUSEPI_DECLARE_EMPTY_KEYS(T) \
     struct T                          \

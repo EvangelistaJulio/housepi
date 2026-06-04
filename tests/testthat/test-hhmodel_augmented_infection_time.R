@@ -105,7 +105,7 @@ test_that("Simulations behave as expected", {
     add_parameter_list(alpha = 0, beta = 0,
                        gamma = 1, size_ref = 4) |>
     add_augmented_list(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     run_simulation(obs_process = obs_process)
@@ -121,7 +121,7 @@ test_that("Simulations behave as expected", {
     add_parameter_list(alpha = 0, beta = 100,
                        gamma = 1, size_ref = 4) |>
     add_augmented_list(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     run_simulation(obs_process = obs_process)
@@ -206,8 +206,8 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
       add_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
       add_augmented_list(
         infec_time = onset_time@A - incub_period@A,
-        onset_time = list(model = "normal", mean = onset_date@D),
-        incub_period = list(model = "weibull", shape = 2, scale = 1)
+        onset_time = list(prior = "normal", mean = onset_date@D),
+        incub_period = list(prior = "weibull", shape = 2, scale = 1)
       ) |>
       add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
   }
@@ -238,8 +238,8 @@ test_that("Augmented moves preserve log-likelihood", {
     add_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented_list(
       infec_time = onset_time@A - incub_period@A,
-      onset_time = list(model = "normal", mean = onset_date@D),
-      incub_period = list(model = "weibull", shape = 2, scale = 1)
+      onset_time = list(prior = "normal", mean = onset_date@D),
+      incub_period = list(prior = "weibull", shape = 2, scale = 1)
     ) |>
     add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
@@ -253,6 +253,9 @@ test_that("Augmented moves preserve log-likelihood", {
 
   tot_log_lik <- get_total_log_lik_draws(results)$log_lik
   expect_equal(tot_log_lik, get_log_lik_draws(results)$hh01)
+  # full log-density recomposes transmission likelihood + augmented priors
+  augm_prior <- get_augmented_prior_draws(results)$augm_log_prior
+  tot_log_dens <- tot_log_lik + augm_prior
 
   param_draws <- get_parameter_draws(results) |>
     posterior::as_draws_matrix() |>
@@ -280,7 +283,7 @@ test_that("Augmented moves preserve log-likelihood", {
     get_log_lik_i(df, par)
   }
   ll_check <- sapply(seq_len(n_steps), check_eval)
-  expect_equal(tot_log_lik, ll_check)
+  expect_equal(tot_log_dens, ll_check)
 
   # check if log-likelihood is coherent
   housepi_eval <- function(i) {
@@ -290,13 +293,13 @@ test_that("Augmented moves preserve log-likelihood", {
       add_augmented_list(
         infec_time = onset_time@A - incub_period@A,
         onset_time = list(value = onset_time@D, const = TRUE,
-                          model = "normal", mean = onset_date@D),
+                          prior = "normal", mean = onset_date@D),
         incub_period = list(value = incub_period@D, const = TRUE,
-                            model = "weibull", shape = 2, scale = 1)
+                            prior = "weibull", shape = 2, scale = 1)
       ) |>
       add_parameter_list(!!!params_i) |>
       add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
       evaluate_log_lik()
   }
-  expect_equal(tot_log_lik[n_steps], housepi_eval(n_steps))
+  expect_equal(tot_log_dens[n_steps], housepi_eval(n_steps))
 })

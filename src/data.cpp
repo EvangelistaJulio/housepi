@@ -16,7 +16,7 @@
 
 #include "tools/data_reports.h"
 #include "tools/keys.h"
-#include "tools/loglike.h"
+#include "tools/logdensity.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -531,25 +531,15 @@ namespace housepi
 
             if (is_any_augm)
                 for (size_t i : house.infected_hhindexes())
-                    if (house.member(i).paugm_->log_lik.is_inf())
+                    if (house.member(i).paugm_->augm_log_prior.is_inf())
                         throw std::runtime_error(
                             "Initial augmented log-likelihood returned infinity for " +
                             house.member(i).err_name() + ".");
 
-            if (house.log_lik_.is_inf())
+            if (house.transm_log_lik_.is_inf())
                 throw std::runtime_error(
                     "Initial log-likelihood returned infinity for " + house.err_name() + ".");
         }
-    }
-
-    double DataWide::house_log_lik(size_t M, bool is_any_augm) const
-    {
-        const Household &house = eq_class_head(M);
-        double x = house.obs_log_lik();
-        if (is_any_augm)
-            for (size_t i : house.infected_hhindexes())
-                x += house.member(i).paugm_->log_lik.value();
-        return x;
     }
 
     void DataWide::assert_not_all_missing_status() const

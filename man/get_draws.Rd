@@ -6,6 +6,7 @@
 \alias{get_log_lik_draws}
 \alias{get_total_log_lik_draws}
 \alias{get_prior_draws}
+\alias{get_augmented_prior_draws}
 \alias{get_complete_draws}
 \title{Get posterior draws of respective variables}
 \usage{
@@ -18,6 +19,8 @@ get_log_lik_draws(hhdraws)
 get_total_log_lik_draws(hhdraws)
 
 get_prior_draws(hhdraws)
+
+get_augmented_prior_draws(hhdraws)
 
 get_complete_draws(hhdraws)
 }

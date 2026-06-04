@@ -26,10 +26,13 @@ OBJECTS := $(SOURCES:.cpp=.o)
 DIRMODEL := $(dir $(MODEL))
 EXECUTABLE := $(DIRMODEL)/model.exe
 
+# Boost headers come from the BH package in the R build; locate them for standalone
+BH_INC := $(shell Rscript -e 'cat(system.file("include", package="BH"))')
+
 # compilation flags
 CXX := g++
 CXXFLAGS := -std=c++17 -D_STANDALONE\
--I./ -I../include/ \
+-I./ -I../include/ -I$(BH_INC) \
 -Wall -Wextra -pedantic \
 -Wno-unknown-pragmas
 LDFLAGS :=

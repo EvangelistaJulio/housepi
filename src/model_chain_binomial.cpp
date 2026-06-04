@@ -177,8 +177,8 @@ public:
 		}
 	}
 
-	/// Compute the log-likelihood for a single household.
-	double compute_house_log_lik(Household &house) override final
+	/// Compute transmission log-likelihood within household.
+	double compute_house_transm_log_lik(Household &house) override final
 	{
 		// fill per-individual escape rate matrices
 		fill_house_escape_matrix(house);

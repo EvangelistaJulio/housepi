@@ -68,12 +68,12 @@ namespace housepi
         void init_func_reshaping(bool discr);
 
         /// Initialize pointer to distribution.
-        void init_distr(std::string_view opt);
+        void init_prior(std::string_view opt);
         /// Assign an attribute to distribution.
-        void init_distr_attr(std::string_view key, const Attribute &attr);
+        void init_prior_attr(std::string_view key, const Attribute &attr);
         /// Finalize reshaping of distribution.
         /// NOTE: to be called necessarily.
-        void init_distr_reshaping(bool discr);
+        void init_prior_reshaping(bool discr);
         /// Initialize pointer to proposal.
         /// NOTE: it must be assigned after model initialization.
         void init_proposal(const std::string &proposal, double scale);
@@ -96,7 +96,7 @@ namespace housepi
         /// Wheter the variable is discrete.
         bool is_discrete() const noexcept override final;
         /// Wheter the variable has a prior or a model associated.
-        bool has_model() const noexcept;
+        bool has_prior() const noexcept;
         /// Wheter the variable has an adaptive parametric proposal rule.
         bool is_adaptive() const noexcept;
 
@@ -116,15 +116,15 @@ namespace housepi
             accept_rate_ -= adapt_smoothing_;
         }
 
-        double get_distr_log_pdf() const;
-        double get_distr_log_ratio() const;
-        double get_propose_log_ratio() const;
+        double get_log_prior() const;
+        double get_prior_log_ratio() const;
+        double get_proposal_log_ratio() const;
         double get_move_log_ratio() const
         {
             switch (ratio_mode_)
             {
             case Ratio::Compute:
-                return get_distr_log_ratio() - get_propose_log_ratio();
+                return get_prior_log_ratio() - get_proposal_log_ratio();
             default: // case Ratio::None:
                 return 0;
             }

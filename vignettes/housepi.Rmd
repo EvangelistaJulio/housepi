@@ -276,7 +276,7 @@ hhsimul <- hhsimul |>
 
     # define an incubation period for each individual
     # arguments are linked to parameters
-    incub_period = list(model = "gamma",
+    incub_period = list(prior = "gamma",
                         shape = inc_shape@P, scale = inc_scale@P,
                         max = 14)
   )
@@ -341,8 +341,8 @@ hhmodel <- simulated |>
   # loading definitions from list drops previous by default
   add_augmented_list(
     infec_time = onset_time - incub_period,
-    onset_time = list(model = "normal", mean = onset_date@D, sd = 1),
-    incub_period = list(model = "gamma",
+    onset_time = list(prior = "normal", mean = onset_date@D, sd = 1),
+    incub_period = list(prior = "gamma",
                         shape = inc_shape@P, scale = inc_scale@P)
   )
 

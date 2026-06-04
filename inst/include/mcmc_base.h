@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "tools/loglike.h"
+#include "tools/logdensity.h"
 #include "tools/nan.h"
 
 #include "setup.h"
@@ -35,7 +35,8 @@ namespace housepi
 	{
 	public:
 		Setup setup;
-		LogLike tot_log_lik;
+		LogDensity tot_transm_log_lik; /// transmission log-likelihood
+		LogDensity tot_augm_log_prior; /// augmented-variable log-priors
 		Posterior posterior;
 
 		/// Pointer to data storage.
@@ -102,13 +103,13 @@ namespace housepi
 		//////  METROPOLIS-HASTINGS  //////
 		///////////////////////////////////
 
-		/// Assert setup definitions are ok to proceed with mcmc sampling.
+		/// Assert and initialize configuration to proceed with Monte Carlo.
 		void init_monte_carlo_();
 		/// Intialize a single Markov chain for Monte Carlo.
 		void init_monte_carlo_chain_();
 
-		/// Recover the old total log-likelihood.
+		/// Recover the old total log-likelihood and augmented log-priors.
 		/// NOTE: called after a refused parameter move.
-		void recover_total_log_lik_(bool is_cache_depen);
+		void recover_total_log_density_(bool is_cache_depen);
 	};
 }

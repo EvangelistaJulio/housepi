@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "tools/keys.h"
-#include "tools/loglike.h"
+#include "tools/logdensity.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -96,15 +96,15 @@ namespace housepi
             }
         }
 
-        /// Help initializing household log-likelihood draws.
+        /// Help initializing household transmission log-likelihood draws.
         void helper_init_house_draws(
             Posterior *post,
             const DataWide &data_wide,
             unsigned long sample_size)
         {
-            post->house_log_lik.reserve(data_wide.eq_class_size());
+            post->house_transm_log_lik.reserve(data_wide.eq_class_size());
             for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
-                post->house_log_lik.emplace_back(sample_size, na::DOUBLE);
+                post->house_transm_log_lik.emplace_back(sample_size, na::DOUBLE);
 
             size_t n_houses = data_wide.report_house.total;
             post->house_names.reserve(n_houses);
@@ -144,10 +144,11 @@ namespace housepi
     {
         count_ = 0;
         is_power_post_ = false;
-        total_log_lik.clear();
+        tot_transm_log_lik.clear();
+        tot_augm_log_prior.clear();
         param_values.clear();
         param_priors.clear();
-        house_log_lik.clear();
+        house_transm_log_lik.clear();
         augm_values.clear();
         augm_individuals.clear();
         param_names.clear();
@@ -159,9 +160,13 @@ namespace housepi
         unsigned long sample_size = setup.c_sample_size * setup.n_chains;
         is_power_post_ = setup.is_power_post();
 
-        // always allocate total log-likelihood
-        total_log_lik.reserve(1);
-        total_log_lik.emplace_back(sample_size, na::DOUBLE);
+        // always allocate the transmission log-likelihood
+        tot_transm_log_lik.reserve(1);
+        tot_transm_log_lik.emplace_back(sample_size, na::DOUBLE);
+
+        // allocate the augmented-variable prior total only if any is defined
+        if (mcmc.augm.is_any_prior())
+            tot_augm_log_prior.emplace_back(sample_size, na::DOUBLE);
 
         /* --FUTURE-LOG-EVIDENCE--
         // UPDATE: I would like to store also power posterior sample.
@@ -186,17 +191,16 @@ namespace housepi
             {
                 const Variable &v = param.at(p);
                 param_values[i][count_] = v.value();
-                param_priors[i++][count_] = v.get_distr_log_pdf();
+                param_priors[i++][count_] = v.get_log_prior();
             }
             // function-derived parameters: store value, no prior
             for (size_t p : param.list_func)
                 param_values[i++][count_] = param.at(p).value();
 
-            // household log-likelihoods
+            // pointwise per-household transmission log-likelihood
             const DataWide &data_wide = mcmc.data_wide();
-            const bool is_any_augm = mcmc.augm.is_any_sample();
             for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
-                house_log_lik[R][count_] = data_wide.house_log_lik(R, is_any_augm);
+                house_transm_log_lik[R][count_] = data_wide.house_transm_log_lik(R);
 
             // augmented variable draws
             const Augmented &augm = mcmc.augm;
@@ -210,8 +214,12 @@ namespace housepi
             }
         }
 
-        // total log-likelihood (always stored, including power posterior)
-        total_log_lik[0][count_] = mcmc.tot_log_lik.value();
+        // total (tempered) transmission log-likelihood — always stored
+        tot_transm_log_lik[0][count_] = mcmc.tot_transm_log_lik.value();
+        // total augmented-variable prior, stored separately when present
+        if (!tot_augm_log_prior.empty())
+            tot_augm_log_prior[0][count_] = mcmc.tot_augm_log_prior.value();
+        // update sample count
         ++count_;
     }
 
@@ -343,20 +351,21 @@ namespace housepi
                 }
     }
 
-    void MCMCBase::recover_total_log_lik_(bool is_cache_depen)
+    void MCMCBase::recover_total_log_density_(bool is_cache_depen)
     {
         // recover old value of full log-like
-        tot_log_lik.recover();
+        tot_transm_log_lik.recover();
+        tot_augm_log_prior.recover();
 
         // recover old log-likelihood values for households
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
         {
             Household &house = data_wide().eq_class_head(R);
-            house.log_lik_.recover();
+            house.transm_log_lik_.recover();
 
             if (augm.is_any_sample())
                 for (size_t i : house.infected_hhindexes())
-                    house.member(i).paugm_->log_lik.recover();
+                    house.member(i).paugm_->augm_log_prior.recover();
         }
 
         if (is_cache_depen)
@@ -450,11 +459,16 @@ namespace housepi
 
         // full log-likelihood evaluation
         if (na::is(house_id))
-            return commit_total_log_lik_(true);
+            return commit_total_log_density_(true);
 
         // single house log-likelihood evaluation
         infec_profile.update(); // eventually recompute infectivity profile
-        return commit_house_log_lik_(data_wide().at(house_id), true);
+        Household &house = data_wide().at(house_id);
+        double ll = commit_transm_log_lik_(house, true);
+        if (augm.is_any_prior())
+            for (size_t i : house.infected_hhindexes())
+                ll += augm.commit_augm_log_prior(house.member(i));
+        return ll;
     }
 
     void MCMC::init_for_evaluation_()
@@ -474,9 +488,8 @@ namespace housepi
             model->init_house_for_evaluation(data_wide().eq_class_head(R));
     }
 
-    double MCMC::commit_house_log_lik_(Household &house, bool is_cache_depen)
+    double MCMC::commit_transm_log_lik_(Household &house, bool is_cache_depen)
     {
-        double output = 0;
         try
         {
             // save all household cache dependencies
@@ -484,23 +497,18 @@ namespace housepi
                 model->update_house_cache_dependecies(house);
 
             // compute and set household observation log-likelihood
-            output = commit_house_log_lik_(house);
-
-            // compute and set individual augmented log-likelihood
-            if (augm.is_any_model())
-                for (size_t i : house.infected_hhindexes())
-                    output += augm.commit_augm_model_log_lik(house.member(i));
+            // NOTE: augmented-variable priors are accumulated separately, see
+            // sum_augm_log_prior_, so they stay out of the tempered likelihood.
+            return commit_transm_log_lik_(house);
         }
         catch (const std::exception &e)
         {
             throw std::runtime_error("While computing log-likelihood for " +
                                      house.err_name() + ":\n" + std::string(e.what()));
         }
-
-        return output;
     }
 
-    double MCMC::commit_total_log_lik_(bool is_cache_depen)
+    double MCMC::commit_total_log_density_(bool is_cache_depen)
     {
         // save infectivity profile if lookup tables are active
         if (is_cache_depen)
@@ -509,15 +517,33 @@ namespace housepi
             infec_profile.update();
         }
 
-        double new_ll = housepi::parallel::for_reduce_sum(
+        double new_ll = parallel::for_reduce_sum(
             data_wide().eq_class_size(),
             [&](size_t R) -> double
             {
                 Household &house = data_wide().eq_class_head(R);
                 return data_wide().eq_class_weight(R) *
-                       commit_house_log_lik_(house, is_cache_depen);
+                       commit_transm_log_lik_(house, is_cache_depen);
             });
-        tot_log_lik.set(new_ll);
+        tot_transm_log_lik.set(new_ll);
+
+        // augmented-variable priors: re-evaluated (parameters may have moved)
+        // and accumulated apart from the tempered likelihood.
+        if (augm.is_any_prior())
+        {
+            tot_augm_log_prior.set(
+                parallel::for_reduce_sum(
+                    data_wide().report_house.total,
+                    [&](size_t H) -> double
+                    {
+                        Household &house = data_wide().at(H);
+                        double prior = 0.;
+                        for (size_t i : house.infected_hhindexes())
+                            prior += augm.commit_augm_log_prior(house.member(i));
+                        return prior;
+                    }));
+            return new_ll + tot_augm_log_prior.value();
+        }
 
         return new_ll;
     }
@@ -546,10 +572,10 @@ namespace housepi
             {
                 init_monte_carlo_chain_();
                 // NOTE: init all cached with flag true
-                commit_total_log_lik_(true);
+                commit_total_log_density_(true);
 
                 // assert that initial log-likelihood value is finite
-                if (tot_log_lik.is_inf())
+                if (tot_transm_log_lik.is_inf() || tot_augm_log_prior.is_inf())
                     data_wide().assert_finite_log_lik(augm.is_any_sample());
             }
             catch (const std::exception &e)
@@ -626,15 +652,18 @@ namespace housepi
         if (this_par.is_valid_move())
         {
             // if parameter is cache dependent, update cache
-            commit_total_log_lik_(is_cache_depen);
+            commit_total_log_density_(is_cache_depen);
 
             // perform Metropolis-Hastings to accept or not move
-            const double r = setup.inv_T * tot_log_lik.log_ratio() +
+            // NOTE: only the likelihood is tempered; priors (parameter and
+            // augmented-variable) enter untempered, as for the parameter move.
+            const double r = setup.inv_T * tot_transm_log_lik.log_ratio() +
+                             tot_augm_log_prior.log_ratio() +
                              this_par.get_move_log_ratio();
             if (setup.exponential() > -r)
                 return;
             // else move is refused and log-likelihood recovered
-            recover_total_log_lik_(is_cache_depen);
+            recover_total_log_density_(is_cache_depen);
         }
         // recover old value of parameter
         this_par.recover();
@@ -645,35 +674,48 @@ namespace housepi
         if (!augm.is_any_sample())
             return;
 
-        const double delta_ll = housepi::parallel::for_reduce_sum(
-            data_wide().report_house.total,
-            [&](size_t H) -> double
-            { return move_augm_single_house_(H); });
-        tot_log_lik.increment(delta_ll);
+        tot_transm_log_lik.increment(
+            parallel::for_reduce_sum(
+                data_wide().report_house.total,
+                [&](size_t H) -> double
+                { return move_augm_single_house_(H); }));
+
+        // refresh total augmented prior from the per-individual
+        // values updated in-place by the accepted moves above.
+        if (augm.is_any_prior())
+            tot_augm_log_prior.set(
+                parallel::for_reduce_sum(
+                    data_wide().report_house.total,
+                    [&](size_t H) -> double
+                    {
+                        Household &house = data_wide().at(H);
+                        double prior = 0.;
+                        for (size_t i : house.infected_hhindexes())
+                            prior += augm.indiv_augm[house.member(i).index_].augm_log_prior.value();
+                        return prior;
+                    }));
     }
 
     double MCMC::move_augm_single_house_(size_t H)
     {
         Household &house = data_wide().at(H);
-        double delta_ll = 0.;
 
         try
         {
-            // loop over augmented variables of infectious
+            double delta_ll = 0.;
             for (size_t i : house.infected_hhindexes())
             {
                 Individual &member_i = house.member(i);
                 for (size_t a : augm.list_sample(member_i))
                     delta_ll += move_augm_single_variable_(house, member_i, a);
             }
+            return delta_ll;
         }
         catch (const std::exception &e)
         {
             throw std::runtime_error("While sampling augmented variables for " +
                                      house.err_name() + ":\n" + std::string(e.what()));
         }
-
-        return delta_ll;
     }
 
     double MCMC::move_augm_single_variable_(Household &house, Individual &member, size_t a)
@@ -691,15 +733,15 @@ namespace housepi
             model->update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
-            const double delta_ll = commit_house_log_lik_ratio_(house) +
-                                    augm.commit_augm_model_log_ratio(member, a);
-
-            if (setup.exponential() > xaugm.get_propose_log_ratio() - setup.inv_T * delta_ll)
-                return delta_ll;
+            const double delta_log_lik = commit_transm_log_lik_ratio_(house);
+            const double delta_prior = commit_augm_log_prior_ratio(member, a);
+            if (setup.exponential() >
+                xaugm.get_proposal_log_ratio() - (setup.inv_T * delta_log_lik + delta_prior))
+                return delta_log_lik;
 
             // else recover cached values
-            member.paugm_->log_lik.recover();
-            house.log_lik_.recover();
+            member.paugm_->augm_log_prior.recover();
+            house.transm_log_lik_.recover();
             data_wide().recover_member_old_cached(house, i);
         }
         // else recover old value
@@ -784,7 +826,7 @@ namespace housepi
         setup.rung_id = 0;
         setup.inv_T = 0.0;
         run_monte_carlo_();
-        const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
+        const auto [stats_avg, stats_var] = compute_stats(posterior.tot_transm_log_lik);
 
         itm.push_back(setup.inv_T);
         avg.push_back(stats_avg);
@@ -798,7 +840,7 @@ namespace housepi
             setup.rung_id = 1;
             setup.inv_T = 1.0;
             run_monte_carlo_();
-            const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_transm_log_lik);
 
             itm.push_back(setup.inv_T);
             avg.push_back(stats_avg);
@@ -822,7 +864,7 @@ namespace housepi
             // power posterior sampling
             setup.inv_T = new_t;
             run_monte_carlo_();
-            const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_transm_log_lik);
 
             // find larger rectangular discretization error
             is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats_avg) > (new_t - itm[k]) * (stats_avg - avg[k]);
@@ -845,7 +887,7 @@ namespace housepi
             setup.inv_T = std::pow(static_cast<double>(setup.rung_id) / static_cast<double>(setup.n_rungs), 5.);
             run_monte_carlo_();
 
-            const auto [stats_avg, stats_var] = compute_stats(posterior.total_log_lik);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_transm_log_lik);
             itm.push_back(setup.inv_T);
             avg.push_back(stats_avg);
             var.push_back(stats_var);

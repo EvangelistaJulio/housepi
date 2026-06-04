@@ -146,7 +146,7 @@ test_that("Augm draws are not empty when id_draws is specified", {
                         id = c("a", "b"),
                         status = c(1, 0)) |>
     new_housepi_model("augmented_example")
-  hhmodel$add_augmented(name = "proba", model = "uniform")
+  hhmodel$add_augmented(name = "proba", prior = "uniform")
   results <- suppressWarnings(
     hhmodel$run_inference(steps = 5, chains = 1, adapt = 0, thin = 1,
                           id_draws = "a", progress = FALSE)
