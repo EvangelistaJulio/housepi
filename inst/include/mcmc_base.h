@@ -22,6 +22,7 @@
 #include "infec_profile.h"
 #include "augmented.h"
 #include "posterior.h"
+#include "translator.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,6 +49,7 @@ namespace housepi
 		ContactRate contact_rate;
 		InfecProfile infec_profile;
 		Augmented augm;
+		Translator translator;
 
 		///////////////////////////
 		//////  CONSTRUCTOR  //////
@@ -84,6 +86,14 @@ namespace housepi
 		/// NOTE: assume unique if augmented definitions required, but not imported yet
 		void init_frequency_equivalence_classes();
 
+		////////////////////////////
+		//////  AUGMENTATION  //////
+		////////////////////////////
+
+		double aug(size_t a, const Individual &m) const { return augm.at(a, m).value(); }
+		Variable &get_augm_varia(size_t a, const Individual &m) noexcept { return augm.at(a, m); }
+		const Variable &get_augm_varia(size_t a, const Individual &m) const noexcept { return augm.at(a, m); }
+
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
@@ -107,6 +117,9 @@ namespace housepi
 		void init_monte_carlo_();
 		/// Intialize a single Markov chain for Monte Carlo.
 		void init_monte_carlo_chain_();
+
+        /// Raise an error if log-likelihood and/or augmented priors are not finite.
+		void assert_finite_log_lik() const;
 
 		/// Recover the old total log-likelihood and augmented log-priors.
 		/// NOTE: called after a refused parameter move.

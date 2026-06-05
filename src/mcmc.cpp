@@ -18,6 +18,7 @@
 #include "tools/nan.h"
 #include "tools/operators.h"
 #include "tools/parallel.h"
+#include "tools/parser.h"
 #include "tools/string.h"
 #include "tools/types.h"
 
@@ -37,6 +38,7 @@
 #include "parameter.h"
 #include "registry.h"
 #include "setup.h"
+#include "translator.h"
 
 namespace housepi
 {
@@ -59,6 +61,117 @@ namespace housepi
             throw std::invalid_argument(
                 "Model registration failed: unknown model '" + std::string(name) + "'.\n");
         return it->second();
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////  *** Translator : struct ***  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    const Attribute &Translator::to_attribute(
+        const parse::Entry &node,
+        const Individual *member_ptr) const
+    {
+        storage_ = Attribute(); // reset auxiliary storage to default empty
+
+        if (!node.is_terminal())
+        {
+            helper_store_read_function_(node, member_ptr);
+        }
+        else if (parse::is_numeric(node.type))
+        {
+            storage_.init_numeric(str::tod(node.value, "argument with numeric type"));
+        }
+        else if (parse::is_parameter(node.type))
+        {
+            return param_.at(param_.khold().from_string(node.value));
+        }
+        else if (!node.is_empty())
+        {
+            if (!member_ptr)
+            {
+                std::string sms = "Individual specific definitions as " + node.err_str() +
+                                  " are not supported here.";
+                // add tip if augmented (which does not require '@')
+                if (parse::is_augmented(node.type) && node.is_terminal())
+                    sms += "\nDid you forget rlang injection operator '!!'?";
+                throw std::invalid_argument(sms);
+            }
+
+            if (parse::is_data_wide(node.type))
+            {
+                size_t d = pDataWideKeys_->from_string(node.value);
+                storage_.init_numeric(member_ptr->data(d));
+                storage_.name(node.value);
+                storage_.set_err_type("data");
+            }
+            else if (parse::is_augmented(node.type))
+            {
+                return augm_.at(augm_.khold().from_string(node.value), *member_ptr);
+            }
+            else if (parse::is_group_rate(node.type))
+            {
+                return member_ptr->get_group_rate_attribute(pGroupRateKeys_->from_string(node.value));
+            }
+#ifndef NDEBUG
+            else
+                throw std::invalid_argument(
+                    "Unrecognized source type '" + node.type +
+                    "' found while parsing " + node.err_str() + ".");
+#endif
+        }
+
+        return storage_;
+    }
+
+    void Translator::helper_store_read_function_(
+        const parse::Entry &node,
+        const Individual *member_ptr) const
+    {
+        Attribute parent;
+        parent.init_function(compose_func_registries(
+            node.func, "function",
+            {"custom", "transcendental", "arithmetic",
+             "continuos", "discrete", "infecprofile"}));
+
+        for (const auto &child : node.children)
+            parent.init_func_attr(child.key, to_attribute(child, member_ptr));
+
+        storage_ = parent;
+    }
+    const Attribute &Translator::to_attribute(
+        const std::string &expr,
+        const Individual *member_ptr) const
+    {
+        return to_attribute(parse::Definition(expr).root, member_ptr);
+    }
+
+    const Attribute &Translator::to_numeric(
+        const parse::Entry &node,
+        const Individual *member_ptr) const
+    {
+        storage_ = to_attribute(node, member_ptr);
+        if (!storage_.is_empty() && !storage_.is_constant())
+            throw std::invalid_argument(
+                "Definition " + node.err_str() +
+                " could not be interpreted as a numeric constant.");
+        return storage_;
+    }
+    const Attribute &Translator::to_numeric(
+        const std::string &expr,
+        const Individual *member_ptr) const
+    {
+        return to_numeric(parse::Definition(expr).root, member_ptr);
+    }
+
+    void Translator::make_cache_dependent(const parse::Entry &node) const
+    {
+        if (!parse::is_parameter(node.type))
+            return;
+        size_t p = param_.khold().from_string(node.value);
+        if (!param_.at(p).is_constant())
+            param_.make_cache_dependent(p);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -210,7 +323,7 @@ namespace housepi
                 auto &member_matrix = augm_values[j];
                 size_t c = 0;
                 for (size_t a : augm.list_draws(member))
-                    member_matrix[c++][count_] = member.aug(a);
+                    member_matrix[c++][count_] = mcmc.aug(a, member);
             }
         }
 
@@ -231,14 +344,14 @@ namespace housepi
 
     MCMCBase::MCMCBase()
         : pDataStore(std::make_shared<DataStore>()),
-          augm(this) {}
+          augm(this), translator(param, augm) {}
     MCMCBase::~MCMCBase() = default;
 
     void MCMCBase::set_data_store(std::shared_ptr<DataStore> ds)
     {
         pDataStore = std::move(ds);
         DataWide *dw = &pDataStore->data_wide;
-        param.bind_to_data_wide(&dw->khold());
+        translator.bind_data_wide(&dw->khold());
     }
 
     void MCMCBase::init_key_holder(
@@ -262,10 +375,8 @@ namespace housepi
         group_rate.init_key_holder(group_rate_keys);
         augm.init_key_holder(augm_keys);
 
-        /// UPDATE: waiting for refactoring of read_attribute
-        param.bind_to_data_wide(&data_wide().khold());
-        param.bind_to_group_rate(&group_rate.khold());
-        param.bind_to_augm(&augm.khold());
+        translator.bind_data_wide(&data_wide().khold());
+        translator.bind_group_rate(&group_rate.khold());
     }
 
     /// Wheter hosuehold members i and j are equivalent in terms of rates.
@@ -347,8 +458,31 @@ namespace housepi
                 {
                     Individual &member = house.member(i);
                     for (size_t a : augm.list_adaptive(member))
-                        member.get_augm_variable(a).reset_accept_rate();
+                        get_augm_varia(a, member).reset_accept_rate();
                 }
+    }
+
+    void MCMCBase::assert_finite_log_lik() const
+    {
+        if (!tot_transm_log_lik.is_inf() && !tot_augm_log_prior.is_inf())
+            return;
+
+        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
+        {
+            const Household &house = data_wide().eq_class_head(R);
+
+            if (house.transm_log_lik_.is_inf())
+                throw std::runtime_error(
+                    "Initial transmission log-likelihood returned infinity for " +
+                    house.err_name() + ".");
+
+            if (augm.is_any_sample())
+                for (size_t i : house.infected_hhindexes())
+                    if (augm.varia[house.member(i).index_].log_prior.is_inf())
+                        throw std::runtime_error(
+                            "Initial augmented log-prior returned infinity for " +
+                            house.member(i).err_name() + ".");
+        }
     }
 
     void MCMCBase::recover_total_log_density_(bool is_cache_depen)
@@ -365,7 +499,7 @@ namespace housepi
 
             if (augm.is_any_sample())
                 for (size_t i : house.infected_hhindexes())
-                    house.member(i).paugm_->augm_log_prior.recover();
+                    augm.varia[house.member(i).index_].log_prior.recover();
         }
 
         if (is_cache_depen)
@@ -573,10 +707,7 @@ namespace housepi
                 init_monte_carlo_chain_();
                 // NOTE: init all cached with flag true
                 commit_total_log_density_(true);
-
-                // assert that initial log-likelihood value is finite
-                if (tot_transm_log_lik.is_inf() || tot_augm_log_prior.is_inf())
-                    data_wide().assert_finite_log_lik(augm.is_any_sample());
+                assert_finite_log_lik();
             }
             catch (const std::exception &e)
             {
@@ -607,7 +738,7 @@ namespace housepi
                     {
                         Individual &member_i = house.member(i);
                         for (size_t a : augm.list_adaptive(member_i))
-                            member_i.get_augm_variable(a).adapt_proposal(ratio);
+                            get_augm_varia(a, member_i).adapt_proposal(ratio);
                     }
         }
     }
@@ -691,7 +822,7 @@ namespace housepi
                         Household &house = data_wide().at(H);
                         double prior = 0.;
                         for (size_t i : house.infected_hhindexes())
-                            prior += augm.indiv_augm[house.member(i).index_].augm_log_prior.value();
+                            prior += augm.varia[house.member(i).index_].log_prior.value();
                         return prior;
                     }));
     }
@@ -720,12 +851,12 @@ namespace housepi
 
     double MCMC::move_augm_single_variable_(Household &house, Individual &member, size_t a)
     {
-        Variable &xaugm = member.get_augm_variable(a);
+        Variable &avar = get_augm_varia(a, member);
 
-        xaugm.propose(setup.prng()); // propose new value and save old
+        avar.propose(setup.prng()); // propose new value and save old
 
         // proceed only if the new value is consistent
-        if (xaugm.is_valid_move())
+        if (avar.is_valid_move())
         {
             size_t i = member.hhindex();
             // update dependencies to perform computations
@@ -736,16 +867,16 @@ namespace housepi
             const double delta_log_lik = commit_transm_log_lik_ratio_(house);
             const double delta_prior = commit_augm_log_prior_ratio(member, a);
             if (setup.exponential() >
-                xaugm.get_proposal_log_ratio() - (setup.inv_T * delta_log_lik + delta_prior))
+                avar.get_proposal_log_ratio() - (setup.inv_T * delta_log_lik + delta_prior))
                 return delta_log_lik;
 
             // else recover cached values
-            member.paugm_->augm_log_prior.recover();
+            augm.varia[member.index_].log_prior.recover();
             house.transm_log_lik_.recover();
             data_wide().recover_member_old_cached(house, i);
         }
         // else recover old value
-        xaugm.recover();
+        avar.recover();
 
         return 0.;
     }

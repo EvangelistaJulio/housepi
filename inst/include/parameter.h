@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "tools/keys.h"
-#include "tools/parser.h" // UPDATE: this shouldn't be public
 #include "tools/random.h"
 #include "tools/types.h"
 
@@ -27,7 +26,7 @@
 
 namespace housepi
 {
-    class Individual;
+    struct Translator;
 
     /// Implementation of Parameters.
     struct Parameter : public KeyModule
@@ -53,14 +52,12 @@ namespace housepi
 
         /// Assign parameter definitions to dictionary.
         /// Expect unique definitions.
-        void build(const str_table &deftable);
+        void build(const str_table &deftable, const Translator &translator);
         /// Build parameter dictionaries for expected measure on posterior sample.
         /// Expect a non-empty table.
         void build_for_predic(const dbl_table &deftable);
         /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
         void make_cache_dependent(size_t p);
-        /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
-        void make_cache_dependent(const parse::Entry &node);
 
         /// Request discrete parameter definition.
         void request_discrete(size_t p) { user_discrete_set_.emplace(p); }
@@ -85,32 +82,6 @@ namespace housepi
         /// Flag to check if there are parameters to sample.
         bool is_any_sample() const noexcept { return !list_sample.empty(); }
 
-        ///////////////////////
-        //////  HELPERS  //////
-        ///////////////////////
-        /// UPDATE: these are just temporary fixes.
-
-        /// Links used just by read_attribute.
-        void bind_to_data_wide(const KeyHolder *khold) { pDataWideKeys_ = khold; }
-        void bind_to_group_rate(const KeyHolder *khold) { pGroupRateKeys_ = khold; }
-        void bind_to_augm(const KeyHolder *khold) { pAugmKeys_ = khold; }
-
-        /// Auxiliary method to read a definition as a single attribute.
-        const Attribute &read_attribute(const parse::Entry &node, const Individual *member_ptr = nullptr) const;
-        /// Auxiliary method to convert a typed string into a numeric attribute.
-        const Attribute &read_numeric(const parse::Entry &node, const Individual *member_ptr = nullptr) const;
-
-        /// Auxiliary method to read a definition as a single attribute (overload for string).
-        const Attribute &read_attribute(const std::string &expr, const Individual *member_ptr = nullptr) const
-        {
-            return read_attribute(parse::Definition(expr).root, member_ptr);
-        }
-        /// Auxiliary method to read a definition as a single attribute (overload for string).
-        const Attribute &read_numeric(const std::string &expr, const Individual *member_ptr = nullptr) const
-        {
-            return read_numeric(parse::Definition(expr).root, member_ptr);
-        }
-
     private:
         std::vector<Variable> param_vec_ = {};              /// parameters vector
         std::unordered_set<size_t> user_discrete_set_ = {}; /// user defined discrete parameters
@@ -120,18 +91,10 @@ namespace housepi
         /// Drop current lists of parameters.
         void clear_lists_();
         /// Helper to build constant parameter.
-        void helper_build_constant_(const str_table &deftable, size_t k);
+        void helper_build_constant_(const str_table &deftable, size_t k, const Translator &translator);
         /// Helper to build parameter to sample.
-        void helper_build_to_sample_(const str_table &deftable, size_t k);
+        void helper_build_to_sample_(const str_table &deftable, size_t k, const Translator &translator);
         /// Helper to build function-based parameter.
-        void helper_build_function_(const str_table &deftable, size_t k);
-
-        /// UPDATE: waiting for an updated read_attribute framework...
-        mutable Attribute storage_;       /// auxiliary storage attribute used for reading.
-        const KeyHolder *pDataWideKeys_;  /// pointer to external registry
-        const KeyHolder *pGroupRateKeys_; /// pointer to external registry
-        const KeyHolder *pAugmKeys_;      /// pointer to external registry
-
-        void helper_store_read_function_(const parse::Entry &node, const Individual *member_ptr) const;
+        void helper_build_function_(const str_table &deftable, size_t k, const Translator &translator);
     };
 }

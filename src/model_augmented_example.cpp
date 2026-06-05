@@ -36,7 +36,7 @@ public:
 	{
 		double output = 0.0;
 		for (size_t i : house.infected_hhindexes())
-			output += std::log(house.member(i).aug(AugmKey::proba));
+			output += std::log(aug(AugmKey::proba, house.member(i)));
 		return output;
 	}
 

@@ -163,7 +163,18 @@ namespace housepi
     }
 
     STANDALONE_MAKE_READ_METHOD_(setup, "setup")
-    STANDALONE_MAKE_READ_METHOD_(param, "parameters")
+
+    void Options::read_param(MCMCBase &model)
+    {
+        try
+        {
+            model.param.build(read::csv_table(file.param), model.translator);
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While reading parameters definitions:\n") + e.what());
+        }
+    }
 
     void Options::read_data_wide(MCMCBase &model)
     {
@@ -217,7 +228,7 @@ namespace housepi
     {
         try
         {
-            model.infec_profile.build(model.param, read::csv_table(file.infec_profile));
+            model.infec_profile.build(model.translator, read::csv_table(file.infec_profile));
         }
         catch (const std::exception &e)
         {
@@ -343,7 +354,8 @@ namespace housepi
     void update_ofstream_datawide(std::ofstream &ofs,
                                   const Household &house,
                                   size_t data_wide_size,
-                                  const std::vector<size_t> &augm_export)
+                                  const std::vector<size_t> &augm_export,
+                                  const Augmented &augm)
     {
         if (!ofs.is_open())
             throw std::runtime_error("Output file closed unexpectedly.");
@@ -357,7 +369,7 @@ namespace housepi
                 ofs << read::DELIMITER << member.data(d);
             for (size_t a : augm_export)
             {
-                const Variable &xaugm = member.get_augm_variable(a);
+                const Variable &xaugm = augm.at(member, a);
                 double x = xaugm.is_empty() ? na::DOUBLE : xaugm.value();
                 ofs << read::DELIMITER << x;
             }
@@ -383,7 +395,7 @@ namespace housepi
                 engine.model->simulate_single_house(house);
                 update_ofstream_datawide(ofs, house,
                                          data_wide.khold().size(),
-                                         augm.list_export);
+                                         augm.list_export, augm);
             }
             catch (const std::exception &e)
             {

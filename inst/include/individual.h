@@ -54,9 +54,6 @@ namespace housepi
 		/// Associated status.
 		int status() const noexcept { return status_; }
 
-		/// Set numeric value of augmented variable. If not allowed, raise exception.
-		void set_augm_value(size_t a, double x) { paugm_->vec[a].set(x); }
-
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
@@ -77,10 +74,6 @@ namespace housepi
 		/// Return associated data long format.
 		/// NOTE: return a reference to a static empty vector when no datalong is attached
 		const std::vector<std::vector<double>> *get_data_long_ptr() const noexcept { return &plong_->vec; }
-
-		double aug(size_t a) const { return paugm_->vec[a].value(); }
-		Variable &get_augm_variable(size_t a) noexcept { return paugm_->vec[a]; }
-		const Variable &get_augm_variable(size_t a) const noexcept { return paugm_->vec[a]; }
 
 		const Attribute &get_group_rate_attribute(size_t g) const noexcept { return pgroup_rate_->vec[g]; }
 		double group_rate(size_t g) const { return get_group_rate_attribute(g).value(); }
@@ -109,10 +102,10 @@ namespace housepi
 		/// status of the individual
 		int status_ = status::MISSING;
 
-		/// External sub-object pointers
+		/// External sub-object pointers 
+		/// UPDATE: drop pointers and make access by index_ (or similar)
 		const Indiv::Wide *pwide_ = nullptr;		/// wide-format data (see DataWide)
 		const Indiv::Long *plong_ = nullptr;		/// long-format data (see DataLong)
 		const Indiv::Group *pgroup_rate_ = nullptr; /// group rates (see GroupRate)
-		Indiv::Augm *paugm_ = nullptr;				/// augmented variables (see Augmented)
 	};
 }

@@ -380,7 +380,18 @@ namespace
         }                                                        \
     }
     MAKE_RCPP_IMPORT_METHOD(setup, "setup")
-    MAKE_RCPP_IMPORT_METHOD(param, "parameters")
+
+    void import_param(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    {
+        try
+        {
+            mcmc_ptr->param.build(rdataframe_to_strmap(input), mcmc_ptr->translator);
+        }
+        catch (const std::exception &e)
+        {
+            msg::error(std::string("While importing parameters:\n") + e.what());
+        }
+    }
 
     void import_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
@@ -439,7 +450,7 @@ namespace
     {
         try
         {
-            mcmc_ptr->infec_profile.build(mcmc_ptr->param, rdataframe_to_strmap(input));
+            mcmc_ptr->infec_profile.build(mcmc_ptr->translator, rdataframe_to_strmap(input));
         }
         catch (const std::exception &e)
         {
@@ -596,7 +607,7 @@ namespace
             {
                 size_t c = 0;
                 for (size_t a : augm.list_export)
-                    augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
+                    augm_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, member));
                 ++row;
             }
 
@@ -889,8 +900,10 @@ namespace
 
     /// Export to R a snapshot of current state of house data.
     /// NOTE: there are not private parameters so far.
-    Rcpp::NumericVector helper_param_rcpp_snapshot(const Parameter &param)
+    Rcpp::NumericVector helper_param_rcpp_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
+        const Parameter &param = mcmc_ptr->param;
+
         if (param.khold().empty())
             return Rcpp::NumericVector::create();
 
@@ -908,9 +921,10 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house data.
-    Rcpp::DataFrame helper_data_wide_rcpp_snapshot(const DataWide &data_wide,
-                                                   const Household &house)
+    Rcpp::DataFrame helper_data_wide_rcpp_snapshot(
+        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const std::vector<std::string> &headers = data_wide.khold().get_all();
 
         size_t n_rows = house.size();
@@ -944,9 +958,11 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house data-long.
-    Rcpp::DataFrame helper_data_long_rcpp_snapshot(const DataLong &data_long,
-                                                   const Household &house)
+    Rcpp::DataFrame helper_data_long_rcpp_snapshot(
+        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+         const DataLong &data_long = mcmc_ptr->data_long();
+
         if (data_long.indiv_datalist.empty())
             return Rcpp::DataFrame::create();
 
@@ -986,9 +1002,10 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(const GroupRate &group_rate,
-                                                     const Household &house)
+    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(
+        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const GroupRate &group_rate = mcmc_ptr->group_rate;
         const std::vector<std::string> &headers = group_rate.khold().get_all();
 
         if (headers.empty())
@@ -1021,9 +1038,11 @@ namespace
     /// Export to R a snapshot of current contact rate attribute values
     /// for a household as a (from x to) numeric matrix with member id dimnames.
     /// Returns an empty 0x0 matrix when no contact rate was defined.
-    Rcpp::NumericMatrix helper_contact_rates_rcpp_snapshot(const ContactRate &contact_rate,
-                                                           const Household &house)
+    Rcpp::NumericMatrix helper_contact_rates_rcpp_snapshot(
+        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const ContactRate &contact_rate = mcmc_ptr->contact_rate;
+
         if (contact_rate.is_empty())
             return Rcpp::NumericMatrix(0, 0);
 
@@ -1043,9 +1062,11 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house infectivity profile.
-    Rcpp::List helper_infec_profile_rcpp_snapshot(const InfecProfile &infec_profile,
+    Rcpp::List helper_infec_profile_rcpp_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
     {
+        const InfecProfile &infec_profile = mcmc_ptr->infec_profile;
+
         if (!infec_profile.generic && !infec_profile.is_augmented())
             return Rcpp::List::create();
 
@@ -1064,7 +1085,7 @@ namespace
         for (size_t i : house.infected_hhindexes())
             if (infec_profile.is_augmented())
             {
-                const auto &f = house.member(i).get_augm_variable(infec_profile.augm_key).function();
+                const auto &f = mcmc_ptr->get_augm_varia(infec_profile.augm_key, house.member(i)).function();
 
                 infprof_name[i] = std::string(f->name());
                 infprof_discr[i] = f->is_discrete();
@@ -1091,8 +1112,11 @@ namespace
             Rcpp::_["max"] = infprof_max);
     }
 
-    Rcpp::DataFrame helper_augm_log_prior_rcpp_snapshot(const Augmented &augm, const Household &house)
+    Rcpp::DataFrame helper_augm_log_prior_rcpp_snapshot(
+        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const Augmented &augm = mcmc_ptr->augm;
+
         size_t n_cols = augm.list_export.size();
 
         if (n_cols == 0)
@@ -1113,9 +1137,9 @@ namespace
             size_t c = 0;
             for (size_t a : augm.list_export)
             {
-                const Variable &xaugm = member_i.get_augm_variable(a);
-                if (xaugm.has_prior())
-                    df_double[c++][i] = hsp_to_rcpp(xaugm.get_log_prior());
+                const Variable &avar = mcmc_ptr->get_augm_varia(a, member_i);
+                if (avar.has_prior())
+                    df_double[c++][i] = hsp_to_rcpp(avar.get_log_prior());
             }
         }
 
@@ -1129,8 +1153,10 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_augm_rcpp_snapshot(const Augmented &augm, const Household &house)
+    Rcpp::DataFrame helper_augm_rcpp_snapshot(
+        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const Augmented &augm = mcmc_ptr->augm;
         size_t n_cols = augm.list_export.size();
 
         if (n_cols == 0)
@@ -1149,7 +1175,7 @@ namespace
             id_col[i] = member_i.id();
             size_t c = 0;
             for (size_t a : augm.list_export)
-                df_double[c++][i] = hsp_to_rcpp(member_i.get_augm_variable(a));
+                df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, member_i));
         }
 
         Rcpp::List output;
@@ -1173,14 +1199,14 @@ namespace
 
             return Rcpp::List::create(
                 Rcpp::_["transm_log_lik"] = house.transm_log_lik(),
-                Rcpp::_["augm_log_prior"] = helper_augm_log_prior_rcpp_snapshot(mcmc_ptr->augm, house),
-                Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr->param),
-                Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr->data_wide(), house),
-                Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr->data_long(), house),
-                Rcpp::_["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr->group_rate, house),
-                Rcpp::_["contact_rate"] = helper_contact_rates_rcpp_snapshot(mcmc_ptr->contact_rate, house),
-                Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr->infec_profile, house),
-                Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr->augm, house));
+                Rcpp::_["augm_log_prior"] = helper_augm_log_prior_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr),
+                Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["contact_rate"] = helper_contact_rates_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr, house));
         }
         catch (const std::exception &e)
         {
@@ -1219,7 +1245,7 @@ namespace
                             status_col[row] = member.status();
                             size_t c = 0;
                             for (size_t a : augm.list_export)
-                                augm_cols[c++][row] = hsp_to_rcpp(member.get_augm_variable(a));
+                                augm_cols[c++][row] = hsp_to_rcpp(engine.get_augm_varia(a, member));
                             ++row;
                         }
                     }

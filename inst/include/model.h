@@ -78,7 +78,7 @@ namespace housepi
 		virtual void init_advanced_setup() {}
 
 		/// Initialize templated infecvitiy profile.
-		void init_infec_profile_template(dict<std::string> x) { mcmc_->infec_profile.init_template(mcmc_->param, x); }
+		void init_infec_profile_template(dict<std::string> x) { mcmc_->infec_profile.init_template(mcmc_->translator, x); }
 
 		/// Drop all augmented definitions of given individual.
 		void clear_augm(Individual &member) { mcmc_->augm.clear_definitions(member); }
@@ -99,6 +99,9 @@ namespace housepi
 		/// User call. Request discrete infectivity profile definition.
 		void request_discrete_infec_profile() { mcmc_->infec_profile.request_discrete(); }
 
+		/// Set numeric value of augmented variable. If not allowed, raise exception.
+		void set_augm_value(size_t a, const Individual &m, double x) { mcmc_->get_augm_varia(a, m).set(x); }
+
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
@@ -117,14 +120,16 @@ namespace housepi
 
 		/// Get parameter value.
 		double par(size_t p) const { return mcmc_->param.at(p).value(); }
+		/// Get augmented value for given individual.
+		double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
 
 		/// Return maximum number of observed infected household members.
 		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }
 		/// Throw an exception if at least a member as missing status.
 		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
 
-		double infec_profile_inst(const Individual &i, double t) const { return mcmc_->infec_profile.inst(&i, t); }
-		double infec_profile_cumul(const Individual &i, double t) const { return mcmc_->infec_profile.cumul(&i, t); }
+		double infec_profile_inst(const Individual &m, double t) const { return mcmc_->infec_profile.inst(&m, t); }
+		double infec_profile_cumul(const Individual &m, double t) const { return mcmc_->infec_profile.cumul(&m, t); }
 
 		/// Return reference to cached unsigned value.
 		unsigned &cache_uint(Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_uint(house, e); }

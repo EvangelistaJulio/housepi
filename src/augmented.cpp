@@ -33,6 +33,7 @@
 #include "infec_profile.h"
 #include "parameter.h"
 #include "variable.h"
+#include "translator.h"
 
 namespace housepi
 {
@@ -97,7 +98,7 @@ namespace housepi
     InfecProfile::InfecProfile() = default;
     InfecProfile::~InfecProfile() = default;
 
-    void InfecProfile::init_template(Parameter &param, str_table input)
+    void InfecProfile::init_template(Translator &translator, str_table input)
     {
         // if not previous build, proceed with template
         // if no template, assume no need for an infectivity profile
@@ -129,7 +130,7 @@ namespace housepi
                     if (!na::is(input.at("discr")[r]))
                         input["discr"][r] = input.at("discr")[r];
 
-            build(param, input); // run build as if external input
+            build(translator, input); // run build as if external input
 
             // forbid augmented infectivity profile for template
             if (is_augmented())
@@ -145,15 +146,15 @@ namespace housepi
         }
     }
 
-    void InfecProfile::init_template(Parameter &param, dict<std::string> input)
+    void InfecProfile::init_template(Translator &translator, dict<std::string> input)
     {
         str_table new_input = {};
         for (const auto &[key, val] : input)
             new_input[key] = {val};
-        init_template(param, std::move(new_input));
+        init_template(translator, std::move(new_input));
     }
 
-    void InfecProfile::build(Parameter &param, const str_table &input)
+    void InfecProfile::build(Translator &translator, const str_table &input)
     {
         augm_definitions.clear();
 
@@ -180,15 +181,15 @@ namespace housepi
             parse::Definition(input.at("func")[0]).is_augmented_depen() ||
             parse::Definition(input.at("max")[0]).is_augmented_depen() ||
             !na::is(input.at("status")[0]))
-            build_augmented_(param, input);
+            build_augmented_(translator, input);
         else
-            build_generic_(param, input);
+            build_generic_(translator, input);
     }
 
-    void InfecProfile::build_generic_(Parameter &param, const str_table &input)
+    void InfecProfile::build_generic_(Translator &translator, const str_table &input)
     {
         mode_ = Mode::Generic;
-        generic = helper_build_(param,
+        generic = helper_build_(translator,
                                 {{"func", {input.at("func")[0]}},
                                  {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
         lookup_.clear();
@@ -198,11 +199,11 @@ namespace housepi
         std::string min_expr = generic->is_discrete() ? "1|N" : "0|N"; // default
         if (input.count("min"))
             min_expr = input.at("min")[0];
-        generic->init_attr("min", param.read_attribute(min_expr));
+        generic->init_attr("min", translator.to_attribute(min_expr));
 
         // range maximum
         if (input.count("max"))
-            generic->init_attr("max", param.read_attribute(input.at("max")[0]));
+            generic->init_attr("max", translator.to_attribute(input.at("max")[0]));
 
         // range truncation
         generic->init_truncation();
@@ -218,7 +219,7 @@ namespace housepi
         }
     }
 
-    void InfecProfile::build_augmented_(Parameter &param, const str_table &input)
+    void InfecProfile::build_augmented_(Translator &translator, const str_table &input)
     {
         // drop generic definition
         mode_ = Mode::Augmented;
@@ -228,8 +229,8 @@ namespace housepi
 
         // use helper to check profile name and discretization
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
-            helper_build_(param, {{"func", {parse::Definition(input.at("func")[r]).root.func}},
-                                  {"discr", {input.at("discr")[r]}}});
+            helper_build_(translator, {{"func", {parse::Definition(input.at("func")[r]).root.func}},
+                                     {"discr", {input.at("discr")[r]}}});
 
         // match infectivity profile and augmented variable definition
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
@@ -251,7 +252,7 @@ namespace housepi
         }
     }
 
-    std::unique_ptr<Distribution> InfecProfile::helper_build_(Parameter &param, const str_table &input)
+    std::unique_ptr<Distribution> InfecProfile::helper_build_(Translator &translator, const str_table &input)
     {
         parse::Definition parser(parse::Definition(input.at("func")[0]));
         auto output = compose_distr_registries(parser.root.func,
@@ -259,8 +260,8 @@ namespace housepi
                                                {"infecprofile", "continuos", "discrete"});
         for (const auto &node : parser.root.children)
         {
-            output->init_attr(node.key, param.read_attribute(node));
-            param.make_cache_dependent(node);
+            output->init_attr(node.key, translator.to_attribute(node));
+            translator.make_cache_dependent(node);
         }
 
         if (is_discrete_requested_ ||
@@ -290,26 +291,16 @@ namespace housepi
         map_status_to_block_.clear();
         status_blocks_.clear();
         list_export.clear();
-        indiv_augm.clear();
+        varia.clear();
 
         // skip if no augmented definitions
         if (input.empty() && !infec_profile.is_augmented())
             return;
 
-        helper_build_allocate_storage_();                  // allocate and plug-in
         helper_build_assert_augm_input_(input);            // check entries
         helper_build_append_infec_profile_(infec_profile); // add infectivity profile
         helper_build_definition_by_status_();              // process definition by status
         helper_build_set_allocation_order_();              // allocation and order
-    }
-
-    // UPDATE: no need to wire to individuals
-    void Augmented::helper_build_allocate_storage_()
-    {
-        indiv_augm.resize(mcmc_->data_wide().report_indiv.total);
-        for (Household &house : mcmc_->data_wide())
-            for (Individual &member : house)
-                member.paugm_ = &indiv_augm[member.index_];
     }
 
     /// Check augmented names and assert no reserved names are used.
@@ -376,6 +367,7 @@ namespace housepi
         deftable_.append(infec_profile.augm_definitions);
         khold_.add(infprof::AUGM_FUNC);
         infec_profile.augm_key = khold_.from_string(infprof::AUGM_FUNC);
+        infec_profile.bind_augm(this); // for runtime per-member profile resolution
 
         // append discrete infectivity profile definitions if any
         if (infec_profile.is_discrete_requested())
@@ -434,12 +426,15 @@ namespace housepi
     {
         std::unordered_set<int> all_infected_statuses = {};
 
-        // NOTE: storage already allocated and pointers set by helper_build_allocate_storage_()
+        // allocate storage
+        varia.resize(mcmc_->data_wide().report_indiv.total);
+
         size_t n = khold_.size();
+        // UPDATE: loop on households it's just used for statuses: remove
         for (Household &house : mcmc_->data_wide())
             for (Individual &member : house)
             {
-                Indiv::Augm &iaugm = *member.paugm_;
+                IndivBlock &iaugm = varia[member.index_];
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                 {
@@ -742,14 +737,14 @@ namespace housepi
 
     void Augmented::clear_definitions(Individual &member)
     {
-        for (Variable &xaugm : member.paugm_->vec)
-            xaugm.clear();
+        for (Variable &avar : varia[member.index_].vec)
+            avar.clear();
     }
 
     void Augmented::init_missing_definitions(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (member.paugm_->vec[khold_.from_string(deftable_.c_name[k])].is_empty())
+            if (varia[member.index_].vec[khold_.from_string(deftable_.c_name[k])].is_empty())
                 helper_init_attributes_(member, k);
     }
 
@@ -762,7 +757,7 @@ namespace housepi
         if (it != map_status_to_block_.end())
         {
             const size_t i = it->second;
-            member.paugm_->idx = i;
+            varia[member.index_].idx = i;
             return status_blocks_[i].order;
         }
 
@@ -772,7 +767,7 @@ namespace housepi
         {
             const size_t i = generic_it->second;
             map_status_to_block_.emplace(status, i);
-            member.paugm_->idx = i;
+            varia[member.index_].idx = i;
             return status_blocks_[i].order;
         }
 
@@ -793,13 +788,13 @@ namespace housepi
 
         try
         {
-            Variable &xaugm = member.paugm_->vec[a];
+            Variable &avar = varia[member.index_].vec[a];
 
             if (str::tobool(deftable_.c_const[k]))
             {
-                xaugm.init_numeric(
-                    mcmc_->param.read_numeric(deftable_.c_value[k], &member).value());
-                xaugm.enforce_user_const(); // enforce user constant choice
+                avar.init_numeric(
+                    mcmc_->translator.to_numeric(deftable_.c_value[k], &member).value());
+                avar.enforce_user_const(); // enforce user constant choice
             }
             else
                 helper_init_func_attributes_(member, k);
@@ -808,14 +803,14 @@ namespace housepi
             helper_init_prior_attributes_(member, k);
 
             // assign proposal if variable to be sampled
-            if (!xaugm.is_constant())
-                xaugm.init_proposal(deftable_.c_proposal[k],
+            if (!avar.is_constant())
+                avar.init_proposal(deftable_.c_proposal[k],
                                     str::tod(deftable_.c_scale[k]));
 
             // check if satisfies discrete requirement, if any
-            if (user_discrete_set_.count(a) && !xaugm.is_discrete())
+            if (user_discrete_set_.count(a) && !avar.is_discrete())
                 throw std::invalid_argument(
-                    "Definition of " + xaugm.err_name() +
+                    "Definition of " + avar.err_name() +
                     " did not return a discrete object as requested by prior.");
         }
         catch (const std::exception &e)
@@ -830,37 +825,37 @@ namespace housepi
     void Augmented::helper_init_prior_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &xaugm = member.paugm_->vec[khold_.from_string(astr)];
+        Variable &avar = varia[member.index_].vec[khold_.from_string(astr)];
         parse::Definition parser(deftable_.c_prior[k]);
 
-        xaugm.init_prior(parser.root.func);
+        avar.init_prior(parser.root.func);
 
-        if (!xaugm.has_prior())
+        if (!avar.has_prior())
             return;
         for (const auto &child : parser.root.children)
-            xaugm.init_prior_attr(child.key, mcmc_->param.read_attribute(child, &member));
-        xaugm.init_prior_attr("min", mcmc_->param.read_attribute(deftable_.c_min[k], &member));
-        xaugm.init_prior_attr("max", mcmc_->param.read_attribute(deftable_.c_max[k], &member));
-        xaugm.init_prior_reshaping(str::tobool(deftable_.c_discr[k]));
+            avar.init_prior_attr(child.key, mcmc_->translator.to_attribute(child, &member));
+        avar.init_prior_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &member));
+        avar.init_prior_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &member));
+        avar.init_prior_reshaping(str::tobool(deftable_.c_discr[k]));
     }
 
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &xaugm = member.paugm_->vec[khold_.from_string(astr)];
+        Variable &avar = varia[member.index_].vec[khold_.from_string(astr)];
         std::string str_val = deftable_.c_value[k];
         parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
 
         // pointer mode
         if (parser.is_terminal())
         {
-            xaugm.transfer(mcmc_->param.read_attribute(parser.root, &member));
+            avar.transfer(mcmc_->translator.to_attribute(parser.root, &member));
             return;
         }
 
         // function mode
         bool is_primitive = str::tobool(deftable_.c_fcumul[k]);
-        xaugm.init_function(compose_func_registries(
+        avar.init_function(compose_func_registries(
             parser.root.func, "function",
             {"custom", "transcendental", "arithmetic",
              "continuos", "discrete", "infecprofile"},
@@ -869,16 +864,16 @@ namespace housepi
         // attribute
         for (const auto &child : parser.root.children)
         {
-            xaugm.init_func_attr(child.key, mcmc_->param.read_attribute(child, &member));
-            mcmc_->param.make_cache_dependent(child);
+            avar.init_func_attr(child.key, mcmc_->translator.to_attribute(child, &member));
+            mcmc_->translator.make_cache_dependent(child);
         }
 
         // range
-        xaugm.init_func_attr("min", mcmc_->param.read_attribute(deftable_.c_min[k], &member));
-        xaugm.init_func_attr("max", mcmc_->param.read_attribute(deftable_.c_max[k], &member));
+        avar.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &member));
+        avar.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &member));
 
         // discretization and truncation
-        xaugm.init_func_reshaping(str::tobool(deftable_.c_discr[k]));
+        avar.init_func_reshaping(str::tobool(deftable_.c_discr[k]));
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -888,7 +883,7 @@ namespace housepi
     void Augmented::restart(rnd_gen &prng, Individual &member)
     {
         for (size_t a : list_sample(member))
-            member.paugm_->vec[a].restart(prng);
+            varia[member.index_].vec[a].restart(prng);
     }
 
     void Augmented::restart(rnd_gen &prng)
@@ -910,8 +905,8 @@ namespace housepi
             for (size_t i : house.infected_hhindexes())
             {
                 Individual &member = house.member(i);
-                for (Variable &xaugm : member.paugm_->vec)
-                    xaugm.optimize();
+                for (Variable &avar : varia[member.index_].vec)
+                    avar.optimize();
             }
     }
 
@@ -921,19 +916,19 @@ namespace housepi
 
     const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
     {
-        return status_blocks_[member.paugm_->idx].sample;
+        return status_blocks_[varia[member.index_].idx].sample;
     }
     const std::vector<size_t> &Augmented::list_adaptive(const Individual &member) const
     {
-        return status_blocks_[member.paugm_->idx].adaptive;
+        return status_blocks_[varia[member.index_].idx].adaptive;
     }
     const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
     {
-        return status_blocks_[member.paugm_->idx].draws;
+        return status_blocks_[varia[member.index_].idx].draws;
     }
     const std::vector<size_t> &Augmented::list_priors(const Individual &member) const
     {
-        return status_blocks_[member.paugm_->idx].priors;
+        return status_blocks_[varia[member.index_].idx].priors;
     }
 
     std::string format_exception_for(Individual &member, const std::exception &e)
@@ -954,8 +949,8 @@ namespace housepi
                 return 0.;
             double new_ll = 0.0;
             for (size_t a : priors)
-                new_ll += member.paugm_->vec[a].get_log_prior();
-            member.paugm_->augm_log_prior.set(new_ll);
+                new_ll += varia[member.index_].vec[a].get_log_prior();
+            varia[member.index_].log_prior.set(new_ll);
             return new_ll;
         }
         catch (const std::exception &e)
@@ -968,14 +963,14 @@ namespace housepi
     {
         try
         {
-            const StatusBlock_ &block = status_blocks_[member.paugm_->idx];
+            const StatusBlock_ &block = status_blocks_[varia[member.index_].idx];
             if (block.depen[a].empty())
                 return 0.;
             double delta_ll = 0;
             // NOTE: vector of dependencies 'depen' includes also 'a'
             for (size_t b : block.depen[a])
-                delta_ll += member.paugm_->vec[b].get_prior_log_ratio();
-            member.paugm_->augm_log_prior.increment(delta_ll);
+                delta_ll += varia[member.index_].vec[b].get_prior_log_ratio();
+            varia[member.index_].log_prior.increment(delta_ll);
             return delta_ll;
         }
         catch (const std::exception &e)

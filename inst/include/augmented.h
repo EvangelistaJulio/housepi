@@ -18,6 +18,7 @@
 #include "tools/types.h"
 
 #include "indiv_storage.h"
+#include "individual.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -34,7 +35,16 @@ namespace housepi
     struct Augmented : public KeyModule
     {
         std::vector<size_t> list_export = {}; /// list of keys to export
-        std::vector<Indiv::Augm> indiv_augm;  /// External storage for individual augmented data
+
+        /// Auxiliary block for individual augmented objects.
+        /// UPDATE: this should become private.
+        struct IndivBlock
+        {
+            size_t idx = 0;                 /// index of status-specific definition
+            std::vector<Variable> vec = {}; /// associated variables
+            LogDensity log_prior;           /// log-prior
+        };
+        std::vector<IndivBlock> varia;
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -53,9 +63,9 @@ namespace housepi
         /// Set all augmented definitions to empty for all individuals.
         void clear_all();
         /// Set individual augmented definitions to empty. Used in simulations.
-        void clear_definitions(Individual &member);
+        void clear_definitions(Individual &m);
         /// Initialize augmented variables only if missing.
-        void init_missing_definitions(Individual &member);
+        void init_missing_definitions(Individual &m);
         /// Initialize augmented dependecies and priors.
         /// NOTE: evaluation-only, never run for simulations.
         void init_for_evaluation();
@@ -64,7 +74,7 @@ namespace housepi
         void request_discrete(size_t a) { user_discrete_set_.emplace(a); }
 
         /// Reset augmented initial values for given individual.
-        void restart(rnd_gen &prng, Individual &member);
+        void restart(rnd_gen &prng, Individual &m);
         /// Initialize augmented initial values for all individuals.
         void restart(rnd_gen &prng);
         /// Optimize all variables (see Variable::optimize).
@@ -76,6 +86,10 @@ namespace housepi
         //////////////////////
         //////  GETTER  //////
         //////////////////////
+
+        /// Access the augmented variable of given key for a member.
+        Variable &at(size_t a, const Individual &member) noexcept { return varia[member.index_].vec[a]; }
+        const Variable &at(size_t a, const Individual &member) const noexcept { return varia[member.index_].vec[a]; }
 
         const std::vector<size_t> &list_sample(const Individual &member) const;
         const std::vector<size_t> &list_adaptive(const Individual &member) const;
@@ -149,9 +163,6 @@ namespace housepi
             std::vector<std::vector<size_t>> depen = {}; /// keys for respective dependecies
         };
         std::vector<StatusBlock_> status_blocks_;
-
-        /// Allocate external augmented storage and set paugm_ pointers on all individuals.
-        void helper_build_allocate_storage_();
 
         /// Check augmented names and assert no reserved names are used.
         void helper_build_assert_augm_input_(const str_table &input);

@@ -31,14 +31,6 @@ namespace housepi
 			std::vector<std::vector<double>> vec = {};
 		};
 
-		/// Individual augmented variables.
-		struct Augm
-		{
-			size_t idx = 0;					/// index of status-specific definition
-			std::vector<Variable> vec = {}; /// definitions
-			LogDensity augm_log_prior;		/// prior log-density
-		};
-
 		/// Individual group rates.
 		struct Group
 		{

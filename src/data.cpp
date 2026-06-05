@@ -433,12 +433,12 @@ namespace housepi
         cached_.previous.resize(eq_class_size());
         cached_.current.resize(eq_class_size());
 
-        for (size_t M = 0; M < eq_class_size(); ++M)
+        for (size_t R = 0; R < eq_class_size(); ++R)
         {
-            Household &house = eq_class_head(M);
+            Household &house = eq_class_head(R);
             size_t hh_size = house.size();
-            Cached_::State_ &prev = cached_.previous[M];
-            Cached_::State_ &curr = cached_.current[M];
+            Cached_::State_ &prev = cached_.previous[R];
+            Cached_::State_ &curr = cached_.current[R];
 
             // size_t
             size_t s_size = khold_uint_val.size();
@@ -522,25 +522,6 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  DataWide : posterior draws  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    void DataWide::assert_finite_log_lik(bool is_any_augm) const
-    {
-        for (size_t M = 0; M < eq_class_size(); ++M)
-        {
-            const Household &house = eq_class_head(M);
-
-            if (is_any_augm)
-                for (size_t i : house.infected_hhindexes())
-                    if (house.member(i).paugm_->augm_log_prior.is_inf())
-                        throw std::runtime_error(
-                            "Initial augmented log-likelihood returned infinity for " +
-                            house.member(i).err_name() + ".");
-
-            if (house.transm_log_lik_.is_inf())
-                throw std::runtime_error(
-                    "Initial log-likelihood returned infinity for " + house.err_name() + ".");
-        }
-    }
 
     void DataWide::assert_not_all_missing_status() const
     {

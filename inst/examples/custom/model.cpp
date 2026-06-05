@@ -57,7 +57,7 @@ public:
     {
         double output = -ParamKey::alpha;
         for (size_t i : house.infected_hhindexes())
-            output += std::log(house.member(i).aug(AugmKey::proba));
+            output += std::log(aug(AugmKey::proba, house.member(i)));
         return output;
     }
 

@@ -14,6 +14,7 @@
 
 #include "tools/types.h"
 
+#include "augmented.h"
 #include "distribution.h"
 #include "individual.h"
 
@@ -75,7 +76,7 @@ namespace housepi
         };
     }
 
-    struct Parameter;
+    struct Translator;
 
     struct InfecProfile
     {
@@ -99,10 +100,13 @@ namespace housepi
 
         /// Build infectivity profile distribution.
         /// NOTE: at the moment I am ignoring minimum
-        void build(Parameter &param, const str_table &input);
+        void build(Translator &translator, const str_table &input);
         /// Set model template while constructiing model.
-        void init_template(Parameter &param, str_table input);
-        void init_template(Parameter &param, dict<std::string> input);
+        void init_template(Translator &translator, str_table input);
+        void init_template(Translator &translator, dict<std::string> input);
+
+        /// Bind augmented storage for runtime per-member profile resolution.
+        void bind_augm(const Augmented *augm) noexcept { paugm_ = augm; }
 
         /// If infectivity profile is a lookup table, store its values.
         /// NOTE: infectivity is set to 0 on day 0.
@@ -142,7 +146,7 @@ namespace housepi
             switch (mode_)
             {
             case Mode::Augmented:
-                return member_ptr->get_augm_variable(augm_key).function()->pdf(t);
+                return paugm_->at(augm_key, *member_ptr).function()->pdf(t);
             case Mode::LookUp:
                 return lookup_.inst(t);
             default: // case Mode::Generic
@@ -154,7 +158,7 @@ namespace housepi
             switch (mode_)
             {
             case Mode::Augmented:
-                return member_ptr->get_augm_variable(augm_key).function()->cdf(t);
+                return paugm_->at(augm_key, *member_ptr).function()->cdf(t);
             case Mode::LookUp:
                 return generic->is_below(t) ? 0. : lookup_.cumul(t);
             default: // case Mode::Generic
@@ -181,11 +185,13 @@ namespace housepi
         bool is_discrete_requested_ = false; /// wheter is requested as discrete
         infprof::LookUpTable lookup_;        /// discrete time lookup table
 
+        const Augmented *paugm_ = nullptr; /// augmented storage for per-member profile
+
         /// Build for generic infectivity profile (no status dependence).
-        void build_generic_(Parameter &param, const str_table &input);
+        void build_generic_(Translator &translator, const str_table &input);
         /// Build for individual augmented function infectivity profile.
-        void build_augmented_(Parameter &param, const str_table &input);
+        void build_augmented_(Translator &translator, const str_table &input);
         /// Helper to build profile.
-        std::unique_ptr<Distribution> helper_build_(Parameter &param, const str_table &input);
+        std::unique_ptr<Distribution> helper_build_(Translator &translator, const str_table &input);
     };
 }

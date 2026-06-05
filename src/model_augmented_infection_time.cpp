@@ -79,7 +79,7 @@ public:
 	{
 		const size_t i0 = cache_uint(house, HHsizeKey::intro_case);
 		const Individual &member_0 = house.member(i0);
-		const double t_intro = member_0.aug(AugmKey::infec_time);
+		const double t_intro = aug(AugmKey::infec_time, member_0);
 
 		const auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
 		const auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
@@ -130,10 +130,10 @@ public:
 			roi_inst_i += a_i;
 
 #ifdef _HOUSEPI_DISCRETE_TIME
-			roi_cumul_i += a_i * (member_i.aug(AugmKey::infec_time) - 1. - t_intro);
+			roi_cumul_i += a_i * (aug(AugmKey::infec_time, member_i) - 1. - t_intro);
 			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
 #else
-			roi_cumul_i += a_i * (member_i.aug(AugmKey::infec_time) - t_intro);
+			roi_cumul_i += a_i * (aug(AugmKey::infec_time, member_i) - t_intro);
 			output += std::log(roi_inst_i) - roi_cumul_i;
 #endif
 		}
@@ -208,7 +208,7 @@ public:
 		{
 			const size_t i = infected_hhindexes[a];
 			const Individual &member_i = house.member(i);
-			const double t_infec_i = member_i.aug(AugmKey::infec_time);
+			const double t_infec_i = aug(AugmKey::infec_time, member_i);
 
 			///////////////////////////////////
 			//////  Susceptible Members  //////
@@ -229,7 +229,7 @@ public:
 			{
 				const size_t j = infected_hhindexes[b];
 				const Individual &member_j = house.member(j);
-				const double t_infec_j = member_j.aug(AugmKey::infec_time);
+				const double t_infec_j = aug(AugmKey::infec_time, member_j);
 
 				helper_update_pairwise_cache(inst_mtx, cumul_mtx,
 											 member_i, member_j,
@@ -253,7 +253,7 @@ public:
 		unsigned &i0 = cache_uint(house, HHsizeKey::intro_case);
 
 		const size_t i = member_i.hhindex();
-		const double t_infec_i = member_i.aug(AugmKey::infec_time);
+		const double t_infec_i = aug(AugmKey::infec_time, member_i);
 
 		///////////////////////////////////
 		//////  Susceptible Members  //////
@@ -283,7 +283,7 @@ public:
 				continue;
 
 			const Individual &member_j = house.member(j);
-			const double t_infec_j = member_j.aug(AugmKey::infec_time);
+			const double t_infec_j = aug(AugmKey::infec_time, member_j);
 
 			helper_update_pairwise_cache(inst_mtx, cumul_mtx,
 										 member_i, member_j,
@@ -333,7 +333,7 @@ public:
 		const double alpha = par(ParamKey::alpha);
 		const double beta = transmission_rate(house.size());
 
-		const double t0 = member_0.aug(AugmKey::infec_time);
+		const double t0 = aug(AugmKey::infec_time, member_0);
 		// FIXME: assuming internally all end_followup are the same,
 		//        but this is not requested to the user!
 		const double tf = member_0.data(DataKey::end_followup);
@@ -347,7 +347,7 @@ public:
 				if (exponential() < roi_inst_simulation(house, member_i, t, alpha, beta) * Dt)
 				{
 					house.set_infected_status(member_i);
-					member_i.set_augm_value(AugmKey::infec_time, t);
+					set_augm_value(AugmKey::infec_time, member_i, t);
 					init_missing_augm(member_i);
 				}
 			}
@@ -373,11 +373,11 @@ public:
 
 		if (n_infec > 1)
 		{
-			double t_intro = house.member(i0).aug(AugmKey::infec_time);
+			double t_intro = aug(AugmKey::infec_time, house.member(i0));
 			for (size_t a = 1; a < n_infec; ++a)
 			{
 				const size_t i = house.infected_hhindexes()[a];
-				double t_infec_i = house.member(i).aug(AugmKey::infec_time);
+				double t_infec_i = aug(AugmKey::infec_time, house.member(i));
 				if (t_infec_i < t_intro)
 				{
 					t_intro = t_infec_i;
@@ -428,7 +428,7 @@ public:
 		for (size_t j : house.infected_hhindexes())
 		{
 			const Individual &member_j = house.member(j);
-			const double gentime = t_infec_i - member_j.aug(AugmKey::infec_time);
+			const double gentime = t_infec_i - aug(AugmKey::infec_time, member_j);
 			roi += member_j.group_rate(GroupRateKey::infectivity) *
 				   house.contact_rate(j, i) *
 				   infec_profile_inst(member_j, gentime);
