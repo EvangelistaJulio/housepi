@@ -285,6 +285,7 @@ namespace housepi
         // drop previous definitions
         is_any_sample_ = false;
         is_any_prior_ = false;
+        prior_param_depen_.clear();
 
         khold_.clear_optional();
         map_status_to_def_row_.clear();
@@ -335,6 +336,21 @@ namespace housepi
         deftable_.append(input);
     }
 
+    void Augmented::set_prior_param_depen_()
+    {
+        prior_param_depen_.clear();
+        prior_param_depen_.assign(mcmc_->param.khold().size(), false);
+
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+        {
+            if (deftable_.c_name[k] == infprof::AUGM_FUNC)
+                continue;
+            for (const std::vector<std::string> *col : deftable_.source_cols())
+                for (const std::string &pstr : parse::Definition((*col)[k]).list_parameter_depen())
+                    prior_param_depen_[mcmc_->param.khold(pstr)] = true;
+        }
+    }
+
     void Augmented::DefTable_::clear()
     {
         for (auto col : {&c_name, &c_status, &c_func, &c_fcumul,
@@ -366,7 +382,7 @@ namespace housepi
 
         deftable_.append(infec_profile.augm_definitions);
         khold_.add(infprof::AUGM_FUNC);
-        infec_profile.augm_key = khold_.from_string(infprof::AUGM_FUNC);
+        infec_profile.augm_key = khold(infprof::AUGM_FUNC);
         infec_profile.bind_augm(this); // for runtime per-member profile resolution
 
         // append discrete infectivity profile definitions if any
@@ -438,7 +454,7 @@ namespace housepi
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                 {
-                    iaugm.vec[a].name(khold_.as_string(a));
+                    iaugm.vec[a].name(khold(a));
                     iaugm.vec[a].set_err_type("augmented");
                 }
                 if (member.is_infected_status())
@@ -552,14 +568,14 @@ namespace housepi
             set_sample_list_for_single_defininition_(status, k);
 
         // NOTE: by construction of draws list, I am forced to drop private at the end
-        list_export = khold_.from_string(str::drop_private(khold_.as_string(list_export)));
-        block.draws = khold_.from_string(str::drop_private(khold_.as_string(block.draws)));
+        list_export = khold(str::drop_private(khold(list_export)));
+        block.draws = khold(str::drop_private(khold(block.draws)));
     }
 
     void Augmented::set_sample_list_for_single_defininition_(int status, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        size_t a = khold_.from_string(astr);
+        size_t a = khold(astr);
 
         bool is_to_export = true;
         bool is_to_draw = true;
@@ -638,7 +654,7 @@ namespace housepi
         for (const std::string &bstr : parser.list_augmented_depen())
         {
             const std::vector<size_t> &v = status_blocks_[map_status_to_block_.at(status)].draws;
-            if (std::find(v.begin(), v.end(), khold_.from_string(bstr)) != v.end())
+            if (std::find(v.begin(), v.end(), khold(bstr)) != v.end())
                 all_consts = false;
         }
 
@@ -667,6 +683,9 @@ namespace housepi
                 for (size_t k : helper_materialize_definition_order_(member))
                     helper_init_attributes_(member, k);
             }
+
+        // parameters that may move the augmented log-prior (params now registered)
+        set_prior_param_depen_();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -684,10 +703,10 @@ namespace housepi
             if (!ordered_priors.empty())
             {
                 is_any_prior_ = true;
-                block.priors = khold_.from_string(read::extract_keys(ordered_priors));
+                block.priors = khold(read::extract_keys(ordered_priors));
 
                 for (const auto &[astr, others] : ordered_priors)
-                    block.depen[khold_.from_string(astr)] = khold_.from_string(others);
+                    block.depen[khold(astr)] = khold(others);
             }
         }
     }
@@ -744,7 +763,7 @@ namespace housepi
     void Augmented::init_missing_definitions(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (varia[member.index_].vec[khold_.from_string(deftable_.c_name[k])].is_empty())
+            if (varia[member.index_].vec[khold(deftable_.c_name[k])].is_empty())
                 helper_init_attributes_(member, k);
     }
 
@@ -784,7 +803,7 @@ namespace housepi
     void Augmented::helper_init_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        size_t a = khold_.from_string(astr);
+        size_t a = khold(astr);
 
         try
         {
@@ -825,7 +844,7 @@ namespace housepi
     void Augmented::helper_init_prior_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &avar = varia[member.index_].vec[khold_.from_string(astr)];
+        Variable &avar = varia[member.index_].vec[khold(astr)];
         parse::Definition parser(deftable_.c_prior[k]);
 
         avar.init_prior(parser.root.func);
@@ -842,7 +861,7 @@ namespace housepi
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &avar = varia[member.index_].vec[khold_.from_string(astr)];
+        Variable &avar = varia[member.index_].vec[khold(astr)];
         std::string str_val = deftable_.c_value[k];
         parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
 

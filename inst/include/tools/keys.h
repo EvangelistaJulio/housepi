@@ -35,7 +35,7 @@ namespace housepi
         size_t size() const noexcept { return size_; }
 
         /// Return all definition names.
-        std::vector<std::string> get_all() const;
+        std::vector<std::string> all() const;
 
         /// Convert index to definition name.
         std::string as_string(size_t index) const;
@@ -68,6 +68,12 @@ namespace housepi
 
         /// Reference to key-holder.
         const KeyHolder &khold() const { return khold_; }
+        /// Call key-holder index-to-string converter.
+        std::string khold(size_t index) const { return khold_.as_string(index); }
+        std::vector<std::string> khold(std::vector<size_t> indexes) const { return khold_.as_string(indexes); }
+        /// Call key-holder string-to-index converter.
+        size_t khold(std::string_view name) const { return khold_.from_string(name); }
+        std::vector<size_t> khold(const std::vector<std::string> &names) const { return khold_.from_string(names); }
 
     protected:
         KeyHolder khold_; /// definitions key-holder

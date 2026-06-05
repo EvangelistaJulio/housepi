@@ -58,13 +58,13 @@ namespace housepi
 
         // check for undefined group rates, assumed to be equal to reference
         str_table undefined_rates = {};
-        for (const std::string &gstr : khold_.get_all())
+        for (const std::string &gstr : khold_.all())
             if (std::find(g_input_vec.begin(), g_input_vec.end(), gstr) == g_input_vec.end())
                 undefined_rates[gstr].push_back(rates::REFERENCE);
 
         // precompute rule_group / specificity and resolve column indices once
         const RuleTable rules(input, data_headers);
-        const auto data_ix = data_wide.khold().from_string(data_headers);
+        const auto data_ix = data_wide.khold(data_headers);
 
         // predicate: does rule row r match this member's feature vector?
         using Key = std::pair<std::string, size_t>;
@@ -131,7 +131,7 @@ namespace housepi
         // remove template headers to keep only data
         data_headers = data_headers - file_headers;
         // check that required data columns are present
-        str::assert_no_unused_entries(data_headers, data_wide.khold().get_all());
+        str::assert_no_unused_entries(data_headers, data_wide.khold().all());
 
         // assert the group rate names are allowed
         dict<size_t> definition_counts = {};
@@ -165,7 +165,7 @@ namespace housepi
         unique_groups_.emplace_back();
         Indiv::Group &igr = unique_groups_.back();
         igr.vec.reserve(khold_.size());
-        for (const std::string &gstr : khold_.get_all())
+        for (const std::string &gstr : khold_.all())
         {
             if (!these_rates.count(gstr))
                 throw std::invalid_argument(
@@ -185,10 +185,10 @@ namespace housepi
             for (const std::string &pstr : pstr_vec)
                 if (pstr != rates::REFERENCE)
                     param_pointers.emplace_back(
-                        param.at(param.khold().from_string(pstr)).pointer());
+                        param.at(param.khold(pstr)).pointer());
 
             if (!param_pointers.empty())
-                igr.vec[khold_.from_string(gstr)].init_product(param_pointers);
+                igr.vec[khold(gstr)].init_product(param_pointers);
         }
     }
 
@@ -232,10 +232,8 @@ namespace housepi
                 : from(extract_from_(input)),
                   to(extract_to_(input)),
                   data(strip_from_prefix_(from)),
-                  keys(data_wide.khold().from_string(data)),
-                  rules(validate_(input), concat_(from, to))
-            {
-            }
+                  keys(data_wide.khold(data)),
+                  rules(validate_(input), concat_(from, to)) {}
 
             /// Associate parameter pointers to pair.
             std::vector<const Attribute *> associate_param_ptrs(
@@ -262,8 +260,7 @@ namespace housepi
                 {
                     const auto &pstr = rules.input.at("param_name")[r];
                     if (!na::is(pstr) && pstr != rates::REFERENCE)
-                        param_ptrs.push_back(
-                            param.at(param.khold().from_string(pstr)).pointer());
+                        param_ptrs.push_back(param.at(param.khold(pstr)).pointer());
                 }
                 return param_ptrs;
             }

@@ -112,12 +112,17 @@ namespace housepi
         bool is_any_adaptive() const noexcept { return is_any_adaptive_; }
         /// Whether there are augmented definitions with a prior.
         bool is_any_prior() const noexcept { return is_any_prior_; }
+        /// Whether moving the given parameter may change the augmented log-prior.
+        bool is_prior_dependent_param(size_t p) const noexcept { return prior_param_depen_[p]; }
 
     private:
         MCMCBase *mcmc_;               /// pointer to owning MCMCBase // UPDATE drop
         bool is_any_sample_ = false;   /// whether at least one augmented is to sample
         bool is_any_adaptive_ = false; /// whether at least one augmented has adaptive proposal
         bool is_any_prior_ = false;    /// whether at least one augmented prior is provided
+
+        /// Parameters whose moves can change the augmented log-prior.
+        std::vector<bool> prior_param_depen_ = {};
 
         /// User defined discrete parameters
         std::unordered_set<size_t> user_discrete_set_ = {};
@@ -166,6 +171,11 @@ namespace housepi
 
         /// Check augmented names and assert no reserved names are used.
         void helper_build_assert_augm_input_(const str_table &input);
+
+        /// Collect parameters feeding any augmented prior. Infectivity profile excluded.
+        /// NOTE: call once parameters are registered, i.e. from init_for_evaluation.
+        /// NOTE: prior parameters may be registered after the augmented definitions.
+        void set_prior_param_depen_();
 
         /// Eventually append infectivity profile definitions.
         void helper_build_append_infec_profile_(InfecProfile &infec_profile);

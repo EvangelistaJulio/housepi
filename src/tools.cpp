@@ -62,7 +62,7 @@ namespace housepi
         ++size_;
     }
 
-    std::vector<std::string> KeyHolder::get_all() const
+    std::vector<std::string> KeyHolder::all() const
     {
         std::vector<std::string> vec;
         vec.reserve(declared_.size() + optional_.size());

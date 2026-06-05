@@ -384,7 +384,7 @@ namespace housepi
 
         // initialization
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
-                                                   data_wide.khold().get_all(),
+                                                   data_wide.khold().all(),
                                                    augm.khold().as_string(augm.list_export));
         // model specific initialization
         engine.model->init_model_for_simulation();

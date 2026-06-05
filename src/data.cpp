@@ -185,10 +185,7 @@ namespace housepi
             idata.status = status;
             idata.vec.resize(khold_.size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
-            {
-                const std::string datastring = khold_.as_string(d);
-                idata.vec[d] = str::tod(input.at(datastring)[i], "data '" + datastring + "'");
-            }
+                idata.vec[d] = str::tod(input.at(khold(d))[i], "data '" + khold(d) + "'");
 
             // if household index doesn't exist, add new household
             if (!hhid_to_index_.count(house_id))
@@ -247,7 +244,7 @@ namespace housepi
         headers = headers - std::vector<std::string>({"id", "house_id", "status"});
 
         // pedantic check for declared data keys
-        str::assert_no_missing_entries(headers, khold_.get_all());
+        str::assert_no_missing_entries(headers, khold_.all());
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
@@ -370,7 +367,7 @@ namespace housepi
 
     void DataWide::set_eq_class_data_names(const std::vector<std::string> &data_list)
     {
-        for (size_t d : khold_.from_string(data_list))
+        for (size_t d : khold(data_list))
             eq_class_covariates_.emplace(d);
     }
 
@@ -589,7 +586,7 @@ namespace housepi
             idat.vec.resize(khold_.size());
             for (size_t d = 0; d < khold_.size(); ++d)
             {
-                const std::string &datastring = khold_.as_string(d);
+                const std::string &datastring = khold(d);
                 idat.vec[d].emplace_back(
                     str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
             }
@@ -629,7 +626,7 @@ namespace housepi
         headers = headers - std::vector<std::string>({"id"});
 
         // pedantic check for declared data keys
-        str::assert_no_missing_entries(headers, khold_.get_all());
+        str::assert_no_missing_entries(headers, khold_.all());
 
         // add optional keys to registry
         for (const std::string &datastring : headers)

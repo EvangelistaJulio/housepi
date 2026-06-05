@@ -674,10 +674,10 @@ namespace housepi
         clear_lists_();
         simulation_values.clear();
         // update list of constant parameters to all parameters
-        list_const = khold_.from_string(khold_.get_all());
+        list_const = khold(khold_.all());
 
         // reset definition dictionary to all constants NAs.
-        for (const std::string &pstr : khold_.get_all())
+        for (const std::string &pstr : khold_.all())
             if (std::find(headers.begin(), headers.end(), pstr) == headers.end())
                 simulation_values.emplace_back();
             else
@@ -691,7 +691,7 @@ namespace housepi
         param_vec_.resize(n);
         for (size_t p = 0; p < n; ++p)
         {
-            param_vec_[p].name(khold_.as_string(p));
+            param_vec_[p].name(khold(p));
             param_vec_[p].set_err_type("parameter");
         }
     }
@@ -719,7 +719,7 @@ namespace housepi
 #endif
 
         // assign constant parameter to the set of variables
-        size_t p = khold_.from_string(pstr);
+        size_t p = khold(pstr);
         param_vec_[p].transfer(translator.to_numeric(input.at("value")[k]));
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !param_vec_[p].is_discrete())
@@ -742,7 +742,7 @@ namespace housepi
 #endif
 
         // create a new parameter Variable
-        size_t p = khold_.from_string(pstr);
+        size_t p = khold(pstr);
         Variable &xparam = at(p);
         xparam.transfer(translator.to_numeric(input.at("value")[k]));
 
@@ -775,7 +775,7 @@ namespace housepi
     void Parameter::helper_build_function_(const str_table &input, size_t k, const Translator &translator)
     {
         const std::string &pstr = input.at("name")[k];
-        size_t p = khold_.from_string(pstr);
+        size_t p = khold(pstr);
         Variable &xparam = at(p);
 
         parse::Definition parser(input.at("func")[k]);

@@ -122,7 +122,8 @@ namespace housepi
 		void assert_finite_log_lik() const;
 
 		/// Recover the old total log-likelihood and augmented log-priors.
-		/// NOTE: called after a refused parameter move.
-		void recover_total_log_density_(bool is_cache_depen);
+		/// NOTE: called after a refused parameter move. with_augm_prior must match
+		/// the value passed to the matching commit_total_log_density_ call.
+		void recover_total_log_density_(bool is_cache_depen, bool with_augm_prior = true);
 	};
 }

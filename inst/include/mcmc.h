@@ -62,18 +62,15 @@ namespace housepi
 		/// Assert setup definitions, then proceed with initialization for evaluation.
 		void init_for_evaluation_();
 
-		/// Compute new log-likelihood, store old value. Same for households.
-		double commit_total_log_density_(bool is_cache_depen);
+		/// Compute total log-density and store all old values, households included.
+		/// NOTE: with_augm_prior=false skips the augmented log-prior re-evaluation.
+		double commit_total_log_density_(bool is_cache_depen, bool with_augm_prior = true);
 
         /// Compute and store log-ratio of prior of single augmented variable.
 		double commit_augm_log_prior_ratio(Individual &member, size_t a)
 		{
 			return augm.commit_log_prior_ratio(member, a);
 		}
-		/// Sum already store augmented-variable prior densities.
-		double sum_augm_log_prior_();
-		/// Re-evaluate each augmented log-prior. NOTE: after a parameter move.
-		double commit_tot_augm_log_prior();
 
 		/// Update and return contribution of given household to full logliklehood.
 		double commit_transm_log_lik_(Household &house, bool is_cache_depen);
