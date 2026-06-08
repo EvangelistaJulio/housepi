@@ -13,14 +13,10 @@
 
 namespace housepi::str
 {
-    constexpr size_t MAX_PRINT = 5;        /// Max elements to print.
-    constexpr size_t MIN_DIST = 2;         /// Similarity threshold distance.
-    const std::string PRIVATE_PREFIX = "."; /// Prefix for hidden objects.
+    constexpr size_t MAX_PRINT = 5;         /// Max elements to print
+    constexpr size_t MIN_DIST = 2;          /// Similarity threshold distance
+    const std::string PRIVATE_PREFIX = "."; /// Prefix for hidden objects
 
-#ifdef _STANDALONE
-    /// Convert to lower case.
-    std::string tolow(std::string s);
-#endif
     /// Convert to upper case.
     std::string toup(std::string s);
 
@@ -57,13 +53,4 @@ namespace housepi::str
                              const std::vector<std::string> &options,
                              size_t min_dist = MIN_DIST,
                              bool show_avail_options = false);
-
-    /// Check for unused entries from a vector of options and throw exception.
-    void assert_no_missing_entries(const std::vector<std::string> &entries,
-                                   const std::vector<std::string> &options,
-                                   const std::string &where = "column");
-    /// Check for unused entries given a vector of options.
-    void assert_no_unused_entries(const std::vector<std::string> &entries,
-                                  const std::vector<std::string> &options,
-                                  const std::string &where = "column");
 }

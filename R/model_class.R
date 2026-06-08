@@ -988,13 +988,17 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description Evaluate the log-likelihood.
+    #' @description Evaluate log-posterior terms.
     #' @param house_id `r rd_house_id_`
     #' If `NA` (default) it computes for the whole data.
-    #' @return `numeric(1)`
-    evaluate_log_lik = function(house_id = NA_character_) {
+    #' @return A named `numeric` vector of log-posterior terms.
+    evaluate_log_posterior = function(house_id = NA_character_) {
       private$build_full_()
-      .engine$evaluate_log_lik(private$generator_$mcmc_ptr, house_id)
+      # C++ returns terms by convention order; name them here
+      stats::setNames(
+        .engine$evaluate_log_posterior(private$generator_$mcmc_ptr, house_id),
+        c("transmission", "augm_lprior", "param_lprior")
+      )
     },
 
     #' @description Run inference with Bayesian Markov chain Monte Carlo.

@@ -82,9 +82,9 @@ namespace housepi
 		DataLong &data_long() noexcept { return pDataStore->data_long; }
 		const DataLong &data_long() const noexcept { return pDataStore->data_long; }
 
-		/// Initialize frequency equivalence classes.
-		/// NOTE: assume unique if augmented definitions required, but not imported yet
-		void init_frequency_equivalence_classes();
+		/// Initialize equivalence class comppression.
+		/// NOTE: assume unique if augmented definitions required, but not imported yet.
+		void init_equivalence_class_compression();
 
 		////////////////////////////
 		//////  AUGMENTATION  //////

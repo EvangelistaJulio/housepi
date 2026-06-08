@@ -17,7 +17,7 @@ If requested so during inference, it also stores augmented variables.
 Draws of parameters.}
 
 \item{\code{prior_draws}}{\code{posterior::draws_df}.
-Draws of parameter priors (per parameter, plus their sum \code{lprior}).}
+Draws of parameter priors (per parameter, plus their sum \code{param_lprior}).}
 
 \item{\code{augmented_draws}}{\code{posterior::draws_df}.
 Draws selected individuals augmented variables.}

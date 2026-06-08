@@ -181,18 +181,6 @@ results <- hhmodel |>
 bayesplot::mcmc_trace(get_parameter_draws(results))
 ```
 
-# Prior sensitivity
-
-We use the [priorsense](https://CRAN.R-project.org/package=priorsense) package to assess the sensitivity of our posterior
-estimates to prior specifications and potential prior-data conflicts.
-To do so, we need to extract draws from results complete of pointwise log-likelihood values and log-priors with `get_complete_draws`
-
-```{r}
-#| label: prior-sensitivity
-get_complete_draws(results) |>
-  priorsense::powerscale_sensitivity()
-```
-
 # Compare group rates
 
 Finally, we propose the following approach to visualize the difference between the estimates for the susceptibility with respect to the reference group:

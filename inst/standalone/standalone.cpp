@@ -35,41 +35,52 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace housepi::msg
-{
-    /// Throw an error message.
-    [[noreturn]] void error(const std::string &txt)
-    {
-        std::cerr << "Error: " + txt + "\nExit..." << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
-    /// Print an information message to stdout.
-    void info(const std::string &txt) noexcept
-    {
-        std::cout << txt;
-        std::cout.flush();
-    }
-
-    /// Display a warning message if not already displayed before.
-    void warning(const std::string &txt)
-    {
-        if (is_new_warning(txt))
-        {
-            std::cerr << "Warning: " << txt << std::endl;
-            add_new_warning(txt);
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  MCMC : Impl : read  ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 namespace housepi
 {
+    namespace str
+    {
+        std::string tolow(std::string s)
+        {
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c)
+                           { return std::tolower(c); });
+            return s;
+        }
+    }
+
+    namespace msg
+    {
+        /// Throw an error message.
+        [[noreturn]] void error(const std::string &txt)
+        {
+            std::cerr << "Error: " + txt + "\nExit..." << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+
+        /// Print an information message to stdout.
+        void info(const std::string &txt) noexcept
+        {
+            std::cout << txt;
+            std::cout.flush();
+        }
+
+        /// Display a warning message if not already displayed before.
+        void warning(const std::string &txt)
+        {
+            if (is_new_warning(txt))
+            {
+                std::cerr << "Warning: " << txt << std::endl;
+                add_new_warning(txt);
+            }
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////  MCMC : Impl : read  ////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
     namespace read
     {
         /// Load files from the row with headers.
@@ -369,7 +380,7 @@ namespace housepi
                 ofs << read::DELIMITER << member.data(d);
             for (size_t a : augm_export)
             {
-                const Variable &xaugm = augm.at(member, a);
+                const Variable &xaugm = augm.at(a, member);
                 double x = xaugm.is_empty() ? na::DOUBLE : xaugm.value();
                 ofs << read::DELIMITER << x;
             }
@@ -548,7 +559,8 @@ namespace housepi
         try
         {
             if (opts.is_log_lik)
-                std::cout << engine.evaluate_log_lik("") << std::endl;
+                for (double term : engine.evaluate_log_posterior(""))
+                    std::cout << term << std::endl;
             if (opts.is_simulate)
                 print_simulated_data_wide(engine, opts.file.output);
             if (opts.is_infer)

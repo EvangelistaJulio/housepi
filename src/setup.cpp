@@ -312,7 +312,6 @@ namespace housepi
     {
         // check entries
         const std::vector<std::string> &headers = read::extract_keys(input);
-        str::assert_no_unused_entries(headers, file_headers);
 
         // Random Initialization of Parameters
         if (input.count("progress") && !na::is(input.at("progress")[0]))

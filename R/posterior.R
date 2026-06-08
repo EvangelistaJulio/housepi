@@ -272,13 +272,13 @@ HousepiPosteriorDraws <- R6::R6Class(
     },
 
     #' @field prior_draws `posterior::draws_df`.
-    #' Draws of parameter priors (per parameter, plus their sum `lprior`).
+    #' Draws of parameter priors (per parameter, plus their sum `param_lprior`).
     prior_draws = function(value) {
       if (!missing(value)) stop_read_only("prior_draws")
       if (is.null(private$prior_draws_)) private$empty_draws_()
       else posterior::mutate_variables(
         private$prior_draws_,
-        lprior = rowSums(posterior::as_draws_matrix(private$prior_draws_))
+        param_lprior = rowSums(posterior::as_draws_matrix(private$prior_draws_))
       )
     },
 
@@ -312,7 +312,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (is.null(private$augm_prior_draws_) ||
             posterior::nvariables(private$augm_prior_draws_) == 0) {
         private$empty_draws_()
-      } else private$augm_prior_draws_
+      } else {
+        private$augm_prior_draws_
+      }
     },
 
     #' @field complete_draws `posterior::draws_df`.
@@ -322,7 +324,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       # rename pointwise log-likelihood
       aux <- private$point_log_lik_draws_
       n_vars <- posterior::nvariables(aux)
-      names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
+      names(aux)[1:n_vars] <- paste0("transmission[", 1:n_vars, "]")
       # bind all together
       # NOTE: bind_draws strips the tag, so re-stamp
       tag_as_housepi_draws(

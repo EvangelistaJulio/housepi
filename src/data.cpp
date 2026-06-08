@@ -243,9 +243,6 @@ namespace housepi
         // remove standard headers
         headers = headers - std::vector<std::string>({"id", "house_id", "status"});
 
-        // pedantic check for declared data keys
-        str::assert_no_missing_entries(headers, khold_.all());
-
         // add optional keys to registry
         for (const std::string &datastring : headers)
             khold_.add(datastring);
@@ -609,7 +606,7 @@ namespace housepi
         indiv_datalist.clear();
     }
 
-    void DataLong::helper_build_data_headers_(const DataWide &data_wide, const str_table &input)
+    void DataLong::helper_build_data_headers_([[maybe_unused]] const DataWide &data_wide, const str_table &input)
     {
 #ifndef NDEBUG
         if (data_wide.is_empty())
@@ -624,9 +621,6 @@ namespace housepi
                 "Individual identifier column 'id' was missing.");
         // remove 'id'
         headers = headers - std::vector<std::string>({"id"});
-
-        // pedantic check for declared data keys
-        str::assert_no_missing_entries(headers, khold_.all());
 
         // add optional keys to registry
         for (const std::string &datastring : headers)

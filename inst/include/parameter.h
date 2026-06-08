@@ -82,6 +82,15 @@ namespace housepi
         /// Flag to check if there are parameters to sample.
         bool is_any_sample() const noexcept { return !list_sample.empty(); }
 
+        /// Total log-prior over sampled parameters.
+        double total_log_prior() const
+        {
+            double out = 0.;
+            for (size_t p : list_sample)
+                out += at(p).get_log_prior();
+            return out;
+        }
+
     private:
         std::vector<Variable> param_vec_ = {};              /// parameters vector
         std::unordered_set<size_t> user_discrete_set_ = {}; /// user defined discrete parameters

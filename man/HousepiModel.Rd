@@ -52,7 +52,7 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-add_contact_rate}{\code{HousepiModel$add_contact_rate()}}
 \item \href{#method-HousepiModel-add_infec_profile}{\code{HousepiModel$add_infec_profile()}}
 \item \href{#method-HousepiModel-add_infec_profile_list}{\code{HousepiModel$add_infec_profile_list()}}
-\item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
+\item \href{#method-HousepiModel-evaluate_log_posterior}{\code{HousepiModel$evaluate_log_posterior()}}
 \item \href{#method-HousepiModel-run_inference}{\code{HousepiModel$run_inference()}}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
 \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
@@ -661,12 +661,12 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-evaluate_log_lik"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-evaluate_log_lik}{}}}
-\subsection{Method \code{evaluate_log_lik()}}{
-Evaluate the log-likelihood.
+\if{html}{\out{<a id="method-HousepiModel-evaluate_log_posterior"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-evaluate_log_posterior}{}}}
+\subsection{Method \code{evaluate_log_posterior()}}{
+Evaluate the named log-posterior terms.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_lik(house_id = NA_character_)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_posterior(house_id = NA_character_)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -678,7 +678,7 @@ If \code{NA} (default) it computes for the whole data.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{numeric(1)}
+A named \code{numeric} vector of log-posterior terms.
 }
 }
 \if{html}{\out{<hr>}}

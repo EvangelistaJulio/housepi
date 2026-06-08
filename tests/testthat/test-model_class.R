@@ -89,11 +89,11 @@ test_that("Model class 'blank' calls", {
     expect_warning("blank")
 
   # zero log-likelihood
-  expect_warning(x <- hhmodel$evaluate_log_lik(), regexp = "blank")
+  expect_warning(x <- eval_log_density(hhmodel), regexp = "blank")
   expect_equal(x, 0)
 
   # not existing household id
-  hhmodel$evaluate_log_lik("mother-base") |>
+  hhmodel$evaluate_log_posterior("mother-base") |>
     expect_error("[Ii]ndex.*mother-base.*did not match")
 
   # blank simulation

@@ -42,4 +42,16 @@ namespace housepi
         double value_ = 0.; /// Current log-likelihood
         double old_ = 0.;   /// Old log-likelihood
     };
+
+    /// Accumulator for transmission/augmented-prior log-densities deltas.
+    struct LogDensityAccumulator
+    {
+        double transm = 0., prior = 0.;
+        LogDensityAccumulator &operator+=(const LogDensityAccumulator &other) noexcept
+        {
+            transm += other.transm;
+            prior += other.prior;
+            return *this;
+        }
+    };
 }

@@ -399,7 +399,7 @@ namespace
         {
             mcmc_ptr->detach_data_store();
             mcmc_ptr->data_wide().build(rdataframe_to_strmap(input));
-            mcmc_ptr->init_frequency_equivalence_classes();
+            mcmc_ptr->init_equivalence_class_compression();
         }
         catch (const std::exception &e)
         {
@@ -425,7 +425,7 @@ namespace
         try
         {
             mcmc_ptr->group_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
-            mcmc_ptr->init_frequency_equivalence_classes();
+            mcmc_ptr->init_equivalence_class_compression();
         }
         catch (const std::exception &e)
         {
@@ -438,7 +438,7 @@ namespace
         try
         {
             mcmc_ptr->contact_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
-            mcmc_ptr->init_frequency_equivalence_classes();
+            mcmc_ptr->init_equivalence_class_compression();
         }
         catch (const std::exception &e)
         {
@@ -463,7 +463,7 @@ namespace
         try
         {
             mcmc_ptr->augm.build(mcmc_ptr->infec_profile, rdataframe_to_strmap(input));
-            mcmc_ptr->init_frequency_equivalence_classes();
+            mcmc_ptr->init_equivalence_class_compression();
         }
         catch (const std::exception &e)
         {
@@ -1471,16 +1471,18 @@ namespace
         return mcmc_ptr->model->has_contact_rates();
     }
 
-    double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
+    Rcpp::NumericVector evaluate_log_posterior(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
     {
         try
         {
-            return mcmc_ptr->evaluate_log_lik(house_id);
+            // ordered terms by convention; R assigns the names
+            return Rcpp::wrap(mcmc_ptr->evaluate_log_posterior(house_id));
         }
         catch (const std::exception &e)
         {
             mcmc_ptr->setup.crash(e);
         }
+        return Rcpp::NumericVector();
     }
     void run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
@@ -1618,7 +1620,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
     Rcpp::function("run_simulation", &run_simulation);
-    Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
+    Rcpp::function("evaluate_log_posterior", &evaluate_log_posterior);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);
     Rcpp::function("share_data_store", &share_data_store);

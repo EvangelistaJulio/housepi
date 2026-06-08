@@ -163,7 +163,7 @@ test_that("Log-likelihood of augmented infection time model is correct", {
       add_infec_profile(func = "gamma", discr = discr,
                         shape = shape@P, scale = scale@P)
 
-    expect_equal(evaluate_log_lik(hhmodel),
+    expect_equal(eval_log_density(hhmodel),
                  augm_infec_obs_log_lik(house, param, discr))
   }
 })
@@ -219,7 +219,7 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
         run_inference(steps = 30, thin = 1, adapt = 20, chain = 1,
                       threads = t, id_draws = id_draws)
     )
-    expect_equal(get_total_log_lik_draws(results)$log_lik,
+    expect_equal(get_total_log_lik_draws(results)$transmission,
                  get_log_lik_draws(results)$hh01)
   }
 })
@@ -251,10 +251,10 @@ test_that("Augmented moves preserve log-likelihood", {
                     chain = 1, id_draws = id_draws)
   )
 
-  tot_log_lik <- get_total_log_lik_draws(results)$log_lik
+  tot_log_lik <- get_total_log_lik_draws(results)$transmission
   expect_equal(tot_log_lik, get_log_lik_draws(results)$hh01)
   # full log-density recomposes transmission likelihood + augmented priors
-  augm_prior <- get_augmented_prior_draws(results)$augm_log_prior
+  augm_prior <- get_augmented_prior_draws(results)$augm_lprior
   tot_log_dens <- tot_log_lik + augm_prior
 
   param_draws <- get_parameter_draws(results) |>
@@ -299,7 +299,7 @@ test_that("Augmented moves preserve log-likelihood", {
       ) |>
       add_parameter_list(!!!params_i) |>
       add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
-      evaluate_log_lik()
+      eval_log_density()
   }
   expect_equal(tot_log_dens[n_steps], housepi_eval(n_steps))
 })

@@ -55,18 +55,24 @@ namespace housepi
 		//////  EVALUATION  //////
 		//////////////////////////
 
-		/// Initialize model and evaluate log-likelihood.
-		double evaluate_log_lik(std::string_view house_id);
+		/// Initialize model and evaluate the log-posterior terms, ordered by
+		/// convention: {transmission, augm_lprior, param_lprior}. R names them.
+		std::vector<double> evaluate_log_posterior(std::string_view house_id);
 
 	private:
 		/// Assert setup definitions, then proceed with initialization for evaluation.
 		void init_for_evaluation_();
 
 		/// Compute total log-density and store all old values, households included.
+		/// Result is left in tot_transm_log_lik / tot_augm_log_prior.
 		/// NOTE: with_augm_prior=false skips the augmented log-prior re-evaluation.
-		double commit_total_log_density_(bool is_cache_depen, bool with_augm_prior = true);
+		void commit_total_log_density_(bool is_cache_depen, bool with_augm_prior = true);
 
-        /// Compute and store log-ratio of prior of single augmented variable.
+		/// Commit single household's transmission and augmented prior.
+		LogDensityAccumulator commit_house_log_density_(Household &house, bool is_cache_depen,
+														bool with_augm_prior);
+														
+		/// Compute and store log-ratio of prior of single augmented variable.
 		double commit_augm_log_prior_ratio(Individual &member, size_t a)
 		{
 			return augm.commit_log_prior_ratio(member, a);
@@ -74,7 +80,7 @@ namespace housepi
 
 		/// Update and return contribution of given household to full logliklehood.
 		double commit_transm_log_lik_(Household &house, bool is_cache_depen);
-		
+
 		/// Compute and set value of observation log-likelihood. Return log-like.
 		double commit_transm_log_lik_(Household &house)
 		{
@@ -122,9 +128,11 @@ namespace housepi
 		void move_all_augm_();
 		/// Move augmented variables of infectious members inside household.
 		/// The move is performed one member at a time, one augmented variable at a time.
-		double move_augm_single_house_(size_t H);
+		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
+		LogDensityAccumulator move_augm_single_house_(size_t H);
 		/// Move a single augmented variable.
-		double move_augm_single_variable_(Household &house, Individual &member, size_t a);
+		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
+		LogDensityAccumulator move_augm_single_variable_(Household &house, Individual &member, size_t a);
 
 		/* --FUTURE-LOG-EVIDENCE--
 		/// Power posteriors at 0 inverse temperature.

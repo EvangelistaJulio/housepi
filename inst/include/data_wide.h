@@ -82,7 +82,8 @@ namespace housepi
 
         // Associate data names as relevant for equivalence classes.
         void set_eq_class_data_names(const std::vector<std::string> &data_list);
-        /// Initialize frequency weights for equivalence classes.
+        /// Initialize frequency weights for equivalence class compression.
+        /// NOTE: An equivalence class is a unit of computational redundancy.
         void init_eq_classes(bool force_unique);
 
         /// Number of households in equivalence class R.

@@ -564,22 +564,23 @@ add_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
 ############################################################################
 ############################################################################
 
-#' @title Evaluate the log-likelihood of a housepi model at current values
+#' @title Evaluate log-posterior terms of a housepi model at current values
 #' @description
-#' Compute the log-likelihood of a `HousepiModel` object.
+#' Compute the log-posterior terms (`transmission`, `augm_lprior`,
+#' `param_lprior`) of a `HousepiModel` object.
 #' @param hhmodel `r rd_model_in_`
 #' @param house_id `r rd_house_id_`
 #' If `NA` (default) it computes for the whole data.
-#' @return `numeric(1)`
+#' @return A named `numeric` vector of log-posterior terms.
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("chain_binomial") |>
 #'   add_parameter_template() |>
-#'   evaluate_log_lik()
+#'   evaluate_log_posterior()
 #' @export
-evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
+evaluate_log_posterior <- function(hhmodel, house_id = NA_character_) {
   stopifnothousepi(hhmodel)
-  hhmodel$evaluate_log_lik(house_id = house_id)
+  hhmodel$evaluate_log_posterior(house_id = house_id)
 }
 
 #' @title Run Bayesian MCMC inference on a housepi model

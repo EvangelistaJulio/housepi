@@ -199,7 +199,7 @@ namespace housepi
                 post->param_values.emplace_back(sample_size, na::DOUBLE);
                 post->param_priors.emplace_back(sample_size, na::DOUBLE);
                 post->param_names.push_back(param.khold(p));
-                post->param_prior_names.push_back("lprior_" + param.khold(p));
+                post->param_prior_names.push_back("param_lprior_" + param.khold(p));
             }
             // Function-derived parameters: value trace only (no prior).
             for (size_t p : param.list_func)
@@ -410,11 +410,12 @@ namespace housepi
         return true;
     }
 
-    void MCMCBase::init_frequency_equivalence_classes()
+    void MCMCBase::init_equivalence_class_compression()
     {
-        // NOTE: frequency incompatible with sampling augmented data
-        bool force_unique = augm.is_any_sample();
-        // however false could also mean definitions not provided
+        // NOTE: equivalence compression is incompatible with
+        // sampling augmented data and per-household augmented priors
+        bool force_unique = augm.is_any_sample() || augm.is_any_prior();
+        // however, false could also mean definitions not provided:
         // check if required and in such case set unique preventively
         if (!force_unique && augm.list_export.size() == 0)
             force_unique = augm.khold().size() > 0;
@@ -500,9 +501,7 @@ namespace housepi
             Household &house = data_wide().eq_class_head(R);
             house.transm_log_lik_.recover();
 
-            // mirror commit_total_log_density_: it rewrites every infected member's
-            // log-prior whenever with_augm_prior, regardless of is_any_sample (a fixed
-            // augmented can still carry a parameter-dependent prior).
+            // recover from commit_total_log_density_
             if (with_augm_prior)
                 for (size_t i : house.infected_hhindexes())
                     augm.varia[house.member(i).index_].log_prior.recover();
@@ -590,32 +589,37 @@ namespace housepi
     //////  EVALUATION  //////
     //////////////////////////
 
-    double MCMC::evaluate_log_lik(std::string_view house_id)
+    std::vector<double> MCMC::evaluate_log_posterior(std::string_view house_id)
     {
         setup.n_chains = 0; // using '0 chains' as a state variable
         init_for_evaluation_();
         param.restart(setup.prng());
         augm.restart(setup.prng());
 
-        // full log-likelihood evaluation
+        LogDensityAccumulator acc;
         if (na::is(house_id))
-            return commit_total_log_density_(true);
+        {
+            // full evaluation: transmission and augmented prior over all households
+            commit_total_log_density_(true);
+            acc.transm = tot_transm_log_lik.value();
+            acc.prior = tot_augm_log_prior.value();
+        }
+        else
+        {
+            // single household: its transmission and augmented-prior contribution
+            infec_profile.update(); // eventually recompute infectivity profile
+            acc = commit_house_log_density_(data_wide().at(house_id), true, augm.is_any_prior());
+        }
 
-        // single house log-likelihood evaluation
-        infec_profile.update(); // eventually recompute infectivity profile
-        Household &house = data_wide().at(house_id);
-        double ll = commit_transm_log_lik_(house, true);
-        if (augm.is_any_prior())
-            for (size_t i : house.infected_hhindexes())
-                ll += augm.commit_augm_log_prior(house.member(i));
-        return ll;
+        // log-posterior terms by convention order; param prior is global (both forms)
+        return {acc.transm, acc.prior, param.total_log_prior()};
     }
 
     void MCMC::init_for_evaluation_()
     {
         data_wide().assert_not_all_missing_status();
         augm.init_for_evaluation();
-        data_wide().init_eq_classes(augm.is_any_sample());
+        data_wide().init_eq_classes(augm.is_any_sample() || augm.is_any_prior());
         data_wide().allocate_all_cache();
 
         param.optimize();
@@ -647,8 +651,7 @@ namespace housepi
         }
     }
 
-    // UPDATE: the double for_reduce_sum force is sub-optimal
-    double MCMC::commit_total_log_density_(bool is_cache_depen, bool with_augm_prior)
+    void MCMC::commit_total_log_density_(bool is_cache_depen, bool with_augm_prior)
     {
         // save infectivity profile if lookup tables are active
         if (is_cache_depen)
@@ -657,36 +660,31 @@ namespace housepi
             infec_profile.update();
         }
 
-        double new_ll = parallel::for_reduce_sum(
+        // NOTE: classes are unique whenever augmented are sampled or carry prior
+        const bool do_prior = with_augm_prior && augm.is_any_prior();
+        LogDensityAccumulator acc = parallel::for_reduce<LogDensityAccumulator>(
             data_wide().eq_class_size(),
-            [&](size_t R) -> double
+            [&](size_t R) -> LogDensityAccumulator
             {
-                Household &house = data_wide().eq_class_head(R);
-                return data_wide().eq_class_weight(R) *
-                       commit_transm_log_lik_(house, is_cache_depen);
+                double w = data_wide().eq_class_weight(R);
+                LogDensityAccumulator a = commit_house_log_density_(
+                    data_wide().eq_class_head(R), is_cache_depen, do_prior);
+                return {w * a.transm, w * a.prior};
             });
-        tot_transm_log_lik.set(new_ll);
+        tot_transm_log_lik.set(acc.transm);
+        if (do_prior)
+            tot_augm_log_prior.set(acc.prior);
+    }
 
-        // augmented-variable priors: re-evaluated (parameters may have moved)
-        // and accumulated apart from the tempered likelihood.
-        // NOTE: skipped when the moved parameter cannot change the augmented prior.
-        if (augm.is_any_prior() && with_augm_prior)
-        {
-            tot_augm_log_prior.set(
-                parallel::for_reduce_sum(
-                    data_wide().report_house.total,
-                    [&](size_t H) -> double
-                    {
-                        Household &house = data_wide().at(H);
-                        double prior = 0.;
-                        for (size_t i : house.infected_hhindexes())
-                            prior += augm.commit_augm_log_prior(house.member(i));
-                        return prior;
-                    }));
-            return new_ll + tot_augm_log_prior.value();
-        }
-
-        return new_ll;
+    LogDensityAccumulator MCMC::commit_house_log_density_(Household &house, bool is_cache_depen,
+                                                          bool with_augm_prior)
+    {
+        LogDensityAccumulator acc;
+        acc.transm = commit_transm_log_lik_(house, is_cache_depen);
+        if (with_augm_prior)
+            for (size_t i : house.infected_hhindexes())
+                acc.prior += augm.commit_augm_log_prior(house.member(i));
+        return acc;
     }
 
     ///////////////////////////////////
@@ -811,47 +809,34 @@ namespace housepi
         this_par.recover();
     }
 
-    // UPDATE: the double for_reduce_sum is sub-optimal
     void MCMC::move_all_augm_()
     {
         if (!augm.is_any_sample())
             return;
 
-        tot_transm_log_lik.increment(
-            parallel::for_reduce_sum(
-                data_wide().report_house.total,
-                [&](size_t H) -> double
-                { return move_augm_single_house_(H); }));
-
-        // refresh total augmented prior from the per-individual
-        // values updated in-place by the accepted moves above.
-        tot_augm_log_prior.set(
-            parallel::for_reduce_sum(
-                data_wide().report_house.total,
-                [&](size_t H) -> double
-                {
-                    Household &house = data_wide().at(H);
-                    double prior = 0.;
-                    for (size_t i : house.infected_hhindexes())
-                        prior += augm.varia[house.member(i).index_].log_prior.value();
-                    return prior;
-                }));
+        // run per-house augmented moves, and accumulate accepted log-density deltas
+        LogDensityAccumulator acc = parallel::for_reduce<LogDensityAccumulator>(
+            data_wide().report_house.total,
+            [&](size_t H) -> LogDensityAccumulator
+            { return move_augm_single_house_(H); });
+        tot_transm_log_lik.increment(acc.transm);
+        tot_augm_log_prior.increment(acc.prior);
     }
 
-    double MCMC::move_augm_single_house_(size_t H)
+    LogDensityAccumulator MCMC::move_augm_single_house_(size_t H)
     {
         Household &house = data_wide().at(H);
 
         try
         {
-            double delta_ll = 0.;
+            LogDensityAccumulator acc;
             for (size_t i : house.infected_hhindexes())
             {
                 Individual &member_i = house.member(i);
                 for (size_t a : augm.list_sample(member_i))
-                    delta_ll += move_augm_single_variable_(house, member_i, a);
+                    acc += move_augm_single_variable_(house, member_i, a);
             }
-            return delta_ll;
+            return acc;
         }
         catch (const std::exception &e)
         {
@@ -860,7 +845,7 @@ namespace housepi
         }
     }
 
-    double MCMC::move_augm_single_variable_(Household &house, Individual &member, size_t a)
+    LogDensityAccumulator MCMC::move_augm_single_variable_(Household &house, Individual &member, size_t a)
     {
         Variable &avar = get_augm_varia(a, member);
 
@@ -875,11 +860,11 @@ namespace housepi
             model->update_member_cache_dependecies(house, member);
 
             // Metropolis-Hastings
-            const double delta_log_lik = commit_transm_log_lik_ratio_(house);
-            const double delta_prior = commit_augm_log_prior_ratio(member, a);
+            const double d_transm = commit_transm_log_lik_ratio_(house);
+            const double d_prior = commit_augm_log_prior_ratio(member, a);
             if (setup.exponential() >
-                avar.get_proposal_log_ratio() - (setup.inv_T * delta_log_lik + delta_prior))
-                return delta_log_lik;
+                avar.get_proposal_log_ratio() - (setup.inv_T * d_transm + d_prior))
+                return {d_transm, d_prior};
 
             // else recover cached values
             augm.varia[member.index_].log_prior.recover();
@@ -889,7 +874,7 @@ namespace housepi
         // else recover old value
         avar.recover();
 
-        return 0.;
+        return {0., 0.};
     }
 
     /* --FUTURE-LOG-EVIDENCE--

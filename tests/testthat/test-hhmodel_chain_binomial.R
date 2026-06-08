@@ -137,7 +137,7 @@ test_that("Log-likelihood traces and pointwise traces are coherent", {
       posterior::as_draws_matrix() |>
       rowSums() |>
       unname()
-    expect_equal(results$total_log_lik_draws$log_lik, pointwise)
+    expect_equal(results$total_log_lik_draws$transmission, pointwise)
   }
 })
 
@@ -274,7 +274,7 @@ test_that("Single infected member log-likelihood is correct", {
     add_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
   hhmodel$add_parameter_list(!!!par)
-  expect_equal(log_lik, hhmodel$evaluate_log_lik())
+  expect_equal(log_lik, eval_log_density(hhmodel))
 })
 
 #####################################################
@@ -299,7 +299,7 @@ test_that("Three infected members likelihood is correct", {
   do.call(hhmodel$add_contact_rate, contacts)
   hhmodel$add_parameter_list(!!!par)
   log_lik <- -sum(commu_infec_rate)
-  expect_equal(hhmodel$evaluate_log_lik(), log_lik)
+  expect_equal(eval_log_density(hhmodel), log_lik)
 
   # CASE 2: mixed infected and susceptible
   n_infec <- sum(house$status > 0)
@@ -319,7 +319,7 @@ test_that("Three infected members likelihood is correct", {
   pos <- housepi:::eval_chain_binomial_debugger_(B, Q)
   log_lik <- neg_log + log(pos)
 
-  expect_equal(hhmodel$evaluate_log_lik(), log_lik)
+  expect_equal(eval_log_density(hhmodel), log_lik)
 })
 
 ##################################################
@@ -350,7 +350,7 @@ test_that("Chain binomial runs ok on real case with partitions", {
                        "ctr_cross_generational")
       )
     )
-  expect_silent(hhmodel$evaluate_log_lik())
+  expect_silent(hhmodel$evaluate_log_posterior())
 })
 
 test_that("Chain binomial returns infinite if extreme values are provided", {
@@ -365,12 +365,12 @@ test_that("Chain binomial returns infinite if extreme values are provided", {
     add_parameter_list(!!!extreme_params)
 
   # homogeneous branch
-  expect_false(is.finite(hhmodel$evaluate_log_lik()))
+  expect_false(is.finite(eval_log_density(hhmodel)))
 
   # heterogeneous branch
   expect_false(is.finite(
     hhmodel |>
       add_group_rate("susceptibility", by = "age") |>
-      evaluate_log_lik()
+      eval_log_density()
   ))
 })

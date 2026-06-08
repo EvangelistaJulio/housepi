@@ -84,7 +84,7 @@ test_that("Draws active fields are correct", {
 
   pr <- local_results$prior_draws
   expect_true(posterior::is_draws(pr))
-  expect_true("lprior" %in% posterior::variables(pr))
+  expect_true("param_lprior" %in% posterior::variables(pr))
 
   # empty draws
   ad <- local_results$augmented_draws
@@ -97,14 +97,14 @@ test_that("Draws active fields are correct", {
 
   tll <- local_results$total_log_lik_draws
   expect_true(posterior::is_draws(tll))
-  expect_true("log_lik" %in% posterior::variables(tll))
+  expect_true("transmission" %in% posterior::variables(tll))
 
   cd <- local_results$complete_draws
   expect_true(posterior::is_draws(cd))
   vars <- posterior::variables(cd)
-  # should contain param names, log_lik[...], and lprior
-  expect_true(any(grepl("log_lik\\[", vars)))
-  expect_true("lprior" %in% vars)
+  # should contain param names, transmission[...], and param_lprior
+  expect_true(any(grepl("transmission\\[", vars)))
+  expect_true("param_lprior" %in% vars)
 })
 
 test_that("Exported getter functions work correctly", {

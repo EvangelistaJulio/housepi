@@ -20,7 +20,7 @@ test_that("Reject if calling on non-HousepiModel objects", {
   expect_error(add_parameter(obj), regexp = err)
   expect_error(add_augmented(obj), regexp = err)
   expect_error(add_infec_profile(obj, "mk22"), regexp = err)
-  expect_error(evaluate_log_lik(obj), regexp = err)
+  expect_error(evaluate_log_posterior(obj), regexp = err)
   expect_error(run_inference(obj), regexp = err)
   expect_error(run_simulation(obj), regexp = err)
   expect_error(add_parameter_list(obj), regexp = err)

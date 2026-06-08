@@ -27,11 +27,12 @@ namespace housepi::parallel
                 body(i);
         }
 
-        /// Serial sum-reduction, shared by standalone and the is_serial() shortcut.
-        template <class F>
-        inline double serial_for_reduce_sum(std::size_t n, F &body)
+        /// Serial reduction, shared by standalone and the is_serial() shortcut.
+        /// T is value-initialized to identity and accumulates via operator+=.
+        template <class T, class F>
+        inline T serial_for_reduce(std::size_t n, F &body)
         {
-            double acc = 0.0;
+            T acc{};
             for (std::size_t i = 0; i < n; ++i)
                 acc += body(i);
             return acc;
@@ -45,11 +46,11 @@ namespace housepi::parallel
     template <class F>
     inline void for_each(std::size_t n, F &&body) { detail::serial_for_each(n, body); }
 
+    template <class T, class F>
+    inline T for_reduce(std::size_t n, F &&body) { return detail::serial_for_reduce<T>(n, body); }
+
     template <class F>
-    inline double for_reduce_sum(std::size_t n, F &&body)
-    {
-        return detail::serial_for_reduce_sum(n, body);
-    }
+    inline double for_reduce_sum(std::size_t n, F &&body) { return for_reduce<double>(n, std::forward<F>(body)); }
 
 #else
 
@@ -78,22 +79,22 @@ namespace housepi::parallel
             }
         };
 
-        template <class F>
-        struct SumReducer : public RcppParallel::Worker
+        template <class T, class F>
+        struct Reducer : public RcppParallel::Worker
         {
             F &body;
-            double value = 0.0;
-            explicit SumReducer(F &b) : body(b) {}
-            SumReducer(const SumReducer &other, RcppParallel::Split) noexcept
+            T value{};
+            explicit Reducer(F &b) : body(b) {}
+            Reducer(const Reducer &other, RcppParallel::Split) noexcept
                 : body(other.body) {}
             void operator()(std::size_t begin, std::size_t end) override
             {
-                double local = 0.0;
+                T local{};
                 for (std::size_t i = begin; i < end; ++i)
                     local += body(i);
                 value += local;
             }
-            void join(const SumReducer &other) noexcept { value += other.value; }
+            void join(const Reducer &other) noexcept { value += other.value; }
         };
     }
 
@@ -130,15 +131,22 @@ namespace housepi::parallel
         RcppParallel::parallelFor(0, n, w, 1, detail::num_threads_ref());
     }
 
+    /// Run `body(i)` for i in [0, n) and reduce contributions into a T via operator+=.
+    template <class T, class F>
+    inline T for_reduce(std::size_t n, F &&body)
+    {
+        if (detail::is_serial())
+            return detail::serial_for_reduce<T>(n, body);
+        detail::Reducer<T, F> r(body);
+        RcppParallel::parallelReduce(0, n, r, 1, detail::num_threads_ref());
+        return r.value;
+    }
+
     /// Run `body(i)` for i in [0, n) and return sum of contributions.
     template <class F>
     inline double for_reduce_sum(std::size_t n, F &&body)
     {
-        if (detail::is_serial())
-            return detail::serial_for_reduce_sum(n, body);
-        detail::SumReducer<F> r(body);
-        RcppParallel::parallelReduce(0, n, r, 1, detail::num_threads_ref());
-        return r.value;
+        return for_reduce<double>(n, std::forward<F>(body));
     }
 #endif
 }

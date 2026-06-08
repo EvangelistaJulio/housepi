@@ -161,11 +161,6 @@ namespace housepi
         if (input.empty())
             return;
 
-        // check all entries are legitimiate
-        str::assert_no_unused_entries(
-            read::extract_keys(input),
-            {"func", "status", "discr", "min", "max"});
-
 #ifndef NDEBUG
         if (!input.count("func"))
             throw std::invalid_argument(
@@ -316,8 +311,6 @@ namespace housepi
                                                        "prior", "min", "max",
                                                        "proposal", "proposal_scale"};
         const std::vector<std::string> headers = read::extract_keys(input);
-        str::assert_no_missing_entries(headers, file_headers);
-        str::assert_no_unused_entries(headers, file_headers);
 #endif
 
         for (const std::string &astr : input.at("name"))
@@ -1037,8 +1030,6 @@ namespace housepi
             }
         output.shrink_to_fit();
 
-        // check all user request are satisfied
-        str::assert_no_missing_entries(existing_ids, id_draws, "draws id");
         return output;
     }
 }

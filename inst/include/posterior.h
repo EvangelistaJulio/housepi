@@ -34,8 +34,8 @@ namespace housepi
         std::vector<const Individual *> augm_individuals;          // individuals to track
 
         /// Column name metadata captured at initialization
-        const std::vector<std::string> tot_transm_log_lik_names = {"log_lik"};
-        const std::vector<std::string> tot_augm_log_prior_names = {"augm_log_prior"};
+        const std::vector<std::string> tot_transm_log_lik_names = {"transmission"};
+        const std::vector<std::string> tot_augm_log_prior_names = {"augm_lprior"};
         std::vector<std::string> param_names;
         std::vector<std::string> param_prior_names;
         std::vector<std::string> augm_col_names;

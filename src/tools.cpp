@@ -154,16 +154,6 @@ namespace housepi::str
     //////////////////////////////////  Converter Functions  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef _STANDALONE
-    std::string tolow(std::string s)
-    {
-        std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c)
-                       { return std::tolower(c); });
-        return s;
-    }
-#endif
-
     std::string toup(std::string s)
     {
         std::transform(s.begin(), s.end(), s.begin(),
@@ -330,52 +320,6 @@ namespace housepi::str
         if (options.size() == 1)
             return " Available option is " + format(options, 1);
         return "\nAvailable options are: " + format(options);
-    }
-
-    void assert_no_missing_entries(const std::vector<std::string> &entries,
-                                   const std::vector<std::string> &options,
-                                   const std::string &where)
-    {
-#ifndef NDEBUG
-        if (options.empty())
-            return;
-
-        std::vector<std::string> missing = {};
-
-        for (const std::string &x : options)
-            if (std::find(entries.begin(), entries.end(), x) == entries.end())
-                missing.push_back(x);
-
-        if (missing.size() == 1)
-            throw std::invalid_argument(
-                "Missing " + where + " " + str::format(missing, 1));
-
-        if (!missing.empty())
-            throw std::invalid_argument(
-                "Missing " + where + "s: " + str::format(missing));
-#endif
-    }
-
-    void assert_no_unused_entries(const std::vector<std::string> &entries,
-                                  const std::vector<std::string> &options,
-                                  const std::string &where)
-    {
-#ifndef NDEBUG
-        std::vector<std::string> unused = {};
-        for (const std::string &x : entries)
-            if (std::find(options.begin(), options.end(), x) == options.end())
-                unused.push_back(x);
-
-        if (unused.size() == 1)
-            throw std::invalid_argument(
-                "Unknown " + where + " " + str::format(unused, 1) +
-                str::find_closest(unused[0], options));
-
-        if (!unused.empty())
-            throw std::invalid_argument(
-                "Unknown " + where + "s: " + str::format(unused) +
-                str::find_closest("", options, 0));
-#endif
     }
 }
 
