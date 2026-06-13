@@ -66,6 +66,12 @@ tag_as_housepi_draws <- function(x) {
   x
 }
 
+# @description Return empty draws.
+# @return `posterior::draws_df`
+empty_draws_ <- function() {
+  tag_as_housepi_draws(posterior::as_draws_df(data.frame()))
+}
+
 #' @title Summarise housepi posterior draws using the global credible interval
 #' @description
 #' S3 method on [posterior::summarise_draws()] for objects tagged
@@ -135,9 +141,29 @@ summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 #' @title Posterior draws from housepi model inference
 #' @description
 #' Posterior draws as a result of housepi inference on a household model.
-#' This class stores posterior draws of model parameters,
-#' priors, total and household point-wise log-likelihood.
-#' If requested so during inference, it also stores augmented variables.
+#' This class stores posterior draws of model parameters, the joint log-prior
+#' (`lprior`) and the pointwise per-household log-likelihood (`log_lik`).
+#' If requested during inference, it also stores augmented variables.
+#'
+#' For models with augmented variables the chain targets the joint
+#' (augmented, parameter) posterior. Write \eqn{x} for a single household's
+#' data, \eqn{\theta} for the parameter vector and \eqn{z} for that household's
+#' augmented variables. The unnormalised joint log-density splits into the two
+#' bundles this class exposes,
+#' \deqn{\log p(\theta, z, x) =
+#'   \underbrace{\log p(\theta)
+#'               + \log p^\mathrm{augm}(z \mid \theta)}_{\texttt{lprior}}
+#'   + \underbrace{\log p^\mathrm{transm}(x \mid z, \theta)
+#'     + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
+#' where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{augm}} the
+#' augmented-variable prior, \eqn{p^\mathrm{transm}} the transmission likelihood
+#' and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
+#' the contract of the per-household `log_lik`: with no observation node
+#' \eqn{p^\mathrm{obs} \equiv 1} and `log_lik` contracts to transmission alone.
+#'
+#' Both bundles are conditional on \eqn{z}, so loo / priorsense operate as
+#' household-leave-one-out under the joint (augmented, parameter) posterior
+#' rather than over a marginal likelihood.
 #' @docType class
 HousepiPosteriorDraws <- R6::R6Class(
   classname = "HousepiPosteriorDraws",
@@ -150,10 +176,9 @@ HousepiPosteriorDraws <- R6::R6Class(
     # @field
     name_ = NA_character_,
     param_draws_ = NULL,
-    prior_draws_ = NULL,
+    param_prior_draws_ = NULL,
     augm_draws_ = NULL,
     augm_prior_draws_ = NULL,
-    tot_log_lik_draws_ = NULL,
     point_log_lik_draws_ = NULL,
     chain_tags_ = NULL,
     iter_names_ = NULL,
@@ -187,17 +212,11 @@ HousepiPosteriorDraws <- R6::R6Class(
       tag_as_housepi_draws(posterior::as_draws_df(df))
     },
 
-    # @description Return empty draws.
-    # @return `posterior::draws_df`
-    empty_draws_ = function() {
-      tag_as_housepi_draws(posterior::as_draws_df(data.frame()))
-    },
-
     # Stan-style post-inference diagnostics.
     # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
     check_diagnostics_ = function() {
-      niter <- posterior::niterations(private$tot_log_lik_draws_)
-      nchains <- posterior::nchains(private$tot_log_lik_draws_)
+      niter <- posterior::niterations(private$point_log_lik_draws_)
+      nchains <- posterior::nchains(private$point_log_lik_draws_)
       ss <- niter * nchains
       if (ss < diagnostic_[["ss_min"]]) {
         warn_h(
@@ -267,68 +286,74 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' Draws of parameters.
     parameter_draws = function(value) {
       if (!missing(value)) stop_read_only("param_draws")
-      if (is.null(private$param_draws_)) private$empty_draws_()
-      else private$param_draws_
-    },
-
-    #' @field prior_draws `posterior::draws_df`.
-    #' Draws of parameter priors (per parameter, plus their sum `param_lprior`).
-    prior_draws = function(value) {
-      if (!missing(value)) stop_read_only("prior_draws")
-      if (is.null(private$prior_draws_)) private$empty_draws_()
-      else posterior::mutate_variables(
-        private$prior_draws_,
-        param_lprior = rowSums(posterior::as_draws_matrix(private$prior_draws_))
-      )
+      if (is.null(private$param_draws_)) return(empty_draws_())
+      private$param_draws_
     },
 
     #' @field augmented_draws `posterior::draws_df`.
     #' Draws selected individuals augmented variables.
     augmented_draws = function(value) {
       if (!missing(value)) stop_read_only("augm_draws")
-      if (is.null(private$augm_draws_)) private$empty_draws_()
-      else private$augm_draws_
+      if (is.null(private$augm_draws_)) return(empty_draws_())
+      private$augm_draws_
     },
 
     #' @field log_lik_draws `posterior::draws_df`.
-    #' Draws of households pointwise transmission log-likelihood.
+    #' Pointwise per-household log-likelihood
+    #' \eqn{\log p^\mathrm{transm}(x \mid z, \theta) +
+    #'   \log p^\mathrm{obs}(x \mid z, \theta)}: transmission plus observation
+    #' (the latter only when an observation node is defined, otherwise the total
+    #' contracts to transmission). It is conditional on the augmented variables
+    #' \eqn{z}, so loo over these columns is a household-leave-one-out under the
+    #' joint (augmented, parameter) posterior.
     log_lik_draws = function(value) {
       if (!missing(value)) stop_read_only("log_lik_draws")
       private$point_log_lik_draws_
     },
 
-    #' @field total_log_lik_draws `posterior::draws_df`.
-    #' Draws of the total (tempered) transmission log-likelihood.
-    total_log_lik_draws = function(value) {
-      if (!missing(value)) stop_read_only("total_log_lik_draws")
-      private$tot_log_lik_draws_
-    },
-
-    #' @field augmented_prior_draws `posterior::draws_df`.
-    #' Draws of the total augmented-variable log-prior.
-    #' Empty when the model defines no augmented prior.
-    augmented_prior_draws = function(value) {
-      if (!missing(value)) stop_read_only("augmented_prior_draws")
-      if (is.null(private$augm_prior_draws_) ||
-            posterior::nvariables(private$augm_prior_draws_) == 0) {
-        private$empty_draws_()
+    #' @field lprior_draws `posterior::draws_df`.
+    #' Single column `lprior`: the joint log-prior
+    #' \eqn{\log p(\theta) + \log p^\mathrm{augm}(z \mid \theta)}, i.e. the
+    #' parameter log-prior plus the augmented-variable log-prior (the latter
+    #' present only with augmented priors).
+    lprior_draws = function(value) {
+      if (!missing(value)) stop_read_only("lprior_draws")
+      has_param <- !is.null(private$param_prior_draws_) &&
+        posterior::nvariables(private$param_prior_draws_) > 0
+      has_augm <- !is.null(private$augm_prior_draws_) &&
+        posterior::nvariables(private$augm_prior_draws_) > 0
+      if (!has_param && !has_augm) return(empty_draws_())
+      base <- if (has_param) private$param_prior_draws_
+      else private$augm_prior_draws_
+      lp <- if (has_param) {
+        rowSums(posterior::as_draws_matrix(private$param_prior_draws_))
       } else {
-        private$augm_prior_draws_
+        0
       }
+      if (has_augm) {
+        lp <- lp +
+          as.numeric(posterior::as_draws_matrix(private$augm_prior_draws_)[, 1])
+      }
+      out <- posterior::mutate_variables(base, lprior = lp)
+      tag_as_housepi_draws(posterior::subset_draws(out, variable = "lprior"))
     },
 
     #' @field complete_draws `posterior::draws_df`.
-    #' Draws of parameters, priors and pointwise log-likelihood values.
+    #' Parameters, pointwise `log_lik` and the joint `lprior`, named to the
+    #' loo / priorsense convention so it can be passed straight to those tools.
+    #' Note `log_lik`/`lprior` are evaluated over the joint (augmented,
+    #' parameter) posterior (see `log_lik_draws` and `lprior_draws`).
     complete_draws = function(value) {
       if (!missing(value)) stop_read_only("complete_draws")
-      # rename pointwise log-likelihood
+      # rename pointwise log-likelihood to the loo / priorsense convention
       aux <- private$point_log_lik_draws_
       n_vars <- posterior::nvariables(aux)
-      names(aux)[1:n_vars] <- paste0("transmission[", 1:n_vars, "]")
-      # bind all together
+      names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
+      # bind parameters, pointwise log_lik and the single joint lprior; the
+      # latter folds in the private per-parameter prior (param_prior_draws_)
       # NOTE: bind_draws strips the tag, so re-stamp
       tag_as_housepi_draws(
-        posterior::bind_draws(private$param_draws_, aux, self$prior_draws)
+        posterior::bind_draws(private$param_draws_, aux, self$lprior_draws)
       )
     }
   ),
@@ -349,21 +374,21 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$pre_process_setup_(.engine$export_setup(ptr))
 
       # store cpp draws converted to posterior
-      private$tot_log_lik_draws_ <- private$to_posterior_draws_(
-        .engine$flush_tot_log_lik_draws(ptr)
-      )
       private$param_draws_ <- private$to_posterior_draws_(
         .engine$flush_param_draws(ptr)
       )
-      private$prior_draws_ <- private$to_posterior_draws_(
+      # per-parameter prior values kept internal: feed `lprior`, not a field
+      private$param_prior_draws_ <- private$to_posterior_draws_(
         .engine$flush_param_log_prior_draws(ptr)
       )
       private$augm_draws_ <- private$to_posterior_draws_(
         .engine$flush_augm_draws(ptr)
       )
+      # augmented-prior total kept internal: it feeds `lprior`, not a field
       private$augm_prior_draws_ <- private$to_posterior_draws_(
         .engine$flush_tot_augm_log_prior_draws(ptr)
       )
+      # pointwise per-household log-likelihood = transmission (+ observation)
       private$point_log_lik_draws_ <- private$to_posterior_draws_(
         .engine$flush_house_log_lik_draws(ptr)
       )
@@ -380,8 +405,8 @@ HousepiPosteriorDraws <- R6::R6Class(
 
     #' @description Override the default printing behavior.
     print = function() {
-      niter <- posterior::niterations(private$tot_log_lik_draws_)
-      nchains <- posterior::nchains(private$tot_log_lik_draws_)
+      niter <- posterior::niterations(private$point_log_lik_draws_)
+      nchains <- posterior::nchains(private$point_log_lik_draws_)
 
       if (is.null(private$param_draws_)) nparams <- 0
       else nparams <- posterior::nvariables(private$param_draws_)
@@ -439,23 +464,9 @@ get_log_lik_draws <- function(hhdraws) {
 
 #' @rdname get_draws
 #' @export
-get_total_log_lik_draws <- function(hhdraws) {
+get_lprior_draws <- function(hhdraws) {
   stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  hhdraws$total_log_lik_draws
-}
-
-#' @rdname get_draws
-#' @export
-get_prior_draws <- function(hhdraws) {
-  stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  hhdraws$prior_draws
-}
-
-#' @rdname get_draws
-#' @export
-get_augmented_prior_draws <- function(hhdraws) {
-  stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  hhdraws$augmented_prior_draws
+  hhdraws$lprior_draws
 }
 
 #' @rdname get_draws

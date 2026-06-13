@@ -67,6 +67,10 @@ rd_aug_discr_ <- sprintf(rd_var_discr_, "prior")
 rd_aug_args_ <- sprintf(rd_var_args_, "prior")
 rd_aug_proposal_ <- sprintf(rd_var_proposal_, "prior")
 
+rd_obs_dist_ <- "`character(1)` Choice for the observation distribution.
+Mutually exclusive with `prior`."
+rd_obs_args_ <- sprintf(rd_var_args_, "observation")
+
 rd_inf_discr_ <- sprintf(rd_var_discr_, "profile")
 rd_inf_args_ <- sprintf(rd_var_args_, "profile")
 

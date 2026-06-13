@@ -14,8 +14,8 @@ local_results <- local({
 test_that("Active fields are read-only", {
   local_results |>
     helper_test_read_only(
-      "parameter_draws", "prior_draws", "augmented_draws",
-      "log_lik_draws", "total_log_lik_draws", "complete_draws"
+      "parameter_draws", "augmented_draws",
+      "log_lik_draws", "lprior_draws", "complete_draws"
     )
 })
 
@@ -82,10 +82,6 @@ test_that("Draws active fields are correct", {
   expect_true(posterior::is_draws(pd))
   expect_equal(posterior::niterations(pd), 100L)
 
-  pr <- local_results$prior_draws
-  expect_true(posterior::is_draws(pr))
-  expect_true("param_lprior" %in% posterior::variables(pr))
-
   # empty draws
   ad <- local_results$augmented_draws
   expect_true(posterior::is_draws(ad))
@@ -95,31 +91,29 @@ test_that("Draws active fields are correct", {
   expect_true(posterior::is_draws(ll))
   expect_true(posterior::nvariables(ll) > 0)
 
-  tll <- local_results$total_log_lik_draws
-  expect_true(posterior::is_draws(tll))
-  expect_true("transmission" %in% posterior::variables(tll))
+  lp <- local_results$lprior_draws
+  expect_true(posterior::is_draws(lp))
+  expect_true("lprior" %in% posterior::variables(lp))
 
   cd <- local_results$complete_draws
   expect_true(posterior::is_draws(cd))
   vars <- posterior::variables(cd)
-  # should contain param names, transmission[...], and param_lprior
-  expect_true(any(grepl("transmission\\[", vars)))
-  expect_true("param_lprior" %in% vars)
+  # should contain param names, log_lik[...], and lprior (loo / priorsense names)
+  expect_true(any(grepl("log_lik\\[", vars)))
+  expect_true("lprior" %in% vars)
 })
 
 test_that("Exported getter functions work correctly", {
   expect_true(posterior::is_draws(get_parameter_draws(local_results)))
-  expect_true(posterior::is_draws(get_prior_draws(local_results)))
   expect_true(posterior::is_draws(get_augmented_draws(local_results)))
   expect_true(posterior::is_draws(get_log_lik_draws(local_results)))
-  expect_true(posterior::is_draws(get_total_log_lik_draws(local_results)))
+  expect_true(posterior::is_draws(get_lprior_draws(local_results)))
   expect_true(posterior::is_draws(get_complete_draws(local_results)))
 
   expect_error(get_parameter_draws("snake.eater"))
   expect_error(get_augmented_draws(42))
   expect_error(get_log_lik_draws(list()))
-  expect_error(get_total_log_lik_draws(NULL))
-  expect_error(get_prior_draws(data.frame()))
+  expect_error(get_lprior_draws(NULL))
   expect_error(get_complete_draws(lnorm))
 })
 

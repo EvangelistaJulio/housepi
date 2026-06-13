@@ -28,8 +28,8 @@ set.seed(42)
 Time dependent transmission models require a choice for the infectivity profile $f$, defined as the instantaneous risk of secondary infection associated to a reference infector.
 An infectivity profile is thus a function of the time from infection $t_{i}$ to transmission at time $t$, the "generation time" $t - t_{i}$. Eventually, the profile could depend on other infector covariates.
 
-In certain applications a profile has to be expressed as a function of the time from symptoms onset $t_{i}^{(\rm ons)}$ to transmission.
-In such cases, the profile will be a function of the generation time and of the incubation period $\tau_{i}^{(\rm inc)}$ of the infector, remembering that $t_{i} + \tau_{i}^{(\rm inc)} = t_{i}^{(\rm ons)}$.
+In certain applications a profile has to be expressed as a function of the time from symptoms onset $t_{i}^\mathrm{ons}$ to transmission.
+In such cases, the profile will be a function of the generation time and of the incubation period $\tau_{i}^\mathrm{inc}$ of the infector, remembering that $t_{i} + \tau_{i}^\mathrm{inc} = t_{i}^\mathrm{ons}$.
 
 Note that for technical reasons, infectivity profiles in housepi can only depend on covariates of the infector, and not of the infectee.
 This prevents from using directly quantities as the "serial time" (the time between symptom onsets of infector and infectee) and workarounds need to be implemented manually.
@@ -42,8 +42,8 @@ In short, assuming $i$ the infector and $k$ the infectee, the time intervals sup
 | Time Interval |  | Profile | Support |
 |---------------|--|---------|:-------:|
 | Generation | $t_{k} - t_{i}$ | $f(t_{k} - t_{i})$ | <span style="color: green;">&check;</span> |
-| Onset to Transmission | $t_{k} - t_{i}^{(\rm ons)}$ | $f(t_{k} - t_{i}\vert \tau_{i}^{(\rm inc)})$ | <span style="color: green;">&check;</span> |
-| Serial | $t_{k}^{(\rm ons)} - t_{i}^{(\rm ons)}$ | $f(t_{k} - t_{i}\vert \tau_{i}^{(\rm inc)}, \tau_{k}^{(\rm inc)})$ | <span style="color: red;">&cross;</span> |
+| Onset to Transmission | $t_{k} - t_{i}^\mathrm{ons}$ | $f(t_{k} - t_{i}\vert \tau_{i}^\mathrm{inc})$ | <span style="color: green;">&check;</span> |
+| Serial | $t_{k}^\mathrm{ons} - t_{i}^\mathrm{ons}$ | $f(t_{k} - t_{i}\vert \tau_{i}^\mathrm{inc}, \tau_{k}^\mathrm{inc})$ | <span style="color: red;">&cross;</span> |
 
 </div>
 </div>

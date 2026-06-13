@@ -559,8 +559,7 @@ namespace housepi
         try
         {
             if (opts.is_log_lik)
-                for (double term : engine.evaluate_log_posterior(""))
-                    std::cout << term << std::endl;
+                std::cout << engine.evaluate_log_lik("") << std::endl;
             if (opts.is_simulate)
                 print_simulated_data_wide(engine, opts.file.output);
             if (opts.is_infer)

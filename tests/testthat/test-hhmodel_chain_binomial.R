@@ -122,7 +122,7 @@ test_that("Deep clone works as expected", {
   expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
 })
 
-test_that("Log-likelihood traces and pointwise traces are coherent", {
+test_that("Pointwise log-lik is carried into the complete-draws bundle", {
   for (t in c(1L, 2L)) {
     suppressWarnings(
       results <- flu_1918_frederick |>
@@ -134,10 +134,15 @@ test_that("Log-likelihood traces and pointwise traces are coherent", {
 
     pointwise <- results |>
       get_log_lik_draws() |>
-      posterior::as_draws_matrix() |>
-      rowSums() |>
-      unname()
-    expect_equal(results$total_log_lik_draws$transmission, pointwise)
+      posterior::as_draws_matrix()
+    # complete_draws renames the pointwise columns to the loo / priorsense
+    # convention; their values must be the same pointwise log-likelihood
+    bundle <- results |>
+      get_complete_draws() |>
+      posterior::as_draws_matrix()
+    ll_cols <- grep("^log_lik\\[", colnames(bundle))
+    expect_equal(length(ll_cols), ncol(pointwise))
+    expect_equal(unname(bundle[, ll_cols]), unname(pointwise))
   }
 })
 
@@ -350,7 +355,7 @@ test_that("Chain binomial runs ok on real case with partitions", {
                        "ctr_cross_generational")
       )
     )
-  expect_silent(hhmodel$evaluate_log_posterior())
+  expect_silent(hhmodel$evaluate_log_lik())
 })
 
 test_that("Chain binomial returns infinite if extreme values are provided", {

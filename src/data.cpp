@@ -232,11 +232,11 @@ namespace housepi
         std::vector<std::string> headers = read::extract_keys(input);
 
         // assess the presence of house IDs
-        if (std::find(headers.begin(), headers.end(), "house_id") == headers.end())
+        if (!contains(headers, "house_id"))
             msg::warning("Ignored household structure. Missing data column 'house_id'.");
 
         // assess individual IDs are unique
-        if (std::find(headers.begin(), headers.end(), "id") != headers.end() &&
+        if (contains(headers, "id") &&
             input.at("id").size() != str::unique(input.at("id")).size())
             throw std::invalid_argument("Provided individual IDs are not unique.");
 
@@ -616,7 +616,7 @@ namespace housepi
 
         headers = read::extract_keys(input);
         // check for individual IDs
-        if (std::find(headers.begin(), headers.end(), "id") == headers.end())
+        if (!contains(headers, "id"))
             throw std::invalid_argument(
                 "Individual identifier column 'id' was missing.");
         // remove 'id'

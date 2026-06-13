@@ -1,6 +1,11 @@
 # Helper to load definition lists.
-helper_test_aux_load <- function(self, ..., append = FALSE) {
-  self$add_quo_list(rlang::enquos(...), append = append)
+helper_test_aux_load <- function(self, ..., append = FALSE, .obs = FALSE) {
+  # only the augmented loader accepts '.obs'; keep the parameter loader signature
+  if (isTRUE(.obs)) {
+    self$add_quo_list(rlang::enquos(...), append = append, .obs = TRUE)
+  } else {
+    self$add_quo_list(rlang::enquos(...), append = append)
+  }
   invisible(self)
 }
 
@@ -11,9 +16,9 @@ helper_test_read_only <- function(obj, ...) {
   }
 }
 
-# Reproduce the scalar log-density (transmission + augmented prior) from the
-# named evaluate_log_posterior() terms, for tests asserting a single value.
+# Scalar complete-data log-likelihood (observation + transmission) at the
+# current values, for tests asserting a single value. Augmented priors are
+# reconstructed separately by tests that need the full log-density.
 eval_log_density <- function(x, house_id = NA_character_) {
-  terms <- evaluate_log_posterior(x, house_id = house_id)
-  terms[["transmission"]] + terms[["augm_lprior"]]
+  evaluate_log_lik(x, house_id = house_id)
 }

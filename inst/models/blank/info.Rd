@@ -11,6 +11,6 @@ This template is intended for sanity checks, demos and end-to-end tests.
 No parameters are required by the model.
 \if{html}{\out{<hr>}}
 }
-\section{Likelihood}{
-\deqn{L = 1}
+\section{Transmission}{
+\deqn{p^\mathrm{transm} = 1}
 }

@@ -41,3 +41,9 @@ std::vector<T> operator-(const std::vector<T> &v, const std::vector<T> &w)
             result.push_back(item);
     return result;
 }
+
+template <typename T, typename U>
+bool contains(const T &vec, U elem)
+{
+    return std::find(vec.begin(), vec.end(), elem) != vec.end();
+}

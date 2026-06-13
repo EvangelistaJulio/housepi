@@ -36,6 +36,7 @@ namespace housepi
 	{
 	public:
 		Setup setup;
+		LogDensity tot_obs_log_lik;	   /// observation log-likelihood
 		LogDensity tot_transm_log_lik; /// transmission log-likelihood
 		LogDensity tot_augm_log_prior; /// augmented-variable log-priors
 		Posterior posterior;
@@ -107,6 +108,8 @@ namespace housepi
 		std::vector<std::string> get_col_names() const;
 		// Pre-compute per-household row offsets. Used to fix OpenMP race in simulations.
 		std::vector<size_t> get_row_offsets() const;
+		/// Sum per-infected-member observation log-likelihhood.
+		double house_log_obs(const Household &house) const;
 
 	protected:
 		///////////////////////////////////
@@ -118,12 +121,13 @@ namespace housepi
 		/// Intialize a single Markov chain for Monte Carlo.
 		void init_monte_carlo_chain_();
 
-        /// Raise an error if log-likelihood and/or augmented priors are not finite.
+		/// Raise an error if log-likelihood and/or augmented priors are not finite.
 		void assert_finite_log_lik() const;
 
-		/// Recover the old total log-likelihood and augmented log-priors.
-		/// NOTE: called after a refused parameter move. with_augm_prior must match
-		/// the value passed to the matching commit_total_log_density_ call.
-		void recover_total_log_density_(bool is_cache_depen, bool with_augm_prior = true);
+		/// Recover the old total log-likelihood, augmented log-priors and observation.
+		/// NOTE: called after a refused parameter move.
+		void recover_total_log_density_(bool is_cache_depen,
+										bool with_augm_prior = true,
+										bool with_obs = true);
 	};
 }

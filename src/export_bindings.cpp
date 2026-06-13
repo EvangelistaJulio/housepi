@@ -804,15 +804,6 @@ namespace
         return cols;
     }
 
-    /// Flush total transmission log-likelihood draws as a data.frame.
-    Rcpp::List flush_tot_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
-    {
-        Posterior &post = mcmc_ptr->posterior;
-        return flush_2d_draws_to_df(post.tot_transm_log_lik,
-                                    post.tot_transm_log_lik_names,
-                                    post.count(), "total log-likelihood");
-    }
-
     /// Flush total augmented-variable log-prior draws as a data.frame.
     /// Empty when the model has no augmented prior.
     Rcpp::List flush_tot_augm_log_prior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -866,8 +857,11 @@ namespace
         return cols;
     }
 
-    /// Rcpp wrapper: household log-likelihood draws as a data.frame.
-    /// Households of same equivalence class share NumericVector SEXP.
+    /// Rcpp wrapper: pointwise per-household log-likelihood draws as a data.frame.
+    /// Each column is the complete-data household log-likelihood = transmission
+    /// (+ observation, when an observation node is defined). Observation nodes force
+    /// unique equivalence classes, so the obs store aligns 1:1 with the transmission
+    /// store. Households of same equivalence class share NumericVector SEXP.
     /// R's reference counting keeps storage at n_classes * n_draws
     /// until a downstream consumer (e.g. as_draws_matrix) materialises it.
     Rcpp::List flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -877,12 +871,23 @@ namespace
 
         size_t n_classes = post.house_transm_log_lik.size();
         size_t n_houses = data_wide.report_house.total;
+        const bool with_obs = !post.house_obs_log_lik.empty();
 
-        // One NumericVector per class; detached copy, C++ source freed.
+        // One NumericVector per class = transmission (+ observation when present).
         std::vector<Rcpp::NumericVector> class_cols(n_classes);
         for (size_t R = 0; R < n_classes; ++R)
-            class_cols[R] = flush_vector_to_numvec(post.house_transm_log_lik[R]);
+        {
+            std::vector<double> &col = post.house_transm_log_lik[R];
+            if (with_obs)
+            {
+                const std::vector<double> &obs = post.house_obs_log_lik[R];
+                for (size_t t = 0; t < col.size(); ++t)
+                    col[t] += obs[t];
+            }
+            class_cols[R] = flush_vector_to_numvec(col);
+        }
         std::vector<std::vector<double>>().swap(post.house_transm_log_lik);
+        std::vector<std::vector<double>>().swap(post.house_obs_log_lik);
 
         // Identity case (n_classes == n_houses) is naturally a no-op.
         Rcpp::List cols(n_houses);
@@ -1239,6 +1244,11 @@ namespace
                         Household &house = data_wide.at(H);
                         engine.model->simulate_single_house(house);
 
+                        // generate observation nodes once latents are finalized
+                        if (augm.is_any_obs())
+                            for (size_t i : house.infected_hhindexes())
+                                engine.augm.sample_obs(engine.setup.prng(), house.member(i));
+
                         size_t row = row_offsets[H]; // thread-local: no shared counter
                         for (const Individual &member : house)
                         {
@@ -1246,6 +1256,11 @@ namespace
                             size_t c = 0;
                             for (size_t a : augm.list_export)
                                 augm_cols[c++][row] = hsp_to_rcpp(engine.get_augm_varia(a, member));
+                            // observation nodes: generated for infected members, NA otherwise
+                            for (size_t a : augm.list_obs_export)
+                                augm_cols[c++][row] = member.is_infected_status()
+                                    ? hsp_to_rcpp(engine.get_augm_varia(a, member))
+                                    : NA_REAL;
                             ++row;
                         }
                     }
@@ -1324,9 +1339,11 @@ namespace
             // row offsets for house parallelization
             const std::vector<size_t> row_offsets = engine.get_row_offsets();
 
-            // pre-allocate mutable output columns once (reused across iterations)
+            // pre-allocate mutable output columns once (reused across iterations):
+            // exported augmented columns followed by generated observation columns
             Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
-            std::vector<Rcpp::NumericVector> augm_cols(augm.list_export.size());
+            std::vector<Rcpp::NumericVector> augm_cols(
+                augm.list_export.size() + augm.list_obs_export.size());
             for (size_t c = 0; c < augm_cols.size(); ++c)
                 augm_cols[c] = Rcpp::NumericVector(data_wide.report_indiv.total);
 
@@ -1471,18 +1488,18 @@ namespace
         return mcmc_ptr->model->has_contact_rates();
     }
 
-    Rcpp::NumericVector evaluate_log_posterior(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
+    double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
     {
         try
         {
-            // ordered terms by convention; R assigns the names
-            return Rcpp::wrap(mcmc_ptr->evaluate_log_posterior(house_id));
+            // scalar complete-data household log-likelihood (observation + transmission)
+            return mcmc_ptr->evaluate_log_lik(house_id);
         }
         catch (const std::exception &e)
         {
             mcmc_ptr->setup.crash(e);
         }
-        return Rcpp::NumericVector();
+        return NA_REAL;
     }
     void run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
@@ -1502,11 +1519,11 @@ namespace
         Rcpp::CharacterVector col_names = data_wide.names();
 
         std::vector<std::string> house_id = {};
-        if (std::find(col_names.begin(), col_names.end(), "house_id") != col_names.end())
+        if (contains(col_names, "house_id"))
             house_id = Rcpp::as<std::vector<std::string>>(data_wide["house_id"]);
 
         std::vector<int> status = {};
-        if (std::find(col_names.begin(), col_names.end(), "status") != col_names.end())
+        if (contains(col_names, "status"))
             status = Rcpp::as<std::vector<int>>(data_wide["status"]);
 
         return measure::summarise_houses(house_id, status);
@@ -1620,7 +1637,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
     Rcpp::function("run_simulation", &run_simulation);
-    Rcpp::function("evaluate_log_posterior", &evaluate_log_posterior);
+    Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);
     Rcpp::function("share_data_store", &share_data_store);
@@ -1639,7 +1656,6 @@ RCPP_MODULE(housepi)
     Rcpp::function("export_setup", &export_setup);
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);
     Rcpp::function("export_infec_profile", &export_infec_profile);
-    Rcpp::function("flush_tot_log_lik_draws", &flush_tot_log_lik_draws);
     Rcpp::function("flush_tot_augm_log_prior_draws", &flush_tot_augm_log_prior_draws);
     Rcpp::function("flush_param_draws", &flush_param_draws);
     Rcpp::function("flush_param_log_prior_draws", &flush_param_log_prior_draws);

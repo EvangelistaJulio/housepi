@@ -6,9 +6,29 @@
 \title{Posterior draws from housepi model inference}
 \description{
 Posterior draws as a result of housepi inference on a household model.
-This class stores posterior draws of model parameters,
-priors, total and household point-wise log-likelihood.
-If requested so during inference, it also stores augmented variables.
+This class stores posterior draws of model parameters, the joint log-prior
+(\code{lprior}) and the pointwise per-household log-likelihood (\code{log_lik}).
+If requested during inference, it also stores augmented variables.
+
+For models with augmented variables the chain targets the joint
+(augmented, parameter) posterior. Write \eqn{x} for a single household's
+data, \eqn{\theta} for the parameter vector and \eqn{z} for that household's
+augmented variables. The unnormalised joint log-density splits into the two
+bundles this class exposes,
+\deqn{\log p(\theta, z, x) =
+  \underbrace{\log p(\theta)
+              + \log p^\mathrm{augm}(z \mid \theta)}_{\texttt{lprior}}
+  + \underbrace{\log p^\mathrm{transm}(x \mid z, \theta)
+    + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
+where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{augm}} the
+augmented-variable prior, \eqn{p^\mathrm{transm}} the transmission likelihood
+and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
+the contract of the per-household \code{log_lik}: with no observation node
+\eqn{p^\mathrm{obs} \equiv 1} and \code{log_lik} contracts to transmission alone.
+
+Both bundles are conditional on \eqn{z}, so loo / priorsense operate as
+household-leave-one-out under the joint (augmented, parameter) posterior
+rather than over a marginal likelihood.
 }
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
@@ -16,24 +36,29 @@ If requested so during inference, it also stores augmented variables.
 \item{\code{parameter_draws}}{\code{posterior::draws_df}.
 Draws of parameters.}
 
-\item{\code{prior_draws}}{\code{posterior::draws_df}.
-Draws of parameter priors (per parameter, plus their sum \code{param_lprior}).}
-
 \item{\code{augmented_draws}}{\code{posterior::draws_df}.
 Draws selected individuals augmented variables.}
 
 \item{\code{log_lik_draws}}{\code{posterior::draws_df}.
-Draws of households pointwise transmission log-likelihood.}
+Pointwise per-household log-likelihood
+\eqn{\log p^\mathrm{transm}(x \mid z, \theta) +
+  \log p^\mathrm{obs}(x \mid z, \theta)}: transmission plus observation
+(the latter only when an observation node is defined, otherwise the total
+contracts to transmission). It is conditional on the augmented variables
+\eqn{z}, so loo over these columns is a household-leave-one-out under the
+joint (augmented, parameter) posterior.}
 
-\item{\code{total_log_lik_draws}}{\code{posterior::draws_df}.
-Draws of the total (tempered) transmission log-likelihood.}
-
-\item{\code{augmented_prior_draws}}{\code{posterior::draws_df}.
-Draws of the total augmented-variable log-prior.
-Empty when the model defines no augmented prior.}
+\item{\code{lprior_draws}}{\code{posterior::draws_df}.
+Single column \code{lprior}: the joint log-prior
+\eqn{\log p(\theta) + \log p^\mathrm{augm}(z \mid \theta)}, i.e. the
+parameter log-prior plus the augmented-variable log-prior (the latter
+present only with augmented priors).}
 
 \item{\code{complete_draws}}{\code{posterior::draws_df}.
-Draws of parameters, priors and pointwise log-likelihood values.}
+Parameters, pointwise \code{log_lik} and the joint \code{lprior}, named to the
+loo / priorsense convention so it can be passed straight to those tools.
+Note \code{log_lik}/\code{lprior} are evaluated over the joint (augmented,
+parameter) posterior (see \code{log_lik_draws} and \code{lprior_draws}).}
 }
 \if{html}{\out{</div>}}
 }

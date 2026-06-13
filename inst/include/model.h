@@ -88,7 +88,7 @@ namespace housepi
 		/// UPDATE: right now simulations assignments must be order independent.
 		void init_missing_augm(Individual &member)
 		{
-			mcmc_->augm.init_missing_definitions(member);
+			mcmc_->augm.init_definitions_for_simulation(member);
 			mcmc_->augm.restart(mcmc_->setup.prng(), member);
 		}
 

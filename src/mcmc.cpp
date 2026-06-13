@@ -262,6 +262,7 @@ namespace housepi
         param_values.clear();
         param_priors.clear();
         house_transm_log_lik.clear();
+        house_obs_log_lik.clear();
         augm_values.clear();
         augm_individuals.clear();
         param_names.clear();
@@ -273,7 +274,7 @@ namespace housepi
         unsigned long sample_size = setup.c_sample_size * setup.n_chains;
         is_power_post_ = setup.is_power_post();
 
-        // always allocate the transmission log-likelihood
+        // always allocate the transmission log-likelihood total (internal use)
         tot_transm_log_lik.reserve(1);
         tot_transm_log_lik.emplace_back(sample_size, na::DOUBLE);
 
@@ -291,6 +292,15 @@ namespace housepi
         helper_init_param_draws(this, mcmc.param, sample_size);
         helper_init_house_draws(this, mcmc.data_wide(), sample_size);
         helper_init_augm_draws(this, mcmc.augm, setup.id_draws, sample_size);
+
+        // pointwise observation likelihood, per eq-class, only when an obs node exists.
+        // obs nodes force unique eq-classes, so each class is one household.
+        if (mcmc.augm.is_any_obs())
+        {
+            house_obs_log_lik.reserve(mcmc.data_wide().eq_class_size());
+            for (size_t R = 0; R < mcmc.data_wide().eq_class_size(); ++R)
+                house_obs_log_lik.emplace_back(sample_size, na::DOUBLE);
+        }
     }
 
     void Posterior::store(MCMCBase &mcmc)
@@ -315,6 +325,12 @@ namespace housepi
             for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
                 house_transm_log_lik[R][count_] = data_wide.house_transm_log_lik(R);
 
+            // pointwise per-household observation log-likelihood (when an obs node exists);
+            // summed live from per-member log_obs (kept current by the move machinery)
+            if (!house_obs_log_lik.empty())
+                for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
+                    house_obs_log_lik[R][count_] = mcmc.house_log_obs(data_wide.eq_class_head(R));
+
             // augmented variable draws
             const Augmented &augm = mcmc.augm;
             for (size_t j = 0; j < augm_individuals.size(); ++j)
@@ -327,9 +343,9 @@ namespace housepi
             }
         }
 
-        // total (tempered) transmission log-likelihood — always stored
+        // total (tempered) transmission log-likelihood — internal (standalone / log-evidence)
         tot_transm_log_lik[0][count_] = mcmc.tot_transm_log_lik.value();
-        // total augmented-variable prior, stored separately when present
+        // total augmented-variable prior, stored separately when present (feeds lprior)
         if (!tot_augm_log_prior.empty())
             tot_augm_log_prior[0][count_] = mcmc.tot_augm_log_prior.value();
         // update sample count
@@ -412,9 +428,9 @@ namespace housepi
 
     void MCMCBase::init_equivalence_class_compression()
     {
-        // NOTE: equivalence compression is incompatible with
-        // sampling augmented data and per-household augmented priors
-        bool force_unique = augm.is_any_sample() || augm.is_any_prior();
+        // NOTE: equivalence compression is incompatible with sampling augmented data,
+        // per-household augmented priors and per-member observation nodes
+        bool force_unique = augm.is_any_sample() || augm.is_any_prior() || augm.is_any_obs();
         // however, false could also mean definitions not provided:
         // check if required and in such case set unique preventively
         if (!force_unique && augm.list_export.size() == 0)
@@ -465,7 +481,8 @@ namespace housepi
 
     void MCMCBase::assert_finite_log_lik() const
     {
-        if (!tot_transm_log_lik.is_inf() && !tot_augm_log_prior.is_inf())
+        if (!tot_obs_log_lik.is_inf() && !tot_transm_log_lik.is_inf() &&
+            !tot_augm_log_prior.is_inf())
             return;
 
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
@@ -483,15 +500,25 @@ namespace housepi
                         throw std::runtime_error(
                             "Initial augmented log-prior returned infinity for " +
                             house.member(i).err_name() + ".");
+
+            if (augm.is_any_obs())
+                for (size_t i : house.infected_hhindexes())
+                    if (augm.varia[house.member(i).index_].log_obs.is_inf())
+                        throw std::runtime_error(
+                            "Initial observation log-likelihood returned infinity for " +
+                            house.member(i).err_name() + ".");
         }
     }
 
-    void MCMCBase::recover_total_log_density_(bool is_cache_depen, bool with_augm_prior)
+    void MCMCBase::recover_total_log_density_(bool is_cache_depen, bool with_augm_prior,
+                                              bool with_obs)
     {
         // recover old value of full log-like
+        // observation / augmented priors were only touched by commit when the matching
+        // flag was set: otherwise recovering would roll them back to a stale value.
+        if (with_obs)
+            tot_obs_log_lik.recover();
         tot_transm_log_lik.recover();
-        // augmented priors were only touched by commit when with_augm_prior was set:
-        // otherwise recovering would roll them back to a stale value.
         if (with_augm_prior)
             tot_augm_log_prior.recover();
 
@@ -505,6 +532,9 @@ namespace housepi
             if (with_augm_prior)
                 for (size_t i : house.infected_hhindexes())
                     augm.varia[house.member(i).index_].log_prior.recover();
+            if (with_obs)
+                for (size_t i : house.infected_hhindexes())
+                    augm.varia[house.member(i).index_].log_obs.recover();
         }
 
         if (is_cache_depen)
@@ -516,7 +546,10 @@ namespace housepi
 
     std::vector<std::string> MCMCBase::get_static_data_names() const
     {
-        return data_wide().khold().all() - augm.khold(augm.list_export);
+        // exclude exported augmented and observation-node columns: the latter are
+        // generated by the simulation, so the generated value wins over static data.
+        return data_wide().khold().all() - augm.khold(augm.list_export) -
+               augm.khold(augm.list_obs_export);
     }
 
     std::vector<size_t> MCMCBase::get_row_offsets() const
@@ -528,13 +561,22 @@ namespace housepi
         return output;
     }
 
+    double MCMCBase::house_log_obs(const Household &house) const
+    {
+        double obs = 0.;
+        for (size_t i : house.infected_hhindexes())
+            obs += augm.varia[house.member(i).index_].log_obs.value();
+        return obs;
+    }
+
     std::vector<std::string> MCMCBase::get_col_names() const
     {
         std::vector<std::string> static_data_names = get_static_data_names();
         const size_t n_shared = static_data_names.size();
         const size_t n_augm_cols = augm.list_export.size();
+        const size_t n_obs_cols = augm.list_obs_export.size();
 
-        std::vector<std::string> output(2 + n_shared + 1 + n_augm_cols);
+        std::vector<std::string> output(2 + n_shared + 1 + n_augm_cols + n_obs_cols);
 
         output[0] = "id";
         output[1] = "house_id";
@@ -544,6 +586,9 @@ namespace housepi
         output[2 + n_shared] = "status";
         for (size_t c = 0; c < n_augm_cols; ++c)
             output[3 + n_shared + c] = augm.khold(augm.list_export[c]);
+        // observation-node (generated data) columns follow the augmented ones
+        for (size_t c = 0; c < n_obs_cols; ++c)
+            output[3 + n_shared + n_augm_cols + c] = augm.khold(augm.list_obs_export[c]);
 
         return output;
     }
@@ -589,7 +634,7 @@ namespace housepi
     //////  EVALUATION  //////
     //////////////////////////
 
-    std::vector<double> MCMC::evaluate_log_posterior(std::string_view house_id)
+    double MCMC::evaluate_log_lik(std::string_view house_id)
     {
         setup.n_chains = 0; // using '0 chains' as a state variable
         init_for_evaluation_();
@@ -599,27 +644,30 @@ namespace housepi
         LogDensityAccumulator acc;
         if (na::is(house_id))
         {
-            // full evaluation: transmission and augmented prior over all households
+            // full evaluation: observation and transmission over all households
             commit_total_log_density_(true);
+            acc.obs = tot_obs_log_lik.value();
             acc.transm = tot_transm_log_lik.value();
-            acc.prior = tot_augm_log_prior.value();
         }
         else
         {
-            // single household: its transmission and augmented-prior contribution
+            // single household: its observation and transmission contribution
             infec_profile.update(); // eventually recompute infectivity profile
-            acc = commit_house_log_density_(data_wide().at(house_id), true, augm.is_any_prior());
+            acc = commit_house_log_density_(data_wide().at(house_id), true,
+                                            augm.is_any_prior(), augm.is_any_obs());
         }
 
-        // log-posterior terms by convention order; param prior is global (both forms)
-        return {acc.transm, acc.prior, param.total_log_prior()};
+        // complete-data household log-likelihood (joint over augmented variables):
+        // observation + transmission. Priors are excluded.
+        return acc.obs + acc.transm;
     }
 
     void MCMC::init_for_evaluation_()
     {
         data_wide().assert_not_all_missing_status();
         augm.init_for_evaluation();
-        data_wide().init_eq_classes(augm.is_any_sample() || augm.is_any_prior());
+        data_wide().init_eq_classes(
+            augm.is_any_sample() || augm.is_any_prior() || augm.is_any_obs());
         data_wide().allocate_all_cache();
 
         param.optimize();
@@ -651,7 +699,7 @@ namespace housepi
         }
     }
 
-    void MCMC::commit_total_log_density_(bool is_cache_depen, bool with_augm_prior)
+    void MCMC::commit_total_log_density_(bool is_cache_depen, bool with_augm_prior, bool with_obs)
     {
         // save infectivity profile if lookup tables are active
         if (is_cache_depen)
@@ -660,30 +708,38 @@ namespace housepi
             infec_profile.update();
         }
 
-        // NOTE: classes are unique whenever augmented are sampled or carry prior
+        // NOTE: classes are unique whenever augmented are sampled, carry a prior or
+        // carry an observation node, so per-member sums are weight-1 over singletons
         const bool do_prior = with_augm_prior && augm.is_any_prior();
+        const bool do_obs = with_obs && augm.is_any_obs();
         LogDensityAccumulator acc = parallel::for_reduce<LogDensityAccumulator>(
             data_wide().eq_class_size(),
             [&](size_t R) -> LogDensityAccumulator
             {
                 double w = data_wide().eq_class_weight(R);
                 LogDensityAccumulator a = commit_house_log_density_(
-                    data_wide().eq_class_head(R), is_cache_depen, do_prior);
-                return {w * a.transm, w * a.prior};
+                    data_wide().eq_class_head(R), is_cache_depen, do_prior, do_obs);
+                // NOTE: aggregate-init order matches LogDensityAccumulator: obs, transm, prior
+                return {w * a.obs, w * a.transm, w * a.aprior};
             });
+        if (do_obs)
+            tot_obs_log_lik.set(acc.obs);
         tot_transm_log_lik.set(acc.transm);
         if (do_prior)
-            tot_augm_log_prior.set(acc.prior);
+            tot_augm_log_prior.set(acc.aprior);
     }
 
     LogDensityAccumulator MCMC::commit_house_log_density_(Household &house, bool is_cache_depen,
-                                                          bool with_augm_prior)
+                                                          bool with_augm_prior, bool with_obs)
     {
         LogDensityAccumulator acc;
+        if (with_obs)
+            for (size_t i : house.infected_hhindexes())
+                acc.obs += augm.commit_log_lik_obs(house.member(i));
         acc.transm = commit_transm_log_lik_(house, is_cache_depen);
         if (with_augm_prior)
             for (size_t i : house.infected_hhindexes())
-                acc.prior += augm.commit_augm_log_prior(house.member(i));
+                acc.aprior += augm.commit_augm_log_prior(house.member(i));
         return acc;
     }
 
@@ -787,23 +843,27 @@ namespace housepi
         // otherwise automatically refuse move
         if (this_par.is_valid_move())
         {
-            // re-evaluate the augmented log-prior only if this parameter feeds it
+            // re-evaluate the augmented log-prior / observation only if this
+            // parameter feeds the respective term
             const bool with_augm_prior =
-                augm.is_any_prior() && augm.is_prior_dependent_param(p);
+                augm.is_any_prior() && augm.param_affects_augm_prior(p);
+            const bool with_obs =
+                augm.is_any_obs() && augm.param_affects_obs_log_lik(p);
 
             // if parameter is cache dependent, update cache
-            commit_total_log_density_(is_cache_depen, with_augm_prior);
+            commit_total_log_density_(is_cache_depen, with_augm_prior, with_obs);
 
             // perform Metropolis-Hastings to accept or not move
-            // NOTE: only the likelihood is tempered; priors (parameter and
-            // augmented-variable) enter untempered, as for the parameter move.
+            // NOTE: likelihoods (transmission and observation) are tempered; priors
+            // (parameter and augmented-variable) enter untempered.
             const double r = setup.inv_T * tot_transm_log_lik.log_ratio() +
                              (with_augm_prior ? tot_augm_log_prior.log_ratio() : 0.) +
+                             (with_obs ? setup.inv_T * tot_obs_log_lik.log_ratio() : 0.) +
                              this_par.get_move_log_ratio();
             if (setup.exponential() > -r)
                 return;
             // else move is refused and log-likelihood recovered
-            recover_total_log_density_(is_cache_depen, with_augm_prior);
+            recover_total_log_density_(is_cache_depen, with_augm_prior, with_obs);
         }
         // recover old value of parameter
         this_par.recover();
@@ -819,8 +879,10 @@ namespace housepi
             data_wide().report_house.total,
             [&](size_t H) -> LogDensityAccumulator
             { return move_augm_single_house_(H); });
+        if (augm.is_any_obs())
+            tot_obs_log_lik.increment(acc.obs);
         tot_transm_log_lik.increment(acc.transm);
-        tot_augm_log_prior.increment(acc.prior);
+        tot_augm_log_prior.increment(acc.aprior);
     }
 
     LogDensityAccumulator MCMC::move_augm_single_house_(size_t H)
@@ -859,22 +921,32 @@ namespace housepi
             data_wide().save_member_cache(house, i);
             model->update_member_cache_dependecies(house, member);
 
-            // Metropolis-Hastings
+            // Metropolis-Hastings. Moving this latent changes the transmission
+            // likelihood, its own augmented prior, and the observation nodes it
+            // parameterizes (obs_depen). Likelihood terms are tempered, prior is not.
+            // only touch the observation density when this latent parameterizes an
+            // obs node, so a rejected move does not roll log_obs back to a stale value.
+            const bool with_obs = augm.is_any_obs() && augm.affects_obs(member, a);
             const double d_transm = commit_transm_log_lik_ratio_(house);
-            const double d_prior = commit_augm_log_prior_ratio(member, a);
+            const double d_prior = commit_augm_log_prior_ratio(member, a); 
+            // FIXME: am I double checking 'affects_obs' basically?
+            const double d_obs = with_obs ? commit_augm_log_obs_ratio(member, a) : 0.;
             if (setup.exponential() >
-                avar.get_proposal_log_ratio() - (setup.inv_T * d_transm + d_prior))
-                return {d_transm, d_prior};
+                avar.get_proposal_log_ratio() - setup.inv_T * (d_obs + d_transm) - d_prior)
+                // aggregate-init order matches LogDensityAccumulator: obs, transm, prior
+                return {d_obs, d_transm, d_prior};
 
             // else recover cached values
             augm.varia[member.index_].log_prior.recover();
+            if (with_obs)
+                augm.varia[member.index_].log_obs.recover();
             house.transm_log_lik_.recover();
             data_wide().recover_member_old_cached(house, i);
         }
         // else recover old value
         avar.recover();
 
-        return {0., 0.};
+        return {0., 0., 0.};
     }
 
     /* --FUTURE-LOG-EVIDENCE--
@@ -911,7 +983,7 @@ namespace housepi
     {
         // check scheme choice
         const std::vector<std::string> options = {"adaptive", "power-fractions"};
-        if (std::find(options.begin(), options.end(), scheme) == options.end())
+        if (!contains(options, scheme))
             throw std::invalid_argument(
                 "Invoked invalid power posterior scheme '" + std::string(scheme) + "'." +
                 str::find_closest(scheme, options));

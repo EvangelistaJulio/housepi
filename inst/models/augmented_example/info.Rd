@@ -18,8 +18,8 @@ The definition should imply \eqn{p \in [0,\,1]}.
 }
 \if{html}{\out{<hr>}}
 }
-\section{Likelihood}{
-\deqn{L = \sum_{s_i > 0} p_i}
+\section{Transmission}{
+\deqn{p^\mathrm{transm} = \sum_{s_i > 0} p_i}
 where \eqn{s_i} is the status of household member \eqn{i}.
 }
 

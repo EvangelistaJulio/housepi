@@ -9,7 +9,7 @@ A susceptible member can get infected at time/day \eqn{t_{i}} according to a inh
 }
 \section{Data}{
 \itemize{
-\item \code{end_followup} \eqn{t_{\rm end}} : end date of followup study
+\item \code{end_followup} \eqn{t_\mathrm{end}} : end date of followup study
 }
 \if{html}{\out{<hr>}}
 }
@@ -22,31 +22,29 @@ A susceptible member can get infected at time/day \eqn{t_{i}} according to a inh
 }
 \if{html}{\out{<hr>}}
 }
-\section{Group Rates}{
-\itemize{
-\item \code{community} \eqn{{\mu}^{(\rm com)}} : predisposition to infection from community relative to reference
-\item \code{susceptibility} \eqn{{\mu}^{(\rm sus)}}: predisposition to infection relative to reference
-\item \code{infectivity} \eqn{{\mu}^{(\rm inf)}} : predisposition to transmission relative to reference
-}
-\if{html}{\out{<hr>}}
-}
 \section{Augmented}{
 \itemize{
 \item \code{infec_time} \eqn{t_{i}} : time of infection of infectious member
-\item \code{onset_date} : time of symptom onset of infectious member
-\item \code{incub_period} : time between infection and symptom onset
 }
 \if{html}{\out{<hr>}}
 }
-\section{Likelihood}{
+\section{Group Rates}{
+\itemize{
+\item \code{community} \eqn{\mu^\mathrm{com}} : predisposition to infection from community relative to reference
+\item \code{susceptibility} \eqn{\mu^\mathrm{sus}}: predisposition to infection relative to reference
+\item \code{infectivity} \eqn{\mu^\mathrm{inf}} : predisposition to transmission relative to reference
+}
+\if{html}{\out{<hr>}}
+}
+\section{Transmission}{
 
-\deqn{L = P_{I} \cdot P_{S}}
+\deqn{p^\mathrm{transm} = p_\mathrm{I} \cdot p_\mathrm{S}}
 
 If \eqn{s_i} is the status of household member \eqn{i}, and
 
 \itemize{
 \item Force of infection for a household of size \eqn{n} : \deqn{
-{\lambda}_{i}(t) = {\mu}^{(\rm com)}_{i} {\alpha} + {\mu}^{(\rm sus)}_{i} {\beta} \left(\frac{n_{\ast}}{n}\right)^{\gamma} \sum_{j\,:\,t_{j}<t_{i}} {\mu}^{(\rm inf)}_{j} f_{j}(t)
+{\lambda}_{i}(t) = \mu^\mathrm{com}_{i} {\alpha} + \mu^\mathrm{sus}_{i} {\beta} \left(\tfrac{n_{\ast}}{n}\right)^{\gamma} \sum_{j\,:\,t_{j}<t_{i}} \mu^\mathrm{inf}_{j} f_{j}(t)
 }
 \item \code{infectivity profile} \eqn{f_{i}} : can be specified
 \item \eqn{t_{0}} : introduction time (earliest infection time in the household)
@@ -56,11 +54,11 @@ If \eqn{s_i} is the status of household member \eqn{i}, and
 \itemize{
 \item Infectious contribution :
 \eqn{
-P_{I} =\prod_{{i}:s_{i}>0} \lambda_{i}(t_{i})\exp{-\int_{t_{0}}^{t_{i}}\lambda_{i}(t){\rm d}t}
+p_\mathrm{I} =\prod_{{i}:s_{i}>0} \lambda_{i}(t_{i})\exp{-\int_{t_{0}}^{t_{i}}\lambda_{i}(t)\mathrm{d}t}
 }
 \item Susceptible contribution :
 \eqn{
-P_{S} = \prod_{{i}:s_{i}<0} \exp{-\int_{t_{0}}^{t_{\rm end}}\lambda_{i}(t){\rm d}t}
+p_\mathrm{S} = \prod_{{i}:s_{i}<0} \exp{-\int_{t_{0}}^{t_\mathrm{end}}\lambda_{i}(t)\mathrm{d}t}
 }
 }
 }
@@ -68,11 +66,11 @@ P_{S} = \prod_{{i}:s_{i}<0} \exp{-\int_{t_{0}}^{t_{\rm end}}\lambda_{i}(t){\rm d
 \itemize{
 \item Infectious contribution :
 \eqn{
-P_{ I} = \prod_{{i}:s_{i}>0}\left(1-\exp{-\lambda_{i}(t_{i})}\right)\exp{-\sum_{t={t}_{0}}^{t_{i}-1} \lambda_{i}(t)}
+p_\mathrm{I} = \prod_{{i}:s_{i}>0}\left(1-\exp{-\lambda_{i}(t_{i})}\right)\exp{-\sum_{t={t}_{0}}^{t_{i}-1} \lambda_{i}(t)}
 }
 \item Susceptible contribution :
 \eqn{
-{P}_{S} =\prod_{{i}:s_{i}<0}\exp{-\sum_{t={t}_{0}}^{t_{\rm end}}\lambda_{i}(t)}
+p_\mathrm{S} =\prod_{{i}:s_{i}<0}\exp{-\sum_{t={t}_{0}}^{t_\mathrm{end}}\lambda_{i}(t)}
 }
 }
 }

@@ -506,6 +506,12 @@ namespace housepi
         pProp_->reset_scale(pDistr_.get());
     }
 
+    void Variable::draw_value(rnd_gen &prng)
+    {
+        if (has_prior())
+            set(pDistr_->rand(prng));
+    }
+
     void Variable::optimize()
     {
         Attribute::optimize();
@@ -681,7 +687,7 @@ namespace housepi
 
         // reset definition dictionary to all constants NAs.
         for (const std::string &pstr : khold_.all())
-            if (std::find(headers.begin(), headers.end(), pstr) == headers.end())
+            if (!contains(headers, pstr))
                 simulation_values.emplace_back();
             else
                 simulation_values.emplace_back(input.at(pstr));
@@ -822,14 +828,14 @@ namespace housepi
     void Parameter::make_cache_dependent(size_t p)
     {
         // remove a parameter from standard if it was defined as such
-        if (std::find(list_sample_standard.begin(), list_sample_standard.end(), p) != list_sample_standard.end())
+        if (contains(list_sample_standard, p))
         {
             const std::vector<size_t> vec({p});
             list_sample_standard = list_sample_standard - vec;
         }
 
         // add the parameter as cache if not already present
-        if (std::find(list_sample_cached.begin(), list_sample_cached.end(), p) == list_sample_cached.end())
+        if (!contains(list_sample_cached, p))
             list_sample_cached.push_back(p);
     }
 
@@ -887,7 +893,7 @@ namespace housepi
         // check for undefined group rates, assumed to be equal to reference
         str_table undefined_rates = {};
         for (const std::string &gstr : khold_.all())
-            if (std::find(g_input_vec.begin(), g_input_vec.end(), gstr) == g_input_vec.end())
+            if (!contains(g_input_vec, gstr))
                 undefined_rates[gstr].push_back(rates::REFERENCE);
 
         // precompute rule_group / specificity and resolve column indices once

@@ -100,9 +100,13 @@ HousepiModel <- R6::R6Class(
     # @description
     # Assert if data_wide headers match implementation file.
     # @param capital `logical(1)` to raise error.
-    assert_data_wide_ = function(capital = TRUE) {
+    assert_data_wide_ = function(capital = TRUE, simulating = FALSE) {
       cols <- private$generator_$cols_data_wide
       required <- private$get_all_required_data_wide_()
+      # observation-node variates are generated during simulation, not required
+      if (isTRUE(simulating)) {
+        required <- setdiff(required, private$augm_$obs_data_names)
+      }
       sms <- template_missing_stop(required, cols, "data")
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
       else sms
@@ -251,7 +255,8 @@ HousepiModel <- R6::R6Class(
     # then push the final state to the engine.
     build_full_ = function(steps = 0, adapt = 0, burn = 0,
                            thin = 1, chains = 1, threads = 1,
-                           id_draws = NULL, progress = FALSE) {
+                           id_draws = NULL, progress = FALSE,
+                           simulating = FALSE) {
       # if no default columns on a blank model, assume debugging mode
       if (is.null(id_draws) &&
             private$generator_$is_blank() &&
@@ -275,7 +280,7 @@ HousepiModel <- R6::R6Class(
         progress = progress
       )))
       # hard validation before MCMC
-      private$assert_data_wide_(capital = TRUE)
+      private$assert_data_wide_(capital = TRUE, simulating = simulating)
       private$assert_param_(capital = TRUE)
       private$assert_group_rates_(capital = TRUE)
       private$assert_contact_rates_()
@@ -375,7 +380,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # internal build function
-      private$build_full_(steps = nrep, progress = FALSE)
+      private$build_full_(steps = nrep, progress = FALSE, simulating = TRUE)
 
       # NOTE: there might be not parameters at all
       if (dim(self$parameters)[1] == 0) return(nrep)
@@ -853,6 +858,42 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description
+    #' Add an observation node: a data column modelled as the variate of a
+    #' distribution conditioned on latent augmented variables and/or parameters.
+    #' Its density enters the per-household likelihood (folded into `log_lik`).
+    #' @param name `r rd_var_name_`
+    #' @param obs `r rd_obs_dist_`
+    #' @param ... `r rd_obs_args_`
+    #' @param status `r rd_aug_status_`
+    #' @param discr `r rd_aug_discr_`
+    #' @param min `r rd_aug_min_`
+    #' @param max `r rd_aug_max_`
+    add_observation = function(name = NA_character_, obs = NA_character_, ...,
+                               status = NA_integer_, discr = FALSE,
+                               min = NULL, max = NULL) {
+      # name every parameter preceding the dots so the captured distribution
+      # arguments land in add_quo's '...' (and not in 'value').
+      private$augm_$add_quo(name = name, value = NULL, status = status,
+                            const = NA, discr = discr, prior = NA_character_,
+                            rlang::enquos(...), obs = obs,
+                            min = rlang::enquo(min), max = rlang::enquo(max),
+                            .assert = TRUE, .obs = TRUE)
+      private$rebuild_()
+      invisible(self)
+    },
+
+    #' @description Load observation-node definitions as named arguments.
+    #' Each definition is `name = list(obs = "<distribution>", ...)`.
+    #' @param ... `r rd_list_args_`
+    #' @param append `r rd_list_append_`
+    add_observation_list = function(..., append = FALSE) {
+      private$augm_$add_quo_list(rlang::enquos(...),
+                                 append = append, .obs = TRUE)
+      private$rebuild_()
+      invisible(self)
+    },
+
     #' @description Load augmented definitions from template.
     #' @param append `r rd_tmpl_append_`
     add_augmented_template = function(append = FALSE) {
@@ -988,17 +1029,13 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description Evaluate log-posterior terms.
+    #' @description Evaluate the complete-data log-likelihood.
     #' @param house_id `r rd_house_id_`
     #' If `NA` (default) it computes for the whole data.
-    #' @return A named `numeric` vector of log-posterior terms.
-    evaluate_log_posterior = function(house_id = NA_character_) {
+    #' @return `numeric(1)`. Transmission plus observation log-likelihood.
+    evaluate_log_lik = function(house_id = NA_character_) {
       private$build_full_()
-      # C++ returns terms by convention order; name them here
-      stats::setNames(
-        .engine$evaluate_log_posterior(private$generator_$mcmc_ptr, house_id),
-        c("transmission", "augm_lprior", "param_lprior")
-      )
+      .engine$evaluate_log_lik(private$generator_$mcmc_ptr, house_id)
     },
 
     #' @description Run inference with Bayesian Markov chain Monte Carlo.

@@ -191,7 +191,6 @@ The draws come as [posterior](https://CRAN.R-project.org/package=posterior) obje
 # run the Monte Carlo specifying setup options (equal to default)
 results <- hhmodel |>
   run_inference(steps = 1000, # post-adaptation iterations per chain
-                burn = 0,     # iterations to drop before storing draws
                 thin = 5,     # keep one iteration every five
                 adapt = 500,  # adaptation iterations, run before `steps`
                 chains = 4,   # independent chains
@@ -202,10 +201,7 @@ results |>
   summarise_draws()
 ```
 
-# Inference and diagnostics
-
-We can proceed as usual with other popular R packages for Bayesian analysis.
-For example, we can extract the parameters draws by calling `get_parameter_draws` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot)
+We can extract the parameters draws by calling `get_parameter_draws` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot)
 
 ```{r}
 #| label: param-traces
@@ -214,28 +210,6 @@ For example, we can extract the parameters draws by calling `get_parameter_draws
 # visualize the traces of the first chain with 'bayesplot'
 get_parameter_draws(results) |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
-```
-
-or of the total log-likelihood by calling `get_total_log_lik_draws`:
-
-```{r}
-#| label: log-lik-traces
-#| fig-height: 2.5
-#| fig-alt: >
-#|  Trace plots for total log-likelihood across MCMC iterations with three parallel chains overlaid.
-get_total_log_lik_draws(results) |>
-  bayesplot::mcmc_trace()
-```
-
-Similarly, we can call functions from [loo](https://CRAN.R-project.org/package=loo).
-We extract the sample of pointwise log-likelihood for each household and compute for example the leave-one-out cross-validation as follows
-
-```{r}
-#| label: loo-cv
-# LOO-CV (leave-one-out cross-validation)
-get_log_lik_draws(results) |>
-  posterior::as_draws_matrix() |>
-  loo::loo()
 ```
 
 # Augmented infection times
@@ -269,17 +243,17 @@ associated from a list by calling `add_augmented_list()`.
 #| label: load-augmented-definitions
 hhsimul <- hhsimul |>
   add_augmented_list(
-    # define default infection times of introduction cases
-    # so that they all have symptom onset on day 0
-    # secondary infection times are taken care by the simulation
-    infec_time = - incub_period,
-
     # define an incubation period for each individual
     # arguments are linked to parameters
     incub_period = list(prior = "gamma",
                         shape = inc_shape@P, scale = inc_scale@P,
-                        max = 14)
-  )
+                        max = 14),
+    infec_time = -incub_period
+  ) |>
+  # observation of onset date is a noisy reading of the onset time
+  # infection time plus incubation period
+  add_observation("onset_date", obs = "normal",
+                  mean = infec_time + incub_period, sd = 1)
 ```
 
 When dealing with many different nested definitions it is not unusual to lose track of which definitions are missing.
@@ -308,19 +282,28 @@ Provide a custom definition following [Infectivity profiles](infectivity_profile
 
 We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
 In this configuration, introductions are sampled randomly.
-Simulation will associate augmented incubation periods and onset times in addition to status.
-We then propose a simple observation process, where we assume onsets after 6 PM (18/24) are reported to the next day. We also want to drop unobserved quantities. We can do both by assigning such a function to the argument `obs_process`:
+Because the model carries an observation node, simulation now associates augmented incubation periods, infection times and sampled onset dates by default:
 
 ```{r}
 #| label: run-simulation
-# define an observation process after the outbreak simulation
+# the onset_date observation node is sampled automatically
+simulated <- hhsimul |>
+  run_simulation()
+
+head(simulated)
+```
+
+An `obs_process` argument remains available for post-processing refinements:
+for instance, to round onsets reported after 6 PM (18/24) to the next day and drop the latent columns:
+
+```{r}
+#| label: run-simulation-obs-process
+# optional observation process applied after the outbreak simulation
 obs_process <- function(x) {
-  onset_date = floor(x$infec_time + x$incub_period + 0.25)
-  x$onset_date <- ifelse(x$status > 0, onset_date, NA)
+  x$onset_date <- ifelse(x$status > 0, floor(x$onset_date + 0.25), NA)
   x[!names(x) %in% c("incub_period", "infec_time")]
 }
 
-# run simulation using as structure the dataset associated at construction
 simulated <- hhsimul |>
   run_simulation(obs_process = obs_process)
 
@@ -331,6 +314,11 @@ head(simulated)
 
 It is important to validate our approach checking that inference is able to recover the parameters used for the simulation, with a so called simulation study.
 
+The pointwise `log_lik` is the per-household *complete-data* log-likelihood: for models with augmented variables it is conditional on the augmented values (and includes the observation term, when an observation node is defined).
+
+Inference reuses the very same definition set as the simulation: the observed
+`onset_date` now enters as a proper observation likelihood (traced separately as
+`obs`), rather than being smuggled in as a prior on the latent.
 
 ```{r}
 #| label: inference-simulated
@@ -340,11 +328,15 @@ hhmodel <- simulated |>
   add_parameter_list(inc_shape = 2, inc_scale = 1, append = TRUE) |>
   # loading definitions from list drops previous by default
   add_augmented_list(
-    infec_time = onset_time - incub_period,
-    onset_time = list(prior = "normal", mean = onset_date@D, sd = 1),
     incub_period = list(prior = "gamma",
-                        shape = inc_shape@P, scale = inc_scale@P)
-  )
+                        shape = inc_shape@P, scale = inc_scale@P,
+                        max = 14),
+    infec_time = list(prior = "uniform",
+                      min = -14, max = end_followup@D,
+                      proposal = "normal")
+  ) |>
+  add_observation("onset_date", obs = "normal",
+                  mean = infec_time + incub_period, sd = 1)
 
 results <- hhmodel |>
   # update progress bar every 3 seconds

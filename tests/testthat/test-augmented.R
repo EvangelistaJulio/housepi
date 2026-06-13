@@ -181,3 +181,81 @@ test_that("Symbolic definitions are equivalent", {
   helper_test_aux_load(augm, !!!external)
   expect_equal(augm$defs$func, "gamma|shape:scale|{shape|A}:{scale|A}")
 })
+
+test_that("Observation node definitions are encoded", {
+  augm <- HousepiAugmented$new()
+  helper_test_aux_load(
+    augm,
+    onset_date = list(obs = "normal", mean = onset_time@A, sd = 1),
+    .obs = TRUE
+  )
+  d <- augm$defs
+  # marked as observation, data-bound and constant (never sampled)
+  expect_identical(d[["kind"]], "obs")
+  expect_true(d[["const"]])
+  expect_identical(d[["value"]], "onset_date|D")
+  expect_true(is.na(d[["proposal"]]))
+  # distribution string carries the observation arguments
+  expect_identical(d[["prior"]], "normal|mean:sd|{onset_time|A}:{1|N}")
+  # the data column is required, the latent is an augmented dependency
+  expect_identical(unname(augm$data_required), "onset_date")
+  expect_identical(unname(augm$augm_required), "onset_time")
+  # reported as a generated data column (excluded from sim requirement)
+  expect_identical(augm$obs_data_names, "onset_date")
+})
+
+test_that("Observation node rejects conflicting options", {
+  augm <- HousepiAugmented$new()
+  # prior and obs are mutually exclusive
+  helper_test_aux_load(augm, x = list(prior = "normal", obs = "normal"),
+                       .obs = TRUE) |>
+    expect_error("only one between 'prior' and 'obs'")
+  # observation nodes are data-bound, never sampled
+  helper_test_aux_load(augm, x = list(obs = "normal", proposal = "sample"),
+                       .obs = TRUE) |>
+    expect_error("data-bound")
+})
+
+test_that("Deterministic observation node is encoded as a function obs", {
+  augm <- HousepiAugmented$new()
+  helper_test_aux_load(
+    augm,
+    incub_period = list(prior = "gamma", shape = 2, scale = 1),
+    infec_time = -incub_period
+  )
+  # a bare expression (no 'obs =' distribution) is a deterministic observation
+  helper_test_aux_load(augm, onset_date = floor(infec_time + incub_period),
+                       .obs = TRUE)
+  d <- augm$defs[augm$defs[["name"]] == "onset_date", ]
+  # tagged as observation, carrying a deterministic function and no distribution
+  expect_identical(d[["kind"]], "obs")
+  expect_true(is.na(d[["prior"]]))
+  expect_true(is.na(d[["value"]]))
+  expect_match(d[["func"]], "floor")
+  # still reported as a generated data column
+  expect_identical(augm$obs_data_names, "onset_date")
+})
+
+test_that("Observation and augmented loads each own only their definitions", {
+  augm <- HousepiAugmented$new()
+  helper_test_aux_load(
+    augm,
+    incub_period = list(prior = "gamma", shape = 2, scale = 1),
+    infec_time = -incub_period
+  )
+  # a fresh (non-append) observation load keeps the augmented variables it needs
+  helper_test_aux_load(
+    augm,
+    onset_date = list(obs = "normal", mean = infec_time@A, sd = 1),
+    .obs = TRUE
+  )
+  expect_setequal(augm$defs[["name"]],
+                  c("incub_period", "infec_time", "onset_date"))
+
+  # symmetrically, a fresh augmented load keeps the observation node
+  helper_test_aux_load(
+    augm, incub_period = list(prior = "gamma", shape = 2, scale = 1)
+  )
+  expect_true("onset_date" %in% augm$defs[["name"]])
+  expect_identical(augm$obs_data_names, "onset_date")
+})

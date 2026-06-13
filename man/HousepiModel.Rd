@@ -46,13 +46,15 @@ and variable definitions from a single class.
 \item \href{#method-HousepiModel-add_parameter_template}{\code{HousepiModel$add_parameter_template()}}
 \item \href{#method-HousepiModel-add_augmented}{\code{HousepiModel$add_augmented()}}
 \item \href{#method-HousepiModel-add_augmented_list}{\code{HousepiModel$add_augmented_list()}}
+\item \href{#method-HousepiModel-add_observation}{\code{HousepiModel$add_observation()}}
+\item \href{#method-HousepiModel-add_observation_list}{\code{HousepiModel$add_observation_list()}}
 \item \href{#method-HousepiModel-add_augmented_template}{\code{HousepiModel$add_augmented_template()}}
 \item \href{#method-HousepiModel-add_group_rate}{\code{HousepiModel$add_group_rate()}}
 \item \href{#method-HousepiModel-add_group_rate_list}{\code{HousepiModel$add_group_rate_list()}}
 \item \href{#method-HousepiModel-add_contact_rate}{\code{HousepiModel$add_contact_rate()}}
 \item \href{#method-HousepiModel-add_infec_profile}{\code{HousepiModel$add_infec_profile()}}
 \item \href{#method-HousepiModel-add_infec_profile_list}{\code{HousepiModel$add_infec_profile_list()}}
-\item \href{#method-HousepiModel-evaluate_log_posterior}{\code{HousepiModel$evaluate_log_posterior()}}
+\item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
 \item \href{#method-HousepiModel-run_inference}{\code{HousepiModel$run_inference()}}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
 \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
@@ -404,6 +406,82 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-add_observation"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_observation}{}}}
+\subsection{Method \code{add_observation()}}{
+Add an observation node: a data column modelled as the variate of a
+distribution conditioned on latent augmented variables and/or parameters.
+Its density enters the per-household likelihood (folded into \code{log_lik}).
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_observation(
+  name = NA_character_,
+  obs = NA_character_,
+  ...,
+  status = NA_integer_,
+  discr = FALSE,
+  min = NULL,
+  max = NULL
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{name}}{\code{character(1)} Name used by internal calls.}
+
+\item{\code{obs}}{\code{character(1)} Choice for the observation distribution.
+Mutually exclusive with \code{prior}.}
+
+\item{\code{...}}{named arguments for the observation distribution.}
+
+\item{\code{status}}{\code{integer(1)} Individual positive status.
+Used to specify status-specific definitions.
+If \code{NA}, associate definition to all infectious individuals (default).}
+
+\item{\code{discr}}{\code{logical(1)} Treat definition as discrete.
+If applicable, the prior is discretized.}
+
+\item{\code{min}}{\code{numeric(1)} Truncate to a minimum value.
+One between:
+\itemize{
+\item Scalar value;
+\item Parameter name (followed by \verb{@P});
+\item Dataset name (followed by \verb{@D}).
+}}
+
+\item{\code{max}}{\code{numeric(1)} Truncate to a maximum value.
+One between:
+\itemize{
+\item Scalar value;
+\item Parameter name (followed by \verb{@P});
+\item Dataset name (followed by \verb{@D}).
+}}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-add_observation_list"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-add_observation_list}{}}}
+\subsection{Method \code{add_observation_list()}}{
+Load observation-node definitions as named arguments.
+Each definition is \code{name = list(obs = "<distribution>", ...)}.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_observation_list(..., append = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Named arguments. Respective list of definition details.}
+
+\item{\code{append}}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions (default).}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-add_augmented_template"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_augmented_template}{}}}
 \subsection{Method \code{add_augmented_template()}}{
@@ -661,12 +739,12 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-evaluate_log_posterior"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-evaluate_log_posterior}{}}}
-\subsection{Method \code{evaluate_log_posterior()}}{
-Evaluate the named log-posterior terms.
+\if{html}{\out{<a id="method-HousepiModel-evaluate_log_lik"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-evaluate_log_lik}{}}}
+\subsection{Method \code{evaluate_log_lik()}}{
+Evaluate the complete-data log-likelihood.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_posterior(house_id = NA_character_)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_lik(house_id = NA_character_)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -678,7 +756,7 @@ If \code{NA} (default) it computes for the whole data.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-A named \code{numeric} vector of log-posterior terms.
+\code{numeric(1)}. Transmission plus observation log-likelihood.
 }
 }
 \if{html}{\out{<hr>}}

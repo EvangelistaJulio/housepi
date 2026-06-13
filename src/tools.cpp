@@ -112,8 +112,7 @@ namespace housepi
 
     bool KeyHolder::count(std::string_view name) const
     {
-        return std::find(declared_.begin(), declared_.end(), name) != declared_.end() ||
-               std::find(optional_.begin(), optional_.end(), name) != optional_.end();
+        return contains(declared_, name) || contains(optional_, name);
     }
 }
 
@@ -406,11 +405,11 @@ namespace housepi::dependency
             throw std::invalid_argument(
                 "Could not find a definition for '" + entry + "'");
 
-        if (std::find(recursion_stack.begin(), recursion_stack.end(), entry) != recursion_stack.end())
+        if (contains(recursion_stack, entry))
             throw std::invalid_argument(
                 "Found inadmissible cyclic definition for '" + entry + "'");
 
-        if (std::find(visited.begin(), visited.end(), entry) != visited.end())
+        if (contains(visited, entry))
             return;
 
         recursion_stack.push_back(entry);
@@ -426,7 +425,7 @@ namespace housepi::dependency
     {
         std::vector<std::string> visited, recursion_stack, ordered;
         for (const auto &[a, vec] : graph)
-            if (std::find(visited.begin(), visited.end(), a) == visited.end())
+            if (!contains(visited, a))
                 walk_tree(a, graph, visited, recursion_stack, ordered);
         return ordered;
     }

@@ -30,14 +30,17 @@ Let's briefly recall the concept of Bayesian data augmentation for the case of e
 Bayesian data augmentation is a computational strategy that expands the parameter space by introducing augmented variables (also referred to as hidden or latent variables) to facilitate sampling from the posterior.
 
 Consider a single infectious individual $i$.
-Imagine that someone reported the exact time of symptom onset ${t}^{(\mathrm{ons})}_{i}$.
-We can introduce latent infection times ${t}_{i}$, defined as the difference between the onset time and the augmented incubation period ${\tau}^{(\mathrm{inc})}_{i}$:
+Imagine that someone reported the exact time of symptom onset $t^\mathrm{ons}_{i}$.
+We can introduce latent infection times $t_{i}$, defined as the difference between the onset time and the augmented incubation period $\tau^\mathrm{inc}_{i}$:
 
-$${t}_{i} = {t}^{(\mathrm{ons})}_{i} - {\tau}^{(\mathrm{inc})}_{i},$$
+$$t_{i} = t^\mathrm{ons}_{i} - \tau^\mathrm{inc}_{i},$$
 where the incubation period is drawn from a model distribution.
-Say $x$ the observed data, onset days and status, $h$ the augmented variables infection time and incubation period. If $\theta$ is the vector of parameters, the joint posterior reads
+Take $x$ the data of a single household (onset days and status), $z$ its augmented variables (infection time and incubation period) and $\theta$ the vector of parameters. The joint posterior then reads
 
-$${P}({\theta}, {h}\vert{x}) \varpropto {P}({x}\vert{\theta},{h}) {P}({h}\vert{\theta}){P}({\theta}).$$
+$$p(\theta, z \mid x) \varpropto
+  \underbrace{p^\mathrm{transm}(x \mid \theta, z)\, p^\mathrm{obs}(x \mid \theta, z)}_{\text{likelihood}}\;
+  \underbrace{p^\mathrm{augm}(z \mid \theta)\, p(\theta)}_{\text{prior}},$$
+where the likelihood is the transmission term $p^\mathrm{transm}$ times the observation term $p^\mathrm{obs}$ (the latter only when an observation node is defined, so it contracts to transmission otherwise), and the prior is the augmented-variable prior $p^\mathrm{augm}$ times the parameter prior $p(\theta)$.
 We here explain how to associate individual augmented variables in housepi for minimal examples.
 
 # Build augmented variables
@@ -49,7 +52,7 @@ In many applications, augmented variable definitions can also depend on the data
 
 We can declare the source of any argument value according to the convention using the \@ symbol
 $$
-{\rm argument@source}
+\mathrm{argument@source}
 $$
 which reads "argument at source".
 E.g. "visit_day\@D" will source the value from individual data "visit_day", "beta\@P" from the current value for the parameter "beta", etc.
@@ -269,8 +272,8 @@ bayesplot::mcmc_trace(get_augmented_draws(results))
 #| label: trace-log-likelihood
 #| fig-height: 2
 #| fig-alt: >
-#|  Trace plot of the corresponding model contribution to the log-likelihood.
-bayesplot::mcmc_trace(get_total_log_lik_draws(results))
+#|  Trace plot of the pointwise per-household log-likelihood.
+bayesplot::mcmc_trace(get_log_lik_draws(results))
 ```
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}

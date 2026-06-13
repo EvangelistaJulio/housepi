@@ -55,27 +55,34 @@ namespace housepi
 		//////  EVALUATION  //////
 		//////////////////////////
 
-		/// Initialize model and evaluate the log-posterior terms, ordered by
-		/// convention: {transmission, augm_lprior, param_lprior}. R names them.
-		std::vector<double> evaluate_log_posterior(std::string_view house_id);
+		/// Initialize model and evaluate the scalar complete-data household
+		/// log-likelihood (observation + transmission), joint over augmented variables.
+		double evaluate_log_lik(std::string_view house_id);
 
 	private:
 		/// Assert setup definitions, then proceed with initialization for evaluation.
 		void init_for_evaluation_();
 
 		/// Compute total log-density and store all old values, households included.
-		/// Result is left in tot_transm_log_lik / tot_augm_log_prior.
-		/// NOTE: with_augm_prior=false skips the augmented log-prior re-evaluation.
-		void commit_total_log_density_(bool is_cache_depen, bool with_augm_prior = true);
+		/// Result is left in tot_transm_log_lik / tot_augm_log_prior / tot_obs_log_lik.
+		/// NOTE: with_augm_prior / with_obs skip the respective re-evaluation.
+		void commit_total_log_density_(bool is_cache_depen, bool with_augm_prior = true,
+									   bool with_obs = true);
 
-		/// Commit single household's transmission and augmented prior.
+		/// Commit single household's transmission, augmented prior and observation.
 		LogDensityAccumulator commit_house_log_density_(Household &house, bool is_cache_depen,
-														bool with_augm_prior);
-														
+														bool with_augm_prior, bool with_obs);
+
 		/// Compute and store log-ratio of prior of single augmented variable.
 		double commit_augm_log_prior_ratio(Individual &member, size_t a)
 		{
-			return augm.commit_log_prior_ratio(member, a);
+			return augm.commit_augm_log_prior_ratio(member, a);
+		}
+
+		/// Compute and store log-ratio of observation nodes parameterized by 'a'.
+		double commit_augm_log_obs_ratio(Individual &member, size_t a)
+		{
+			return augm.commit_log_lik_obs_ratio(member, a);
 		}
 
 		/// Update and return contribution of given household to full logliklehood.
@@ -122,7 +129,7 @@ namespace housepi
 
 		/// Move all model parameters and augmented variables.
 		void move_all_();
-		/// Attempt to move a single parameter for the given inverse temperature.
+		/// Attempt to move a single parameter.
 		void move_single_parameter_(size_t p, bool is_cache_depen);
 		/// Move augmented variables of all infected individuals.
 		void move_all_augm_();

@@ -83,6 +83,9 @@ namespace housepi
         /// If applicable, initialize value from prior.
         /// Reset default scale for adaptive proposal rule.
         void restart(rnd_gen &prng);
+        /// Draw the value from the distribution (used to generate observation
+        /// nodes during simulation; unlike restart it ignores the constant flag).
+        void draw_value(rnd_gen &prng);
         /// Optimize attribute (see Attribute::optimize) and
         /// distribution arguments (see Function::optimize).
         void optimize() override final;

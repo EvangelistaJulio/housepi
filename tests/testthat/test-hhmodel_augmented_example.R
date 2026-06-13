@@ -12,14 +12,14 @@ test_that("Nested definitions raise errors", {
         .dummy = list(prior = "uniform"),
         proba = .layer
       ) |>
-      evaluate_log_posterior()
+      evaluate_log_lik()
   )
 
   # simple nest
   expect_error(
     hhmodel |>
       add_augmented_list(.dummy = proba, proba = .dummy) |>
-      evaluate_log_posterior(),
+      evaluate_log_lik(),
     regexp = "cyclic definition"
   )
 
@@ -27,7 +27,7 @@ test_that("Nested definitions raise errors", {
   expect_error(
     hhmodel |>
       add_augmented_list(proba = .layer, .layer = .dummy, .dummy = proba) |>
-      evaluate_log_posterior(),
+      evaluate_log_lik(),
     regexp = "cyclic definition"
   )
 
@@ -39,7 +39,7 @@ test_that("Nested definitions raise errors", {
       #> NO .layer provided for status 3 and 4
       .dummy = list(prior = "lognormal", status = 2),
       proba = .layer
-    )$evaluate_log_posterior()
+    )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
   expect_match(err_msg, "status")
@@ -52,7 +52,7 @@ test_that("Nested definitions raise errors", {
       #> NO .dummy provided for status 3, 4
       .dummy = list(prior = "lognormal", status = c(2, 3)),
       proba = .layer
-    )$evaluate_log_posterior()
+    )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
   expect_match(err_msg, "status")
@@ -73,7 +73,7 @@ test_that("Missing function arguments raise errors", {
     drop_augmented() |>
     add_augmented(name = "proba", func = "gamma",
                   func_args = c(shape = 2)) |>
-    evaluate_log_posterior() |>
+    evaluate_log_lik() |>
     expect_error(regexp = "Impossible to return")
 
   # concatenated data with NA values
@@ -82,26 +82,26 @@ test_that("Missing function arguments raise errors", {
       gamma = list(func = "gamma",  func_args = c(shape = 2)),
       proba =  exp(-gamma)
     ) |>
-    evaluate_log_posterior() |>
+    evaluate_log_lik() |>
     expect_error(regexp = "Impossible to associate")
 
   # check that NaN + something causes errors
   hhmodel |>
     add_augmented_list(noise = list(prior = "normal"),
                        proba = exp(test@D + noise)) |>
-    evaluate_log_posterior() |>
+    evaluate_log_lik() |>
     expect_error(regexp = "Impossible to associate")
 
   # check that log(NaN) causes error
   hhmodel |>
     add_augmented_list(proba = log(test@D)) |>
-    evaluate_log_posterior() |>
+    evaluate_log_lik() |>
     expect_error(regexp = "Impossible to associate")
 
   # check that log(0) causes error
   hhmodel |>
     add_augmented_list(noise = 0., proba = log(noise)) |>
-    evaluate_log_posterior() |>
+    evaluate_log_lik() |>
     expect_error(regexp = "Impossible to associate")
 })
 
@@ -257,7 +257,7 @@ test_that("Known errors are unchanged", {
                    func_args = c(x = value, meanlog = 4, sdlog = 0.01),
                    min = 1, max = 15, discr = TRUE)
     ) |>
-    evaluate_log_posterior() |>
+    evaluate_log_lik() |>
     expect_error(regexp = "returned NaN")
 })
 
@@ -283,27 +283,23 @@ test_that("Augmented model log-likelihoods are correctly computed", {
                       threads = t, id_draws = id_draws)
     )
 
-    # coherency between pointwise and total log-likelihood
-    expect_equal(get_total_log_lik_draws(results)$transmission,
-                 get_log_lik_draws(results)$hh01)
-
     # coherency between augmented draws and log-density: the pointwise
-    # transmission likelihood plus the augmented prior recompose log(proba) +
-    # log(dgamma(proba)).
+    # likelihood plus the augmented prior recompose log(proba) +
+    # log(dgamma(proba)). With no parameter priors, lprior == augm_lprior.
     df <- as.data.frame(get_augmented_draws(results))
     df <- as.matrix(df[, !startsWith(names(df), "."), drop = FALSE])
-    augm_prior <- get_augmented_prior_draws(results)$augm_lprior
+    augm_prior <- get_lprior_draws(results)$lprior
     expect_equal(get_log_lik_draws(results)$hh01 + augm_prior,
                  rowSums(log(df * dgamma(df, shape = shape, scale = scale))))
   }
 })
 
-test_that("export_augmented_data works after evaluate_log_posterior", {
+test_that("export_augmented_data works after evaluate_log_lik", {
   hhmodel <- data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0)) |>
     new_housepi_model("augmented_example") |>
     add_augmented(name = "proba", prior = "uniform")
   # UPDATE: I can test here that before export_augmented_data fails...
-  hhmodel$evaluate_log_posterior()
+  hhmodel$evaluate_log_lik()
   result <- hhmodel$export_augmented_data()
   expect_true(is.data.frame(result))
   expect_true("proba" %in% colnames(result))
@@ -314,7 +310,7 @@ test_that("export_house_snapshot returns correct structure", {
     new_housepi_model("chain_binomial") |>
     add_parameter_template()
   # UPDATE: I can test here that before export_house_snapshot fails...
-  hhmodel$evaluate_log_posterior()
+  hhmodel$evaluate_log_lik()
 
   hid <- hhmodel$data_wide$house_id[1]
   snapshot <- hhmodel$export_house_snapshot(hid)

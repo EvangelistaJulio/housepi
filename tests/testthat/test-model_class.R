@@ -93,7 +93,7 @@ test_that("Model class 'blank' calls", {
   expect_equal(x, 0)
 
   # not existing household id
-  hhmodel$evaluate_log_posterior("mother-base") |>
+  hhmodel$evaluate_log_lik("mother-base") |>
     expect_error("[Ii]ndex.*mother-base.*did not match")
 
   # blank simulation
@@ -377,7 +377,7 @@ test_that("Nested definitions works as expected", {
                                    thin = 1, progress = 0)
   # no parameters nor priors, only augmented
   expect_equal(posterior::nvariables(results$parameter_draws), 0L)
-  expect_equal(posterior::nvariables(results$prior_draws), 0L)
+  expect_null(results$.__enclos_env__$private$param_prior_draws_)
   expect_equal(posterior::nvariables(results$augmented_draws),
                dim(hhmodel$augmented)[1])
 
@@ -641,7 +641,8 @@ test_that("Parameter defined as a function tracks its dependencies", {
   # both sampled and function-derived parameters appear in the trace
   expect_true(all(c("gamma", "beta") %in% vars))
   # the function-derived parameter has no prior contribution
-  expect_false("lprior_beta" %in% posterior::variables(res$prior_draws))
+  expect_false("lprior_beta" %in% posterior::variables(
+    res$.__enclos_env__$private$param_prior_draws_))
 
   df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
   # every draw of beta equals size_ref^(-gamma) exactly
@@ -674,7 +675,8 @@ test_that("Parameter defined as a function tracks its dependencies", {
   # both sampled and function-derived parameters appear in the trace
   expect_true(all(c("gamma", "beta") %in% vars))
   # the function-derived parameter has no prior contribution
-  expect_false("lprior_beta" %in% posterior::variables(res$prior_draws))
+  expect_false("lprior_beta" %in% posterior::variables(
+    res$.__enclos_env__$private$param_prior_draws_))
 
   df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
   # snake on the trail: every draw of beta equals size_ref^(-gamma) exactly

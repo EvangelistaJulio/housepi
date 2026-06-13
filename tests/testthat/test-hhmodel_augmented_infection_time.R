@@ -134,7 +134,7 @@ test_that("Simulations behave as expected", {
 
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), house_id = "h1", status = 0,
-             end_followup = 21, onset_date = NA) |>
+             end_followup = 21) |>
     new_housepi_model("augmented_infection_time") |>
     add_parameter_template() |>
     add_augmented_template() |>
@@ -214,13 +214,28 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
   id_draws <- house[house$status > 0, ]$id
 
   for (t in c(1L, 2L)) {
+    hhmodel <- build_hh()
     suppressWarnings(
-      results <- build_hh() |>
+      results <- hhmodel |>
         run_inference(steps = 30, thin = 1, adapt = 20, chain = 1,
                       threads = t, id_draws = id_draws)
     )
-    expect_equal(get_total_log_lik_draws(results)$transmission,
-                 get_log_lik_draws(results)$hh01)
+    # pointwise log-lik (transmission only, no obs node) matches an independent
+    # R recomputation for every retained draw, under any thread count
+    param_draws <- get_parameter_draws(results) |>
+      posterior::as_draws_matrix() |>
+      as.data.frame()
+    augm_draws <- get_augmented_draws(results) |>
+      posterior::as_draws_matrix() |>
+      as.data.frame()
+    consts <- hhmodel$parameters[hhmodel$parameters$const, c("name", "value")] |>
+      tidyr::pivot_wider(names_from = "name", values_from = "value") |>
+      as.list()
+    transm_ref <- sapply(seq_len(30), function(i) {
+      df <- join_augm_data(house, get_augm_state(augm_draws, i))
+      augm_infec_obs_log_lik(df, c(param_draws[i, , drop = FALSE], consts))
+    })
+    expect_equal(get_log_lik_draws(results)$hh01, transm_ref)
   }
 })
 
@@ -251,11 +266,16 @@ test_that("Augmented moves preserve log-likelihood", {
                     chain = 1, id_draws = id_draws)
   )
 
-  tot_log_lik <- get_total_log_lik_draws(results)$transmission
-  expect_equal(tot_log_lik, get_log_lik_draws(results)$hh01)
-  # full log-density recomposes transmission likelihood + augmented priors
-  augm_prior <- get_augmented_prior_draws(results)$augm_lprior
-  tot_log_dens <- tot_log_lik + augm_prior
+  # no obs node here, so the pointwise log-lik is the transmission likelihood
+  tot_log_lik <- get_log_lik_draws(results)$hh01
+  # full log-density recomposes the likelihood + augmented priors;
+  # augmented prior = joint lprior minus the parameter log-prior. The
+  # per-parameter prior is internal, so reach the private storage to sum it.
+  param_prior <- results$.__enclos_env__$private$param_prior_draws_
+  param_lprior <- if (is.null(param_prior)) 0 else
+    rowSums(posterior::as_draws_matrix(param_prior))
+  augm_prior <- get_lprior_draws(results)$lprior - param_lprior
+  tot_log_dens <- unname(tot_log_lik + augm_prior)
 
   param_draws <- get_parameter_draws(results) |>
     posterior::as_draws_matrix() |>
@@ -301,5 +321,140 @@ test_that("Augmented moves preserve log-likelihood", {
       add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
       eval_log_density()
   }
-  expect_equal(tot_log_dens[n_steps], housepi_eval(n_steps))
+  # the fresh-model likelihood matches the tracked pointwise likelihood
+  expect_equal(tot_log_lik[n_steps], housepi_eval(n_steps))
+})
+
+test_that("Observation node enters the pointwise log-likelihood", {
+  house <- data.frame(house_id = "hh01",
+                      status = c(1, 1, 1, 0, 0, 0, 0),
+                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
+                      end_followup = 21)
+  house$id <- sprintf("hh01m%s", seq_len(nrow(house)))
+  id_draws <- house[house$status > 0, ]$id
+
+  hhmodel <- house |>
+    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    add_parameter_template() |>
+    add_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
+    add_augmented_list(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
+      infec_time   = list(prior = "uniform", min = -14, max = end_followup@D,
+                          proposal = "normal")
+    ) |>
+    add_observation("onset_date", obs = "normal",
+                    mean = infec_time@A + incub_period@A, sd = 1) |>
+    add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+
+  n_steps <- 100
+  results <- suppressWarnings(
+    hhmodel |> run_inference(steps = n_steps, thin = 1, adapt = 0,
+                             chain = 1, id_draws = id_draws)
+  )
+
+  param_draws <- get_parameter_draws(results) |>
+    posterior::as_draws_matrix() |>
+    as.data.frame()
+  augm_draws <- get_augmented_draws(results) |>
+    posterior::as_draws_matrix() |>
+    as.data.frame()
+  consts <- hhmodel$parameters[hhmodel$parameters$const, c("name", "value")] |>
+    tidyr::pivot_wider(names_from = "name", values_from = "value") |>
+    as.list()
+
+  # the pointwise log_lik combines transmission and observation: it matches an
+  # independent recomputation of both pieces per retained draw
+  ref <- sapply(seq_len(n_steps), function(i) {
+    df <- join_augm_data(house, get_augm_state(augm_draws, i))
+    transm <- augm_infec_obs_log_lik(df, c(param_draws[i, , drop = FALSE],
+                                           consts))
+    dd <- df[df$status > 0, ]
+    obs <- sum(dnorm(dd$onset_date, mean = dd$infec_time + dd$incub_period,
+                     sd = 1, log = TRUE))
+    transm + obs
+  })
+  expect_equal(get_log_lik_draws(results)$hh01, ref)
+})
+
+test_that("Observation node generates the data column in simulation", {
+  set.seed(1)
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_list(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented_list(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time   = -incub_period
+    ) |>
+    # one definition set drives simulation too: no hand-written obs_process
+    add_observation("onset_date", obs = "normal",
+                    mean = infec_time@A + incub_period@A, sd = 1) |>
+    run_simulation()
+
+  # onset_date is generated for infected members and only those
+  expect_true("onset_date" %in% names(simulated))
+  expect_false(any(is.na(simulated$onset_date[simulated$status > 0])))
+  expect_true(all(is.na(simulated$onset_date[simulated$status == 0])))
+
+  # generated onset_date is a draw from normal(infec_time + incub_period, 1)
+  inf <- simulated[simulated$status > 0, ]
+  resid <- inf$onset_date - (inf$infec_time + inf$incub_period)
+  expect_lt(abs(mean(resid)), 0.2)
+  expect_lt(abs(sd(resid) - 1), 0.2)
+})
+
+test_that("Observation nodes are reserved to add_observation / add_observation_list", {
+  hhmodel <- data.frame(id = seq(2), house_id = "h1", status = 0,
+                        end_followup = 21) |>
+    new_housepi_model("augmented_infection_time", quiet = TRUE)
+
+  # the augmented entry points reject an 'obs =' declaration
+  expect_error(add_augmented(hhmodel, "onset_date", obs = "normal", sd = 1),
+               regexp = "add_observation")
+  expect_error(
+    add_augmented_list(hhmodel,
+                       onset_date = list(obs = "normal", mean = 0, sd = 1)),
+    regexp = "add_observation"
+  )
+
+  # the templated augmented definitions no longer carry an observation node
+  expect_false("onset_date" %in% get_augmented(
+    add_augmented_template(hhmodel)
+  )[["name"]])
+
+  # the observed entry points accept it (clears the gate)
+  expect_no_error(suppressWarnings(
+    add_observation(hhmodel, "onset_date", obs = "normal",
+                    mean = end_followup@D, sd = 1)
+  ))
+})
+
+test_that("Deterministic observation node simulates, inference rejects it", {
+  set.seed(1)
+  build <- function(data) {
+    data |>
+      new_housepi_model("augmented_infection_time") |>
+      add_parameter_list(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+      add_augmented_list(
+        incub_period = list(prior = "gamma", shape = 2, scale = 1),
+        infec_time   = -incub_period
+      ) |>
+      # bare expression (no 'obs =' distribution): a deterministic observation
+      add_observation_list(onset_date = floor(infec_time + incub_period))
+  }
+
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
+    build() |>
+    run_simulation()
+
+  # generated deterministically for infected members, as a single column
+  expect_equal(sum(names(simulated) == "onset_date"), 1)
+  inf <- simulated[simulated$status > 0, ]
+  expect_equal(inf$onset_date, floor(inf$infec_time + inf$incub_period))
+  expect_true(all(is.na(simulated$onset_date[simulated$status == 0])))
+
+  # inference rejects the degenerate indicator likelihood with a clear message
+  expect_error(evaluate_log_lik(build(simulated)),
+               regexp = "Deterministic observation node")
 })

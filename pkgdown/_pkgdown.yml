@@ -39,7 +39,7 @@ reference:
     - starts_with("summarise_")
     - starts_with("summarize_")
     - -ends_with("_draws")
-    - evaluate_log_posterior
+    - evaluate_log_lik
     - starts_with("run_")
     - set_global_cri_level
     - housepi_theme_set

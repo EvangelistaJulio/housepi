@@ -61,6 +61,15 @@ HousepiAugmented <- R6::R6Class(
     param_required = function(value) {
       if (!missing(value)) stop_read_only("param_required")
       private$find_required_def_("P")
+    },
+
+    #' @field obs_data_names `character()`.
+    #' Data columns that are observation-node variates: required as observed data
+    #' for inference, but generated (not required) during simulation.
+    obs_data_names = function(value) {
+      if (!missing(value)) stop_read_only("obs_data_names")
+      if (is.null(self$defs) || !"kind" %in% names(self$defs)) return(character())
+      self$defs[["name"]][self$defs[["kind"]] == "obs"]
     }
   ),
 
@@ -123,18 +132,21 @@ HousepiAugmented <- R6::R6Class(
                        status = NA_integer_,
                        const = NA, discr = FALSE,
                        prior = NA_character_, ...,
+                       obs = NA_character_,
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
                        proposal_scale = NA_real_,
                        .warn_over = TRUE,
-                       .assert = FALSE) {
+                       .assert = FALSE,
+                       .obs = FALSE) {
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       status <- housepi_smart_unwrap(status, "status")
       const <- housepi_smart_unwrap(const, "const")
       discr <- housepi_smart_unwrap(discr, "discr")
       prior <- housepi_smart_unwrap(prior, "prior")
+      obs <- housepi_smart_unwrap(obs, "obs")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
 
@@ -148,6 +160,8 @@ HousepiAugmented <- R6::R6Class(
       dots <- list(...)
       # flatten dots if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
+      # reject observation-node declarations unless on the add_observation path
+      if (isFALSE(.obs)) assert_no_obs_declaration(dots)
       args <- housepi_extractor(!!!dots)
 
       # flatten function arguments if quosures
@@ -155,6 +169,25 @@ HousepiAugmented <- R6::R6Class(
         func_args <- housepi_extractor(!!func_args)
       } else {
         func_args <- housepi_extractor(!!!func_args)
+      }
+
+      # observation node: a DATA variate conditioned on latents/parameters.
+      # the distribution string reuses the 'prior' column, 'kind' discriminates it,
+      # and the value is auto-bound to the data column of the same name.
+      kind <- "prior"
+      if (!is.na(obs)) {
+        if (!is.na(prior)) stop_h(
+          sprintf("Conflicting definition for augmented '%s'.", name),
+          "Provide only one between 'prior' and 'obs'."
+        )
+        if (!is.na(proposal) || !is.na(proposal_scale)) stop_h(
+          sprintf("Observation node '%s' is data-bound and cannot be sampled.", name),
+          "Remove 'proposal' and 'proposal_scale'."
+        )
+        kind <- "obs"
+        prior <- obs
+        if (is.na(const)) const <- TRUE
+        if (is.null(value)) value <- paste0(name, "|D")
       }
 
       # control valid name
@@ -180,6 +213,7 @@ HousepiAugmented <- R6::R6Class(
                    func = NA_character_,
                    fcumul = FALSE, # UPDATE: can I make this an option?
                    prior = as.character(prior),
+                   kind = as.character(kind),
                    min = NA_real_,
                    max = NA_real_,
                    proposal = as.character(proposal),
@@ -207,9 +241,25 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @inherit add_augmented_list
-    add_quo_list = function(xquos, append = FALSE) {
-      if (isFALSE(append)) self$initialize()
+    add_quo_list = function(xquos, append = FALSE, .obs = FALSE) {
+      # reject observation-node declarations unless on the add_observation path
+      if (isFALSE(.obs)) assert_no_obs_declaration(xquos)
+      if (isFALSE(append)) {
+        # observation nodes and augmented variables share one store, but each
+        # entry point owns only its own kind: a fresh (non-append) load drops
+        # the rows it manages and leaves the other kind untouched. This keeps
+        # observation nodes from wiping the augmented variables they depend on
+        # (and vice versa).
+        if (is.null(self$defs)) self$initialize()
+        else self$defs <- self$defs[(self$defs[["kind"]] == "obs") == isFALSE(.obs), ]
+      }
       housepi_load_defin_quos(self, "value", xquos)
+      # flag the just-loaded definitions as observation nodes: the distribution
+      # form already self-declares via 'obs =', this also covers deterministic
+      # observations (a bare expression with no 'obs =' distribution).
+      if (isTRUE(.obs)) {
+        self$defs[["kind"]][self$defs[["name"]] %in% names(xquos)] <- "obs"
+      }
       housepi_assert_args(self)
       invisible(self)
     },
@@ -223,9 +273,12 @@ HousepiAugmented <- R6::R6Class(
     assert = function(required, status_set, capital, warn_unused) {
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]
-      # point out augmented variables that are not used
+      # point out augmented variables that are not used; observation nodes are
+      # never model-required (they define the observation likelihood), so
+      # exclude them from the unused check.
       if (isTRUE(warn_unused)) {
-        template_not_used_warn(required, defined, self$family)
+        non_obs <- defined[self$defs[["kind"]] != "obs"]
+        template_not_used_warn(required, non_obs, self$family)
       }
       # stop if augmented variables are missing
       sms <- template_missing_stop(required, defined, self$family)

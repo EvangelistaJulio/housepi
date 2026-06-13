@@ -247,6 +247,33 @@ housepi_extractor <- function(...) {
   else unname(output)
 }
 
+# Detect whether captured definitions declare an observation node ('obs =').
+# Observation nodes are reserved to add_observation() / add_observation_list();
+# this guards the augmented entry points (scalar and list forms).
+housepi_quos_declare_obs <- function(xquos) {
+  # scalar form: add_augmented(name, obs = ...)
+  if ("obs" %in% names(xquos)) return(TRUE)
+  # list form: add_augmented_list(name = list(obs = ...))
+  any(vapply(xquos, function(q) {
+    expr <- if (rlang::is_quosure(q)) rlang::quo_get_expr(q) else q
+    if (rlang::is_call(expr, c("list", "c"))) {
+      "obs" %in% names(rlang::call_args(expr))
+    } else if (is.list(expr)) {
+      "obs" %in% names(expr)
+    } else {
+      FALSE
+    }
+  }, logical(1)))
+}
+
+# Stop if augmented definitions try to declare an observation node.
+assert_no_obs_declaration <- function(xquos) {
+  if (housepi_quos_declare_obs(xquos)) stop_h(
+    "Augmented definitions cannot declare an observation node.",
+    "Use add_observation() / add_observation_list() for entries with 'obs ='."
+  )
+}
+
 # Load a named list of quosures for definitions.
 housepi_load_defin_quos <- function(self, implicit_name, xquos) {
   self$store_warn_over <- character()

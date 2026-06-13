@@ -25,16 +25,18 @@ namespace housepi
 
         /// Numeric storage
         /// NOTE: tot_* are external vectors of size 1 for simplicity
-        std::vector<std::vector<double>> tot_augm_log_prior;       // joint augmented-variable priors
+        /// tot_transm_log_lik is kept internal (standalone output / log-evidence); the R
+        /// API exposes the combined pointwise log_lik, not this total.
         std::vector<std::vector<double>> tot_transm_log_lik;       // joint transmission log-likelihood
+        std::vector<std::vector<double>> tot_augm_log_prior;       // joint augmented-variable priors
         std::vector<std::vector<double>> house_transm_log_lik;     // pointwise transmission likelihood
+        std::vector<std::vector<double>> house_obs_log_lik;        // pointwise observation likelihood
         std::vector<std::vector<double>> param_values;             // parameter values
         std::vector<std::vector<double>> param_priors;             // single parameter priors
         std::vector<std::vector<std::vector<double>>> augm_values; // selected augmented values
         std::vector<const Individual *> augm_individuals;          // individuals to track
 
         /// Column name metadata captured at initialization
-        const std::vector<std::string> tot_transm_log_lik_names = {"transmission"};
         const std::vector<std::string> tot_augm_log_prior_names = {"augm_lprior"};
         std::vector<std::string> param_names;
         std::vector<std::string> param_prior_names;

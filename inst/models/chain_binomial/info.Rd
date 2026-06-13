@@ -21,24 +21,26 @@ Finally, the likelihood of an observed household outbreak is the sum of the prob
 }
 \if{html}{\out{<hr>}}
 }
-\section{Likelihood}{
-\deqn{L = P_{I}(n_{I}) P_{S}(n, n_{I})}
+\section{Transmission}{
+\deqn{p^\mathrm{transm} = p_\mathrm{I}(n_\mathrm{I}) \, p_\mathrm{S}(n, n_\mathrm{I})}
 for a household of size \eqn{n} with
 \itemize{
-\item Number of sero-positive household members : \eqn{n_{I}}
+\item Number of sero-positive household members : \eqn{n_\mathrm{I}}
 \item Sero-positive contribution :
-\eqn{P_{I}(n_{I}) 
-= 
-1 - \sum_{k=0}^{n_{I} - 1} \binom{n_{I}}{k} P_{I}(k) P_{S}(n_{I}, k)}
+\eqn{p_\mathrm{I}(n_\mathrm{I})
+=
+1 - \sum_{k=0}^{n_\mathrm{I} - 1} \binom{n_\mathrm{I}}{k}
+    p_\mathrm{I}(k) \, p_\mathrm{S}(n_\mathrm{I}, k)}
 \item Sero-negative contribution :
-\eqn{P_{S}(n, n_{I}) = (B Q^{n_{I}})^{n - n_{I}}}
+\eqn{p_\mathrm{S}(n, n_\mathrm{I})
+= \left(q^\mathrm{com} \, (q^\mathrm{p2p})^{n_\mathrm{I}}\right)^{n - n_\mathrm{I}}}
 }
 where
 \itemize{
 \item Community escape probability :
-\eqn{B = \exp(-\alpha)}
+\eqn{q^\mathrm{com} = \exp(-\alpha)}
 \item Person-to-person escape probability :
-\eqn{Q = \exp(-\beta)}
+\eqn{q^\mathrm{p2p} = \exp(-\beta)}
 }
 \if{html}{\out{<hr>}}
 }
