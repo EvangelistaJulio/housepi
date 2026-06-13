@@ -78,11 +78,14 @@ NULL
 #'   \item{id}{Individual identifier}
 #'   \item{house_id}{Household identifier}
 #'   \item{status}{PCR test result}
+#'   \item{start_followup}{Follow-up start (index case's first positive PCR)}
+#'   \item{end_followup}{End of follow-up (\code{start_followup + 21})}
 #'   \item{test_date}{Date of first positive test}
-#'   \item{vacc_status}{Vaccinated before survey}
 #'   \item{age}{Age}
-#'   \item{isolation}{Whether isolated}
 #'   \item{sex}{Sex}
+#'   \item{vacc_status}{Vaccinated before survey}
+#'   \item{recovered}{Whether previously recovered from infection}
+#'   \item{isolation}{Whether isolated}
 #'   \item{asymptomatic}{Whether asymptomatic}
 #' }
 #'
@@ -90,7 +93,7 @@ NULL
 #' @keywords datasets
 #' @name sarscov2_2021_icofs
 #' @usage data(sarscov2_2021_icofs)
-#' @format A data frame with 4,168 rows and 11 columns
+#' @format A data frame with 4,168 rows and 12 columns
 #' @source <https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt>
 #'
 #' @details

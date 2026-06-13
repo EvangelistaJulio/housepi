@@ -9,8 +9,10 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
   dplyr::mutate(
     house_id = sprintf("hh%03d", dplyr::cur_group_id()),
     id = sprintf("%sm%02d", house_id, dplyr::row_number()),
+    # follow-up starts at the household index's first positive PCR
+    start_followup = date_fmt(dplyr::first(index_first_pos_pcr)),
     # 21-day follow-up from the household's index case (paper's studyPeriod)
-    end_followup = date_fmt(dplyr::first(index_first_pos_pcr)) + 21,
+    end_followup = start_followup + 21,
     # using original vaccination category (7-day effectiveness rule)
     vacc_status = dplyr::case_when(
       vaccination_cat == "unvaccinated" ~ "unvaccinated",
@@ -40,7 +42,7 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
   dplyr::filter(sum(status > 0) > 0) |>
   dplyr::ungroup() |>
   dplyr::select(
-    id, house_id, status, end_followup, test_date, age, sex,
+    id, house_id, status, start_followup, end_followup, test_date, age, sex,
     vacc_status, recovered, isolation, asymptomatic
   ) |>
   as.data.frame()

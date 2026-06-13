@@ -134,7 +134,7 @@ test_that("Simulations behave as expected", {
 
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), house_id = "h1", status = 0,
-             end_followup = 21) |>
+             start_followup = 0, end_followup = 21) |>
     new_housepi_model("augmented_infection_time") |>
     add_parameter_template() |>
     add_augmented_template() |>
