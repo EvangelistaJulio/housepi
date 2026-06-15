@@ -586,9 +586,11 @@ HousepiGenerator <- R6::R6Class(
     },
 
     #' @description
-    #' Validate, factorize, and push wide-format data into the C++ engine.
+    #' Validate and factorize wide-format data, populating `cols_data_wide`
+    #' so it can be asserted before pushing to the C++ engine.
     #' @param data `data.frame`.
-    import_data_wide = function(data) {
+    #' @return `data.frame` Factorized data, ready for `push_data_wide()`.
+    factorize_data_wide = function(data) {
       if (!is.data.frame(data)) stop_h(
         "Data should be an object of class data.frame.",
         format_type_error(data)
@@ -599,8 +601,7 @@ HousepiGenerator <- R6::R6Class(
       private$info_data_wide_ <- embed$info
       private$cols_data_wide_ <- embed$cols
       private$infec_status_set_ <- embed$status
-      .engine$import_data_wide(private$mcmc_ptr_, embed$data)
-      invisible(self)
+      embed$data
     },
 
     #' @description

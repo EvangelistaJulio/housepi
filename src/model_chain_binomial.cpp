@@ -26,8 +26,8 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizeKey, num_parts)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizevecKey, order, part_counts, part_indexes)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintKey, num_parts)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintvecKey, order, part_counts, part_indexes)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
@@ -35,7 +35,7 @@ public:
 	/// General advanced inscrition for the setup.
 	void init_advanced_setup() override final
 	{
-		request_discrete_param(ParamKey::size_ref);
+		request_param_discrete(ParamKey::size_ref);
 	}
 
 	/// Allow for contact rate definitions.
@@ -56,7 +56,7 @@ public:
 
 		// initialize internal order for house escape matrix
 		// ordered members : 1) infectious, 2) susceptibles
-		auto &order = cache_uint_vector(house, HHsizevecKey::order);
+		auto &order = cache_uint_vector(house, HHuintvecKey::order);
 		order.clear();
 		order.reserve(house.size());
 		order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
@@ -103,10 +103,10 @@ public:
 		unsigned K = static_cast<unsigned>(partition_indexes.size());
 		for (unsigned i = 0; i < K; ++i)
 		{
-			cache_uint_vector(house, HHsizevecKey::part_counts)[i] = partition_counts[i];
-			cache_uint_vector(house, HHsizevecKey::part_indexes)[i] = partition_indexes[i];
+			cache_uint_vector(house, HHuintvecKey::part_counts)[i] = partition_counts[i];
+			cache_uint_vector(house, HHuintvecKey::part_indexes)[i] = partition_indexes[i];
 		}
-		cache_uint(house, HHsizeKey::num_parts) = K;
+		cache_uint(house, HHuintKey::num_parts) = K;
 
 		if (K <= 1 && n_infec > 1)
 			chbi::ensure_homogeneous(n_infec);
@@ -137,7 +137,7 @@ public:
 	void fill_house_escape_matrix(Household &house)
 	{
 		size_t house_size = house.size();
-		const auto &order = cache_uint_vector(house, HHsizevecKey::order);
+		const auto &order = cache_uint_vector(house, HHuintvecKey::order);
 		const double commu_rate = community_risk();
 		const double p2p_rate = person_to_person_risk(house_size);
 
@@ -186,8 +186,8 @@ public:
 		return chbi::chain_binom_log_lik(
 			house.eq_class(),
 			static_cast<unsigned>(house.n_infected_status()),
-			cache_uint(house, HHsizeKey::num_parts),
-			cache_uint_vector(house, HHsizevecKey::part_indexes),
+			cache_uint(house, HHuintKey::num_parts),
+			cache_uint_vector(house, HHuintvecKey::part_indexes),
 			cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
 			cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
 	}

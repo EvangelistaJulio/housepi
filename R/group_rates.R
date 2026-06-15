@@ -466,17 +466,14 @@ HousepiGroupRate <- R6::R6Class(
 
         # 2. create relative cpp script chunk
         # factorize according to external factor information
-        for (col in names(factor_info)) {
+        for (col in intersect(names(factor_info), colnames(this_table))) {
           lv <- factor_info[[col]]$levels
           if (is.null(lv)) stop_h(
-            "Wrong group rate definition: '", col, "' has no levels."
+            sprintf("Wrong group rate definition: '%s' has no levels.", col)
           )
-
-          if (col %in% colnames(this_table)) {
-            this_table[[col]] <- factor(this_table[[col]],
-                                        levels = lv,
-                                        labels = seq_along(lv))
-          }
+          this_table[[col]] <- factor(this_table[[col]],
+                                      levels = lv,
+                                      labels = seq_along(lv))
         }
         # concatenate new lines to the script
         # mask reference case

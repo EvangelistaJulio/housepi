@@ -29,18 +29,21 @@ Let's briefly recall the concept of Bayesian data augmentation for the case of e
 
 Bayesian data augmentation is a computational strategy that expands the parameter space by introducing augmented variables (also referred to as hidden or latent variables) to facilitate sampling from the posterior.
 
-Consider a single infectious individual $i$.
-Imagine that someone reported the exact time of symptom onset $t^\mathrm{ons}_{i}$.
-We can introduce latent infection times $t_{i}$, defined as the difference between the onset time and the augmented incubation period $\tau^\mathrm{inc}_{i}$:
+For example, consider a single infectious individual $i$.
+Imagine that someone reported the date of symptom onset $T^\mathrm{ons}_{i}$.
+We can think of the observation process that returned that value as some function of the actual real time of onset, $t^\mathrm{ons}_{i}$.
 
-$$t_{i} = t^\mathrm{ons}_{i} - \tau^\mathrm{inc}_{i},$$
-where the incubation period is drawn from a model distribution.
-Take $x$ the data of a single household (onset days and status), $z$ its augmented variables (infection time and incubation period) and $\theta$ the vector of parameters. The joint posterior then reads
+We can introduce latent infection times $t_{i}$, defined as the difference between the onset time and the augmented incubation period $\tau^\mathrm{inc}_{i}$, so that 
+$$t^\mathrm{ons}_{i} = t_{i} + \tau^\mathrm{inc}_{i},$$
+where the incubation period is distributed according to a prior.
 
+Say $x$ the data of a single household (onset date and status), $z$ its augmented variables (infection time and incubation period) and $\theta$ the vector of parameters.
+The joint posterior then reads
 $$p(\theta, z \mid x) \varpropto
-  \underbrace{p^\mathrm{transm}(x \mid \theta, z)\, p^\mathrm{obs}(x \mid \theta, z)}_{\text{likelihood}}\;
+  \underbrace{p^\mathrm{obs}(x \mid \theta, z)\, p^\mathrm{transm}(x \mid \theta, z)}_{\text{likelihood}}\;
   \underbrace{p^\mathrm{augm}(z \mid \theta)\, p(\theta)}_{\text{prior}},$$
 where the likelihood is the transmission term $p^\mathrm{transm}$ times the observation term $p^\mathrm{obs}$ (the latter only when an observation node is defined, so it contracts to transmission otherwise), and the prior is the augmented-variable prior $p^\mathrm{augm}$ times the parameter prior $p(\theta)$.
+
 We here explain how to associate individual augmented variables in housepi for minimal examples.
 
 # Build augmented variables
@@ -94,10 +97,11 @@ library(ggplot2)
 
 onset_tommy <- 5
 hhmodel <- data.frame(id = c("tommy", "gina"),
-                      status = c(1, 2),
-                      onset_time = c(onset_tommy, NA),
                       house_id = "house_1",
-                      end_followup = onset_tommy + 10) |>
+                      start_date = onset_tommy,
+                      study_period = 10,
+                      status = c(1, 2),
+                      onset_date = c(onset_tommy, NA)) |>
   new_housepi_model("augmented_infection_time") |>
   add_parameter_list(alpha = 0.001, beta = 0.07, gamma = 0.9, size_ref = 4) |>
 
@@ -105,13 +109,13 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
   add_augmented_list(
     # augmented infection time for symptomatic members
     # here we use a generic definition
-    infec_time = onset_time@D - incub_period,
+    infec_time = onset_date@D - incub_period,
     incub_period = list(prior = "gamma", shape = 2, scale = 1),
 
     # augmented infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
     infec_time = list(status = 2, prior = "uniform",
-                      min = !!onset_tommy, max = end_followup@D)
+                      loc = start_date@D, max = study_period@D)
   )
 ```
 

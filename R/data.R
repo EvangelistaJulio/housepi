@@ -78,8 +78,8 @@ NULL
 #'   \item{id}{Individual identifier}
 #'   \item{house_id}{Household identifier}
 #'   \item{status}{PCR test result}
-#'   \item{start_followup}{Follow-up start (index case's first positive PCR)}
-#'   \item{end_followup}{End of follow-up (\code{start_followup + 21})}
+#'   \item{start_date}{Follow-up start date (index case's first positive PCR)}
+#'   \item{study_period}{Duration of the follow-up}
 #'   \item{test_date}{Date of first positive test}
 #'   \item{age}{Age}
 #'   \item{sex}{Sex}

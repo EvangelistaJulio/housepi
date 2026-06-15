@@ -23,11 +23,11 @@ class Model final : public ModelBase
 {
 public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, infec_time)
-	HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, end_followup)
+	HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, start_date, study_period)
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHsizeKey, intro_case)
-	HOUSEPI_DECLARE_EMPTY_KEYS(HHsizevecKey)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintKey, intro_case)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHuintvecKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, inst, cumul)
 	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
@@ -36,10 +36,13 @@ public:
 	void init_advanced_setup() override final
 	{
 #ifdef _HOUSEPI_DISCRETE_TIME
-		request_discrete_augm(AugmKey::infec_time);
-		request_discrete_infec_profile();
+		request_augm_discrete(AugmKey::infec_time);
+		request_infec_profile_discrete();
 #endif
-		request_discrete_param(ParamKey::size_ref);
+		request_param_discrete(ParamKey::size_ref);
+		request_data_discrete(DataKey::start_date);
+		request_data_discrete(DataKey::study_period);
+		request_data_positive(DataKey::study_period);
 
 		// template infectivity profile (otherwise user defined)
 		// UPDATE: this should become more user friendly
@@ -77,7 +80,7 @@ public:
 	/// Compute transmission log-likelihood within household.
 	double compute_house_transm_log_lik(Household &house) override final
 	{
-		const size_t i0 = cache_uint(house, HHsizeKey::intro_case);
+		const size_t i0 = cache_uint(house, HHuintKey::intro_case);
 		const Individual &member_0 = house.member(i0);
 		const double t_intro = aug(AugmKey::infec_time, member_0);
 
@@ -91,8 +94,8 @@ public:
 		for (size_t s : house.susceptible_hhindexes())
 		{
 			const Individual &member_s = house.member(s);
-			const double alpha_cumul = alpha * (member_s.data(DataKey::end_followup) - t_intro);
-			output -= alpha_cumul * member_s.group_rate(GroupRateKey::community);
+			const double exposure = member_s.data(DataKey::start_date) + member_s.data(DataKey::study_period) - t_intro;
+			output -= alpha * exposure * member_s.group_rate(GroupRateKey::community);
 		}
 
 		for (size_t i : house.infected_hhindexes())
@@ -198,7 +201,7 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
-		unsigned &i0 = cache_uint(house, HHsizeKey::intro_case);
+		unsigned &i0 = cache_uint(house, HHuintKey::intro_case);
 		double new_t0 = 100000;
 
 		size_t n_infec = house.n_infected_status();
@@ -216,7 +219,8 @@ public:
 
 			for (size_t s : house.susceptible_hhindexes())
 			{
-				double exposure = house.member(s).data(DataKey::end_followup) - t_infec_i;
+				const Individual &member_s = house.member(s);
+				double exposure = member_s.data(DataKey::start_date) + member_s.data(DataKey::study_period) - t_infec_i;
 				cumul_mtx[i][s] = infec_profile_cumul(member_i, exposure);
 				cumul_mtx[s][i] = 0.0;
 			}
@@ -250,7 +254,7 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
-		unsigned &i0 = cache_uint(house, HHsizeKey::intro_case);
+		unsigned &i0 = cache_uint(house, HHuintKey::intro_case);
 
 		const size_t i = member_i.hhindex();
 		const double t_infec_i = aug(AugmKey::infec_time, member_i);
@@ -261,7 +265,8 @@ public:
 
 		for (size_t s : house.susceptible_hhindexes())
 		{
-			double exposure = house.member(s).data(DataKey::end_followup) - t_infec_i;
+			const Individual &member_s = house.member(s);
+			double exposure = member_s.data(DataKey::start_date) + member_s.data(DataKey::study_period) - t_infec_i;
 			cumul_mtx[i][s] = infec_profile_cumul(member_i, exposure);
 			cumul_mtx[s][i] = 0.0;
 		}
@@ -316,14 +321,7 @@ public:
 		/////////////  Generation 0 : by single introduction  ///////////
 		/////////////////////////////////////////////////////////////////
 
-		size_t i0;
-		if (house.size() == 1)
-			i0 = helper_single_member_intro(house);
-		else if (house.n_infected_status() > 0)
-			i0 = helper_draw_intro_among_infec(house);
-		else
-			i0 = helper_rand_intro(house);
-
+		size_t i0 = helper_rand_intro(house);
 		Individual &member_0 = house.member(i0);
 
 		/////////////////////////////////////////////////////////////////
@@ -333,16 +331,25 @@ public:
 		const double alpha = par(ParamKey::alpha);
 		const double beta = transmission_rate(house.size());
 
+		// largest study period
+		double study_period = 0.;
+		for (const Individual &member_i : house)
+			study_period = std::max(study_period, member_i.data(DataKey::study_period));
+
+		// FIXME: first approximation
+		// this is assuming the anchor at time 0; wrong because:
+		// 1 - anaware of first case infection time definition;
+		// 2 - anchor cannot be specified by user;
+		// 3 - a secondary case could actually have been the index;
+		
 		const double t0 = aug(AugmKey::infec_time, member_0);
-		// FIXME: assuming internally all end_followup are the same,
-		//        but this is not requested to the user!
-		const double tf = member_0.data(DataKey::end_followup);
+		const double end_date = study_period; // FIXME: temporary patch
 
 		// infection of secondary cases following the first case
-		for (double t = t0 + Dt; t <= tf && house.n_susceptible_status() > 0; t += Dt)
+		for (double t = t0 + Dt; t <= end_date && house.n_susceptible_status() > 0; t += Dt)
 			for (Individual &member_i : house)
 			{
-				if (member_i.is_infected_status())
+				if (member_i.is_infected_status() || t > member_i.data(DataKey::study_period))
 					continue;
 				if (exponential() < roi_inst_simulation(house, member_i, t, alpha, beta) * Dt)
 				{
@@ -351,50 +358,6 @@ public:
 					init_missing_augm(member_i);
 				}
 			}
-	}
-
-	/// Introduction for house of size 1.
-	size_t helper_single_member_intro(Household &house)
-	{
-		Individual &member_0 = house.member(0);
-		init_missing_augm(member_0);
-		house.set_infected_status(member_0);
-		return 0;
-	}
-
-	/// Draw introduction uniformly among all members.
-	size_t helper_draw_intro_among_infec(Household &house)
-	{
-		for (size_t i : house.infected_hhindexes())
-			init_missing_augm(house.member(i));
-
-		size_t n_infec = house.n_infected_status();
-		size_t i0 = house.infected_hhindexes().front();
-
-		if (n_infec > 1)
-		{
-			double t_intro = aug(AugmKey::infec_time, house.member(i0));
-			for (size_t a = 1; a < n_infec; ++a)
-			{
-				const size_t i = house.infected_hhindexes()[a];
-				double t_infec_i = aug(AugmKey::infec_time, house.member(i));
-				if (t_infec_i < t_intro)
-				{
-					t_intro = t_infec_i;
-					i0 = i;
-				}
-			}
-		}
-
-		Individual &member_0 = house.member(i0);
-		// set all others members to susceptible and reset augmented definitions
-		for (Individual &member : house)
-			if (member != member_0)
-			{
-				house.set_susceptible_status(member);
-				clear_augm(member);
-			}
-		return i0;
 	}
 
 	/// Draw introduction uniformly among all members.

@@ -6,6 +6,7 @@
  */
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <map>
 #include <numeric>
@@ -185,7 +186,19 @@ namespace housepi
             idata.status = status;
             idata.vec.resize(khold_.size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
-                idata.vec[d] = str::tod(input.at(khold(d))[i], "data '" + khold(d) + "'");
+            {
+                double &x = idata.vec[d];
+                x = str::tod(input.at(khold(d))[i], "data '" + khold(d) + "'");
+
+                if (user_discrete_set_.count(d) && x != std::floor(x))
+                    throw std::invalid_argument(
+                        "Data '" + khold(d) + "' for individual in row n." + std::to_string(i + 1) +
+                        " was expected to be discrete-valued, as requested by model.");
+                if (user_positive_set_.count(d) && !(x > 0.))
+                    throw std::invalid_argument(
+                        "Data '" + khold(d) + "' for individual in row n." + std::to_string(i + 1) +
+                        " was expected to be greater than zero, as requested by model.");
+            }
 
             // if household index doesn't exist, add new household
             if (!hhid_to_index_.count(house_id))

@@ -212,7 +212,7 @@ get_parameter_draws(results) |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
 
-# Augmented infection times
+# Models with data augmentation
 
 For models requiring augmented variables, the definition procedure is analogous.
 In [Data augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex augmented definitions.
@@ -223,8 +223,8 @@ We load the parameter definitions directly from the model template.
 #| label: load-augmented-model
 # load a dataset for the data structure (used later for the simulation)
 community_structure <- sarscov2_2021_icofs |>
-  dplyr::select(id, house_id, age, sex) |>
-  dplyr::mutate(status = NA, end_followup = 21)
+  dplyr::select(id, house_id, age, sex, study_period) |>
+  dplyr::mutate(start_date = 0, status = NA)
 
 hhsimul <- community_structure |>
   new_housepi_model("augmented_infection_time") |>
@@ -244,16 +244,14 @@ associated from a list by calling `add_augmented_list()`.
 hhsimul <- hhsimul |>
   add_augmented_list(
     # define an incubation period for each individual
-    # arguments are linked to parameters
-    incub_period = list(prior = "gamma",
-                        shape = inc_shape@P, scale = inc_scale@P,
-                        max = 14),
-    infec_time = -incub_period
+    incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
+    infec_time = start_date@D - incub_period
   ) |>
-  # observation of onset date is a noisy reading of the onset time
-  # infection time plus incubation period
-  add_observation("onset_date", obs = "normal",
-                  mean = infec_time + incub_period, sd = 1)
+  # onset date corresponds to the onset time (infection time + incubation)
+  # with onsets after 6 PM (18/24) reported to the next day
+  add_observation_list(
+    onset_date = floor(infec_time + incub_period + 0.25)
+  )
 ```
 
 When dealing with many different nested definitions it is not unusual to lose track of which definitions are missing.
@@ -265,50 +263,26 @@ We can inspect the state of the current loaded model definitions just by printin
 hhsimul
 ```
 
-This tells us that in order to proceed we need to provide the missing parameters which can be done appending to the existing ones via
-
-```{r}
-#| label: append-parameters
-# append missing parameters for incubation period
-hhsimul <- hhsimul |>
-  # set 'append' to TRUE to keep previous definitions
-  add_parameter_list(inc_shape = 2, inc_scale = 1, append = TRUE)
-```
-
+By default, if no group rate definition is provided all values are set to 1 (reference value). 
 To see how to associate group rates in heterogeneous models, see [Group rates](group_rates.html).
-However, by default if no group rate definition is provided all values are set to reference value 1, so we can forget about this alert for the rest of the walkthrough.
 Similarly, we can use the infectivity profile template for the sake of demonstration.
 Provide a custom definition following [Infectivity profiles](infectivity_profiles.html).
+We can overlook these alerts for the rest of the walkthrough.
 
-We then run a simulation with the method `run_simulation`, using the same community structure from the survey, but dropping cases.
-In this configuration, introductions are sampled randomly.
-Because the model carries an observation node, simulation now associates augmented incubation periods, infection times and sampled onset dates by default:
+We run a simulation with the method `run_simulation`, using the same community structure from the survey.
+The index case is sampled randomly among all members for each household.
+Simulations will associates augmented incubation periods, infection times and sampled onset dates to all infected individuals:
 
 ```{r}
 #| label: run-simulation
-# the onset_date observation node is sampled automatically
+# the onset_date observation is sampled automatically
 simulated <- hhsimul |>
   run_simulation()
 
 head(simulated)
 ```
 
-An `obs_process` argument remains available for post-processing refinements:
-for instance, to round onsets reported after 6 PM (18/24) to the next day and drop the latent columns:
-
-```{r}
-#| label: run-simulation-obs-process
-# optional observation process applied after the outbreak simulation
-obs_process <- function(x) {
-  x$onset_date <- ifelse(x$status > 0, floor(x$onset_date + 0.25), NA)
-  x[!names(x) %in% c("incub_period", "infec_time")]
-}
-
-simulated <- hhsimul |>
-  run_simulation(obs_process = obs_process)
-
-head(simulated)
-```
+An `obs_process` argument remains available for post-processing refinements.
 
 # Validation
 
@@ -326,17 +300,19 @@ hhmodel <- simulated |>
   new_housepi_model("augmented_infection_time") |>
   add_parameter_template() |>
   add_parameter_list(inc_shape = 2, inc_scale = 1, append = TRUE) |>
-  # loading definitions from list drops previous by default
   add_augmented_list(
     incub_period = list(prior = "gamma",
                         shape = inc_shape@P, scale = inc_scale@P,
                         max = 14),
+    # FIXME: in current implementation this only works because start_date = 0
     infec_time = list(prior = "uniform",
-                      min = -14, max = end_followup@D,
+                      min = start_date@D - 14,
+                      max = start_date@D + study_period@D,
                       proposal = "normal")
   ) |>
-  add_observation("onset_date", obs = "normal",
-                  mean = infec_time + incub_period, sd = 1)
+  # onset date observation is noisy around the real onset time
+  add_observation("onset_date", obs = "normal", discr = TRUE,
+                  loc = infec_time + incub_period)
 
 results <- hhmodel |>
   # update progress bar every 3 seconds

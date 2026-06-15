@@ -95,22 +95,21 @@ test_that("data_required reflects the underlying template", {
     expect_length(0L)
 
   ait_gen <- HousepiGenerator$new("augmented infection time")
-  expect_true("end_followup" %in% ait_gen$data_required)
+  expect_true("start_date" %in% ait_gen$data_required)
 })
 
-test_that("import_data_wide validates inputs and populates state", {
+test_that("factorize_data_wide validates inputs and populates state", {
   hhgen <- HousepiGenerator$new("blank")
-
-  hhgen$import_data_wide("not a frame") |>
+ 
+  hhgen$factorize_data_wide("not a frame") |>
     expect_error("data.frame")
-  hhgen$import_data_long(list(a = 1)) |>
-    expect_error("data.frame")
-  hhgen$import_data_wide(data.frame()) |>
+  hhgen$factorize_data_wide(data.frame()) |>
     expect_error("empty")
 
   env <- new.env(parent = emptyenv())
   utils::data("blank_house", package = "housepi", envir = env)
-  hhgen$import_data_wide(env$blank_house)
+  hhgen$factorize_data_wide(env$blank_house) |> 
+    expect_silent()
   hhgen$cols_data_wide |>
     expect_setequal(colnames(env$blank_house))
   hhgen$infec_status_set |>
@@ -124,6 +123,10 @@ test_that("import_data_wide validates inputs and populates state", {
     expect_equal(env$blank_house$id)
   reloaded$house_id |>
     expect_equal(env$blank_house$house_id)
+  
+  # data long format
+  hhgen$import_data_long(list(a = 1)) |>
+    expect_error("data.frame")
 })
 
 test_that("user paths, flags and libs reach the compile command", {

@@ -29,24 +29,18 @@ reference:
   contents:
     - housepi-package
   
-- title: "General"
+- title: "Core Functions"
   desc: >
-    General purpose calls to generate a housepi model object and perform analysis. 
+    Generate the core housepi model and perform inference and simulations.
   contents:
     - HousepiModel
     - new_housepi_model
-    - browse_housepi_templates
-    - starts_with("summarise_")
-    - starts_with("summarize_")
-    - -ends_with("_draws")
     - evaluate_log_lik
     - starts_with("run_")
-    - set_global_cri_level
-    - housepi_theme_set
 
 - title: "Model definitions"
   desc: >
-    Calls used to customize your model definitions.
+    Decorators used to customize model definitions.
   contents:
   - starts_with("add_")
   - -ends_with("_list")
@@ -59,24 +53,35 @@ reference:
 
 - title: "Inference results"
   desc: >
-    Extract draws from inference results.
+    Collect and manipulate posterior draws from inference results.
   contents:
   - HousepiPosteriorDraws
   - ends_with("_draws")
 
 - title: "Posterior predictions"
   desc: >
-    Calls used to perform posterior predicitive checks.
+    Perform posterior predicitive checks.
   contents:
   - starts_with("measure_")
   - starts_with("predicted_")
   - HousepiPrediction
   - PredictedCasesBySize
-  - format_credible_interval
+
+- title: "Auxiliary tools"
+  desc: >
+    Miscellaneous functions for general purpose tasks.
+  contents:
+    - browse_housepi_templates
+    - starts_with("summarise_")
+    - starts_with("summarize_")
+    - -ends_with("_draws")
+    - format_credible_interval
+    - set_global_cri_level
+    - housepi_theme_set
 
 - title: "Expose internal functions"
   desc: >
-    Expose internal Rcpp functions, distributions and infectivity profiles.
+    Internal Rcpp functions, distributions and infectivity profiles.
   contents:
   - starts_with("expose_")
 

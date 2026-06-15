@@ -43,12 +43,8 @@ We start by creating categorical groupings to stratify individuals based on thei
 # define a model object with a subset of the SarsCoV-2 (ICoFs) data
 hhmodel <- sarscov2_2021_icofs |>
   dplyr::mutate(
-    status = dplyr::case_when(status > 0 & asymptomatic ~ 1,
-                              status > 0 & !asymptomatic ~ 2,
-                              .default = 0),
     # change age in survey as a binary group child/adult
-    age = dplyr::case_when(age < 19 ~ "child", 
-                           .default = "adult")
+    age = dplyr::case_when(age < 19 ~ "child", .default = "adult")
   ) |> 
   # use smaller number of households for exploration
   dplyr::filter(house_id %in% sample(unique(house_id), 300)) |>

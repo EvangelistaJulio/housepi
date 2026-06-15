@@ -1,6 +1,6 @@
 list(
   infec_time = list(prior = "uniform",
-                    min = ~ start_followup@D - 14,
-                    max = ~ end_followup@D,
+                    min = ~ start_date@D - 10,
+                    max = ~ start_date@D + study_period@D,
                     proposal = "normal")
 )

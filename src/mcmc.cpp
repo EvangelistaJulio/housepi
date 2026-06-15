@@ -603,8 +603,8 @@ namespace housepi
         : model(ModelRegistry::instance().create(model_name))
     {
         init_key_holder(model->get_DataKey(),
-                        model->get_HHsizeKey(),
-                        model->get_HHsizevecKey(),
+                        model->get_HHuintKey(),
+                        model->get_HHuintvecKey(),
                         model->get_HHdoublevecKey(),
                         model->get_HHdoublemtxKey(),
                         model->get_LongKey(),
@@ -622,8 +622,8 @@ namespace housepi
         auto new_ds = std::make_shared<DataStore>();
         new_ds->data_wide.init_key_holder(model->get_DataKey());
         new_ds->data_wide.init_cache_key_holders(
-            model->get_HHsizeKey(),
-            model->get_HHsizevecKey(),
+            model->get_HHuintKey(),
+            model->get_HHuintvecKey(),
             model->get_HHdoublevecKey(),
             model->get_HHdoublemtxKey());
         new_ds->data_long.init_key_holder(model->get_LongKey());

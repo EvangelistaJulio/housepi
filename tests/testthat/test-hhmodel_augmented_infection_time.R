@@ -34,7 +34,7 @@ loglike_susceptible <- function(house, param, discr) {
 
   output <- 0
   for (k in which(house$status == 0)) {
-    t_end_k <- house[k, "end_followup"]
+    t_end_k <- house[k, "start_date"] + house[k, "study_period"]
     roi_cumul <- 0
     alpha_cumul <- alpha * (t_end_k - t_intro)
     for (i in which(house$status == 1)) {
@@ -134,7 +134,7 @@ test_that("Simulations behave as expected", {
 
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), house_id = "h1", status = 0,
-             start_followup = 0, end_followup = 21) |>
+             start_date = 0, study_period = 21) |>
     new_housepi_model("augmented_infection_time") |>
     add_parameter_template() |>
     add_augmented_template() |>
@@ -147,7 +147,7 @@ test_that("Log-likelihood of augmented infection time model is correct", {
   house <- data.frame(house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
                       infec_time = c(0, 3, 4, NA, NA, NA, NA),
-                      end_followup = 21)
+                      start_date = 0, study_period = 21)
   house$id <- sprintf("hh01m%s", seq(1, dim(house)[1]))
 
   # choice for the parameters
@@ -196,7 +196,7 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
   house <- data.frame(house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
                       onset_date = c(2, 6, 6, NA, NA, NA, NA),
-                      end_followup = 21)
+                      start_date = 0, study_period = 21)
   house$id <- sprintf("hh01m%s", seq_len(nrow(house)))
 
   build_hh <- function() {
@@ -244,7 +244,7 @@ test_that("Augmented moves preserve log-likelihood", {
   house <- data.frame(house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
                       onset_date = c(2, 6, 6, NA, NA, NA, NA),
-                      end_followup = 21)
+                      start_date = 0, study_period = 21)
   house$id <- sprintf("hh01m%s", seq(1, dim(house)[1]))
 
   hhmodel <- house |>
@@ -329,7 +329,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
   house <- data.frame(house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
                       onset_date = c(2, 6, 6, NA, NA, NA, NA),
-                      end_followup = 21)
+                      start_date = 0, study_period = 21)
   house$id <- sprintf("hh01m%s", seq_len(nrow(house)))
   id_draws <- house[house$status > 0, ]$id
 
@@ -339,7 +339,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
     add_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented_list(
       incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
-      infec_time   = list(prior = "uniform", min = -14, max = end_followup@D,
+      infec_time   = list(prior = "uniform", min = -14, max = study_period@D,
                           proposal = "normal")
     ) |>
     add_observation("onset_date", obs = "normal",
@@ -376,6 +376,41 @@ test_that("Observation node enters the pointwise log-likelihood", {
   expect_equal(get_log_lik_draws(results)$hh01, ref)
 })
 
+test_that("Discretized observation node initializes finite", {
+  # regression: a discretized normal obs whose latent onset starts (from the
+  # wide infec_time prior) far below the observed onset_date used to yield a
+  # spurious -Inf at chain init (upper-tail CDF-difference cancellation).
+  set.seed(101) # 'Liquid Snake'
+  house <- data.frame(house_id = "shadowmoses",
+                      status = c(1, 1, 1, 1, 0, 0, 0),
+                      onset_date = c(2, 5, 6, 7, NA, NA, NA),
+                      start_date = 0, study_period = 21)
+  house$id <- sprintf("shadowmoses_m%s", seq_len(nrow(house)))
+  id_draws <- house[house$status > 0, ]$id
+
+  hhmodel <- house |>
+    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    add_parameter_template() |>
+    add_parameter_list(shape = 2, scale = 1.1, append = TRUE) |>
+    add_augmented_list(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
+      infec_time   = list(prior = "uniform", min = -14, max = study_period@D,
+                          proposal = "normal")
+    ) |>
+    # discretized observation: the path that previously broke initialization
+    add_observation("onset_date", obs = "normal", discr = TRUE,
+                    loc = infec_time@A + incub_period@A) |>
+    add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+
+  # initialization no longer returns infinity; the chain runs and the
+  # complete-data log-likelihood stays finite throughout
+  results <- expect_no_error(suppressWarnings(
+    hhmodel |> run_inference(steps = 50, thin = 1, adapt = 0,
+                             chain = 1, id_draws = id_draws)
+  ))
+  expect_true(all(is.finite(get_log_lik_draws(results)$shadowmoses)))
+})
+
 test_that("Observation node generates the data column in simulation", {
   set.seed(1)
   simulated <- sarscov2_2021_icofs |>
@@ -403,30 +438,18 @@ test_that("Observation node generates the data column in simulation", {
   expect_lt(abs(sd(resid) - 1), 0.2)
 })
 
-test_that("Observation nodes are reserved to add_observation / add_observation_list", {
+test_that("Observation are reserved to add_observation", {
   hhmodel <- data.frame(id = seq(2), house_id = "h1", status = 0,
-                        end_followup = 21) |>
-    new_housepi_model("augmented_infection_time", quiet = TRUE)
+                        start_date = 0, study_period = 21) |>
+    new_housepi_model("augmented_infection_time")
 
-  # the augmented entry points reject an 'obs =' declaration
-  expect_error(add_augmented(hhmodel, "onset_date", obs = "normal", sd = 1),
-               regexp = "add_observation")
-  expect_error(
-    add_augmented_list(hhmodel,
-                       onset_date = list(obs = "normal", mean = 0, sd = 1)),
-    regexp = "add_observation"
-  )
-
-  # the templated augmented definitions no longer carry an observation node
-  expect_false("onset_date" %in% get_augmented(
-    add_augmented_template(hhmodel)
-  )[["name"]])
-
-  # the observed entry points accept it (clears the gate)
-  expect_no_error(suppressWarnings(
-    add_observation(hhmodel, "onset_date", obs = "normal",
-                    mean = end_followup@D, sd = 1)
-  ))
+  # ensure augmented decorators reject 'obs ='
+  hhmodel |>
+    add_augmented("onset_date", obs = "normal") |>
+    expect_error("add_observation")
+  hhmodel |>
+    add_augmented_list(onset_date = list(obs = "normal")) |>
+    expect_error("add_observation")
 })
 
 test_that("Deterministic observation node simulates, inference rejects it", {

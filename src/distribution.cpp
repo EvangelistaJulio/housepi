@@ -251,6 +251,10 @@ namespace
         {
             return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - x) / arg(1));
         }
+        double raw_ccdf_(double x) const override final
+        {
+            return 0.5 * std::erfc(M_SQRT1_2 * (x - arg(0)) / arg(1));
+        }
         double raw_log_pdf_(double x) const override final
         {
             const double sd = arg(1);
@@ -301,6 +305,10 @@ namespace
         double raw_cdf_(double x) const override final
         {
             return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - log(x)) / arg(1));
+        }
+        double raw_ccdf_(double x) const override final
+        {
+            return 0.5 * std::erfc(M_SQRT1_2 * (log(x) - arg(0)) / arg(1));
         }
         double raw_log_pdf_(double x) const override final
         {
@@ -452,6 +460,11 @@ namespace
             const auto [shape, scale] = eff_params_();
             return boost::math::gamma_p(shape, x / scale, no_promote_policy{});
         }
+        double raw_ccdf_(double x) const override final
+        {
+            const auto [shape, scale] = eff_params_();
+            return boost::math::gamma_q(shape, x / scale, no_promote_policy{});
+        }
         double raw_log_pdf_(double x) const override final
         {
             const auto [shape, scale] = eff_params_();
@@ -510,8 +523,12 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
+            return 1. - raw_ccdf_(x);
+        }
+        double raw_ccdf_(double x) const override final
+        {
             const double scale = arg(0);
-            return 1. - exp(-0.5 * x * x / (scale * scale));
+            return exp(-0.5 * x * x / (scale * scale));
         }
         double raw_log_pdf_(double x) const override final
         {
@@ -562,7 +579,11 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return 1. - exp(-pow(x / arg(1), arg(0)));
+            return 1. - raw_ccdf_(x);
+        }
+        double raw_ccdf_(double x) const override final
+        {
+            return exp(-pow(x / arg(1), arg(0)));
         }
         double raw_log_pdf_(double x) const override final
         {
@@ -613,7 +634,11 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return 1. - exp(-arg(0) * x);
+            return 1. - raw_ccdf_(x);
+        }
+        double raw_ccdf_(double x) const override final
+        {
+            return exp(-arg(0) * x);
         }
         double raw_log_pdf_(double x) const override final
         {

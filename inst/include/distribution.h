@@ -104,6 +104,10 @@ namespace housepi
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double /*x*/) const = 0;
 
+		/// Raw complementary CDF (1 - cdf). 
+		/// NOTE: used in discretization when a tail-accurate closed form exists.
+		virtual double raw_ccdf_(double x) const { return 1. - raw_cdf_(x); }
+
 		/// Raw method to call.
 		double raw_function_(double /*x*/) const override final { raise_undefined_call_err_("function"); }
 
@@ -301,13 +305,17 @@ namespace housepi
 		double discr_dist_center_(double x) const
 		{
 			const double i = std::round(x);
-			return raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
+			const double p = raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
+			// fall back to the complementary CDF only when the plain difference
+			// cancels in the right tail (keeps the pmf finite); the bulk pays nothing.
+			return p > 0. ? p : raw_ccdf_(i - 0.5) - raw_ccdf_(i + 0.5);
 		}
 		/// Helper for Left discretization.
 		double discr_dist_left_(double x) const
 		{
 			const double i = std::floor(x);
-			return raw_cdf_(i + 1.) - raw_cdf_(i);
+			const double p = raw_cdf_(i + 1.) - raw_cdf_(i);
+			return p > 0. ? p : raw_ccdf_(i) - raw_ccdf_(i + 1.);
 		}
 	};
 

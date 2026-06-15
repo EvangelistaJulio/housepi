@@ -401,13 +401,14 @@ namespace housepi::dependency
                    std::vector<std::string> &recursion_stack,
                    std::vector<std::string> &ordered)
     {
+        // FIXME: this is not presenting the error type...
         if (!tree.count(entry))
             throw std::invalid_argument(
-                "Could not find a definition for '" + entry + "'");
+                "Could not find a definition for '" + entry + "'.");
 
         if (contains(recursion_stack, entry))
             throw std::invalid_argument(
-                "Found inadmissible cyclic definition for '" + entry + "'");
+                "Found inadmissible cyclic definition for '" + entry + "'.");
 
         if (contains(visited, entry))
             return;

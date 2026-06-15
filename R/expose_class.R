@@ -368,7 +368,7 @@ add_augmented_template <- function(hhmodel, append = FALSE) {
 
 #' @title Add an observation node
 #' @description
-#' Add an observation node: a data column \eqn{x} modelled as the variate of a
+#' Add an observation for data column \eqn{x} modelled as the variate of a
 #' distribution conditioned on latent augmented variables \eqn{z} and/or
 #' parameters \eqn{\theta}. Its density \eqn{p^\mathrm{obs}(x \mid z, \theta)}
 #' is the observation contribution to the per-household likelihood and is added
@@ -392,12 +392,6 @@ add_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
 #' @return `r rd_model_out_`
-#' @examples
-#' blank_house |>
-#'   new_housepi_model("augmented_infection_time") |>
-#'   add_augmented("incub_period", prior = "gamma", shape = 2, scale = 1) |>
-#'   add_observation("onset_date", obs = "normal",
-#'                   mean = infec_time@A + incub_period@A, sd = 1)
 #' @export
 add_observation <- function(hhmodel, name = NA_character_,
                             obs = NA_character_, ...,
@@ -630,10 +624,9 @@ add_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
 
 #' @title Evaluate the log-likelihood of a housepi model at current values
 #' @description
-#' Compute the scalar complete-data log-likelihood of a `HousepiModel`:
-#' transmission plus observation (the latter `0` when the model has no
-#' observation node). For models with augmented variables this is the
-#' likelihood conditional on the current augmented values; priors are excluded.
+#' Compute the complete-data log-likelihood of a `HousepiModel`:
+#' transmission plus observation. For models with augmented variables
+#' this is conditioned on current augmented values.
 #' @param hhmodel `r rd_model_in_`
 #' @param house_id `r rd_house_id_`
 #' If `NA` (default) it computes for the whole data.

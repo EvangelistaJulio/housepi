@@ -54,6 +54,11 @@ namespace housepi
         /// Recover all status.
         void recover_all_status() noexcept;
 
+        /// Request data column to be discrete-valued.
+        void request_discrete(size_t d) { user_discrete_set_.emplace(d); }
+        /// Request data column to be strictly greater than zero.
+        void request_positive(size_t d) { user_positive_set_.emplace(d); }
+
         /// Transmission log-likelihood of head of household equivalence class.
         double house_transm_log_lik(size_t R) const { return eq_class_head(R).transm_log_lik(); }
 
@@ -157,6 +162,9 @@ namespace housepi
         std::vector<Indiv::Wide> indiv_data_;      /// External storage for individual data
         std::vector<Household> house_vector_ = {}; /// All households in data
         dict<size_t> hhid_to_index_ = {};          /// Map house-id to internal index
+
+        std::unordered_set<size_t> user_discrete_set_ = {}; /// modeler requested discrete data
+        std::unordered_set<size_t> user_positive_set_ = {}; /// modeler requested positive data
 
         /////////////////////////////////
         //////  EQUIVALENCE CLASS  //////

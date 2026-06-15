@@ -16,10 +16,10 @@
 .housepi_env$hollow <- FALSE
 
 #' @title
-#' R6 class for compiling and running a household-transmission model
+#' R6 class for compiling and running a household transmission model
 #' @description
-#' Compile the household model, manage your data
-#' and variable definitions from a single class.
+#' Compile the household transmission model, manage your data, associate
+#' definitions, run inference and simulations from a single class.
 #' @docType class
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
@@ -508,7 +508,8 @@ HousepiModel <- R6::R6Class(
       private$generator_$setup
     },
 
-    #' @field data_wide `data.frame`. Individual level data (wide format).
+    #' @field data_wide `data.frame`. Individual level data.
+    #' One row per individual index by corresponding ID.
     data_wide = function(value) {
       if (!missing(value)) stop_read_only("data_wide")
       private$generator_$refactor_data_wide(
@@ -606,8 +607,11 @@ HousepiModel <- R6::R6Class(
         utils::data("blank_house", package = "housepi", envir = env)
         data <- env$blank_house
       }
-      private$generator_$import_data_wide(data)
+      data_factorized <- private$generator_$factorize_data_wide(data)
       private$assert_data_wide_()
+      .engine$import_data_wide(
+        private$generator_$mcmc_ptr, data_factorized
+      )
 
       invisible(self)
     },
@@ -727,21 +731,90 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
+
     ############################################################################
     ############################################################################
     ############################################################################
 
-    #' @description Summarise statuses in loaded data.
-    #' @return`data.frame`
-    summarise_house_cases = function() {
-      .engine$summarise_house_cases(private$generator_$mcmc_ptr)
+    #' @description Evaluate the complete-data log-likelihood.
+    #' @param house_id `r rd_house_id_`
+    #' If `NA` (default) it computes for the whole data.
+    #' @return `numeric(1)`. Transmission plus observation log-likelihood.
+    evaluate_log_lik = function(house_id = NA_character_) {
+      private$build_full_()
+      .engine$evaluate_log_lik(private$generator_$mcmc_ptr, house_id)
     },
 
-    #' @description Summary house sizes in loaded data.
-    #' @return `data.frame`
-    summarise_house_sizes = function() {
-      .engine$summarise_house_sizes(private$generator_$mcmc_ptr)
+    #' @description Run inference with Bayesian Markov chain Monte Carlo.
+    #' @param steps `r rd_smpl_steps_`
+    #' @param burn `r rd_smpl_burn_`
+    #' @param thin `r rd_smpl_thin_`
+    #' @param adapt `r rd_smpl_adapt_`
+    #' @param chains `r rd_smpl_chain_`
+    #' @param threads `r rd_thread_`
+    #' @param id_draws `r rd_smpl_iddrw_`
+    #' @param progress `r rd_progress_`
+    #' @return An object of class `HousepiPosteriorDraws`.
+    run_inference = function(steps = 1000, burn = 0,
+                             thin = 5, adapt = 500,
+                             chains = 4, threads = 1,
+                             id_draws = NULL,
+                             progress = TRUE) {
+      private$assert_posterior_memory_(steps = steps, burn = burn,
+                                       thin = thin, chains = chains,
+                                       id_draws = id_draws)
+      private$build_full_(steps = steps, burn = burn,
+                          thin = thin, adapt = adapt,
+                          chains = chains, threads = threads,
+                          id_draws = id_draws, progress = progress)
+      .engine$run_inference(private$generator_$mcmc_ptr)
+      HousepiPosteriorDraws$new(private$generator_$raw_name,
+                                private$generator_$mcmc_ptr)
     },
+
+
+    #' @description
+    #' Run simulation to generate a household survey.
+    #' It assumes the same community structure of the loaded data.
+    #' @param obs_process `r rd_simul_observ_`
+    #' @param obs_process_long `r rd_simul_obs_long_`
+    #' @param param_table `r rd_param_table_`
+    #' @param nrep `r rd_simul_nrep_`
+    #' @return `data.frame` or `list` (when `obs_process_long` is provided)
+    run_simulation = function(obs_process = NULL,
+                              obs_process_long = NULL,
+                              param_table = NULL,
+                              nrep = NA_integer_) {
+      # simulation specific build
+      nrep <- private$helper_simulation_build_(param_table = param_table,
+                                               nrep = nrep)
+
+      # run simulations
+      output <- .engine$run_simulation(
+        private$generator_$mcmc_ptr,
+        # combine observation process to measures and refactor
+        private$helper_obs_process_(obs_process),
+        NULL, # wide measure
+        obs_process_long
+      )
+
+      # drop empty wide/long
+      if (length(output$wide) == 0) output$wide <- NULL
+      if (length(output$long) == 0) output$long <- NULL
+      if (length(output) == 1) {
+        output <- output[[1]]
+        if (nrep == 1) output <- output[[1]]
+      } else if (nrep == 1) {
+        output$wide <- output$wide[[1]]
+        output$long <- output$long[[1]]
+      }
+
+      output
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
 
     #' @description Store a copy of provided individual data.
     #' @param data_long `r rd_add_data_long_`
@@ -750,10 +823,6 @@ HousepiModel <- R6::R6Class(
       private$rebuild_()
       invisible(self)
     },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
 
     #' @description
     #' Add a new parameter to housepi model definitions.
@@ -809,104 +878,6 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description
-    #' Add a new augmented variable/function to housepi model definitions.
-    #' If the augmented variable already exists, it is updated.
-    #' @param name `r rd_var_name_`
-    #' @param value `r rd_aug_val_`
-    #' @param status `r rd_aug_status_`
-    #' @param const `r rd_var_const_`
-    #' @param discr `r rd_aug_discr_`
-    #' @param func `r rd_aug_func_`
-    #' @param func_args `r rd_aug_funargs_`
-    #' @param prior `r rd_var_prior_`
-    #' @param ... `r rd_aug_args_`
-    #' @param min `r rd_aug_min_`
-    #' @param max `r rd_aug_max_`
-    #' @param proposal `r rd_var_proposal_`
-    #' @param proposal_scale `r rd_proposal_scale_`
-    add_augmented = function(name = NA_character_,  value = NULL,
-                             status = NA_integer_, const = NA, discr = FALSE,
-                             func = NULL, func_args = NULL,
-                             prior = NA_character_, ...,
-                             min = NULL, max = NULL,
-                             proposal = NA_character_,
-                             proposal_scale = NA_real_) {
-      private$augm_$add_quo(name = name, value = rlang::enquo(value),
-                            status = status, const = const, discr = discr,
-                            func = rlang::enquo(func),
-                            func_args = rlang::enquos(func_args),
-                            prior = prior, rlang::enquos(...),
-                            min = rlang::enquo(min), max = rlang::enquo(max),
-                            proposal = proposal,
-                            proposal_scale = proposal_scale,
-                            .assert = TRUE)
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description Load augmented definitions as named arguments.
-    #' @param ... `r rd_list_args_`
-    #' @param append `r rd_list_append_`
-    add_augmented_list = function(..., append = FALSE) {
-      private$augm_$add_quo_list(rlang::enquos(...), append = append)
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description
-    #' Add an observation node: a data column modelled as the variate of a
-    #' distribution conditioned on latent augmented variables and/or parameters.
-    #' Its density enters the per-household likelihood (folded into `log_lik`).
-    #' @param name `r rd_var_name_`
-    #' @param obs `r rd_obs_dist_`
-    #' @param ... `r rd_obs_args_`
-    #' @param status `r rd_aug_status_`
-    #' @param discr `r rd_aug_discr_`
-    #' @param min `r rd_aug_min_`
-    #' @param max `r rd_aug_max_`
-    add_observation = function(name = NA_character_, obs = NA_character_, ...,
-                               status = NA_integer_, discr = FALSE,
-                               min = NULL, max = NULL) {
-      # name every parameter preceding the dots so the captured distribution
-      # arguments land in add_quo's '...' (and not in 'value').
-      private$augm_$add_quo(name = name, value = NULL, status = status,
-                            const = NA, discr = discr, prior = NA_character_,
-                            rlang::enquos(...), obs = obs,
-                            min = rlang::enquo(min), max = rlang::enquo(max),
-                            .assert = TRUE, .obs = TRUE)
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description Load observation-node definitions as named arguments.
-    #' Each definition is `name = list(obs = "<distribution>", ...)`.
-    #' @param ... `r rd_list_args_`
-    #' @param append `r rd_list_append_`
-    add_observation_list = function(..., append = FALSE) {
-      private$augm_$add_quo_list(rlang::enquos(...),
-                                 append = append, .obs = TRUE)
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description Load augmented definitions from template.
-    #' @param append `r rd_tmpl_append_`
-    add_augmented_template = function(append = FALSE) {
-      if (private$generator_$is_blank()) warn_h(
-        "No template augmented variables available for blank model."
-      )
-      # retrieve the template augmented file
-      else self$add_augmented_list(
-        !!!get_template_def_list(private$generator_$source_dir, "augmented"),
-        append = isTRUE(append)
-      )
-      invisible(self)
-    },
 
     ############################################################################
     ############################################################################
@@ -999,6 +970,109 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
+    #' @description
+    #' Add a new augmented variable/function to housepi model definitions.
+    #' If the augmented variable already exists, it is updated.
+    #' @param name `r rd_var_name_`
+    #' @param value `r rd_aug_val_`
+    #' @param status `r rd_aug_status_`
+    #' @param const `r rd_var_const_`
+    #' @param discr `r rd_aug_discr_`
+    #' @param func `r rd_aug_func_`
+    #' @param func_args `r rd_aug_funargs_`
+    #' @param prior `r rd_var_prior_`
+    #' @param ... `r rd_aug_args_`
+    #' @param min `r rd_aug_min_`
+    #' @param max `r rd_aug_max_`
+    #' @param proposal `r rd_var_proposal_`
+    #' @param proposal_scale `r rd_proposal_scale_`
+    add_augmented = function(name = NA_character_,  value = NULL,
+                             status = NA_integer_, const = NA, discr = FALSE,
+                             func = NULL, func_args = NULL,
+                             prior = NA_character_, ...,
+                             min = NULL, max = NULL,
+                             proposal = NA_character_,
+                             proposal_scale = NA_real_) {
+      private$augm_$add_quo(name = name, value = rlang::enquo(value),
+                            status = status, const = const, discr = discr,
+                            func = rlang::enquo(func),
+                            func_args = rlang::enquos(func_args),
+                            prior = prior, rlang::enquos(...),
+                            min = rlang::enquo(min), max = rlang::enquo(max),
+                            proposal = proposal,
+                            proposal_scale = proposal_scale,
+                            .assert = TRUE)
+      private$rebuild_()
+      invisible(self)
+    },
+
+    #' @description Load augmented definitions as named arguments.
+    #' @param ... `r rd_list_args_`
+    #' @param append `r rd_list_append_`
+    add_augmented_list = function(..., append = FALSE) {
+      private$augm_$add_quo_list(rlang::enquos(...), append = append)
+      private$rebuild_()
+      invisible(self)
+    },
+
+    #' @description Load augmented definitions from template.
+    #' @param append `r rd_tmpl_append_`
+    add_augmented_template = function(append = FALSE) {
+      if (private$generator_$is_blank()) warn_h(
+        "No template augmented variables available for blank model."
+      )
+      # retrieve the template augmented file
+      else self$add_augmented_list(
+        !!!get_template_def_list(private$generator_$source_dir, "augmented"),
+        append = isTRUE(append)
+      )
+      invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
+    #' @description
+    #' Add an observation node: a data column modelled as the variate of a
+    #' distribution conditioned on latent augmented variables and/or parameters.
+    #' Its density enters the per-household likelihood (folded into `log_lik`).
+    #' @param name `r rd_var_name_`
+    #' @param obs `r rd_obs_dist_`
+    #' @param ... `r rd_obs_args_`
+    #' @param status `r rd_aug_status_`
+    #' @param discr `r rd_aug_discr_`
+    #' @param min `r rd_aug_min_`
+    #' @param max `r rd_aug_max_`
+    add_observation = function(name = NA_character_, obs = NA_character_, ...,
+                               status = NA_integer_, discr = FALSE,
+                               min = NULL, max = NULL) {
+      # name every parameter preceding the dots so the captured distribution
+      # arguments land in add_quo's '...' (and not in 'value').
+      private$augm_$add_quo(name = name, value = NULL, status = status,
+                            const = NA, discr = discr, prior = NA_character_,
+                            rlang::enquos(...), obs = obs,
+                            min = rlang::enquo(min), max = rlang::enquo(max),
+                            .assert = TRUE, .obs = TRUE)
+      private$rebuild_()
+      invisible(self)
+    },
+
+    #' @description Load observation-node definitions as named arguments.
+    #' Each definition is `name = list(obs = "<distribution>", ...)`.
+    #' @param ... `r rd_list_args_`
+    #' @param append `r rd_list_append_`
+    add_observation_list = function(..., append = FALSE) {
+      private$augm_$add_quo_list(rlang::enquos(...),
+                                 append = append, .obs = TRUE)
+      private$rebuild_()
+      invisible(self)
+    },
+
+    ############################################################################
+    ############################################################################
+    ############################################################################
+
     #' @description Add definition of infectivity profile.
     #' @param func `r rd_var_name_`
     #' @param status `r rd_aug_status_`
@@ -1029,40 +1103,16 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description Evaluate the complete-data log-likelihood.
-    #' @param house_id `r rd_house_id_`
-    #' If `NA` (default) it computes for the whole data.
-    #' @return `numeric(1)`. Transmission plus observation log-likelihood.
-    evaluate_log_lik = function(house_id = NA_character_) {
-      private$build_full_()
-      .engine$evaluate_log_lik(private$generator_$mcmc_ptr, house_id)
+    #' @description Summarise statuses in loaded data.
+    #' @return`data.frame`
+    summarise_house_cases = function() {
+      .engine$summarise_house_cases(private$generator_$mcmc_ptr)
     },
 
-    #' @description Run inference with Bayesian Markov chain Monte Carlo.
-    #' @param steps `r rd_smpl_steps_`
-    #' @param burn `r rd_smpl_burn_`
-    #' @param thin `r rd_smpl_thin_`
-    #' @param adapt `r rd_smpl_adapt_`
-    #' @param chains `r rd_smpl_chain_`
-    #' @param threads `r rd_thread_`
-    #' @param id_draws `r rd_smpl_iddrw_`
-    #' @param progress `r rd_progress_`
-    #' @return An object of class `HousepiPosteriorDraws`.
-    run_inference = function(steps = 1000, burn = 0,
-                             thin = 5, adapt = 500,
-                             chains = 4, threads = 1,
-                             id_draws = NULL,
-                             progress = TRUE) {
-      private$assert_posterior_memory_(steps = steps, burn = burn,
-                                       thin = thin, chains = chains,
-                                       id_draws = id_draws)
-      private$build_full_(steps = steps, burn = burn,
-                          thin = thin, adapt = adapt,
-                          chains = chains, threads = threads,
-                          id_draws = id_draws, progress = progress)
-      .engine$run_inference(private$generator_$mcmc_ptr)
-      HousepiPosteriorDraws$new(private$generator_$raw_name,
-                                private$generator_$mcmc_ptr)
+    #' @description Summary house sizes in loaded data.
+    #' @return `data.frame`
+    summarise_house_sizes = function() {
+      .engine$summarise_house_sizes(private$generator_$mcmc_ptr)
     },
 
     #' @description
@@ -1100,45 +1150,6 @@ HousepiModel <- R6::R6Class(
         out$infec_profile <- df
       }
       out
-    },
-
-    #' @description
-    #' Run simulation to generate a household survey.
-    #' It assumes the same community structure of the loaded data.
-    #' @param obs_process `r rd_simul_observ_`
-    #' @param obs_process_long `r rd_simul_obs_long_`
-    #' @param param_table `r rd_param_table_`
-    #' @param nrep `r rd_simul_nrep_`
-    #' @return `data.frame` or `list` (when `obs_process_long` is provided)
-    run_simulation = function(obs_process = NULL,
-                              obs_process_long = NULL,
-                              param_table = NULL,
-                              nrep = NA_integer_) {
-      # simulation specific build
-      nrep <- private$helper_simulation_build_(param_table = param_table,
-                                               nrep = nrep)
-
-      # run simulations
-      output <- .engine$run_simulation(
-        private$generator_$mcmc_ptr,
-        # combine observation process to measures and refactor
-        private$helper_obs_process_(obs_process),
-        NULL, # wide measure
-        obs_process_long
-      )
-
-      # drop empty wide/long
-      if (length(output$wide) == 0) output$wide <- NULL
-      if (length(output$long) == 0) output$long <- NULL
-      if (length(output) == 1) {
-        output <- output[[1]]
-        if (nrep == 1) output <- output[[1]]
-      } else if (nrep == 1) {
-        output$wide <- output$wide[[1]]
-        output$long <- output$long[[1]]
-      }
-
-      output
     },
 
     ############################################################################

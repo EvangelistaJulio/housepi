@@ -7,17 +7,15 @@
 
 #' @keywords internal
 #' @details
-#' We introduce "housepi", an open source R package for the statistical analysis
-#' and modeling of epidemiological data from household outbreaks.
-#' Mathematical modeling has proven to be a valuable tool for estimating
+#' Mathematical modeling is a valuable tool for estimating
 #' key epidemiological parameters from household transmission surveys.
-#' The relative ease of sampling household data makes it a readily available
-#' source of information during the early phases of an epidemic
+#' The relative ease of collecting household data makes it a readily available
+#' source of information during an epidemic early phases
 #' (e.g. longitudinal studies).
 #' Additionally, retrospective serological surveys can provide critical insights
 #' into the history of transmission within a population (final size studies).
-#' The package aims to combine ease of use with flexibility, supporting both
-#' straightforward analyses and advanced epidemiological investigations.
+#' The package "housepi" aims at supporting straightforward analysis
+#' and advanced epidemiological investigations from household outbreaks.
 "_PACKAGE"
 
 #' @useDynLib housepi, .registration = TRUE

@@ -36,8 +36,8 @@ namespace housepi
 		void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
 
 		virtual const std::vector<std::string> get_DataKey() const = 0;
-		virtual const std::vector<std::string> get_HHsizeKey() const = 0;
-		virtual const std::vector<std::string> get_HHsizevecKey() const = 0;
+		virtual const std::vector<std::string> get_HHuintKey() const = 0;
+		virtual const std::vector<std::string> get_HHuintvecKey() const = 0;
 		virtual const std::vector<std::string> get_HHdoublevecKey() const = 0;
 		virtual const std::vector<std::string> get_HHdoublemtxKey() const = 0;
 		virtual const std::vector<std::string> get_LongKey() const = 0;
@@ -83,7 +83,7 @@ namespace housepi
 		/// Drop all augmented definitions of given individual.
 		void clear_augm(Individual &member) { mcmc_->augm.clear_definitions(member); }
 
-		/// User call. Initialize all augmented variables of given individual.
+		/// Modeler call. Initialize all augmented variables of given individual.
 		/// If a variable has been set by the user, it's skipped.
 		/// UPDATE: right now simulations assignments must be order independent.
 		void init_missing_augm(Individual &member)
@@ -92,12 +92,17 @@ namespace housepi
 			mcmc_->augm.restart(mcmc_->setup.prng(), member);
 		}
 
-		/// User call. Request discrete parameter definition.
-		void request_discrete_param(size_t p) { mcmc_->param.request_discrete(p); }
-		/// User call. Request discrete augmented definition.
-		void request_discrete_augm(size_t a) { mcmc_->augm.request_discrete(a); }
-		/// User call. Request discrete infectivity profile definition.
-		void request_discrete_infec_profile() { mcmc_->infec_profile.request_discrete(); }
+		/// Modeler call. Request discrete parameter definition.
+		void request_param_discrete(size_t p) { mcmc_->param.request_discrete(p); }
+		/// Modeler call. Request discrete augmented definition.
+		void request_augm_discrete(size_t a) { mcmc_->augm.request_discrete(a); }
+		/// Modeler call. Request discrete infectivity profile definition.
+		void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
+
+		/// Modeler call. Request discrete data definition.
+		void request_data_discrete(size_t d) { mcmc_->data_wide().request_discrete(d); }
+		/// Modeler call. Request data definition greater than zero.
+		void request_data_positive(size_t d) { mcmc_->data_wide().request_positive(d); }
 
 		/// Set numeric value of augmented variable. If not allowed, raise exception.
 		void set_augm_value(size_t a, const Individual &m, double x) { mcmc_->get_augm_varia(a, m).set(x); }

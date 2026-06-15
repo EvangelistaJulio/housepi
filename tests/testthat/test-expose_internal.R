@@ -520,6 +520,70 @@ test_that("Discretized normal uses center-discretization", {
   expect_equal(distr$pdf(x), normcdf(x + 0.5) - normcdf(x - 0.5))
 })
 
+test_that("Discretized normal stays finite far in the upper tail", {
+  # far above the mean both CDFs round to 1 and the naive difference cancels
+  # to 0 (-Inf log-pmf); the complementary-CDF branch keeps it finite.
+  x <- seq(9, 30, 1)
+  distr <- expose_distribution("normal", mean = 0, sd = 1, discr = TRUE)
+
+  # the bug this guards against: naive CDF difference underflows to exactly 0
+  naive <- stats::pnorm(x + 0.5) - stats::pnorm(x - 0.5)
+  expect_true(any(naive == 0))
+
+  # stable reference via upper-tail (complementary) CDF
+  ccdf <- function(x) stats::pnorm(x, lower.tail = FALSE)
+  expected_pmf <- ccdf(x - 0.5) - ccdf(x + 0.5)
+
+  expect_true(all(is.finite(distr$log_pdf(x))))
+  expect_equal(distr$pdf(x), expected_pmf)
+  expect_equal(distr$log_pdf(x), log(expected_pmf))
+
+  # symmetry: reflecting about the mean matches the lower tail
+  expect_equal(distr$pdf(x), distr$pdf(-x))
+})
+
+test_that("Discretized lognormal stays finite far in the upper tail", {
+  # left-discretized, heavy upper tail: exercises the gamma/erfc complement path
+  meanlog <- 0
+  sdlog <- 0.5
+  x <- seq(60, 200, 5)
+  distr <- expose_distribution("lognormal",
+    meanlog = meanlog, sdlog = sdlog, discr = TRUE
+  )
+
+  lncdf <- function(x) stats::plnorm(x, meanlog = meanlog, sdlog = sdlog)
+  expect_true(any(lncdf(x + 1) - lncdf(x) == 0)) # naive underflows
+
+  ccdf <- function(x) {
+    stats::plnorm(x, meanlog = meanlog, sdlog = sdlog, lower.tail = FALSE)
+  }
+  expected_pmf <- ccdf(x) - ccdf(x + 1)
+
+  expect_true(all(is.finite(distr$log_pdf(x))))
+  expect_equal(distr$pdf(x), expected_pmf)
+})
+
+test_that("Discretized gamma stays finite far in the upper tail", {
+  # left-discretized; exercises the boost gamma_q complement override
+  shape <- 2
+  scale <- 1.5
+  x <- seq(60, 120, 5)
+  distr <- expose_distribution("gamma",
+    shape = shape, scale = scale, discr = TRUE
+  )
+
+  gcdf <- function(x) stats::pgamma(x, shape = shape, scale = scale)
+  expect_true(any(gcdf(x + 1) - gcdf(x) == 0)) # naive underflows
+
+  gccdf <- function(x) {
+    stats::pgamma(x, shape = shape, scale = scale, lower.tail = FALSE)
+  }
+  expected_pmf <- gccdf(x) - gccdf(x + 1)
+
+  expect_true(all(is.finite(distr$log_pdf(x))))
+  expect_equal(distr$pdf(x), expected_pmf)
+})
+
 test_that("rand() draws are reproducible and statistically plausible", {
   d <- expose_distribution("normal", mean = 2, sd = 3)
   set.seed(42L)
