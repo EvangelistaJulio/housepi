@@ -94,19 +94,19 @@ public:
 		for (size_t s : house.susceptible_hhindexes())
 		{
 			const Individual &member_s = house.member(s);
-			const double exposure = member_s.data(DataKey::start_date) + member_s.data(DataKey::study_period) - t_intro;
-			output -= alpha * exposure * member_s.group_rate(GroupRateKey::community);
+			const double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_intro;
+			output -= alpha * exposure * group_rate(GroupRateKey::community, member_s);
 		}
 
 		for (size_t i : house.infected_hhindexes())
 		{
 			const Individual &member_i = house.member(i);
-			const double mu_i = house.member(i).group_rate(GroupRateKey::infectivity);
+			const double mu_i = group_rate(GroupRateKey::infectivity, member_i);
 
 			for (size_t s : house.susceptible_hhindexes())
 				output -= mu_i * beta * cumul_mtx[i][s] *
-						  house.contact_rate(i, s) *
-						  house.member(s).group_rate(GroupRateKey::susceptibility);
+						  contact_rate(house, i, s) *
+						  group_rate(GroupRateKey::susceptibility, house.member(s));
 
 			if (i == i0)
 				continue;
@@ -119,14 +119,14 @@ public:
 				if (j == i)
 					continue;
 
-				const double mu_ji = house.member(j).group_rate(GroupRateKey::infectivity) *
-									 house.contact_rate(j, i);
+				const double mu_ji = group_rate(GroupRateKey::infectivity, house.member(j)) *
+									 contact_rate(house, j, i);
 				roi_inst_i += mu_ji * inst_mtx[j][i];
 				roi_cumul_i += mu_ji * cumul_mtx[j][i];
 			}
 
-			const double a_i = alpha * member_i.group_rate(GroupRateKey::community);
-			const double b_i = beta * member_i.group_rate(GroupRateKey::susceptibility);
+			const double a_i = alpha * group_rate(GroupRateKey::community, member_i);
+			const double b_i = beta * group_rate(GroupRateKey::susceptibility, member_i);
 
 			roi_inst_i *= b_i;
 			roi_cumul_i *= b_i;
@@ -220,7 +220,7 @@ public:
 			for (size_t s : house.susceptible_hhindexes())
 			{
 				const Individual &member_s = house.member(s);
-				double exposure = member_s.data(DataKey::start_date) + member_s.data(DataKey::study_period) - t_infec_i;
+				const double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_infec_i;
 				cumul_mtx[i][s] = infec_profile_cumul(member_i, exposure);
 				cumul_mtx[s][i] = 0.0;
 			}
@@ -266,7 +266,7 @@ public:
 		for (size_t s : house.susceptible_hhindexes())
 		{
 			const Individual &member_s = house.member(s);
-			double exposure = member_s.data(DataKey::start_date) + member_s.data(DataKey::study_period) - t_infec_i;
+			double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_infec_i;
 			cumul_mtx[i][s] = infec_profile_cumul(member_i, exposure);
 			cumul_mtx[s][i] = 0.0;
 		}
@@ -334,14 +334,14 @@ public:
 		// largest study period
 		double study_period = 0.;
 		for (const Individual &member_i : house)
-			study_period = std::max(study_period, member_i.data(DataKey::study_period));
+			study_period = std::max(study_period, data(DataKey::study_period, member_i));
 
 		// FIXME: first approximation
 		// this is assuming the anchor at time 0; wrong because:
 		// 1 - anaware of first case infection time definition;
 		// 2 - anchor cannot be specified by user;
 		// 3 - a secondary case could actually have been the index;
-		
+
 		const double t0 = aug(AugmKey::infec_time, member_0);
 		const double end_date = study_period; // FIXME: temporary patch
 
@@ -349,7 +349,7 @@ public:
 		for (double t = t0 + Dt; t <= end_date && house.n_susceptible_status() > 0; t += Dt)
 			for (Individual &member_i : house)
 			{
-				if (member_i.is_infected_status() || t > member_i.data(DataKey::study_period))
+				if (member_i.is_infected_status() || t > data(DataKey::study_period, member_i))
 					continue;
 				if (exponential() < roi_inst_simulation(house, member_i, t, alpha, beta) * Dt)
 				{
@@ -392,13 +392,13 @@ public:
 		{
 			const Individual &member_j = house.member(j);
 			const double gentime = t_infec_i - aug(AugmKey::infec_time, member_j);
-			roi += member_j.group_rate(GroupRateKey::infectivity) *
-				   house.contact_rate(j, i) *
+			roi += group_rate(GroupRateKey::infectivity, member_j) *
+				   contact_rate(house, j, i) *
 				   infec_profile_inst(member_j, gentime);
 		}
 
-		return alpha * member_i.group_rate(GroupRateKey::community) +
-			   beta * member_i.group_rate(GroupRateKey::susceptibility) * roi;
+		return alpha * group_rate(GroupRateKey::community, member_i) +
+			   beta * group_rate(GroupRateKey::susceptibility, member_i) * roi;
 	}
 };
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

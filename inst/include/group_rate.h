@@ -13,7 +13,7 @@
 #include "tools/keys.h"
 #include "tools/types.h"
 
-#include "indiv_storage.h"
+#include "individual.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -25,7 +25,6 @@ namespace housepi
 {
     struct DataWide;
     struct Parameter;
-    class Individual;
 
     struct GroupRate : public KeyModule
     {
@@ -36,8 +35,21 @@ namespace housepi
         /// Optimize all variables (see Variable::optimize).
         void optimize();
 
+        /// Access the group rate attribute of given key for a member.
+        const Attribute &at(size_t g, const Individual &member) const noexcept { return unique_groups_[group_index_[member.index_]].vec[g]; }
+        /// Access the group rate value of given key for a member.
+        double value(size_t g, const Individual &member) const { return at(g, member).value(); }
+        /// Whether two members belong to the same group-rate partition.
+        bool same_group(const Individual &a, const Individual &b) const noexcept { return group_index_[a.index_] == group_index_[b.index_]; }
+
     private:
-        std::vector<Indiv::Group> unique_groups_; /// Unique group rate definitions
+        /// Individual group rates.
+        struct IndivGroup_
+        {
+            std::vector<Attribute> vec = {};
+        };
+        std::vector<IndivGroup_> unique_groups_; /// Unique group rate definitions
+        std::vector<size_t> group_index_ = {};   /// Map individual index to unique group rate index
 
         /// Verify that group rates definitions are correct and pre-process theme.
         std::vector<std::string> helper_process_definitions_(DataWide &data_wide, const str_table &input);

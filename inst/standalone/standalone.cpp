@@ -364,7 +364,7 @@ namespace housepi
     /// Print all augmented variables of each individual.
     void update_ofstream_datawide(std::ofstream &ofs,
                                   const Household &house,
-                                  size_t data_wide_size,
+                                  const DataWide &data_wide,
                                   const std::vector<size_t> &augm_export,
                                   const Augmented &augm)
     {
@@ -376,8 +376,8 @@ namespace housepi
             ofs << member.id()
                 << read::DELIMITER << house.house_id()
                 << read::DELIMITER << member.status();
-            for (size_t d = 0; d < data_wide_size; ++d)
-                ofs << read::DELIMITER << member.data(d);
+            for (size_t d = 0; d < data_wide.khold().size(); ++d)
+                ofs << read::DELIMITER << data_wide.data(d, member);
             for (size_t a : augm_export)
             {
                 const Variable &xaugm = augm.at(a, member);
@@ -405,7 +405,7 @@ namespace housepi
             {
                 engine.model->simulate_single_house(house);
                 update_ofstream_datawide(ofs, house,
-                                         data_wide.khold().size(),
+                                         data_wide,
                                          augm.list_export, augm);
             }
             catch (const std::exception &e)

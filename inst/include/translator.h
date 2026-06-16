@@ -23,7 +23,8 @@ namespace housepi
     {
         struct Entry;
     }
-    struct KeyHolder;
+    struct DataWide;
+    struct GroupRate;
     struct Augmented;
     struct Parameter;
     class Individual;
@@ -33,9 +34,9 @@ namespace housepi
     {
         Translator(Parameter &param, Augmented &augm) : param_(param), augm_(augm) {}
 
-        /// Bind key holders for member-specific source resolution.
-        void bind_data_wide(const KeyHolder *khold) noexcept { pDataWideKeys_ = khold; }
-        void bind_group_rate(const KeyHolder *khold) noexcept { pGroupRateKeys_ = khold; }
+        /// Bind data-wide storage and group-rate storage for member-specific source resolution.
+        void bind_data_wide(const DataWide *data_wide) noexcept { pdata_wide_ = data_wide; }
+        void bind_group_rate(const GroupRate *group_rate) noexcept { pgroup_rate_ = group_rate; }
 
         /// Translate a definition node or a string to a generic attribute.
         const Attribute &to_attribute(const parse::Entry &node, const Individual *member_ptr = nullptr) const;
@@ -49,11 +50,11 @@ namespace housepi
         void make_cache_dependent(const parse::Entry &node) const;
 
     private:
-        Parameter &param_;                /// parameter key-module
-        Augmented &augm_;                 /// augmented key-module
-        const KeyHolder *pDataWideKeys_;  /// data-wide key-holder
-        const KeyHolder *pGroupRateKeys_; /// group-rates key-holder
-        mutable Attribute storage_;       /// auxiliary storage attribute
+        Parameter &param_;              /// parameter key-module
+        Augmented &augm_;               /// augmented key-module
+        const DataWide *pdata_wide_;    /// data-wide storage and key-holder
+        const GroupRate *pgroup_rate_;  /// group-rates storage and key-holder
+        mutable Attribute storage_;     /// auxiliary storage attribute
 
         void helper_store_read_function_(const parse::Entry &node, const Individual *member_ptr) const;
     };

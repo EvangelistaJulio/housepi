@@ -874,9 +874,7 @@ namespace housepi
         // reset group rate storage and unbind individuals
         khold_.clear_optional();
         unique_groups_.clear();
-        for (Household &house : data_wide)
-            for (Individual &member : house)
-                member.pgroup_rate_ = nullptr;
+        group_index_.assign(data_wide.report_indiv.total, 0);
 
         // load required data headers or skip if no definitions provided
         std::vector<std::string> data_headers = {};
@@ -909,7 +907,7 @@ namespace housepi
                 for (size_t d = 0; d < data_headers.size(); ++d)
                 {
                     const auto &fv = input.at(data_headers[d])[r];
-                    if (!na::is(fv) && mb_ptr->pwide_->vec[data_ix[d]] != str::tod(fv))
+                    if (!na::is(fv) && data_wide.data(data_ix[d], *mb_ptr) != str::tod(fv))
                         return false;
                 }
                 return true;
@@ -944,13 +942,13 @@ namespace housepi
                     it = unique_defin_map.emplace(these_rates, unique_groups_.size()).first;
                     helper_init_unique_rate_(param, member, these_rates);
                 }
-                member.pgroup_rate_ = &unique_groups_[it->second];
+                group_index_[member.index_] = it->second;
             }
     }
 
     void GroupRate::optimize()
     {
-        for (Indiv::Group &group : unique_groups_)
+        for (IndivGroup_ &group : unique_groups_)
             for (Attribute &rate : group.vec)
                 rate.optimize();
     }
@@ -994,7 +992,7 @@ namespace housepi
     void GroupRate::helper_init_unique_rate_(const Parameter &param, const Individual &member, const str_table &these_rates)
     {
         unique_groups_.emplace_back();
-        Indiv::Group &igr = unique_groups_.back();
+        IndivGroup_ &igr = unique_groups_.back();
         igr.vec.reserve(khold_.size());
         for (const std::string &gstr : khold_.all())
         {
@@ -1068,6 +1066,7 @@ namespace housepi
 
             /// Associate parameter pointers to pair.
             std::vector<const Attribute *> associate_param_ptrs(
+                const DataWide &data_wide,
                 const Parameter &param,
                 const Individual &member_from,
                 const Individual &member_to) const
@@ -1075,7 +1074,7 @@ namespace housepi
                 // per-group: keep the most-specific matching rule
                 const auto resolved = rules.resolve<size_t>(
                     [&](size_t r)
-                    { return matches_(r, member_from, member_to); },
+                    { return matches_(data_wide, r, member_from, member_to); },
                     [&](size_t r)
                     { return rules.row_gid[r]; },
                     [&](size_t)
@@ -1125,6 +1124,7 @@ namespace housepi
 
             /// Whether the pair of members match the contact rule at row 'r'.
             bool matches_(
+                const DataWide &data_wide,
                 size_t r,
                 const Individual &member_from,
                 const Individual &member_to) const
@@ -1132,11 +1132,11 @@ namespace housepi
                 for (size_t i = 0; i < from.size(); ++i)
                 {
                     const std::string &fval = rules.input.at(from[i])[r];
-                    if (!na::is(fval) && member_from.data(keys[i]) != str::tod(fval))
+                    if (!na::is(fval) && data_wide.data(keys[i], member_from) != str::tod(fval))
                         return false;
 
                     const std::string &tval = rules.input.at(to[i])[r];
-                    if (!na::is(tval) && member_to.data(keys[i]) != str::tod(tval))
+                    if (!na::is(tval) && data_wide.data(keys[i], member_to) != str::tod(tval))
                         return false;
                 }
                 return true;
@@ -1149,10 +1149,8 @@ namespace housepi
         const Parameter &param,
         const str_table &input)
     {
-        // reset storage and unbind households
+        // reset storage
         house_contact_rates_.clear();
-        for (size_t H = 0; H < data_wide.report_house.total; ++H)
-            data_wide.at(H).pcontact_rate_ = nullptr;
         if (input.empty())
             return;
 
@@ -1169,7 +1167,6 @@ namespace housepi
             Household &house = data_wide.at(H);
             size_t house_size = house.size();
 
-            house.pcontact_rate_ = &house_contact_rates_[H];
             house_contact_rates_[H].mtx.assign(
                 house_size, std::vector<Attribute>(house_size, rates::VALUE_REFERENCE));
 
@@ -1178,7 +1175,7 @@ namespace housepi
                 for (size_t to = 0; to < house_size; ++to)
                 {
                     std::vector<const Attribute *> param_ptrs =
-                        defs.associate_param_ptrs(param, house.member(from), house.member(to));
+                        defs.associate_param_ptrs(data_wide, param, house.member(from), house.member(to));
 
                     if (!param_ptrs.empty())
                         house_contact_rates_[H].mtx[from][to].init_product(param_ptrs);
@@ -1188,7 +1185,7 @@ namespace housepi
 
     void ContactRate::optimize()
     {
-        for (House::Contact &contact : house_contact_rates_)
+        for (IndivContact_ &contact : house_contact_rates_)
             for (std::vector<Attribute> &row : contact.mtx)
                 for (Attribute &rate : row)
                     rate.optimize();

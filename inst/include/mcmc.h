@@ -92,14 +92,14 @@ namespace housepi
 		double commit_transm_log_lik_(Household &house)
 		{
 			double output = model->compute_house_transm_log_lik(house);
-			house.transm_log_lik_.set(output);
+			data_wide().transm_log_lik(house).set(output);
 			return output;
 		}
 
 		/// Compute and set value of observation log-likelihood. Return log-like ratio.
 		double commit_transm_log_lik_ratio_(Household &house)
 		{
-			double output = -house.transm_log_lik_.value();
+			double output = -data_wide().transm_log_lik(house).value();
 			output += commit_transm_log_lik_(house);
 			return output;
 		}

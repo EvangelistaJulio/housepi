@@ -150,12 +150,12 @@ public:
 		{
 			size_t i = order[oi]; // retrieve household member index (partition representative)
 			const Individual &member_i = house.member(i);
-			const double inf_i_scl = member_i.group_rate(GroupRateKey::infectivity) * p2p_rate;
-			const double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
+			const double inf_i_scl = group_rate(GroupRateKey::infectivity, member_i) * p2p_rate;
+			const double sus_i = group_rate(GroupRateKey::susceptibility, member_i);
 			const double sus_i_scl = p2p_rate * sus_i;
 
 			// community filled in order
-			commu_mtx[oi] = commu_rate * member_i.group_rate(GroupRateKey::community);
+			commu_mtx[oi] = commu_rate * group_rate(GroupRateKey::community, member_i);
 
 			// person-to-person
 			for (size_t oj = 0; oj < oi; ++oj)
@@ -163,17 +163,17 @@ public:
 				size_t j = order[oj];
 				const Individual &member_j = house.member(j);
 				// [i] : infector -> [k] : infectee
-				p2p_mtx[oi][oj] = inf_i_scl * house.contact_rate(i, j) *
-								  member_j.group_rate(GroupRateKey::susceptibility);
+				p2p_mtx[oi][oj] = inf_i_scl * contact_rate(house, i, j) *
+								  group_rate(GroupRateKey::susceptibility, member_j);
 				// [k] : infector -> [i] : infectee
-				p2p_mtx[oj][oi] = member_j.group_rate(GroupRateKey::infectivity) *
-								  house.contact_rate(j, i) * sus_i_scl;
+				p2p_mtx[oj][oi] = group_rate(GroupRateKey::infectivity, member_j) *
+								  contact_rate(house, j, i) * sus_i_scl;
 			}
 
 			// NOTE: for partitions, I need to compute also diagonal terms:
 			// i. e. from partition 'i' to partition 'i' (intra-partition)
-			// NOTE: by definition house.contact_rate(i, i) = 0
-			p2p_mtx[oi][oi] = inf_i_scl * house.intra_partition_contact_rate(i) * sus_i;
+			// NOTE: by definition contact_rate(house, i, i) = 0
+			p2p_mtx[oi][oi] = inf_i_scl * intra_partition_contact_rate(house, i) * sus_i;
 		}
 	}
 
@@ -211,7 +211,7 @@ public:
 		std::vector<size_t> new_gen_set = {};
 
 		for (size_t i = 0; i < house.size(); ++i)
-			if (exponential() > commu_rate * house.member(i).group_rate(GroupRateKey::community))
+			if (exponential() > commu_rate * group_rate(GroupRateKey::community, house.member(i)))
 				house.set_susceptible_status(i);
 			else
 			{
@@ -239,10 +239,10 @@ public:
 
 				double r = 0.;
 				for (size_t j : old_gen_set)
-					r += house.member(j).group_rate(GroupRateKey::infectivity) *
-						 house.contact_rate(j, i);
+					r += group_rate(GroupRateKey::infectivity, house.member(j)) *
+						 contact_rate(house, j, i);
 
-				double sus_i = member_i.group_rate(GroupRateKey::susceptibility);
+				double sus_i = group_rate(GroupRateKey::susceptibility, member_i);
 				if (exponential() < r * p2p_rate * sus_i)
 				{
 					house.set_infected_status(i);

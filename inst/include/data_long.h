@@ -13,7 +13,7 @@
 #include "tools/keys.h"
 #include "tools/types.h"
 
-#include "indiv_storage.h"
+#include "individual.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,11 +28,32 @@ namespace housepi
     struct DataLong : public KeyModule
     {
     public:
+        /// User defined data-long headers
         std::vector<std::string> headers = {};
-        std::vector<Indiv::Long> indiv_datalist = {};
+
+        /// Individual long-format data.
+        struct IndivLong
+        {
+            std::vector<std::vector<double>> vec = {};
+        };
+        std::vector<IndivLong> indiv_datalist = {};
+
+        //////////////////////
+        //////  SETTER  //////
+        //////////////////////
 
         /// Assign data (long format) after pre-processing.
         void build(DataWide &data_wide, const str_table &input);
+
+        //////////////////////
+        //////  GETTER  //////
+        //////////////////////
+
+        /// Access all long-format data for a member.
+        const std::vector<std::vector<double>> *get_data_long_ptr(const Individual &member) const noexcept
+        {
+            return &indiv_datalist[member.index_].vec;
+        }
 
     private:
         /// Clear previous data report.

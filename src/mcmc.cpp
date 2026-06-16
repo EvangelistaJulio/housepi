@@ -101,8 +101,8 @@ namespace housepi
 
             if (parse::is_data_wide(node.type))
             {
-                size_t d = pDataWideKeys_->from_string(node.value);
-                storage_.init_numeric(member_ptr->data(d));
+                size_t d = pdata_wide_->khold(node.value);
+                storage_.init_numeric(pdata_wide_->data(d, *member_ptr));
                 storage_.name(node.value);
                 storage_.set_err_type("data");
             }
@@ -112,7 +112,7 @@ namespace housepi
             }
             else if (parse::is_group_rate(node.type))
             {
-                return member_ptr->get_group_rate_attribute(pGroupRateKeys_->from_string(node.value));
+                return pgroup_rate_->at(pgroup_rate_->khold(node.value), *member_ptr);
             }
 #ifndef NDEBUG
             else
@@ -366,8 +366,7 @@ namespace housepi
     void MCMCBase::set_data_store(std::shared_ptr<DataStore> ds)
     {
         pDataStore = std::move(ds);
-        DataWide *dw = &pDataStore->data_wide;
-        translator.bind_data_wide(&dw->khold());
+        translator.bind_data_wide(&pDataStore->data_wide);
     }
 
     void MCMCBase::init_key_holder(
@@ -391,8 +390,8 @@ namespace housepi
         group_rate.init_key_holder(group_rate_keys);
         augm.init_key_holder(augm_keys);
 
-        translator.bind_data_wide(&data_wide().khold());
-        translator.bind_group_rate(&group_rate.khold());
+        translator.bind_data_wide(&data_wide());
+        translator.bind_group_rate(&group_rate);
     }
 
     /// Wheter hosuehold members i and j are equivalent in terms of rates.
@@ -408,20 +407,12 @@ namespace housepi
         const Individual &member_j = house.member(j);
 
         // check all group rates
-        if (member_i.pgroup_rate_ != member_j.pgroup_rate_)
+        if (!group_rate.same_group(member_i, member_j))
             return false;
 
         // check all contact rates
-        if (!contact_rate.is_empty())
-            for (size_t k = 0; k < house.size(); ++k)
-            {
-                if (k == j || k == i)
-                    continue;
-                if (house.pcontact_rate_->mtx[i][k] != house.pcontact_rate_->mtx[j][k])
-                    return false;
-                if (house.pcontact_rate_->mtx[k][i] != house.pcontact_rate_->mtx[k][j])
-                    return false;
-            }
+        if (!contact_rate.same_contacts(house, i, j))
+            return false;
 
         return true;
     }
@@ -437,6 +428,7 @@ namespace housepi
             force_unique = augm.khold().size() > 0;
 
         data_wide().init_eq_classes(force_unique);
+        data_wide().allocate_transm_log_lik();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -489,7 +481,7 @@ namespace housepi
         {
             const Household &house = data_wide().eq_class_head(R);
 
-            if (house.transm_log_lik_.is_inf())
+            if (data_wide().transm_log_lik(house).is_inf())
                 throw std::runtime_error(
                     "Initial transmission log-likelihood returned infinity for " +
                     house.err_name() + ".");
@@ -526,7 +518,7 @@ namespace housepi
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
         {
             Household &house = data_wide().eq_class_head(R);
-            house.transm_log_lik_.recover();
+            data_wide().transm_log_lik(house).recover();
 
             // recover from commit_total_log_density_
             if (with_augm_prior)
@@ -669,6 +661,7 @@ namespace housepi
         data_wide().init_eq_classes(
             augm.is_any_sample() || augm.is_any_prior() || augm.is_any_obs());
         data_wide().allocate_all_cache();
+        data_wide().allocate_transm_log_lik();
 
         param.optimize();
         group_rate.optimize();
@@ -940,7 +933,7 @@ namespace housepi
             augm.varia[member.index_].log_prior.recover();
             if (with_obs)
                 augm.varia[member.index_].log_obs.recover();
-            house.transm_log_lik_.recover();
+            data_wide().transm_log_lik(house).recover();
             data_wide().recover_member_old_cached(house, i);
         }
         // else recover old value

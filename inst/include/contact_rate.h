@@ -11,7 +11,8 @@
 #include <vector>
 
 #include "tools/types.h"
-#include "house_storage.h"
+#include "function.h"
+#include "household.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +36,46 @@ namespace housepi
         /// Whether no contact rate definitions were provided in the last build.
         bool is_empty() const noexcept { return house_contact_rates_.empty(); }
 
+        /// Contact rate 'from' household member 'to' member. No self-contact (set 0 for safety).
+        double value(const Household &house, size_t from, size_t to) const
+        {
+            if (from == to)
+                return 0.;
+            if (house_contact_rates_.empty())
+                return 1.;
+            return house_contact_rates_[house.index_].mtx[from][to].value();
+        }
+
+        /// Contact rate intra member partition (self-contact).
+        double intra_value(const Household &house, size_t i) const
+        {
+            if (house_contact_rates_.empty())
+                return 1.;
+            return house_contact_rates_[house.index_].mtx[i][i].value();
+        }
+
+        /// Whether household members i and j have matching contact rates across all members.
+        bool same_contacts(const Household &house, size_t i, size_t j) const noexcept
+        {
+            if (house_contact_rates_.empty())
+                return true;
+            const auto &mtx = house_contact_rates_[house.index_].mtx;
+            for (size_t k = 0; k < house.size(); ++k)
+            {
+                if (k == j || k == i)
+                    continue;
+                if (mtx[i][k] != mtx[j][k] || mtx[k][i] != mtx[k][j])
+                    return false;
+            }
+            return true;
+        }
+
     private:
-        std::vector<House::Contact> house_contact_rates_; /// Storage for household contact rates
+        /// Per-household contact rate matrix.
+        struct IndivContact_
+        {
+            std::vector<std::vector<Attribute>> mtx = {}; /// contact rates
+        };
+        std::vector<IndivContact_> house_contact_rates_; /// Storage for household contact rates
     };
 }

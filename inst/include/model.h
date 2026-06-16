@@ -127,6 +127,14 @@ namespace housepi
 		double par(size_t p) const { return mcmc_->param.at(p).value(); }
 		/// Get augmented value for given individual.
 		double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
+		/// Get wide-format data value for given individual.
+		double data(size_t d, const Individual &m) const { return mcmc_->data(d, m); }
+		/// Get group-rate value for given individual.
+		double group_rate(size_t g, const Individual &m) const { return mcmc_->group_rate.value(g, m); }
+		/// Get contact rate 'from' household member 'to' member.
+		double contact_rate(const Household &house, size_t from, size_t to) const { return mcmc_->contact_rate.value(house, from, to); }
+		/// Get contact rate intra member partition (self-contact).
+		double intra_partition_contact_rate(const Household &house, size_t i) const { return mcmc_->contact_rate.intra_value(house, i); }
 
 		/// Return maximum number of observed infected household members.
 		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }

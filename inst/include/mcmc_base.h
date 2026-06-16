@@ -83,7 +83,7 @@ namespace housepi
 		DataLong &data_long() noexcept { return pDataStore->data_long; }
 		const DataLong &data_long() const noexcept { return pDataStore->data_long; }
 
-		/// Initialize equivalence class comppression.
+		/// Initialize equivalence class compression.
 		/// NOTE: assume unique if augmented definitions required, but not imported yet.
 		void init_equivalence_class_compression();
 
@@ -92,6 +92,7 @@ namespace housepi
 		////////////////////////////
 
 		double aug(size_t a, const Individual &m) const { return augm.at(a, m).value(); }
+		double data(size_t d, const Individual &m) const noexcept { return data_wide().data(d, m); }
 		Variable &get_augm_varia(size_t a, const Individual &m) noexcept { return augm.at(a, m); }
 		const Variable &get_augm_varia(size_t a, const Individual &m) const noexcept { return augm.at(a, m); }
 

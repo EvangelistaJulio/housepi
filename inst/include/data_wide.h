@@ -15,9 +15,9 @@
 
 #include "tools/data_reports.h"
 #include "tools/keys.h"
+#include "tools/logdensity.h"
 #include "tools/types.h"
 
-#include "indiv_storage.h"
 #include "household.h"
 
 namespace housepi
@@ -60,7 +60,15 @@ namespace housepi
         void request_positive(size_t d) { user_positive_set_.emplace(d); }
 
         /// Transmission log-likelihood of head of household equivalence class.
-        double house_transm_log_lik(size_t R) const { return eq_class_head(R).transm_log_lik(); }
+        double house_transm_log_lik(size_t R) const { return transm_log_lik(eq_class_head(R)).value(); }
+
+        /// Allocate per-equivalence-class transmission log-likelihood storage.
+        /// NOTE: requires equivalence classes to be initialized (see init_eq_classes).
+        void allocate_transm_log_lik() { house_transm_log_lik_.assign(eq_class_size(), LogDensity()); }
+
+        /// Access the transmission log-likelihood of a household equivalence class.
+        LogDensity &transm_log_lik(const Household &house) noexcept { return house_transm_log_lik_[house.eq_class_]; }
+        const LogDensity &transm_log_lik(const Household &house) const noexcept { return house_transm_log_lik_[house.eq_class_]; }
 
         /////////////////////////
         //////  ITERATORS  //////
@@ -80,6 +88,9 @@ namespace housepi
         const Household &at(size_t H) const noexcept { return house_vector_[H]; }
         Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
         const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
+
+        /// Access wide-format data of given column for a member.
+        double data(size_t d, const Individual &member) const noexcept { return indiv_data_[member.index_].vec[d]; }
 
         ///////////////////////////////////
         //////  EQUIVALENCE CLASSES  //////
@@ -159,9 +170,17 @@ namespace housepi
         //////  DATA  //////
         ////////////////////
 
-        std::vector<Indiv::Wide> indiv_data_;      /// External storage for individual data
-        std::vector<Household> house_vector_ = {}; /// All households in data
-        dict<size_t> hhid_to_index_ = {};          /// Map house-id to internal index
+        /// Individual wide-format data.
+        struct IndivWide_
+        {
+            int status = status::MISSING;
+            std::vector<double> vec = {};
+        };
+
+        std::vector<IndivWide_> indiv_data_;           /// External storage for individual data
+        std::vector<LogDensity> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood
+        std::vector<Household> house_vector_ = {};     /// All households in data
+        dict<size_t> hhid_to_index_ = {};              /// Map house-id to internal index
 
         std::unordered_set<size_t> user_discrete_set_ = {}; /// modeler requested discrete data
         std::unordered_set<size_t> user_positive_set_ = {}; /// modeler requested positive data

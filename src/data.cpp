@@ -43,7 +43,7 @@ namespace housepi
 
     void Household::add_member(size_t index,
                                const std::string &id,
-                               const Indiv::Wide *data_ptr)
+                               int status)
     {
         size_t hhindex = size();
         members_.emplace_back();
@@ -53,13 +53,12 @@ namespace housepi
         last.index_ = index;
         last.hhindex_ = hhindex;
         last.id_ = id;
-        last.pwide_ = data_ptr;
 
         // new member added as if missing status
         last.status_ = status::MISSING;
         status_vec_.push_back(hhindex);
-        if (!status::is_missing(data_ptr->status))
-            helper_set_status_(hhindex, data_ptr->status);
+        if (!status::is_missing(status))
+            helper_set_status_(hhindex, status);
     }
 
     void Household::helper_set_status_(size_t i, int snew)
@@ -182,7 +181,7 @@ namespace housepi
             }
 
             // read individual data into external storage
-            Indiv::Wide &idata = indiv_data_[i];
+            IndivWide_ &idata = indiv_data_[i];
             idata.status = status;
             idata.vec.resize(khold_.size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
@@ -204,17 +203,19 @@ namespace housepi
             if (!hhid_to_index_.count(house_id))
             {
                 // map data index to household number
-                hhid_to_index_.emplace(house_id, house_vector_.size());
+                size_t H = house_vector_.size();
+                hhid_to_index_.emplace(house_id, H);
                 // create a new empty household
                 house_vector_.emplace_back();
                 Household &last = house_vector_.back();
                 last.house_id_ = house_id;
+                last.index_ = H;
             }
             // extract the household reference
             Household &house = house_vector_.at(hhid_to_index_.at(house_id));
 
             // assign the individual the respective household
-            house.add_member(i, id, &idata);
+            house.add_member(i, id, idata.status);
         }
 
         // update report for data
@@ -311,8 +312,8 @@ namespace housepi
     {
         struct FrequencyMapper_
         {
-            FrequencyMapper_(const std::unordered_set<size_t> data_list)
-                : data_list_(data_list) {}
+            FrequencyMapper_(const std::unordered_set<size_t> data_list, const DataWide &data_wide)
+                : data_list_(data_list), data_wide_(data_wide) {}
 
             /// Compute frequency-relevant hash for each household
             std::map<size_t, std::vector<size_t>> define_hash_groups(
@@ -339,7 +340,7 @@ namespace housepi
                         const Individual &member = house.member(i);
                         hash_combine_(seed, std::hash<int>{}(member.status()));
                         for (size_t d : data_list_)
-                            hash_combine_(seed, std::hash<double>{}(member.data(d)));
+                            hash_combine_(seed, std::hash<double>{}(data_wide_.data(d, member)));
                     }
                     output[seed].emplace_back(H);
                 }
@@ -350,6 +351,8 @@ namespace housepi
         private:
             /// List of data relevant for frequency groups
             const std::unordered_set<size_t> data_list_;
+            /// Wide-format data storage
+            const DataWide &data_wide_;
 
             /// Comparison functor: sort members by (status, data[0], data[1], ...)
             bool member_less_(const Individual &a, const Individual &b) const
@@ -357,8 +360,8 @@ namespace housepi
                 if (a.status() != b.status())
                     return a.status() < b.status();
                 for (size_t d : data_list_)
-                    if (a.data(d) != b.data(d))
-                        return a.data(d) < b.data(d);
+                    if (data_wide_.data(d, a) != data_wide_.data(d, b))
+                        return data_wide_.data(d, a) < data_wide_.data(d, b);
                 return false;
             }
 
@@ -391,7 +394,7 @@ namespace housepi
 
         // compute frequency-relevant hash for each household
         std::map<size_t, std::vector<size_t>> hash_groups =
-            FrequencyMapper_(eq_class_covariates_).define_hash_groups(house_vector_);
+            FrequencyMapper_(eq_class_covariates_, *this).define_hash_groups(house_vector_);
 
         // update number of distinct frequency groups
         report_house.distinct = hash_groups.size();
@@ -548,7 +551,7 @@ namespace housepi
     {
         for (Household &house : house_vector_)
             for (size_t i = 0; i < house.size(); ++i)
-                house.helper_set_status_(i, house.member(i).pwide_->status);
+                house.helper_set_status_(i, indiv_data_[house.member(i).index_].status);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -573,10 +576,9 @@ namespace housepi
 
         // individual map for id -> index
         dict<size_t> id_to_index = {};
-        size_t c = 0;
         for (const Household &house : data_wide)
             for (const Individual &member : house)
-                id_to_index.emplace(member.id(), c++);
+                id_to_index.emplace(member.id(), member.index_);
 
         // load individual data list
         size_t n_rows = read::csv_n_rows(input);
@@ -601,15 +603,6 @@ namespace housepi
                     str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
             }
         }
-
-        // assign pointers to relative data-long to all individuals
-        // NOTE: adopted paradigm return empty on dangling pointer
-        // UPDATE: just store indexes and access indiv_datalist by index...
-        c = 0;
-        for (Household &house : data_wide)
-            for (size_t i = 0; i < house.size(); ++i, ++c)
-                if (indiv_datalist.at(c).vec.size() > 0)
-                    house.member(i).plong_ = &indiv_datalist.at(c);
     }
 
     void DataLong::helper_build_clear_data_()

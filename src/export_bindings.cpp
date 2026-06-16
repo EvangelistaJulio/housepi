@@ -564,7 +564,7 @@ namespace
                 status_col[row] = member.status();
 
                 for (size_t d = 0; d < columns.size(); ++d)
-                    data_col[d][row] = hsp_to_rcpp(member.data(list_export[d]));
+                    data_col[d][row] = hsp_to_rcpp(data_wide.data(list_export[d], member));
                 ++row;
             }
 
@@ -648,8 +648,8 @@ namespace
         for (const Household &house : data_wide)
             for (const Individual &member : house)
             {
-                const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
-                if (ptr && !ptr->empty())
+                const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(member);
+                if (!ptr->empty())
                     for (size_t k = 0; k < ptr->begin()->size(); ++k)
                     {
                         datalist_index[row] = member.id();
@@ -949,7 +949,7 @@ namespace
             status_col[i] = member.status();
 
             for (size_t d = 0; d < headers.size(); ++d)
-                df_double[d][i] = hsp_to_rcpp(member.data(d));
+                df_double[d][i] = hsp_to_rcpp(data_wide.data(d, member));
         }
 
         auto output = Rcpp::DataFrame::create(
@@ -974,8 +974,8 @@ namespace
         size_t n_rows = 0;
         for (const Individual &member : house)
         {
-            const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
-            if (ptr && !ptr->empty())
+            const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(member);
+            if (!ptr->empty())
                 n_rows += ptr->begin()->size();
         }
 
@@ -987,8 +987,8 @@ namespace
         size_t r = 0;
         for (const Individual &member : house)
         {
-            const std::vector<std::vector<double>> *ptr = member.get_data_long_ptr();
-            if (ptr && !ptr->empty())
+            const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(member);
+            if (!ptr->empty())
                 for (size_t k = 0; k < ptr->begin()->size(); ++k)
                 {
                     for (size_t d = 0; d < df_double.size(); ++d)
@@ -1029,7 +1029,7 @@ namespace
             id_col[i] = member.id();
 
             for (size_t c = 0; c < headers.size(); ++c)
-                df_double[c][i] = hsp_to_rcpp(member.get_group_rate_attribute(c));
+                df_double[c][i] = hsp_to_rcpp(group_rate.at(c, member));
         }
 
         Rcpp::List output;
@@ -1059,7 +1059,7 @@ namespace
         {
             ids[i] = house.member(i).id();
             for (size_t j = 0; j < n; ++j)
-                mtx(i, j) = hsp_to_rcpp(house.contact_rate(i, j));
+                mtx(i, j) = hsp_to_rcpp(contact_rate.value(house, i, j));
         }
 
         mtx.attr("dimnames") = Rcpp::List::create(ids, ids);
@@ -1203,7 +1203,7 @@ namespace
             const Household &house = mcmc_ptr->data_wide().at(house_id);
 
             return Rcpp::List::create(
-                Rcpp::_["transm_log_lik"] = house.transm_log_lik(),
+                Rcpp::_["transm_log_lik"] = mcmc_ptr->data_wide().transm_log_lik(house).value(),
                 Rcpp::_["augm_log_prior"] = helper_augm_log_prior_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr),
                 Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr, house),
