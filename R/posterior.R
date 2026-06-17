@@ -232,8 +232,8 @@ HousepiPosteriorDraws <- R6::R6Class(
       invisible()
     },
 
-    # Emits at most one warning per family combination.
-    check_diagnostics_one_ = function(d, family) {
+    # Emits at most one warning per draws_kind combination.
+    check_diagnostics_one_ = function(d, draws_kind) {
       if (is.null(d) || posterior::nvariables(d) == 0L) return(invisible())
 
       rhat_max <- diagnostic_[["rhat_max"]]
@@ -251,7 +251,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (length(both) > 0L) sms <- c(sms,
         sprintf("%s %s with R-hat > %.2f and Bulk ESS < %.0f%%:%s",
                 format_there_were_was(length(both)),
-                as_plural(family, length(both)),
+                as_plural(draws_kind, length(both)),
                 rhat_max, 100. * neff_min,
                 character_to_string_list(sm$variable[both])),
         "Chains may have not mixed; mean and median may be unreliable."
@@ -259,7 +259,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (length(only_rhat) > 0L) sms <- c(sms,
         sprintf("%s %s with R-hat > %.2f:%s",
                 format_there_were_was(length(only_rhat)),
-                as_plural(family, length(only_rhat)),
+                as_plural(draws_kind, length(only_rhat)),
                 rhat_max,
                 character_to_string_list(sm$variable[only_rhat])),
         "Chains may have not mixed."
@@ -267,7 +267,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (length(only_bulk) > 0L) sms <- c(sms,
         sprintf("%s %s with Bulk Effective Sample Size (ESS) < %.0f%%:%s",
                 format_there_were_was(length(only_bulk)),
-                as_plural(family, length(only_bulk)),
+                as_plural(draws_kind, length(only_bulk)),
                 100. * neff_min,
                 character_to_string_list(sm$variable[only_bulk])),
         "Mean and median may be unreliable."

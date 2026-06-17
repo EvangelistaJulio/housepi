@@ -62,8 +62,10 @@ namespace housepi
 
         /// Set attribute name.
         void name(const std::string &name) { name_ = name; }
-        /// Set error type.
-        void set_err_type(const std::string &err_type) { err_type_ = err_type; }
+        void name(const std::string &name, const std::string &err_type) {
+            name_ = name;
+            err_type_ = err_type;
+        }
 
         /// Initialize attribute as numeric.
         void init_numeric(double x);

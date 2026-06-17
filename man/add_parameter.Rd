@@ -6,7 +6,7 @@
 \usage{
 add_parameter(
   hhmodel,
-  name = NA_character_,
+  name,
   value = NULL,
   const = NA,
   discr = FALSE,

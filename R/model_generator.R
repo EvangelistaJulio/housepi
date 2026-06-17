@@ -17,6 +17,30 @@ cache_overlaps_source <- function(cache, source) {
   cache == source || startsWith(source, paste0(cache, "/"))
 }
 
+# Assert valid household data. Return blank_house if nothing is provided.
+assert_household_data <- function(data, model) {
+  .is.blank <- function(x) { is.character(x) && length(x) == 1 && isTRUE(x == "blank") }
+
+  if (is.null(data)) {
+    if (.is.blank(model)) {
+      env <- new.env(parent = emptyenv())
+      utils::data("blank_house", package = "housepi", envir = env)
+      return(env$blank_house)
+    }
+    stop_h("Missing argument 'data'.")
+  }
+  if (!is.data.frame(data)) {
+    sms <- c("Data should be an object of class data.frame.",
+             format_type_error(data))
+    if (.is.blank(data)) sms <- c(sms, 
+      i = "Did you mean 'new_housepi_model(model = \"blank\")'?"
+    )
+    stop_h(sms)
+  }
+  if (nrow(data) == 0) stop_h("Provided dataset is empty.")
+  data
+}
+
 ############################################################################
 ############################################################################
 ############################# Housepi Generator ############################
@@ -591,12 +615,6 @@ HousepiGenerator <- R6::R6Class(
     #' @param data `data.frame`.
     #' @return `data.frame` Factorized data, ready for `push_data_wide()`.
     factorize_data_wide = function(data) {
-      if (!is.data.frame(data)) stop_h(
-        "Data should be an object of class data.frame.",
-        format_type_error(data)
-      )
-      if (dim(data)[[1]] == 0) stop_h("Provided dataset is empty.")
-
       embed <- cpp_data_factorize(data)
       private$info_data_wide_ <- embed$info
       private$cols_data_wide_ <- embed$cols

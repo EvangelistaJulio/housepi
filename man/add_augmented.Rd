@@ -6,7 +6,7 @@
 \usage{
 add_augmented(
   hhmodel,
-  name = NA_character_,
+  name,
   value = NULL,
   status = NA_integer_,
   const = NA,

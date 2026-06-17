@@ -99,9 +99,7 @@ summarize_house_sizes <- summarise_house_sizes
 
 #' @title Drop currently loaded definitions from a housepi model
 #' @description Remove current definitions from the housepi model.
-#' Each variant clears a single category (parameters, augmented variables,
-#' group rates, contact rates, infectivity profile) while `drop_all()` clears
-#' them all.
+#' Each variant clears a single category  while `drop_all()` clears them all.
 #' @param hhmodel `r rd_model_in_`
 #' @return `r rd_model_out_`
 #' @examples
@@ -125,6 +123,24 @@ drop_augmented <-  function(hhmodel) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$drop_augmented()
+  new_obj
+}
+
+#' @rdname drop_definitions
+#' @export
+drop_observations <- function(hhmodel) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$drop_observations()
+  new_obj
+}
+
+#' @rdname drop_definitions
+#' @export
+drop_house_observ <- function(hhmodel) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  new_obj$drop_house_observ()
   new_obj
 }
 
@@ -263,7 +279,7 @@ get_infec_profile <- function(hhmodel) {
 #'   add_parameter("beta", value = 0.3, const = TRUE)
 #' @export
 add_parameter <- function(hhmodel,
-                          name = NA_character_, value = NULL,
+                          name, value = NULL,
                           const = NA, discr = FALSE,
                           prior = NA_character_, ...,
                           func = NULL, func_args = NULL,
@@ -272,7 +288,8 @@ add_parameter <- function(hhmodel,
                           proposal_scale = NA_real_) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$param_$add_quo(
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$param_$add_quo(
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
     prior = prior, rlang::enquos(...),
@@ -281,7 +298,7 @@ add_parameter <- function(hhmodel,
     proposal = proposal, proposal_scale = proposal_scale,
     .assert = TRUE
   )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt$rebuild_()
   new_obj
 }
 
@@ -335,7 +352,7 @@ add_parameter_template <- function(hhmodel, append = FALSE) {
 #'                 prior = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
 add_augmented <- function(hhmodel,
-                          name = NA_character_, value = NULL,
+                          name, value = NULL,
                           status = NA_integer_, const = NA, discr = FALSE,
                           func = NULL, func_args = NULL,
                           prior = NA_character_, ...,
@@ -344,7 +361,8 @@ add_augmented <- function(hhmodel,
                           proposal_scale = NA_real_) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$augm_$add_quo(
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
@@ -353,7 +371,7 @@ add_augmented <- function(hhmodel,
     proposal = proposal, proposal_scale = proposal_scale,
     .assert = TRUE
   )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt$rebuild_()
   new_obj
 }
 
@@ -393,22 +411,53 @@ add_augmented_template <- function(hhmodel, append = FALSE) {
 #' @param max `r rd_aug_max_`
 #' @return `r rd_model_out_`
 #' @export
-add_observation <- function(hhmodel, name = NA_character_,
+add_observation <- function(hhmodel, name,
                             obs = NA_character_, ...,
                             status = NA_integer_, discr = FALSE,
                             min = NULL, max = NULL) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  # name every parameter preceding the dots so the captured distribution
-  # arguments land in add_quo's '...' (and not in 'value').
-  new_obj$.__enclos_env__$private$augm_$add_quo(
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$augm_$add_quo(
     name = name, value = NULL, status = status,
     const = NA, discr = discr, prior = NA_character_,
     rlang::enquos(...), obs = obs,
     min = rlang::enquo(min), max = rlang::enquo(max),
-    .assert = TRUE, .obs = TRUE
+    .assert = TRUE, .kind = "obs"
   )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt$rebuild_()
+  new_obj
+}
+
+#' @title Add a household-level observation
+#' @description
+#' Add a single household-level observation: a data column reduced across all
+#' members of the household via a reduction over its data source, e.g.
+#' `min(test_date@D)`. Like an observation node it is generated during
+#' simulation. See [add_house_observ_list][housepi::add_house_observ_list] for
+#' the list form.
+#' @param hhmodel `r rd_model_in_`
+#' @param name `r rd_var_name_`
+#' @param value `r rd_aug_val_`
+#' @param status `r rd_aug_status_`
+#' @param discr `r rd_aug_discr_`
+#' @param min `r rd_aug_min_`
+#' @param max `r rd_aug_max_`
+#' @return `r rd_model_out_`
+#' @export
+add_house_observ <- function(hhmodel, name, value = NULL,
+                             status = NA_integer_, discr = FALSE,
+                             min = NULL, max = NULL) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$augm_$add_quo(
+    name = name, value = rlang::enquo(value),
+    status = status, discr = discr,
+    min = rlang::enquo(min), max = rlang::enquo(max),
+    .assert = TRUE, .kind = "house-obs"
+  )
+  pvt$rebuild_()
   new_obj
 }
 
@@ -447,7 +496,8 @@ add_group_rate <-  function(hhmodel,
                             prefix = NA_character_) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$group_rates_$add_quo(
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$group_rates_$add_quo(
     name = name, by = by,
     reference = reference, joint = joint,
     strata = strata, params = params,
@@ -456,7 +506,7 @@ add_group_rate <-  function(hhmodel,
     proposal = proposal, proposal_scale = proposal_scale,
     prefix = prefix
   )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt$rebuild_()
   new_obj
 }
 
@@ -493,7 +543,8 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
                              prefix = "ctr") {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$contact_rates_$add_quo(
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$contact_rates_$add_quo(
     by = by, reference = reference,
     joint = joint, symmetric = symmetric,
     strata = strata, params = params,
@@ -502,7 +553,7 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
     proposal = proposal, proposal_scale = proposal_scale,
     prefix = prefix
   )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt$rebuild_()
   new_obj
 }
 
@@ -527,12 +578,13 @@ add_infec_profile <- function(hhmodel,
                               ..., max = NULL) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$infec_profile_$add_quo(
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$infec_profile_$add_quo(
     func = func, status = status, discr = discr,
     rlang::enquos(...), max = rlang::enquo(max),
     .assert = TRUE
   )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt$rebuild_()
   new_obj
 }
 
@@ -561,34 +613,9 @@ add_infec_profile <- function(hhmodel,
 add_parameter_list <- function(hhmodel, ..., append = FALSE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$param_$add_quo_list(
-    rlang::enquos(...), append = append
-  )
-  new_obj$.__enclos_env__$private$rebuild_()
-  new_obj
-}
-
-#' @rdname add_definitions_list
-#' @export
-add_augmented_list <- function(hhmodel, ..., append = FALSE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$augm_$add_quo_list(
-    rlang::enquos(...), append = append
-  )
-  new_obj$.__enclos_env__$private$rebuild_()
-  new_obj
-}
-
-#' @rdname add_definitions_list
-#' @export
-add_observation_list <- function(hhmodel, ..., append = FALSE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$augm_$add_quo_list(
-    rlang::enquos(...), append = append, .obs = TRUE
-  )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$param_$add_quo_list(rlang::enquos(...), append = append)
+  pvt$rebuild_()
   new_obj
 }
 
@@ -599,10 +626,42 @@ add_group_rate_list <- function(hhmodel, ..., append = FALSE) {
   new_obj <- hhmodel$copy()
   # NOTE: dropping group rates might cause parameter drops
   if (isFALSE(append)) new_obj$drop_group_rates()
-  new_obj$.__enclos_env__$private$group_rates_$add_quo_list(
-    rlang::enquos(...), append = append
-  )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$group_rates_$add_quo_list(rlang::enquos(...), append = append)
+  pvt$rebuild_()
+  new_obj
+}
+
+#' @rdname add_definitions_list
+#' @export
+add_augmented_list <- function(hhmodel, ..., append = FALSE) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$augm_$add_quo_list(rlang::enquos(...), append = append)
+  pvt$rebuild_()
+  new_obj
+}
+
+#' @rdname add_definitions_list
+#' @export
+add_observation_list <- function(hhmodel, ..., append = FALSE) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$augm_$add_quo_list(rlang::enquos(...), append = append, .kind = "obs")
+  pvt$rebuild_()
+  new_obj
+}
+
+#' @rdname add_definitions_list
+#' @export
+add_house_observ_list <- function(hhmodel, ..., append = FALSE) {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$augm_$add_quo_list(rlang::enquos(...), append = append, .kind = "house-obs")
+  pvt$rebuild_()
   new_obj
 }
 
@@ -611,10 +670,9 @@ add_group_rate_list <- function(hhmodel, ..., append = FALSE) {
 add_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$.__enclos_env__$private$infec_profile_$add_quo_list(
-    rlang::enquos(...), append = append
-  )
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$infec_profile_$add_quo_list(rlang::enquos(...), append = append)
+  pvt$rebuild_()
   new_obj
 }
 
@@ -625,7 +683,8 @@ add_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
 #' @title Evaluate the log-likelihood of a housepi model at current values
 #' @description
 #' Compute the complete-data log-likelihood of a `HousepiModel`:
-#' transmission plus observation. For models with augmented variables
+#' transmission plus observation.
+#' For models with augmented variables
 #' this is conditioned on current augmented values.
 #' @param hhmodel `r rd_model_in_`
 #' @param house_id `r rd_house_id_`

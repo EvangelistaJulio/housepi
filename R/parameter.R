@@ -7,7 +7,7 @@
 
 #' @title Internal R6 holder for housepi parameter definitions
 #' @description
-#' Helper class managing parameter definitions of the model Rcpp object.
+#' Helper class managing parameter definitions of the model object.
 #' @keywords internal
 #' @noRd
 HousepiParameter <- R6::R6Class(
@@ -39,7 +39,7 @@ HousepiParameter <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)`. Module family.
+    #' @field family `character(1)`. Holder family.
     family = "parameter",
 
     #' @field store_warn_over `character()`. Cached overwritten names.
@@ -78,7 +78,7 @@ HousepiParameter <- R6::R6Class(
     },
 
     #' @inherit add_parameter
-    add_quo = function(name = NA_character_, value = NULL,
+    add_quo = function(name, value = NULL,
                        const = NA, discr = FALSE,
                        prior = NA_character_, ...,
                        func = NULL, func_args = NULL,
@@ -115,7 +115,7 @@ HousepiParameter <- R6::R6Class(
       }
 
       # control valid name
-      assert_valid_definition_name(name, self$family, !is.na(value))
+      assert_valid_definition_name(name, self$family)
       if (all(is.null(c(value, func)), is.na(prior))) stop_h(
         sprintf("Incomplete definition for parameter '%s'.", name),
         "Provide at least one between 'value', 'prior', and 'func'."
@@ -164,8 +164,7 @@ HousepiParameter <- R6::R6Class(
 
     #' @inherit add_parameter_list
     add_quo_list = function(xquos, append = FALSE) {
-      if (isFALSE(append)) self$initialize()
-      housepi_load_defin_quos(self, "value", xquos)
+      housepi_load_defin_quos(self, "value", xquos, append)
       housepi_assert_args(self)
       invisible(self)
     },

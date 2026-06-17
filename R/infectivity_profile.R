@@ -12,7 +12,8 @@
 ############################################################################
 
 #' @title Internal R6 holder for housepi infectivity-profile definitions
-#' @description Helper class managing infectivity-profile definitions of the model.
+#' @description
+#' Helper class managing infectivity-profile definitions of the model.
 #' @keywords internal
 #' @noRd
 HousepiInfecProfile <- R6::R6Class(
@@ -74,7 +75,7 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)`. Module family.
+    #' @field family `character(1)`. Holder family.
     family = "infectivity profile",
     #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
@@ -153,8 +154,7 @@ HousepiInfecProfile <- R6::R6Class(
 
     #' @inherit load_infec_profile
     add_quo_list = function(xquos, append = FALSE) {
-      if (isFALSE(append)) self$initialize()
-      housepi_load_defin_quos(self, "func", xquos)
+      housepi_load_defin_quos(self, "func", xquos, append)
       housepi_assert_args(self)
       invisible(self)
     },

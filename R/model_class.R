@@ -134,7 +134,7 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Assert if parameter definitions match required
+    # Assert if parameter definitions match required.
     # @param capital `logical(1)` to raise error.
     # @param warn_unused `logical(1)` warn if unused.
     assert_param_ = function(capital = TRUE, warn_unused = TRUE) {
@@ -161,7 +161,6 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Helper to assert and re-build group and contact rates.
-    # @param family
     helper_build_rates_ = function(module) {
       # proceed only if definitions exist
       if (length(module$defs) == 0) return(invisible(self))
@@ -169,9 +168,9 @@ HousepiModel <- R6::R6Class(
       # UPDATE: this "back & forth" of data_wide is sub-optimal...
       module$implement(self$data_wide, private$generator_$info_data_wide)
 
-      # append parameter definitions if missing
+      # append parameter if missing
       new_parameters <- module$parameters
-      # find missing parameter definitions
+      # find missing parameters
       mask <- setdiff(names(new_parameters), private$param_$defs$name)
       new_parameters <- new_parameters[mask]
       if (length(new_parameters) > 0) {
@@ -197,15 +196,34 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Tolerabt re-push of R-side definitions to the C++ engine.
-    # Hard validation lives in `build_full_`.
+    # Reset every definition holder to an empty object.
+    reset_definitions_ = function() {
+      private$param_ <- HousepiParameter$new()
+      private$augm_ <- HousepiAugmented$new()
+      private$group_rates_ <- HousepiGroupRate$new()
+      private$contact_rates_ <- HousepiContactRate$new()
+      private$infec_profile_ <- HousepiInfecProfile$new()
+      invisible(self)
+    },
+
+    # @description
+    # Drop only one kind from the shared augmented store.
+    drop_augm_kind_ = function(kind) {
+      private$augm_$drop_kind(kind)
+      private$rebuild_()
+      invisible(self)
+    },
+
+    # @description
+    # Soft re-push of R-side definitions to the C++ engine.
+    # NOTE: Hard validation lives in `build_full_`.
     rebuild_ = function() {
       # guard: pre-init (before generator is created)
       if (is.null(private$generator_) ||
             is.null(private$generator_$mcmc_ptr)) {
         return(invisible(self))
       }
-      # guard: data_wide not yet imported (during initialize drop_all phase)
+      # guard: data_wide not yet imported (during construction)
       if (length(private$generator_$cols_data_wide) == 0) {
         return(invisible(self))
       }
@@ -371,9 +389,9 @@ HousepiModel <- R6::R6Class(
         param_table <- private$helper_read_param_table_(param_table,
                                                         thin_ess = thin_ess)
         if (!is.na(nrep)) param_table <- helper_thin_table_(param_table, nrep)
-        nrep <- dim(param_table)[1]
+        nrep <- nrow(param_table)
         # don't overwrite
-        if (dim(self$parameters)[1] == 0) {
+        if (nrow(self$parameters) == 0) {
           param_dummy_list <- as.list(utils::head(param_table, 1))
           do.call(self$add_parameter_list, param_dummy_list)
         }
@@ -383,7 +401,7 @@ HousepiModel <- R6::R6Class(
       private$build_full_(steps = nrep, progress = FALSE, simulating = TRUE)
 
       # NOTE: there might be not parameters at all
-      if (dim(self$parameters)[1] == 0) return(nrep)
+      if (nrow(self$parameters) == 0) return(nrep)
 
       if (is.null(param_table)) {
         # replicates the single row nrep times
@@ -431,7 +449,7 @@ HousepiModel <- R6::R6Class(
       param_table <- private$helper_read_param_table_(param_table,
                                                       thin_ess = thin_ess)
       param_table <- helper_thin_table_(param_table, max_nrep)
-      nsim <- dim(param_table)[1]
+      nsim <- nrow(param_table)
 
       # internal build function
       private$build_full_(steps = nsim, threads = threads, progress = progress)
@@ -590,25 +608,22 @@ HousepiModel <- R6::R6Class(
       # helper construction option fort copying
       if (isTRUE(.housepi_env$hollow)) return(invisible(self))
 
+      # check data and enable blank_house behavior
+      data <- assert_household_data(data, model)
+
       # initialize internal fields
-      self$drop_all()
+      private$reset_definitions_()
       # generate model wrapper
       private$generator_ <- HousepiGenerator$new(
         model = model, as_template = as_template,
         force = force, quiet = quiet, ...
       )
-      # import data_wide (invariant: always populated after construction)
-      if (is.null(data)) {
-        if (!private$generator_$is_blank()) stop_h(sprintf(
-          "Missing household 'data' argument for model '%s'.",
-          self$name
-        ))
-        env <- new.env(parent = emptyenv())
-        utils::data("blank_house", package = "housepi", envir = env)
-        data <- env$blank_house
-      }
+      # factorize data in order to pass it to Cpp
       data_factorized <- private$generator_$factorize_data_wide(data)
-      private$assert_data_wide_()
+
+      # soft check: data may be intentionally incomplete at construction
+      # NOTE: hard check lives at build_full_ (the wall)
+      private$assert_data_wide_(capital = FALSE)
       .engine$import_data_wide(
         private$generator_$mcmc_ptr, data_factorized
       )
@@ -824,8 +839,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Add a new parameter to housepi model definitions.
+    #' @description Add a single parameter.
     #' If the parameter already exists, it is updated.
     #' @param name `r rd_var_name_`
     #' @param value `r rd_var_value_`
@@ -837,7 +851,7 @@ HousepiModel <- R6::R6Class(
     #' @param max `r rd_var_max_`
     #' @param proposal `r rd_par_proposal_`
     #' @param proposal_scale `r rd_proposal_scale_`
-    add_parameter = function(name = NA_character_, value = NULL,
+    add_parameter = function(name, value = NULL,
                              const = NA, discr = FALSE,
                              prior = NA_character_, ...,
                              min = NULL, max = NULL,
@@ -854,8 +868,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load parameter definitions as named arguments.
+    #' @description Add parameters as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
     add_parameter_list = function(..., append = FALSE) {
@@ -864,7 +877,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Load parameter definitions from template.
+    #' @description Add parameters from template.
     #' @param append `r rd_tmpl_append_`
     add_parameter_template = function(append = FALSE) {
       if (private$generator_$is_blank()) warn_h(
@@ -918,8 +931,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Load group rate definitions as direct arguments.
+    #' @description Add group rates as named arguments.
     #' @param ... ` r rd_list_args_`
     #' @param append `r rd_list_append_`
     add_group_rate_list = function(..., append = FALSE) {
@@ -970,8 +982,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Add a new augmented variable/function to housepi model definitions.
+    #' @description Add a single augmented definition.
     #' If the augmented variable already exists, it is updated.
     #' @param name `r rd_var_name_`
     #' @param value `r rd_aug_val_`
@@ -986,7 +997,7 @@ HousepiModel <- R6::R6Class(
     #' @param max `r rd_aug_max_`
     #' @param proposal `r rd_var_proposal_`
     #' @param proposal_scale `r rd_proposal_scale_`
-    add_augmented = function(name = NA_character_,  value = NULL,
+    add_augmented = function(name,  value = NULL,
                              status = NA_integer_, const = NA, discr = FALSE,
                              func = NULL, func_args = NULL,
                              prior = NA_character_, ...,
@@ -1006,7 +1017,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Load augmented definitions as named arguments.
+    #' @description Add augmented definitions as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
     add_augmented_list = function(..., append = FALSE) {
@@ -1015,7 +1026,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Load augmented definitions from template.
+    #' @description Add augmented definitions from template.
     #' @param append `r rd_tmpl_append_`
     add_augmented_template = function(append = FALSE) {
       if (private$generator_$is_blank()) warn_h(
@@ -1033,10 +1044,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description
-    #' Add an observation node: a data column modelled as the variate of a
-    #' distribution conditioned on latent augmented variables and/or parameters.
-    #' Its density enters the per-household likelihood (folded into `log_lik`).
+    #' @description Add a single observation.
     #' @param name `r rd_var_name_`
     #' @param obs `r rd_obs_dist_`
     #' @param ... `r rd_obs_args_`
@@ -1044,7 +1052,7 @@ HousepiModel <- R6::R6Class(
     #' @param discr `r rd_aug_discr_`
     #' @param min `r rd_aug_min_`
     #' @param max `r rd_aug_max_`
-    add_observation = function(name = NA_character_, obs = NA_character_, ...,
+    add_observation = function(name, obs = NA_character_, ...,
                                status = NA_integer_, discr = FALSE,
                                min = NULL, max = NULL) {
       # name every parameter preceding the dots so the captured distribution
@@ -1053,18 +1061,45 @@ HousepiModel <- R6::R6Class(
                             const = NA, discr = discr, prior = NA_character_,
                             rlang::enquos(...), obs = obs,
                             min = rlang::enquo(min), max = rlang::enquo(max),
-                            .assert = TRUE, .obs = TRUE)
+                            .assert = TRUE, .kind = "obs")
       private$rebuild_()
       invisible(self)
     },
 
-    #' @description Load observation-node definitions as named arguments.
-    #' Each definition is `name = list(obs = "<distribution>", ...)`.
+    #' @description Add observations as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
     add_observation_list = function(..., append = FALSE) {
       private$augm_$add_quo_list(rlang::enquos(...),
-                                 append = append, .obs = TRUE)
+                                 append = append, .kind = "obs")
+      private$rebuild_()
+      invisible(self)
+    },
+
+    #' @description Add a single household-level observation.
+    #' @param name `r rd_var_name_`
+    #' @param value `r rd_aug_val_`
+    #' @param status `r rd_aug_status_`
+    #' @param discr `r rd_aug_discr_`
+    #' @param min `r rd_aug_min_`
+    #' @param max `r rd_aug_max_`
+    add_house_observ = function(name, value = NULL,
+                                status = NA_integer_, discr = FALSE,
+                                min = NULL, max = NULL) {
+      private$augm_$add_quo(name = name, value = rlang::enquo(value),
+                            status = status, discr = discr,
+                            min = rlang::enquo(min), max = rlang::enquo(max),
+                            .assert = TRUE, .kind = "house-obs")
+      private$rebuild_()
+      invisible(self)
+    },
+
+    #' @description Add household-level observation as named arguments.
+    #' @param ... `r rd_list_args_`
+    #' @param append `r rd_list_append_`
+    add_house_observ_list = function(..., append = FALSE) {
+      private$augm_$add_quo_list(rlang::enquos(...),
+                                 append = append, .kind = "house-obs")
       private$rebuild_()
       invisible(self)
     },
@@ -1073,7 +1108,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
     ############################################################################
 
-    #' @description Add definition of infectivity profile.
+    #' @description Add a single infectivity profile.
     #' @param func `r rd_var_name_`
     #' @param status `r rd_aug_status_`
     #' @param discr `r rd_inf_discr_`
@@ -1090,7 +1125,7 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Load infectivity profile definitions as named arguments.
+    #' @description Add infectivity profiles as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
     add_infec_profile_list = function(..., append = FALSE) {
@@ -1163,13 +1198,6 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Drop augmented variable definitions.
-    drop_augmented = function() {
-      private$augm_ <- HousepiAugmented$new()
-      private$rebuild_()
-      invisible(self)
-    },
-
     #' @description Drop group rates definitions.
     drop_group_rates = function() {
       # remove associated parameters
@@ -1177,7 +1205,7 @@ HousepiModel <- R6::R6Class(
         for (p in names(private$group_rates_$parameters)) {
           private$param_$remove(p)
         }
-        if (!is.null(private$param_$defs) && dim(private$param_$defs)[1] == 0) {
+        if (!is.null(private$param_$defs) && nrow(private$param_$defs) == 0) {
           self$drop_parameters()
         }
       }
@@ -1193,12 +1221,30 @@ HousepiModel <- R6::R6Class(
         for (p in names(private$contact_rates_$parameters)) {
           private$param_$remove(p)
         }
-        if (!is.null(private$param_$defs) && dim(private$param_$defs)[1] == 0) {
+        if (!is.null(private$param_$defs) && nrow(private$param_$defs) == 0) {
           self$drop_parameters()
         }
       }
       private$contact_rates_ <- HousepiContactRate$new()
       private$rebuild_()
+      invisible(self)
+    },
+
+    #' @description Drop augmented variable definitions.
+    drop_augmented = function() {
+      private$drop_augm_kind_("augm")
+      invisible(self)
+    },
+
+    #' @description Drop observation definitions.
+    drop_observations = function() {
+      private$drop_augm_kind_("obs")
+      invisible(self)
+    },
+
+    #' @description Drop household-level observation definitions.
+    drop_house_observ = function() {
+      private$drop_augm_kind_("house-obs")
       invisible(self)
     },
 
@@ -1211,19 +1257,18 @@ HousepiModel <- R6::R6Class(
 
     #' @description Drop all definitions.
     drop_all = function() {
-      self$drop_parameters()
-      self$drop_augmented()
-      self$drop_group_rates()
-      self$drop_contact_rates()
-      self$drop_infectivity_profile()
+      private$reset_definitions_()
+      private$rebuild_()
       invisible(self)
     }
   )
 )
 
-#' @title Export to Cpp Standalone
+# nocov start
+#' @title Export to Cpp standalone (developer)
 #' @description
 #' Export definitions in standalone folder in order to run debuggin in Cpp.
+#' Used for development.
 #' @param hhmodel `r rd_model_in_`
 #' @details
 #' This could be designed to be more helpful, e. g.
@@ -1232,16 +1277,16 @@ HousepiModel <- R6::R6Class(
 #' @noRd
 export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   stopifnothousepi(hhmodel)
-  private <- hhmodel$.__enclos_env__$private
-  private$build_group_rates_()
-  private$build_contact_rates_()
+  pvt <- hhmodel$.__enclos_env__$private
+  pvt$build_group_rates_()
+  pvt$build_contact_rates_()
 
-  gen <- private$generator_
+  gen <- pvt$generator_
   info_wide <- gen$info_data_wide
-  utils::write.csv(private$augm_$defs,
+  utils::write.csv(pvt$augm_$defs,
                    file.path(outpath, "augm.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(private$contact_rates_$expose_to_cpp(info_wide),
+  utils::write.csv(pvt$contact_rates_$expose_to_cpp(info_wide),
                    file.path(outpath, "contact_rates.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(.engine$export_data_wide(gen$mcmc_ptr),
@@ -1250,16 +1295,17 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   utils::write.csv(.engine$export_data_long(gen$mcmc_ptr),
                    file.path(outpath, "data_long.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(private$group_rates_$expose_to_cpp(info_wide),
+  utils::write.csv(pvt$group_rates_$expose_to_cpp(info_wide),
                    file.path(outpath, "group_rates.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(private$infec_profile_$defs,
+  utils::write.csv(pvt$infec_profile_$defs,
                    file.path(outpath, "infec.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(private$param_$defs,
+  utils::write.csv(pvt$param_$defs,
                    file.path(outpath, "param.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(char_setup_input_(hhmodel$setup),
                    file.path(outpath, "setup.csv"),
                    quote = FALSE, row.names = FALSE)
 }
+# nocov end

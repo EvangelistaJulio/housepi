@@ -701,21 +701,3 @@ test_that("Parameter function rejects non-parameter dependencies", {
     expect_error("cannot depend on data variables")
 })
 
-test_that("export_to_cpp_standalone writes the expected CSVs", {
-  house <- data.frame(
-    house_id = c(rep("hh1", 2), rep("hh2", 3)),
-    status = c(1, 0, 1, 0, 0),
-    member = c("student", "other", "student", "mother", "father")
-  )
-  hhmodel <- new_housepi_model(house, "chain_binomial")
-  hhmodel$add_parameter_template()
-  hhmodel$add_group_rate("community", by = "member")
-  td <- withr::local_tempdir()
-  housepi:::export_to_cpp_standalone(hhmodel, outpath = td)
-  expected <- c(
-    "augm.csv", "contact_rates.csv", "data_wide.csv",
-    "data_long.csv", "group_rates.csv", "infec.csv",
-    "param.csv", "setup.csv"
-  )
-  expect_true(all(file.exists(file.path(td, expected))))
-})

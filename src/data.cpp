@@ -17,7 +17,7 @@
 
 #include "tools/data_reports.h"
 #include "tools/keys.h"
-#include "tools/logdensity.h"
+#include "tools/logproba.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -186,17 +186,26 @@ namespace housepi
             idata.vec.resize(khold_.size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
             {
+                const std::string &dname = khold(d);
                 double &x = idata.vec[d];
-                x = str::tod(input.at(khold(d))[i], "data '" + khold(d) + "'");
 
-                if (user_discrete_set_.count(d) && x != std::floor(x))
-                    throw std::invalid_argument(
-                        "Data '" + khold(d) + "' for individual in row n." + std::to_string(i + 1) +
-                        " was expected to be discrete-valued, as requested by model.");
-                if (user_positive_set_.count(d) && !(x > 0.))
-                    throw std::invalid_argument(
-                        "Data '" + khold(d) + "' for individual in row n." + std::to_string(i + 1) +
-                        " was expected to be greater than zero, as requested by model.");
+                // placeholder for model-required columns absent at import
+                // NOTE: capital check is deferred to the R-side wall (see build_full_)
+                x = na::DOUBLE;
+
+                if (input.count(dname))
+                {
+                    x = str::tod(input.at(dname)[i], "data '" + dname + "'");
+
+                    if (user_discrete_set_.count(d) && x != std::floor(x))
+                        throw std::invalid_argument(
+                            "Data '" + dname + "' for individual in row n." + std::to_string(i + 1) +
+                            " was expected to be discrete-valued, as requested by model.");
+                    if (user_positive_set_.count(d) && !(x > 0.))
+                        throw std::invalid_argument(
+                            "Data '" + dname + "' for individual in row n." + std::to_string(i + 1) +
+                            " was expected to be greater than zero, as requested by model.");
+                }
             }
 
             // if household index doesn't exist, add new household

@@ -122,6 +122,7 @@ namespace housepi
         double get_log_prior() const;
         double get_prior_log_ratio() const;
         double get_proposal_log_ratio() const;
+        /// Log-ratio of priors, minus log-ratio of proposals for last move.
         double get_move_log_ratio() const
         {
             switch (ratio_mode_)

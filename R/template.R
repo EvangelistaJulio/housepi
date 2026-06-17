@@ -265,17 +265,17 @@ set_source_name_ <- function(x, name = NA_character_) {
   x
 }
 
-#' Extract arguments following a key family in REGISTER_HOUSEPI_KEYS.
-#' @param refer_file `character(1)`. Path to reference file.
-#' @param key_family `character(1)`. Key family name to search for.
+#' Extract arguments following a key holder in REGISTER_HOUSEPI_KEYS.
+#' @param refer_file `character(1)` Path to reference file.
+#' @param key_holder `character(1)` Key holder name to search for.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-template_extract_keys <- function(refer_file, key_family) {
+template_extract_keys <- function(refer_file, key_holder) {
   script <- paste(readLines(refer_file), collapse = " ")
   reg <- sprintf(
     "HOUSEPI_DECLARE_REGISTER_KEYS\\(%s,\\s*([^)]+)\\)",
-    key_family
+    key_holder
   )
   args <- stringr::str_match(script, reg)[1, 2]
   if (is.na(args)) return(character(0))
@@ -284,8 +284,8 @@ template_extract_keys <- function(refer_file, key_family) {
 }
 
 #' Compare required definitions to current definitions and find missing ones.
-#' @param required `character()`. Required definitions.
-#' @param defined `character()`. Current definitions.
+#' @param required `character()` Required definitions.
+#' @param defined `character()` Current definitions.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
@@ -296,14 +296,14 @@ template_missing_find <- function(required, defined) {
 }
 
 #' Stop if missing definitions are found
-#' @param required `character()`. Required definitions.
-#' @param defined `character()`. Current definitions.
-#' @param family `character(1)`. Name of the definition family.
-#' @param max_print `integer(1)`. Maximum number of elements to print.
+#' @param required `character()` Required definitions.
+#' @param defined `character()` Current definitions.
+#' @param holder `character(1)` Name of the definition holder.
+#' @param max_print `integer(1)` Maximum number of elements to print.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-template_missing_stop <- function(required, defined, family, max_print = 4) {
+template_missing_stop <- function(required, defined, holder, max_print = 4) {
   miss <- template_missing_find(required, defined)
   # find sources of missing definitions
   sources <- unique(names(required[required %in% miss]))
@@ -313,7 +313,7 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
   if (len_miss > 0) output <- c(
     sprintf("%s missing %s %s%s",
             format_there_were_was(len_miss, max_print = max_print),
-            family,
+            holder,
             as_plural("definition", len_miss, "s:"),
             character_to_string_list(miss, max_print = max_print)),
     sprintf("%s required by %s definitions.",
@@ -324,18 +324,18 @@ template_missing_stop <- function(required, defined, family, max_print = 4) {
 }
 
 #' Warn about overwritten definitions if missing definitions are found.
-#' @param all_rmv `character()`. Removed definitions.
-#' @param family `character(1)`. Name of the module family.
-#' @param max_print `integer(1)`. Maximum number of elements to print.
+#' @param all_rmv `character()` Removed definitions.
+#' @param holder `character(1)` Name of the definition holder.
+#' @param max_print `integer(1)` Maximum number of elements to print.
 #' @keywords internal
 #' @noRd
-template_overwrite_warn <- function(all_rmv, family, max_print = 4) {
+template_overwrite_warn <- function(all_rmv, holder, max_print = 4) {
   len_rmv <- length(all_rmv)
   if (len_rmv > 0) warn_h(sprintf(
     "Overwriting %s %s %s%s",
     ifelse(len_rmv > max_print,
            paste0("more than ", max_print), len_rmv),
-    family,
+    holder,
     as_plural("definition", len_rmv, "s for:", " for"),
     character_to_string_list(all_rmv, max_print)
   ))
@@ -346,8 +346,8 @@ template_overwrite_warn <- function(all_rmv, family, max_print = 4) {
 ############################################################################
 
 #' Compare required definitions to current definitions and find unused ones.
-#' @param required `character()`. Required definitions.
-#' @param defined `character()`. Current definitions.
+#' @param required `character()` Required definitions.
+#' @param defined `character()` Current definitions.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
@@ -357,20 +357,21 @@ template_not_used_find <- function(required, defined) {
   else sort(setdiff(unlist(defined), unlist(required)))
 }
 
-#' Raise a warning if unused definitions are found
-#' @param required `character()`. Required definitions.
-#' @param defined `character()`. Current definitions.
-#' @param max_print `integer(1)`. Maximum number of elements to print.
+#' Raise a warning if unused definitions are found.
+#' @param required `character()` Required definitions.
+#' @param defined `character()` Current definitions.
+#' @param holder `character(1)` Name of the definition holder.
+#' @param max_print `integer(1)` Maximum number of elements to print.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-template_not_used_warn <- function(required, defined, family, max_print = 4) {
+template_not_used_warn <- function(required, defined, holder, max_print = 4) {
   notused <- template_not_used_find(required, defined)
   len_unused <- length(notused)
   if (len_unused > 0) warn_h(
     sprintf("%s unused %s %s%s",
             format_there_were_was(len_unused, max_print),
-            family,
+            holder,
             as_plural("definition", len_unused, "s:"),
             character_to_string_list(notused, max_print))
   )
@@ -378,9 +379,9 @@ template_not_used_warn <- function(required, defined, family, max_print = 4) {
 }
 
 #' Format the output of an assert usage definition message with cli.
-#' @param section `character(1)`. Section name.
-#' @param sms `character()`. Messages to format.
-#' @param minor `logical(1)`. Whether to format as minor message.
+#' @param section `character(1)` Section name.
+#' @param sms `character()` Messages to format.
+#' @param minor `logical(1)` Whether to format as minor message.
 #' @keywords internal
 #' @noRd
 fmt_assert_cli <- function(section, sms, minor = FALSE) {
@@ -402,7 +403,7 @@ fmt_assert_cli <- function(section, sms, minor = FALSE) {
 }
 
 #' Format a vector of messages for `cli::cli_alert_info()`.
-#' @param sms `character()`. Messages, optionally named with `!`, `x`, `v`.
+#' @param sms `character()` Messages, optionally named with `!`, `x`, `v`.
 #' @keywords internal
 #' @noRd
 fmt_cli_info <- function(sms) {

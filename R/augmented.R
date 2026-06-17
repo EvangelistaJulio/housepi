@@ -7,7 +7,7 @@
 
 #' @title Internal R6 holder for housepi augmented definitions
 #' @description
-#' Helper class managing augmented definitions of the model Rcpp object.
+#' Helper class managing augmented definitions of the model object.
 #' @keywords internal
 #' @noRd
 HousepiAugmented <- R6::R6Class(
@@ -20,6 +20,9 @@ HousepiAugmented <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
+
+    # Kind of definitions currently being managed. Used for display.
+    kind_ = "augm",
 
     # Definitions required by augmented definitions
     # according to the "type" of the definition.
@@ -35,6 +38,16 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   active = list(
+    #' @field family `character(1)`. Holder family currently being managed.
+    family = function(value) {
+      if (!missing(value)) stop_read_only("family")
+      switch(private$kind_,
+        "obs" = "observation",
+        "house-obs" = "household observation",
+        "augmented"
+      )
+    },
+
     #' @field augm_required `character()`.
     #' Find augmented required by augmented variable definitions.
     augm_required = function(value) {
@@ -78,8 +91,6 @@ HousepiAugmented <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)`. Module family.
-    family = "augmented",
     #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
     #' @field defs `data.frame`. Formatted augmented definitions.
@@ -127,8 +138,19 @@ HousepiAugmented <- R6::R6Class(
       c()
     },
 
+    #' @description Drop every definition of a given kind, leaving the other
+    #' kinds (which share this store) untouched.
+    #' @param kind `character(1)`. One of "augm", "obs", "house-obs".
+    drop_kind = function(kind) {
+      kind <- match.arg(kind, c("augm", "obs", "house-obs"))
+      if (is.null(self$defs)) return(invisible(self))
+      self$defs <- self$defs[self$defs[["kind"]] != kind, ]
+      if (nrow(self$defs) == 0) self$initialize()
+      invisible(self)
+    },
+
     #' @inherit add_augmented
-    add_quo = function(name = NA_character_, value = NULL,
+    add_quo = function(name, value = NULL,
                        status = NA_integer_,
                        const = NA, discr = FALSE,
                        prior = NA_character_, ...,
@@ -139,7 +161,11 @@ HousepiAugmented <- R6::R6Class(
                        proposal_scale = NA_real_,
                        .warn_over = TRUE,
                        .assert = FALSE,
-                       .obs = FALSE) {
+                       .kind = private$kind_) {
+      # kind owned by this call: defaults to the kind the entry point
+      # established in private$kind_ (so the list loader, which delegates here
+      # without a kind, inherits "augm"/"obs"/"house-obs" as appropriate).
+      .kind <- match.arg(.kind, c("augm", "obs", "house-obs"))
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       status <- housepi_smart_unwrap(status, "status")
@@ -160,8 +186,9 @@ HousepiAugmented <- R6::R6Class(
       dots <- list(...)
       # flatten dots if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      # reject observation-node declarations unless on the add_observation path
-      if (isFALSE(.obs)) assert_no_obs_declaration(dots)
+      # only the augmented path forbids an 'obs =' declaration; observation and
+      # household-observation kinds are themselves observation entry points
+      if (identical(.kind, "augm")) assert_no_obs_declaration(dots)
       args <- housepi_extractor(!!!dots)
 
       # flatten function arguments if quosures
@@ -171,10 +198,13 @@ HousepiAugmented <- R6::R6Class(
         func_args <- housepi_extractor(!!!func_args)
       }
 
+      # kind of the definition being loaded, taken from '.kind' (which defaults
+      # to the kind owned by the entry point, see signature). 'obs =' still
+      # overrides it onto the observation-node path below.
+      kind <- .kind
       # observation node: a DATA variate conditioned on latents/parameters.
       # the distribution string reuses the 'prior' column, 'kind' discriminates it,
       # and the value is auto-bound to the data column of the same name.
-      kind <- "prior"
       if (!is.na(obs)) {
         if (!is.na(prior)) stop_h(
           sprintf("Conflicting definition for augmented '%s'.", name),
@@ -190,8 +220,14 @@ HousepiAugmented <- R6::R6Class(
         if (is.null(value)) value <- paste0(name, "|D")
       }
 
+      # single source of truth for the loaded kind: drive 'family' (so user-facing
+      # messages name the right entry point) and restore it on exit.
+      old_kind <- private$kind_
+      on.exit(private$kind_ <- old_kind, add = TRUE)
+      private$kind_ <- kind
+
       # control valid name
-      assert_valid_definition_name(name, self$family, !is.na(value))
+      assert_valid_definition_name(name, self$family)
       # control valid status
       assert_valid_status(status)
       # control meaningful definition
@@ -241,25 +277,33 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @inherit add_augmented_list
-    add_quo_list = function(xquos, append = FALSE, .obs = FALSE) {
-      # reject observation-node declarations unless on the add_observation path
-      if (isFALSE(.obs)) assert_no_obs_declaration(xquos)
+    add_quo_list = function(xquos, append = FALSE,
+                            .kind = c("augm", "obs", "house-obs")) {
+      # the kind this entry point owns: augmented variables ("augm"),
+      # observation nodes ("obs"), or household-level observations ("house-obs").
+      managed <- match.arg(.kind)
+      # establish the owning kind: it drives 'family' for the messages below and
+      # is the kind each per-entry add_quo inherits and stamps on its row.
+      old_kind <- private$kind_
+      on.exit(private$kind_ <- old_kind, add = TRUE)
+      private$kind_ <- managed
+      # guard before the per-kind reset so an empty call does not silently
+      # drop the rows it manages
+      assert_nonempty_defin_quos(xquos, self$family)
+      # reject observation-node declarations on the augmented path only
+      if (identical(managed, "augm")) assert_no_obs_declaration(xquos)
       if (isFALSE(append)) {
-        # observation nodes and augmented variables share one store, but each
-        # entry point owns only its own kind: a fresh (non-append) load drops
-        # the rows it manages and leaves the other kind untouched. This keeps
-        # observation nodes from wiping the augmented variables they depend on
-        # (and vice versa).
+        # the three kinds share one store, but each entry point owns only its
+        # own kind: a fresh (non-append) load drops the rows it manages and
+        # leaves the other kinds untouched. This keeps each entry point from
+        # wiping definitions another depends on.
         if (is.null(self$defs)) self$initialize()
-        else self$defs <- self$defs[(self$defs[["kind"]] == "obs") == isFALSE(.obs), ]
+        else self$defs <- self$defs[self$defs[["kind"]] != managed, ]
       }
-      housepi_load_defin_quos(self, "value", xquos)
-      # flag the just-loaded definitions as observation nodes: the distribution
-      # form already self-declares via 'obs =', this also covers deterministic
-      # observations (a bare expression with no 'obs =' distribution).
-      if (isTRUE(.obs)) {
-        self$defs[["kind"]][self$defs[["name"]] %in% names(xquos)] <- "obs"
-      }
+      # augmented manages its own per-kind reset above, so skip the helper reset.
+      # each loaded entry inherits 'managed' as its kind through private$kind_,
+      # so the rows are already stamped with the right kind (no post-hoc patch).
+      housepi_load_defin_quos(self, "value", xquos, append = TRUE)
       housepi_assert_args(self)
       invisible(self)
     },
@@ -273,11 +317,11 @@ HousepiAugmented <- R6::R6Class(
     assert = function(required, status_set, capital, warn_unused) {
       status_set <- sort(status_set)
       defined <- self$defs[["name"]]
-      # point out augmented variables that are not used; observation nodes are
-      # never model-required (they define the observation likelihood), so
-      # exclude them from the unused check.
+
+      # point out augmented variables that are not used
+      # NOTE: observations are never model-required, so excluded from check
       if (isTRUE(warn_unused)) {
-        non_obs <- defined[self$defs[["kind"]] != "obs"]
+        non_obs <- defined[self$defs[["kind"]] == "augm"]
         template_not_used_warn(required, non_obs, self$family)
       }
       # stop if augmented variables are missing

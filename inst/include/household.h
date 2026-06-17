@@ -25,6 +25,7 @@ namespace housepi
 	class Household
 	{
 		friend struct DataWide;
+		friend struct Augmented;
 		friend struct ContactRate;
 		friend class MCMCBase;
 		friend class MCMC;

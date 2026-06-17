@@ -3,6 +3,8 @@
 \name{drop_parameters}
 \alias{drop_parameters}
 \alias{drop_augmented}
+\alias{drop_observations}
+\alias{drop_house_observ}
 \alias{drop_group_rates}
 \alias{drop_contact_rates}
 \alias{drop_infectivity_profile}
@@ -12,6 +14,10 @@
 drop_parameters(hhmodel)
 
 drop_augmented(hhmodel)
+
+drop_observations(hhmodel)
+
+drop_house_observ(hhmodel)
 
 drop_group_rates(hhmodel)
 
@@ -29,9 +35,7 @@ drop_all(hhmodel)
 }
 \description{
 Remove current definitions from the housepi model.
-Each variant clears a single category (parameters, augmented variables,
-group rates, contact rates, infectivity profile) while \code{drop_all()} clears
-them all.
+Each variant clears a single category  while \code{drop_all()} clears them all.
 }
 \examples{
 hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>

@@ -16,10 +16,10 @@ If \code{NA} (default) it computes for the whole data.}
 \code{numeric(1)}. The complete-data log-likelihood.
 }
 \description{
-Compute the scalar complete-data log-likelihood of a \code{HousepiModel}:
-transmission plus observation (the latter \code{0} when the model has no
-observation node). For models with augmented variables this is the
-likelihood conditional on the current augmented values; priors are excluded.
+Compute the complete-data log-likelihood of a \code{HousepiModel}:
+transmission plus observation.
+For models with augmented variables
+this is conditioned on current augmented values.
 }
 \examples{
 flu_1918_frederick |>

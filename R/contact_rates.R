@@ -182,7 +182,8 @@ tidyup_contact_rate_tables <- function(tables) {
 }
 
 #' @title Internal R6 holder for housepi contact-rate definitions
-#' @description Helper class managing contact-rate definitions of the model Rcpp object.
+#' @description
+#' Helper class managing contact-rate definitions of the model object.
 #' @keywords internal
 #' @noRd
 HousepiContactRate <- R6::R6Class(
@@ -342,7 +343,7 @@ HousepiContactRate <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)`. Module family.
+    #' @field family `character(1)`. Holder family.
     family = "contact rate",
 
     #' @field defs `list`. Current contact rate definition.

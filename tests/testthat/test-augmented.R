@@ -187,7 +187,7 @@ test_that("Observation node definitions are encoded", {
   helper_test_aux_load(
     augm,
     onset_date = list(obs = "normal", mean = onset_time@A, sd = 1),
-    .obs = TRUE
+    .kind = "obs"
   )
   d <- augm$defs
   # marked as observation, data-bound and constant (never sampled)
@@ -208,11 +208,11 @@ test_that("Observation node rejects conflicting options", {
   augm <- HousepiAugmented$new()
   # prior and obs are mutually exclusive
   helper_test_aux_load(augm, x = list(prior = "normal", obs = "normal"),
-                       .obs = TRUE) |>
+                       .kind = "obs") |>
     expect_error("only one between 'prior' and 'obs'")
   # observation nodes are data-bound, never sampled
   helper_test_aux_load(augm, x = list(obs = "normal", proposal = "sample"),
-                       .obs = TRUE) |>
+                       .kind = "obs") |>
     expect_error("data-bound")
 })
 
@@ -225,7 +225,7 @@ test_that("Deterministic observation node is encoded as a function obs", {
   )
   # a bare expression (no 'obs =' distribution) is a deterministic observation
   helper_test_aux_load(augm, onset_date = floor(infec_time + incub_period),
-                       .obs = TRUE)
+                       .kind = "obs")
   d <- augm$defs[augm$defs[["name"]] == "onset_date", ]
   # tagged as observation, carrying a deterministic function and no distribution
   expect_identical(d[["kind"]], "obs")
@@ -247,7 +247,7 @@ test_that("Observation and augmented loads each own only their definitions", {
   helper_test_aux_load(
     augm,
     onset_date = list(obs = "normal", mean = infec_time@A, sd = 1),
-    .obs = TRUE
+    .kind = "obs"
   )
   expect_setequal(augm$defs[["name"]],
                   c("incub_period", "infec_time", "onset_date"))
@@ -258,4 +258,33 @@ test_that("Observation and augmented loads each own only their definitions", {
   )
   expect_true("onset_date" %in% augm$defs[["name"]])
   expect_identical(augm$obs_data_names, "onset_date")
+})
+
+test_that("Household observations coexist with augmented and observation defs", {
+  augm <- HousepiAugmented$new()
+  helper_test_aux_load(
+    augm, incub_period = list(prior = "gamma", shape = 2, scale = 1)
+  )
+  helper_test_aux_load(
+    augm,
+    onset_date = list(obs = "normal", mean = incub_period@A, sd = 1),
+    .kind = "obs"
+  )
+  # a fresh household-observation load owns only the "house-obs" rows, leaving the
+  # augmented variable and the observation node it depends on untouched
+  helper_test_aux_load(augm, first_test = min(test_date@D), .kind = "house-obs")
+  expect_setequal(augm$defs[["name"]],
+                  c("incub_period", "onset_date", "first_test"))
+  expect_identical(augm$defs[["kind"]][augm$defs[["name"]] == "first_test"],
+                   "house-obs")
+  # the reduction over a data source is encoded as a variadic call (a call lands
+  # in 'func', a bare terminal would land in 'value')
+  expect_identical(augm$defs[["func"]][augm$defs[["name"]] == "first_test"],
+                   "min|x|{test_date|D}")
+
+  # a fresh (non-append) household load drops only the house rows
+  helper_test_aux_load(augm, last_test = max(test_date@D), .kind = "house-obs")
+  expect_false("first_test" %in% augm$defs[["name"]])
+  expect_setequal(augm$defs[["name"]],
+                  c("incub_period", "onset_date", "last_test"))
 })

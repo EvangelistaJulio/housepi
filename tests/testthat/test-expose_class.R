@@ -12,6 +12,8 @@ test_that("Reject if calling on non-HousepiModel objects", {
   expect_error(get_infec_profile(obj), regexp = err)
   expect_error(drop_parameters(obj), regexp = err)
   expect_error(drop_augmented(obj), regexp = err)
+  expect_error(drop_observations(obj), regexp = err)
+  expect_error(drop_house_observ(obj), regexp = err)
   expect_error(drop_group_rates(obj), regexp = err)
   expect_error(drop_contact_rates(obj), regexp = err)
   expect_error(add_contact_rate(obj), regexp = err)

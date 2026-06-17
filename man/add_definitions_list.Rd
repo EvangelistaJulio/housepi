@@ -2,19 +2,22 @@
 % Please edit documentation in R/expose_class.R
 \name{add_parameter_list}
 \alias{add_parameter_list}
+\alias{add_group_rate_list}
 \alias{add_augmented_list}
 \alias{add_observation_list}
-\alias{add_group_rate_list}
+\alias{add_house_observ_list}
 \alias{add_infec_profile_list}
 \title{Load multiple definitions at once via named arguments}
 \usage{
 add_parameter_list(hhmodel, ..., append = FALSE)
 
+add_group_rate_list(hhmodel, ..., append = FALSE)
+
 add_augmented_list(hhmodel, ..., append = FALSE)
 
 add_observation_list(hhmodel, ..., append = FALSE)
 
-add_group_rate_list(hhmodel, ..., append = FALSE)
+add_house_observ_list(hhmodel, ..., append = FALSE)
 
 add_infec_profile_list(hhmodel, ..., append = FALSE)
 }

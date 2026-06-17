@@ -14,13 +14,10 @@
 
 namespace housepi
 {
-    struct LogDensity
+    /// Log-probability used for Metropolis. Aware of old value.
+    struct LogProba
     {
-        void recover() noexcept { value_ = old_; }
-        double log_ratio() const noexcept { return value_ - old_; }
-        double value() const noexcept { return value_; }
-
-        /// Set new log-likelihood value. Store old value.
+        /// Set new log-probability value. Store old value.
         /// Raise exception if new value is a NaN.
         void set(double new_ll)
         {
@@ -29,28 +26,35 @@ namespace housepi
 
             if (na::is(new_ll))
                 throw std::runtime_error(
-                    "Log-likelihood computation returned NaN value.");
+                    "Log-probability computation returned NaN value.");
         }
-        /// Increment log-likelihood by a delta. Store old value.
+        /// Increment log-probability by a delta. Store old value.
         /// Raise exception if new value is a NaN.
         void increment(double delta_ll) { set(value_ + delta_ll); }
+        /// Recover old value.
+        void recover() noexcept { value_ = old_; }
+        
+        /// Return current value of log-probability.
+        double value() const noexcept { return value_; }
+        /// Return log-ratio current vs old values.
+        double ratio() const noexcept { return value_ - old_; }
 
         /// Wheter value is infinity.
         bool is_inf() const noexcept { return std::isinf(value_); }
 
-    protected:
+    private:
         double value_ = 0.; /// Current log-likelihood
         double old_ = 0.;   /// Old log-likelihood
     };
 
     /// Accumulator for log-densities computations.
-    struct LogDensityAccumulator
+    struct LogProbaAccumulator
     {
         double obs = 0.;    /// observation
         double transm = 0.; /// transmission
         double aprior = 0.; /// augmented-prior
 
-        LogDensityAccumulator &operator+=(const LogDensityAccumulator &other) noexcept
+        LogProbaAccumulator &operator+=(const LogProbaAccumulator &other) noexcept
         {
             obs += other.obs;
             transm += other.transm;

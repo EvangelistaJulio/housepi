@@ -5,24 +5,25 @@
 ## See the LICENSE file for details.
 ##
 
-# Function columns associated to module family.
+# Augmented stores three display families.
+is_augmented_family <- function(family) {
+  family %in% c("augmented", "observation", "household observation")
+}
+
+# Function columns associated to holder family.
 family2function_col <- function(family) {
-  if (family == "augmented") c("prior", "func")
+  if (is_augmented_family(family)) c("prior", "func")
   else if (family == "infectivity profile") "func"
-  else "prior" # family is "parameter" or "group rate"
+  else "prior"
 }
 
 helper_format_error <- function(err) {
   err <- lapply(err, function(x) utils::tail(strsplit(x, "\n")[[1]], 1))
-  if (length(err) == 1) {
-    sms <- err[[1]]
-  } else {
-    unused <- stringr::str_starts(err, "Unused|Missing")
-    if (any(unused)) sms <- err[[which(unused)[[1]]]]
-    else if ("func" %in% err) sms <- err["func"]
-    else sms <- err[[1]]
-  }
-  sms
+  if (length(err) == 1) return(err[[1]])
+  unused <- stringr::str_starts(err, "Unused|Missing")
+  if (any(unused)) err[[which(unused)[[1]]]]
+  else if ("func" %in% err) err["func"]
+  else err[[1]]
 }
 
 # Trigger C++ errors
@@ -34,7 +35,7 @@ raise_def_error <- function(func_name, arg_names, def_name,
   func_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
 
   is_infec_prof <- family == "infectivity profile"
-  is_augm_func <- family == "augmented" && model_col == "func"
+  is_augm_func <- is_augmented_family(family) && model_col == "func"
 
   err <- list()
   if (is_augm_func) tryCatch(
@@ -112,17 +113,13 @@ assert_valid_feature <- function(x, family, arg_name = "Feature value") {
 }
 
 # Assert that given definition name is valid.
-assert_valid_definition_name <- function(x, family, is_implicit = FALSE) {
+assert_valid_definition_name <- function(x, family) {
   if (length(x) != 1 || is.na(x) || !is.character(x)) {
     stop_h(
       sprintf("Name of %s must be a non-empty string.", family),
-      ifelse(
-        isTRUE(is_implicit),
-        "Did you provide a list and forgot rlang injection operator '!!!'?",
-        format_type_error(x)
-      )
+      format_type_error(x)
     )
-  } else if (is.character(x)) {
+  } else {
     assert_valid_character(x, family, "Name")
     if (x %in% .reserved_math_consts) stop_h(
       sprintf("Name '%s' for %s is reserved for constants.", x, family)

@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-#include "tools/logdensity.h"
+#include "tools/logproba.h"
 #include "tools/nan.h"
 
 #include "mcmc_base.h"
@@ -63,15 +63,17 @@ namespace housepi
 		/// Assert setup definitions, then proceed with initialization for evaluation.
 		void init_for_evaluation_();
 
-		/// Compute total log-density and store all old values, households included.
+		/// Compute total log-posterior. Store all old values, included for households.
 		/// Result is left in tot_transm_log_lik / tot_augm_log_prior / tot_obs_log_lik.
 		/// NOTE: with_augm_prior / with_obs skip the respective re-evaluation.
-		void commit_total_log_density_(bool is_cache_depen, bool with_augm_prior = true,
-									   bool with_obs = true);
-
-		/// Commit single household's transmission, augmented prior and observation.
-		LogDensityAccumulator commit_house_log_density_(Household &house, bool is_cache_depen,
-														bool with_augm_prior, bool with_obs);
+		void commit_total_log_posterior_(bool is_cache_depen,
+										 bool with_augm_prior = true,
+										 bool with_obs = true);
+		/// Commit single household's posterior contribution.
+		LogProbaAccumulator commit_house_log_posterior_(Household &house,
+														bool is_cache_depen,
+														bool with_augm_prior,
+														bool with_obs);
 
 		/// Compute and store log-ratio of prior of single augmented variable.
 		double commit_augm_log_prior_ratio(Individual &member, size_t a)
@@ -136,10 +138,10 @@ namespace housepi
 		/// Move augmented variables of infectious members inside household.
 		/// The move is performed one member at a time, one augmented variable at a time.
 		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
-		LogDensityAccumulator move_augm_single_house_(size_t H);
+		LogProbaAccumulator move_augm_single_house_(size_t H);
 		/// Move a single augmented variable.
 		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
-		LogDensityAccumulator move_augm_single_variable_(Household &house, Individual &member, size_t a);
+		LogProbaAccumulator move_augm_single_variable_(Household &house, Individual &member, size_t a);
 
 		/* --FUTURE-LOG-EVIDENCE--
 		/// Power posteriors at 0 inverse temperature.

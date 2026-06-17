@@ -13,7 +13,7 @@
 
 #include "tools/dependency.h"
 #include "tools/keys.h"
-#include "tools/logdensity.h"
+#include "tools/logproba.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/operators.h"
@@ -244,7 +244,7 @@ namespace housepi
             augm_definitions["max"].push_back(input.at("max")[r]);
             augm_definitions["proposal"].push_back("");
             augm_definitions["proposal_scale"].push_back("");
-            augm_definitions["kind"].push_back("prior");
+            augm_definitions["kind"].push_back("augm");
         }
     }
 
@@ -291,7 +291,9 @@ namespace housepi
         status_blocks_.clear();
         list_export.clear();
         list_obs_export.clear();
+        list_house_export.clear();
         varia.clear();
+        house_varia.clear();
 
         // skip if no augmented definitions
         if (input.empty() && !infec_profile.is_augmented())
@@ -302,6 +304,7 @@ namespace housepi
         helper_build_definition_by_status_();              // process definition by status
         helper_build_set_allocation_order_();              // allocation and order
         helper_init_observation_list_();                   // observation nodes
+        helper_init_house_obs_list_();                         // household-level observations
     }
 
     /// Check augmented names and assert no reserved names are used.
@@ -342,7 +345,8 @@ namespace housepi
 
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            if (deftable_.c_name[k] == infprof::AUGM_FUNC)
+            if (deftable_.c_name[k] == infprof::AUGM_FUNC ||
+                deftable_.c_kind[k] == "house-obs")
                 continue;
 
             std::vector<bool> &vec =
@@ -401,6 +405,12 @@ namespace housepi
     {
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
+            // household-level observations are not per-member augmented variables:
+            // keep them out of the key-holder and the status machinery (see
+            // helper_init_house_obs_list_ / init_house_for_simulation).
+            if (deftable_.c_kind[k] == "house-obs")
+                continue;
+
             // fill registry with optional augmented definitions
             const std::string astr = deftable_.c_name[k];
             khold_.add(astr);
@@ -456,10 +466,8 @@ namespace housepi
                 IndivBlock &iaugm = varia[member.index_];
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
-                {
-                    iaugm.vec[a].name(khold(a));
-                    iaugm.vec[a].set_err_type("augmented");
-                }
+                    iaugm.vec[a].name(khold(a), "augmented");
+
                 if (member.is_infected_status())
                     all_infected_statuses.emplace(member.status());
             }
@@ -787,6 +795,104 @@ namespace housepi
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////  Augmented : household observations  /////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void Augmented::helper_init_house_obs_list_()
+    {
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+            if (deftable_.c_kind[k] == "house-obs")
+                list_house_export.push_back(k);
+    }
+
+    void Augmented::init_house_for_simulation()
+    {
+        house_varia.clear();
+        if (list_house_export.empty())
+            return;
+
+        const size_t n_houses = mcmc_->data_wide().report_house.total;
+        house_varia.resize(n_houses);
+        for (size_t H = 0; H < n_houses; ++H)
+        {
+            Household &house = mcmc_->data_wide().at(H);
+            house_varia[H].resize(list_house_export.size());
+            for (size_t b = 0; b < list_house_export.size(); ++b)
+                helper_init_house_attributes_(house, b);
+        }
+    }
+
+    void Augmented::helper_init_house_attributes_(Household &house, size_t j)
+    {
+        const size_t k = list_house_export[j];
+        const std::string &astr = deftable_.c_name[k];
+        Variable &hvar = house_varia[house.index_][j];
+        hvar.name(astr, "household observation");
+
+        try
+        {
+            const std::string &str_val = deftable_.c_value[k];
+            parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
+
+            // bare reference (no reduction): bind to the first member, which for a
+            // singleton household is the household value itself.
+            if (parser.is_terminal())
+            {
+                hvar.transfer(mcmc_->translator.to_attribute(parser.root, &house.member(0)));
+                return;
+            }
+
+            // reduction: compose the (variadic) function once
+            hvar.init_function(compose_func_registries(
+                parser.root.func, "function",
+                {"custom", "transcendental", "arithmetic",
+                 "continuos", "discrete", "infecprofile"},
+                str::tobool(deftable_.c_fcumul[k])));
+
+            // bind operands: a data (@D) source is spread one operand per member,
+            // skipping NA values (na.rm at build time, since NA constant args are
+            // rejected by the function); any other source is bound once at household
+            // level. The first operand seeds the reduction ('x'), the rest are
+            // appended arguments.
+            size_t op = 0;
+            const auto append_operand = [&](const Attribute &attr)
+            {
+                const std::string key = op == 0 ? "x" : "x" + std::to_string(op);
+                ++op;
+                hvar.init_func_attr(key, attr);
+            };
+            for (const auto &child : parser.root.children)
+                if (parse::is_data_wide(child.type))
+                    for (const Individual &member : house)
+                    {
+                        const Attribute &attr = mcmc_->translator.to_attribute(child, &member);
+                        if (!na::is(attr.value()))
+                            append_operand(attr);
+                    }
+                else
+                    append_operand(mcmc_->translator.to_attribute(child, &house.member(0)));
+
+            // every operand was NA: the reduction is empty, yield NA (na.rm convention)
+            if (op == 0)
+            {
+                hvar.init_numeric(na::DOUBLE);
+                return;
+            }
+
+            // range and reshaping
+            hvar.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &house.member(0)));
+            hvar.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &house.member(0)));
+            hvar.init_func_reshaping(str::tobool(deftable_.c_discr[k]));
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error(
+                "While initializing household observation '" + astr + "' for " +
+                house.err_name() + ":\n" + std::string(e.what()));
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////  Augmented : init missing attribute  ////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1086,15 +1192,11 @@ namespace housepi
             if (block.obs_depen[a].empty())
                 return 0.;
 
-            // The obs node value is the (constant) observed datum; the moved latent
-            // 'a' enters through the node's parameters (e.g. its mean), so the density
-            // ratio cannot be read off the node's own old/new value. Recompute the
-            // full obs log-likelihood under the updated latent and difference it
-            // against the stored value, mirroring the transmission-ratio pattern.
+            // log-proba must be recomputed (observation value is just a datum)
             double new_ll = 0.0;
             for (size_t b : block.obs)
                 new_ll += varia[member.index_].vec[b].get_log_prior();
-            double delta_ll = new_ll - varia[member.index_].log_obs.value();
+            const double delta_ll = new_ll - varia[member.index_].log_obs.value();
             varia[member.index_].log_obs.set(new_ll);
             return delta_ll;
         }

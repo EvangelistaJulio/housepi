@@ -4,6 +4,19 @@ test_that("Compilation flags are ok", {
   expect_false(system.file("include", package = "BH") == "")
 })
 
+test_that("assert_household_data validates inputs", {
+  assert_household_data("not a frame", NA_character_) |>
+    expect_error("data.frame")
+  assert_household_data("blank", NA_character_) |>
+    expect_error("new_housepi_model")
+  assert_household_data(data.frame(), NA_character_) |>
+    expect_error("empty")
+  assert_household_data(NULL, NA_character_) |>
+    expect_error("Missing argument")
+  assert_household_data(NULL, "blank") |>
+    expect_s3_class("data.frame")
+})
+
 test_that("Model generator inconsistent calls are caught", {
   # blank household model object
   hhgen <- HousepiGenerator$new("blank")
@@ -98,13 +111,8 @@ test_that("data_required reflects the underlying template", {
   expect_true("start_date" %in% ait_gen$data_required)
 })
 
-test_that("factorize_data_wide validates inputs and populates state", {
+test_that("factorize_data_wide behaves as expected", {
   hhgen <- HousepiGenerator$new("blank")
- 
-  hhgen$factorize_data_wide("not a frame") |>
-    expect_error("data.frame")
-  hhgen$factorize_data_wide(data.frame()) |>
-    expect_error("empty")
 
   env <- new.env(parent = emptyenv())
   utils::data("blank_house", package = "housepi", envir = env)

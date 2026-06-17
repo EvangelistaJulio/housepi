@@ -1,10 +1,12 @@
 # Helper to load definition lists.
-helper_test_aux_load <- function(self, ..., append = FALSE, .obs = FALSE) {
-  # only the augmented loader accepts '.obs'; keep the parameter loader signature
-  if (isTRUE(.obs)) {
-    self$add_quo_list(rlang::enquos(...), append = append, .obs = TRUE)
-  } else {
+helper_test_aux_load <- function(self, ..., append = FALSE,
+                                 .kind = NULL) {
+  # only the augmented loader accepts '.obs' / '.house'; keep the parameter
+  # loader signature untouched otherwise
+  if (is.null(.kind)) {
     self$add_quo_list(rlang::enquos(...), append = append)
+  } else {
+    self$add_quo_list(rlang::enquos(...), append = append, .kind = .kind)
   }
   invisible(self)
 }

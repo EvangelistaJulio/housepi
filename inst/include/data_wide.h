@@ -15,7 +15,7 @@
 
 #include "tools/data_reports.h"
 #include "tools/keys.h"
-#include "tools/logdensity.h"
+#include "tools/logproba.h"
 #include "tools/types.h"
 
 #include "household.h"
@@ -64,11 +64,11 @@ namespace housepi
 
         /// Allocate per-equivalence-class transmission log-likelihood storage.
         /// NOTE: requires equivalence classes to be initialized (see init_eq_classes).
-        void allocate_transm_log_lik() { house_transm_log_lik_.assign(eq_class_size(), LogDensity()); }
+        void allocate_transm_log_lik() { house_transm_log_lik_.assign(eq_class_size(), LogProba()); }
 
         /// Access the transmission log-likelihood of a household equivalence class.
-        LogDensity &transm_log_lik(const Household &house) noexcept { return house_transm_log_lik_[house.eq_class_]; }
-        const LogDensity &transm_log_lik(const Household &house) const noexcept { return house_transm_log_lik_[house.eq_class_]; }
+        LogProba &transm_log_lik(const Household &house) noexcept { return house_transm_log_lik_[house.eq_class_]; }
+        const LogProba &transm_log_lik(const Household &house) const noexcept { return house_transm_log_lik_[house.eq_class_]; }
 
         /////////////////////////
         //////  ITERATORS  //////
@@ -177,10 +177,10 @@ namespace housepi
             std::vector<double> vec = {};
         };
 
-        std::vector<IndivWide_> indiv_data_;           /// External storage for individual data
-        std::vector<LogDensity> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood
-        std::vector<Household> house_vector_ = {};     /// All households in data
-        dict<size_t> hhid_to_index_ = {};              /// Map house-id to internal index
+        dict<size_t> hhid_to_index_ = {};            /// Map house-id to internal index
+        std::vector<IndivWide_> indiv_data_;         /// External storage for individual data
+        std::vector<Household> house_vector_ = {};   /// All households in data
+        std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood
 
         std::unordered_set<size_t> user_discrete_set_ = {}; /// modeler requested discrete data
         std::unordered_set<size_t> user_positive_set_ = {}; /// modeler requested positive data

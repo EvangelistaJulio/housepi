@@ -228,7 +228,9 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
     augm_draws <- get_augmented_draws(results) |>
       posterior::as_draws_matrix() |>
       as.data.frame()
-    consts <- hhmodel$parameters[hhmodel$parameters$const, c("name", "value")] |>
+    consts <- hhmodel$parameters |>
+      dplyr::filter(const) |>
+      dplyr::select(name, value) |>
       tidyr::pivot_wider(names_from = "name", values_from = "value") |>
       as.list()
     transm_ref <- sapply(seq_len(30), function(i) {
@@ -452,6 +454,31 @@ test_that("Observation are reserved to add_observation", {
     expect_error("add_observation")
 })
 
+test_that("drop_observations / drop_house_observ clear only their own kind", {
+  hhmodel <- sarscov2_2021_icofs |>
+    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    add_parameter_template() |>
+    add_augmented_list(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
+      infec_time   = list(prior = "uniform", min = -14, max = study_period@D,
+                          proposal = "normal")
+    ) |>
+    add_observation("onset_date", obs = "normal",
+                    mean = infec_time@A + incub_period@A, sd = 1) |>
+    add_house_observ("first_onset", value = min(onset_date@D))
+
+  kinds <- function(x) get_augmented(x)$kind
+
+  # leaf drops leave the augmented variables (and the other kind) untouched
+  expect_setequal(kinds(drop_house_observ(hhmodel)), c("augm", "augm", "obs"))
+  expect_setequal(kinds(drop_observations(drop_house_observ(hhmodel))),
+                  c("augm", "augm"))
+
+  # drop_all wipes every kind without dangling-reference errors
+  expect_equal(nrow(get_augmented(drop_all(hhmodel))), 0)
+  expect_equal(nrow(get_parameters(drop_all(hhmodel))), 0)
+})
+
 test_that("Deterministic observation node simulates, inference rejects it", {
   set.seed(1)
   build <- function(data) {
@@ -480,4 +507,82 @@ test_that("Deterministic observation node simulates, inference rejects it", {
   # inference rejects the degenerate indicator likelihood with a clear message
   expect_error(evaluate_log_lik(build(simulated)),
                regexp = "Deterministic observation node")
+})
+
+test_that("Household observations aggregate a data column across members", {
+
+  houses <- head(unique(sarscov2_2021_icofs$house_id), 60)
+  # force one household to have all-NA test_date: the na.rm reduction is empty.
+  # the reference below reads 'dat', so mutate it here to keep both in sync.
+  na_house <- houses[[1]]
+  dat <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% houses) |>
+    dplyr::mutate(
+      test_date = dplyr::if_else(house_id == na_house, as.Date(NA), test_date)
+    )
+
+  simulated <- dat |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_list(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented_list(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    add_house_observ_list(
+      first_test = min(test_date@D),
+      last_test = max(test_date@D)
+    ) |>
+    run_simulation()
+
+  expect_true(all(c("first_test", "last_test") %in% names(simulated)))
+
+  # one value per household, replicated across every member row
+  expect_true(all(
+    tapply(simulated$first_test, simulated$house_id,
+           function(x) length(unique(x))) == 1
+  ))
+
+  # values equal the na.rm min/max of test_date over each household's members,
+  # NA when every member is missing (the all-NA household)
+  ref <- function(f) {
+    v <- tapply(as.numeric(dat$test_date), dat$house_id,
+                function(x) if (all(is.na(x))) NA_real_ else f(x, na.rm = TRUE))
+    v[order(names(v))]
+  }
+  got <- function(col) {
+    v <- tapply(simulated[[col]], simulated$house_id, function(x) x[[1]])
+    v[order(names(v))]
+  }
+  expect_equal(got("first_test"), ref(min))
+  expect_equal(got("last_test"), ref(max))
+
+  # singleton household (one member): the aggregate is that member's value
+  sizes <- table(dat$house_id)
+  singleton <- names(sizes)[sizes == 1]
+  if (length(singleton) > 0) {
+    one <- singleton[[1]]
+    expect_equal(unique(simulated$first_test[simulated$house_id == one]),
+                 as.numeric(dat$test_date[dat$house_id == one]))
+  }
+
+  # the all-NA household yields NA across its rows
+  expect_true(all(is.na(simulated$first_test[simulated$house_id == na_house])))
+})
+
+test_that("Model-required data can be postponed: construction tolerates, the wall errors", {
+  dat <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% head(unique(house_id), 20))
+  # drop a model-required data column: it may be supplied later (e.g. generated
+  # by a definition), so construction must tolerate the gap silently
+  dat$start_date <- NULL
+
+  m <- NULL
+  expect_no_warning(
+    m <- new_housepi_model(dat, "augmented_infection_time", quiet = TRUE)
+  )
+  expect_s3_class(m, "HousepiModel")
+
+  # hitting a wall (evaluate_*/run_*) turns the postponed gap into a capital error
+  expect_error(evaluate_log_lik(m), regexp = "start_date")
+  expect_error(run_simulation(m), regexp = "start_date")
 })

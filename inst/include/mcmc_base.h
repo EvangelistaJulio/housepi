@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "tools/logdensity.h"
+#include "tools/logproba.h"
 #include "tools/nan.h"
 
 #include "setup.h"
@@ -36,9 +36,9 @@ namespace housepi
 	{
 	public:
 		Setup setup;
-		LogDensity tot_obs_log_lik;	   /// observation log-likelihood
-		LogDensity tot_transm_log_lik; /// transmission log-likelihood
-		LogDensity tot_augm_log_prior; /// augmented-variable log-priors
+		LogProba tot_obs_log_lik;	 /// observation log-likelihood
+		LogProba tot_transm_log_lik; /// transmission log-likelihood
+		LogProba tot_augm_log_prior; /// augmented-variable log-priors
 		Posterior posterior;
 
 		/// Pointer to data storage.

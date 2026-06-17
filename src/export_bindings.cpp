@@ -966,7 +966,7 @@ namespace
     Rcpp::DataFrame helper_data_long_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
-         const DataLong &data_long = mcmc_ptr->data_long();
+        const DataLong &data_long = mcmc_ptr->data_long();
 
         if (data_long.indiv_datalist.empty())
             return Rcpp::DataFrame::create();
@@ -1259,9 +1259,19 @@ namespace
                             // observation nodes: generated for infected members, NA otherwise
                             for (size_t a : augm.list_obs_export)
                                 augm_cols[c++][row] = member.is_infected_status()
-                                    ? hsp_to_rcpp(engine.get_augm_varia(a, member))
-                                    : NA_REAL;
+                                                          ? hsp_to_rcpp(engine.get_augm_varia(a, member))
+                                                          : NA_REAL;
                             ++row;
+                        }
+
+                        // household-level observations:
+                        // one value per house, same for every member row
+                        const size_t base = augm.list_export.size() + augm.list_obs_export.size();
+                        for (size_t b = 0; b < augm.list_house_export.size(); ++b)
+                        {
+                            const double v = hsp_to_rcpp(augm.house_varia[H][b].value());
+                            for (size_t r = row_offsets[H]; r < row_offsets[H + 1]; ++r)
+                                augm_cols[base + b][r] = v;
                         }
                     }
                     catch (const std::exception &e)
@@ -1307,6 +1317,7 @@ namespace
         try
         {
             engine.model->init_model_for_simulation(); // model specific initialization
+            engine.augm.init_house_for_simulation();   // build household-level observations
 
             //////////////////////////////////////////////
             //////  Observation Process & Measures  //////
@@ -1340,10 +1351,12 @@ namespace
             const std::vector<size_t> row_offsets = engine.get_row_offsets();
 
             // pre-allocate mutable output columns once (reused across iterations):
-            // exported augmented columns followed by generated observation columns
+            // exported augmented, individual and household-level observation columns
             Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
             std::vector<Rcpp::NumericVector> augm_cols(
-                augm.list_export.size() + augm.list_obs_export.size());
+                augm.list_export.size() +
+                augm.list_obs_export.size() +
+                augm.list_house_export.size());
             for (size_t c = 0; c < augm_cols.size(); ++c)
                 augm_cols[c] = Rcpp::NumericVector(data_wide.report_indiv.total);
 

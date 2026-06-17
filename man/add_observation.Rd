@@ -6,7 +6,7 @@
 \usage{
 add_observation(
   hhmodel,
-  name = NA_character_,
+  name,
   obs = NA_character_,
   ...,
   status = NA_integer_,
@@ -52,7 +52,7 @@ One between:
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add an observation node: a data column \eqn{x} modelled as the variate of a
+Add an observation for data column \eqn{x} modelled as the variate of a
 distribution conditioned on latent augmented variables \eqn{z} and/or
 parameters \eqn{\theta}. Its density \eqn{p^\mathrm{obs}(x \mid z, \theta)}
 is the observation contribution to the per-household likelihood and is added
@@ -67,11 +67,4 @@ expression of the latents and no \code{obs} distribution
 (e.g. \code{onset_date = floor(infec_time + incub_period)}). It is generated during
 simulation but \strong{rejected for inference}: with no distribution it is a
 degenerate indicator likelihood, an ill-posed model to fit.
-}
-\examples{
-blank_house |>
-  new_housepi_model("augmented_infection_time") |>
-  add_augmented("incub_period", prior = "gamma", shape = 2, scale = 1) |>
-  add_observation("onset_date", obs = "normal",
-                  mean = infec_time@A + incub_period@A, sd = 1)
 }

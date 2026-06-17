@@ -274,12 +274,31 @@ assert_no_obs_declaration <- function(xquos) {
   )
 }
 
+# Stop if no definition was supplied to the list.
+assert_nonempty_defin_quos <- function(xquos, family) {
+  if (length(xquos) == 0L) stop_h(
+    sprintf("No %s definition provided.", family),
+    "Provide at least one definition."
+  )
+}
+
 # Load a named list of quosures for definitions.
-housepi_load_defin_quos <- function(self, implicit_name, xquos) {
+# Resets the store first unless 'append' is TRUE.
+housepi_load_defin_quos <- function(self, implicit_name, xquos, append = FALSE) {
+  assert_nonempty_defin_quos(xquos, self$family)
+  if (isFALSE(append)) self$initialize()
   self$store_warn_over <- character()
+
+  # all holder but the infectivity profile key their definitions by a name; a
+  # nameless entry there is the tell-tale of a list passed without '!!!'
+  requires_name <- "name" %in% names(formals(self$add_quo))
 
   for (i in seq_along(xquos)) {
     nm <- names(xquos[i])
+    if (requires_name && (is.na(nm) || length(nm) == 0 || nm == "")) stop_h(
+      sprintf("Name of %s must be a non-empty string.", self$family),
+      "Did you provide a list and forgot rlang injection operator '!!!'?"
+    )
     def_quo <- xquos[[i]]
     def_expr <- rlang::quo_get_expr(def_quo)
 
@@ -298,14 +317,10 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos) {
       # arguments are not quosures
       rlang::inject(self$add_quo(name = nm, !!!def_expr, .warn_over = FALSE))
     } else {
-      # single implicit definition to pass to add_quo
+      # single implicit definition to pass to add_quo. A stray 'name' is
+      # harmless for the nameless infectivity profile (dropped by its add_quo).
       extra_arg <- rlang::set_names(list(def_quo), implicit_name)
-      # associate name if provided
-      if (is.na(nm) || length(nm) == 0 || nm == "") {
-        rlang::inject(self$add_quo(!!!extra_arg, .warn_over = FALSE))
-      } else {
-        rlang::inject(self$add_quo(name = nm, !!!extra_arg, .warn_over = FALSE))
-      }
+      rlang::inject(self$add_quo(name = nm, !!!extra_arg, .warn_over = FALSE))
     }
   }
   template_overwrite_warn(self$store_warn_over, self$family)
@@ -327,7 +342,7 @@ get_template_def_list <- function(path, family) {
     templ_file <- file.path(path, "augm.R")
   } else {
     stop_h(sprintf(
-      "[Internal] Unrecognized module family '%s' for template loading.", family
+      "[Internal] Unrecognized holder name '%s' for template loading.", family
     ))
   }
 

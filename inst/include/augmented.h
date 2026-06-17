@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "tools/keys.h"
-#include "tools/logdensity.h"
+#include "tools/logproba.h"
 #include "tools/random.h"
 #include "tools/types.h"
 
@@ -31,23 +31,29 @@ namespace housepi
 {
     struct InfecProfile;
     class Individual;
+    class Household;
     class MCMCBase;
 
     struct Augmented : public KeyModule
     {
-        std::vector<size_t> list_export = {};     /// augmented keys to export
-        std::vector<size_t> list_obs_export = {}; /// observation keys to export
+        std::vector<size_t> list_export = {};       /// augmented to export
+        std::vector<size_t> list_obs_export = {};   /// observation to export
+        std::vector<size_t> list_house_export = {}; /// household-observation to export
 
         /// Auxiliary block for individual augmented objects.
-        /// UPDATE: this should become private.
         struct IndivBlock
         {
             size_t idx = 0;                 /// index of status-specific definition
             std::vector<Variable> vec = {}; /// associated variables
-            LogDensity log_prior;           /// log-prior
-            LogDensity log_obs;             /// observation log-likelihood
+            LogProba log_prior;           /// augmented log-prior
+            LogProba log_obs;             /// observation log-likelihood
         };
         std::vector<IndivBlock> varia;
+
+        /// Household-level observations, per house per house-export slot.
+        /// NOTE: built for simulations only.
+        /// UPDATE: maybe it will support models in the future.
+        std::vector<std::vector<Variable>> house_varia;
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -80,6 +86,9 @@ namespace housepi
         /// NOTE: used for simulations.
         void sample_obs(rnd_gen &prng, Individual &member);
 
+        /// Initialize household-level observations for simulations.
+        void init_house_for_simulation();
+
         /// Reset augmented initial values for given individual.
         void restart(rnd_gen &prng, Individual &m);
         /// Initialize augmented initial values for all individuals.
@@ -103,6 +112,9 @@ namespace housepi
         const std::vector<size_t> &list_draws(const Individual &member) const;
         const std::vector<size_t> &list_priors(const Individual &member) const;
         const std::vector<size_t> &list_obs(const Individual &member) const;
+
+        /// Export column name of the household-level observation.
+        const std::string &house_obs_name(size_t b) const { return deftable_.c_name[list_house_export[b]]; }
 
         /// Compute and store log-prior associated to augmented variables.
         /// NOTE: to be called only if any prior is defined.
@@ -166,7 +178,7 @@ namespace housepi
             col c_value = {}, c_const = {}, c_discr = {};
             col c_prior = {}, c_min = {}, c_max = {};
             col c_proposal = {}, c_scale = {};
-            col c_kind = {}; /// "prior" (augmented) or "obs" (observation)
+            col c_kind = {}; /// augmented: "augm"; observation: "obs" or "house-obs"
 
             /// Clear all definitions.
             void clear();
@@ -241,6 +253,11 @@ namespace housepi
         /// Deal with observation definitions.
         /// Build per-status obs lists and augmented inverse-dependency map.
         void helper_init_observation_list_();
+
+        /// Collect household-level deftable rows into list_house_export.
+        void helper_init_house_obs_list_();
+        /// Deal with household-level observations.
+        void helper_init_house_attributes_(Household &house, size_t b);
 
         /// Get the definition order for current member according to its status.
         /// NOTE: if status hasn't been observed in data, build on demand.

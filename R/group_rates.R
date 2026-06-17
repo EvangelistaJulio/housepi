@@ -330,7 +330,8 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
 ############################################################################
 
 #' @title Internal R6 holder for housepi group-rate definitions
-#' @description Helper class managing group-rate definitions of the model Rcpp object.
+#' @description
+#' Helper class managing group-rate definitions of the model object.
 #' @keywords internal
 #' @noRd
 HousepiGroupRate <- R6::R6Class(
@@ -580,7 +581,7 @@ HousepiGroupRate <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)`. Module family.
+    #' @field family `character(1)`. Holder family.
     family = "group rate",
 
     #' @field store_warn_over `character()`. Cached overwritten names.
@@ -654,7 +655,7 @@ HousepiGroupRate <- R6::R6Class(
       name <- housepi_smart_unwrap(name, "name")
       by <- housepi_smart_unwrap(by, "by")
       # control valid name # NOTE: `by` is the injected default variable
-      assert_valid_definition_name(name, self$family, !is.na(by))
+      assert_valid_definition_name(name, self$family)
 
       # automatic definition
       prefix <- housepi_smart_unwrap(prefix, "prefix")
@@ -706,8 +707,7 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @inherit add_group_rate_list
     add_quo_list = function(xquos, append = FALSE) {
-      if (isFALSE(append)) self$initialize()
-      housepi_load_defin_quos(self, "by", xquos)
+      housepi_load_defin_quos(self, "by", xquos, append)
       invisible(self)
     },
 
