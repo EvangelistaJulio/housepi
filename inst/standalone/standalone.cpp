@@ -308,9 +308,13 @@ namespace housepi
                 unsigned long sweep = setup.n_burn + (k + 1) * setup.n_thin;
                 ofs << sweep;
 
-                // print transmission log-likelihood
+                // joint log-likelihood (transmission + observation), summed over
+                // households from the pointwise draws kept during inference
+                double log_lik = 0.;
+                for (const auto &house : post.house_log_lik)
+                    log_lik += house[i];
                 ofs << read::DELIMITER << std::setprecision(2)
-                    << std::fixed << post.tot_transm_log_lik[0][i];
+                    << std::fixed << log_lik;
 
                 // print parameter values
                 for (size_t u = 0; u < post.param_values.size(); ++u)

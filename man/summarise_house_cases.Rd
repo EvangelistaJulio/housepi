@@ -13,7 +13,13 @@ summarize_house_cases(hhmodel)
 \item{hhmodel}{\code{HousepiModel} object.}
 }
 \value{
-\code{data.frame}
+\code{data.frame}, one row per metric:
+\describe{
+\item{level}{\code{individual} or \code{household}}
+\item{metric}{quantity counted in the row}
+\item{count}{absolute count}
+\item{percent}{percentage of the relevant total}
+}
 }
 \description{
 Summarise cases as given from the statuses in the loaded household data.

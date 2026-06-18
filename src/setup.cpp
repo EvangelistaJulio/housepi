@@ -437,10 +437,8 @@ namespace housepi
     {
         if (!na::is(text))
             ;
-        /* --FUTURE-LOG-EVIDENCE--
         else if (is_power_post())
             text = "power post " + std::to_string(rung_id) + "/" + std::to_string(n_rungs);
-        */
         else if (n_chains > 1)
             text = "sample " + std::to_string(chain_id + 1) + "/" + std::to_string(n_chains);
         else
@@ -452,13 +450,11 @@ namespace housepi
         prog_set_text();
         progressbar_->open((n_adapt + n_steps) * n_chains, progress);
     }
-    /* --FUTURE-LOG-EVIDENCE--
     void Setup::prog_open_for_power_post()
     {
         prog_set_text();
         progressbar_->open((n_adapt + n_steps) * n_chains * (n_rungs + 1), progress);
     }
-    */
     void Setup::prog_open_for_simulation()
     {
         prog_set_text("simulate");

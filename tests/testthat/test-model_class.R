@@ -88,18 +88,18 @@ test_that("Model class 'blank' calls", {
   hhmodel$add_augmented_template() |>
     expect_warning("blank")
 
-  # zero log-likelihood
-  expect_warning(x <- eval_log_density(hhmodel), regexp = "blank")
+  # zero log-likelihood (blank model evaluates silently)
+  expect_silent(x <- eval_log_density(hhmodel))
   expect_equal(x, 0)
 
   # not existing household id
   hhmodel$evaluate_log_lik("mother-base") |>
     expect_error("[Ii]ndex.*mother-base.*did not match")
 
-  # blank simulation
+  # blank simulation (runs silently)
   hhmodel <- new_housepi_model(model = "blank")
   hhmodel$add_augmented(name = "dummy", value = 3)
-  expect_warning(out <- hhmodel$run_simulation(), regexp = "blank")
+  expect_silent(out <- hhmodel$run_simulation())
   expect_true(
     all(sapply(out$dummy[out$status == 0], function(x) identical(x, NA_real_)))
   )

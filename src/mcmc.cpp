@@ -214,9 +214,9 @@ namespace housepi
             const DataWide &data_wide,
             unsigned long sample_size)
         {
-            post->house_transm_log_lik.reserve(data_wide.eq_class_size());
+            post->house_log_lik.reserve(data_wide.eq_class_size());
             for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
-                post->house_transm_log_lik.emplace_back(sample_size, na::DOUBLE);
+                post->house_log_lik.emplace_back(sample_size, na::DOUBLE);
 
             size_t n_houses = data_wide.report_house.total;
             post->house_names.reserve(n_houses);
@@ -231,15 +231,15 @@ namespace housepi
             const std::vector<std::string> &id_draws,
             unsigned long sample_size)
         {
-            post->augm_individuals = augm.init_individual_sample(id_draws);
+            post->tracked_members = augm.init_individual_sample(id_draws);
 
-            if (post->augm_individuals.empty())
+            if (post->tracked_members.empty())
                 return;
 
-            post->augm_values.resize(post->augm_individuals.size());
-            for (size_t i = 0; i < post->augm_individuals.size(); ++i)
+            post->augm_values.resize(post->tracked_members.size());
+            for (size_t i = 0; i < post->tracked_members.size(); ++i)
             {
-                const Individual &member = *post->augm_individuals[i];
+                const Individual &member = *post->tracked_members[i];
                 const auto &draws_list = augm.list_draws(member);
                 auto &member_matrix = post->augm_values[i];
                 member_matrix.reserve(draws_list.size());
@@ -256,14 +256,13 @@ namespace housepi
     {
         count_ = 0;
         is_power_post_ = false;
-        tot_transm_log_lik.clear();
+        tot_log_lik.clear();
         tot_augm_log_prior.clear();
         param_values.clear();
         param_priors.clear();
-        house_transm_log_lik.clear();
-        house_obs_log_lik.clear();
+        house_log_lik.clear();
         augm_values.clear();
-        augm_individuals.clear();
+        tracked_members.clear();
         param_names.clear();
         param_prior_names.clear();
         augm_col_names.clear();
@@ -273,77 +272,76 @@ namespace housepi
         unsigned long sample_size = setup.c_sample_size * setup.n_chains;
         is_power_post_ = setup.is_power_post();
 
-        // always allocate the transmission log-likelihood total (internal use)
-        tot_transm_log_lik.reserve(1);
-        tot_transm_log_lik.emplace_back(sample_size, na::DOUBLE);
+        // power posteriors only track the joint log-likelihood total for the
+        // thermodynamic ladder; ordinary inference never reads it, so it is the
+        // single quantity stored in that mode (no pointwise / parameter draws).
+        if (is_power_post_)
+        {
+            tot_log_lik.reserve(1);
+            tot_log_lik.emplace_back(sample_size, na::DOUBLE);
+            return;
+        }
 
         // allocate the augmented-variable prior total only if any is defined
         if (mcmc.augm.is_any_prior())
             tot_augm_log_prior.emplace_back(sample_size, na::DOUBLE);
 
-        /* --FUTURE-LOG-EVIDENCE--
-        // UPDATE: I would like to store also power posterior sample.
-        // NOTE: it will depend on chosen rungs in that case.
-        if (is_power_post_)
-            return;
-        */
-
         helper_init_param_draws(this, mcmc.param, sample_size);
         helper_init_house_draws(this, mcmc.data_wide(), sample_size);
         helper_init_augm_draws(this, mcmc.augm, setup.id_draws, sample_size);
-
-        // pointwise observation likelihood, per eq-class, only when an obs node exists.
-        // obs nodes force unique eq-classes, so each class is one household.
-        if (mcmc.augm.is_any_obs())
-        {
-            house_obs_log_lik.reserve(mcmc.data_wide().eq_class_size());
-            for (size_t R = 0; R < mcmc.data_wide().eq_class_size(); ++R)
-                house_obs_log_lik.emplace_back(sample_size, na::DOUBLE);
-        }
     }
 
     void Posterior::store(MCMCBase &mcmc)
     {
-        if (!is_power_post_)
+        // power posteriors store only the joint (tempered) log-likelihood that
+        // feeds the thermodynamic ladder: transmission plus observation
+        if (is_power_post_)
         {
-            // parameter values and priors
-            const Parameter &param = mcmc.param;
-            size_t i = 0;
-            for (size_t p : param.list_sample)
-            {
-                const Variable &v = param.at(p);
-                param_values[i][count_] = v.value();
-                param_priors[i++][count_] = v.get_log_prior();
-            }
-            // function-derived parameters: store value, no prior
-            for (size_t p : param.list_func)
-                param_values[i++][count_] = param.at(p).value();
-
-            // pointwise per-household transmission log-likelihood
-            const DataWide &data_wide = mcmc.data_wide();
-            for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
-                house_transm_log_lik[R][count_] = data_wide.house_transm_log_lik(R);
-
-            // pointwise per-household observation log-likelihood (when an obs node exists);
-            // summed live from per-member log_obs (kept current by the move machinery)
-            if (!house_obs_log_lik.empty())
-                for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
-                    house_obs_log_lik[R][count_] = mcmc.house_log_obs(data_wide.eq_class_head(R));
-
-            // augmented variable draws
-            const Augmented &augm = mcmc.augm;
-            for (size_t j = 0; j < augm_individuals.size(); ++j)
-            {
-                const Individual &member = *augm_individuals[j];
-                auto &member_matrix = augm_values[j];
-                size_t c = 0;
-                for (size_t a : augm.list_draws(member))
-                    member_matrix[c++][count_] = mcmc.aug(a, member);
-            }
+            double value = mcmc.tot_transm_log_lik.value();
+            if (mcmc.augm.is_any_obs())
+                value += mcmc.tot_obs_log_lik.value();
+            tot_log_lik[0][count_++] = value;
+            return;
         }
 
-        // total (tempered) transmission log-likelihood — internal (standalone / log-evidence)
-        tot_transm_log_lik[0][count_] = mcmc.tot_transm_log_lik.value();
+        // parameter values and priors
+        const Parameter &param = mcmc.param;
+        size_t i = 0;
+        for (size_t p : param.list_sample)
+        {
+            const Variable &v = param.at(p);
+            param_values[i][count_] = v.value();
+            param_priors[i++][count_] = v.get_log_prior();
+        }
+        // function-derived parameters: store value, no prior
+        for (size_t p : param.list_func)
+            param_values[i++][count_] = param.at(p).value();
+
+        // pointwise per-household log-likelihood: transmission plus, when an obs
+        // node exists, the per-household observation contribution summed live from
+        // per-member log_obs (kept current by the move machinery). Obs nodes force
+        // unique eq-classes, so each class is one household.
+        const DataWide &data_wide = mcmc.data_wide();
+        const bool with_obs = mcmc.augm.is_any_obs();
+        for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
+        {
+            double value = data_wide.house_transm_log_lik(R);
+            if (with_obs)
+                value += mcmc.house_log_obs(data_wide.eq_class_head(R));
+            house_log_lik[R][count_] = value;
+        }
+
+        // augmented variable draws
+        const Augmented &augm = mcmc.augm;
+        for (size_t j = 0; j < tracked_members.size(); ++j)
+        {
+            const Individual &member = *tracked_members[j];
+            auto &member_matrix = augm_values[j];
+            size_t c = 0;
+            for (size_t a : augm.list_draws(member))
+                member_matrix[c++][count_] = mcmc.aug(a, member);
+        }
+
         // total augmented-variable prior, stored separately when present (feeds lprior)
         if (!tot_augm_log_prior.empty())
             tot_augm_log_prior[0][count_] = mcmc.tot_augm_log_prior.value();
@@ -749,7 +747,8 @@ namespace housepi
 
     void MCMC::run_monte_carlo_()
     {
-        posterior.init(*this); // initialize posterior sample
+        setup.prog_set_text();  // refresh label (e.g. current power-post rung)
+        posterior.init(*this);  // initialize posterior sample
 
         // run multiple MCMC chains&
         for (setup.chain_id = 0; setup.chain_id < setup.n_chains; ++setup.chain_id)
@@ -939,7 +938,6 @@ namespace housepi
         return {0., 0., 0.};
     }
 
-    /* --FUTURE-LOG-EVIDENCE--
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  MCMC : estimate log_evidence  ////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -984,7 +982,6 @@ namespace housepi
                 "N. of rungs was not greater than 1.");
 
         setup.n_rungs = n_rungs;          // NOTE: set before progress bar
-        double old_inv_T = setup.inv_T;   // save user setup
         init_monte_carlo_();              // initialize mcmc sampling
         init_for_evaluation_();           // initialize for evaluation
         setup.prog_open_for_power_post(); // print progress bar
@@ -1001,8 +998,13 @@ namespace housepi
         else if (scheme == "power-fractions")
             power_post_fractions_(itm, avg, var);
 
-        setup.prog_close();         // close progress bar
-        setup.inv_T = old_inv_T; // restore user setup
+        setup.prog_close(); // close progress bar
+
+        // leave the model in non-power-post state (inv_T = 1 is the posterior)
+        // so later inference/simulation behave normally
+        setup.inv_T = 1.0;
+        setup.rung_id = 0;
+        setup.n_rungs = 0;
 
         return {itm, avg, var};
     }
@@ -1015,7 +1017,7 @@ namespace housepi
         setup.rung_id = 0;
         setup.inv_T = 0.0;
         run_monte_carlo_();
-        const auto [stats_avg, stats_var] = compute_stats(posterior.tot_transm_log_lik);
+        const auto [stats_avg, stats_var] = compute_stats(posterior.tot_log_lik[0]);
 
         itm.push_back(setup.inv_T);
         avg.push_back(stats_avg);
@@ -1029,7 +1031,7 @@ namespace housepi
             setup.rung_id = 1;
             setup.inv_T = 1.0;
             run_monte_carlo_();
-            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_transm_log_lik);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_log_lik[0]);
 
             itm.push_back(setup.inv_T);
             avg.push_back(stats_avg);
@@ -1053,7 +1055,7 @@ namespace housepi
             // power posterior sampling
             setup.inv_T = new_t;
             run_monte_carlo_();
-            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_transm_log_lik);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_log_lik[0]);
 
             // find larger rectangular discretization error
             is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats_avg) > (new_t - itm[k]) * (stats_avg - avg[k]);
@@ -1076,11 +1078,10 @@ namespace housepi
             setup.inv_T = std::pow(static_cast<double>(setup.rung_id) / static_cast<double>(setup.n_rungs), 5.);
             run_monte_carlo_();
 
-            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_transm_log_lik);
+            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_log_lik[0]);
             itm.push_back(setup.inv_T);
             avg.push_back(stats_avg);
             var.push_back(stats_var);
         }
     }
-    */
 }

@@ -869,25 +869,15 @@ namespace
         Posterior &post = mcmc_ptr->posterior;
         const DataWide &data_wide = mcmc_ptr->data_wide();
 
-        size_t n_classes = post.house_transm_log_lik.size();
+        size_t n_classes = post.house_log_lik.size();
         size_t n_houses = data_wide.report_house.total;
-        const bool with_obs = !post.house_obs_log_lik.empty();
 
-        // One NumericVector per class = transmission (+ observation when present).
+        // One NumericVector per class = transmission (+ observation when present),
+        // already summed at store time.
         std::vector<Rcpp::NumericVector> class_cols(n_classes);
         for (size_t R = 0; R < n_classes; ++R)
-        {
-            std::vector<double> &col = post.house_transm_log_lik[R];
-            if (with_obs)
-            {
-                const std::vector<double> &obs = post.house_obs_log_lik[R];
-                for (size_t t = 0; t < col.size(); ++t)
-                    col[t] += obs[t];
-            }
-            class_cols[R] = flush_vector_to_numvec(col);
-        }
-        std::vector<std::vector<double>>().swap(post.house_transm_log_lik);
-        std::vector<std::vector<double>>().swap(post.house_obs_log_lik);
+            class_cols[R] = flush_vector_to_numvec(post.house_log_lik[R]);
+        std::vector<std::vector<double>>().swap(post.house_log_lik);
 
         // Identity case (n_classes == n_houses) is naturally a no-op.
         Rcpp::List cols(n_houses);
@@ -1412,11 +1402,10 @@ namespace
     ////////////////////////////////////////  MCMC : log-evidence /////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* --FUTURE-LOG-EVIDENCE--
     /// Estimate log_evidence according to a given scheme and number of rungs.
     /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
     /// Based on @cite friel_improving_2014
-    Rcpp::List log_evidence(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
+    Rcpp::List evaluate_log_evidence(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
     {
         MCMC &engine = *mcmc_ptr;
         const auto pp = engine.power_posteriors(scheme, n_rungs);
@@ -1424,8 +1413,9 @@ namespace
         const std::vector<double> &avg_vec = pp[1];
         const std::vector<double> &var_vec = pp[2];
 
+        // trapezoidal rule over the thermodynamic ladder
         double output = 0;
-        for (unsigned long k = 0; k < engine.setup.n_rungs; ++k)
+        for (size_t k = 0; k + 1 < inv_tem.size(); ++k)
         {
             double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
             output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
@@ -1435,12 +1425,11 @@ namespace
         return Rcpp::List::create(
             Rcpp::_["estimate"] = output,
             Rcpp::_["scheme"] = scheme,
-            Rcpp::_["n_rungs"] = engine->setup.c_sample_size,
+            Rcpp::_["n_rungs"] = inv_tem.size() - 1,
             Rcpp::_["inv_temper"] = Rcpp::wrap(inv_tem),
             Rcpp::_["mean_log_lik"] = Rcpp::wrap(avg_vec),
             Rcpp::_["var_log_lik"] = Rcpp::wrap(var_vec));
     }
-    */
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1650,6 +1639,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
     Rcpp::function("run_simulation", &run_simulation);
+    Rcpp::function("evaluate_log_evidence", &evaluate_log_evidence);
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);

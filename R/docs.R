@@ -13,20 +13,24 @@ rd_model_out_ <- paste(
 
 rd_mdl_choice_ <- "`character(1)` Choice for the model.
 One between:
-- template name;
-- path/to/folder with implementation file `\"model.cpp\"`;
-- path/to/folder with previously compiled model;
-- `\"blank\"`: template name for blank model.
-- `NA`: fall back to `\"blank\"` (default)."
+\\describe{
+  \\item{`<template>`}{a built-in template name;}
+  \\item{`path/to/source`}{folder with implementation file `\"model.cpp\"`;}
+  \\item{`path/to/compiled`}{folder with a previously compiled model;}
+  \\item{`\"blank\"`}{template name for blank model;}
+  \\item{`NA`}{fall back to `\"blank\"` (default).}
+}"
 rd_mdl_astmpl_ <- "`logical(1)` Store dynamic library as a local template.
 If `FALSE` recompile the model at every new session (default)."
 rd_mdl_force_ <- "`logical(1)` Compile even if cached model already exists."
 rd_mdl_quiet_ <- "`logical(1)` If `TRUE` hide compilation commands."
 rd_mdl_flags_ <- "Named arguments. Additional compilation options:
-- `discr` : `logical(1)` If `TRUE` compile to discrete time.
-- `flags` : `character()` Compilation flags.
-- `libs` : `character()` Links to libraries.
-- `paths` : `character()` Include paths."
+\\describe{
+  \\item{`discr`}{`logical(1)` If `TRUE` compile to discrete time.}
+  \\item{`flags`}{`character()` Compilation flags.}
+  \\item{`libs`}{`character()` Links to libraries.}
+  \\item{`paths`}{`character()` Include paths.}
+}"
 
 ############################################################################
 ############################################################################
@@ -48,11 +52,13 @@ rd_var_max_ <- "`numeric(1)` Truncate to a maximum value."
 
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
 One between:
-- `\"uniform\"`: increments drawn from uniform;
-- `\"normal\"`: increments drawn from normal;
-- `\"lognormal\"`: log-increments drawn from lognormal (positive values only);
-- `\"sample\"`: sampled from the %s distribution;
-- `NA`: same as `\"sample\"` (default).
+\\describe{
+  \\item{`\"uniform\"`}{increments drawn from uniform;}
+  \\item{`\"normal\"`}{increments drawn from normal;}
+  \\item{`\"lognormal\"`}{log-increments drawn from lognormal (positive values only);}
+  \\item{`\"sample\"`}{sampled from the %s distribution;}
+  \\item{`NA`}{same as `\"sample\"` (default).}
+}
 "
 rd_proposal_scale_ <- "`numeric(1)` Scale of the proposal.
 If `NA`, scale is adapted during inference when `adapt > 0` (default).
@@ -161,6 +167,21 @@ One between:
 - If `FALSE` or `0`, suppresses progress display."
 rd_house_id_ <- "`character(1)` ID of the household of interest."
 
+rd_summ_cases_ <- "`data.frame`, one row per metric:
+\\describe{
+  \\item{level}{`individual` or `household`}
+  \\item{metric}{quantity counted in the row}
+  \\item{count}{absolute count}
+  \\item{percent}{percentage of the relevant total}
+}"
+rd_summ_sizes_ <- "`data.frame`, one row per metric:
+\\describe{
+  \\item{metric}{quantity reported in the row}
+  \\item{value}{household size for that metric}
+  \\item{count}{absolute count}
+  \\item{percent}{percentage of individuals}
+}"
+
 rd_add_wide_ <- "`data.frame` Household data used for analysis (wide format)."
 
 rd_simul_nrep_ <-  "`integer(1)` Number of replicates to generate.
@@ -211,8 +232,10 @@ One between `\"mean\"` and `\"median\"`."
 rd_pwr_frac_ <- "\\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5}"
 rd_evi_scheme_ <- sprintf("`character(1)` Scheme used for evidence estimation.
 One between
-- `\"power-fractions\"`: uses inverse temperatures %s (default).
-- `\"adaptive\"`: uses adaptive thermodynamic ladder.", rd_pwr_frac_)
+\\describe{
+  \\item{`\"power-fractions\"`}{uses inverse temperatures %s (default).}
+  \\item{`\"adaptive\"`}{uses adaptive thermodynamic ladder.}
+}", rd_pwr_frac_)
 rd_evi_rungs_ <- "`integer(1)` Number of rungs in thermodynamic ladder."
 rd_param_table_ <- "One between
 - `data.frame`;

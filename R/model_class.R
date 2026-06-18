@@ -468,45 +468,7 @@ HousepiModel <- R6::R6Class(
         if (is.null(apply_long)) NULL
         else function(x) apply_long(obs_proc_long(x))
       )
-    }#,
-
-    # @description
-    # Estimate the model logevidence (or marginal likelihood).
-    # It uses the method of power posteriors with different available schemes.
-    #
-    # @param scheme `r rd_evi_scheme_`
-    # @param rungs `r rd_evi_rungs_`
-    # @param steps `r rd_smpl_steps_`
-    # @param burn `r rd_smpl_burn_`
-    # @param thin `r rd_smpl_thin_`
-    # @param adapt `r rd_smpl_adapt_`
-    # @param chains `r rd_smpl_chain_`
-    # @param threads `r rd_thread_`
-    # @param progress `r rd_progress_`
-    #
-    # @return `numeric(1)`
-    # logevidence_ = function(scheme = "power-fractions", rungs = 40,
-    #                         steps = 10000, burn = 0,
-    #                         thin = 1, adapt = 0,
-    #                         chains = 1, threads = 1,
-    #                         progress = TRUE) {
-    #   # internal build function
-    #   private$build_full_(steps = steps, burn = burn,
-    #                       thin = thin, adapt = adapt,
-    #                       chains = chains, threads = threads,
-    #                       progress = progress)
-    #   # load options
-    #   scheme <- as.character(scheme)
-    #   rungs <- as.integer(rungs)
-    #   # evaluate marginal from the internal Rcpp object
-    #   output <- .engine$logevidence(private$generator_$mcmc_ptr,
-    #                                 scheme, rungs)
-    #   # reformat dataframe
-    #   mask <- c("inv_temper", "mean_log_lik", "var_log_lik")
-    #   output$detail <- as.data.frame(output[mask])
-    #   output[mask] <- NULL
-    #   output
-    # }
+    }
   ),
 
   ############################################################################
@@ -827,6 +789,34 @@ HousepiModel <- R6::R6Class(
       output
     },
 
+    #' @description
+    #' Estimate the log-evidence (marginal log-likelihood)
+    #' with the method of power posteriors.
+    #' @param scheme `r rd_evi_scheme_`
+    #' @param rungs `r rd_evi_rungs_`
+    #' @param steps `r rd_smpl_steps_`
+    #' @param burn `r rd_smpl_burn_`
+    #' @param thin `r rd_smpl_thin_`
+    #' @param adapt `r rd_smpl_adapt_`
+    #' @param chains `r rd_smpl_chain_`
+    #' @param threads `r rd_thread_`
+    #' @param progress `r rd_progress_`
+    #' @return An object of class `HousepiEvidence`.
+    evaluate_log_evidence = function(scheme = "power-fractions", rungs = 40,
+                                     steps = 1000, burn = 0,
+                                     thin = 5, adapt = 500,
+                                     chains = 4, threads = 1,
+                                     progress = TRUE) {
+      warn_logevidence_experimental_()
+      # internal build function
+      private$build_full_(steps = steps, burn = burn,
+                          thin = thin, adapt = adapt,
+                          chains = chains, threads = threads,
+                          progress = progress)
+      # estimate marginal from the internal Rcpp object
+      HousepiEvidence$new(private$generator_, scheme = scheme, rungs = rungs)
+    },
+
     ############################################################################
     ############################################################################
     ############################################################################
@@ -1139,13 +1129,13 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description Summarise statuses in loaded data.
-    #' @return`data.frame`
+    #' @return `r rd_summ_cases_`
     summarise_house_cases = function() {
       .engine$summarise_house_cases(private$generator_$mcmc_ptr)
     },
 
     #' @description Summary house sizes in loaded data.
-    #' @return `data.frame`
+    #' @return `r rd_summ_sizes_`
     summarise_house_sizes = function() {
       .engine$summarise_house_sizes(private$generator_$mcmc_ptr)
     },

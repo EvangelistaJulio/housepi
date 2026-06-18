@@ -13,7 +13,13 @@ summarize_house_sizes(hhmodel)
 \item{hhmodel}{\code{HousepiModel} object.}
 }
 \value{
-\code{data.frame}
+\code{data.frame}, one row per metric:
+\describe{
+\item{metric}{quantity reported in the row}
+\item{value}{household size for that metric}
+\item{count}{absolute count}
+\item{percent}{percentage of individuals}
+}
 }
 \description{
 Summarise number of members (size) in the loaded household data.

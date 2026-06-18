@@ -52,12 +52,12 @@ If applicable, the prior is discretized.}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
-\itemize{
-\item \code{"uniform"}: increments drawn from uniform;
-\item \code{"normal"}: increments drawn from normal;
-\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{"sample"}: sampled from the prior distribution;
-\item \code{NA}: same as \code{"sample"} (default).
+\describe{
+\item{\code{"uniform"}}{increments drawn from uniform;}
+\item{\code{"normal"}}{increments drawn from normal;}
+\item{\code{"lognormal"}}{log-increments drawn from lognormal (positive values only);}
+\item{\code{"sample"}}{sampled from the prior distribution;}
+\item{\code{NA}}{same as \code{"sample"} (default).}
 }}
 
 \item{proposal_scale}{\code{numeric(1)} Scale of the proposal.

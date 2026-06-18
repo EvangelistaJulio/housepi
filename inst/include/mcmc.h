@@ -114,11 +114,9 @@ namespace housepi
 		/// Performs the inference using Metropolis-Hastings algorithm.
 		void run_inference();
 
-		/* --FUTURE-LOG-EVIDENCE--
 		/// Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
 		/// Based on @cite friel_improving_2014
 		std::vector<std::vector<double>> power_posteriors(std::string_view scheme, unsigned long N);
-		*/
 
 	private:
 		/// Markov chain core, used for inference and power posteriors.
@@ -143,12 +141,10 @@ namespace housepi
 		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
 		LogProbaAccumulator move_augm_single_variable_(Household &house, Individual &member, size_t a);
 
-		/* --FUTURE-LOG-EVIDENCE--
 		/// Power posteriors at 0 inverse temperature.
 		void power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
 		/// Power posteriors with power fractions scheme for the thermodynamic ladder.
 		void power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
 		void power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
-		*/
 	};
 }

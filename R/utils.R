@@ -9,6 +9,7 @@
 #' @param ... Messages printed in sequence on different lines.
 #' @noRd
 stop_h <- function(...) {
+  # FIXME: let's just expose rlang
   rlang::abort(paste(unlist(list(...)), collapse = "\n"),
                call = NULL)
 }
@@ -17,6 +18,7 @@ stop_h <- function(...) {
 #' @param ... Messages printed in sequence on different lines.
 #' @noRd
 warn_h <- function(...) {
+  # FIXME: let's just expose rlang
   rlang::warn(paste(unlist(list(...)), collapse = "\n"),
               call = NULL)
 }

@@ -42,6 +42,7 @@ One row per individual index by corresponding ID.}
 \item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
 \item \href{#method-HousepiModel-run_inference}{\code{HousepiModel$run_inference()}}
 \item \href{#method-HousepiModel-run_simulation}{\code{HousepiModel$run_simulation()}}
+\item \href{#method-HousepiModel-evaluate_log_evidence}{\code{HousepiModel$evaluate_log_evidence()}}
 \item \href{#method-HousepiModel-add_data_long}{\code{HousepiModel$add_data_long()}}
 \item \href{#method-HousepiModel-add_parameter}{\code{HousepiModel$add_parameter()}}
 \item \href{#method-HousepiModel-add_parameter_list}{\code{HousepiModel$add_parameter_list()}}
@@ -63,11 +64,11 @@ One row per individual index by corresponding ID.}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
 \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
 \item \href{#method-HousepiModel-drop_parameters}{\code{HousepiModel$drop_parameters()}}
+\item \href{#method-HousepiModel-drop_group_rates}{\code{HousepiModel$drop_group_rates()}}
+\item \href{#method-HousepiModel-drop_contact_rates}{\code{HousepiModel$drop_contact_rates()}}
 \item \href{#method-HousepiModel-drop_augmented}{\code{HousepiModel$drop_augmented()}}
 \item \href{#method-HousepiModel-drop_observations}{\code{HousepiModel$drop_observations()}}
 \item \href{#method-HousepiModel-drop_house_observ}{\code{HousepiModel$drop_house_observ()}}
-\item \href{#method-HousepiModel-drop_group_rates}{\code{HousepiModel$drop_group_rates()}}
-\item \href{#method-HousepiModel-drop_contact_rates}{\code{HousepiModel$drop_contact_rates()}}
 \item \href{#method-HousepiModel-drop_infectivity_profile}{\code{HousepiModel$drop_infectivity_profile()}}
 \item \href{#method-HousepiModel-drop_all}{\code{HousepiModel$drop_all()}}
 }
@@ -96,12 +97,12 @@ used to run inference and simulation routines.
 
 \item{\code{model}}{\code{character(1)} Choice for the model.
 One between:
-\itemize{
-\item template name;
-\item path/to/folder with implementation file \code{"model.cpp"};
-\item path/to/folder with previously compiled model;
-\item \code{"blank"}: template name for blank model.
-\item \code{NA}: fall back to \code{"blank"} (default).
+\describe{
+\item{\verb{<template>}}{a built-in template name;}
+\item{\code{path/to/source}}{folder with implementation file \code{"model.cpp"};}
+\item{\code{path/to/compiled}}{folder with a previously compiled model;}
+\item{\code{"blank"}}{template name for blank model;}
+\item{\code{NA}}{fall back to \code{"blank"} (default).}
 }}
 
 \item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.
@@ -112,11 +113,11 @@ If \code{FALSE} recompile the model at every new session (default).}
 \item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
 
 \item{\code{...}}{Named arguments. Additional compilation options:
-\itemize{
-\item \code{discr} : \code{logical(1)} If \code{TRUE} compile to discrete time.
-\item \code{flags} : \code{character()} Compilation flags.
-\item \code{libs} : \code{character()} Links to libraries.
-\item \code{paths} : \code{character()} Include paths.
+\describe{
+\item{\code{discr}}{\code{logical(1)} If \code{TRUE} compile to discrete time.}
+\item{\code{flags}}{\code{character()} Compilation flags.}
+\item{\code{libs}}{\code{character()} Links to libraries.}
+\item{\code{paths}}{\code{character()} Include paths.}
 }}
 }
 \if{html}{\out{</div>}}
@@ -275,6 +276,67 @@ If \code{NA} produces a single repetition (default).}
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-evaluate_log_evidence"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-evaluate_log_evidence}{}}}
+\subsection{Method \code{evaluate_log_evidence()}}{
+Estimate the log-evidence (marginal log-likelihood)
+with the method of power posteriors.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_evidence(
+  scheme = "power-fractions",
+  rungs = 40,
+  steps = 1000,
+  burn = 0,
+  thin = 5,
+  adapt = 500,
+  chains = 4,
+  threads = 1,
+  progress = TRUE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{scheme}}{\code{character(1)} Scheme used for evidence estimation.
+One between
+\describe{
+\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).}
+\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder.}
+}}
+
+\item{\code{rungs}}{\code{integer(1)} Number of rungs in thermodynamic ladder.}
+
+\item{\code{steps}}{\code{integer(1)} Number of MCMC iterations per chain.}
+
+\item{\code{burn}}{\code{integer(1)} Number of initial iterations within \code{steps} to
+discard before storing draws.}
+
+\item{\code{thin}}{\code{integer(1)} Keep one iteration every \code{thin} after burn-in.}
+
+\item{\code{adapt}}{\code{integer(1)} Number of iterations to adapt proposal scales.
+They are run before \code{steps} and are not stored as draws.
+If no proposals are adaptable  and \code{burn = 0}, repurposed as burn-in instead.}
+
+\item{\code{chains}}{\code{integer(1)} Number of independent MCMC chains to run.}
+
+\item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
+
+\item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
+One between:
+\itemize{
+\item If \code{integer}, prints progress every \code{progress} seconds;
+\item If \code{TRUE} prints progress every second (default);
+\item If \code{FALSE} or \code{0}, suppresses progress display.
+}}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+An object of class \code{HousepiEvidence}.
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-add_data_long"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_data_long}{}}}
 \subsection{Method \code{add_data_long()}}{
@@ -295,7 +357,7 @@ Store a copy of provided individual data.
 \if{html}{\out{<a id="method-HousepiModel-add_parameter"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_parameter}{}}}
 \subsection{Method \code{add_parameter()}}{
-Add a new parameter to housepi model definitions.
+Add a single parameter.
 If the parameter already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter(
@@ -336,12 +398,12 @@ If applicable, the prior is discretized.}
 
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
-\itemize{
-\item \code{"uniform"}: increments drawn from uniform;
-\item \code{"normal"}: increments drawn from normal;
-\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{"sample"}: sampled from the prior distribution;
-\item \code{NA}: same as \code{"sample"} (default).
+\describe{
+\item{\code{"uniform"}}{increments drawn from uniform;}
+\item{\code{"normal"}}{increments drawn from normal;}
+\item{\code{"lognormal"}}{log-increments drawn from lognormal (positive values only);}
+\item{\code{"sample"}}{sampled from the prior distribution;}
+\item{\code{NA}}{same as \code{"sample"} (default).}
 }}
 
 \item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal.
@@ -356,7 +418,7 @@ Ignored when proposal is \code{"sample"}.}
 \if{html}{\out{<a id="method-HousepiModel-add_parameter_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_parameter_list}{}}}
 \subsection{Method \code{add_parameter_list()}}{
-Add parameter definitions as named arguments.
+Add parameters as named arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -376,7 +438,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_parameter_template"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_parameter_template}{}}}
 \subsection{Method \code{add_parameter_template()}}{
-Add parameter definitions from template.
+Add parameters from template.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter_template(append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -453,12 +515,12 @@ Ignored if automatic definition.}
 
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
-\itemize{
-\item \code{"uniform"}: increments drawn from uniform;
-\item \code{"normal"}: increments drawn from normal;
-\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{"sample"}: sampled from the \%s distribution;
-\item \code{NA}: same as \code{"sample"} (default).
+\describe{
+\item{\code{"uniform"}}{increments drawn from uniform;}
+\item{\code{"normal"}}{increments drawn from normal;}
+\item{\code{"lognormal"}}{log-increments drawn from lognormal (positive values only);}
+\item{\code{"sample"}}{sampled from the \%s distribution;}
+\item{\code{NA}}{same as \code{"sample"} (default).}
 }}
 
 \item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal.
@@ -473,7 +535,7 @@ Ignored when proposal is \code{"sample"}.}
 \if{html}{\out{<a id="method-HousepiModel-add_group_rate_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_group_rate_list}{}}}
 \subsection{Method \code{add_group_rate_list()}}{
-Add group rate definitions as named arguments.
+Add group rates as named arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_group_rate_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -553,12 +615,12 @@ Ignored if automatic definition.}
 
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
-\itemize{
-\item \code{"uniform"}: increments drawn from uniform;
-\item \code{"normal"}: increments drawn from normal;
-\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{"sample"}: sampled from the \%s distribution;
-\item \code{NA}: same as \code{"sample"} (default).
+\describe{
+\item{\code{"uniform"}}{increments drawn from uniform;}
+\item{\code{"normal"}}{increments drawn from normal;}
+\item{\code{"lognormal"}}{log-increments drawn from lognormal (positive values only);}
+\item{\code{"sample"}}{sampled from the \%s distribution;}
+\item{\code{NA}}{same as \code{"sample"} (default).}
 }}
 
 \item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal.
@@ -573,7 +635,7 @@ Ignored when proposal is \code{"sample"}.}
 \if{html}{\out{<a id="method-HousepiModel-add_augmented"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_augmented}{}}}
 \subsection{Method \code{add_augmented()}}{
-Add a new augmented variable/function to housepi model definitions.
+Add a single augmented definition.
 If the augmented variable already exists, it is updated.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented(
@@ -646,12 +708,12 @@ One between:
 
 \item{\code{proposal}}{\code{character(1)} Proposal used in the Monte Carlo.
 One between:
-\itemize{
-\item \code{"uniform"}: increments drawn from uniform;
-\item \code{"normal"}: increments drawn from normal;
-\item \code{"lognormal"}: log-increments drawn from lognormal (positive values only);
-\item \code{"sample"}: sampled from the \%s distribution;
-\item \code{NA}: same as \code{"sample"} (default).
+\describe{
+\item{\code{"uniform"}}{increments drawn from uniform;}
+\item{\code{"normal"}}{increments drawn from normal;}
+\item{\code{"lognormal"}}{log-increments drawn from lognormal (positive values only);}
+\item{\code{"sample"}}{sampled from the \%s distribution;}
+\item{\code{NA}}{same as \code{"sample"} (default).}
 }}
 
 \item{\code{proposal_scale}}{\code{numeric(1)} Scale of the proposal.
@@ -704,9 +766,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_observation"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_observation}{}}}
 \subsection{Method \code{add_observation()}}{
-Add an observation definition.
-A data column modelled as distributed according to other model variables.
-Its density enters the per-household likelihood.
+Add a single observation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_observation(
   name,
@@ -759,8 +819,7 @@ One between:
 \if{html}{\out{<a id="method-HousepiModel-add_observation_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_observation_list}{}}}
 \subsection{Method \code{add_observation_list()}}{
-Add observation-node definitions as named arguments.
-Each definition is \code{name = list(obs = "<distribution>", ...)}.
+Add observations as named arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_observation_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -835,7 +894,7 @@ One between:
 \if{html}{\out{<a id="method-HousepiModel-add_house_observ_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_house_observ_list}{}}}
 \subsection{Method \code{add_house_observ_list()}}{
-Add household-level observation definitions as named arguments.
+Add household-level observation as named arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_house_observ_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -855,7 +914,7 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \if{html}{\out{<a id="method-HousepiModel-add_infec_profile"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_infec_profile}{}}}
 \subsection{Method \code{add_infec_profile()}}{
-Add definition of infectivity profile.
+Add a single infectivity profile.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile(
   func,
@@ -895,7 +954,7 @@ One between:
 \if{html}{\out{<a id="method-HousepiModel-add_infec_profile_list"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-add_infec_profile_list}{}}}
 \subsection{Method \code{add_infec_profile_list()}}{
-Add infectivity profile definitions as named arguments.
+Add infectivity profiles as named arguments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile_list(..., append = FALSE)}\if{html}{\out{</div>}}
 }
@@ -921,7 +980,13 @@ Summarise statuses in loaded data.
 }
 
 \subsection{Returns}{
-\code{data.frame}
+\code{data.frame}, one row per metric:
+\describe{
+\item{level}{\code{individual} or \code{household}}
+\item{metric}{quantity counted in the row}
+\item{count}{absolute count}
+\item{percent}{percentage of the relevant total}
+}
 }
 }
 \if{html}{\out{<hr>}}
@@ -934,7 +999,13 @@ Summary house sizes in loaded data.
 }
 
 \subsection{Returns}{
-\code{data.frame}
+\code{data.frame}, one row per metric:
+\describe{
+\item{metric}{quantity reported in the row}
+\item{value}{household size for that metric}
+\item{count}{absolute count}
+\item{percent}{percentage of individuals}
+}
 }
 }
 \if{html}{\out{<hr>}}
@@ -981,36 +1052,6 @@ Drop parameter definitions.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_augmented"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_augmented}{}}}
-\subsection{Method \code{drop_augmented()}}{
-Drop augmented variable definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_augmented()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_observations"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_observations}{}}}
-\subsection{Method \code{drop_observations()}}{
-Drop observation node definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_observations()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_house_observ"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_house_observ}{}}}
-\subsection{Method \code{drop_house_observ()}}{
-Drop household-level observation definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_house_observ()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-drop_group_rates"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-drop_group_rates}{}}}
 \subsection{Method \code{drop_group_rates()}}{
@@ -1027,6 +1068,36 @@ Drop group rates definitions.
 Drop contact rate definitions.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_contact_rates()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-drop_augmented"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-drop_augmented}{}}}
+\subsection{Method \code{drop_augmented()}}{
+Drop augmented variable definitions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_augmented()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-drop_observations"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-drop_observations}{}}}
+\subsection{Method \code{drop_observations()}}{
+Drop observation definitions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_observations()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiModel-drop_house_observ"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-drop_house_observ}{}}}
+\subsection{Method \code{drop_house_observ()}}{
+Drop household-level observation definitions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_house_observ()}\if{html}{\out{</div>}}
 }
 
 }

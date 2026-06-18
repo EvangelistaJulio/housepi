@@ -18,12 +18,12 @@ new_housepi_model(
 
 \item{model}{\code{character(1)} Choice for the model.
 One between:
-\itemize{
-\item template name;
-\item path/to/folder with implementation file \code{"model.cpp"};
-\item path/to/folder with previously compiled model;
-\item \code{"blank"}: template name for blank model.
-\item \code{NA}: fall back to \code{"blank"} (default).
+\describe{
+\item{\verb{<template>}}{a built-in template name;}
+\item{\code{path/to/source}}{folder with implementation file \code{"model.cpp"};}
+\item{\code{path/to/compiled}}{folder with a previously compiled model;}
+\item{\code{"blank"}}{template name for blank model;}
+\item{\code{NA}}{fall back to \code{"blank"} (default).}
 }}
 
 \item{as_template}{\code{logical(1)} Store dynamic library as a local template.
@@ -34,11 +34,11 @@ If \code{FALSE} recompile the model at every new session (default).}
 \item{quiet}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
 
 \item{...}{Named arguments. Additional compilation options:
-\itemize{
-\item \code{discr} : \code{logical(1)} If \code{TRUE} compile to discrete time.
-\item \code{flags} : \code{character()} Compilation flags.
-\item \code{libs} : \code{character()} Links to libraries.
-\item \code{paths} : \code{character()} Include paths.
+\describe{
+\item{\code{discr}}{\code{logical(1)} If \code{TRUE} compile to discrete time.}
+\item{\code{flags}}{\code{character()} Compilation flags.}
+\item{\code{libs}}{\code{character()} Links to libraries.}
+\item{\code{paths}}{\code{character()} Include paths.}
 }}
 }
 \value{

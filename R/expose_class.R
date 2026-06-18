@@ -63,7 +63,7 @@ add_data_long <- function(hhmodel, data_long) {
 #' @description
 #' Summarise cases as given from the statuses in the loaded household data.
 #' @param hhmodel `r rd_model_in_`
-#' @return `data.frame`
+#' @return `r rd_summ_cases_`
 #' @examples
 #' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
 #' summarise_house_cases(hhmodel)
@@ -80,7 +80,7 @@ summarize_house_cases <- summarise_house_cases
 #' @description
 #' Summarise number of members (size) in the loaded household data.
 #' @param hhmodel `r rd_model_in_`
-#' @return `data.frame`
+#' @return `r rd_summ_sizes_`
 #' @examples
 #' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
 #' summarise_house_sizes(hhmodel)
@@ -768,7 +768,7 @@ run_simulation <- function(hhmodel,
 
 #' @title Estimate the log-evidence (marginal log-likelihood) of a housepi model
 #' @description
-#' Estimate the logarithm of the marginal likelihood (aka evidence).
+#' Estimate the logarithm of the evidence (aka marginal likelihood).
 #' It uses the method of power posteriors with different available schemes.
 #' @param hhmodel `r rd_model_in_`
 #' @param scheme `r rd_evi_scheme_`
@@ -782,18 +782,19 @@ run_simulation <- function(hhmodel,
 #' @param progress `r rd_progress_`
 #' @references
 #' \insertRef{friel_improving_2014}{housepi}
-#' @return `list()`
-#' @noRd
-# logevidence <- function(hhmodel,
-#                         scheme = "power-fractions", rungs = 40,
-#                         steps = 5000, burn = 0,
-#                         thin = 1, adapt = 0,
-#                         chains = 1, threads = 1,
-#                         progress = TRUE) {
-#   stopifnothousepi(hhmodel)
-#   hhmodel$logevidence(scheme = scheme, rungs = rungs,
-#                       steps = steps, burn = burn,
-#                       thin = thin, adapt = adapt,
-#                       chains = chains, threads = threads,
-#                       progress = progress)
-# }
+#' @return An object of class `HousepiEvidence`.
+#' @export
+evaluate_log_evidence <- function(hhmodel,
+                                  scheme = "power-fractions",
+                                  rungs = 40,
+                                  steps = 1000, burn = 0,
+                                  thin = 5, adapt = 500,
+                                  chains = 4, threads = 1,
+                                  progress = TRUE) {
+  stopifnothousepi(hhmodel)
+  hhmodel$evaluate_log_evidence(scheme = scheme, rungs = rungs,
+                                steps = steps, burn = burn,
+                                thin = thin, adapt = adapt,
+                                chains = chains, threads = threads,
+                                progress = progress)
+}
