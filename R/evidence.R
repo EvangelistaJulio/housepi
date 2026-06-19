@@ -15,12 +15,13 @@ warn_logevidence_experimental_ <- function() {
   )
 }
 
-#' @title Log-evidence estimate of a housepi model
+#' @title Power-posterior ladder of a housepi model
 #' @description
-#' Container for log-evidence estimate returned by [evaluate_log_evidence()].
+#' Container for the power-posterior ladder sampled by [run_power_posteriors()].
+#' Estimate the log-evidence from it with [evaluate_log_evidence()].
 #' @docType class
-HousepiEvidence <- R6::R6Class(
-  classname = "HousepiEvidence",
+HousepiPowerPosteriors <- R6::R6Class(
+  classname = "HousepiPowerPosteriors",
 
   ############################################################################
   ################################## PRIVATE #################################
@@ -28,9 +29,39 @@ HousepiEvidence <- R6::R6Class(
 
   private = list(
     name_ = NA_character_,
-    estimate_ = NA_real_,
     scheme_ = NA_character_,
-    detail_ = NULL
+    inv_temper_ = NULL,
+    mean_log_lik_ = NULL,
+    var_log_lik_ = NULL,
+    draws_ = NULL,
+
+    # Thermodynamic integration over the ladder.
+    # Using trapezoidal rule with variance-based correction.
+    # @references
+    # \insertRef{friel_improving_2014}{housepi}
+    thermodynamic_ = function() {
+      avg <- private$mean_log_lik_
+      var <- private$var_log_lik_
+      dt <- diff(private$inv_temper_, lag = 1)
+      k <- seq_along(dt)
+      sum((avg[k + 1L] + avg[k]) * dt / 2 +
+            (var[k] - var[k + 1L]) * dt^2 / 12)
+    },
+
+    # Stepping-stone estimator over the ladder.
+    # Tempered increments max-stabilised via log-mean-exp.
+    # @references
+    # \insertRef{xie_improving_2011}{housepi}
+    stepping_stone_ = function() {
+      dt <- diff(private$inv_temper_, lag = 1)
+      contrib <- vapply(seq_along(dt), function(k) {
+        log_lik <- posterior::extract_variable(private$draws_,
+                                               sprintf("log_lik[%d]", k))
+        peak <- max(log_lik)
+        dt[k] * peak + log(mean(exp(dt[k] * (log_lik - peak))))
+      }, numeric(1))
+      sum(contrib)
+    }
   ),
 
   ############################################################################
@@ -38,18 +69,18 @@ HousepiEvidence <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field estimate `numeric(1)`
-    #' Log-evidence (marginal log-likelihood) estimate.
-    estimate = function(value) {
-      if (!missing(value)) stop_read_only("estimate")
-      private$estimate_
-    },
-
     #' @field scheme `character(1)`
-    #' Power-posterior scheme used for the estimate.
+    #' Power-posterior scheme used to sample the ladder.
     scheme = function(value) {
       if (!missing(value)) stop_read_only("scheme")
       private$scheme_
+    },
+
+    #' @field draws `posterior::draws_df`
+    #'Draws log-likelihood draws under corresponding power-posterior.
+    draws = function(value) {
+      if (!missing(value)) stop_read_only("draws")
+      private$draws_
     },
 
     #' @field detail `data.frame`
@@ -61,7 +92,10 @@ HousepiEvidence <- R6::R6Class(
     #' }
     detail = function(value) {
       if (!missing(value)) stop_read_only("detail")
-      private$detail_
+      data.frame(inv_temper = private$inv_temper_,
+                 mean_log_lik = private$mean_log_lik_,
+                 var_log_lik = private$var_log_lik_,
+                 row.names = NULL)
     }
   ),
 
@@ -70,30 +104,50 @@ HousepiEvidence <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @description Estimate the log-evidence and store the result.
+    #' @description Sample the power-posterior ladder and store the draws.
     #' @param generator `HousepiGenerator` Helper class for model generation.
     #' @param scheme `r rd_evi_scheme_`
     #' @param rungs `r rd_evi_rungs_`
-    initialize = function(generator, scheme = "power-fractions", rungs = 40) {
-      output <- .engine$evaluate_log_evidence(generator$mcmc_ptr,
-                                              as.character(scheme),
-                                              as.integer(rungs))
+    #' @references
+    #' \insertRef{friel_improving_2014}{housepi}
+    initialize = function(generator, scheme = "power-fractions", rungs = 40L) {
+      ptr <- generator$mcmc_ptr
+      output <- .engine$run_power_posteriors(ptr, as.character(scheme),
+                                             as.integer(rungs))
       private$name_ <- as.character(generator$raw_name)
-      private$estimate_ <- output$estimate
-      private$scheme_ <- as.character(output$scheme)
-      mask <- c("inv_temper", "mean_log_lik", "var_log_lik")
-      private$detail_ <- as.data.frame(output[mask])
+      private$scheme_ <- as.character(scheme)
+      private$inv_temper_ <- output$inv_temper
+      private$mean_log_lik_ <- output$mean_log_lik
+      private$var_log_lik_ <- output$var_log_lik
+      # one tempered log-likelihood column `log_lik[r]` per rung
+      private$draws_ <- tag_rcpp_draws_(output$log_lik_draws,
+                                        draws_index_(.engine$export_setup(ptr)))
       invisible(self)
+    },
+
+    #' @description Estimate the log-evidence from the stored ladder.
+    #' @param method `r rd_evi_method_`
+    #' @return `numeric(1)` Log-evidence estimate.
+    #' @references
+    #' \insertRef{friel_improving_2014}{housepi}
+    #' \insertRef{xie_improving_2011}{housepi}
+    evaluate_log_evidence = function(
+      method = c("thermodynamic", "stepping-stone")
+    ) {
+      method <- match.arg(method)
+      switch(method,
+        "thermodynamic" = private$thermodynamic_(),
+        "stepping-stone" = private$stepping_stone_()
+      )
     },
 
     #' @description Override the default printing behavior.
     print = function() {
       fmt_cli_info(c(
-        sprintf("Log-evidence of model '%s': %.4g.",
-                spaced_template_choice(private$name_), private$estimate_),
-        sprintf("Power posteriors, scheme '%s': %d rungs.",
-                private$scheme_, nrow(private$detail_) - 1L),
-        "Thermodynamic ladder in `$detail`."
+        sprintf("Power posteriors draws of model '%s'",
+                spaced_template_choice(private$name_)),
+        sprintf("Scheme: '%s'. Rungs: %d.",
+                private$scheme_, length(private$inv_temper_) - 1L)
       ))
       invisible(self)
     }

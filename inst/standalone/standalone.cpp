@@ -521,7 +521,7 @@ namespace housepi
     double log_evidence(MCMC &engine, std::string_view scheme, unsigned long n_rungs)
     {
     double output = 0;
-    const auto pp = engine.power_posteriors(scheme, n_rungs);
+    const auto pp = engine.run_power_posteriors(scheme, n_rungs);
     const std::vector<double> &inv_tem = pp[0];
     const std::vector<double> &avg_vec = pp[1];
     const std::vector<double> &var_vec = pp[2];

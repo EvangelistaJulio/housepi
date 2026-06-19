@@ -1402,33 +1402,41 @@ namespace
     ////////////////////////////////////////  MCMC : log-evidence /////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Estimate log_evidence according to a given scheme and number of rungs.
-    /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
+    /// Run the power-posterior thermodynamic ladder and return the inverse-temperature
+    /// ladder together with the per-rung tempered log-likelihood draws. Evidence
+    /// estimators (thermodynamic integration, stepping-stone, ...) are computed on
+    /// the R side from these raw draws.
     /// Based on @cite friel_improving_2014
-    Rcpp::List evaluate_log_evidence(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
+    Rcpp::List run_power_posteriors(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
     {
         MCMC &engine = *mcmc_ptr;
-        const auto pp = engine.power_posteriors(scheme, n_rungs);
-        const std::vector<double> &inv_tem = pp[0];
-        const std::vector<double> &avg_vec = pp[1];
-        const std::vector<double> &var_vec = pp[2];
+        const PowerLadder ladder = engine.run_power_posteriors(scheme, n_rungs);
 
-        // trapezoidal rule over the thermodynamic ladder
-        double output = 0;
-        for (size_t k = 0; k + 1 < inv_tem.size(); ++k)
+        // draws as a data.frame: one tempered log-likelihood column `log_lik[r]`
+        // per rung (rows = draws), aligned with inv_temper. Same layout as the
+        // inference draws, so the R side tags it without any reshaping.
+        const size_t n_rung = ladder.draws.size();
+        const size_t n_draw = n_rung ? ladder.draws[0].size() : 0;
+        Rcpp::List draws(n_rung);
+        Rcpp::CharacterVector col_names(n_rung);
+        for (size_t r = 0; r < n_rung; ++r)
         {
-            double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
-            output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
-            output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
+            Rcpp::NumericVector col(n_draw);
+            for (size_t c = 0; c < n_draw; ++c)
+                col[c] = ladder.draws[r][c];
+            draws[r] = col;
+            col_names[r] = "log_lik[" + std::to_string(r + 1) + "]";
         }
+        // set names via attribute so the non-syntactic `log_lik[r]` survives
+        // the data.frame conversion (which would otherwise sanitise them)
+        Rcpp::DataFrame draws_df(draws);
+        draws_df.attr("names") = col_names;
 
         return Rcpp::List::create(
-            Rcpp::_["estimate"] = output,
-            Rcpp::_["scheme"] = scheme,
-            Rcpp::_["n_rungs"] = inv_tem.size() - 1,
-            Rcpp::_["inv_temper"] = Rcpp::wrap(inv_tem),
-            Rcpp::_["mean_log_lik"] = Rcpp::wrap(avg_vec),
-            Rcpp::_["var_log_lik"] = Rcpp::wrap(var_vec));
+            Rcpp::_["inv_temper"] = Rcpp::wrap(ladder.inv_temper),
+            Rcpp::_["mean_log_lik"] = Rcpp::wrap(ladder.mean_log_lik),
+            Rcpp::_["var_log_lik"] = Rcpp::wrap(ladder.var_log_lik),
+            Rcpp::_["log_lik_draws"] = draws_df);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1639,7 +1647,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
     Rcpp::function("run_simulation", &run_simulation);
-    Rcpp::function("evaluate_log_evidence", &evaluate_log_evidence);
+    Rcpp::function("run_power_posteriors", &run_power_posteriors);
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);

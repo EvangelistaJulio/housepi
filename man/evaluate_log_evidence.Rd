@@ -2,11 +2,19 @@
 % Please edit documentation in R/expose_class.R
 \name{evaluate_log_evidence}
 \alias{evaluate_log_evidence}
-\title{Estimate the log-evidence (marginal log-likelihood) of a housepi model}
+\alias{evaluate_log_evidence.default}
+\alias{evaluate_log_evidence.HousepiModel}
+\alias{evaluate_log_evidence.HousepiPowerPosteriors}
+\title{Estimate the log-evidence of a housepi model}
 \usage{
-evaluate_log_evidence(
-  hhmodel,
-  scheme = "power-fractions",
+evaluate_log_evidence(x, ...)
+
+\method{evaluate_log_evidence}{default}(x, ...)
+
+\method{evaluate_log_evidence}{HousepiModel}(
+  x,
+  method = c("thermodynamic", "stepping-stone"),
+  scheme = c("power-fractions", "adaptive"),
   rungs = 40,
   steps = 1000,
   burn = 0,
@@ -14,11 +22,23 @@ evaluate_log_evidence(
   adapt = 500,
   chains = 4,
   threads = 1,
-  progress = TRUE
+  progress = TRUE,
+  ...
 )
+
+\method{evaluate_log_evidence}{HousepiPowerPosteriors}(x, method = c("thermodynamic", "stepping-stone"), ...)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{x}{A \code{HousepiModel} or a \code{HousepiPowerPosteriors} object.}
+
+\item{...}{Further arguments passed to methods.}
+
+\item{method}{\code{character(1)} Estimator computed from the sampled ladder.
+One between
+\describe{
+\item{\code{"thermodynamic"}}{thermodynamic integration (default).}
+\item{\code{"stepping-stone"}}{stepping-stone sampling.}
+}}
 
 \item{scheme}{\code{character(1)} Scheme used for evidence estimation.
 One between
@@ -53,12 +73,16 @@ One between:
 }}
 }
 \value{
-An object of class \code{HousepiEvidence}.
+\code{numeric(1)}. The log-evidence estimate.
 }
 \description{
-Estimate the logarithm of the evidence (aka marginal likelihood).
-It uses the method of power posteriors with different available schemes.
+Estimate the logarithm of the evidence (aka marginal likelihood) with the
+method of power posteriors. Called on a \code{HousepiModel} it samples the ladder
+and estimates in one shot; called on a \code{HousepiPowerPosteriors} (sampled
+beforehand by \code{\link[=run_power_posteriors]{run_power_posteriors()}}) it only re-estimates, so several
+estimators can be compared cheaply on the same ladder.
 }
 \references{
 \insertRef{friel_improving_2014}{housepi}
+\insertRef{xie_improving_2011}{housepi}
 }

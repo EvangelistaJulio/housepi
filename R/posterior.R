@@ -72,6 +72,27 @@ empty_draws_ <- function() {
   tag_as_housepi_draws(posterior::as_draws_df(data.frame()))
 }
 
+# Per-draw chain and iteration index implied by an MCMC `setup` list.
+draws_index_ <- function(setup) {
+  chain_size <- setup_sample_size_(
+    steps = setup[["steps"]], burn = setup[["burn"]],
+    thin = setup[["thin"]], chains = setup[["chains"]]
+  )$chain
+  list(chain = rep(seq_len(setup[["chains"]]), each = chain_size),
+       iteration = setup[["burn"]] + seq_len(chain_size) * setup[["thin"]])
+}
+
+# Tag an Rcpp draws data.frame (rows = draws, cols = variables) as a housepi
+# `posterior::draws_df`, attaching the `.chain`/`.iteration`/`.draw` bookkeeping
+# from a `draws_index_()` result.
+tag_rcpp_draws_ <- function(df, index) {
+  if (length(df) == 0) return(NULL)
+  df$.chain <- index$chain
+  df$.iteration <- rep(index$iteration, times = length(unique(index$chain)))
+  df$.draw <- seq_len(nrow(df))
+  tag_as_housepi_draws(posterior::as_draws_df(df))
+}
+
 #' @title Summarise housepi posterior draws using the global credible interval
 #' @description
 #' S3 method on [posterior::summarise_draws()] for objects tagged
@@ -180,23 +201,15 @@ HousepiPosteriorDraws <- R6::R6Class(
     augm_draws_ = NULL,
     augm_prior_draws_ = NULL,
     point_log_lik_draws_ = NULL,
-    chain_tags_ = NULL,
-    iter_names_ = NULL,
+    draws_index_ = NULL,
 
     ############################################################################
     ############################################################################
     ############################################################################
 
-    # Store auxiliary tags from inference setup.
+    # Store the per-draw chain/iteration index from the inference setup.
     pre_process_setup_ = function(setup) {
-      steps <- setup[["steps"]]
-      burn <- setup[["burn"]]
-      thin <- setup[["thin"]]
-      chains <- setup[["chains"]]
-      chain_size <- setup_sample_size_(steps = steps, burn = burn,
-                                       thin = thin, chains = chains)$chain
-      private$chain_tags_ <- rep(seq_len(chains), each = chain_size)
-      private$iter_names_ <- burn + seq_len(chain_size) * thin
+      private$draws_index_ <- draws_index_(setup)
       invisible(self)
     },
 
@@ -204,12 +217,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     # @param df `data.frame`. Draws exported from Rcpp core.
     # @return `posterior::draws_df`
     to_posterior_draws_ = function(df) {
-      if (length(df) == 0) return(NULL)
-      n_chains <- length(unique(private$chain_tags_))
-      df$.chain <- private$chain_tags_
-      df$.iteration <- rep(private$iter_names_, times = n_chains)
-      df$.draw <- seq_len(nrow(df))
-      tag_as_housepi_draws(posterior::as_draws_df(df))
+      tag_rcpp_draws_(df, private$draws_index_)
     },
 
     # Stan-style post-inference diagnostics.
@@ -394,8 +402,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       )
 
       # free auxiliary memory
-      private$chain_tags_ <- NULL
-      private$iter_names_ <- NULL
+      private$draws_index_ <- NULL
 
       # Stan-style automatic diagnostics
       private$check_diagnostics_()

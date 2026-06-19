@@ -237,6 +237,12 @@ One between
   \\item{`\"adaptive\"`}{uses adaptive thermodynamic ladder.}
 }", rd_pwr_frac_)
 rd_evi_rungs_ <- "`integer(1)` Number of rungs in thermodynamic ladder."
+rd_evi_method_ <- "`character(1)` Estimator computed from the sampled ladder.
+One between
+\\describe{
+  \\item{`\"thermodynamic\"`}{thermodynamic integration (default).}
+  \\item{`\"stepping-stone\"`}{stepping-stone sampling.}
+}"
 rd_param_table_ <- "One between
 - `data.frame`;
 - `posterior::draws`;

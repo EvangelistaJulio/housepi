@@ -42,7 +42,7 @@ One row per individual index by corresponding ID.}
 \item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
 \item \href{#method-HousepiModel-run_inference}{\code{HousepiModel$run_inference()}}
 \item \href{#method-HousepiModel-run_simulation}{\code{HousepiModel$run_simulation()}}
-\item \href{#method-HousepiModel-evaluate_log_evidence}{\code{HousepiModel$evaluate_log_evidence()}}
+\item \href{#method-HousepiModel-run_power_posteriors}{\code{HousepiModel$run_power_posteriors()}}
 \item \href{#method-HousepiModel-add_data_long}{\code{HousepiModel$add_data_long()}}
 \item \href{#method-HousepiModel-add_parameter}{\code{HousepiModel$add_parameter()}}
 \item \href{#method-HousepiModel-add_parameter_list}{\code{HousepiModel$add_parameter_list()}}
@@ -276,14 +276,13 @@ If \code{NA} produces a single repetition (default).}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-evaluate_log_evidence"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-evaluate_log_evidence}{}}}
-\subsection{Method \code{evaluate_log_evidence()}}{
-Estimate the log-evidence (marginal log-likelihood)
-with the method of power posteriors.
+\if{html}{\out{<a id="method-HousepiModel-run_power_posteriors"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-run_power_posteriors}{}}}
+\subsection{Method \code{run_power_posteriors()}}{
+Sample the power-posterior ladder used for log-evidence estimation.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$evaluate_log_evidence(
-  scheme = "power-fractions",
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_power_posteriors(
+  scheme = c("power-fractions", "adaptive"),
   rungs = 40,
   steps = 1000,
   burn = 0,
@@ -333,7 +332,7 @@ One between:
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-An object of class \code{HousepiEvidence}.
+An object of class \code{HousepiPowerPosteriors}.
 }
 }
 \if{html}{\out{<hr>}}

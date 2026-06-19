@@ -296,8 +296,8 @@ HousepiPrediction <- R6::R6Class(
                           ...,
                           measures_long = NULL,
                           thin_ess = TRUE,
-                          max_nrep = 200,
-                          threads = 1,
+                          max_nrep = 200L,
+                          threads = 1L,
                           progress = TRUE,
                           point_estimate = "mean") {
       if (!is.na(max_nrep) && (!is.numeric(max_nrep) || max_nrep < 1)) stop_h(
@@ -597,9 +597,9 @@ PredictedCasesBySize <- R6::R6Class(
                           param_table,
                           obs_process = NULL,
                           thin_ess = TRUE,
-                          max_nrep = 200,
+                          max_nrep = 200L,
                           point_estimate = "mean",
-                          threads = 1,
+                          threads = 1L,
                           progress = TRUE) {
       # ininitialize parent class HousepiPrediction
       super$initialize(hhmodel = hhmodel, param_table = param_table,
@@ -670,9 +670,9 @@ predicted_measures <- function(hhmodel,
                                obs_process = NULL,
                                obs_process_long = NULL,
                                thin_ess = TRUE,
-                               max_nrep = 200,
+                               max_nrep = 200L,
                                point_estimate = "mean",
-                               threads = 1,
+                               threads = 1L,
                                progress = TRUE) {
   stopifnothousepi(hhmodel)
   HousepiPrediction$new(hhmodel$copy(),
@@ -708,9 +708,9 @@ predicted_cases_by_house_size <- function(hhmodel,
                                           param_table,
                                           obs_process = NULL,
                                           thin_ess = TRUE,
-                                          max_nrep = 200,
+                                          max_nrep = 200L,
                                           point_estimate = "mean",
-                                          threads = 1,
+                                          threads = 1L,
                                           progress = TRUE) {
   stopifnothousepi(hhmodel)
   PredictedCasesBySize$new(hhmodel$copy(),

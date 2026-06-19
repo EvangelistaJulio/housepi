@@ -967,15 +967,34 @@ namespace housepi
         }
     }
 
-    std::vector<std::vector<double>> MCMC::power_posteriors(std::string_view scheme, unsigned long n_rungs)
+    void PowerLadder::reserve(size_t n)
     {
-        // check scheme choice
-        const std::vector<std::string> options = {"adaptive", "power-fractions"};
-        if (!contains(options, scheme))
-            throw std::invalid_argument(
-                "Invoked invalid power posterior scheme '" + std::string(scheme) + "'." +
-                str::find_closest(scheme, options));
+        inv_temper.reserve(n);
+        mean_log_lik.reserve(n);
+        var_log_lik.reserve(n);
+        draws.reserve(n);
+    }
 
+    void PowerLadder::push(double inv_t, std::vector<double> row)
+    {
+        const auto [avg, var] = compute_stats(row);
+        inv_temper.push_back(inv_t);
+        mean_log_lik.push_back(avg);
+        var_log_lik.push_back(var);
+        draws.push_back(std::move(row));
+    }
+
+    void PowerLadder::insert(size_t i, double inv_t, std::vector<double> row)
+    {
+        const auto [avg, var] = compute_stats(row);
+        inv_temper.insert(inv_temper.begin() + i, inv_t);
+        mean_log_lik.insert(mean_log_lik.begin() + i, avg);
+        var_log_lik.insert(var_log_lik.begin() + i, var);
+        draws.insert(draws.begin() + i, std::move(row));
+    }
+
+    PowerLadder MCMC::run_power_posteriors(std::string_view scheme, unsigned long n_rungs)
+    {
         // check number of rungs for the thermodynamic ladder
         if (n_rungs < 2)
             throw std::invalid_argument(
@@ -986,17 +1005,16 @@ namespace housepi
         init_for_evaluation_();           // initialize for evaluation
         setup.prog_open_for_power_post(); // print progress bar
 
-        // thermodynamic ladder estimates
-        std::vector<double> itm = {}; // inverse temperature
-        std::vector<double> avg = {}; // mean log-likelihood
-        std::vector<double> var = {}; // variance log-likelihood
+        // thermodynamic ladder estimates (final size known: n_rungs + 1)
+        PowerLadder ladder;
+        ladder.reserve(n_rungs + 1);
 
         // run power posteriors
-        power_post_zero_(itm, avg, var);
+        power_post_zero_(ladder);
         if (scheme == "adaptive")
-            power_post_adaptive_(itm, avg, var);
+            power_post_adaptive_(ladder);
         else if (scheme == "power-fractions")
-            power_post_fractions_(itm, avg, var);
+            power_post_fractions_(ladder);
 
         setup.prog_close(); // close progress bar
 
@@ -1006,10 +1024,10 @@ namespace housepi
         setup.rung_id = 0;
         setup.n_rungs = 0;
 
-        return {itm, avg, var};
+        return ladder;
     }
 
-    void MCMC::power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
+    void MCMC::power_post_zero_(PowerLadder &ladder)
     {
         // UPDATE: should I use previous inference for itm = 1 if available?
         // UPDATE: always under-estimate time if starting from itm = 0
@@ -1017,25 +1035,17 @@ namespace housepi
         setup.rung_id = 0;
         setup.inv_T = 0.0;
         run_monte_carlo_();
-        const auto [stats_avg, stats_var] = compute_stats(posterior.tot_log_lik[0]);
-
-        itm.push_back(setup.inv_T);
-        avg.push_back(stats_avg);
-        var.push_back(stats_var);
+        ladder.push(setup.inv_T, posterior.tot_log_lik[0]);
     }
 
-    void MCMC::power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
+    void MCMC::power_post_adaptive_(PowerLadder &ladder)
     {
         // Inverse Temperature 1
         {
             setup.rung_id = 1;
             setup.inv_T = 1.0;
             run_monte_carlo_();
-            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_log_lik[0]);
-
-            itm.push_back(setup.inv_T);
-            avg.push_back(stats_avg);
-            var.push_back(stats_var);
+            ladder.push(setup.inv_T, posterior.tot_log_lik[0]);
         }
 
         // Inverse Temperatures (0, 1)
@@ -1044,6 +1054,10 @@ namespace housepi
         while (setup.rung_id < setup.n_rungs)
         {
             ++setup.rung_id;
+
+            const auto &itm = ladder.inv_temper;
+            const auto &avg = ladder.mean_log_lik;
+            const auto &var = ladder.var_log_lik;
 
             // adaptive choice of inverse temperature
             // intersection between tangents
@@ -1055,33 +1069,27 @@ namespace housepi
             // power posterior sampling
             setup.inv_T = new_t;
             run_monte_carlo_();
-            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_log_lik[0]);
+            const double stats_avg = compute_stats(posterior.tot_log_lik[0]).first;
 
             // find larger rectangular discretization error
             is_right = (itm[k + 1] - setup.inv_T) * (avg[k + 1] - stats_avg) > (new_t - itm[k]) * (stats_avg - avg[k]);
 
-            // insert in-between for all lists
-            itm.insert(itm.begin() + k + 1, setup.inv_T);
-            avg.insert(avg.begin() + k + 1, stats_avg);
-            var.insert(var.begin() + k + 1, stats_var);
+            // insert in-between, keeping all ladder vectors row-aligned
+            ladder.insert(k + 1, setup.inv_T, posterior.tot_log_lik[0]);
 
             // if right interval is chosen, index points to inserted as lower bound
             k += (is_right);
         }
     }
 
-    void MCMC::power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var)
+    void MCMC::power_post_fractions_(PowerLadder &ladder)
     {
         for (setup.rung_id = 1; setup.rung_id <= setup.n_rungs; ++setup.rung_id)
         {
             // inverse tempearture = (rung_id / #rungs)^5
             setup.inv_T = std::pow(static_cast<double>(setup.rung_id) / static_cast<double>(setup.n_rungs), 5.);
             run_monte_carlo_();
-
-            const auto [stats_avg, stats_var] = compute_stats(posterior.tot_log_lik[0]);
-            itm.push_back(setup.inv_T);
-            avg.push_back(stats_avg);
-            var.push_back(stats_var);
+            ladder.push(setup.inv_T, posterior.tot_log_lik[0]);
         }
     }
 }

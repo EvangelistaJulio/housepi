@@ -271,8 +271,8 @@ HousepiModel <- R6::R6Class(
     # @description
     # Full model build. Refresh runtime setup, enforce hard validation,
     # then push the final state to the engine.
-    build_full_ = function(steps = 0, adapt = 0, burn = 0,
-                           thin = 1, chains = 1, threads = 1,
+    build_full_ = function(steps = 0L, adapt = 0L, burn = 0L,
+                           thin = 1L, chains = 1L, threads = 1L,
                            id_draws = NULL, progress = FALSE,
                            simulating = FALSE) {
       # if no default columns on a blank model, assume debugging mode
@@ -444,7 +444,7 @@ HousepiModel <- R6::R6Class(
                             obs_proc_long = NULL,
                             thin_ess = TRUE,
                             max_nrep = NA_integer_,
-                            threads = 1,
+                            threads = 1L,
                             progress = TRUE) {
       param_table <- private$helper_read_param_table_(param_table,
                                                       thin_ess = thin_ess)
@@ -732,9 +732,9 @@ HousepiModel <- R6::R6Class(
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param progress `r rd_progress_`
     #' @return An object of class `HousepiPosteriorDraws`.
-    run_inference = function(steps = 1000, burn = 0,
-                             thin = 5, adapt = 500,
-                             chains = 4, threads = 1,
+    run_inference = function(steps = 1000L, burn = 0L,
+                             thin = 5L, adapt = 500L,
+                             chains = 4L, threads = 1L,
                              id_draws = NULL,
                              progress = TRUE) {
       private$assert_posterior_memory_(steps = steps, burn = burn,
@@ -790,8 +790,7 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Estimate the log-evidence (marginal log-likelihood)
-    #' with the method of power posteriors.
+    #' Sample the power-posterior ladder. Used for log-evidence estimation.
     #' @param scheme `r rd_evi_scheme_`
     #' @param rungs `r rd_evi_rungs_`
     #' @param steps `r rd_smpl_steps_`
@@ -801,20 +800,23 @@ HousepiModel <- R6::R6Class(
     #' @param chains `r rd_smpl_chain_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
-    #' @return An object of class `HousepiEvidence`.
-    evaluate_log_evidence = function(scheme = "power-fractions", rungs = 40,
-                                     steps = 1000, burn = 0,
-                                     thin = 5, adapt = 500,
-                                     chains = 4, threads = 1,
-                                     progress = TRUE) {
+    #' @return An object of class `HousepiPowerPosteriors`.
+    run_power_posteriors = function(scheme = c("power-fractions", "adaptive"),
+                                    rungs = 40L,
+                                    steps = 1000L, burn = 0L,
+                                    thin = 5L, adapt = 500L,
+                                    chains = 4L, threads = 1L,
+                                    progress = TRUE) {
       warn_logevidence_experimental_()
+      scheme <- match.arg(scheme)
       # internal build function
       private$build_full_(steps = steps, burn = burn,
                           thin = thin, adapt = adapt,
                           chains = chains, threads = threads,
                           progress = progress)
-      # estimate marginal from the internal Rcpp object
-      HousepiEvidence$new(private$generator_, scheme = scheme, rungs = rungs)
+      # sample the ladder from the internal Rcpp object
+      HousepiPowerPosteriors$new(private$generator_, scheme = scheme,
+                                 rungs = rungs)
     },
 
     ############################################################################

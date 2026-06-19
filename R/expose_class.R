@@ -724,9 +724,9 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #'   posterior::summarize_draws()
 #' @export
 run_inference <- function(hhmodel,
-                          steps = 1000, burn = 0,
-                          thin = 5, adapt = 500,
-                          chains = 4, threads = 1,
+                          steps = 1000L, burn = 0L,
+                          thin = 5L, adapt = 500L,
+                          chains = 4L, threads = 1L,
                           id_draws = NULL,
                           progress = TRUE) {
   stopifnothousepi(hhmodel)
@@ -766,10 +766,10 @@ run_simulation <- function(hhmodel,
                          nrep = nrep)
 }
 
-#' @title Estimate the log-evidence (marginal log-likelihood) of a housepi model
+#' @title Sample the power-posterior ladder of a housepi model
 #' @description
-#' Estimate the logarithm of the evidence (aka marginal likelihood).
-#' It uses the method of power posteriors with different available schemes.
+#' Sample the power-posterior ladder used to estimate the log-evidence.
+#' See [evaluate_log_evidence()] to estimate the log-evidence.
 #' @param hhmodel `r rd_model_in_`
 #' @param scheme `r rd_evi_scheme_`
 #' @param rungs `r rd_evi_rungs_`
@@ -780,21 +780,80 @@ run_simulation <- function(hhmodel,
 #' @param chains `r rd_smpl_chain_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
+#' @return An object of class `HousepiPowerPosteriors`.
 #' @references
 #' \insertRef{friel_improving_2014}{housepi}
-#' @return An object of class `HousepiEvidence`.
 #' @export
-evaluate_log_evidence <- function(hhmodel,
-                                  scheme = "power-fractions",
-                                  rungs = 40,
-                                  steps = 1000, burn = 0,
-                                  thin = 5, adapt = 500,
-                                  chains = 4, threads = 1,
-                                  progress = TRUE) {
+run_power_posteriors <- function(hhmodel,
+                                 scheme = c("power-fractions", "adaptive"),
+                                 rungs = 40L,
+                                 steps = 1000L, burn = 0L,
+                                 thin = 5L, adapt = 500L,
+                                 chains = 4L, threads = 1L,
+                                 progress = TRUE) {
   stopifnothousepi(hhmodel)
-  hhmodel$evaluate_log_evidence(scheme = scheme, rungs = rungs,
-                                steps = steps, burn = burn,
-                                thin = thin, adapt = adapt,
-                                chains = chains, threads = threads,
-                                progress = progress)
+  hhmodel$run_power_posteriors(scheme = scheme, rungs = rungs,
+                               steps = steps, burn = burn,
+                               thin = thin, adapt = adapt,
+                               chains = chains, threads = threads,
+                               progress = progress)
+}
+
+#' @title Estimate the log-evidence of a housepi model
+#' @description
+#' Estimate the logarithm of the evidence (aka marginal likelihood).
+#' It requires a power posteriors ladder (see [run_power_posteriors()]);
+#' otherwise it samples it from the model.
+#' @param x A `HousepiModel` or a `HousepiPowerPosteriors` object.
+#' @param method `r rd_evi_method_`
+#' @param scheme `r rd_evi_scheme_`
+#' @param rungs `r rd_evi_rungs_`
+#' @param steps `r rd_smpl_steps_`
+#' @param burn `r rd_smpl_burn_`
+#' @param thin `r rd_smpl_thin_`
+#' @param adapt `r rd_smpl_adapt_`
+#' @param chains `r rd_smpl_chain_`
+#' @param threads `r rd_thread_`
+#' @param progress `r rd_progress_`
+#' @param ... Further arguments passed to methods.
+#' @return `numeric(1)`. The log-evidence estimate.
+#' @references
+#' \insertRef{friel_improving_2014}{housepi}
+#' \insertRef{xie_improving_2011}{housepi}
+#' @export
+evaluate_log_evidence <- function(x, ...) {
+  UseMethod("evaluate_log_evidence")
+}
+
+#' @rdname evaluate_log_evidence
+#' @export
+evaluate_log_evidence.default <- function(x, ...) {
+  stop_h(
+    "'x' must be a 'HousepiModel' or a 'HousepiPowerPosteriors'.",
+    paste("Create a model with new_housepi_model(),",
+          "or sample a ladder with run_power_posteriors().")
+  )
+}
+
+#' @rdname evaluate_log_evidence
+#' @export
+evaluate_log_evidence.HousepiModel <- function(
+    x, method = c("thermodynamic", "stepping-stone"),
+    scheme = c("power-fractions", "adaptive"), rungs = 40L,
+    steps = 1000L, burn = 0L, thin = 5L, adapt = 500L,
+    chains = 4L, threads = 1L, progress = TRUE, ...) {
+  x$run_power_posteriors(
+    scheme = scheme, rungs = rungs,
+    steps = steps, burn = burn,
+    thin = thin, adapt = adapt,
+    chains = chains, threads = threads,
+    progress = progress
+  )$evaluate_log_evidence(method = method)
+}
+
+#' @rdname evaluate_log_evidence
+#' @export
+evaluate_log_evidence.HousepiPowerPosteriors <- function(
+    x, method = c("thermodynamic", "stepping-stone"), ...) {
+  x$evaluate_log_evidence(method = method)
 }

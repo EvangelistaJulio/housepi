@@ -36,10 +36,22 @@ namespace housepi
 	class Individual;
 	class Household;
 
+	/// Output of a power-posterior ladder run.
+	struct PowerLadder
+	{
+		std::vector<double> inv_temper;			/// inverse-temperature ladder
+		std::vector<double> mean_log_lik;		/// per-rung mean log-likelihood
+		std::vector<double> var_log_lik;		/// per-rung variance log-likelihood
+		std::vector<std::vector<double>> draws; /// total log-likelihood draw
+
+		void reserve(size_t n);							  /// reserve all vectors
+		void push(double inv_t, std::vector<double> row); /// compute stats + append
+		void insert(size_t i, double inv_t, std::vector<double> row);
+	};
+
 	class MCMC : public MCMCBase
 	{
 	public:
-		/// UPDATE: can I drop pointer and just transition to template?
 		std::unique_ptr<ModelBase> model;
 
 		///////////////////////////
@@ -114,9 +126,9 @@ namespace housepi
 		/// Performs the inference using Metropolis-Hastings algorithm.
 		void run_inference();
 
-		/// Trapezoidal rule to estimate logarithm of marginal likelihood (evidence) with power posteriors.
+		/// Run power-posterior thermodynamic ladder.
 		/// Based on @cite friel_improving_2014
-		std::vector<std::vector<double>> power_posteriors(std::string_view scheme, unsigned long N);
+		PowerLadder run_power_posteriors(std::string_view scheme, unsigned long N);
 
 	private:
 		/// Markov chain core, used for inference and power posteriors.
@@ -142,9 +154,9 @@ namespace housepi
 		LogProbaAccumulator move_augm_single_variable_(Household &house, Individual &member, size_t a);
 
 		/// Power posteriors at 0 inverse temperature.
-		void power_post_zero_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
+		void power_post_zero_(PowerLadder &ladder);
 		/// Power posteriors with power fractions scheme for the thermodynamic ladder.
-		void power_post_fractions_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
-		void power_post_adaptive_(std::vector<double> &itm, std::vector<double> &avg, std::vector<double> &var);
+		void power_post_fractions_(PowerLadder &ladder);
+		void power_post_adaptive_(PowerLadder &ladder);
 	};
 }

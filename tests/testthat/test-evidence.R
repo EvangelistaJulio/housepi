@@ -13,14 +13,26 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
     add_observation("x", obs = "exponential", rate = rate)
 
   result <- hhmodel |>
-    evaluate_log_evidence(progress = FALSE) |>
+    run_power_posteriors(progress = FALSE) |>
     suppressWarnings() # temporary warning
 
-  expect_equal(result$estimate, log(evidence), tolerance = 0.02)
-  expect_s3_class(result, "HousepiEvidence")
+  expect_s3_class(result, "HousepiPowerPosteriors")
   expect_named(result$detail, c("inv_temper", "mean_log_lik", "var_log_lik"))
-  expect_error(result$estimate <- 0, "read only")
 
-  # print is a compact summary, not the per-node ladder
-  expect_message(print(result), "Log-evidence")
+  # one ladder, several estimators computed on demand
+  expect_equal(evaluate_log_evidence(result, "thermodynamic"), log(evidence),
+               tolerance = 0.02)
+  expect_equal(evaluate_log_evidence(result, "stepping-stone"), log(evidence),
+               tolerance = 0.02)
+
+  # the one-shot model path returns the same value
+  hhmodel |>
+    evaluate_log_evidence(method = "thermodynamic", progress = FALSE) |>
+    suppressWarnings() |>
+    expect_equal(log(evidence), tolerance = 0.02)
+
+  # raw per-rung draws are posterior draws: one variable per rung
+  expect_true(posterior::is_draws(result$draws))
+  expect_equal(posterior::nvariables(result$draws), nrow(result$detail))
+  expect_error(result$draws <- 0, "read only")
 })
