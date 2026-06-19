@@ -80,7 +80,7 @@ namespace housepi
 
     struct InfecProfile
     {
-        friend struct Augmented;
+        friend struct Augmented; /// process augmented infectivity profile
 
     public:
         std::unique_ptr<Distribution> generic; /// generic profile

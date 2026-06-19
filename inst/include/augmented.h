@@ -104,8 +104,8 @@ namespace housepi
         //////////////////////
 
         /// Access the augmented variable of given key for a member.
-        Variable &at(size_t a, const Individual &member) noexcept { return varia[member.index_].vec[a]; }
-        const Variable &at(size_t a, const Individual &member) const noexcept { return varia[member.index_].vec[a]; }
+        Variable &at(size_t a, const Individual &member) noexcept { return varia[Index::of(member)].vec[a]; }
+        const Variable &at(size_t a, const Individual &member) const noexcept { return varia[Index::of(member)].vec[a]; }
 
         const std::vector<size_t> &list_sample(const Individual &member) const;
         const std::vector<size_t> &list_adaptive(const Individual &member) const;
@@ -147,7 +147,7 @@ namespace housepi
         /// If moving augmented 'a' for this member parameterizes any obs node.
         bool affects_obs(const Individual &member, size_t a) const
         {
-            return !status_blocks_[varia[member.index_].idx].obs_depen[a].empty();
+            return !status_blocks_[varia[Index::of(member)].idx].obs_depen[a].empty();
         }
 
     private:

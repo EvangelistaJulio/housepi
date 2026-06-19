@@ -485,14 +485,14 @@ namespace housepi
 
             if (augm.is_any_sample())
                 for (size_t i : house.infected_hhindexes())
-                    if (augm.varia[house.member(i).index_].log_prior.is_inf())
+                    if (augm.varia[Index::of(house.member(i))].log_prior.is_inf())
                         throw std::runtime_error(
                             "Initial augmented log-prior returned infinity for " +
                             house.member(i).err_name() + ".");
 
             if (augm.is_any_obs())
                 for (size_t i : house.infected_hhindexes())
-                    if (augm.varia[house.member(i).index_].log_obs.is_inf())
+                    if (augm.varia[Index::of(house.member(i))].log_obs.is_inf())
                         throw std::runtime_error(
                             "Initial observation log-likelihood returned infinity for " +
                             house.member(i).err_name() + ".");
@@ -520,10 +520,10 @@ namespace housepi
             // recover from commit_total_log_posterior_
             if (with_augm_prior)
                 for (size_t i : house.infected_hhindexes())
-                    augm.varia[house.member(i).index_].log_prior.recover();
+                    augm.varia[Index::of(house.member(i))].log_prior.recover();
             if (with_obs)
                 for (size_t i : house.infected_hhindexes())
-                    augm.varia[house.member(i).index_].log_obs.recover();
+                    augm.varia[Index::of(house.member(i))].log_obs.recover();
         }
 
         if (is_cache_depen)
@@ -554,7 +554,7 @@ namespace housepi
     {
         double obs = 0.;
         for (size_t i : house.infected_hhindexes())
-            obs += augm.varia[house.member(i).index_].log_obs.value();
+            obs += augm.varia[Index::of(house.member(i))].log_obs.value();
         return obs;
     }
 
@@ -926,9 +926,9 @@ namespace housepi
 
             // recover log-proba values
             if (augm.affects_obs(member, a))
-                augm.varia[member.index_].log_obs.recover();
+                augm.varia[Index::of(member)].log_obs.recover();
             data_wide().transm_log_lik(house).recover();
-            augm.varia[member.index_].log_prior.recover();
+            augm.varia[Index::of(member)].log_prior.recover();
 
             // recover cached values
             data_wide().recover_member_old_cached(house, i);

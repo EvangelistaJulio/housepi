@@ -43,7 +43,7 @@ namespace housepi
                 return 0.;
             if (house_contact_rates_.empty())
                 return 1.;
-            return house_contact_rates_[house.index_].mtx[from][to].value();
+            return house_contact_rates_[Index::of(house)].mtx[from][to].value();
         }
 
         /// Contact rate intra member partition (self-contact).
@@ -51,7 +51,7 @@ namespace housepi
         {
             if (house_contact_rates_.empty())
                 return 1.;
-            return house_contact_rates_[house.index_].mtx[i][i].value();
+            return house_contact_rates_[Index::of(house)].mtx[i][i].value();
         }
 
         /// Whether household members i and j have matching contact rates across all members.
@@ -59,7 +59,7 @@ namespace housepi
         {
             if (house_contact_rates_.empty())
                 return true;
-            const auto &mtx = house_contact_rates_[house.index_].mtx;
+            const auto &mtx = house_contact_rates_[Index::of(house)].mtx;
             for (size_t k = 0; k < house.size(); ++k)
             {
                 if (k == j || k == i)

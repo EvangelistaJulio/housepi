@@ -938,7 +938,7 @@ namespace housepi
                     it = unique_defin_map.emplace(these_rates, unique_groups_.size()).first;
                     helper_init_unique_rate_(param, member, these_rates);
                 }
-                group_index_[member.index_] = it->second;
+                group_index_[Index::of(member)] = it->second;
             }
     }
 

@@ -24,14 +24,11 @@ namespace housepi
 	/// Household class.
 	class Household
 	{
-		friend struct DataWide;
-		friend struct Augmented;
-		friend struct ContactRate;
-		friend class MCMCBase;
-		friend class MCMC;
+		friend struct DataWide; /// owns and mutates its households
+		friend struct Index;	/// reads the opaque storage index_
 
-		/// Auxiliary iterator of household member indexes with same status.
-		struct IndexRange_
+		/// Auxiliary iterator for household indexes of member with same status.
+		struct HouseStatusRange_
 		{
 			const size_t *data_;
 			size_t size_;
@@ -67,11 +64,11 @@ namespace housepi
 		const Individual &member(size_t i) const noexcept { return members_[i]; }
 
 		/// Iterator for household indexes of members with infected status.
-		IndexRange_ infected_hhindexes() const noexcept { return {status_vec_.data(), ninf_}; }
+		HouseStatusRange_ infected_hhindexes() const noexcept { return {status_vec_.data(), ninf_}; }
 		/// Iterator for household indexes of members with susceptible status.
-		IndexRange_ susceptible_hhindexes() const noexcept { return {status_vec_.data() + ninf_, nsus_}; }
+		HouseStatusRange_ susceptible_hhindexes() const noexcept { return {status_vec_.data() + ninf_, nsus_}; }
 		/// Iterator for household indexes of members with missing status.
-		IndexRange_ missing_hhindexes() const noexcept { return {status_vec_.data() + ninf_ + nsus_, house_size_ - ninf_ - nsus_}; }
+		HouseStatusRange_ missing_hhindexes() const noexcept { return {status_vec_.data() + ninf_ + nsus_, house_size_ - ninf_ - nsus_}; }
 
 		/// Number of members with infected status.
 		size_t n_infected_status() const noexcept { return ninf_; }
@@ -116,4 +113,7 @@ namespace housepi
 		/// NOTE: Using 'partition refinement' to track member statuses.
 		void helper_set_status_(size_t i, int new_status);
 	};
+
+	/// Index of Household (see individual.h).
+	inline size_t Index::of(const Household &house) noexcept { return house.index_; }
 }

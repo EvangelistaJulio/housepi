@@ -90,7 +90,7 @@ namespace housepi
         const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
         /// Access wide-format data of given column for a member.
-        double data(size_t d, const Individual &member) const noexcept { return indiv_data_[member.index_].vec[d]; }
+        double data(size_t d, const Individual &member) const noexcept { return indiv_data_[Index::of(member)].vec[d]; }
 
         ///////////////////////////////////
         //////  EQUIVALENCE CLASSES  //////

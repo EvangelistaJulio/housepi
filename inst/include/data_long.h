@@ -52,7 +52,7 @@ namespace housepi
         /// Access all long-format data for a member.
         const std::vector<std::vector<double>> *get_data_long_ptr(const Individual &member) const noexcept
         {
-            return &indiv_datalist[member.index_].vec;
+            return &indiv_datalist[Index::of(member)].vec;
         }
 
     private:

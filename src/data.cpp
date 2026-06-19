@@ -560,7 +560,7 @@ namespace housepi
     {
         for (Household &house : house_vector_)
             for (size_t i = 0; i < house.size(); ++i)
-                house.helper_set_status_(i, indiv_data_[house.member(i).index_].status);
+                house.helper_set_status_(i, indiv_data_[Index::of(house.member(i))].status);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -587,7 +587,7 @@ namespace housepi
         dict<size_t> id_to_index = {};
         for (const Household &house : data_wide)
             for (const Individual &member : house)
-                id_to_index.emplace(member.id(), member.index_);
+                id_to_index.emplace(member.id(), Index::of(member));
 
         // load individual data list
         size_t n_rows = read::csv_n_rows(input);

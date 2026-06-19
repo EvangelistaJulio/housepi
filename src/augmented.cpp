@@ -463,7 +463,7 @@ namespace housepi
         for (Household &house : mcmc_->data_wide())
             for (Individual &member : house)
             {
-                IndivBlock &iaugm = varia[member.index_];
+                IndivBlock &iaugm = varia[Index::of(member)];
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                     iaugm.vec[a].name(khold(a), "augmented");
@@ -826,7 +826,7 @@ namespace housepi
     {
         const size_t k = list_house_export[j];
         const std::string &astr = deftable_.c_name[k];
-        Variable &hvar = house_varia[house.index_][j];
+        Variable &hvar = house_varia[Index::of(house)][j];
         hvar.name(astr, "household observation");
 
         try
@@ -908,14 +908,14 @@ namespace housepi
 
     void Augmented::clear_definitions(Individual &member)
     {
-        for (Variable &avar : varia[member.index_].vec)
+        for (Variable &avar : varia[Index::of(member)].vec)
             avar.clear();
     }
 
     void Augmented::init_definitions_for_simulation(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (varia[member.index_].vec[khold(deftable_.c_name[k])].is_empty())
+            if (varia[Index::of(member)].vec[khold(deftable_.c_name[k])].is_empty())
                 helper_init_attributes_(member, k, true);
     }
 
@@ -928,7 +928,7 @@ namespace housepi
         if (it != map_status_to_block_.end())
         {
             const size_t i = it->second;
-            varia[member.index_].idx = i;
+            varia[Index::of(member)].idx = i;
             return status_blocks_[i].order;
         }
 
@@ -938,7 +938,7 @@ namespace housepi
         {
             const size_t i = generic_it->second;
             map_status_to_block_.emplace(status, i);
-            varia[member.index_].idx = i;
+            varia[Index::of(member)].idx = i;
             return status_blocks_[i].order;
         }
 
@@ -959,7 +959,7 @@ namespace housepi
 
         try
         {
-            Variable &avar = varia[member.index_].vec[a];
+            Variable &avar = varia[Index::of(member)].vec[a];
 
             if (str::tobool(deftable_.c_const[k]))
             {
@@ -999,7 +999,7 @@ namespace housepi
     void Augmented::helper_init_prior_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &avar = varia[member.index_].vec[khold(astr)];
+        Variable &avar = varia[Index::of(member)].vec[khold(astr)];
         parse::Definition parser(deftable_.c_prior[k]);
 
         avar.init_prior(parser.root.func);
@@ -1016,7 +1016,7 @@ namespace housepi
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &avar = varia[member.index_].vec[khold(astr)];
+        Variable &avar = varia[Index::of(member)].vec[khold(astr)];
         std::string str_val = deftable_.c_value[k];
         parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
 
@@ -1057,13 +1057,13 @@ namespace housepi
     void Augmented::restart(rnd_gen &prng, Individual &member)
     {
         for (size_t a : list_sample(member))
-            varia[member.index_].vec[a].restart(prng);
+            varia[Index::of(member)].vec[a].restart(prng);
     }
 
     void Augmented::sample_obs(rnd_gen &prng, Individual &member)
     {
         for (size_t a : list_obs(member))
-            varia[member.index_].vec[a].draw_value(prng);
+            varia[Index::of(member)].vec[a].draw_value(prng);
     }
 
     void Augmented::restart(rnd_gen &prng)
@@ -1085,7 +1085,7 @@ namespace housepi
             for (size_t i : house.infected_hhindexes())
             {
                 Individual &member = house.member(i);
-                for (Variable &avar : varia[member.index_].vec)
+                for (Variable &avar : varia[Index::of(member)].vec)
                     avar.optimize();
             }
     }
@@ -1096,23 +1096,23 @@ namespace housepi
 
     const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
     {
-        return status_blocks_[varia[member.index_].idx].sample;
+        return status_blocks_[varia[Index::of(member)].idx].sample;
     }
     const std::vector<size_t> &Augmented::list_adaptive(const Individual &member) const
     {
-        return status_blocks_[varia[member.index_].idx].adaptive;
+        return status_blocks_[varia[Index::of(member)].idx].adaptive;
     }
     const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
     {
-        return status_blocks_[varia[member.index_].idx].draws;
+        return status_blocks_[varia[Index::of(member)].idx].draws;
     }
     const std::vector<size_t> &Augmented::list_priors(const Individual &member) const
     {
-        return status_blocks_[varia[member.index_].idx].priors;
+        return status_blocks_[varia[Index::of(member)].idx].priors;
     }
     const std::vector<size_t> &Augmented::list_obs(const Individual &member) const
     {
-        return status_blocks_[varia[member.index_].idx].obs;
+        return status_blocks_[varia[Index::of(member)].idx].obs;
     }
 
     std::string format_exception_for(Individual &member, const std::exception &e)
@@ -1133,8 +1133,8 @@ namespace housepi
                 return 0.;
             double new_ll = 0.0;
             for (size_t a : priors)
-                new_ll += varia[member.index_].vec[a].get_log_prior();
-            varia[member.index_].log_prior.set(new_ll);
+                new_ll += varia[Index::of(member)].vec[a].get_log_prior();
+            varia[Index::of(member)].log_prior.set(new_ll);
             return new_ll;
         }
         catch (const std::exception &e)
@@ -1147,14 +1147,14 @@ namespace housepi
     {
         try
         {
-            const StatusBlock_ &block = status_blocks_[varia[member.index_].idx];
+            const StatusBlock_ &block = status_blocks_[varia[Index::of(member)].idx];
             if (block.depen[a].empty())
                 return 0.;
             double delta_ll = 0;
             // NOTE: vector of dependencies 'depen' includes also 'a'
             for (size_t b : block.depen[a])
-                delta_ll += varia[member.index_].vec[b].get_prior_log_ratio();
-            varia[member.index_].log_prior.increment(delta_ll);
+                delta_ll += varia[Index::of(member)].vec[b].get_prior_log_ratio();
+            varia[Index::of(member)].log_prior.increment(delta_ll);
             return delta_ll;
         }
         catch (const std::exception &e)
@@ -1173,8 +1173,8 @@ namespace housepi
                 return 0.;
             double new_ll = 0.0;
             for (size_t a : obs)
-                new_ll += varia[member.index_].vec[a].get_log_prior();
-            varia[member.index_].log_obs.set(new_ll);
+                new_ll += varia[Index::of(member)].vec[a].get_log_prior();
+            varia[Index::of(member)].log_obs.set(new_ll);
             return new_ll;
         }
         catch (const std::exception &e)
@@ -1187,7 +1187,7 @@ namespace housepi
     {
         try
         {
-            const StatusBlock_ &block = status_blocks_[varia[member.index_].idx];
+            const StatusBlock_ &block = status_blocks_[varia[Index::of(member)].idx];
             // skip unless the moved augmented 'a' parameterizes some observation node
             if (block.obs_depen[a].empty())
                 return 0.;
@@ -1195,9 +1195,9 @@ namespace housepi
             // log-proba must be recomputed (observation value is just a datum)
             double new_ll = 0.0;
             for (size_t b : block.obs)
-                new_ll += varia[member.index_].vec[b].get_log_prior();
-            const double delta_ll = new_ll - varia[member.index_].log_obs.value();
-            varia[member.index_].log_obs.set(new_ll);
+                new_ll += varia[Index::of(member)].vec[b].get_log_prior();
+            const double delta_ll = new_ll - varia[Index::of(member)].log_obs.value();
+            varia[Index::of(member)].log_obs.set(new_ll);
             return delta_ll;
         }
         catch (const std::exception &e)
