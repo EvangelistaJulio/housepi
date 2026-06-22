@@ -9,9 +9,9 @@ predicted_cases_by_house_size(
   param_table,
   obs_process = NULL,
   thin_ess = TRUE,
-  max_nrep = 200,
+  max_nrep = 200L,
   point_estimate = "mean",
-  threads = 1,
+  threads = 1L,
   progress = TRUE
 )
 }

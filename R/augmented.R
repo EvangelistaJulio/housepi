@@ -76,13 +76,22 @@ HousepiAugmented <- R6::R6Class(
       private$find_required_def_("P")
     },
 
-    #' @field obs_data_names `character()`.
-    #' Data columns that are observation-node variates: required as observed data
-    #' for inference, but generated (not required) during simulation.
-    obs_data_names = function(value) {
-      if (!missing(value)) stop_read_only("obs_data_names")
-      if (is.null(self$defs) || !"kind" %in% names(self$defs)) return(character())
+    #' @field observation_names `character()`.
+    #' Names of individual-level observations.
+    observation_names = function(value) {
+      if (!missing(value)) stop_read_only("observation_names")
+      if (is.null(self$defs) ||
+            !"kind" %in% names(self$defs)) return(character())
       self$defs[["name"]][self$defs[["kind"]] == "obs"]
+    },
+
+    #' @field house_observ_names `character()`.
+    #' Names of household-level observations.
+    house_observ_names = function(value) {
+      if (!missing(value)) stop_read_only("house_observ_names")
+      if (is.null(self$defs) ||
+            !"kind" %in% names(self$defs)) return(character())
+      self$defs[["name"]][self$defs[["kind"]] == "house-obs"]
     }
   ),
 
@@ -136,6 +145,19 @@ HousepiAugmented <- R6::R6Class(
       }
 
       c()
+    },
+
+    #' @description Definitions of a single kind.
+    #' Column 'kind' is dropped.
+    #' @param kind `character(1)`. One of "augm", "obs", "house-obs".
+    #' @return `data.frame()` or `NULL` when no definition of that kind exists.
+    defs_of_kind = function(kind) {
+      kind <- match.arg(kind, c("augm", "obs", "house-obs"))
+      if (is.null(self$defs) || !"kind" %in% names(self$defs)) return(NULL)
+      out <- self$defs[self$defs[["kind"]] == kind, , drop = FALSE]
+      if (nrow(out) == 0) return(NULL)
+      out[["kind"]] <- NULL
+      out
     },
 
     #' @description Drop every definition of a given kind, leaving the other

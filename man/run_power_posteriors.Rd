@@ -7,13 +7,13 @@
 run_power_posteriors(
   hhmodel,
   scheme = c("power-fractions", "adaptive"),
-  rungs = 40,
-  steps = 1000,
-  burn = 0,
-  thin = 5,
-  adapt = 500,
-  chains = 4,
-  threads = 1,
+  rungs = 40L,
+  steps = 1000L,
+  burn = 0L,
+  thin = 5L,
+  adapt = 500L,
+  chains = 4L,
+  threads = 1L,
   progress = TRUE
 )
 }
@@ -56,9 +56,8 @@ One between:
 An object of class \code{HousepiPowerPosteriors}.
 }
 \description{
-Sample the power-posterior ladder used to estimate the log-evidence (aka
-marginal likelihood), with different available schemes. Pass the result to
-\code{\link[=evaluate_log_evidence]{evaluate_log_evidence()}} to obtain the log-evidence.
+Sample the power-posterior ladder used to estimate the log-evidence.
+See \code{\link[=evaluate_log_evidence]{evaluate_log_evidence()}} to estimate the log-evidence.
 }
 \references{
 \insertRef{friel_improving_2014}{housepi}

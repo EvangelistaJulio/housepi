@@ -70,6 +70,10 @@ namespace housepi
 		/// Simulation for a single household.
 		virtual void simulate_single_house(Household & /*house*/) = 0;
 
+		/// Whether the model generates its observation nodes itself, in-loop, via
+		/// generate_observations (otherwise they are drawn generically after the loop).
+		virtual bool simulates_observations() const { return false; }
+
 		//////////////////////
 		//////  SETTER  //////
 		//////////////////////
@@ -90,6 +94,15 @@ namespace housepi
 		{
 			mcmc_->augm.init_definitions_for_simulation(member);
 			mcmc_->augm.restart(mcmc_->setup.prng(), member);
+		}
+
+		/// Modeler call. Generate a newly infected case's observation nodes and refresh
+		/// any live data-bound household observation (e.g. a running min of test dates),
+		/// so a subsequent data() read of that derived column is current.
+		void generate_observations(Household &house, Individual &member)
+		{
+			mcmc_->augm.sample_obs(mcmc_->setup.prng(), member);
+			mcmc_->augm.refresh_live_house_obs(house);
 		}
 
 		/// Modeler call. Request discrete parameter definition.

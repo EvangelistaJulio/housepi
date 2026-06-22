@@ -82,10 +82,10 @@ rd_inf_args_ <- sprintf(rd_var_args_, "profile")
 
 rd_list_args_ <- "Named arguments. Respective list of definition details."
 rd_list_append_ <- "`logical(1)` Append to current definitions.
-If `FALSE` drop all pre-existing definitions (default)."
+If `FALSE` drop all pre-existing definitions."
 
 rd_tmpl_append_ <- "`logical(1)` Append only missing definitions.
-If `FALSE` drop all pre-existing definitions (default)."
+If `FALSE` drop all pre-existing definitions."
 
 ############################################################################
 ############################################################################

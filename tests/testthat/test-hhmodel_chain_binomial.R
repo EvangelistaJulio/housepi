@@ -278,7 +278,7 @@ test_that("Single infected member log-likelihood is correct", {
     new_housepi_model("chain_binomial") |>
     add_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$add_parameter_list(!!!par)
+  hhmodel$add_parameter_list(!!!par, append = FALSE)
   expect_equal(log_lik, eval_log_density(hhmodel))
 })
 
@@ -302,7 +302,7 @@ test_that("Three infected members likelihood is correct", {
     new_housepi_model("chain_binomial") |>
     add_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$add_parameter_list(!!!par)
+  hhmodel$add_parameter_list(!!!par, append = FALSE)
   log_lik <- -sum(commu_infec_rate)
   expect_equal(eval_log_density(hhmodel), log_lik)
 
@@ -312,7 +312,7 @@ test_that("Three infected members likelihood is correct", {
     new_housepi_model("chain_binomial") |>
     add_group_rate_list(!!!groups)
   do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$add_parameter_list(!!!par)
+  hhmodel$add_parameter_list(!!!par, append = FALSE)
 
   # escape probabilities restricted to seropositives
   B <- exp(-commu_infec_rate[seq_len(n_infec)])

@@ -48,7 +48,7 @@ Detail of the thermodynamic ladder
 \subsection{Method \code{new()}}{
 Sample the power-posterior ladder and store the draws.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$new(generator, scheme = "power-fractions", rungs = 40)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$new(generator, scheme = "power-fractions", rungs = 40L)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{

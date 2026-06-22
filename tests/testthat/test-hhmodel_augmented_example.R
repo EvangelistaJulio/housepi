@@ -51,7 +51,8 @@ test_that("Nested definitions raise errors", {
       .layer = list(value = .dummy, status = c(2, 3, 4)),
       #> NO .dummy provided for status 3, 4
       .dummy = list(prior = "lognormal", status = c(2, 3)),
-      proba = .layer
+      proba = .layer,
+      append = FALSE
     )$evaluate_log_lik()
   ))
   expect_match(err_msg, "Could not find a definition")
@@ -178,6 +179,7 @@ test_that("Augmented aliasing works as expected", {
 
   # check that order does not matter
   hhmodel |>
+    drop_augmented() |> 
     add_augmented_list(
       .layer = list(func = "gamma",
                     func_args = c(x = .dummy, shape = 2, scale = scale@P)),

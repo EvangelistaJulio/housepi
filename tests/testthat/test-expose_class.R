@@ -93,21 +93,21 @@ test_that("Wrappers work as expected on blank model", {
 ## Drop wrappers
 ############################################################################
 
-test_that("drop wrappers return clean models", {
+test_that("Drop wrappers return clean models", {
   hhmodel <- new_housepi_model(model = "blank")
   hhmodel <- add_parameter(hhmodel, name = "alpha", value = 0.5)
   hhmodel <- add_augmented(hhmodel, name = "dummy", value = 3)
 
   # drop_parameters returns new object without parameters
   dropped <- drop_parameters(hhmodel)
-  expect_equal(nrow(get_parameters(dropped)), 0)
+  expect_equal(nrow(get_parameters(dropped)), 0L)
   # original is unchanged
 
   expect_true("alpha" %in% get_parameters(hhmodel)$name)
 
   # drop_augmented
   dropped <- drop_augmented(hhmodel)
-  expect_equal(nrow(get_augmented(dropped)), 0)
+  expect_equal(nrow(get_augmented(dropped)), 0L)
   expect_true("dummy" %in% get_augmented(hhmodel)$name)
 
   # drop_group_rates
@@ -140,7 +140,10 @@ test_that("Group rate wrappers", {
   expect_true(is.data.frame(groups_1))
   expect_true(nrow(groups_1) > 0)
 
-  result <- add_group_rate_list(hhmodel, community = "member")
+  expect_warning(
+    result <- add_group_rate_list(hhmodel, community = "member"),
+    "[Oo]verwriting.*community"
+  )
   groups_2 <- get_group_rates(result)
   expect_identical(groups_1, groups_2)
 

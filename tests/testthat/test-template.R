@@ -84,10 +84,6 @@ test_that("fmt_assert_cli formats messages correctly", {
   expect_true(any(grepl("Parameters", result)))
   expect_true(any(grepl("are", result)))
 
-  # empty messages: success
-  result <- fmt_assert_cli("Parameters", c())
-  expect_true(any(grepl("complete", result)))
-
   # minor mode: rewrites "is required by" to "can be specified for"
   result <- fmt_assert_cli(
     "Parameters",

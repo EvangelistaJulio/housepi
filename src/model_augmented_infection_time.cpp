@@ -52,6 +52,10 @@ public:
 	/// Allow for contact rate definitions.
 	bool has_contact_rates() const override final { return true; }
 
+	/// Observations (e.g. test_date) are generated in-loop by simulate_single_house,
+	/// so a live household observation such as start_date stays current.
+	bool simulates_observations() const override final { return true; }
+
 	/// NOTE: missing status are not modeled
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
@@ -323,6 +327,8 @@ public:
 
 		size_t i0 = helper_rand_intro(house);
 		Individual &member_0 = house.member(i0);
+		// generate the index's observations, fixing the (live) start_date anchor
+		generate_observations(house, member_0);
 
 		/////////////////////////////////////////////////////////////////
 		//////  Generation >=1 : infection by previous generation  //////
@@ -331,33 +337,31 @@ public:
 		const double alpha = par(ParamKey::alpha);
 		const double beta = transmission_rate(house.size());
 
-		// largest study period
-		double study_period = 0.;
-		for (const Individual &member_i : house)
-			study_period = std::max(study_period, data(DataKey::study_period, member_i));
-
-		// FIXME: first approximation
-		// this is assuming the anchor at time 0; wrong because:
-		// 1 - anaware of first case infection time definition;
-		// 2 - anchor cannot be specified by user;
-		// 3 - a secondary case could actually have been the index;
-
+		// infection of secondary cases within each susceptible's live at-risk window
+		// [., start_date + study_period]; start_date is a live household observation,
+		// so a secondary with an earlier test date rewires the window automatically.
 		const double t0 = aug(AugmKey::infec_time, member_0);
-		const double end_date = study_period; // FIXME: temporary patch
-
-		// infection of secondary cases following the first case
-		for (double t = t0 + Dt; t <= end_date && house.n_susceptible_status() > 0; t += Dt)
+		for (double t = t0 + Dt; house.n_susceptible_status() > 0; t += Dt)
+		{
+			bool any_at_risk = false;
 			for (Individual &member_i : house)
 			{
-				if (member_i.is_infected_status() || t > data(DataKey::study_period, member_i))
+				if (member_i.is_infected_status())
 					continue;
+				if (t > data(DataKey::start_date, member_i) + data(DataKey::study_period, member_i))
+					continue;
+				any_at_risk = true;
 				if (exponential() < roi_inst_simulation(house, member_i, t, alpha, beta) * Dt)
 				{
 					house.set_infected_status(member_i);
 					set_augm_value(AugmKey::infec_time, member_i, t);
 					init_missing_augm(member_i);
+					generate_observations(house, member_i);
 				}
 			}
+			if (!any_at_risk)
+				break;
+		}
 	}
 
 	/// Draw introduction uniformly among all members.

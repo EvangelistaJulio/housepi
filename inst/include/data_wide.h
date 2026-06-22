@@ -59,6 +59,11 @@ namespace housepi
         /// Request data column to be strictly greater than zero.
         void request_positive(size_t d) { user_positive_set_.emplace(d); }
 
+        /// Whether the modeler requested column 'd' to be discrete-valued.
+        bool requires_discrete(size_t d) const { return user_discrete_set_.count(d) > 0; }
+        /// Whether the modeler requested column 'd' to be strictly positive.
+        bool requires_positive(size_t d) const { return user_positive_set_.count(d) > 0; }
+
         /// Transmission log-likelihood of head of household equivalence class.
         double house_transm_log_lik(size_t R) const { return transm_log_lik(eq_class_head(R)).value(); }
 
@@ -91,6 +96,16 @@ namespace housepi
 
         /// Access wide-format data of given column for a member.
         double data(size_t d, const Individual &member) const noexcept { return indiv_data_[Index::of(member)].vec[d]; }
+        /// Overwrite wide-format data of given column for a member (derived/materialized data).
+        void set_data(size_t d, const Individual &member, double x) noexcept { indiv_data_[Index::of(member)].vec[d] = x; }
+        /// Ensure a data column exists (NA-filled), returning its key. No-op if already present.
+        /// Used to host simulation-generated columns absent from the imported data.
+        size_t register_optional_column(const std::string &name);
+
+        /// Save the given columns' values and the key-holder shape (simulation guard).
+        void snapshot_columns(const std::vector<size_t> &keys);
+        /// Restore the snapshot taken by snapshot_columns, dropping columns added since.
+        void restore_columns();
 
         ///////////////////////////////////
         //////  EQUIVALENCE CLASSES  //////
@@ -179,6 +194,13 @@ namespace housepi
 
         dict<size_t> hhid_to_index_ = {};            /// Map house-id to internal index
         std::vector<IndivWide_> indiv_data_;         /// External storage for individual data
+
+        /// Simulation column-snapshot: original key-holder + saved values to restore.
+        bool snap_active_ = false;
+        KeyHolder snap_khold_ = {};
+        std::vector<size_t> snap_keys_ = {};
+        std::vector<std::vector<double>> snap_vals_ = {};
+
         std::vector<Household> house_vector_ = {};   /// All households in data
         std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood
 

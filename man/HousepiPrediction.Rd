@@ -48,8 +48,8 @@ performs simulation and compute predicted values of a set of measures.
   ...,
   measures_long = NULL,
   thin_ess = TRUE,
-  max_nrep = 200,
-  threads = 1,
+  max_nrep = 200L,
+  threads = 1L,
   progress = TRUE,
   point_estimate = "mean"
 )}\if{html}{\out{</div>}}

@@ -103,10 +103,22 @@ HousepiModel <- R6::R6Class(
     assert_data_wide_ = function(capital = TRUE, simulating = FALSE) {
       cols <- private$generator_$cols_data_wide
       required <- private$get_all_required_data_wide_()
-      # observation-node variates are generated during simulation, not required
+
+      # observations are generated during simulation: not required
       if (isTRUE(simulating)) {
-        required <- setdiff(required, private$augm_$obs_data_names)
+        required <- setdiff(required, private$augm_$observation_names)
       }
+
+      # household observations derived purely from data satisfy requirement
+      house_obs <- private$augm_$house_observ_names
+      clash <- intersect(house_obs, cols)
+      if (isTRUE(capital) && length(clash) > 0) stop_h(
+        sprintf("Household observation %s cannot stand in for required data.",
+                paste(sprintf("'%s'", clash), collapse = ", ")),
+        "It is already provided as a data column."
+      )
+      cols <- c(cols, intersect(house_obs, required))
+
       sms <- template_missing_stop(required, cols, "data")
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
       else sms
@@ -515,7 +527,8 @@ HousepiModel <- R6::R6Class(
     #' @field augmented `data.frame`. Augmented definitions.
     augmented = function(value) {
       if (!missing(value)) stop_read_only("augmented")
-      housepi_defin_showcaser(private$augm_$defs)
+      defs <- private$augm_$defs_of_kind("augm")
+      housepi_defin_showcaser(defs)
     },
 
     #' @field infec_profile `data.frame`. Infectivity profile definitions.
@@ -661,7 +674,7 @@ HousepiModel <- R6::R6Class(
         fmt_assert_cli("Augmented", private$assert_augm_(FALSE))
       )
 
-      # inform about rates id dataset is suitable
+      # inform about rates if dataset is suitable
       cols_extra <- setdiff(private$generator_$cols_data_wide,
                             data_reserved_cols)
       if (length(cols_extra) > 0) {
@@ -671,8 +684,8 @@ HousepiModel <- R6::R6Class(
                          minor = TRUE)
         )
         # contact rates
-        sms <- c(sms,
-          fmt_assert_cli(
+        if (.engine$has_contact_rates(private$generator_$mcmc_ptr)) {
+          sms <- c(sms, fmt_assert_cli(
             "Contact rates",
             if (!private$contact_rates_$assert()) c(
               "Using default contact rates.",
@@ -680,8 +693,8 @@ HousepiModel <- R6::R6Class(
             )
             else NULL,
             minor = TRUE
-          )
-        )
+          ))
+        }
       }
 
       # infectivity profile
@@ -863,7 +876,7 @@ HousepiModel <- R6::R6Class(
     #' @description Add parameters as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
-    add_parameter_list = function(..., append = FALSE) {
+    add_parameter_list = function(..., append = TRUE) {
       private$param_$add_quo_list(rlang::enquos(...), append = append)
       private$rebuild_()
       invisible(self)
@@ -871,7 +884,7 @@ HousepiModel <- R6::R6Class(
 
     #' @description Add parameters from template.
     #' @param append `r rd_tmpl_append_`
-    add_parameter_template = function(append = FALSE) {
+    add_parameter_template = function(append = TRUE) {
       if (private$generator_$is_blank()) warn_h(
         "No template parameters available for blank model."
       )
@@ -926,7 +939,7 @@ HousepiModel <- R6::R6Class(
     #' @description Add group rates as named arguments.
     #' @param ... ` r rd_list_args_`
     #' @param append `r rd_list_append_`
-    add_group_rate_list = function(..., append = FALSE) {
+    add_group_rate_list = function(..., append = TRUE) {
       if (isFALSE(append)) self$drop_group_rates()
       private$group_rates_$add_quo_list(rlang::enquos(...), append = append)
       # UPDATE: I didn't find a way to assert prior arguments here
@@ -1012,7 +1025,7 @@ HousepiModel <- R6::R6Class(
     #' @description Add augmented definitions as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
-    add_augmented_list = function(..., append = FALSE) {
+    add_augmented_list = function(..., append = TRUE) {
       private$augm_$add_quo_list(rlang::enquos(...), append = append)
       private$rebuild_()
       invisible(self)
@@ -1020,7 +1033,7 @@ HousepiModel <- R6::R6Class(
 
     #' @description Add augmented definitions from template.
     #' @param append `r rd_tmpl_append_`
-    add_augmented_template = function(append = FALSE) {
+    add_augmented_template = function(append = TRUE) {
       if (private$generator_$is_blank()) warn_h(
         "No template augmented variables available for blank model."
       )
@@ -1061,7 +1074,7 @@ HousepiModel <- R6::R6Class(
     #' @description Add observations as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
-    add_observation_list = function(..., append = FALSE) {
+    add_observation_list = function(..., append = TRUE) {
       private$augm_$add_quo_list(rlang::enquos(...),
                                  append = append, .kind = "obs")
       private$rebuild_()
@@ -1089,7 +1102,7 @@ HousepiModel <- R6::R6Class(
     #' @description Add household-level observation as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
-    add_house_observ_list = function(..., append = FALSE) {
+    add_house_observ_list = function(..., append = TRUE) {
       private$augm_$add_quo_list(rlang::enquos(...),
                                  append = append, .kind = "house-obs")
       private$rebuild_()
@@ -1120,7 +1133,7 @@ HousepiModel <- R6::R6Class(
     #' @description Add infectivity profiles as named arguments.
     #' @param ... `r rd_list_args_`
     #' @param append `r rd_list_append_`
-    add_infec_profile_list = function(..., append = FALSE) {
+    add_infec_profile_list = function(..., append = TRUE) {
       private$infec_profile_$add_quo_list(rlang::enquos(...), append = append)
       private$rebuild_()
       invisible(self)

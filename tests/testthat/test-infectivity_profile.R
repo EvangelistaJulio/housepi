@@ -40,23 +40,24 @@ test_that("Error handling in infectivity profile definitions", {
 })
 
 test_that("Status specific definition work fine", {
-  infec <- HousepiInfecProfile$new()
+  infec <- HousepiInfecProfile$new() |>
+    aux_add(func = "discrete_profile", discr = TRUE, x = 5, max = 20)
 
-  aux_add(infec, func = "discrete_profile", discr = TRUE,
-          x = 5, max = 20)
+  infec |> 
+    aux_add(func = "another_generic") |>
+    expect_warning("Overwriting")
 
-  expect_warning(aux_add(infec, func = "another_generic"),
-                 regexp = "Overwriting")
-
-  helper_test_aux_load(
-    infec,
-    list(func = "lognormal", status = 1),
-    list(func = "ferretti20", incub_period = 5, status = 2),
-    v1 = "uniform"
-  )
-  expect_equal(infec$defs$func,
-               c("lognormal", "ferretti20|incub_period|{5|N}", "uniform"))
-  expect_equal(infec$defs$status, c(1, 2, NA_integer_))
+  infec |>
+    helper_test_aux_load(
+      list(func = "lognormal", status = 1),
+      list(func = "ferretti20", incub_period = 5, status = 2),
+      v1 = "uniform",
+      append = FALSE
+    )
+  infec$defs$func |>
+    expect_equal(c("lognormal", "ferretti20|incub_period|{5|N}", "uniform"))
+  infec$defs$status |>
+    expect_equal(c(1, 2, NA_integer_))
 })
 
 test_that("Spurious names are dropped", {

@@ -175,20 +175,19 @@ test_that("Symbolic definitions are equivalent", {
     some_func = list(func = "gamma",
                      func_args = c(shape = ~ shape, scale = ~ scale))
   )
-  helper_test_aux_load(augm, external) |>
+  helper_test_aux_load(augm, external, append = FALSE) |>
     expect_error("rlang injection")
 
   helper_test_aux_load(augm, !!!external)
   expect_equal(augm$defs$func, "gamma|shape:scale|{shape|A}:{scale|A}")
 })
 
-test_that("Observation node definitions are encoded", {
-  augm <- HousepiAugmented$new()
-  helper_test_aux_load(
-    augm,
-    onset_date = list(obs = "normal", mean = onset_time@A, sd = 1),
-    .kind = "obs"
-  )
+test_that("Observation definitions are encoded", {
+  augm <- HousepiAugmented$new() |>
+    helper_test_aux_load(
+      onset_date = list(obs = "normal", mean = onset_time@A, sd = 1),
+      .kind = "obs"
+    )
   d <- augm$defs
   # marked as observation, data-bound and constant (never sampled)
   expect_identical(d[["kind"]], "obs")
@@ -201,7 +200,7 @@ test_that("Observation node definitions are encoded", {
   expect_identical(unname(augm$data_required), "onset_date")
   expect_identical(unname(augm$augm_required), "onset_time")
   # reported as a generated data column (excluded from sim requirement)
-  expect_identical(augm$obs_data_names, "onset_date")
+  expect_identical(augm$observation_names, "onset_date")
 })
 
 test_that("Observation node rejects conflicting options", {
@@ -217,15 +216,17 @@ test_that("Observation node rejects conflicting options", {
 })
 
 test_that("Deterministic observation node is encoded as a function obs", {
-  augm <- HousepiAugmented$new()
-  helper_test_aux_load(
-    augm,
-    incub_period = list(prior = "gamma", shape = 2, scale = 1),
-    infec_time = -incub_period
-  )
-  # a bare expression (no 'obs =' distribution) is a deterministic observation
-  helper_test_aux_load(augm, onset_date = floor(infec_time + incub_period),
-                       .kind = "obs")
+  augm <- HousepiAugmented$new() |>
+    helper_test_aux_load(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    # deterministic observation (no 'obs')
+    helper_test_aux_load(
+      onset_date = floor(infec_time + incub_period),
+      .kind = "obs", 
+      append = TRUE
+    )
   d <- augm$defs[augm$defs[["name"]] == "onset_date", ]
   # tagged as observation, carrying a deterministic function and no distribution
   expect_identical(d[["kind"]], "obs")
@@ -233,58 +234,64 @@ test_that("Deterministic observation node is encoded as a function obs", {
   expect_true(is.na(d[["value"]]))
   expect_match(d[["func"]], "floor")
   # still reported as a generated data column
-  expect_identical(augm$obs_data_names, "onset_date")
+  expect_identical(augm$observation_names, "onset_date")
 })
 
 test_that("Observation and augmented loads each own only their definitions", {
-  augm <- HousepiAugmented$new()
-  helper_test_aux_load(
-    augm,
-    incub_period = list(prior = "gamma", shape = 2, scale = 1),
-    infec_time = -incub_period
-  )
-  # a fresh (non-append) observation load keeps the augmented variables it needs
-  helper_test_aux_load(
-    augm,
-    onset_date = list(obs = "normal", mean = infec_time@A, sd = 1),
-    .kind = "obs"
-  )
+  augm <- HousepiAugmented$new() |>
+    helper_test_aux_load(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    # non-append observation definition keeps augmented definitions
+    helper_test_aux_load(
+      onset_date = list(obs = "normal", mean = infec_time@A, sd = 1),
+      .kind = "obs", append = FALSE
+    )
   expect_setequal(augm$defs[["name"]],
                   c("incub_period", "infec_time", "onset_date"))
 
-  # symmetrically, a fresh augmented load keeps the observation node
-  helper_test_aux_load(
-    augm, incub_period = list(prior = "gamma", shape = 2, scale = 1)
-  )
+  # symmetrically, augmented definitions keep observations
+  augm |>
+    helper_test_aux_load(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      append = FALSE
+    )
   expect_true("onset_date" %in% augm$defs[["name"]])
-  expect_identical(augm$obs_data_names, "onset_date")
+  expect_identical(augm$observation_names, "onset_date")
 })
 
-test_that("Household observations coexist with augmented and observation defs", {
-  augm <- HousepiAugmented$new()
-  helper_test_aux_load(
-    augm, incub_period = list(prior = "gamma", shape = 2, scale = 1)
-  )
-  helper_test_aux_load(
-    augm,
-    onset_date = list(obs = "normal", mean = incub_period@A, sd = 1),
-    .kind = "obs"
-  )
-  # a fresh household-observation load owns only the "house-obs" rows, leaving the
-  # augmented variable and the observation node it depends on untouched
-  helper_test_aux_load(augm, first_test = min(test_date@D), .kind = "house-obs")
-  expect_setequal(augm$defs[["name"]],
-                  c("incub_period", "onset_date", "first_test"))
-  expect_identical(augm$defs[["kind"]][augm$defs[["name"]] == "first_test"],
-                   "house-obs")
-  # the reduction over a data source is encoded as a variadic call (a call lands
-  # in 'func', a bare terminal would land in 'value')
-  expect_identical(augm$defs[["func"]][augm$defs[["name"]] == "first_test"],
-                   "min|x|{test_date|D}")
-
-  # a fresh (non-append) household load drops only the house rows
-  helper_test_aux_load(augm, last_test = max(test_date@D), .kind = "house-obs")
+test_that("Household observations do not interfer with augmented defs", {
+  augm <- HousepiAugmented$new() |>
+    helper_test_aux_load(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1)
+    ) |>
+    helper_test_aux_load(
+      onset_date = list(obs = "normal", mean = incub_period@A, sd = 1),
+      .kind = "obs"
+    )
+  
+  # non-append household observation keeps augmented definitions
+  augm |>
+    helper_test_aux_load(
+      first_test = min(test_date@D),
+      .kind = "house-obs", append = FALSE
+    )
+  augm$defs[["name"]] |>
+    expect_setequal(c("incub_period", "onset_date", "first_test"))
+  
+  augm$defs[["kind"]][augm$defs[["name"]] == "first_test"] |>
+    expect_identical("house-obs")
+  augm$defs[["func"]][augm$defs[["name"]] == "first_test"] |> 
+    expect_identical("min|x|{test_date|D}")
+  
+  # non-append load drops only the house rows
+  augm |> 
+    helper_test_aux_load(
+      last_test = max(test_date@D),
+      .kind = "house-obs", append = FALSE
+    )
   expect_false("first_test" %in% augm$defs[["name"]])
-  expect_setequal(augm$defs[["name"]],
-                  c("incub_period", "onset_date", "last_test"))
+  augm$defs[["name"]] |>
+    expect_setequal(c("incub_period", "onset_date", "last_test"))
 })

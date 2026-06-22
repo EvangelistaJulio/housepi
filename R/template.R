@@ -392,7 +392,7 @@ fmt_assert_cli <- function(section, sms, minor = FALSE) {
   }
 
   if (length(sms) == 0) {
-    c(v = paste0(cli::col_green(section), ": definitions complete."))
+    c(v = cli::col_green(section))
   } else if (minor) {
     sms <- gsub(sms, pattern = " (are|is) required by ",
                 replacement = " can be specified for ")

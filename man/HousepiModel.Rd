@@ -184,12 +184,12 @@ If \code{NA} (default) it computes for the whole data.}
 Run inference with Bayesian Markov chain Monte Carlo.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_inference(
-  steps = 1000,
-  burn = 0,
-  thin = 5,
-  adapt = 500,
-  chains = 4,
-  threads = 1,
+  steps = 1000L,
+  burn = 0L,
+  thin = 5L,
+  adapt = 500L,
+  chains = 4L,
+  threads = 1L,
   id_draws = NULL,
   progress = TRUE
 )}\if{html}{\out{</div>}}
@@ -279,17 +279,17 @@ If \code{NA} produces a single repetition (default).}
 \if{html}{\out{<a id="method-HousepiModel-run_power_posteriors"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-run_power_posteriors}{}}}
 \subsection{Method \code{run_power_posteriors()}}{
-Sample the power-posterior ladder used for log-evidence estimation.
+Sample the power-posterior ladder. Used for log-evidence estimation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_power_posteriors(
   scheme = c("power-fractions", "adaptive"),
-  rungs = 40,
-  steps = 1000,
-  burn = 0,
-  thin = 5,
-  adapt = 500,
-  chains = 4,
-  threads = 1,
+  rungs = 40L,
+  steps = 1000L,
+  burn = 0L,
+  thin = 5L,
+  adapt = 500L,
+  chains = 4L,
+  threads = 1L,
   progress = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -419,7 +419,7 @@ Ignored when proposal is \code{"sample"}.}
 \subsection{Method \code{add_parameter_list()}}{
 Add parameters as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter_list(..., append = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -428,7 +428,7 @@ Add parameters as named arguments.
 \item{\code{...}}{Named arguments. Respective list of definition details.}
 
 \item{\code{append}}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -439,14 +439,14 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{add_parameter_template()}}{
 Add parameters from template.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter_template(append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_parameter_template(append = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{append}}{\code{logical(1)} Append only missing definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -536,7 +536,7 @@ Ignored when proposal is \code{"sample"}.}
 \subsection{Method \code{add_group_rate_list()}}{
 Add group rates as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_group_rate_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_group_rate_list(..., append = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -545,7 +545,7 @@ Add group rates as named arguments.
 \item{\code{...}}{\verb{ r rd_list_args_}}
 
 \item{\code{append}}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -729,7 +729,7 @@ Ignored when proposal is \code{"sample"}.}
 \subsection{Method \code{add_augmented_list()}}{
 Add augmented definitions as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented_list(..., append = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -738,7 +738,7 @@ Add augmented definitions as named arguments.
 \item{\code{...}}{Named arguments. Respective list of definition details.}
 
 \item{\code{append}}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -749,14 +749,14 @@ If \code{FALSE} drop all pre-existing definitions (default).}
 \subsection{Method \code{add_augmented_template()}}{
 Add augmented definitions from template.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented_template(append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_augmented_template(append = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{append}}{\code{logical(1)} Append only missing definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -820,7 +820,7 @@ One between:
 \subsection{Method \code{add_observation_list()}}{
 Add observations as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_observation_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_observation_list(..., append = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -829,7 +829,7 @@ Add observations as named arguments.
 \item{\code{...}}{Named arguments. Respective list of definition details.}
 
 \item{\code{append}}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -895,7 +895,7 @@ One between:
 \subsection{Method \code{add_house_observ_list()}}{
 Add household-level observation as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_house_observ_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_house_observ_list(..., append = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -904,7 +904,7 @@ Add household-level observation as named arguments.
 \item{\code{...}}{Named arguments. Respective list of definition details.}
 
 \item{\code{append}}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -955,7 +955,7 @@ One between:
 \subsection{Method \code{add_infec_profile_list()}}{
 Add infectivity profiles as named arguments.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile_list(..., append = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$add_infec_profile_list(..., append = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -964,7 +964,7 @@ Add infectivity profiles as named arguments.
 \item{\code{...}}{Named arguments. Respective list of definition details.}
 
 \item{\code{append}}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \if{html}{\out{</div>}}
 }

@@ -19,7 +19,9 @@ cache_overlaps_source <- function(cache, source) {
 
 # Assert valid household data. Return blank_house if nothing is provided.
 assert_household_data <- function(data, model) {
-  .is.blank <- function(x) { is.character(x) && length(x) == 1 && isTRUE(x == "blank") }
+  .is.blank <- function(x) { 
+    is.character(x) && length(x) == 1 && isTRUE(x == "blank")
+  }
 
   if (is.null(data)) {
     if (.is.blank(model)) {
@@ -32,7 +34,7 @@ assert_household_data <- function(data, model) {
   if (!is.data.frame(data)) {
     sms <- c("Data should be an object of class data.frame.",
              format_type_error(data))
-    if (.is.blank(data)) sms <- c(sms, 
+    if (.is.blank(data)) sms <- c(sms,
       i = "Did you mean 'new_housepi_model(model = \"blank\")'?"
     )
     stop_h(sms)

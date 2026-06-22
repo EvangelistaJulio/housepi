@@ -4,7 +4,7 @@
       print(hhmodel)
     Message
       i Household model 'chain binomial' (`template`).
-      v Parameters: definitions complete.
+      v Parameters
 
 ---
 
@@ -30,7 +30,7 @@
     Message
       i Household model 'augmented infection time' (`template`).
       Model is set to discrete time mode.
-      v Data: definitions complete.
+      v Data
       x Parameters: there are 4 missing parameter definitions:
       'alpha', 'beta', 'gamma' and 'size_ref'.
       They are required by model definitions.
@@ -50,7 +50,7 @@
       print(hhmodel_ip)
     Message
       i Household model 'augmented infection time' (`template`).
-      v Data: definitions complete.
+      v Data
       x Parameters: there are 4 missing parameter definitions:
       'alpha', 'beta', 'gamma' and 'size_ref'.
       They are required by model definitions.
@@ -70,5 +70,5 @@
       print(hhmodel)
     Message
       i Household model 'blank' (`template`).
-      v Augmented: definitions complete.
+      v Augmented
 

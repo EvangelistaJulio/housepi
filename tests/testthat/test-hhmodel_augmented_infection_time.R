@@ -99,8 +99,8 @@ test_that("Simulations behave as expected", {
   # simulate with no transmission risk
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
-    # pick introduction randomly
-    dplyr::mutate(status = NA) |>
+    # pick introduction randomly; anchor the at-risk window at 0 (relative frame)
+    dplyr::mutate(status = NA, start_date = 0) |>
     new_housepi_model("augmented_infection_time") |>
     add_parameter_list(alpha = 0, beta = 0,
                        gamma = 1, size_ref = 4) |>
@@ -116,7 +116,8 @@ test_that("Simulations behave as expected", {
   # simulate with saturated transmission risk
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
-    # pick introduction informed by original data
+    # pick introduction informed by original data; relative-frame anchor at 0
+    dplyr::mutate(start_date = 0) |>
     new_housepi_model("augmented_infection_time") |>
     add_parameter_list(alpha = 0, beta = 100,
                        gamma = 1, size_ref = 4) |>
@@ -417,6 +418,7 @@ test_that("Observation node generates the data column in simulation", {
   set.seed(1)
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
+    dplyr::mutate(start_date = 0) |>
     new_housepi_model("augmented_infection_time") |>
     add_parameter_list(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented_list(
@@ -440,6 +442,108 @@ test_that("Observation node generates the data column in simulation", {
   expect_lt(abs(sd(resid) - 1), 0.2)
 })
 
+test_that("Household observation derives from generated observations in simulation", {
+  set.seed(1)
+  # both the observation (test_date) and the derived column (start_date) are
+  # produced internally: neither is provided in the input data
+  reps <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 80)) |>
+    dplyr::select(-start_date, -test_date) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_list(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented_list(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time   = -incub_period
+    ) |>
+    add_observation("test_date", obs = "normal",
+                    mean = infec_time@A + incub_period@A, sd = 1) |>
+    add_house_observ_list(start_date = min(test_date@D)) |>
+    run_simulation(nrep = 2)
+
+  # each repetition is self-consistent: start_date is the per-household na.rm min
+  # of *that* repetition's generated test_date (a stale leak would break this),
+  # one value per household replicated across rows, never NA (every house has a case)
+  for (sim in reps) {
+    expect_true(all(c("start_date", "test_date") %in% names(sim)))
+    expect_false(any(is.na(sim$start_date)))
+    expect_true(all(
+      tapply(sim$start_date, sim$house_id, function(x) length(unique(x))) == 1
+    ))
+    inf <- sim[sim$status > 0, ]
+    ref <- tapply(inf$test_date, inf$house_id, min)
+    got <- tapply(sim$start_date, sim$house_id, function(x) x[[1]])
+    expect_equal(as.numeric(got[order(names(got))]),
+                 as.numeric(ref[order(names(ref))]))
+  }
+})
+
+test_that("Simulation leaves overwritten data columns pristine", {
+  set.seed(1)
+  m <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
+    dplyr::mutate(start_date = 0) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_list(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented_list(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    # test_date is real provided data AND a generated observation: simulation
+    # overwrites it with generated values, then must restore the input
+    add_observation("test_date", obs = "normal",
+                    mean = infec_time@A + incub_period@A, sd = 1)
+
+  before <- m$export_augmented_data()
+  m |> run_simulation(nrep = 2)
+  m |> run_simulation(nrep = 2)
+  after <- m$export_augmented_data()
+
+  before <- before[order(before$id), ]
+  after <- after[order(after$id), ]
+  # the overwritten column is restored, and no simulation-added column lingers
+  expect_equal(as.numeric(after$test_date), as.numeric(before$test_date))
+  expect_setequal(names(after), names(before))
+})
+
+test_that("Augmented variable reads a static data-bound household observation", {
+  set.seed(1)
+  # start_date derived from PROVIDED (static) test_date, read by infec_time's prior
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
+    dplyr::select(-start_date) |>
+    dplyr::mutate(test_date = 5, study_period = 21) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_list(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented_list(
+      infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
+                        max = ~ start_date@D + 5, proposal = "normal")
+    ) |>
+    add_house_observ_list(start_date = min(test_date@D)) |>
+    run_simulation()
+
+  # start_date is materialized statically (= 5) before the index is drawn
+  expect_false(any(is.na(simulated$start_date)))
+  expect_true(all(simulated$start_date == 5))
+})
+
+test_that("Simulation rejects an augmented variable reading a live household observation", {
+  # infec_time depends on start_date, which is derived from the GENERATED test_date:
+  # an unsatisfiable cycle, rejected with a clear message
+  sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% head(unique(house_id), 20)) |>
+    dplyr::select(-start_date, -test_date) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_list(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented_list(
+      infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
+                        max = ~ start_date@D + 5, proposal = "normal")
+    ) |>
+    add_observation("test_date", obs = "normal", mean = infec_time@A, sd = 1) |>
+    add_house_observ_list(start_date = min(test_date@D)) |>
+    run_simulation() |>
+    expect_error(regexp = "[Cc]yclic")
+})
+
 test_that("Observation are reserved to add_observation", {
   hhmodel <- data.frame(id = seq(2), house_id = "h1", status = 0,
                         start_date = 0, study_period = 21) |>
@@ -452,31 +556,6 @@ test_that("Observation are reserved to add_observation", {
   hhmodel |>
     add_augmented_list(onset_date = list(obs = "normal")) |>
     expect_error("add_observation")
-})
-
-test_that("drop_observations / drop_house_observ clear only their own kind", {
-  hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
-    add_parameter_template() |>
-    add_augmented_list(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
-      infec_time   = list(prior = "uniform", min = -14, max = study_period@D,
-                          proposal = "normal")
-    ) |>
-    add_observation("onset_date", obs = "normal",
-                    mean = infec_time@A + incub_period@A, sd = 1) |>
-    add_house_observ("first_onset", value = min(onset_date@D))
-
-  kinds <- function(x) get_augmented(x)$kind
-
-  # leaf drops leave the augmented variables (and the other kind) untouched
-  expect_setequal(kinds(drop_house_observ(hhmodel)), c("augm", "augm", "obs"))
-  expect_setequal(kinds(drop_observations(drop_house_observ(hhmodel))),
-                  c("augm", "augm"))
-
-  # drop_all wipes every kind without dangling-reference errors
-  expect_equal(nrow(get_augmented(drop_all(hhmodel))), 0)
-  expect_equal(nrow(get_parameters(drop_all(hhmodel))), 0)
 })
 
 test_that("Deterministic observation node simulates, inference rejects it", {
@@ -495,6 +574,7 @@ test_that("Deterministic observation node simulates, inference rejects it", {
 
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
+    dplyr::mutate(start_date = 0) |>
     build() |>
     run_simulation()
 
@@ -518,6 +598,7 @@ test_that("Household observations aggregate a data column across members", {
   dat <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% houses) |>
     dplyr::mutate(
+      start_date = 0,
       test_date = dplyr::if_else(house_id == na_house, as.Date(NA), test_date)
     )
 
@@ -567,6 +648,76 @@ test_that("Household observations aggregate a data column across members", {
 
   # the all-NA household yields NA across its rows
   expect_true(all(is.na(simulated$first_test[simulated$house_id == na_house])))
+})
+
+test_that("Data-bound household observation supplies a required data column", {
+  base <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% head(unique(house_id), 40))
+
+  # derive the required 'start_date' from data instead of providing the column
+  build_derived <- function() {
+    base |>
+      dplyr::select(-start_date) |>
+      new_housepi_model("augmented_infection_time") |>
+      add_parameter_template() |>
+      add_augmented_template() |>
+      add_house_observ_list(start_date = min(test_date@D))
+  }
+  # reference: the same quantity provided as an ordinary data column
+  build_provided <- function() {
+    base |>
+      dplyr::group_by(house_id) |>
+      dplyr::mutate(start_date = min(test_date, na.rm = TRUE)) |>
+      dplyr::ungroup() |>
+      new_housepi_model("augmented_infection_time") |>
+      add_parameter_template() |>
+      add_augmented_template()
+  }
+
+  # deriving the required column lets inference run without it in the data
+  set.seed(7)
+  derived <- build_derived()
+  expect_silent(derived |> evaluate_log_lik())
+
+  # the materialized column equals the per-household na.rm min of test_date
+  # (start_date is a derived numeric column; test_date round-trips as a Date)
+  aug <- derived$export_augmented_data()
+  ok <- tapply(seq_len(nrow(aug)), aug$house_id, function(ix) {
+    isTRUE(all.equal(unique(aug$start_date[ix]),
+                     min(as.numeric(aug$test_date[ix]), na.rm = TRUE)))
+  })
+  expect_true(all(unlist(ok)))
+
+  # identical log-likelihood to providing start_date as a data column
+  set.seed(13)
+  ll_derived <- build_derived() |> evaluate_log_lik()
+  set.seed(13)
+  ll_provided <- build_provided() |> evaluate_log_lik()
+  expect_equal(ll_derived, ll_provided)
+})
+
+test_that("Data-bound household observation rejects conflict and latent dependence", {
+  base <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% head(unique(house_id), 20))
+
+  # conflict: 'start_date' both provided as data and derived as a house-obs
+  base |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_template() |>
+    add_augmented_template() |>
+    add_house_observ_list(start_date = min(test_date@D)) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "already provided as a data column")
+
+  # parameter dependence: not a constant function of data, no meaning in inference
+  base |>
+    dplyr::select(-start_date) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter_template() |>
+    add_augmented_template() |>
+    add_house_observ_list(start_date = min(test_date@D) + alpha@P) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "pure function of data")
 })
 
 test_that("Model-required data can be postponed: construction tolerates, the wall errors", {

@@ -1,5 +1,5 @@
 # Helper to load definition lists.
-helper_test_aux_load <- function(self, ..., append = FALSE,
+helper_test_aux_load <- function(self, ..., append = TRUE,
                                  .kind = NULL) {
   # only the augmented loader accepts '.obs' / '.house'; keep the parameter
   # loader signature untouched otherwise

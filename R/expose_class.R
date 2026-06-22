@@ -314,7 +314,7 @@ add_parameter <- function(hhmodel,
 #' get_parameters(hhmodel)
 #' @rdname add_template_definitions
 #' @export
-add_parameter_template <- function(hhmodel, append = FALSE) {
+add_parameter_template <- function(hhmodel, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$add_parameter_template(append = append)
@@ -377,7 +377,7 @@ add_augmented <- function(hhmodel,
 
 #' @rdname add_template_definitions
 #' @export
-add_augmented_template <- function(hhmodel, append = FALSE) {
+add_augmented_template <- function(hhmodel, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   new_obj$add_augmented_template(append = append)
@@ -421,7 +421,7 @@ add_observation <- function(hhmodel, name,
   pvt$augm_$add_quo(
     name = name, value = NULL, status = status,
     const = NA, discr = discr, prior = NA_character_,
-    rlang::enquos(...), obs = obs,
+    obs = obs, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     .assert = TRUE, .kind = "obs"
   )
@@ -610,7 +610,7 @@ add_infec_profile <- function(hhmodel,
 #'   get_parameters()
 #' @rdname add_definitions_list
 #' @export
-add_parameter_list <- function(hhmodel, ..., append = FALSE) {
+add_parameter_list <- function(hhmodel, ..., append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -621,7 +621,7 @@ add_parameter_list <- function(hhmodel, ..., append = FALSE) {
 
 #' @rdname add_definitions_list
 #' @export
-add_group_rate_list <- function(hhmodel, ..., append = FALSE) {
+add_group_rate_list <- function(hhmodel, ..., append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   # NOTE: dropping group rates might cause parameter drops
@@ -634,7 +634,7 @@ add_group_rate_list <- function(hhmodel, ..., append = FALSE) {
 
 #' @rdname add_definitions_list
 #' @export
-add_augmented_list <- function(hhmodel, ..., append = FALSE) {
+add_augmented_list <- function(hhmodel, ..., append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -645,7 +645,7 @@ add_augmented_list <- function(hhmodel, ..., append = FALSE) {
 
 #' @rdname add_definitions_list
 #' @export
-add_observation_list <- function(hhmodel, ..., append = FALSE) {
+add_observation_list <- function(hhmodel, ..., append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -656,7 +656,7 @@ add_observation_list <- function(hhmodel, ..., append = FALSE) {
 
 #' @rdname add_definitions_list
 #' @export
-add_house_observ_list <- function(hhmodel, ..., append = FALSE) {
+add_house_observ_list <- function(hhmodel, ..., append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -667,7 +667,7 @@ add_house_observ_list <- function(hhmodel, ..., append = FALSE) {
 
 #' @rdname add_definitions_list
 #' @export
-add_infec_profile_list <- function(hhmodel, ..., append = FALSE) {
+add_infec_profile_list <- function(hhmodel, ..., append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private

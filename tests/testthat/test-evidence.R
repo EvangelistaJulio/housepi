@@ -6,11 +6,11 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
   b <- 3
   evidence <- log((x + b) / (x + a)) / (b - a) - x / (b + x) / (a + x)
 
-  hhmodel <- data.frame(house_id = 1, id = 1, status = 1, x = x) |>
-    new_housepi_model(model = "blank") |>
+  hhmodel <- data.frame(house_id = 1, status = 1, x = x) |>
+    new_housepi_model("blank") |>
     add_parameter("theta", prior = "uniform", min = !!a, max = !!b) |>
-    add_augmented("rate", prior = "exponential", rate = theta@P) |>
-    add_observation("x", obs = "exponential", rate = rate)
+    add_augmented("z", prior = "exponential", rate = theta@P) |>
+    add_observation("x", obs = "exponential", rate = z)
 
   result <- hhmodel |>
     run_power_posteriors(progress = FALSE) |>

@@ -15,13 +15,13 @@ evaluate_log_evidence(x, ...)
   x,
   method = c("thermodynamic", "stepping-stone"),
   scheme = c("power-fractions", "adaptive"),
-  rungs = 40,
-  steps = 1000,
-  burn = 0,
-  thin = 5,
-  adapt = 500,
-  chains = 4,
-  threads = 1,
+  rungs = 40L,
+  steps = 1000L,
+  burn = 0L,
+  thin = 5L,
+  adapt = 500L,
+  chains = 4L,
+  threads = 1L,
   progress = TRUE,
   ...
 )
@@ -76,11 +76,9 @@ One between:
 \code{numeric(1)}. The log-evidence estimate.
 }
 \description{
-Estimate the logarithm of the evidence (aka marginal likelihood) with the
-method of power posteriors. Called on a \code{HousepiModel} it samples the ladder
-and estimates in one shot; called on a \code{HousepiPowerPosteriors} (sampled
-beforehand by \code{\link[=run_power_posteriors]{run_power_posteriors()}}) it only re-estimates, so several
-estimators can be compared cheaply on the same ladder.
+Estimate the logarithm of the evidence (aka marginal likelihood).
+It requires a power posteriors ladder (see \code{\link[=run_power_posteriors]{run_power_posteriors()}});
+otherwise it samples it from the model.
 }
 \references{
 \insertRef{friel_improving_2014}{housepi}

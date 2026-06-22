@@ -1232,12 +1232,24 @@ namespace
                     try
                     {
                         Household &house = data_wide.at(H);
+
+                        // clean slate for live generated columns, then materialize static
+                        // data-bound household observations so the model can read them.
+                        if (augm.is_any_obs())
+                            engine.augm.reset_obs_data_for_simulation(house);
+                        engine.augm.materialize_static_house_obs(house);
+
                         engine.model->simulate_single_house(house);
 
-                        // generate observation nodes once latents are finalized
+                        // a self-simulating model generates observations in-loop; otherwise
+                        // draw them now. Then re-derive household observations for export.
                         if (augm.is_any_obs())
-                            for (size_t i : house.infected_hhindexes())
-                                engine.augm.sample_obs(engine.setup.prng(), house.member(i));
+                        {
+                            if (!engine.model->simulates_observations())
+                                for (size_t i : house.infected_hhindexes())
+                                    engine.augm.sample_obs(engine.setup.prng(), house.member(i));
+                            engine.augm.update_house_obs_for_simulation(house);
+                        }
 
                         size_t row = row_offsets[H]; // thread-local: no shared counter
                         for (const Individual &member : house)
@@ -1384,16 +1396,19 @@ namespace
             }
             setup.prog_close();
 
-            // restore observed status so post-simulation reads of data_wide
-            // return the original data (e.g. running observed measures again).
+            // restore observed status and overwritten data columns so post-simulation
+            // reads of data_wide return the original data (e.g. observed measures, or a
+            // later inference run).
             engine.augm.clear_all();
             engine.data_wide().recover_all_status();
+            engine.data_wide().restore_columns();
 
             return Rcpp::List::create(Rcpp::_["wide"] = out_wide,
                                       Rcpp::_["long"] = out_long);
         }
         catch (std::exception &e)
         {
+            engine.data_wide().restore_columns();
             setup.crash(e);
         }
     }

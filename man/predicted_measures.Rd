@@ -11,9 +11,9 @@ predicted_measures(
   obs_process = NULL,
   obs_process_long = NULL,
   thin_ess = TRUE,
-  max_nrep = 200,
+  max_nrep = 200L,
   point_estimate = "mean",
-  threads = 1,
+  threads = 1L,
   progress = TRUE
 )
 }

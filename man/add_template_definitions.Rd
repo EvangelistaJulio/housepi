@@ -5,15 +5,15 @@
 \alias{add_augmented_template}
 \title{Load default definitions from the model template}
 \usage{
-add_parameter_template(hhmodel, append = FALSE)
+add_parameter_template(hhmodel, append = TRUE)
 
-add_augmented_template(hhmodel, append = FALSE)
+add_augmented_template(hhmodel, append = TRUE)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
 \item{append}{\code{logical(1)} Append only missing definitions.
-If \code{FALSE} drop all pre-existing definitions (default).}
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

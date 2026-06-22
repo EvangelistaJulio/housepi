@@ -6,12 +6,12 @@
 \usage{
 run_inference(
   hhmodel,
-  steps = 1000,
-  burn = 0,
-  thin = 5,
-  adapt = 500,
-  chains = 4,
-  threads = 1,
+  steps = 1000L,
+  burn = 0L,
+  thin = 5L,
+  adapt = 500L,
+  chains = 4L,
+  threads = 1L,
   id_draws = NULL,
   progress = TRUE
 )
