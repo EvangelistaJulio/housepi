@@ -192,6 +192,22 @@ helper_clone <- function(x) {
 ############################################################################
 ############################################################################
 
+#' Assert undocumented advanced setup overrides from `...`.
+#' @param dots `list` Captured `...` from a run method.
+#' @param allowed Named `character()` accepted argument names.
+#' @return `list` Non-null overrides keyed by engine setup key.
+#' @keywords internal
+#' @noRd
+assert_advanced_setup_ <- function(dots, allowed) {
+  for (nm in names(dots)) {
+    if (!(nm %in% allowed)) stop_h(
+      sprintf("Unexpected argument '%s' passed through '...'.", nm),
+      find_closest_match(nm, setdiff(allowed, names(dots)))
+    )
+  }
+  invisible()
+}
+
 #' Format elements of a list to pass to import_setup Rcpp method.
 #' @param defs `list` Setup options.
 #' @return `character()`

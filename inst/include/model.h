@@ -84,24 +84,21 @@ namespace housepi
 		/// Initialize templated infecvitiy profile.
 		void init_infec_profile_template(dict<std::string> x) { mcmc_->infec_profile.init_template(mcmc_->translator, x); }
 
+		/// Throw an exception if at least a member as missing status.
+		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
+
 		/// Drop all augmented definitions of given individual.
 		void clear_augm(Individual &member) { mcmc_->augm.clear_definitions(member); }
 
-		/// Modeler call. Initialize all augmented variables of given individual.
+		/// Modeler call. Initialize all augmented variables and observations.
 		/// If a variable has been set by the user, it's skipped.
 		/// UPDATE: right now simulations assignments must be order independent.
-		void init_missing_augm(Individual &member)
+		void init_missing_augm(Household &house, Individual &member)
 		{
 			mcmc_->augm.init_definitions_for_simulation(member);
 			mcmc_->augm.restart(mcmc_->setup.prng(), member);
-		}
-
-		/// Modeler call. Generate a newly infected case's observation nodes and refresh
-		/// any live data-bound household observation (e.g. a running min of test dates),
-		/// so a subsequent data() read of that derived column is current.
-		void generate_observations(Household &house, Individual &member)
-		{
 			mcmc_->augm.sample_obs(mcmc_->setup.prng(), member);
+			/// UPDATE: this refresh should be automatic and not enforced
 			mcmc_->augm.refresh_live_house_obs(house);
 		}
 
@@ -126,15 +123,11 @@ namespace housepi
 
 		/// Sample a uniform-distributed variable between 0 and 1.
 		double uniform() const { return mcmc_->setup.uniform(); }
-
 		/// Sample a exponential-distributed variable between 0 and Inf.
 		double exponential() const { return mcmc_->setup.exponential(); }
 
-		/// Wheter hosuehold members i and j are equivalent in terms of rates.
-		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const
-		{
-			return mcmc_->is_same_rate_partition(house, i, j);
-		}
+		/// Real-time integration step for simulation. Returns the user-configured.
+		double real_time_step() const { return mcmc_->setup.time_step; }
 
 		/// Get parameter value.
 		double par(size_t p) const { return mcmc_->param.at(p).value(); }
@@ -144,15 +137,19 @@ namespace housepi
 		double data(size_t d, const Individual &m) const { return mcmc_->data(d, m); }
 		/// Get group-rate value for given individual.
 		double group_rate(size_t g, const Individual &m) const { return mcmc_->group_rate.value(g, m); }
+		
 		/// Get contact rate 'from' household member 'to' member.
 		double contact_rate(const Household &house, size_t from, size_t to) const { return mcmc_->contact_rate.value(house, from, to); }
+		/// Wheter hosuehold members i and j are equivalent in terms of rates.
+		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const
+		{
+			return mcmc_->is_same_rate_partition(house, i, j);
+		}
 		/// Get contact rate intra member partition (self-contact).
 		double intra_partition_contact_rate(const Household &house, size_t i) const { return mcmc_->contact_rate.intra_value(house, i); }
 
 		/// Return maximum number of observed infected household members.
 		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }
-		/// Throw an exception if at least a member as missing status.
-		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
 
 		double infec_profile_inst(const Individual &m, double t) const { return mcmc_->infec_profile.inst(&m, t); }
 		double infec_profile_cumul(const Individual &m, double t) const { return mcmc_->infec_profile.cumul(&m, t); }

@@ -319,7 +319,7 @@ public:
 #ifdef _HOUSEPI_DISCRETE_TIME
 		const double Dt = 1;
 #else
-		const double Dt = 0.05; // UDPDATE: it should be possible to change from outside
+		const double Dt = real_time_step();
 #endif
 		/////////////////////////////////////////////////////////////////
 		/////////////  Generation 0 : by single introduction  ///////////
@@ -327,8 +327,6 @@ public:
 
 		size_t i0 = helper_rand_intro(house);
 		Individual &member_0 = house.member(i0);
-		// generate the index's observations, fixing the (live) start_date anchor
-		generate_observations(house, member_0);
 
 		/////////////////////////////////////////////////////////////////
 		//////  Generation >=1 : infection by previous generation  //////
@@ -355,8 +353,7 @@ public:
 				{
 					house.set_infected_status(member_i);
 					set_augm_value(AugmKey::infec_time, member_i, t);
-					init_missing_augm(member_i);
-					generate_observations(house, member_i);
+					init_missing_augm(house, member_i);
 				}
 			}
 			if (!any_at_risk)
@@ -370,7 +367,7 @@ public:
 		size_t i0 = uniform() * house.size();
 		Individual &member_0 = house.member(i0);
 		house.set_infected_status(member_0);
-		init_missing_augm(member_0);
+		init_missing_augm(house, member_0);
 
 		// set all others members to susceptible
 		for (Individual &member : house)

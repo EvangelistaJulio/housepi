@@ -39,12 +39,13 @@ namespace housepi
 	/// Output of a power-posterior ladder run.
 	struct PowerLadder
 	{
-		std::vector<double> inv_temper;			/// inverse-temperature ladder
+		std::vector<double> inv_temp;			/// inverse-temperature ladder
 		std::vector<double> mean_log_lik;		/// per-rung mean log-likelihood
 		std::vector<double> var_log_lik;		/// per-rung variance log-likelihood
 		std::vector<std::vector<double>> draws; /// total log-likelihood draw
 
-		void reserve(size_t n);							  /// reserve all vectors
+		PowerLadder(size_t n_rungs); /// reserve all vectors
+
 		void push(double inv_t, std::vector<double> row); /// compute stats + append
 		void insert(size_t i, double inv_t, std::vector<double> row);
 	};

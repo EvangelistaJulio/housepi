@@ -30,7 +30,7 @@ HousepiPowerPosteriors <- R6::R6Class(
   private = list(
     name_ = NA_character_,
     scheme_ = NA_character_,
-    inv_temper_ = NULL,
+    inv_temp_ = NULL,
     mean_log_lik_ = NULL,
     var_log_lik_ = NULL,
     draws_ = NULL,
@@ -42,7 +42,7 @@ HousepiPowerPosteriors <- R6::R6Class(
     thermodynamic_ = function() {
       avg <- private$mean_log_lik_
       var <- private$var_log_lik_
-      dt <- diff(private$inv_temper_, lag = 1)
+      dt <- diff(private$inv_temp_, lag = 1)
       k <- seq_along(dt)
       sum((avg[k + 1L] + avg[k]) * dt / 2 +
             (var[k] - var[k + 1L]) * dt^2 / 12)
@@ -53,7 +53,7 @@ HousepiPowerPosteriors <- R6::R6Class(
     # @references
     # \insertRef{xie_improving_2011}{housepi}
     stepping_stone_ = function() {
-      dt <- diff(private$inv_temper_, lag = 1)
+      dt <- diff(private$inv_temp_, lag = 1)
       contrib <- vapply(seq_along(dt), function(k) {
         log_lik <- posterior::extract_variable(private$draws_,
                                                sprintf("log_lik[%d]", k))
@@ -86,13 +86,13 @@ HousepiPowerPosteriors <- R6::R6Class(
     #' @field detail `data.frame`
     #' Detail of the thermodynamic ladder
     #' \describe{
-    #'   \item{inv_temper}{Inverse temperature}
+    #'   \item{inv_temp}{Inverse temperature}
     #'   \item{mean_log_lik}{Mean of the complete log-likelihood}
     #'   \item{var_log_lik}{Variance of the complete log-likelihood}
     #' }
     detail = function(value) {
       if (!missing(value)) stop_read_only("detail")
-      data.frame(inv_temper = private$inv_temper_,
+      data.frame(inv_temp = private$inv_temp_,
                  mean_log_lik = private$mean_log_lik_,
                  var_log_lik = private$var_log_lik_,
                  row.names = NULL)
@@ -116,7 +116,7 @@ HousepiPowerPosteriors <- R6::R6Class(
                                              as.integer(rungs))
       private$name_ <- as.character(generator$raw_name)
       private$scheme_ <- as.character(scheme)
-      private$inv_temper_ <- output$inv_temper
+      private$inv_temp_ <- output$inv_temp
       private$mean_log_lik_ <- output$mean_log_lik
       private$var_log_lik_ <- output$var_log_lik
       # one tempered log-likelihood column `log_lik[r]` per rung
@@ -147,7 +147,7 @@ HousepiPowerPosteriors <- R6::R6Class(
         sprintf("Power posteriors draws of model '%s'",
                 spaced_template_choice(private$name_)),
         sprintf("Scheme: '%s'. Rungs: %d.",
-                private$scheme_, length(private$inv_temper_) - 1L)
+                private$scheme_, length(private$inv_temp_) - 1L)
       ))
       invisible(self)
     }

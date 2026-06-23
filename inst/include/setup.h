@@ -38,28 +38,35 @@ namespace housepi
         const std::vector<std::string> file_headers = {"steps", "burn", "thin",
                                                        "adapt", "adapt_window",
                                                        "chains", "threads",
-                                                       "id_draws", "seed", "progress"};
+                                                       "id_draws", "seed", "progress",
+                                                       "inv_temp", "time_step"};
 
-        std::int32_t seed = 1;             /// Seed for pseudo-random number generator initialization.
-        unsigned n_threads = 1;            /// Number of OpenMP threads for parallelization.
-        unsigned long n_steps = 1;         /// Total number of MCMC iterations per chain.
-        unsigned long n_burn = 0;          /// Number of initial burn-in iterations to discard.
-        unsigned long n_thin = 1;          /// Thinning interval (store every n_thin-th iteration).
-        unsigned long n_adapt = 0;         /// Number of adaptive MCMC steps (0 = no adaptation).
-        unsigned long n_adapt_window = 50; /// Effective window for the smoothed accept-rate.
-        unsigned long n_chains = 1;        /// Number of independent MCMC chains to run in parallel.
-        unsigned long progress = 1;        /// Progress bar update interval in seconds.
-        unsigned long n_rungs = 0;         /// Number of rungs for power posterior analysis (0 = standard MCMC).
+        std::int32_t seed;                 /// Seed for pseudo-random number generator initialization.
+        unsigned n_threads;                /// Number of OpenMP threads for parallelization.
+        unsigned long n_steps;             /// Total number of MCMC iterations per chain.
+        unsigned long n_burn;              /// Number of initial burn-in iterations to discard.
+        unsigned long n_thin;              /// Thinning interval (store every n_thin-th iteration).
+        unsigned long n_adapt;             /// Number of adaptive MCMC steps (0 = no adaptation).
+        unsigned long n_chains;            /// Number of independent MCMC chains to run in parallel.
+        unsigned long progress;            /// Progress bar update interval in seconds.
+        unsigned long n_rungs;             /// Number of rungs for power posterior analysis (0 = standard MCMC).
+        std::vector<std::string> id_draws; /// IDs of augmented variables to trace and save.
+
+        ///////////////////////////////
+        //////  ADVANCED CONFIG  //////
+        ///////////////////////////////
+
+        unsigned long n_adapt_window; /// Effective window for the smoothed accept-rate.
+        double inv_temp;              /// Inverse temperature for power posterior (1.0 = posterior).
+        double time_step;             /// Real-time integration step for simulation.
 
         //////////////////////////////
         //////  DERIVED CONFIG  //////
         //////////////////////////////
 
-        unsigned long chain_id = 1;             /// Current active MCMC chain (1-indexed).
-        unsigned long rung_id = 0;              /// Current active rung in power posterior analysis (0-indexed).
-        unsigned long c_sample_size = 0;        /// Sample size for a single chain after thinning.
-        double inv_T = 1.;                      /// Inverse temperature for power posterior (1.0 = posterior).
-        std::vector<std::string> id_draws = {}; /// IDs of augmented variables to trace and save.
+        unsigned long chain_id;      /// Current active MCMC chain (1-indexed).
+        unsigned long rung_id;       /// Current active rung in power posterior analysis (0-indexed).
+        unsigned long c_sample_size; /// Sample size for a single chain after thinning.
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -79,6 +86,8 @@ namespace housepi
 
         /// Set the number of threads for parrell computations (default is 1).
         void set_n_threads();
+        /// Reset every field to its default; single source of truth for defaults.
+        void reset_defaults();
         /// Build Setup configuration from input table.
         void build(const housepi::str_table &input);
         /// Initialize MCMC configuration and assert consistency.

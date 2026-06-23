@@ -275,7 +275,7 @@ namespace housepi
 
     Setup::Setup()
         : uniform_(0., 1.),
-          progressbar_(std::make_unique<ProgressBar>()) {}
+          progressbar_(std::make_unique<ProgressBar>()) { reset_defaults(); }
     Setup::~Setup() = default;
 
     void Setup::init_R_context(
@@ -289,20 +289,32 @@ namespace housepi
             std::move(interrupt_func));
     }
 
+    void Setup::reset_defaults()
+    {
+        // standard configuration
+        seed = 1;
+        n_threads = 1;
+        n_steps = 1;
+        n_burn = 0;
+        n_thin = 1;
+        n_adapt = 0;
+        n_chains = 1;
+        n_rungs = 0;
+        progress = 1;
+        id_draws.clear();
+        // advanced configuration
+        n_adapt_window = 50;
+        inv_temp = 1.;
+        time_step = 0.05;
+        // derived configuration
+        chain_id = 1;
+        rung_id = 0;
+        c_sample_size = 0;
+    }
+
     void Setup::build(const str_table &input)
     {
-        const auto time_raw = std::chrono::steady_clock::now().time_since_epoch().count();
-        // ensure time_now is 64bit
-        const auto time_now = static_cast<std::uint64_t>(time_raw);
-        // xor between upper and lower part of time stamp
-        const std::uint64_t mixed = time_now ^ (time_now >> 32);
-        // default seed for pseudo random number generator
-        // note: constrain to 32bit for compatibility with R (mask sign bit)
-        seed = static_cast<std::int32_t>(mixed & 0x7FFFFFFF);
-
-        chain_id = 1;                     // current chain
-        rung_id = 0;                      // current thermodynamic rung
-        id_draws.clear();                 // drop previous id
+        reset_defaults();                 // single source of truth for defaults
         helper_non_default_build_(input); // read user input
         set_n_threads();                  // define number of threads
         set_prng_seed();                  // pseudo-random number generator seeding
@@ -352,6 +364,19 @@ namespace housepi
         // Individual ID for Augmented Trace
         if (input.count("id_draws") && !na::is(input.at("id_draws")[0]))
             id_draws = read::parse_list(input.at("id_draws")[0]);
+
+        // Inverse temperature for a tempered (power-posterior) sample
+        if (input.count("inv_temp") && !na::is(input.at("inv_temp")[0]))
+            inv_temp = str::tod(input.at("inv_temp")[0], "inv_temp");
+
+        // Real-time integration step for simulation
+        if (input.count("time_step") && !na::is(input.at("time_step")[0]))
+        {
+            time_step = str::tod(input.at("time_step")[0], "time_step");
+            // UPDATE: by symmetry it should be tested where appropriate
+            if (time_step <= 0.)
+                throw std::out_of_range("Setup 'time_step' must be strictly positive.");
+        }
     }
 
     void Setup::set_n_threads()
@@ -380,7 +405,7 @@ namespace housepi
     /// Concomitantely create different generators for different parallel threads.
     void Setup::set_prng_seed()
     {
-        seed = std::max(1, seed);
+        seed = std::max(1, seed); // NOTE: default seed for standalone
         prng_parallel_.resize(n_threads);
         prng_parallel_[0].seed(seed);
         for (size_t t = 1; t < n_threads; ++t)
@@ -398,11 +423,11 @@ namespace housepi
 
     void Setup::init_mcmc_configuration(bool is_adaptive)
     {
-        if (inv_T < 0. || inv_T > 1.)
+        if (inv_temp < 0. || inv_temp > 1.)
             throw std::out_of_range(
-                "Inverse temperature " + std::to_string(inv_T) + " was out of range [0, 1].");
+                "Inverse temperature " + std::to_string(inv_temp) + " was out of range [0, 1].");
 
-        // Clip options mistakenly set to 0 has 1.
+        // clip options mistakenly set to 0 has 1
         n_steps = std::max(1ul, n_steps);
         n_chains = std::max(1ul, n_chains);
         n_thin = std::max(1ul, n_thin);
@@ -430,7 +455,7 @@ namespace housepi
                 n_steps += n_adapt;
             }
             n_adapt = 0;
-        }        
+        }
     }
 
     void Setup::prog_set_text(std::string text)

@@ -1404,7 +1404,7 @@ namespace housepi
                 return 0.;
             double new_ll = 0.0;
             for (size_t a : obs)
-                new_ll += varia[Index::of(member)].vec[a].get_log_prior();
+                new_ll += varia[Index::of(member)].vec[a].get_log_obs();
             varia[Index::of(member)].log_obs.set(new_ll);
             return new_ll;
         }
@@ -1426,7 +1426,7 @@ namespace housepi
             // log-proba must be recomputed (observation value is just a datum)
             double new_ll = 0.0;
             for (size_t b : block.obs)
-                new_ll += varia[Index::of(member)].vec[b].get_log_prior();
+                new_ll += varia[Index::of(member)].vec[b].get_log_obs();
             const double delta_ll = new_ll - varia[Index::of(member)].log_obs.value();
             varia[Index::of(member)].log_obs.set(new_ll);
             return delta_ll;

@@ -713,6 +713,7 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' @param threads `r rd_thread_`
 #' @param id_draws `r rd_smpl_iddrw_`
 #' @param progress `r rd_progress_`
+#' @param ... `r rd_dots_config_`
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @examples
 #' flu_1918_frederick |>
@@ -728,13 +729,15 @@ run_inference <- function(hhmodel,
                           thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
                           id_draws = NULL,
-                          progress = TRUE) {
+                          progress = TRUE,
+                          ...) {
   stopifnothousepi(hhmodel)
   hhmodel$run_inference(steps = steps, burn = burn,
                         thin = thin, adapt = adapt,
                         chains = chains, threads = threads,
                         id_draws = id_draws,
-                        progress = progress)
+                        progress = progress,
+                        ...)
 }
 
 #' @title Simulate a household survey from a housepi model
@@ -746,6 +749,7 @@ run_inference <- function(hhmodel,
 #' @param obs_process_long `r rd_simul_obs_long_`
 #' @param param_table `r rd_param_table_`
 #' @param nrep `r rd_simul_nrep_`
+#' @param ... `r rd_dots_config_`
 #' @return `data.frame` or `list` (when `obs_process_long` is provided)
 #' @examples
 #' flu_1918_frederick |>
@@ -758,12 +762,14 @@ run_simulation <- function(hhmodel,
                            obs_process = NULL,
                            obs_process_long = NULL,
                            param_table = NULL,
-                           nrep = NA_integer_) {
+                           nrep = NA_integer_,
+                           ...) {
   stopifnothousepi(hhmodel)
   hhmodel$run_simulation(obs_process = obs_process,
                          obs_process_long = obs_process_long,
                          param_table = param_table,
-                         nrep = nrep)
+                         nrep = nrep,
+                         ...)
 }
 
 #' @title Sample the power-posterior ladder of a housepi model

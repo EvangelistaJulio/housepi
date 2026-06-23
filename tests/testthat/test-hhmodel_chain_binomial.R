@@ -96,9 +96,9 @@ test_that("Deep clone works as expected", {
   hhmodel <- house |>
     new_housepi_model("chain_binomial") |>
     add_parameter_template()
-  expect_no_error(out <- suppressWarnings(
+  out <- suppressWarnings(
     hhmodel$run_inference(steps = 2, chains = 1, adapt = 0, thin = 1)
-  ))
+  )
 
   # deep clone
   hhclone <- hhmodel$copy()
@@ -107,8 +107,10 @@ test_that("Deep clone works as expected", {
   expect_equal(hhmodel$data_wide, hhclone$data_wide)
   expect_equal(hhmodel$data_long, hhclone$data_long)
 
+  # clone setup starts from default configuration
+  expect_equal(hhclone$setup, new_housepi_model(house, "chain_binomial")$setup)
+
   # definitions
-  expect_equal(hhmodel$setup, hhclone$setup)
   expect_equal(hhmodel$parameters, hhclone$parameters)
   expect_equal(hhmodel$augmented, hhclone$augmented)
   expect_equal(hhmodel$group_rates, hhclone$group_rates)

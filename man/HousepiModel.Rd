@@ -191,6 +191,7 @@ Run inference with Bayesian Markov chain Monte Carlo.
   chains = 4L,
   threads = 1L,
   id_draws = NULL,
+  ...,
   progress = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -215,6 +216,8 @@ If no proposals are adaptable  and \code{burn = 0}, repurposed as burn-in instea
 
 \item{\code{id_draws}}{\code{character()} Individuals identifiers.
 Store draws of public augmented variables for the chosen individuals.}
+
+\item{\code{...}}{Advanced configuration.}
 
 \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
 One between:
@@ -241,7 +244,8 @@ It assumes the same community structure of the loaded data.
   obs_process = NULL,
   obs_process_long = NULL,
   param_table = NULL,
-  nrep = NA_integer_
+  nrep = NA_integer_,
+  ...
 )}\if{html}{\out{</div>}}
 }
 
@@ -268,6 +272,8 @@ If \code{param_table} is \code{NULL}, all replicates share the same parameters.
 Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows,
 the table is sub-sampled to \code{nrep} evenly-spaced rows.
 If \code{NA} produces a single repetition (default).}
+
+\item{\code{...}}{Advanced configuration.}
 }
 \if{html}{\out{</div>}}
 }

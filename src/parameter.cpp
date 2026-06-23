@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "tools/best_match.h"
 #include "tools/dependency.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
@@ -563,6 +562,7 @@ namespace housepi
         }
     }
     double Variable::get_log_prior() const { return pDistr_->log_pdf(value_); }
+    double Variable::get_log_obs() const { return pDistr_->log_pdf_safe(value_); }
     double Variable::get_prior_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
     double Variable::get_proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
 

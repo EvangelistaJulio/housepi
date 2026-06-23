@@ -528,7 +528,9 @@ namespace
             Rcpp::_["threads"] = setup.n_threads,
             Rcpp::_["id_draws"] = Rcpp::CharacterVector(Rcpp::wrap(setup.id_draws)),
             Rcpp::_["seed"] = setup.seed,
-            Rcpp::_["progress"] = setup.progress);
+            Rcpp::_["progress"] = setup.progress,
+            Rcpp::_["inv_temp"] = setup.inv_temp,
+            Rcpp::_["time_step"] = setup.time_step);
     }
 
     Rcpp::List export_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -1417,19 +1419,13 @@ namespace
     ////////////////////////////////////////  MCMC : log-evidence /////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Run the power-posterior thermodynamic ladder and return the inverse-temperature
-    /// ladder together with the per-rung tempered log-likelihood draws. Evidence
-    /// estimators (thermodynamic integration, stepping-stone, ...) are computed on
-    /// the R side from these raw draws.
+    /// Return power-posterior thermodynamic ladder.
     /// Based on @cite friel_improving_2014
     Rcpp::List run_power_posteriors(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
     {
         MCMC &engine = *mcmc_ptr;
         const PowerLadder ladder = engine.run_power_posteriors(scheme, n_rungs);
 
-        // draws as a data.frame: one tempered log-likelihood column `log_lik[r]`
-        // per rung (rows = draws), aligned with inv_temper. Same layout as the
-        // inference draws, so the R side tags it without any reshaping.
         const size_t n_rung = ladder.draws.size();
         const size_t n_draw = n_rung ? ladder.draws[0].size() : 0;
         Rcpp::List draws(n_rung);
@@ -1448,7 +1444,7 @@ namespace
         draws_df.attr("names") = col_names;
 
         return Rcpp::List::create(
-            Rcpp::_["inv_temper"] = Rcpp::wrap(ladder.inv_temper),
+            Rcpp::_["inv_temp"] = Rcpp::wrap(ladder.inv_temp),
             Rcpp::_["mean_log_lik"] = Rcpp::wrap(ladder.mean_log_lik),
             Rcpp::_["var_log_lik"] = Rcpp::wrap(ladder.var_log_lik),
             Rcpp::_["log_lik_draws"] = draws_df);

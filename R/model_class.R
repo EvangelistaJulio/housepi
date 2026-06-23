@@ -286,7 +286,7 @@ HousepiModel <- R6::R6Class(
     build_full_ = function(steps = 0L, adapt = 0L, burn = 0L,
                            thin = 1L, chains = 1L, threads = 1L,
                            id_draws = NULL, progress = FALSE,
-                           simulating = FALSE) {
+                           simulating = FALSE, ...) {
       # if no default columns on a blank model, assume debugging mode
       if (is.null(id_draws) &&
             private$generator_$is_blank() &&
@@ -297,18 +297,21 @@ HousepiModel <- R6::R6Class(
         utils::data("blank_house", package = "housepi", envir = env)
         id_draws <- env$blank_house$id[1]
       }
-      .engine$import_setup(private$generator_$mcmc_ptr, char_setup_input_(list(
-        steps = steps,
-        adapt = adapt,
-        burn = burn,
-        thin = thin,
-        chains = chains,
-        threads = threads,
-        id_draws = id_draws,
-        # generate a seed for Cpp random number generator
-        seed = sample.int(.Machine$integer.max, 1L),
-        progress = progress
-      )))
+      .engine$import_setup(
+        private$generator_$mcmc_ptr,
+        char_setup_input_(c(list(
+          steps = steps,
+          adapt = adapt,
+          burn = burn,
+          thin = thin,
+          chains = chains,
+          threads = threads,
+          id_draws = id_draws,
+          # generate a seed for Cpp random number generator
+          seed = sample.int(.Machine$integer.max, 1L),
+          progress = progress
+        ), list(...)))
+      )
       # hard validation before MCMC
       private$assert_data_wide_(capital = TRUE, simulating = simulating)
       private$assert_param_(capital = TRUE)
@@ -388,7 +391,8 @@ HousepiModel <- R6::R6Class(
     # FIXME: If there's a param table, build should change
     helper_simulation_build_ = function(param_table = NULL,
                                         nrep = NA_integer_,
-                                        thin_ess = TRUE) {
+                                        thin_ess = TRUE,
+                                        ...) {
       # assert number of replicates
       if (!is.na(nrep) && (!is.numeric(nrep) || nrep < 1)) stop_h(
         "Number of replicates should be a positive integer."
@@ -398,8 +402,9 @@ HousepiModel <- R6::R6Class(
       if (is.null(param_table)) {
         if (is.na(nrep)) nrep <- 1
       } else {
-        param_table <- private$helper_read_param_table_(param_table,
-                                                        thin_ess = thin_ess)
+        param_table <- private$helper_read_param_table_(
+          param_table, thin_ess = thin_ess
+        )
         if (!is.na(nrep)) param_table <- helper_thin_table_(param_table, nrep)
         nrep <- nrow(param_table)
         # don't overwrite
@@ -410,7 +415,9 @@ HousepiModel <- R6::R6Class(
       }
 
       # internal build function
-      private$build_full_(steps = nrep, progress = FALSE, simulating = TRUE)
+      private$build_full_(
+        steps = nrep, progress = FALSE, simulating = TRUE, ...
+      )
 
       # NOTE: there might be not parameters at all
       if (nrow(self$parameters) == 0) return(nrep)
@@ -597,7 +604,7 @@ HousepiModel <- R6::R6Class(
       data_factorized <- private$generator_$factorize_data_wide(data)
 
       # soft check: data may be intentionally incomplete at construction
-      # NOTE: hard check lives at build_full_ (the wall)
+      # NOTE: hard check lives at build_full_
       private$assert_data_wide_(capital = FALSE)
       .engine$import_data_wide(
         private$generator_$mcmc_ptr, data_factorized
@@ -634,11 +641,8 @@ HousepiModel <- R6::R6Class(
       new_gen$init_pointers()
       obj_priv$generator_ <- new_gen
 
-      # transfer setup
-      .engine$import_setup(
-        new_gen$mcmc_ptr,
-        char_setup_input_(.engine$export_setup(private$generator_$mcmc_ptr))
-      )
+      # NOTE: setup is run-scoped, fully resupplied by build_full_ at every
+      # run/evaluate, so it is intentionally not carried across a copy.
       # share data store (just copy-on-write)
       .engine$share_data_store(new_gen$mcmc_ptr, private$generator_$mcmc_ptr)
 
@@ -744,19 +748,23 @@ HousepiModel <- R6::R6Class(
     #' @param threads `r rd_thread_`
     #' @param id_draws `r rd_smpl_iddrw_`
     #' @param progress `r rd_progress_`
+    #' @param ... `r rd_dots_config_`
     #' @return An object of class `HousepiPosteriorDraws`.
     run_inference = function(steps = 1000L, burn = 0L,
                              thin = 5L, adapt = 500L,
                              chains = 4L, threads = 1L,
-                             id_draws = NULL,
-                             progress = TRUE) {
-      private$assert_posterior_memory_(steps = steps, burn = burn,
-                                       thin = thin, chains = chains,
-                                       id_draws = id_draws)
-      private$build_full_(steps = steps, burn = burn,
-                          thin = thin, adapt = adapt,
-                          chains = chains, threads = threads,
-                          id_draws = id_draws, progress = progress)
+                             id_draws = NULL, progress = TRUE,
+                             ...) {
+      assert_advanced_setup_(list(...), "inv_temp")
+      private$assert_posterior_memory_(
+        steps = steps, burn = burn, thin = thin,
+        chains = chains, id_draws = id_draws
+      )
+      private$build_full_(
+        steps = steps, burn = burn, thin = thin, adapt = adapt,
+        chains = chains, threads = threads, id_draws = id_draws,
+        progress = progress, ...
+      )
       .engine$run_inference(private$generator_$mcmc_ptr)
       HousepiPosteriorDraws$new(private$generator_$raw_name,
                                 private$generator_$mcmc_ptr)
@@ -770,14 +778,17 @@ HousepiModel <- R6::R6Class(
     #' @param obs_process_long `r rd_simul_obs_long_`
     #' @param param_table `r rd_param_table_`
     #' @param nrep `r rd_simul_nrep_`
+    #' @param ... `r rd_dots_config_`
     #' @return `data.frame` or `list` (when `obs_process_long` is provided)
     run_simulation = function(obs_process = NULL,
                               obs_process_long = NULL,
                               param_table = NULL,
-                              nrep = NA_integer_) {
+                              nrep = NA_integer_, ...) {
       # simulation specific build
-      nrep <- private$helper_simulation_build_(param_table = param_table,
-                                               nrep = nrep)
+      assert_advanced_setup_(list(...), "time_step")
+      nrep <- private$helper_simulation_build_(
+        param_table = param_table, nrep = nrep, ...
+      )
 
       # run simulations
       output <- .engine$run_simulation(

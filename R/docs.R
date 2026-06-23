@@ -165,6 +165,7 @@ One between:
 - If `integer`, prints progress every `progress` seconds;
 - If `TRUE` prints progress every second (default);
 - If `FALSE` or `0`, suppresses progress display."
+rd_dots_config_ <- "Advanced configuration."
 rd_house_id_ <- "`character(1)` ID of the household of interest."
 
 rd_summ_cases_ <- "`data.frame`, one row per metric:

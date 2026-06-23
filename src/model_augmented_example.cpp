@@ -44,7 +44,7 @@ public:
 	void simulate_single_house(Household &house) override final
 	{
 		for (size_t i : house.infected_hhindexes())
-			init_missing_augm(house.member(i));
+			init_missing_augm(house, house.member(i));
 	}
 };
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

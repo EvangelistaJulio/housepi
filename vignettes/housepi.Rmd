@@ -157,13 +157,8 @@ hhmodel <- hhmodel |>
 # beta : in-household person to person transmission rate
 hhmodel <- hhmodel |>
   add_parameter("beta", prior = "uniform", proposal = "lognormal")
-```
 
-For a quick test, we can load parameter definitions directly from the template:
-
-```{r}
-#| label: load-parameter-template
-# use housepi templated definitions
+# lazily complete parameter definitions from housepi templated definitions
 hhmodel <- hhmodel |>
   add_parameter_template()
 
@@ -233,6 +228,9 @@ hhsimul <- community_structure |>
 # inspect parameter definitions
 get_parameters(hhsimul)
 ```
+
+In this example we used `add_parameter_template()` to use housepi templated parameter definitions.
+Similarly it can be done for augmented definitions via `add_augmented_template()`.
 
 # Simulate an outbreak
 
