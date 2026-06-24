@@ -66,7 +66,7 @@ namespace housepi
 		/// Return value of log-probability density/mass function.
 		double log_pdf(double x) const { return log_func_(delocate_(x)); }
 		/// Check for validity, then return value of log-probability density/mass function
-		double log_pdf_safe(double x) const
+		double guarded_log_pdf(double x) const
 		{
 			return is_valid(x) ? log_pdf(x)
 							   : -std::numeric_limits<double>::infinity();
@@ -74,7 +74,7 @@ namespace housepi
 
 		/// Check for validity, then  return the quantile (inverse CDF) at probability p.
 		double quantile(double p) const
-		{	
+		{
 			if (p < 0 || p > 1)
 				return na::DOUBLE;
 			if (p <= 0.)
@@ -104,7 +104,7 @@ namespace housepi
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double /*x*/) const = 0;
 
-		/// Raw complementary CDF (1 - cdf). 
+		/// Raw complementary CDF (1 - cdf).
 		/// NOTE: used in discretization when a tail-accurate closed form exists.
 		virtual double raw_ccdf_(double x) const { return 1. - raw_cdf_(x); }
 

@@ -561,10 +561,10 @@ namespace housepi
             return true;
         }
     }
-    double Variable::get_log_prior() const { return pDistr_->log_pdf(value_); }
-    double Variable::get_log_obs() const { return pDistr_->log_pdf_safe(value_); }
-    double Variable::get_prior_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
-    double Variable::get_proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
+    double Variable::log_prior() const { return pDistr_->log_pdf(value_); }
+    double Variable::log_obs() const { return pDistr_->guarded_log_pdf(value_); }
+    double Variable::prior_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
+    double Variable::proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
 
     void Variable::adapt_proposal(double ratio) { pProp_->adapt(accept_rate_, ratio); }
 

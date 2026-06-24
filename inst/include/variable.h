@@ -119,19 +119,19 @@ namespace housepi
             accept_rate_ -= adapt_smoothing_;
         }
 
-        double get_log_prior() const;
+        double log_prior() const;
         /// Log-likelihood of an observation node.
-        /// NOTE: observation are not granted valid: need for safe log-pdf.
-        double get_log_obs() const;
-        double get_prior_log_ratio() const;
-        double get_proposal_log_ratio() const;
+        /// NOTE: observation are not granted valid: need for guarded log-pdf.
+        double log_obs() const;
+        double prior_log_ratio() const;
+        double proposal_log_ratio() const;
         /// Log-ratio of priors, minus log-ratio of proposals for last move.
         double get_move_log_ratio() const
         {
             switch (ratio_mode_)
             {
             case Ratio::Compute:
-                return get_prior_log_ratio() - get_proposal_log_ratio();
+                return prior_log_ratio() - proposal_log_ratio();
             default: // case Ratio::None:
                 return 0;
             }

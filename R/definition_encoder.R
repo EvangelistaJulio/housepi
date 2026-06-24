@@ -90,7 +90,15 @@ collect_flat_args <- function(node, op) {
   result
 }
 
-
+# Assert that expression node is an admissible definition.
+assert_valid_defin_node <- function(x) {
+  if (is.null(x) || rlang::is_syntactic_literal(x) ||
+        rlang::is_symbol(x) || rlang::is_call(x)) return(invisible(x))
+  stop_h(
+    "Found a definition value that is not a valid source.",
+    format_type_error(x)
+  )
+}
 
 # Helper to extract functin from call.
 housepi_func_from_call <- function(call) {
@@ -115,6 +123,7 @@ housepi_func_from_call <- function(call) {
   if (length(args) > 0) {
     for (i in seq_along(args)) {
       y <- args[[i]]
+      assert_valid_defin_node(y)
       func_args[[paste0("x", i)]] <- ifelse(
         rlang::is_call(y) && rlang::call_name(y) != "@",
         housepi_func_from_call(y),
@@ -208,10 +217,7 @@ housepi_smart_unwrap <- function(x, arg_name = NULL) {
 
 # Deal with housepi quosures.
 housepi_extractor <- function(...) {
-  x_quos <- rlang::enquos(...)
-  x_quos <- helper_case_container(x_quos)
-
-  output <- unlist(lapply(x_quos, function(x_quo) {
+  .extract_node <- function(x_quo) {
     x_expr <- rlang::quo_get_expr(x_quo)
 
     # expand formula in case
@@ -220,28 +226,29 @@ housepi_extractor <- function(...) {
 
     if (is.null(x_expr)) {
       NULL
+    } else if (rlang::is_call(x_expr, c("-", "+")) &&
+                 length(x_expr) == 2 &&
+                 rlang::is_syntactic_literal(x_expr[[2]])) {
+      # unary
+      housepi_format_sources(c(x = eval(x_expr)))
+    } else if (rlang::is_call(x_expr, "@")) {
+      # sourced unary
+      housepi_format_sources(c(x = rlang::expr_text(x_expr)))
     } else if (rlang::is_call(x_expr)) {
-      # apply housepi format to formulas
-      if (rlang::call_name(x_expr) %in% c("-", "+") &&
-            length(x_expr) == 2 &&
-            rlang::is_syntactic_literal(x_expr[[2]])) {
-        # unary
-        housepi_format_sources(c(x = eval(x_expr)))
-      } else if (rlang::call_name(x_expr) == "@") {
-        # sourced unary
-        housepi_format_sources(c(x = rlang::expr_text(x_expr)))
-      } else {
-        # function
-        housepi_func_from_call(x_expr)
-      }
+      # function
+      housepi_func_from_call(x_expr)
     } else if (rlang::is_syntactic_literal(x_expr) ||
                  rlang::is_symbol(x_expr)) {
       # literals
       housepi_format_sources(c(x = x_expr))
     } else {
-      NULL
+      assert_valid_defin_node(x_expr)
     }
-  }))
+  }
+
+  x_quos <- rlang::enquos(...)
+  x_quos <- helper_case_container(x_quos)
+  output <- unlist(lapply(x_quos, .extract_node))
 
   if (!is.null(names(x_quos)) && !all(names(x_quos) == "")) output
   else unname(output)

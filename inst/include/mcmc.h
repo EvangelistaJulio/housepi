@@ -88,6 +88,12 @@ namespace housepi
 														bool with_augm_prior,
 														bool with_obs);
 
+		/// Guarded total log-posterior computation for initialization.
+		/// Assert for finite initial value and mechanisms to recover in place.
+		void init_guarded_commit_total_();
+		/// Single household's guarded contribution.
+		LogProbaAccumulator init_guarded_commit_house_(Household &house);
+
 		/// Compute and store log-ratio of prior of single augmented variable.
 		double commit_augm_log_prior_ratio(Individual &member, size_t a)
 		{
@@ -97,11 +103,8 @@ namespace housepi
 		/// Compute and store log-ratio of observation nodes parameterized by 'a'.
 		double commit_augm_log_obs_ratio(Individual &member, size_t a)
 		{
-			return augm.commit_log_lik_obs_ratio(member, a);
+			return augm.commit_obs_log_lik_ratio(member, a);
 		}
-
-		/// Update and return contribution of given household to full logliklehood.
-		double commit_transm_log_lik_(Household &house, bool is_cache_depen);
 
 		/// Compute and set value of observation log-likelihood. Return log-like.
 		double commit_transm_log_lik_(Household &house)

@@ -6,6 +6,7 @@
  */
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -304,7 +305,7 @@ namespace housepi
         helper_build_definition_by_status_();              // process definition by status
         helper_build_set_allocation_order_();              // allocation and order
         helper_init_observation_list_();                   // observation nodes
-        helper_init_house_obs_list_();                         // household-level observations
+        helper_init_house_obs_list_();                     // household-level observations
     }
 
     /// Check augmented names and assert no reserved names are used.
@@ -463,7 +464,7 @@ namespace housepi
         for (Household &house : mcmc_->data_wide())
             for (Individual &member : house)
             {
-                IndivBlock &iaugm = varia[Index::of(member)];
+                IndivBlock &iaugm = varia_of_(member);
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                     iaugm.vec[a].name(khold(a), "augmented");
@@ -574,7 +575,7 @@ namespace housepi
 
     void Augmented::set_sample_list_(int status)
     {
-        StatusBlock_ &block = status_blocks_[map_status_to_block_.at(status)];
+        StatusBlock_ &block = block_at_(status);
         for (size_t k : block.order)
             set_sample_list_for_single_defininition_(status, k);
 
@@ -615,7 +616,7 @@ namespace housepi
         else
         {
             is_any_sample_ = true;
-            status_blocks_[map_status_to_block_.at(status)].sample.emplace_back(a);
+            block_at_(status).sample.emplace_back(a);
 
             // adaptive if proposal is parametric and scale is NA
             // NOTE: user defined proposal_scale freezes the scale
@@ -623,7 +624,7 @@ namespace housepi
                 na::is(deftable_.c_scale[k]))
             {
                 is_any_adaptive_ = true;
-                status_blocks_[map_status_to_block_.at(status)].adaptive.emplace_back(a);
+                block_at_(status).adaptive.emplace_back(a);
             }
         }
 
@@ -639,7 +640,7 @@ namespace housepi
             list_export.emplace_back(a);
 
         if (is_to_draw)
-            status_blocks_[map_status_to_block_.at(status)].draws.emplace_back(a);
+            block_at_(status).draws.emplace_back(a);
     }
 
     std::pair<bool, bool> Augmented::set_sample_list_for_function_(int status, size_t k)
@@ -667,7 +668,7 @@ namespace housepi
         // inspect status specific augmented definitions and check if to draw (i. e. not const)
         // NOTE: taking advatange of the order!
         for (const std::string &bstr : parser.list_augmented_depen())
-            if (contains(status_blocks_[map_status_to_block_.at(status)].draws, khold(bstr)))
+            if (contains(block_at_(status).draws, khold(bstr)))
                 all_consts = false;
 
         // to draw if not all constant dependencies
@@ -957,8 +958,9 @@ namespace housepi
                         throw std::invalid_argument(
                             "Cyclic dependency for simulation: augmented '" + deftable_.c_name[k] +
                             "' reads data column '" + d + "', a household observation derived from a "
-                            "generated observation that depends on augmented variables.\n"
-                            "Define '" + deftable_.c_name[k] + "' without referencing '" + d +
+                                                          "generated observation that depends on augmented variables.\n"
+                                                          "Define '" +
+                            deftable_.c_name[k] + "' without referencing '" + d +
                             "' (an anchor-free distribution; the likelihood is invariant to the time origin).");
             }
         }
@@ -1131,14 +1133,14 @@ namespace housepi
 
     void Augmented::clear_definitions(Individual &member)
     {
-        for (Variable &avar : varia[Index::of(member)].vec)
+        for (Variable &avar : varia_of_(member).vec)
             avar.clear();
     }
 
     void Augmented::init_definitions_for_simulation(Individual &member)
     {
         for (size_t k : helper_materialize_definition_order_(member))
-            if (varia[Index::of(member)].vec[khold(deftable_.c_name[k])].is_empty())
+            if (varia_of_(member).vec[khold(deftable_.c_name[k])].is_empty())
                 helper_init_attributes_(member, k, true);
     }
 
@@ -1151,7 +1153,7 @@ namespace housepi
         if (it != map_status_to_block_.end())
         {
             const size_t i = it->second;
-            varia[Index::of(member)].idx = i;
+            varia_of_(member).idx = i;
             return status_blocks_[i].order;
         }
 
@@ -1161,7 +1163,7 @@ namespace housepi
         {
             const size_t i = generic_it->second;
             map_status_to_block_.emplace(status, i);
-            varia[Index::of(member)].idx = i;
+            varia_of_(member).idx = i;
             return status_blocks_[i].order;
         }
 
@@ -1182,7 +1184,7 @@ namespace housepi
 
         try
         {
-            Variable &avar = varia[Index::of(member)].vec[a];
+            Variable &avar = varia_of_(member).vec[a];
 
             if (str::tobool(deftable_.c_const[k]))
             {
@@ -1222,7 +1224,7 @@ namespace housepi
     void Augmented::helper_init_prior_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &avar = varia[Index::of(member)].vec[khold(astr)];
+        Variable &avar = varia_of_(member).vec[khold(astr)];
         parse::Definition parser(deftable_.c_prior[k]);
 
         avar.init_prior(parser.root.func);
@@ -1239,7 +1241,7 @@ namespace housepi
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &avar = varia[Index::of(member)].vec[khold(astr)];
+        Variable &avar = varia_of_(member).vec[khold(astr)];
         std::string str_val = deftable_.c_value[k];
         parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
 
@@ -1277,18 +1279,12 @@ namespace housepi
     ///////////////////////////////////  Augmented : user reset  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::restart(rnd_gen &prng, Individual &member)
-    {
-        for (size_t a : list_sample(member))
-            varia[Index::of(member)].vec[a].restart(prng);
-    }
-
     void Augmented::sample_obs(rnd_gen &prng, Individual &member)
     {
         DataWide &data_wide = mcmc_->data_wide();
         for (size_t a : list_obs(member))
         {
-            Variable &avar = varia[Index::of(member)].vec[a];
+            Variable &avar = varia_of_(member).vec[a];
             avar.draw_value(prng);
             // write the generated value back into its data column for @D consumers
             const auto it = obs_to_data_key_.find(a);
@@ -1299,12 +1295,66 @@ namespace housepi
 
     void Augmented::restart(rnd_gen &prng)
     {
-        if (khold_.empty())
+        if (!is_any_sample())
             return;
 
         for (Household &house : mcmc_->data_wide())
             for (size_t i : house.infected_hhindexes())
                 restart(prng, house.member(i));
+    }
+
+    [[noreturn]] void Augmented::throw_obs_init_error(const Individual &member) const
+    {
+        const StatusBlock_ &block = block_of_(member);
+
+        for (size_t k : block.order)
+        {
+            if (deftable_.c_kind[k] != "obs")
+                continue;
+
+            const Variable &ovar = varia_of_(member).vec[khold(deftable_.c_name[k])];
+            if (std::isfinite(ovar.log_obs()))
+                continue;
+
+            // domain: loc + [min, max]
+            std::vector<std::string> augm_dep, param_dep;
+            for (const parse::Entry &child : parse::Definition(deftable_.c_prior[k]).root.children)
+                if (child.key == "loc")
+                {
+                    child.append_augmented_depen(augm_dep);
+                    child.append_parameter_depen(param_dep);
+                }
+            for (const std::string &col : {deftable_.c_min[k], deftable_.c_max[k]})
+            {
+                parse::Definition def(col);
+                augm_dep += def.list_augmented_depen();
+                param_dep += def.list_parameter_depen();
+            }
+
+            if (augm_dep.size() > 0)
+                throw std::runtime_error(
+                    "Exceeded attempts to initialize augmented variables of " +
+                    member.err_name() + " due to observations.\n" +
+                    "Widen augmented prior of " + str::format(str::unique(augm_dep), 3, false) +
+                    ", revise the observation domain of '" + deftable_.c_name[k] +
+                    "', or check the observed individual data.");
+
+            // non-constant parameter in domain cannot be fixed by per-individual resampling
+            for (const std::string &pstr : str::unique(param_dep))
+            {
+                size_t p = mcmc_->param.khold().from_string(pstr);
+                if (!mcmc_->param.at(p).is_constant())
+                    throw std::runtime_error(
+                        "Failed to initialize due to observations of " + member.err_name() + ".\n" +
+                        "Try to remove free parameter dependencies in observation domain of '" + deftable_.c_name[k] + "'.");
+            }
+        }
+
+        // otherwise observed data are just unreachable
+        throw std::runtime_error(
+            "Failed to initialize due to observations of " + member.err_name() + ".\n" +
+            "The observed values lie outside of respective domain.\n" +
+            "Check the individual data or revise the domain.");
     }
 
     void Augmented::optimize()
@@ -1316,7 +1366,7 @@ namespace housepi
             for (size_t i : house.infected_hhindexes())
             {
                 Individual &member = house.member(i);
-                for (Variable &avar : varia[Index::of(member)].vec)
+                for (Variable &avar : varia_of_(member).vec)
                     avar.optimize();
             }
     }
@@ -1325,116 +1375,55 @@ namespace housepi
     ///////////////////////////////////  Augmented : log-likelihood  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    const std::vector<size_t> &Augmented::list_sample(const Individual &member) const
-    {
-        return status_blocks_[varia[Index::of(member)].idx].sample;
-    }
-    const std::vector<size_t> &Augmented::list_adaptive(const Individual &member) const
-    {
-        return status_blocks_[varia[Index::of(member)].idx].adaptive;
-    }
-    const std::vector<size_t> &Augmented::list_draws(const Individual &member) const
-    {
-        return status_blocks_[varia[Index::of(member)].idx].draws;
-    }
-    const std::vector<size_t> &Augmented::list_priors(const Individual &member) const
-    {
-        return status_blocks_[varia[Index::of(member)].idx].priors;
-    }
-    const std::vector<size_t> &Augmented::list_obs(const Individual &member) const
-    {
-        return status_blocks_[varia[Index::of(member)].idx].obs;
-    }
-
-    std::string format_exception_for(Individual &member, const std::exception &e)
-    {
-        std::string sms = e.what();
-        if (!sms.empty() && sms.back() == '.')
-            sms.pop_back();
-        return sms + " for " + member.err_name() + ".";
-    }
-
     double Augmented::commit_augm_log_prior(Individual &member)
     {
-        try
-        {
-            const std::vector<size_t> &priors = list_priors(member);
+        const std::vector<size_t> &priors = list_priors(member);
 
-            if (priors.empty())
-                return 0.;
-            double new_ll = 0.0;
-            for (size_t a : priors)
-                new_ll += varia[Index::of(member)].vec[a].get_log_prior();
-            varia[Index::of(member)].log_prior.set(new_ll);
-            return new_ll;
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(format_exception_for(member, e));
-        }
+        if (priors.empty())
+            return 0.;
+        double new_ll = 0.0;
+        for (size_t a : priors)
+            new_ll += varia_of_(member).vec[a].log_prior();
+        varia_of_(member).log_prior.set(new_ll);
+        return new_ll;
     }
 
     double Augmented::commit_augm_log_prior_ratio(Individual &member, size_t a)
     {
-        try
-        {
-            const StatusBlock_ &block = status_blocks_[varia[Index::of(member)].idx];
-            if (block.depen[a].empty())
-                return 0.;
-            double delta_ll = 0;
-            // NOTE: vector of dependencies 'depen' includes also 'a'
-            for (size_t b : block.depen[a])
-                delta_ll += varia[Index::of(member)].vec[b].get_prior_log_ratio();
-            varia[Index::of(member)].log_prior.increment(delta_ll);
-            return delta_ll;
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(format_exception_for(member, e));
-        }
+        const StatusBlock_ &block = block_of_(member);
+        if (block.depen[a].empty())
+            return 0.;
+        double delta_ll = 0;
+        // NOTE: vector of dependencies 'depen' includes also 'a'
+        for (size_t b : block.depen[a])
+            delta_ll += varia_of_(member).vec[b].prior_log_ratio();
+        varia_of_(member).log_prior.increment(delta_ll);
+        return delta_ll;
     }
 
-    double Augmented::commit_log_lik_obs(Individual &member)
+    double Augmented::commit_obs_log_lik(Individual &member)
     {
-        try
-        {
-            const std::vector<size_t> &obs = list_obs(member);
-
-            if (obs.empty())
-                return 0.;
-            double new_ll = 0.0;
-            for (size_t a : obs)
-                new_ll += varia[Index::of(member)].vec[a].get_log_obs();
-            varia[Index::of(member)].log_obs.set(new_ll);
-            return new_ll;
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(format_exception_for(member, e));
-        }
+        if (list_obs(member).empty())
+            return 0.;
+        const double new_ll = eval_log_obs(member);
+        varia_of_(member).log_obs.set(new_ll);
+        return new_ll;
     }
 
-    double Augmented::commit_log_lik_obs_ratio(Individual &member, size_t a)
+    double Augmented::commit_obs_log_lik_ratio(Individual &member, size_t a)
     {
-        try
-        {
-            const StatusBlock_ &block = status_blocks_[varia[Index::of(member)].idx];
-            // skip unless the moved augmented 'a' parameterizes some observation node
-            if (block.obs_depen[a].empty())
-                return 0.;
+        const StatusBlock_ &block = block_of_(member);
+        // skip unless the moved augmented 'a' parameterizes some observation node
+        if (block.obs_depen[a].empty())
+            return 0.;
 
-            // log-proba must be recomputed (observation value is just a datum)
-            double new_ll = 0.0;
-            for (size_t b : block.obs)
-                new_ll += varia[Index::of(member)].vec[b].get_log_obs();
-            const double delta_ll = new_ll - varia[Index::of(member)].log_obs.value();
-            varia[Index::of(member)].log_obs.set(new_ll);
-            return delta_ll;
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(format_exception_for(member, e));
-        }
+        // log-proba must be recomputed (observation value is just a datum)
+        double new_ll = 0.0;
+        for (size_t b : block.obs)
+            new_ll += varia_of_(member).vec[b].log_obs();
+        const double delta_ll = new_ll - varia_of_(member).log_obs.value();
+        varia_of_(member).log_obs.set(new_ll);
+        return delta_ll;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

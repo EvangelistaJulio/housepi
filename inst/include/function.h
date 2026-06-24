@@ -335,7 +335,7 @@ namespace housepi
         /// Return value of log-ratio of probability density/mass functions.
         double log_ratio(double xo, double xn) const { return log_ratio_(delocate_(xo), delocate_(xn)); }
         /// Check for validity, then return value of log-ratio of probability density/mass functions.
-        double log_ratio_safe(double xo, double xn) const
+        double guarded_log_ratio(double xo, double xn) const
         {
             bool ov = is_valid(xo), nv = is_valid(xn);
             if (ov && nv)

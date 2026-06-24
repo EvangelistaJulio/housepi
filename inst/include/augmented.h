@@ -31,7 +31,6 @@ namespace housepi
 {
     struct InfecProfile;
     struct DataWide;
-    class Individual;
     class Household;
     class MCMCBase;
 
@@ -39,6 +38,9 @@ namespace housepi
     {
         struct Entry;
     }
+
+    /// Max resamples per member (see Augmented::restart_obs_aware).
+    static constexpr size_t N_INIT_ATTEMPTS_ = 100;
 
     struct Augmented : public KeyModule
     {
@@ -51,8 +53,8 @@ namespace housepi
         {
             size_t idx = 0;                 /// index of status-specific definition
             std::vector<Variable> vec = {}; /// associated variables
-            LogProba log_prior;           /// augmented log-prior
-            LogProba log_obs;             /// observation log-likelihood
+            LogProba log_prior;             /// augmented log-prior
+            LogProba log_obs;               /// observation log-likelihood
         };
         std::vector<IndivBlock> varia;
 
@@ -110,8 +112,13 @@ namespace housepi
         void materialize_data_bound_house_obs(DataWide &data_wide);
 
         /// Reset augmented initial values for given individual.
-        void restart(rnd_gen &prng, Individual &m);
+        void restart(rnd_gen &prng, Individual &member)
+        {
+            for (size_t a : list_sample(member))
+                varia_of_(member).vec[a].restart(prng);
+        }
         /// Initialize augmented initial values for all individuals.
+        /// NOTE: skips automatically if no augmented to sample.
         void restart(rnd_gen &prng);
         /// Optimize all variables (see Variable::optimize).
         void optimize();
@@ -124,14 +131,14 @@ namespace housepi
         //////////////////////
 
         /// Access the augmented variable of given key for a member.
-        Variable &at(size_t a, const Individual &member) noexcept { return varia[Index::of(member)].vec[a]; }
-        const Variable &at(size_t a, const Individual &member) const noexcept { return varia[Index::of(member)].vec[a]; }
+        Variable &at(size_t a, const Individual &m) noexcept { return varia_of_(m).vec[a]; }
+        const Variable &at(size_t a, const Individual &m) const noexcept { return varia_of_(m).vec[a]; }
 
-        const std::vector<size_t> &list_sample(const Individual &member) const;
-        const std::vector<size_t> &list_adaptive(const Individual &member) const;
-        const std::vector<size_t> &list_draws(const Individual &member) const;
-        const std::vector<size_t> &list_priors(const Individual &member) const;
-        const std::vector<size_t> &list_obs(const Individual &member) const;
+        const std::vector<size_t> &list_sample(const Individual &m) const { return block_of_(m).sample; }
+        const std::vector<size_t> &list_adaptive(const Individual &m) const { return block_of_(m).adaptive; }
+        const std::vector<size_t> &list_draws(const Individual &m) const { return block_of_(m).draws; }
+        const std::vector<size_t> &list_priors(const Individual &m) const { return block_of_(m).priors; }
+        const std::vector<size_t> &list_obs(const Individual &m) const { return block_of_(m).obs; }
 
         /// Export column name of the household-level observation.
         const std::string &house_obs_name(size_t b) const { return deftable_.c_name[list_house_export[b]]; }
@@ -144,9 +151,21 @@ namespace housepi
 
         /// Compute and store observation log-likelihood of observation nodes.
         /// NOTE: to be called only if any observation node is defined.
-        double commit_log_lik_obs(Individual &member);
+        double commit_obs_log_lik(Individual &member);
         /// Compute and store log-ratio of observation node.
-        double commit_log_lik_obs_ratio(Individual &member, size_t a);
+        double commit_obs_log_lik_ratio(Individual &member, size_t a);
+
+        /// Read-only individual observation log-likelihood.
+        double eval_log_obs(const Individual &member) const
+        {
+            double ll = 0.0;
+            for (size_t a : list_obs(member))
+                ll += varia_of_(member).vec[a].log_obs();
+            return ll;
+        }
+
+        /// Throw initialization error for associated to observation model.
+        [[noreturn]] void throw_obs_init_error(const Individual &member) const;
 
         /////////////////////
         //////  FLAGS  //////
@@ -165,10 +184,7 @@ namespace housepi
         /// If moving given parameter may change the observation log-likelihood.
         bool param_affects_obs_log_lik(size_t p) const noexcept { return obs_param_depen_[p]; }
         /// If moving augmented 'a' for this member parameterizes any obs node.
-        bool affects_obs(const Individual &member, size_t a) const
-        {
-            return !status_blocks_[varia[Index::of(member)].idx].obs_depen[a].empty();
-        }
+        bool affects_obs(const Individual &m, size_t a) const { return !block_of_(m).obs_depen[a].empty(); }
 
     private:
         MCMCBase *mcmc_;               /// pointer to owning MCMCBase // UPDATE drop
@@ -233,6 +249,13 @@ namespace housepi
             std::vector<std::vector<size_t>> obs_depen = {}; /// latent key -> obs nodes conditioned on it
         };
         std::vector<StatusBlock_> status_blocks_;
+
+        /// Access IndivBlock for a member.
+        IndivBlock &varia_of_(const Individual &m) noexcept { return varia[Index::of(m)]; }
+        const IndivBlock &varia_of_(const Individual &m) const noexcept { return varia[Index::of(m)]; }
+        /// Status-specific block governing augmented definitions of member.
+        StatusBlock_ &block_at_(int status) { return status_blocks_[map_status_to_block_.at(status)]; }
+        const StatusBlock_ &block_of_(const Individual &m) const { return status_blocks_[varia_of_(m).idx]; }
 
         /// Check augmented names and assert no reserved names are used.
         void helper_build_assert_augm_input_(const str_table &input);

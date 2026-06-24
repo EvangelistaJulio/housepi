@@ -311,7 +311,7 @@ namespace housepi
         {
             const Variable &v = param.at(p);
             param_values[i][count_] = v.value();
-            param_priors[i++][count_] = v.get_log_prior();
+            param_priors[i++][count_] = v.log_prior();
         }
         // function-derived parameters: store value, no prior
         for (size_t p : param.list_func)
@@ -451,8 +451,8 @@ namespace housepi
     void MCMCBase::init_monte_carlo_chain_()
     {
         setup.prog_set_text();       // set progress bar text
-        param.restart(setup.prng()); // reset parameter user definitions
-        augm.restart(setup.prng());  // reset augmented user definitions
+        param.restart(setup.prng()); // reset parameters
+        augm.restart(setup.prng());  // reset augmented
 
         // re-initialize the acceptance estimate for every variable
         for (size_t p : param.list_adaptive)
@@ -466,37 +466,6 @@ namespace housepi
                     for (size_t a : augm.list_adaptive(member))
                         get_augm_varia(a, member).reset_accept_rate();
                 }
-    }
-
-    void MCMCBase::assert_finite_log_lik() const
-    {
-        if (!tot_obs_log_lik.is_inf() && !tot_transm_log_lik.is_inf() &&
-            !tot_augm_log_prior.is_inf())
-            return;
-
-        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
-        {
-            const Household &house = data_wide().eq_class_head(R);
-
-            if (data_wide().transm_log_lik(house).is_inf())
-                throw std::runtime_error(
-                    "Initial transmission log-likelihood returned infinity for " +
-                    house.err_name() + ".");
-
-            if (augm.is_any_sample())
-                for (size_t i : house.infected_hhindexes())
-                    if (augm.varia[Index::of(house.member(i))].log_prior.is_inf())
-                        throw std::runtime_error(
-                            "Initial augmented log-prior returned infinity for " +
-                            house.member(i).err_name() + ".");
-
-            if (augm.is_any_obs())
-                for (size_t i : house.infected_hhindexes())
-                    if (augm.varia[Index::of(house.member(i))].log_obs.is_inf())
-                        throw std::runtime_error(
-                            "Initial observation log-likelihood returned infinity for " +
-                            house.member(i).err_name() + ".");
-        }
     }
 
     void MCMCBase::recover_total_log_density_(bool is_cache_depen, bool with_augm_prior,
@@ -635,24 +604,25 @@ namespace housepi
         param.restart(setup.prng());
         augm.restart(setup.prng());
 
+        // evaluation at current state
         LogProbaAccumulator acc;
         if (na::is(house_id))
         {
-            // full evaluation: observation and transmission over all households
+            // evaluation across all households
             commit_total_log_posterior_(true);
             acc.obs = tot_obs_log_lik.value();
             acc.transm = tot_transm_log_lik.value();
         }
         else
         {
-            // single household: its observation and transmission contribution
+            // single household evaluation
             infec_profile.update(); // eventually recompute infectivity profile
             acc = commit_house_log_posterior_(data_wide().at(house_id), true,
                                               augm.is_any_prior(), augm.is_any_obs());
         }
 
         // complete-data household log-likelihood (joint over augmented variables):
-        // observation + transmission. Priors are excluded.
+        // observation + transmission
         return acc.obs + acc.transm;
     }
 
@@ -678,36 +648,16 @@ namespace housepi
             model->init_house_for_evaluation(data_wide().eq_class_head(R));
     }
 
-    double MCMC::commit_transm_log_lik_(Household &house, bool is_cache_depen)
-    {
-        try
-        {
-            // save all household cache dependencies
-            if (is_cache_depen)
-                model->update_house_cache_dependecies(house);
-
-            // compute and set household observation log-likelihood
-            // NOTE: augmented-variable priors are accumulated separately
-            return commit_transm_log_lik_(house);
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error("While computing log-likelihood for " +
-                                     house.err_name() + ":\n" + std::string(e.what()));
-        }
-    }
-
     void MCMC::commit_total_log_posterior_(bool is_cache_depen, bool with_augm_prior, bool with_obs)
     {
-        // save infectivity profile if lookup tables are active
         if (is_cache_depen)
         {
             data_wide().save_all_cached();
+            // NOTE: save infectivity profile if lookup tables are active
             infec_profile.update();
         }
 
-        // NOTE: classes are unique whenever augmented are sampled, carry a prior or
-        // carry an observation node, so per-member sums are weight-1 over singletons
+        // NOTE: eq-class coincide with all households when obs/prior exist
         const bool do_prior = with_augm_prior && augm.is_any_prior();
         const bool do_obs = with_obs && augm.is_any_obs();
         LogProbaAccumulator acc = parallel::for_reduce<LogProbaAccumulator>(
@@ -717,7 +667,6 @@ namespace housepi
                 double w = data_wide().eq_class_weight(R);
                 LogProbaAccumulator a = commit_house_log_posterior_(
                     data_wide().eq_class_head(R), is_cache_depen, do_prior, do_obs);
-                // NOTE: aggregate-init order matches LogProbaAccumulator: obs, transm, prior
                 return {w * a.obs, w * a.transm, w * a.aprior};
             });
         if (do_obs)
@@ -733,8 +682,12 @@ namespace housepi
         LogProbaAccumulator acc;
         if (with_obs)
             for (size_t i : house.infected_hhindexes())
-                acc.obs += augm.commit_log_lik_obs(house.member(i));
-        acc.transm = commit_transm_log_lik_(house, is_cache_depen);
+                acc.obs += augm.commit_obs_log_lik(house.member(i));
+
+        // save all household cache dependencies
+        if (is_cache_depen)
+            model->update_house_cache_dependecies(house);
+        acc.transm = commit_transm_log_lik_(house);
         if (with_augm_prior)
             for (size_t i : house.infected_hhindexes())
                 acc.aprior += augm.commit_augm_log_prior(house.member(i));
@@ -759,25 +712,83 @@ namespace housepi
         setup.prog_set_text(); // refresh label
         posterior.init(*this); // initialize posterior sample
 
-        // run multiple MCMC chains&
+        // run multiple MCMC chains
         for (setup.chain_id = 0; setup.chain_id < setup.n_chains; ++setup.chain_id)
         {
-            try
-            {
-                init_monte_carlo_chain_();
-                // NOTE: init all cached with flag true
-                commit_total_log_posterior_(true);
-                assert_finite_log_lik();
-            }
-            catch (const std::exception &e)
-            {
-                throw std::runtime_error(
-                    "While initializing Markov chain:\n" + std::string(e.what()));
-            }
-
+            init_monte_carlo_chain_();
+            init_guarded_commit_total_();
             run_mc_finite_adaptation_();
             run_mc_posterior_sampling_();
         }
+    }
+
+    void MCMC::init_guarded_commit_total_()
+    {
+        // cache prologue
+        data_wide().save_all_cached();
+        infec_profile.update();
+
+        // single serial pass
+        LogProbaAccumulator acc;
+        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
+        {
+            double w = data_wide().eq_class_weight(R);
+            LogProbaAccumulator a = init_guarded_commit_house_(data_wide().eq_class_head(R));
+            acc += {w * a.obs, w * a.transm, w * a.aprior};
+        }
+
+        if (augm.is_any_obs())
+            tot_obs_log_lik.set(acc.obs);
+        tot_transm_log_lik.set(acc.transm);
+        if (augm.is_any_prior())
+            tot_augm_log_prior.set(acc.aprior);
+    }
+
+    LogProbaAccumulator MCMC::init_guarded_commit_house_(Household &house)
+    {
+        LogProbaAccumulator acc;
+
+        // Observation (individual):
+        // resample each member variable upon failure
+        if (augm.is_any_obs())
+            for (size_t i : house.infected_hhindexes())
+            {
+                Individual &member = house.member(i);
+                if (augm.list_obs(member).empty())
+                    continue;
+
+                size_t attempt = 0;
+                while (!std::isfinite(augm.eval_log_obs(member)))
+                {
+                    ++attempt;
+                    if (!augm.is_any_sample() || attempt >= N_INIT_ATTEMPTS_)
+                        augm.throw_obs_init_error(member);
+                    augm.restart(setup.prng(), member);
+                }
+                acc.obs += augm.commit_obs_log_lik(member);
+            }
+
+        // Transmission:
+        model->update_house_cache_dependecies(house);
+        acc.transm = commit_transm_log_lik_(house);
+        if (data_wide().transm_log_lik(house).is_inf())
+            throw std::runtime_error(
+                "Initial transmission log-likelihood returned infinity for " +
+                house.err_name() + ".");
+
+        // Augmented Prior:
+        if (augm.is_any_prior())
+            for (size_t i : house.infected_hhindexes())
+            {
+                Individual &member = house.member(i);
+                acc.aprior += augm.commit_augm_log_prior(member);
+                if (augm.varia[Index::of(member)].log_prior.is_inf())
+                    throw std::runtime_error(
+                        "Initial augmented log-prior returned infinity for " +
+                        member.err_name() + ".");
+            }
+
+        return acc;
     }
 
     void MCMC::run_mc_finite_adaptation_()
@@ -889,22 +900,14 @@ namespace housepi
     {
         Household &house = data_wide().at(H);
 
-        try
+        LogProbaAccumulator acc;
+        for (size_t i : house.infected_hhindexes())
         {
-            LogProbaAccumulator acc;
-            for (size_t i : house.infected_hhindexes())
-            {
-                Individual &member_i = house.member(i);
-                for (size_t a : augm.list_sample(member_i))
-                    acc += move_augm_single_variable_(house, member_i, a);
-            }
-            return acc;
+            Individual &member_i = house.member(i);
+            for (size_t a : augm.list_sample(member_i))
+                acc += move_augm_single_variable_(house, member_i, a);
         }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error("While sampling augmented variables for " +
-                                     house.err_name() + ":\n" + std::string(e.what()));
-        }
+        return acc;
     }
 
     LogProbaAccumulator MCMC::move_augm_single_variable_(Household &house, Individual &member, size_t a)
@@ -930,7 +933,7 @@ namespace housepi
 
             // NOTE: likelihood terms are tempered, augmented prior is not.
             if (setup.exponential() >
-                avar.get_proposal_log_ratio() - setup.inv_temp * (d_obs + d_transm) - d_prior)
+                avar.proposal_log_ratio() - setup.inv_temp * (d_obs + d_transm) - d_prior)
                 return {d_obs, d_transm, d_prior};
 
             // recover log-proba values

@@ -87,7 +87,7 @@ namespace housepi
         {
             double out = 0.;
             for (size_t p : list_sample)
-                out += at(p).get_log_prior();
+                out += at(p).log_prior();
             return out;
         }
 

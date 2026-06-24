@@ -228,7 +228,7 @@ namespace
 
         MAKE_EXPOSE_METHOD_CALL(func, ptr_->func(v))
         MAKE_EXPOSE_METHOD_CALL(log_func, ptr_->log_func(v))
-        MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, ptr_->log_ratio_safe(vo, vn))
+        MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, ptr_->guarded_log_ratio(vo, vn))
         MAKE_EXPOSE_METHOD_CALL(prim, ptr_->prim(v))
     };
 
@@ -240,8 +240,8 @@ namespace
                          {"continuos", "discrete"}) {}
 
         MAKE_EXPOSE_METHOD_CALL(pdf, ptr_->pdf(v))
-        MAKE_EXPOSE_METHOD_CALL(log_pdf, distr_()->log_pdf_safe(v))
-        MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, distr_()->log_ratio_safe(vo, vn))
+        MAKE_EXPOSE_METHOD_CALL(log_pdf, distr_()->guarded_log_pdf(v))
+        MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, distr_()->guarded_log_ratio(vo, vn))
         MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
         MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile(v))
 
@@ -1136,7 +1136,7 @@ namespace
             {
                 const Variable &avar = mcmc_ptr->get_augm_varia(a, member_i);
                 if (avar.has_prior())
-                    df_double[c++][i] = hsp_to_rcpp(avar.get_log_prior());
+                    df_double[c++][i] = hsp_to_rcpp(avar.log_prior());
             }
         }
 

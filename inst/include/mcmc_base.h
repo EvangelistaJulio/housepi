@@ -122,9 +122,6 @@ namespace housepi
 		/// Intialize a single Markov chain for Monte Carlo.
 		void init_monte_carlo_chain_();
 
-		/// Raise an error if log-likelihood and/or augmented priors are not finite.
-		void assert_finite_log_lik() const;
-
 		/// Recover the old total log-likelihood, augmented log-priors and observation.
 		/// NOTE: called after a refused parameter move.
 		void recover_total_log_density_(bool is_cache_depen,

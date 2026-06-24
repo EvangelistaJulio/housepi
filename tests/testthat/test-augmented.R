@@ -224,7 +224,7 @@ test_that("Deterministic observation node is encoded as a function obs", {
     # deterministic observation (no 'obs')
     helper_test_aux_load(
       onset_date = floor(infec_time + incub_period),
-      .kind = "obs", 
+      .kind = "obs",
       append = TRUE
     )
   d <- augm$defs[augm$defs[["name"]] == "onset_date", ]
@@ -270,7 +270,7 @@ test_that("Household observations do not interfer with augmented defs", {
       onset_date = list(obs = "normal", mean = incub_period@A, sd = 1),
       .kind = "obs"
     )
-  
+
   # non-append household observation keeps augmented definitions
   augm |>
     helper_test_aux_load(
@@ -279,14 +279,14 @@ test_that("Household observations do not interfer with augmented defs", {
     )
   augm$defs[["name"]] |>
     expect_setequal(c("incub_period", "onset_date", "first_test"))
-  
+
   augm$defs[["kind"]][augm$defs[["name"]] == "first_test"] |>
     expect_identical("house-obs")
-  augm$defs[["func"]][augm$defs[["name"]] == "first_test"] |> 
+  augm$defs[["func"]][augm$defs[["name"]] == "first_test"] |>
     expect_identical("min|x|{test_date|D}")
-  
+
   # non-append load drops only the house rows
-  augm |> 
+  augm |>
     helper_test_aux_load(
       last_test = max(test_date@D),
       .kind = "house-obs", append = FALSE
@@ -294,4 +294,51 @@ test_that("Household observations do not interfer with augmented defs", {
   expect_false("first_test" %in% augm$defs[["name"]])
   augm$defs[["name"]] |>
     expect_setequal(c("incub_period", "onset_date", "last_test"))
+})
+
+test_that("Observation-aware initialization", {
+  window <- 0.1
+  # augmented z ~ U(0, 1)
+  # observation x ~ U(z - w, z + w)
+  # if x = 0.5, valid for z in [0.4, 0.6] 
+  # without observation-aware restart, it would fail with 80% proba per-chain
+  # probably of failing on K chains: 1 - 0.2^K
+  data.frame(house_id = "shadow_moses", status = 1, x = 0.5) |>
+    new_housepi_model("blank") |>
+    add_augmented("z", prior = "uniform") |>
+    add_observation("x", obs = "uniform", loc = z, 
+                    min = - !!window, max = !!window) |>
+    run_inference(steps = 10L, adapt = 0L, chains = 40L, progress = FALSE) |>
+    suppressMessages() |>
+    suppressWarnings() |>
+    expect_no_error()
+  
+  # datum x = 5 is unreachable
+  # UPDATE: it's the same as above: new-dataset decorator?
+  data.frame(house_id = "outer_heaven", status = 1, x = 5) |>
+    new_housepi_model("blank") |>
+    add_augmented("z", prior = "uniform") |>
+    add_observation("x", obs = "uniform", loc = z,
+                    min = - !!window, max = !!window) |>
+    run_inference() |>
+    suppressMessages() |>
+    expect_error("[Ee]xceeded attempts.*'x'")
+  
+  # sampled parameter in the domain still makes null observation
+  data.frame(house_id = "metal_gear", status = 1, x = 5) |>
+    new_housepi_model("blank") |>
+    add_parameter("theta", prior = "uniform") |>
+    add_observation("x", obs = "uniform", min = - theta@P, max = theta@P) |>
+    run_inference() |>
+    suppressMessages() |>
+    expect_error("free parameter dependencies")
+  
+  # generic error
+  data.frame(house_id = "metal_gear", status = 1, x = 5) |>
+    new_housepi_model("blank") |>
+    add_parameter("theta", value = 0.3) |>
+    add_augmented("z", prior = "uniform") |>
+    add_observation("x", obs = "uniform", min = - theta@P, max = theta@P) |> 
+    run_inference() |>
+    expect_error("outside of respective domain")
 })
