@@ -98,8 +98,8 @@ namespace housepi
 			mcmc_->augm.init_definitions_for_simulation(member);
 			mcmc_->augm.restart(mcmc_->setup.prng(), member);
 			mcmc_->augm.sample_obs(mcmc_->setup.prng(), member);
-			/// UPDATE: this refresh should be automatic and not enforced
-			mcmc_->augm.refresh_live_house_obs(house);
+			/// rebuild the live household reductions over the just-drawn observation
+			mcmc_->augm.update_house_obs_for_simulation(house);
 		}
 
 		/// Modeler call. Request discrete parameter definition.

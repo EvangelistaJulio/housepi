@@ -58,9 +58,9 @@ namespace housepi
         };
         std::vector<IndivBlock> varia;
 
-        /// Household-level observations, per house per house-export slot.
-        /// NOTE: built for simulations only.
-        /// UPDATE: maybe it will support models in the future.
+        /// Household-level observations, per house per house-export slot. The single
+        /// source of truth for a derived column: standing-in data cells point at it.
+        /// NOTE: built for both inference (data-bound) and simulation (live).
         std::vector<std::vector<Variable>> house_varia;
 
         ///////////////////////////
@@ -96,18 +96,13 @@ namespace housepi
 
         /// Initialize household-level observations for simulations.
         void init_house_for_simulation();
-        /// Reset generated observation data columns of a household to NA before re-sampling.
+        /// Clear every member's observation Variables of a household before re-sampling.
         void reset_obs_data_for_simulation(Household &house);
-        /// Re-snapshot household observations over the current (post-sampling) data columns.
+        /// Rebuild the live household-observation reductions over the current draws.
         void update_house_obs_for_simulation(Household &house);
-        /// Materialize static data-bound household observations into the data store
-        /// before the loop (readable by augmented draws like the index infection time).
-        void materialize_static_house_obs(Household &house) { write_data_bound_house_obs_(house, false); }
-        /// Recompute live data-bound household observations into the data store in-loop.
-        void refresh_live_house_obs(Household &house) { write_data_bound_house_obs_(house, true); }
 
-        /// Materialize household observations that stand in for required data columns:
-        /// write the per-household value into every member's data slot before evaluation.
+        /// Build the household observations that stand in for required data columns and
+        /// point each member's read-surface at its Variable before evaluation.
         /// NOTE: only pure-data (constant) household observations are eligible.
         void materialize_data_bound_house_obs(DataWide &data_wide);
 
@@ -181,6 +176,8 @@ namespace housepi
         bool param_affects_augm_prior(size_t p) const noexcept { return prior_param_depen_[p]; }
         /// If there are definitions for observations.
         bool is_any_obs() const noexcept { return is_any_obs_; }
+        /// Whether the given name is an observation node (kind "obs").
+        bool is_obs_node(const std::string &name) const noexcept;
         /// If moving given parameter may change the observation log-likelihood.
         bool param_affects_obs_log_lik(size_t p) const noexcept { return obs_param_depen_[p]; }
         /// If moving augmented 'a' for this member parameterizes any obs node.
@@ -197,9 +194,6 @@ namespace housepi
         std::vector<bool> prior_param_depen_ = {};
         /// Parameters whose moves can change the observation log-likelihood.
         std::vector<bool> obs_param_depen_ = {};
-
-        /// Observation augmented-key -> its data-store column key (simulation write-back).
-        std::unordered_map<size_t, size_t> obs_to_data_key_ = {};
 
         /// User defined discrete parameters
         std::unordered_set<size_t> user_discrete_set_ = {};
@@ -306,17 +300,15 @@ namespace housepi
         void helper_init_house_attributes_(Household &house, size_t b);
         /// Build the (reduction) variable for household observation 'k' over 'house'.
         void build_house_obs_variable_(Variable &hvar, Household &house, size_t k);
+        /// Point each standing-in data cell of a house at its household-obs Variable.
+        void wire_house_obs_cells_(Household &house);
         /// Whether household observation 'k' references only data and numeric sources.
         bool house_obs_is_pure_data_(size_t k) const;
         /// Whether a parsed definition subtree references any group rate.
         static bool entry_has_group_rate_(const parse::Entry &node);
 
-        /// Pre-existing data columns simulation overwrites (saved by the snapshot).
-        std::vector<size_t> affected_existing_data_keys_(const DataWide &data_wide) const;
         /// Whether household observation 'k' references a generated observation column.
         bool house_obs_is_live_(size_t k) const;
-        /// Write data-bound household observations of the requested kind into the store.
-        void write_data_bound_house_obs_(Household &house, bool live);
         /// Reject an augmented variable that reads a live data-bound household observation.
         void assert_no_live_house_obs_cycle_() const;
 

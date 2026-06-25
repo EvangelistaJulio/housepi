@@ -338,6 +338,14 @@ namespace housepi
         deftable_.append(input);
     }
 
+    bool Augmented::is_obs_node(const std::string &name) const noexcept
+    {
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+            if (deftable_.c_kind[k] == "obs" && deftable_.c_name[k] == name)
+                return true;
+        return false;
+    }
+
     void Augmented::set_prior_param_depen_()
     {
         // initialize list of parameter dependent augmented/observation
@@ -810,88 +818,64 @@ namespace housepi
     {
         DataWide &data_wide = mcmc_->data_wide();
 
-        // snapshot the columns simulation will overwrite (and the key-holder shape)
-        // before registering/writing, so the data store can be restored pristine.
-        data_wide.snapshot_columns(affected_existing_data_keys_(data_wide));
-
         // reject an unsatisfiable cycle (augmented variable reading a live house-obs)
         assert_no_live_house_obs_cycle_();
-
-        // map each observation node to its data-store column, so a generated value
-        // can be written back there and @D references resolve to it (live observation).
-        // a generated observation absent from the imported data gets a column here.
-        obs_to_data_key_.clear();
-        for (size_t a : list_obs_export)
-            obs_to_data_key_[a] = data_wide.register_optional_column(khold(a));
 
         house_varia.clear();
         if (list_house_export.empty())
             return;
 
+        // household observations are first-class Variables: build the reduction for
+        // every house once and point each standing-in data column at it. Live
+        // reductions (over generated observations) are rebuilt as they are drawn.
         const size_t n_houses = data_wide.report_house.total;
-        house_varia.resize(n_houses);
+        house_varia.assign(n_houses, std::vector<Variable>(list_house_export.size()));
         for (size_t H = 0; H < n_houses; ++H)
         {
             Household &house = data_wide.at(H);
-            house_varia[H].resize(list_house_export.size());
             for (size_t b = 0; b < list_house_export.size(); ++b)
                 helper_init_house_attributes_(house, b);
+            wire_house_obs_cells_(house);
+        }
+    }
+
+    void Augmented::wire_house_obs_cells_(Household &house)
+    {
+        DataWide &data_wide = mcmc_->data_wide();
+        for (size_t b = 0; b < list_house_export.size(); ++b)
+        {
+            const std::string &name = house_obs_name(b);
+            if (!data_wide.khold().count(name))
+                continue; // export-only household observation: no standing-in column
+            const size_t d = data_wide.khold(name);
+            for (const Individual &member : house)
+                data_wide.wire_cell(d, member, &house_varia[Index::of(house)][b]);
         }
     }
 
     void Augmented::reset_obs_data_for_simulation(Household &house)
     {
-        // clear generated observation columns (and live household-observation columns
-        // derived from them) before re-sampling: a member infected in a previous
-        // repetition must not leak a stale value into this one.
-        DataWide &data_wide = mcmc_->data_wide();
-        for (const auto &[a, d] : obs_to_data_key_)
-            for (const Individual &member : house)
-                data_wide.set_data(d, member, na::DOUBLE);
-        for (size_t b = 0; b < list_house_export.size(); ++b)
-        {
-            const size_t k = list_house_export[b];
-            const std::string &name = deftable_.c_name[k];
-            if (data_wide.khold().count(name) && house_obs_is_live_(k))
-            {
-                const size_t d = data_wide.khold(name);
-                for (const Individual &member : house)
-                    data_wide.set_data(d, member, na::DOUBLE);
-            }
-        }
+        // clear every member's observation Variables before re-sampling: a member
+        // infected in a previous repetition must not leak a stale value into this
+        // one. Rebuild the live household reductions (now empty) over them.
+        for (Individual &member : house)
+            for (size_t a : list_obs_export)
+                varia_of_(member).vec[a].clear();
+        update_house_obs_for_simulation(house);
     }
 
     void Augmented::update_house_obs_for_simulation(Household &house)
     {
-        // re-snapshot household observations over the now-current data columns
-        // (which include observations just written back by sample_obs).
+        // rebuild the live household reductions over the current observation
+        // Variables; static ones are constant data and built once at house init.
         for (size_t b = 0; b < list_house_export.size(); ++b)
-            helper_init_house_attributes_(house, b);
+            if (house_obs_is_live_(list_house_export[b]))
+                helper_init_house_attributes_(house, b);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////  Augmented : data-bound household observations (simulation)  /////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    std::vector<size_t> Augmented::affected_existing_data_keys_(const DataWide &data_wide) const
-    {
-        // data columns simulation overwrites that already exist (so their values must
-        // be saved): provided observation columns and data-bound household observations.
-        std::vector<size_t> keys;
-        const auto add = [&](const std::string &name)
-        {
-            if (!data_wide.khold().count(name))
-                return;
-            const size_t d = data_wide.khold(name);
-            if (!contains(keys, d))
-                keys.push_back(d);
-        };
-        for (size_t a : list_obs_export)
-            add(khold(a));
-        for (size_t b = 0; b < list_house_export.size(); ++b)
-            add(deftable_.c_name[list_house_export[b]]);
-        return keys;
-    }
 
     bool Augmented::house_obs_is_live_(size_t k) const
     {
@@ -910,24 +894,6 @@ namespace housepi
                     return true;
         }
         return false;
-    }
-
-    void Augmented::write_data_bound_house_obs_(Household &house, bool live)
-    {
-        DataWide &data_wide = mcmc_->data_wide();
-        for (size_t b = 0; b < list_house_export.size(); ++b)
-        {
-            const size_t k = list_house_export[b];
-            const std::string &name = deftable_.c_name[k];
-            if (!data_wide.khold().count(name) || house_obs_is_live_(k) != live)
-                continue;
-            Variable hvar;
-            build_house_obs_variable_(hvar, house, k);
-            const size_t d = data_wide.khold(name);
-            const double v = hvar.value();
-            for (const Individual &member : house)
-                data_wide.set_data(d, member, v);
-        }
     }
 
     void Augmented::assert_no_live_house_obs_cycle_() const
@@ -1074,11 +1040,18 @@ namespace housepi
 
     void Augmented::materialize_data_bound_house_obs(DataWide &data_wide)
     {
-        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-        {
-            if (deftable_.c_kind[k] != "house-obs")
-                continue;
+        if (list_house_export.empty())
+            return;
 
+        // build the household-observation Variables (inference home, shared with the
+        // simulation init) and point each standing-in data column's read-surface at
+        // its Variable, so @D readers resolve the derived value without a data copy.
+        const size_t n_houses = data_wide.report_house.total;
+        house_varia.assign(n_houses, std::vector<Variable>(list_house_export.size()));
+
+        for (size_t b = 0; b < list_house_export.size(); ++b)
+        {
+            const size_t k = list_house_export[b];
             const std::string &astr = deftable_.c_name[k];
             // export-only household observation: its name is not a data column
             if (!data_wide.khold().count(astr))
@@ -1096,9 +1069,10 @@ namespace housepi
                     "live observations are only meaningful in simulation.");
 
             const size_t d = data_wide.khold(astr);
-            for (Household &house : data_wide)
+            for (size_t H = 0; H < n_houses; ++H)
             {
-                Variable hvar;
+                Household &house = data_wide.at(H);
+                Variable &hvar = house_varia[H][b];
                 build_house_obs_variable_(hvar, house, k);
                 const double v = hvar.value();
 
@@ -1112,7 +1086,7 @@ namespace housepi
                         " was expected to be greater than zero, as requested by model.");
 
                 for (const Individual &member : house)
-                    data_wide.set_data(d, member, v);
+                    data_wide.wire_cell(d, member, &hvar);
             }
         }
     }
@@ -1281,16 +1255,10 @@ namespace housepi
 
     void Augmented::sample_obs(rnd_gen &prng, Individual &member)
     {
-        DataWide &data_wide = mcmc_->data_wide();
+        // draw each observation into its Variable; @D consumers read it straight from
+        // there (the data column, if any, is never overwritten).
         for (size_t a : list_obs(member))
-        {
-            Variable &avar = varia_of_(member).vec[a];
-            avar.draw_value(prng);
-            // write the generated value back into its data column for @D consumers
-            const auto it = obs_to_data_key_.find(a);
-            if (it != obs_to_data_key_.end())
-                data_wide.set_data(it->second, member, avar.value());
-        }
+            varia_of_(member).vec[a].draw_value(prng);
     }
 
     void Augmented::restart(rnd_gen &prng)

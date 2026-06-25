@@ -18,6 +18,7 @@
 #include "tools/logproba.h"
 #include "tools/types.h"
 
+#include "function.h"
 #include "household.h"
 
 namespace housepi
@@ -95,17 +96,12 @@ namespace housepi
         const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
         /// Access wide-format data of given column for a member.
-        double data(size_t d, const Individual &member) const noexcept { return indiv_data_[Index::of(member)].vec[d]; }
-        /// Overwrite wide-format data of given column for a member (derived/materialized data).
-        void set_data(size_t d, const Individual &member, double x) noexcept { indiv_data_[Index::of(member)].vec[d] = x; }
-        /// Ensure a data column exists (NA-filled), returning its key. No-op if already present.
-        /// Used to host simulation-generated columns absent from the imported data.
-        size_t register_optional_column(const std::string &name);
-
-        /// Save the given columns' values and the key-holder shape (simulation guard).
-        void snapshot_columns(const std::vector<size_t> &keys);
-        /// Restore the snapshot taken by snapshot_columns, dropping columns added since.
-        void restore_columns();
+        /// NOTE: resolves through the per-member read-surface (raw or a wired Variable).
+        double data(size_t d, const Individual &member) const noexcept { return cell(d, member).value(); }
+        /// Read-surface attribute of given column for a member (for live @D resolution).
+        const Attribute &cell(size_t d, const Individual &member) const noexcept { return indiv_data_[Index::of(member)].cell[d]; }
+        /// Point a column's read-surface at a derived Variable (household observation).
+        void wire_cell(size_t d, const Individual &member, const Attribute *p) noexcept { indiv_data_[Index::of(member)].cell[d].init_pointer(p); }
 
         ///////////////////////////////////
         //////  EQUIVALENCE CLASSES  //////
@@ -189,17 +185,12 @@ namespace housepi
         struct IndivWide_
         {
             int status = status::MISSING;
-            std::vector<double> vec = {};
+            std::vector<double> vec = {};       /// immutable imported-raw backing
+            std::vector<Attribute> cell = {};   /// per-column read-surface (raw or wired)
         };
 
         dict<size_t> hhid_to_index_ = {};            /// Map house-id to internal index
         std::vector<IndivWide_> indiv_data_;         /// External storage for individual data
-
-        /// Simulation column-snapshot: original key-holder + saved values to restore.
-        bool snap_active_ = false;
-        KeyHolder snap_khold_ = {};
-        std::vector<size_t> snap_keys_ = {};
-        std::vector<std::vector<double>> snap_vals_ = {};
 
         std::vector<Household> house_vector_ = {};   /// All households in data
         std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood

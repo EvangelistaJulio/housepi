@@ -208,6 +208,12 @@ namespace housepi
                 }
             }
 
+            // per-column read-surface defaults to the imported raw value; derived
+            // columns (household observations) are wired to their Variable later.
+            idata.cell.resize(idata.vec.size());
+            for (size_t d = 0; d < idata.vec.size(); ++d)
+                idata.cell[d].init_numeric(idata.vec[d]);
+
             // if household index doesn't exist, add new household
             if (!hhid_to_index_.count(house_id))
             {
@@ -229,45 +235,6 @@ namespace housepi
 
         // update report for data
         build_helper_fill_report_data_();
-    }
-
-    size_t DataWide::register_optional_column(const std::string &name)
-    {
-        if (khold_.count(name))
-            return khold_.from_string(name);
-        khold_.add(name);
-        const size_t d = khold_.from_string(name);
-        // grow every member's row to host the new column, NA until written
-        for (IndivWide_ &idata : indiv_data_)
-            idata.vec.resize(khold_.size(), na::DOUBLE);
-        return d;
-    }
-
-    void DataWide::snapshot_columns(const std::vector<size_t> &keys)
-    {
-        snap_keys_ = keys;
-        snap_khold_ = khold_;
-        snap_vals_.assign(keys.size(), std::vector<double>(indiv_data_.size()));
-        for (size_t j = 0; j < keys.size(); ++j)
-            for (size_t i = 0; i < indiv_data_.size(); ++i)
-                snap_vals_[j][i] = indiv_data_[i].vec[keys[j]];
-        snap_active_ = true;
-    }
-
-    void DataWide::restore_columns()
-    {
-        if (!snap_active_)
-            return;
-        for (size_t j = 0; j < snap_keys_.size(); ++j)
-            for (size_t i = 0; i < indiv_data_.size(); ++i)
-                indiv_data_[i].vec[snap_keys_[j]] = snap_vals_[j][i];
-        // drop columns registered after the snapshot (simulation-generated)
-        khold_ = snap_khold_;
-        for (IndivWide_ &idata : indiv_data_)
-            idata.vec.resize(khold_.size(), na::DOUBLE);
-        snap_active_ = false;
-        snap_keys_.clear();
-        snap_vals_.clear();
     }
 
     size_t DataWide::house_id_to_index_(std::string_view house_id) const
