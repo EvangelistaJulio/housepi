@@ -97,9 +97,8 @@ namespace housepi
         /// Initialize household-level observations for simulations.
         void init_house_for_simulation();
         /// Clear every member's observation Variables of a household before re-sampling.
+        /// FIXME: I don't think I need this anymore
         void reset_obs_data_for_simulation(Household &house);
-        /// Rebuild the live household-observation reductions over the current draws.
-        void update_house_obs_for_simulation(Household &house);
 
         /// Build the household observations that stand in for required data columns and
         /// point each member's read-surface at its Variable before evaluation.

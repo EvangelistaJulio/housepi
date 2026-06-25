@@ -93,13 +93,11 @@ namespace housepi
 		/// Modeler call. Initialize all augmented variables and observations.
 		/// If a variable has been set by the user, it's skipped.
 		/// UPDATE: right now simulations assignments must be order independent.
-		void init_missing_augm(Household &house, Individual &member)
+		void init_missing_augm(Individual &member)
 		{
 			mcmc_->augm.init_definitions_for_simulation(member);
 			mcmc_->augm.restart(mcmc_->setup.prng(), member);
 			mcmc_->augm.sample_obs(mcmc_->setup.prng(), member);
-			/// rebuild the live household reductions over the just-drawn observation
-			mcmc_->augm.update_house_obs_for_simulation(house);
 		}
 
 		/// Modeler call. Request discrete parameter definition.

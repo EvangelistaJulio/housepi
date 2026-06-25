@@ -101,22 +101,19 @@ namespace housepi
 
             if (parse::is_data_wide(node.type))
             {
-                // a generated observation absent from the imported data has no data
-                // column: resolve @D straight to its Variable (the single source of
-                // truth). An uncallable slot (member without the observation) reads NA.
-                if (augm_.is_obs_node(node.value) && !pdata_wide_->khold().count(node.value))
+                if (!pdata_wide_->khold().count(node.value) && augm_.is_obs_node(node.value))
                 {
-                    const Variable &obs = augm_.at(augm_.khold(node.value), *member_ptr);
-                    if (obs.is_callable())
-                        return obs;
-                    storage_.init_numeric(na::DOUBLE);
-                    storage_.name(node.value, "data");
-                    return storage_;
+                    // if requested data has no data column, but is individual-observation
+                    // wire individual-observation (see Augmented::varia)
+                    size_t a = augm_.khold(node.value);
+                    storage_.init_pointer(&augm_.at(a, *member_ptr));
                 }
-                // otherwise track the column's read-surface live (raw, or a wired
-                // household-observation Variable): @D readers see the current value.
-                size_t d = pdata_wide_->khold(node.value);
-                storage_.init_pointer(&pdata_wide_->cell(d, *member_ptr));
+                else
+                {
+                    // otherwise wire data column's read-cell live, raw or observation
+                    size_t d = pdata_wide_->khold(node.value);
+                    storage_.init_pointer(&pdata_wide_->cell(d, *member_ptr));
+                }
                 storage_.name(node.value, "data");
             }
             else if (parse::is_augmented(node.type))

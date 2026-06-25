@@ -188,7 +188,6 @@ namespace housepi
         std::unique_ptr<Function> pFunc_ = nullptr; /// pointer to function
 
         [[noreturn]] void raise_set_error_() const;
-        [[noreturn]] void raise_get_error_() const;
     };
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

@@ -353,7 +353,7 @@ public:
 				{
 					house.set_infected_status(member_i);
 					set_augm_value(AugmKey::infec_time, member_i, t);
-					init_missing_augm(house, member_i);
+					init_missing_augm(member_i);
 				}
 			}
 			if (!any_at_risk)
@@ -367,7 +367,7 @@ public:
 		size_t i0 = uniform() * house.size();
 		Individual &member_0 = house.member(i0);
 		house.set_infected_status(member_0);
-		init_missing_augm(house, member_0);
+		init_missing_augm(member_0);
 
 		// set all others members to susceptible
 		for (Individual &member : house)

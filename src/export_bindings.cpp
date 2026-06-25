@@ -1242,15 +1242,12 @@ namespace
 
                         engine.model->simulate_single_house(house);
 
-                        // a self-simulating model generates observations in-loop; otherwise
-                        // draw them now. Then re-derive household observations for export.
-                        if (augm.is_any_obs())
-                        {
-                            if (!engine.model->simulates_observations())
-                                for (size_t i : house.infected_hhindexes())
-                                    engine.augm.sample_obs(engine.setup.prng(), house.member(i));
-                            engine.augm.update_house_obs_for_simulation(house);
-                        }
+                        // a self-simulating model generates observations in-loop;
+                        // otherwise draw them now. The live household reductions point
+                        // at the observation Variables and follow them, no rebuild.
+                        if (augm.is_any_obs() && !engine.model->simulates_observations())
+                            for (size_t i : house.infected_hhindexes())
+                                engine.augm.sample_obs(engine.setup.prng(), house.member(i));
 
                         size_t row = row_offsets[H]; // thread-local: no shared counter
                         for (const Individual &member : house)

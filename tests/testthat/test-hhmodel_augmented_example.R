@@ -69,13 +69,13 @@ test_that("Missing function arguments raise errors", {
     add_augmented(name = "proba", func = "gamma") |>
     expect_error(regexp = "Missing non default")
 
-  # data with NA values
+  # data with NA values: the NA flows through to the log-probability NaN guard
   hhmodel |>
     drop_augmented() |>
     add_augmented(name = "proba", func = "gamma",
                   func_args = c(shape = 2)) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "Impossible to return")
+    expect_error(regexp = "returned NaN")
 
   # concatenated data with NA values
   hhmodel |>

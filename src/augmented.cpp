@@ -857,20 +857,10 @@ namespace housepi
     {
         // clear every member's observation Variables before re-sampling: a member
         // infected in a previous repetition must not leak a stale value into this
-        // one. Rebuild the live household reductions (now empty) over them.
+        // one. The live household reductions point at these slots and follow them.
         for (Individual &member : house)
             for (size_t a : list_obs_export)
                 varia_of_(member).vec[a].clear();
-        update_house_obs_for_simulation(house);
-    }
-
-    void Augmented::update_house_obs_for_simulation(Household &house)
-    {
-        // rebuild the live household reductions over the current observation
-        // Variables; static ones are constant data and built once at house init.
-        for (size_t b = 0; b < list_house_export.size(); ++b)
-            if (house_obs_is_live_(list_house_export[b]))
-                helper_init_house_attributes_(house, b);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -964,11 +954,14 @@ namespace housepi
                  "continuos", "discrete", "infecprofile"},
                 str::tobool(deftable_.c_fcumul[k])));
 
-            // bind operands: a data (@D) source is spread one operand per member,
-            // skipping NA values (na.rm at build time, since NA constant args are
-            // rejected by the function); any other source is bound once at household
-            // level. The first operand seeds the reduction ('x'), the rest are
-            // appended arguments.
+            // bind operands: a data (@D) source is spread one live operand per member;
+            // any other source is bound once at household level. Every member is bound
+            // (the function folds na.rm-style at eval, skipping NA), so a generated
+            // observation drawn later is tracked with no rebuild. Only an immutable NA
+            // *constant* (a data cell with no value) is skipped at build, since the
+            // function rejects NA constant args and it can never acquire a value. An
+            // undrawn observation is empty (not constant), so it is bound live.
+            // The first operand seeds the reduction ('x'), the rest are appended.
             size_t op = 0;
             const auto append_operand = [&](const Attribute &attr)
             {
@@ -981,8 +974,9 @@ namespace housepi
                     for (const Individual &member : house)
                     {
                         const Attribute &attr = mcmc_->translator.to_attribute(child, &member);
-                        if (!na::is(attr.value()))
-                            append_operand(attr);
+                        if (attr.is_constant() && na::is(attr.value()))
+                            continue;
+                        append_operand(attr);
                     }
                 else
                     append_operand(mcmc_->translator.to_attribute(child, &house.member(0)));

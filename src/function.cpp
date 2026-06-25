@@ -283,15 +283,6 @@ namespace housepi
             sms += err_name();
         throw std::runtime_error(sms + ".");
     }
-    void Attribute::raise_get_error_() const
-    {
-        std::string sms = "Impossible to return value for ";
-        if (na::is(name()))
-            sms += "empty " + err_type_;
-        else
-            sms += err_name();
-        throw std::runtime_error(sms + ".");
-    }
 
     double Attribute::value() const
     {
@@ -304,7 +295,7 @@ namespace housepi
         case Mode::Function:
             return pFunc_->evaluate();
         default: // case Mode::Empty:
-            raise_get_error_();
+            return na::DOUBLE;
         }
     }
 
