@@ -1079,6 +1079,9 @@ namespace housepi
                         "Household observation '" + astr + "' for " + house.err_name() +
                         " was expected to be greater than zero, as requested by model.");
 
+                // enforce inference-optimization 
+                hvar.optimize();
+
                 for (const Individual &member : house)
                     data_wide.wire_cell(d, member, &hvar);
             }
