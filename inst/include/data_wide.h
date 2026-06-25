@@ -102,6 +102,9 @@ namespace housepi
         const Attribute &cell(size_t d, const Individual &member) const noexcept { return indiv_data_[Index::of(member)].cell[d]; }
         /// Point a column's read-surface at a derived Variable (household observation).
         void wire_cell(size_t d, const Individual &member, const Attribute *p) noexcept { indiv_data_[Index::of(member)].cell[d].init_pointer(p); }
+        /// Optimize every read-cell (constant household observations collapse to numeric).
+        /// NOTE: evaluation-only; simulation re-wires the cells live.
+        void optimize_cells();
 
         ///////////////////////////////////
         //////  EQUIVALENCE CLASSES  //////

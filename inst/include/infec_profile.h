@@ -108,6 +108,14 @@ namespace housepi
         /// Bind augmented storage for runtime per-member profile resolution.
         void bind_augm(const Augmented *augm) noexcept { paugm_ = augm; }
 
+        /// Optimize the generic distribution (resolve its read-surface) before use.
+        /// NOTE: evaluation-only; the augmented profile is optimized with its variable.
+        void optimize()
+        {
+            if (generic)
+                generic->optimize();
+        }
+
         /// If infectivity profile is a lookup table, store its values.
         /// NOTE: infectivity is set to 0 on day 0.
         void update()

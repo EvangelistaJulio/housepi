@@ -70,6 +70,9 @@ namespace housepi
 
         /// Rebind proposal to a new prior distribution.
         virtual void rebind_prior(const Distribution * /*new_distr*/) {}
+
+        /// Resolve the read-surface of an owned proposal distribution (evaluation-only).
+        virtual void optimize() {}
     };
 
 #define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
@@ -154,6 +157,9 @@ namespace housepi
 
         /// Wheter proposal is adaptive.
         bool is_adaptive() const noexcept override final { return is_adaptive_; }
+
+        /// Resolve the read-surface of the owned proposal distribution.
+        void optimize() override final { if (pDistr_) pDistr_->optimize(); }
 
     protected:
         std::unique_ptr<Distribution> pDistr_; /// distribution associated to proposal
@@ -516,6 +522,8 @@ namespace housepi
         Attribute::optimize();
         if (pDistr_)
             pDistr_->optimize();
+        if (pProp_)
+            pProp_->optimize();
     }
 
     double Variable::operator()(double x) const

@@ -653,6 +653,8 @@ namespace housepi
         group_rate.optimize();
         contact_rate.optimize();
         augm.optimize();
+        infec_profile.optimize();
+        data_wide().optimize_cells();
 
         model->init_model_for_evaluation();
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)

@@ -237,6 +237,13 @@ namespace housepi
         build_helper_fill_report_data_();
     }
 
+    void DataWide::optimize_cells()
+    {
+        for (IndivWide_ &idata : indiv_data_)
+            for (Attribute &attr : idata.cell)
+                attr.optimize();
+    }
+
     size_t DataWide::house_id_to_index_(std::string_view house_id) const
     {
         auto it = hhid_to_index_.find(house_id);
