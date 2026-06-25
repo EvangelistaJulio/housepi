@@ -54,9 +54,6 @@ One between:
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add a single household-level observation: a data column reduced across all
-members of the household via a reduction over its data source, e.g.
-\code{min(test_date@D)}. Like an observation node it is generated during
-simulation. See \link[=add_house_observ_list]{add_house_observ_list} for
-the list form.
+Add a single household-level observation for all members.
+Observation must be reducible to a constant value.
 }

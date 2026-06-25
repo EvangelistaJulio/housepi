@@ -191,8 +191,8 @@ Run inference with Bayesian Markov chain Monte Carlo.
   chains = 4L,
   threads = 1L,
   id_draws = NULL,
-  ...,
-  progress = TRUE
+  progress = TRUE,
+  ...
 )}\if{html}{\out{</div>}}
 }
 
@@ -217,8 +217,6 @@ If no proposals are adaptable  and \code{burn = 0}, repurposed as burn-in instea
 \item{\code{id_draws}}{\code{character()} Individuals identifiers.
 Store draws of public augmented variables for the chosen individuals.}
 
-\item{\code{...}}{Advanced configuration.}
-
 \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
 One between:
 \itemize{
@@ -226,6 +224,8 @@ One between:
 \item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
+
+\item{\code{...}}{Advanced configuration.}
 }
 \if{html}{\out{</div>}}
 }
@@ -288,8 +288,8 @@ If \code{NA} produces a single repetition (default).}
 Sample the power-posterior ladder. Used for log-evidence estimation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_power_posteriors(
-  scheme = c("power-fractions", "adaptive"),
-  rungs = 40L,
+  scheme = c("adaptive", "power-fractions"),
+  rungs = 30L,
   steps = 1000L,
   burn = 0L,
   thin = 5L,
@@ -306,8 +306,8 @@ Sample the power-posterior ladder. Used for log-evidence estimation.
 \item{\code{scheme}}{\code{character(1)} Scheme used for evidence estimation.
 One between
 \describe{
-\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).}
-\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder.}
+\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder (default).}
+\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}.}
 }}
 
 \item{\code{rungs}}{\code{integer(1)} Number of rungs in thermodynamic ladder.}

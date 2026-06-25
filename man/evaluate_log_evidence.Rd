@@ -13,9 +13,9 @@ evaluate_log_evidence(x, ...)
 
 \method{evaluate_log_evidence}{HousepiModel}(
   x,
-  method = c("thermodynamic", "stepping-stone"),
-  scheme = c("power-fractions", "adaptive"),
-  rungs = 40L,
+  method = c("stepping-stone", "thermodynamic"),
+  scheme = c("adaptive", "power-fractions"),
+  rungs = 30L,
   steps = 1000L,
   burn = 0L,
   thin = 5L,
@@ -26,7 +26,7 @@ evaluate_log_evidence(x, ...)
   ...
 )
 
-\method{evaluate_log_evidence}{HousepiPowerPosteriors}(x, method = c("thermodynamic", "stepping-stone"), ...)
+\method{evaluate_log_evidence}{HousepiPowerPosteriors}(x, method = c("stepping-stone", "thermodynamic"), ...)
 }
 \arguments{
 \item{x}{A \code{HousepiModel} or a \code{HousepiPowerPosteriors} object.}
@@ -36,15 +36,15 @@ evaluate_log_evidence(x, ...)
 \item{method}{\code{character(1)} Estimator computed from the sampled ladder.
 One between
 \describe{
-\item{\code{"thermodynamic"}}{thermodynamic integration (default).}
-\item{\code{"stepping-stone"}}{stepping-stone sampling.}
+\item{\code{"stepping-stone"}}{stepping-stone sampling (default).}
+\item{\code{"thermodynamic"}}{thermodynamic integration.}
 }}
 
 \item{scheme}{\code{character(1)} Scheme used for evidence estimation.
 One between
 \describe{
-\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).}
-\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder.}
+\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder (default).}
+\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}.}
 }}
 
 \item{rungs}{\code{integer(1)} Number of rungs in thermodynamic ladder.}
@@ -73,7 +73,8 @@ One between:
 }}
 }
 \value{
-\code{numeric(1)}. The log-evidence estimate.
+named \code{numeric(2)} (\code{estimate}, \code{sd})
+\code{sd} is \code{NA} if method provides no standard-error estimate.
 }
 \description{
 Estimate the logarithm of the evidence (aka marginal likelihood).

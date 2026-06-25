@@ -26,7 +26,7 @@ Draws log-likelihood draws under corresponding power-posterior.}
 \item{\code{detail}}{\code{data.frame}
 Detail of the thermodynamic ladder
 \describe{
-\item{inv_temper}{Inverse temperature}
+\item{inv_temp}{Inverse temperature}
 \item{mean_log_lik}{Mean of the complete log-likelihood}
 \item{var_log_lik}{Variance of the complete log-likelihood}
 }}
@@ -48,7 +48,7 @@ Detail of the thermodynamic ladder
 \subsection{Method \code{new()}}{
 Sample the power-posterior ladder and store the draws.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$new(generator, scheme = "power-fractions", rungs = 40L)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$new(generator, scheme = "adaptive", rungs = 30L)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -59,8 +59,8 @@ Sample the power-posterior ladder and store the draws.
 \item{\code{scheme}}{\code{character(1)} Scheme used for evidence estimation.
 One between
 \describe{
-\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).}
-\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder.}
+\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder (default).}
+\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}.}
 }}
 
 \item{\code{rungs}}{\code{integer(1)} Number of rungs in thermodynamic ladder.}
@@ -75,7 +75,7 @@ One between
 Estimate the log-evidence from the stored ladder.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$evaluate_log_evidence(
-  method = c("thermodynamic", "stepping-stone")
+  method = c("stepping-stone", "thermodynamic")
 )}\if{html}{\out{</div>}}
 }
 
@@ -85,14 +85,15 @@ Estimate the log-evidence from the stored ladder.
 \item{\code{method}}{\code{character(1)} Estimator computed from the sampled ladder.
 One between
 \describe{
-\item{\code{"thermodynamic"}}{thermodynamic integration (default).}
-\item{\code{"stepping-stone"}}{stepping-stone sampling.}
+\item{\code{"stepping-stone"}}{stepping-stone sampling (default).}
+\item{\code{"thermodynamic"}}{thermodynamic integration.}
 }}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-\code{numeric(1)} Log-evidence estimate.
+named \code{numeric(2)} (\code{estimate}, \code{sd})
+\code{sd} is \code{NA} if method provides no standard-error estimate.
 }
 }
 \if{html}{\out{<hr>}}

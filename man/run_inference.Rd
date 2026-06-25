@@ -13,7 +13,8 @@ run_inference(
   chains = 4L,
   threads = 1L,
   id_draws = NULL,
-  progress = TRUE
+  progress = TRUE,
+  ...
 )
 }
 \arguments{
@@ -44,6 +45,8 @@ One between:
 \item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
+
+\item{...}{Advanced configuration.}
 }
 \value{
 An object of class \code{HousepiPosteriorDraws}.

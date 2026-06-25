@@ -825,8 +825,8 @@ HousepiModel <- R6::R6Class(
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     #' @return An object of class `HousepiPowerPosteriors`.
-    run_power_posteriors = function(scheme = c("power-fractions", "adaptive"),
-                                    rungs = 40L,
+    run_power_posteriors = function(scheme = c("adaptive", "power-fractions"),
+                                    rungs = 30L,
                                     steps = 1000L, burn = 0L,
                                     thin = 5L, adapt = 500L,
                                     chains = 4L, threads = 1L,

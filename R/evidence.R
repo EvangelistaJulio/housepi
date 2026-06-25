@@ -42,10 +42,10 @@ HousepiPowerPosteriors <- R6::R6Class(
     thermodynamic_ = function() {
       avg <- private$mean_log_lik_
       var <- private$var_log_lik_
-      dt <- diff(private$inv_temp_, lag = 1)
-      k <- seq_along(dt)
-      sum((avg[k + 1L] + avg[k]) * dt / 2 +
-            (var[k] - var[k + 1L]) * dt^2 / 12)
+      db <- diff(private$inv_temp_, lag = 1L)
+      k <- seq_along(db)
+      sum((avg[k + 1L] + avg[k]) * db / 2 +
+            (var[k] - var[k + 1L]) * db^2 / 12)
     },
 
     # Stepping-stone estimator over the ladder.
@@ -53,14 +53,34 @@ HousepiPowerPosteriors <- R6::R6Class(
     # @references
     # \insertRef{xie_improving_2011}{housepi}
     stepping_stone_ = function() {
-      dt <- diff(private$inv_temp_, lag = 1)
-      contrib <- vapply(seq_along(dt), function(k) {
-        log_lik <- posterior::extract_variable(private$draws_,
-                                               sprintf("log_lik[%d]", k))
-        peak <- max(log_lik)
-        dt[k] * peak + log(mean(exp(dt[k] * (log_lik - peak))))
-      }, numeric(1))
-      sum(contrib)
+      db <- diff(private$inv_temp_, lag = 1L)
+      rss_k <- vapply(seq_along(db), function(k) {
+        ll <- posterior::extract_variable(
+          private$draws_, sprintf("log_lik[%d]", k)
+        )
+        ll_peak <- max(ll)
+        w <- exp(db[k] * (ll - ll_peak))
+        db[k] * ll_peak + log(mean(w))
+      }, numeric(1L))
+      sum(rss_k)
+    },
+
+    # Variance of the stepping-stone estimator.
+    # Delta-method approximation with max-stabilisation.
+    # @references
+    # \insertRef{xie_improving_2011}{housepi}
+    stepping_stone_var_ = function() {
+      db <- diff(private$inv_temp_, lag = 1L)
+      var_rss_k <- vapply(seq_along(db), function(k) {
+        ll <- posterior::extract_variable(
+          private$draws_, sprintf("log_lik[%d]", k)
+        )
+        ll_peak <- max(ll)
+        w <- exp(db[k] * (ll - ll_peak))
+        ess <- posterior::ess_mean(w)
+        var(w) / (ess * mean(w)^2)
+      }, numeric(1L))
+      sum(var_rss_k)
     }
   ),
 
@@ -110,7 +130,7 @@ HousepiPowerPosteriors <- R6::R6Class(
     #' @param rungs `r rd_evi_rungs_`
     #' @references
     #' \insertRef{friel_improving_2014}{housepi}
-    initialize = function(generator, scheme = "power-fractions", rungs = 40L) {
+    initialize = function(generator, scheme = "adaptive", rungs = 30L) {
       ptr <- generator$mcmc_ptr
       output <- .engine$run_power_posteriors(ptr, as.character(scheme),
                                              as.integer(rungs))
@@ -127,17 +147,23 @@ HousepiPowerPosteriors <- R6::R6Class(
 
     #' @description Estimate the log-evidence from the stored ladder.
     #' @param method `r rd_evi_method_`
-    #' @return `numeric(1)` Log-evidence estimate.
+    #' @return named `numeric(2)` (`estimate`, `sd`)
+    #' `sd` is `NA` if method provides no standard-error estimate.
     #' @references
     #' \insertRef{friel_improving_2014}{housepi}
     #' \insertRef{xie_improving_2011}{housepi}
     evaluate_log_evidence = function(
-      method = c("thermodynamic", "stepping-stone")
+      method = c("stepping-stone", "thermodynamic")
     ) {
-      method <- match.arg(method)
-      switch(method,
-        "thermodynamic" = private$thermodynamic_(),
-        "stepping-stone" = private$stepping_stone_()
+      switch(match.arg(method),
+        "stepping-stone" = c(
+          estimate = private$stepping_stone_(),
+          sd = sqrt(private$stepping_stone_var_())
+        ),
+        "thermodynamic" = c(
+          estimate = private$thermodynamic_(),
+          sd = NA_real_
+        )
       )
     },
 

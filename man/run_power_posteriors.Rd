@@ -6,8 +6,8 @@
 \usage{
 run_power_posteriors(
   hhmodel,
-  scheme = c("power-fractions", "adaptive"),
-  rungs = 40L,
+  scheme = c("adaptive", "power-fractions"),
+  rungs = 30L,
   steps = 1000L,
   burn = 0L,
   thin = 5L,
@@ -23,8 +23,8 @@ run_power_posteriors(
 \item{scheme}{\code{character(1)} Scheme used for evidence estimation.
 One between
 \describe{
-\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5} (default).}
-\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder.}
+\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder (default).}
+\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}.}
 }}
 
 \item{rungs}{\code{integer(1)} Number of rungs in thermodynamic ladder.}

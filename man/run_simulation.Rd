@@ -9,7 +9,8 @@ run_simulation(
   obs_process = NULL,
   obs_process_long = NULL,
   param_table = NULL,
-  nrep = NA_integer_
+  nrep = NA_integer_,
+  ...
 )
 }
 \arguments{
@@ -35,6 +36,8 @@ If \code{param_table} is \code{NULL}, all replicates share the same parameters.
 Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows,
 the table is sub-sampled to \code{nrep} evenly-spaced rows.
 If \code{NA} produces a single repetition (default).}
+
+\item{...}{Advanced configuration.}
 }
 \value{
 \code{data.frame} or \code{list} (when \code{obs_process_long} is provided)

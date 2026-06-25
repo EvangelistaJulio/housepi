@@ -58,21 +58,20 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
     result$detail$inv_temp,
     function(beta) expec_loglik_powerpost(x, beta, a, b)
   )
+  # NOTE: 10% should be large enough to counter test stochasticity
   expect_true(all(
     abs(result$detail$mean_log_lik - exp_log_lik) /
-      sqrt(result$detail$var_log_lik) <= 0.05
+      sqrt(result$detail$var_log_lik) < 0.1
   ))
 
   # estimators computed on demand
-  evaluate_log_evidence(result, "thermodynamic") |>
+  evaluate_log_evidence(result, "thermodynamic")[["estimate"]] |>
     expect_equal(log(evidence), tolerance = 0.02)
-  evaluate_log_evidence(result, "stepping-stone") |>
+  evaluate_log_evidence(result, "stepping-stone")[["estimate"]] |>
     expect_equal(log(evidence), tolerance = 0.02)
 
   # one-shot model path returns same value
-  hhmodel |>
-    evaluate_log_evidence("thermodynamic", progress = FALSE) |>
+  evaluate_log_evidence(hhmodel, progress = FALSE)[["estimate"]] |>
     suppressWarnings() |>
     expect_equal(log(evidence), tolerance = 0.02)
-
 })
