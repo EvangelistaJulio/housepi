@@ -126,7 +126,7 @@ test_that("Symbolic definitions are equivalent", {
 #   hhmodel <- new_housepi_model("blank")
 #
 #   # FIXME: implicit function interpreted as a constant
-#   hhmodel$add_parameter_list(
+#   add_parameter(hhmodel,
 #     alpha = list(prior = "uniform"),
 #     beta = list(prior = "uniform"),
 #     delta = alpha@P + beta@P
@@ -135,7 +135,7 @@ test_that("Symbolic definitions are equivalent", {
 #   hhmodel$parameters
 #
 #   # FIXME: function not exported
-#   hhmodel$add_parameter_list(
+#   add_parameter(hhmodel,
 #     alpha = list(prior = "uniform"),
 #     beta = list(prior = "uniform"),
 #     delta = list(func = "sum",

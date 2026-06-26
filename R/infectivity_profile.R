@@ -152,7 +152,7 @@ HousepiInfecProfile <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit load_infec_profile
+    #' @inherit add_infec_profile
     add_quo_list = function(xquos, append = FALSE) {
       housepi_load_defin_quos(self, "func", xquos, append)
       housepi_assert_args(self)

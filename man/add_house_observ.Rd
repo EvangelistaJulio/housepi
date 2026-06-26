@@ -2,16 +2,19 @@
 % Please edit documentation in R/expose_class.R
 \name{add_house_observ}
 \alias{add_house_observ}
-\title{Add a household-level observation}
+\title{Add household-level observations}
 \usage{
 add_house_observ(
   hhmodel,
-  name,
+  name = NULL,
   value = NULL,
+  ...,
   status = NA_integer_,
   discr = FALSE,
   min = NULL,
-  max = NULL
+  max = NULL,
+  defs = NULL,
+  append = TRUE
 )
 }
 \arguments{
@@ -26,6 +29,8 @@ One between:
 \item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
+
+\item{...}{In bulk mode, the \code{name = value} definitions.}
 
 \item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
@@ -49,11 +54,20 @@ One between:
 \item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
+
+\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
+alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+
+\item{append}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add a single household-level observation for all members.
-Observation must be reducible to a constant value.
+Add household-level observations for all members.
+Observations must be reducible to a constant value.
+Supplying \code{name} adds a single observation. To add several at once (bulk
+mode) either pass them as \code{name = value} pairs through \code{...}, or pass a
+pre-built named list of definitions through \code{defs}.
 }

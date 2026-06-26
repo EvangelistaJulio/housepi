@@ -83,9 +83,9 @@ test_that("Model class 'blank' calls", {
   expect_equal(complex_model$data_wide, complex_data)
 
   # templates
-  hhmodel$add_parameter_template() |>
+  add_parameter_template(hhmodel) |>
     expect_warning("blank")
-  hhmodel$add_augmented_template() |>
+  add_augmented_template(hhmodel) |>
     expect_warning("blank")
 
   # zero log-likelihood (blank model evaluates silently)
@@ -98,7 +98,7 @@ test_that("Model class 'blank' calls", {
 
   # blank simulation (runs silently)
   hhmodel <- new_housepi_model(model = "blank")
-  hhmodel$add_augmented(name = "dummy", value = 3)
+  hhmodel <- add_augmented(hhmodel, name = "dummy", value = 3)
   expect_silent(out <- hhmodel$run_simulation())
   expect_true(
     all(sapply(out$dummy[out$status == 0], function(x) identical(x, NA_real_)))
@@ -176,17 +176,17 @@ test_that("Wrong definitions throw errors", {
   hhmodel <- new_housepi_model(model = "blank")
 
   # eager rebuild: errors surface at definition, not at run_inference
-  hhmodel$add_parameter("a", prior = "uniform", min = ~ min_val@D) |>
+  add_parameter(hhmodel, "a", prior = "uniform", min = ~ min_val@D) |>
     expect_error("not supported")
   # hint is thrown
   # FIXME: no-append exposes bug: faulty definition "a" stays stored!
-  # hhmodel$add_parameter_list(b = list(prior = "uniform", min = min_val)) |>
+  # add_parameter(hhmodel, b = list(prior = "uniform", min = min_val)) |>
   #   expect_error("rlang injection")
 
   # memory budget is exceeded
   house <- data.frame(house_id = 1, id = "a", status = 0)
   hhmodel <- new_housepi_model(house, "chain_binomial")
-  hhmodel$add_parameter_template()
+  hhmodel <- add_parameter_template(hhmodel)
   hhmodel$run_inference(steps = 1e20, chains = 1e3, progress = FALSE) |>
     expect_error("memory budget")
 })
@@ -195,7 +195,7 @@ test_that("Discretization is enabled as expected", {
   discr <- TRUE
   val <- list(min = 1, max = 5)
   hhmodel <- new_housepi_model(model = "blank")
-  hhmodel$add_parameter_list(
+  hhmodel <- add_parameter(hhmodel,
     sample = list(
       prior = "gamma", shape = 2, scale = 1, discr = TRUE,
       proposal = "sample", min = !!val$min, max = !!val$max
@@ -319,12 +319,12 @@ test_that("Rlang calls work as expected", {
   hhmodel <- new_housepi_model(model = "blank") |>
     add_augmented("indiv_shape", prior = "normal")
 
-  hhmodel$add_parameter("kaz", prior = "normal", mean = indiv_shape + 1) |>
+  add_parameter(hhmodel, "kaz", prior = "normal", mean = indiv_shape + 1) |>
     expect_error("[Ii]ndividual specific")
 
   val <- 1
   # UPDATE: for the moment I am forcing parameter arguments to be co
-  hhmodel$add_parameter_list(
+  hhmodel <- add_parameter(hhmodel,
     param_shape = 5,
     var1 = list(prior = "normal", mean = param_shape@p + 1),
     var2 = list(prior = "normal", mean = param_shape@p + !!val),
@@ -337,7 +337,7 @@ test_that("Rlang calls work as expected", {
   expect_equal(nrow(unique(aux)), 2L)
 
   val <- 3
-  hhmodel$add_augmented_list(
+  hhmodel <- add_augmented(hhmodel,
     var1 = list(prior = "normal", mean = indiv_shape + 3),
     var2 = list(prior = "normal", mean = indiv_shape + !!val),
     var3 = list(prior = "normal", mean = ~ indiv_shape + 3),
@@ -353,7 +353,7 @@ test_that("Augmented aliasing works as expected", {
   # check that model arguments are correctly integrated
   simulated <- data.frame(id = seq(1, 1000), house_id = 1, status = 1) |>
     new_housepi_model("blank") |>
-    add_augmented_list(
+    add_augmented(
       hour = list(prior = "uniform", min = day, max = day + 1),
       day = list(prior = "gamma", shape = 2, scale = 1)
     ) |>
@@ -366,7 +366,7 @@ test_that("Augmented aliasing works as expected", {
 test_that("Nested definitions works as expected", {
   hhmodel <- new_housepi_model(model = "blank") |>
     # define Box-Muller transformation
-    add_augmented_list(norm = list(prior = "normal"),
+    add_augmented(norm = list(prior = "normal"),
                        u1 = list(prior = "uniform"),
                        u2 = list(prior = "uniform"),
                        z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
@@ -401,24 +401,23 @@ test_that("Nested definitions works as expected", {
 })
 
 test_that("Load augmented list works fine for external lists", {
-  df <- data.frame(id = "id1", house_id = "h1",
-                   status = 1, date = as.Date("2021-01-01"))
-  hhmodel <- new_housepi_model(df, "blank")
 
+  hhmodel <- data.frame(id = "id1", house_id = "h1",
+                        status = 1, date = as.Date("2021-01-01")) |>
+    new_housepi_model("blank")
+
+  # an external list of definitions can be imported
   external_list <- list(z0 = ~ date@D, z1 = ~ sqrt(log(z0)))
-  # raise error for on injection
-  hhmodel$add_augmented_list(external_list) |>
-    expect_error("injection operator")
+  tmp <- add_augmented(hhmodel, import = external_list)$augmented
 
-  tmp <- hhmodel$add_augmented_list(!!!external_list)$augmented
-  hhmodel$add_augmented_list(z0 = date@D, z1 = sqrt(log(z0)), append = FALSE)
+  hhmodel <- add_augmented(hhmodel, z0 = date@D, z1 = sqrt(log(z0)))
   expect_equal(tmp, hhmodel$augmented)
 })
 
 test_that("Augmented traces export only relevant variables", {
   hhmodel <- new_housepi_model(model = "blank") |>
-    add_parameter_list(alpha = 1, beta = list(prior = "uniform")) |>
-    add_augmented_list(
+    add_parameter(alpha = 1, beta = list(prior = "uniform")) |>
+    add_augmented(
       # constants
       blocked = 42,
       # private variables
@@ -455,6 +454,7 @@ test_that("Augmented degenerate range warns and collapses", {
     add_parameter("d_dog", prior = "uniform") |>
     add_augmented("d_horse", prior = "uniform", min = 5, max = 5)
   expect_warning(
+    # FIXME double check this
     tryCatch(
       hhmodel$run_inference(steps = 10, chains = 1, adapt = 0, thin = 1),
       error = function(e) NULL
@@ -469,14 +469,14 @@ test_that("Augmented degenerate range warns and collapses", {
 
 test_that("Contact rate definition work as expected", {
   hhid <- "hh2"
-  house <- data.frame(
+  hhmodel <- data.frame(
     house_id = c(rep("hh1", 3), rep(hhid, 6)),
     status = c(1, 0, 0, 1, 0, 0, 0, 0, 0),
     member = c("student", "other", "other",
                "student", "sibling", "mother", "father", "other", "student")
-  )
-  hhmodel <- new_housepi_model(house, "chain_binomial")
-  hhmodel$add_parameter_template()
+  ) |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
 
   # no contact rate defs -> empty matrix
   hhsnapshot <- hhmodel$export_house_snapshot(hhid)
@@ -503,7 +503,8 @@ test_that("Contact rate definition work as expected", {
   # prime numbers as param values to ensure non duplicate pair productes
   params <- c(2, 3, 5, 7, 11, 13, 17, 19)
   names(params) <- strata$param_name
-  hhmodel$add_contact_rate(strata = strata, params = params)
+  hhmodel <- hhmodel |>
+    add_contact_rate(strata = strata, params = params)
 
   # matrix is n x n
   hhsnapshot <- hhmodel$export_house_snapshot(hhid)
@@ -531,12 +532,12 @@ test_that("Contact rate definition work as expected", {
 })
 
 test_that("Contact rates raise an error for incompatible models", {
-  hhmodel <- data.frame(
+  data.frame(
     house_id = 1, id = seq(4), status = seq(4),
     cohort = c("a", "a", "b", "b")
   ) |>
-    new_housepi_model("augmented_example")
-  hhmodel$add_contact_rate(by = "cohort") |>
+    new_housepi_model("augmented_example") |>
+    add_contact_rate(by = "cohort") |>
     expect_error("not supported")
 })
 
@@ -553,8 +554,9 @@ test_that("run_simulation rejects wrong arguments", {
 })
 
 test_that("Param table with degenerate columns raises an ESS error", {
-  hhmodel <- new_housepi_model(model = "blank")
   pt <- posterior::as_draws_df(data.frame(p = rep(1, 100)))
+
+  hhmodel <- new_housepi_model(model = "blank")
   hhmodel$run_simulation(param_table = pt) |>
     expect_error("ESS")
 })
@@ -570,7 +572,7 @@ test_that("run_simulation auto-imports parameters from param_table", {
 
 test_that("run_measure_ rejects apply_long without obs_process_long", {
   hhmodel <- new_housepi_model(model = "blank")
-  hhmodel$add_parameter_list(alpha = 1)
+  hhmodel <- add_parameter(hhmodel, alpha = 1)
   priv <- hhmodel$.__enclos_env__$private
   pt <- data.frame(alpha = c(0.1, 0.2, 0.3))
 
@@ -584,8 +586,9 @@ test_that("run_measure_ rejects apply_long without obs_process_long", {
 })
 
 test_that("run_simulation returns combined wide/long output", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_template()
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template()
   # supplying obs_process_long forces the long branch into a non-empty list
   # single simulation by default
   obs_long <- function(x) data.frame(id = "vic-boss", measure = 1.0)
@@ -605,12 +608,12 @@ test_that("run_simulation returns combined wide/long output", {
 })
 
 test_that("add_augmented_template loads from a non-blank model template", {
-  hhmodel <- new_housepi_model(
-    sarscov2_2021_icofs,
-    "augmented_infection_time"
-  )
-  hhmodel$add_augmented_template()
-  expect_gt(nrow(hhmodel$augmented), 0L)
+  sarscov2_2021_icofs |>
+    new_housepi_model("augmented_infection_time") |>
+    add_augmented_template() |>
+    get_augmented() |>
+    nrow() |>
+    expect_gt(0L)
 })
 
 test_that("add_infec_profile and list update the model directly", {
@@ -618,8 +621,10 @@ test_that("add_infec_profile and list update the model directly", {
     new_housepi_model("augmented_infection_time") |>
     add_infec_profile(func = "gamma", shape = 2, scale = 1)
   expect_true("gamma" %in% hhmodel$infec_profile$func)
-  expect_warning(hhmodel$add_infec_profile(func = "lognormal"),
-                 regexp = "Overwriting")
+  expect_warning(
+    hhmodel <- add_infec_profile(hhmodel, func = "lognormal"),
+    regexp = "Overwriting"
+  )
   expect_true("lognormal" %in% hhmodel$infec_profile$func)
 })
 
@@ -627,7 +632,7 @@ test_that("Parameter defined as a function tracks its dependencies", {
   set.seed(1)
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("chain_binomial") |>
-    add_parameter_list(
+    add_parameter(
       alpha = 1e-4,
       beta = size_ref@P^-gamma@P,
       gamma = list(prior = "uniform"),
@@ -649,27 +654,31 @@ test_that("Parameter defined as a function tracks its dependencies", {
 })
 
 test_that("Parameter function rejects non-parameter dependencies", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial")
 
   # bare names default to augmented source! here @P is missing
-  hhmodel$add_parameter_list(alpha = 1e-4, gamma = 1, size_ref = 4,
-                             beta = size_ref^-gamma) |>
+  hhmodel |>
+    add_parameter(alpha = 1e-4, gamma = 1, size_ref = 4,
+                  beta = size_ref^-gamma) |>
     expect_error("cannot depend on augmented variables")
 
   # explicit reference to a data column is also rejected
   # FIXME: roll-back missing -> append = FALSE should not be necessary
-  hhmodel$add_parameter_list(alpha = 1e-4, gamma = 1, size_ref = 4,
-                             beta = status@D + 1, append = FALSE) |>
+  hhmodel |>
+    add_parameter(alpha = 1e-4, gamma = 1, size_ref = 4,
+                  beta = status@D + 1, append = FALSE) |>
     expect_error("cannot depend on data variables")
 })
 
 test_that("Parameter defined as a function tracks its dependencies", {
   set.seed(1)
-  hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_list(alpha = 1e-4,
-                             beta = size_ref@P^-gamma@P,
-                             gamma = list(prior = "uniform"),
-                             size_ref = 4)
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter(alpha = 1e-4,
+                  beta = size_ref@P^-gamma@P,
+                  gamma = list(prior = "uniform"),
+                  size_ref = 4)
   res <- hhmodel$run_inference(steps = 2000, progress = 0)
   vars <- posterior::variables(res$parameter_draws)
   # both sampled and function-derived parameters appear in the trace

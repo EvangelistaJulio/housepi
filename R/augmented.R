@@ -22,6 +22,10 @@ HousepiAugmented <- R6::R6Class(
     deep_clone = function(name, value) helper_clone(value),
 
     # Kind of definitions currently being managed. Used for display.
+    # One between:
+    # "augm": augmented variables;
+    # "obs": individual-level observation;
+    # "house-obs": household-level observations.
     kind_ = "augm",
 
     # Definitions required by augmented definitions
@@ -151,8 +155,8 @@ HousepiAugmented <- R6::R6Class(
     #' Column 'kind' is dropped.
     #' @param kind `character(1)`. One of "augm", "obs", "house-obs".
     #' @return `data.frame()` or `NULL` when no definition of that kind exists.
-    defs_of_kind = function(kind) {
-      kind <- match.arg(kind, c("augm", "obs", "house-obs"))
+    defs_of_kind = function(kind = c("augm", "obs", "house-obs")) {
+      kind <- match.arg(kind)
       if (is.null(self$defs) || !"kind" %in% names(self$defs)) return(NULL)
       out <- self$defs[self$defs[["kind"]] == kind, , drop = FALSE]
       if (nrow(out) == 0) return(NULL)
@@ -163,8 +167,8 @@ HousepiAugmented <- R6::R6Class(
     #' @description Drop every definition of a given kind, leaving the other
     #' kinds (which share this store) untouched.
     #' @param kind `character(1)`. One of "augm", "obs", "house-obs".
-    drop_kind = function(kind) {
-      kind <- match.arg(kind, c("augm", "obs", "house-obs"))
+    drop_kind = function(kind = c("augm", "obs", "house-obs")) {
+      kind <- match.arg(kind)
       if (is.null(self$defs)) return(invisible(self))
       self$defs <- self$defs[self$defs[["kind"]] != kind, ]
       if (nrow(self$defs) == 0) self$initialize()
@@ -184,9 +188,7 @@ HousepiAugmented <- R6::R6Class(
                        .warn_over = TRUE,
                        .assert = FALSE,
                        .kind = private$kind_) {
-      # kind owned by this call: defaults to the kind the entry point
-      # established in private$kind_ (so the list loader, which delegates here
-      # without a kind, inherits "augm"/"obs"/"house-obs" as appropriate).
+      # kind defaults to managed (see private$kind_, public$add_quo_list)
       .kind <- match.arg(.kind, c("augm", "obs", "house-obs"))
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
@@ -204,12 +206,11 @@ HousepiAugmented <- R6::R6Class(
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
 
-      # load dots # UPDATE: not super elegant...
+      # load dots
       dots <- list(...)
       # flatten dots if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      # only the augmented path forbids an 'obs =' declaration; observation and
-      # household-observation kinds are themselves observation entry points
+      # assert augmented does not declare 'obs =' as is not observation
       if (identical(.kind, "augm")) assert_no_obs_declaration(dots)
       args <- housepi_extractor(!!!dots)
 
@@ -220,33 +221,29 @@ HousepiAugmented <- R6::R6Class(
         func_args <- housepi_extractor(!!!func_args)
       }
 
-      # kind of the definition being loaded, taken from '.kind' (which defaults
-      # to the kind owned by the entry point, see signature). 'obs =' still
-      # overrides it onto the observation-node path below.
-      kind <- .kind
-      # observation node: a DATA variate conditioned on latents/parameters.
-      # the distribution string reuses the 'prior' column, 'kind' discriminates it,
-      # and the value is auto-bound to the data column of the same name.
+      # individual-level observation
+      # NOTE: 'obs' string reuses 'prior' column, discriminated by 'kind'
       if (!is.na(obs)) {
         if (!is.na(prior)) stop_h(
           sprintf("Conflicting definition for augmented '%s'.", name),
           "Provide only one between 'prior' and 'obs'."
         )
-        if (!is.na(proposal) || !is.na(proposal_scale)) stop_h(
-          sprintf("Observation node '%s' is data-bound and cannot be sampled.", name),
-          "Remove 'proposal' and 'proposal_scale'."
+        if (!is.na(proposal)) warn_h(
+          sprintf("Observation '%s' cannot be sampled.", name),
+          "Ignored 'proposal' definition."
         )
-        kind <- "obs"
+        proposal <- NA_character_
+        proposal_scale <- NA_real_
+        .kind <- "obs"
         prior <- obs
         if (is.na(const)) const <- TRUE
         if (is.null(value)) value <- paste0(name, "|D")
       }
 
-      # single source of truth for the loaded kind: drive 'family' (so user-facing
-      # messages name the right entry point) and restore it on exit.
+      # NOTE: single source of truth for currently managed kind
       old_kind <- private$kind_
       on.exit(private$kind_ <- old_kind, add = TRUE)
-      private$kind_ <- kind
+      private$kind_ <- .kind
 
       # control valid name
       assert_valid_definition_name(name, self$family)
@@ -271,7 +268,7 @@ HousepiAugmented <- R6::R6Class(
                    func = NA_character_,
                    fcumul = FALSE, # UPDATE: can I make this an option?
                    prior = as.character(prior),
-                   kind = as.character(kind),
+                   kind = as.character(.kind),
                    min = NA_real_,
                    max = NA_real_,
                    proposal = as.character(proposal),
@@ -298,33 +295,27 @@ HousepiAugmented <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit add_augmented_list
+    #' @inherit add_augmented
     add_quo_list = function(xquos, append = FALSE,
                             .kind = c("augm", "obs", "house-obs")) {
-      # the kind this entry point owns: augmented variables ("augm"),
-      # observation nodes ("obs"), or household-level observations ("house-obs").
       managed <- match.arg(.kind)
-      # establish the owning kind: it drives 'family' for the messages below and
-      # is the kind each per-entry add_quo inherits and stamps on its row.
+
+      # NOTE: single source of truth for currently managed kind
       old_kind <- private$kind_
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- managed
+
       # guard before the per-kind reset so an empty call does not silently
       # drop the rows it manages
       assert_nonempty_defin_quos(xquos, self$family)
       # reject observation-node declarations on the augmented path only
       if (identical(managed, "augm")) assert_no_obs_declaration(xquos)
       if (isFALSE(append)) {
-        # the three kinds share one store, but each entry point owns only its
-        # own kind: a fresh (non-append) load drops the rows it manages and
-        # leaves the other kinds untouched. This keeps each entry point from
-        # wiping definitions another depends on.
+        # NOTE: kinds share one store, but are treated as independent
         if (is.null(self$defs)) self$initialize()
         else self$defs <- self$defs[self$defs[["kind"]] != managed, ]
       }
-      # augmented manages its own per-kind reset above, so skip the helper reset.
-      # each loaded entry inherits 'managed' as its kind through private$kind_,
-      # so the rows are already stamped with the right kind (no post-hoc patch).
+
       housepi_load_defin_quos(self, "value", xquos, append = TRUE)
       housepi_assert_args(self)
       invisible(self)

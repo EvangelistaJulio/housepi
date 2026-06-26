@@ -18,7 +18,7 @@ add_contact_rate(
   max = NA_real_,
   proposal = NA_character_,
   proposal_scale = NA_real_,
-  prefix = "ctr"
+  prefix = NA_character_
 )
 }
 \arguments{

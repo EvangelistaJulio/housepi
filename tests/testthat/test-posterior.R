@@ -123,7 +123,7 @@ test_that("Print behavior is stable", {
 
 test_that("Multi-chain inference produces correct chain structure", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
-  hhmodel$add_parameter_template()
+  hhmodel <- add_parameter_template(hhmodel)
   results <- suppressWarnings(
     hhmodel$run_inference(steps = 10, chains = 2, adapt = 0, thin = 1,
                           progress = FALSE)
@@ -140,7 +140,7 @@ test_that("Augm draws are not empty when id_draws is specified", {
                         id = c("a", "b"),
                         status = c(1, 0)) |>
     new_housepi_model("augmented_example")
-  hhmodel$add_augmented(name = "proba", prior = "uniform")
+  hhmodel <- add_augmented(hhmodel, name = "proba", prior = "uniform")
   results <- suppressWarnings(
     hhmodel$run_inference(steps = 5, chains = 1, adapt = 0, thin = 1,
                           id_draws = "a", progress = FALSE)
@@ -166,7 +166,7 @@ test_that("Diagnostic warning fires on poor mixing", {
   expect_warning(
     results <- flu_1918_frederick |>
       new_housepi_model("chain_binomial") |>
-      add_parameter_list(
+      add_parameter(
         alpha = list(prior = "uniform", proposal = "lognormal",
                      proposal_scale = 1e-4),
         beta  = list(prior = "uniform", proposal = "lognormal",

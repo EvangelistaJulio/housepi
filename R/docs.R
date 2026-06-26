@@ -81,6 +81,8 @@ rd_inf_discr_ <- sprintf(rd_var_discr_, "profile")
 rd_inf_args_ <- sprintf(rd_var_args_, "profile")
 
 rd_list_args_ <- "Named arguments. Respective list of definition details."
+rd_import_ <- "Named `list` of pre-built definitions to import.
+Cannot be combined with single and/or multiple definitions."
 rd_list_append_ <- "`logical(1)` Append to current definitions.
 If `FALSE` drop all pre-existing definitions."
 

@@ -40,7 +40,7 @@ new_housepi_model <- function(data = NULL, model = NA_character_,
 stopifnothousepi <- function(hhmodel) {
   if (!inherits(hhmodel, "HousepiModel")) stop_h(
     "'hhmodel' must be of class 'HousepiModel'",
-    "Create one with new_housepi_model()."
+    i = "Create one with new_housepi_model()."
   )
 }
 
@@ -252,10 +252,65 @@ get_infec_profile <- function(hhmodel) {
 ############################################################################
 ############################################################################
 
-#' @title Add or overwrite a single parameter definition
+definition_helper_ <- c(
+  i = "Supply a {.arg name} for a single definition.",
+  i = "Provide multiple definitions as {.code name = list()} pairs.",
+  i = "Otherwise import an external list using {.args import}."
+)
+
+# Guard the inline (`...`) bulk form.
+assert_bulk_defs_ <- function(dots) {
+  if (length(dots) == 0L) stop_h(definition_helper_)
+  dots
+}
+
+# Build the quosure list for the explicit `import` bulk form.
+# Reject `import` combined with single-mode or inline `...` pairs.
+defs_to_quos_ <- function(import, key, dots, env) {
+  if (!is.null(key) || length(dots) > 0L) stop_h(
+    "Mixing imported definitions with  single and multiple definitions",
+    definition_helper_
+  )
+  convert_list_to_quosures(import, env)
+}
+
+# Load default templated definitions shipped with the package.
+load_template_defs <- function(pvt, family, append) {
+  holder <- if (family == "parameter") pvt$param_ else pvt$augm_
+  if (pvt$generator_$is_blank()) {
+    warn_h(sprintf(
+      "No template %s definitions available for blank model.", family
+    ))
+  } else {
+    defs <- get_template_def_list(pvt$generator_$source_dir, family)
+    holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
+  }
+  pvt$rebuild_()
+}
+
+rd_add_modes_ <- "There three mutually exclusive definition modes:
+\\describe{
+  \\item{single}{
+  Supply a `name` to adds a single definition using the explicit arguments;
+  }
+  \\item{multiple}{
+  Pass pairs `name = list()` (or `name = value`) for multiple definitions;
+  }
+  \\item{import}{
+  Pass a pre-built named list of definitions through `import`.
+  }
+}"
+rd_add_details_ <- "Definition names colliding with reserved argument
+are deprecated.
+The can be supplied only through single mode."
+
+#' @title Add or overwrite parameter definitions
 #' @description
-#' Add a new parameter to housepi model definitions.
-#' If the parameter already exists, it is overwritten.
+#' Add parameter(s) to a housepi model.
+#' If a parameter with the same name exists, the former gets overwritten.
+#' `r rd_add_modes_`
+#' @details
+#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_var_value_`
@@ -263,33 +318,50 @@ get_infec_profile <- function(hhmodel) {
 #' @param discr `r rd_par_discr_`
 #' @param prior `r rd_var_prior_`
 #' @param ... `r rd_par_args_`
+#' In mode 'multiple', the `name = value` definitions.
 #' @param min `r rd_var_min_`
 #' @param func `r rd_aug_func_`
 #' @param func_args `r rd_aug_funargs_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_par_proposal_`
 #' @param proposal_scale `r rd_proposal_scale_`
+#' @param import `r rd_import_`
+#' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @examples
+#' # the single, inline-bulk and list-bulk forms compose freely in a pipe
 #' hhmodel <- flu_1918_frederick |>
 #'   new_housepi_model("chain_binomial") |>
-#'   # alpha : community transmission rate, with uniform prior
+#'   # single: alpha, with a uniform prior and a lognormal proposal
 #'   add_parameter("alpha", prior = "uniform", proposal = "lognormal") |>
-#'   # beta : person-to-person transmission rate, fixed to a constant
-#'   add_parameter("beta", value = 0.3, const = TRUE)
+#'   # single: beta, fixed to a constant
+#'   add_parameter("beta", value = 0.3, const = TRUE) |>
+#'   # inline bulk: several definitions as `name = value` pairs
+#'   add_parameter(gamma = 1, size_ref = 4)
+#'
+#' # list bulk: load a pre-built named list of definitions through `import`
+#' my_import <- list(gamma = 1, size_ref = 4)
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("chain_binomial") |>
+#'   add_parameter(import = my_import)
 #' @export
 add_parameter <- function(hhmodel,
-                          name, value = NULL,
+                          name = NULL, value = NULL,
                           const = NA, discr = FALSE,
                           prior = NA_character_, ...,
                           func = NULL, func_args = NULL,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
-                          proposal_scale = NA_real_) {
+                          proposal_scale = NA_real_,
+                          import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$param_$add_quo(
+  if (!is.null(import)) pvt$param_$add_quo_list(
+    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
+    append = append
+  )
+  else if (!is.null(name)) pvt$param_$add_quo(
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
     prior = prior, rlang::enquos(...),
@@ -297,6 +369,10 @@ add_parameter <- function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale,
     .assert = TRUE
+  )
+  else pvt$param_$add_quo_list(
+    assert_bulk_defs_(rlang::enquos(...)),
+    append = append
   )
   pvt$rebuild_()
   new_obj
@@ -317,7 +393,7 @@ add_parameter <- function(hhmodel,
 add_parameter_template <- function(hhmodel, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$add_parameter_template(append = append)
+  load_template_defs(new_obj$.__enclos_env__$private, "parameter", append)
   new_obj
 }
 
@@ -325,10 +401,14 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 ############################################################################
 ############################################################################
 
-#' @title Add or update an augmented variable definition
+#' @title Add or update augmented variable definitions
 #' @description
-#' Add a new augmented variable/function to housepi model definitions.
-#' If the augmented variable already exists, it is updated.
+#' Add augmented variables/functions to housepi model.
+#' If an augmented definitions with the same name and status exists,
+#' the former gets overwritten.
+#' `r rd_add_modes_`
+#' @details
+#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_aug_val_`
@@ -339,10 +419,13 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 #' @param func_args `r rd_aug_funargs_`
 #' @param prior `r rd_var_prior_`
 #' @param ... `r rd_aug_args_`
+#' In mode 'multiple', the `name = value` definitions.
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
 #' @param proposal `r rd_var_proposal_`
 #' @param proposal_scale `r rd_proposal_scale_`
+#' @param import `r rd_import_`
+#' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @examples
 #' hhmodel <- blank_house |>
@@ -352,17 +435,22 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 #'                 prior = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
 add_augmented <- function(hhmodel,
-                          name, value = NULL,
+                          name = NULL, value = NULL,
                           status = NA_integer_, const = NA, discr = FALSE,
                           func = NULL, func_args = NULL,
                           prior = NA_character_, ...,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
-                          proposal_scale = NA_real_) {
+                          proposal_scale = NA_real_,
+                          import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$augm_$add_quo(
+  if (!is.null(import)) pvt$augm_$add_quo_list(
+    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
+    append = append
+  )
+  else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
@@ -370,6 +458,10 @@ add_augmented <- function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale,
     .assert = TRUE
+  )
+  else pvt$augm_$add_quo_list(
+    assert_bulk_defs_(rlang::enquos(...)),
+    append = append
   )
   pvt$rebuild_()
   new_obj
@@ -380,7 +472,7 @@ add_augmented <- function(hhmodel,
 add_augmented_template <- function(hhmodel, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$add_augmented_template(append = append)
+  load_template_defs(new_obj$.__enclos_env__$private, "augmented", append)
   new_obj
 }
 
@@ -391,58 +483,89 @@ add_augmented_template <- function(hhmodel, append = TRUE) {
 #' Sample \eqn{x} from the model during simulations.
 #' If observation is deterministic it is considered as a datum.
 #' Note that indicator contribution to log-likelihood are expressily forbidden.
+#' `r rd_add_modes_`
+#' @details
+#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param obs `r rd_obs_dist_`
 #' @param ... `r rd_obs_args_`
+#' In mode 'multiple', the `name = value` definitions.
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_aug_discr_`
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
+#' @param import `r rd_import_`
+#' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @export
-add_observation <- function(hhmodel, name,
+add_observation <- function(hhmodel, name = NULL,
                             obs = NA_character_, ...,
                             status = NA_integer_, discr = FALSE,
-                            min = NULL, max = NULL) {
+                            min = NULL, max = NULL,
+                            import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$augm_$add_quo(
+  if (!is.null(import)) pvt$augm_$add_quo_list(
+    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
+    append = append, .kind = "obs"
+  )
+  else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = NULL, status = status,
     const = NA, discr = discr, prior = NA_character_,
     obs = obs, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     .assert = TRUE, .kind = "obs"
   )
+  else pvt$augm_$add_quo_list(
+    assert_bulk_defs_(rlang::enquos(...)),
+    append = append, .kind = "obs"
+  )
   pvt$rebuild_()
   new_obj
 }
 
-#' @title Add a household-level observation
+#' @title Add household-level observations
 #' @description
-#' Add a single household-level observation for all members.
-#' Observation must be reducible to a constant value.
+#' Add household-level observations for all members.
+#' Household-level observations must be reducible to a constant value.
+#' `r rd_add_modes_`
+#' @details
+#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_aug_val_`
+#' @param ... `r rd_obs_args_`
+#' In mode 'multiple', the `name = value` definitions.
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_aug_discr_`
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
+#' @param import `r rd_import_`
+#' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @export
-add_house_observ <- function(hhmodel, name, value = NULL,
+add_house_observ <- function(hhmodel, name = NULL, value = NULL, ...,
                              status = NA_integer_, discr = FALSE,
-                             min = NULL, max = NULL) {
+                             min = NULL, max = NULL,
+                             import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$augm_$add_quo(
+  if (!is.null(import)) pvt$augm_$add_quo_list(
+    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
+    append = append, .kind = "house-obs"
+  )
+  else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, discr = discr,
     min = rlang::enquo(min), max = rlang::enquo(max),
     .assert = TRUE, .kind = "house-obs"
+  )
+  else pvt$augm_$add_quo_list(
+    assert_bulk_defs_(rlang::enquos(...)),
+    append = append, .kind = "house-obs"
   )
   pvt$rebuild_()
   new_obj
@@ -454,6 +577,9 @@ add_house_observ <- function(hhmodel, name, value = NULL,
 
 #' @title Add a stratified group rate definition
 #' @description `r rd_grr_desc_`
+#' `r rd_add_modes_`
+#' @details
+#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `r rd_grr_by_`
@@ -468,23 +594,34 @@ add_house_observ <- function(hhmodel, name, value = NULL,
 #' @param proposal `r rd_var_proposal_`
 #' @param proposal_scale `r rd_proposal_scale_`
 #' @param prefix `r rd_grr_prefix_`
+#' @param import `r rd_import_`
+#' @param append `r rd_list_append_`
 #' @references
 #' \insertRef{cauchemez_household_2009}{housepi}
 #' @return `r rd_model_out_`
 #' @export
 add_group_rate <-  function(hhmodel,
-                            name, by = NA_character_,
+                            name = NULL, by = NA_character_,
                             reference = NULL, joint = FALSE,
                             strata = NULL, params = NULL,
                             prior = NA_character_, ...,
                             min = NA_real_, max = NA_real_,
                             proposal = NA_character_,
                             proposal_scale = NA_real_,
-                            prefix = NA_character_) {
+                            prefix = NA_character_,
+                            import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
+  if (is.null(name) && isFALSE(append)) {
+    # NOTE: dropping group rates might cause parameter drops
+    new_obj$drop_group_rates()
+  }
   pvt <- new_obj$.__enclos_env__$private
-  pvt$group_rates_$add_quo(
+  if (!is.null(import)) pvt$group_rates_$add_quo_list(
+    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
+    append = append
+  )
+  else if (!is.null(name)) pvt$group_rates_$add_quo(
     name = name, by = by,
     reference = reference, joint = joint,
     strata = strata, params = params,
@@ -492,6 +629,10 @@ add_group_rate <-  function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, proposal_scale = proposal_scale,
     prefix = prefix
+  )
+  else pvt$group_rates_$add_quo_list(
+    assert_bulk_defs_(rlang::enquos(...)),
+    append = append
   )
   pvt$rebuild_()
   new_obj
@@ -527,7 +668,8 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
                              min = NA_real_, max = NA_real_,
                              proposal = NA_character_,
                              proposal_scale = NA_real_,
-                             prefix = "ctr") {
+                             prefix = NA_character_) {
+  # FIXME: missing an import for contact-rate
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -551,114 +693,41 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
 #' @title Add an infectivity profile definition
 #' @description
 #' Add definition of infectivity profile.
+#' `r rd_add_modes_`
+#' @details
+#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param func `r rd_var_name_`
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_inf_discr_`
 #' @param ... `r rd_inf_args_`
+#' In mode 'multiple', the `func` definitions.
 #' @param max `r rd_aug_max_`
+#' @param import `r rd_import_`
+#' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @export
 add_infec_profile <- function(hhmodel,
-                              func, status = NA_integer_,
+                              func = NULL, status = NA_integer_,
                               discr = FALSE,
-                              ..., max = NULL) {
+                              ..., max = NULL,
+                              import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$infec_profile_$add_quo(
+  if (!is.null(import)) pvt$infec_profile_$add_quo_list(
+    defs_to_quos_(import, func, rlang::enquos(...), rlang::caller_env()),
+    append = append
+  )
+  else if (!is.null(func)) pvt$infec_profile_$add_quo(
     func = func, status = status, discr = discr,
     rlang::enquos(...), max = rlang::enquo(max),
     .assert = TRUE
   )
-  pvt$rebuild_()
-  new_obj
-}
-
-############################################################################
-############################################################################
-############################################################################
-
-#' @title Load multiple definitions at once via named arguments
-#' @description
-#' Load definitions as named arguments.
-#' Each variant targets one definition category (parameters, augmented
-#' variables, group rates, infectivity profile).
-#' @param hhmodel `r rd_model_in_`
-#' @param ... `r rd_list_args_`
-#' @param append `r rd_list_append_`
-#' @return `r rd_model_out_`
-#' @examples
-#' # define some constant paramters
-#' flu_1918_frederick |>
-#'   new_housepi_model("chain_binomial") |>
-#'   add_parameter_list(alpha = 0.05, beta = 0.3,
-#'                      gamma = 1, size_ref = 4) |>
-#'   get_parameters()
-#' @rdname add_definitions_list
-#' @export
-add_parameter_list <- function(hhmodel, ..., append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  pvt <- new_obj$.__enclos_env__$private
-  pvt$param_$add_quo_list(rlang::enquos(...), append = append)
-  pvt$rebuild_()
-  new_obj
-}
-
-#' @rdname add_definitions_list
-#' @export
-add_group_rate_list <- function(hhmodel, ..., append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  # NOTE: dropping group rates might cause parameter drops
-  if (isFALSE(append)) new_obj$drop_group_rates()
-  pvt <- new_obj$.__enclos_env__$private
-  pvt$group_rates_$add_quo_list(rlang::enquos(...), append = append)
-  pvt$rebuild_()
-  new_obj
-}
-
-#' @rdname add_definitions_list
-#' @export
-add_augmented_list <- function(hhmodel, ..., append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  pvt <- new_obj$.__enclos_env__$private
-  pvt$augm_$add_quo_list(rlang::enquos(...), append = append)
-  pvt$rebuild_()
-  new_obj
-}
-
-#' @rdname add_definitions_list
-#' @export
-add_observation_list <- function(hhmodel, ..., append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  pvt <- new_obj$.__enclos_env__$private
-  pvt$augm_$add_quo_list(rlang::enquos(...), append = append, .kind = "obs")
-  pvt$rebuild_()
-  new_obj
-}
-
-#' @rdname add_definitions_list
-#' @export
-add_house_observ_list <- function(hhmodel, ..., append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  pvt <- new_obj$.__enclos_env__$private
-  pvt$augm_$add_quo_list(rlang::enquos(...), append = append, .kind = "house-obs")
-  pvt$rebuild_()
-  new_obj
-}
-
-#' @rdname add_definitions_list
-#' @export
-add_infec_profile_list <- function(hhmodel, ..., append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  pvt <- new_obj$.__enclos_env__$private
-  pvt$infec_profile_$add_quo_list(rlang::enquos(...), append = append)
+  else pvt$infec_profile_$add_quo_list(
+    assert_bulk_defs_(rlang::enquos(...)),
+    append = append
+  )
   pvt$rebuild_()
   new_obj
 }
@@ -757,37 +826,4 @@ run_simulation <- function(hhmodel,
                          param_table = param_table,
                          nrep = nrep,
                          ...)
-}
-
-#' @title Sample the power-posterior ladder of a housepi model
-#' @description
-#' Sample the power-posterior ladder used to estimate the log-evidence.
-#' See [evaluate_log_evidence()] to estimate the log-evidence.
-#' @param hhmodel `r rd_model_in_`
-#' @param scheme `r rd_evi_scheme_`
-#' @param rungs `r rd_evi_rungs_`
-#' @param steps `r rd_smpl_steps_`
-#' @param burn `r rd_smpl_burn_`
-#' @param thin `r rd_smpl_thin_`
-#' @param adapt `r rd_smpl_adapt_`
-#' @param chains `r rd_smpl_chain_`
-#' @param threads `r rd_thread_`
-#' @param progress `r rd_progress_`
-#' @return An object of class `HousepiPowerPosteriors`.
-#' @references
-#' \insertRef{friel_improving_2014}{housepi}
-#' @export
-run_power_posteriors <- function(hhmodel,
-                                 scheme = c("adaptive", "power-fractions"),
-                                 rungs = 30L,
-                                 steps = 1000L, burn = 0L,
-                                 thin = 5L, adapt = 500L,
-                                 chains = 4L, threads = 1L,
-                                 progress = TRUE) {
-  stopifnothousepi(hhmodel)
-  hhmodel$run_power_posteriors(scheme = scheme, rungs = rungs,
-                               steps = steps, burn = burn,
-                               thin = thin, adapt = adapt,
-                               chains = chains, threads = threads,
-                               progress = progress)
 }

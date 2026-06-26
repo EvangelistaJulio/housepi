@@ -420,15 +420,6 @@ ctr_cell_ <- function(hhsnapshot, from, to, key = "member") {
 }
 
 test_that("Most-specific rule wins over reference (single feature)", {
-  # house with one of each member type
-  hh <- data.frame(
-    id = c("m1", "m2", "m3", "m4"),
-    house_id = "h1",
-    status = c(0L, 0L, 0L, 0L),
-    member = c("father", "mother", "student", "sibling"),
-    stringsAsFactors = FALSE
-  )
-
   # one specific pair gets a non-reference param; everything else falls
   # through to .reference (specificity 0, hits update_best_match's empty
   # branch then never gets beaten).
@@ -439,10 +430,18 @@ test_that("Most-specific rule wins over reference (single feature)", {
     stringsAsFactors = FALSE
   )
 
-  hhmodel <- new_housepi_model(hh, "chain_binomial")
-  hhmodel$add_parameter_template()
-  hhmodel$add_contact_rate(strata = strata, symmetric = FALSE,
-                           params = list(ctr_fm = 2))
+  # house with one of each member type
+  hhmodel <- data.frame(
+    id = c("m1", "m2", "m3", "m4"),
+    house_id = "h1",
+    status = c(0L, 0L, 0L, 0L),
+    member = c("father", "mother", "student", "sibling"),
+    stringsAsFactors = FALSE
+  ) |>
+    new_housepi_model("chain_binomial") |>
+    add_parameter_template() |>
+    add_contact_rate(strata = strata, symmetric = FALSE,
+                     params = list(ctr_fm = 2))
   snap <- hhmodel$export_house_snapshot("h1")
 
   # the explicit pair wins
@@ -452,7 +451,8 @@ test_that("Most-specific rule wins over reference (single feature)", {
   # unrelated pair falls back to reference (spec=0)
   expect_equal(ctr_cell_(snap, "student", "sibling"), 1)
   # diagonal stays 0 (no self-contact)
-  expect_equal(unname(diag(snap$contact_rate)), rep(0., nrow(hh)))
+  unname(diag(snap$contact_rate)) |>
+    expect_equal(rep(0., nrow(snap$contact_rate)))
 })
 
 test_that("Distinct rule_groups multiply at the cell", {
@@ -482,8 +482,8 @@ test_that("Distinct rule_groups multiply at the cell", {
   )
 
   hhmodel <- new_housepi_model(hh, "chain_binomial")
-  hhmodel$add_parameter_template()
-  hhmodel$add_contact_rate(
+  hhmodel <- add_parameter_template(hhmodel)
+  hhmodel <- add_contact_rate(hhmodel,
     strata = strata, symmetric = FALSE, reference = ".none",
     params = list(ctr_aa = 3, ctr_class_aa = 5)
   )

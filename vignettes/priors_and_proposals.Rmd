@@ -40,7 +40,7 @@ Here's the full list of available continuous distributions present in housepi:
 # create an instance of the blank model
 new_housepi_model(model = "blank") |>
   # continuous distributions in housepi
-  add_parameter_list(
+  add_parameter(
     uniform = list(prior = "uniform", min = 0, max = 1),
     normal = list(prior = "normal", mean = 0, sd = 1),
     lognormal = list(prior = "lognormal", meanlog = 0, sdlog = 1),
@@ -75,10 +75,12 @@ We do this with the arguments `min` (minimum) and `max` (maximum).
 library(ggplot2)
 
 new_housepi_model(model = "blank") |>
-  add_parameter_list(default = list(prior = "normal"),
-                      below = list(prior = "normal", min = -1),
-                      above = list(prior = "normal", max = 1),
-                      both = list(prior = "normal", min = -1, max = 1) ) |>
+  add_parameter(
+    default = list(prior = "normal"),
+    below = list(prior = "normal", min = -1),
+    above = list(prior = "normal", max = 1),
+    both = list(prior = "normal", min = -1, max = 1)
+  ) |>
   run_inference() |>
   get_parameter_draws() |>
   bayesplot::mcmc_dens() +
@@ -101,7 +103,7 @@ All functions and distributions in housepi allow for a location parameter `loc` 
 #|  Four panels display gamma distributions with location parameters set to 0, 1, 2, and 3 respectively.
 #|  Vertical dashed lines indicate the minimum of each shifted support.
 new_housepi_model(model = "blank") |>
-  add_parameter_list(
+  add_parameter(
     gamma_0 = list(prior = "gamma", shape = 2, scale = 1),
     gamma_1 = list(prior = "gamma", shape = 2, scale = 1, loc = 1),
     gamma_2 = list(prior = "gamma", shape = 2, scale = 1, loc = 2),
@@ -136,7 +138,7 @@ Here's the full list of available discrete distributions present in housepi:
 
 # discrete distributions in housepi
 new_housepi_model(model = "blank") |>
-  add_parameter_list(
+  add_parameter(
     poisson = list(prior = "poisson", lambda = 2),
     binomial = list(prior = "binomial", size = 4, prob = 0.5),
     negative_binomial = list(prior = "negative_binomial", size = 4, prob = 0.5),
@@ -157,7 +159,7 @@ Previous continuous priors can be chosen to be discretized using the argument `d
 #|  Seven histograms showing discretized versions of continuous prior distributions: uniform, normal, lognormal, gamma, Weibull, Rayleigh, and exponential.
 
 new_housepi_model(model = "blank") |>
-  add_parameter_list(
+  add_parameter(
     uniform = list(prior = "uniform", discr = TRUE),
     normal = list(prior = "normal", discr = TRUE),
     lognormal = list(prior = "lognormal", discr = TRUE),
@@ -236,7 +238,7 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 #|  proposal_scale left adaptive.  All chains mix well after a short adaptation phase.
 
 new_housepi_model(model = "blank") |>
-  add_parameter_list(
+  add_parameter(
     sample = list(prior = "normal", min = 0, proposal = "sample"),
     uniform = list(prior = "normal", min = 0, proposal = "uniform"),
     normal = list(prior = "normal", min = 0, proposal = "normal"),
@@ -264,7 +266,7 @@ This pins the scale to the chosen value and disables adaptation for that variabl
 # select an extremely large proposal scale 'sigma'
 sigma <- 100
 new_housepi_model(model = "blank") |>
-  add_parameter_list(
+  add_parameter(
     sample = list(prior = "normal", min = 0, proposal = "sample"),
     uniform = list(prior = "normal", min = 0,
                    proposal = "uniform", proposal_scale = sigma),

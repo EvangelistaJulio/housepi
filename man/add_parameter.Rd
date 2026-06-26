@@ -2,11 +2,11 @@
 % Please edit documentation in R/expose_class.R
 \name{add_parameter}
 \alias{add_parameter}
-\title{Add or overwrite a single parameter definition}
+\title{Add or overwrite parameter definitions}
 \usage{
 add_parameter(
   hhmodel,
-  name,
+  name = NULL,
   value = NULL,
   const = NA,
   discr = FALSE,
@@ -17,7 +17,9 @@ add_parameter(
   min = NULL,
   max = NULL,
   proposal = NA_character_,
-  proposal_scale = NA_real_
+  proposal_scale = NA_real_,
+  defs = NULL,
+  append = TRUE
 )
 }
 \arguments{
@@ -36,7 +38,7 @@ If applicable, the prior is discretized.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
 
-\item{...}{named arguments for the prior distribution.}
+\item{...}{named arguments for the prior distribution. In bulk mode, the \code{name = value} definitions.}
 
 \item{func}{One between:
 \itemize{
@@ -64,19 +66,44 @@ One between:
 If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
 If a positive numeric, scale is fixed to that value and never adapted.
 Ignored when proposal is \code{"sample"}.}
+
+\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
+alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+
+\item{append}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add a new parameter to housepi model definitions.
-If the parameter already exists, it is overwritten.
+Add parameters to housepi model definitions.
+Existing parameters with the same name are overwritten.
+Supplying \code{name} adds a single parameter using the explicit arguments.
+To add several at once (bulk mode) either pass them as \code{name = value} pairs
+through \code{...}, or pass a pre-built named list of definitions through \code{defs}
+(e.g. \code{add_parameter(model, defs = my_defs)}); each value may be a constant or
+a \code{list(...)} of definition arguments.
+}
+\details{
+In bulk mode, a definition whose name collides with a reserved argument
+(\code{value}, \code{const}, \code{prior}, \code{min}, \code{max}, ...) must instead be supplied
+through single mode.
 }
 \examples{
+# the single, inline-bulk and list-bulk forms compose freely in a pipe
 hhmodel <- flu_1918_frederick |>
   new_housepi_model("chain_binomial") |>
-  # alpha : community transmission rate, with uniform prior
+  # single: alpha, with a uniform prior and a lognormal proposal
   add_parameter("alpha", prior = "uniform", proposal = "lognormal") |>
-  # beta : person-to-person transmission rate, fixed to a constant
-  add_parameter("beta", value = 0.3, const = TRUE)
+  # single: beta, fixed to a constant
+  add_parameter("beta", value = 0.3, const = TRUE) |>
+  # inline bulk: several definitions as `name = value` pairs
+  add_parameter(gamma = 1, size_ref = 4)
+
+# list bulk: load a pre-built named list of definitions through `defs`
+my_defs <- list(gamma = 1, size_ref = 4)
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("chain_binomial") |>
+  add_parameter(defs = my_defs)
 }

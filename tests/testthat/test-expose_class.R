@@ -25,12 +25,9 @@ test_that("Reject if calling on non-HousepiModel objects", {
   expect_error(evaluate_log_lik(obj), regexp = err)
   expect_error(run_inference(obj), regexp = err)
   expect_error(run_simulation(obj), regexp = err)
-  expect_error(add_parameter_list(obj), regexp = err)
-  expect_error(add_augmented_list(obj), regexp = err)
   expect_error(add_parameter_template(obj), regexp = err)
   expect_error(add_augmented_template(obj), regexp = err)
-  expect_error(add_group_rate_list(obj), regexp = err)
-  expect_error(add_infec_profile_list(obj), regexp = err)
+  expect_error(add_group_rate(obj), regexp = err)
   expect_error(predicted_measures(obj, NULL), regexp = err)
   expect_error(predicted_cases_by_house_size(obj, NULL), regexp = err)
 })
@@ -70,7 +67,7 @@ test_that("Wrappers work as expected on blank model", {
   expect_true(is.data.frame(pars))
   expect_true("alpha" %in% pars$name)
 
-  result <- add_parameter_list(hhmodel, alpha = 1, beta = 2)
+  result <- add_parameter(hhmodel, alpha = 1, beta = 2)
   pars <- get_parameters(result)
   expect_true(all(c("alpha", "beta") %in% pars$name))
 
@@ -84,9 +81,31 @@ test_that("Wrappers work as expected on blank model", {
   expect_true("dummy" %in% aug$name)
 
   result <- hhmodel |>
-    add_augmented_list(dummy = list(prior = "uniform"))
+    add_augmented(dummy = list(prior = "uniform"))
   aug <- get_augmented(result)
   expect_true("dummy" %in% aug$name)
+})
+
+test_that("Bulk loading via `defs` mirrors inline name = value pairs", {
+  hhmodel <- new_housepi_model(model = "blank")
+  defs <- list(metal = 1, gear = list(prior = "uniform"))
+
+  # an external list passed via `defs` equals the inline dotted form
+  from_defs <- hhmodel |>
+    add_parameter(import = defs) |>
+    get_parameters()
+  inline <- hhmodel |>
+    add_parameter(metal = 1, gear = list(prior = "uniform")) |>
+    get_parameters()
+  expect_identical(from_defs, inline)
+
+  # `defs` cannot be combined with a single name or with inline pairs
+  hhmodel |>
+    add_parameter("sokolov", import = defs) |>
+    expect_error("Mixing")
+  hhmodel |>
+    add_parameter(nikolai = 1, import = defs) |>
+    expect_error("Mixing")
 })
 
 ############################################################################
@@ -94,9 +113,9 @@ test_that("Wrappers work as expected on blank model", {
 ############################################################################
 
 test_that("Drop wrappers return clean models", {
-  hhmodel <- new_housepi_model(model = "blank")
-  hhmodel <- add_parameter(hhmodel, name = "alpha", value = 0.5)
-  hhmodel <- add_augmented(hhmodel, name = "dummy", value = 3)
+  hhmodel <- new_housepi_model(model = "blank") |>
+    add_parameter(name = "alpha", value = 0.5) |>
+    add_augmented(name = "dummy", value = 3)
 
   # drop_parameters returns new object without parameters
   dropped <- drop_parameters(hhmodel)
@@ -141,7 +160,7 @@ test_that("Group rate wrappers", {
   expect_true(nrow(groups_1) > 0)
 
   expect_warning(
-    result <- add_group_rate_list(hhmodel, community = "member"),
+    result <- add_group_rate(hhmodel, community = "member"),
     "[Oo]verwriting.*community"
   )
   groups_2 <- get_group_rates(result)
@@ -149,7 +168,7 @@ test_that("Group rate wrappers", {
 
   # load custom definitions
   hhmodel <- hhmodel |>
-    add_group_rate_list(
+    add_group_rate(
       susceptibility = list(
         strata = data.frame(member = c("student", NA),
                             param_name = c("sus_student", ".reference")),
@@ -172,12 +191,12 @@ test_that("Group rate wrappers", {
 })
 
 test_that("add_contact_rate wrapper input branches", {
-  small_cr <- data.frame(
+  hhmodel <- data.frame(
     house_id = c(1, 1, 2, 2, 2),
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
-  )
-  hhmodel <- new_housepi_model(small_cr, "chain_binomial")
+  ) |>
+    new_housepi_model("chain_binomial")
 
   strata <- data.frame(
     from_member = c("student", NA),
@@ -188,14 +207,17 @@ test_that("add_contact_rate wrapper input branches", {
   # 'by' and 'strata' together is ambiguous
   hhmodel |>
     add_contact_rate(by = "member", strata = strata) |>
-    expect_error("Impossible")
+    expect_error("[Ii]mpossible")
 
   # neither 'by' nor 'strata' is empty
-  expect_error(add_contact_rate(hhmodel), regexp = "Invalid")
+  hhmodel |>
+    add_contact_rate() |>
+    expect_error("[Ii]nvalid")
 
   # first call succeeds and returns a NEW model (copy() semantic)
-  result <- add_contact_rate(hhmodel, strata = strata,
-                             params = list(ctr_kept_you_waiting = 1.21))
+  result <- hhmodel |>
+    add_contact_rate(strata = strata,
+                     params = list(ctr_kept_you_waiting = 1.21))
   expect_false(identical(hhmodel, result))
   # original is untouched (tidy contact-rate table stays empty)
   expect_equal(nrow(hhmodel$contact_rates), 0L)
@@ -207,7 +229,7 @@ test_that("add_contact_rate wrapper input branches", {
   expect_warning(
     add_contact_rate(result, strata = strata,
                      params = list(ctr_kept_you_waiting = 1.21)),
-    regexp = "Overwriting"
+    regexp = "[Oo]verwriting"
   )
 
   # getter
@@ -217,19 +239,19 @@ test_that("add_contact_rate wrapper input branches", {
   expect_true(nrow(cr) > 0)
 })
 
-test_that("add_infec_profile and add_infec_profile_list work", {
-  hhmodel <- new_housepi_model(sarscov2_2021_icofs,
-                               "augmented_infection_time")
-  result <- add_infec_profile(hhmodel, func = "lognormal")
-  ip <- get_infec_profile(result)
+test_that("add_infec_profile single and bulk forms work", {
+  hhmodel <- sarscov2_2021_icofs |>
+    new_housepi_model("augmented_infection_time")
+  ip <- hhmodel |>
+    add_infec_profile(func = "lognormal") |>
+    get_infec_profile()
   expect_false(is.null(ip))
   expect_true("lognormal" %in% ip$func)
 
-  # add_infec_profile_list
-  result2 <- add_infec_profile_list(hhmodel,
-    ip1 = list(func = "lognormal")
-  )
-  ip2 <- get_infec_profile(result2)
+  # bulk form
+  ip2 <- hhmodel |>
+    add_infec_profile(ip1 = list(func = "lognormal")) |>
+    get_infec_profile()
   expect_false(is.null(ip2))
   expect_true("lognormal" %in% ip2$func)
 })

@@ -44,7 +44,7 @@ HousepiPowerPosteriors <- R6::R6Class(
         stop_h(
           paste("Thermodynamic integration is not applicable:",
                 "ladder holds non-finite log-likelihood draws."),
-          "Try to use method 'stepping-stone' instead."
+          i = "Try to use method 'stepping-stone' instead."
         )
       }
       avg <- private$mean_log_lik_
@@ -190,6 +190,44 @@ HousepiPowerPosteriors <- R6::R6Class(
     }
   )
 )
+
+#' @title Sample the power-posterior ladder of a housepi model
+#' @description
+#' Sample the power-posterior ladder used to estimate the log-evidence.
+#' See [evaluate_log_evidence()] to estimate the log-evidence.
+#' @param hhmodel `r rd_model_in_`
+#' @param scheme `r rd_evi_scheme_`
+#' @param rungs `r rd_evi_rungs_`
+#' @param steps `r rd_smpl_steps_`
+#' @param burn `r rd_smpl_burn_`
+#' @param thin `r rd_smpl_thin_`
+#' @param adapt `r rd_smpl_adapt_`
+#' @param chains `r rd_smpl_chain_`
+#' @param threads `r rd_thread_`
+#' @param progress `r rd_progress_`
+#' @return An object of class `HousepiPowerPosteriors`.
+#' @references
+#' \insertRef{friel_improving_2014}{housepi}
+#' @export
+run_power_posteriors <- function(hhmodel,
+                                 scheme = c("adaptive", "power-fractions"),
+                                 rungs = 30L,
+                                 steps = 1000L, burn = 0L,
+                                 thin = 5L, adapt = 500L,
+                                 chains = 4L, threads = 1L,
+                                 progress = TRUE) {
+  stopifnothousepi(hhmodel)
+  warn_logevidence_experimental_()
+  scheme <- match.arg(scheme)
+  pvt <- hhmodel$.__enclos_env__$private
+  # internal build function
+  pvt$build_full_(steps = steps, burn = burn,
+                  thin = thin, adapt = adapt,
+                  chains = chains, threads = threads,
+                  progress = progress)
+  # sample the ladder from the internal Rcpp object
+  HousepiPowerPosteriors$new(pvt$generator_, scheme = scheme, rungs = rungs)
+}
 
 #' @title Estimate the log-evidence
 #' @description

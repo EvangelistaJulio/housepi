@@ -130,7 +130,7 @@ We can proceed with the inference as shown in [Get started](housepi.html):
 
 hhmodel <- hhmodel |>
   # load group rates from definition list
-  add_group_rate_list(
+  add_group_rate(
     infectivity = "isolation",
     susceptibility = list(by = "vacc_status", reference = "unvaccinated")
   )
@@ -149,14 +149,14 @@ get_parameters(hhmodel)
 test_delay <- 8
 hhmodel <- hhmodel |>
   # parameter definitions
-  add_parameter_list(
+  add_parameter(
     alpha = list(prior = "uniform", proposal = "lognormal"),
     beta = list(prior = "uniform", proposal = "lognormal"),
     gamma = list(prior = "uniform", proposal = "uniform", max = 5),
     size_ref = 5
   ) |>
   # augmented definitions
-  add_augmented_list(
+  add_augmented(
     #> Asymptomatic (status = 1)
     infec_time = list(status = 1, prior = "uniform", 
                       min = test_date@D - !!test_delay,

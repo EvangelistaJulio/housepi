@@ -255,12 +255,12 @@ housepi_extractor <- function(...) {
 }
 
 # Detect whether captured definitions declare an observation node ('obs =').
-# Observation nodes are reserved to add_observation() / add_observation_list();
-# this guards the augmented entry points (scalar and list forms).
+# Observation nodes are reserved to add_observation();
+# this guards the augmented entry points (single and bulk forms).
 housepi_quos_declare_obs <- function(xquos) {
-  # scalar form: add_augmented(name, obs = ...)
+  # single form: add_augmented(name, obs = ...)
   if ("obs" %in% names(xquos)) return(TRUE)
-  # list form: add_augmented_list(name = list(obs = ...))
+  # bulk form: add_augmented(name = list(obs = ...))
   any(vapply(xquos, function(q) {
     expr <- if (rlang::is_quosure(q)) rlang::quo_get_expr(q) else q
     if (rlang::is_call(expr, c("list", "c"))) {
@@ -277,7 +277,7 @@ housepi_quos_declare_obs <- function(xquos) {
 assert_no_obs_declaration <- function(xquos) {
   if (housepi_quos_declare_obs(xquos)) stop_h(
     "Augmented definitions cannot declare an observation node.",
-    "Use add_observation() / add_observation_list() for entries with 'obs ='."
+    i = "Use add_observation() for entries with 'obs ='."
   )
 }
 
@@ -285,13 +285,14 @@ assert_no_obs_declaration <- function(xquos) {
 assert_nonempty_defin_quos <- function(xquos, family) {
   if (length(xquos) == 0L) stop_h(
     sprintf("No %s definition provided.", family),
-    "Provide at least one definition."
+    i = "Provide at least one definition."
   )
 }
 
 # Load a named list of quosures for definitions.
 # Resets the store first unless 'append' is TRUE.
-housepi_load_defin_quos <- function(self, implicit_name, xquos, append = FALSE) {
+housepi_load_defin_quos <- function(self, implicit_name, xquos,
+                                    append = FALSE) {
   assert_nonempty_defin_quos(xquos, self$family)
   if (isFALSE(append)) self$initialize()
   self$store_warn_over <- character()
@@ -304,7 +305,7 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos, append = FALSE) 
     nm <- names(xquos[i])
     if (requires_name && (is.na(nm) || length(nm) == 0 || nm == "")) stop_h(
       sprintf("Name of %s must be a non-empty string.", self$family),
-      "Did you provide a list and forgot rlang injection operator '!!!'?"
+      i = "Did you provide a list and forgot rlang injection operator '!!!'?"
     )
     def_quo <- xquos[[i]]
     def_expr <- rlang::quo_get_expr(def_quo)
@@ -337,7 +338,8 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos, append = FALSE) 
 # Convert a definition list to a list of quosures.
 convert_list_to_quosures <- function(input_lst, env = rlang::global_env()) {
   lapply(input_lst, function(x) {
-    rlang::new_quosure(rlang::call2("list", !!!x), env = env)
+    if (is.language(x)) rlang::new_quosure(x, env = env)
+    else rlang::new_quosure(rlang::call2("list", !!!x), env = env)
   })
 }
 
@@ -356,7 +358,7 @@ get_template_def_list <- function(path, family) {
   # check if template file exists
   if (!file.exists(templ_file)) stop_h(
     sprintf("Impossible to use templated %s definition.", family),
-    "A file with template definitions was not found."
+    x = "A file with template definitions was not found."
   )
   # get template definition list and convert to quosures
   dget(templ_file)

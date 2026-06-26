@@ -212,7 +212,7 @@ test_that("Observation node rejects conflicting options", {
   # observation nodes are data-bound, never sampled
   helper_test_aux_load(augm, x = list(obs = "normal", proposal = "sample"),
                        .kind = "obs") |>
-    expect_error("data-bound")
+    expect_warning("[Ii]gnored.*proposal")
 })
 
 test_that("Deterministic observation node is encoded as a function obs", {
@@ -300,19 +300,19 @@ test_that("Observation-aware initialization", {
   window <- 0.1
   # augmented z ~ U(0, 1)
   # observation x ~ U(z - w, z + w)
-  # if x = 0.5, valid for z in [0.4, 0.6] 
+  # if x = 0.5, valid for z in [0.4, 0.6]
   # without observation-aware restart, it would fail with 80% proba per-chain
   # probably of failing on K chains: 1 - 0.2^K
   data.frame(house_id = "shadow_moses", status = 1, x = 0.5) |>
     new_housepi_model("blank") |>
     add_augmented("z", prior = "uniform") |>
-    add_observation("x", obs = "uniform", loc = z, 
+    add_observation("x", obs = "uniform", loc = z,
                     min = - !!window, max = !!window) |>
     run_inference(steps = 10L, adapt = 0L, chains = 40L, progress = FALSE) |>
     suppressMessages() |>
     suppressWarnings() |>
     expect_no_error()
-  
+
   # datum x = 5 is unreachable
   # UPDATE: it's the same as above: new-dataset decorator?
   data.frame(house_id = "outer_heaven", status = 1, x = 5) |>
@@ -323,7 +323,7 @@ test_that("Observation-aware initialization", {
     run_inference() |>
     suppressMessages() |>
     expect_error("[Ee]xceeded attempts.*'x'")
-  
+
   # sampled parameter in the domain still makes null observation
   data.frame(house_id = "metal_gear", status = 1, x = 5) |>
     new_housepi_model("blank") |>
@@ -332,13 +332,13 @@ test_that("Observation-aware initialization", {
     run_inference() |>
     suppressMessages() |>
     expect_error("free parameter dependencies")
-  
+
   # generic error
   data.frame(house_id = "metal_gear", status = 1, x = 5) |>
     new_housepi_model("blank") |>
     add_parameter("theta", value = 0.3) |>
     add_augmented("z", prior = "uniform") |>
-    add_observation("x", obs = "uniform", min = - theta@P, max = theta@P) |> 
+    add_observation("x", obs = "uniform", min = - theta@P, max = theta@P) |>
     run_inference() |>
     expect_error("outside of respective domain")
 })

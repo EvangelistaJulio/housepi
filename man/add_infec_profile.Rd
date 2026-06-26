@@ -6,11 +6,13 @@
 \usage{
 add_infec_profile(
   hhmodel,
-  func,
+  func = NULL,
   status = NA_integer_,
   discr = FALSE,
   ...,
-  max = NULL
+  max = NULL,
+  defs = NULL,
+  append = TRUE
 )
 }
 \arguments{
@@ -25,7 +27,7 @@ If \code{NA}, associate definition to all infectious individuals (default).}
 \item{discr}{\code{logical(1)} Treat definition as discrete.
 If applicable, the profile is discretized.}
 
-\item{...}{named arguments for the profile distribution.}
+\item{...}{named arguments for the profile distribution. In bulk mode, the \code{func} definitions.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 One between:
@@ -34,6 +36,12 @@ One between:
 \item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
+
+\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
+alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+
+\item{append}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

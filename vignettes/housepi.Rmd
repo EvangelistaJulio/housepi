@@ -150,12 +150,12 @@ We can call `add_parameter()` as follows:
 #| label: add-parameters
 # alpha : community transmission rate
 hhmodel <- hhmodel |>
-  add_parameter("alpha",                # name matching the model source
-                prior = "uniform",      # uniform prior
-                proposal = "lognormal") # MCMC proposal
-
-# beta : in-household person to person transmission rate
-hhmodel <- hhmodel |>
+  add_parameter(
+    "alpha",               # name matching the model requirement
+    prior = "uniform",     # uniform prior
+    proposal = "lognormal" # MCMC proposal
+  ) |>
+  # beta : in-household person to person transmission rate
   add_parameter("beta", prior = "uniform", proposal = "lognormal")
 
 # lazily complete parameter definitions from housepi templated definitions
@@ -235,19 +235,19 @@ Similarly it can be done for augmented definitions via `add_augmented_template()
 # Simulate an outbreak
 
 We propose the following definitions for the augmented variables,
-associated from a list by calling `add_augmented_list()`.
+associated from a list by calling `add_augmented()`.
 
 ```{r}
 #| label: load-augmented-definitions
 hhsimul <- hhsimul |>
-  add_augmented_list(
+  add_augmented(
     # define an incubation period for each individual
     incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
     infec_time = start_date@D - incub_period
   ) |>
   # onset date corresponds to the onset time (infection time + incubation)
   # with onsets after 6 PM (18/24) reported to the next day
-  add_observation_list(
+  add_observation(
     onset_date = floor(infec_time + incub_period + 0.25)
   )
 ```
@@ -297,12 +297,11 @@ Inference reuses the very same definition set as the simulation: the observed
 hhmodel <- simulated |>
   new_housepi_model("augmented_infection_time") |>
   add_parameter_template() |>
-  add_parameter_list(inc_shape = 2, inc_scale = 1, append = TRUE) |>
-  add_augmented_list(
+  add_parameter(inc_shape = 2, inc_scale = 1) |>
+  add_augmented(
     incub_period = list(prior = "gamma",
                         shape = inc_shape@P, scale = inc_scale@P,
                         max = 14),
-    # FIXME: in current implementation this only works because start_date = 0
     infec_time = list(prior = "uniform",
                       min = start_date@D - 14,
                       max = start_date@D + study_period@D,

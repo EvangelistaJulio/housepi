@@ -6,7 +6,7 @@
 \usage{
 add_group_rate(
   hhmodel,
-  name,
+  name = NULL,
   by = NA_character_,
   reference = NULL,
   joint = FALSE,
@@ -18,7 +18,9 @@ add_group_rate(
   max = NA_real_,
   proposal = NA_character_,
   proposal_scale = NA_real_,
-  prefix = NA_character_
+  prefix = NA_character_,
+  defs = NULL,
+  append = TRUE
 )
 }
 \arguments{
@@ -69,6 +71,12 @@ If a positive numeric, scale is fixed to that value and never adapted.
 Ignored when proposal is \code{"sample"}.}
 
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA} uses the first 3 letters of rate name (default).}
+
+\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
+alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+
+\item{append}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

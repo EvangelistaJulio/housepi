@@ -116,7 +116,7 @@ test_that("Deep clone works as expected", {
   expect_equal(hhmodel$group_rates, hhclone$group_rates)
 
   # check no backward changes
-  hhmodel$add_group_rate("susceptibility", by = "member")
+  hhmodel <- add_group_rate(hhmodel, "susceptibility", by = "member")
   hhclone <- house |>
     dplyr::mutate(status = NA) |>
     new_housepi_model("chain_binomial")
@@ -276,11 +276,10 @@ test_that("Single infected member log-likelihood is correct", {
   log_lik <- neg_log + log(pos)
 
   # define housepi model
-  hhmodel <- house |>
-    new_housepi_model("chain_binomial") |>
-    add_group_rate_list(!!!groups)
-  do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$add_parameter_list(!!!par, append = FALSE)
+  hhmodel <- new_housepi_model(house, "chain_binomial")
+  hhmodel <- add_group_rate(hhmodel, import = groups)
+  hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts))
+  hhmodel <- add_parameter(hhmodel, import = par, append = FALSE)
   expect_equal(log_lik, eval_log_density(hhmodel))
 })
 
@@ -301,10 +300,10 @@ test_that("Three infected members likelihood is correct", {
   # CASE 1: no infected
   hhmodel <- house |>
     dplyr::mutate(status = 0) |>
-    new_housepi_model("chain_binomial") |>
-    add_group_rate_list(!!!groups)
-  do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$add_parameter_list(!!!par, append = FALSE)
+    new_housepi_model("chain_binomial")
+  hhmodel <- add_group_rate(hhmodel, import = groups)
+  hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts))
+  hhmodel <- add_parameter(hhmodel, import = par, append = FALSE)
   log_lik <- -sum(commu_infec_rate)
   expect_equal(eval_log_density(hhmodel), log_lik)
 
@@ -312,9 +311,10 @@ test_that("Three infected members likelihood is correct", {
   n_infec <- sum(house$status > 0)
   hhmodel <- house |>
     new_housepi_model("chain_binomial") |>
-    add_group_rate_list(!!!groups)
-  do.call(hhmodel$add_contact_rate, contacts)
-  hhmodel$add_parameter_list(!!!par, append = FALSE)
+    add_group_rate(import = groups)
+  # FIXME: missing an import for contact-rate
+  hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts)) |>
+    add_parameter(import = par, append = FALSE)
 
   # escape probabilities restricted to seropositives
   B <- exp(-commu_infec_rate[seq_len(n_infec)])
@@ -364,12 +364,10 @@ test_that("Chain binomial returns infinite if extreme values are provided", {
   extreme_params <- list(alpha = 1e-20, beta = 1e-20,
                          gamma = 1, size_ref = 4)
   # heterogeneous_house
-  hhmodel <- data.frame(
-    id = c(1, 2), house_id = "hh1", status = c(1, 1),
-    age = c("child", "adult")
-  ) |>
+  hhmodel <- data.frame(id = c(1, 2), house_id = "hh1",
+                        status = c(1, 1), age = c("child", "adult")) |>
     new_housepi_model("chain_binomial") |>
-    add_parameter_list(!!!extreme_params)
+    add_parameter(import = extreme_params)
 
   # homogeneous branch
   expect_false(is.finite(eval_log_density(hhmodel)))

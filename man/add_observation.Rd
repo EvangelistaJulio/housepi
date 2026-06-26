@@ -6,13 +6,15 @@
 \usage{
 add_observation(
   hhmodel,
-  name,
+  name = NULL,
   obs = NA_character_,
   ...,
   status = NA_integer_,
   discr = FALSE,
   min = NULL,
-  max = NULL
+  max = NULL,
+  defs = NULL,
+  append = TRUE
 )
 }
 \arguments{
@@ -23,7 +25,7 @@ add_observation(
 \item{obs}{\code{character(1)} Choice for the observation distribution.
 Mutually exclusive with \code{prior}.}
 
-\item{...}{named arguments for the observation distribution.}
+\item{...}{named arguments for the observation distribution. In bulk mode, the \code{name = value} definitions.}
 
 \item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
@@ -47,6 +49,12 @@ One between:
 \item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
+
+\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
+alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+
+\item{append}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

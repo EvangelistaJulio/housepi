@@ -4,59 +4,52 @@ test_that("Nested definitions raise errors", {
   hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
     new_housepi_model("augmented_example")
 
-  expect_no_error(
-    hhmodel |>
-      add_augmented_list(
-        .layer = list(prior = "uniform", status = 1),
-        .layer = list(value = .dummy, status = c(2, 3, 4)),
-        .dummy = list(prior = "uniform"),
-        proba = .layer
-      ) |>
-      evaluate_log_lik()
-  )
+  hhmodel |>
+    add_augmented(
+      .layer = list(prior = "uniform", status = 1),
+      .layer = list(value = .dummy, status = c(2, 3, 4)),
+      .dummy = list(prior = "uniform"),
+      proba = .layer
+    ) |>
+    evaluate_log_lik() |>
+    expect_no_error()
 
   # simple nest
-  expect_error(
-    hhmodel |>
-      add_augmented_list(.dummy = proba, proba = .dummy) |>
-      evaluate_log_lik(),
-    regexp = "cyclic definition"
-  )
+  hhmodel |>
+    add_augmented(.dummy = proba, proba = .dummy) |>
+    evaluate_log_lik() |>
+    expect_error("cyclic definition")
 
   # triangular nest
-  expect_error(
-    hhmodel |>
-      add_augmented_list(proba = .layer, .layer = .dummy, .dummy = proba) |>
-      evaluate_log_lik(),
-    regexp = "cyclic definition"
-  )
+  hhmodel |>
+    add_augmented(proba = .layer, .layer = .dummy, .dummy = proba) |>
+    evaluate_log_lik() |>
+    expect_error("cyclic definition")
 
   # first generation of definitions
-  err_msg <- as.character(expect_error(
-    hhmodel$add_augmented_list(
+  hhmodel |>
+    add_augmented(
       .layer = list(prior = "normal", status = 1),
       .layer = list(value = .dummy, status = 2),
       #> NO .layer provided for status 3 and 4
       .dummy = list(prior = "lognormal", status = 2),
       proba = .layer
-    )$evaluate_log_lik()
-  ))
-  expect_match(err_msg, "Could not find a definition")
-  expect_match(err_msg, "status")
+    ) |>
+    evaluate_log_lik() |>
+    expect_error("Could not find a definition.*status")
 
   # second generation of definitions
-  err_msg <- as.character(expect_error(
-    hhmodel$add_augmented_list(
+  hhmodel |>
+    add_augmented(
       .layer = list(prior = "normal", status = 1),
       .layer = list(value = .dummy, status = c(2, 3, 4)),
       #> NO .dummy provided for status 3, 4
       .dummy = list(prior = "lognormal", status = c(2, 3)),
       proba = .layer,
       append = FALSE
-    )$evaluate_log_lik()
-  ))
-  expect_match(err_msg, "Could not find a definition")
-  expect_match(err_msg, "status")
+    ) |>
+    evaluate_log_lik() |>
+    expect_error("Could not find a definition.*status")
 })
 
 test_that("Missing function arguments raise errors", {
@@ -67,7 +60,7 @@ test_that("Missing function arguments raise errors", {
   # non default arguments
   hhmodel |>
     add_augmented(name = "proba", func = "gamma") |>
-    expect_error(regexp = "Missing non default")
+    expect_error("Missing non default")
 
   # data with NA values: the NA flows through to the log-probability NaN guard
   hhmodel |>
@@ -75,42 +68,42 @@ test_that("Missing function arguments raise errors", {
     add_augmented(name = "proba", func = "gamma",
                   func_args = c(shape = 2)) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "returned NaN")
+    expect_error("returned NaN")
 
   # concatenated data with NA values
   hhmodel |>
-    add_augmented_list(
+    add_augmented(
       gamma = list(func = "gamma",  func_args = c(shape = 2)),
       proba =  exp(-gamma)
     ) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "Impossible to associate")
+    expect_error("Impossible to associate")
 
   # check that NaN + something causes errors
   hhmodel |>
-    add_augmented_list(noise = list(prior = "normal"),
-                       proba = exp(test@D + noise)) |>
+    add_augmented(noise = list(prior = "normal"),
+                  proba = exp(test@D + noise)) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "Impossible to associate")
+    expect_error("Impossible to associate")
 
   # check that log(NaN) causes error
   hhmodel |>
-    add_augmented_list(proba = log(test@D)) |>
+    add_augmented(proba = log(test@D)) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "Impossible to associate")
+    expect_error("Impossible to associate")
 
   # check that log(0) causes error
   hhmodel |>
-    add_augmented_list(noise = 0., proba = log(noise)) |>
+    add_augmented(noise = 0., proba = log(noise)) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "Impossible to associate")
+    expect_error("Impossible to associate")
 })
 
 test_that("Augmented log-likelihood seeding is fine", {
   hhmodel <- data.frame(house_id = 1, id = seq(4),
                         status = seq(4)) |>
     new_housepi_model("augmented_example") |>
-    add_augmented_list(
+    add_augmented(
       proba = list(prior = "uniform", status = 1),
       proba = list(value = .layer, status = c(2, 3, 4)),
       .layer = list(prior = "uniform")
@@ -130,7 +123,7 @@ test_that("Augmented log-likelihood seeding is fine", {
 test_that("Status-specific augmented variables draw from per-status ranges", {
   hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
     new_housepi_model("augmented_example") |>
-    add_augmented_list(
+    add_augmented(
       proba = list(status = 1, prior = "uniform", min = 0, max = 1),
       proba = list(status = 2, prior = "uniform", min = 1, max = 2),
       proba = list(status = 3, prior = "uniform", min = 2, max = 3),
@@ -167,7 +160,7 @@ test_that("Augmented aliasing works as expected", {
                         x = 2 + runif(3), status = 1) |>
     new_housepi_model("augmented_example") |>
     add_parameter(name = "scale", value = 1) |>
-    add_augmented_list(
+    add_augmented(
       .dummy = x@D,
       .layer = list(func = "gamma",
                     func_args = c(x = .dummy, shape = 2, scale = scale@P)),
@@ -179,8 +172,8 @@ test_that("Augmented aliasing works as expected", {
 
   # check that order does not matter
   hhmodel |>
-    drop_augmented() |> 
-    add_augmented_list(
+    drop_augmented() |>
+    add_augmented(
       .layer = list(func = "gamma",
                     func_args = c(x = .dummy, shape = 2, scale = scale@P)),
       proba = .layer,
@@ -194,7 +187,7 @@ test_that("Augmented aliasing works as expected", {
   data.frame(id = seq(0, size), house_id = "hh1",
              status = 1, X = seq(0, size)) |>
     new_housepi_model("augmented_example") |>
-    add_augmented_list(
+    add_augmented(
       pdf = list(func = "binomial",
                  func_args = c(x = X@D, size = !!size, prob = 0.5)),
       proba = exp(pdf)
@@ -240,12 +233,11 @@ test_that("Known errors are unchanged", {
   # known infinity: values below minimum, i. e. probability is 0, log -Inf
   sarscov2_2021_icofs |>
     new_housepi_model("augmented_example") |>
-    add_augmented_list(
-      value = list(prior = "uniform", min = 0, max = 1),
-      proba = list(func = "lognormal",
-                   func_args = c(x = value, meanlog = 1, sdlog = 1),
-                   min = 1, max = 15, discr = TRUE)
-    ) |>
+    # 'value' is a reserved argument, so add it in single-definition form
+    add_augmented("value", prior = "uniform", min = 0, max = 1) |>
+    add_augmented("proba", func = "lognormal",
+                  func_args = c(x = value, meanlog = 1, sdlog = 1),
+                  min = 1, max = 15, discr = TRUE) |>
     eval_log_density() |>
     expect_equal(-Inf)
 
@@ -253,14 +245,14 @@ test_that("Known errors are unchanged", {
   # UPDATE: shouldn't this raise a warning instead?
   sarscov2_2021_icofs |>
     new_housepi_model("augmented_example") |>
-    add_augmented_list(
-      value = list(prior = "uniform", min = 1, max = 10, discr = TRUE),
-      proba = list(func = "lognormal",
-                   func_args = c(x = value, meanlog = 4, sdlog = 0.01),
-                   min = 1, max = 15, discr = TRUE)
-    ) |>
+    # 'value' is a reserved argument, so add it in single-definition form
+    add_augmented("value", prior = "uniform", min = 1, max = 10,
+                  discr = TRUE) |>
+    add_augmented("proba", func = "lognormal",
+                  func_args = c(x = value, meanlog = 4, sdlog = 0.01),
+                  min = 1, max = 15, discr = TRUE) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "returned NaN")
+    expect_error("returned NaN")
 })
 
 test_that("Augmented model log-likelihoods are correctly computed", {

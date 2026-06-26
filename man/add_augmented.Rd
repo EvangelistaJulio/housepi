@@ -2,11 +2,11 @@
 % Please edit documentation in R/expose_class.R
 \name{add_augmented}
 \alias{add_augmented}
-\title{Add or update an augmented variable definition}
+\title{Add or update augmented variable definitions}
 \usage{
 add_augmented(
   hhmodel,
-  name,
+  name = NULL,
   value = NULL,
   status = NA_integer_,
   const = NA,
@@ -18,7 +18,9 @@ add_augmented(
   min = NULL,
   max = NULL,
   proposal = NA_character_,
-  proposal_scale = NA_real_
+  proposal_scale = NA_real_,
+  defs = NULL,
+  append = TRUE
 )
 }
 \arguments{
@@ -54,7 +56,7 @@ If applicable, the prior is discretized.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
 
-\item{...}{named arguments for the prior distribution.}
+\item{...}{named arguments for the prior distribution. In bulk mode, the \code{name = value} definitions.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 One between:
@@ -86,13 +88,23 @@ One between:
 If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
 If a positive numeric, scale is fixed to that value and never adapted.
 Ignored when proposal is \code{"sample"}.}
+
+\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
+alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+
+\item{append}{\code{logical(1)} Append to current definitions.
+If \code{FALSE} drop all pre-existing definitions.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add a new augmented variable/function to housepi model definitions.
-If the augmented variable already exists, it is updated.
+Add augmented variables/functions to housepi model definitions.
+Existing augmented variables with the same name are updated.
+Supplying \code{name} adds a single variable using the explicit arguments.
+To add several at once (bulk mode) either pass them as \code{name = value} pairs
+through \code{...}, or pass a pre-built named list of definitions through \code{defs};
+each value may be a constant or a \code{list(...)} of definition arguments.
 }
 \examples{
 hhmodel <- blank_house |>
