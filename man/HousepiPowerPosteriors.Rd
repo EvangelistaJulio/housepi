@@ -29,7 +29,8 @@ Detail of the thermodynamic ladder
 \item{inv_temp}{Inverse temperature}
 \item{mean_log_lik}{Mean of the complete log-likelihood}
 \item{var_log_lik}{Variance of the complete log-likelihood}
-}}
+}
+Mean log-likelihood can legitimately be \code{-Inf} at inverse temperature 0.}
 }
 \if{html}{\out{</div>}}
 }

@@ -70,8 +70,84 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
   evaluate_log_evidence(result, "stepping-stone")[["estimate"]] |>
     expect_equal(log(evidence), tolerance = 0.02)
 
-  # one-shot model path returns same value
-  evaluate_log_evidence(hhmodel, progress = FALSE)[["estimate"]] |>
-    suppressWarnings() |>
-    expect_equal(log(evidence), tolerance = 0.02)
+  # a model must be sampled into a ladder first: no one-shot path
+  hhmodel |>
+    evaluate_log_evidence() |>
+    expect_error("run_power_posteriors")
+})
+
+# Tempered-indicator regime: a hard, parameter-dependent observation support.
+#   theta ~ Uniform(0, 1);  y ~ Uniform(theta - c, theta + c), observed y0.
+# The likelihood is a pure indicator, so log Z = 0 for a window inside [0, 1].
+# At inverse temperature 0 the tempered likelihood is 0 even where it is -Inf:
+# the chain must sample the whole prior, not stay confined to [y0 - c, y0 + c].
+mk_indicator_model_ <- function(house_id, y0 = 0.5, c = 0.45) {
+  data.frame(house_id = house_id, status = 1, y = y0) |>
+    new_housepi_model("blank") |>
+    add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
+    add_observation("y", obs = "uniform", min = theta@P - !!c, max = theta@P + !!c)
+}
+
+# retry seeds until a ladder starts (a random prior init may land inadmissible)
+start_ladder_ <- function(make_model, ...) {
+  for (s in 1:50) {
+    set.seed(s)
+    res <- try(suppressWarnings(suppressMessages(
+      run_power_posteriors(make_model(), progress = FALSE, ...)
+    )), silent = TRUE)
+    if (!inherits(res, "try-error")) return(res)
+  }
+  NULL
+}
+
+test_that("inverse temperature 0 samples the full prior under a tempered indicator", {
+  set.seed(3)
+  fit <- mk_indicator_model_("snake") |>
+    run_inference(inv_temp = 0, chains = 1L, steps = 4000L, progress = FALSE) |>
+    suppressWarnings()
+  theta <- posterior::extract_variable(get_parameter_draws(fit), "theta")
+  # the chain must escape the admissible window [0.05, 0.95] (was confined before)
+  expect_gt(max(theta), 0.95)
+  expect_lt(min(theta), 0.05)
+  expect_gt(mean(abs(theta - 0.5) >= 0.45), 0.05)
+})
+
+test_that("stepping-stone is unbiased and thermodynamic refuses a -Inf ladder", {
+  res <- start_ladder_(function() mk_indicator_model_("otacon"),
+                       chains = 1L, rungs = 12L, steps = 4000L)
+  expect_false(is.null(res))
+
+  # the true log-evidence is 0; the old confinement bug returned +0.105
+  evaluate_log_evidence(res, "stepping-stone")[["estimate"]] |>
+    abs() |>
+    expect_lt(0.08)
+
+  # the beta = 0 rung legitimately records -Inf draws
+  expect_true(any(is.infinite(
+    posterior::extract_variable(res$draws, "log_lik[1]")
+  )))
+  # thermodynamic integration is invalid there: error pointing at stepping-stone
+  evaluate_log_evidence(res, "thermodynamic") |>
+    expect_error("stepping-stone")
+})
+
+test_that("tempered indicator with an augmented variable runs at beta=0 without NaN", {
+  x0 <- 0.5
+  cc <- 0.4
+  res <- start_ladder_(function() {
+    data.frame(house_id = "liquid", status = 1, x = x0) |>
+      new_housepi_model("blank") |>
+      add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
+      add_augmented("z", prior = "uniform", min = 0, max = 1) |>
+      add_observation("x", obs = "uniform", min = z - !!cc, max = z + !!cc)
+  }, chains = 1L, rungs = 8L, steps = 2000L)
+  expect_false(is.null(res))
+
+  # incremental totals are bypassed at beta = 0, so -Inf states do not throw
+  expect_true(any(is.infinite(
+    posterior::extract_variable(res$draws, "log_lik[1]")
+  )))
+  evaluate_log_evidence(res, "stepping-stone")[["estimate"]] |>
+    is.finite() |>
+    expect_true()
 })

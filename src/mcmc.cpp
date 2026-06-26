@@ -5,6 +5,8 @@
  * See the LICENSE file for details.
  */
 
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -707,6 +709,33 @@ namespace housepi
         return acc;
     }
 
+    double MCMC::commit_total_augm_log_prior_ratio_()
+    {
+        double acc = parallel::for_reduce<double>(
+            data_wide().eq_class_size(),
+            [&](size_t R) -> double
+            {
+                Household &house = data_wide().eq_class_head(R);
+                double aprior = 0.;
+                for (size_t i : house.infected_hhindexes())
+                    aprior += augm.commit_augm_log_prior(house.member(i));
+                return data_wide().eq_class_weight(R) * aprior;
+            });
+        tot_augm_log_prior.set(acc);
+        return tot_augm_log_prior.ratio();
+    }
+
+    void MCMC::recover_total_augm_log_prior_()
+    {
+        tot_augm_log_prior.recover();
+        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
+        {
+            Household &house = data_wide().eq_class_head(R);
+            for (size_t i : house.infected_hhindexes())
+                augm.varia[Index::of(house.member(i))].log_prior.recover();
+        }
+    }
+
     ///////////////////////////////////
     //////  METROPOLIS-HASTINGS  //////
     ///////////////////////////////////
@@ -730,8 +759,16 @@ namespace housepi
         {
             init_monte_carlo_chain_();
             init_guarded_commit_total_();
-            run_mc_finite_adaptation_();
-            run_mc_posterior_sampling_();
+            if (setup.inv_temp == 0.0)
+            {
+                run_mc_finite_adaptation_<true>();
+                run_mc_posterior_sampling_<true>();
+            }
+            else
+            {
+                run_mc_finite_adaptation_<false>();
+                run_mc_posterior_sampling_<false>();
+            }
         }
     }
 
@@ -804,11 +841,12 @@ namespace housepi
         return acc;
     }
 
+    template <bool Beta0>
     void MCMC::run_mc_finite_adaptation_()
     {
         for (unsigned long i = 0; i < setup.n_adapt; ++i)
         {
-            move_all_();
+            move_all_<Beta0>();
 
             // compute vanishing ratio
             const double ratio = static_cast<double>(i + 1) / setup.n_adapt;
@@ -827,35 +865,41 @@ namespace housepi
         }
     }
 
+    template <bool Beta0>
     void MCMC::run_mc_posterior_sampling_()
     {
         for (unsigned long i = 0; i < setup.n_burn; ++i)
-            move_all_();
+            move_all_<Beta0>();
 
         for (unsigned long i = setup.n_burn; i < setup.n_steps; i += setup.n_thin)
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
-                move_all_();
+                move_all_<Beta0>();
+            // NOTE: recomputing likelihood, not tracked at inverse temperature 0
+            if constexpr (Beta0)
+                commit_total_log_posterior_(true, false, augm.is_any_obs());
             posterior.store(*this);
         }
     }
 
+    template <bool Beta0>
     void MCMC::move_all_()
     {
         // move augmented variables to sample, if any
-        move_all_augm_();
+        move_all_augm_<Beta0>();
 
         // move standard model parameters
         for (size_t p : param.list_sample_standard)
-            move_single_parameter_(p, false);
+            move_single_parameter_<Beta0>(p, false);
         // move parameters with cached dependecies
         for (size_t p : param.list_sample_cached)
-            move_single_parameter_(p, true);
+            move_single_parameter_<Beta0>(p, true);
 
         // update progress bar
         setup.prog_update();
     }
 
+    template <bool Beta0>
     void MCMC::move_single_parameter_(size_t p, bool is_cache_depen)
     {
         Variable &this_par = param.at(p);
@@ -866,33 +910,48 @@ namespace housepi
         // otherwise automatically refuse move
         if (this_par.is_valid_move())
         {
-            // re-evaluate the augmented log-prior / observation log-like
-            // only if parameter affests the respective term
-            const bool with_augm_prior =
-                augm.is_any_prior() && augm.param_affects_augm_prior(p);
-            const bool with_obs =
-                augm.is_any_obs() && augm.param_affects_obs_log_lik(p);
-
-            // if parameter is cache dependent, update cache
-            commit_total_log_posterior_(is_cache_depen, with_augm_prior, with_obs);
+            // re-evaluate the augmented log-prior only if the parameter affects it
+            const bool with_augm_prior = augm.is_any_prior() && augm.param_affects_augm_prior(p);
 
             ////////////////////
             ///  METROPOLIS  ///
             ////////////////////
 
-            const double r = setup.inv_temp * (tot_transm_log_lik.ratio() +
-                                               (with_obs ? tot_obs_log_lik.ratio() : 0.)) +
-                             (with_augm_prior ? tot_augm_log_prior.ratio() : 0.) +
-                             this_par.get_move_log_ratio();
-            if (setup.exponential() > -r)
-                return;
-            // else move is refused and log-likelihood recovered
-            recover_total_log_density_(is_cache_depen, with_augm_prior, with_obs);
+            if constexpr (Beta0)
+            {
+                // at inverse temperature 0 the likelihood totals are not tracked
+                // they are refreshed from scratch before each stored draw
+                double r = this_par.get_move_log_ratio();
+                if (with_augm_prior)
+                    r += commit_total_augm_log_prior_ratio_();
+                if (setup.exponential() > -r)
+                    return;
+                if (with_augm_prior)
+                    recover_total_augm_log_prior_();
+            }
+            else
+            {
+                // re-evaluate the observation log-like only if the parameter affects it
+                const bool with_obs = augm.is_any_obs() && augm.param_affects_obs_log_lik(p);
+
+                // if parameter is cache dependent, update cache
+                commit_total_log_posterior_(is_cache_depen, with_augm_prior, with_obs);
+
+                const double r = setup.inv_temp * (tot_transm_log_lik.ratio() +
+                                                   (with_obs ? tot_obs_log_lik.ratio() : 0.)) +
+                                 (with_augm_prior ? tot_augm_log_prior.ratio() : 0.) +
+                                 this_par.get_move_log_ratio();
+                if (setup.exponential() > -r)
+                    return;
+                // else move is refused and log-likelihood recovered
+                recover_total_log_density_(is_cache_depen, with_augm_prior, with_obs);
+            }
         }
         // recover old value of parameter
         this_par.recover();
     }
 
+    template <bool Beta0>
     void MCMC::move_all_augm_()
     {
         if (!augm.is_any_sample())
@@ -902,13 +961,19 @@ namespace housepi
         LogProbaAccumulator acc = parallel::for_reduce<LogProbaAccumulator>(
             data_wide().report_house.total,
             [&](size_t H) -> LogProbaAccumulator
-            { return move_augm_single_house_(H); });
-        if (augm.is_any_obs())
-            tot_obs_log_lik.increment(acc.obs);
-        tot_transm_log_lik.increment(acc.transm);
+            { return move_augm_single_house_<Beta0>(H); });
+        // at inverse temperature 0 the likelihood totals are not tracked
+        // they are refreshed from scratch before each stored draw
+        if constexpr (!Beta0)
+        {
+            if (augm.is_any_obs())
+                tot_obs_log_lik.increment(acc.obs);
+            tot_transm_log_lik.increment(acc.transm);
+        }
         tot_augm_log_prior.increment(acc.aprior);
     }
 
+    template <bool Beta0>
     LogProbaAccumulator MCMC::move_augm_single_house_(size_t H)
     {
         Household &house = data_wide().at(H);
@@ -918,11 +983,12 @@ namespace housepi
         {
             Individual &member_i = house.member(i);
             for (size_t a : augm.list_sample(member_i))
-                acc += move_augm_single_variable_(house, member_i, a);
+                acc += move_augm_single_variable_<Beta0>(house, member_i, a);
         }
         return acc;
     }
 
+    template <bool Beta0>
     LogProbaAccumulator MCMC::move_augm_single_variable_(Household &house, Individual &member, size_t a)
     {
         Variable &avar = get_augm_varia(a, member);
@@ -940,21 +1006,32 @@ namespace housepi
             ///  METROPOLIS  ///
             ////////////////////
 
-            const double d_obs = commit_augm_log_obs_ratio(member, a);
-            const double d_transm = commit_transm_log_lik_ratio_(house);
             const double d_prior = commit_augm_log_prior_ratio(member, a);
 
-            // NOTE: likelihood terms are tempered, augmented prior is not.
-            if (setup.exponential() >
-                avar.proposal_log_ratio() - setup.inv_temp * (d_obs + d_transm) - d_prior)
-                return {d_obs, d_transm, d_prior};
+            // NOTE: likelihood terms are tempered, the augmented prior is not.
+            if constexpr (Beta0)
+            {
+                // at inverse temperature 0 the likelihood totals are not tracked
+                // they are refreshed from scratch before each stored draw
+                if (setup.exponential() > avar.proposal_log_ratio() - d_prior)
+                    return {0., 0., d_prior};
+            }
+            else
+            {
+                const double d_obs = commit_augm_log_obs_ratio(member, a);
+                const double d_transm = commit_transm_log_lik_ratio_(house);
 
-            // recover log-proba values
-            if (augm.affects_obs(member, a))
-                augm.varia[Index::of(member)].log_obs.recover();
-            data_wide().transm_log_lik(house).recover();
+                const double r = setup.inv_temp * (d_obs + d_transm) + d_prior - avar.proposal_log_ratio();
+                if (setup.exponential() > -r)
+                    return {d_obs, d_transm, d_prior};
+
+                // recover log-likelihood values
+                if (augm.affects_obs(member, a))
+                    augm.varia[Index::of(member)].log_obs.recover();
+                data_wide().transm_log_lik(house).recover();
+            }
+            // recover log-prior value
             augm.varia[Index::of(member)].log_prior.recover();
-
             // recover cached values
             data_wide().recover_member_old_cached(house, i);
         }
@@ -971,24 +1048,30 @@ namespace housepi
     {
         /// Welford online's algorithm for mean and variance.
         /// Based on @cite welford_note_1962
+        /// A single non-finite draw makes the rung mean and variance undefined and
+        /// is reported as {-Inf, NaN}: at inverse temperature 0 the chain legitimately
+        /// visits -Inf log-likelihood states, which the caller uses to fall back to a
+        /// non-adaptive ladder (the adaptive tangent placement is undefined there).
         std::pair<double, double> compute_stats(const std::vector<double> &data)
         {
-            size_t i = 0;
-            size_t N = data.size();
-            double x, delta, delta2;
-            double sqr_diff = 0.;
-
-            double avg = 0.;
-            while (i < N)
+            size_t n = 0;
+            double avg = 0., sqr_diff = 0.;
+            for (double v : data)
             {
-                x = data[i++];
-                delta = x - avg;
-                avg += delta / i;
-                delta2 = x - avg;
-                sqr_diff += delta * delta2;
+                if (!std::isfinite(v))
+                {
+                    n = 0;
+                    break;
+                }
+                const double delta = v - avg;
+                avg += delta / ++n;
+                sqr_diff += delta * (v - avg);
             }
 
-            return {avg, sqr_diff / static_cast<double>(N - 1.)};
+            if (n == 0)
+                return {-std::numeric_limits<double>::infinity(),
+                        std::numeric_limits<double>::quiet_NaN()};
+            return {avg, n > 1 ? sqr_diff / static_cast<double>(n - 1) : 0.};
         }
     }
 
@@ -1038,9 +1121,21 @@ namespace housepi
 
         PowerLadder ladder(n_rungs);
         power_post_zero_(ladder);
-        if (scheme == "adaptive")
+
+        // NOTE: adaptive is undefined if -Int at inverse-temperature = 0, fall back
+        ladder.scheme = scheme;
+        if (scheme == "adaptive" && !std::isfinite(ladder.mean_log_lik.front()))
+        {
+            msg::warning(
+                "Adaptive scheme is undefined at inverse "
+                "temperature 0 with -Inf log-likelihood.\n"
+                "Falling back to the power-fractions scheme.");
+            ladder.scheme = "power-fractions";
+        }
+
+        if (ladder.scheme == "adaptive")
             power_post_adaptive_(ladder);
-        else if (scheme == "power-fractions")
+        else
             power_post_fractions_(ladder);
 
         setup.prog_close(); // close progress bar
@@ -1094,8 +1189,12 @@ namespace housepi
 
             // place new inverse temperature within [itm[k], itm[k + 1]]
             double new_t;
-            if (avg[k + 1] <= avg[k])
+            if (!std::isfinite(avg[k]) || !std::isfinite(avg[k + 1]) ||
+                !std::isfinite(var[k]) || !std::isfinite(var[k + 1]) ||
+                avg[k + 1] <= avg[k])
                 // midpoint if non-monotone (Monte Carlo error)
+                // or non-finite statistic (e.g. itm = 0)
+                // tangent formula is undefined
                 new_t = 0.5 * (itm[k] + itm[k + 1]);
             else
             {

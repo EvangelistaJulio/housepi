@@ -40,6 +40,13 @@ HousepiPowerPosteriors <- R6::R6Class(
     # @references
     # \insertRef{friel_improving_2014}{housepi}
     thermodynamic_ = function() {
+      if (any(!is.finite(posterior::as_draws_matrix(private$draws_)))) {
+        stop_h(
+          paste("Thermodynamic integration is not applicable:",
+                "ladder holds non-finite log-likelihood draws."),
+          "Try to use method 'stepping-stone' instead."
+        )
+      }
       avg <- private$mean_log_lik_
       var <- private$var_log_lik_
       db <- diff(private$inv_temp_, lag = 1L)
@@ -77,8 +84,10 @@ HousepiPowerPosteriors <- R6::R6Class(
         )
         ll_peak <- max(ll)
         w <- exp(db[k] * (ll - ll_peak))
-        ess <- posterior::ess_mean(w)
-        var(w) / (ess * mean(w)^2)
+        v <- var(w)
+        # constant log-likelihood has 0 variance
+        if (v == 0) return(0)
+        v / (posterior::ess_mean(w) * mean(w)^2)
       }, numeric(1L))
       sum(var_rss_k)
     }
@@ -110,6 +119,7 @@ HousepiPowerPosteriors <- R6::R6Class(
     #'   \item{mean_log_lik}{Mean of the complete log-likelihood}
     #'   \item{var_log_lik}{Variance of the complete log-likelihood}
     #' }
+    #' Mean log-likelihood can legitimately be `-Inf` at inverse temperature 0.
     detail = function(value) {
       if (!missing(value)) stop_read_only("detail")
       data.frame(inv_temp = private$inv_temp_,
@@ -135,7 +145,8 @@ HousepiPowerPosteriors <- R6::R6Class(
       output <- .engine$run_power_posteriors(ptr, as.character(scheme),
                                              as.integer(rungs))
       private$name_ <- as.character(generator$raw_name)
-      private$scheme_ <- as.character(scheme)
+      # NOTE: scheme may fall back from "adaptive" to "power-fractions"
+      private$scheme_ <- as.character(output$scheme)
       private$inv_temp_ <- output$inv_temp
       private$mean_log_lik_ <- output$mean_log_lik
       private$var_log_lik_ <- output$var_log_lik
@@ -179,3 +190,28 @@ HousepiPowerPosteriors <- R6::R6Class(
     }
   )
 )
+
+#' @title Estimate the log-evidence
+#' @description
+#' Estimate the logarithm of the evidence (aka marginal likelihood) from a
+#' power-posteriors ladder sampled with [run_power_posteriors()].
+#' @param x A `HousepiPowerPosteriors` object.
+#' @param method `r rd_evi_method_`
+#' @return named `numeric(2)` (`estimate`, `sd`)
+#' `sd` is `NA` if method provides no standard-error estimate.
+#' @references
+#' \insertRef{friel_improving_2014}{housepi}
+#' \insertRef{xie_improving_2011}{housepi}
+#' @export
+evaluate_log_evidence <- function(
+    x, method = c("stepping-stone", "thermodynamic")) {
+  if (inherits(x, "HousepiModel")) {
+    stop_h(
+      "Impossible to evaluate log-evidence on 'HousepiModel' directly.",
+      i = paste("Sample a ladder first with 'run_power_posteriors(')',",
+                "then pass it to 'evaluate_log_evidence()'.")
+    )
+  }
+  stopifnot(inherits(x, "HousepiPowerPosteriors"))
+  x$evaluate_log_evidence(method = method)
+}

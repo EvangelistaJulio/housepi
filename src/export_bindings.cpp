@@ -1438,6 +1438,7 @@ namespace
         draws_df.attr("names") = col_names;
 
         return Rcpp::List::create(
+            Rcpp::_["scheme"] = ladder.scheme,
             Rcpp::_["inv_temp"] = Rcpp::wrap(ladder.inv_temp),
             Rcpp::_["mean_log_lik"] = Rcpp::wrap(ladder.mean_log_lik),
             Rcpp::_["var_log_lik"] = Rcpp::wrap(ladder.var_log_lik),

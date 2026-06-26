@@ -43,6 +43,7 @@ namespace housepi
 		std::vector<double> mean_log_lik;		/// per-rung mean log-likelihood
 		std::vector<double> var_log_lik;		/// per-rung variance log-likelihood
 		std::vector<std::vector<double>> draws; /// total log-likelihood draw
+		std::string scheme;						/// scheme actually used to sample
 
 		PowerLadder(size_t n_rungs); /// reserve all vectors
 
@@ -87,6 +88,12 @@ namespace housepi
 														bool is_cache_depen,
 														bool with_augm_prior,
 														bool with_obs);
+		/// Recompute and store the total augmented log-prior across all households.
+		/// Used at inverse temperature 0, where a parameter move targets the prior only.
+		/// Returns the log-ratio of the new over the old total augmented log-prior.
+		double commit_total_augm_log_prior_ratio_();
+		/// Recover the total augmented log-prior after a refused prior-only move.
+		void recover_total_augm_log_prior_();
 
 		/// Guarded total log-posterior computation for initialization.
 		/// Assert for finite initial value and mechanisms to recover in place.
@@ -139,22 +146,30 @@ namespace housepi
 		/// NOTE: sweep is the number of previously completed thin sweeps.
 		void run_monte_carlo_();
 		/// Finite adaptative iterations.
+		/// Beta0: chain at inverse temperature 0 (likelihood untempered, prior-only target).
+		template <bool Beta0>
 		void run_mc_finite_adaptation_();
 		// Run MC chain posterior sampling iterations, with optional burn-in.
+		template <bool Beta0>
 		void run_mc_posterior_sampling_();
 
 		/// Move all model parameters and augmented variables.
+		template <bool Beta0>
 		void move_all_();
 		/// Attempt to move a single parameter.
+		template <bool Beta0>
 		void move_single_parameter_(size_t p, bool is_cache_depen);
 		/// Move augmented variables of all infected individuals.
+		template <bool Beta0>
 		void move_all_augm_();
 		/// Move augmented variables of infectious members inside household.
 		/// The move is performed one member at a time, one augmented variable at a time.
 		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
+		template <bool Beta0>
 		LogProbaAccumulator move_augm_single_house_(size_t H);
 		/// Move a single augmented variable.
 		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
+		template <bool Beta0>
 		LogProbaAccumulator move_augm_single_variable_(Household &house, Individual &member, size_t a);
 
 		/// Power posteriors at 0 inverse temperature.
