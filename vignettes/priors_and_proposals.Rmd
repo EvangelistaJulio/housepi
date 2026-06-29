@@ -133,7 +133,7 @@ Here's the full list of available discrete distributions present in housepi:
 ```{r}
 #| label: discrete-priors-hist
 #| fig-alt: >
-#|  Four histograms displaying discrete prior distributions available in housepi: Poisson, binomial, negative binomial, and geometric.
+#|  Five histograms displaying discrete prior distributions available in housepi: poisson, binomial, negative binomial, geometric, and categorical.
 #|  Orange bars represent probability mass functions for integer-valued outcomes obtained from MCMC sampling.
 
 # discrete distributions in housepi
@@ -142,7 +142,8 @@ new_housepi_model(model = "blank") |>
     poisson = list(prior = "poisson", lambda = 2),
     binomial = list(prior = "binomial", size = 4, prob = 0.5),
     negative_binomial = list(prior = "negative_binomial", size = 4, prob = 0.5),
-    geometric = list(prior = "geometric", prob = 0.5)
+    geometric = list(prior = "geometric", prob = 0.5),
+    categorical = list(prior = "categorical", low = 0.2, mid = 0.1, high = 0.7)
   ) |>
   run_inference() |>
   get_parameter_draws() |>

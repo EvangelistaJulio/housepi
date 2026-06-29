@@ -329,6 +329,30 @@ test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
   )
 })
 
+test_that("Categorical distribution is correct", {
+  # unnormalized weights still give a normalized pmf
+  distr <- expose_distribution("categorical", fortune = 2, fatman = 1, vamp = 7)
+  pmf <- c(0.2, 0.1, 0.7)
+  expect_equal(distr$pdf(0:2), pmf)
+  expect_equal(distr$pdf(c(-1, 3)), c(0, 0))
+  expect_equal(distr$log_pdf(0:2), log(pmf))
+
+  # cumulative pmf
+  expect_equal(distr$cdf(0:2), cumsum(pmf))
+  expect_equal(distr$cdf(c(-1, 5)), c(0, 1))
+
+  # log-ratio
+  distr$log_ratio(c(0, 1), c(1, 2)) |>
+    expect_equal(log(pmf[c(2, 3)] / pmf[c(1, 2)]))
+
+  # at least one case is required
+  expose_distribution("categorical") |>
+    expect_error()
+  # weights cannot be negative
+  expose_distribution("categorical", peace = 1, walker = -2) |>
+    expect_error()
+})
+
 test_that("Default parameters match R reference for d", {
   x <- seq(-20, 20, 1)
   expect_equal(expose_distribution("normal")$pdf(x), stats::dnorm(x))

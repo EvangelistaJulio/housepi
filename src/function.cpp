@@ -387,6 +387,26 @@ namespace housepi
             str::find_closest(key, options));
     }
 
+    Attribute &Function::find_or_append_arg_(std::string_view key)
+    {
+        if (key == "x")
+            return x_arg_;
+        if (key == "loc")
+            return loc_;
+        if (key == "min")
+            return lower_;
+        if (key == "max")
+            return upper_;
+
+        std::vector<Attribute> &args = arguments_();
+        for (Attribute &attr : args)
+            if (!na::is(attr.name()) && attr.name() == key)
+                return attr;
+
+        args.emplace_back();
+        return args.back();
+    }
+
     /// Wheter return value is always constant.
     /// UPDATE: at the moment also a mutable range makes the function non constant.
     bool Function::is_constant() const noexcept
@@ -930,28 +950,7 @@ namespace
         }
 
     protected:
-        /// Override the find argument method at assigment.
-        /// If attribute doesn't exist at initialization, create it.
-        /// NOTE: variadic functions have no alternative parametrizations
-        Attribute &find_arg_(std::string_view key) override final
-        {
-            if (key == "x")
-                return x_arg_;
-            if (key == "loc")
-                return loc_;
-            if (key == "min")
-                return lower_;
-            if (key == "max")
-                return upper_;
-
-            std::vector<Attribute> &args = arguments_();
-            for (Attribute &attr : args)
-                if (!na::is(attr.name()) && attr.name() == key)
-                    return attr;
-
-            args.emplace_back();
-            return args.back();
-        }
+        Attribute &find_arg_(std::string_view key) override final { return find_or_append_arg_(key); }
 
         /// NA-skipping fold over x and all arguments.
         /// Returns NA if no non-NA operand is found.

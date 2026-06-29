@@ -446,6 +446,10 @@ namespace housepi
         /// If doesn't exists, return an empty attribute.
         virtual Attribute &find_arg_(std::string_view arg_name);
 
+        /// Find-or-append a named argument, for variadic parametrizations.
+        /// If attribute is absent at initialization, create it.
+        Attribute &find_or_append_arg_(std::string_view key);
+
         ///////////////////////
         //////  VIRTUAL  //////
         ///////////////////////

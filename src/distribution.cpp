@@ -873,6 +873,93 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Geometric_, DiscreteDistrib)
 
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////  *** Categorical Distribution : class ***  /////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class Categorical_ final : public Distribution
+    {
+    public:
+        Categorical_() : Distribution(), unif_gen(0., 1.) { discr_mode_ = Mode::Discrete::Defined; }
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Categorical_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(categorical)
+
+        void init_discretization() override final {}
+        void init_truncation() override final
+        {
+            const size_t cases = n_args();
+            if (cases == 0)
+                throw std::invalid_argument(
+                    "Invoked " + err_name() + " with no cases (at least one weight required).");
+
+            if (weight_sum_() <= 0.)
+                throw std::invalid_argument(
+                    "Invoked " + err_name() + " with weights summing to non-strictly positive value.");
+
+            lower_.init_numeric(0.);
+            upper_.init_numeric(static_cast<double>(cases - 1));
+            below_mode_ = Mode::Interval::Closed;
+            above_mode_ = Mode::Interval::Closed;
+        }
+
+    private:
+        /// Live normalizing constant.
+        double weight_sum_() const
+        {
+            double z = 0.;
+            for (size_t i = 0; i < n_args(); ++i)
+                z += arg(i);
+            return z;
+        }
+
+    protected:
+        Attribute &find_arg_(std::string_view key) override final { return find_or_append_arg_(key); }
+
+        mutable std::uniform_real_distribution<double> unif_gen;
+
+        double raw_pdf_(double x) const override final
+        {
+            return arg(static_cast<size_t>(x)) / weight_sum_();
+        }
+        double raw_log_pdf_(double x) const override final
+        {
+            return std::log(arg(static_cast<size_t>(x))) - std::log(weight_sum_());
+        }
+        double raw_cdf_(double x) const override final
+        {
+            const size_t k = static_cast<size_t>(x);
+            double acc = 0.;
+            for (size_t i = 0; i <= k; ++i)
+                acc += arg(i);
+            return acc / weight_sum_();
+        }
+        double raw_log_ratio_(double xo, double xn) const override final
+        {
+            return std::log(arg(static_cast<size_t>(xn))) - std::log(arg(static_cast<size_t>(xo)));
+        }
+        double raw_quantile_(double p) const override final
+        {
+            const size_t cases = n_args();
+            const double target = p * weight_sum_();
+            size_t i = 0;
+            double acc = arg(0);
+            while (i < cases && acc < target)
+                acc += arg(++i);
+            return static_cast<double>(i);
+        }
+        double raw_rand_(rnd_gen &prng) const override final
+        {
+            const size_t cases = n_args();
+            const double target = unif_gen(prng) * weight_sum_();
+            size_t i = 0;
+            double acc = arg(0);
+            while (i < cases && acc < target)
+                acc += arg(++i);
+            return static_cast<double>(i);
+        }
+    };
+    HOUSEPI_REGISTER_FUNCTION(Categorical_, DiscreteDistrib)
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** Ferretti20_ : class ***  ///////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
