@@ -7,13 +7,13 @@
 add_contact_rate(
   hhmodel,
   by = NA_character_,
+  ...,
   reference = NULL,
   joint = FALSE,
   symmetric = TRUE,
   strata = NULL,
   params = NULL,
   prior = NA_character_,
-  ...,
   min = NA_real_,
   max = NA_real_,
   proposal = NA_character_,
@@ -26,6 +26,8 @@ add_contact_rate(
 
 \item{by}{\code{character()} Covariates for from/to matching as data headers.
 Corresponding data columns have to be categorical.}
+
+\item{...}{named arguments for the prior distribution.}
 
 \item{reference}{named \code{list} Covariates associated to reference pair.
 Names can use \code{from_}/\code{to_} prefixes matching \code{by},
@@ -47,8 +49,6 @@ Overrides shared prior/args for parameters specificied in the list.
 Ignored if automatic definition.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
-
-\item{...}{named arguments for the prior distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.}
 

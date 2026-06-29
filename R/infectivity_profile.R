@@ -110,8 +110,8 @@ HousepiInfecProfile <- R6::R6Class(
     },
 
     #' @inherit add_infec_profile
-    add_quo = function(func, status = NA_integer_,
-                       discr = FALSE, ...,
+    add_quo = function(func, ...,
+                       status = NA_integer_, discr = FALSE,
                        min = NULL, max = NULL,
                        .warn_over = TRUE, .assert = FALSE) {
       # load non-quosures

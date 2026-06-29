@@ -13,7 +13,7 @@ add_house_observ(
   discr = FALSE,
   min = NULL,
   max = NULL,
-  defs = NULL,
+  import = NULL,
   append = TRUE
 )
 }
@@ -30,7 +30,8 @@ One between:
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{...}{In bulk mode, the \code{name = value} definitions.}
+\item{...}{named arguments for the observation distribution.
+In mode 'multiple', the \code{name = value} definitions.}
 
 \item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
@@ -55,8 +56,8 @@ One between:
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
-alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+\item{import}{Named \code{list} of pre-built definitions to import.
+Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions.}
@@ -66,8 +67,22 @@ If \code{FALSE} drop all pre-existing definitions.}
 }
 \description{
 Add household-level observations for all members.
-Observations must be reducible to a constant value.
-Supplying \code{name} adds a single observation. To add several at once (bulk
-mode) either pass them as \code{name = value} pairs through \code{...}, or pass a
-pre-built named list of definitions through \code{defs}.
+Household-level observations must be reducible to a constant value.
+There three mutually exclusive definition modes:
+\describe{
+\item{single}{
+Supply a \code{name} to adds a single definition using the explicit arguments;
+}
+\item{multiple}{
+Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+}
+\item{import}{
+Pass a pre-built named list of definitions through \code{import}.
+}
+}
+}
+\details{
+Definition names colliding with reserved argument
+are deprecated.
+The can be supplied only through single mode.
 }

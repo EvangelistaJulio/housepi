@@ -176,10 +176,10 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @inherit add_augmented
-    add_quo = function(name, value = NULL,
-                       status = NA_integer_,
+    add_quo = function(name, ...,
+                       value = NULL, status = NA_integer_,
                        const = NA, discr = FALSE,
-                       prior = NA_character_, ...,
+                       prior = NA_character_,
                        obs = NA_character_,
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,

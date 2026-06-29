@@ -86,6 +86,20 @@ test_that("Wrappers work as expected on blank model", {
   expect_true("dummy" %in% aug$name)
 })
 
+test_that("Inline weight labels do not collide with add_parameter formals", {
+  hhmodel <- new_housepi_model(model = "blank")
+
+  # single-letter categorical weights c/d/p used to be partial-matched to the
+  # const/discr/prior formals of add_parameter; they must reach the prior call
+  # a collision would bind 'c' to 'const' and error ("Missing value for
+  # constant parameter"); reaching a categorical 'snake' proves it did not
+  result <- add_parameter(hhmodel, "snake", prior = "categorical",
+                          a = 0.2, b = 0.1, c = 0.7)
+  pars <- get_parameters(result)
+  expect_true("snake" %in% pars$name)
+  expect_equal(pars$prior[pars$name == "snake"], "categorical")
+})
+
 test_that("Bulk loading via `defs` mirrors inline name = value pairs", {
   hhmodel <- new_housepi_model(model = "blank")
   defs <- list(metal = 1, gear = list(prior = "uniform"))

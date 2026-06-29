@@ -8,17 +8,17 @@ add_parameter(
   hhmodel,
   name = NULL,
   value = NULL,
+  ...,
   const = NA,
   discr = FALSE,
   prior = NA_character_,
-  ...,
   func = NULL,
   func_args = NULL,
   min = NULL,
   max = NULL,
   proposal = NA_character_,
   proposal_scale = NA_real_,
-  defs = NULL,
+  import = NULL,
   append = TRUE
 )
 }
@@ -30,6 +30,9 @@ add_parameter(
 \item{value}{\code{numeric(1)} Initial value.
 Required only if constant or random initialization has been disabled.}
 
+\item{...}{named arguments for the prior distribution.
+In mode 'multiple', the \code{name = value} definitions.}
+
 \item{const}{\code{logical(1)} Treat definition as constant.
 If \code{TRUE}, additional Monte Carlo details are ignored.}
 
@@ -37,8 +40,6 @@ If \code{TRUE}, additional Monte Carlo details are ignored.}
 If applicable, the prior is discretized.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
-
-\item{...}{named arguments for the prior distribution. In bulk mode, the \code{name = value} definitions.}
 
 \item{func}{One between:
 \itemize{
@@ -67,8 +68,8 @@ If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
 If a positive numeric, scale is fixed to that value and never adapted.
 Ignored when proposal is \code{"sample"}.}
 
-\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
-alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+\item{import}{Named \code{list} of pre-built definitions to import.
+Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions.}
@@ -77,18 +78,25 @@ If \code{FALSE} drop all pre-existing definitions.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add parameters to housepi model definitions.
-Existing parameters with the same name are overwritten.
-Supplying \code{name} adds a single parameter using the explicit arguments.
-To add several at once (bulk mode) either pass them as \code{name = value} pairs
-through \code{...}, or pass a pre-built named list of definitions through \code{defs}
-(e.g. \code{add_parameter(model, defs = my_defs)}); each value may be a constant or
-a \code{list(...)} of definition arguments.
+Add parameter(s) to a housepi model.
+If a parameter with the same name exists, the former gets overwritten.
+There three mutually exclusive definition modes:
+\describe{
+\item{single}{
+Supply a \code{name} to adds a single definition using the explicit arguments;
+}
+\item{multiple}{
+Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+}
+\item{import}{
+Pass a pre-built named list of definitions through \code{import}.
+}
+}
 }
 \details{
-In bulk mode, a definition whose name collides with a reserved argument
-(\code{value}, \code{const}, \code{prior}, \code{min}, \code{max}, ...) must instead be supplied
-through single mode.
+Definition names colliding with reserved argument
+are deprecated.
+The can be supplied only through single mode.
 }
 \examples{
 # the single, inline-bulk and list-bulk forms compose freely in a pipe
@@ -101,9 +109,9 @@ hhmodel <- flu_1918_frederick |>
   # inline bulk: several definitions as `name = value` pairs
   add_parameter(gamma = 1, size_ref = 4)
 
-# list bulk: load a pre-built named list of definitions through `defs`
-my_defs <- list(gamma = 1, size_ref = 4)
+# list bulk: load a pre-built named list of definitions through `import`
+my_import <- list(gamma = 1, size_ref = 4)
 hhmodel <- flu_1918_frederick |>
   new_housepi_model("chain_binomial") |>
-  add_parameter(defs = my_defs)
+  add_parameter(import = my_import)
 }

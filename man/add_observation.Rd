@@ -13,7 +13,7 @@ add_observation(
   discr = FALSE,
   min = NULL,
   max = NULL,
-  defs = NULL,
+  import = NULL,
   append = TRUE
 )
 }
@@ -25,7 +25,8 @@ add_observation(
 \item{obs}{\code{character(1)} Choice for the observation distribution.
 Mutually exclusive with \code{prior}.}
 
-\item{...}{named arguments for the observation distribution. In bulk mode, the \code{name = value} definitions.}
+\item{...}{named arguments for the observation distribution.
+In mode 'multiple', the \code{name = value} definitions.}
 
 \item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
@@ -50,8 +51,8 @@ One between:
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
-alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+\item{import}{Named \code{list} of pre-built definitions to import.
+Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions.}
@@ -65,4 +66,21 @@ If model \code{obs} is provided, adds to household likelihood during evaluations
 Sample \eqn{x} from the model during simulations.
 If observation is deterministic it is considered as a datum.
 Note that indicator contribution to log-likelihood are expressily forbidden.
+There three mutually exclusive definition modes:
+\describe{
+\item{single}{
+Supply a \code{name} to adds a single definition using the explicit arguments;
+}
+\item{multiple}{
+Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+}
+\item{import}{
+Pass a pre-built named list of definitions through \code{import}.
+}
+}
+}
+\details{
+Definition names colliding with reserved argument
+are deprecated.
+The can be supplied only through single mode.
 }

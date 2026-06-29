@@ -122,6 +122,28 @@ test_that("Symbolic definitions are equivalent", {
   expect_equal(nrow(unique(aux)), 1)
 })
 
+test_that("Distribution weight labels are not swallowed by formal matching", {
+  # list/bulk path: the reported reproducer, where single-letter weight 'c'
+  # used to be partial-matched to the 'const' formal of add_quo
+  param <- helper_test_aux_load(
+    HousepiParameter$new(),
+    big_boss = list(prior = "categorical", a = 0.2, b = 0.1, c = 0.7)
+  )
+  expect_equal(param$defs$name, "big_boss")
+  expect_equal(param$defs$prior,
+               "categorical|a:b:c|{0.2|N}:{0.1|N}:{0.7|N}")
+
+  # direct single add_quo form with c/d/p labels colliding with
+  # const/discr/prior formals
+  param2 <- HousepiParameter$new()
+  param2$add_quo(name = "ocelot", prior = "categorical",
+                 a = 0.2, b = 0.1, c = 0.7, d = 0.4, p = 0.6) |>
+    expect_silent()
+  expect_equal(param2$defs$name, "ocelot")
+  expect_equal(param2$defs$prior,
+               "categorical|a:b:c:d:p|{0.2|N}:{0.1|N}:{0.7|N}:{0.4|N}:{0.6|N}")
+})
+
 # test_that("Parameter functions workd as expected", {
 #   hhmodel <- new_housepi_model("blank")
 #

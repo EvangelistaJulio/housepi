@@ -8,18 +8,18 @@ add_augmented(
   hhmodel,
   name = NULL,
   value = NULL,
+  ...,
   status = NA_integer_,
   const = NA,
   discr = FALSE,
   func = NULL,
   func_args = NULL,
   prior = NA_character_,
-  ...,
   min = NULL,
   max = NULL,
   proposal = NA_character_,
   proposal_scale = NA_real_,
-  defs = NULL,
+  import = NULL,
   append = TRUE
 )
 }
@@ -35,6 +35,9 @@ One between:
 \item Parameter name (followed by \verb{@P});
 \item Dataset name (followed by \verb{@D}).
 }}
+
+\item{...}{named arguments for the prior distribution.
+In mode 'multiple', the \code{name = value} definitions.}
 
 \item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
@@ -55,8 +58,6 @@ If applicable, the prior is discretized.}
 \item{func_args}{named \code{list} Arguments of the augmented function.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
-
-\item{...}{named arguments for the prior distribution. In bulk mode, the \code{name = value} definitions.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 One between:
@@ -89,8 +90,8 @@ If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
 If a positive numeric, scale is fixed to that value and never adapted.
 Ignored when proposal is \code{"sample"}.}
 
-\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
-alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+\item{import}{Named \code{list} of pre-built definitions to import.
+Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions.}
@@ -99,12 +100,26 @@ If \code{FALSE} drop all pre-existing definitions.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add augmented variables/functions to housepi model definitions.
-Existing augmented variables with the same name are updated.
-Supplying \code{name} adds a single variable using the explicit arguments.
-To add several at once (bulk mode) either pass them as \code{name = value} pairs
-through \code{...}, or pass a pre-built named list of definitions through \code{defs};
-each value may be a constant or a \code{list(...)} of definition arguments.
+Add augmented variables/functions to housepi model.
+If an augmented definitions with the same name and status exists,
+the former gets overwritten.
+There three mutually exclusive definition modes:
+\describe{
+\item{single}{
+Supply a \code{name} to adds a single definition using the explicit arguments;
+}
+\item{multiple}{
+Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+}
+\item{import}{
+Pass a pre-built named list of definitions through \code{import}.
+}
+}
+}
+\details{
+Definition names colliding with reserved argument
+are deprecated.
+The can be supplied only through single mode.
 }
 \examples{
 hhmodel <- blank_house |>

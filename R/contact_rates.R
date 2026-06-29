@@ -371,11 +371,11 @@ HousepiContactRate <- R6::R6Class(
     },
 
     #' @inherit add_contact_rate
-    add_quo = function(by = NA_character_,
+    add_quo = function(by = NA_character_, ...,
                        reference = NULL,
                        joint = TRUE, symmetric = TRUE,
                        strata = NULL, params = NULL,
-                       prior = NA_character_, ...,
+                       prior = NA_character_,
                        min = NA_real_, max = NA_real_,
                        proposal = NA_character_,
                        proposal_scale = NA_real_,

@@ -644,11 +644,10 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @inherit add_group_rate
-    add_quo = function(name,
-                       by = NA_character_,
+    add_quo = function(name, by = NA_character_, ...,
                        reference = NULL, joint = FALSE,
                        strata = NULL, params = NULL,
-                       prior = NA_character_, ...,
+                       prior = NA_character_,
                        min = NA_real_, max = NA_real_,
                        proposal = NA_character_, proposal_scale = NA_real_,
                        prefix = NA_character_, .warn_over = TRUE) {

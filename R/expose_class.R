@@ -346,9 +346,9 @@ The can be supplied only through single mode."
 #'   add_parameter(import = my_import)
 #' @export
 add_parameter <- function(hhmodel,
-                          name = NULL, value = NULL,
+                          name = NULL, value = NULL, ...,
                           const = NA, discr = FALSE,
-                          prior = NA_character_, ...,
+                          prior = NA_character_,
                           func = NULL, func_args = NULL,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
@@ -435,10 +435,10 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 #'                 prior = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
 add_augmented <- function(hhmodel,
-                          name = NULL, value = NULL,
+                          name = NULL, value = NULL, ...,
                           status = NA_integer_, const = NA, discr = FALSE,
                           func = NULL, func_args = NULL,
-                          prior = NA_character_, ...,
+                          prior = NA_character_,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
                           proposal_scale = NA_real_,
@@ -601,10 +601,10 @@ add_house_observ <- function(hhmodel, name = NULL, value = NULL, ...,
 #' @return `r rd_model_out_`
 #' @export
 add_group_rate <-  function(hhmodel,
-                            name = NULL, by = NA_character_,
+                            name = NULL, by = NA_character_, ...,
                             reference = NULL, joint = FALSE,
                             strata = NULL, params = NULL,
-                            prior = NA_character_, ...,
+                            prior = NA_character_,
                             min = NA_real_, max = NA_real_,
                             proposal = NA_character_,
                             proposal_scale = NA_real_,
@@ -660,11 +660,11 @@ add_group_rate <-  function(hhmodel,
 #' @param prefix `r rd_ctr_prefix_`
 #' @return `r rd_model_out_`
 #' @export
-add_contact_rate <- function(hhmodel, by = NA_character_,
+add_contact_rate <- function(hhmodel, by = NA_character_, ...,
                              reference = NULL,
                              joint = FALSE, symmetric = TRUE,
                              strata = NULL, params = NULL,
-                             prior = NA_character_, ...,
+                             prior = NA_character_,
                              min = NA_real_, max = NA_real_,
                              proposal = NA_character_,
                              proposal_scale = NA_real_,
@@ -708,9 +708,9 @@ add_contact_rate <- function(hhmodel, by = NA_character_,
 #' @return `r rd_model_out_`
 #' @export
 add_infec_profile <- function(hhmodel,
-                              func = NULL, status = NA_integer_,
-                              discr = FALSE,
-                              ..., max = NULL,
+                              func = NULL, ...,
+                              status = NA_integer_, discr = FALSE,
+                              max = NULL,
                               import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()

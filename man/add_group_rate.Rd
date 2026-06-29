@@ -8,18 +8,18 @@ add_group_rate(
   hhmodel,
   name = NULL,
   by = NA_character_,
+  ...,
   reference = NULL,
   joint = FALSE,
   strata = NULL,
   params = NULL,
   prior = NA_character_,
-  ...,
   min = NA_real_,
   max = NA_real_,
   proposal = NA_character_,
   proposal_scale = NA_real_,
   prefix = NA_character_,
-  defs = NULL,
+  import = NULL,
   append = TRUE
 )
 }
@@ -30,6 +30,8 @@ add_group_rate(
 
 \item{by}{\code{list} Covariates associated to group rate as data headers.
 Corresponding data columns have to be categorical.}
+
+\item{...}{named arguments for the prior distribution.}
 
 \item{reference}{named \code{list} Covariates associated to reference group.
 Pass \code{".none"} to disable reference, giving every rate its own parameter.
@@ -48,8 +50,6 @@ Overrides shared prior/args for parameters specificied in the list.
 Ignored if automatic definition.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
-
-\item{...}{named arguments for the prior distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.}
 
@@ -72,8 +72,8 @@ Ignored when proposal is \code{"sample"}.}
 
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA} uses the first 3 letters of rate name (default).}
 
-\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
-alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+\item{import}{Named \code{list} of pre-built definitions to import.
+Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions.}
@@ -87,6 +87,23 @@ Rates are relative to a reference class that can be specified.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table.
+There three mutually exclusive definition modes:
+\describe{
+\item{single}{
+Supply a \code{name} to adds a single definition using the explicit arguments;
+}
+\item{multiple}{
+Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+}
+\item{import}{
+Pass a pre-built named list of definitions through \code{import}.
+}
+}
+}
+\details{
+Definition names colliding with reserved argument
+are deprecated.
+The can be supplied only through single mode.
 }
 \references{
 \insertRef{cauchemez_household_2009}{housepi}

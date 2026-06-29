@@ -7,11 +7,11 @@
 add_infec_profile(
   hhmodel,
   func = NULL,
+  ...,
   status = NA_integer_,
   discr = FALSE,
-  ...,
   max = NULL,
-  defs = NULL,
+  import = NULL,
   append = TRUE
 )
 }
@@ -20,14 +20,15 @@ add_infec_profile(
 
 \item{func}{\code{character(1)} Name used by internal calls.}
 
+\item{...}{named arguments for the profile distribution.
+In mode 'multiple', the \code{func} definitions.}
+
 \item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
 \item{discr}{\code{logical(1)} Treat definition as discrete.
 If applicable, the profile is discretized.}
-
-\item{...}{named arguments for the profile distribution. In bulk mode, the \code{func} definitions.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 One between:
@@ -37,8 +38,8 @@ One between:
 \item Dataset name (followed by \verb{@D}).
 }}
 
-\item{defs}{Named \code{list} of pre-built definitions for bulk loading, as an
-alternative to inline \code{name = value} pairs. Cannot be combined with them.}
+\item{import}{Named \code{list} of pre-built definitions to import.
+Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
 If \code{FALSE} drop all pre-existing definitions.}
@@ -48,4 +49,21 @@ If \code{FALSE} drop all pre-existing definitions.}
 }
 \description{
 Add definition of infectivity profile.
+There three mutually exclusive definition modes:
+\describe{
+\item{single}{
+Supply a \code{name} to adds a single definition using the explicit arguments;
+}
+\item{multiple}{
+Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+}
+\item{import}{
+Pass a pre-built named list of definitions through \code{import}.
+}
+}
+}
+\details{
+Definition names colliding with reserved argument
+are deprecated.
+The can be supplied only through single mode.
 }

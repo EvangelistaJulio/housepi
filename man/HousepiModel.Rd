@@ -42,7 +42,6 @@ One row per individual index by corresponding ID.}
 \item \href{#method-HousepiModel-evaluate_log_lik}{\code{HousepiModel$evaluate_log_lik()}}
 \item \href{#method-HousepiModel-run_inference}{\code{HousepiModel$run_inference()}}
 \item \href{#method-HousepiModel-run_simulation}{\code{HousepiModel$run_simulation()}}
-\item \href{#method-HousepiModel-run_power_posteriors}{\code{HousepiModel$run_power_posteriors()}}
 \item \href{#method-HousepiModel-add_data_long}{\code{HousepiModel$add_data_long()}}
 \item \href{#method-HousepiModel-summarise_house_cases}{\code{HousepiModel$summarise_house_cases()}}
 \item \href{#method-HousepiModel-summarise_house_sizes}{\code{HousepiModel$summarise_house_sizes()}}
@@ -264,66 +263,6 @@ If \code{NA} produces a single repetition (default).}
 }
 \subsection{Returns}{
 \code{data.frame} or \code{list} (when \code{obs_process_long} is provided)
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-run_power_posteriors"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-run_power_posteriors}{}}}
-\subsection{Method \code{run_power_posteriors()}}{
-Sample the power-posterior ladder. Used for log-evidence estimation.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$run_power_posteriors(
-  scheme = c("adaptive", "power-fractions"),
-  rungs = 30L,
-  steps = 1000L,
-  burn = 0L,
-  thin = 5L,
-  adapt = 500L,
-  chains = 4L,
-  threads = 1L,
-  progress = TRUE
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{scheme}}{\code{character(1)} Scheme used for evidence estimation.
-One between
-\describe{
-\item{\code{"adaptive"}}{uses adaptive thermodynamic ladder (default).}
-\item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}.}
-}}
-
-\item{\code{rungs}}{\code{integer(1)} Number of rungs in thermodynamic ladder.}
-
-\item{\code{steps}}{\code{integer(1)} Number of MCMC iterations per chain.}
-
-\item{\code{burn}}{\code{integer(1)} Number of initial iterations within \code{steps} to
-discard before storing draws.}
-
-\item{\code{thin}}{\code{integer(1)} Keep one iteration every \code{thin} after burn-in.}
-
-\item{\code{adapt}}{\code{integer(1)} Number of iterations to adapt proposal scales.
-They are run before \code{steps} and are not stored as draws.
-If no proposals are adaptable  and \code{burn = 0}, repurposed as burn-in instead.}
-
-\item{\code{chains}}{\code{integer(1)} Number of independent MCMC chains to run.}
-
-\item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
-
-\item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
-One between:
-\itemize{
-\item If \code{integer}, prints progress every \code{progress} seconds;
-\item If \code{TRUE} prints progress every second (default);
-\item If \code{FALSE} or \code{0}, suppresses progress display.
-}}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-An object of class \code{HousepiPowerPosteriors}.
 }
 }
 \if{html}{\out{<hr>}}

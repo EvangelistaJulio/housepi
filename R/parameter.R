@@ -78,9 +78,9 @@ HousepiParameter <- R6::R6Class(
     },
 
     #' @inherit add_parameter
-    add_quo = function(name, value = NULL,
-                       const = NA, discr = FALSE,
-                       prior = NA_character_, ...,
+    add_quo = function(name, ...,
+                       value = NULL, const = NA, discr = FALSE,
+                       prior = NA_character_,
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
