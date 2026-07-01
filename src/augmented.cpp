@@ -500,14 +500,15 @@ namespace housepi
         varia.resize(mcmc_->data_wide().report_indiv.total);
 
         size_t n = khold_.size();
-        // UPDATE: loop on households it's just used for statuses: remove
         for (Household &house : mcmc_->data_wide())
             for (Individual &member : house)
             {
                 IndivBlock &iaugm = varia_of_(member);
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
-                    iaugm.vec[a].name(khold(a), "augmented");
+                    iaugm.vec[a].name(
+                        khold(a),
+                        is_obs_node(khold(a)) ? ErrType::Observation : ErrType::Augmented);
 
                 if (member.is_infected_status())
                     all_infected_statuses.emplace(member.status());
@@ -1055,7 +1056,7 @@ namespace housepi
     void Augmented::build_house_obs_variable_(Variable &hvar, Household &house, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        hvar.name(astr, "household observation");
+        hvar.name(astr, ErrType::HouseholdObservation);
 
         try
         {

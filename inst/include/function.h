@@ -21,6 +21,25 @@ namespace housepi
 {
     class Function;
 
+    /// Finite set of attribute type names displayed in errors.
+    enum class ErrType : std::uint8_t
+    {
+        Empty,
+        Numeric,
+        Pointer,
+        Function,
+        Parameter,
+        Augmented,
+        Observation,
+        HouseholdObservation,
+        GroupRate,
+        Data
+    };
+
+    /// Index into the process-global name pool.
+    /// NOTE: distinct names in a session are few.
+    using NameIndex = std::uint32_t;
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////// *** Attribute : class *** ///////////////////////////////////
@@ -61,9 +80,10 @@ namespace housepi
         //////////////////////
 
         /// Set attribute name.
-        void name(const std::string &name) { name_ = name; }
-        void name(const std::string &name, const std::string &err_type) {
-            name_ = name;
+        void name(const std::string &txt);
+        void name(const std::string &txt, ErrType err_type)
+        {
+            this->name(txt);
             err_type_ = err_type;
         }
 
@@ -161,9 +181,9 @@ namespace housepi
         ////////////////////
 
         /// Get attribute name.
-        std::string_view name() const noexcept { return name_; }
+        std::string name() const;
         /// Get attribute name to display in errors.
-        std::string err_name() const { return err_type_ + " '" + std::string(name()) + "'"; }
+        std::string err_name() const;
         /// Get attribute value to display in errors.
         std::string str_val() const;
 #ifndef NDEBUG
@@ -180,9 +200,9 @@ namespace housepi
             Function
         } mode_ = Mode::Empty;
 
-        std::string err_type_ = "empty";            /// type name displayed in errors
-        std::string name_ = "";                     /// name of argument
+        ErrType err_type_ = ErrType::Empty;         /// type name displayed in errors
         bool is_user_const_ = false;                /// user flag for constant
+        NameIndex name_id_ = 0;                        /// interned name id (0 == empty)
         double value_ = na::DOUBLE;                 /// internal value
         const Attribute *pAttr_ = nullptr;          /// pointer to attribute
         std::unique_ptr<Function> pFunc_ = nullptr; /// pointer to function
@@ -402,7 +422,7 @@ namespace housepi
         /// Get function name.
         virtual std::string_view name() const noexcept = 0;
         /// Get argument name (from the active parametrization).
-        std::string_view arg_name(unsigned short i) const noexcept { return alts_[alt_idx_].args[i].name(); }
+        std::string arg_name(unsigned short i) const { return alts_[alt_idx_].args[i].name(); }
         /// Get function name complete with type to display in errors.
         virtual std::string err_name() const { return "function '" + std::string(name()) + "'"; }
 
@@ -430,7 +450,7 @@ namespace housepi
             std::vector<Attribute> args = {}; /// Alternative arguments
         };
         std::vector<AltArgSet> alts_; /// Alternative parametrizations (canonical is 0)
-        unsigned short alt_idx_ = 0;  /// Current select arguments
+        std::uint8_t alt_idx_ = 0;    /// Current select arguments
         bool is_user_alt_ = false;    /// Whether user has picked a re-parametrization
 
         /// Register an alternative parametrization.

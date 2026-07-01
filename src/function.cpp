@@ -23,6 +23,70 @@
 
 namespace housepi
 {
+    namespace
+    {
+        std::string err_type_name_(ErrType type) noexcept
+        {
+            switch (type)
+            {
+            case ErrType::Numeric:
+                return "numeric";
+            case ErrType::Pointer:
+                return "pointer";
+            case ErrType::Function:
+                return "function";
+            case ErrType::Parameter:
+                return "parameter";
+            case ErrType::Augmented:
+                return "augmented";
+            case ErrType::Observation:
+                return "observation";
+            case ErrType::HouseholdObservation:
+                return "household observation";
+            case ErrType::GroupRate:
+                return "group rate";
+            case ErrType::Data:
+                return "data";
+            default: // case ErrType::Empty:
+                return "empty";
+            }
+        }
+
+        /// Deduplicated string pool. Shared across models, thus append only.
+        /// NOTE: intern should be run only during serial model construction.
+        struct NamePool_
+        {
+        public:
+            /// Intern a name and return its index.
+            /// NOTE: index 0 == empty name (NA).
+            NameIndex intern(std::string_view name)
+            {
+                auto it = lut_.find(name); // heterogeneous lookup: no std::string built
+                if (it != lut_.end())
+                    return it->second;
+
+                NameIndex id = static_cast<NameIndex>(pool_.size());
+                pool_.emplace_back(name);
+                lut_.emplace(name, id);
+                return id;
+            }
+
+            /// Resolve an index to its copied name.
+            std::string at(NameIndex id) const { return pool_[id]; }
+
+        private:
+            std::vector<std::string> pool_ = {""}; /// interned names
+            dict<NameIndex> lut_ = {{"", 0}};      /// reverse name-to-index
+        };
+
+        /// The single process-global name pool.
+        NamePool_ &name_pool_()
+        {
+            static NamePool_ pool;
+            return pool;
+        }
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  *** Attribute : class ***  /////////////////////////////////
@@ -35,8 +99,8 @@ namespace housepi
     Attribute::Attribute(const Attribute &other)
         : mode_(other.mode_),
           err_type_(other.err_type_),
-          name_(other.name_),
           is_user_const_(other.is_user_const_),
+          name_id_(other.name_id_),
           value_(other.value_),
           pAttr_(other.pAttr_),
           pFunc_(other.pFunc_ ? other.pFunc_->clone() : nullptr) {}
@@ -53,8 +117,8 @@ namespace housepi
     {
         std::swap(mode_, other.mode_);
         std::swap(err_type_, other.err_type_);
-        std::swap(name_, other.name_);
         std::swap(is_user_const_, other.is_user_const_);
+        std::swap(name_id_, other.name_id_);
         std::swap(value_, other.value_);
         std::swap(pAttr_, other.pAttr_);
         std::swap(pFunc_, other.pFunc_);
@@ -81,6 +145,9 @@ namespace housepi
             return true;
         }
     }
+
+    std::string Attribute::name() const { return name_pool_().at(name_id_); }
+    std::string Attribute::err_name() const { return err_type_name_(err_type_) + " '" + name() + "'"; }
 
     std::string Attribute::str_val() const
     {
@@ -174,10 +241,12 @@ namespace housepi
     //////////////////////////////////////  Attribute : setter //////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
+    void Attribute::name(const std::string &txt) { name_id_ = name_pool_().intern(txt); }
+
     void Attribute::init_numeric(double x)
     {
-        if (err_type_ == "empty")
-            err_type_ = "numeric";
+        if (err_type_ == ErrType::Empty)
+            err_type_ = ErrType::Numeric;
 
         mode_ = Mode::Numeric;
         value_ = x;
@@ -192,8 +261,8 @@ namespace housepi
             throw std::invalid_argument(
                 "Tried to assign empty pointer to " + err_name() + ".");
 
-        if (err_type_ == "empty")
-            err_type_ = "pointer";
+        if (err_type_ == ErrType::Empty)
+            err_type_ = ErrType::Pointer;
 
         mode_ = Mode::Pointer;
         value_ = na::DOUBLE;
@@ -212,10 +281,10 @@ namespace housepi
             throw std::invalid_argument(
                 "Tried to assign " + err_name() + " as its own argument.");
 
-        if (err_type_ == "empty")
-            err_type_ = "function";
-        if (na::is(name_))
-            name_ = f->name();
+        if (err_type_ == ErrType::Empty)
+            err_type_ = ErrType::Function;
+        if (name_id_ == 0)
+            name(std::string(f->name()));
         mode_ = Mode::Function;
         value_ = na::DOUBLE;
         pAttr_ = nullptr;
@@ -241,7 +310,7 @@ namespace housepi
             return;
         default: // case Mode::Empty:
             // NOTE: nothing to transfer if other is pure empty
-            if (other.err_type_ != "empty")
+            if (other.err_type_ != ErrType::Empty)
                 init_pointer(other.pointer());
             return;
         }
@@ -278,7 +347,7 @@ namespace housepi
     {
         std::string sms = "Tried to change non numeric ";
         if (na::is(name()))
-            sms += "empty " + err_type_;
+            sms += "empty " + err_type_name_(err_type_);
         else
             sms += err_name();
         throw std::runtime_error(sms + ".");
@@ -361,7 +430,7 @@ namespace housepi
             for (Attribute &attr : alts_[i].args)
                 if (attr.name() == key)
                 {
-                    const unsigned short new_idx = static_cast<unsigned short>(i);
+                    const std::uint8_t new_idx = static_cast<std::uint8_t>(i);
                     if (is_user_alt_ && alt_idx_ != new_idx)
                         throw std::invalid_argument(
                             "Attempt to mix parametrizations '" +

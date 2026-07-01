@@ -427,7 +427,7 @@ namespace housepi
                                     " and 'max' as " + upper.err_name() +
                                     " produced a degenerate range ";
             // parameter
-            if (err_type_ == "parameter")
+            if (err_type_ == ErrType::Parameter)
                 throw std::invalid_argument(sms + " for " + err_name() + ".");
 
             // augmented
@@ -660,7 +660,7 @@ namespace housepi
             {
                 khold_.add(pstr);
                 param_vec_.emplace_back();
-                param_vec_.back().name(pstr, "parameter");
+                param_vec_.back().name(pstr, ErrType::Parameter);
             }
 
             if (!na::is(input.at("func")[k]))
@@ -706,7 +706,7 @@ namespace housepi
         param_vec_.clear();
         param_vec_.resize(n);
         for (size_t p = 0; p < n; ++p)
-            param_vec_[p].name(khold(p), "parameter");
+            param_vec_[p].name(khold(p), ErrType::Parameter);
     }
 
     void Parameter::clear_lists_()
@@ -1008,7 +1008,7 @@ namespace housepi
                     "' was missing for " + member.err_name() + ".");
 
             igr.vec.emplace_back(rates::VALUE_REFERENCE);
-            igr.vec.back().name(gstr, "group rate");
+            igr.vec.back().name(gstr, ErrType::GroupRate);
         }
 
         // assign custom definitions

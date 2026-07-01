@@ -116,7 +116,7 @@ namespace housepi
                     size_t d = pdata_wide_->khold(node.value);
                     storage_.init_pointer(&pdata_wide_->cell(d, *member_ptr));
                 }
-                storage_.name(node.value, "data");
+                storage_.name(node.value, ErrType::Data);
             }
             else if (parse::is_augmented(node.type))
             {
