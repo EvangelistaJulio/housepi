@@ -47,7 +47,6 @@ reference:
   - ends_with("_template")
   - starts_with("get_")
   - -ends_with("_draws")
-  - starts_with("drop_")
 
 - title: "Inference results"
   desc: >

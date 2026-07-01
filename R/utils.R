@@ -248,20 +248,73 @@ char_data_input_ <- function(df) {
   else data.frame(lapply(df, as.character))
 }
 
+#' Resolve character `status =` labels in an augmented defs frame to integer
+#' codes (1..K) against the model status dictionary. Integer codes pass through.
+#' Guards against mixing integer and character status declarations and against
+#' labels absent from the dictionary.
+#' @param defs `data.frame` or `NULL`. Augmented definitions.
+#' @param dictionary `character()`. Ordered infected-status labels.
+#' @return `data.frame` with an integer-coded `status` column.
+#' @keywords internal
+#' @noRd
+resolve_status_codes_ <- function(defs, dictionary) {
+  if (is.null(defs) || !"status" %in% names(defs)) return(defs)
+  st <- as.character(unlist(defs[["status"]], use.names = FALSE))
+  known <- !is.na(st)
+  as_int <- suppressWarnings(as.integer(st))
+  is_int <- known & !is.na(as_int) & as.character(as_int) == st
+  is_lab <- known & !is_int
+  # guard: a model is all-integer or all-character on 'status ='
+  if (any(is_int) && any(is_lab)) stop_h(
+    "Cannot mix integer and character 'status =' declarations in one model.",
+    i = "Use either integer codes or character labels throughout."
+  )
+  if (any(is_lab)) {
+    code <- match(st[is_lab], dictionary)
+    if (anyNA(code)) stop_h(sprintf(
+      "Status label(s) %s not among the declared statuses %s.",
+      paste(sprintf("'%s'", unique(st[is_lab][is.na(code)])), collapse = ", "),
+      paste(sprintf("'%s'", dictionary), collapse = ", ")
+    ))
+    st[is_lab] <- as.character(code)
+    defs[["status"]] <- st
+  }
+  defs
+}
+
 #' Factorize dates and non-numerical quantities from data to pass to C++.
 #' @param df `data.frame` Dataset.
+#' @param escaped `character(1)` Label for status code 0 in character/factor
+#' `status` columns.
 #' @return `list`
 #' @keywords internal
 #' @noRd
-cpp_data_factorize <- function(df) {
+cpp_data_factorize <- function(df, escaped = "escaped") {
   skip <- c("id", "house_id", "status")
   cols <- colnames(df)
   info <- list()
-  # extract all infectious status
+
+  # character/factor status: factorize to integer codes (escaped label -> 0,
+  # infected labels -> 1..K in level/appearance order, NA -> missing). Codes
+  # follow factor levels so a simulated factor round-trips to the same codes.
+  status_labels <- character()
+  if ("status" %in% cols && (is.character(df[["status"]]) ||
+                               is.factor(df[["status"]]))) {
+    x <- df[["status"]]
+    sus <- escaped
+    lv <- if (is.factor(x)) levels(x) else unique(as.character(x))
+    lv <- lv[!is.na(lv)]
+    status_labels <- as.character(setdiff(lv, sus))
+    code <- stats::setNames(c(0L, seq_along(status_labels)),
+                            c(sus, status_labels))
+    df[["status"]] <- unname(code[as.character(x)])
+  }
+
+  # extract all infectious status codes (now integer-coded)
   status <- integer()
   if ("status" %in% cols) {
-    status <- unique(df[["status"]])
-    status <- sort(status[!is.na(status) & status > 0])
+    s <- suppressWarnings(as.integer(df[["status"]]))
+    status <- sort(unique(s[!is.na(s) & s > 0]))
   }
 
   for (col in setdiff(cols, skip)) {
@@ -278,17 +331,22 @@ cpp_data_factorize <- function(df) {
     }
   }
 
-  list(data = char_data_input_(df), info = info, cols = cols, status = status)
+  list(data = char_data_input_(df), info = info, cols = cols,
+       status = status, status_labels = status_labels)
 }
 
 #' Restore factored quantities on data returned from the C++ implementation.
 #' @param data `data.frame` Output of the Rcpp model object.
 #' @param info `list` of `list`s. Info about class and levels of data columns.
 #' @param headers `character()` Header columns.
+#' @param status_levels `character()` Status levels.
+#' @param escaped `character(1)` Label for status code 0.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
-cpp_data_refactor <- function(data, info, headers) {
+cpp_data_refactor <- function(data, info, headers,
+                              status_levels = character(),
+                              escaped = "escaped") {
   # re-factor
   for (col in names(info)) {
     cls <- info[[col]]$class
@@ -308,7 +366,15 @@ cpp_data_refactor <- function(data, info, headers) {
   }
 
   if ("status" %in% colnames(data)) {
-    data[["status"]] <- replace(data[["status"]], data[["status"]] < 0, NA)
+    s <- as.integer(data[["status"]])
+    s[s < 0] <- NA # missing
+    if (length(status_levels) > 0) {
+      # code 0 -> escaped label, code k -> k-th infected label
+      lv <- c(escaped, status_levels)
+      data[["status"]] <- factor(s + 1L, levels = seq_along(lv), labels = lv)
+    } else {
+      data[["status"]] <- s
+    }
   }
   # re-order data and append eventual extra columns
   data[c(headers, setdiff(colnames(data), headers))]

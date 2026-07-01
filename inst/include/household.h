@@ -11,6 +11,7 @@
 #include <string_view>
 #include <vector>
 
+#include "tools/nan.h"
 #include "individual.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -24,8 +25,10 @@ namespace housepi
 	/// Household class.
 	class Household
 	{
-		friend struct DataWide; /// owns and mutates its households
-		friend struct Index;	/// reads the opaque storage index_
+		friend struct Index;	 /// reads the opaque storage index_
+		friend struct DataWide;	 /// owns and mutates its households
+		friend class ModelBase;	 /// changes member status
+		friend struct Augmented; /// changes member status
 
 		/// Auxiliary iterator for household indexes of member with same status.
 		struct HouseStatusRange_
@@ -48,14 +51,6 @@ namespace housepi
 		/// Emplace a new individual in the household.
 		void add_member(size_t index, const std::string &id, int status);
 
-		/// Set status of member 'i' to susceptible.
-		void set_susceptible_status(size_t i) { helper_set_status_(i, status::SUSCEPTIBLE); }
-		void set_susceptible_status(Individual &member) { set_susceptible_status(member.hhindex_); }
-
-		/// Set status of member 'i' to infected.
-		void set_infected_status(size_t i, int new_status = status::INFECTED) { helper_set_status_(i, new_status); }
-		void set_infected_status(Individual &member, int new_status = status::INFECTED) { set_infected_status(member.hhindex_, new_status); }
-
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
@@ -65,15 +60,15 @@ namespace housepi
 
 		/// Iterator for household indexes of members with infected status.
 		HouseStatusRange_ infected_hhindexes() const noexcept { return {status_vec_.data(), ninf_}; }
-		/// Iterator for household indexes of members with susceptible status.
-		HouseStatusRange_ susceptible_hhindexes() const noexcept { return {status_vec_.data() + ninf_, nsus_}; }
+		/// Iterator for household indexes of members with escaped status.
+		HouseStatusRange_ escaped_hhindexes() const noexcept { return {status_vec_.data() + ninf_, nsus_}; }
 		/// Iterator for household indexes of members with missing status.
 		HouseStatusRange_ missing_hhindexes() const noexcept { return {status_vec_.data() + ninf_ + nsus_, house_size_ - ninf_ - nsus_}; }
 
 		/// Number of members with infected status.
 		size_t n_infected_status() const noexcept { return ninf_; }
-		/// Number of members with susceptible status.
-		size_t n_susceptible_status() const noexcept { return nsus_; }
+		/// Number of members with escaped status.
+		size_t n_escaped_status() const noexcept { return nsus_; }
 		/// Number of members with missing status.
 		size_t n_missing_status() const noexcept { return house_size_ - ninf_ - nsus_; }
 
@@ -102,16 +97,16 @@ namespace housepi
 	private:
 		std::string house_id_ = "";			   /// user house id
 		size_t index_ = 0;					   /// housepi internal household index
-		size_t eq_class_ = -1;				   /// equivalence class index
+		size_t eq_class_ = na::INDEX;		   /// equivalence class index
 		std::vector<Individual> members_ = {}; /// household members
-		std::vector<size_t> status_vec_ = {};  /// partitioned: [infected | susceptible | missing]
+		std::vector<size_t> status_vec_ = {};  /// partitioned: [infected | escaped | missing]
 		size_t house_size_ = 0;				   /// number of household members
 		size_t ninf_ = 0;					   /// number of infected members
-		size_t nsus_ = 0;					   /// number of susceptible members
+		size_t nsus_ = 0;					   /// number of escaped members
 
-		/// Change_status of individual i to new status (without controls).
+		/// Change status of individual i to new status.
 		/// NOTE: Using 'partition refinement' to track member statuses.
-		void helper_set_status_(size_t i, int new_status);
+		void set_new_status_(Individual &member, int new_status);
 	};
 
 	/// Index of Household (see individual.h).

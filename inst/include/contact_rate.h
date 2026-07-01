@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "tools/types.h"
@@ -35,6 +36,9 @@ namespace housepi
 
         /// Whether no contact rate definitions were provided in the last build.
         bool is_empty() const noexcept { return house_contact_rates_.empty(); }
+
+        /// Data-wide feature columns the contact-rate rules match on.
+        const std::vector<std::string> &data_wide_depen() const noexcept { return data_wide_depen_; }
 
         /// Contact rate 'from' household member 'to' member. No self-contact (set 0 for safety).
         double value(const Household &house, size_t from, size_t to) const
@@ -77,5 +81,6 @@ namespace housepi
             std::vector<std::vector<Attribute>> mtx = {}; /// contact rates
         };
         std::vector<IndivContact_> house_contact_rates_; /// Storage for household contact rates
+        std::vector<std::string> data_wide_depen_ = {};  /// data feature columns used by rules
     };
 }

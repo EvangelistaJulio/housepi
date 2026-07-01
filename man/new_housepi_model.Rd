@@ -10,6 +10,7 @@ new_housepi_model(
   as_template = FALSE,
   force = FALSE,
   quiet = FALSE,
+  escaped = "escaped",
   ...
 )
 }
@@ -32,6 +33,10 @@ If \code{FALSE} recompile the model at every new session (default).}
 \item{force}{\code{logical(1)} Compile even if cached model already exists.}
 
 \item{quiet}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
+
+\item{escaped}{\code{character(1)} Label for status code \code{0} (individuals not
+among the declared infected statuses) when the \code{status} column is
+character/factor.}
 
 \item{...}{Named arguments. Additional compilation options:
 \describe{

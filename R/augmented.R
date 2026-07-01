@@ -25,7 +25,8 @@ HousepiAugmented <- R6::R6Class(
     # One between:
     # "augm": augmented variables;
     # "obs": individual-level observation;
-    # "house-obs": household-level observations.
+    # "house": household-level observations;
+    # "status": individual status observation (resolves status in simulation).
     kind_ = "augm",
 
     # Definitions required by augmented definitions
@@ -47,7 +48,8 @@ HousepiAugmented <- R6::R6Class(
       if (!missing(value)) stop_read_only("family")
       switch(private$kind_,
         "obs" = "observation",
-        "house-obs" = "household observation",
+        "house" = "household observation",
+        "status" = "status observation",
         "augmented"
       )
     },
@@ -95,7 +97,33 @@ HousepiAugmented <- R6::R6Class(
       if (!missing(value)) stop_read_only("house_observ_names")
       if (is.null(self$defs) ||
             !"kind" %in% names(self$defs)) return(character())
-      self$defs[["name"]][self$defs[["kind"]] == "house-obs"]
+      self$defs[["name"]][self$defs[["kind"]] == "house"]
+    },
+
+    #' @field status_names `character()`.
+    #' Reserved node name of the status process, if defined.
+    status_names = function(value) {
+      if (!missing(value)) stop_read_only("status_names")
+      if (is.null(self$defs) ||
+            !"kind" %in% names(self$defs)) return(character())
+      self$defs[["name"]][self$defs[["kind"]] == "status"]
+    },
+
+    #' @field status_dictionary `character()`.
+    #' Ordered infected-status labels (code `k` is the `k`-th entry). Taken from
+    #' the status process when present, else factorized from literal character
+    #' `status =` labels declared across the augmented definitions.
+    status_dictionary = function(value) {
+      if (!missing(value)) stop_read_only("status_dictionary")
+      if (length(self$status_levels) > 0) return(self$status_levels)
+      if (is.null(self$defs) || !"status" %in% names(self$defs)) {
+        return(character())
+      }
+      labels <- unlist(self$defs[["status"]], use.names = FALSE)
+      labels <- labels[!is.na(labels)]
+      # literal character statuses only (integers are already codes)
+      labels <- labels[is.na(suppressWarnings(as.integer(labels)))]
+      unique(as.character(labels))
     }
   ),
 
@@ -108,12 +136,22 @@ HousepiAugmented <- R6::R6Class(
     store_warn_over = character(),
     #' @field defs `data.frame`. Formatted augmented definitions.
     defs = NULL,
+    #' @field status_levels `character()`. Ordered status-process labels.
+    status_levels = character(),
 
     #' @description
     #' New object of class
     #' [HousepiAugmented][housepi::HousepiAugmented].
     initialize = function() {
       self$defs <- NULL
+      invisible(self)
+    },
+
+    #' @description Record the ordered status-process labels (the dictionary).
+    #' @param levels `character()`. Status labels in declaration order.
+    set_status_levels = function(levels) {
+      levels <- levels[!is.na(levels) & nzchar(levels)]
+      self$status_levels <- as.character(levels)
       invisible(self)
     },
 
@@ -131,9 +169,9 @@ HousepiAugmented <- R6::R6Class(
     remove = function(name, status, warn_removal = FALSE) {
       mask <- self$defs[["name"]] == name
       if (any(mask)) {
-        # check if same name and status
+        # check if same name and status (raw: integer code or character label)
         mask <- mask & sapply(self$defs[["status"]], function(x) {
-          identical(x, as.integer(status))
+          identical(as.character(x), as.character(status))
         })
         if (any(mask)) {
           self$defs <- self$defs[!mask, ]
@@ -153,26 +191,15 @@ HousepiAugmented <- R6::R6Class(
 
     #' @description Definitions of a single kind.
     #' Column 'kind' is dropped.
-    #' @param kind `character(1)`. One of "augm", "obs", "house-obs".
+    #' @param kind `character(1)`. One of "augm", "obs", "house", "status".
     #' @return `data.frame()` or `NULL` when no definition of that kind exists.
-    defs_of_kind = function(kind = c("augm", "obs", "house-obs")) {
+    defs_of_kind = function(kind = c("augm", "obs", "house", "status")) {
       kind <- match.arg(kind)
       if (is.null(self$defs) || !"kind" %in% names(self$defs)) return(NULL)
       out <- self$defs[self$defs[["kind"]] == kind, , drop = FALSE]
       if (nrow(out) == 0) return(NULL)
       out[["kind"]] <- NULL
       out
-    },
-
-    #' @description Drop every definition of a given kind, leaving the other
-    #' kinds (which share this store) untouched.
-    #' @param kind `character(1)`. One of "augm", "obs", "house-obs".
-    drop_kind = function(kind = c("augm", "obs", "house-obs")) {
-      kind <- match.arg(kind)
-      if (is.null(self$defs)) return(invisible(self))
-      self$defs <- self$defs[self$defs[["kind"]] != kind, ]
-      if (nrow(self$defs) == 0) self$initialize()
-      invisible(self)
     },
 
     #' @inherit add_augmented
@@ -189,7 +216,7 @@ HousepiAugmented <- R6::R6Class(
                        .assert = FALSE,
                        .kind = private$kind_) {
       # kind defaults to managed (see private$kind_, public$add_quo_list)
-      .kind <- match.arg(.kind, c("augm", "obs", "house-obs"))
+      .kind <- match.arg(.kind, c("augm", "obs", "house", "status"))
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       status <- housepi_smart_unwrap(status, "status")
@@ -234,10 +261,17 @@ HousepiAugmented <- R6::R6Class(
         )
         proposal <- NA_character_
         proposal_scale <- NA_real_
-        .kind <- "obs"
+        # a status observation keeps its kind; a plain observation becomes "obs"
+        if (!identical(.kind, "status")) .kind <- "obs"
         prior <- obs
         if (is.na(const)) const <- TRUE
-        if (is.null(value)) value <- paste0(name, "|D")
+        # an observation reads its datum from a like-named column; a status
+        # observation has no inference datum (status is the standard column), so
+        # it carries a numeric placeholder and requires no data column
+        if (is.null(value)) {
+          value <- if (identical(.kind, "status")) "0|N"
+          else paste0(name, "|D")
+        }
       }
 
       # NOTE: single source of truth for currently managed kind
@@ -262,7 +296,9 @@ HousepiAugmented <- R6::R6Class(
       # auxiliary typed options for Rcpp build method
       opts <- list(name = as.character(name),
                    value = NA_real_,
-                   status = as.integer(status),
+                   # keep status raw (integer code or character label); character
+                   # labels are resolved to codes against the dictionary at build
+                   status = as.character(status),
                    const = as.logical(const),
                    discr = isTRUE(discr),
                    func = NA_character_,
@@ -296,8 +332,8 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @inherit add_augmented
-    add_quo_list = function(xquos, append = FALSE,
-                            .kind = c("augm", "obs", "house-obs")) {
+    add_quo_list = function(xquos, append = FALSE, status = NA_integer_,
+                            .kind = c("augm", "obs", "house", "status")) {
       managed <- match.arg(.kind)
 
       # NOTE: single source of truth for currently managed kind
@@ -316,7 +352,10 @@ HousepiAugmented <- R6::R6Class(
         else self$defs <- self$defs[self$defs[["kind"]] != managed, ]
       }
 
-      housepi_load_defin_quos(self, "value", xquos, append = TRUE)
+      # a bulk-level 'status =' applies to every entry not setting its own
+      defaults <- if (all(is.na(status))) list() else list(status = status)
+      housepi_load_defin_quos(self, "value", xquos, append = TRUE,
+                              defaults = defaults)
       housepi_assert_args(self)
       invisible(self)
     },

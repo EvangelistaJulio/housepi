@@ -55,12 +55,12 @@ public:
 		//////////////////////////////////
 
 		// initialize internal order for house escape matrix
-		// ordered members : 1) infectious, 2) susceptibles
+		// ordered members : 1) infected, 2) escaped
 		auto &order = cache_uint_vector(house, HHuintvecKey::order);
 		order.clear();
 		order.reserve(house.size());
 		order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
-		order.insert(order.end(), house.susceptible_hhindexes().begin(), house.susceptible_hhindexes().end());
+		order.insert(order.end(), house.escaped_hhindexes().begin(), house.escaped_hhindexes().end());
 
 		///////////////////////////////////////
 		/////////////  PARTITIONS  ////////////
@@ -133,7 +133,7 @@ public:
 
 	/// Store person-to-person escape probabilities inside a cache.
 	/// UPDATE: I don't need to compute for all members, just for partitions.
-	/// This requires to compute also susceptible partitions.
+	/// This requires to compute also escaped partitions.
 	void fill_house_escape_matrix(Household &house)
 	{
 		size_t house_size = house.size();
@@ -210,13 +210,13 @@ public:
 
 		std::vector<size_t> new_gen_set = {};
 
-		for (size_t i = 0; i < house.size(); ++i)
-			if (exponential() > commu_rate * group_rate(GroupRateKey::community, house.member(i)))
-				house.set_susceptible_status(i);
+		for (Individual &member: house)
+			if (exponential() > commu_rate * group_rate(GroupRateKey::community, member))
+				set_escaped(house, member);
 			else
 			{
-				house.set_infected_status(i);
-				new_gen_set.push_back(i);
+				set_infected(house, member);
+				new_gen_set.push_back(member.hhindex());
 			}
 
 		//////////////////////////////////////////////////////////////////
@@ -225,7 +225,7 @@ public:
 
 		std::vector<size_t> old_gen_set = {};
 
-		while (house.n_susceptible_status() > 0 && !new_gen_set.empty())
+		while (house.n_escaped_status() > 0 && !new_gen_set.empty())
 		{
 			std::swap(old_gen_set, new_gen_set);
 			new_gen_set.clear();
@@ -245,7 +245,7 @@ public:
 				double sus_i = group_rate(GroupRateKey::susceptibility, member_i);
 				if (exponential() < r * p2p_rate * sus_i)
 				{
-					house.set_infected_status(i);
+					set_infected(house, member_i);
 					new_gen_set.push_back(i);
 				}
 			}

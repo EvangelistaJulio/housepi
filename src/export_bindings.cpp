@@ -695,8 +695,8 @@ namespace
         count[1] = report_indiv.missing;
         percent[1] = format_percentage(report_indiv.missing, report_indiv.total);
         // individual not infected
-        count[2] = report_indiv.susceptible;
-        percent[2] = format_percentage(report_indiv.susceptible, report_indiv.total);
+        count[2] = report_indiv.escaped;
+        percent[2] = format_percentage(report_indiv.escaped, report_indiv.total);
         // individual infected
         count[3] = report_indiv.infectious;
         percent[3] = format_percentage(report_indiv.infectious, report_indiv.total);
@@ -1247,7 +1247,7 @@ namespace
                         // at the observation Variables and follow them, no rebuild.
                         if (augm.is_any_obs() && !engine.model->simulates_observations())
                             for (size_t i : house.infected_hhindexes())
-                                engine.augm.sample_obs(engine.setup.prng(), house.member(i));
+                                engine.augm.sample_obs(house.member(i), engine.setup.prng());
 
                         size_t row = row_offsets[H]; // thread-local: no shared counter
                         for (const Individual &member : house)

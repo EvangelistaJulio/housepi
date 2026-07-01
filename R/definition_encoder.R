@@ -291,8 +291,10 @@ assert_nonempty_defin_quos <- function(xquos, family) {
 
 # Load a named list of quosures for definitions.
 # Resets the store first unless 'append' is TRUE.
+# 'defaults' supplies named arguments applied to every definition that does not
+# set them itself (e.g. a bulk-level 'status =' shared by all entries).
 housepi_load_defin_quos <- function(self, implicit_name, xquos,
-                                    append = FALSE) {
+                                    append = FALSE, defaults = list()) {
   assert_nonempty_defin_quos(xquos, self$family)
   if (isFALSE(append)) self$initialize()
   self$store_warn_over <- character()
@@ -300,6 +302,9 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
   # all holder but the infectivity profile key their definitions by a name; a
   # nameless entry there is the tell-tale of a list passed without '!!!'
   requires_name <- "name" %in% names(formals(self$add_quo))
+
+  # only inject defaults the per-definition arguments did not override
+  inject_defaults <- function(keys) defaults[setdiff(names(defaults), keys)]
 
   for (i in seq_along(xquos)) {
     nm <- names(xquos[i])
@@ -319,16 +324,22 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
       if (all(names(args_quos) == "")) {
         args_quos <- rlang::set_names(list(def_quo), implicit_name)
       }
-      rlang::inject(self$add_quo(name = nm, !!!args_quos, .warn_over = FALSE))
+      inj <- inject_defaults(names(args_quos))
+      rlang::inject(self$add_quo(name = nm, !!!args_quos, !!!inj,
+                                 .warn_over = FALSE))
 
     } else if (is.list(def_expr)) {
       # arguments are not quosures
-      rlang::inject(self$add_quo(name = nm, !!!def_expr, .warn_over = FALSE))
+      inj <- inject_defaults(names(def_expr))
+      rlang::inject(self$add_quo(name = nm, !!!def_expr, !!!inj,
+                                 .warn_over = FALSE))
     } else {
       # single implicit definition to pass to add_quo. A stray 'name' is
       # harmless for the nameless infectivity profile (dropped by its add_quo).
       extra_arg <- rlang::set_names(list(def_quo), implicit_name)
-      rlang::inject(self$add_quo(name = nm, !!!extra_arg, .warn_over = FALSE))
+      inj <- inject_defaults(implicit_name)
+      rlang::inject(self$add_quo(name = nm, !!!extra_arg, !!!inj,
+                                 .warn_over = FALSE))
     }
   }
   template_overwrite_warn(self$store_warn_over, self$family)

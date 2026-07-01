@@ -87,33 +87,49 @@ namespace housepi
 		/// Throw an exception if at least a member as missing status.
 		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
 
+		//////////////////////////////////////
+		//////  SETTER : MODELER CALLS  //////
+		//////////////////////////////////////
+
+		/// Request discrete parameter definition.
+		void request_param_discrete(size_t p) { mcmc_->param.request_discrete(p); }
+		/// Request discrete augmented definition.
+		void request_augm_discrete(size_t a) { mcmc_->augm.request_discrete(a); }
+		/// Request discrete infectivity profile definition.
+		void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
+
+		/// Request discrete data definition.
+		void request_data_discrete(size_t d) { mcmc_->data_wide().request_discrete(d); }
+		/// Request data definition greater than zero.
+		void request_data_positive(size_t d) { mcmc_->data_wide().request_positive(d); }
+
+		/// Set a member status to infected. Resolve status observation, if any.
+		/// NOTE: call init_missing_augm to materialize status-specific definition block after.
+		void set_infected(Household &house, Individual &member)
+		{
+			mcmc_->augm.simulate_infected_status(house, member, mcmc_->setup.prng());
+		}
+		/// Set a member status to escaped status.
+		void set_escaped(Household &house, Individual &member)
+		{
+			house.set_new_status_(member, status::ESCAPED);
+		}
+
 		/// Drop all augmented definitions of given individual.
 		void clear_augm(Individual &member) { mcmc_->augm.clear_definitions(member); }
 
-		/// Modeler call. Initialize all augmented variables and observations.
+		/// Set numeric value of augmented variable. If not allowed, raise exception.
+		void set_augm_value(size_t a, const Individual &m, double x) { mcmc_->get_augm_varia(a, m).set(x); }
+
+		/// Initialize all augmented variables and observations.
 		/// If a variable has been set by the user, it's skipped.
 		/// UPDATE: right now simulations assignments must be order independent.
 		void init_missing_augm(Individual &member)
 		{
 			mcmc_->augm.init_definitions_for_simulation(member);
-			mcmc_->augm.restart(mcmc_->setup.prng(), member);
-			mcmc_->augm.sample_obs(mcmc_->setup.prng(), member);
+			mcmc_->augm.restart(member, mcmc_->setup.prng());
+			mcmc_->augm.sample_obs(member, mcmc_->setup.prng());
 		}
-
-		/// Modeler call. Request discrete parameter definition.
-		void request_param_discrete(size_t p) { mcmc_->param.request_discrete(p); }
-		/// Modeler call. Request discrete augmented definition.
-		void request_augm_discrete(size_t a) { mcmc_->augm.request_discrete(a); }
-		/// Modeler call. Request discrete infectivity profile definition.
-		void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
-
-		/// Modeler call. Request discrete data definition.
-		void request_data_discrete(size_t d) { mcmc_->data_wide().request_discrete(d); }
-		/// Modeler call. Request data definition greater than zero.
-		void request_data_positive(size_t d) { mcmc_->data_wide().request_positive(d); }
-
-		/// Set numeric value of augmented variable. If not allowed, raise exception.
-		void set_augm_value(size_t a, const Individual &m, double x) { mcmc_->get_augm_varia(a, m).set(x); }
 
 		//////////////////////
 		//////  GETTER  //////
@@ -135,7 +151,7 @@ namespace housepi
 		double data(size_t d, const Individual &m) const { return mcmc_->data(d, m); }
 		/// Get group-rate value for given individual.
 		double group_rate(size_t g, const Individual &m) const { return mcmc_->group_rate.value(g, m); }
-		
+
 		/// Get contact rate 'from' household member 'to' member.
 		double contact_rate(const Household &house, size_t from, size_t to) const { return mcmc_->contact_rate.value(house, from, to); }
 		/// Wheter hosuehold members i and j are equivalent in terms of rates.

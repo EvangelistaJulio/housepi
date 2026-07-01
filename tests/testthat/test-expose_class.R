@@ -10,15 +10,7 @@ test_that("Reject if calling on non-HousepiModel objects", {
   expect_error(get_augmented(obj), regexp = err)
   expect_error(get_group_rates(obj), regexp = err)
   expect_error(get_infec_profile(obj), regexp = err)
-  expect_error(drop_parameters(obj), regexp = err)
-  expect_error(drop_augmented(obj), regexp = err)
-  expect_error(drop_observations(obj), regexp = err)
-  expect_error(drop_house_observ(obj), regexp = err)
-  expect_error(drop_group_rates(obj), regexp = err)
-  expect_error(drop_contact_rates(obj), regexp = err)
   expect_error(add_contact_rate(obj), regexp = err)
-  expect_error(drop_infectivity_profile(obj), regexp = err)
-  expect_error(drop_all(obj), regexp = err)
   expect_error(add_parameter(obj), regexp = err)
   expect_error(add_augmented(obj), regexp = err)
   expect_error(add_infec_profile(obj, "mk22"), regexp = err)
@@ -123,41 +115,6 @@ test_that("Bulk loading via `defs` mirrors inline name = value pairs", {
 })
 
 ############################################################################
-## Drop wrappers
-############################################################################
-
-test_that("Drop wrappers return clean models", {
-  hhmodel <- new_housepi_model(model = "blank") |>
-    add_parameter(name = "alpha", value = 0.5) |>
-    add_augmented(name = "dummy", value = 3)
-
-  # drop_parameters returns new object without parameters
-  dropped <- drop_parameters(hhmodel)
-  expect_equal(nrow(get_parameters(dropped)), 0L)
-  # original is unchanged
-
-  expect_true("alpha" %in% get_parameters(hhmodel)$name)
-
-  # drop_augmented
-  dropped <- drop_augmented(hhmodel)
-  expect_equal(nrow(get_augmented(dropped)), 0L)
-  expect_true("dummy" %in% get_augmented(hhmodel)$name)
-
-  # drop_group_rates
-  expect_no_error(drop_group_rates(hhmodel))
-  # drop_contact_rates
-  expect_no_error(drop_contact_rates(hhmodel))
-
-  # drop_infectivity_profile
-  expect_no_error(drop_infectivity_profile(hhmodel))
-
-  # drop_all
-  dropped <- drop_all(hhmodel)
-  expect_equal(nrow(get_parameters(dropped)), 0)
-  expect_equal(nrow(get_augmented(dropped)), 0)
-})
-
-############################################################################
 ## Wrappers with data
 ############################################################################
 
@@ -192,12 +149,12 @@ test_that("Group rate wrappers", {
   expect_equal(subset(hhmodel$parameters, name == "sus_student")$value, 1.23)
 
   # check for non-existing custom features
-  hhmodel <- drop_group_rates(hhmodel)
   hhmodel |>
     add_group_rate(
       "susceptibility",
       strata = data.frame(member = c("kaiju", NA),
-                          param_name = c("sus_student", ".reference"))
+                          param_name = c("sus_student", ".reference")),
+      append = FALSE
     ) |>
     expect_warning("not found")
 

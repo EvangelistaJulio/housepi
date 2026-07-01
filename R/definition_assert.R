@@ -128,10 +128,14 @@ assert_valid_definition_name <- function(x, family) {
 }
 
 # Assert that given status(es) name is(are) valid.
+# Numeric statuses must be positive integers; character labels are allowed and
+# resolved to integer codes against the status dictionary at build time.
 assert_valid_status <- function(status) {
   status <- status[!is.na(status)]
-  status_as_int <- as.integer(status)
-  if (any(status_as_int <= 0) || !all(status == status_as_int)) stop_h(
+  if (length(status) == 0) return(invisible())
+  if (is.numeric(status) &&
+        (any(status <= 0) || any(status != as.integer(status)))) stop_h(
     "Status specific definition is valid only for positive integer values."
   )
+  invisible()
 }

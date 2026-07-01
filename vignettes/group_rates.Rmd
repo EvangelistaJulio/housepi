@@ -66,7 +66,7 @@ hhmodel |>
   get_group_rates()
 ```
 To return a group rate to its default, overwrite its definition with argument `by` set to `NA`.
-To drop all previous definitions, call `drop_group_rates()`.
+To drop all previous definitions, add a new one with `append = FALSE`.
 
 # Dependencies between covariates
 

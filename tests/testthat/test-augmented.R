@@ -53,7 +53,8 @@ test_that("Augmented variable definitions are correct", {
   augm <- HousepiAugmented$new()
   aux_add(augm, name = "dummy", value = 3)
   expect_equal(augm$defs$name, "dummy")
-  expect_equal(augm$defs$status, NA_integer_)
+  # status is stored raw (character) to carry labels; NA when generic
+  expect_equal(augm$defs$status, NA_character_)
   expect_equal(augm$defs$const, TRUE)
   expect_equal(augm$defs$discr, FALSE)
   expect_equal(augm$defs$value, "3|N")
@@ -65,7 +66,7 @@ test_that("Augmented variable definitions are correct", {
   aux_add(augm, name = "dummy", value = expo@D, prior = "uniform",
           min = expo_min@A, max = expo_max@P)
   expect_equal(augm$defs$name, "dummy")
-  expect_equal(augm$defs$status, NA_integer_)
+  expect_equal(augm$defs$status, NA_character_)
   expect_equal(augm$defs$value, "expo|D")
   expect_equal(augm$defs$prior, "uniform")
   expect_equal(augm$defs$min, "expo_min|A")
@@ -275,13 +276,13 @@ test_that("Household observations do not interfer with augmented defs", {
   augm |>
     helper_test_aux_load(
       first_test = min(test_date@D),
-      .kind = "house-obs", append = FALSE
+      .kind = "house", append = FALSE
     )
   augm$defs[["name"]] |>
     expect_setequal(c("incub_period", "onset_date", "first_test"))
 
   augm$defs[["kind"]][augm$defs[["name"]] == "first_test"] |>
-    expect_identical("house-obs")
+    expect_identical("house")
   augm$defs[["func"]][augm$defs[["name"]] == "first_test"] |>
     expect_identical("min|x|{test_date|D}")
 
@@ -289,7 +290,7 @@ test_that("Household observations do not interfer with augmented defs", {
   augm |>
     helper_test_aux_load(
       last_test = max(test_date@D),
-      .kind = "house-obs", append = FALSE
+      .kind = "house", append = FALSE
     )
   expect_false("first_test" %in% augm$defs[["name"]])
   augm$defs[["name"]] |>
@@ -341,4 +342,53 @@ test_that("Observation-aware initialization", {
     add_observation("x", obs = "uniform", min = - theta@P, max = theta@P) |>
     run_inference() |>
     expect_error("outside of respective domain")
+})
+
+test_that("Reading an observation node's column: priors and loops are rejected", {
+  # a deterministic readout of an observation is a legitimate downstream value;
+  # only a prior reading an observation, or a dependency loop, is illegal.
+
+  # allowed: a deterministic augmented that just reads the observed value
+  data.frame(house_id = "shadow_moses", status = 1, onset = 0.5) |>
+    new_housepi_model("blank") |>
+    add_observation("onset", obs = "uniform", min = 0, max = 1) |>
+    add_augmented("ocelot", value = onset@D) |>
+    expect_no_error()
+
+  # rule 1: a prior must not read an observation (illegal in both modes; caught
+  # at eager build, so the construction itself errors)
+  data.frame(house_id = "outer_heaven", status = 1, onset = 0.5) |>
+    new_housepi_model("blank") |>
+    add_observation("onset", obs = "uniform", min = 0, max = 1) |>
+    add_augmented("latent", prior = "normal", mean = onset@D) |>
+    expect_error("prior of 'latent' reads observation 'onset'")
+
+  # rule 2: a deterministic read that closes a loop (the observation's support
+  # depends on the reader) is circular
+  data.frame(house_id = "metal_gear", status = 1, onset = 0.5) |>
+    new_housepi_model("blank") |>
+    add_augmented("ocelot", value = onset@D) |>
+    add_observation("onset", obs = "uniform", min = ocelot@A, max = 10) |>
+    expect_error("[Cc]yclic")
+})
+
+test_that("Group/contact rate keyed on an observation is rejected in simulation only", {
+  # the rate feeds transmission, which the observation is generated from: fine in
+  # inference (observed data), circular when generating during simulation.
+  hhmodel <- data.frame(house_id = c(1, 1), status = c(1, 0), severity = c(2, 3)) |>
+    new_housepi_model("chain_binomial") |>
+    add_group_rate("susceptibility", by = "severity") |>
+    add_observation("severity", obs = "uniform", min = 0, max = 5) |>
+    add_parameter_template()
+
+  hhmodel |>
+    run_inference(steps = 4L, thin = 4L, chains = 1L, progress = FALSE) |>
+    suppressMessages() |>
+    suppressWarnings() |>
+    expect_no_error()
+
+  hhmodel |>
+    run_simulation(nrep = 1L) |>
+    suppressMessages() |>
+    expect_error("group rate is keyed on observation 'severity'")
 })

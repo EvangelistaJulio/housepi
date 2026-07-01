@@ -63,7 +63,7 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 | Status $s_{i}$ | Compartment | Serology     |
 |:--------------:|-------------|--------------|
 | $\geq$ `1`     | infectious  | seropositive |
-| `0`            | susceptible | seronegative |
+| `0`            | escaped     | seronegative |
 | `NA`           | missing     | missing      |
 
 </div>

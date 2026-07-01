@@ -273,6 +273,19 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Map a definition's kind label to its typed Kind.
+    static Augmented::Kind kind_from_string_(const std::string &s)
+    {
+        if (s == "obs")
+            return Augmented::Kind::Obs;
+        if (s == "house")
+            return Augmented::Kind::House;
+        if (s == "status")
+            return Augmented::Kind::Status;
+        // if (s == "augm")
+        return Augmented::Kind::Augm;
+    }
+
     Augmented::Augmented(MCMCBase *mcmc)
         : mcmc_(mcmc) {}
     Augmented::~Augmented() = default;
@@ -295,21 +308,25 @@ namespace housepi
         list_house_export.clear();
         varia.clear();
         house_varia.clear();
+        status_obs_def_ = na::INDEX;
+        status_obs_key_ = na::INDEX;
 
         // skip if no augmented definitions
         if (input.empty() && !infec_profile.is_augmented())
             return;
 
-        helper_build_assert_augm_input_(input);            // check entries
-        helper_build_append_infec_profile_(infec_profile); // add infectivity profile
-        helper_build_definition_by_status_();              // process definition by status
-        helper_build_set_allocation_order_();              // allocation and order
-        helper_init_observation_list_();                   // observation nodes
-        helper_init_house_obs_list_();                     // household-level observations
+        helper_build_assert_input_(input);    // check entries
+        helper_build_append_(infec_profile);  // add infectivity profile
+        helper_build_definition_by_status_(); // process definition by status
+        helper_build_set_allocation_order_(); // allocation and order
+        helper_init_observation_list_();      // observation nodes
+        helper_init_house_obs_list_();        // household-level observations
+        assert_status_obs_consistent_();      // assert status observation
+        assert_no_obs_entry_collision_();     // no definition reads an obs entry column
     }
 
     /// Check augmented names and assert no reserved names are used.
-    void Augmented::helper_build_assert_augm_input_(const str_table &input)
+    void Augmented::helper_build_assert_input_(const str_table &input)
     {
         deftable_.clear();
 
@@ -341,7 +358,7 @@ namespace housepi
     bool Augmented::is_obs_node(const std::string &name) const noexcept
     {
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == "obs" && deftable_.c_name[k] == name)
+            if (deftable_.c_kind[k] == Kind::Obs && deftable_.c_name[k] == name)
                 return true;
         return false;
     }
@@ -355,11 +372,12 @@ namespace housepi
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
             if (deftable_.c_name[k] == infprof::AUGM_FUNC ||
-                deftable_.c_kind[k] == "house-obs")
+                deftable_.c_kind[k] == Kind::House ||
+                deftable_.c_kind[k] == Kind::Status)
                 continue;
 
             std::vector<bool> &vec =
-                deftable_.c_kind[k] == "obs" ? obs_param_depen_ : prior_param_depen_;
+                deftable_.c_kind[k] == Kind::Obs ? obs_param_depen_ : prior_param_depen_;
             for (const std::vector<std::string> *col : deftable_.source_cols())
                 for (const std::string &pstr : parse::Definition((*col)[k]).list_parameter_depen())
                     vec[mcmc_->param.khold(pstr)] = true;
@@ -370,8 +388,9 @@ namespace housepi
     {
         for (auto col : {&c_name, &c_status, &c_func, &c_fcumul,
                          &c_value, &c_const, &c_discr, &c_prior,
-                         &c_min, &c_max, &c_proposal, &c_scale, &c_kind})
+                         &c_min, &c_max, &c_proposal, &c_scale})
             col->clear();
+        c_kind.clear();
     }
 
     void Augmented::DefTable_::append(const str_table &input)
@@ -388,10 +407,11 @@ namespace housepi
         c_max += input.at("max");
         c_proposal += input.at("proposal");
         c_scale += input.at("proposal_scale");
-        c_kind += input.at("kind");
+        for (const std::string &s : input.at("kind"))
+            c_kind.push_back(kind_from_string_(s));
     }
 
-    void Augmented::helper_build_append_infec_profile_(InfecProfile &infec_profile)
+    void Augmented::helper_build_append_(InfecProfile &infec_profile)
     {
         if (!infec_profile.is_augmented())
             return;
@@ -414,15 +434,27 @@ namespace housepi
     {
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            // household-level observations are not per-member augmented variables:
-            // keep them out of the key-holder and the status machinery (see
-            // helper_init_house_obs_list_ / init_house_for_simulation).
-            if (deftable_.c_kind[k] == "house-obs")
+            // household-level observations are not per-member
+            // (see helper_init_house_obs_list_ / init_house_for_simulation).
+            if (deftable_.c_kind[k] == Kind::House)
                 continue;
 
             // fill registry with optional augmented definitions
             const std::string astr = deftable_.c_name[k];
             khold_.add(astr);
+
+            // status observation is per-member, but out of status block
+            if (deftable_.c_kind[k] == Kind::Status)
+            {
+#ifndef NDEBUG
+                if (is_any_status_obs())
+                    throw std::invalid_argument(
+                        "Only one status observation can be defined.");
+#endif
+                status_obs_def_ = k;
+                status_obs_key_ = khold(astr);
+                continue;
+            }
 
             // check associated status
             int status = status::MISSING;
@@ -637,7 +669,7 @@ namespace housepi
         }
 
         // NOTE: observation exports are listed separately
-        if (deftable_.c_kind[k] == "obs")
+        if (deftable_.c_kind[k] == Kind::Obs)
             is_to_export = false;
 
         // nothing to do if not to export
@@ -696,7 +728,7 @@ namespace housepi
 
         // raise if deterministic observation node for evaluation
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == "obs" && na::is(deftable_.c_prior[k]))
+            if (deftable_.c_kind[k] == Kind::Obs && na::is(deftable_.c_prior[k]))
                 throw std::invalid_argument(
                     "Deterministic observation node '" + deftable_.c_name[k] +
                     "' cannot be used for evaluation, only simulation.");
@@ -752,7 +784,7 @@ namespace housepi
                 xdepen += parse::Definition((*col)[k]).list_augmented_depen();
 
             // NOTE: observations hold distributions in c_prior but are NOT priors
-            if (na::is(deftable_.c_prior[k]) || deftable_.c_kind[k] == "obs")
+            if (na::is(deftable_.c_prior[k]) || deftable_.c_kind[k] == Kind::Obs)
                 without_prior.push_back(aumgstr);
             else
                 tree[aumgstr] = str::unique(xdepen);
@@ -777,7 +809,7 @@ namespace housepi
 
             for (size_t k : block.order)
             {
-                if (deftable_.c_kind[k] != "obs")
+                if (deftable_.c_kind[k] != Kind::Obs)
                     continue;
 
                 const size_t obs_key = khold(deftable_.c_name[k]);
@@ -810,7 +842,7 @@ namespace housepi
     void Augmented::helper_init_house_obs_list_()
     {
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == "house-obs")
+            if (deftable_.c_kind[k] == Kind::House)
                 list_house_export.push_back(k);
     }
 
@@ -818,8 +850,10 @@ namespace housepi
     {
         DataWide &data_wide = mcmc_->data_wide();
 
-        // reject an unsatisfiable cycle (augmented variable reading a live house-obs)
+        // reject an unsatisfiable cycle (augmented variable reading a live house observation)
         assert_no_live_house_obs_cycle_();
+        // reject a group/contact rate keyed on a generated observation column
+        assert_no_obs_rate_collision_();
 
         house_varia.clear();
         if (list_house_export.empty())
@@ -902,24 +936,113 @@ namespace housepi
 
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            if (deftable_.c_kind[k] != "augm")
+            if (deftable_.c_kind[k] != Kind::Augm)
                 continue;
             for (const std::vector<std::string> *col : deftable_.source_cols())
             {
                 const std::string &expr = (*col)[k];
                 if (na::is(expr))
                     continue;
-                for (const std::string &d : parse::Definition(expr).list_data_wide_depen())
-                    if (contains(live_names, d))
+                for (const std::string &dstr : parse::Definition(expr).list_data_wide_depen())
+                    if (contains(live_names, dstr))
                         throw std::invalid_argument(
                             "Cyclic dependency for simulation: augmented '" + deftable_.c_name[k] +
-                            "' reads data column '" + d + "', a household observation derived from a "
-                                                          "generated observation that depends on augmented variables.\n"
-                                                          "Define '" +
-                            deftable_.c_name[k] + "' without referencing '" + d +
+                            "' reads data column '" + dstr + "', a household observation derived from a "
+                                                             "generated observation that depends on augmented variables.\n"
+                                                             "Define '" +
+                            deftable_.c_name[k] + "' without referencing '" + dstr +
                             "' (an anchor-free distribution; the likelihood is invariant to the time origin).");
             }
         }
+    }
+
+    void Augmented::assert_no_obs_entry_collision_() const
+    {
+        if (list_obs_export.empty())
+            return;
+
+        // entry-point data column of each single observation node
+        const std::vector<std::string> obs_names = khold(list_obs_export);
+
+        // augmented dependency tree (name -> @A deps), accumulated across status rows
+        str_table tree;
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+        {
+            if (deftable_.c_kind[k] != Kind::Augm &&
+                deftable_.c_kind[k] != Kind::Obs)
+                continue;
+            std::vector<std::string> &deps = tree[deftable_.c_name[k]];
+            for (const std::vector<std::string> *col : deftable_.source_cols())
+                deps += parse::Definition((*col)[k]).list_augmented_depen();
+            deps = str::unique(deps);
+        }
+
+        const auto data_obs_refs = [&](const std::string &expr)
+        {
+            std::vector<std::string> hits;
+            if (na::is(expr))
+                return hits;
+            for (const std::string &dstr : parse::Definition(expr).list_data_wide_depen())
+                if (contains(obs_names, dstr))
+                    hits.push_back(dstr);
+            return hits;
+        };
+
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+        {
+            if (deftable_.c_kind[k] != Kind::Augm && deftable_.c_kind[k] != Kind::Obs)
+                continue;
+            const std::string &name = deftable_.c_name[k];
+
+            // Rule 1: a sampled quantity's prior (distribution + support) must not read an
+            // observation. A prior may only depend on parameters and other latents.
+            if (!na::is(deftable_.c_prior[k]))
+                for (const std::string *col : {&deftable_.c_prior[k], &deftable_.c_min[k], &deftable_.c_max[k]})
+                    for (const std::string &dstr : data_obs_refs(*col))
+                        throw std::invalid_argument(
+                            "Definition collision: the prior of '" + name + "' reads observation '" + dstr +
+                            "'.\nA prior cannot depend on an observed or generated value.");
+
+            // Rule 2: a deterministic definition may read an observation (a downstream
+            // readout) unless it closes a loop: the observation transitively depends on it.
+            for (const std::string *col : {&deftable_.c_value[k], &deftable_.c_func[k]})
+                for (const std::string &dstr : data_obs_refs(*col))
+                {
+                    if (dstr == name)
+                        continue; // observation node reading its own entry column
+                    // loop iff the observation 'd' is a (transitive) dependent of 'name'
+                    if (contains(dependency::order_conditioned_on(name, tree), dstr))
+                        throw std::invalid_argument(
+                            "Cyclic definition: '" + name + "' reads observation '" + dstr +
+                            "', but '" + dstr + "' depends on '" + name +
+                            "\n. Break the loop by defining one of them independently of the other.");
+                }
+        }
+    }
+
+    void Augmented::assert_no_obs_rate_collision_() const
+    {
+        if (list_obs_export.empty())
+            return;
+
+        // entry-point data column of each single observation node
+        std::vector<std::string> obs_names = khold(list_obs_export);
+
+        const auto reject = [&](const std::string &origin, const std::string &d)
+        {
+            throw std::invalid_argument(
+                "Definition collision: a " + origin + " is keyed on observation '" + d +
+                "'.\nThe " + origin + " feeds the transmission model, which the observation is "
+                                      "generated from, so it cannot be assigned coherently during simulation. Key the " +
+                origin + " on a column that is not an observation node.");
+        };
+
+        for (const std::string &d : mcmc_->group_rate.data_wide_depen())
+            if (contains(obs_names, d))
+                reject("group rate", d);
+        for (const std::string &d : mcmc_->contact_rate.data_wide_depen())
+            if (contains(obs_names, d))
+                reject("contact rate", d);
     }
 
     void Augmented::helper_init_house_attributes_(Household &house, size_t j)
@@ -1032,6 +1155,24 @@ namespace housepi
         return false;
     }
 
+    void Augmented::assert_status_obs_consistent_()
+    {
+        if (!is_any_status_obs())
+            return;
+
+        const size_t k = status_obs_def_;
+        const std::string &astr = deftable_.c_name[k];
+
+        // status must be weights must be constant data: a status fixed in the data contributes
+        // a constant to the likelihood, dropped during inference.
+        // NOTE: outcome k resolves to infected status (INFECTED + k); the matching
+        // augmented/observation block is selected at simulation (status-specific if
+        // declared, otherwise the generic one), so no block count is enforced here.
+        if (!house_obs_is_pure_data_(k))
+            throw std::invalid_argument(
+                "Status observation '" + astr + "' must depend only on data or numeric constants.");
+    }
+
     void Augmented::materialize_data_bound_house_obs(DataWide &data_wide)
     {
         if (list_house_export.empty())
@@ -1079,7 +1220,7 @@ namespace housepi
                         "Household observation '" + astr + "' for " + house.err_name() +
                         " was expected to be greater than zero, as requested by model.");
 
-                // enforce inference-optimization 
+                // enforce inference-optimization
                 hvar.optimize();
 
                 for (const Individual &member : house)
@@ -1160,7 +1301,8 @@ namespace housepi
             if (str::tobool(deftable_.c_const[k]))
             {
                 // placeholder for observation node if generated by simulation
-                if (simulation && deftable_.c_kind[k] == "obs")
+                if (simulation &&
+                    (deftable_.c_kind[k] == Kind::Obs || deftable_.c_kind[k] == Kind::Status))
                     avar.init_numeric(0.);
                 else
                     avar.init_numeric(
@@ -1250,12 +1392,31 @@ namespace housepi
     ///////////////////////////////////  Augmented : user reset  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::sample_obs(rnd_gen &prng, Individual &member)
+    void Augmented::sample_obs(Individual &member, rnd_gen &prng)
     {
         // draw each observation into its Variable; @D consumers read it straight from
         // there (the data column, if any, is never overwritten).
         for (size_t a : list_obs(member))
             varia_of_(member).vec[a].draw_value(prng);
+    }
+
+    void Augmented::simulate_infected_status(Household &house, Individual &member, rnd_gen &prng)
+    {
+        int new_status = status::INFECTED;
+
+        if (is_any_status_obs())
+        {
+            Variable &svar = varia_of_(member).vec[status_obs_key_];
+            // lazy materialize status observation on first use
+            if (svar.is_empty())
+                helper_init_attributes_(member, status_obs_def_, true);
+            svar.draw_value(prng);
+
+            // NOTE: I am assuming value draws are integer in [0, max - 1]
+            new_status += static_cast<int>(svar.value());
+        }
+
+        house.set_new_status_(member, new_status);
     }
 
     void Augmented::restart(rnd_gen &prng)
@@ -1265,7 +1426,7 @@ namespace housepi
 
         for (Household &house : mcmc_->data_wide())
             for (size_t i : house.infected_hhindexes())
-                restart(prng, house.member(i));
+                restart(house.member(i), prng);
     }
 
     [[noreturn]] void Augmented::throw_obs_init_error(const Individual &member) const
@@ -1274,7 +1435,7 @@ namespace housepi
 
         for (size_t k : block.order)
         {
-            if (deftable_.c_kind[k] != "obs")
+            if (deftable_.c_kind[k] != Kind::Obs)
                 continue;
 
             const Variable &ovar = varia_of_(member).vec[khold(deftable_.c_name[k])];

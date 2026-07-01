@@ -24,6 +24,9 @@ rd_mdl_astmpl_ <- "`logical(1)` Store dynamic library as a local template.
 If `FALSE` recompile the model at every new session (default)."
 rd_mdl_force_ <- "`logical(1)` Compile even if cached model already exists."
 rd_mdl_quiet_ <- "`logical(1)` If `TRUE` hide compilation commands."
+rd_mdl_escaped_ <- "`character(1)` Label for status code `0` (individuals not
+among the declared infected statuses) when the `status` column is
+character/factor."
 rd_mdl_flags_ <- "Named arguments. Additional compilation options:
 \\describe{
   \\item{`discr`}{`logical(1)` If `TRUE` compile to discrete time.}

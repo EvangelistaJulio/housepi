@@ -92,6 +92,19 @@ HousepiGenerator <- R6::R6Class(
     # List of levels of the factors in the data long.
     info_data_long_ = NULL,
 
+    # @field status_levels_ `character()`\cr
+    # Ordered infected-status labels for refactoring the status column.
+    status_levels_ = character(),
+
+    # @field escaped_ `character(1)`\cr
+    # Label for status code 0 (not among the declared infected statuses).
+    escaped_ = "escaped",
+
+    # @field status_data_labels_ `character()`\cr
+    # Infected-status labels observed in (character/factor) input data, in code
+    # order. Empty when status was numeric. Source of truth for the dictionary.
+    status_data_labels_ = character(),
+
     ############################################################################
     ############################################################################
     ############################################################################
@@ -517,6 +530,18 @@ HousepiGenerator <- R6::R6Class(
     infec_status_set = function(value) {
       if (!missing(value)) stop_read_only("infec_status_set")
       private$infec_status_set_
+    },
+
+    #' @field status_data_labels `character()`. Infected labels seen in data.
+    status_data_labels = function(value) {
+      if (!missing(value)) stop_read_only("status_data_labels")
+      private$status_data_labels_
+    },
+
+    #' @field escaped `character(1)`. Label for status code 0.
+    escaped = function(value) {
+      if (!missing(value)) stop_read_only("escaped")
+      private$escaped_
     }
   ),
 
@@ -531,11 +556,18 @@ HousepiGenerator <- R6::R6Class(
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
     #' @param quiet `r rd_mdl_quiet_`
+    #' @param escaped `r rd_mdl_escaped_`
     #' @param ... `r rd_mdl_flags_`
     initialize = function(model = NA_character_, as_template = FALSE,
-                          force = FALSE, quiet = FALSE, ...) {
+                          force = FALSE, quiet = FALSE,
+                          escaped = "escaped", ...) {
       # helper construction option for copying
       if (isTRUE(.housepi_env$hollow)) return(invisible(self))
+
+      if (length(escaped) != 1 || !is.character(escaped)) stop_h(
+        "'escaped' must be a non-empty string.", format_type_error(escaped)
+      )
+      private$escaped_ <- escaped
 
       # assign name to the model
       choice <- private$helper_init_model_choice_(model)
@@ -593,16 +625,25 @@ HousepiGenerator <- R6::R6Class(
       output
     },
 
+    #' @description Record the ordered infected-status labels for refactoring.
+    #' @param levels `character()`. Status labels in code order (1..K).
+    set_status_levels = function(levels) {
+      private$status_levels_ <- as.character(levels)
+      invisible(self)
+    },
+
     # UPDATE: I shall drop necessity for refactoring with variant data.
     #' @description Refactor a wide-format data.frame back to user levels.
     refactor_data_wide = function(x) {
-      cpp_data_refactor(x, private$info_data_wide_, private$cols_data_wide_)
+      cpp_data_refactor(x, private$info_data_wide_, private$cols_data_wide_,
+                        private$status_levels_, private$escaped_)
     },
 
     # UPDATE: I shall drop necessity for refactoring with variant data.
     #' @description Refactor a long-format data.frame back to user levels.
     refactor_data_long = function(x) {
-      cpp_data_refactor(x, private$info_data_long_, private$cols_data_long_)
+      cpp_data_refactor(x, private$info_data_long_, private$cols_data_long_,
+                        private$status_levels_, private$escaped_)
     },
 
     #' @description Allocate fresh Rcpp pointers (used after a copy).
@@ -617,10 +658,11 @@ HousepiGenerator <- R6::R6Class(
     #' @param data `data.frame`.
     #' @return `data.frame` Factorized data, ready for `push_data_wide()`.
     factorize_data_wide = function(data) {
-      embed <- cpp_data_factorize(data)
+      embed <- cpp_data_factorize(data, private$escaped_)
       private$info_data_wide_ <- embed$info
       private$cols_data_wide_ <- embed$cols
       private$infec_status_set_ <- embed$status
+      private$status_data_labels_ <- embed$status_labels
       embed$data
     },
 
@@ -633,7 +675,7 @@ HousepiGenerator <- R6::R6Class(
         format_type_error(data_long)
       )
 
-      embed <- cpp_data_factorize(data_long)
+      embed <- cpp_data_factorize(data_long, private$escaped_)
       private$info_data_long_ <- embed$info
       private$cols_data_long_ <- embed$cols
       .engine$import_data_long(private$mcmc_ptr_, embed$data)

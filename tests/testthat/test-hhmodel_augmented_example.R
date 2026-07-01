@@ -64,7 +64,6 @@ test_that("Missing function arguments raise errors", {
 
   # data with NA values: the NA flows through to the log-probability NaN guard
   hhmodel |>
-    drop_augmented() |>
     add_augmented(name = "proba", func = "gamma",
                   func_args = c(shape = 2)) |>
     evaluate_log_lik() |>
@@ -172,12 +171,12 @@ test_that("Augmented aliasing works as expected", {
 
   # check that order does not matter
   hhmodel |>
-    drop_augmented() |>
     add_augmented(
       .layer = list(func = "gamma",
                     func_args = c(x = .dummy, shape = 2, scale = scale@P)),
       proba = .layer,
-      .dummy = x@D
+      .dummy = x@D,
+      append = FALSE
     ) |>
     eval_log_density() |>
     expect_equal(ll)

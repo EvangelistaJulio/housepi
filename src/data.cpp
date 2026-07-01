@@ -58,20 +58,20 @@ namespace housepi
         last.status_ = status::MISSING;
         status_vec_.push_back(hhindex);
         if (!status::is_missing(status))
-            helper_set_status_(hhindex, status);
+            set_new_status_(last, status);
     }
 
-    void Household::helper_set_status_(size_t i, int snew)
+    void Household::set_new_status_(Individual &member, int snew)
     {
-        Individual &member = members_[i];
-        int cold = status::category(member.status());
-        int cnew = status::category(snew);
+        const size_t i = member.hhindex();
+        size_t cold = status::category(member.status());
+        size_t cnew = status::category(snew);
 
         member.status_ = snew; // NOTE: might just change within infected status
         if (cold == cnew)
             return;
 
-        // segment boundaries [infected | susceptible | missing]
+        // segment boundaries [infected | escaped | missing]
         size_t bounds[] = {0, ninf_, ninf_ + nsus_, house_size_};
         // extract old position given the old segment
         size_t pos = std::find(&status_vec_[bounds[cold]], &status_vec_[bounds[cold + 1]], i) -
@@ -296,11 +296,11 @@ namespace housepi
             size_t house_size = house.size();
             size_t n_infec = house.n_infected_status();
             size_t n_miss = house.n_missing_status();
-            size_t n_susc = house.n_susceptible_status();
+            size_t n_esc = house.n_escaped_status();
 
             report_indiv.infectious += n_infec;
             report_indiv.missing += n_miss;
-            report_indiv.susceptible += n_susc;
+            report_indiv.escaped += n_esc;
 
             report_house.no_cases += (n_infec == 0);
             report_house.at_least_1_case += (n_infec > 0);
@@ -572,8 +572,8 @@ namespace housepi
     void DataWide::recover_all_status() noexcept
     {
         for (Household &house : house_vector_)
-            for (size_t i = 0; i < house.size(); ++i)
-                house.helper_set_status_(i, indiv_data_[Index::of(house.member(i))].status);
+            for (Individual &member: house)
+                house.set_new_status_(member, indiv_data_[Index::of(member)].status);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

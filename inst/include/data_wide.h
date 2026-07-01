@@ -16,6 +16,7 @@
 #include "tools/data_reports.h"
 #include "tools/keys.h"
 #include "tools/logproba.h"
+#include "tools/nan.h"
 #include "tools/types.h"
 
 #include "function.h"
@@ -210,7 +211,7 @@ namespace housepi
             EquivalenceClass_() = default;
             EquivalenceClass_(const std::vector<size_t> &group)
                 : head_(group.front()), weight_(group.size()) {}
-            size_t head_ = -1;
+            size_t head_ = na::INDEX;
             size_t weight_ = 1;
         };
         std::vector<EquivalenceClass_> eq_classes_ = {};      /// Equivalence classes

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
@@ -15,6 +16,7 @@
 
 #include "tools/keys.h"
 #include "tools/logproba.h"
+#include "tools/nan.h"
 #include "tools/random.h"
 #include "tools/types.h"
 
@@ -44,6 +46,15 @@ namespace housepi
 
     struct Augmented : public KeyModule
     {
+        /// Discriminates definition rows: augmented latent vs observation flavours.
+        enum class Kind : std::uint8_t
+        {
+            Augm,
+            Obs,
+            House,
+            Status
+        };
+
         std::vector<size_t> list_export = {};       /// augmented to export
         std::vector<size_t> list_obs_export = {};   /// observation to export
         std::vector<size_t> list_house_export = {}; /// household-observation to export
@@ -92,7 +103,11 @@ namespace housepi
 
         /// Sample observation values from their distributions.
         /// NOTE: used for simulations.
-        void sample_obs(rnd_gen &prng, Individual &member);
+        void sample_obs(Individual &member, rnd_gen &prng);
+
+        /// Sample the status observation, if any.
+        /// NOTE: used for simulations.
+        void simulate_infected_status(Household &house, Individual &member, rnd_gen &prng);
 
         /// Initialize household-level observations for simulations.
         void init_house_for_simulation();
@@ -106,7 +121,7 @@ namespace housepi
         void materialize_data_bound_house_obs(DataWide &data_wide);
 
         /// Reset augmented initial values for given individual.
-        void restart(rnd_gen &prng, Individual &member)
+        void restart(Individual &member, rnd_gen &prng)
         {
             for (size_t a : list_sample(member))
                 varia_of_(member).vec[a].restart(prng);
@@ -175,6 +190,8 @@ namespace housepi
         bool param_affects_augm_prior(size_t p) const noexcept { return prior_param_depen_[p]; }
         /// If there are definitions for observations.
         bool is_any_obs() const noexcept { return is_any_obs_; }
+        /// If a status observation is defined.
+        bool is_any_status_obs() const noexcept { return !na::is(status_obs_def_); }
         /// Whether the given name is an observation node (kind "obs").
         bool is_obs_node(const std::string &name) const noexcept;
         /// If moving given parameter may change the observation log-likelihood.
@@ -189,10 +206,8 @@ namespace housepi
         bool is_any_prior_ = false;    /// at least one augmented prior is provided
         bool is_any_obs_ = false;      /// at least one observation node is provided
 
-        /// Parameters whose moves can change the augmented log-prior.
-        std::vector<bool> prior_param_depen_ = {};
-        /// Parameters whose moves can change the observation log-likelihood.
-        std::vector<bool> obs_param_depen_ = {};
+        size_t status_obs_def_ = na::INDEX; /// deftable row of status observation
+        size_t status_obs_key_ = na::INDEX; /// key-holder slot of status observation
 
         /// User defined discrete parameters
         std::unordered_set<size_t> user_discrete_set_ = {};
@@ -200,6 +215,11 @@ namespace housepi
         std::unordered_map<int, std::vector<size_t>> map_status_to_def_row_ = {};
         /// Status to internal index.
         std::unordered_map<int, size_t> map_status_to_block_ = {};
+
+        /// Parameters whose moves can change the augmented log-prior.
+        std::vector<bool> prior_param_depen_ = {};
+        /// Parameters whose moves can change the observation log-likelihood.
+        std::vector<bool> obs_param_depen_ = {};
 
         /// Auxiliary definition table.
         struct DefTable_
@@ -210,7 +230,7 @@ namespace housepi
             col c_value = {}, c_const = {}, c_discr = {};
             col c_prior = {}, c_min = {}, c_max = {};
             col c_proposal = {}, c_scale = {};
-            col c_kind = {}; /// augmented: "augm"; observation: "obs" or "house-obs"
+            std::vector<Kind> c_kind = {}; /// augm | obs | house | status
 
             /// Clear all definitions.
             void clear();
@@ -251,7 +271,7 @@ namespace housepi
         const StatusBlock_ &block_of_(const Individual &m) const { return status_blocks_[varia_of_(m).idx]; }
 
         /// Check augmented names and assert no reserved names are used.
-        void helper_build_assert_augm_input_(const str_table &input);
+        void helper_build_assert_input_(const str_table &input);
 
         /// Collect parameters feeding any augmented prior. Infectivity profile excluded.
         /// NOTE: call once parameters are registered, i.e. from init_for_evaluation.
@@ -259,7 +279,7 @@ namespace housepi
         void set_prior_param_depen_();
 
         /// Eventually append infectivity profile definitions.
-        void helper_build_append_infec_profile_(InfecProfile &infec_profile);
+        void helper_build_append_(InfecProfile &infec_profile);
 
         /// Assert augmented status/generic definitions are non degenerate.
         /// Assert status-specific definitions are only for infected status.
@@ -293,6 +313,9 @@ namespace housepi
         /// Build per-status obs lists and augmented inverse-dependency map.
         void helper_init_observation_list_();
 
+        /// Assert status observation as correct dependency and output.
+        void assert_status_obs_consistent_();
+
         /// Collect household-level deftable rows into list_house_export.
         void helper_init_house_obs_list_();
         /// Deal with household-level observations.
@@ -310,6 +333,11 @@ namespace housepi
         bool house_obs_is_live_(size_t k) const;
         /// Reject an augmented variable that reads a live data-bound household observation.
         void assert_no_live_house_obs_cycle_() const;
+        /// Reject a definition whose prior reads an observation column.
+        void assert_no_obs_entry_collision_() const;
+        /// Reject a group/contact rate keyed on an observation column: it feeds the
+        /// transmission model the observation is generated from. Simulation only.
+        void assert_no_obs_rate_collision_() const;
 
         /// Get the definition order for current member according to its status.
         /// NOTE: if status hasn't been observed in data, build on demand.

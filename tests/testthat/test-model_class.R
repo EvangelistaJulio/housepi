@@ -521,9 +521,9 @@ test_that("Contact rate definition work as expected", {
   # or to exactly one param value: no multiplications
   expect_true(all(cr_mtx %in% c(0, 1, params)))
 
-  # drop_contact_rates cleans up the associated parameter definitions
+  # drop_contact_rates_ cleans up the associated parameter definitions
   param_names_before <- hhmodel$parameters$name
-  hhmodel$drop_contact_rates()
+  hhmodel$.__enclos_env__$private$drop_contact_rates_()
   any(setdiff(names(params), ".reference") %in% hhmodel$parameters$name) |>
     expect_false()
   # the template parameters added previously must survive

@@ -14,6 +14,7 @@
 #' @param as_template `r rd_mdl_astmpl_`
 #' @param force `r rd_mdl_force_`
 #' @param quiet `r rd_mdl_quiet_`
+#' @param escaped `r rd_mdl_escaped_`
 #' @param ... `r rd_mdl_flags_`
 #' @return `r rd_model_in_`
 #' @examples
@@ -26,10 +27,11 @@
 #' @export
 new_housepi_model <- function(data = NULL, model = NA_character_,
                               as_template = FALSE,
-                              force = FALSE, quiet = FALSE, ...) {
+                              force = FALSE, quiet = FALSE,
+                              escaped = "escaped", ...) {
   HousepiModel$new(data = data, model = model,
                    as_template = as_template,
-                   force = force, quiet = quiet, ...)
+                   force = force, quiet = quiet, escaped = escaped, ...)
 }
 
 ############################################################################
@@ -92,93 +94,6 @@ summarise_house_sizes <- function(hhmodel) {
 #' @rdname summarise_house_sizes
 #' @export
 summarize_house_sizes <- summarise_house_sizes
-
-############################################################################
-############################################################################
-############################################################################
-
-#' @title Drop currently loaded definitions from a housepi model
-#' @description Remove current definitions from the housepi model.
-#' Each variant clears a single category  while `drop_all()` clears them all.
-#' @param hhmodel `r rd_model_in_`
-#' @return `r rd_model_out_`
-#' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
-#'   add_parameter_template()
-#' hhmodel |>
-#'   drop_parameters() |>
-#'   get_parameters()
-#' @rdname drop_definitions
-#' @export
-drop_parameters <-  function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$drop_parameters()
-  new_obj
-}
-
-#' @rdname drop_definitions
-#' @export
-drop_augmented <-  function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$drop_augmented()
-  new_obj
-}
-
-#' @rdname drop_definitions
-#' @export
-drop_observations <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$drop_observations()
-  new_obj
-}
-
-#' @rdname drop_definitions
-#' @export
-drop_house_observ <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$drop_house_observ()
-  new_obj
-}
-
-#' @rdname drop_definitions
-#' @export
-drop_group_rates <-  function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$drop_group_rates()
-  new_obj
-}
-
-#' @rdname drop_definitions
-#' @export
-drop_contact_rates <-  function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$drop_contact_rates()
-  new_obj
-}
-
-#' @rdname drop_definitions
-#' @export
-drop_infectivity_profile <-  function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$drop_infectivity_profile()
-  new_obj
-}
-
-#' @rdname drop_definitions
-#' @export
-drop_all <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  new_obj$drop_all()
-  new_obj
-}
 
 ############################################################################
 ############################################################################
@@ -448,7 +363,7 @@ add_augmented <- function(hhmodel,
   pvt <- new_obj$.__enclos_env__$private
   if (!is.null(import)) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append
+    append = append, status = status
   )
   else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value),
@@ -461,7 +376,7 @@ add_augmented <- function(hhmodel,
   )
   else pvt$augm_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...)),
-    append = append
+    append = append, status = status
   )
   pvt$rebuild_()
   new_obj
@@ -526,6 +441,42 @@ add_observation <- function(hhmodel, name = NULL,
   new_obj
 }
 
+#' @title Add a status process
+#' @description
+#' Declare how a member's infected status is generated during simulation, as a
+#' discrete distribution over the infected statuses. The probabilities are given
+#' in declaration order (the \eqn{k}-th probability is that of the \eqn{k}-th
+#' infected status); when named, the names become the status labels.
+#' During evaluation the status is fixed observed data, so it contributes a
+#' constant and the probabilities must be data or numeric constants.
+#' @param hhmodel `r rd_model_in_`
+#' @param ... Probabilities of the infected statuses, in order. When named, the
+#' names label the corresponding statuses.
+#' @param dist `character(1)`. Discrete distribution generating the status.
+#' @return `r rd_model_out_`
+#' @export
+add_status <- function(hhmodel, ..., dist = "categorical") {
+  stopifnothousepi(hhmodel)
+  new_obj <- hhmodel$copy()
+  pvt <- new_obj$.__enclos_env__$private
+  weights <- rlang::enquos(...)
+  if (length(weights) == 0) stop_h(
+    "No status probability provided.",
+    i = "Provide at least one infected-status probability."
+  )
+  # a single reserved node carries the status process (there is one status)
+  pvt$augm_$add_quo(
+    name = ".status", value = NULL, status = NA_integer_,
+    const = NA, discr = FALSE, prior = NA_character_,
+    obs = dist, weights,
+    .assert = TRUE, .kind = "status"
+  )
+  # record the ordered status labels (the dictionary lives here, not in C++)
+  pvt$augm_$set_status_levels(names(weights))
+  pvt$rebuild_()
+  new_obj
+}
+
 #' @title Add household-level observations
 #' @description
 #' Add household-level observations for all members.
@@ -555,17 +506,17 @@ add_house_observ <- function(hhmodel, name = NULL, value = NULL, ...,
   pvt <- new_obj$.__enclos_env__$private
   if (!is.null(import)) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append, .kind = "house-obs"
+    append = append, .kind = "house"
   )
   else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, discr = discr,
     min = rlang::enquo(min), max = rlang::enquo(max),
-    .assert = TRUE, .kind = "house-obs"
+    .assert = TRUE, .kind = "house"
   )
   else pvt$augm_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...)),
-    append = append, .kind = "house-obs"
+    append = append, .kind = "house"
   )
   pvt$rebuild_()
   new_obj
@@ -612,11 +563,11 @@ add_group_rate <-  function(hhmodel,
                             import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
+  pvt <- new_obj$.__enclos_env__$private
   if (is.null(name) && isFALSE(append)) {
     # NOTE: dropping group rates might cause parameter drops
-    new_obj$drop_group_rates()
+    pvt$drop_group_rates_()
   }
-  pvt <- new_obj$.__enclos_env__$private
   if (!is.null(import)) pvt$group_rates_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append

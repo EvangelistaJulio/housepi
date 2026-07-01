@@ -29,6 +29,11 @@ NULL
 .onLoad <- function(libname, pkgname) {
   pkgbuild::check_build_tools(quiet = TRUE)
   .engine <<- Rcpp::Module(pkgname, PACKAGE = pkgname)
+  # default label for the susceptible status (code 0) in character status output
+  op <- options()
+  if (is.null(op[["housepi.susceptible_label"]])) {
+    options(housepi.susceptible_label = "susceptible")
+  }
 }
 
 .onUnload <- function(libpath) {

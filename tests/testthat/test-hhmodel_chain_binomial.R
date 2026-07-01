@@ -13,7 +13,7 @@ grates_1 <- list(a = list(com = 1., sus = 1., inf = 1.),
 grates_3 <- c(grates_1,
               list(c = list(com = 0.5, sus = 0.8, inf = 1.5)))
 
-# members sorted infected, susceptible
+# members sorted infected, escaped
 house_3 <- data.frame(
   id = sprintf("hh_01_%s", seq(1, 4)),
   house_id = "hh_01",
@@ -307,7 +307,7 @@ test_that("Three infected members likelihood is correct", {
   log_lik <- -sum(commu_infec_rate)
   expect_equal(eval_log_density(hhmodel), log_lik)
 
-  # CASE 2: mixed infected and susceptible
+  # CASE 2: mixed infected and escaped
   n_infec <- sum(house$status > 0)
   hhmodel <- house |>
     new_housepi_model("chain_binomial") |>

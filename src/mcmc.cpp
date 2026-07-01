@@ -813,7 +813,7 @@ namespace housepi
                     ++attempt;
                     if (!augm.is_any_sample() || attempt >= N_INIT_ATTEMPTS_)
                         augm.throw_obs_init_error(member);
-                    augm.restart(setup.prng(), member);
+                    augm.restart(member, setup.prng());
                 }
                 acc.obs += augm.commit_obs_log_lik(member);
             }
@@ -1127,8 +1127,7 @@ namespace housepi
         if (scheme == "adaptive" && !std::isfinite(ladder.mean_log_lik.front()))
         {
             msg::warning(
-                "Adaptive scheme is undefined at inverse "
-                "temperature 0 with -Inf log-likelihood.\n"
+                "Adaptive scheme is undefined at inverse temperature 0 with -Inf log-likelihood.\n"
                 "Falling back to the power-fractions scheme.");
             ladder.scheme = "power-fractions";
         }

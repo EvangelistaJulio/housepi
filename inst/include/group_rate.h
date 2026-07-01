@@ -42,7 +42,11 @@ namespace housepi
         /// Whether two members belong to the same group-rate partition.
         bool same_group(const Individual &a, const Individual &b) const noexcept { return group_index_[Index::of(a)] == group_index_[Index::of(b)]; }
 
+        /// Data-wide feature columns the group-rate rules match on.
+        const std::vector<std::string> &data_wide_depen() const noexcept { return data_wide_depen_; }
+
     private:
+        std::vector<std::string> data_wide_depen_ = {}; /// data feature columns used by rules
         /// Individual group rates.
         struct IndivGroup_
         {

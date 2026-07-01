@@ -95,7 +95,7 @@ public:
 		const double beta = transmission_rate(house.size());
 
 		double output = 0.;
-		for (size_t s : house.susceptible_hhindexes())
+		for (size_t s : house.escaped_hhindexes())
 		{
 			const Individual &member_s = house.member(s);
 			const double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_intro;
@@ -107,7 +107,7 @@ public:
 			const Individual &member_i = house.member(i);
 			const double mu_i = group_rate(GroupRateKey::infectivity, member_i);
 
-			for (size_t s : house.susceptible_hhindexes())
+			for (size_t s : house.escaped_hhindexes())
 				output -= mu_i * beta * cumul_mtx[i][s] *
 						  contact_rate(house, i, s) *
 						  group_rate(GroupRateKey::susceptibility, house.member(s));
@@ -198,9 +198,9 @@ public:
 #endif
 	}
 
+	/// Store cumulative and instantaneous infectivity profiles for household.
 	/// WARNING: unpredictable behavior if i is not an infector.
 	/// WARNING: these function must not call any mutable parameter.
-	/// Store cumulative and instantaneous infectivity profiles for household.
 	void update_house_cache_dependecies(Household &house) override final
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtxKey::inst);
@@ -217,11 +217,11 @@ public:
 			const Individual &member_i = house.member(i);
 			const double t_infec_i = aug(AugmKey::infec_time, member_i);
 
-			///////////////////////////////////
-			//////  Susceptible Members  //////
-			///////////////////////////////////
+			///////////////////////////////
+			//////  Escaped Members  //////
+			///////////////////////////////
 
-			for (size_t s : house.susceptible_hhindexes())
+			for (size_t s : house.escaped_hhindexes())
 			{
 				const Individual &member_s = house.member(s);
 				const double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_infec_i;
@@ -263,11 +263,11 @@ public:
 		const size_t i = member_i.hhindex();
 		const double t_infec_i = aug(AugmKey::infec_time, member_i);
 
-		///////////////////////////////////
-		//////  Susceptible Members  //////
-		///////////////////////////////////
+		///////////////////////////////
+		//////  Escaped Members  //////
+		///////////////////////////////
 
-		for (size_t s : house.susceptible_hhindexes())
+		for (size_t s : house.escaped_hhindexes())
 		{
 			const Individual &member_s = house.member(s);
 			double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_infec_i;
@@ -335,23 +335,22 @@ public:
 		const double alpha = par(ParamKey::alpha);
 		const double beta = transmission_rate(house.size());
 
-		// infection of secondary cases within each susceptible's live at-risk window
-		// [., start_date + study_period]; start_date is a live household observation,
-		// so a secondary with an earlier test date rewires the window automatically.
 		const double t0 = aug(AugmKey::infec_time, member_0);
-		for (double t = t0 + Dt; house.n_susceptible_status() > 0; t += Dt)
+		for (double t = t0 + Dt; house.n_escaped_status() > 0; t += Dt)
 		{
 			bool any_at_risk = false;
 			for (Individual &member_i : house)
 			{
 				if (member_i.is_infected_status())
 					continue;
+				// NOTE: risk-window is live (observation start_date can be wired through `data()`)
 				if (t > data(DataKey::start_date, member_i) + data(DataKey::study_period, member_i))
 					continue;
 				any_at_risk = true;
+
 				if (exponential() < roi_inst_simulation(house, member_i, t, alpha, beta) * Dt)
 				{
-					house.set_infected_status(member_i);
+					set_infected(house, member_i);
 					set_augm_value(AugmKey::infec_time, member_i, t);
 					init_missing_augm(member_i);
 				}
@@ -366,13 +365,13 @@ public:
 	{
 		size_t i0 = uniform() * house.size();
 		Individual &member_0 = house.member(i0);
-		house.set_infected_status(member_0);
+		set_infected(house, member_0);
 		init_missing_augm(member_0);
 
-		// set all others members to susceptible
+		// set all others members to escaped status
 		for (Individual &member : house)
 			if (member != member_0)
-				house.set_susceptible_status(member);
+				set_escaped(house, member);
 
 		return i0;
 	}

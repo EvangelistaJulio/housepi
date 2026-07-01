@@ -137,7 +137,7 @@ HousepiModel <- R6::R6Class(
     assert_contact_rates_ = function() {
       has_defs <- private$contact_rates_$assert()
       if (has_defs && !.engine$has_contact_rates(private$generator_$mcmc_ptr)) {
-        self$drop_contact_rates()
+        private$drop_contact_rates_()
         stop_h(
           sprintf("Contact rates are not supported for model '%s'.", self$name),
           "Definitions will be dropped."
@@ -219,11 +219,53 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Drop only one kind from the shared augmented store.
-    drop_augm_kind_ = function(kind) {
-      private$augm_$drop_kind(kind)
+    # Drop parameter definitions.
+    drop_parameters_ = function() {
+      private$param_ <- HousepiParameter$new()
       private$rebuild_()
       invisible(self)
+    },
+
+    # @description
+    # Drop group rates definitions, removing any associated parameters.
+    drop_group_rates_ = function() {
+      if (!is.null(private$group_rates_)) {
+        for (p in names(private$group_rates_$parameters)) {
+          private$param_$remove(p)
+        }
+        if (!is.null(private$param_$defs) && nrow(private$param_$defs) == 0) {
+          private$drop_parameters_()
+        }
+      }
+      private$group_rates_ <- HousepiGroupRate$new()
+      private$rebuild_()
+      invisible(self)
+    },
+
+    # @description
+    # Drop contact rate definitions, removing any associated parameters.
+    drop_contact_rates_ = function() {
+      if (!is.null(private$contact_rates_)) {
+        for (p in names(private$contact_rates_$parameters)) {
+          private$param_$remove(p)
+        }
+        if (!is.null(private$param_$defs) && nrow(private$param_$defs) == 0) {
+          private$drop_parameters_()
+        }
+      }
+      private$contact_rates_ <- HousepiContactRate$new()
+      private$rebuild_()
+      invisible(self)
+    },
+
+    # @description
+    # Single, model-owned ordered infected-status dictionary. Data labels win
+    # (the data is already coded), else the status process order, else literal
+    # character labels declared on augmented definitions.
+    status_dictionary_ = function() {
+      data_lab <- private$generator_$status_data_labels
+      if (length(data_lab) > 0) return(data_lab)
+      private$augm_$status_dictionary
     },
 
     # @description
@@ -273,9 +315,20 @@ HousepiModel <- R6::R6Class(
       #> infectivity profile
       .engine$import_infec_profile(mcmc_ptr, private$infec_profile_$defs)
 
-      #> augmented
+      #> augmented (resolve character status labels to integer codes for C++)
+      status_dict <- private$status_dictionary_()
+      if (private$generator_$escaped %in% status_dict) stop_h(sprintf(
+        "Infected status '%s' collides with the escaped-status label ('%s').",
+        private$generator_$escaped, private$generator_$escaped
+      ), "Rename the status or set a different 'escaped =' label at construction.")
       if (length(private$augm_$defs) > 0) private$assert_augm_(FALSE, FALSE)
-      .engine$import_augm(mcmc_ptr, private$augm_$defs)
+      .engine$import_augm(
+        mcmc_ptr,
+        resolve_status_codes_(private$augm_$defs, status_dict)
+      )
+
+      # status dictionary drives the factor refactoring of the status column
+      private$generator_$set_status_levels(status_dict)
 
       invisible(self)
     },
@@ -586,10 +639,12 @@ HousepiModel <- R6::R6Class(
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
     #' @param quiet `r rd_mdl_quiet_`
+    #' @param escaped `r rd_mdl_escaped_`
     #' @param ... `r rd_mdl_flags_`
     initialize = function(data = NULL, model = NA_character_,
                           as_template = FALSE,
-                          force = FALSE, quiet = FALSE, ...) {
+                          force = FALSE, quiet = FALSE,
+                          escaped = "escaped", ...) {
       # helper construction option fort copying
       if (isTRUE(.housepi_env$hollow)) return(invisible(self))
 
@@ -601,7 +656,7 @@ HousepiModel <- R6::R6Class(
       # generate model wrapper
       private$generator_ <- HousepiGenerator$new(
         model = model, as_template = as_template,
-        force = force, quiet = quiet, ...
+        force = force, quiet = quiet, escaped = escaped, ...
       )
       # factorize data in order to pass it to Cpp
       data_factorized <- private$generator_$factorize_data_wide(data)
@@ -875,81 +930,6 @@ HousepiModel <- R6::R6Class(
         out$infec_profile <- df
       }
       out
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description Drop parameter definitions.
-    drop_parameters = function() {
-      private$param_ <- HousepiParameter$new()
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description Drop group rates definitions.
-    drop_group_rates = function() {
-      # remove associated parameters
-      if (!is.null(private$group_rates_)) {
-        for (p in names(private$group_rates_$parameters)) {
-          private$param_$remove(p)
-        }
-        if (!is.null(private$param_$defs) && nrow(private$param_$defs) == 0) {
-          self$drop_parameters()
-        }
-      }
-      private$group_rates_ <- HousepiGroupRate$new()
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description Drop contact rate definitions.
-    drop_contact_rates = function() {
-      # remove associated parameters
-      if (!is.null(private$contact_rates_)) {
-        for (p in names(private$contact_rates_$parameters)) {
-          private$param_$remove(p)
-        }
-        if (!is.null(private$param_$defs) && nrow(private$param_$defs) == 0) {
-          self$drop_parameters()
-        }
-      }
-      private$contact_rates_ <- HousepiContactRate$new()
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description Drop augmented variable definitions.
-    drop_augmented = function() {
-      private$drop_augm_kind_("augm")
-      invisible(self)
-    },
-
-    #' @description Drop observation definitions.
-    drop_observations = function() {
-      private$drop_augm_kind_("obs")
-      invisible(self)
-    },
-
-    #' @description Drop household-level observation definitions.
-    drop_house_observ = function() {
-      private$drop_augm_kind_("house-obs")
-      invisible(self)
-    },
-
-    #' @description Drop infectivity profile rates definitions.
-    drop_infectivity_profile = function() {
-      private$infec_profile_ <- HousepiInfecProfile$new()
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description Drop all definitions.
-    drop_all = function() {
-      private$reset_definitions_()
-      private$rebuild_()
-      invisible(self)
     }
   )
 )

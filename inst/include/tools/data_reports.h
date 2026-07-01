@@ -18,7 +18,7 @@ namespace housepi
 	{
 		size_t total = 0;
 		size_t missing = 0;
-		size_t susceptible = 0;
+		size_t escaped = 0;
 		size_t infectious = 0;
 	};
 	/// Report for all households in the data.

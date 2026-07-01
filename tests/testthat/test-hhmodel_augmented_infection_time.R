@@ -25,8 +25,8 @@ transmission_rate <- function(house, param) {
   param$beta * (param$size_ref / dim(house)[1]) ^ param$gamma
 }
 
-# log-likelihood contribution of susceptible members
-loglike_susceptible <- function(house, param, discr) {
+# log-likelihood contribution of escaped members
+loglike_escaped <- function(house, param, discr) {
   member_0 <- find_introduction(house)
   t_intro <- member_0$infec_time
   alpha <- param$alpha
@@ -87,7 +87,7 @@ loglike_infectious <- function(house, param, discr) {
 
 # household log-likelihood of augmented infection time model
 augm_infec_obs_log_lik <- function(house, param, discr = FALSE) {
-  loglike_susceptible(house, param, discr) +
+  loglike_escaped(house, param, discr) +
     loglike_infectious(house, param, discr)
 }
 
@@ -718,6 +718,181 @@ test_that("Data-bound household observation rejects conflict and latent dependen
     add_house_observ(start_date = min(test_date@D) + alpha@P) |>
     evaluate_log_lik() |>
     expect_error(regexp = "pure function of data")
+})
+
+test_that("Status process generates a labelled status factor in simulation", {
+  set.seed(42) # 'Solid Snake'
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 150)) |>
+    dplyr::mutate(start_date = 0) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    # categorical drawn first; labels (declaration order) name the statuses
+    add_status(symptomatic = 0.2, asymptomatic = 0.8) |>
+    run_simulation()
+
+  # status is a factor: code 0 -> escaped, 1 -> symptomatic, 2 -> asymptomatic
+  expect_s3_class(simulated$status, "factor")
+  expect_identical(levels(simulated$status),
+                   c("escaped", "symptomatic", "asymptomatic"))
+  inf <- as.character(simulated$status[simulated$status != "escaped"])
+  # outcome split follows the probabilities (0.2 symptomatic)
+  expect_lt(abs(mean(inf == "symptomatic") - 0.2), 0.08)
+})
+
+test_that("Status process drives status-specific augmented blocks", {
+  set.seed(101) # 'Liquid Snake'
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
+    dplyr::mutate(start_date = 0) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    # status-specific block: symptomatic incubation is longer (character status=)
+    add_augmented(status = "symptomatic",
+                  incub_period = list(prior = "gamma", shape = 8, scale = 1)) |>
+    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
+    run_simulation()
+
+  by_status <- tapply(simulated$incub_period,
+                      as.character(simulated$status), mean, na.rm = TRUE)
+  # the resolved status selects the block: symptomatic ~ shape 8, asymptomatic ~ 2
+  expect_gt(by_status[["symptomatic"]], 5)
+  expect_lt(by_status[["asymptomatic"]], 4)
+})
+
+test_that("Status is a constant in inference", {
+  # refined statuses already in the data; infec_time is read from data so the
+  # density is deterministic and the only difference is the status process.
+  house <- data.frame(house_id = "outerheaven",
+                      status = c(1, 2, 1, 0, 0, 0, 0),
+                      infec_time = c(0, 3, 4, NA, NA, NA, NA),
+                      start_date = 0, study_period = 21)
+  house$id <- sprintf("outerheaven_m%s", seq_len(nrow(house)))
+  param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
+                size_ref = 4, shape = 2, scale = 1.1)
+
+  build <- function(with_status) {
+    m <- house |>
+      new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+      add_parameter(import = param) |>
+      add_augmented(infec_time = infec_time@D) |>
+      add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+    if (with_status) {
+      m <- m |> add_status(symptomatic = 0.7, asymptomatic = 0.3)
+    }
+    m
+  }
+
+  # the status process drops out of the density (status is fixed data)
+  expect_equal(eval_log_density(build(TRUE)), eval_log_density(build(FALSE)))
+})
+
+test_that("Status process rejects latent/parameter probabilities", {
+  house <- data.frame(house_id = "zanzibar",
+                      status = c(1, 2, 0, 0),
+                      start_date = 0, study_period = 21)
+  house$id <- sprintf("zanzibar_m%s", seq_len(nrow(house)))
+
+  house |>
+    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    add_parameter_template() |>
+    add_augmented_template() |>
+    # probabilities must be a pure function of data/numerics
+    add_status(symptomatic = alpha@P, asymptomatic = 3) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "only on data or numeric")
+})
+
+test_that("Character status round-trips with stable codes", {
+  set.seed(202) # 'Gray Fox'
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 120)) |>
+    dplyr::mutate(start_date = 0) |>
+    new_housepi_model("augmented_infection_time") |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_augmented(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
+    run_simulation()
+
+  # feed the factor-status output back for inference: factorization maps the
+  # labels to the same codes (escaped -> 0), so the density is finite
+  reinfer <- simulated |>
+    dplyr::select(id, house_id, status, infec_time, start_date, study_period) |>
+    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    add_parameter(alpha = 1e-04, beta = 0.07, gamma = 0.9,
+                  size_ref = 4, shape = 2, scale = 1.1) |>
+    add_augmented(infec_time = infec_time@D) |>
+    add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+  expect_true(is.finite(eval_log_density(reinfer)))
+
+  # the data-derived dictionary matches the simulated infected labels
+  gen <- reinfer$.__enclos_env__$private$generator_
+  expect_identical(gen$status_data_labels, c("symptomatic", "asymptomatic"))
+})
+
+test_that("escaped label is configurable", {
+  set.seed(303) # 'Big Boss'
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 60)) |>
+    dplyr::mutate(start_date = 0) |>
+    new_housepi_model("augmented_infection_time", escaped = "healthy") |>
+    add_parameter(alpha = 0, beta = 0.001, gamma = 1, size_ref = 4) |>
+    add_augmented(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
+    run_simulation()
+
+  # weak transmission leaves escapeds, labelled per the construction argument
+  expect_true("healthy" %in% levels(simulated$status))
+  expect_true(any(as.character(simulated$status) == "healthy"))
+})
+
+test_that("Escaped label colliding with an infected status is rejected", {
+  house <- data.frame(house_id = "bigshell",
+                      status = c(1, 2, 0, 0),
+                      start_date = 0, study_period = 21)
+  house$id <- sprintf("bigshell_m%s", seq_len(nrow(house)))
+
+  house |>
+    new_housepi_model("augmented_infection_time", quiet = TRUE,
+                      escaped = "symptomatic") |>
+    add_parameter_template() |>
+    add_augmented_template() |>
+    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
+    expect_error(regexp = "collides with the escaped-status label")
+})
+
+test_that("Mixing integer and character status declarations is rejected", {
+  house <- data.frame(house_id = "shadowmoses",
+                      status = c(1, 2, 0, 0),
+                      start_date = 0, study_period = 21)
+  house$id <- sprintf("shadowmoses_m%s", seq_len(nrow(house)))
+
+  # one call carries both an integer and a character status: caught at the wall
+  house |>
+    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    add_parameter_template() |>
+    add_augmented_template() |>
+    add_augmented(
+      incub_period = list(prior = "gamma", shape = 2, scale = 1,
+                          status = "symptomatic"),
+      onset = list(value = 1, status = 1)
+    ) |>
+    evaluate_log_lik() |>
+    expect_error(regexp = "[Mm]ix")
 })
 
 test_that("Model-required data can be postponed", {

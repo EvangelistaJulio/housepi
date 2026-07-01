@@ -52,7 +52,7 @@ namespace housepi
 		/////////////////////
 
 		bool is_infected_status() const noexcept { return status::is_infected(status_); }
-		bool is_susceptible_status() const noexcept { return status::is_susceptible(status_); }
+		bool is_escaped_status() const noexcept { return status::is_escaped(status_); }
 		bool is_missing_status() const noexcept { return status::is_missing(status_); }
 
 		////////////////////

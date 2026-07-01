@@ -47,14 +47,6 @@ One row per individual index by corresponding ID.}
 \item \href{#method-HousepiModel-summarise_house_sizes}{\code{HousepiModel$summarise_house_sizes()}}
 \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
 \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
-\item \href{#method-HousepiModel-drop_parameters}{\code{HousepiModel$drop_parameters()}}
-\item \href{#method-HousepiModel-drop_group_rates}{\code{HousepiModel$drop_group_rates()}}
-\item \href{#method-HousepiModel-drop_contact_rates}{\code{HousepiModel$drop_contact_rates()}}
-\item \href{#method-HousepiModel-drop_augmented}{\code{HousepiModel$drop_augmented()}}
-\item \href{#method-HousepiModel-drop_observations}{\code{HousepiModel$drop_observations()}}
-\item \href{#method-HousepiModel-drop_house_observ}{\code{HousepiModel$drop_house_observ()}}
-\item \href{#method-HousepiModel-drop_infectivity_profile}{\code{HousepiModel$drop_infectivity_profile()}}
-\item \href{#method-HousepiModel-drop_all}{\code{HousepiModel$drop_all()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -70,6 +62,7 @@ used to run inference and simulation routines.
   as_template = FALSE,
   force = FALSE,
   quiet = FALSE,
+  escaped = "escaped",
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -95,6 +88,10 @@ If \code{FALSE} recompile the model at every new session (default).}
 \item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.}
 
 \item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
+
+\item{\code{escaped}}{\code{character(1)} Label for status code \code{0} (individuals not
+among the declared infected statuses) when the \code{status} column is
+character/factor.}
 
 \item{\code{...}}{Named arguments. Additional compilation options:
 \describe{
@@ -352,85 +349,5 @@ All variables associated to given household for last state.
 \subsection{Returns}{
 \code{list}
 }
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_parameters"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_parameters}{}}}
-\subsection{Method \code{drop_parameters()}}{
-Drop parameter definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_parameters()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_group_rates"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_group_rates}{}}}
-\subsection{Method \code{drop_group_rates()}}{
-Drop group rates definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_group_rates()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_contact_rates"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_contact_rates}{}}}
-\subsection{Method \code{drop_contact_rates()}}{
-Drop contact rate definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_contact_rates()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_augmented"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_augmented}{}}}
-\subsection{Method \code{drop_augmented()}}{
-Drop augmented variable definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_augmented()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_observations"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_observations}{}}}
-\subsection{Method \code{drop_observations()}}{
-Drop observation definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_observations()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_house_observ"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_house_observ}{}}}
-\subsection{Method \code{drop_house_observ()}}{
-Drop household-level observation definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_house_observ()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_infectivity_profile"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_infectivity_profile}{}}}
-\subsection{Method \code{drop_infectivity_profile()}}{
-Drop infectivity profile rates definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_infectivity_profile()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-drop_all"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-drop_all}{}}}
-\subsection{Method \code{drop_all()}}{
-Drop all definitions.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$drop_all()}\if{html}{\out{</div>}}
-}
-
 }
 }
