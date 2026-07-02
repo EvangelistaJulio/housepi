@@ -10,6 +10,33 @@ rd_test_x_ <- "`numeric()` Points where to evaluate."
 rd_test_args_ <- "named arguments. User argument values for the %s"
 rd_test_discr_ <- "`logical(1)` Treat definition as discrete."
 
+# Proxy over an exposed C++ object (function / distribution / infectivity
+# profile). Its `$` routes every method call through the shared condition
+# interceptor (reusing `wrap_cpp_member_`), and it prints legibly. Construction
+# and `init()` stay wrapped explicitly in the `expose_*()` helpers, since the
+# object does not exist yet at that point.
+housepi_exposed_ <- function(obj, family, name) {
+  structure(list(obj = obj, family = family, name = name),
+            class = "housepi_exposed")
+}
+
+#' @noRd
+`$.housepi_exposed` <- function(x, name) {
+  wrap_cpp_member_(.subset2(x, "obj"), name)
+}
+
+#' @noRd
+print.housepi_exposed <- function(x, ...) {
+  args <- x$args()
+  header <- sprintf("Exposed %s {.val %s}.",
+                    .subset2(x, "family"), .subset2(x, "name"))
+  items <- if (length(args) == 0) NULL else stats::setNames(
+    sprintf("{.arg %s} = %s", names(args), format(unname(args))),
+    rep("i", length(args)))
+  fmt_cli_info(c(header, items))
+  invisible(x)
+}
+
 #' @title Expose housepi function
 #' @description
 #' Expose an object from housepi registered function.
@@ -19,7 +46,7 @@ rd_test_discr_ <- "`logical(1)` Treat definition as discrete."
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
-#' @return `ExposeFunction` object.
+#' @return An exposed function object with methods `$func()` and `$prim()`.
 #' @examples
 #' fnc <- expose_function("pow", x2 = 3)
 #' fnc$func(seq(0, 5))
@@ -29,9 +56,10 @@ expose_function <- function(name, ...,
                             min = NA_real_,
                             max = NA_real_,
                             discr = FALSE) {
-  new_obj <- .engine$ExposeFunction$new(name)
-  new_obj$init(args = unlist(list(...)), min = min, max = max, discr = discr)
-  new_obj
+  # build routes through the `.engine` proxy, so construction/init errors are
+  # already intercepted; the proxy below only adds method interception + print.
+  obj <- .engine$expose_function(name, unlist(list(...)), min, max, discr)
+  housepi_exposed_(obj, "function", name)
 }
 
 #' @title Expose housepi distribution
@@ -43,7 +71,7 @@ expose_function <- function(name, ...,
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
-#' @return `ExposeDistribution` object.
+#' @return An exposed distribution object with methods `$pdf()` and `$cdf()`.
 #' @examples
 #' dst <- expose_distribution("weibull", shape = 2, scale = 1)
 #' dst$pdf(seq(0, 5))
@@ -53,9 +81,8 @@ expose_distribution <- function(name, ...,
                                 min = NA_real_,
                                 max = NA_real_,
                                 discr = FALSE) {
-  new_obj <- .engine$ExposeDistribution$new(name)
-  new_obj$init(args = unlist(list(...)), min = min, max = max, discr = discr)
-  new_obj
+  obj <- .engine$expose_distribution(name, unlist(list(...)), min, max, discr)
+  housepi_exposed_(obj, "distribution", name)
 }
 
 #' @title Expose housepi infectivity profile
@@ -67,7 +94,7 @@ expose_distribution <- function(name, ...,
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param discr `r rd_test_discr_`
-#' @return `ExposeInfecProfile` object.
+#' @return An exposed infectivity profile with methods `$inst()` and `$cumul()`.
 #' @examples
 #' ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
 #' ipf$inst(seq(0, 5))
@@ -78,7 +105,6 @@ expose_infec_profile <- function(name, ...,
                                  max = NA_real_,
                                  discr = FALSE) {
   if (is.na(min)) min <- ifelse(discr, 1, 0)
-  new_obj <- .engine$ExposeInfecProfile$new(name)
-  new_obj$init(args = unlist(list(...)), min = min, max = max, discr = discr)
-  new_obj
+  obj <- .engine$expose_infec_profile(name, unlist(list(...)), min, max, discr)
+  housepi_exposed_(obj, "infectivity profile", name)
 }

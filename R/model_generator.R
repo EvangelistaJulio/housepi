@@ -19,7 +19,7 @@ cache_overlaps_source <- function(cache, source) {
 
 # Assert valid household data. Return blank_house if nothing is provided.
 assert_household_data <- function(data, model) {
-  .is.blank <- function(x) { 
+  .is.blank <- function(x) {
     is.character(x) && length(x) == 1 && isTRUE(x == "blank")
   }
 
@@ -29,17 +29,17 @@ assert_household_data <- function(data, model) {
       utils::data("blank_house", package = "housepi", envir = env)
       return(env$blank_house)
     }
-    stop_h("Missing argument 'data'.")
+    stop_h("Missing argument {.arg data}.")
   }
   if (!is.data.frame(data)) {
-    sms <- c("Data should be an object of class data.frame.",
+    sms <- c("Data should be an object of class {.cls data.frame}.",
              format_type_error(data))
     if (.is.blank(data)) sms <- c(sms,
-      i = "Did you mean 'new_housepi_model(model = \"blank\")'?"
+      i = "Did you mean {.code new_housepi_model(model = \"blank\")}?"
     )
     stop_h(sms)
   }
-  if (nrow(data) == 0) stop_h("Provided dataset is empty.")
+  if (nrow(data) == 0) stop_h("Provided {.arg data} is empty.")
   data
 }
 
@@ -145,11 +145,10 @@ HousepiGenerator <- R6::R6Class(
       for (f in private$last_flags_) {
         if (private$assert_allows_flag_(source_dir, f)) keep <- c(keep, f)
         else if (f == "_HOUSEPI_DISCRETE_TIME") stop_h(
-          sprintf("No visible discrete time option for model '%s'.", self$name)
+          "No visible discrete time option for model {.val {self$name}}."
         )
         else stop_h(
-          sprintf("No visible option associated to flag '%s'.", f),
-          "Only flags used in model.cpp are applicable at compile time."
+          "No visible option associated to flag {.val {f}}."
         )
       }
       # store just effective flags
@@ -214,15 +213,15 @@ HousepiGenerator <- R6::R6Class(
     helper_init_model_choice_ = function(model) {
       choice <- "blank"
       if (all(is.na(model) | is.null(model))) warn_h(
-        "No model specified. Falling back to 'blank' model.",
-        "To show available templates, run 'browse_housepi_templates'."
+        "No model specified. Falling back to {.val blank} model.",
+        "To show available templates, run {.fn browse_housepi_templates}."
       )
       else if (length(model) != 1 || !is.character(model)) stop_h(
-        "Model choice must be a non-empty string.",
+        "Model choice must be a non-empty {.cls character}.",
         format_type_error(model)
       )
       else if (model %in% list(".")) stop_h(
-        sprintf("Invalid choice '%s' for housepi model.", model),
+        "Invalid choice {.val {model}} for housepi model.",
         "Move your implementation in a different folder."
       )
       else choice <- model
@@ -236,7 +235,7 @@ HousepiGenerator <- R6::R6Class(
     assert_source_files_ = function() {
       file_name <- file.path(private$source_dir_, "model.cpp")
       if (!file.exists(file_name)) stop_h(
-        sprintf("File '%s' was not found.", file_name),
+        "File {.file {file_name}} was not found.",
         "Check your model directory."
       )
       invisible(self)
@@ -272,7 +271,7 @@ HousepiGenerator <- R6::R6Class(
             warn_h(
               "Impossible to replace existing template in current session.",
               "Start a new R session to re-compile your model as a template.",
-              "Warning raised because model changed or 'force = TRUE'."
+              "Warning raised because model changed or {.code force = TRUE}."
             )
           }
         }
@@ -565,7 +564,8 @@ HousepiGenerator <- R6::R6Class(
       if (isTRUE(.housepi_env$hollow)) return(invisible(self))
 
       if (length(escaped) != 1 || !is.character(escaped)) stop_h(
-        "'escaped' must be a non-empty string.", format_type_error(escaped)
+        "{.arg escaped} must be a non-empty {.cls character}.",
+        format_type_error(escaped)
       )
       private$escaped_ <- escaped
 
@@ -583,14 +583,14 @@ HousepiGenerator <- R6::R6Class(
         private$init_custom_model_(choice, as_template, force)
       } else if (!is.na(get_template_dir(choice))) {
         if (isTRUE(as_template)) warn_h(
-          sprintf("Cannot store template '%s' as a new template.", self$name),
+          "Cannot store template {.val {self$name}} as a new template.",
           "Copy it to a writable folder first, and then load it:",
-          sprintf("#> browse_housepi_templates('%s', 'your/dir')", self$name),
-          "#> new_housepi_model(data = ..., model = 'your/dir')"
+          "#> {.code browse_housepi_templates(\"{self$name}\", \"your/dir\")}",
+          "#> {.code new_housepi_model(data = ..., model = \"your/dir\")}"
         )
         private$init_template_model_(choice, force)
       } else {
-        stop_h(sprintf("'%s' is not a folder nor a template name.", choice),
+        stop_h("{.val {choice}} is not a folder nor a template name.",
                find_closest_template_name(choice))
       }
 
@@ -619,8 +619,8 @@ HousepiGenerator <- R6::R6Class(
       output <- file.path(private$source_dir_, "model.cpp")
       # check if reference file exists
       if (!file.exists(output)) stop_h(
-        sprintf("Impossible to find reference file: '%s'.", output),
-        "Try to re-generate the model with 'force = TRUE'."
+        "Impossible to find reference file: {.file {output}}.",
+        "Try to re-generate the model with {.code force = TRUE}."
       )
       output
     },
@@ -671,7 +671,7 @@ HousepiGenerator <- R6::R6Class(
     #' @param data_long `data.frame`.
     import_data_long = function(data_long) {
       if (!is.data.frame(data_long)) stop_h(
-        "Data-long should be an object of class data.frame.",
+        "Data-long should be an object of class {.cls data.frame}.",
         format_type_error(data_long)
       )
 

@@ -78,7 +78,7 @@ This is used in advanced augmented definitions, see [Data augmentation](data_aug
 The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) `HousepiModel`.
 A dataset in wide format must be provided at model construction via the `data` argument of `new_housepi_model()`. 
 
-We show how to generate a new instance of such a class with a template model, the chain binomial:
+We show how to generate a new instance of such a class with a template model, the final size:
 
 ```{r}
 #| label: load-model
@@ -89,8 +89,8 @@ set.seed(42)
 # set the theme for visualizations
 housepi_theme_set()
 
-# generate an instance of the chain binomial model with data
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+# generate an instance of the final size model with data
+hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 ```
 
 We can retrieve the template model description by using the method `$help()`.
@@ -128,14 +128,14 @@ To see the complete list of available template models, from within RStudio just 
 browse_housepi_templates()
 ```
 
-Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i.e. "chain_binomial" is equivalent to "chain binomial".].
+Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i.e. "final_size" is equivalent to "final size".].
 To know more about each model, choose a name from the previous list and run, e.g.
 
 ```{r}
 #| label: model-help
 #| eval: false
 # show model description in RStudio help window
-browse_housepi_templates("chain_binomial")
+browse_housepi_templates("final_size")
 ```
 
 This command will open the relative documentation file in the Help window of your RStudio session.
@@ -211,7 +211,7 @@ get_parameter_draws(results) |>
 
 For models requiring augmented variables, the definition procedure is analogous.
 In [Data augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex augmented definitions.
-Here we present a case study, using the template model "augmented_infection_time" where surveys are conditioned on single introduction.
+Here we present a case study, using the template model "case_ascertained" where surveys are conditioned on single introduction.
 We load the parameter definitions directly from the model template.
 
 ```{r}
@@ -222,7 +222,7 @@ community_structure <- sarscov2_2021_icofs |>
   dplyr::mutate(start_date = 0, status = NA)
 
 hhsimul <- community_structure |>
-  new_housepi_model("augmented_infection_time") |>
+  new_housepi_model("case_ascertained") |>
   add_parameter_template()
 
 # inspect parameter definitions
@@ -295,7 +295,7 @@ Inference reuses the very same definition set as the simulation: the observed
 ```{r}
 #| label: inference-simulated
 hhmodel <- simulated |>
-  new_housepi_model("augmented_infection_time") |>
+  new_housepi_model("case_ascertained") |>
   add_parameter_template() |>
   add_parameter(inc_shape = 2, inc_scale = 1) |>
   add_augmented(

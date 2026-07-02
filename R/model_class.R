@@ -113,8 +113,7 @@ HousepiModel <- R6::R6Class(
       house_obs <- private$augm_$house_observ_names
       clash <- intersect(house_obs, cols)
       if (isTRUE(capital) && length(clash) > 0) stop_h(
-        sprintf("Household observation %s cannot stand in for required data.",
-                paste(sprintf("'%s'", clash), collapse = ", ")),
+        "Household observation {.field {clash}} cannot stand in for required data.",
         "It is already provided as a data column."
       )
       cols <- c(cols, intersect(house_obs, required))
@@ -136,11 +135,12 @@ HousepiModel <- R6::R6Class(
     # Assert contact rate definitions are compatible with the model.
     assert_contact_rates_ = function() {
       has_defs <- private$contact_rates_$assert()
-      if (has_defs && !.engine$has_contact_rates(private$generator_$mcmc_ptr)) {
+      if (has_defs &&
+            !.engine$has_contact_rates(private$generator_$mcmc_ptr)) {
         private$drop_contact_rates_()
         stop_h(
-          sprintf("Contact rates are not supported for model '%s'.", self$name),
-          "Definitions will be dropped."
+          "Contact rates are not supported for model {.val {self$name}}.",
+          `!` = "Definitions will be dropped."
         )
       }
     },
@@ -317,10 +317,11 @@ HousepiModel <- R6::R6Class(
 
       #> augmented (resolve character status labels to integer codes for C++)
       status_dict <- private$status_dictionary_()
-      if (private$generator_$escaped %in% status_dict) stop_h(sprintf(
-        "Infected status '%s' collides with the escaped-status label ('%s').",
-        private$generator_$escaped, private$generator_$escaped
-      ), "Rename the status or set a different 'escaped =' label at construction.")
+      if (private$generator_$escaped %in% status_dict) stop_h(
+        paste("Infected status {.val {private$generator_$escaped}} collides",
+              "with the escaped-status label ({.val {private$generator_$escaped}})."),
+        "Rename the status or define a different {.code escaped =} label."
+      )
       if (length(private$augm_$defs) > 0) private$assert_augm_(FALSE, FALSE)
       .engine$import_augm(
         mcmc_ptr,
@@ -405,7 +406,7 @@ HousepiModel <- R6::R6Class(
           "Posterior draws would exceed the memory budget (%.f GB).",
           budget / 2^30
         ),
-        "Consider increasing 'thin', or reducing 'steps' and 'chains'."
+        "Consider increasing {.arg thin}, or reducing {.arg {c('steps', 'chains')}}."
       ))
     },
 
@@ -424,7 +425,8 @@ HousepiModel <- R6::R6Class(
                              function(v) posterior::ess_bulk(ptab[, v]))
           # check no NA values in ESS
           if (any(is.na(ess_bulk))) stop_h(
-            "ESS values return NA. Check your draws for degenerate parameters."
+            "ESS values return NA.",
+            "Check your draws for degenerate parameters."
           )
           # suppress posterior message
           target_ndraws <- min(ess_bulk)
@@ -436,7 +438,7 @@ HousepiModel <- R6::R6Class(
 
       tryCatch({
         return(as.data.frame(ptab))
-      }, error = function(e) stop_h("Type of param_table not supported.")
+      }, error = function(e) stop_h("Type of {.arg param_table} not supported.")
       )
     },
 
@@ -534,12 +536,13 @@ HousepiModel <- R6::R6Class(
 
       if (!is.null(apply_long) &&
             (is.null(obs_proc_long) || !is.function(obs_proc_long))) stop_h(
-        "'obs_process_long' must be a function."
+        "{.arg obs_process_long} must be a function."
       )
+
+      obs_func <- private$helper_obs_process_(obs_proc_wide)
       .engine$run_simulation(
         private$generator_$mcmc_ptr,
-        private$helper_obs_process_(obs_proc_wide),
-        apply_wide,
+        obs_func, apply_wide,
         if (is.null(apply_long)) NULL
         else function(x) apply_long(obs_proc_long(x))
       )
@@ -718,7 +721,7 @@ HousepiModel <- R6::R6Class(
         " ({.run [template](housepi::browse_housepi_templates(\"%s\"))})",
         self$name
       ) else ""
-      sms <- sprintf("Household model '%s'%s.", self$name, tmpl_tag)
+      sms <- sprintf("Household model {.val %s}%s.", self$name, tmpl_tag)
       # UPDATE: to be rationalize in the future if more options are included
       if ("_HOUSEPI_DISCRETE_TIME" %in% private$generator_$last_flags) sms <- c(
         sms, "Model is set to {.emph discrete time} mode."
@@ -783,117 +786,9 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-
     ############################################################################
     ############################################################################
     ############################################################################
-
-    #' @description Evaluate the complete-data log-likelihood.
-    #' @param house_id `r rd_house_id_`
-    #' If `NA` (default) it computes for the whole data.
-    #' @return `numeric(1)`. Transmission plus observation log-likelihood.
-    evaluate_log_lik = function(house_id = NA_character_) {
-      private$build_full_()
-      .engine$evaluate_log_lik(private$generator_$mcmc_ptr, house_id)
-    },
-
-    #' @description Run inference with Bayesian Markov chain Monte Carlo.
-    #' @param steps `r rd_smpl_steps_`
-    #' @param burn `r rd_smpl_burn_`
-    #' @param thin `r rd_smpl_thin_`
-    #' @param adapt `r rd_smpl_adapt_`
-    #' @param chains `r rd_smpl_chain_`
-    #' @param threads `r rd_thread_`
-    #' @param id_draws `r rd_smpl_iddrw_`
-    #' @param progress `r rd_progress_`
-    #' @param ... `r rd_dots_config_`
-    #' @return An object of class `HousepiPosteriorDraws`.
-    run_inference = function(steps = 1000L, burn = 0L,
-                             thin = 5L, adapt = 500L,
-                             chains = 4L, threads = 1L,
-                             id_draws = NULL, progress = TRUE,
-                             ...) {
-      assert_advanced_setup_(list(...), "inv_temp")
-      private$assert_posterior_memory_(
-        steps = steps, burn = burn, thin = thin,
-        chains = chains, id_draws = id_draws
-      )
-      private$build_full_(
-        steps = steps, burn = burn, thin = thin, adapt = adapt,
-        chains = chains, threads = threads, id_draws = id_draws,
-        progress = progress, ...
-      )
-      .engine$run_inference(private$generator_$mcmc_ptr)
-      HousepiPosteriorDraws$new(private$generator_$raw_name,
-                                private$generator_$mcmc_ptr)
-    },
-
-
-    #' @description
-    #' Run simulation to generate a household survey.
-    #' It assumes the same community structure of the loaded data.
-    #' @param obs_process `r rd_simul_observ_`
-    #' @param obs_process_long `r rd_simul_obs_long_`
-    #' @param param_table `r rd_param_table_`
-    #' @param nrep `r rd_simul_nrep_`
-    #' @param ... `r rd_dots_config_`
-    #' @return `data.frame` or `list` (when `obs_process_long` is provided)
-    run_simulation = function(obs_process = NULL,
-                              obs_process_long = NULL,
-                              param_table = NULL,
-                              nrep = NA_integer_, ...) {
-      # simulation specific build
-      assert_advanced_setup_(list(...), "time_step")
-      nrep <- private$helper_simulation_build_(
-        param_table = param_table, nrep = nrep, ...
-      )
-
-      # run simulations
-      output <- .engine$run_simulation(
-        private$generator_$mcmc_ptr,
-        # combine observation process to measures and refactor
-        private$helper_obs_process_(obs_process),
-        NULL, # wide measure
-        obs_process_long
-      )
-
-      # drop empty wide/long
-      if (length(output$wide) == 0) output$wide <- NULL
-      if (length(output$long) == 0) output$long <- NULL
-      if (length(output) == 1) {
-        output <- output[[1]]
-        if (nrep == 1) output <- output[[1]]
-      } else if (nrep == 1) {
-        output$wide <- output$wide[[1]]
-        output$long <- output$long[[1]]
-      }
-
-      output
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description Store a copy of provided individual data.
-    #' @param data_long `r rd_add_data_long_`
-    add_data_long = function(data_long) {
-      private$generator_$import_data_long(data_long)
-      private$rebuild_()
-      invisible(self)
-    },
-
-    #' @description Summarise statuses in loaded data.
-    #' @return `r rd_summ_cases_`
-    summarise_house_cases = function() {
-      .engine$summarise_house_cases(private$generator_$mcmc_ptr)
-    },
-
-    #' @description Summary house sizes in loaded data.
-    #' @return `r rd_summ_sizes_`
-    summarise_house_sizes = function() {
-      .engine$summarise_house_sizes(private$generator_$mcmc_ptr)
-    },
 
     #' @description
     #' Dataset with associated augmented variables for last state.
@@ -911,8 +806,7 @@ HousepiModel <- R6::R6Class(
     export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
       # export household snapshot
-      out <- .engine$export_house_snapshot(private$generator_$mcmc_ptr,
-                                           house_id)
+      out <- .engine$export_house_snapshot(private$generator_$mcmc_ptr, house_id)
       out$data_wide <- private$generator_$refactor_data_wide(out$data_wide)
       # > data long
       if (all(dim(out$data_long) == 0)) out$data_long <- NULL

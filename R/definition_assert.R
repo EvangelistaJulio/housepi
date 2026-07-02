@@ -17,17 +17,33 @@ family2function_col <- function(family) {
   else "prior"
 }
 
+# Select which candidate exposure error to surface, keeping its full
+# (multi-line header + hints) text so the cli emitter can split it. Selection
+# keys on the salient last line (the cause), not the "Exposing ..." header.
 helper_format_error <- function(err) {
-  err <- lapply(err, function(x) utils::tail(strsplit(x, "\n")[[1]], 1))
   if (length(err) == 1) return(err[[1]])
-  unused <- stringr::str_starts(err, "Unused|Missing")
+  last <- vapply(err, function(x) utils::tail(strsplit(x, "\n")[[1]], 1),
+                 character(1))
+  unused <- stringr::str_starts(last, "Unused|Missing")
   if (any(unused)) err[[which(unused)[[1]]]]
   else if ("func" %in% err) err["func"]
   else err[[1]]
 }
 
+# Probe a C++ exposer through the raw Rcpp module, bypassing the `.engine`
+# re-styling proxy. A failure then yields the plain C++ text (glue markup, but
+# no cli bullets) that `helper_format_error` classifies on; success returns
+# NULL. Assigning NULL to a list slot leaves it absent, so `err` below holds
+# only the failed probes.
+probe_exposer_ <- function(fn, name, args) {
+  member <- cpp_member_(.subset2(.engine, "module"), fn)
+  tryCatch({
+    member(name, unlist(args), NA_real_, NA_real_, FALSE)
+    NULL
+  }, error = function(e) conditionMessage(e))
+}
+
 # Trigger C++ errors
-# UPDATE: I should find an hollow export mechanism instead
 raise_def_error <- function(func_name, arg_names, def_name,
                             family, model_col) {
   # WARNING: I am assuming `1` is a safe argument value...
@@ -38,23 +54,17 @@ raise_def_error <- function(func_name, arg_names, def_name,
   is_augm_func <- is_augmented_family(family) && model_col == "func"
 
   err <- list()
-  if (is_augm_func) tryCatch(
-    expose_function(func_name, func_args),
-    error = function(e) err$func <<- e$message
-  )
-  if (!is_infec_prof) tryCatch(
-    expose_distribution(func_name, func_args),
-    error = function(e) err$dist <<- e$message
-  )
-  if (is_augm_func || is_infec_prof) tryCatch(
-    expose_infec_profile(func_name, func_args),
-    error = function(e) err$infec <<- e$message
-  )
+  if (is_augm_func)
+    err$func <- probe_exposer_("expose_function", func_name, func_args)
+  if (!is_infec_prof)
+    err$dist <- probe_exposer_("expose_distribution", func_name, func_args)
+  if (is_augm_func || is_infec_prof)
+    err$infec <- probe_exposer_("expose_infec_profile", func_name, func_args)
 
   if ((is_augm_func && length(err) == 3) ||
         (!is_augm_func && length(err) == 1)) stop_h(
     sprintf("Wrong definition found for %s.",
-            ifelse(is.na(def_name), family, sprintf("'%s'", def_name))),
+            ifelse(is.na(def_name), family, sprintf("{.val %s}", def_name))),
     helper_format_error(err)
   )
 }
@@ -86,12 +96,12 @@ housepi_assert_args <- function(gear, last = FALSE) {
 # Assert that character respect convention.
 assert_valid_character <- function(x, family, arg_name) {
   if (nchar(x) == 0) {
-    stop_h(sprintf("%s of %s must be a non-empty string.", arg_name, family))
+    stop_h("{arg_name} of {family} must be a non-empty string.")
   } else if (!grepl("^[A-Za-z0-9_.]+$", x)) {
     stop_h(
-      sprintf("%s of %s '%s' contained invalid characters.",
-              arg_name, family, x),
-      "Only letters, numbers, underscores '_' and dots '.' are allowed."
+      "{arg_name} of {family} {.val {x}} contained invalid characters.",
+      paste("Only letters, numbers, underscores {.code _}",
+            "and dots {.code .} are allowed.")
     )
   }
 }
@@ -99,12 +109,12 @@ assert_valid_character <- function(x, family, arg_name) {
 # Assert that x can be treated as a feature value.
 assert_valid_feature <- function(x, family, arg_name = "Feature value") {
   if (length(x) != 1 || is.na(x)) {
-    stop_h(sprintf("%s of %s must be a scalar.", arg_name, family))
+    stop_h("{arg_name} of {family} must be a scalar.")
   } else if (!any(c(is.factor(x), is.logical(x),
                     is.numeric(x), is.character(x)))) {
     # UPDATE: is there something more robust than checking types?
     stop_h(
-      sprintf("%s of %s must be a unidimensional type.", arg_name, family),
+      "{arg_name} of {family} must be a unidimensional type.",
       format_type_error(x)
     )
   } else if (is.factor(x) || is.character(x)) {
@@ -116,13 +126,13 @@ assert_valid_feature <- function(x, family, arg_name = "Feature value") {
 assert_valid_definition_name <- function(x, family) {
   if (length(x) != 1 || is.na(x) || !is.character(x)) {
     stop_h(
-      sprintf("Name of %s must be a non-empty string.", family),
+      "Name of {family} must be a non-empty string.",
       format_type_error(x)
     )
   } else {
     assert_valid_character(x, family, "Name")
     if (x %in% .reserved_math_consts) stop_h(
-      sprintf("Name '%s' for %s is reserved for constants.", x, family)
+      "Name {.val {x}} for {family} is reserved for constants."
     )
   }
 }

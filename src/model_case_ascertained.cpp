@@ -14,7 +14,7 @@
 #include "housepi.h"
 
 #ifndef _HOUSEPI_MODULE
-#define _HOUSEPI_MODULE augmented_infection_time
+#define _HOUSEPI_MODULE case_ascertained
 #endif
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()

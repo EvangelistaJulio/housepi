@@ -85,7 +85,7 @@ loglike_infectious <- function(house, param, discr) {
   output
 }
 
-# household log-likelihood of augmented infection time model
+# household log-likelihood of case ascertained model
 augm_infec_obs_log_lik <- function(house, param, discr = FALSE) {
   loglike_escaped(house, param, discr) +
     loglike_infectious(house, param, discr)
@@ -101,7 +101,7 @@ test_that("Simulations behave as expected", {
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
     # pick introduction randomly with onset_time at 0
     dplyr::mutate(status = NA, start_date = 0) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 0,
                   gamma = 1, size_ref = 4) |>
     add_augmented(
@@ -118,7 +118,7 @@ test_that("Simulations behave as expected", {
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
     # pick introduction informed by original data; relative-frame anchor at 0
     dplyr::mutate(start_date = 0) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100,
                   gamma = 1, size_ref = 4) |>
     add_augmented(
@@ -136,14 +136,14 @@ test_that("Simulations behave as expected", {
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), house_id = "h1", status = 0,
              start_date = 0, study_period = 21) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
     run_inference() |>
     expect_error(regexp = "at least one infected member")
 })
 
-test_that("Log-likelihood of augmented infection time model is correct", {
+test_that("Log-likelihood of case ascertained model is correct", {
   # dummy dataset
   house <- data.frame(house_id = "hh01",
                       status = c(1, 1, 1, 0, 0, 0, 0),
@@ -157,7 +157,7 @@ test_that("Log-likelihood of augmented infection time model is correct", {
 
   for (discr in c(FALSE, TRUE)) {
     hhmodel <- house |>
-      new_housepi_model("augmented_infection_time",
+      new_housepi_model("case_ascertained",
                         discr = discr, quiet = TRUE) |>
       add_parameter(import = param) |>
       add_augmented(infec_time = infec_time@D) |>
@@ -202,7 +202,7 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
 
   build_hh <- function() {
     house |>
-      new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+      new_housepi_model("case_ascertained", quiet = TRUE) |>
       add_parameter_template() |>
       add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
       add_augmented(
@@ -251,7 +251,7 @@ test_that("Augmented moves preserve log-likelihood", {
   house$id <- sprintf("hh01m%s", seq(1, dim(house)[1]))
 
   hhmodel <- house |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
@@ -312,7 +312,7 @@ test_that("Augmented moves preserve log-likelihood", {
   housepi_eval <- function(i) {
     params_i <- c(param_draws[i, , drop = FALSE], consts)
     join_augm_data(house, get_augm_state(augm_draws, i)) |>
-      new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+      new_housepi_model("case_ascertained", quiet = TRUE) |>
       add_augmented(
         infec_time = onset_time@A - incub_period@A,
         onset_time = list(value = onset_time@D, const = TRUE,
@@ -337,7 +337,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
   id_draws <- house[house$status > 0, ]$id
 
   hhmodel <- house |>
-    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter_template() |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
@@ -392,7 +392,7 @@ test_that("Discretized observation node initializes finite", {
   id_draws <- house[house$status > 0, ]$id
 
   hhmodel <- house |>
-    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter_template() |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
@@ -419,7 +419,7 @@ test_that("Observation node generates the data column in simulation", {
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
     dplyr::mutate(start_date = 0) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -449,7 +449,7 @@ test_that("Household observation derives from simulated observations", {
   reps <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 80)) |>
     dplyr::select(-start_date, -test_date) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -482,7 +482,7 @@ test_that("Simulation leaves overwritten data columns pristine", {
   m <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
     dplyr::mutate(start_date = 0) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -512,7 +512,7 @@ test_that("Augmented variable reads a static data-bound household observation", 
     dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
     dplyr::select(-start_date) |>
     dplyr::mutate(test_date = 5, study_period = 21) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
@@ -532,7 +532,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
   sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% head(unique(house_id), 20)) |>
     dplyr::select(-start_date, -test_date) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
@@ -547,7 +547,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
 test_that("Observation are reserved to add_observation", {
   hhmodel <- data.frame(id = seq(2), house_id = "h1", status = 0,
                         start_date = 0, study_period = 21) |>
-    new_housepi_model("augmented_infection_time")
+    new_housepi_model("case_ascertained")
 
   # ensure augmented decorators reject 'obs ='
   hhmodel |>
@@ -562,7 +562,7 @@ test_that("Deterministic observation node simulates, inference rejects it", {
   set.seed(1)
   build <- function(data) {
     data |>
-      new_housepi_model("augmented_infection_time") |>
+      new_housepi_model("case_ascertained") |>
       add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
       add_augmented(
         incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -603,7 +603,7 @@ test_that("Household observations aggregate a data column across members", {
     )
 
   simulated <- dat |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -658,7 +658,7 @@ test_that("Data-bound household observation supplies a required data column", {
   build_derived <- function() {
     base |>
       dplyr::select(-start_date) |>
-      new_housepi_model("augmented_infection_time") |>
+      new_housepi_model("case_ascertained") |>
       add_parameter_template() |>
       add_augmented_template() |>
       add_house_observ(start_date = min(test_date@D))
@@ -669,7 +669,7 @@ test_that("Data-bound household observation supplies a required data column", {
       dplyr::group_by(house_id) |>
       dplyr::mutate(start_date = min(test_date, na.rm = TRUE)) |>
       dplyr::ungroup() |>
-      new_housepi_model("augmented_infection_time") |>
+      new_housepi_model("case_ascertained") |>
       add_parameter_template() |>
       add_augmented_template()
   }
@@ -702,7 +702,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
 
   # conflict: 'start_date' both provided as data and derived as a house-obs
   base |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
     add_house_observ(start_date = min(test_date@D)) |>
@@ -712,7 +712,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
   # parameter dependence: not a constant function of data, no meaning in inference
   base |>
     dplyr::select(-start_date) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
     add_house_observ(start_date = min(test_date@D) + alpha@P) |>
@@ -725,7 +725,7 @@ test_that("Status process generates a labelled status factor in simulation", {
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 150)) |>
     dplyr::mutate(start_date = 0) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -749,7 +749,7 @@ test_that("Status process drives status-specific augmented blocks", {
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
     dplyr::mutate(start_date = 0) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -781,7 +781,7 @@ test_that("Status is a constant in inference", {
 
   build <- function(with_status) {
     m <- house |>
-      new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+      new_housepi_model("case_ascertained", quiet = TRUE) |>
       add_parameter(import = param) |>
       add_augmented(infec_time = infec_time@D) |>
       add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
@@ -802,7 +802,7 @@ test_that("Status process rejects latent/parameter probabilities", {
   house$id <- sprintf("zanzibar_m%s", seq_len(nrow(house)))
 
   house |>
-    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter_template() |>
     add_augmented_template() |>
     # probabilities must be a pure function of data/numerics
@@ -816,7 +816,7 @@ test_that("Character status round-trips with stable codes", {
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 120)) |>
     dplyr::mutate(start_date = 0) |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -829,7 +829,7 @@ test_that("Character status round-trips with stable codes", {
   # labels to the same codes (escaped -> 0), so the density is finite
   reinfer <- simulated |>
     dplyr::select(id, house_id, status, infec_time, start_date, study_period) |>
-    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter(alpha = 1e-04, beta = 0.07, gamma = 0.9,
                   size_ref = 4, shape = 2, scale = 1.1) |>
     add_augmented(infec_time = infec_time@D) |>
@@ -846,7 +846,7 @@ test_that("escaped label is configurable", {
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 60)) |>
     dplyr::mutate(start_date = 0) |>
-    new_housepi_model("augmented_infection_time", escaped = "healthy") |>
+    new_housepi_model("case_ascertained", escaped = "healthy") |>
     add_parameter(alpha = 0, beta = 0.001, gamma = 1, size_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
@@ -867,7 +867,7 @@ test_that("Escaped label colliding with an infected status is rejected", {
   house$id <- sprintf("bigshell_m%s", seq_len(nrow(house)))
 
   house |>
-    new_housepi_model("augmented_infection_time", quiet = TRUE,
+    new_housepi_model("case_ascertained", quiet = TRUE,
                       escaped = "symptomatic") |>
     add_parameter_template() |>
     add_augmented_template() |>
@@ -883,7 +883,7 @@ test_that("Mixing integer and character status declarations is rejected", {
 
   # one call carries both an integer and a character status: caught at the wall
   house |>
-    new_housepi_model("augmented_infection_time", quiet = TRUE) |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter_template() |>
     add_augmented_template() |>
     add_augmented(
@@ -903,7 +903,7 @@ test_that("Model-required data can be postponed", {
   dat$start_date <- NULL
 
   hhmodel <- dat |>
-    new_housepi_model("augmented_infection_time")
+    new_housepi_model("case_ascertained")
 
   # hitting a wall (evaluate_*/run_*) raises capital error
   hhmodel |>

@@ -35,8 +35,8 @@ helper_default_source <- function(types, values) {
       else types[i] <- "A"
 
     } else if (!(k %in% names(valid_sources_lst))) {
-      stop_h(paste0("Invalid type '", k, "' for value '", y, "'."),
-             paste(sprintf("'%s'", names(valid_sources_lst)),
+      stop_h(paste0("Invalid type {.val ", k, "} for value {.val ", y, "}."),
+             paste(sprintf("{.val %s}", names(valid_sources_lst)),
                    sprintf("(%s)", unlist(valid_sources_lst)),
                    collapse = ", "))
     }
@@ -159,10 +159,6 @@ housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
     stop_h("Impossible to associate arguments to a function which is a call.")
   } else if (housepi_is_sourced_value(func_name) && isTRUE(is_func)) {
     func_name <- showcaser_extract(func_name, "A")
-    # verify it's not a default sourced value mistakenly interpreted
-    if (housepi_is_sourced_value(func_name)) stop_h(
-      "[Internal] Impossible to associate arguments to a sourced value."
-    )
   }
   if (length(func_args) == 0) return(func_name)
 
@@ -209,7 +205,7 @@ housepi_smart_unwrap <- function(x, arg_name = NULL) {
     stop_h(
       sprintf("%s must be character, numeric, or logical.",
               ifelse(is.null(arg_name), "Defused arguments",
-                     sprintf("Argument '%s'", arg_name))),
+                     sprintf("Argument {.arg %s}", arg_name))),
       format_type_error(result)
     )
   })
@@ -277,15 +273,15 @@ housepi_quos_declare_obs <- function(xquos) {
 assert_no_obs_declaration <- function(xquos) {
   if (housepi_quos_declare_obs(xquos)) stop_h(
     "Augmented definitions cannot declare an observation node.",
-    i = "Use add_observation() for entries with 'obs ='."
+    "Did you mean {.fn add_observation} instead?"
   )
 }
 
 # Stop if no definition was supplied to the list.
 assert_nonempty_defin_quos <- function(xquos, family) {
   if (length(xquos) == 0L) stop_h(
-    sprintf("No %s definition provided.", family),
-    i = "Provide at least one definition."
+    "No {family} definition provided.",
+    "Provide at least one definition."
   )
 }
 
@@ -309,8 +305,8 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
   for (i in seq_along(xquos)) {
     nm <- names(xquos[i])
     if (requires_name && (is.na(nm) || length(nm) == 0 || nm == "")) stop_h(
-      sprintf("Name of %s must be a non-empty string.", self$family),
-      i = "Did you provide a list and forgot rlang injection operator '!!!'?"
+      "Name of {self$family} must be a non-empty string.",
+      "Did you provide a list and forgot rlang injection operator {.code !!!}?"
     )
     def_quo <- xquos[[i]]
     def_expr <- rlang::quo_get_expr(def_quo)
@@ -360,16 +356,12 @@ get_template_def_list <- function(path, family) {
     templ_file <- file.path(path, "param.R")
   } else if (family == "augmented") {
     templ_file <- file.path(path, "augm.R")
-  } else {
-    stop_h(sprintf(
-      "[Internal] Unrecognized holder name '%s' for template loading.", family
-    ))
   }
 
   # check if template file exists
   if (!file.exists(templ_file)) stop_h(
-    sprintf("Impossible to use templated %s definition.", family),
-    x = "A file with template definitions was not found."
+    "Impossible to use templated {family} definition.",
+    `!` = "A file with template definitions was not found."
   )
   # get template definition list and convert to quosures
   dget(templ_file)

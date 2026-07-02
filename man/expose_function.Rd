@@ -18,7 +18,7 @@ expose_function(name, ..., min = NA_real_, max = NA_real_, discr = FALSE)
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }
 \value{
-\code{ExposeFunction} object.
+An exposed function object with methods \verb{$func()} and \verb{$prim()}.
 }
 \description{
 Expose an object from housepi registered function.

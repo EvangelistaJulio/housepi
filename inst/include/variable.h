@@ -147,15 +147,6 @@ namespace housepi
         /// Get EMA smoothing factor.
         static double get_adapt_smoothing() noexcept { return adapt_smoothing_; }
 
-#ifndef NDEBUG
-        ////////////////////
-        //////  SHOW  //////
-        ////////////////////
-
-        /// Get a description about the functional status.
-        std::string str_summary() const override final;
-#endif
-
     private:
         enum class Validity : std::uint8_t
         {

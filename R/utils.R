@@ -5,29 +5,101 @@
 ## See the LICENSE file for details.
 ##
 
-#' Stop execution with a multi-line error message.
-#' @param ... Messages printed in sequence on different lines.
-#' @noRd
-stop_h <- function(...) {
-  # FIXME: let's just expose rlang
-  rlang::abort(paste(unlist(list(...)), collapse = "\n"),
-               call = NULL)
+# Flatten `...`/vectors into one line per element, splitting on newlines.
+# Names are preserved; segments produced by a split inherit an empty name.
+flatten_cli_parts_ <- function(dots) {
+  parts <- unlist(dots, use.names = TRUE)
+  nms <- names(parts)
+  if (is.null(nms)) nms <- rep("", length(parts))
+  out <- character()
+  out_nms <- character()
+  for (k in seq_along(parts)) {
+    segs <- strsplit(parts[[k]], "\n", fixed = TRUE)[[1]]
+    out <- c(out, segs)
+    out_nms <- c(out_nms, nms[[k]], rep("", max(0, length(segs) - 1)))
+  }
+  stats::setNames(out, out_nms)
 }
 
-#' Emit a multi-line warning message.
-#' @param ... Messages printed in sequence on different lines.
+#' Emit a harmonized cli error or warning condition.
+#'
+#' The first element becomes the header (styled `x` for errors, `!` for
+#' warnings); every other element without an explicit bullet name (`x`, `i`,
+#' `!`, `v`) becomes an `i` hint. Our conditions carry a `housepi_stop` /
+#' `housepi_warn` class so [with_cpp_conditions()] passes them through.
+#' @param parts `character()` Message lines, optionally named with bullet keys.
+#' @param level `character(1)` Either `"stop"` or `"warn"`.
+#' @param trusted `logical(1)` When `FALSE`, braces are escaped so foreign text
+#'   cannot trip cli glue.
+#' @param .envir `environment` Frame used to resolve `{ }` interpolations.
+#' @noRd
+emit_cli_condition <- function(parts, level = c("stop", "warn"),
+                               trusted = TRUE, .envir = parent.frame()) {
+  parts <- flatten_cli_parts_(parts)
+  level <- match.arg(level)
+
+  # un-named continuation lines become info hints
+  nms <- names(parts)
+  nms[nms == ""] <- "i"
+  if (length(nms) > 0) nms[[1]] <- ifelse(level == "stop", "x", "")
+  bullets <- stats::setNames(parts, nms)
+
+  if (level == "stop") cli::cli_abort(
+    bullets, call = NULL, class = "housepi_stop", .envir = .envir
+  )
+  else cli::cli_warn(
+    bullets, call = NULL, class = "housepi_warn", .envir = .envir
+  )
+}
+
+#' Stop execution with a harmonized, cli-rendered error.
+#' @param ... Message lines.
+#' First is the header; further lines become `i`, unless specified otherwise.
+#' @noRd
+stop_h <- function(...) {
+  emit_cli_condition(list(...), "stop", .envir = parent.frame())
+}
+
+#' Emit a harmonized, cli-rendered warning.
+#' @param ... Message lines.default.
+#' Following the same bullet convention as [stop_h()].
 #' @noRd
 warn_h <- function(...) {
-  # FIXME: let's just expose rlang
-  rlang::warn(paste(unlist(list(...)), collapse = "\n"),
-              call = NULL)
+  emit_cli_condition(list(...), "warn", .envir = parent.frame())
+}
+
+#' Restyle any condition raised beneath `expr` through the cli emitter.
+#'
+#' Errors and warnings authored by housepi (whether raised in R via [stop_h()] /
+#' [warn_h()] or in C++ via the `msg` facade) are split on newlines into a
+#' header plus `i` hints. C++-authored conditions are recognised by class
+#' (`housepi::CppError` errors, `housepi_cpp_warning` warnings) and rendered as
+#' cli markup; foreign conditions are shown literally.
+#' @param expr Expression to evaluate.
+#' @noRd
+with_cpp_conditions <- function(expr) {
+  reemit <- function(cnd, level, trusted) {
+    msg <- conditionMessage(cnd)
+    emit_cli_condition(list(msg), level, trusted = trusted)
+  }
+  withCallingHandlers(
+    tryCatch(expr, error = function(e) {
+      if (inherits(e, "housepi_stop")) stop(e)
+      reemit(e, "stop", inherits(e, "housepi::CppError"))
+    }),
+    warning = function(w) {
+      if (inherits(w, "housepi_warn")) return(invisible())
+      reemit(w, "warn", inherits(w, "housepi_cpp_warning"))
+      invokeRestart("muffleWarning")
+    }
+  )
 }
 
 #' Standard error message for read-only fields.
 #' @param active `character(1)` Name of the active method.
 #' @noRd
 stop_read_only <- function(active) {
-  stop_h(sprintf("'%s' is read only.", active))
+  stop_h("Active field {.field {active}} is read only.")
 }
 
 #' Subsample a data.frame to ~n evenly spaced rows.
@@ -41,13 +113,19 @@ helper_thin_table_ <- function(df, n) {
 }
 
 #' Return 's' if length of input is larger than 1.
+#'
+#' Thin wrapper over cli pluralization: the marker `{?false/true}` selects
+#' `false` for a singular quantity and `true` for a plural one. cli treats a
+#' quantity of 0 as plural (unlike the old `len > 1` test), but every call site
+#' guards on a non-empty list, so only the 1-vs-many split is ever exercised.
 #' @param txt `character(1)` Leading text.
 #' @param len_list `vector(1)` Reference list length.
 #' @param true `character(1)` What to print if length > 1.
 #' @param false `character(1)` What to print otherwise.
 #' @noRd
 as_plural <- function(txt, len_list, true = "s", false = "") {
-  paste0(txt, ifelse(len_list > 1, true, false))
+  form <- paste0("{cli::qty(", len_list, ")}{?", false, "/", true, "}")
+  paste0(txt, vapply(form, cli::pluralize, character(1), USE.NAMES = FALSE))
 }
 
 #' Helper for "there were/was  `1`/`n`/`more than n1`" sentence.
@@ -67,34 +145,27 @@ format_there_were_was <- function(len_list, max_print = 4) {
 #' @return `character(1)`
 #' @noRd
 character_to_phrase <- function(mylist, quote = FALSE, and = TRUE) {
-  len_list <- length(mylist)
-  if (len_list == 0) return(NULL)
-  if (len_list == 1) and <- FALSE
-
-  # eventually add quotes
-  if (isTRUE(quote)) mylist <- paste0("'", mylist, "'")
-  # collapse w\o 'and'
-  if (isFALSE(and)) return(paste(mylist, collapse = ", "))
-  # collapse with 'and'
-  sms <- paste(mylist[1:(len_list - 1)], collapse = ", ")
-  paste(sms, "and", mylist[len_list])
+  if (length(mylist) == 0) return(NULL)
+  # eventually wrap in cli value markup (styled downstream at emit time)
+  if (isTRUE(quote)) mylist <- paste0("{.val ", mylist, "}")
+  # let cli collapse; " and " before the last item, or plain comma without it
+  cli::ansi_collapse(mylist, sep = ", ",
+                     last = if (isTRUE(and)) " and " else ", ", trunc = Inf)
 }
 
-#' Collapse a character vector into string of quoted words.
+#' Collapse a character vector into a leading-spaced string of quoted words.
+#' The leading space separates the list from the text that introduces it.
 #' @param mylist `character()` List to be printed.
 #' @param max_print `integer(1)` Maximum number of elements to print.
-#' @param fmt `logical(1)` Format as in message.
 #' @return `character(1)`
 #' @noRd
-character_to_string_list <- function(mylist, max_print = 4, fmt = TRUE) {
+character_to_string_list <- function(mylist, max_print = 4) {
   len_list <- length(mylist)
   max_print <- min(max_print, len_list, na.rm = TRUE)
   overflow <- len_list > max_print
   sms <- character_to_phrase(mylist[seq_len(max_print)],
                              quote = TRUE, and = !overflow)
-  out <- paste0(sms, ifelse(overflow, ", ...", "."))
-  if (isTRUE(fmt)) out <- paste0(as_plural("", len_list, "\n", " "), out)
-  out
+  paste0(" ", sms, ifelse(overflow, ", ...", "."))
 }
 
 #' Find closest match across list of options.
@@ -116,13 +187,13 @@ find_closest_match <- function(input, options, min_dist = 3, max_print = 4) {
 
     if (any(idxs)) {
       closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
-      output <- sprintf("Did you mean '%s'?", closest)
+      output <- sprintf("Did you mean {.val %s}?", closest)
     }
 
     if (!all(idxs)) output <- c(output,
-      sprintf("Available %s %s",
+      sprintf("Available %s%s",
               as_plural("option", len_opts, "s are:", " is"),
-              character_to_string_list(options, fmt = FALSE))
+              character_to_string_list(options))
     )
   }
   output
@@ -130,7 +201,7 @@ find_closest_match <- function(input, options, min_dist = 3, max_print = 4) {
 
 # Helper to format invalid type errors.
 format_type_error <- function(x) {
-  sprintf("Got an object of class %s instead.",
+  sprintf("Got an object of class {.cls %s} instead.",
           paste(rev(class(x)), collapse = "/"))
 }
 
@@ -201,7 +272,7 @@ helper_clone <- function(x) {
 assert_advanced_setup_ <- function(dots, allowed) {
   for (nm in names(dots)) {
     if (!(nm %in% allowed)) stop_h(
-      sprintf("Unexpected argument '%s' passed through '...'.", nm),
+      "Unexpected argument {.arg {nm}} passed through {.code ...}.",
       find_closest_match(nm, setdiff(allowed, names(dots)))
     )
   }
@@ -266,15 +337,14 @@ resolve_status_codes_ <- function(defs, dictionary) {
   is_lab <- known & !is_int
   # guard: a model is all-integer or all-character on 'status ='
   if (any(is_int) && any(is_lab)) stop_h(
-    "Cannot mix integer and character 'status =' declarations in one model.",
-    i = "Use either integer codes or character labels throughout."
+    "Mixed integer and character {.code status =} declarations in one model.",
+    "Use either integer codes or character labels throughout."
   )
   if (any(is_lab)) {
     code <- match(st[is_lab], dictionary)
-    if (anyNA(code)) stop_h(sprintf(
-      "Status label(s) %s not among the declared statuses %s.",
-      paste(sprintf("'%s'", unique(st[is_lab][is.na(code)])), collapse = ", "),
-      paste(sprintf("'%s'", dictionary), collapse = ", ")
+    if (anyNA(code)) stop_h(paste(
+      "Status label(s) {.val {unique(st[is_lab][is.na(code)])}}",
+      "not among the declared statuses {.val {dictionary}}."
     ))
     st[is_lab] <- as.character(code)
     defs[["status"]] <- st

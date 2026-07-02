@@ -103,7 +103,7 @@ test_that("browse_housepi_templates branches inform correctly", {
   browse_housepi_templates("foxhound") |>
     expect_error(regexp = "not a known template")
   # unknown name close to a real one: hint should suggest "Did you mean"
-  browse_housepi_templates("chain binomia") |>
+  browse_housepi_templates("final siz") |>
     expect_error(regexp = "Did you mean")
 })
 
@@ -116,11 +116,11 @@ test_that("browse_housepi_templates triggers help preview when path is NA", {
       invisible()
     },
     code = {
-      browse_housepi_templates("chain_binomial")
+      browse_housepi_templates("final_size")
     }
   )
   expect_true(!is.null(called_with))
-  expect_true(grepl("chain_binomial$", called_with))
+  expect_true(grepl("final_size$", called_with))
 })
 
 test_that("open_model_helper_ errors when info.Rd is missing", {
@@ -136,25 +136,25 @@ test_that("browse_housepi_templates copies template to a new path", {
   on.exit(unlink(dest, recursive = TRUE), add = TRUE)
 
   # first copy: creates the model.cpp
-  browse_housepi_templates("chain_binomial", path = dest)
+  browse_housepi_templates("final_size", path = dest)
   initial_mtime <- file.info(file.path(dest, "model.cpp"))$mtime
 
   expect_true(dir.exists(dest))
   expect_true(file.exists(file.path(dest, "model.cpp")))
   expect_true(file.exists(file.path(dest, "param.R")))
   expect_true(file.exists(file.path(dest, "info.Rd")))
-  # chain_binomial has no augmented file: nothing should be copied
+  # final_size has no augmented file: nothing should be copied
   expect_false(file.exists(file.path(dest, "augm.R")))
 
   # second copy without replace: warns and does NOT overwrite
-  browse_housepi_templates("chain_binomial", path = dest) |>
+  browse_housepi_templates("final_size", path = dest) |>
     expect_warning(regexp = "already exists")
   expect_equal(file.info(file.path(dest, "model.cpp"))$mtime, initial_mtime)
 
   # with replace = TRUE: overwrites silently
   Sys.sleep(1.1)  # ensure mtime resolution captures the rewrite
   expect_no_warning(
-    browse_housepi_templates("chain_binomial", path = dest, replace = TRUE)
+    browse_housepi_templates("final_size", path = dest, replace = TRUE)
   )
   expect_gt(
     as.numeric(file.info(file.path(dest, "model.cpp"))$mtime),
@@ -168,26 +168,26 @@ test_that("browse_housepi_templates rejects '.' as destination path", {
   on.exit(unlink(sandbox, recursive = TRUE), add = TRUE)
   withr::with_dir(sandbox, {
     expect_warning(
-      browse_housepi_templates("chain_binomial", path = "."),
+      browse_housepi_templates("final_size", path = "."),
       regexp = "current directory"
     )
     # helper redirects "." to a folder named after the template
-    expect_true(dir.exists("chain_binomial"))
+    expect_true(dir.exists("final_size"))
   })
 })
 
 test_that("Template name normalization", {
-  model_name <- "chain binomial"
-  spaced_template_choice("Chain-Binomial") |>
+  model_name <- "final size"
+  spaced_template_choice("Final-Size") |>
     expect_equal(model_name)
-  spaced_template_choice("chain_binomial") |>
+  spaced_template_choice("final_size") |>
     expect_equal(model_name)
-  spaced_template_choice(" chain binoMial ") |>
+  spaced_template_choice(" final siZe ") |>
     expect_equal(model_name)
-  spaced_template_choice("CHAIN BINOMIAL") |>
+  spaced_template_choice("FINAL SIZE") |>
     expect_equal(model_name)
 
-  result <- find_closest_template_name("chain binomia")
+  result <- find_closest_template_name("final siz")
   expect_true(any(grepl("Did you mean", result)))
 
   result2 <- find_closest_template_name("")
@@ -195,7 +195,7 @@ test_that("Template name normalization", {
 })
 
 test_that("Template extract keys from model.cpp", {
-  model_dir <- get_template_dir("chain_binomial")
+  model_dir <- get_template_dir("final_size")
   model_cpp <- file.path(model_dir, "model.cpp")
   # DataKey should return empty character vector
   result <- template_extract_keys(model_cpp, "DataKey")

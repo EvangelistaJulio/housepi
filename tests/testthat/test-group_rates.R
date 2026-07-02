@@ -96,9 +96,6 @@ test_that("Active fields are read-only", {
 test_that("Group rates integrate with data and exposes to Cpp format", {
   grp <- HousepiGroupRate$new()
 
-  # remove warns when removing unknown group rate
-  expect_warning(grp$remove(list("does_not_exist"), warn_removal = TRUE))
-
   # implement should build logic_tables without errors
   aux_add(grp, "foxhound", by = c("age", "sex"), joint = TRUE)
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
@@ -123,7 +120,7 @@ test_that("Group rates integrate with data and exposes to Cpp format", {
 
 test_that("Group rates sentinels work correctly", {
   hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("chain_binomial")
+    new_housepi_model("final_size")
 
   # empty rate definition
   hhmodel |>
@@ -143,7 +140,7 @@ test_that("Group rates sentinels work correctly", {
   # incomplete custom prior definition
   hhmodel |>
     add_group_rate("susceptibility", by = "sex", max = 3) |>
-    expect_error("'prior' must be specified")
+    expect_error("must be specified")
 
   # FIXME: this should fire!
   # hhmodel |>
@@ -152,14 +149,14 @@ test_that("Group rates sentinels work correctly", {
 
 test_that("Group rates reference support behaves as expected", {
   hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("chain_binomial")
+    new_housepi_model("final_size")
 
   # missing reference
   strata <- data.frame(sex = c("F", "M"),
                        param_name = c("ladies", "gentlemen"))
   hhmodel |>
     add_group_rate("susceptibility", strata = strata) |>
-    expect_error("param_name as '.reference'")
+    expect_error("param_name as")
   # explicit no reference
   hhmodel |>
     add_group_rate("susceptibility", reference = ".none", strata = strata) |>

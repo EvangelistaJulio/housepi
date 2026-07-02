@@ -201,7 +201,7 @@ HousepiContactRate <- R6::R6Class(
     helper_auto_reference_ = function(by, reference) {
       if (isTRUE(any(reference == ".none"))) {
         if (isTRUE(all(reference == ".none"))) return(".none")
-        else stop_h("Ambigous entry '.none' in reference vector.")
+        else stop_h("Ambigous entry {.val .none} in reference vector.")
       }
 
       valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
@@ -215,7 +215,7 @@ HousepiContactRate <- R6::R6Class(
         sprintf("Unrecognized %s for reference:%s",
                 as_plural("choice", length(wrong_entries)),
                 character_to_string_list(wrong_entries)),
-        "Reference should match 'by' and use 'from_' and/or 'to_' prefixes."
+        "Reference should match {.arg by} and use {.code from_}\\{.code to_} prefixes."
       )
       as.list(reference)
     },
@@ -244,9 +244,9 @@ HousepiContactRate <- R6::R6Class(
       assert_valid_logic_table(strata)
       none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
       if (!none_ref && !".reference" %in% strata$param_name) stop_h(
-        "Custom logic table must contain a '.reference' row.",
-        "Designate one row's param_name as '.reference',",
-        "or pass reference = '.none' to opt out."
+        "Custom logic table must contain a {.val .reference} row.",
+        "Designate one row's param_name as {.val .reference},",
+        "or pass {.code reference = \".none\"} to opt out."
       )
       # cast feature columns to character (consistent with auto mode)
       feat_cols <- setdiff(colnames(strata), rate_reserved_cols)

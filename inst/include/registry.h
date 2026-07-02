@@ -96,7 +96,7 @@ namespace housepi
 }
 
 #define HOUSEPI_OVERRIDE_NAME_METHOD(name_) \
-    std::string_view name() const noexcept override final { return #name_; }
+    std::string name() const noexcept override final { return #name_; }
 #define HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_) \
     std::unique_ptr<housepi::Function> clone() const override final { return std::make_unique<Class_>(*this); }
 #define HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Class_) \
@@ -183,15 +183,15 @@ namespace housepi
     };
 }
 
-#define HOUSEPI_REGISTER_MODEL(module)                                                        \
-    namespace                                                                                 \
-    {                                                                                         \
-        struct module##_ModelAutoRegister                                                     \
-        {                                                                                     \
-            module##_ModelAutoRegister()                                                      \
-            {                                                                                 \
+#define HOUSEPI_REGISTER_MODEL(module)                                                                \
+    namespace                                                                                         \
+    {                                                                                                 \
+        struct module##_ModelAutoRegister                                                             \
+        {                                                                                             \
+            module##_ModelAutoRegister()                                                              \
+            {                                                                                         \
                 housepi::ModelRegistry::instance().register_factory<housepi::module::Model>(#module); \
-            }                                                                                 \
-        };                                                                                    \
-        static module##_ModelAutoRegister module##_model_auto_register;                       \
+            }                                                                                         \
+        };                                                                                            \
+        static module##_ModelAutoRegister module##_model_auto_register;                               \
     }

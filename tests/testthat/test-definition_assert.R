@@ -1,9 +1,9 @@
 library(testthat)
 
-test_that("Helper format errors drops pedantic While doing stuff etc etc", {
-  # single error: returns last line
+test_that("Helper format errors keeps full multi-line text of the pick", {
+  # single error: returns the full (multi-line) text for the cli split
   expect_equal(helper_format_error(list("first line\nlast line")),
-               "last line")
+               "first line\nlast line")
 
   # multiple errors: "Unused" or "Missing" are prioritized
   err <- list(a = "some error", b = "Unused argument x")

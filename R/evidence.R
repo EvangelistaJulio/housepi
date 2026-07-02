@@ -44,7 +44,7 @@ HousepiPowerPosteriors <- R6::R6Class(
         stop_h(
           paste("Thermodynamic integration is not applicable:",
                 "ladder holds non-finite log-likelihood draws."),
-          i = "Try to use method 'stepping-stone' instead."
+          "Try to use {.code method = \"stepping-stone\"} instead."
         )
       }
       avg <- private$mean_log_lik_
@@ -181,9 +181,9 @@ HousepiPowerPosteriors <- R6::R6Class(
     #' @description Override the default printing behavior.
     print = function() {
       fmt_cli_info(c(
-        sprintf("Power posteriors draws of model '%s'",
+        sprintf("Power posteriors draws of model {.val %s}",
                 spaced_template_choice(private$name_)),
-        sprintf("Scheme: '%s'. Rungs: %d.",
+        sprintf("Scheme: {.val %s}. Rungs: %d.",
                 private$scheme_, length(private$inv_temp_) - 1L)
       ))
       invisible(self)
@@ -245,9 +245,9 @@ evaluate_log_evidence <- function(
     x, method = c("stepping-stone", "thermodynamic")) {
   if (inherits(x, "HousepiModel")) {
     stop_h(
-      "Impossible to evaluate log-evidence on 'HousepiModel' directly.",
-      i = paste("Sample a ladder first with 'run_power_posteriors(')',",
-                "then pass it to 'evaluate_log_evidence()'.")
+      "Impossible to evaluate log-evidence on {.cls HousepiModel} directly.",
+      paste("Sample a ladder first with {.fn run_power_posteriors},",
+            "then pass it to {.fn evaluate_log_evidence}.")
     )
   }
   stopifnot(inherits(x, "HousepiPowerPosteriors"))

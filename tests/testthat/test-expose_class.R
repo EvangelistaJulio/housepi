@@ -2,7 +2,7 @@ library(testthat)
 
 test_that("Reject if calling on non-HousepiModel objects", {
   obj <- "not a model"
-  err <- "class 'HousepiModel'"
+  err <- "must be of class"
   expect_error(add_data_long(obj, data.frame()), regexp = err)
   expect_error(get_data_wide(obj), regexp = err)
   expect_error(get_data_long(obj), regexp = err)
@@ -124,7 +124,7 @@ test_that("Group rate wrappers", {
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
   )
-  hhmodel <- new_housepi_model(small_gr, "chain_binomial")
+  hhmodel <- new_housepi_model(small_gr, "final_size")
   hhmodel <- add_group_rate(hhmodel, "community", by = "member")
   groups_1 <- get_group_rates(hhmodel)
   expect_true(is.data.frame(groups_1))
@@ -167,7 +167,7 @@ test_that("add_contact_rate wrapper input branches", {
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
   ) |>
-    new_housepi_model("chain_binomial")
+    new_housepi_model("final_size")
 
   strata <- data.frame(
     from_member = c("student", NA),
@@ -212,7 +212,7 @@ test_that("add_contact_rate wrapper input branches", {
 
 test_that("add_infec_profile single and bulk forms work", {
   hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("augmented_infection_time")
+    new_housepi_model("case_ascertained")
   ip <- hhmodel |>
     add_infec_profile(func = "lognormal") |>
     get_infec_profile()

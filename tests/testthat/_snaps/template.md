@@ -5,7 +5,7 @@
     Message
       i Available template models:
       * `augmented_example`
-      * `augmented_infection_time`
       * `blank`
-      * `chain_binomial`
+      * `case_ascertained`
+      * `final_size`
 

@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "tools/messages.h"
 #include "tools/status.h"
 
 namespace housepi
@@ -59,7 +60,7 @@ namespace housepi
 		//////  SHOW  //////
 		////////////////////
 
-		std::string err_name() const { return "individual '" + id() + "'"; }
+		std::string err_name() const { return "individual " + msg::val(id()); }
 
 	private:
 		size_t index_ = 0;	  /// housepi internal index

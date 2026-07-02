@@ -23,7 +23,7 @@ test_that("Model generator inconsistent calls are caught", {
 
   # helper suggests correect template name
   HousepiGenerator$new("augment exemple") |>
-    expect_error("augmented example")
+    expect_error("you mean.*augmented example")
 
   # model name imposed redundancy
   name1 <- HousepiGenerator$new("augmented example")$name
@@ -33,26 +33,24 @@ test_that("Model generator inconsistent calls are caught", {
     expect_equal("augmented example")
 
   # inference without definitions
-  hhgen$run_inference() |>
-    expect_error()
+  run_inference(hhgen) |>
+    expect_error("HousepiModel")
 })
 
 test_that("Model choice helper handles malformed input", {
   # NA falls back to 'blank' with a warning
   expect_warning(hhgen <- HousepiGenerator$new(NA_character_),
                  regexp = "blank")
-  hhgen$name |>
-    expect_equal("blank")
-  hhgen$is_blank() |>
-    expect_true()
+  expect_equal(hhgen$name, "blank")
+  expect_true(hhgen$is_blank())
 
   # non-character input is rejected
   HousepiGenerator$new(42) |>
-    expect_error("non-empty string")
+    expect_error("non-empty")
 
   # length != 1 character input is rejected
   HousepiGenerator$new(c("blank", "snake_eater")) |>
-    expect_error("non-empty string")
+    expect_error("non-empty")
 
   # '.' as a model choice is rejected with a clear message
   HousepiGenerator$new(".") |>
@@ -107,7 +105,7 @@ test_that("data_required reflects the underlying template", {
   blank_gen$data_required |>
     expect_length(0L)
 
-  ait_gen <- HousepiGenerator$new("augmented infection time")
+  ait_gen <- HousepiGenerator$new("case ascertained")
   expect_true("start_date" %in% ait_gen$data_required)
 })
 
@@ -139,7 +137,7 @@ test_that("factorize_data_wide behaves as expected", {
 
 test_that("user paths, flags and libs reach the compile command", {
   log <- suppressMessages(capture.output(
-    hhgen <- HousepiGenerator$new("augmented infection time",
+    hhgen <- HousepiGenerator$new("case ascertained",
                                   discr = TRUE, force = TRUE,
                                   paths = "/tmp/diamond_dogs",
                                   libs  = "/tmp/mother_base"),
@@ -182,7 +180,7 @@ test_that("as_template is dropped on the blank fallback", {
 test_that("a session-loaded template warns when compile flags change", {
   path <- file.path(tempdir(), "shadow_moses")
   on.exit(unlink(path, recursive = TRUE), add = TRUE)
-  browse_housepi_templates("augmented_infection_time", path, replace = TRUE)
+  browse_housepi_templates("case_ascertained", path, replace = TRUE)
 
   # build + load a discrete template, recording its flags in a sidecar
   HousepiGenerator$new(path, discr = TRUE, as_template = TRUE, quiet = TRUE)
@@ -207,7 +205,7 @@ test_that("an error is raised when tracked referen is lost", {
   dest <- tempfile("solid_snake_")
   on.exit(unlink(dest, recursive = TRUE), add = TRUE)
 
-  browse_housepi_templates("chain_binomial", path = dest)
+  browse_housepi_templates("final_size", path = dest)
   hhgen <- HousepiGenerator$new(dest, quiet = TRUE)
   unlink(hhgen$get_reference())
 

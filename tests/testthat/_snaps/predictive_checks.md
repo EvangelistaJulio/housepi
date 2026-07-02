@@ -3,7 +3,7 @@
     Code
       print(ppc)
     Message
-      i Posterior predictions for model 'chain binomial':
+      i Posterior predictions for model "final size":
       * sar
       N. replicates: 10
       Point estimate: mean

@@ -44,6 +44,7 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
 
   result |>
     expect_s3_class("HousepiPowerPosteriors")
+  expect_snapshot(print(result))
   result$detail |>
     expect_named(c("inv_temp", "mean_log_lik", "var_log_lik"))
 

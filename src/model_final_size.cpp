@@ -15,7 +15,7 @@
 #include "binomial.h"
 
 #ifndef _HOUSEPI_MODULE
-#define _HOUSEPI_MODULE chain_binomial
+#define _HOUSEPI_MODULE final_size
 #endif
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()

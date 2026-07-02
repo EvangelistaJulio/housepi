@@ -35,6 +35,7 @@ using discrete_up_policy = boost::math::policies::policy<
     boost::math::policies::promote_double<false>,
     boost::math::policies::discrete_quantile<boost::math::policies::integer_round_up>>;
 
+#include "tools/messages.h"
 #include "tools/string.h"
 
 #include "distribution.h"
@@ -69,8 +70,8 @@ namespace housepi
                                                            bool is_cumul)
     {
         if (registries.empty())
-            throw std::invalid_argument(
-                "No registries were provided for '" + err_type + "'.");
+            msg::stop(
+                "No registries were provided for " + msg::val(err_type) + ".");
 
         // FIXME: this should be an error
         if (na::is(opt))
@@ -85,8 +86,8 @@ namespace housepi
             else if (r == "infecprofile")
                 registry_ptrs.push_back(&InfecProfileRegistry::instance());
             else
-                throw std::invalid_argument(
-                    "Unknown " + err_type + " registry '" + r + "'.");
+                msg::stop(
+                    "Unknown " + err_type + " registry " + msg::val(r) + ".");
 
         std::vector<std::string> options = {};
         for (const DistributionRegistry *r : registry_ptrs)
@@ -99,8 +100,8 @@ namespace housepi
             options.insert(options.end(), y.begin(), y.end());
         }
 
-        throw std::invalid_argument(
-            "Unknown " + err_type + " '" + std::string(opt) + "'." +
+        msg::stop(
+            "Unknown " + err_type + " " + msg::val(std::string(opt)) + "." +
             str::find_closest(opt, options));
     }
 }
@@ -353,7 +354,7 @@ namespace
 
         void init_discretization() override final
         {
-            throw std::invalid_argument(
+            msg::stop(
                 "Invoked invalid option discrete for " + err_name() + ".");
         }
         void init_truncation() override final
@@ -361,10 +362,10 @@ namespace
             const double sx = lower_.value();
             const double dx = upper_.value();
             if (sx < 0)
-                throw std::invalid_argument(
+                msg::stop(
                     "Invoked invalid min value " + str::format(sx) + " for " + err_name() + ".");
             if (dx > 1)
-                throw std::invalid_argument(
+                msg::stop(
                     "Invoked invalid max value " + str::format(dx) + " for " + err_name() + ".");
             if (sx > 0 || dx < 1)
             {
@@ -727,14 +728,14 @@ namespace
         {
             const double sx = lower_.value();
             if (sx < 0.)
-                throw std::invalid_argument(
+                msg::stop(
                     "Invoked invalid min value " + str::format(sx) +
                     " for " + err_name() + ".");
             if (sx > 0. || arguments_(0).pointer() != upper().pointer())
             {
                 const double dx = lower_.value();
                 if (dx > arg(0))
-                    throw std::invalid_argument(
+                    msg::stop(
                         "Invoked invalid max value " + str::format(dx) +
                         " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
                 helper_init_standard_range_();
@@ -889,11 +890,11 @@ namespace
         {
             const size_t cases = n_args();
             if (cases == 0)
-                throw std::invalid_argument(
+                msg::stop(
                     "Invoked " + err_name() + " with no cases (at least one weight required).");
 
             if (weight_sum_() <= 0.)
-                throw std::invalid_argument(
+                msg::stop(
                     "Invoked " + err_name() + " with weights summing to non-strictly positive value.");
 
             lower_.init_numeric(0.);

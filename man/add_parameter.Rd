@@ -101,7 +101,7 @@ The can be supplied only through single mode.
 \examples{
 # the single, inline-bulk and list-bulk forms compose freely in a pipe
 hhmodel <- flu_1918_frederick |>
-  new_housepi_model("chain_binomial") |>
+  new_housepi_model("final_size") |>
   # single: alpha, with a uniform prior and a lognormal proposal
   add_parameter("alpha", prior = "uniform", proposal = "lognormal") |>
   # single: beta, fixed to a constant
@@ -112,6 +112,6 @@ hhmodel <- flu_1918_frederick |>
 # list bulk: load a pre-built named list of definitions through `import`
 my_import <- list(gamma = 1, size_ref = 4)
 hhmodel <- flu_1918_frederick |>
-  new_housepi_model("chain_binomial") |>
+  new_housepi_model("final_size") |>
   add_parameter(import = my_import)
 }

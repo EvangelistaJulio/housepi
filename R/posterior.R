@@ -228,9 +228,8 @@ HousepiPosteriorDraws <- R6::R6Class(
       ss <- niter * nchains
       if (ss < diagnostic_[["ss_min"]]) {
         warn_h(
-          sprintf("Total sample size was below %d.",
-                  diagnostic_[["ss_min"]]),
-          "Convergence diagnostics may be unreliable and were skipped."
+          "Total sample size was below {diagnostic_[['ss_min']]}.",
+          `!` = "Convergence diagnostics may be unreliable and were skipped."
         )
         return(invisible())
       }
@@ -422,7 +421,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       else naugm <- posterior::nvariables(private$augm_draws_)
 
       fmt_cli_info(c(
-        sprintf("Posterior draws of model '%s'.",
+        sprintf("Posterior draws of model {.val %s}.",
                 spaced_template_choice(private$name_)),
         sprintf(
           "%s iteration%s, %s chain%s%s%s.",

@@ -92,19 +92,13 @@ HousepiInfecProfile <- R6::R6Class(
 
     #' @description Remove a given infectivity profile definition.
     #' @param status `integer(1)`. Associated status of the definition.
-    #' @param warn_removal `logical(1)`. Show warnings for failed removal.
-    remove = function(status, warn_removal = FALSE) {
+    remove = function(status) {
       mask <- sapply(self$defs[["status"]], function(x) {
         identical(x, as.integer(status))
       })
       if (any(mask)) {
         self$defs <- self$defs[!mask, ]
         return(status)
-      } else if (isTRUE(warn_removal)) {
-        warn_h(sprintf(
-          "Attempt to remove unknown infectivity profile for status '%s'.",
-          status
-        ))
       }
       c()
     },
@@ -130,7 +124,9 @@ HousepiInfecProfile <- R6::R6Class(
       func_args <- func_args[names(func_args) != "name"]
 
       # check infectivity profile function
-      if (is.na(func)) stop_h("Incomplete definition: missing function name.")
+      if (is.na(func)) stop_h(
+        "Incomplete definition: missing function name {.arg func}."
+      )
       assert_valid_status(status)
 
       # drop previous definition eventually

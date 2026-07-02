@@ -71,7 +71,7 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
                        logical(1))
   if (!all(dims_match)) stop_h(
     sprintf("Not all computed measures%s share identical dimensions.",
-            ifelse(!is.na(name), sprintf(" of '%s'", name), "")),
+            ifelse(!is.na(name), sprintf(" of {.field %s}", name), "")),
     "Check output of your posterior measure function."
   )
 
@@ -119,7 +119,7 @@ ppc_frame_apply_stat <- function(frame_list, stat_fn, label,
     else stop_h(
       sprintf("Undefined %s for non-numeric, non-unique values%s.",
               label,
-              ifelse(!is.na(name), sprintf(" in measure '%s'", name), "")),
+              ifelse(!is.na(name), sprintf(" in measure {.field %s}", name), "")),
       "Check output of your posterior measure function."
     )
   }, name = name)
@@ -301,7 +301,7 @@ HousepiPrediction <- R6::R6Class(
                           progress = TRUE,
                           point_estimate = "mean") {
       if (!is.na(max_nrep) && (!is.numeric(max_nrep) || max_nrep < 1)) stop_h(
-        "'max_nrep' must be a positive integer or NA."
+        "{.arg max_nrep} must be a positive integer or NA."
       )
       # associate summary statistic and credible interval
       private$point_estimate_ <- ppc_set_point_estimate(point_estimate)
@@ -318,7 +318,7 @@ HousepiPrediction <- R6::R6Class(
       if (!has_wide && !has_long) stop_h("No measure was provided.")
       # FIXME: temporary forcing obs process long
       if (has_long && is.null(obs_process_long)) stop_h(
-        "obs_process_long is required when long measures are provided."
+        "{.arg obs_process_long} is required when long measures are provided."
       )
 
       # store (and test) results from observed data wide and/or long
@@ -413,7 +413,7 @@ HousepiPrediction <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      sms <- sprintf("%s for model '%s':",
+      sms <- sprintf("%s for model {.val %s}:",
                      ifelse(private$is_posterior_,
                             "Posterior predictions", "Predictions"),
                      private$model_name_)
@@ -757,8 +757,8 @@ format_credible_interval <- function(point_estimate, cri_lower, cri_upper,
     )
 
     if (length(gregexpr("%s", fmt, fixed = TRUE)[[1]]) != 3) stop_h(
-      "Invalid choice for character 'str_format'.",
-      "It must contain exactly three '%s' placeholders."
+      "Invalid choice for character {.arg str_format}.",
+      "It must contain exactly three {.code %s} placeholders."
     )
 
     .fmt_num <- function(pe, low, up) {

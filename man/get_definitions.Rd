@@ -36,7 +36,7 @@ Each variant returns one category (data, parameters, augmented variables,
 group rates, contact rates, infectivity profile).
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
   add_parameter_template()
 get_data_wide(hhmodel) |>
   head()

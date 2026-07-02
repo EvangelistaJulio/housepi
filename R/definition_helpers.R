@@ -116,8 +116,8 @@ helper_variable_core <- function(opts, family, value, func, func_args) {
 helper_variable_model <- function(opts, family, args) {
   if (is.null(args)) return(opts)
   if (is.na(opts[["prior"]])) {
-    sms <- sprintf("Spare arguments for %s '%s'.", family, opts$name)
-    if (!is.na(opts$func)) sms <- c(sms, "Did you mean 'func_args'?")
+    sms <- "Spare arguments for {family} {.val {opts$name}}."
+    if (!is.na(opts$func)) sms <- c(sms, "Did you mean {.arg func_args}?")
     stop_h(sms)
   }
   opts[["prior"]] <- housepi_combine_to_call(opts[["prior"]], args)
@@ -134,7 +134,7 @@ helper_variable_move <- function(opts, family, proposal_scale) {
 
   if (isTRUE(opts$const)) {
     if (is.na(opts$value)) stop_h(
-      sprintf("Missing value for constant %s '%s'.", family, opts$name)
+      "Missing value for constant {family} {.val {opts$name}}."
     )
     opts$proposal <- NA_character_
     # drop prior if constant
@@ -145,7 +145,7 @@ helper_variable_move <- function(opts, family, proposal_scale) {
     # check for prior if not constant (skip for func-defined parameters)
     if (family == "parameter" && is.na(opts[["prior"]])
         && is.na(opts$func)) stop_h(
-      sprintf("No prior provided for %s '%s'.", family, opts$name)
+      "No {.arg prior} provided for {family} {.val {opts$name}}."
     )
   }
 
@@ -155,7 +155,7 @@ helper_variable_move <- function(opts, family, proposal_scale) {
             is.numeric(showcaser_extract_numeric(opts$value))) {
         # raise error if const is FALSE (not if NA or already TRUE)
         if (isFALSE(opts$const)) stop_h(
-          sprintf("No prior to sample from for %s '%s'.", family, opts$name)
+          "No {.arg prior} to sample from for {family} {.val {opts$name}}."
         )
         opts$const <- TRUE
       }
@@ -165,7 +165,7 @@ helper_variable_move <- function(opts, family, proposal_scale) {
     }
   } else {
     if (is.na(opts[["prior"]])) stop_h(
-      sprintf("No prior to sample from for %s '%s'.", family, opts$name)
+      "No {.arg prior} to sample from for {family} {.val {opts$name}}."
     )
     if (opts$proposal != "sample")  {
       # NA proposal scale: adaptive

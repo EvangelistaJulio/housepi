@@ -4,7 +4,7 @@ library(testthat)
 # and one inference run, reused across PPC tests that don't mutate either.
 local_ppc <- local({
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   results <- suppressWarnings(run_inference(
     hhmodel, steps = 100, chains = 1, adapt = 0, thin = 1, progress = FALSE
@@ -352,7 +352,7 @@ test_that("ppc_observed_outside_cri flags out-of-range numeric entries", {
 test_that("HousepiPrediction warns on observed values outside CrI", {
   # parameter set deliberately so that SAR~1
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   param_table <- data.frame(alpha = 50, beta = 50, gamma = 1, size_ref = 4)
   expect_warning(

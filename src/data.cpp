@@ -163,15 +163,15 @@ namespace housepi
             {
                 id = input.at("id")[i]; // user id
                 if (na::is(id))
-                    throw std::invalid_argument(
-                        "Individual in row n." + std::to_string(i + 1) + " had missing 'id'.");
+                    msg::stop(
+                        "Individual in row n." + std::to_string(i + 1) + " had missing " + msg::field("id") + ".");
             }
             if (input.count("house_id"))
             {
                 house_id = input.at("house_id")[i]; // user house_id
                 if (na::is(house_id))
-                    throw std::invalid_argument(
-                        "Individual in row n." + std::to_string(i + 1) + " had missing 'house_id'.");
+                    msg::stop(
+                        "Individual in row n." + std::to_string(i + 1) + " had missing " + msg::field("house_id") + ".");
             }
             if (input.count("status"))
             {
@@ -195,15 +195,15 @@ namespace housepi
 
                 if (input.count(dname))
                 {
-                    x = str::tod(input.at(dname)[i], "data '" + dname + "'");
+                    x = str::tod(input.at(dname)[i], "data " + msg::arg(dname));
 
                     if (user_discrete_set_.count(d) && x != std::floor(x))
-                        throw std::invalid_argument(
-                            "Data '" + dname + "' for individual in row n." + std::to_string(i + 1) +
+                        msg::stop(
+                            "Data " + msg::arg(dname) + " for individual in row n." + std::to_string(i + 1) +
                             " was expected to be discrete-valued, as requested by model.");
                     if (user_positive_set_.count(d) && !(x > 0.))
-                        throw std::invalid_argument(
-                            "Data '" + dname + "' for individual in row n." + std::to_string(i + 1) +
+                        msg::stop(
+                            "Data " + msg::arg(dname) + " for individual in row n." + std::to_string(i + 1) +
                             " was expected to be greater than zero, as requested by model.");
                 }
             }
@@ -248,8 +248,8 @@ namespace housepi
     {
         auto it = hhid_to_index_.find(house_id);
         if (it == hhid_to_index_.end())
-            throw std::invalid_argument(
-                "Index '" + std::string(house_id) + "' did not match any household in the data.");
+            msg::stop(
+                "Index " + msg::val(std::string(house_id)) + " did not match any household in the data.");
         return it->second;
     }
 
@@ -269,12 +269,12 @@ namespace housepi
 
         // assess the presence of house IDs
         if (!contains(headers, "house_id"))
-            msg::warning("Ignored household structure. Missing data column 'house_id'.");
+            msg::warn("Ignored household structure. Missing data column " + msg::field("house_id") + ".");
 
         // assess individual IDs are unique
         if (contains(headers, "id") &&
             input.at("id").size() != str::unique(input.at("id")).size())
-            throw std::invalid_argument("Provided individual IDs are not unique.");
+            msg::stop("Provided individual IDs are not unique.");
 
         // remove standard headers
         headers = headers - std::vector<std::string>({"id", "house_id", "status"});
@@ -558,14 +558,14 @@ namespace housepi
     void DataWide::assert_not_all_missing_status() const
     {
         if (report_indiv.total == report_indiv.missing)
-            throw std::length_error(
+            msg::stop(
                 "All individuals in the data had missing status.");
     }
 
     void DataWide::assert_no_missing_status() const
     {
         if (report_indiv.missing > 0)
-            throw std::length_error(
+            msg::stop(
                 "Individual with missing status are incompatible with current model.");
     }
 
@@ -608,21 +608,21 @@ namespace housepi
         {
             const std::string &id = input.at("id")[r];
             if (na::is(id))
-                throw std::invalid_argument(
+                msg::stop(
                     "Invalid id found in row n." + std::to_string(r + 1) + ".");
             // UPDATE: these errors should be more self-explicative
             if (!id_to_index.count(id))
-                throw std::invalid_argument(
-                    "Id '" + id + "' from data long-format had no match in loaded data wide-format.");
+                msg::stop(
+                    "Id " + msg::val(id) + " from data long-format had no match in loaded data wide-format.");
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
             idat.vec.resize(khold_.size());
             for (size_t d = 0; d < khold_.size(); ++d)
             {
-                const std::string &datastring = khold(d);
+                const std::string &dstr = khold(d);
                 idat.vec[d].emplace_back(
-                    str::tod(input.at(datastring)[r], "data long format '" + datastring + "'"));
+                    str::tod(input.at(dstr)[r], "data long format " + msg::arg(dstr)));
             }
         }
     }
@@ -638,15 +638,15 @@ namespace housepi
     {
 #ifndef NDEBUG
         if (data_wide.is_empty())
-            throw std::invalid_argument(
+            msg::stop(
                 "Tried to define data long format before wide format.");
 #endif
 
         headers = read::extract_keys(input);
         // check for individual IDs
         if (!contains(headers, "id"))
-            throw std::invalid_argument(
-                "Individual identifier column 'id' was missing.");
+            msg::stop(
+                "Individual identifier column " + msg::arg("id") + " was missing.");
         // remove 'id'
         headers = headers - std::vector<std::string>({"id"});
 

@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/read.h"
 #include "tools/string.h"
@@ -98,7 +99,7 @@ namespace housepi
             std::string names;
             for (std::size_t r : b.second)
                 names += (names.empty() ? "" : ", ") + input.at("param_name")[r];
-            throw std::invalid_argument(
+            msg::stop(
                 "Ambiguous " + ctx + ": tied rules [" + names + "].\n" +
                 "Add a disambiguating rule in order to proceed.");
         }

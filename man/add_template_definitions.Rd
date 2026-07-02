@@ -22,7 +22,7 @@ If \code{FALSE} drop all pre-existing definitions.}
 Load default parameter or augmented definitions from model template.
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
   add_parameter_template()
 get_parameters(hhmodel)
 }

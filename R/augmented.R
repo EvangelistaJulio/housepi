@@ -165,8 +165,7 @@ HousepiAugmented <- R6::R6Class(
     #' @description Remove a given augmented definition.
     #' @param name `character(1)`. Augmented definitions to remove.
     #' @param status `integer(1)`. Associated status of definition.
-    #' @param warn_removal `logical(1)`. Show warnings for failed removal.
-    remove = function(name, status, warn_removal = FALSE) {
+    remove = function(name, status) {
       mask <- self$defs[["name"]] == name
       if (any(mask)) {
         # check if same name and status (raw: integer code or character label)
@@ -176,14 +175,7 @@ HousepiAugmented <- R6::R6Class(
         if (any(mask)) {
           self$defs <- self$defs[!mask, ]
           return(name)
-        } else if (isTRUE(warn_removal)) {
-          warn_h(sprintf(
-            "Attempt to remove unknown augmented '%s' for status %d.",
-            name, status
-          ))
         }
-      } else if (isTRUE(warn_removal)) {
-        warn_h(sprintf("Attempt to remove unknown augmented '%s'.", name))
       }
 
       c()
@@ -252,12 +244,12 @@ HousepiAugmented <- R6::R6Class(
       # NOTE: 'obs' string reuses 'prior' column, discriminated by 'kind'
       if (!is.na(obs)) {
         if (!is.na(prior)) stop_h(
-          sprintf("Conflicting definition for augmented '%s'.", name),
-          "Provide only one between 'prior' and 'obs'."
+          "Conflicting definition for augmented {.val {name}}.",
+          "Provide only one between {.arg {c('prior', 'obs')}}."
         )
         if (!is.na(proposal)) warn_h(
-          sprintf("Observation '%s' cannot be sampled.", name),
-          "Ignored 'proposal' definition."
+          "Observation {.val {name}} cannot be sampled.",
+          `!` = "Ignored {.arg proposal} definition."
         )
         proposal <- NA_character_
         proposal_scale <- NA_real_
@@ -285,19 +277,17 @@ HousepiAugmented <- R6::R6Class(
       assert_valid_status(status)
       # control meaningful definition
       if (all(is.null(c(value, func)), is.na(prior))) stop_h(
-        sprintf("Incomplete definition for augmented '%s'.", name),
-        "Provide at least one between 'value', 'prior' and 'func'."
+        "Incomplete definition for augmented {.val {name}}.",
+        "Provide at least one between {.arg {c('value', 'prior', 'func')}}."
       )
       if (!is.null(value) && !is.null(func)) stop_h(
-        sprintf("Wrong definition for augmented '%s'.", name),
-        "Provide only one between 'value' and 'func'."
+        "Wrong definition for augmented {.val {name}}.",
+        "Provide only one between {.arg {c('value', 'func')}}."
       )
 
       # auxiliary typed options for Rcpp build method
       opts <- list(name = as.character(name),
                    value = NA_real_,
-                   # keep status raw (integer code or character label); character
-                   # labels are resolved to codes against the dictionary at build
                    status = as.character(status),
                    const = as.logical(const),
                    discr = isTRUE(discr),

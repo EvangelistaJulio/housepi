@@ -115,7 +115,7 @@ namespace housepi
         {
             check_user_interrupt_();
             if (total == 0)
-                throw std::invalid_argument(
+                msg::stop(
                     "Progressbar total should be greater than 0.");
 
             // initialize internal fields
@@ -375,7 +375,7 @@ namespace housepi
             time_step = str::tod(input.at("time_step")[0], "time_step");
             // UPDATE: by symmetry it should be tested where appropriate
             if (time_step <= 0.)
-                throw std::out_of_range("Setup 'time_step' must be strictly positive.");
+                msg::stop("Setup 'time_step' must be strictly positive.");
         }
     }
 
@@ -385,16 +385,17 @@ namespace housepi
 
 #ifdef _STANDALONE
         if (n_threads != 1)
-            msg::warning(
-                "Multi-threading was disabled. RcppParallel is not available in standalone mode.");
+            msg::warn(
+                "Multi-threading was disabled.\nRcppParallel is not available in standalone mode.");
         n_threads = 1;
 
 #else
         size_t max_threads = housepi::parallel::max_num_threads();
         if (n_threads > max_threads)
         {
-            msg::warning(
-                "Reducing 'threads' to " + std::to_string(max_threads) + " available threads.");
+            msg::warn(
+                "Reducing " + msg::arg("threads") + " to " +
+                std::to_string(max_threads) + " available threads.");
             n_threads = max_threads;
         }
         housepi::parallel::set_num_threads(n_threads);
@@ -424,7 +425,7 @@ namespace housepi
     void Setup::init_mcmc_configuration(bool is_adaptive)
     {
         if (inv_temp < 0. || inv_temp > 1.)
-            throw std::out_of_range(
+            msg::stop(
                 "Inverse temperature " + std::to_string(inv_temp) + " was out of range [0, 1].");
 
         // clip options mistakenly set to 0 has 1
@@ -434,11 +435,11 @@ namespace housepi
         n_adapt_window = std::max(1ul, n_adapt_window);
 
         if (n_burn >= n_steps)
-            throw std::out_of_range(
-                "Wrong setup: 'burn' must be smaller than 'steps'.");
+            msg::stop(
+                "Wrong setup: " + msg::arg("burn") + " must be smaller than " + msg::arg("steps") + ".");
         if (n_thin > n_steps)
-            throw std::out_of_range(
-                "Wrong setup: 'thin' cannot be greater than 'steps'.");
+            msg::stop(
+                "Wrong setup: " + msg::arg("thin") + "cannot be greater than " + msg::arg("steps") + ".");
 
         c_sample_size = (n_steps - n_burn) / n_thin;
         // adjust steps and sample size
@@ -488,9 +489,9 @@ namespace housepi
 
     void Setup::prog_update() { progressbar_->update(); }
     void Setup::prog_close() { progressbar_->close(); }
-    void Setup::crash(const std::exception &e)
+    [[noreturn]] void Setup::crash(const std::exception &e)
     {
         progressbar_->crash();
-        msg::error(e.what());
+        msg::stop(e.what());
     }
 }

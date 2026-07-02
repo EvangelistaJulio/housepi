@@ -80,7 +80,7 @@ namespace housepi
         index -= declared_.size();
         if (index < optional_.size())
             return optional_[index];
-        throw std::out_of_range("Registration failed: key index out of range.");
+        msg::stop("Registration failed: key index out of range.");
     }
     std::vector<std::string> KeyHolder::as_string(std::vector<size_t> indexes) const
     {
@@ -99,7 +99,7 @@ namespace housepi
         auto it2 = std::find(optional_.begin(), optional_.end(), name);
         if (it2 != optional_.end())
             return declared_.size() + static_cast<size_t>(std::distance(optional_.begin(), it2));
-        throw std::out_of_range("Registration failed: key name '" + std::string(name) + "' was not found.");
+        msg::stop("Registration failed: key name " + msg::val(std::string(name)) + " was not found.");
     }
     std::vector<size_t> KeyHolder::from_string(const std::vector<std::string> &names) const
     {
@@ -167,11 +167,6 @@ namespace housepi::str
             return false;
         if (tkn == "TRUE" || tkn == "true" || tkn == "True" || tkn == "1")
             return true;
-
-#ifndef NDEBUG
-        throw std::invalid_argument(
-            "Unrecognized boolean value '" + tkn + "'.");
-#endif
         return false;
     }
 
@@ -186,9 +181,9 @@ namespace housepi::str
         }
         catch (const std::invalid_argument &e)
         {
-            throw std::invalid_argument(
+            msg::stop(
                 (errtxt.empty() ? "" : "Unable to import " + errtxt + ". ") +
-                "Value '" + input + "' is not suitable to conversion.");
+                "Value " + msg::val(input) + " is not suitable to conversion.");
         }
     }
 
@@ -225,9 +220,9 @@ namespace housepi::str
             return "";
 
         max_print = std::min(options.size(), max_print);
-        std::string output = "'" + options[0] + "'";
+        std::string output = msg::val(options[0]);
         for (size_t i = 1; i < max_print; ++i)
-            output += ", '" + options[i] + "'";
+            output += ", " + msg::val(options[i]);
         if (options.size() > max_print)
             output += add_dot ? ", .." : ", ...";
         else if (add_dot)
@@ -313,7 +308,7 @@ namespace housepi::str
         if (dist_closest == 0)
             return "";
         if (!closest.empty())
-            return " Did you mean '" + closest + "'?";
+            return " Did you mean " + msg::val(closest) + "?";
         if (!show_avail_options)
             return "";
         if (options.size() == 1)
@@ -403,12 +398,12 @@ namespace housepi::dependency
     {
         // FIXME: this is not presenting the error type...
         if (!tree.count(entry))
-            throw std::invalid_argument(
-                "Could not find a definition for '" + entry + "'.");
+            msg::stop(
+                "Could not find a definition for " + msg::val(entry) + ".");
 
         if (contains(recursion_stack, entry))
-            throw std::invalid_argument(
-                "Found inadmissible cyclic definition for '" + entry + "'.");
+            msg::stop(
+                "Found inadmissible cyclic definition for " + msg::val(entry) + ".");
 
         if (contains(visited, entry))
             return;
@@ -543,7 +538,7 @@ namespace housepi::parse
         const std::vector<std::string> children = split_top_(expr_tail.substr(bar_2 + 1));
 
         if (args.size() != children.size())
-            throw std::runtime_error(
+            msg::stop(
                 "Mismatch in the number of keys and arguments of definition '" + expr + "'.");
 
         // populate the parent node with children nodes
@@ -568,7 +563,7 @@ namespace housepi::parse
                 // terminal child node
                 size_t barc = c.find('|');
                 if (barc == std::string::npos)
-                    throw std::runtime_error(
+                    msg::stop(
                         "Missing terminal '|' in definition '" + expr + "'.");
                 Entry child(c.substr(0, barc), c.substr(barc + 1));
                 child.key = args[i];
@@ -639,10 +634,10 @@ namespace housepi::parse
                 str_type = "parameter";
             else // is_numeric
                 str_type = "numeric";
-            return str_type + " '" + value + "'";
+            return str_type + " " + msg::val(value);
         }
 
-        return "expression '" + str() + "'";
+        return "expression " + msg::code(str());
     }
 
     bool Entry::is_callable_implicitly(std::string_view point) const noexcept

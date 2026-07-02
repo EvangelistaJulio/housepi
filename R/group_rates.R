@@ -5,7 +5,7 @@
 ## See the LICENSE file for details.
 ##
 
-rate_stop_hint <- "Choose 'by' for automatic definitions, 'strata' for custom."
+rate_stop_hint <- "Choose {.arg by} for automatic definitions, {.arg strata} for custom."
 
 # Reserved column names (non-feature) in a logic table.
 data_reserved_cols <- c("id", "house_id", "status")
@@ -13,14 +13,18 @@ rate_reserved_cols <- c("group_rate", "param_name", "n", "rule_group")
 
 # Throw error if empty definition.
 stop_empty_definition <- function() {
-  stop_h("Invalid rate definition: provide one between 'by' and 'strata'.",
-         rate_stop_hint)
+  stop_h(
+    "Invalid rate definition: provide one between {.arg {c('by', 'strata')}}.",
+    rate_stop_hint
+  )
 }
 
 # Throw error for ambiguos rate definition.
 stop_ambiguos_definition <- function() {
-  stop_h("Impossible to provide at the same time 'by' and 'logic_table'.",
-         rate_stop_hint)
+  stop_h(
+    "Impossible to provide at the same time {.arg {c('by', 'logic_table')}}.",
+    rate_stop_hint
+  )
 }
 
 #' Assert that features choice is valid.
@@ -31,7 +35,7 @@ assert_valid_features <- function(features) {
   if (all(is.na(features))) return(invisible())
 
   if (isFALSE(is.character(features))) stop_h(
-    "Argument 'by' must be of type character.",
+    "Argument {.arg by} must be of type character.",
     format_type_error(features)
   )
 
@@ -42,7 +46,7 @@ assert_valid_features <- function(features) {
     sprintf("Impossible to associate rate to %s%s",
             as_plural("feature", length(forbidden), "s:"),
             character_to_string_list(forbidden)),
-    "These names are reserved.",
+    `!` = "These names are reserved.",
     sprintf("Please, change %s and/or corresponding data %s.",
             as_plural("feature", length(forbidden)),
             as_plural("column", length(forbidden)))
@@ -85,10 +89,10 @@ assess_feature_values <- function(this_table) {
 #' @noRd
 assert_valid_logic_table <- function(logic_table) {
   if (!is.data.frame(logic_table)) stop_h(
-    "Argument 'logic_table' must be a data.frame."
+    "Argument {.arg logic_table} must be a data.frame."
   )
   if (!"param_name" %in% colnames(logic_table)) stop_h(
-    "Logic table must contain a 'param_name' column."
+    "Logic table must contain a {.field param_name} column."
   )
   if (nrow(logic_table) == 0) stop_h(
     "Logic table must contain at least one row."
@@ -145,8 +149,8 @@ compute_rule_groups <- function(tbl) {
       stop_h("Rule grouping failed: no maximal pattern contains row's columns.")
     } else {
       fmt <- function(x) {
-        ifelse(length(x) == 0, "{}",
-               paste0("{", paste(x, collapse = ", "), "}"))
+        ifelse(length(x) == 0, "{{}}",
+               paste0("{{", paste(x, collapse = ", "), "}}"))
       }
       stop_h(
         sprintf(
@@ -313,7 +317,7 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
   } else {
     # if prior is default -> spare arguments
     if (is_default[1]) stop_h(
-      "If any prior argument is provided for rate, 'prior' must be specified.",
+      "If any prior argument is provided for rate, {.arg prior} must be specified.",
       "Either leave all arguments as defaults or provide a new definition."
     )
     # else go with user choice
@@ -351,11 +355,11 @@ HousepiGroupRate <- R6::R6Class(
       # I think it's ambiguos, but maybe it's not always the case
       if (isTRUE(any(reference == ".none"))) {
         if (isTRUE(all(reference == ".none"))) return(".none")
-        else stop_h("Ambiguous entry '.none' in reference vector.")
+        else stop_h("Ambiguous entry {.val .none} in reference vector.")
       }
 
       if (length(by) != length(reference)) stop_h(
-        "Arguments 'by' and 'reference' should have the same dimension."
+        "Arguments {.arg {c('by', 'reference')}} should have equal dimensions."
       )
       else if (length(setdiff(names(reference), by)) != 0) stop_h(
         "Unrecognized names in reference list."
@@ -398,16 +402,16 @@ HousepiGroupRate <- R6::R6Class(
       # require .reference row unless reference is explicitly ".none"
       none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
       if (!none_ref && !".reference" %in% strata$param_name) stop_h(
-        "Custom logic table must contain a '.reference' row.",
-        paste0("Designate one row's param_name as '.reference',",
-               " or pass reference = '.none' to explicitly drop it.")
+        "Custom logic table must contain a {.val .reference} row.",
+        paste0("Designate one row's param_name as {.val .reference},",
+               " or pass {.code reference = \".none\"} to explicitly drop it.")
       )
       # validate params keys against logic table param_names
       if (length(params) > 0) {
         valid_names <- setdiff(strata$param_name, ".reference")
         unknown <- setdiff(names(params), valid_names)
         if (length(unknown) > 0) stop_h(
-          sprintf("Unknown %s in 'params':%s",
+          sprintf("Unknown %s in {.arg params}:%s",
                   as_plural("parameter", length(unknown)),
                   character_to_string_list(unknown))
         )
@@ -470,7 +474,7 @@ HousepiGroupRate <- R6::R6Class(
         for (col in intersect(names(factor_info), colnames(this_table))) {
           lv <- factor_info[[col]]$levels
           if (is.null(lv)) stop_h(
-            sprintf("Wrong group rate definition: '%s' has no levels.", col)
+            "Wrong group rate definition: {.field {col}} has no levels."
           )
           this_table[[col]] <- factor(this_table[[col]],
                                       levels = lv,
@@ -498,10 +502,10 @@ HousepiGroupRate <- R6::R6Class(
           data_vals <- unique(data_wide[[col]])
           missing_vals <- setdiff(as.character(vals), as.character(data_vals))
           if (length(missing_vals) > 0) warn_h(
-            sprintf("Rate '%s' definition %s not found in data '%s':%s",
+            sprintf("Rate {.val %s} definition %s not found in data {.field %s}:%s",
                     rate_id, as_plural("value", length(missing_vals), "s"), col,
                     character_to_string_list(missing_vals)),
-            "Corresponding logic table entry will be skipped."
+            `!` = "Corresponding logic table entry will be skipped."
           )
         }
         # add counts
@@ -622,8 +626,7 @@ HousepiGroupRate <- R6::R6Class(
     #' @description
     #' Remove a given group_rate definition.
     #' @param name `character(1)`. Name of group rate definition to remove.
-    #' @param warn_removal `logical(1)`. Show warnings for failed removal.
-    remove = function(name, warn_removal = FALSE) {
+    remove = function(name) {
       if (any(names(self$defs) == name)) {
         # check if old definition was just placeholder
         placeholder <- FALSE
@@ -636,8 +639,6 @@ HousepiGroupRate <- R6::R6Class(
         self$param_overrides[name] <- NULL
         if (!placeholder) return(name)
 
-      } else if (isTRUE(warn_removal)) {
-        warn_h(sprintf("Attempt to remove unknown group_rate '%s'.", name))
       }
 
       c()

@@ -31,7 +31,7 @@ We illustrate the API using the Matsumoto influenza household survey.
 
 # Define a contact rate
 
-We start by loading the chain binomial model and the `flu_2014_matsumoto` dataset.
+We start by loading the final size model and the `flu_2014_matsumoto` dataset.
 This dataset contains household reports of influenza episodes with a `member` column distinguishing different household member categories. 
 To simplify this walkthrough, we consider only 2 categories: "child" and "adult":
 
@@ -50,9 +50,9 @@ dataset <- flu_2014_matsumoto |>
 # inspect the data
 head(dataset)
 
-# define a chain binomial model and load parameter template
+# define a final size model and load parameter template
 hhmodel <- dataset |>
-  new_housepi_model("chain_binomial") |>
+  new_housepi_model("final_size") |>
   add_parameter_template()
 ```
 

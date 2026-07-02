@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/random.h"
 
@@ -41,13 +42,15 @@ namespace housepi
 		Distribution(const std::vector<std::pair<std::string, double>> &args = {},
 					 double domain_min = na::DOUBLE,
 					 double domain_max = na::DOUBLE)
-			: Function(args, domain_min, domain_max) { set_eval_as_pdf(); }
+			: Function(args, domain_min, domain_max)
+		{
+			set_eval_as_pdf();
+			err_family_ = ErrType::Distribution;
+		}
 		virtual ~Distribution() = default;
 
 		virtual std::unique_ptr<Distribution> clone_distrib() const = 0;
 		std::unique_ptr<Function> clone() const override final { return clone_distrib(); };
-
-		std::string err_name() const override { return "distribution '" + std::string(name()) + "'"; }
 
 		//////////////////////
 		//////  GETTER  //////

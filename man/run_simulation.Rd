@@ -48,7 +48,7 @@ It assumes the same community structure of the loaded data.
 }
 \examples{
 flu_1918_frederick |>
-  new_housepi_model("chain_binomial") |>
+  new_housepi_model("final_size") |>
   add_parameter_template() |>
   run_simulation() |>
   head()

@@ -47,6 +47,10 @@ namespace housepi
                 return "group rate";
             case ErrType::Data:
                 return "data";
+            case ErrType::Distribution:
+                return "distribution";
+            case ErrType::InfecProfile:
+                return "infectivity profile";
             default: // case ErrType::Empty:
                 return "empty";
             }
@@ -147,7 +151,7 @@ namespace housepi
     }
 
     std::string Attribute::name() const { return name_pool_().at(name_id_); }
-    std::string Attribute::err_name() const { return err_type_name_(err_type_) + " '" + name() + "'"; }
+    std::string Attribute::err_name() const { return err_type_name_(err_type_) + " " + msg::val(name()); }
 
     std::string Attribute::str_val() const
     {
@@ -165,32 +169,6 @@ namespace housepi
             return str::format(na::DOUBLE);
         }
     }
-
-#ifndef NDEBUG
-    std::string Attribute::str_summary() const
-    {
-        std::string sms = err_name() + " ";
-
-        sms += (is_function() && !pFunc_->is_callable_implicitly()) ? "<> | "
-                                                                    : str_val() + " | ";
-        sms += is_discrete() ? "discrete"
-                             : "real";
-        sms += is_constant() ? " constant"
-                             : " variable";
-
-        switch (mode_)
-        {
-        case Mode::Numeric:
-            return sms + " numeric";
-        case Mode::Pointer:
-            return sms + " pointer -> " + pAttr_->err_name();
-        case Mode::Function:
-            return sms + " function " + pFunc_->str_summary();
-        default: // case Mode::Empty:
-            return sms + " empty";
-        }
-    }
-#endif
 
     bool Attribute::is_constant() const noexcept
     {
@@ -258,7 +236,7 @@ namespace housepi
     void Attribute::init_pointer(const Attribute *y)
     {
         if (!y)
-            throw std::invalid_argument(
+            msg::stop(
                 "Tried to assign empty pointer to " + err_name() + ".");
 
         if (err_type_ == ErrType::Empty)
@@ -275,10 +253,10 @@ namespace housepi
     {
         // check the function is different from the current one
         if (!f)
-            throw std::invalid_argument(
+            msg::stop(
                 "Tried to assign empty function to " + err_name() + ".");
         if (f == pFunc_)
-            throw std::invalid_argument(
+            msg::stop(
                 "Tried to assign " + err_name() + " as its own argument.");
 
         if (err_type_ == ErrType::Empty)
@@ -320,7 +298,7 @@ namespace housepi
         if (is_constant())
             init_numeric(value());
         else if (is_user_const_)
-            throw std::invalid_argument(
+            msg::stop(
                 "Impossible to set " + err_name() + " as constant. Check its dependencies.");
 
         // reduce function indirection
@@ -338,7 +316,7 @@ namespace housepi
             pFunc_->init_attr(key, attr);
             return;
         default:
-            throw std::runtime_error(
+            msg::stop(
                 "Attempted to initialize function attribute of " + err_name() + ".");
         }
     }
@@ -350,7 +328,7 @@ namespace housepi
             sms += "empty " + err_type_name_(err_type_);
         else
             sms += err_name();
-        throw std::runtime_error(sms + ".");
+        msg::stop(sms + ".");
     }
 
     double Attribute::value() const
@@ -403,10 +381,15 @@ namespace housepi
         }
     }
 
+    std::string Function::err_name() const
+    {
+        return err_type_name_(err_family_) + " " + msg::val(name());
+    }
+
     [[noreturn]] void Function::raise_undefined_call_err_(const std::string &call_name) const
     {
-        throw std::invalid_argument(
-            "Called undefined method '" + call_name + "' of " + err_name() + ".");
+        msg::stop(
+            "Called undefined method " + msg::val(call_name) + " of " + err_name() + ".");
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -432,10 +415,10 @@ namespace housepi
                 {
                     const std::uint8_t new_idx = static_cast<std::uint8_t>(i);
                     if (is_user_alt_ && alt_idx_ != new_idx)
-                        throw std::invalid_argument(
-                            "Attempt to mix parametrizations '" +
-                            alts_[alt_idx_].name + "' and '" + alts_[new_idx].name + "' in " + err_name() +
-                            " (argument '" + std::string(key) + "').");
+                        msg::stop(
+                            "Attempt to mix parametrizations " +
+                            msg::val(alts_[alt_idx_].name) + " and " + msg::val(alts_[new_idx].name) + " in " + err_name() +
+                            " (argument " + msg::arg(std::string(key)) + ").");
                     alt_idx_ = new_idx;
                     is_user_alt_ = true;
                     return attr;
@@ -443,7 +426,7 @@ namespace housepi
 
         // raise error for unnamed argument
         if (na::is(key))
-            throw std::invalid_argument(
+            msg::stop(
                 "Unnamed argument passed to " + err_name() + ".");
 
         // else format the error showing options from every parametrization
@@ -451,8 +434,8 @@ namespace housepi
         for (const AltArgSet &alt : alts_)
             for (const Attribute &attr : alt.args)
                 options.emplace_back(attr.name());
-        throw std::invalid_argument(
-            "Unused argument '" + std::string(key) + "' in " + err_name() + "." +
+        msg::stop(
+            "Unused argument " + msg::arg(std::string(key)) + " in " + err_name() + "." +
             str::find_closest(key, options));
     }
 
@@ -473,6 +456,7 @@ namespace housepi
                 return attr;
 
         args.emplace_back();
+        args.back().name(std::string(key));
         return args.back();
     }
 
@@ -521,7 +505,7 @@ namespace housepi
     {
         const std::vector<std::string> undefined_args = get_missing_argument();
         if (!undefined_args.empty())
-            throw std::invalid_argument(
+            msg::stop(
                 std::string("Missing non default argument") +
                 (undefined_args.size() > 1 ? "s " : " ") +
                 str::format(undefined_args, str::MAX_PRINT, false) +
@@ -544,8 +528,8 @@ namespace housepi
         // also check alt set names are unique
         for (const AltArgSet &alt : alts_)
             if (alt.name == alt_name)
-                throw std::invalid_argument(
-                    "Duplicate parametrization name '" + alt_name + "' in " + err_name() + ".");
+                msg::stop(
+                    "Duplicate parametrization name " + msg::val(alt_name) + " in " + err_name() + ".");
 
         AltArgSet alt;
         alt.name = alt_name;
@@ -554,9 +538,9 @@ namespace housepi
         {
             for (const std::string &n : existing_names)
                 if (n == key)
-                    throw std::invalid_argument(
-                        "Argument name '" + key + "' from parametrization '" + alt_name +
-                        "' collides with an existing argument in " + err_name() + ".");
+                    msg::stop(
+                        "Argument name " + msg::arg(key) + " from parametrization " + msg::val(alt_name) +
+                        " collides with an existing argument in " + err_name() + ".");
             existing_names.emplace_back(key);
 
             if (na::is(val))
@@ -575,12 +559,12 @@ namespace housepi
     bool Function::helper_init_range_min_(double min_val, bool is_min_open)
     {
         if (lower_.is_empty())
-            throw std::runtime_error(
+            msg::stop(
                 "Forbidden initialization of minimum value for " + err_name() + ".");
 
         const double old = lower_.value();
         if (old < min_val)
-            throw std::invalid_argument(
+            msg::stop(
                 "Invoked invalid min value " + str::format(old) + " for " + err_name() + ".");
 
         if (old == min_val && upper_.is_empty())
@@ -614,7 +598,7 @@ namespace housepi
         if (below_mode_ == Mode::Interval::Open && below_mode_ == above_mode_)
             is_wrong = is_wrong || lower_.value() == upper_.value();
         if (is_wrong)
-            throw std::invalid_argument(
+            msg::stop(
                 "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
     }
 
@@ -623,25 +607,6 @@ namespace housepi
     ///////////////////////////////////////  Function : show  ///////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifndef NDEBUG
-    /// Return formatted function summary.
-    std::string Function::str_summary(bool show_x_arg) const
-    {
-        std::string sms = std::string(name()) + "(";
-        if (show_x_arg)
-            sms += std::string(x_arg_.name()) + "=" + x_arg_.str_val();
-
-        const std::vector<Attribute> &active = arguments_();
-        for (size_t c = 0; c < active.size(); ++c)
-        {
-            if (c > 0 || show_x_arg)
-                sms += ", ";
-            sms += std::string(active[c].name()) + "=" + active[c].str_val();
-        }
-        return sms + ") : " + str_range();
-    }
-#endif
 
     /// Return formatted range.
     std::string Function::str_range() const
@@ -689,9 +654,9 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            throw std::invalid_argument(
+            msg::stop(
                 "Impossible to associate " + attr.err_name() +
-                " as argument '" + std::string(key) + "' of " + err_name() + ".\n" +
+                " as argument " + msg::arg(std::string(key)) + " of " + err_name() + ".\n" +
                 std::string(e.what()));
         }
 
@@ -710,22 +675,22 @@ namespace housepi
         {
             const auto &undefined_args = attr.function()->get_missing_argument();
             if (!undefined_args.empty())
-                throw std::invalid_argument(
+                msg::stop(
                     "Non default argument" + std::string(undefined_args.size() > 1 ? "s " : " ") +
                     str::format(undefined_args) +
                     " of " + attr.err_name() + " cannot be missing.");
 
             if (!attr.function()->is_callable_implicitly())
-                throw std::invalid_argument(
-                    "Argument 'x' of " + attr.err_name() + " cannot be missing.");
+                msg::stop(
+                    "Argument " + msg::arg("x") + " of " + attr.err_name() + " cannot be missing.");
         }
         else if (attr.is_constant())
         {
             double x = attr.value();
             if (na::is(x) || (key == "x" && !is_valid(x)))
-                throw std::invalid_argument(
-                    "Value " + str::format(x) + " for argument '" + std::string(key) +
-                    "' is outside of range " + str_range() + ".");
+                msg::stop(
+                    "Value " + str::format(x) + " for argument " + msg::arg(std::string(key)) +
+                    " is outside of range " + str_range() + ".");
         }
     }
 
@@ -774,8 +739,8 @@ namespace housepi
                                                       bool is_prim)
     {
         if (registries.empty())
-            throw std::invalid_argument(
-                "No registries were provided for '" + err_type + "'.");
+            msg::stop(
+                "No registries were provided for " + msg::val(err_type) + ".");
 
         // FIXME: this should be an error
         if (na::is(opt))
@@ -802,8 +767,8 @@ namespace housepi
                 registry_ptrs.push_back(&InfecProfileRegistry::instance());
 
             else
-                throw std::invalid_argument(
-                    "Unknown " + err_type + " registry '" + r + "'.");
+                msg::stop(
+                    "Unknown " + err_type + " registry " + msg::val(r) + ".");
 
         std::vector<std::string> options = {};
         for (const FunctionRegistry *ptr : registry_ptrs)
@@ -815,8 +780,8 @@ namespace housepi
             options.insert(options.end(), y.begin(), y.end());
         }
 
-        throw std::invalid_argument(
-            "Unknown " + err_type + " '" + std::string(opt) + "'." +
+        msg::stop(
+            "Unknown " + err_type + " " + msg::val(std::string(opt)) + "." +
             str::find_closest(opt, options));
     }
 }

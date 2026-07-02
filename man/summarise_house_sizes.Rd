@@ -25,6 +25,6 @@ summarize_house_sizes(hhmodel)
 Summarise number of members (size) in the loaded household data.
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 summarise_house_sizes(hhmodel)
 }

@@ -104,7 +104,7 @@ find_closest_template_name <- function(x) {
   # NOTE: avoid to attempt a suggestion for silly mistakes
   sms <- find_closest_match(flat_choice, flat_options)
   if (stringr::str_ends(sms, "\\?") && nchar(flat_choice) > 3) return(sms)
-  c("Show available templates calling 'browse_housepi_templates'.")
+  c("Show available templates calling {.fn browse_housepi_templates}.")
 }
 
 #' @title
@@ -147,7 +147,7 @@ copy_template_to_path <- function(name, path) {
     path <- name
     warn_h(
       "Using current directory is not allowed for copying a template.",
-      sprintf("Creating folder '%s' instead.", path)
+      `!` = "Creating folder {.file {path}} instead."
     )
   }
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
@@ -157,16 +157,14 @@ copy_template_to_path <- function(name, path) {
     optional <- c("param.R", "augm.R")
     for (f in c(required, optional)) {
       from_file <- file.path(get_template_dir(name), f)
-      if (file.exists(from_file)) {
-        overwrite(from_file, file.path(path, f))
-      } else if (f %in% required) {
-        stop_h(sprintf("Template '%s' is missing required file '%s'.",
-                       name, f))
-      }
+      if (file.exists(from_file)) overwrite(from_file, file.path(path, f))
+      else if (f %in% required) stop_h(
+        "Template {.val {name}} is missing required file {.file {f}}."
+      )
     }
   } else {
     stop_h(
-      sprintf("Failed to create directory '%s'.", path),
+      "Failed to create directory {.file {path}}.",
       "Check your user permissions."
     )
   }
@@ -238,7 +236,7 @@ browse_housepi_templates <- function(name = NA_character_,
   if (is.na(name)) show_model_names()
   else if (!is.character(name)) stop_h("Model name is not a character.")
   else if (is.na(get_template_dir(name))) stop_h(
-    sprintf("Model '%s' was not a known template.", name),
+    "Model {.val {name}} was not a known template.",
     find_closest_template_name(name)
   )
   # asking for template model description
@@ -246,7 +244,7 @@ browse_housepi_templates <- function(name = NA_character_,
   # asking for copying template to folder with model
   else if (file.exists(file.path(path, "model.cpp")) && !replace) warn_h(
     "A model already exists in the specified folder.",
-    "If you want to replace it, run again with option 'replace = TRUE'."
+    "If you want to replace it, run again with option {.code replace = TRUE}."
   )
   # asking for copying template to empty folder
   else copy_template_to_path(name, path)

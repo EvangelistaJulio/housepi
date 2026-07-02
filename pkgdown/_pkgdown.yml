@@ -133,12 +133,12 @@ navbar:
       menu:
         - text: "Blank"
           href: reference/hhmodel_blank.html
-        - text: "Chain Binomial"
-          href: reference/hhmodel_chain_binomial.html
+        - text: "Final Size"
+          href: reference/hhmodel_final_size.html
         - text: "Augmented Example"
           href: reference/hhmodel_augmented_example.html
-        - text: "Augmented Infection Time"
-          href: reference/hhmodel_augmented_infection_time.html
+        - text: "Case Ascertained"
+          href: reference/hhmodel_case_ascertained.html
 
     gitlab:
       icon: fab fa-gitlab

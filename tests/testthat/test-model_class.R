@@ -6,7 +6,7 @@ library(testthat)
 
 test_that("Model class inconsistent calls", {
   # non-blank models require data_wide at construction
-  new_housepi_model(model = "chain_binomial") |>
+  new_housepi_model(model = "final_size") |>
     expect_error("data")
 
   # blank household model object
@@ -24,22 +24,22 @@ test_that("Model class inconsistent calls", {
 
   # missing individual ID
   data.frame(id = NA, house_id = "h1") |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     expect_error("missing.*id")
 
   # missing house ID
   data.frame(id = "m1", house_id = NA) |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     expect_error("missing.*house_id")
 
   # not unique individual IDs
   data.frame(id = c("m1", "m1"), house_id = "h1") |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     expect_error("not unique")
 
   # missing status: all
   data.frame(id = "m1", house_id = "h1", status = NA) |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template() |>
     run_inference() |>
     expect_error("missing status")
@@ -70,7 +70,7 @@ test_that("Model class 'blank' calls", {
     id = snapshot$data_wide$id[1],
     time = seq(3), measure = seq(3)**3
   )
-  hhmodel$add_data_long(data_long)
+  hhmodel <- add_data_long(hhmodel, data_long)
   expect_equal(hhmodel$data_long, data_long)
   # export_house_snapshot returns refactored data_long when present
   snap_long <- hhmodel$export_house_snapshot(snapshot$data_wide$house_id[1])
@@ -89,32 +89,32 @@ test_that("Model class 'blank' calls", {
     expect_warning("blank")
 
   # zero log-likelihood (blank model evaluates silently)
-  expect_silent(x <- eval_log_density(hhmodel))
-  expect_equal(x, 0)
+  expect_equal(eval_log_density(hhmodel), 0.)
 
   # not existing household id
-  hhmodel$evaluate_log_lik("mother-base") |>
+  hhmodel |>
+    evaluate_log_lik("mother-base") |>
     expect_error("[Ii]ndex.*mother-base.*did not match")
 
   # blank simulation (runs silently)
   hhmodel <- new_housepi_model(model = "blank")
   hhmodel <- add_augmented(hhmodel, name = "dummy", value = 3)
-  expect_silent(out <- hhmodel$run_simulation())
-  expect_true(
-    all(sapply(out$dummy[out$status == 0], function(x) identical(x, NA_real_)))
-  )
+  out <- run_simulation(hhmodel)
+
+  all(sapply(out$dummy[out$status == 0], function(x) identical(x, NA_real_))) |>
+    expect_true()
 })
 
 test_that("Print behavior works as expected", {
   # with data and parameters
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   expect_snapshot(print(hhmodel))
 
   # without parameters
   hhmodel2 <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial")
+    new_housepi_model("final_size")
   expect_snapshot(print(hhmodel2))
 
   # blank model
@@ -122,12 +122,12 @@ test_that("Print behavior works as expected", {
 
   # discrete-time flag branch in print
   hhmodel_d <- sarscov2_2021_icofs |>
-    new_housepi_model("augmented_infection_time", discr = TRUE, quiet = TRUE)
+    new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE)
   expect_snapshot(print(hhmodel_d))
 
   # infectivity-profile section in print
   hhmodel_ip <- sarscov2_2021_icofs |>
-    new_housepi_model("augmented_infection_time")
+    new_housepi_model("case_ascertained")
   expect_snapshot(print(hhmodel_ip))
 
   # help() dispatches without error in non-interactive mode (emits warning)
@@ -140,7 +140,7 @@ test_that("Print behavior works as expected", {
 
 test_that("Flu 2014 Matsumoto is correctly pre-processed", {
   hhmodel <- flu_2014_matsumoto |>
-    new_housepi_model("chain_binomial")
+    new_housepi_model("final_size")
 
   hhmodel |>
     summarise_house_sizes() |>
@@ -165,7 +165,6 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
     summarise_house_cases()
   subset(case_summary, level == "household" & metric == "distinct")$count |>
     expect_equal(454L)
-
 })
 
 ######################################
@@ -185,9 +184,10 @@ test_that("Wrong definitions throw errors", {
 
   # memory budget is exceeded
   house <- data.frame(house_id = 1, id = "a", status = 0)
-  hhmodel <- new_housepi_model(house, "chain_binomial")
+  hhmodel <- new_housepi_model(house, "final_size")
   hhmodel <- add_parameter_template(hhmodel)
-  hhmodel$run_inference(steps = 1e20, chains = 1e3, progress = FALSE) |>
+  hhmodel |>
+    run_inference(steps = 1e20, chains = 1e3, progress = FALSE) |>
     expect_error("memory budget")
 })
 
@@ -214,7 +214,7 @@ test_that("Discretization is enabled as expected", {
     )
   )
 
-  results <- suppressWarnings(hhmodel$run_inference(
+  results <- suppressWarnings(run_inference(hhmodel,
     steps = 50, burn = 0, thin = 1, adapt = 50, chains = 1
   ))
   y <- posterior::as_draws_matrix(get_parameter_draws(results))
@@ -240,14 +240,12 @@ test_that("Lognormal proposal non-positive domain", {
   # prior with unbounded lower bound
   new_housepi_model(model = "blank") |>
     add_parameter("huey", prior = "normal", proposal = "lognormal") |>
-    run_inference() |>
     expect_error("non-positive.*huey")
 
   # prior with negative lower bound
   new_housepi_model(model = "blank") |>
     add_parameter("miller", prior = "uniform",
                   min = -1, proposal = "lognormal") |>
-    run_inference() |>
     expect_error("non-positive")
 
   # location parameter
@@ -269,18 +267,18 @@ test_that("Lognormal proposal non-positive domain", {
 test_that("Modules do not get overwritten", {
   # NOTE: I use profile as a  status flag for models
   out_1 <- sarscov2_2021_icofs |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     get_infec_profile()
   expect_gt(length(out_1), 0L)
 
   flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     get_infec_profile() |>
     expect_length(0L)
 
   # reload first model
   sarscov2_2021_icofs |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     get_infec_profile() |>
     expect_identical(out_1)
 })
@@ -372,8 +370,8 @@ test_that("Nested definitions works as expected", {
                        z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
   expect_snapshot(print(hhmodel))
 
-  results <- hhmodel$run_inference(steps = 1e5, chains = 1, adapt = 0,
-                                   thin = 1, progress = 0)
+  results <- run_inference(hhmodel, steps = 1e5, chains = 1, adapt = 0,
+                           thin = 1, progress = 0)
   # no parameters nor priors, only augmented
   expect_equal(posterior::nvariables(results$parameter_draws), 0L)
   expect_null(results$.__enclos_env__$private$param_prior_draws_)
@@ -439,7 +437,7 @@ test_that("Augmented traces export only relevant variables", {
       expl = list(func = "gamma", func_args = c(x = alias, shape = 3))
     )
   infec_df <- subset(hhmodel$data_wide, status > 0)
-  result <- suppressWarnings(hhmodel$run_inference(
+  result <- suppressWarnings(run_inference(hhmodel,
     steps = 200, burn = 0, thin = 1, adapt = 0, chains = 1,
     id_draws = infec_df$id
   ))
@@ -456,7 +454,7 @@ test_that("Augmented degenerate range warns and collapses", {
   expect_warning(
     # FIXME double check this
     tryCatch(
-      hhmodel$run_inference(steps = 10, chains = 1, adapt = 0, thin = 1),
+      run_inference(hhmodel, steps = 10, chains = 1, adapt = 0, thin = 1),
       error = function(e) NULL
     ),
     regexp = "[Dd]egenerate range|[Cc]ollapsed"
@@ -475,7 +473,7 @@ test_that("Contact rate definition work as expected", {
     member = c("student", "other", "other",
                "student", "sibling", "mother", "father", "other", "student")
   ) |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
 
   # no contact rate defs -> empty matrix
@@ -544,12 +542,15 @@ test_that("Contact rates raise an error for incompatible models", {
 test_that("run_simulation rejects wrong arguments", {
   hhmodel <- new_housepi_model(model = "blank")
   # wrong observation process
-  hhmodel$run_simulation(obs_process = "not a function") |>
+  hhmodel |>
+    run_simulation(obs_process = "not a function") |>
     expect_error("function")
   # wrong number of replicates
-  hhmodel$run_simulation(nrep = 0) |>
+  hhmodel |>
+    run_simulation(nrep = 0) |>
     expect_error("positive integer")
-  hhmodel$run_simulation(nrep = -3) |>
+  hhmodel |>
+    run_simulation(nrep = -3) |>
     expect_error("positive integer")
 })
 
@@ -557,7 +558,8 @@ test_that("Param table with degenerate columns raises an ESS error", {
   pt <- posterior::as_draws_df(data.frame(p = rep(1, 100)))
 
   hhmodel <- new_housepi_model(model = "blank")
-  hhmodel$run_simulation(param_table = pt) |>
+  hhmodel |>
+    run_simulation(param_table = pt) |>
     expect_error("ESS")
 })
 
@@ -566,7 +568,7 @@ test_that("run_simulation auto-imports parameters from param_table", {
     new_housepi_model("blank")
   expect_equal(nrow(hhmodel$parameters), 0)
   pt <- data.frame(adamska = c(0.1, 0.2, 0.3))
-  invisible(hhmodel$run_simulation(param_table = pt))
+  invisible(run_simulation(hhmodel, param_table = pt))
   expect_true("adamska" %in% hhmodel$parameters$name)
 })
 
@@ -587,29 +589,29 @@ test_that("run_measure_ rejects apply_long without obs_process_long", {
 
 test_that("run_simulation returns combined wide/long output", {
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   # supplying obs_process_long forces the long branch into a non-empty list
   # single simulation by default
   obs_long <- function(x) data.frame(id = "vic-boss", measure = 1.0)
-  out <- hhmodel$run_simulation(obs_process = function(x) x,
-                                obs_process_long = obs_long)
+  out <- run_simulation(hhmodel, obs_process = function(x) x,
+                        obs_process_long = obs_long)
   expect_true(is.list(out))
   expect_equal(names(out), c("wide", "long"))
   expect_true(is.data.frame(out$wide))
   expect_true(is.data.frame(out$long))
 
   # multiple repetitions
-  out <- hhmodel$run_simulation(obs_process = function(x) x,
-                                obs_process_long = obs_long,
-                                nrep = 2)
+  out <- run_simulation(hhmodel, obs_process = function(x) x,
+                        obs_process_long = obs_long,
+                        nrep = 2)
   expect_true(is.data.frame(out$wide[[1]]))
   expect_true(is.data.frame(out$long[[2]]))
 })
 
 test_that("add_augmented_template loads from a non-blank model template", {
   sarscov2_2021_icofs |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_augmented_template() |>
     get_augmented() |>
     nrow() |>
@@ -618,7 +620,7 @@ test_that("add_augmented_template loads from a non-blank model template", {
 
 test_that("add_infec_profile and list update the model directly", {
   hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("augmented_infection_time") |>
+    new_housepi_model("case_ascertained") |>
     add_infec_profile(func = "gamma", shape = 2, scale = 1)
   expect_true("gamma" %in% hhmodel$infec_profile$func)
   expect_warning(
@@ -631,14 +633,14 @@ test_that("add_infec_profile and list update the model directly", {
 test_that("Parameter defined as a function tracks its dependencies", {
   set.seed(1)
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter(
       alpha = 1e-4,
       beta = size_ref@P^-gamma@P,
       gamma = list(prior = "uniform"),
       size_ref = 4
     )
-  res <- suppressWarnings(hhmodel$run_inference(
+  res <- suppressWarnings(run_inference(hhmodel,
     steps = 100, chains = 1, adapt = 0, thin = 1
   ))
   vars <- posterior::variables(res$parameter_draws)
@@ -655,7 +657,7 @@ test_that("Parameter defined as a function tracks its dependencies", {
 
 test_that("Parameter function rejects non-parameter dependencies", {
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial")
+    new_housepi_model("final_size")
 
   # bare names default to augmented source! here @P is missing
   hhmodel |>
@@ -674,12 +676,12 @@ test_that("Parameter function rejects non-parameter dependencies", {
 test_that("Parameter defined as a function tracks its dependencies", {
   set.seed(1)
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter(alpha = 1e-4,
                   beta = size_ref@P^-gamma@P,
                   gamma = list(prior = "uniform"),
                   size_ref = 4)
-  res <- hhmodel$run_inference(steps = 2000, progress = 0)
+  res <- run_inference(hhmodel, steps = 2000, progress = 0)
   vars <- posterior::variables(res$parameter_draws)
   # both sampled and function-derived parameters appear in the trace
   expect_true(all(c("gamma", "beta") %in% vars))

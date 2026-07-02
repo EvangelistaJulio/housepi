@@ -60,8 +60,8 @@ namespace housepi
     {
         auto it = factory_map_.find(name);
         if (it == factory_map_.end())
-            throw std::invalid_argument(
-                "Model registration failed: unknown model '" + std::string(name) + "'.\n");
+            msg::stop(
+                "Model registration failed: unknown model " + msg::val(std::string(name)) + ".\n");
         return it->second();
     }
 
@@ -97,8 +97,8 @@ namespace housepi
                                   " are not supported here.";
                 // add tip if augmented (which does not require '@')
                 if (parse::is_augmented(node.type) && node.is_terminal())
-                    sms += "\nDid you forget rlang injection operator '!!'?";
-                throw std::invalid_argument(sms);
+                    sms += "\nDid you forget rlang injection operator " + msg::code("!!" + node.value) + "?";
+                msg::stop(sms);
             }
 
             if (parse::is_data_wide(node.type))
@@ -128,9 +128,9 @@ namespace housepi
             }
 #ifndef NDEBUG
             else
-                throw std::invalid_argument(
-                    "Unrecognized source type '" + node.type +
-                    "' found while parsing " + node.err_str() + ".");
+                msg::stop(
+                    "Unrecognized source type " + msg::val(node.type) +
+                    " found while parsing " + node.err_str() + ".");
 #endif
         }
 
@@ -165,7 +165,7 @@ namespace housepi
     {
         storage_ = to_attribute(node, member_ptr);
         if (!storage_.is_empty() && !storage_.is_constant())
-            throw std::invalid_argument(
+            msg::stop(
                 "Definition " + node.err_str() +
                 " could not be interpreted as a numeric constant.");
         return storage_;
@@ -449,8 +449,8 @@ namespace housepi
     {
         // check if there is actually something to sample
         if (!param.is_any_sample() && !augm.is_any_sample())
-            throw std::length_error(
-                "Nothing to sample. Check your parameter and augmented definitions.");
+            msg::stop(
+                "Nothing to sample.\nCheck your parameter and augmented definitions.");
 
         // whether adaptation is required
         bool is_adaptive = !param.list_adaptive.empty() || augm.is_any_adaptive();
@@ -822,7 +822,7 @@ namespace housepi
         model->update_house_cache_dependecies(house);
         acc.transm = commit_transm_log_lik_(house);
         if (data_wide().transm_log_lik(house).is_inf())
-            throw std::runtime_error(
+            msg::stop(
                 "Initial transmission log-likelihood returned infinity for " +
                 house.err_name() + ".");
 
@@ -833,7 +833,7 @@ namespace housepi
                 Individual &member = house.member(i);
                 acc.aprior += augm.commit_augm_log_prior(member);
                 if (augm.varia[Index::of(member)].log_prior.is_inf())
-                    throw std::runtime_error(
+                    msg::stop(
                         "Initial augmented log-prior returned infinity for " +
                         member.err_name() + ".");
             }
@@ -1106,7 +1106,7 @@ namespace housepi
     {
         // check number of rungs for the thermodynamic ladder
         if (n_rungs < 2)
-            throw std::invalid_argument(
+            msg::stop(
                 "N. of rungs was not greater than 1.");
 
         setup.n_rungs = n_rungs;          // NOTE: set before progress bar
@@ -1126,7 +1126,7 @@ namespace housepi
         ladder.scheme = scheme;
         if (scheme == "adaptive" && !std::isfinite(ladder.mean_log_lik.front()))
         {
-            msg::warning(
+            msg::warn(
                 "Adaptive scheme is undefined at inverse temperature 0 with -Inf log-likelihood.\n"
                 "Falling back to the power-fractions scheme.");
             ladder.scheme = "power-fractions";

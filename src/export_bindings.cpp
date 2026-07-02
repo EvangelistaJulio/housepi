@@ -49,10 +49,9 @@
 namespace housepi::msg
 {
     /// Throw an error message.
-    /// @cite weylandt_suppressing_2018
-    [[noreturn]] void error(const std::string &txt)
+    [[noreturn]] void stop(const std::string &txt)
     {
-        throw Rcpp::exception(txt.c_str(), false);
+        throw housepi::CppError(txt);
     }
 
     /// Print an information message to stdout.
@@ -63,12 +62,16 @@ namespace housepi::msg
     }
 
     /// Display a warning message if not already displayed before.
-    /// Based on @cite weylandt_suppressing_2018
-    void warning(const std::string &txt)
+    /// Raised as a classed condition to identify housepi-authored warnings.
+    void warn(const std::string &txt)
     {
         if (!is_new_warning(txt))
             return;
-        Rf_warningcall(R_NilValue, "%s", txt.c_str());
+        Rcpp::List cond = Rcpp::List::create(Rcpp::_["message"] = txt,
+                                             Rcpp::_["call"] = R_NilValue);
+        cond.attr("class") = Rcpp::CharacterVector::create(
+            "housepi_cpp_warning", "warning", "condition");
+        Rcpp::Function("warning")(cond);
         add_new_warning(txt);
     }
 }
@@ -93,17 +96,8 @@ namespace
 
         ExposeBase(std::string name, const std::string &family,
                    std::vector<std::string> registry_types)
-            : family_(family)
-        {
-            try
-            {
-                ptr_ = compose_func_registries(name, family_, registry_types, false);
-            }
-            catch (const std::exception &e)
-            {
-                msg::error("Exposing " + family_ + " '" + name + "' failed:\n" + e.what());
-            }
-        }
+            : ptr_(compose_func_registries(name, family, registry_types, false)),
+              family_(family) {}
         virtual ~ExposeBase() = default;
 
         //////////////////////
@@ -112,37 +106,28 @@ namespace
 
         void init(SEXP args_, double min, double max, bool is_discr)
         {
-            try
+            if (args_ != R_NilValue)
             {
-                if (args_ != R_NilValue)
-                {
-                    Rcpp::List args(args_);
-                    Rcpp::CharacterVector arg_names(args.size());
-                    if (args.hasAttribute("names"))
-                        arg_names = args.names();
+                Rcpp::List args(args_);
+                Rcpp::CharacterVector arg_names(args.size());
+                if (args.hasAttribute("names"))
+                    arg_names = args.names();
 
-                    for (R_xlen_t i = 0; i < args.size(); ++i)
-                        ptr_->init_attr(
-                            Rcpp::as<std::string>(arg_names[i]),
-                            Attribute(Rcpp::as<double>(args[i])));
-                }
-
-                if (!na::is(min))
-                    ptr_->init_attr("min", Attribute(min));
-                if (!na::is(max))
-                    ptr_->init_attr("max", Attribute(max));
-
-                if (is_discr)
-                    ptr_->init_discretization();
-                ptr_->init_truncation();
-                ptr_->assert_is_callable_explicitly();
+                for (R_xlen_t i = 0; i < args.size(); ++i)
+                    ptr_->init_attr(
+                        Rcpp::as<std::string>(arg_names[i]),
+                        Attribute(Rcpp::as<double>(args[i])));
             }
-            catch (const std::exception &e)
-            {
-                msg::error(
-                    "While initializing " + family_ + " '" +
-                    std::string(ptr_->name()) + "':\n" + e.what());
-            }
+
+            if (!na::is(min))
+                ptr_->init_attr("min", Attribute(min));
+            if (!na::is(max))
+                ptr_->init_attr("max", Attribute(max));
+
+            if (is_discr)
+                ptr_->init_discretization();
+            ptr_->init_truncation();
+            ptr_->assert_is_callable_explicitly();
         }
 
         //////////////////////
@@ -179,8 +164,7 @@ namespace
             }
             catch (const std::exception &e)
             {
-                msg::error(
-                    "While calling " + family_ + " '" + std::string(ptr_->name()) + "':\n" + e.what());
+                msg::stop(e.what());
             }
         }
 
@@ -194,7 +178,8 @@ namespace
                 const R_xlen_t n = xo.size();
                 if (xn.size() != n)
                     throw std::invalid_argument(
-                        "Size of 'xo' must be identical to size of 'xn'.");
+                        "Size of " + msg::arg("xo") + " must be identical to size of " + msg::arg("xn") +
+                        " for " + family_ + " " + msg::val(ptr_->name()) + ".");
                 Rcpp::NumericVector y(n);
                 for (R_xlen_t i = 0; i < n; ++i)
                     y[i] = fn(xo[i], xn[i]);
@@ -202,8 +187,7 @@ namespace
             }
             catch (const std::exception &e)
             {
-                msg::error(
-                    "While calling " + family_ + " '" + std::string(ptr_->name()) + "':\n" + e.what());
+                msg::stop(e.what());
             }
         }
     };
@@ -252,7 +236,9 @@ namespace
             try
             {
                 if (n < 0)
-                    throw std::invalid_argument("'n' must be non-negative.");
+                    throw std::invalid_argument(
+                        msg::arg("n") + " must be non-negative for " +
+                        family_ + " " + msg::val(ptr_->name()) + ".");
 
                 // generate seed from R
                 Rcpp::RNGScope scope;
@@ -267,9 +253,7 @@ namespace
             }
             catch (const std::exception &e)
             {
-                msg::error(
-                    "While sampling " + family_ + " '" +
-                    std::string(ptr_->name()) + "':\n" + e.what());
+                msg::stop(e.what());
             }
         }
 
@@ -282,11 +266,28 @@ namespace
     public:
         ExposeInfecProfile(std::string name_)
             : ExposeBase(name_, "infectivity profile",
-                         {"infecprofile", "continuos", "discrete"}) {}
+                         {"infecprofile", "continuos", "discrete"})
+        {
+            // core errors from the underlying object should say "infectivity
+            // profile X", not the Distribution default "distribution X".
+            if (ptr_)
+                ptr_->set_err_family(ErrType::InfecProfile);
+        }
 
         MAKE_EXPOSE_METHOD_CALL(inst, ptr_->pdf(v))
         MAKE_EXPOSE_METHOD_CALL(cumul, ptr_->cdf(v))
     };
+
+    // Factory free functions: construct + initialise in one call, so the whole
+    // build routes through the `.engine` proxy interceptor like every other
+    // module free function. Ownership of the returned object passes to R.
+    template <class Expose>
+    Expose *expose_(std::string name, SEXP args, double min, double max, bool discr)
+    {
+        auto obj = std::make_unique<Expose>(std::move(name));
+        obj->init(args, min, max, discr);
+        return obj.release();
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -366,122 +367,58 @@ namespace
         return std::round(10000. * static_cast<double>(value) / static_cast<double>(total)) / 100.;
     }
 
-#define MAKE_RCPP_IMPORT_METHOD(module, section_name)            \
-    void import_##module(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)  \
-    {                                                            \
-        try                                                      \
-        {                                                        \
-            mcmc_ptr->module.build(rdataframe_to_strmap(input)); \
-        }                                                        \
-        catch (const std::exception &e)                          \
-        {                                                        \
-            msg::error(std::string("While importing ") +         \
-                       section_name + ":\n" + e.what());         \
-        }                                                        \
+    // Import helpers run serially at the Rcpp boundary; their build() paths
+    // raise housepi::CppError (via msg::stop) directly, which Rcpp forwards to R
+    // with the right class, so no per-import try/catch conversion is needed.
+    void import_setup(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    {
+        mcmc_ptr->setup.build(rdataframe_to_strmap(input));
     }
-    MAKE_RCPP_IMPORT_METHOD(setup, "setup")
 
     void import_param(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        try
-        {
-            mcmc_ptr->param.build(rdataframe_to_strmap(input), mcmc_ptr->translator);
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While importing parameters:\n") + e.what());
-        }
+        mcmc_ptr->param.build(rdataframe_to_strmap(input), mcmc_ptr->translator);
     }
 
     void import_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        try
-        {
-            mcmc_ptr->detach_data_store();
-            mcmc_ptr->data_wide().build(rdataframe_to_strmap(input));
-            mcmc_ptr->init_equivalence_class_compression();
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While importing data-wide:\n") + e.what());
-        }
+        mcmc_ptr->detach_data_store();
+        mcmc_ptr->data_wide().build(rdataframe_to_strmap(input));
+        mcmc_ptr->init_equivalence_class_compression();
     }
 
     void import_data_long(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        try
-        {
-            /// FIXME: copy-on-write should be also on long? Not clear...
-            mcmc_ptr->data_long().build(mcmc_ptr->data_wide(), rdataframe_to_strmap(input));
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While importing data-long:\n") + e.what());
-        }
+        /// FIXME: copy-on-write should be also on long? Not clear...
+        mcmc_ptr->data_long().build(mcmc_ptr->data_wide(), rdataframe_to_strmap(input));
     }
 
     void import_group_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        try
-        {
-            mcmc_ptr->group_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
-            mcmc_ptr->init_equivalence_class_compression();
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While importing group rates:\n") + e.what());
-        }
+        mcmc_ptr->group_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+        mcmc_ptr->init_equivalence_class_compression();
     }
 
     void import_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        try
-        {
-            mcmc_ptr->contact_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
-            mcmc_ptr->init_equivalence_class_compression();
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While importing contact rates:\n") + e.what());
-        }
+        mcmc_ptr->contact_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+        mcmc_ptr->init_equivalence_class_compression();
     }
 
     void import_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        try
-        {
-            mcmc_ptr->infec_profile.build(mcmc_ptr->translator, rdataframe_to_strmap(input));
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While importing infectivity profile:\n") + e.what());
-        }
+        mcmc_ptr->infec_profile.build(mcmc_ptr->translator, rdataframe_to_strmap(input));
     }
 
     void import_augm(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        try
-        {
-            mcmc_ptr->augm.build(mcmc_ptr->infec_profile, rdataframe_to_strmap(input));
-            mcmc_ptr->init_equivalence_class_compression();
-        }
-        catch (const std::exception &e)
-        {
-            msg::error(std::string("While importing augmented:\n") + e.what());
-        }
+        mcmc_ptr->augm.build(mcmc_ptr->infec_profile, rdataframe_to_strmap(input));
+        mcmc_ptr->init_equivalence_class_compression();
     }
 
     void import_param_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        try
-        {
-            mcmc_ptr->param.build_for_predic(rdataframe_to_dblmap(input));
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While importanting parameter table:\n" +
-                       std::string(e.what()));
-        }
+        mcmc_ptr->param.build_for_predic(rdataframe_to_dblmap(input));
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -507,7 +444,7 @@ namespace
 
         // NOTE: arguments should not be polymorphic when called here
         return Rcpp::List::create(
-            Rcpp::_["func"] = std::string(infec_profile.generic->name()),
+            Rcpp::_["func"] = infec_profile.generic->name(),
             Rcpp::_["func_args"] = rcpp_export_args(infec_profile.generic.get()),
             Rcpp::_["min"] = hsp_to_rcpp(infec_profile.generic->lower()),
             Rcpp::_["max"] = hsp_to_rcpp(infec_profile.generic->upper()),
@@ -1084,7 +1021,7 @@ namespace
             {
                 const auto &f = mcmc_ptr->get_augm_varia(infec_profile.augm_key, house.member(i)).function();
 
-                infprof_name[i] = std::string(f->name());
+                infprof_name[i] = f->name();
                 infprof_discr[i] = f->is_discrete();
                 infprof_args[i] = rcpp_export_args(f);
                 infprof_min[i] = hsp_to_rcpp(f->lower());
@@ -1207,8 +1144,8 @@ namespace
         }
         catch (const std::exception &e)
         {
-            msg::error("While exporting snapshot of household '" + house_id + "':\n" +
-                       std::string(e.what()));
+            msg::stop(std::string(e.what()) +
+                       "\nFor household " + msg::val(house_id) + ".");
         }
     }
 
@@ -1277,8 +1214,8 @@ namespace
                     catch (const std::exception &e)
                     {
                         throw std::runtime_error(
-                            "While simulating " + data_wide.at(H).err_name() + ":\n" +
-                            std::string(e.what()));
+                            std::string(e.what()) +
+                            "\nFor " + data_wide.at(H).err_name() + ".");
                     }
                 });
         }
@@ -1418,31 +1355,39 @@ namespace
     Rcpp::List run_power_posteriors(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
     {
         MCMC &engine = *mcmc_ptr;
-        const PowerLadder ladder = engine.run_power_posteriors(scheme, n_rungs);
 
-        const size_t n_rung = ladder.draws.size();
-        const size_t n_draw = n_rung ? ladder.draws[0].size() : 0;
-        Rcpp::List draws(n_rung);
-        Rcpp::CharacterVector col_names(n_rung);
-        for (size_t r = 0; r < n_rung; ++r)
+        try
         {
-            Rcpp::NumericVector col(n_draw);
-            for (size_t c = 0; c < n_draw; ++c)
-                col[c] = ladder.draws[r][c];
-            draws[r] = col;
-            col_names[r] = "log_lik[" + std::to_string(r + 1) + "]";
-        }
-        // set names via attribute so the non-syntactic `log_lik[r]` survives
-        // the data.frame conversion (which would otherwise sanitise them)
-        Rcpp::DataFrame draws_df(draws);
-        draws_df.attr("names") = col_names;
+            const PowerLadder ladder = engine.run_power_posteriors(scheme, n_rungs);
 
-        return Rcpp::List::create(
-            Rcpp::_["scheme"] = ladder.scheme,
-            Rcpp::_["inv_temp"] = Rcpp::wrap(ladder.inv_temp),
-            Rcpp::_["mean_log_lik"] = Rcpp::wrap(ladder.mean_log_lik),
-            Rcpp::_["var_log_lik"] = Rcpp::wrap(ladder.var_log_lik),
-            Rcpp::_["log_lik_draws"] = draws_df);
+            const size_t n_rung = ladder.draws.size();
+            const size_t n_draw = n_rung ? ladder.draws[0].size() : 0;
+            Rcpp::List draws(n_rung);
+            Rcpp::CharacterVector col_names(n_rung);
+            for (size_t r = 0; r < n_rung; ++r)
+            {
+                Rcpp::NumericVector col(n_draw);
+                for (size_t c = 0; c < n_draw; ++c)
+                    col[c] = ladder.draws[r][c];
+                draws[r] = col;
+                col_names[r] = "log_lik[" + std::to_string(r + 1) + "]";
+            }
+            // set names via attribute so the non-syntactic `log_lik[r]` survives
+            // the data.frame conversion (which would otherwise sanitise them)
+            Rcpp::DataFrame draws_df(draws);
+            draws_df.attr("names") = col_names;
+
+            return Rcpp::List::create(
+                Rcpp::_["scheme"] = ladder.scheme,
+                Rcpp::_["inv_temp"] = Rcpp::wrap(ladder.inv_temp),
+                Rcpp::_["mean_log_lik"] = Rcpp::wrap(ladder.mean_log_lik),
+                Rcpp::_["var_log_lik"] = Rcpp::wrap(ladder.var_log_lik),
+                Rcpp::_["log_lik_draws"] = draws_df);
+        }
+        catch (std::exception &e)
+        {
+            engine.setup.crash(e);
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1466,15 +1411,8 @@ namespace
     // UPDATE: I am just using this to check flags
     Rcpp::XPtr<ModelBase> new_model(std::string module_name)
     {
-        try
-        {
-            auto model = housepi::ModelRegistry::instance().create(module_name);
-            return Rcpp::XPtr<ModelBase>(model.release(), true);
-        }
-        catch (const std::exception &e)
-        {
-            msg::error("While creating new model: " + std::string(e.what()));
-        }
+        auto model = housepi::ModelRegistry::instance().create(module_name);
+        return Rcpp::XPtr<ModelBase>(model.release(), true);
     }
 
     Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
@@ -1508,14 +1446,12 @@ namespace
     {
         try
         {
-            // scalar complete-data household log-likelihood (observation + transmission)
             return mcmc_ptr->evaluate_log_lik(house_id);
         }
         catch (const std::exception &e)
         {
             mcmc_ptr->setup.crash(e);
         }
-        return NA_REAL;
     }
     void run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
@@ -1609,11 +1545,9 @@ namespace
 RCPP_MODULE(housepi)
 {
     Rcpp::class_<ExposeBase>("ExposeBase")
-        .method("init", &ExposeBase::init)
         .method("args", &ExposeBase::args);
 
     Rcpp::class_<ExposeFunction>("ExposeFunction")
-        .constructor<std::string>()
         .derives<ExposeBase>("ExposeBase")
         .method("func", &ExposeFunction::func)
         .method("log_func", &ExposeFunction::log_func)
@@ -1621,7 +1555,6 @@ RCPP_MODULE(housepi)
         .method("prim", &ExposeFunction::prim);
 
     Rcpp::class_<ExposeDistribution>("ExposeDistribution")
-        .constructor<std::string>()
         .derives<ExposeBase>("ExposeBase")
         .method("pdf", &ExposeDistribution::pdf)
         .method("log_pdf", &ExposeDistribution::log_pdf)
@@ -1631,10 +1564,13 @@ RCPP_MODULE(housepi)
         .method("rand", &ExposeDistribution::rand);
 
     Rcpp::class_<ExposeInfecProfile>("ExposeInfecProfile")
-        .constructor<std::string>()
         .derives<ExposeBase>("ExposeBase")
         .method("inst", &ExposeInfecProfile::inst)
         .method("cumul", &ExposeInfecProfile::cumul);
+
+    Rcpp::function("expose_function", &expose_<ExposeFunction>);
+    Rcpp::function("expose_distribution", &expose_<ExposeDistribution>);
+    Rcpp::function("expose_infec_profile", &expose_<ExposeInfecProfile>);
 
     Rcpp::function("get_DataKey", &get_DataKey);
     Rcpp::function("get_LongKey", &get_LongKey);

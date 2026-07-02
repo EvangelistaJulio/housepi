@@ -18,8 +18,8 @@ aux_add <- function(self, name = NA_character_, value = NULL,
 test_that("Default parameter definitions are correct", {
   param <- HousepiParameter$new()
 
-  expect_error(aux_add(param, name = "dummy", value = 3, const = FALSE),
-               regexp = "No prior")
+  aux_add(param, name = "dummy", value = 3, const = FALSE) |>
+    expect_error("prior")
 
   # active fields are read-only
   helper_test_read_only(param, "param_required")

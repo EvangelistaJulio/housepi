@@ -1,6 +1,6 @@
 \docType{class}
-\title{Augmented Infection Time}
-\name{housepi template : Augmented Infection Time}
+\title{Case Ascertained}
+\name{housepi template : Case Ascertained}
 \description{
 This model assumed that each household member \eqn{i} is suject to a force of infection \eqn{{\lambda}_{i}(t)}{lambda_i(t)},
 where time \eqn{t} can take continuous or discrete values.

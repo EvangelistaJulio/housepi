@@ -65,14 +65,11 @@ HousepiParameter <- R6::R6Class(
 
     #' @description Remove a given parameter.
     #' @param name `character(1)`. Parameter definition to remove.
-    #' @param warn_removal `logical(1)`. Show warnings for failed removal.
-    remove = function(name, warn_removal = FALSE) {
+    remove = function(name) {
       mask <- self$defs[["name"]] == name
       if (any(mask)) {
         self$defs <- self$defs[!mask, ]
         return(name)
-      } else if (isTRUE(warn_removal)) {
-        warn_h(sprintf("Attempt to remove unknown parameter '%s'.", name))
       }
       c()
     },
@@ -117,16 +114,16 @@ HousepiParameter <- R6::R6Class(
       # control valid name
       assert_valid_definition_name(name, self$family)
       if (all(is.null(c(value, func)), is.na(prior))) stop_h(
-        sprintf("Incomplete definition for parameter '%s'.", name),
-        "Provide at least one between 'value', 'prior', and 'func'."
+        "Incomplete definition for parameter {.val {name}}.",
+        "Provide at least one between {.arg {c('value', 'prior', 'func')}}."
       )
       if (!is.null(func) && !is.na(prior)) stop_h(
-        sprintf("Wrong definition for parameter '%s'.", name),
-        "Provide only one between 'func' and 'prior'."
+        "Wrong definition for parameter {.val {name}}.",
+        "Provide only one between {.arg {c('func', 'prior')}}."
       )
       if (!is.null(value) && !is.null(func)) stop_h(
-        sprintf("Wrong definition for parameter '%s'.", name),
-        "Provide only one between 'value' and 'func'."
+        "Wrong definition for parameter {.val {name}}.",
+        "Provide only one between {.arg {c('value', 'func')}}."
       )
 
       opts <- list(name = as.character(name),

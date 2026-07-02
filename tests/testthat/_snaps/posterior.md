@@ -3,6 +3,6 @@
     Code
       print(local_results)
     Message
-      i Posterior draws of model 'chain binomial'.
+      i Posterior draws of model "final size".
       100 iterations, 1 chain, 3 parameters.
 

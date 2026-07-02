@@ -30,7 +30,7 @@ set.seed(42)
 
 Certain models allow for the definition of custom group rates.
 Such models allow for a number of group rates which can then be changed according to the modeler's choice.
-We provide an example here with the heterogeneous version of the chain binomial model.
+We provide an example here with the heterogeneous version of the final size model.
 
 # Format data features
 
@@ -48,7 +48,7 @@ hhmodel <- sarscov2_2021_icofs |>
   ) |> 
   # use smaller number of households for exploration
   dplyr::filter(house_id %in% sample(unique(house_id), 300)) |>
-  new_housepi_model("augmented_infection_time")
+  new_housepi_model("case_ascertained")
 ```
 
 The current loaded model allows for a number of group rates, among which the individual `"susceptibility"` (use `help()` method to learn more).

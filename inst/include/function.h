@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "tools/messages.h"
 #include "tools/nan.h"
 
 namespace housepi
@@ -33,7 +34,9 @@ namespace housepi
         Observation,
         HouseholdObservation,
         GroupRate,
-        Data
+        Data,
+        Distribution,
+        InfecProfile
     };
 
     /// Index into the process-global name pool.
@@ -186,10 +189,6 @@ namespace housepi
         std::string err_name() const;
         /// Get attribute value to display in errors.
         std::string str_val() const;
-#ifndef NDEBUG
-        /// Get a summary of the attribute.
-        virtual std::string str_summary() const;
-#endif
 
     protected:
         enum class Mode : std::uint8_t
@@ -420,18 +419,18 @@ namespace housepi
         ////////////////////
 
         /// Get function name.
-        virtual std::string_view name() const noexcept = 0;
+        virtual std::string name() const noexcept = 0;
         /// Get argument name (from the active parametrization).
         std::string arg_name(unsigned short i) const { return alts_[alt_idx_].args[i].name(); }
-        /// Get function name complete with type to display in errors.
-        virtual std::string err_name() const { return "function '" + std::string(name()) + "'"; }
+        /// Get function name complete with family word to display in errors. The
+        /// family defaults per concrete class ("function"/"distribution") but can
+        /// be relabelled per instance (e.g. an exposed infectivity profile).
+        virtual std::string err_name() const;
+        /// Set the family word shown in errors (see err_name()).
+        void set_err_family(ErrType family) noexcept { err_family_ = family; }
 
         /// Get a summary of the range.
         std::string str_range() const;
-#ifndef NDEBUG
-        /// Get a summary of the function.
-        std::string str_summary(bool show_x_arg = true) const;
-#endif
 
     protected:
         /////////////////////////
@@ -449,9 +448,10 @@ namespace housepi
             std::string name = {};            /// Alternative set name
             std::vector<Attribute> args = {}; /// Alternative arguments
         };
-        std::vector<AltArgSet> alts_; /// Alternative parametrizations (canonical is 0)
-        std::uint8_t alt_idx_ = 0;    /// Current select arguments
-        bool is_user_alt_ = false;    /// Whether user has picked a re-parametrization
+        std::vector<AltArgSet> alts_;              /// Alternative parametrizations (canonical is 0)
+        std::uint8_t alt_idx_ = 0;                 /// Current select arguments
+        bool is_user_alt_ = false;                 /// Whether user has picked a re-parametrization
+        ErrType err_family_ = ErrType::Function;   /// family word shown in errors
 
         /// Register an alternative parametrization.
         void register_alt_(const std::string &name,

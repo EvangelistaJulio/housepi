@@ -25,6 +25,6 @@ summarize_house_cases(hhmodel)
 Summarise cases as given from the statuses in the loaded household data.
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 summarise_house_cases(hhmodel)
 }

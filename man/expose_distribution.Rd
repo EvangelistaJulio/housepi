@@ -18,7 +18,7 @@ expose_distribution(name, ..., min = NA_real_, max = NA_real_, discr = FALSE)
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }
 \value{
-\code{ExposeDistribution} object.
+An exposed distribution object with methods \verb{$pdf()} and \verb{$cdf()}.
 }
 \description{
 Expose an object from housepi registered distribution.

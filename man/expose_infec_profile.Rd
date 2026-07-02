@@ -18,7 +18,7 @@ expose_infec_profile(name, ..., min = NA_real_, max = NA_real_, discr = FALSE)
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }
 \value{
-\code{ExposeInfecProfile} object.
+An exposed infectivity profile with methods \verb{$inst()} and \verb{$cumul()}.
 }
 \description{
 Expose an object from housepi registered infectivity profile.

@@ -13,6 +13,7 @@
 #include <stdexcept>
 
 #include "binomial.h"
+#include "tools/messages.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -501,7 +502,7 @@ namespace housepi::chbi
             clear_combinations_lookuptable_();
             return output;
         }
-        throw std::invalid_argument(
+        msg::stop(
             "Maximum number of infected members is fixed to " +
             std::to_string(limit_max_n_infec) + ".");
     }

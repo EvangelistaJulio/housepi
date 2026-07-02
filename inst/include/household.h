@@ -11,6 +11,7 @@
 #include <string_view>
 #include <vector>
 
+#include "tools/messages.h"
 #include "tools/nan.h"
 #include "individual.h"
 
@@ -92,7 +93,7 @@ namespace housepi
 		/// Household ID as in data.
 		const std::string &house_id() const noexcept { return house_id_; }
 		/// Name for error messages.
-		std::string err_name() const { return "household '" + house_id_ + "'"; }
+		std::string err_name() const { return "household " + msg::val(house_id_); }
 
 	private:
 		std::string house_id_ = "";			   /// user house id

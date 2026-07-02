@@ -108,12 +108,6 @@ namespace housepi
 
         try
         {
-#ifndef NDEBUG
-            if (!input.count("func"))
-                throw std::invalid_argument(
-                    "A function name was missing for infectivity profile template.");
-#endif
-
             size_t n_rows = read::csv_n_rows(input);
             const auto file_headers = {"func", "status", "discr", "max"};
 
@@ -135,15 +129,16 @@ namespace housepi
 
             // forbid augmented infectivity profile for template
             if (is_augmented())
-                throw std::invalid_argument(
+                msg::stop(
                     "Impossible to define infectivity profile template with augmented dependencies.");
 
             // UPDATE: maybe also not depending on parameters?
         }
         catch (const std::exception &e)
         {
-            throw std::runtime_error(
-                "While building infectivity profile template:\n" + std::string(e.what()));
+            msg::stop(
+                std::string(e.what()) +
+                "\nWhile building the infectivity profile template.");
         }
     }
 
@@ -161,16 +156,6 @@ namespace housepi
 
         if (input.empty())
             return;
-
-#ifndef NDEBUG
-        if (!input.count("func"))
-            throw std::invalid_argument(
-                "A function name choice was missing in infectivity profile definition.");
-        for (const std::string &in_name : input.at("func"))
-            if (parse::Definition(in_name).is_na())
-                throw std::invalid_argument(
-                    "Provided NA as a function name in infectivity profile definition.");
-#endif
 
         // check if definition is generic or augmented
         if (read::csv_n_rows(input) > 1 ||
@@ -330,26 +315,12 @@ namespace housepi
     {
         deftable_.clear();
 
-#ifndef NDEBUG
-        const std::vector<std::string> file_headers = {"name", "status",
-                                                       "func", "fcumul",
-                                                       "value", "const", "discr",
-                                                       "prior", "min", "max",
-                                                       "proposal", "proposal_scale"};
-        const std::vector<std::string> headers = read::extract_keys(input);
-#endif
-
         for (const std::string &astr : input.at("name"))
         {
-#ifndef NDEBUG
-            if (na::is(astr))
-                throw std::invalid_argument(
-                    "Found an augmented variable with undefined name.");
-#endif
             if (astr == infprof::AUGM_FUNC)
-                throw std::invalid_argument(
-                    "Tried to use the reserved augmented name '" +
-                    astr + "'.\nPlease, choose a different one.");
+                msg::stop(
+                    "Tried to use the reserved augmented name " +
+                    msg::val(astr) + ".\nPlease, choose a different one.");
         }
 
         deftable_.append(input);
@@ -446,11 +417,6 @@ namespace housepi
             // status observation is per-member, but out of status block
             if (deftable_.c_kind[k] == Kind::Status)
             {
-#ifndef NDEBUG
-                if (is_any_status_obs())
-                    throw std::invalid_argument(
-                        "Only one status observation can be defined.");
-#endif
                 status_obs_def_ = k;
                 status_obs_key_ = khold(astr);
                 continue;
@@ -460,32 +426,11 @@ namespace housepi
             int status = status::MISSING;
             const std::string &s = deftable_.c_status[k];
             if (!na::is(s))
-            {
                 status = str::toi(s, "augmented status");
-#ifndef NDEBUG
-                if (!status::is_infected(status))
-                    throw std::invalid_argument(
-                        "Impossible to associate augmented '" + astr +
-                        "' for non infectious status " + s + ".");
-#endif
-            }
             map_status_to_def_row_[status].push_back(k); // store status to definition row index
         }
 
-        // assert that name and status are univocal
-        for (const auto &[status, idxs] : map_status_to_def_row_)
-        {
-            std::vector<std::string> name_to_status = {};
-            for (size_t k : idxs)
-                name_to_status.push_back(deftable_.c_name[k]);
-
-            const std::vector<std::string> degenerate = name_to_status - str::unique(name_to_status);
-#ifndef NDEBUG
-            if (!degenerate.empty())
-                throw std::invalid_argument(
-                    "Incompatible definitions found for augmented " + str::format(degenerate));
-#endif
-        }
+        // NOTE: assertion of univocal name-status is done in R
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -545,7 +490,7 @@ namespace housepi
             return;
         // throw if not defined
         if (!map_status_to_def_row_.count(status))
-            throw std::invalid_argument(
+            msg::stop(
                 "No definitions were compatible with augmented status " +
                 std::to_string(status) + ".");
 
@@ -585,7 +530,7 @@ namespace housepi
                 sms += "\nCheck your generic definitions.";
             else
                 sms += " for status " + std::to_string(err_status) + ".";
-            throw std::invalid_argument(sms);
+            msg::stop(sms);
         }
     }
 
@@ -645,14 +590,14 @@ namespace housepi
         }
         else if (na::is(deftable_.c_value[k]) && na::is(deftable_.c_prior[k]))
         {
-            throw std::invalid_argument(
-                "Impossible to initialize augmented '" + astr + "'  without a value or prior");
+            msg::stop(
+                "Impossible to initialize augmented " + msg::val(astr) + " without a value or prior");
         }
         else if (na::is(deftable_.c_proposal[k]))
         {
-            throw std::runtime_error(
-                "No proposal was provided for non-constant definition of augmented '" +
-                astr + "'");
+            msg::stop(
+                "No proposal was provided for non-constant definition of augmented " +
+                msg::val(astr));
         }
         else
         {
@@ -730,9 +675,9 @@ namespace housepi
         // raise if deterministic observation node for evaluation
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
             if (deftable_.c_kind[k] == Kind::Obs && na::is(deftable_.c_prior[k]))
-                throw std::invalid_argument(
-                    "Deterministic observation node '" + deftable_.c_name[k] +
-                    "' cannot be used for evaluation, only simulation.");
+                msg::stop(
+                    "Deterministic observation node " + msg::val(deftable_.c_name[k]) +
+                    " cannot be used for evaluation, only simulation.");
 
         helper_init_prior_list_();
 
@@ -946,13 +891,13 @@ namespace housepi
                     continue;
                 for (const std::string &dstr : parse::Definition(expr).list_data_wide_depen())
                     if (contains(live_names, dstr))
-                        throw std::invalid_argument(
-                            "Cyclic dependency for simulation: augmented '" + deftable_.c_name[k] +
-                            "' reads data column '" + dstr + "', a household observation derived from a "
-                                                             "generated observation that depends on augmented variables.\n"
-                                                             "Define '" +
-                            deftable_.c_name[k] + "' without referencing '" + dstr +
-                            "' (an anchor-free distribution; the likelihood is invariant to the time origin).");
+                        msg::stop(
+                            "Cyclic dependency for simulation: augmented " + msg::val(deftable_.c_name[k]) +
+                            " reads data column " + msg::val(dstr) + ", a household observation derived from a "
+                                                                       "generated observation that depends on augmented variables.\n"
+                                                                       "Define " +
+                            msg::val(deftable_.c_name[k]) + " without referencing " + msg::val(dstr) +
+                            " (an anchor-free distribution; the likelihood is invariant to the time origin).");
             }
         }
     }
@@ -1000,9 +945,9 @@ namespace housepi
             if (!na::is(deftable_.c_prior[k]))
                 for (const std::string *col : {&deftable_.c_prior[k], &deftable_.c_min[k], &deftable_.c_max[k]})
                     for (const std::string &dstr : data_obs_refs(*col))
-                        throw std::invalid_argument(
-                            "Definition collision: the prior of '" + name + "' reads observation '" + dstr +
-                            "'.\nA prior cannot depend on an observed or generated value.");
+                        msg::stop(
+                            "Definition collision: the prior of " + msg::val(name) + " reads observation " + msg::val(dstr) +
+                            ".\nA prior cannot depend on an observed or generated value.");
 
             // Rule 2: a deterministic definition may read an observation (a downstream
             // readout) unless it closes a loop: the observation transitively depends on it.
@@ -1013,10 +958,10 @@ namespace housepi
                         continue; // observation node reading its own entry column
                     // loop iff the observation 'd' is a (transitive) dependent of 'name'
                     if (contains(dependency::order_conditioned_on(name, tree), dstr))
-                        throw std::invalid_argument(
-                            "Cyclic definition: '" + name + "' reads observation '" + dstr +
-                            "', but '" + dstr + "' depends on '" + name +
-                            "\n. Break the loop by defining one of them independently of the other.");
+                        msg::stop(
+                            "Cyclic definition: " + msg::val(name) + " reads observation " + msg::val(dstr) +
+                            ", but " + msg::val(dstr) + " depends on " + msg::val(name) +
+                            ".\nBreak the loop by defining one of them independently of the other.");
                 }
         }
     }
@@ -1031,10 +976,10 @@ namespace housepi
 
         const auto reject = [&](const std::string &origin, const std::string &d)
         {
-            throw std::invalid_argument(
-                "Definition collision: a " + origin + " is keyed on observation '" + d +
-                "'.\nThe " + origin + " feeds the transmission model, which the observation is "
-                                      "generated from, so it cannot be assigned coherently during simulation. Key the " +
+            msg::stop(
+                "Definition collision: a " + origin + " is keyed on observation " + msg::val(d) +
+                ".\nThe " + origin + " feeds the transmission model, which the observation is "
+                                     "generated from, so it cannot be assigned coherently during simulation. Key the " +
                 origin + " on a column that is not an observation node.");
         };
 
@@ -1119,9 +1064,10 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            throw std::runtime_error(
-                "While initializing household observation '" + astr + "' for " +
-                house.err_name() + ":\n" + std::string(e.what()));
+            msg::stop(
+                std::string(e.what()) +
+                "\nFor household observation " + msg::val(astr) + " of " +
+                house.err_name() + ".");
         }
     }
 
@@ -1170,8 +1116,8 @@ namespace housepi
         // augmented/observation block is selected at simulation (status-specific if
         // declared, otherwise the generic one), so no block count is enforced here.
         if (!house_obs_is_pure_data_(k))
-            throw std::invalid_argument(
-                "Status observation '" + astr + "' must depend only on data or numeric constants.");
+            msg::stop(
+                "Status observation " + msg::val(astr) + " must depend only on data or numeric constants.");
     }
 
     void Augmented::materialize_data_bound_house_obs(DataWide &data_wide)
@@ -1197,10 +1143,10 @@ namespace housepi
             // function of data: a latent/parameter-dependent one has no fixed value
             // during inference (it would impose an indicator constraint).
             if (!house_obs_is_pure_data_(k))
-                throw std::invalid_argument(
-                    "Household observation '" + astr +
-                    "' provides required data column '" + astr +
-                    "' but depends on latent or parameter quantities.\n"
+                msg::stop(
+                    "Household observation " + msg::val(astr) +
+                    " provides required data column " + msg::val(astr) +
+                    " but depends on latent or parameter quantities.\n"
                     "A data-bound household observation must be a pure function of data; "
                     "live observations are only meaningful in simulation.");
 
@@ -1213,12 +1159,12 @@ namespace housepi
                 const double v = hvar.value();
 
                 if (data_wide.requires_discrete(d) && v != std::floor(v))
-                    throw std::invalid_argument(
-                        "Household observation '" + astr + "' for " + house.err_name() +
+                    msg::stop(
+                        "Household observation " + msg::val(astr) + " for " + house.err_name() +
                         " was expected to be discrete-valued, as requested by model.");
                 if (data_wide.requires_positive(d) && !(v > 0.))
-                    throw std::invalid_argument(
-                        "Household observation '" + astr + "' for " + house.err_name() +
+                    msg::stop(
+                        "Household observation " + msg::val(astr) + " for " + house.err_name() +
                         " was expected to be greater than zero, as requested by model.");
 
                 // enforce inference-optimization
@@ -1281,11 +1227,11 @@ namespace housepi
         }
 
         if (member.is_infected_status())
-            throw std::invalid_argument(
+            msg::stop(
                 "No augmented definitions were found for " +
                 member.err_name() + " with status " + std::to_string(status) + ".");
 
-        throw std::invalid_argument(
+        msg::stop(
             "Generic augmented definition for non-infectious " +
             member.err_name() + " was missing.");
     }
@@ -1322,16 +1268,16 @@ namespace housepi
 
             // check if satisfies discrete requirement, if any
             if (user_discrete_set_.count(a) && !avar.is_discrete())
-                throw std::invalid_argument(
+                msg::stop(
                     "Definition of " + avar.err_name() +
                     " did not return a discrete object as requested by prior.");
         }
         catch (const std::exception &e)
         {
-            throw std::runtime_error(
-                "While initializing augmented '" + astr + "' for " +
-                member.err_name() + " (status " + std::to_string(member.status()) + "):\n" +
-                std::string(e.what()));
+            msg::stop(
+                std::string(e.what()) +
+                "\nFor augmented " + msg::val(astr) + " of " +
+                member.err_name() + " (status " + std::to_string(member.status()) + ").");
         }
     }
 
@@ -1459,26 +1405,26 @@ namespace housepi
             }
 
             if (augm_dep.size() > 0)
-                throw std::runtime_error(
+                msg::stop(
                     "Exceeded attempts to initialize augmented variables of " +
                     member.err_name() + " due to observations.\n" +
                     "Widen augmented prior of " + str::format(str::unique(augm_dep), 3, false) +
-                    ", revise the observation domain of '" + deftable_.c_name[k] +
-                    "', or check the observed individual data.");
+                    ", revise the observation domain of " + msg::val(deftable_.c_name[k]) +
+                    ", or check the observed individual data.");
 
             // non-constant parameter in domain cannot be fixed by per-individual resampling
             for (const std::string &pstr : str::unique(param_dep))
             {
                 size_t p = mcmc_->param.khold().from_string(pstr);
                 if (!mcmc_->param.at(p).is_constant())
-                    throw std::runtime_error(
+                    msg::stop(
                         "Failed to initialize due to observations of " + member.err_name() + ".\n" +
-                        "Try to remove free parameter dependencies in observation domain of '" + deftable_.c_name[k] + "'.");
+                        "Try to remove free parameter dependencies in observation domain of " + msg::val(deftable_.c_name[k]) + ".");
             }
         }
 
         // otherwise observed data are just unreachable
-        throw std::runtime_error(
+        msg::stop(
             "Failed to initialize due to observations of " + member.err_name() + ".\n" +
             "The observed values lie outside of respective domain.\n" +
             "Check the individual data or revise the domain.");
@@ -1567,8 +1513,8 @@ namespace housepi
 
         if (!is_any_sample())
         {
-            msg::warning(
-                "Ignored id draws. No augmented variables to sample were defined.");
+            msg::warn(
+                "Ignored" + msg::arg("id_draws") + ": no augmented variables to sample were defined.");
             return output;
         }
 
@@ -1587,7 +1533,7 @@ namespace housepi
                 if (member.is_infected_status())
                     output.emplace_back(&member);
                 else
-                    msg::warning(
+                    msg::warn(
                         "Ignored draws of non infected " + member.err_name() + ".");
             }
         output.shrink_to_fit();

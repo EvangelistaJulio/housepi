@@ -5,7 +5,7 @@ test_that("Rlang standard functions work as expected", {
   expect_true(is.null(housepi_extractor(NULL)))
 
   expect_error(housepi_extractor(log(alpha@B)),
-               regexp = "Invalid type 'B'")
+               regexp = "Invalid type")
   expect_equal(housepi_extractor(log(alpha)),
                "log|x|{alpha|A}")
   expect_equal(housepi_extractor(log(alpha@P)),

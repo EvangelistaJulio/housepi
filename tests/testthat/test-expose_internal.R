@@ -962,3 +962,15 @@ test_that("Ferretti20 infectivity profile behave has expected", {
   profile <- expose_infec_profile("ferretti20", incub_period = 5, discr = TRUE)
   expect_true(all(profile$inst(x) == profile$cumul(1)))
 })
+
+####################################
+## EXPOSE INTERNAL : PRINT METHOD ##
+####################################
+
+test_that("Exposed object print behavior is stable", {
+  expect_snapshot(print(expose_function("pow", x2 = 3)))
+  expect_snapshot(print(expose_distribution("normal", mean = 2, sd = 3)))
+  expect_snapshot(print(expose_infec_profile("gamma", shape = 2, scale = 1)))
+  # no-argument object prints only the header
+  expect_snapshot(print(expose_function("sin")))
+})

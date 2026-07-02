@@ -25,14 +25,14 @@ library(housepi)
 housepi_theme_set()
 ```
 
-Here we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC). We use the same chain binomial example presented in [Get started](housepi.html):
+Here we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC). We use the same final size example presented in [Get started](housepi.html):
 
 ```{r}
 #| label: inference-setup
 # repeat inference as in 'Get Started'
 set.seed(42)
 hhmodel <- flu_1918_frederick |>
-  new_housepi_model("chain_binomial") |>
+  new_housepi_model("final_size") |>
   add_parameter_template()
 
 # store posterior draws

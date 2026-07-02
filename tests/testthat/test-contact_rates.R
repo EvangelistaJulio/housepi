@@ -331,13 +331,14 @@ test_that("joint = TRUE explicit matches default behavior", {
 #########################################
 
 test_that("compute_rule_groups: ambiguous subset raises error", {
-  tbl <- data.frame(
+  data.frame(
     from_age = c("child", "child", "child"),
     from_sex = c("M", NA, NA),
     to_age = c(NA, "child", NA),
     param_name = c("metal_gear_1", "metal_gear_2", "big_boss")
-  )
-  expect_error(compute_rule_groups(tbl), regexp = "[Aa]mbiguous")
+  ) |>
+    compute_rule_groups() |>
+    expect_error("[Aa]mbiguous")
 })
 
 test_that("Custom mode absorbs all-NA default into single group", {
@@ -438,7 +439,7 @@ test_that("Most-specific rule wins over reference (single feature)", {
     member = c("father", "mother", "student", "sibling"),
     stringsAsFactors = FALSE
   ) |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template() |>
     add_contact_rate(strata = strata, symmetric = FALSE,
                      params = list(ctr_fm = 2))
@@ -481,7 +482,7 @@ test_that("Distinct rule_groups multiply at the cell", {
     stringsAsFactors = FALSE
   )
 
-  hhmodel <- new_housepi_model(hh, "chain_binomial")
+  hhmodel <- new_housepi_model(hh, "final_size")
   hhmodel <- add_parameter_template(hhmodel)
   hhmodel <- add_contact_rate(hhmodel,
     strata = strata, symmetric = FALSE, reference = ".none",

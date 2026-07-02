@@ -267,8 +267,8 @@ namespace housepi
         {
             // assert that value range is positive
             if (prior->lower().is_empty() || prior->lower().value() < 0)
-                throw std::invalid_argument(
-                    "Provided proposal 'lognormal' for non-positive");
+                msg::stop(
+                    "Provided proposal " + msg::val("lognormal") + " for non-positive");
 
             // associate location parameter from prior
             if (prior->loc().is_callable())
@@ -414,7 +414,7 @@ namespace housepi
 
         // case empty interval, lower and upper are "open"
         if (sx > dx || !pDistr_->is_valid(sx) || !pDistr_->is_valid(dx))
-            throw std::invalid_argument(
+            msg::stop(
                 "Definition produced an inconsistent range " + pDistr_->str_range() +
                 " for " + err_name() + ".");
 
@@ -423,15 +423,15 @@ namespace housepi
 
         if (!is_user_const_)
         {
-            const std::string sms = "Definitions of 'min' as " + lower.err_name() +
-                                    " and 'max' as " + upper.err_name() +
+            const std::string sms = "Definitions of " + msg::arg("min") + " as " + lower.err_name() +
+                                    " and " + msg::arg("max") + " as " + upper.err_name() +
                                     " produced a degenerate range ";
             // parameter
             if (err_type_ == ErrType::Parameter)
-                throw std::invalid_argument(sms + " for " + err_name() + ".");
+                msg::stop(sms + " for " + err_name() + ".");
 
             // augmented
-            msg::warning("Collapsed (at least) one " + err_name() + " to constant.\n" + sms + ".");
+            msg::warn("Collapsed (at least) one " + err_name() + " to constant.\n" + sms + ".");
             init_numeric(sx);
             helper_init_null_proposal_();
         }
@@ -472,7 +472,7 @@ namespace housepi
             std::string sm = e.what();
             if (!sm.empty() && sm.back() == '.')
                 sm.pop_back();
-            throw std::invalid_argument(sm + " for " + err_name() + ".");
+            msg::stop(sm + " for " + err_name() + ".");
         }
     }
 
@@ -495,8 +495,8 @@ namespace housepi
         else if (proposal == options[2])
             pProp_ = std::make_unique<LognormalProposal_>(scale, prior);
         else
-            throw std::invalid_argument(
-                "Unknown proposal '" + proposal + "'." + str::find_closest(proposal, options));
+            msg::stop(
+                "Unknown proposal " + msg::val(proposal) + "." + str::find_closest(proposal, options));
 
         ratio_mode_ = Ratio::Compute;
         valid_mode_ = Validity::Check;
@@ -533,7 +533,7 @@ namespace housepi
         case Mode::Function:
             return pFunc_->evaluate(x);
         default: // cases Mode::Empty, Mode::Numeric, Mode::Pointer
-            throw std::runtime_error(
+            msg::stop(
                 "Called undefined evaluate operator for non-function " + err_name() + ".");
         }
     }
@@ -576,15 +576,6 @@ namespace housepi
 
     void Variable::adapt_proposal(double ratio) { pProp_->adapt(accept_rate_, ratio); }
 
-#ifndef NDEBUG
-    std::string Variable::str_summary() const
-    {
-        return Attribute::str_summary() +
-               (has_prior() ? " | ~" + pDistr_->str_summary(false)
-                            : "");
-    }
-#endif
-
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  *** Parameter : struct ***  ////////////////////////////////
@@ -618,13 +609,13 @@ namespace housepi
                 has_func_params = true;
                 parse::Definition parser(input.at("func")[k]);
                 if (parser.is_augmented_depen())
-                    throw std::invalid_argument(
-                        "Parameter function '" + pstr +
-                        "' cannot depend on augmented variables.");
+                    msg::stop(
+                        "Parameter function " + msg::val(pstr) +
+                        " cannot depend on augmented variables.");
                 if (parser.is_data_wide_depen())
-                    throw std::invalid_argument(
-                        "Parameter function '" + pstr +
-                        "' cannot depend on data variables.");
+                    msg::stop(
+                        "Parameter function " + msg::val(pstr) +
+                        " cannot depend on data variables.");
             }
         }
 
@@ -683,7 +674,7 @@ namespace housepi
         const std::vector<std::string> headers = read::extract_keys(input);
 #ifndef NDEBUG
         if (headers.size() != str::unique(headers).size())
-            throw std::invalid_argument(
+            msg::stop(
                 "Found multiple definitions for the same parameters.");
 #endif
 
@@ -725,18 +716,12 @@ namespace housepi
     {
         const std::string &pstr = input.at("name")[k]; // parameter name
 
-#ifndef NDEBUG
-        if (na::is(input.at("value")[k]))
-            throw std::invalid_argument(
-                "Constant parameter '" + pstr + "' had undefined value.");
-#endif
-
         // assign constant parameter to the set of variables
         size_t p = khold(pstr);
         param_vec_[p].transfer(translator.to_numeric(input.at("value")[k]));
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !param_vec_[p].is_discrete())
-            throw std::invalid_argument(
+            msg::stop(
                 "Definition of " + param_vec_[p].err_name() +
                 " did not return a discrete object as requested by model.");
 
@@ -747,12 +732,6 @@ namespace housepi
     void Parameter::helper_build_to_sample_(const str_table &input, size_t k, const Translator &translator)
     {
         const std::string &pstr = input.at("name")[k]; // parameter name
-
-#ifndef NDEBUG
-        if (na::is(input.at("value")[k]) && na::is(input.at("prior")[k]))
-            throw std::invalid_argument(
-                "Non-constant parameter '" + pstr + "' had undefined prior.");
-#endif
 
         // create a new parameter Variable
         size_t p = khold(pstr);
@@ -777,7 +756,7 @@ namespace housepi
 
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !xparam.is_discrete())
-            throw std::invalid_argument(
+            msg::stop(
                 "Definition of " + xparam.err_name() +
                 " did not return a discrete object as requested by model.");
 
@@ -820,7 +799,7 @@ namespace housepi
 
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !xparam.is_discrete())
-            throw std::invalid_argument(
+            msg::stop(
                 "Definition of " + xparam.err_name() +
                 " did not return a discrete object as requested by model.");
 
@@ -934,7 +913,7 @@ namespace housepi
                     { return Key{g_input_vec[r], rules.row_gid[r]}; },
                     [&](const Key &key)
                     {
-                        return "group rate '" + key.first + "' for " +
+                        return "group rate " + msg::val(key.first) + " for " +
                                member.err_name() + " (group " +
                                std::to_string(key.second) + ")";
                     });
@@ -974,7 +953,7 @@ namespace housepi
         {
 #ifndef NDEBUG
             if (na::is(gstr))
-                throw std::invalid_argument(
+                msg::stop(
                     "Found a missing group rate name in the definitions.");
 #endif
             khold_.add(gstr);
@@ -1003,9 +982,9 @@ namespace housepi
         for (const std::string &gstr : khold_.all())
         {
             if (!these_rates.count(gstr))
-                throw std::invalid_argument(
-                    "A group rate definition '" + gstr +
-                    "' was missing for " + member.err_name() + ".");
+                msg::stop(
+                    "A group rate definition " + msg::val(gstr) +
+                    " was missing for " + member.err_name() + ".");
 
             igr.vec.emplace_back(rates::VALUE_REFERENCE);
             igr.vec.back().name(gstr, ErrType::GroupRate);

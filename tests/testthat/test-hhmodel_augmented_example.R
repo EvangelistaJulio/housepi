@@ -130,7 +130,7 @@ test_that("Status-specific augmented variables draw from per-status ranges", {
     )
 
   # simulation also routes draws into per-status supports
-  withr::with_seed(1, sim <- hhmodel$run_simulation(nrep = 50))
+  withr::with_seed(1, sim <- run_simulation(hhmodel, nrep = 50))
   sim <- do.call(rbind, sim)
   for (s in seq(4)) {
     vals <- sim$proba[sim$status == s]
@@ -292,7 +292,7 @@ test_that("export_augmented_data works after evaluate_log_lik", {
     new_housepi_model("augmented_example") |>
     add_augmented(name = "proba", prior = "uniform")
   # UPDATE: I can test here that before export_augmented_data fails...
-  hhmodel$evaluate_log_lik()
+  evaluate_log_lik(hhmodel)
   result <- hhmodel$export_augmented_data()
   expect_true(is.data.frame(result))
   expect_true("proba" %in% colnames(result))
@@ -300,10 +300,10 @@ test_that("export_augmented_data works after evaluate_log_lik", {
 
 test_that("export_house_snapshot returns correct structure", {
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   # UPDATE: I can test here that before export_house_snapshot fails...
-  hhmodel$evaluate_log_lik()
+  evaluate_log_lik(hhmodel)
 
   hid <- hhmodel$data_wide$house_id[1]
   snapshot <- hhmodel$export_house_snapshot(hid)

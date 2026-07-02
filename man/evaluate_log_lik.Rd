@@ -23,7 +23,7 @@ this is conditioned on current augmented values.
 }
 \examples{
 flu_1918_frederick |>
-  new_housepi_model("chain_binomial") |>
+  new_housepi_model("final_size") |>
   add_parameter_template() |>
   evaluate_log_lik()
 }

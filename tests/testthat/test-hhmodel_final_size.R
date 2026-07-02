@@ -69,22 +69,22 @@ make_ctr_mtx <- function(house, crates, prefix = "") {
 }
 
 ##############################################
-## CHAIN BINOMIAL HH MODEL : STANDARD CALLS ##
+## FINAL SIZE HH MODEL : STANDARD CALLS ##
 ##############################################
 
-test_that("Chain binomial gaurds against missusage", {
+test_that("Chain binomial guards against missusage", {
   # not discretizable
   blank_house |>
-    new_housepi_model("chain_binomial", discr = TRUE) |>
+    new_housepi_model("final_size", discr = TRUE) |>
     expect_error(regexp = "No visible discrete time option")
 
   # no support for missing status
   data.frame(id = c("m1", "m2"), house_id = "h1",
              status = c(1, NA)) |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template() |>
     run_inference() |>
-    expect_error("incompatible")
+    expect_error("missing status.*incompatible")
 })
 
 test_that("Deep clone works as expected", {
@@ -94,10 +94,10 @@ test_that("Deep clone works as expected", {
     member = c("student", "other", "student", "mother", "father")
   )
   hhmodel <- house |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   out <- suppressWarnings(
-    hhmodel$run_inference(steps = 2, chains = 1, adapt = 0, thin = 1)
+    run_inference(hhmodel, steps = 2, chains = 1, adapt = 0, thin = 1)
   )
 
   # deep clone
@@ -108,7 +108,7 @@ test_that("Deep clone works as expected", {
   expect_equal(hhmodel$data_long, hhclone$data_long)
 
   # clone setup starts from default configuration
-  expect_equal(hhclone$setup, new_housepi_model(house, "chain_binomial")$setup)
+  expect_equal(hhclone$setup, new_housepi_model(house, "final_size")$setup)
 
   # definitions
   expect_equal(hhmodel$parameters, hhclone$parameters)
@@ -119,7 +119,7 @@ test_that("Deep clone works as expected", {
   hhmodel <- add_group_rate(hhmodel, "susceptibility", by = "member")
   hhclone <- house |>
     dplyr::mutate(status = NA) |>
-    new_housepi_model("chain_binomial")
+    new_housepi_model("final_size")
   expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
   expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
 })
@@ -128,7 +128,7 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
   for (t in c(1L, 2L)) {
     suppressWarnings(
       results <- flu_1918_frederick |>
-        new_housepi_model("chain_binomial") |>
+        new_housepi_model("final_size") |>
         add_parameter_template() |>
         run_inference(steps = 10, thin = 2, adapt = 2,
                       burn = 2, chains = 1, threads = t)
@@ -150,16 +150,16 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
 
 test_that("Simulation with observation process is correct", {
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
   withr::with_seed(
-    1, result1 <- hhmodel$run_simulation(obs_process = rand_observ)
+    1, result1 <- run_simulation(hhmodel, obs_process = rand_observ)
   )
   # ensure simulation is correct
   expect_true("flag" %in% colnames(result1))
   withr::with_seed(
-    1, result1encore <- hhmodel$run_simulation(obs_process = rand_observ)
+    1, result1encore <- run_simulation(hhmodel, obs_process = rand_observ)
   )
   expect_identical(result1, result1encore)
 })
@@ -167,7 +167,7 @@ test_that("Simulation with observation process is correct", {
 test_that("Run simulation with nrep > 1 returns list of dataframes", {
   nrep <- 3
   result <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template() |>
     run_simulation(nrep = nrep)
   expect_true(is.list(result))
@@ -177,17 +177,21 @@ test_that("Run simulation with nrep > 1 returns list of dataframes", {
 
 test_that("run_inference rejects invalid setup arguments", {
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
-  hhmodel$run_inference(steps = 5, burn = 10) |>
+  hhmodel |>
+    run_inference(steps = 5, burn = 10) |>
     expect_error(regex = "[Bb]urn")
-  hhmodel$run_inference(steps = 5, thin = 10) |>
+  hhmodel |>
+    run_inference(steps = 5, thin = 10) |>
     expect_error(regex = "[Tt]hin")
   # threads-clamp warning and short-run diagnostic both fire here
   expect_warning(
-    expect_warning(hhmodel$run_inference(steps = 5, chains = 1, adapt = 0,
-                                         thin = 1, threads = 1000),
-                   regex = "[Tt]hreads"),
+    expect_warning(
+      run_inference(hhmodel, steps = 5, chains = 1, adapt = 0,
+                    thin = 1, threads = 1000),
+      regex = "[Tt]hreads.*available"
+    ),
     regex = "sample size was below"
   )
 })
@@ -195,7 +199,7 @@ test_that("run_inference rejects invalid setup arguments", {
 test_that("run_inference progress bar shows as expected", {
   # FIXME: timing-sensitive
   hhmodel <- flu_1918_baltimora |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   out <- capture.output(
     res <- suppressWarnings(
@@ -211,7 +215,7 @@ test_that("run_inference progress bar shows as expected", {
 
 test_that("predicted_cases_by_house_size exercises parallel for_each", {
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   results <- suppressWarnings(
     run_inference(hhmodel, steps = 50, chains = 1, adapt = 0, thin = 1)
@@ -231,34 +235,34 @@ test_that("predicted_cases_by_house_size exercises parallel for_each", {
 
 test_that("Run simulation thins param_table down to nrep when smaller", {
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template()
   pt <- as.data.frame(stats::setNames(
     as.list(hhmodel$parameters$value), hhmodel$parameters$name
   ))
-  pt <- pt[rep(1L, 10), , drop = FALSE]
+  pt <- pt[rep(1L, 10L), , drop = FALSE]
   rownames(pt) <- NULL
-  result <- hhmodel$run_simulation(param_table = pt, nrep = 4)
-  expect_length(result, 4)
+  result <- run_simulation(hhmodel, param_table = pt, nrep = 4)
+  expect_length(result, 4L)
 })
 
 ####################################################
-## CHAIN BINOMIAL HH MODEL : SIMPLE CASE LOG-LIKE ##
+## FINAL SIZE HH MODEL : SIMPLE CASE LOG-LIKE ##
 ####################################################
 
 test_that("Debugger cannot be called on large numbers of infections", {
   n_infec <- 10L
   B <- runif(n_infec)
   Q <- matrix(runif(n_infec * n_infec), ncol = n_infec)
-  expect_error(housepi:::eval_chain_binomial_debugger_(B, Q),
-               regexp = "Maximum number")
+  eval_chain_binomial_debugger_(B, Q) |>
+    expect_error("Maximum number")
 })
 
 test_that("Single infected member log-likelihood is correct", {
   par <- par_1
   house <- house_1
   n_full <- nrow(house)
-  n_infec <- sum(house$status > 0)
+  n_infec <- sum(house$status > 0L)
   # fill house escape rate matrices
   commu_infec_rate <- par$alpha * house$community
   p2p_infec_rate <- par$beta * (par$size_ref / n_full) ^ par$gamma *
@@ -276,7 +280,7 @@ test_that("Single infected member log-likelihood is correct", {
   log_lik <- neg_log + log(pos)
 
   # define housepi model
-  hhmodel <- new_housepi_model(house, "chain_binomial")
+  hhmodel <- new_housepi_model(house, "final_size")
   hhmodel <- add_group_rate(hhmodel, import = groups)
   hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts))
   hhmodel <- add_parameter(hhmodel, import = par, append = FALSE)
@@ -284,7 +288,7 @@ test_that("Single infected member log-likelihood is correct", {
 })
 
 #####################################################
-## CHAIN BINOMIAL HH MODEL : COMPLEX CASE LOG-LIKE ##
+## FINAL SIZE HH MODEL : COMPLEX CASE LOG-LIKE ##
 #####################################################
 
 test_that("Three infected members likelihood is correct", {
@@ -300,7 +304,7 @@ test_that("Three infected members likelihood is correct", {
   # CASE 1: no infected
   hhmodel <- house |>
     dplyr::mutate(status = 0) |>
-    new_housepi_model("chain_binomial")
+    new_housepi_model("final_size")
   hhmodel <- add_group_rate(hhmodel, import = groups)
   hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts))
   hhmodel <- add_parameter(hhmodel, import = par, append = FALSE)
@@ -310,7 +314,7 @@ test_that("Three infected members likelihood is correct", {
   # CASE 2: mixed infected and escaped
   n_infec <- sum(house$status > 0)
   hhmodel <- house |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_group_rate(import = groups)
   # FIXME: missing an import for contact-rate
   hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts)) |>
@@ -330,12 +334,12 @@ test_that("Three infected members likelihood is correct", {
 })
 
 ##################################################
-## CHAIN BINOMIAL HH MODEL : REAL CASE LOG-LIKE ##
+## FINAL SIZE HH MODEL : REAL CASE LOG-LIKE ##
 ##################################################
 
 test_that("Chain binomial runs ok on real case with partitions", {
   hhmodel <- flu_2014_matsumoto |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter_template() |>
     add_group_rate("community", by = "member", reference = ".none") |>
     add_contact_rate(
@@ -357,7 +361,7 @@ test_that("Chain binomial runs ok on real case with partitions", {
                        "ctr_cross_generational")
       )
     )
-  expect_silent(hhmodel$evaluate_log_lik())
+  expect_silent(evaluate_log_lik(hhmodel))
 })
 
 test_that("Chain binomial returns infinite if extreme values are provided", {
@@ -366,7 +370,7 @@ test_that("Chain binomial returns infinite if extreme values are provided", {
   # heterogeneous_house
   hhmodel <- data.frame(id = c(1, 2), house_id = "hh1",
                         status = c(1, 1), age = c("child", "adult")) |>
-    new_housepi_model("chain_binomial") |>
+    new_housepi_model("final_size") |>
     add_parameter(import = extreme_params)
 
   # homogeneous branch

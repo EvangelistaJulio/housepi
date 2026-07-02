@@ -1,8 +1,8 @@
 \docType{class}
-\title{Chain Binomial}
-\name{housepi template : Chain Binomial}
+\title{Final Size}
+\name{housepi template : Final Size}
 \description{
-The chain binomial model assumes transmission occurs at discrete generation time units.
+The final size model assumes transmission occurs at discrete generation time units.
 The homogeneous model assumes risk of transmission to be equal for all individuals.
 The index cases are not known a priori and represent the initial generation.
 Infections in this generation are modeled with according community transmission probability.

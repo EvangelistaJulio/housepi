@@ -19,7 +19,7 @@
 #' @return `r rd_model_in_`
 #' @examples
 #' # build a model from a template using a built-in dataset
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 #' print(hhmodel)
 #'
 #' # 'blank' template provides a minimal model for testing
@@ -41,8 +41,8 @@ new_housepi_model <- function(data = NULL, model = NA_character_,
 # Check hosuepi model.
 stopifnothousepi <- function(hhmodel) {
   if (!inherits(hhmodel, "HousepiModel")) stop_h(
-    "'hhmodel' must be of class 'HousepiModel'",
-    i = "Create one with new_housepi_model()."
+    "{.arg hhmodel} must be of class {.cls HousepiModel}.",
+    "Create one with {.fn new_housepi_model}."
   )
 }
 
@@ -56,8 +56,9 @@ stopifnothousepi <- function(hhmodel) {
 add_data_long <- function(hhmodel, data_long) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  new_obj$add_data_long(data_long)
-  new_obj$.__enclos_env__$private$rebuild_()
+  pvt <- new_obj$.__enclos_env__$private
+  pvt$generator_$import_data_long(data_long)
+  pvt$rebuild_()
   new_obj
 }
 
@@ -67,11 +68,13 @@ add_data_long <- function(hhmodel, data_long) {
 #' @param hhmodel `r rd_model_in_`
 #' @return `r rd_summ_cases_`
 #' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 #' summarise_house_cases(hhmodel)
 #' @export
 summarise_house_cases <- function(hhmodel) {
-  hhmodel$summarise_house_cases()
+  stopifnothousepi(hhmodel)
+  pvt <- hhmodel$.__enclos_env__$private
+  .engine$summarise_house_cases(pvt$generator_$mcmc_ptr)
 }
 
 #' @rdname summarise_house_cases
@@ -84,11 +87,13 @@ summarize_house_cases <- summarise_house_cases
 #' @param hhmodel `r rd_model_in_`
 #' @return `r rd_summ_sizes_`
 #' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial")
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 #' summarise_house_sizes(hhmodel)
 #' @export
 summarise_house_sizes <- function(hhmodel) {
-  hhmodel$summarise_house_sizes()
+  stopifnothousepi(hhmodel)
+  pvt <- hhmodel$.__enclos_env__$private
+  .engine$summarise_house_sizes(pvt$generator_$mcmc_ptr)
 }
 
 #' @rdname summarise_house_sizes
@@ -107,7 +112,7 @@ summarize_house_sizes <- summarise_house_sizes
 #' @param hhmodel `r rd_model_in_`
 #' @return `data.frame`
 #' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
 #'   add_parameter_template()
 #' get_data_wide(hhmodel) |>
 #'   head()
@@ -183,7 +188,7 @@ assert_bulk_defs_ <- function(dots) {
 # Reject `import` combined with single-mode or inline `...` pairs.
 defs_to_quos_ <- function(import, key, dots, env) {
   if (!is.null(key) || length(dots) > 0L) stop_h(
-    "Mixing imported definitions with  single and multiple definitions",
+    "Mixing imported definitions with single and multiple definitions",
     definition_helper_
   )
   convert_list_to_quosures(import, env)
@@ -193,9 +198,7 @@ defs_to_quos_ <- function(import, key, dots, env) {
 load_template_defs <- function(pvt, family, append) {
   holder <- if (family == "parameter") pvt$param_ else pvt$augm_
   if (pvt$generator_$is_blank()) {
-    warn_h(sprintf(
-      "No template %s definitions available for blank model.", family
-    ))
+    warn_h("No template {family} definitions available for blank model.")
   } else {
     defs <- get_template_def_list(pvt$generator_$source_dir, family)
     holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
@@ -246,7 +249,7 @@ The can be supplied only through single mode."
 #' @examples
 #' # the single, inline-bulk and list-bulk forms compose freely in a pipe
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("chain_binomial") |>
+#'   new_housepi_model("final_size") |>
 #'   # single: alpha, with a uniform prior and a lognormal proposal
 #'   add_parameter("alpha", prior = "uniform", proposal = "lognormal") |>
 #'   # single: beta, fixed to a constant
@@ -257,7 +260,7 @@ The can be supplied only through single mode."
 #' # list bulk: load a pre-built named list of definitions through `import`
 #' my_import <- list(gamma = 1, size_ref = 4)
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("chain_binomial") |>
+#'   new_housepi_model("final_size") |>
 #'   add_parameter(import = my_import)
 #' @export
 add_parameter <- function(hhmodel,
@@ -300,7 +303,7 @@ add_parameter <- function(hhmodel,
 #' @param append `r rd_tmpl_append_`
 #' @return `r rd_model_out_`
 #' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "chain_binomial") |>
+#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
 #'   add_parameter_template()
 #' get_parameters(hhmodel)
 #' @rdname add_template_definitions
@@ -462,7 +465,7 @@ add_status <- function(hhmodel, ..., dist = "categorical") {
   weights <- rlang::enquos(...)
   if (length(weights) == 0) stop_h(
     "No status probability provided.",
-    i = "Provide at least one infected-status probability."
+    "Provide at least one infected-status probability."
   )
   # a single reserved node carries the status process (there is one status)
   pvt$augm_$add_quo(
@@ -699,13 +702,15 @@ add_infec_profile <- function(hhmodel,
 #' @return `numeric(1)`. The complete-data log-likelihood.
 #' @examples
 #' flu_1918_frederick |>
-#'   new_housepi_model("chain_binomial") |>
+#'   new_housepi_model("final_size") |>
 #'   add_parameter_template() |>
 #'   evaluate_log_lik()
 #' @export
 evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
   stopifnothousepi(hhmodel)
-  hhmodel$evaluate_log_lik(house_id = house_id)
+  pvt <- hhmodel$.__enclos_env__$private
+  pvt$build_full_()
+  .engine$evaluate_log_lik(pvt$generator_$mcmc_ptr, house_id)
 }
 
 #' @title Run Bayesian MCMC inference on a housepi model
@@ -724,7 +729,7 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @examples
 #' flu_1918_frederick |>
-#'   new_housepi_model("chain_binomial") |>
+#'   new_housepi_model("final_size") |>
 #'   add_parameter_template() |>
 #'   run_inference(steps = 50, burn = 10, thin = 2,
 #'                 chains = 2, progress = FALSE) |>
@@ -739,12 +744,20 @@ run_inference <- function(hhmodel,
                           progress = TRUE,
                           ...) {
   stopifnothousepi(hhmodel)
-  hhmodel$run_inference(steps = steps, burn = burn,
-                        thin = thin, adapt = adapt,
-                        chains = chains, threads = threads,
-                        id_draws = id_draws,
-                        progress = progress,
-                        ...)
+  assert_advanced_setup_(list(...), "inv_temp")
+  pvt <- hhmodel$.__enclos_env__$private
+  pvt$assert_posterior_memory_(
+    steps = steps, burn = burn, thin = thin,
+    chains = chains, id_draws = id_draws
+  )
+  pvt$build_full_(
+    steps = steps, burn = burn, thin = thin, adapt = adapt,
+    chains = chains, threads = threads, id_draws = id_draws,
+    progress = progress, ...
+  )
+  .engine$run_inference(pvt$generator_$mcmc_ptr)
+  HousepiPosteriorDraws$new(pvt$generator_$raw_name,
+                            pvt$generator_$mcmc_ptr)
 }
 
 #' @title Simulate a household survey from a housepi model
@@ -760,7 +773,7 @@ run_inference <- function(hhmodel,
 #' @return `data.frame` or `list` (when `obs_process_long` is provided)
 #' @examples
 #' flu_1918_frederick |>
-#'   new_housepi_model("chain_binomial") |>
+#'   new_housepi_model("final_size") |>
 #'   add_parameter_template() |>
 #'   run_simulation() |>
 #'   head()
@@ -772,9 +785,32 @@ run_simulation <- function(hhmodel,
                            nrep = NA_integer_,
                            ...) {
   stopifnothousepi(hhmodel)
-  hhmodel$run_simulation(obs_process = obs_process,
-                         obs_process_long = obs_process_long,
-                         param_table = param_table,
-                         nrep = nrep,
-                         ...)
+  # simulation specific build
+  assert_advanced_setup_(list(...), "time_step")
+  pvt <- hhmodel$.__enclos_env__$private
+  nrep <- pvt$helper_simulation_build_(
+    param_table = param_table, nrep = nrep, ...
+  )
+
+  # combine observation process to measures and refactor
+  obs_func <- pvt$helper_obs_process_(obs_process)
+  # run simulations
+  output <- .engine$run_simulation(
+    pvt$generator_$mcmc_ptr,
+    obs_func, NULL,
+    obs_process_long
+  )
+
+  # drop empty wide/long
+  if (length(output$wide) == 0) output$wide <- NULL
+  if (length(output$long) == 0) output$long <- NULL
+  if (length(output) == 1) {
+    output <- output[[1]]
+    if (nrep == 1) output <- output[[1]]
+  } else if (nrep == 1) {
+    output$wide <- output$wide[[1]]
+    output$long <- output$long[[1]]
+  }
+
+  output
 }
