@@ -127,7 +127,8 @@ test_that("Print behavior works as expected", {
 
   # infectivity-profile section in print
   hhmodel_ip <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained")
+    new_housepi_model("case_ascertained") |> 
+    add_house_observ(start_date = min(test_date@D))
   expect_snapshot(print(hhmodel_ip))
 
   # help() dispatches without error in non-interactive mode (emits warning)
@@ -293,6 +294,11 @@ test_that("Custom models shares function registries", {
   hhmodel_1 <- flu_1918_frederick |>
     new_housepi_model(custom, quiet = TRUE)
 
+  # no templates available for custom example
+  hhmodel_1 |>
+    add_augmented_template() |> 
+    expect_error("file.*not found")
+  
   # Growth_ overrides only raw_function_ and raw_primitive_
   # other raw_ virtuals fall back to raise_undefined_call_err_
   x <- seq(0, 3, 0.5)

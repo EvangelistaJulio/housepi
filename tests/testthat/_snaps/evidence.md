@@ -3,6 +3,6 @@
     Code
       print(result)
     Message
-      i Power posteriors draws of model "blank"
+      i Power posteriors draws of model "blank".
       Scheme: "adaptive". Rungs: 30.
 

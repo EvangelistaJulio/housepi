@@ -61,7 +61,6 @@ cri_level_probs <- function(cri_level) {
 
 # Prepend "housepi_draws" class tag for summarise_draws S3 method dispatch.
 tag_as_housepi_draws <- function(x) {
-  if (is.null(x)) return(x)
   class(x) <- unique(c("housepi_draws", class(x)))
   x
 }
@@ -261,7 +260,7 @@ HousepiPosteriorDraws <- R6::R6Class(
                 as_plural(draws_kind, length(both)),
                 rhat_max, 100. * neff_min,
                 character_to_string_list(sm$variable[both])),
-        "Chains may have not mixed; mean and median may be unreliable."
+        "Chains may have not mixed; estimates may be unreliable."
       )
       if (length(only_rhat) > 0L) sms <- c(sms,
         sprintf("%s %s with R-hat > %.2f:%s",
@@ -420,9 +419,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (is.null(private$augm_draws_)) naugm <- 0
       else naugm <- posterior::nvariables(private$augm_draws_)
 
-      fmt_cli_info(c(
-        sprintf("Posterior draws of model {.val %s}.",
-                spaced_template_choice(private$name_)),
+      model <- spaced_template_choice(private$name_)
+      cli::cli_bullets(c(
+        i = "Posterior draws of model {.val {model}}.",
         sprintf(
           "%s iteration%s, %s chain%s%s%s.",
           niter, ifelse(niter > 1, "s", ""),

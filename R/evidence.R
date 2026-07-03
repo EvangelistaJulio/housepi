@@ -180,11 +180,11 @@ HousepiPowerPosteriors <- R6::R6Class(
 
     #' @description Override the default printing behavior.
     print = function() {
-      fmt_cli_info(c(
-        sprintf("Power posteriors draws of model {.val %s}",
-                spaced_template_choice(private$name_)),
-        sprintf("Scheme: {.val %s}. Rungs: %d.",
-                private$scheme_, length(private$inv_temp_) - 1L)
+      model <- spaced_template_choice(private$name_)
+      rungs <- length(private$inv_temp_) - 1L
+      cli::cli_bullets(c(
+        i = "Power posteriors draws of model {.val {model}}.",
+        "Scheme: {.val {private$scheme_}}. Rungs: {rungs}."
       ))
       invisible(self)
     }

@@ -151,8 +151,10 @@ test_that("Augmented support rlang double bang", {
 test_that("Active fields are read-only", {
   HousepiAugmented$new() |>
     helper_test_read_only(
-      "augm_required", "data_required",
-      "group_rates_required", "param_required"
+      "family", "augm_required", "data_required",
+      "group_rates_required", "param_required",
+      "observation_names", "house_observ_names",
+      "status_names", "status_dictionary"
     )
 })
 

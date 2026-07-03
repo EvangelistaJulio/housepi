@@ -1,5 +1,5 @@
 list(
-  alpha = list(value = 1.e-4,
+  alpha = list(value = 1.e-3,
                prior = "uniform",
                proposal = "lognormal"),
   beta = list(value = 0.07,

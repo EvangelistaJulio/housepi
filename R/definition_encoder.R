@@ -93,7 +93,8 @@ collect_flat_args <- function(node, op) {
 # Assert that expression node is an admissible definition.
 assert_valid_defin_node <- function(x) {
   if (is.null(x) || rlang::is_syntactic_literal(x) ||
-        rlang::is_symbol(x) || rlang::is_call(x)) return(invisible(x))
+        rlang::is_scalar_atomic(x) || rlang::is_symbol(x) ||
+        rlang::is_call(x)) return(invisible(x))
   stop_h(
     "Found a definition value that is not a valid source.",
     format_type_error(x)
@@ -234,8 +235,8 @@ housepi_extractor <- function(...) {
       # function
       housepi_func_from_call(x_expr)
     } else if (rlang::is_syntactic_literal(x_expr) ||
+                 rlang::is_scalar_atomic(x_expr) ||
                  rlang::is_symbol(x_expr)) {
-      # literals
       housepi_format_sources(c(x = x_expr))
     } else {
       assert_valid_defin_node(x_expr)
@@ -360,7 +361,7 @@ get_template_def_list <- function(path, family) {
 
   # check if template file exists
   if (!file.exists(templ_file)) stop_h(
-    "Impossible to use templated {family} definition.",
+    "Impossible to use templated {family} definitions.",
     `!` = "A file with template definitions was not found."
   )
   # get template definition list and convert to quosures

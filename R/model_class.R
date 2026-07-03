@@ -721,61 +721,88 @@ HousepiModel <- R6::R6Class(
         " ({.run [template](housepi::browse_housepi_templates(\"%s\"))})",
         self$name
       ) else ""
-      sms <- sprintf("Household model {.val %s}%s.", self$name, tmpl_tag)
-      # UPDATE: to be rationalize in the future if more options are included
-      if ("_HOUSEPI_DISCRETE_TIME" %in% private$generator_$last_flags) sms <- c(
-        sms, "Model is set to {.emph discrete time} mode."
+      header <- c(
+        i = sprintf("Household model {.val %s}%s.", self$name, tmpl_tag)
       )
+      # UPDATE: to be rationalize in the future if more options are included
+      if ("_HOUSEPI_DISCRETE_TIME" %in% private$generator_$last_flags) {
+        header <- c(header, "Model is set to {.emph discrete time} mode.")
+      }
+
+      # each section is a self-contained cli_bullets block (headline + subs)
+      blocks <- list()
       # data
-      if (length(private$get_all_required_data_wide_()) > 0) sms <- c(sms,
-        fmt_assert_cli("Data", private$assert_data_wide_(FALSE))
+      if (length(private$get_all_required_data_wide_()) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli("Data", private$assert_data_wide_(FALSE)))
       )
       # parameters
-      if (length(private$get_all_required_param_()) > 0) sms <- c(sms,
-        fmt_assert_cli("Parameters", private$assert_param_(FALSE))
+      if (length(private$get_all_required_param_()) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli("Parameters", private$assert_param_(FALSE)))
       )
       # augmented
-      if (length(private$get_all_required_augm_()) > 0) sms <- c(sms,
-        fmt_assert_cli("Augmented", private$assert_augm_(FALSE))
+      if (length(private$get_all_required_augm_()) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli("Augmented", private$assert_augm_(FALSE)))
       )
 
-      # inform about rates if dataset is suitable
+      # inform about optional rates if dataset is suitable
       cols_extra <- setdiff(private$generator_$cols_data_wide,
                             data_reserved_cols)
       if (length(cols_extra) > 0) {
-        # group rates
-        if (length(private$get_all_required_group_rates_()) > 0) sms <- c(sms,
-          fmt_assert_cli("Group rates", private$assert_group_rates_(FALSE),
-                         minor = TRUE)
-        )
-        # contact rates
+        # group rates (optional: default when definitions are absent)
+        rates <- private$get_all_required_group_rates_()
+        if (length(rates) > 0) {
+          is_default <- length(template_missing_find(
+            rates, names(private$group_rates_$defs)
+          )) > 0
+          blocks <- c(blocks, list(fmt_assert_cli(
+            "Group rates",
+            if (is_default) c(
+              "Using default group rates.",
+              paste0("Available:", character_to_string_list(rates))
+            ) else NULL,
+            minor = TRUE
+          )))
+        }
+        # contact rates (optional)
         if (.engine$has_contact_rates(private$generator_$mcmc_ptr)) {
-          sms <- c(sms, fmt_assert_cli(
+          blocks <- c(blocks, list(fmt_assert_cli(
             "Contact rates",
-            if (!private$contact_rates_$assert()) c(
-              "Using default contact rates.",
-              "A custom choice can be provided."
-            )
+            if (!private$contact_rates_$assert()) "Using default contact rates."
             else NULL,
             minor = TRUE
-          ))
+          )))
         }
       }
 
-      # infectivity profile
-      if (length(private$get_internal_infec_profile_()) > 0) sms <- c(sms,
-        fmt_assert_cli(
+      # infectivity profile (optional)
+      if (length(private$get_internal_infec_profile_()) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli(
           "Infectivity profile",
-          if (length(private$infec_profile_$showcase()) == 0) c(
-            "Using templated profile.",
-            "A custom choice can be provided."
-          )
-          else NULL,
+          if (length(private$infec_profile_$showcase()) == 0)
+            "Using templated profile." else NULL,
           minor = TRUE
-        )
+        ))
       )
 
-      fmt_cli_info(sms)
+      # order blocks by gravity (error, minor, satisfied), stable within ties
+      rank <- c(x = 1L, `!` = 2L, v = 3L)
+      order_key <- vapply(blocks, function(b) rank[[names(b)[1]]], integer(1))
+      blocks <- blocks[order(order_key)]
+      order_key <- sort(order_key)
+
+      # a single hint gathers all default (minor) sections after their block
+      sms <- header
+      minor <- which(order_key == 2L)
+      last_minor <- if (length(minor)) max(minor) else 0L
+      for (k in seq_along(blocks)) {
+        sms <- c(sms, blocks[[k]])
+        # aligned like a sub-line (invisible bullet), no clash with leading `i`
+        if (k == last_minor) {
+          sms <- c(sms, " " = "A custom choice can be provided.")
+        }
+      }
+
+      cli::cli_bullets(sms)
       invisible(self)
     },
 

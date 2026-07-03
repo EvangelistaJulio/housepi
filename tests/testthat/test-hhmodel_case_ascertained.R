@@ -448,7 +448,7 @@ test_that("Household observation derives from simulated observations", {
   # produced internally: neither is provided in the input data
   reps <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 80)) |>
-    dplyr::select(-start_date, -test_date) |>
+    dplyr::select(-test_date) |>
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
@@ -510,7 +510,6 @@ test_that("Augmented variable reads a static data-bound household observation", 
   # start_date derived from PROVIDED (static) test_date, read by infec_time's prior
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
-    dplyr::select(-start_date) |>
     dplyr::mutate(test_date = 5, study_period = 21) |>
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
@@ -531,7 +530,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
   # an unsatisfiable cycle, rejected with a clear message
   sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% head(unique(house_id), 20)) |>
-    dplyr::select(-start_date, -test_date) |>
+    dplyr::select(-test_date) |>
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
     add_augmented(
@@ -541,7 +540,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
     add_observation("test_date", obs = "normal", mean = infec_time@A, sd = 1) |>
     add_house_observ(start_date = min(test_date@D)) |>
     run_simulation() |>
-    expect_error(regexp = "[Cc]yclic")
+    expect_error("[Cc]yclic")
 })
 
 test_that("Observation are reserved to add_observation", {
@@ -657,7 +656,6 @@ test_that("Data-bound household observation supplies a required data column", {
   # derive the required 'start_date' from data instead of providing the column
   build_derived <- function() {
     base |>
-      dplyr::select(-start_date) |>
       new_housepi_model("case_ascertained") |>
       add_parameter_template() |>
       add_augmented_template() |>
@@ -700,24 +698,24 @@ test_that("Data-bound household observation rejects conflict and latent dependen
   base <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% head(unique(house_id), 20))
 
-  # conflict: 'start_date' both provided as data and derived as a house-obs
+  # conflict data and derived household observation
   base |>
+    dplyr::mutate(start_date = 0) |> 
     new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
     add_house_observ(start_date = min(test_date@D)) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "already provided as a data column")
+    expect_error("already provided as a data column")
 
-  # parameter dependence: not a constant function of data, no meaning in inference
+  # forbidden household observation depending on parameters
   base |>
-    dplyr::select(-start_date) |>
     new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
     add_house_observ(start_date = min(test_date@D) + alpha@P) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "pure function of data")
+    expect_error("pure function of data")
 })
 
 test_that("Status process generates a labelled status factor in simulation", {

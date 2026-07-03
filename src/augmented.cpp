@@ -459,6 +459,14 @@ namespace housepi
                     all_infected_statuses.emplace(member.status());
             }
 
+        // no per-member definition to place into status blocks: a model carrying
+        // only household-level observations needs no status block (they are handled
+        // by helper_init_house_obs_list_). Skip block generation so such a model can
+        // be built before its per-member augmented definitions are declared; a
+        // genuinely required augmented variable is still enforced at the run wall.
+        if (map_status_to_def_row_.empty())
+            return;
+
         // first, load status specific user definitions
         // NOTE: NA (i. e. generic) does not necessarily need checking
         for (auto &[status, vec] : map_status_to_def_row_)
@@ -1144,11 +1152,8 @@ namespace housepi
             // during inference (it would impose an indicator constraint).
             if (!house_obs_is_pure_data_(k))
                 msg::stop(
-                    "Household observation " + msg::val(astr) +
-                    " provides required data column " + msg::val(astr) +
-                    " but depends on latent or parameter quantities.\n"
-                    "A data-bound household observation must be a pure function of data; "
-                    "live observations are only meaningful in simulation.");
+                    "Data-bound household observation " + msg::val(astr) + "must be a pure function of data.\n"
+                    "Live observations are only meaningful in simulation.");
 
             const size_t d = data_wide.khold(astr);
             for (size_t H = 0; H < n_houses; ++H)

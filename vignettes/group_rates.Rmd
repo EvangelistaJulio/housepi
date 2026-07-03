@@ -131,7 +131,7 @@ We can proceed with the inference as shown in [Get started](housepi.html):
 hhmodel <- hhmodel |>
   # load group rates from definition list
   add_group_rate(
-    infectivity = "isolation",
+    infectivity = "isolated",
     susceptibility = list(by = "vacc_status", reference = "unvaccinated")
   )
 
@@ -148,6 +148,7 @@ get_parameters(hhmodel)
 
 test_delay <- 8
 hhmodel <- hhmodel |>
+  add_house_observ(start_date = min(test_date@D)) |> 
   # parameter definitions
   add_parameter(
     alpha = list(prior = "uniform", proposal = "lognormal"),
@@ -157,14 +158,26 @@ hhmodel <- hhmodel |>
   ) |>
   # augmented definitions
   add_augmented(
-    #> Asymptomatic (status = 1)
-    infec_time = list(status = 1, prior = "uniform", 
-                      min = test_date@D - !!test_delay,
-                      max = test_date@D),
-    #> Symptomatic (status = 2, here as generic definition)
-    infec_time = .onset_time - .incub_period,
-    .onset_time = list(prior = "normal", mean = test_date@D, sd = 1),
-    .incub_period = list(prior = "gamma", mean = 3, var = 2)
+    # public definitions
+    infec_time = list(
+      prior = "uniform", loc = start_date@D, min = -8, max = study_period@D
+    ),
+    # accessory generic definitions
+    .incub_period = list(prior = "gamma", mean = 3, var = 2),
+    .onset_time = infec_time + .incub_period,
+  ) |>
+  # observation model
+  add_observation(
+    #> symptomatic (status = 1)
+    test_date = list(
+      status = 1, discr = TRUE, obs = "normal",
+      mean = .onset_time, sd = 1, min = floor(.onset_time)
+    ),
+    #> asymptomatic (status = 2)
+    test_date = list(
+      status = 2, discr = TRUE, obs = "uniform",
+      loc = ceil(infec_time), min = 0, max = 8
+    )
   ) |>
   # infectivity profile definitions
   # FIXME: this needs to be clarified

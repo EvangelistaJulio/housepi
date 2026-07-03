@@ -28,12 +28,11 @@ housepi_exposed_ <- function(obj, family, name) {
 #' @noRd
 print.housepi_exposed <- function(x, ...) {
   args <- x$args()
-  header <- sprintf("Exposed %s {.val %s}.",
-                    .subset2(x, "family"), .subset2(x, "name"))
-  items <- if (length(args) == 0) NULL else stats::setNames(
-    sprintf("{.arg %s} = %s", names(args), format(unname(args))),
-    rep("i", length(args)))
-  fmt_cli_info(c(header, items))
+  header <- c(i = sprintf("Exposed %s {.val %s}.",
+                          .subset2(x, "family"), .subset2(x, "name")))
+  items <- if (length(args) == 0) character() else
+    sprintf("{.arg %s} = %s", names(args), format(unname(args)))
+  cli::cli_bullets(c(header, items))
   invisible(x)
 }
 

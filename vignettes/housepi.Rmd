@@ -218,8 +218,8 @@ We load the parameter definitions directly from the model template.
 #| label: load-augmented-model
 # load a dataset for the data structure (used later for the simulation)
 community_structure <- sarscov2_2021_icofs |>
-  dplyr::select(id, house_id, age, sex, study_period) |>
-  dplyr::mutate(start_date = 0, status = NA)
+  dplyr::select(id, house_id) |>
+  dplyr::mutate(status = NA, study_period = 21)
 
 hhsimul <- community_structure |>
   new_housepi_model("case_ascertained") |>
@@ -241,15 +241,19 @@ associated from a list by calling `add_augmented()`.
 #| label: load-augmented-definitions
 hhsimul <- hhsimul |>
   add_augmented(
-    # define an incubation period for each individual
-    incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
-    infec_time = start_date@D - incub_period
+    # incubation period for each individual
+    .incub_period = list(prior = "gamma", mean = 2, var = 1, max = 14),
+    # infection time of first infected individual
+    infec_time = 0,
+    .onset_time = infec_time + .incub_period
   ) |>
-  # onset date corresponds to the onset time (infection time + incubation)
-  # with onsets after 6 PM (18/24) reported to the next day
+  # onset date observation is noisy around the real onset time
   add_observation(
-    onset_date = floor(infec_time + incub_period + 0.25)
-  )
+    "onset_date", obs = "normal", discr = TRUE,
+    mean = .onset_time, sd = 1, min = floor(.onset_time)
+  ) |> 
+  # household-level observation of start date is earliest onset date
+  add_house_observ(start_date = min(onset_date@D))
 ```
 
 When dealing with many different nested definitions it is not unusual to lose track of which definitions are missing.
@@ -265,7 +269,7 @@ By default, if no group rate definition is provided all values are set to 1 (ref
 To see how to associate group rates in heterogeneous models, see [Group rates](group_rates.html).
 Similarly, we can use the infectivity profile template for the sake of demonstration.
 Provide a custom definition following [Infectivity profiles](infectivity_profiles.html).
-We can overlook these alerts for the rest of the walkthrough.
+We can overlook these alerts for the rest of the walk-through.
 
 We run a simulation with the method `run_simulation`, using the same community structure from the survey.
 The index case is sampled randomly among all members for each household.
@@ -297,19 +301,19 @@ Inference reuses the very same definition set as the simulation: the observed
 hhmodel <- simulated |>
   new_housepi_model("case_ascertained") |>
   add_parameter_template() |>
-  add_parameter(inc_shape = 2, inc_scale = 1) |>
   add_augmented(
-    incub_period = list(prior = "gamma",
-                        shape = inc_shape@P, scale = inc_scale@P,
-                        max = 14),
-    infec_time = list(prior = "uniform",
-                      min = start_date@D - 14,
-                      max = start_date@D + study_period@D,
-                      proposal = "normal")
+    infec_time = list(
+      prior = "uniform", loc = start_date@D,
+      min = -14, max = study_period@D, proposal = "normal"
+    ),
+    .incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
+    .onset_time = infec_time + .incub_period
   ) |>
   # onset date observation is noisy around the real onset time
-  add_observation("onset_date", obs = "normal", discr = TRUE,
-                  loc = infec_time + incub_period)
+  add_observation(
+    "onset_date", obs = "normal", discr = TRUE,
+    mean = .onset_time, sd = 1, min = floor(.onset_time)
+  )
 
 results <- hhmodel |>
   # update progress bar every 3 seconds

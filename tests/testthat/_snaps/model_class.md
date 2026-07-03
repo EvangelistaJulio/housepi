@@ -12,8 +12,9 @@
       print(hhmodel2)
     Message
       i Household model "final size" (`template`).
-      x Parameters: there are 4 missing parameter definitions: "alpha", "beta", "gamma" and "size_ref".
-      They are required by model definitions.
+      x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
+        "gamma" and "size_ref".
+        They are required by model definitions.
 
 ---
 
@@ -29,17 +30,18 @@
     Message
       i Household model "case ascertained" (`template`).
       Model is set to discrete time mode.
-      v Data
-      x Parameters: there are 4 missing parameter definitions: "alpha", "beta", "gamma" and "size_ref".
-      They are required by model definitions.
+      x Data: there is 1 missing data definition "start_date".
+        It is required by model definitions.
+      x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
+        "gamma" and "size_ref".
+        They are required by model definitions.
       x Augmented: there is 1 missing augmented definition "infec_time".
-      It is required by model definitions.
-      ! Group rates: there are 3 missing group rate definitions: "community", "infectivity" and "susceptibility".
-      They can be specified for model definitions.
+        It is required by model definitions.
+      ! Group rates: using default group rates.
+        Available: "community", "susceptibility" and "infectivity".
       ! Contact rates: using default contact rates.
-      A custom choice can be provided.
       ! Infectivity profile: using templated profile.
-      A custom choice can be provided.
+        A custom choice can be provided.
 
 ---
 
@@ -47,17 +49,17 @@
       print(hhmodel_ip)
     Message
       i Household model "case ascertained" (`template`).
-      v Data
-      x Parameters: there are 4 missing parameter definitions: "alpha", "beta", "gamma" and "size_ref".
-      They are required by model definitions.
+      x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
+        "gamma" and "size_ref".
+        They are required by model definitions.
       x Augmented: there is 1 missing augmented definition "infec_time".
-      It is required by model definitions.
-      ! Group rates: there are 3 missing group rate definitions: "community", "infectivity" and "susceptibility".
-      They can be specified for model definitions.
+        It is required by model definitions.
+      ! Group rates: using default group rates.
+        Available: "community", "susceptibility" and "infectivity".
       ! Contact rates: using default contact rates.
-      A custom choice can be provided.
       ! Infectivity profile: using templated profile.
-      A custom choice can be provided.
+        A custom choice can be provided.
+      v Data
 
 # Nested definitions works as expected
 

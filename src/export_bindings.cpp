@@ -8,6 +8,7 @@
 #ifndef _STANDALONE
 #include <functional>
 #include <memory>
+#include <exception>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -1132,15 +1133,15 @@ namespace
             const Household &house = mcmc_ptr->data_wide().at(house_id);
 
             return Rcpp::List::create(
-                Rcpp::_["transm_log_lik"] = mcmc_ptr->data_wide().transm_log_lik(house).value(),
-                Rcpp::_["augm_log_prior"] = helper_augm_log_prior_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr),
                 Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["contact_rate"] = helper_contact_rates_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr, house));
+                Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["augm_log_prior"] = helper_augm_log_prior_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["transm_log_lik"] = mcmc_ptr->data_wide().transm_log_lik(house).value());
         }
         catch (const std::exception &e)
         {

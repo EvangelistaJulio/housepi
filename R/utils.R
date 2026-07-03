@@ -26,7 +26,7 @@ flatten_cli_parts_ <- function(dots) {
 #' The first element becomes the header (styled `x` for errors, `!` for
 #' warnings); every other element without an explicit bullet name (`x`, `i`,
 #' `!`, `v`) becomes an `i` hint. Our conditions carry a `housepi_stop` /
-#' `housepi_warn` class so [with_cpp_conditions()] passes them through.
+#' `housepi_warn` class so `with_cpp_conditions()` passes them through.
 #' @param parts `character()` Message lines, optionally named with bullet keys.
 #' @param level `character(1)` Either `"stop"` or `"warn"`.
 #' @param trusted `logical(1)` When `FALSE`, braces are escaped so foreign text
@@ -62,7 +62,7 @@ stop_h <- function(...) {
 
 #' Emit a harmonized, cli-rendered warning.
 #' @param ... Message lines.default.
-#' Following the same bullet convention as [stop_h()].
+#' Following the same bullet convention as `stop_h()`.
 #' @noRd
 warn_h <- function(...) {
   emit_cli_condition(list(...), "warn", .envir = parent.frame())
@@ -70,8 +70,8 @@ warn_h <- function(...) {
 
 #' Restyle any condition raised beneath `expr` through the cli emitter.
 #'
-#' Errors and warnings authored by housepi (whether raised in R via [stop_h()] /
-#' [warn_h()] or in C++ via the `msg` facade) are split on newlines into a
+#' Errors and warnings authored by housepi (whether raised in R via `stop_h()` /
+#' `warn_h()` or in C++ via the `msg` facade) are split on newlines into a
 #' header plus `i` hints. C++-authored conditions are recognised by class
 #' (`housepi::CppError` errors, `housepi_cpp_warning` warnings) and rendered as
 #' cli markup; foreign conditions are shown literally.

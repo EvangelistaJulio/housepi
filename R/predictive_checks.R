@@ -413,18 +413,17 @@ HousepiPrediction <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      sms <- sprintf("%s for model {.val %s}:",
-                     ifelse(private$is_posterior_,
-                            "Posterior predictions", "Predictions"),
-                     private$model_name_)
+      kind <- if (private$is_posterior_) "Posterior predictions" else
+        "Predictions"
+      sms <- c(i = "{kind} for model {.val {private$model_name_}}:")
       for (m in private$measure_names_) {
         sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
       }
-      fmt_cli_info(c(
+      cli::cli_bullets(c(
         sms,
         sprintf("N. replicates: %d%s", private$nrep_,
                 ifelse(private$thin_ess_, " (ESS)", "")),
-        sprintf("Point estimate: %s", private$point_estimate_),
+        "Point estimate: {private$point_estimate_}",
         sprintf("Credible interval: %.0f%%", 100 * private$cri_level_)
       ))
       invisible(self)

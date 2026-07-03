@@ -195,7 +195,7 @@ defs_to_quos_ <- function(import, key, dots, env) {
 }
 
 # Load default templated definitions shipped with the package.
-load_template_defs <- function(pvt, family, append) {
+add_template_defs_ <- function(pvt, family, append) {
   holder <- if (family == "parameter") pvt$param_ else pvt$augm_
   if (pvt$generator_$is_blank()) {
     warn_h("No template {family} definitions available for blank model.")
@@ -311,7 +311,7 @@ add_parameter <- function(hhmodel,
 add_parameter_template <- function(hhmodel, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  load_template_defs(new_obj$.__enclos_env__$private, "parameter", append)
+  add_template_defs_(new_obj$.__enclos_env__$private, "parameter", append)
   new_obj
 }
 
@@ -390,7 +390,7 @@ add_augmented <- function(hhmodel,
 add_augmented_template <- function(hhmodel, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
-  load_template_defs(new_obj$.__enclos_env__$private, "augmented", append)
+  add_template_defs_(new_obj$.__enclos_env__$private, "augmented", append)
   new_obj
 }
 

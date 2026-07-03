@@ -376,7 +376,11 @@ template_not_used_warn <- function(required, defined, holder, max_print = 4) {
   invisible()
 }
 
-#' Format the output of an assert usage definition message with cli.
+#' Format an assert usage definition message as a `cli::cli_bullets()` block.
+#'
+#' Returns a named character vector following the `cli::cli_bullets()` glyph
+#' convention: the headline is named after its severity (`x` error, `!` minor,
+#' `v` satisfied) and continuation lines are named `" "` to indent under it.
 #' @param section `character(1)` Section name.
 #' @param sms `character()` Messages to format.
 #' @param minor `logical(1)` Whether to format as minor message.
@@ -385,36 +389,13 @@ template_not_used_warn <- function(required, defined, holder, max_print = 4) {
 fmt_assert_cli <- function(section, sms, minor = FALSE) {
   sms <- gsub(sms, pattern = " were ", replacement = " are ")
   sms <- gsub(sms, pattern = " was ", replacement = " is ")
-  lower_first <- function(col_sec, x) {
-    paste0(col_sec, ": ", tolower(substr(x, 1, 1)), substr(x, 2, nchar(x)))
-  }
-
-  if (length(sms) == 0) {
-    c(v = cli::col_green(section))
-  } else if (minor) {
-    sms <- gsub(sms, pattern = " (are|is) required by ",
-                replacement = " can be specified for ")
-    c(`!` = lower_first(cli::col_yellow(section), sms[1]), sms[-1])
-  } else {
-    c(x = lower_first(cli::col_red(section), sms[1]), sms[-1])
-  }
-}
-
-#' Format a vector of messages for `cli::cli_alert_info()`.
-#' @param sms `character()` Messages, optionally named with `!`, `x`, `v`.
-#' @keywords internal
-#' @noRd
-fmt_cli_info <- function(sms) {
-  if (length(sms) == 0) return("")
-  nms <- names(sms)
-  if (is.null(nms)) nms <- rep("", length(sms))
-  glyphs <- list(`!` = cli::col_yellow("!"),
-                 `x` = cli::col_red(cli::symbol$cross),
-                 `v` = cli::col_green(cli::symbol$tick))
-  if (identical(nms[1], "i")) nms[1] <- ""
-  out <- vapply(seq_along(sms), function(k) {
-    g <- glyphs[[nms[k]]]
-    if (is.null(g)) sms[[k]] else paste0(g, " ", sms[[k]])
-  }, character(1))
-  cli::cli_alert_info(paste(out, collapse = "\n"))
+  # colour the section name to match its bullet
+  if (length(sms) == 0) return(stats::setNames(cli::col_green(section), "v"))
+  col <- if (minor) cli::col_yellow else cli::col_red
+  if (minor) sms <- gsub(sms, pattern = " (are|is) required by ",
+                         replacement = " can be specified for ")
+  head <- paste0(col(section), ": ", tolower(substr(sms[1], 1, 1)),
+                 substr(sms[1], 2, nchar(sms[1])))
+  stats::setNames(c(head, sms[-1]),
+                  c(if (minor) "!" else "x", rep(" ", length(sms) - 1)))
 }

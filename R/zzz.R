@@ -31,16 +31,19 @@ NULL
 cpp_member_ <- function(x, name) {
   eval(as.call(list(as.name("$"), x, as.name(name))))
 }
-# Fetch a C++ member via `$` so its call routes through the interceptor.
+# Fetch a C++ member via `$`, wrapping its *call* (not just the fetch) so
+# conditions raised while the member runs route through the interceptor.
 wrap_cpp_member_ <- function(x, name) {
-  with_cpp_conditions(cpp_member_(x, name))
+  fn <- cpp_member_(x, name)
+  function(...) with_cpp_conditions(fn(...))
 }
-# Define the wrapper for to the .engine Rcpp class.
+#' Define the wrapper for to the .engine Rcpp class.
+#' @noRd
 `$.housepi_engine` <- function(x, name) {
   wrap_cpp_member_(.subset2(x, "module"), name)
 }
 
-# nocov start
+# nocov start'
 .onLoad <- function(libname, pkgname) {
   pkgbuild::check_build_tools(quiet = TRUE)
   module <- Rcpp::Module(pkgname, PACKAGE = pkgname)
