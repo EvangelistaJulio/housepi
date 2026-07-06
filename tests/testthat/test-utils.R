@@ -11,8 +11,8 @@ test_that("overwrite behaves as expected", {
   file.create(src)
   # destination directory does not exist -> file.copy returns FALSE
   dst <- file.path(tempfile(), "sparklingbeaver", "x")
-  expect_error(suppressWarnings(overwrite(src, dst)),
-               regexp = "user permissions")
+  suppressWarnings(overwrite(src, dst)) |>
+    expect_error("user permissions")
 })
 
 test_that("Character to phrase produce phrases as expected", {

@@ -3,25 +3,25 @@ library(testthat)
 test_that("Reject if calling on non-HousepiModel objects", {
   obj <- "not a model"
   err <- "must be of class"
-  expect_error(add_data_long(obj, data.frame()), regexp = err)
-  expect_error(get_data_wide(obj), regexp = err)
-  expect_error(get_data_long(obj), regexp = err)
-  expect_error(get_parameters(obj), regexp = err)
-  expect_error(get_augmented(obj), regexp = err)
-  expect_error(get_group_rates(obj), regexp = err)
-  expect_error(get_infec_profile(obj), regexp = err)
-  expect_error(add_contact_rate(obj), regexp = err)
-  expect_error(add_parameter(obj), regexp = err)
-  expect_error(add_augmented(obj), regexp = err)
-  expect_error(add_infec_profile(obj, "mk22"), regexp = err)
-  expect_error(evaluate_log_lik(obj), regexp = err)
-  expect_error(run_inference(obj), regexp = err)
-  expect_error(run_simulation(obj), regexp = err)
-  expect_error(add_parameter_template(obj), regexp = err)
-  expect_error(add_augmented_template(obj), regexp = err)
-  expect_error(add_group_rate(obj), regexp = err)
-  expect_error(predicted_measures(obj, NULL), regexp = err)
-  expect_error(predicted_cases_by_house_size(obj, NULL), regexp = err)
+  add_data_long(obj, data.frame()) |> expect_error(err)
+  get_data_wide(obj) |> expect_error(err)
+  get_data_long(obj) |> expect_error(err)
+  get_parameters(obj) |> expect_error(err)
+  get_augmented(obj) |> expect_error(err)
+  get_group_rates(obj) |> expect_error(err)
+  get_infec_profile(obj) |> expect_error(err)
+  add_contact_rate(obj) |> expect_error(err)
+  add_parameter(obj) |> expect_error(err)
+  add_augmented(obj) |> expect_error(err)
+  add_infec_profile(obj, "mk22") |> expect_error(err)
+  evaluate_log_lik(obj) |> expect_error(err)
+  run_inference(obj) |> expect_error(err)
+  run_simulation(obj) |> expect_error(err)
+  add_parameter_template(obj) |> expect_error(err)
+  add_augmented_template(obj) |> expect_error(err)
+  add_group_rate(obj) |> expect_error(err)
+  predicted_measures(obj, NULL) |> expect_error(err)
+  predicted_cases_by_house_size(obj, NULL) |> expect_error(err)
 })
 
 test_that("data_wide provided at construction is exposed via get_data_wide", {
@@ -197,11 +197,9 @@ test_that("add_contact_rate wrapper input branches", {
   expect_true("ctr_kept_you_waiting" %in% get_parameters(result)$name)
 
   # second call warns about overwrite
-  expect_warning(
-    add_contact_rate(result, strata = strata,
-                     params = list(ctr_kept_you_waiting = 1.21)),
-    regexp = "[Oo]verwriting"
-  )
+  add_contact_rate(result, strata = strata,
+                   params = list(ctr_kept_you_waiting = 1.21)) |>
+    expect_warning("[Oo]verwriting")
 
   # getter
   cr <- get_contact_rates(result)

@@ -76,7 +76,7 @@ test_that("Chain binomial guards against missusage", {
   # not discretizable
   blank_house |>
     new_housepi_model("final_size", discr = TRUE) |>
-    expect_error(regexp = "No visible discrete time option")
+    expect_error("No visible discrete time option")
 
   # no support for missing status
   data.frame(id = c("m1", "m2"), house_id = "h1",

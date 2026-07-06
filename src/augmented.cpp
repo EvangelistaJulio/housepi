@@ -520,13 +520,17 @@ namespace housepi
             map_status_to_block_.emplace(status, status_blocks_.size());
             status_blocks_.emplace_back(status);
 
-            // Ignore spurios private definition if no public definition depends on it
-            // NOTE: but ensure private infectivity is stored.
+            // Ignore spurios private definition if no kept definition depends on it.
+            // NOTE: infectivity profile (private) can depend on private
+            auto is_kept_consumer = [](const std::string &c)
+            { return !str::is_private(c) || c == infprof::AUGM_FUNC; };
             for (const std::string &astr : dependency::order_dependencies(tree))
-                if (astr == infprof::AUGM_FUNC ||
-                    !str::is_private(astr) ||
-                    !str::drop_private(dependency::order_conditioned_on(astr, tree)).empty())
+            {
+                const auto consumers = dependency::order_conditioned_on(astr, tree);
+                if (astr == infprof::AUGM_FUNC || !str::is_private(astr) ||
+                    std::any_of(consumers.begin(), consumers.end(), is_kept_consumer))
                     status_blocks_.back().order.emplace_back(name_to_row[astr]);
+            }
 
             // define usage lists respecting definition order
             set_sample_list_(status);
@@ -748,7 +752,7 @@ namespace housepi
         for (auto &[key, vec] : tree)
             vec = vec - without_prior;
 
-        // assign order of dependents for augmented prior computation
+        // assign the ordered consumers of each prior for augmented prior computation
         for (const auto &[key, vec] : tree)
             ordered_priors.emplace(key, dependency::order_conditioned_on(key, tree));
 
@@ -964,8 +968,9 @@ namespace housepi
                 {
                     if (dstr == name)
                         continue; // observation node reading its own entry column
-                    // loop iff the observation 'd' is a (transitive) dependent of 'name'
-                    if (contains(dependency::order_conditioned_on(name, tree), dstr))
+                    // loop iff the observation 'd' is a (transitive) consumer of 'name'
+                    const auto consumers = dependency::order_conditioned_on(name, tree);
+                    if (contains(consumers, dstr))
                         msg::stop(
                             "Cyclic definition: " + msg::val(name) + " reads observation " + msg::val(dstr) +
                             ", but " + msg::val(dstr) + " depends on " + msg::val(name) +

@@ -140,7 +140,7 @@ test_that("Sentinel against no introduction throws error", {
     add_parameter_template() |>
     add_augmented_template() |>
     run_inference() |>
-    expect_error(regexp = "at least one infected member")
+    expect_error("at least one infected member")
 })
 
 test_that("Log-likelihood of case ascertained model is correct", {
@@ -584,8 +584,8 @@ test_that("Deterministic observation node simulates, inference rejects it", {
   expect_true(all(is.na(simulated$onset_date[simulated$status == 0])))
 
   # inference rejects the degenerate indicator likelihood with a clear message
-  expect_error(evaluate_log_lik(build(simulated)),
-               regexp = "Deterministic observation node")
+  evaluate_log_lik(build(simulated)) |>
+    expect_error("Deterministic observation node")
 })
 
 test_that("Household observations aggregate a data column across members", {
@@ -806,7 +806,7 @@ test_that("Status process rejects latent/parameter probabilities", {
     # probabilities must be a pure function of data/numerics
     add_status(symptomatic = alpha@P, asymptomatic = 3) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "only on data or numeric")
+    expect_error("only on data or numeric")
 })
 
 test_that("Character status round-trips with stable codes", {
@@ -870,7 +870,7 @@ test_that("Escaped label colliding with an infected status is rejected", {
     add_parameter_template() |>
     add_augmented_template() |>
     add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
-    expect_error(regexp = "collides with the escaped-status label")
+    expect_error("collides with the escaped-status label")
 })
 
 test_that("Mixing integer and character status declarations is rejected", {
@@ -890,7 +890,7 @@ test_that("Mixing integer and character status declarations is rejected", {
       onset = list(value = 1, status = 1)
     ) |>
     evaluate_log_lik() |>
-    expect_error(regexp = "[Mm]ix")
+    expect_error("[Mm]ix")
 })
 
 test_that("Model-required data can be postponed", {

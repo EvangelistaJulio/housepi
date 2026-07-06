@@ -61,10 +61,14 @@ test_that("validate_cri_level validates credible interval", {
   expect_equal(validate_cri_level(0.95), 0.95)
   expect_equal(validate_cri_level(0.8), 0.8)
   # boundary and invalid values
-  expect_error(validate_cri_level(0.5), regexp = "between 0.5 and 1")
-  expect_error(validate_cri_level(1.0), regexp = "between 0.5 and 1")
-  expect_error(validate_cri_level(0.3), regexp = "between 0.5 and 1")
-  expect_error(validate_cri_level(NA_real_), regexp = "non-NA")
+  validate_cri_level(0.5) |>
+    expect_error("between 0.5 and 1")
+  validate_cri_level(1.0) |>
+    expect_error("between 0.5 and 1")
+  validate_cri_level(0.3) |>
+    expect_error("between 0.5 and 1")
+  validate_cri_level(NA_real_) |>
+    expect_error("non-NA")
 })
 
 test_that("ppc_frame_apply computes element-wise operations", {
@@ -149,15 +153,15 @@ test_that("Format-credible-interval works correctly on vectors", {
 
   # inconsistent interval warns
   format_credible_interval(5, 10, 20) |>
-    expect_warning(regexp = "inconsistent")
+    expect_warning("inconsistent")
 
   # mismatched lengths error
   format_credible_interval(c(1, 2), c(1), c(2)) |>
-    expect_error(regexp = "same length")
+    expect_error("same length")
 
   # wrong str_format error
   format_credible_interval(1, 0, 2, fmt = "%s only one") |>
-    expect_error(regexp = "three.*placeholder")
+    expect_error("three.*placeholder")
 
   # data.frame input
   mn <- data.frame(a = c(1, 2), b = c(3, 4))
@@ -170,7 +174,7 @@ test_that("Format-credible-interval works correctly on vectors", {
   # mismatched data.frame dimensions
   lo_bad <- data.frame(a = c(0))
   format_credible_interval(mn, lo_bad, up) |>
-    expect_error(regexp = "same dimensions")
+    expect_error("same dimensions")
 
   # mean == 0 branch for digit calculation
   result <- format_credible_interval(0, -0.1, 0.1)
@@ -263,8 +267,8 @@ test_that("HousepiPrediction active fields are read-only", {
 })
 
 test_that("Predicted-measures raises error when no measure is provided", {
-  expect_error(predicted_measures(local_ppc$hhmodel, local_ppc$results),
-               regexp = "No measure was provided")
+  predicted_measures(local_ppc$hhmodel, local_ppc$results) |>
+    expect_error("No measure was provided")
 })
 
 test_that("Predicted cases by house size works as expected", {
@@ -353,14 +357,13 @@ test_that("HousepiPrediction warns on observed values outside CrI", {
   # parameter set deliberately so that SAR~1
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
-  param_table <- data.frame(alpha = 50, beta = 50, gamma = 1, size_ref = 4)
-  expect_warning(
-    predicted_measures(hhmodel, param_table,
-                       sar = measure_sar_by_house_size,
-                       thin_ess = FALSE, max_nrep = 20),
-    regexp = ".*outside.*credible interval"
-  )
+    add_parameter_template() |>
+    predicted_measures(
+      data.frame(alpha = 50., beta = 50., gamma = 1., size_ref = 4L),
+      sar = measure_sar_by_house_size,
+      thin_ess = FALSE, max_nrep = 20L
+    ) |>
+    expect_warning(".*outside.*credible interval")
 })
 
 test_that("predicted_measures works with custom measure", {

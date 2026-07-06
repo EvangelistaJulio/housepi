@@ -891,7 +891,7 @@ namespace
             const size_t cases = n_args();
             if (cases == 0)
                 msg::stop(
-                    "Invoked " + err_name() + " with no cases (at least one weight required).");
+                    "Invoked " + err_name() + " with no weights.\nProvide at least one weight.");
 
             if (weight_sum_() <= 0.)
                 msg::stop(

@@ -89,7 +89,8 @@ test_that("Augmented sampling default is correct", {
 
 test_that("Augmented function definition is correct", {
   augm <- HousepiAugmented$new()
-  expect_error(aux_add(augm), regexp = "non-empty")
+  aux_add(augm) |>
+    expect_error("non-empty")
 
   # difference definition
   aux_add(augm, name = "dummy", func = onset - incub)

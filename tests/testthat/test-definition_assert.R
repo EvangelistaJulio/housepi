@@ -22,22 +22,22 @@ test_that("Helper format errors keeps full multi-line text of the pick", {
 
 test_that("Assert valid definition name rejects invalid names", {
   # empty string
-  expect_error(assert_valid_definition_name("", "parameter"),
-               regexp = "non-empty")
+  assert_valid_definition_name("", "parameter") |>
+    expect_error("non-empty")
   # NA
-  expect_error(assert_valid_definition_name(NA, "parameter"),
-               regexp = "non-empty")
+  assert_valid_definition_name(NA, "parameter") |>
+    expect_error("non-empty")
   # non-character
-  expect_error(assert_valid_definition_name(42, "parameter"),
-               regexp = "non-empty")
+  assert_valid_definition_name(42, "parameter") |>
+    expect_error("non-empty")
   # special characters
-  expect_error(assert_valid_definition_name("a b", "parameter"),
-               regexp = "invalid characters")
-  expect_error(assert_valid_definition_name("a@b", "parameter"),
-               regexp = "invalid characters")
+  assert_valid_definition_name("a b", "parameter") |>
+    expect_error("invalid characters")
+  assert_valid_definition_name("a@b", "parameter") |>
+    expect_error("invalid characters")
   # reserved name pi
-  expect_error(assert_valid_definition_name("pi", "parameter"),
-               regexp = "reserved")
+  assert_valid_definition_name("pi", "parameter") |>
+    expect_error("reserved")
   # valid names pass
   expect_no_error(assert_valid_definition_name("alpha", "parameter"))
   expect_no_error(assert_valid_definition_name("beta_1", "parameter"))
@@ -48,12 +48,12 @@ test_that("Assert valid status rejects non-positive integers", {
   # valid
   expect_no_error(assert_valid_status(c(NA, 1, 2, 3)))
   # zero
-  expect_error(assert_valid_status(c(0, 1)),
-               regexp = "positive integer")
+  assert_valid_status(c(0, 1)) |>
+    expect_error("positive integer")
   # negative
-  expect_error(assert_valid_status(c(-1, 2)),
-               regexp = "positive integer")
+  assert_valid_status(c(-1, 2)) |>
+    expect_error("positive integer")
   # decimal
-  expect_error(assert_valid_status(c(1.5)),
-               regexp = "positive integer")
+  assert_valid_status(c(1.5)) |>
+    expect_error("positive integer")
 })

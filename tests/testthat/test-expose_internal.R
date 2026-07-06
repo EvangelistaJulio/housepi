@@ -40,7 +40,8 @@ test_that("Power function is correct", {
   expect_equal(fn$log_func(x), x2 * log(x))
   expect_equal(fn$log_ratio(x, x + 0.1),
                log(fn$func(x + 0.1) / fn$func(x)))
-  expect_error(fn$log_ratio(x, x[-1]), regexp = "[Ss]ize")
+  fn$log_ratio(x, x[-1]) |>
+    expect_error("[Ss]ize")
 
   # x2 = -1 primitive uses log(|x|)
   expect_equal(expose_function("pow", x2 = -1)$prim(x), log(abs(x)))
@@ -48,13 +49,14 @@ test_that("Power function is correct", {
   expect_equal(expose_function("pow", x2 = 0.5)$func(x), sqrt(x))
 
   # error cases
-  expect_error(expose_function("pow")$func(x), regexp = "Missing non default")
-  expect_error(expose_function("pow", 5), regexp = "Unnamed argument")
-  expect_error(expose_function("pow", x2 = 5, y2 = 3),
-               regexp = "Unused argument.*y2.*[Dd]id you mean")
-  expect_error(expose_function("pow", discr = TRUE)$func(x),
-    regexp = "undefined method"
-  )
+  expose_function("pow")$func(x) |>
+    expect_error("Missing non default")
+  expose_function("pow", 5) |>
+    expect_error("Unnamed argument")
+  expose_function("pow", x2 = 5, y2 = 3) |>
+    expect_error("Unused argument.*y2.*[Dd]id you mean")
+  expose_function("pow", discr = TRUE)$func(x) |>
+    expect_error("undefined method")
 })
 
 test_that("Square root function is correct", {
@@ -139,7 +141,8 @@ test_that("Tangent function is correct", {
     log(fn$func(x + 0.1) / fn$func(x))
   )
   # primitive is undefined
-  expect_error(fn$prim(x), regexp = "undefined method")
+  fn$prim(x) |>
+    expect_error("undefined method")
 })
 
 test_that("Minus function is correct", {
@@ -148,8 +151,10 @@ test_that("Minus function is correct", {
   expect_equal(fn$func(x), -x)
   # default raw_log_ratio returns 0
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
-  expect_error(fn$prim(x), regexp = "undefined method")
-  expect_error(fn$log_func(x), regexp = "undefined method")
+  fn$prim(x) |>
+    expect_error("undefined method")
+  fn$log_func(x) |>
+    expect_error("undefined method")
 })
 
 test_that("Subtraction function is correct", {
@@ -158,8 +163,10 @@ test_that("Subtraction function is correct", {
   expect_equal(fn$func(x), x - 3)
   expect_equal(expose_function("sub", x2 = 0)$func(x), x)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
-  expect_error(fn$prim(x), regexp = "undefined method")
-  expect_error(fn$log_func(x), regexp = "undefined method")
+  fn$prim(x) |>
+    expect_error("undefined method")
+  fn$log_func(x) |>
+    expect_error("undefined method")
 })
 
 test_that("Division function is correct", {
@@ -168,8 +175,10 @@ test_that("Division function is correct", {
   expect_equal(fn$func(x), x / 4)
   expect_equal(expose_function("div", x2 = 1)$func(x), x)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
-  expect_error(fn$prim(x), regexp = "undefined method")
-  expect_error(fn$log_func(x), regexp = "undefined method")
+  fn$prim(x) |>
+    expect_error("undefined method")
+  fn$log_func(x) |>
+    expect_error("undefined method")
 })
 
 test_that("Summation function is correct", {
@@ -177,8 +186,10 @@ test_that("Summation function is correct", {
   fn <- expose_function("sum", args)
   expect_equal(fn$func(0), sum(args))
   expect_equal(fn$log_ratio(0, pi), 0)
-  expect_error(fn$prim(0), regexp = "undefined method")
-  expect_error(fn$log_func(0), regexp = "undefined method")
+  fn$prim(0) |>
+    expect_error("undefined method")
+  fn$log_func(0) |>
+    expect_error("undefined method")
 })
 
 test_that("Product function is correct", {
@@ -186,8 +197,10 @@ test_that("Product function is correct", {
   fn <- expose_function("prod", args)
   expect_equal(fn$func(1), prod(args))
   expect_equal(fn$log_ratio(1, pi), 0)
-  expect_error(fn$prim(1), regexp = "undefined method")
-  expect_error(fn$log_func(1), regexp = "undefined method")
+  fn$prim(1) |>
+    expect_error("undefined method")
+  fn$log_func(1) |>
+    expect_error("undefined method")
 })
 
 test_that("Minimum function is correct", {
@@ -195,8 +208,10 @@ test_that("Minimum function is correct", {
   fn <- expose_function("min", args)
   expect_equal(fn$func(2), 2)
   expect_equal(fn$log_ratio(2, pi), 0)
-  expect_error(fn$prim(2), regexp = "undefined method")
-  expect_error(fn$log_func(1), regexp = "undefined")
+  fn$prim(2) |>
+    expect_error("undefined method")
+  fn$log_func(1) |>
+    expect_error("undefined")
 })
 
 test_that("Maximum function is correct", {
@@ -204,8 +219,10 @@ test_that("Maximum function is correct", {
   fn <- expose_function("max", args)
   expect_equal(fn$func(2), 6.6)
   expect_equal(fn$log_ratio(2, pi), 0)
-  expect_error(fn$prim(2), regexp = "undefined method")
-  expect_error(fn$log_func(1), regexp = "undefined")
+  fn$prim(2) |>
+    expect_error("undefined method")
+  fn$log_func(1) |>
+    expect_error("undefined")
 })
 
 test_that("Round function is correct", {
@@ -217,8 +234,10 @@ test_that("Round function is correct", {
   expect_equal(fn$func(x), round(x))
   expect_equal(fn$func(x_int), x_int)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
-  expect_error(fn$prim(x), regexp = "undefined method")
-  expect_error(fn$log_func(x), regexp = "undefined method")
+  fn$prim(x) |>
+    expect_error("undefined method")
+  fn$log_func(x) |>
+    expect_error("undefined method")
 })
 
 test_that("Ceil function is correct", {
@@ -228,8 +247,10 @@ test_that("Ceil function is correct", {
   expect_equal(fn$func(x), ceiling(x))
   expect_equal(fn$func(x_int), x_int)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
-  expect_error(fn$prim(x), regexp = "undefined method")
-  expect_error(fn$log_func(x), regexp = "undefined method")
+  fn$prim(x) |>
+    expect_error("undefined method")
+  fn$log_func(x) |>
+    expect_error("undefined method")
 })
 
 test_that("Floor function is correct", {
@@ -239,8 +260,10 @@ test_that("Floor function is correct", {
   expect_equal(fn$func(x), floor(x))
   expect_equal(fn$func(x_int), x_int)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
-  expect_error(fn$prim(x), regexp = "undefined method")
-  expect_error(fn$log_func(x), regexp = "undefined method")
+  fn$prim(x) |>
+    expect_error("undefined method")
+  fn$log_func(x) |>
+    expect_error("undefined method")
 })
 
 #####################################
@@ -345,12 +368,10 @@ test_that("Categorical distribution is correct", {
   distr$log_ratio(c(0, 1), c(1, 2)) |>
     expect_equal(log(pmf[c(2, 3)] / pmf[c(1, 2)]))
 
-  # at least one case is required
   expose_distribution("categorical") |>
-    expect_error()
-  # weights cannot be negative
+    expect_error("no weights")
   expose_distribution("categorical", peace = 1, walker = -2) |>
-    expect_error()
+    expect_error("non-strictly positive")
 })
 
 test_that("Default parameters match R reference for d", {
@@ -380,8 +401,10 @@ test_that("Normal both-sided truncation is correct", {
 })
 
 test_that("Gamma accepts shape/scale and mean/var parametrizations", {
-  expect_error(expose_distribution("gamma", mean = 2, scale = 1.1), "mix")
-  expect_error(expose_distribution("gamma", shape = 2, var = 1.1), "mix")
+  expose_distribution("gamma", mean = 2, scale = 1.1) |>
+    expect_error("mix")
+  expose_distribution("gamma", shape = 2, var = 1.1) |>
+    expect_error("mix")
 
   m <- 2.5
   v <- 1.7
@@ -630,7 +653,8 @@ test_that("rand() draws are reproducible and statistically plausible", {
   expect_false(identical(d$rand(10L), d$rand(10L)))
 
   # invalid n
-  expect_error(d$rand(-1L), regexp = "non-negative")
+  d$rand(-1L) |>
+    expect_error("non-negative")
 })
 
 test_that("rand() honours location shift (relocate_ Active branch)", {
@@ -826,21 +850,15 @@ test_that("quantile is truncation-aware", {
 })
 
 test_that("Beta rejects discrete option", {
-  expect_error(
-    expose_distribution("beta", shape1 = 2, shape2 = 3, discr = TRUE),
-    "invalid.*discrete"
-  )
+  expose_distribution("beta", shape1 = 2, shape2 = 3, discr = TRUE) |>
+    expect_error("invalid.*discrete")
 })
 
 test_that("Beta rejects out-of-domain truncation bounds", {
-  expect_error(
-    expose_distribution("beta", shape1 = 2, shape2 = 3, min = -0.5),
-    "min"
-  )
-  expect_error(
-    expose_distribution("beta", shape1 = 2, shape2 = 3, max = 1.5),
-    "max"
-  )
+  expose_distribution("beta", shape1 = 2, shape2 = 3, min = -0.5) |>
+    expect_error("min")
+  expose_distribution("beta", shape1 = 2, shape2 = 3, max = 1.5) |>
+    expect_error("max")
 })
 
 test_that("Beta truncation normalises correctly", {
@@ -890,14 +908,10 @@ test_that("Gamma pdf and log_pdf handle x == 0 across shape regimes", {
 })
 
 test_that("Binomial rejects out-of-domain truncation bounds", {
-  expect_error(
-    expose_distribution("binomial", size = 10, prob = 0.5, min = -1),
-    "min"
-  )
-  expect_error(
-    expose_distribution("binomial", size = 10, prob = 0.5, min = 11),
-    "max"
-  )
+  expose_distribution("binomial", size = 10, prob = 0.5, min = -1) |>
+    expect_error("min")
+  expose_distribution("binomial", size = 10, prob = 0.5, min = 11) |>
+    expect_error("max")
 })
 
 test_that("rand() is reproducible and plausible for all distributions", {

@@ -35,8 +35,8 @@ test_that("Error handling in infectivity profile definitions", {
   infec <- HousepiInfecProfile$new()
 
   # Missing function name
-  expect_error(aux_add(infec, func = NA, discr = FALSE, a = 1),
-               regexp = "Incomplete definition")
+  aux_add(infec, func = NA, discr = FALSE, a = 1) |>
+    expect_error("Incomplete definition")
 })
 
 test_that("Status specific definition work fine", {

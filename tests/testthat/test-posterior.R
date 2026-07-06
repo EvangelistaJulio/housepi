@@ -151,14 +151,12 @@ test_that("Augm draws are not empty when id_draws is specified", {
 })
 
 test_that("Diagnostic warning fires on short runs", {
-  expect_warning(
-    results <- flu_1918_frederick |>
-      new_housepi_model("final_size") |>
-      add_parameter_template() |>
-      run_inference(steps = 100, chains = 1, adapt = 0, thin = 1,
-                    progress = FALSE),
-    regexp = "sample size was below"
-  )
+  flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter_template() |>
+    run_inference(steps = 100, chains = 1, adapt = 0, thin = 1,
+                  progress = FALSE) |>
+    expect_warning("sample size was below")
 })
 
 test_that("Diagnostic warning fires on poor mixing", {

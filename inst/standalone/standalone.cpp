@@ -51,7 +51,7 @@ namespace housepi
     namespace msg
     {
         /// Throw an error message.
-        [[noreturn]] void error(const std::string &txt)
+        [[noreturn]] void stop(const std::string &txt)
         {
             std::cerr << "Error: " + txt + "\nExit..." << std::endl;
             std::exit(EXIT_FAILURE);
@@ -65,7 +65,7 @@ namespace housepi
         }
 
         /// Display a warning message if not already displayed before.
-        void warning(const std::string &txt)
+        void warn(const std::string &txt)
         {
             if (is_new_warning(txt))
             {
@@ -159,18 +159,18 @@ namespace housepi
         }
     }
 
-#define STANDALONE_MAKE_READ_METHOD_(module, section_name)           \
-    void Options::read_##module(MCMCBase &model)                     \
-    {                                                                \
-        try                                                          \
-        {                                                            \
-            model.module.build(read::csv_table(file.module));        \
-        }                                                            \
-        catch (const std::exception &e)                              \
-        {                                                            \
-            msg::error(std::string("While reading ") +               \
-                       section_name + " definitions:\n" + e.what()); \
-        }                                                            \
+#define STANDALONE_MAKE_READ_METHOD_(module, section_name)          \
+    void Options::read_##module(MCMCBase &model)                    \
+    {                                                               \
+        try                                                         \
+        {                                                           \
+            model.module.build(read::csv_table(file.module));       \
+        }                                                           \
+        catch (const std::exception &e)                             \
+        {                                                           \
+            msg::stop(std::string("While reading ") +               \
+                      section_name + " definitions:\n" + e.what()); \
+        }                                                           \
     }
 
     STANDALONE_MAKE_READ_METHOD_(setup, "setup")
@@ -183,7 +183,7 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            msg::error(std::string("While reading parameters definitions:\n") + e.what());
+            msg::stop(std::string("While reading parameters definitions:\n") + e.what());
         }
     }
 
@@ -195,7 +195,7 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            msg::error(std::string("While reading data-wide definitions:\n") + e.what());
+            msg::stop(std::string("While reading data-wide definitions:\n") + e.what());
         }
     }
 
@@ -207,7 +207,7 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            msg::error(std::string("While reading data-long definitions:\n") + e.what());
+            msg::stop(std::string("While reading data-long definitions:\n") + e.what());
         }
     }
 
@@ -219,7 +219,7 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            msg::error(std::string("While reading group rate definitions:\n") + e.what());
+            msg::stop(std::string("While reading group rate definitions:\n") + e.what());
         }
     }
 
@@ -231,7 +231,7 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            msg::error(std::string("While reading contact rate definitions:\n") + e.what());
+            msg::stop(std::string("While reading contact rate definitions:\n") + e.what());
         }
     }
 
@@ -243,7 +243,7 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            msg::error(std::string("While reading infectivity profile definitions:\n") + e.what());
+            msg::stop(std::string("While reading infectivity profile definitions:\n") + e.what());
         }
     }
 
@@ -255,7 +255,7 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            msg::error(std::string("While reading augmented definitions:\n") + e.what());
+            msg::stop(std::string("While reading augmented definitions:\n") + e.what());
         }
     }
 
@@ -435,8 +435,8 @@ namespace housepi
 
         // check any command was supplied
         if (argc < 2)
-            msg::error("No argument or command found. Check the usage through:\n" +
-                       std::string(argv[0]) + " -h");
+            msg::stop("No argument or command found. Check the usage through:\n" +
+                      std::string(argv[0]) + " -h");
 
         // parse commands and options
         while (carg_i < argc)
@@ -446,7 +446,7 @@ namespace housepi
             // Command line argument asking for help
             // UPDATE : should I produce a manual for the standalone?
             if (toup(carg) == "-H" || tolow(carg) == "--help")
-                msg::error(
+                msg::stop(
                     "No Software Manual is available, refer to the Rcpp tutorials.\nApologies for the inconvenience.");
 
             else if (tolow(carg) == "--log-lik")
@@ -491,7 +491,7 @@ namespace housepi
                 file.setup = argv[++carg_i];
 
             else
-                msg::error("Unrecognized option `" + carg + "`.");
+                msg::stop("Unrecognized option `" + carg + "`.");
 
             carg_i++; // move to the next command line argument
         }
@@ -506,15 +506,15 @@ namespace housepi
         if (aux == 0)
             is_log_lik = true; // default
         if (aux > 1)
-            msg::error(
+            msg::stop(
                 "Incompatible commands: choose one between --log-lik, --infer, --simulate or --log-evidence.");
 
         if (!na::is(file.output))
             return;
         if (is_infer)
-            msg::error("Missing output file for inference.");
+            msg::stop("Missing output file for inference.");
         if (is_simulate)
-            msg::error("Missing output file for simulation.");
+            msg::stop("Missing output file for simulation.");
     }
 
     /* --FUTURE-LOG-EVIDENCE--

@@ -56,7 +56,7 @@ test_that("Not Used Template mechanisms work as expected", {
 
   # warning for unused
   template_not_used_warn(c("a"), defined, "venom") |>
-    expect_warning(regexp = "unused")
+    expect_warning("unused")
   # all used: no warning
   template_not_used_warn(defined, defined, "gekko") |>
     expect_no_warning()
@@ -68,11 +68,11 @@ test_that("template_overwrite_warn emits warning for overwrites", {
     expect_no_warning()
 
   template_overwrite_warn(c("x"), "parameter") |>
-    expect_warning(regexp = "Overwriting")
+    expect_warning("Overwriting")
 
   # warn handles many elements
   template_overwrite_warn(letters[1:10], "Miller", max_print = 3) |>
-    expect_warning(regexp = "more than 3")
+    expect_warning("more than 3")
 })
 
 test_that("fmt_assert_cli formats messages correctly", {
@@ -98,13 +98,13 @@ test_that("browse_housepi_templates branches inform correctly", {
   expect_snapshot(browse_housepi_templates())
   # non-character name
   browse_housepi_templates(42) |>
-    expect_error(regexp = "not a character")
+    expect_error("not a character")
   # unknown name: error mentions "not a known template" and a hint
   browse_housepi_templates("foxhound") |>
-    expect_error(regexp = "not a known template")
+    expect_error("not a known template")
   # unknown name close to a real one: hint should suggest "Did you mean"
   browse_housepi_templates("final siz") |>
-    expect_error(regexp = "Did you mean")
+    expect_error("Did you mean")
 })
 
 test_that("browse_housepi_templates triggers help preview when path is NA", {
@@ -128,7 +128,7 @@ test_that("open_model_helper_ errors when info.Rd is missing", {
   dir.create(empty_dir)
   on.exit(unlink(empty_dir, recursive = TRUE), add = TRUE)
   open_model_helper_(empty_dir) |>
-    expect_error(regexp = "Impossible to show model description")
+    expect_error("Impossible to show model description")
 })
 
 test_that("browse_housepi_templates copies template to a new path", {
@@ -148,7 +148,7 @@ test_that("browse_housepi_templates copies template to a new path", {
 
   # second copy without replace: warns and does NOT overwrite
   browse_housepi_templates("final_size", path = dest) |>
-    expect_warning(regexp = "already exists")
+    expect_warning("already exists")
   expect_equal(file.info(file.path(dest, "model.cpp"))$mtime, initial_mtime)
 
   # with replace = TRUE: overwrites silently
@@ -167,10 +167,8 @@ test_that("browse_housepi_templates rejects '.' as destination path", {
   dir.create(sandbox)
   on.exit(unlink(sandbox, recursive = TRUE), add = TRUE)
   withr::with_dir(sandbox, {
-    expect_warning(
-      browse_housepi_templates("final_size", path = "."),
-      regexp = "current directory"
-    )
+    browse_housepi_templates("final_size", path = ".") |>
+      expect_warning("current directory")
     # helper redirects "." to a folder named after the template
     expect_true(dir.exists("final_size"))
   })

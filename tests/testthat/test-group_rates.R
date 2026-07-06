@@ -65,16 +65,16 @@ test_that("Associate param names decorates table and marks reference", {
 test_that("Assert-valid-logic-table validates input", {
   # must be a data.frame
   assert_valid_logic_table(list(a = 1)) |>
-    expect_error(regexp = "data.frame")
+    expect_error("data.frame")
   # must have param_name column
   assert_valid_logic_table(data.frame(x = 1)) |>
-    expect_error(regexp = "param_name")
+    expect_error("param_name")
   # must have at least one row
   assert_valid_logic_table(data.frame(param_name = character(0))) |>
-    expect_error(regexp = "at least one row")
+    expect_error("at least one row")
   # reserved feature column names rejected
   assert_valid_logic_table(data.frame(param_name = "a", id = 1)) |>
-    expect_error(regexp = "reserved")
+    expect_error("reserved")
 })
 
 #################################

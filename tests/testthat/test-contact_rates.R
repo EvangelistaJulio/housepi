@@ -200,8 +200,8 @@ test_that("Contact rate custom mode defualt behaves correctly", {
 
   cr <- HousepiContactRate$new()
 
-  expect_error(aux_add(cr, by = "age", strata = strata),
-               regexp = "Impossible")
+  aux_add(cr, by = "age", strata = strata) |>
+    expect_error("Impossible")
 
   aux_add(cr, strata = strata, prior = "lognormal", sdlog = 1.8,
           params = overrides)
@@ -244,9 +244,9 @@ test_that("Custom mode with no reference row raises error", {
     param_name = c("a_to_a", "a_to_c", "c_to_a", "c_to_c")
   )
 
-  cr <- HousepiContactRate$new()
-  expect_error(aux_add(cr, strata = strata),
-               regexp = "reference")
+  HousepiContactRate$new() |>
+    aux_add(strata = strata) |>
+    expect_error("reference")
 })
 
 ####################################################

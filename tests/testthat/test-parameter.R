@@ -65,10 +65,11 @@ test_that("Default parameter definitions are correct", {
 
 test_that("Constant parameter definitions are correct", {
   param <- HousepiParameter$new()
-  expect_error(aux_add(param, name = "dummy"), regexp = "Incomplete")
-  expect_error(aux_add(param, name = "dummy", prior = "uniform",
-                       min = 0, max = 5, const = TRUE),
-               regexp = "Missing value")
+  aux_add(param, name = "dummy") |>
+    expect_error("Incomplete")
+  aux_add(param, name = "dummy", prior = "uniform",
+          min = 0, max = 5, const = TRUE) |>
+    expect_error("Missing value")
 
   # load_list and single add should be coherent
   helper_test_aux_load(param, dummy = 3)
@@ -81,11 +82,9 @@ test_that("Constant parameter definitions are correct", {
   expect_equal(param$defs$proposal, NA_character_)
   expect_equal(param$defs$proposal_scale, NA_real_)
 
-  expect_warning(
-    aux_add(param, name = "dummy", value = 3, prior = "uniform",
-            min = 0, max = 5, const = TRUE),
-    regexp = "Overwriting"
-  )
+  aux_add(param, name = "dummy", value = 3, prior = "uniform",
+          min = 0, max = 5, const = TRUE) |>
+    expect_warning("Overwriting")
   expect_equal(param$defs, tmp$defs)
 })
 
@@ -125,10 +124,10 @@ test_that("Symbolic definitions are equivalent", {
 test_that("Distribution weight labels are not swallowed by formal matching", {
   # list/bulk path: the reported reproducer, where single-letter weight 'c'
   # used to be partial-matched to the 'const' formal of add_quo
-  param <- helper_test_aux_load(
-    HousepiParameter$new(),
-    big_boss = list(prior = "categorical", a = 0.2, b = 0.1, c = 0.7)
-  )
+  param <- HousepiParameter$new() |>
+    helper_test_aux_load(
+      big_boss = list(prior = "categorical", a = 0.2, b = 0.1, c = 0.7)
+    )
   expect_equal(param$defs$name, "big_boss")
   expect_equal(param$defs$prior,
                "categorical|a:b:c|{0.2|N}:{0.1|N}:{0.7|N}")
@@ -137,32 +136,8 @@ test_that("Distribution weight labels are not swallowed by formal matching", {
   # const/discr/prior formals
   param2 <- HousepiParameter$new()
   param2$add_quo(name = "ocelot", prior = "categorical",
-                 a = 0.2, b = 0.1, c = 0.7, d = 0.4, p = 0.6) |>
-    expect_silent()
+                 a = 0.2, b = 0.1, c = 0.7, d = 0.4, p = 0.6)
   expect_equal(param2$defs$name, "ocelot")
   expect_equal(param2$defs$prior,
                "categorical|a:b:c:d:p|{0.2|N}:{0.1|N}:{0.7|N}:{0.4|N}:{0.6|N}")
 })
-
-# test_that("Parameter functions workd as expected", {
-#   hhmodel <- new_housepi_model("blank")
-#
-#   # FIXME: implicit function interpreted as a constant
-#   add_parameter(hhmodel,
-#     alpha = list(prior = "uniform"),
-#     beta = list(prior = "uniform"),
-#     delta = alpha@P + beta@P
-#   )
-#   hhmodel$run_inference()
-#   hhmodel$parameters
-#
-#   # FIXME: function not exported
-#   add_parameter(hhmodel,
-#     alpha = list(prior = "uniform"),
-#     beta = list(prior = "uniform"),
-#     delta = list(func = "sum",
-#                  func_args  = list(x1 = alpha@P, x2 = beta@P))
-#   )
-#   results <- hhmodel$run_inference()
-#   results$parameter_draws
-# })
