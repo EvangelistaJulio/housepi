@@ -258,6 +258,11 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Registries searched when composing an augmented / household-observation
+    /// reduction function (shared by per-member and per-household builders).
+    static const std::vector<std::string> AUGM_FUNC_REGISTRIES = {
+        "custom", "transcendental", "arithmetic", "continuos", "discrete", "infecprofile"};
+
     /// Map a definition's kind label to its typed Kind.
     static Augmented::Kind kind_from_string_(const std::string &s)
     {
@@ -362,7 +367,7 @@ namespace housepi
             const bool is_obs = deftable_.c_kind[k] == Kind::Obs;
             // a deterministic node forwards its parameters to the observation it feeds
             const bool to_obs = is_obs ||
-                (na::is(deftable_.c_prior[k]) && feeds_obs[khold(deftable_.c_name[k])]);
+                                (na::is(deftable_.c_prior[k]) && feeds_obs[khold(deftable_.c_name[k])]);
 
             for (const std::vector<std::string> *col : deftable_.source_cols())
                 for (const std::string &pstr : parse::Definition((*col)[k]).list_parameter_depen())
@@ -512,6 +517,21 @@ namespace housepi
             set_definition_dependency_order_for_(status::MISSING, status::MISSING);
     }
 
+    str_table Augmented::build_augm_graph_(const std::vector<size_t> &rows) const
+    {
+        // producer map: each definition name -> the augmented names it reads (@A),
+        // gathered across every source column (value/prior/func/min/max).
+        str_table graph;
+        for (size_t k : rows)
+        {
+            std::vector<std::string> xdepen = {};
+            for (const std::vector<std::string> *col : deftable_.source_cols())
+                xdepen += parse::Definition((*col)[k]).list_augmented_depen();
+            graph[deftable_.c_name[k]] = str::unique(xdepen);
+        }
+        return graph;
+    }
+
     void Augmented::set_definition_dependency_order_for_(int status, int err_status)
     {
         // skip if already passed
@@ -523,16 +543,11 @@ namespace housepi
                 "No definitions were compatible with augmented status " +
                 std::to_string(status) + ".");
 
-        str_table tree;           // populate augmented dependency tree
-        dict<size_t> name_to_row; // ... and reverse dictionary name-to-row-index
-        for (size_t k : get_unsorted_definition_rows_(status))
-        {
-            std::vector<std::string> xdepen = {};
-            for (const std::vector<std::string> *col : deftable_.source_cols())
-                xdepen += parse::Definition((*col)[k]).list_augmented_depen();
-            tree[deftable_.c_name[k]] = str::unique(xdepen);
+        const std::vector<size_t> rows = get_unsorted_definition_rows_(status);
+        str_table graph = build_augm_graph_(rows); // augmented dependency graph
+        dict<size_t> name_to_row;                  // reverse dictionary name-to-row-index
+        for (size_t k : rows)
             name_to_row[deftable_.c_name[k]] = k;
-        }
 
         // check dependecies and translate order from name to deftable row index
         try
@@ -541,14 +556,14 @@ namespace housepi
             map_status_to_block_.emplace(status, status_blocks_.size());
             status_blocks_.emplace_back(status);
 
-            // Ignore spurios private definition if no kept definition depends on it.
+            // ignore spurious private definition if no kept definition depends on it
             // NOTE: infectivity profile (private) can depend on private
             auto is_kept_consumer = [](const std::string &c)
-            { return !str::is_private(c) || c == infprof::AUGM_FUNC; };
-            for (const std::string &astr : dependency::order_dependencies(tree))
+            { return !str::is_hidden(c) || c == infprof::AUGM_FUNC; };
+            for (const std::string &astr : dpdcy::order_dependencies(graph))
             {
-                const auto consumers = dependency::order_conditioned_on(astr, tree);
-                if (astr == infprof::AUGM_FUNC || !str::is_private(astr) ||
+                const auto consumers = dpdcy::transitive_consumers(astr, graph);
+                if (astr == infprof::AUGM_FUNC || !str::is_hidden(astr) ||
                     std::any_of(consumers.begin(), consumers.end(), is_kept_consumer))
                     status_blocks_.back().order.emplace_back(name_to_row[astr]);
             }
@@ -596,14 +611,14 @@ namespace housepi
     {
         StatusBlock_ &block = block_at_(status);
         for (size_t k : block.order)
-            set_sample_list_for_single_defininition_(status, k);
+            set_sample_list_for_single_definition_(status, k);
 
         // NOTE: by construction of draws list, I am forced to drop private at the end
-        list_export = khold(str::drop_private(khold(list_export)));
-        block.draws = khold(str::drop_private(khold(block.draws)));
+        list_export = khold(str::drop_hidden(khold(list_export)));
+        block.draws = khold(str::drop_hidden(khold(block.draws)));
     }
 
-    void Augmented::set_sample_list_for_single_defininition_(int status, size_t k)
+    void Augmented::set_sample_list_for_single_definition_(int status, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
         size_t a = khold(astr);
@@ -714,7 +729,7 @@ namespace housepi
 
         helper_init_prior_list_();
 
-        // define augmented variables for all augmented individuals in ordefr
+        // define augmented variables for all augmented individuals in order
         for (Household &house : mcmc_->data_wide())
             for (size_t i : house.infected_hhindexes())
             {
@@ -735,7 +750,7 @@ namespace housepi
     {
         for (StatusBlock_ &block : status_blocks_)
         {
-            block.depen.resize(khold_.size());
+            block.consumers.resize(khold_.size());
 
             // associate blocks for ordered prior lists
             const str_table &ordered_priors = get_ordered_priors_(block);
@@ -745,37 +760,31 @@ namespace housepi
                 block.priors = khold(read::extract_keys(ordered_priors));
 
                 for (const auto &[astr, others] : ordered_priors)
-                    block.depen[khold(astr)] = khold(others);
+                    block.consumers[khold(astr)] = khold(others);
             }
         }
     }
 
     str_table Augmented::get_ordered_priors_(const StatusBlock_ &block) const
     {
-        str_table tree;                         // populate augmented dependency tree
-        str_table ordered_priors;               // store hierarchical order of priors
-        std::vector<std::string> without_prior; // list of augmented without priors
+        str_table graph = build_augm_graph_(block.order);
+
+        // NOTE: observations hold distributions in c_prior but are NOT priors
+        std::vector<std::string> without_prior; // augmented names without a prior
         for (size_t k : block.order)
-        {
-            const std::string &aumgstr = deftable_.c_name[k];
-            std::vector<std::string> xdepen = {};
-            for (const std::vector<std::string> *col : deftable_.source_cols())
-                xdepen += parse::Definition((*col)[k]).list_augmented_depen();
-
-            // NOTE: observations hold distributions in c_prior but are NOT priors
             if (na::is(deftable_.c_prior[k]) || deftable_.c_kind[k] == Kind::Obs)
-                without_prior.push_back(aumgstr);
-            else
-                tree[aumgstr] = str::unique(xdepen);
-        }
+                without_prior.push_back(deftable_.c_name[k]);
 
-        // prune dependency tree from augmented without prior
-        for (auto &[key, vec] : tree)
+        // keep only prior nodes, and prune priorless dependencies from what remains
+        for (const std::string &name : without_prior)
+            graph.erase(name);
+        for (auto &[key, vec] : graph)
             vec = vec - without_prior;
 
         // assign the ordered consumers of each prior for augmented prior computation
-        for (const auto &[key, vec] : tree)
-            ordered_priors.emplace(key, dependency::order_conditioned_on(key, tree));
+        str_table ordered_priors;
+        for (const auto &[key, vec] : graph)
+            ordered_priors.emplace(key, dpdcy::transitive_consumers(key, graph));
 
         return ordered_priors;
     }
@@ -786,19 +795,11 @@ namespace housepi
         {
             block.obs_depen.resize(khold_.size());
 
-            // direct @A dependency of every block definition (name -> its deps).
             // An observation reaches its sampled ancestors through deterministic
             // nodes, so the inverse map must follow the transitive closure (as the
             // augmented-prior map does), else moving such an ancestor would skip
             // the observation ratio.
-            str_table tree;
-            for (size_t k : block.order)
-            {
-                std::vector<std::string> xdepen = {};
-                for (const std::vector<std::string> *col : deftable_.source_cols())
-                    xdepen += parse::Definition((*col)[k]).list_augmented_depen();
-                tree[deftable_.c_name[k]] = str::unique(xdepen);
-            }
+            str_table graph = build_augm_graph_(block.order);
 
             for (size_t k : block.order)
             {
@@ -820,9 +821,7 @@ namespace housepi
 
                 // register the observation under every augmented it transitively
                 // reads, so moving any (sampled) ancestor recomputes it
-                std::vector<std::string> visited, recursion_stack, depen;
-                dependency::walk_tree(deftable_.c_name[k], tree, visited, recursion_stack, depen);
-                for (const std::string &lstr : depen)
+                for (const std::string &lstr : dpdcy::transitive_producers(deftable_.c_name[k], graph))
                     if (lstr != deftable_.c_name[k])
                         block.obs_depen[khold(lstr)].push_back(obs_key);
             }
@@ -895,22 +894,28 @@ namespace housepi
     /////////////////////  Augmented : data-bound household observations (simulation)  /////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Data names (@D) referenced by 'expr' that are also in 'names'.
+    std::vector<std::string> referred_data(std::string_view expr,
+                                           const std::vector<std::string> &names)
+    {
+        parse::Definition def(expr);
+        std::vector<std::string> output = {};
+        if (def.is_na())
+            return output;
+        for (const std::string &dstr : def.list_data_wide_depen())
+            if (contains(names, dstr))
+                output.push_back(dstr);
+        return output;
+    }
+
     bool Augmented::house_obs_is_live_(size_t k) const
     {
         // live iff a source references an observation node's data column, i.e. a
         // column generated during simulation rather than fixed input data.
-        std::vector<std::string> obs_names;
-        for (size_t a : list_obs_export)
-            obs_names.push_back(khold(a));
+        const std::vector<std::string> obs_names = khold(list_obs_export);
         for (const std::vector<std::string> *col : deftable_.source_cols())
-        {
-            const std::string &expr = (*col)[k];
-            if (na::is(expr))
-                continue;
-            for (const std::string &d : parse::Definition(expr).list_data_wide_depen())
-                if (contains(obs_names, d))
-                    return true;
-        }
+            if (!referred_data((*col)[k], obs_names).empty())
+                return true;
         return false;
     }
 
@@ -933,20 +938,14 @@ namespace housepi
             if (deftable_.c_kind[k] != Kind::Augm)
                 continue;
             for (const std::vector<std::string> *col : deftable_.source_cols())
-            {
-                const std::string &expr = (*col)[k];
-                if (na::is(expr))
-                    continue;
-                for (const std::string &dstr : parse::Definition(expr).list_data_wide_depen())
-                    if (contains(live_names, dstr))
-                        msg::stop(
-                            "Cyclic dependency for simulation: augmented " + msg::val(deftable_.c_name[k]) +
-                            " reads data column " + msg::val(dstr) + ", a household observation derived from a "
-                                                                       "generated observation that depends on augmented variables.\n"
-                                                                       "Define " +
-                            msg::val(deftable_.c_name[k]) + " without referencing " + msg::val(dstr) +
-                            " (an anchor-free distribution; the likelihood is invariant to the time origin).");
-            }
+                for (const std::string &dstr : referred_data((*col)[k], live_names))
+                    msg::stop(
+                        "Cyclic dependency for simulation: augmented " + msg::val(deftable_.c_name[k]) +
+                        " reads data column " + msg::val(dstr) + ", a household observation derived from a "
+                                                                 "generated observation that depends on augmented variables.\n"
+                                                                 "Define " +
+                        msg::val(deftable_.c_name[k]) + " without referencing " + msg::val(dstr) +
+                        " (an anchor-free distribution; the likelihood is invariant to the time origin).");
         }
     }
 
@@ -958,29 +957,12 @@ namespace housepi
         // entry-point data column of each single observation node
         const std::vector<std::string> obs_names = khold(list_obs_export);
 
-        // augmented dependency tree (name -> @A deps), accumulated across status rows
-        str_table tree;
+        // augmented dependency graph (name -> @A deps), over augmented + obs rows
+        std::vector<size_t> rows;
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-        {
-            if (deftable_.c_kind[k] != Kind::Augm &&
-                deftable_.c_kind[k] != Kind::Obs)
-                continue;
-            std::vector<std::string> &deps = tree[deftable_.c_name[k]];
-            for (const std::vector<std::string> *col : deftable_.source_cols())
-                deps += parse::Definition((*col)[k]).list_augmented_depen();
-            deps = str::unique(deps);
-        }
-
-        const auto data_obs_refs = [&](const std::string &expr)
-        {
-            std::vector<std::string> hits;
-            if (na::is(expr))
-                return hits;
-            for (const std::string &dstr : parse::Definition(expr).list_data_wide_depen())
-                if (contains(obs_names, dstr))
-                    hits.push_back(dstr);
-            return hits;
-        };
+            if (deftable_.c_kind[k] == Kind::Augm || deftable_.c_kind[k] == Kind::Obs)
+                rows.push_back(k);
+        const str_table graph = build_augm_graph_(rows);
 
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
@@ -988,11 +970,15 @@ namespace housepi
                 continue;
             const std::string &name = deftable_.c_name[k];
 
+            // The two rules below partition DefTable_::source_cols() by role: the
+            // prior support {prior,min,max} vs the deterministic value {value,func}.
+            // Keep them in sync with source_cols() if that set ever changes.
+
             // Rule 1: a sampled quantity's prior (distribution + support) must not read an
             // observation. A prior may only depend on parameters and other latents.
             if (!na::is(deftable_.c_prior[k]))
                 for (const std::string *col : {&deftable_.c_prior[k], &deftable_.c_min[k], &deftable_.c_max[k]})
-                    for (const std::string &dstr : data_obs_refs(*col))
+                    for (const std::string &dstr : referred_data(*col, obs_names))
                         msg::stop(
                             "Definition collision: the prior of " + msg::val(name) + " reads observation " + msg::val(dstr) +
                             ".\nA prior cannot depend on an observed or generated value.");
@@ -1000,12 +986,12 @@ namespace housepi
             // Rule 2: a deterministic definition may read an observation (a downstream
             // readout) unless it closes a loop: the observation transitively depends on it.
             for (const std::string *col : {&deftable_.c_value[k], &deftable_.c_func[k]})
-                for (const std::string &dstr : data_obs_refs(*col))
+                for (const std::string &dstr : referred_data(*col, obs_names))
                 {
                     if (dstr == name)
                         continue; // observation node reading its own entry column
                     // loop iff the observation 'd' is a (transitive) consumer of 'name'
-                    const auto consumers = dependency::order_conditioned_on(name, tree);
+                    const auto consumers = dpdcy::transitive_consumers(name, graph);
                     if (contains(consumers, dstr))
                         msg::stop(
                             "Cyclic definition: " + msg::val(name) + " reads observation " + msg::val(dstr) +
@@ -1021,7 +1007,7 @@ namespace housepi
             return;
 
         // entry-point data column of each single observation node
-        std::vector<std::string> obs_names = khold(list_obs_export);
+        const std::vector<std::string> obs_names = khold(list_obs_export);
 
         const auto reject = [&](const std::string &origin, const std::string &d)
         {
@@ -1067,9 +1053,7 @@ namespace housepi
 
             // reduction: compose the (variadic) function once
             hvar.init_function(compose_func_registries(
-                parser.root.func, "function",
-                {"custom", "transcendental", "arithmetic",
-                 "continuos", "discrete", "infecprofile"},
+                parser.root.func, "function", AUGM_FUNC_REGISTRIES,
                 str::tobool(deftable_.c_fcumul[k])));
 
             // bind operands: a data (@D) source is spread one live operand per member;
@@ -1159,8 +1143,8 @@ namespace housepi
         const size_t k = status_obs_def_;
         const std::string &astr = deftable_.c_name[k];
 
-        // status must be weights must be constant data: a status fixed in the data contributes
-        // a constant to the likelihood, dropped during inference.
+        // a status observation's weights must be constant data: a status fixed in the
+        // data contributes a constant to the likelihood, dropped during inference.
         // NOTE: outcome k resolves to infected status (INFECTED + k); the matching
         // augmented/observation block is selected at simulation (status-specific if
         // declared, otherwise the generic one), so no block count is enforced here.
@@ -1194,7 +1178,7 @@ namespace housepi
             if (!house_obs_is_pure_data_(k))
                 msg::stop(
                     "Data-bound household observation " + msg::val(astr) + "must be a pure function of data.\n"
-                    "Live observations are only meaningful in simulation.");
+                                                                           "Live observations are only meaningful in simulation.");
 
             const size_t d = data_wide.khold(astr);
             for (size_t H = 0; H < n_houses; ++H)
@@ -1361,10 +1345,7 @@ namespace housepi
         // function mode
         bool is_primitive = str::tobool(deftable_.c_fcumul[k]);
         avar.init_function(compose_func_registries(
-            parser.root.func, "function",
-            {"custom", "transcendental", "arithmetic",
-             "continuos", "discrete", "infecprofile"},
-            is_primitive));
+            parser.root.func, "function", AUGM_FUNC_REGISTRIES, is_primitive));
 
         // attribute
         for (const auto &child : parser.root.children)
@@ -1510,11 +1491,11 @@ namespace housepi
     double Augmented::commit_augm_log_prior_ratio(Individual &member, size_t a)
     {
         const StatusBlock_ &block = block_of_(member);
-        if (block.depen[a].empty())
+        if (block.consumers[a].empty())
             return 0.;
         double delta_ll = 0;
-        // NOTE: vector of dependencies 'depen' includes also 'a'
-        for (size_t b : block.depen[a])
+        // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
+        for (size_t b : block.consumers[a])
             delta_ll += varia_of_(member).vec[b].prior_log_ratio();
         varia_of_(member).log_prior.increment(delta_ll);
         return delta_ll;

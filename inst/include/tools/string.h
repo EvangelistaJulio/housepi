@@ -13,9 +13,9 @@
 
 namespace housepi::str
 {
-    constexpr size_t MAX_PRINT = 5;         /// Max elements to print
-    constexpr size_t MIN_DIST = 2;          /// Similarity threshold distance
-    const std::string PRIVATE_PREFIX = "."; /// Prefix for hidden objects
+    constexpr size_t MAX_PRINT = 5;        /// Max elements to print
+    constexpr size_t MIN_DIST = 2;         /// Similarity threshold distance
+    const std::string HIDDEN_PREFIX = "."; /// Prefix for hidden objects
 
     /// Convert to upper case.
     std::string toup(std::string s);
@@ -40,12 +40,12 @@ namespace housepi::str
 
     /// Wheter a string starts with a pattern.
     bool starts_with(std::string_view s, std::string_view pattern) noexcept;
-    /// Wheter a name has been tagged as private.
-    inline bool is_private(std::string_view s) noexcept { return starts_with(s, PRIVATE_PREFIX); }
+    /// Wheter a name has been tagged as hidden.
+    inline bool is_hidden(std::string_view s) noexcept { return starts_with(s, HIDDEN_PREFIX); }
     /// Make list composed of distinct entries.
     std::vector<std::string> unique(const std::vector<std::string> &v);
-    /// Drop private strings from list.
-    std::vector<std::string> drop_private(std::vector<std::string> v);
+    /// Drop hidden strings from list.
+    std::vector<std::string> drop_hidden(std::vector<std::string> v);
 
     /// Find the closest match.
     /// NOTE: I find 'show all available options' annoying at the moment...

@@ -251,9 +251,9 @@ namespace housepi::str
         return out;
     }
 
-    std::vector<std::string> drop_private(std::vector<std::string> vec)
+    std::vector<std::string> drop_hidden(std::vector<std::string> vec)
     {
-        auto new_end = std::remove_if(vec.begin(), vec.end(), is_private);
+        auto new_end = std::remove_if(vec.begin(), vec.end(), is_hidden);
         vec.erase(new_end, vec.end());
         return vec;
     }
@@ -388,16 +388,16 @@ namespace housepi::read
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace housepi::dependency
+namespace housepi::dpdcy
 {
-    void walk_tree(const std::string &entry,
-                   const str_table &tree,
-                   std::vector<std::string> &visited,
-                   std::vector<std::string> &recursion_stack,
-                   std::vector<std::string> &ordered)
+    void walk_graph(const std::string &entry,
+                    const str_table &graph,
+                    std::vector<std::string> &visited,
+                    std::vector<std::string> &recursion_stack,
+                    std::vector<std::string> &ordered)
     {
         // FIXME: this is not presenting the error type...
-        if (!tree.count(entry))
+        if (!graph.count(entry))
             msg::stop(
                 "Could not find a definition for " + msg::val(entry) + ".");
 
@@ -409,8 +409,8 @@ namespace housepi::dependency
             return;
 
         recursion_stack.push_back(entry);
-        for (const std::string &dep : tree.at(entry))
-            walk_tree(dep, tree, visited, recursion_stack, ordered);
+        for (const std::string &dep : graph.at(entry))
+            walk_graph(dep, graph, visited, recursion_stack, ordered);
 
         recursion_stack = recursion_stack - std::vector<std::string>({entry});
         visited.push_back(entry);
@@ -422,11 +422,11 @@ namespace housepi::dependency
         std::vector<std::string> visited, recursion_stack, ordered;
         for (const auto &[a, vec] : graph)
             if (!contains(visited, a))
-                walk_tree(a, graph, visited, recursion_stack, ordered);
+                walk_graph(a, graph, visited, recursion_stack, ordered);
         return ordered;
     }
 
-    std::vector<std::string> order_conditioned_on(const std::string &start, const str_table &graph)
+    std::vector<std::string> transitive_consumers(const std::string &start, const str_table &graph)
     {
         // construct a reversed graph for dependents
         str_table reverse_graph;
@@ -443,10 +443,19 @@ namespace housepi::dependency
         // walk dependents of start
         std::vector<std::string> visited, recursion_stack, ordered;
         for (const std::string &dep : reverse_graph.at(start))
-            walk_tree(dep, reverse_graph, visited, recursion_stack, ordered);
+            walk_graph(dep, reverse_graph, visited, recursion_stack, ordered);
 
         std::reverse(ordered.begin(), ordered.end());
         return std::vector<std::string>({start}) + ordered;
+    }
+
+    std::vector<std::string> transitive_producers(const std::string &start, const str_table &graph)
+    {
+        // walk_graph accumulates 'start' and its dependencies in post-order,
+        // i.e. producer-before-consumer, with 'start' last.
+        std::vector<std::string> visited, recursion_stack, ordered;
+        walk_graph(start, graph, visited, recursion_stack, ordered);
+        return ordered;
     }
 }
 

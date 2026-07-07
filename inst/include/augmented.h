@@ -252,11 +252,12 @@ namespace housepi
 
             std::vector<size_t> order = {}; /// definition order as in the deftable
 
-            std::vector<size_t> priors = {};             /// keys for priors
-            std::vector<size_t> sample = {};             /// keys for sample
-            std::vector<size_t> adaptive = {};           /// keys for adaptive (subset of sample)
-            std::vector<size_t> draws = {};              /// keys for draws
-            std::vector<std::vector<size_t>> depen = {}; /// keys for respective dependecies
+            std::vector<size_t> priors = {};   /// keys for priors
+            std::vector<size_t> sample = {};   /// keys for sample
+            std::vector<size_t> adaptive = {}; /// keys for adaptive (subset of sample)
+            std::vector<size_t> draws = {};    /// keys for draws
+            /// key -> key and its transitive consumers
+            std::vector<std::vector<size_t>> consumers = {};
 
             std::vector<size_t> obs = {};                    /// keys for observation nodes
             std::vector<std::vector<size_t>> obs_depen = {}; /// latent key -> obs nodes conditioned on it
@@ -290,6 +291,10 @@ namespace housepi
         /// NOTE: this assume definitions are univocal and status correct.
         void helper_build_set_allocation_order_();
 
+        /// Build the augmented producer graph (name -> the @A names it reads across
+        /// all source columns) for the given definition rows.
+        str_table build_augm_graph_(const std::vector<size_t> &rows) const;
+
         /// Set dependecies ordering for ininitializiation fo given status.
         /// At the same time assert that definition are complet and acyclic.
         void set_definition_dependency_order_for_(int status, int err_status);
@@ -298,7 +303,7 @@ namespace housepi
         /// Set sample and draws list for given status.
         void set_sample_list_(int status);
         /// Set sample and draws list for given definition.
-        void set_sample_list_for_single_defininition_(int status, size_t k);
+        void set_sample_list_for_single_definition_(int status, size_t k);
 
         /// Inspect if constant definition.
         std::pair<bool, bool> set_sample_list_for_function_(int status, size_t k);
