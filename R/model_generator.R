@@ -35,7 +35,7 @@ assert_household_data <- function(data, model) {
     sms <- c("Data should be an object of class {.cls data.frame}.",
              format_type_error(data))
     if (.is.blank(data)) sms <- c(sms,
-      i = "Did you mean {.code new_housepi_model(model = \"blank\")}?"
+      "Did you mean {.code new_housepi_model(model = \"blank\")}?"
     )
     stop_h(sms)
   }

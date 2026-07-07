@@ -140,7 +140,7 @@ test_that("Group rates sentinels work correctly", {
   # incomplete custom prior definition
   hhmodel |>
     add_group_rate("susceptibility", by = "sex", max = 3) |>
-    expect_error("must be specified")
+    expect_error("spare prior arguments")
 
   # FIXME: this should fire!
   # hhmodel |>

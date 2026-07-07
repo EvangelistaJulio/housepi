@@ -16,7 +16,7 @@ posterior::summarize_draws
 # Thresholds for the post-inference diagnostic warnings.
 diagnostic_ <- list(
   ss_min = 400,    # min sample size # Vehtari 2021
-  rhat_max = 1.05,
+  rhat_max = 1.05, # max Rhat # Vehtari 2021
   neff_min = 0.1   # ESS ratio (see bayesplot::mcmc_neff)
 )
 
@@ -276,7 +276,7 @@ HousepiPosteriorDraws <- R6::R6Class(
                 as_plural(draws_kind, length(only_bulk)),
                 100. * neff_min,
                 character_to_string_list(sm$variable[only_bulk])),
-        "Mean and median may be unreliable."
+        "Estimates may be unreliable."
       )
       if (length(sms) > 0L) warn_h(sms)
       invisible()

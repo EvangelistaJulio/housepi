@@ -305,7 +305,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 #' @return `list`
 #' @keywords internal
 #' @noRd
-set_group_rates_mcmc_setup <- function(prior, args, min, max,
+set_group_rates_mcmc_setup <- function(name, prior, args, min, max,
                                        proposal, proposal_scale) {
   # check wheter default configuration
   is_default <- sapply(c(prior, args, min, max, proposal, proposal_scale),
@@ -317,8 +317,8 @@ set_group_rates_mcmc_setup <- function(prior, args, min, max,
   } else {
     # if prior is default -> spare arguments
     if (is_default[1]) stop_h(
-      "If any prior argument is provided for rate, {.arg prior} must be specified.",
-      "Either leave all arguments as defaults or provide a new definition."
+      "Found spare prior arguments for rate {.val {name}}.",
+      "Either leave all as defaults or provide a {.arg prior}."
     )
     # else go with user choice
     c(list(prior = prior), args,
@@ -402,8 +402,8 @@ HousepiGroupRate <- R6::R6Class(
       # require .reference row unless reference is explicitly ".none"
       none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
       if (!none_ref && !".reference" %in% strata$param_name) stop_h(
-        "Custom logic table must contain a {.val .reference} row.",
-        paste0("Designate one row's param_name as {.val .reference},",
+        "Custom {.arg strata} must contain a {.val .reference} row.",
+        paste0("Designate one row of {.field param_name} as {.val .reference},",
                " or pass {.code reference = \".none\"} to explicitly drop it.")
       )
       # validate params keys against logic table param_names
@@ -502,10 +502,10 @@ HousepiGroupRate <- R6::R6Class(
           data_vals <- unique(data_wide[[col]])
           missing_vals <- setdiff(as.character(vals), as.character(data_vals))
           if (length(missing_vals) > 0) warn_h(
-            sprintf("Rate {.val %s} definition %s not found in data {.field %s}:%s",
-                    rate_id, as_plural("value", length(missing_vals), "s"), col,
-                    character_to_string_list(missing_vals)),
-            `!` = "Corresponding logic table entry will be skipped."
+            sprintf("Unknown %s for rate {.val %s} in data {.field %s}:%s",
+                    as_plural("definition", length(missing_vals), "s"),
+                    rate_id, col, character_to_string_list(missing_vals)),
+            `!` = "Associated entries will be skipped."
           )
         }
         # add counts
@@ -693,7 +693,7 @@ HousepiGroupRate <- R6::R6Class(
 
       # store shared MCMC setup (eventually overwrite)
       self$raw_params[[name]] <- set_group_rates_mcmc_setup(
-        prior = prior, args = args, min = min, max = max,
+        name = name, prior = prior, args = args, min = min, max = max,
         proposal = proposal, proposal_scale = proposal_scale
       )
 

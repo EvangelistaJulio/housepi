@@ -114,11 +114,12 @@ HousepiModel <- R6::R6Class(
       clash <- intersect(house_obs, cols)
       if (isTRUE(capital) && length(clash) > 0) stop_h(
         "Household observation {.field {clash}} cannot stand in for required data.",
-        "It is already provided as a data column."
+        `!` = "It is already provided as a data column."
       )
       cols <- c(cols, intersect(house_obs, required))
 
-      sms <- template_missing_stop(required, cols, "data")
+      sms <- template_missing_stop(required, cols, "data",
+                                   noun = "column", style = "field")
       if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
       else sms
     },

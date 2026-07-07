@@ -101,6 +101,12 @@ assert_valid_defin_node <- function(x) {
   )
 }
 
+# Label a leaf operand.
+housepi_label_leaf <- function(y) {
+  if (rlang::is_syntactic_literal(y) && is.numeric(y)) as.character(y)
+  else rlang::as_label(y)
+}
+
 # Helper to extract functin from call.
 housepi_func_from_call <- function(call) {
   args <- lapply(rlang::call_args(call), strip_useless_parens)
@@ -128,7 +134,7 @@ housepi_func_from_call <- function(call) {
       func_args[[paste0("x", i)]] <- ifelse(
         rlang::is_call(y) && rlang::call_name(y) != "@",
         housepi_func_from_call(y),
-        rlang::as_label(y)
+        housepi_label_leaf(y)
       )
     }
     names(func_args)[1] <- "x"
@@ -362,7 +368,7 @@ get_template_def_list <- function(path, family) {
   # check if template file exists
   if (!file.exists(templ_file)) stop_h(
     "Impossible to use templated {family} definitions.",
-    `!` = "A file with template definitions was not found."
+    "A file with template definitions was not found."
   )
   # get template definition list and convert to quosures
   dget(templ_file)

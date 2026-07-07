@@ -79,10 +79,12 @@ associate_contact_param_names <- function(this_table, prefix, reference,
     idx_refer <- unname(which(refer_mask))
     if (length(idx_refer) != 1) stop_h(
       "Provided reference contact rate is not valid.",
-      sprintf("The pair %s %s %s is never observed.",
-              character_to_phrase(reference$from, quote = TRUE, and = FALSE),
-              ifelse(symmetric, "<->", "-->"),
-              character_to_phrase(reference$to, quote = TRUE, and = FALSE))
+      `!` = sprintf(
+        "The pair %s %s %s is never observed.",
+        character_to_phrase(reference$from, quote = TRUE, and = FALSE),
+        ifelse(symmetric, "<->", "-->"),
+        character_to_phrase(reference$to, quote = TRUE, and = FALSE)
+      )
     )
   }
 
@@ -245,8 +247,8 @@ HousepiContactRate <- R6::R6Class(
       none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
       if (!none_ref && !".reference" %in% strata$param_name) stop_h(
         "Custom logic table must contain a {.val .reference} row.",
-        "Designate one row's param_name as {.val .reference},",
-        "or pass {.code reference = \".none\"} to opt out."
+        paste("Designate one row's param_name as {.val .reference},",
+              "or pass {.code reference = \".none\"} to opt out.")
       )
       # cast feature columns to character (consistent with auto mode)
       feat_cols <- setdiff(colnames(strata), rate_reserved_cols)
@@ -269,6 +271,8 @@ HousepiContactRate <- R6::R6Class(
         # retrieve covariates
         this_feat <- sub("^from_", "",
                          grep("^from_", names(this_table), value = TRUE))
+        # validate that feature columns exist in data
+        assert_data_features(this_feat, colnames(data_wide))
 
         if (symmetric) this_table <- fill_symmetric_gaps(this_table)
         # FIXME: this is a manual fix, I can't find the source of extra 'n'

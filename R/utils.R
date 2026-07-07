@@ -142,12 +142,14 @@ format_there_were_was <- function(len_list, max_print = 4) {
 #' @param mylist `character()` Vector to print.
 #' @param quote `logical(1)` Whether to add quotes.
 #' @param and `logical(1)` Whether to include a 'and'.
+#' @param style `character(1)` cli markup class wrapping each item.
 #' @return `character(1)`
 #' @noRd
-character_to_phrase <- function(mylist, quote = FALSE, and = TRUE) {
+character_to_phrase <- function(mylist, quote = FALSE, and = TRUE,
+                                style = "val") {
   if (length(mylist) == 0) return(NULL)
-  # eventually wrap in cli value markup (styled downstream at emit time)
-  if (isTRUE(quote)) mylist <- paste0("{.val ", mylist, "}")
+  # eventually wrap in cli markup (styled downstream at emit time)
+  if (isTRUE(quote)) mylist <- paste0("{.", style, " ", mylist, "}")
   # let cli collapse; " and " before the last item, or plain comma without it
   cli::ansi_collapse(mylist, sep = ", ",
                      last = if (isTRUE(and)) " and " else ", ", trunc = Inf)
@@ -157,14 +159,15 @@ character_to_phrase <- function(mylist, quote = FALSE, and = TRUE) {
 #' The leading space separates the list from the text that introduces it.
 #' @param mylist `character()` List to be printed.
 #' @param max_print `integer(1)` Maximum number of elements to print.
+#' @param style `character(1)` cli markup class wrapping each item.
 #' @return `character(1)`
 #' @noRd
-character_to_string_list <- function(mylist, max_print = 4) {
+character_to_string_list <- function(mylist, max_print = 4, style = "val") {
   len_list <- length(mylist)
   max_print <- min(max_print, len_list, na.rm = TRUE)
   overflow <- len_list > max_print
   sms <- character_to_phrase(mylist[seq_len(max_print)],
-                             quote = TRUE, and = !overflow)
+                             quote = TRUE, and = !overflow, style = style)
   paste0(" ", sms, ifelse(overflow, ", ...", "."))
 }
 

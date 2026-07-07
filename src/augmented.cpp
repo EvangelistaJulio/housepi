@@ -313,7 +313,9 @@ namespace housepi
     /// Check augmented names and assert no reserved names are used.
     void Augmented::helper_build_assert_input_(const str_table &input)
     {
-        deftable_.clear();
+        // skip if no definitions
+        if (input.empty())
+            return;
 
         for (const std::string &astr : input.at("name"))
         {
@@ -323,6 +325,7 @@ namespace housepi
                     msg::val(astr) + ".\nPlease, choose a different one.");
         }
 
+        deftable_.clear();
         deftable_.append(input);
     }
 
@@ -340,6 +343,15 @@ namespace housepi
         prior_param_depen_.assign(mcmc_->param.khold().size(), false);
         obs_param_depen_.assign(mcmc_->param.khold().size(), false);
 
+        // augmented nodes that (transitively) feed an observation, from the obs
+        // inverse-dependency map: a parameter read by such a deterministic node
+        // moves the observation through the node's value, not only the prior
+        std::vector<bool> feeds_obs(khold_.size(), false);
+        for (const StatusBlock_ &block : status_blocks_)
+            for (size_t a = 0; a < block.obs_depen.size(); ++a)
+                if (!block.obs_depen[a].empty())
+                    feeds_obs[a] = true;
+
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
             if (deftable_.c_name[k] == infprof::AUGM_FUNC ||
@@ -347,11 +359,20 @@ namespace housepi
                 deftable_.c_kind[k] == Kind::Status)
                 continue;
 
-            std::vector<bool> &vec =
-                deftable_.c_kind[k] == Kind::Obs ? obs_param_depen_ : prior_param_depen_;
+            const bool is_obs = deftable_.c_kind[k] == Kind::Obs;
+            // a deterministic node forwards its parameters to the observation it feeds
+            const bool to_obs = is_obs ||
+                (na::is(deftable_.c_prior[k]) && feeds_obs[khold(deftable_.c_name[k])]);
+
             for (const std::vector<std::string> *col : deftable_.source_cols())
                 for (const std::string &pstr : parse::Definition((*col)[k]).list_parameter_depen())
-                    vec[mcmc_->param.khold(pstr)] = true;
+                {
+                    const size_t p = mcmc_->param.khold(pstr);
+                    if (!is_obs)
+                        prior_param_depen_[p] = true;
+                    if (to_obs)
+                        obs_param_depen_[p] = true;
+                }
         }
     }
 
@@ -765,6 +786,20 @@ namespace housepi
         {
             block.obs_depen.resize(khold_.size());
 
+            // direct @A dependency of every block definition (name -> its deps).
+            // An observation reaches its sampled ancestors through deterministic
+            // nodes, so the inverse map must follow the transitive closure (as the
+            // augmented-prior map does), else moving such an ancestor would skip
+            // the observation ratio.
+            str_table tree;
+            for (size_t k : block.order)
+            {
+                std::vector<std::string> xdepen = {};
+                for (const std::vector<std::string> *col : deftable_.source_cols())
+                    xdepen += parse::Definition((*col)[k]).list_augmented_depen();
+                tree[deftable_.c_name[k]] = str::unique(xdepen);
+            }
+
             for (size_t k : block.order)
             {
                 if (deftable_.c_kind[k] != Kind::Obs)
@@ -783,12 +818,13 @@ namespace housepi
                 is_any_obs_ = true;
                 block.obs.push_back(obs_key);
 
-                // store observations that depend on augmented
-                std::vector<std::string> depen = {};
-                for (const std::vector<std::string> *col : deftable_.source_cols())
-                    depen += parse::Definition((*col)[k]).list_augmented_depen();
-                for (const std::string &lstr : str::unique(depen))
-                    block.obs_depen[khold(lstr)].push_back(obs_key);
+                // register the observation under every augmented it transitively
+                // reads, so moving any (sampled) ancestor recomputes it
+                std::vector<std::string> visited, recursion_stack, depen;
+                dependency::walk_tree(deftable_.c_name[k], tree, visited, recursion_stack, depen);
+                for (const std::string &lstr : depen)
+                    if (lstr != deftable_.c_name[k])
+                        block.obs_depen[khold(lstr)].push_back(obs_key);
             }
         }
     }

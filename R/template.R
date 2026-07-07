@@ -184,7 +184,7 @@ open_model_helper_ <- function(path) {
   info_file <- file.path(path, "info.Rd")
   if (!file.exists(info_file)) stop_h(
     "Impossible to show model description.",
-    "No template info available for the given model."
+    `!` = "No template info available for the given model."
   )
 
   # load system + Rdpack macros so \doi and \insertRef{key}{housepi}
@@ -244,7 +244,7 @@ browse_housepi_templates <- function(name = NA_character_,
   # asking for copying template to folder with model
   else if (file.exists(file.path(path, "model.cpp")) && !replace) warn_h(
     "A model already exists in the specified folder.",
-    "If you want to replace it, run again with option {.code replace = TRUE}."
+    "To replace it, run again with option {.code replace = TRUE}."
   )
   # asking for copying template to empty folder
   else copy_template_to_path(name, path)
@@ -298,10 +298,13 @@ template_missing_find <- function(required, defined) {
 #' @param defined `character()` Current definitions.
 #' @param holder `character(1)` Name of the definition holder.
 #' @param max_print `integer(1)` Maximum number of elements to print.
+#' @param noun `character(1)` Word naming the missing entries.
+#' @param style `character(1)` cli markup class wrapping each entry.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-template_missing_stop <- function(required, defined, holder, max_print = 4) {
+template_missing_stop <- function(required, defined, holder, max_print = 4,
+                                  noun = "definition", style = "val") {
   miss <- template_missing_find(required, defined)
   # find sources of missing definitions
   sources <- unique(names(required[required %in% miss]))
@@ -312,8 +315,9 @@ template_missing_stop <- function(required, defined, holder, max_print = 4) {
     sprintf("%s missing %s %s%s",
             format_there_were_was(len_miss, max_print = max_print),
             holder,
-            as_plural("definition", len_miss, "s:"),
-            character_to_string_list(miss, max_print = max_print)),
+            as_plural(noun, len_miss, "s:"),
+            character_to_string_list(miss, max_print = max_print,
+                                     style = style)),
     sprintf("%s required by %s definitions.",
             as_plural("", len_miss, "They were", "It was"),
             character_to_phrase(sources))

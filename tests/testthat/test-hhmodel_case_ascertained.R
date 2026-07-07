@@ -379,6 +379,45 @@ test_that("Observation node enters the pointwise log-likelihood", {
   expect_equal(get_log_lik_draws(results)$hh01, ref)
 })
 
+test_that("Observation through a deterministic node constrains its ancestors", {
+  # regression: an observation whose location is a deterministic node
+  # (onset_time = infec_time + incub_period) must propagate the constraint to the
+  # sampled ancestors. Otherwise moving infec_time / incub_period skips the
+  # observation ratio and the latent onset drifts away from the datum.
+  set.seed(42) # 'Solid Snake'
+  house <- data.frame(house_id = "outerheaven",
+                      status = c(1, 1, 1, 0, 0, 0, 0),
+                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
+                      start_date = 0, study_period = 21)
+  house$id <- sprintf("outerheaven_m%s", seq_len(nrow(house)))
+  id_draws <- house[house$status > 0, ]$id
+
+  results <- suppressWarnings(
+    house |>
+      new_housepi_model("case_ascertained", quiet = TRUE) |>
+      add_parameter_template() |>
+      add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
+      add_augmented(
+        incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
+        infec_time   = list(prior = "uniform", min = -14, max = study_period@D,
+                            proposal = "normal"),
+        onset_time   = infec_time@A + incub_period@A
+      ) |>
+      # tightly informative observation reached through the deterministic node
+      add_observation("onset_date", obs = "normal", mean = onset_time@A, sd = 0.2) |>
+      add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
+      run_inference(steps = 400, burn = 100, thin = 1, adapt = 100,
+                    chain = 1, id_draws = id_draws)
+  )
+
+  onset <- get_augmented_draws(results) |>
+    posterior::as_draws_matrix() |>
+    as.data.frame()
+  # the sampled onset (infec_time + incub_period) tracks the observed onset_date
+  recon <- unname(colMeans(onset[, grep("onset_time", names(onset))]))
+  expect_lt(max(abs(recon - house$onset_date[house$status > 0])), 0.5)
+})
+
 test_that("Discretized observation node initializes finite", {
   # regression: a discretized normal obs whose latent onset starts (from the
   # wide infec_time prior) far below the observed onset_date used to yield a

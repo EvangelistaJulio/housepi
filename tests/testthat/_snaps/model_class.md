@@ -30,7 +30,7 @@
     Message
       i Household model "case ascertained" (`template`).
       Model is set to discrete time mode.
-      x Data: there is 1 missing data definition "start_date".
+      x Data: there is 1 missing data column start_date.
         It is required by model definitions.
       x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
         "gamma" and "size_ref".

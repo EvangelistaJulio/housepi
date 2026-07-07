@@ -156,9 +156,7 @@ test_that("Group rate wrappers", {
                           param_name = c("sus_student", ".reference")),
       append = FALSE
     ) |>
-    expect_warning("not found")
-
-  hhmodel$group_rates
+    expect_warning("[Uu]nknown.*member.*kaiju")
 })
 
 test_that("add_contact_rate wrapper input branches", {
