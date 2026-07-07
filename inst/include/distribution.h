@@ -63,7 +63,7 @@ namespace housepi
 			case Trunc::None:
 				return relocate_(cast_discr_(raw_rand_(prng)));
 			default:
-				return relocate_(cast_discr_(inverse_sampling_(prng)));
+				return relocate_(cast_discr_(truncated_rand_(prng)));
 			}
 		}
 		/// Return value of log-probability density/mass function.
@@ -194,13 +194,32 @@ namespace housepi
 			}
 		}
 
-		double inverse_sampling_(rnd_gen &prng) const
+		/// Minimum retained mass for rejection sampling to beat CDF inversion.
+		static constexpr double MAX_REJECT_ACCEPT = 0.5;
+		/// Rejection attempts before falling back to inverse sampling.
+		/// NOTE: succeeds with > 99% proba
+		static constexpr int MAX_REJECT_DRAWS = 8;
+
+		/// Sample from the truncated distribution.
+		/// When truncation window is large, uses rejection-sampling.
+		/// Otherwise falls back to inverse sampling.
+		double truncated_rand_(rnd_gen &prng) const
 		{
 			thread_local static std::uniform_real_distribution<double> unif_gen(0., 1.);
-			const double r = unif_gen(prng);
-			const double sx = lower_.is_empty() ? 0. : (1. - r) * raw_cdf_(lower_.value());
-			const double dx = upper_.is_empty() ? r : r * raw_cdf_(upper_.value());
-			return raw_quantile_(sx + dx);
+
+			const double cdf_lo = lower_.is_empty() ? 0. : raw_cdf_(lower_.value());
+			const double cdf_hi = upper_.is_empty() ? 1. : raw_cdf_(upper_.value());
+			const double accept = cdf_hi - cdf_lo;
+
+			if (accept > MAX_REJECT_ACCEPT)
+				for (int k = 0; k < MAX_REJECT_DRAWS; ++k)
+				{
+					const double x = raw_rand_(prng);
+					if ((lower_.is_empty() || x >= lower_.value()) &&
+						(upper_.is_empty() || x <= upper_.value()))
+						return x;
+				}
+			return raw_quantile_(cdf_lo + unif_gen(prng) * accept);
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////
