@@ -88,7 +88,7 @@ reference:
   contents:
   - starts_with("flu_")
   - sarscov2_2021_icofs
-  - test_house
+  - dummy_household
 
 - title: "Under development"
   desc: >
