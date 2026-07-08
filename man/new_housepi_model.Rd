@@ -23,8 +23,8 @@ One between:
 \item{\verb{<template>}}{a built-in template name;}
 \item{\code{path/to/source}}{folder with implementation file \code{"model.cpp"};}
 \item{\code{path/to/compiled}}{folder with a previously compiled model;}
-\item{\code{"blank"}}{template name for blank model;}
-\item{\code{NA}}{fall back to \code{"blank"} (default).}
+\item{\code{"test"}}{template name for test model;}
+\item{\code{NA}}{fall back to \code{"test"} (default).}
 }}
 
 \item{as_template}{\code{logical(1)} Store dynamic library as a local template.
@@ -58,6 +58,6 @@ used to run inference and simulation routines.
 hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 print(hhmodel)
 
-# 'blank' template provides a minimal model for testing
-new_housepi_model(model = "blank")
+# 'test' template provides a minimal model for testing
+new_housepi_model(model = "test")
 }

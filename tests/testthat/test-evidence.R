@@ -33,7 +33,7 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
   log_evidence <- log(evidence)
 
   hhmodel <- data.frame(house_id = "h", status = 1, x = x) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform", min = !!a, max = !!b) |>
     add_augmented("z", prior = "exponential", rate = theta@P) |>
     add_observation("x", obs = "exponential", rate = z)
@@ -84,9 +84,9 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
 # the chain must sample the whole prior, not stay confined to [y0 - c, y0 + c].
 mk_indicator_model_ <- function(house_id, y0 = 0.5, c = 0.45) {
   data.frame(house_id = house_id, status = 1, y = y0) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
-    add_observation("y", obs = "uniform", min = theta@P - !!c, max = theta@P + !!c)
+    add_observation("y", obs = "uniform", loc = theta@P, min = - !!c, max = !!c)
 }
 
 # retry seeds until a ladder starts (a random prior init may land inadmissible)
@@ -101,13 +101,12 @@ start_ladder_ <- function(make_model, ...) {
   NULL
 }
 
-test_that("inverse temperature 0 samples the full prior under a tempered indicator", {
-  set.seed(3)
+test_that("inverse temperature 0 samples the full prior also with indicator", {
   fit <- mk_indicator_model_("snake") |>
     run_inference(inv_temp = 0, chains = 1L, steps = 4000L, progress = FALSE) |>
     suppressWarnings()
   theta <- posterior::extract_variable(get_parameter_draws(fit), "theta")
-  # the chain must escape the admissible window [0.05, 0.95] (was confined before)
+  # chain must escape the observation window [0.05, 0.95]
   expect_gt(max(theta), 0.95)
   expect_lt(min(theta), 0.05)
   expect_gt(mean(abs(theta - 0.5) >= 0.45), 0.05)
@@ -137,7 +136,7 @@ test_that("tempered indicator with an augmented variable runs at beta=0 without 
   cc <- 0.4
   res <- start_ladder_(function() {
     data.frame(house_id = "liquid", status = 1, x = x0) |>
-      new_housepi_model("blank") |>
+      new_housepi_model("test") |>
       add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
       add_augmented("z", prior = "uniform", min = 0, max = 1) |>
       add_observation("x", obs = "uniform", min = z - !!cc, max = z + !!cc)

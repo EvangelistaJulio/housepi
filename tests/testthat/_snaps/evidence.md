@@ -2,7 +2,7 @@
 
     Code
       print(result)
-    Message
-      i Power posteriors draws of model "blank".
+    Output
+      i Power posteriors draws of model "test".
       Scheme: "adaptive". Rungs: 30.
 

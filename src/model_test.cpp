@@ -14,7 +14,7 @@
 #include "housepi.h"
 
 #ifndef _HOUSEPI_MODULE
-#define _HOUSEPI_MODULE blank
+#define _HOUSEPI_MODULE test
 #endif
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
@@ -30,11 +30,6 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(ParamKey)
-
-	/// No-op: 'blank' is a deliberate choice (and the implicit fallback already
-	/// warns at construction), so evaluation and simulation stay silent.
-	void init_model_for_evaluation() override final {}
-	void init_model_for_simulation() override final {}
 
 	/// Compute transmission log-likelihood within household. Unitary likelihood.
 	double compute_house_transm_log_lik(Household &) override final { return 0.; }

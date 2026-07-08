@@ -19,6 +19,7 @@ One between
 \value{
 named \code{numeric(2)} (\code{estimate}, \code{sd})
 \code{sd} is \code{NA} if method provides no standard-error estimate.
+Logarithms are natural (base \eqn{e}).
 }
 \description{
 Estimate the logarithm of the evidence (aka marginal likelihood) from a

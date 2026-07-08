@@ -5,7 +5,7 @@
     Message
       i Available template models:
       * `augmented_example`
-      * `blank`
       * `case_ascertained`
       * `final_size`
+      * `test`
 

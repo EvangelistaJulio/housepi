@@ -7,19 +7,19 @@ test_that("Compilation flags are ok", {
 test_that("assert_household_data validates inputs", {
   assert_household_data("not a frame", NA_character_) |>
     expect_error("data.frame")
-  assert_household_data("blank", NA_character_) |>
+  assert_household_data("test", NA_character_) |>
     expect_error("new_housepi_model")
   assert_household_data(data.frame(), NA_character_) |>
     expect_error("empty")
   assert_household_data(NULL, NA_character_) |>
     expect_error("Missing argument")
-  assert_household_data(NULL, "blank") |>
+  assert_household_data(NULL, "test") |>
     expect_s3_class("data.frame")
 })
 
 test_that("Model generator inconsistent calls are caught", {
-  # blank household model object
-  hhgen <- HousepiGenerator$new("blank")
+  # household model object
+  hhgen <- HousepiGenerator$new("test")
 
   # helper suggests correect template name
   HousepiGenerator$new("augment exemple") |>
@@ -38,18 +38,18 @@ test_that("Model generator inconsistent calls are caught", {
 })
 
 test_that("Model choice helper handles malformed input", {
-  # NA falls back to 'blank' with a warning
+  # NA falls back to 'test' with a warning
   expect_warning(hhgen <- HousepiGenerator$new(NA_character_),
-                 regexp = "blank")
-  expect_equal(hhgen$name, "blank")
-  expect_true(hhgen$is_blank())
+                 regexp = "test")
+  expect_equal(hhgen$name, "test")
+  expect_true(hhgen$is_test_model())
 
   # non-character input is rejected
   HousepiGenerator$new(42) |>
     expect_error("non-empty")
 
   # length != 1 character input is rejected
-  HousepiGenerator$new(c("blank", "snake_eater")) |>
+  HousepiGenerator$new(c("test", "snake_eater")) |>
     expect_error("non-empty")
 
   # '.' as a model choice is rejected with a clear message
@@ -63,15 +63,15 @@ test_that("Model choice helper handles malformed input", {
 
 test_that("Compile flags are validated against model source", {
   # unknown user flag → stop
-  HousepiGenerator$new("blank", flags = "_HAIDARAAA") |>
+  HousepiGenerator$new("test", flags = "_HAIDARAAA") |>
     expect_error("No visible option")
   # discrete-time flag is only allowed when the model declares it
-  HousepiGenerator$new("blank", discr = TRUE) |>
+  HousepiGenerator$new("test", discr = TRUE) |>
     expect_error("discrete time")
 })
 
 test_that("Active fields are read-only and expose state", {
-  hhgen <- HousepiGenerator$new("blank")
+  hhgen <- HousepiGenerator$new("test")
 
   # all active fields error on assignment
   hhgen |>
@@ -82,8 +82,8 @@ test_that("Active fields are read-only and expose state", {
     )
 
   # field values match expected internals
-  expect_equal(hhgen$raw_name, "blank")
-  expect_equal(hhgen$name, "blank")
+  expect_equal(hhgen$raw_name, "test")
+  expect_equal(hhgen$name, "test")
   expect_true(dir.exists(hhgen$source_dir))
   expect_identical(hhgen$last_flags, character())
   expect_identical(hhgen$cols_data_wide, character())
@@ -94,15 +94,15 @@ test_that("Active fields are read-only and expose state", {
 })
 
 test_that("get_reference points to the model source", {
-  hhgen <- HousepiGenerator$new("blank")
+  hhgen <- HousepiGenerator$new("test")
   ref <- hhgen$get_reference()
   expect_true(file.exists(ref))
   expect_equal(basename(ref), "model.cpp")
 })
 
 test_that("data_required reflects the underlying template", {
-  blank_gen <- HousepiGenerator$new("blank")
-  blank_gen$data_required |>
+  test_gen <- HousepiGenerator$new("test")
+  test_gen$data_required |>
     expect_length(0L)
 
   ait_gen <- HousepiGenerator$new("case ascertained")
@@ -110,26 +110,26 @@ test_that("data_required reflects the underlying template", {
 })
 
 test_that("factorize_data_wide behaves as expected", {
-  hhgen <- HousepiGenerator$new("blank")
+  hhgen <- HousepiGenerator$new("test")
 
   env <- new.env(parent = emptyenv())
-  utils::data("blank_house", package = "housepi", envir = env)
-  hhgen$factorize_data_wide(env$blank_house) |> 
+  utils::data("dummy_household", package = "housepi", envir = env)
+  hhgen$factorize_data_wide(env$dummy_household) |>
     expect_silent()
   hhgen$cols_data_wide |>
-    expect_setequal(colnames(env$blank_house))
+    expect_setequal(colnames(env$dummy_household))
   hhgen$infec_status_set |>
     expect_equal(1L)
   is.list(hhgen$info_data_wide) |>
     expect_true()
 
   # round-trip refactor keeps the original character columns intact
-  reloaded <- hhgen$refactor_data_wide(env$blank_house)
+  reloaded <- hhgen$refactor_data_wide(env$dummy_household)
   reloaded$id |>
-    expect_equal(env$blank_house$id)
+    expect_equal(env$dummy_household$id)
   reloaded$house_id |>
-    expect_equal(env$blank_house$house_id)
-  
+    expect_equal(env$dummy_household$house_id)
+
   # data long format
   hhgen$import_data_long(list(a = 1)) |>
     expect_error("data.frame")
@@ -155,15 +155,14 @@ test_that("user paths, flags and libs reach the compile command", {
 })
 
 test_that("as_template is refused for a built-in template", {
-  expect_warning(hhgen <- HousepiGenerator$new("blank", as_template = TRUE),
+  expect_warning(hhgen <- HousepiGenerator$new("test", as_template = TRUE),
                  regexp = "browse_housepi_templates")
   # construction still succeeds
   expect_false(is.null(hhgen$mcmc_ptr))
 })
 
-test_that("as_template is dropped on the blank fallback", {
-  # a missing model falls back to 'blank': only the fallback warning should
-  # fire, not the contradictory 'cannot store template' one stacked on top
+test_that("as_template is dropped on the 'test' fallback", {
+  # a missing model falls back to 'test': only fallback warning should fire
   warns <- character()
   withCallingHandlers(
     hhgen <- HousepiGenerator$new(as_template = TRUE),
@@ -215,7 +214,7 @@ test_that("an error is raised when tracked referen is lost", {
 
 
 test_that("init_pointers is a no-op when pointers already exist", {
-  hhgen <- HousepiGenerator$new("blank")
+  hhgen <- HousepiGenerator$new("test")
   ptr_before <- hhgen$mcmc_ptr
   expect_false(is.null(ptr_before))
   hhgen$init_pointers()

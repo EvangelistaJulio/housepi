@@ -14,6 +14,7 @@ If \code{NA} (default) it computes for the whole data.}
 }
 \value{
 \code{numeric(1)}. The complete-data log-likelihood.
+Logarithms are natural (base \eqn{e}).
 }
 \description{
 Compute the complete-data log-likelihood of a \code{HousepiModel}:

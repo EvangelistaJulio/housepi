@@ -308,7 +308,7 @@ test_that("Observation-aware initialization", {
   # without observation-aware restart, it would fail with 80% proba per-chain
   # probably of failing on K chains: 1 - 0.2^K
   data.frame(house_id = "shadow_moses", status = 1, x = 0.5) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_augmented("z", prior = "uniform") |>
     add_observation("x", obs = "uniform", loc = z,
                     min = - !!window, max = !!window) |>
@@ -320,7 +320,7 @@ test_that("Observation-aware initialization", {
   # datum x = 5 is unreachable
   # UPDATE: it's the same as above: new-dataset decorator?
   data.frame(house_id = "outer_heaven", status = 1, x = 5) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_augmented("z", prior = "uniform") |>
     add_observation("x", obs = "uniform", loc = z,
                     min = - !!window, max = !!window) |>
@@ -330,7 +330,7 @@ test_that("Observation-aware initialization", {
 
   # sampled parameter in the domain still makes null observation
   data.frame(house_id = "metal_gear", status = 1, x = 5) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform") |>
     add_observation("x", obs = "uniform", min = - theta@P, max = theta@P) |>
     run_inference() |>
@@ -339,7 +339,7 @@ test_that("Observation-aware initialization", {
 
   # generic error
   data.frame(house_id = "metal_gear", status = 1, x = 5) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_parameter("theta", value = 0.3) |>
     add_augmented("z", prior = "uniform") |>
     add_observation("x", obs = "uniform", min = - theta@P, max = theta@P) |>
@@ -351,7 +351,7 @@ test_that("Compressed households forced unique by augmented sampling size the ca
   # identical households compress to one eq-class, augmented sampling forces them
   # unique: the per-eq-class cache must grow to match (else out-of-bounds segfault)
   data.frame(status = rep(1, 5)) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_augmented("z", prior = "exponential", rate = 0.5) |>
     run_inference(steps = 10L, adapt = 0L, chains = 2L, progress = FALSE) |>
     suppressMessages() |>
@@ -365,7 +365,7 @@ test_that("Reading an observation node's column: priors and loops are rejected",
 
   # allowed: a deterministic augmented that just reads the observed value
   data.frame(house_id = "shadow_moses", status = 1, onset = 0.5) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_observation("onset", obs = "uniform", min = 0, max = 1) |>
     add_augmented("ocelot", value = onset@D) |>
     expect_no_error()
@@ -373,7 +373,7 @@ test_that("Reading an observation node's column: priors and loops are rejected",
   # rule 1: a prior must not read an observation (illegal in both modes; caught
   # at eager build, so the construction itself errors)
   data.frame(house_id = "outer_heaven", status = 1, onset = 0.5) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_observation("onset", obs = "uniform", min = 0, max = 1) |>
     add_augmented("latent", prior = "normal", mean = onset@D) |>
     expect_error("prior.*reads.*observation")
@@ -381,7 +381,7 @@ test_that("Reading an observation node's column: priors and loops are rejected",
   # rule 2: a deterministic read that closes a loop (the observation's support
   # depends on the reader) is circular
   data.frame(house_id = "metal_gear", status = 1, onset = 0.5) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_augmented("ocelot", value = onset@D) |>
     add_observation("onset", obs = "uniform", min = ocelot@A, max = 10) |>
     expect_error("[Cc]yclic")

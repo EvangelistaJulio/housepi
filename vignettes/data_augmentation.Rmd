@@ -251,7 +251,7 @@ bayesplot::color_scheme_set(scheme = "orange")
 
 When it comes to data augmentation, we might need to explore different options for the Monte Carlo moves.
 In the following examples we show the differences between move choices that can be performed.
-As shown in [Priors and proposals](priors_and_proposals.html), we can do the testing with the "blank" model.
+As shown in [Priors and proposals](priors_and_proposals.html), we can do the testing with the "test" model.
 We always recommend a visual assessment before choosing a new move.
 
 ```{r}
@@ -259,7 +259,7 @@ We always recommend a visual assessment before choosing a new move.
 #| warning: false
 
 # with model (default sample)
-results <- new_housepi_model(model = "blank") |>
+results <- new_housepi_model(model = "test") |>
   add_augmented("sample_model", prior = "normal", mean = 14) |>
   run_inference()
 ```

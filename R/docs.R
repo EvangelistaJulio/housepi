@@ -17,8 +17,8 @@ One between:
   \\item{`<template>`}{a built-in template name;}
   \\item{`path/to/source`}{folder with implementation file `\"model.cpp\"`;}
   \\item{`path/to/compiled`}{folder with a previously compiled model;}
-  \\item{`\"blank\"`}{template name for blank model;}
-  \\item{`NA`}{fall back to `\"blank\"` (default).}
+  \\item{`\"test\"`}{template name for test model;}
+  \\item{`NA`}{fall back to `\"test\"` (default).}
 }"
 rd_mdl_astmpl_ <- "`logical(1)` Store dynamic library as a local template.
 If `FALSE` recompile the model at every new session (default)."

@@ -25,7 +25,7 @@ test_that("Reject if calling on non-HousepiModel objects", {
 })
 
 test_that("data_wide provided at construction is exposed via get_data_wide", {
-  result <- new_housepi_model(flu_1918_baltimora, "blank")
+  result <- new_housepi_model(flu_1918_baltimora, "test")
   dw <- get_data_wide(result)
   expect_true(is.data.frame(dw))
   expect_true("house_id" %in% colnames(dw))
@@ -40,8 +40,8 @@ test_that("data_wide provided at construction is exposed via get_data_wide", {
 })
 
 test_that("add_data_long and get_data_long work", {
-  hhmodel <- new_housepi_model(model = "blank")
-  # blank model has default data with id = "tommy", "gina"
+  hhmodel <- new_housepi_model(model = "test")
+  # 'test' model has default data with id = "tommy", "gina"
   dl <- data.frame(id = hhmodel$data_wide$id,
                    measure = c(1.5, 2.5))
   result <- add_data_long(hhmodel, dl)
@@ -50,8 +50,8 @@ test_that("add_data_long and get_data_long work", {
   expect_equal(nrow(out), 2)
 })
 
-test_that("Wrappers work as expected on blank model", {
-  hhmodel <- new_housepi_model(model = "blank")
+test_that("Wrappers work as expected on model 'test'", {
+  hhmodel <- new_housepi_model(model = "test")
 
   # parameters
   result <- add_parameter(hhmodel, name = "alpha", value = 0.5)
@@ -79,7 +79,7 @@ test_that("Wrappers work as expected on blank model", {
 })
 
 test_that("Inline weight labels do not collide with add_parameter formals", {
-  hhmodel <- new_housepi_model(model = "blank")
+  hhmodel <- new_housepi_model(model = "test")
 
   # single-letter categorical weights c/d/p used to be partial-matched to the
   # const/discr/prior formals of add_parameter; they must reach the prior call
@@ -93,7 +93,7 @@ test_that("Inline weight labels do not collide with add_parameter formals", {
 })
 
 test_that("Bulk loading via `defs` mirrors inline name = value pairs", {
-  hhmodel <- new_housepi_model(model = "blank")
+  hhmodel <- new_housepi_model(model = "test")
   defs <- list(metal = 1, gear = list(prior = "uniform"))
 
   # an external list passed via `defs` equals the inline dotted form

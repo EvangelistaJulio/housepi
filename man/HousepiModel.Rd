@@ -72,8 +72,8 @@ One between:
 \item{\verb{<template>}}{a built-in template name;}
 \item{\code{path/to/source}}{folder with implementation file \code{"model.cpp"};}
 \item{\code{path/to/compiled}}{folder with a previously compiled model;}
-\item{\code{"blank"}}{template name for blank model;}
-\item{\code{NA}}{fall back to \code{"blank"} (default).}
+\item{\code{"test"}}{template name for test model;}
+\item{\code{NA}}{fall back to \code{"test"} (default).}
 }}
 
 \item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.

@@ -22,8 +22,8 @@
 #' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 #' print(hhmodel)
 #'
-#' # 'blank' template provides a minimal model for testing
-#' new_housepi_model(model = "blank")
+#' # 'test' template provides a minimal model for testing
+#' new_housepi_model(model = "test")
 #' @export
 new_housepi_model <- function(data = NULL, model = NA_character_,
                               as_template = FALSE,
@@ -197,8 +197,8 @@ defs_to_quos_ <- function(import, key, dots, env) {
 # Load default templated definitions shipped with the package.
 add_template_defs_ <- function(pvt, family, append) {
   holder <- if (family == "parameter") pvt$param_ else pvt$augm_
-  if (pvt$generator_$is_blank()) {
-    warn_h("No template {family} definitions available for blank model.")
+  if (pvt$generator_$is_test_model()) {
+    warn_h("No template {family} definitions available for test model.")
   } else {
     defs <- get_template_def_list(pvt$generator_$source_dir, family)
     holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
@@ -346,7 +346,7 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @examples
-#' hhmodel <- blank_house |>
+#' hhmodel <- dummy_household |>
 #'   new_housepi_model("augmented_example") |>
 #'   # define an incubation period drawn from a gamma distribution
 #'   add_augmented("incub_period",

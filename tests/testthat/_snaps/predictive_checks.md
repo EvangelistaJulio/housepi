@@ -2,7 +2,7 @@
 
     Code
       print(ppc)
-    Message
+    Output
       i Posterior predictions for model "final size":
       * sar
       N. replicates: 10

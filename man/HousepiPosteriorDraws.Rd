@@ -46,19 +46,22 @@ Pointwise per-household log-likelihood
 (the latter only when an observation node is defined, otherwise the total
 contracts to transmission). It is conditional on the augmented variables
 \eqn{z}, so loo over these columns is a household-leave-one-out under the
-joint (augmented, parameter) posterior.}
+joint (augmented, parameter) posterior.
+Logarithms are natural (base \eqn{e}).}
 
 \item{\code{lprior_draws}}{\code{posterior::draws_df}.
 Single column \code{lprior}: the joint log-prior
 \eqn{\log p(\theta) + \log p^\mathrm{augm}(z \mid \theta)}, i.e. the
 parameter log-prior plus the augmented-variable log-prior (the latter
-present only with augmented priors).}
+present only with augmented priors).
+Logarithms are natural (base \eqn{e}).}
 
 \item{\code{complete_draws}}{\code{posterior::draws_df}.
 Parameters, pointwise \code{log_lik} and the joint \code{lprior}, named to the
 loo / priorsense convention so it can be passed straight to those tools.
 Note \code{log_lik}/\code{lprior} are evaluated over the joint (augmented,
-parameter) posterior (see \code{log_lik_draws} and \code{lprior_draws}).}
+parameter) posterior (see \code{log_lik_draws} and \code{lprior_draws}).
+Logarithms are natural (base \eqn{e}).}
 }
 \if{html}{\out{</div>}}
 }

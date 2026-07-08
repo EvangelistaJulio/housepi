@@ -17,25 +17,23 @@ cache_overlaps_source <- function(cache, source) {
   cache == source || startsWith(source, paste0(cache, "/"))
 }
 
-# Assert valid household data. Return blank_house if nothing is provided.
+# Assert valid household data. Return dummy_household if nothing is provided.
 assert_household_data <- function(data, model) {
-  .is.blank <- function(x) {
-    is.character(x) && length(x) == 1 && isTRUE(x == "blank")
+  .is_test_model <- function(x) {
+    is.character(x) && length(x) == 1 && isTRUE(x == "test")
   }
 
   if (is.null(data)) {
-    if (.is.blank(model)) {
-      env <- new.env(parent = emptyenv())
-      utils::data("blank_house", package = "housepi", envir = env)
-      return(env$blank_house)
-    }
-    stop_h("Missing argument {.arg data}.")
+    if (!.is_test_model(model)) stop_h("Missing argument {.arg data}.")
+    env <- new.env(parent = emptyenv())
+    utils::data("dummy_household", package = "housepi", envir = env)
+    return(env$dummy_household)
   }
   if (!is.data.frame(data)) {
     sms <- c("Data should be an object of class {.cls data.frame}.",
              format_type_error(data))
-    if (.is.blank(data)) sms <- c(sms,
-      "Did you mean {.code new_housepi_model(model = \"blank\")}?"
+    if (.is_test_model(data)) sms <- c(sms,
+      "Did you mean {.code new_housepi_model(model = \"test\")}?"
     )
     stop_h(sms)
   }
@@ -211,9 +209,9 @@ HousepiGenerator <- R6::R6Class(
     # @description
     # Wheter model choice is interpretable.
     helper_init_model_choice_ = function(model) {
-      choice <- "blank"
+      choice <- "test"
       if (all(is.na(model) | is.null(model))) warn_h(
-        "No model specified. Falling back to {.val blank} model.",
+        "No model specified. Falling back to {.val test} model.",
         "To show available templates, run {.fn browse_housepi_templates}."
       )
       else if (length(model) != 1 || !is.character(model)) stop_h(
@@ -571,7 +569,7 @@ HousepiGenerator <- R6::R6Class(
 
       # assign name to the model
       choice <- private$helper_init_model_choice_(model)
-      # if falls back to 'blank', enforce no spurious template
+      # if falls back to 'test', enforce no spurious template
       if (all(is.na(model) | is.null(model))) as_template <- FALSE
 
       # assign quiet field and load user options
@@ -607,10 +605,10 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Wheter model is blank.
+    #' @description Wheter model is test.
     #' @return `logical(1)`
-    is_blank = function() {
-      private$name_ == "blank"
+    is_test_model = function() {
+      private$name_ == "test"
     },
 
     #' @description Reference script.

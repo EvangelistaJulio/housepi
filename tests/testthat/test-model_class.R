@@ -5,12 +5,12 @@ library(testthat)
 ##################################
 
 test_that("Model class inconsistent calls", {
-  # non-blank models require data_wide at construction
+  # non-test models require data_wide at construction
   new_housepi_model(model = "final_size") |>
     expect_error("data")
 
-  # blank household model object
-  hhmodel <- new_housepi_model(model = "blank")
+  # test household model object
+  hhmodel <- new_housepi_model(model = "test")
 
   # inference without definitions
   hhmodel |>
@@ -46,23 +46,23 @@ test_that("Model class inconsistent calls", {
 })
 
 test_that("Active fields are read-only", {
-  new_housepi_model(model = "blank") |>
+  new_housepi_model(model = "test") |>
     helper_test_read_only(
       "data_wide", "data_long", "parameters", "augmented", "infec_profile",
       "group_rates", "contact_rates", "name", "setup"
     )
 })
 
-test_that("Model class 'blank' calls", {
-  # blank household model object
-  hhmodel <- new_housepi_model(model = "blank")
+test_that("Model class 'test' calls", {
+  # test household model object
+  hhmodel <- new_housepi_model(model = "test")
   snapshot <- hhmodel$export_house_snapshot("house")
   expect_equal(length(snapshot$param), 0)
   expect_equal(length(snapshot$augm), 0)
   expect_equal(length(snapshot$group_rate), 0)
 
-  # blank default data wide format
-  expect_equal(hhmodel$data_wide, blank_house)
+  # 'test' default data wide format
+  expect_equal(hhmodel$data_wide, dummy_household)
   expect_equal(snapshot$data_wide, hhmodel$data_wide)
 
   # correct data long format
@@ -76,19 +76,19 @@ test_that("Model class 'blank' calls", {
   snap_long <- hhmodel$export_house_snapshot(snapshot$data_wide$house_id[1])
   expect_true(is.data.frame(snap_long$data_long))
 
-  # factorization round-trips through a fresh blank model
+  # factorization round-trips through a fresh 'test' model
   complex_data <- sarscov2_2021_icofs
   complex_data$dates <- as.Date(runif(dim(complex_data)[1], max = 100))
-  complex_model <- new_housepi_model(complex_data, "blank")
+  complex_model <- new_housepi_model(complex_data, "test")
   expect_equal(complex_model$data_wide, complex_data)
 
   # templates
   add_parameter_template(hhmodel) |>
-    expect_warning("blank")
+    expect_warning("test")
   add_augmented_template(hhmodel) |>
-    expect_warning("blank")
+    expect_warning("test")
 
-  # zero log-likelihood (blank model evaluates silently)
+  # zero log-likelihood ('test' model evaluates silently)
   expect_equal(eval_log_density(hhmodel), 0.)
 
   # not existing household id
@@ -96,8 +96,8 @@ test_that("Model class 'blank' calls", {
     evaluate_log_lik("mother-base") |>
     expect_error("[Ii]ndex.*mother-base.*did not match")
 
-  # blank simulation (runs silently)
-  hhmodel <- new_housepi_model(model = "blank")
+  # 'test' model simulation (runs silently)
+  hhmodel <- new_housepi_model(model = "test")
   hhmodel <- add_augmented(hhmodel, name = "dummy", value = 3)
   out <- run_simulation(hhmodel)
 
@@ -117,8 +117,8 @@ test_that("Print behavior works as expected", {
     new_housepi_model("final_size")
   expect_snapshot(print(hhmodel2))
 
-  # blank model
-  expect_snapshot(print(new_housepi_model(model = "blank")))
+  # 'test' model
+  expect_snapshot(print(new_housepi_model(model = "test")))
 
   # discrete-time flag branch in print
   hhmodel_d <- sarscov2_2021_icofs |>
@@ -173,7 +173,7 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
 ######################################
 
 test_that("Wrong definitions throw errors", {
-  hhmodel <- new_housepi_model(model = "blank")
+  hhmodel <- new_housepi_model(model = "test")
 
   # eager rebuild: errors surface at definition, not at run_inference
   add_parameter(hhmodel, "a", prior = "uniform", min = ~ min_val@D) |>
@@ -195,7 +195,7 @@ test_that("Wrong definitions throw errors", {
 test_that("Discretization is enabled as expected", {
   discr <- TRUE
   val <- list(min = 1, max = 5)
-  hhmodel <- new_housepi_model(model = "blank")
+  hhmodel <- new_housepi_model(model = "test")
   hhmodel <- add_parameter(hhmodel,
     sample = list(
       prior = "gamma", shape = 2, scale = 1, discr = TRUE,
@@ -225,33 +225,33 @@ test_that("Discretization is enabled as expected", {
 })
 
 test_that("Invalid proposal name is rejected", {
-  new_housepi_model(model = "blank") |>
+  new_housepi_model(model = "test") |>
     add_parameter("snake", prior = "uniform", proposal = "venom") |>
     run_inference(steps = 1, chains = 1, progress = FALSE) |>
     expect_error("Unknown proposal.*venom")
 })
 
 test_that("Degenerate range raises an error for parameters", {
-  new_housepi_model(model = "blank") |>
+  new_housepi_model(model = "test") |>
     add_parameter("venom", prior = "uniform", min = 3, max = 3) |>
     expect_error("degenerate range")
 })
 
 test_that("Lognormal proposal non-positive domain", {
   # prior with unbounded lower bound
-  new_housepi_model(model = "blank") |>
+  new_housepi_model(model = "test") |>
     add_parameter("huey", prior = "normal", proposal = "lognormal") |>
     expect_error("non-positive.*huey")
 
   # prior with negative lower bound
-  new_housepi_model(model = "blank") |>
+  new_housepi_model(model = "test") |>
     add_parameter("miller", prior = "uniform",
                   min = -1, proposal = "lognormal") |>
     expect_error("non-positive")
 
   # location parameter
   suppressWarnings(
-    param_draws <- new_housepi_model(model = "blank") |>
+    param_draws <- new_housepi_model(model = "test") |>
       add_parameter("amanda", prior = "gamma", shape = 2,
                     max = 5, loc = -1, proposal = "lognormal") |>
       run_inference(steps = 20, chains = 1, adapt = 0, thin = 1) |>
@@ -285,7 +285,7 @@ test_that("Modules do not get overwritten", {
 })
 
 test_that("Custom models shares function registries", {
-  hhmodel_0 <- new_housepi_model(model = "blank")
+  hhmodel_0 <- new_housepi_model(model = "test")
   expose_function("growth") |>
     expect_error("Unknown function")
 
@@ -296,9 +296,9 @@ test_that("Custom models shares function registries", {
 
   # no templates available for custom example
   hhmodel_1 |>
-    add_augmented_template() |> 
+    add_augmented_template() |>
     expect_error("file.*not found")
-  
+
   # Growth_ overrides only raw_function_ and raw_primitive_
   # other raw_ virtuals fall back to raise_undefined_call_err_
   x <- seq(0, 3, 0.5)
@@ -320,7 +320,7 @@ test_that("Custom models shares function registries", {
 
 test_that("Rlang calls work as expected", {
   # declare indiv_shape as an augmented variable so references resolve
-  hhmodel <- new_housepi_model(model = "blank") |>
+  hhmodel <- new_housepi_model(model = "test") |>
     add_augmented("indiv_shape", prior = "normal")
 
   add_parameter(hhmodel, "kaz", prior = "normal", mean = indiv_shape + 1) |>
@@ -356,7 +356,7 @@ test_that("Rlang calls work as expected", {
 test_that("Augmented aliasing works as expected", {
   # check that model arguments are correctly integrated
   simulated <- data.frame(id = seq(1, 1000), house_id = 1, status = 1) |>
-    new_housepi_model("blank") |>
+    new_housepi_model("test") |>
     add_augmented(
       hour = list(prior = "uniform", min = day, max = day + 1),
       day = list(prior = "gamma", shape = 2, scale = 1)
@@ -368,12 +368,12 @@ test_that("Augmented aliasing works as expected", {
 })
 
 test_that("Nested definitions works as expected", {
-  hhmodel <- new_housepi_model(model = "blank") |>
+  hhmodel <- new_housepi_model(model = "test") |>
     # define Box-Muller transformation
     add_augmented(norm = list(prior = "normal"),
-                       u1 = list(prior = "uniform"),
-                       u2 = list(prior = "uniform"),
-                       z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
+                  u1 = list(prior = "uniform"),
+                  u2 = list(prior = "uniform"),
+                  z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
   expect_snapshot(print(hhmodel))
 
   results <- run_inference(hhmodel, steps = 1e5, chains = 1, adapt = 0,
@@ -408,7 +408,7 @@ test_that("Load augmented list works fine for external lists", {
 
   hhmodel <- data.frame(id = "id1", house_id = "h1",
                         status = 1, date = as.Date("2021-01-01")) |>
-    new_housepi_model("blank")
+    new_housepi_model("test")
 
   # an external list of definitions can be imported
   external_list <- list(z0 = ~ date@D, z1 = ~ sqrt(log(z0)))
@@ -419,7 +419,7 @@ test_that("Load augmented list works fine for external lists", {
 })
 
 test_that("Augmented traces export only relevant variables", {
-  hhmodel <- new_housepi_model(model = "blank") |>
+  hhmodel <- new_housepi_model(model = "test") |>
     add_parameter(alpha = 1, beta = list(prior = "uniform")) |>
     add_augmented(
       # constants
@@ -454,7 +454,7 @@ test_that("Augmented traces export only relevant variables", {
 })
 
 test_that("Augmented degenerate range warns and collapses", {
-  hhmodel <- new_housepi_model(model = "blank") |>
+  hhmodel <- new_housepi_model(model = "test") |>
     add_parameter("d_dog", prior = "uniform") |>
     add_augmented("d_horse", prior = "uniform", min = 5, max = 5)
   expect_warning(
@@ -546,7 +546,7 @@ test_that("Contact rates raise an error for incompatible models", {
 })
 
 test_that("run_simulation rejects wrong arguments", {
-  hhmodel <- new_housepi_model(model = "blank")
+  hhmodel <- new_housepi_model(model = "test")
   # wrong observation process
   hhmodel |>
     run_simulation(obs_process = "not a function") |>
@@ -563,7 +563,7 @@ test_that("run_simulation rejects wrong arguments", {
 test_that("Param table with degenerate columns raises an ESS error", {
   pt <- posterior::as_draws_df(data.frame(p = rep(1, 100)))
 
-  hhmodel <- new_housepi_model(model = "blank")
+  hhmodel <- new_housepi_model(model = "test")
   hhmodel |>
     run_simulation(param_table = pt) |>
     expect_error("ESS")
@@ -571,7 +571,7 @@ test_that("Param table with degenerate columns raises an ESS error", {
 
 test_that("run_simulation auto-imports parameters from param_table", {
   hhmodel <- data.frame(house_id = 1, id = letters[1:3], status = 0) |>
-    new_housepi_model("blank")
+    new_housepi_model("test")
   expect_equal(nrow(hhmodel$parameters), 0)
   pt <- data.frame(adamska = c(0.1, 0.2, 0.3))
   invisible(run_simulation(hhmodel, param_table = pt))
@@ -579,7 +579,7 @@ test_that("run_simulation auto-imports parameters from param_table", {
 })
 
 test_that("run_measure_ rejects apply_long without obs_process_long", {
-  hhmodel <- new_housepi_model(model = "blank")
+  hhmodel <- new_housepi_model(model = "test")
   hhmodel <- add_parameter(hhmodel, alpha = 1)
   priv <- hhmodel$.__enclos_env__$private
   pt <- data.frame(alpha = c(0.1, 0.2, 0.3))
@@ -615,7 +615,7 @@ test_that("run_simulation returns combined wide/long output", {
   expect_true(is.data.frame(out$long[[2]]))
 })
 
-test_that("add_augmented_template loads from a non-blank model template", {
+test_that("add_augmented_template loads", {
   sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained") |>
     add_augmented_template() |>
@@ -653,8 +653,10 @@ test_that("Parameter defined as a function tracks its dependencies", {
   # both sampled and function-derived parameters appear in the trace
   expect_true(all(c("gamma", "beta") %in% vars))
   # the function-derived parameter has no prior contribution
+  # UPDATE: this will not require private access in the future
   expect_false("lprior_beta" %in% posterior::variables(
-    res$.__enclos_env__$private$param_prior_draws_))
+    res$.__enclos_env__$private$param_prior_draws_)
+  )
 
   df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
   # every draw of beta equals size_ref^(-gamma) exactly

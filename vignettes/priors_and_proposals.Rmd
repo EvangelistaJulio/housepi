@@ -29,7 +29,7 @@ Here we present all available options for the choice of the prior and Monte Carl
 
 # Continuous priors
 
-To perform the sampling we consider the "blank" model, i.e. a data independent template model, with log-likelihood always equal to zero.
+To perform the sampling we consider the "test" model, i.e. a data independent template model, with log-likelihood always equal to zero.
 Here's the full list of available continuous distributions present in housepi:
 ```{r}
 #| label: continuous-priors-density
@@ -37,8 +37,8 @@ Here's the full list of available continuous distributions present in housepi:
 #| fig-alt: >
 #|  Density plots for prior distributions available in housepi for Bayesian inference: uniform, normal, lognormal, gamma, Weibull, Rayleigh, beta and exponential.
 #|  Each panel displays the estimated probability density function in blue obtained from MCMC sampling.
-# create an instance of the blank model
-new_housepi_model(model = "blank") |>
+# create an instance of the model 'test'
+new_housepi_model(model = "test") |>
   # continuous distributions in housepi
   add_parameter(
     uniform = list(prior = "uniform", min = 0, max = 1),
@@ -74,7 +74,7 @@ We do this with the arguments `min` (minimum) and `max` (maximum).
 #|  Orange dashed lines indicate truncation boundaries applied to distributions.
 library(ggplot2)
 
-new_housepi_model(model = "blank") |>
+new_housepi_model(model = "test") |>
   add_parameter(
     default = list(prior = "normal"),
     below = list(prior = "normal", min = -1),
@@ -102,7 +102,7 @@ All functions and distributions in housepi allow for a location parameter `loc` 
 #|  Density plots showing gamma distributions with different location parameters.
 #|  Four panels display gamma distributions with location parameters set to 0, 1, 2, and 3 respectively.
 #|  Vertical dashed lines indicate the minimum of each shifted support.
-new_housepi_model(model = "blank") |>
+new_housepi_model(model = "test") |>
   add_parameter(
     gamma_0 = list(prior = "gamma", shape = 2, scale = 1),
     gamma_1 = list(prior = "gamma", shape = 2, scale = 1, loc = 1),
@@ -137,7 +137,7 @@ Here's the full list of available discrete distributions present in housepi:
 #|  Orange bars represent probability mass functions for integer-valued outcomes obtained from MCMC sampling.
 
 # discrete distributions in housepi
-new_housepi_model(model = "blank") |>
+new_housepi_model(model = "test") |>
   add_parameter(
     poisson = list(prior = "poisson", lambda = 2),
     binomial = list(prior = "binomial", size = 4, prob = 0.5),
@@ -159,7 +159,7 @@ Previous continuous priors can be chosen to be discretized using the argument `d
 #| fig-alt: >
 #|  Seven histograms showing discretized versions of continuous prior distributions: uniform, normal, lognormal, gamma, Weibull, Rayleigh, and exponential.
 
-new_housepi_model(model = "blank") |>
+new_housepi_model(model = "test") |>
   add_parameter(
     uniform = list(prior = "uniform", discr = TRUE),
     normal = list(prior = "normal", discr = TRUE),
@@ -238,7 +238,7 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 #|  Four trace plots comparing the same MCMC proposal mechanisms with
 #|  proposal_scale left adaptive.  All chains mix well after a short adaptation phase.
 
-new_housepi_model(model = "blank") |>
+new_housepi_model(model = "test") |>
   add_parameter(
     sample = list(prior = "normal", min = 0, proposal = "sample"),
     uniform = list(prior = "normal", min = 0, proposal = "uniform"),
@@ -266,7 +266,7 @@ This pins the scale to the chosen value and disables adaptation for that variabl
 #|  mechanisms.
 # select an extremely large proposal scale 'sigma'
 sigma <- 100
-new_housepi_model(model = "blank") |>
+new_housepi_model(model = "test") |>
   add_parameter(
     sample = list(prior = "normal", min = 0, proposal = "sample"),
     uniform = list(prior = "normal", min = 0,

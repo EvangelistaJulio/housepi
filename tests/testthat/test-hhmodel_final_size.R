@@ -74,7 +74,7 @@ make_ctr_mtx <- function(house, crates, prefix = "") {
 
 test_that("Chain binomial guards against missusage", {
   # not discretizable
-  blank_house |>
+  dummy_household |>
     new_housepi_model("final_size", discr = TRUE) |>
     expect_error("No visible discrete time option")
 

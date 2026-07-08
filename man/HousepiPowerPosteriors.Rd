@@ -21,7 +21,8 @@ Estimate the log-evidence from it with \code{\link[=evaluate_log_evidence]{evalu
 Power-posterior scheme used to sample the ladder.}
 
 \item{\code{draws}}{\code{posterior::draws_df}
-Draws log-likelihood draws under corresponding power-posterior.}
+Draws log-likelihood draws under corresponding power-posterior.
+Logarithms are natural (base \eqn{e}).}
 
 \item{\code{detail}}{\code{data.frame}
 Detail of the thermodynamic ladder
@@ -30,7 +31,8 @@ Detail of the thermodynamic ladder
 \item{mean_log_lik}{Mean of the complete log-likelihood}
 \item{var_log_lik}{Variance of the complete log-likelihood}
 }
-Mean log-likelihood can legitimately be \code{-Inf} at inverse temperature 0.}
+Mean log-likelihood can legitimately be \code{-Inf} at inverse temperature 0.
+Logarithms are natural (base \eqn{e}).}
 }
 \if{html}{\out{</div>}}
 }
@@ -95,6 +97,7 @@ One between
 \subsection{Returns}{
 named \code{numeric(2)} (\code{estimate}, \code{sd})
 \code{sd} is \code{NA} if method provides no standard-error estimate.
+Logarithms are natural (base \eqn{e}).
 }
 }
 \if{html}{\out{<hr>}}

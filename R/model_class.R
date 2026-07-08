@@ -93,7 +93,7 @@ HousepiModel <- R6::R6Class(
         private$get_all_required_augm_(),
         private$generator_$infec_status_set,
         capital = capital,
-        warn_unused = warn_unused && !private$generator_$is_blank()
+        warn_unused = warn_unused && !private$generator_$is_test_model()
       )
     },
 
@@ -154,7 +154,7 @@ HousepiModel <- R6::R6Class(
       private$param_$assert(
         private$get_all_required_param_(),
         capital = capital,
-        warn_unused = warn_unused && !private$generator_$is_blank()
+        warn_unused = warn_unused && !private$generator_$is_test_model()
       )
     },
 
@@ -342,15 +342,15 @@ HousepiModel <- R6::R6Class(
                            thin = 1L, chains = 1L, threads = 1L,
                            id_draws = NULL, progress = FALSE,
                            simulating = FALSE, ...) {
-      # if no default columns on a blank model, assume debugging mode
+      # if no default columns on a test model, assume debugging mode
       if (is.null(id_draws) &&
-            private$generator_$is_blank() &&
+            private$generator_$is_test_model() &&
             !is.null(private$augm_$defs) &&
             length(setdiff(private$generator_$cols_data_wide,
                            c("house_id", "id", "status"))) == 0) {
         env <- new.env(parent = emptyenv())
-        utils::data("blank_house", package = "housepi", envir = env)
-        id_draws <- env$blank_house$id[1]
+        utils::data("dummy_household", package = "housepi", envir = env)
+        id_draws <- env$dummy_household$id[1]
       }
       .engine$import_setup(
         private$generator_$mcmc_ptr,
@@ -650,7 +650,7 @@ HousepiModel <- R6::R6Class(
       # helper construction option fort copying
       if (isTRUE(.housepi_env$hollow)) return(invisible(self))
 
-      # check data and enable blank_house behavior
+      # check data and enable dummy_household behavior
       data <- assert_household_data(data, model)
 
       # initialize internal fields

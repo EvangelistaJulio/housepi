@@ -86,9 +86,9 @@ reference:
   desc: >
     Public available datasets used for model testing.
   contents:
-  - blank_house
   - starts_with("flu_")
   - sarscov2_2021_icofs
+  - test_house
 
 - title: "Under development"
   desc: >

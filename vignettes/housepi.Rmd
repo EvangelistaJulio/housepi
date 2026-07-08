@@ -30,17 +30,17 @@ Then we will explain how to associate necessary definitions in order to perform 
 
 Data can be provided as a numerical data.frame in wide format, where individual information is organised by row.
 A simplistic dataset would look something like^[
-Note that this dataset comes automatically with the model "blank", used for testing mode.]
+Note that this dataset comes automatically with the model "test", used for testing mode.]
 
 <div style="display: flex; justify-content: center;">
 <div>
 
 ```{r}
-#| label: blank-data-table
+#| label: dummy-household-data-table
 #| echo: false
 env <- new.env(parent = emptyenv())
-utils::data("blank_house", package = "housepi", envir = env)
-knitr::kable(env[["blank_house"]])
+utils::data("dummy_household", package = "housepi", envir = env)
+knitr::kable(env[["dummy_household"]])
 ```
 
 </div>

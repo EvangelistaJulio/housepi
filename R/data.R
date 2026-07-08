@@ -5,7 +5,7 @@
 ## See the LICENSE file for details.
 ##
 
-#' Minimal 'blank' household survey for testing
+#' Minimal household survey for testing
 #'
 #' Household data with a single household of 2 individuals.
 #'
@@ -17,8 +17,8 @@
 #'
 #' @docType data
 #' @keywords datasets
-#' @name blank_house
-#' @usage data(blank_house)
+#' @name dummy_household
+#' @usage data(dummy_household)
 #' @format A data frame with 2 rows and 2 columns
 NULL
 

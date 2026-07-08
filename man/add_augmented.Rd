@@ -122,7 +122,7 @@ are deprecated.
 The can be supplied only through single mode.
 }
 \examples{
-hhmodel <- blank_house |>
+hhmodel <- dummy_household |>
   new_housepi_model("augmented_example") |>
   # define an incubation period drawn from a gamma distribution
   add_augmented("incub_period",
