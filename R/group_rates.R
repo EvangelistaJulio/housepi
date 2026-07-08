@@ -300,7 +300,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 }
 
 #' Return list with default MCMC setup if user choice is missing.
-#' Defaults follow Cauchemez et al. (2009) \doi{10.1056/NEJMoa0905498}.
+#' Defaults follow \insertRef{cauchemez_household_2009}{housepi}.
 #' @return `list`
 #' @keywords internal
 #' @noRd

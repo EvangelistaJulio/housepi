@@ -14,12 +14,14 @@ posterior::summarise_draws
 posterior::summarize_draws
 
 # Thresholds for the post-inference diagnostic warnings.
+# \insertRef{vehtari_rank_normalization_2021}{housepi}
 diagnostic_ <- list(
-  # min sample size # Vehtari 2021
+  # min sample size
   ss_min = 400,
-  # max Rhat # Vehtari 2021
+  # max Rhat
   rhat_max = 1.05,
-  # ESS ratio; 10% bayesplot/HMC default seems unrealistic for Metropolis
+  # ESS ratio
+  # NOTE: 10% bayesplot/HMC default seems unrealistic for Metropolis
   neff_min = 0.01
 )
 
