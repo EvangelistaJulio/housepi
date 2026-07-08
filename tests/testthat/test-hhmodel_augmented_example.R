@@ -279,7 +279,7 @@ test_that("Augmented model log-likelihoods are correctly computed", {
     # log(dgamma(proba)). With no parameter priors, lprior == augm_lprior.
     df <- as.data.frame(get_augmented_draws(results))
     df <- as.matrix(df[, !startsWith(names(df), "."), drop = FALSE])
-    augm_prior <- get_lprior_draws(results)$lprior
+    augm_prior <- get_complete_draws(results)$lprior
     expect_equal(get_log_lik_draws(results)$hh01 + augm_prior,
                  rowSums(log(df * dgamma(df, shape = shape, scale = scale))))
   }

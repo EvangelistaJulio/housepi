@@ -15,9 +15,12 @@ posterior::summarize_draws
 
 # Thresholds for the post-inference diagnostic warnings.
 diagnostic_ <- list(
-  ss_min = 400,    # min sample size # Vehtari 2021
-  rhat_max = 1.05, # max Rhat # Vehtari 2021
-  neff_min = 0.1   # ESS ratio (see bayesplot::mcmc_neff)
+  # min sample size # Vehtari 2021
+  ss_min = 400,
+  # max Rhat # Vehtari 2021
+  rhat_max = 1.05,
+  # ESS ratio; 10% bayesplot/HMC default seems unrealistic for Metropolis
+  neff_min = 0.01
 )
 
 # Validate a credible interval level.
@@ -228,7 +231,8 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (ss < diagnostic_[["ss_min"]]) {
         warn_h(
           "Total sample size was below {diagnostic_[['ss_min']]}.",
-          `!` = "Convergence diagnostics may be unreliable and were skipped."
+          `!` = "Convergence diagnostics were skipped.",
+          i = "Estimates may be unreliable."
         )
         return(invisible())
       }
@@ -247,38 +251,50 @@ HousepiPosteriorDraws <- R6::R6Class(
       ss <- posterior::niterations(d) * posterior::nchains(d)
       sm <- posterior::summarise_draws(d)
 
-      bad_rhat <- which(!is.na(sm$rhat) & sm$rhat > rhat_max)
+      # Round R-hat to 2 dp so the check matches the 3-sig-fig value shown by
+      # summarise_draws() (e.g. 1.0512 prints as 1.05 and must not be flagged).
+      bad_rhat <- which(!is.na(sm$rhat) & round(sm$rhat, 2) > rhat_max)
       bad_bulk <- which(!is.na(sm$ess_bulk) & sm$ess_bulk / ss < neff_min)
       both <- intersect(bad_rhat, bad_bulk)
       only_rhat <- setdiff(bad_rhat, both)
       only_bulk <- setdiff(bad_bulk, both)
 
-      sms <- c()
-      if (length(both) > 0L) sms <- c(sms,
+      findings <- c()
+      if (length(both) > 0L) findings <- c(findings,
         sprintf("%s %s with R-hat > %.2f and Bulk ESS < %.0f%%:%s",
                 format_there_were_was(length(both)),
                 as_plural(draws_kind, length(both)),
                 rhat_max, 100. * neff_min,
-                character_to_string_list(sm$variable[both])),
-        "Chains may have not mixed; estimates may be unreliable."
+                character_to_string_list(sm$variable[both]))
       )
-      if (length(only_rhat) > 0L) sms <- c(sms,
+      if (length(only_rhat) > 0L) findings <- c(findings,
         sprintf("%s %s with R-hat > %.2f:%s",
                 format_there_were_was(length(only_rhat)),
                 as_plural(draws_kind, length(only_rhat)),
                 rhat_max,
-                character_to_string_list(sm$variable[only_rhat])),
-        "Chains may have not mixed."
+                character_to_string_list(sm$variable[only_rhat]))
       )
-      if (length(only_bulk) > 0L) sms <- c(sms,
+      if (length(only_bulk) > 0L) findings <- c(findings,
         sprintf("%s %s with Bulk Effective Sample Size (ESS) < %.0f%%:%s",
                 format_there_were_was(length(only_bulk)),
                 as_plural(draws_kind, length(only_bulk)),
                 100. * neff_min,
-                character_to_string_list(sm$variable[only_bulk])),
-        "Estimates may be unreliable."
+                character_to_string_list(sm$variable[only_bulk]))
       )
-      if (length(sms) > 0L) warn_h(sms)
+      if (length(findings) == 0L) return(invisible())
+      names(findings) <- rep("!", length(findings))
+
+      # One hint assembled from the failure modes present: a high R-hat means
+      # chains may not have mixed, a low ESS means the sampler mixes slowly.
+      hint <- paste(c(
+        if (length(bad_rhat) > 0L) "chains may have not mixed",
+        if (length(bad_bulk) > 0L) "the sampler explores the posterior slowly"
+      ), collapse = "; ")
+      substr(hint, 1L, 1L) <- toupper(substr(hint, 1L, 1L))
+      warn_h(c(
+        "Convergence diagnostics flagged the following:",
+        findings, i = paste0(hint, ".")
+      ))
       invisible()
     }
   ),
@@ -476,13 +492,6 @@ get_augmented_draws <- function(hhdraws) {
 get_log_lik_draws <- function(hhdraws) {
   stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
   hhdraws$log_lik_draws
-}
-
-#' @rdname get_draws
-#' @export
-get_lprior_draws <- function(hhdraws) {
-  stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  hhdraws$lprior_draws
 }
 
 #' @rdname get_draws

@@ -4,7 +4,6 @@
 \alias{get_parameter_draws}
 \alias{get_augmented_draws}
 \alias{get_log_lik_draws}
-\alias{get_lprior_draws}
 \alias{get_complete_draws}
 \title{Get posterior draws of respective variables}
 \usage{
@@ -13,8 +12,6 @@ get_parameter_draws(hhdraws)
 get_augmented_draws(hhdraws)
 
 get_log_lik_draws(hhdraws)
-
-get_lprior_draws(hhdraws)
 
 get_complete_draws(hhdraws)
 }

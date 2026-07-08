@@ -106,7 +106,6 @@ test_that("Draws active fields are correct", {
 test_that("Exported getter functions work correctly", {
   expect_true(posterior::is_draws(get_parameter_draws(local_results)))
   expect_true(posterior::is_draws(get_log_lik_draws(local_results)))
-  expect_true(posterior::is_draws(get_lprior_draws(local_results)))
   expect_true(posterior::is_draws(get_complete_draws(local_results)))
 
   expect_error(get_parameter_draws("snake.eater"))

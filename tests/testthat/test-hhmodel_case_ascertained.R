@@ -277,7 +277,7 @@ test_that("Augmented moves preserve log-likelihood", {
   param_prior <- results$.__enclos_env__$private$param_prior_draws_
   param_lprior <- if (is.null(param_prior)) 0 else
     rowSums(posterior::as_draws_matrix(param_prior))
-  augm_prior <- get_lprior_draws(results)$lprior - param_lprior
+  augm_prior <- get_complete_draws(results)$lprior - param_lprior
   tot_log_dens <- unname(tot_log_lik + augm_prior)
 
   param_draws <- get_parameter_draws(results) |>
