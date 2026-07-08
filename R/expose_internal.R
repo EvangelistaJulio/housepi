@@ -32,7 +32,7 @@ print.housepi_exposed <- function(x, ...) {
                           .subset2(x, "family"), .subset2(x, "name")))
   items <- if (length(args) == 0) character() else
     sprintf("{.arg %s} = %s", names(args), format(unname(args)))
-  cli::cli_bullets(c(header, items))
+  print_bullets(c(header, items))
   invisible(x)
 }
 

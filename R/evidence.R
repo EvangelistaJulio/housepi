@@ -107,6 +107,7 @@ HousepiPowerPosteriors <- R6::R6Class(
 
     #' @field draws `posterior::draws_df`
     #'Draws log-likelihood draws under corresponding power-posterior.
+    #' `r rd_natural_log_`
     draws = function(value) {
       if (!missing(value)) stop_read_only("draws")
       private$draws_
@@ -120,6 +121,7 @@ HousepiPowerPosteriors <- R6::R6Class(
     #'   \item{var_log_lik}{Variance of the complete log-likelihood}
     #' }
     #' Mean log-likelihood can legitimately be `-Inf` at inverse temperature 0.
+    #' `r rd_natural_log_`
     detail = function(value) {
       if (!missing(value)) stop_read_only("detail")
       data.frame(inv_temp = private$inv_temp_,
@@ -160,6 +162,7 @@ HousepiPowerPosteriors <- R6::R6Class(
     #' @param method `r rd_evi_method_`
     #' @return named `numeric(2)` (`estimate`, `sd`)
     #' `sd` is `NA` if method provides no standard-error estimate.
+    #' `r rd_natural_log_`
     #' @references
     #' \insertRef{friel_improving_2014}{housepi}
     #' \insertRef{xie_improving_2011}{housepi}
@@ -182,7 +185,7 @@ HousepiPowerPosteriors <- R6::R6Class(
     print = function() {
       model <- spaced_template_choice(private$name_)
       rungs <- length(private$inv_temp_) - 1L
-      cli::cli_bullets(c(
+      print_bullets(c(
         i = "Power posteriors draws of model {.val {model}}.",
         "Scheme: {.val {private$scheme_}}. Rungs: {rungs}."
       ))
@@ -237,6 +240,7 @@ run_power_posteriors <- function(hhmodel,
 #' @param method `r rd_evi_method_`
 #' @return named `numeric(2)` (`estimate`, `sd`)
 #' `sd` is `NA` if method provides no standard-error estimate.
+#' `r rd_natural_log_`
 #' @references
 #' \insertRef{friel_improving_2014}{housepi}
 #' \insertRef{xie_improving_2011}{housepi}

@@ -105,7 +105,6 @@ test_that("Draws active fields are correct", {
 
 test_that("Exported getter functions work correctly", {
   expect_true(posterior::is_draws(get_parameter_draws(local_results)))
-  expect_true(posterior::is_draws(get_augmented_draws(local_results)))
   expect_true(posterior::is_draws(get_log_lik_draws(local_results)))
   expect_true(posterior::is_draws(get_lprior_draws(local_results)))
   expect_true(posterior::is_draws(get_complete_draws(local_results)))
@@ -115,6 +114,17 @@ test_that("Exported getter functions work correctly", {
   expect_error(get_log_lik_draws(list()))
   expect_error(get_lprior_draws(NULL))
   expect_error(get_complete_draws(lnorm))
+})
+
+test_that("Empty draws getters warn", {
+  # local_results has parameters but no augmented draws
+  get_parameter_draws(local_results) |>
+    expect_silent() |>
+    posterior::is_draws() |>
+    expect_true()
+
+  get_augmented_draws(local_results) |>
+    expect_warning("id_draws")
 })
 
 test_that("Print behavior is stable", {

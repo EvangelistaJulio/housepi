@@ -235,6 +235,8 @@ One between `\"mean\"` and `\"median\"`."
 ############################################################################
 ############################################################################
 
+rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
+
 rd_pwr_frac_ <- "\\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5}"
 rd_evi_scheme_ <- sprintf("`character(1)` Scheme used for evidence estimation.
 One between

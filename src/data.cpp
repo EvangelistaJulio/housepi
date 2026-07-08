@@ -443,6 +443,9 @@ namespace housepi
 
     void DataWide::helper_init_unique_eq_classes_()
     {
+        // restore distinct count
+        report_house.distinct = report_house.total;
+
         // skip if already unique equivalence classes
         if (eq_classes_.size() == report_house.total)
             return;

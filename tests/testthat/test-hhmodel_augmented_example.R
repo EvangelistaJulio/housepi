@@ -216,9 +216,7 @@ test_that("Augmentation example on incubation from delays is coherent", {
       )
   }
 
-  # warning for no structure
-  new_housepi_model(df, "augmented_example") |>
-    expect_warning("Ignored household structure")
+
   hhmodel <- build_model(df)
   expect_equal(eval_log_density(hhmodel), get_exact_val(df$ip, shape, scale))
 

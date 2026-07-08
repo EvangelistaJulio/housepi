@@ -219,12 +219,11 @@ HousepiPrediction <- R6::R6Class(
         len_bad <- sum(unlist(mismatch))
         if (len_bad > 0) {
           all_within <- FALSE
-          warn_h(sprintf(
-            "%s observed %s outside %.0f%% credible interval for measure %s.",
-            format_there_were_was(len_bad),
-            as_plural("value", len_bad),
-            100 * private$cri_level_,
-            m
+          warn_h(paste(
+            "{format_there_were_was(len_bad)} observed",
+            "{as_plural('value', len_bad)} outside",
+            "{round(100 * private$cri_level_)}% credible interval",
+            "for measure {m}."
           ))
         }
       }
@@ -419,12 +418,12 @@ HousepiPrediction <- R6::R6Class(
       for (m in private$measure_names_) {
         sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
       }
-      cli::cli_bullets(c(
+      print_bullets(c(
         sms,
-        sprintf("N. replicates: %d%s", private$nrep_,
-                ifelse(private$thin_ess_, " (ESS)", "")),
+        paste0("N. replicates: {private$nrep_}",
+               ifelse(private$thin_ess_, " (ESS)", "")),
         "Point estimate: {private$point_estimate_}",
-        sprintf("Credible interval: %.0f%%", 100 * private$cri_level_)
+        "Credible interval: {round(100 * private$cri_level_)}%"
       ))
       invisible(self)
     }

@@ -5,6 +5,11 @@
 ## See the LICENSE file for details.
 ##
 
+# Render a `cli_bullets()` block to stdout as a single block.
+print_bullets <- function(x, .envir = parent.frame()) {
+  cat(cli::cli_fmt(cli::cli_bullets(x, .envir = .envir)), sep = "\n")
+}
+
 # Flatten `...`/vectors into one line per element, splitting on newlines.
 # Names are preserved; segments produced by a split inherit an empty name.
 flatten_cli_parts_ <- function(dots) {

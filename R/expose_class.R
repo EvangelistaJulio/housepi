@@ -700,6 +700,7 @@ add_infec_profile <- function(hhmodel,
 #' @param house_id `r rd_house_id_`
 #' If `NA` (default) it computes for the whole data.
 #' @return `numeric(1)`. The complete-data log-likelihood.
+#' `r rd_natural_log_`
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("final_size") |>

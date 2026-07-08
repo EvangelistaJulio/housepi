@@ -347,6 +347,18 @@ test_that("Observation-aware initialization", {
     expect_error("outside of respective domain")
 })
 
+test_that("Compressed households forced unique by augmented sampling size the cache", {
+  # identical households compress to one eq-class, augmented sampling forces them
+  # unique: the per-eq-class cache must grow to match (else out-of-bounds segfault)
+  data.frame(status = rep(1, 5)) |>
+    new_housepi_model("blank") |>
+    add_augmented("z", prior = "exponential", rate = 0.5) |>
+    run_inference(steps = 10L, adapt = 0L, chains = 2L, progress = FALSE) |>
+    suppressMessages() |>
+    suppressWarnings() |>
+    expect_no_error()
+})
+
 test_that("Reading an observation node's column: priors and loops are rejected", {
   # a deterministic readout of an observation is a legitimate downstream value;
   # only a prior reading an observation, or a dependency loop, is illegal.

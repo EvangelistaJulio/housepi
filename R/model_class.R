@@ -403,10 +403,8 @@ HousepiModel <- R6::R6Class(
 
       if (bytes_final <= budget) return(invisible())
       stop_h(c(
-        sprintf(
-          "Posterior draws would exceed the memory budget (%.f GB).",
-          budget / 2^30
-        ),
+        paste("Posterior draws would exceed the memory budget",
+              "({round(budget / 2^30)} GB)."),
         "Consider increasing {.arg thin}, or reducing {.arg {c('steps', 'chains')}}."
       ))
     },
@@ -803,7 +801,7 @@ HousepiModel <- R6::R6Class(
         }
       }
 
-      cli::cli_bullets(sms)
+      print_bullets(sms)
       invisible(self)
     },
 

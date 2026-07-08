@@ -47,9 +47,8 @@ assert_valid_features <- function(features) {
             as_plural("feature", length(forbidden), "s:"),
             character_to_string_list(forbidden)),
     `!` = "These names are reserved.",
-    sprintf("Please, change %s and/or corresponding data %s.",
-            as_plural("feature", length(forbidden)),
-            as_plural("column", length(forbidden)))
+    paste("Please, change {as_plural('feature', length(forbidden))} and/or",
+          "corresponding data {as_plural('column', length(forbidden))}.")
   )
 }
 
