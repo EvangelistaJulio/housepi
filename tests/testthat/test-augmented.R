@@ -401,3 +401,151 @@ test_that("Group/contact rate keyed on an observation is rejected in simulation 
     suppressMessages() |>
     expect_error("group rate.*observation")
 })
+
+#####################################
+## AUGMENTED : END-TO-END MACHINERY ##
+#####################################
+
+test_that("Nested augmented definitions raise errors", {
+  hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
+    new_housepi_model("test")
+
+  hhmodel |>
+    add_augmented(
+      .layer = list(prior = "uniform", status = 1),
+      .layer = list(value = .dummy, status = c(2, 3, 4)),
+      .dummy = list(prior = "uniform"),
+      z = .layer
+    ) |>
+    evaluate_log_lik() |>
+    expect_no_error()
+
+  # simple nest
+  hhmodel |>
+    add_augmented(.dummy = z, z = .dummy) |>
+    evaluate_log_lik() |>
+    expect_error("cyclic definition")
+
+  # triangular nest
+  hhmodel |>
+    add_augmented(z = .layer, .layer = .dummy, .dummy = z) |>
+    evaluate_log_lik() |>
+    expect_error("cyclic definition")
+
+  # first generation of definitions
+  hhmodel |>
+    add_augmented(
+      .layer = list(prior = "normal", status = 1),
+      .layer = list(value = .dummy, status = 2),
+      #> NO .layer provided for status 3 and 4
+      .dummy = list(prior = "lognormal", status = 2),
+      z = .layer
+    ) |>
+    evaluate_log_lik() |>
+    expect_error("Could not find a definition.*status")
+
+  # second generation of definitions
+  hhmodel |>
+    add_augmented(
+      .layer = list(prior = "normal", status = 1),
+      .layer = list(value = .dummy, status = c(2, 3, 4)),
+      #> NO .dummy provided for status 3, 4
+      .dummy = list(prior = "lognormal", status = c(2, 3)),
+      z = .layer,
+      append = FALSE
+    ) |>
+    evaluate_log_lik() |>
+    expect_error("Could not find a definition.*status")
+})
+
+test_that("Missing augmented function arguments raise errors", {
+  hhmodel <- data.frame(house_id = seq(3), id = seq(3), status = 1) |>
+    new_housepi_model("test")
+
+  # non default distribution arguments must be supplied
+  hhmodel |>
+    add_augmented(name = "z", func = "gamma") |>
+    expect_error("Missing non default")
+})
+
+test_that("Status-specific augmented variables draw from per-status ranges", {
+  hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
+    new_housepi_model("test") |>
+    add_augmented(
+      z = list(status = 1, prior = "uniform", min = 0, max = 1),
+      z = list(status = 2, prior = "uniform", min = 1, max = 2),
+      z = list(status = 3, prior = "uniform", min = 2, max = 3),
+      z = list(status = 4, prior = "uniform", min = 3, max = 4)
+    )
+
+  # simulation routes draws into per-status supports
+  withr::with_seed(1, sim <- run_simulation(hhmodel, nrep = 50))
+  sim <- do.call(rbind, sim)
+  for (s in seq(4)) {
+    vals <- sim$z[sim$status == s]
+    expect_true(all(vals >= s - 1 & vals <= s))
+  }
+
+  # short-run diagnostic fires (steps = 5 < 400); adapt budget becomes burn-in
+  expect_warning(
+    results <- hhmodel |>
+      run_inference(steps = 5, thin = 1, adapt = 2,
+                    chain = 1, threads = 1,
+                    id_draws = hhmodel$data_wide$id),
+    regexp = "below 400"
+  )
+  draws <- as.data.frame(get_augmented_draws(results))
+  for (s in seq(4)) {
+    col <- draws[[as.character(s)]]
+    expect_true(all(col >= s - 1 & col <= s))
+  }
+})
+
+test_that("export_augmented_data works after evaluate_log_lik", {
+  hhmodel <- data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0)) |>
+    new_housepi_model("test") |>
+    add_augmented(name = "z", prior = "uniform")
+  evaluate_log_lik(hhmodel)
+  result <- hhmodel$export_augmented_data()
+  expect_true(is.data.frame(result))
+  expect_true("z" %in% colnames(result))
+})
+
+test_that("Incubation augmentation recast runs on the test model", {
+  # a minimal analogue of the data-augmentation vignette: the incubation gamma
+  # enters as an augmented prior, the reported onset day as an observation node.
+  set.seed(1)
+  n <- 30
+  exposure_max <- sample(0:3, n, replace = TRUE)
+  infec <- runif(n, 0, exposure_max + 0.99)
+  onset <- infec + rgamma(n, shape = 2, scale = 1.1)
+  df <- data.frame(status = 1, exposure_max = exposure_max,
+                   onset_min = floor(onset), onset_max = floor(onset))
+  df$onset_mid <- (df$onset_min + df$onset_max) / 2 + 0.5
+
+  results <- expect_no_error(
+    df |>
+      new_housepi_model("test") |>
+      add_parameter(
+        mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal"),
+        var = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal")
+      ) |>
+      add_augmented(
+        .infec_time = list(prior = "uniform", max = exposure_max@D + 0.99,
+                           proposal = "normal"),
+        incub_period = list(prior = "gamma", mean = mean@P, var = var@P,
+                            min = 0.5, max = 14, proposal = "normal"),
+        .onset_time = .infec_time + incub_period
+      ) |>
+      add_observation("onset_mid", obs = "normal",
+                      mean = .onset_time, sd = 0.3) |>
+      run_inference(steps = 20, adapt = 0, chains = 1, thin = 1,
+                    progress = FALSE) |>
+      suppressMessages() |>
+      suppressWarnings()
+  )
+
+  # the gamma incubation prior contributes to the (finite) augmented log-prior
+  lprior <- get_complete_draws(results)$lprior
+  expect_true(all(is.finite(lprior)))
+})

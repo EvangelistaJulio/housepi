@@ -159,55 +159,45 @@ head(dataset)
 ```
 Note that here the data has no demographic structure: we are implicitly assuming that all individuals live in distinct households.
 
-Assuming the incubation period to be described by a gamma distribution, we want to estimate its parameters augmenting the infection and onset times.
-We model both augmented variables as uniformly distributed in the reported ranges.
+Assuming the incubation period to be described by a gamma distribution, we want to estimate its `mean` and `var` by augmenting the infection and onset times.
+Following the decomposition introduced above, the incubation period enters the *augmented prior* $p^\mathrm{augm}(z \mid \theta)$, while the reported onset day enters the *observation* term $p^\mathrm{obs}(x \mid \theta, z)$.
 
-The model "augmented_example" has the only requirement to associate an augmented `"proba"` to be used as likelihood for each individual with positive status.
-This variable will be set to compute the individual log-likelihood according to the incubation period distribution.
-We propose the incubation period to be distributed as a gamma distribution, with parameters `shape` and `scale` to be inferred.
-Then, we define the augmented variables `infec_time` and `onset_time` as uniformly distributed in the ranges of exposure and onset times, respectively.
+We rely on the "test" model, which carries no transmission dynamics ($p^\mathrm{transm} = 1$), and build the whole augmentation from definitions:
+
+- the infection time `.infec_time` is drawn uniformly within the reported exposure window;
+- the incubation period `incub_period` is the quantity we model, gamma distributed with the inferred `mean` and `var` and bounded to a plausible range;
+- the onset time `.onset_time` follows deterministically as their sum.
+
+Finally, an observation node ties the latent onset time to the data: we model the reported onset day `onset_mid` as a noisy measurement of the true onset time, normally distributed around `.onset_time`.
 
 ```{r}
-#| label: augmented-example-setup
+#| label: incubation-example-setup
 # generate an instance of the household model class
 hhmodel <- dataset |>
-  new_housepi_model("augmented_example") |>
-    # define the gamma distribution parameter to be inferred
+  dplyr::mutate(
+    # reported onset mid-point: noisy measurement of the reported interval
+    onset_mid = 0.5 * (onset_min + onset_max + 1.)
+  ) |>
+  new_housepi_model("test") |>
+  # define the gamma distribution parameters to be inferred
   add_parameter(
     mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal"),
     var = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal")
   ) |>
-  # augmented variable definitions as function calls
+  # augmented variable definitions
   add_augmented(
-    # explicit declaration of incubation period likelihood
-    proba = list(
-      func = "gamma",                 # gamma distribution by mean/variance
-      func_args = c(x = incub_period, # compute from individual 'incub_period'
-                    mean = mean@P,    # use model parameter 'mean'
-                    var = var@P),     # and 'var'
-      max = 14 # truncate to given maximum
-    ),
-    # declare 'incub_period' as the difference
-    # between augmented onset and infection times
-    incub_period = .onset_time - .infec_time,
-    # add 'onset_time' time definition
-    # here we correct right censoring of maximum values
-    # to allow for the event to occur during the whole day
-    .onset_time = list(
-      prior = "uniform",
-      min = onset_min@D,
-      max = onset_max@D + 0.99,
-      proposal = "normal"
-    ),
-    # add 'infec_time' time definition
-    .infec_time = list(
-      prior = "uniform",
-      # min = 0 by default for uniform
-      # we impose here .infec_time < .onset_time
-      max = min(.onset_time, exposure_max@D + 0.99),
-      proposal = "normal"
-    )
-  )
+    # infection time uniform within the reported exposure window
+    # min = 0 by default for uniform; + 0.99 spans the whole reported day
+    .infec_time = list(prior = "uniform", max = exposure_max@D + 0.99,
+                       proposal = "normal"),
+    # incubation period gamma by mean/variance, bounded to a plausible range
+    incub_period = list(prior = "gamma", mean = mean@P, var = var@P,
+                        min = 0.1, max = 14, proposal = "normal"),
+    # onset time follows deterministically as their sum
+    .onset_time = .infec_time + incub_period
+  ) |>
+  # observation model for the observed mid-point
+  add_observation("onset_mid", obs = "normal", mean = .onset_time, sd = 0.3)
 ```
 
 ```{r}
@@ -233,7 +223,7 @@ bayesplot::mcmc_trace(get_parameter_draws(results)) +
 #| label: augmented-draws-traces
 #| fig-alt: >
 #|  Trace plots for individual augmented variables across three MCMC chains.
-#|  Incubation period and associated probability for two subjects (IDs 7 and 13).
+#|  Incubation period for two subjects (IDs 7 and 13).
 # plot traces of augmented draws
 bayesplot::mcmc_trace(get_augmented_draws(results))
 ```

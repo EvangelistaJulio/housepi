@@ -123,7 +123,7 @@ The can be supplied only through single mode.
 }
 \examples{
 hhmodel <- dummy_household |>
-  new_housepi_model("augmented_example") |>
+  new_housepi_model("test") |>
   # define an incubation period drawn from a gamma distribution
   add_augmented("incub_period",
                 prior = "gamma", shape = 2, scale = 1, max = 14)

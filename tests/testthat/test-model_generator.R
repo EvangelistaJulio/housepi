@@ -22,15 +22,15 @@ test_that("Model generator inconsistent calls are caught", {
   hhgen <- HousepiGenerator$new("test")
 
   # helper suggests correect template name
-  HousepiGenerator$new("augment exemple") |>
-    expect_error("you mean.*augmented example")
+  HousepiGenerator$new("case ascertaned") |>
+    expect_error("you mean.*case ascertained")
 
   # model name imposed redundancy
-  name1 <- HousepiGenerator$new("augmented example")$name
-  name2 <- HousepiGenerator$new("augmented_example")$name
-  name3 <- HousepiGenerator$new("augmented-example")$name
+  name1 <- HousepiGenerator$new("case ascertained")$name
+  name2 <- HousepiGenerator$new("case_ascertained")$name
+  name3 <- HousepiGenerator$new("case-ascertained")$name
   unique(c(name1, name2, name3)) |>
-    expect_equal("augmented example")
+    expect_equal("case ascertained")
 
   # inference without definitions
   run_inference(hhgen) |>
@@ -224,14 +224,14 @@ test_that("init_pointers is a no-op when pointers already exist", {
 test_that("Model has no leaks", {
   mem_used_mb <- function() gc()["Vcells", "(Mb)"]
 
-  hhgen <- HousepiGenerator$new("augmented example")
+  hhgen <- HousepiGenerator$new("case ascertained")
   rm(hhgen)
   invisible(gc())
   mem_before <- mem_used_mb()
 
   # heavy allocation loop
   for (i in cli::cli_progress_along(seq_len(200))) {
-    hhgen <- HousepiGenerator$new("augmented example")
+    hhgen <- HousepiGenerator$new("case ascertained")
     rm(hhgen)
     if (i %% 20 == 0) gc()
   }

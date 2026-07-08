@@ -135,8 +135,6 @@ navbar:
           href: reference/hhmodel_blank.html
         - text: "Final Size"
           href: reference/hhmodel_final_size.html
-        - text: "Augmented Example"
-          href: reference/hhmodel_augmented_example.html
         - text: "Case Ascertained"
           href: reference/hhmodel_case_ascertained.html
 

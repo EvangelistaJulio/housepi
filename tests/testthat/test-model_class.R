@@ -540,7 +540,7 @@ test_that("Contact rates raise an error for incompatible models", {
     house_id = 1, id = seq(4), status = seq(4),
     cohort = c("a", "a", "b", "b")
   ) |>
-    new_housepi_model("augmented_example") |>
+    new_housepi_model("test") |>
     add_contact_rate(by = "cohort") |>
     expect_error("not supported")
 })
