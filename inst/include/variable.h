@@ -113,11 +113,7 @@ namespace housepi
         /// Check whether last propose move stored a valid value.
         bool is_valid_move() const;
         /// Recover old value and roll back the tentative accept rate update.
-        void recover() noexcept
-        {
-            value_ = old_;
-            accept_rate_ -= adapt_smoothing_;
-        }
+        void recover() noexcept;
 
         double log_prior() const;
         /// Log-likelihood of an observation node.
@@ -138,14 +134,11 @@ namespace housepi
         }
 
         /// Reset the acceptance rate estimate.
-        /// NOTE: initialised at the target to avoid first steps adaptation.
-        void reset_accept_rate() noexcept { accept_rate_ = TARGET_ACCEPT_RATE; }
+        void reset_accept_rate() noexcept;
         /// Adapt the proposal rule from the acceptance estimate.
         void adapt_proposal(double ratio);
-        /// Set EMA smoothing factor (0, 1). NOTE: shared across variables.
-        static void set_adapt_smoothing(double a) noexcept { adapt_smoothing_ = a; }
-        /// Get EMA smoothing factor.
-        static double get_adapt_smoothing() noexcept { return adapt_smoothing_; }
+        static void set_adapt_smoothing(double s) noexcept;
+        static double get_adapt_smoothing() noexcept;
 
     private:
         enum class Validity : std::uint8_t
@@ -163,21 +156,7 @@ namespace housepi
         std::unique_ptr<Distribution> pDistr_; /// prior\model distribution
         std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposal
 
-    public:
-        //////////////////////////
-        //////  ADAPTATION  //////
-        //////////////////////////
-
-        /// Target Metropolis acceptance rate.
-        /// Based on @cite roberts_weak_1997
-        static constexpr double TARGET_ACCEPT_RATE = 0.44;
-
     private:
-        /// Exponentially moving average (EMA) of the acceptance indicator.
-        double accept_rate_ = TARGET_ACCEPT_RATE;
-        /// EMA smoothing factor. NOTE: effective window is 1. / adapt_smoothing_.
-        inline static double adapt_smoothing_ = 1.;
-
         ///////////////////////
         //////  HELPERS  //////
         ///////////////////////

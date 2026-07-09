@@ -20,8 +20,8 @@ test_that("Reject if calling on non-HousepiModel objects", {
   add_parameter_template(obj) |> expect_error(err)
   add_augmented_template(obj) |> expect_error(err)
   add_group_rate(obj) |> expect_error(err)
-  predicted_measures(obj, NULL) |> expect_error(err)
-  predicted_cases_by_house_size(obj, NULL) |> expect_error(err)
+  run_custom_predictive_check(obj, NULL) |> expect_error(err)
+  run_epi_predictive_check(obj, NULL) |> expect_error(err)
 })
 
 test_that("data_wide provided at construction is exposed via get_data_wide", {

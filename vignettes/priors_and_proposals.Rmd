@@ -143,7 +143,7 @@ new_housepi_model(model = "test") |>
     binomial = list(prior = "binomial", size = 4, prob = 0.5),
     negative_binomial = list(prior = "negative_binomial", size = 4, prob = 0.5),
     geometric = list(prior = "geometric", prob = 0.5),
-    categorical = list(prior = "categorical", low = 0.2, mid = 0.1, high = 0.7)
+    categorical = list(prior = "categorical", low = 0.3, mid = 0.1, high = 0.6)
   ) |>
   run_inference() |>
   get_parameter_draws() |>

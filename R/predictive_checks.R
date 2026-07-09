@@ -15,6 +15,22 @@ helper_process_data <- function(data_wide) {
   df
 }
 
+#' @title Compute observed attack rate by household size
+#' @description
+#' Retrieve attack rates from household data.
+#' @param data_wide `r rd_add_wide_`
+#' @return `data.frame`
+#' @details
+#' The attack rate is computed for all households
+#' with size \eqn{n \ge 1} according to
+#' \eqn{\frac{\mathbb{E}_{n}[n^{+}]}{n}}
+#' @examples
+#' measure_ar_by_hhsize(flu_1918_frederick)
+#' @export
+measure_ar_by_hhsize <- function(data_wide) {
+  .engine$measure_ar_by_hhsize(helper_process_data(data_wide))
+}
+
 #' @title Compute observed secondary attack rate by household size
 #' @description
 #' Retrieve secondary attack rates (SAR) from household data.
@@ -23,12 +39,12 @@ helper_process_data <- function(data_wide) {
 #' @details
 #' The secondary attack rate is computed for all households
 #' with size \eqn{n > 1} according to
-#' \eqn{\frac{\mathbb{E}[n_{+}\vert{n}] - 1}{n - 1}}
+#' \eqn{\frac{\mathbb{E}_{n}[n^{+}] - 1}{n - 1}}
 #' @examples
-#' measure_sar_by_house_size(flu_1918_frederick)
+#' measure_sar_by_hhsize(flu_1918_frederick)
 #' @export
-measure_sar_by_house_size <- function(data_wide) {
-  .engine$measure_sar_by_house_size(helper_process_data(data_wide))
+measure_sar_by_hhsize <- function(data_wide) {
+  .engine$measure_sar_by_hhsize(helper_process_data(data_wide))
 }
 
 #' @title Tabulate observed household cases by household size
@@ -37,10 +53,10 @@ measure_sar_by_house_size <- function(data_wide) {
 #' @param data_wide `r rd_add_wide_`
 #' @return `data.frame`
 #' @examples
-#' measure_cases_by_house_size(flu_1918_frederick)
+#' measure_cases_by_hhsize(flu_1918_frederick)
 #' @export
-measure_cases_by_house_size <- function(data_wide) {
-  .engine$measure_cases_by_house_size(helper_process_data(data_wide))
+measure_cases_by_hhsize <- function(data_wide) {
+  .engine$measure_cases_by_hhsize(helper_process_data(data_wide))
 }
 
 ############################################################################
@@ -133,7 +149,7 @@ ppc_frame_apply_stat <- function(frame_list, stat_fn, label,
 #' @keywords internal
 #' @noRd
 ppc_frame_apply_summary <- function(frame_list,
-                                    point_estimate = "mean",
+                                    point_estimate = "median",
                                     name = NA_character_) {
   point_estimate <- ppc_set_point_estimate(point_estimate)
   fn <- switch(point_estimate,
@@ -176,7 +192,7 @@ ppc_observed_outside_cri <- function(observed, cri_lower, cri_upper) {
 }
 
 # extract predicted quantities from cases-by-house-size table list
-ppc_extract_predicted_results <- function(x, point_estimate = "mean", cri,
+ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
                                           name = NULL) {
   list(predicted = ppc_frame_apply_summary(x, point_estimate, name = name),
        cri_lower = ppc_frame_apply_cri(x, cri, upper = FALSE, name = name),
@@ -187,8 +203,8 @@ ppc_extract_predicted_results <- function(x, point_estimate = "mean", cri,
 #' @description
 #' Class to extract posterior predictive checks over measures on simulations.
 #' @docType class
-HousepiPrediction <- R6::R6Class(
-  classname = "HousepiPrediction",
+HousepiCustomPPC <- R6::R6Class(
+  classname = "HousepiCustomPPC",
   cloneable = TRUE,
   lock_objects = FALSE,
 
@@ -221,9 +237,9 @@ HousepiPrediction <- R6::R6Class(
           all_within <- FALSE
           warn_h(paste(
             "{format_there_were_was(len_bad)} observed",
-            "{as_plural('value', len_bad)} outside",
-            "{round(100 * private$cri_level_)}% credible interval",
-            "for measure {m}."
+            "{as_plural('value', len_bad)} outside of",
+            "{round(100 * private$cri_level_)}% CrI",
+            "for measure {.field {m}}."
           ))
         }
       }
@@ -298,7 +314,7 @@ HousepiPrediction <- R6::R6Class(
                           max_nrep = 200L,
                           threads = 1L,
                           progress = TRUE,
-                          point_estimate = "mean") {
+                          point_estimate = "median") {
       if (!is.na(max_nrep) && (!is.numeric(max_nrep) || max_nrep < 1)) stop_h(
         "{.arg max_nrep} must be a positive integer or NA."
       )
@@ -437,41 +453,43 @@ HousepiPrediction <- R6::R6Class(
 ############################################################################
 
 # @description
-# Number of household with non-zero cases per household size.
+# Total households and households with at least one case, per household size.
 #
 # @return `data.frame`
-helper_count_non_zero_cases <- function(data_wide) {
-  .engine$count_non_zero_cases(helper_process_data(data_wide))
+helper_house_counts <- function(data_wide) {
+  .engine$count_houses_by_hhsize(helper_process_data(data_wide))
 }
 
 # @description
 # Return a list with all filtered case tables.
 #
 # @return `list`
-helper_filter_tables <- function(cases_table_by_size, max_house_size) {
+helper_filter_tables <- function(cases_count, max_hhsize) {
   # load observed table to use as a type shape template
-  obsdf <- cases_table_by_size$observed
+  obsdf <- cases_count$observed
 
   # remove rows without counts
-  mask_row <- rowSums(obsdf[colnames(obsdf) != "house_size"], na.rm = TRUE) != 0
+  mask_row <- rowSums(obsdf[colnames(obsdf) != "hhsize"], na.rm = TRUE) != 0
 
   # remove column with zero cases if none was observed
   mask_col <- colnames(obsdf) != "0" |
     colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)
 
   # implement max household size mask
-  if (!is.na(max_house_size)) {
-    col_max <- which(colnames(obsdf) == max_house_size)
-    row_max <- which(obsdf$house_size == max_house_size)
+  if (!is.na(max_hhsize)) {
+    col_max <- which(colnames(obsdf) == max_hhsize)
+    row_max <- which(obsdf$hhsize == max_hhsize)
 
     mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
     mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
   }
 
-  list(observed = obsdf[mask_row, mask_col],
-       predicted = cases_table_by_size$predicted[mask_row, mask_col],
-       cri_lower = cases_table_by_size$cri_lower[mask_row, mask_col],
-       cri_upper = cases_table_by_size$cri_upper[mask_row, mask_col])
+  list(
+    observed = obsdf[mask_row, mask_col],
+    predicted = cases_count$predicted[mask_row, mask_col],
+    cri_lower = cases_count$cri_lower[mask_row, mask_col],
+    cri_upper = cases_count$cri_upper[mask_row, mask_col]
+  )
 }
 
 # @description
@@ -487,7 +505,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
 
   # 2. curate predicted dataframe
-  preddf$house_size <- obsdf$house_size
+  preddf$hhsize <- obsdf$hhsize
   preddf$distr <- "predicted"
   rownames(preddf) <- seq(2, 2 * nrow(preddf), 2)
 
@@ -497,7 +515,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   rownames(combined) <- NULL
   # reorder columns
   y <- colnames(combined)
-  aux <- c("house_size", "distr")
+  aux <- c("hhsize", "distr")
   combined <- combined[, c(aux, y[!(y %in% aux)])]
 
   # format columns to extract labels with labelizor
@@ -509,14 +527,15 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   combined
 }
 
-#' @title Posterior predictive check on cases-by-household-size and SAR
+#' @title Standard epidemiological posterior predictive check
 #' @description
-#' Predicted cases by household size, comparing observed and predicted values.
-#' It estimates secondary attack rates and cases by size tables.
+#' Posterior predictive check on the standard epidemiological measures by
+#' household size: cases, attack rate and secondary attack rate, comparing
+#' observed and predicted values.
 #' @docType class
-PredictedCasesBySize <- R6::R6Class(
-  classname = "PredictedCasesBySize",
-  inherit = HousepiPrediction,
+HousepiPPC <- R6::R6Class(
+  classname = "HousepiPPC",
+  inherit = HousepiCustomPPC,
   cloneable = TRUE,
   lock_objects = FALSE,
 
@@ -526,8 +545,8 @@ PredictedCasesBySize <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
-    max_hh_size_ = NA_integer_,
-    counts_ = NULL
+    max_hhsize_ = NA_integer_,
+    house_counts_ = NULL
   ),
 
   ############################################################################
@@ -535,6 +554,30 @@ PredictedCasesBySize <- R6::R6Class(
   ############################################################################
 
   active = list(
+    #' @field formatted_attack_rate `data.frame`.
+    #' Observed and predicted attack rates by household size.
+    #' If a maximum house size is set, larger sizes are not returned.
+    formatted_attack_rate = function(value) {
+      if (!missing(value)) stop_read_only("formatted_attack_rate")
+      # convert internal list to data.frame
+      output <- data.frame(
+        hhsize = self$attack_rate$observed$hhsize,
+        observed = self$attack_rate$observed$ar,
+        predicted = self$attack_rate$predicted$ar,
+        cri_lower = self$attack_rate$cri_lower$ar,
+        cri_upper = self$attack_rate$cri_upper$ar,
+        counts = private$house_counts_$total[
+          match(self$attack_rate$observed$hhsize,
+                private$house_counts_$hhsize)
+        ]
+      )
+      # filter to maximum house size if applicable
+      if (!is.na(private$max_hhsize_)) {
+        output <- output[output$hhsize <= private$max_hhsize_, ]
+      }
+      output
+    },
+
     #' @field formatted_sec_attack_rate `data.frame`.
     #' Observed and predicted secondary attack rates by household size.
     #' If a maximum house size is set, larger sizes are not returned.
@@ -542,33 +585,35 @@ PredictedCasesBySize <- R6::R6Class(
       if (!missing(value)) stop_read_only("formatted_sec_attack_rate")
       # convert internal list to data.frame
       output <- data.frame(
-        house_size = self$sec_attack_rate$observed$house_size,
+        hhsize = self$sec_attack_rate$observed$hhsize,
         observed = self$sec_attack_rate$observed$sar,
         predicted = self$sec_attack_rate$predicted$sar,
         cri_lower = self$sec_attack_rate$cri_lower$sar,
         cri_upper = self$sec_attack_rate$cri_upper$sar,
-        counts = private$counts_$count
+        counts = private$house_counts_$at_least_1_case[
+          match(self$sec_attack_rate$observed$hhsize,
+                private$house_counts_$hhsize)
+        ]
       )
       # filter to maximum house size if applicable
-      if (!is.na(private$max_hh_size_)) {
-        output <- output[output$house_size <= private$max_hh_size_, ]
+      if (!is.na(private$max_hhsize_)) {
+        output <- output[output$hhsize <= private$max_hhsize_, ]
       }
       output
     },
 
-    #' @field formatted_cases_table `data.frame`.
+    #' @field formatted_cases_count `data.frame`.
     #' Formatted observed and predicted cases by household size.
     #' If a maximum household size is set, larger sizes are not returned.
-    formatted_cases_table = function(value) {
-      if (!missing(value)) stop_read_only("formatted_case_table")
-      # filter according to max_house_size
-      cases <- helper_filter_tables(self$cases_table_by_size,
-                                    private$max_hh_size_)
+    formatted_cases_count = function(value) {
+      if (!missing(value)) stop_read_only("formatted_cases_count")
+      # filter according to max_hhsize
+      cases <- helper_filter_tables(self$cases_count, private$max_hhsize_)
 
       # empty frame as a placeholder for Credible Interval
       na_df <- cases$observed
       na_df[] <- lapply(na_df, function(col) ifelse(is.numeric(col), NA, col))
-      na_df$house_size <- cases$observed$house_size
+      na_df$hhsize <- cases$observed$hhsize
 
       list(
         predicted = helper_combine_obs_pred(cases$observed, cases$predicted),
@@ -596,20 +641,21 @@ PredictedCasesBySize <- R6::R6Class(
                           obs_process = NULL,
                           thin_ess = TRUE,
                           max_nrep = 200L,
-                          point_estimate = "mean",
+                          point_estimate = "median",
                           threads = 1L,
                           progress = TRUE) {
-      # ininitialize parent class HousepiPrediction
-      super$initialize(hhmodel = hhmodel, param_table = param_table,
-                       cases_table_by_size = measure_cases_by_house_size,
-                       sec_attack_rate = measure_sar_by_house_size,
-                       obs_process = obs_process,
-                       thin_ess = thin_ess,
-                       max_nrep = max_nrep,
-                       point_estimate = point_estimate,
-                       threads = threads,
-                       progress = progress)
-      private$counts_ <- helper_count_non_zero_cases(hhmodel$data_wide)
+      # ininitialize parent class HousepiCustomPPC
+      super$initialize(
+        hhmodel = hhmodel, param_table = param_table,
+        attack_rate = measure_ar_by_hhsize,
+        sec_attack_rate = measure_sar_by_hhsize,
+        cases_count = measure_cases_by_hhsize,
+        obs_process = obs_process,
+        thin_ess = thin_ess, max_nrep = max_nrep,
+        point_estimate = point_estimate,
+        threads = threads, progress = progress
+      )
+      private$house_counts_ <- helper_house_counts(hhmodel$data_wide)
 
       invisible(self)
     },
@@ -617,14 +663,14 @@ PredictedCasesBySize <- R6::R6Class(
     #' @description Set maximum household size to consider in result outputs.
     #' @param n `integer(1)`. Maximum household size to consider.
     #' If `NA`, restore observed maximum.
-    set_max_house_size = function(n) {
-      private$max_hh_size_ <- n
+    set_max_hhsize = function(n) {
+      private$max_hhsize_ <- n
       invisible(self)
     },
 
     #' @description Restore maximum household size to observed maximum.
-    drop_max_house_size = function() {
-      self$set_max_house_size(NA_integer_)
+    drop_max_hhsize = function() {
+      self$set_max_hhsize(NA_integer_)
       invisible(self)
     },
 
@@ -634,8 +680,7 @@ PredictedCasesBySize <- R6::R6Class(
     #' If `FALSE`, consider upper tail `P[X>x]`.
     #' @return `list`
     chisq_test = function(lower_tail = FALSE) {
-      cases <- helper_filter_tables(self$cases_table_by_size,
-                                    private$max_hh_size_)
+      cases <- helper_filter_tables(self$cases_count, private$max_hhsize_)
       res <- (cases$observed - cases$predicted)^2 / cases$predicted
       x_val <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - nrow(res) - sum(is.na(res))
@@ -645,10 +690,10 @@ PredictedCasesBySize <- R6::R6Class(
   )
 )
 
-#' @title Compute posterior-predictive measures on a housepi model
+#' @title Custom posterior predictive check on a housepi model
 #' @description
-#' Extract the measures prediction according to given table of parameters.
-#' Typically used to perform posterior predictive checks.
+#' Posterior predictive check on user-supplied measures, comparing observed
+#' and predicted values according to a given table of parameters.
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param ... `r rd_measure_dots_`
@@ -659,36 +704,36 @@ PredictedCasesBySize <- R6::R6Class(
 #' @param point_estimate `r rd_point_estimate_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
-#' @return An object of class
-#' [HousepiPrediction][housepi::HousepiPrediction].
+#' @return An object of class [HousepiCustomPPC].
 #' @export
-predicted_measures <- function(hhmodel,
-                               param_table,
-                               ...,
-                               obs_process = NULL,
-                               obs_process_long = NULL,
-                               thin_ess = TRUE,
-                               max_nrep = 200L,
-                               point_estimate = "mean",
-                               threads = 1L,
-                               progress = TRUE) {
+run_custom_predictive_check <- function(hhmodel,
+                                        param_table,
+                                        ...,
+                                        obs_process = NULL,
+                                        obs_process_long = NULL,
+                                        thin_ess = TRUE,
+                                        max_nrep = 200L,
+                                        point_estimate = "median",
+                                        threads = 1L,
+                                        progress = TRUE) {
   stopifnothousepi(hhmodel)
-  HousepiPrediction$new(hhmodel$copy(),
-                        param_table,
-                        ...,
-                        thin_ess = thin_ess,
-                        max_nrep = max_nrep,
-                        obs_process = obs_process,
-                        obs_process_long = obs_process_long,
-                        point_estimate = point_estimate,
-                        threads = threads,
-                        progress = progress)
+  HousepiCustomPPC$new(
+    hhmodel$copy(), param_table, ...,
+    thin_ess = thin_ess, max_nrep = max_nrep,
+    obs_process = obs_process, obs_process_long = obs_process_long,
+    point_estimate = point_estimate, threads = threads, progress = progress
+  )
 }
 
-#' @title Predict cases by household size and secondary attack rate
+#' @title Standard epidemiological posterior predictive check
 #' @description
-#' Extract the predicted number of household cases per size.
-#' It can be used to estimate the secondary attack rate (SAR).
+#' Posterior predictive check on standard epidemiological measures
+#' by household size. It compares observed and predicted values of 
+#' \describe{
+#' \item{`"attack_rate"`}{see [measure_ar_by_hhsize];}
+#' \item{`"sec_attack_rate"`}{see [measure_sar_by_hhsize];}
+#' \item{`"cases_count"`}{see [measure_cases_by_hhsize].}
+#' }
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param obs_process `r rd_simul_observ_`
@@ -698,35 +743,32 @@ predicted_measures <- function(hhmodel,
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return
-#' An object of class
-#' [PredictedCasesBySize][housepi::PredictedCasesBySize]
+#' An object of class [HousepiPPC]
 #' containing methods to compare observed and predicted cases.
 #' @export
-predicted_cases_by_house_size <- function(hhmodel,
-                                          param_table,
-                                          obs_process = NULL,
-                                          thin_ess = TRUE,
-                                          max_nrep = 200L,
-                                          point_estimate = "mean",
-                                          threads = 1L,
-                                          progress = TRUE) {
+run_epi_predictive_check <- function(hhmodel,
+                                     param_table,
+                                     obs_process = NULL,
+                                     thin_ess = TRUE,
+                                     max_nrep = 200L,
+                                     point_estimate = "median",
+                                     threads = 1L,
+                                     progress = TRUE) {
   stopifnothousepi(hhmodel)
-  PredictedCasesBySize$new(hhmodel$copy(),
-                           param_table,
-                           obs_process = obs_process,
-                           thin_ess = thin_ess,
-                           max_nrep = max_nrep,
-                           point_estimate = point_estimate,
-                           threads = threads,
-                           progress = progress)
+  HousepiPPC$new(
+    hhmodel$copy(), param_table,
+    obs_process = obs_process, thin_ess = thin_ess,
+    max_nrep = max_nrep, point_estimate = point_estimate,
+    threads = threads, progress = progress
+  )
 }
 
 #' Format credible interval into printable string
 #'
 #' @description
-#' Format elementwise point estimate and credible-interval bounds
-#' into a single string. The function is vectorised over its arguments
-#' and will return a character vector of the same length as the inputs.
+#' Format element-wise estimate and credible-interval into a string. 
+#' The function is vectorised over its arguments
+#' and returns a character vector of the same length as the inputs.
 #' @param point_estimate `numeric()`. Point estimate values.
 #' @param cri_lower `numeric()`. Lower bounds of the credible interval.
 #' @param cri_upper `numeric()`. Upper bounds of the credible interval.

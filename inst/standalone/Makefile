@@ -1,7 +1,7 @@
 # Standalone Makefile
 
-# If MODEL is not provided, set blank as default
-MODEL ?= ../../src/model_blank.cpp
+# If MODEL is not provided, set 'test' model as default
+MODEL ?= ../../src/model_test.cpp
 
 # Standard fields used for debugging
 # exported by private$.export_to_cpp_standalone

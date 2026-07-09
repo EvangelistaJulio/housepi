@@ -12,9 +12,9 @@ local_ppc <- local({
   list(hhmodel = hhmodel, results = results)
 })
 
-test_that("measure-sar-by-house_size computes SAR correctly", {
-  # empty call: columns c(house_size, 0))
-  measure_sar_by_house_size(NULL) |>
+test_that("measure-sar-by-hhsize computes SAR correctly", {
+  # empty call: columns c(hhsize, 0))
+  measure_sar_by_hhsize(NULL) |>
     dim() |>
     expect_equal(c(0L, 2L))
 
@@ -25,22 +25,44 @@ test_that("measure-sar-by-house_size computes SAR correctly", {
     status = c(1, 1, 1, 0, 0, 1, 0)
   )
 
-  result <- measure_sar_by_house_size(data_wide)
+  result <- measure_sar_by_hhsize(data_wide)
   expect_true(is.data.frame(result))
-  expect_true(all(c("house_size", "sar") %in% colnames(result)))
+  expect_true(all(c("hhsize", "sar") %in% colnames(result)))
   # size 2: mean of SAR 1.0 (hh1) and 0.0 (hh3) = 0.5
-  expect_equal(result[result$house_size == 2, "sar"], 0.5)
+  expect_equal(result[result$hhsize == 2, "sar"], 0.5)
   # size 3: SAR = (1-1)/(3-1) = 0
-  expect_equal(result[result$house_size == 3, "sar"], 0)
+  expect_equal(result[result$hhsize == 3, "sar"], 0)
 
   # FIXME: what should be the behavior here?
   #data_wide$house_id <- NA
-  #result <- measure_sar_by_house_size(data_wide)
+  #result <- measure_sar_by_hhsize(data_wide)
 })
 
-test_that("measure_cases_by_house_size produces correct contingency table", {
-  # empty call: columns c(house_size, 0))
-  measure_cases_by_house_size(NULL) |>
+test_that("measure_ar_by_hhsize computes attack rate correctly", {
+  # empty call: columns c(hhsize, attack_rate)
+  measure_ar_by_hhsize(NULL) |>
+    dim() |>
+    expect_equal(c(0L, 2L))
+
+  # normal case
+  data_wide <- data.frame(
+    id = paste0("p", 1:7),
+    house_id = c(rep("hh1", 2), rep("hh2", 3), rep("hh3", 2)),
+    status = c(1, 1, 1, 0, 0, 1, 0)
+  )
+
+  result <- measure_ar_by_hhsize(data_wide)
+  expect_true(is.data.frame(result))
+  expect_true(all(c("hhsize", "ar") %in% colnames(result)))
+  # size 2: mean of AR 2/2 (hh1) and 1/2 (hh3) = 0.75
+  expect_equal(result[result$hhsize == 2, "ar"], 0.75)
+  # size 3: AR = 1/3
+  expect_equal(result[result$hhsize == 3, "ar"], 1 / 3)
+})
+
+test_that("measure_cases_by_hhsize produces correct contingency table", {
+  # empty call: columns c(hhsize, 0))
+  measure_cases_by_hhsize(NULL) |>
     dim() |>
     expect_equal(c(0L, 2L))
 
@@ -48,10 +70,10 @@ test_that("measure_cases_by_house_size produces correct contingency table", {
                           house_id = c(rep("hh1", 2), rep("hh2", 3)),
                           status = c(1, 1, 1, 0, 0))
 
-  result <- measure_cases_by_house_size(data_wide)
+  result <- measure_cases_by_hhsize(data_wide)
 
   expect_true(is.data.frame(result))
-  expect_true("house_size" %in% colnames(result))
+  expect_true("hhsize" %in% colnames(result))
   # grid should be complete
   expect_true(nrow(result) > 0)
 
@@ -191,30 +213,33 @@ test_that("PPC extract-predicted-results returns correct structure", {
   expect_true(is.data.frame(result$predicted))
 })
 
-test_that("Helper to count non-zero-cases behaves correctly", {
+test_that("Helper to count houses by household size behaves correctly", {
   df <- data.frame(
-    house_id = c(rep("hh1", 2), rep("hh2", 3), rep("hh3", 2)),
-    status = c(1, 1, 1, 0, 0, 1, 0)
+    house_id = c(rep("hh1", 2), rep("hh2", 3), rep("hh3", 2), rep("hh4", 2)),
+    status = c(1, 1, 1, 0, 0, 1, 0, 0, 0)
   )
   df$id <- paste(df$house_id, seq_len(dim(df)[2]), sep = "_")
-  result <- helper_count_non_zero_cases(df)
+  result <- helper_house_counts(df)
   expect_true(is.data.frame(result))
-  expect_true(all(c("house_size", "count") %in% colnames(result)))
-  # hh1 (size 2, 2 cases) and hh2 (size 3, 1 case) and hh3 (size 2, 1 case)
-  expect_equal(result$count[result$house_size == 2], 2)
-  expect_equal(result$count[result$house_size == 3], 1)
+  expect_true(all(c("hhsize", "total", "at_least_1_case") %in% colnames(result)))
+  # size 2: hh1 (2 cases), hh3 (1 case), hh4 (0 cases) -> 3 total, 2 affected
+  expect_equal(result$total[result$hhsize == 2], 3)
+  expect_equal(result$at_least_1_case[result$hhsize == 2], 2)
+  # size 3: hh2 (1 case) -> 1 total, 1 affected
+  expect_equal(result$total[result$hhsize == 3], 1)
+  expect_equal(result$at_least_1_case[result$hhsize == 3], 1)
 })
 
-test_that("Helper to filter tables by max_house_size behaves correctly", {
-  obs <- data.frame(house_size = 2:4,
+test_that("Helper to filter tables by max_hhsize behaves correctly", {
+  obs <- data.frame(hhsize = 2:4,
                     `0` = c(1, 2, 3), `1` = c(4, 5, 0), `2` = c(0, 1, 0),
                     check.names = FALSE)
   pred <- obs * 1.1
-  pred$house_size <- obs$house_size
+  pred$hhsize <- obs$hhsize
   cri_lo <- obs * 0.9
-  cri_lo$house_size <- obs$house_size
+  cri_lo$hhsize <- obs$hhsize
   cri_up <- obs * 1.2
-  cri_up$house_size <- obs$house_size
+  cri_up$hhsize <- obs$hhsize
 
   tbl <- list(observed = obs, predicted = pred,
               cri_lower = cri_lo, cri_upper = cri_up)
@@ -225,29 +250,29 @@ test_that("Helper to filter tables by max_house_size behaves correctly", {
 
   # filter to max size 3
   result2 <- helper_filter_tables(tbl, 3)
-  expect_true(all(result2$observed$house_size <= 3))
+  expect_true(all(result2$observed$hhsize <= 3))
 })
 
 test_that("Helper to combine observations and predictions interleaves rows", {
-  obsdf <- data.frame(house_size = c(2, 3), `0` = c(1, 2), `1` = c(3, 4),
+  obsdf <- data.frame(hhsize = c(2, 3), `0` = c(1, 2), `1` = c(3, 4),
                       check.names = FALSE)
   preddf <- data.frame(`0` = c(1.1, 2.1), `1` = c(3.1, 4.1),
                        check.names = FALSE)
   result <- helper_combine_obs_pred(obsdf, preddf)
   expect_true(is.data.frame(result))
   expect_true("distr" %in% colnames(result))
-  expect_true("house_size" %in% colnames(result))
+  expect_true("hhsize" %in% colnames(result))
   # alternating rows
   expect_equal(result$distr, rep(c("observed", "predicted"), 2))
   expect_equal(nrow(result), 4)
 })
 
-test_that("HousepiPrediction active fields are read-only", {
+test_that("HousepiCustomPPC active fields are read-only", {
   hhmodel <- local_ppc$hhmodel
   results <- local_ppc$results
   suppressWarnings(
-    ppc <- predicted_measures(hhmodel, results,
-                              sar = measure_sar_by_house_size,
+    ppc <- run_custom_predictive_check(hhmodel, results,
+                              sar = measure_sar_by_hhsize,
                               progress = FALSE)
   )
 
@@ -267,7 +292,7 @@ test_that("HousepiPrediction active fields are read-only", {
 })
 
 test_that("Predicted-measures raises error when no measure is provided", {
-  predicted_measures(local_ppc$hhmodel, local_ppc$results) |>
+  run_custom_predictive_check(local_ppc$hhmodel, local_ppc$results) |>
     expect_error("No measure was provided")
 })
 
@@ -275,33 +300,42 @@ test_that("Predicted cases by house size works as expected", {
   hhmodel <- local_ppc$hhmodel
   results <- local_ppc$results
   suppressWarnings(
-    ppc <- predicted_cases_by_house_size(hhmodel, results)
+    ppc <- run_epi_predictive_check(hhmodel, results)
   )
-  expect_s3_class(ppc, "PredictedCasesBySize")
+  expect_s3_class(ppc, "HousepiPPC")
 
-  # formatted_sec_attack_rate
+  # formatted_attack_rate: counts are the raw house totals on the AR grid
+  ar <- ppc$formatted_attack_rate
+  expect_true(is.data.frame(ar))
+  expect_true(all(c("hhsize", "observed", "counts") %in% colnames(ar)))
+  hc <- helper_house_counts(hhmodel$data_wide)
+  expect_equal(ar$counts, hc$total[match(ar$hhsize, hc$hhsize)])
+
+  # formatted_sec_attack_rate: counts are houses with at least one case
   sar <- ppc$formatted_sec_attack_rate
   expect_true(is.data.frame(sar))
-  expect_true("house_size" %in% colnames(sar))
+  expect_true("hhsize" %in% colnames(sar))
   expect_true("observed" %in% colnames(sar))
+  expect_equal(sar$counts, hc$at_least_1_case[match(sar$hhsize, hc$hhsize)])
 
-  # formatted_cases_table
-  ct <- ppc$formatted_cases_table
+  # formatted_cases_count
+  ct <- ppc$formatted_cases_count
   expect_true(is.list(ct))
   expect_true(length(ct) == 3)
 
   # subclass active fields and inherited dynamic measure fields are read-only
   ppc |>
     helper_test_read_only(
-      "formatted_sec_attack_rate", "formatted_cases_table",
-      "sec_attack_rate", "cases_table_by_size"
+      "formatted_attack_rate", "attack_rate", 
+      "formatted_sec_attack_rate", "sec_attack_rate", 
+      "formatted_cases_count","cases_count"
     )
 
-  # set_max_house_size and drop
-  ppc$set_max_house_size(3)
+  # set_max_hhsize and drop
+  ppc$set_max_hhsize(3)
   sar2 <- ppc$formatted_sec_attack_rate
-  expect_true(all(sar2$house_size <= 3))
-  ppc$drop_max_house_size()
+  expect_true(all(sar2$hhsize <= 3))
+  ppc$drop_max_hhsize()
 
   # chisq_test
   chi <- ppc$chisq_test()
@@ -317,16 +351,16 @@ test_that("PPC does not pollute the engine's data_wide between calls", {
   dw_before <- hhmodel$data_wide
   suppressWarnings({
     ppc1 <- hhmodel |>
-      predicted_cases_by_house_size(results, thin_ess = FALSE, max_nrep = 5)
+      run_epi_predictive_check(results, thin_ess = FALSE, max_nrep = 5)
   })
   expect_identical(hhmodel$data_wide, dw_before)
 
   suppressWarnings({
     ppc2 <- hhmodel |>
-      predicted_cases_by_house_size(results, thin_ess = FALSE, max_nrep = 5)
+      run_epi_predictive_check(results, thin_ess = FALSE, max_nrep = 5)
   })
-  expect_identical(ppc1$cases_table_by_size$observed,
-                   ppc2$cases_table_by_size$observed)
+  expect_identical(ppc1$cases_count$observed,
+                   ppc2$cases_count$observed)
   expect_identical(ppc1$sec_attack_rate$observed,
                    ppc2$sec_attack_rate$observed)
 })
@@ -353,28 +387,28 @@ test_that("ppc_observed_outside_cri flags out-of-range numeric entries", {
   expect_equal(res$label, c(FALSE, FALSE))
 })
 
-test_that("HousepiPrediction warns on observed values outside CrI", {
+test_that("HousepiCustomPPC warns on observed values outside CrI", {
   # parameter set deliberately so that SAR~1
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter_template() |>
-    predicted_measures(
-      data.frame(alpha = 50., beta = 50., gamma = 1., size_ref = 4L),
-      sar = measure_sar_by_house_size,
+    run_custom_predictive_check(
+      data.frame(alpha = 50., beta = 50., gamma = 1., hhsize_ref = 4L),
+      sar = measure_sar_by_hhsize,
       thin_ess = FALSE, max_nrep = 20L
     ) |>
-    expect_warning(".*outside.*credible interval")
+    expect_warning(".*outside.*CrI")
 })
 
-test_that("predicted_measures works with custom measure", {
+test_that("run_custom_predictive_check works with custom measure", {
   hhmodel <- local_ppc$hhmodel
   results <- local_ppc$results
   suppressWarnings({
-    ppc <- predicted_measures(hhmodel, results,
-                              sar = measure_sar_by_house_size,
+    ppc <- run_custom_predictive_check(hhmodel, results,
+                              sar = measure_sar_by_hhsize,
                               thin_ess = FALSE, max_nrep = 10)
   })
-  expect_s3_class(ppc, "HousepiPrediction")
+  expect_s3_class(ppc, "HousepiCustomPPC")
   expect_true(!is.null(ppc$sar))
   expect_true("observed" %in% names(ppc$sar))
   expect_true("predicted" %in% names(ppc$sar))

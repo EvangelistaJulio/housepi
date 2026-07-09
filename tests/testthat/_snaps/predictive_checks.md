@@ -1,4 +1,4 @@
-# predicted_measures works with custom measure
+# run_custom_predictive_check works with custom measure
 
     Code
       print(ppc)
@@ -6,6 +6,6 @@
       i Posterior predictions for model "final size":
       * sar
       N. replicates: 10
-      Point estimate: mean
+      Point estimate: median
       Credible interval: 95%
 

@@ -22,7 +22,7 @@ find_introduction <- function(house) {
 
 # transmission rate
 transmission_rate <- function(house, param) {
-  param$beta * (param$size_ref / dim(house)[1]) ^ param$gamma
+  param$beta * (param$hhsize_ref / dim(house)[1]) ^ param$gamma
 }
 
 # log-likelihood contribution of escaped members
@@ -103,7 +103,7 @@ test_that("Simulations behave as expected", {
     dplyr::mutate(status = NA, start_date = 0) |>
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 0,
-                  gamma = 1, size_ref = 4) |>
+                  gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -120,7 +120,7 @@ test_that("Simulations behave as expected", {
     dplyr::mutate(start_date = 0) |>
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100,
-                  gamma = 1, size_ref = 4) |>
+                  gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -153,7 +153,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
 
   # choice for the parameters
   param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                size_ref = 4, shape = 2, scale = 1.1)
+                hhsize_ref = 4, shape = 2, scale = 1.1)
 
   for (discr in c(FALSE, TRUE)) {
     hhmodel <- house |>
@@ -164,7 +164,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
       add_infec_profile(func = "gamma", discr = discr,
                         shape = shape@P, scale = scale@P)
 
-    expect_equal(eval_log_density(hhmodel),
+    expect_equal(evaluate_log_lik(hhmodel),
                  augm_infec_obs_log_lik(house, param, discr))
   }
 })
@@ -322,7 +322,7 @@ test_that("Augmented moves preserve log-likelihood", {
       ) |>
       add_parameter(import = params_i) |>
       add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
-      eval_log_density()
+      evaluate_log_lik()
   }
   # the fresh-model likelihood matches the tracked pointwise likelihood
   expect_equal(tot_log_lik[n_steps], housepi_eval(n_steps))
@@ -459,7 +459,7 @@ test_that("Observation node generates the data column in simulation", {
     dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
     dplyr::mutate(start_date = 0) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time   = -incub_period
@@ -489,7 +489,7 @@ test_that("Household observation derives from simulated observations", {
     dplyr::filter(house_id %in% sample(unique(house_id), 80)) |>
     dplyr::select(-test_date) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time   = -incub_period
@@ -522,7 +522,7 @@ test_that("Simulation leaves overwritten data columns pristine", {
     dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
     dplyr::mutate(start_date = 0) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -551,7 +551,7 @@ test_that("Augmented variable reads a static data-bound household observation", 
     dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
     dplyr::mutate(test_date = 5, study_period = 21) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
                         max = ~ start_date@D + 5, proposal = "normal")
@@ -571,7 +571,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
     dplyr::filter(house_id %in% head(unique(house_id), 20)) |>
     dplyr::select(-test_date) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
                         max = ~ start_date@D + 5, proposal = "normal")
@@ -601,7 +601,7 @@ test_that("Deterministic observation node simulates, inference rejects it", {
   build <- function(data) {
     data |>
       new_housepi_model("case_ascertained") |>
-      add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+      add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
       add_augmented(
         incub_period = list(prior = "gamma", shape = 2, scale = 1),
         infec_time   = -incub_period
@@ -642,7 +642,7 @@ test_that("Household observations aggregate a data column across members", {
 
   simulated <- dat |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -763,7 +763,7 @@ test_that("Status process generates a labelled status factor in simulation", {
     dplyr::filter(house_id %in% sample(unique(house_id), 150)) |>
     dplyr::mutate(start_date = 0) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -787,7 +787,7 @@ test_that("Status process drives status-specific augmented blocks", {
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
     dplyr::mutate(start_date = 0) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -814,7 +814,7 @@ test_that("Status is a constant in inference", {
                       start_date = 0, study_period = 21)
   house$id <- sprintf("outerheaven_m%s", seq_len(nrow(house)))
   param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                size_ref = 4, shape = 2, scale = 1.1)
+                hhsize_ref = 4, shape = 2, scale = 1.1)
 
   build <- function(with_status) {
     m <- house |>
@@ -829,7 +829,7 @@ test_that("Status is a constant in inference", {
   }
 
   # the status process drops out of the density (status is fixed data)
-  expect_equal(eval_log_density(build(TRUE)), eval_log_density(build(FALSE)))
+  expect_equal(evaluate_log_lik(build(TRUE)), evaluate_log_lik(build(FALSE)))
 })
 
 test_that("Status process rejects latent/parameter probabilities", {
@@ -854,7 +854,7 @@ test_that("Character status round-trips with stable codes", {
     dplyr::filter(house_id %in% sample(unique(house_id), 120)) |>
     dplyr::mutate(start_date = 0) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -868,10 +868,10 @@ test_that("Character status round-trips with stable codes", {
     dplyr::select(id, house_id, status, infec_time, start_date, study_period) |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                  size_ref = 4, shape = 2, scale = 1.1) |>
+                  hhsize_ref = 4, shape = 2, scale = 1.1) |>
     add_augmented(infec_time = infec_time@D) |>
     add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
-  expect_true(is.finite(eval_log_density(reinfer)))
+  expect_true(is.finite(evaluate_log_lik(reinfer)))
 
   # the data-derived dictionary matches the simulated infected labels
   gen <- reinfer$.__enclos_env__$private$generator_
@@ -884,7 +884,7 @@ test_that("escaped label is configurable", {
     dplyr::filter(house_id %in% sample(unique(house_id), 60)) |>
     dplyr::mutate(start_date = 0) |>
     new_housepi_model("case_ascertained", escaped = "healthy") |>
-    add_parameter(alpha = 0, beta = 0.001, gamma = 1, size_ref = 4) |>
+    add_parameter(alpha = 0, beta = 0.001, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period

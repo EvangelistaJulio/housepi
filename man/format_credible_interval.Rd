@@ -30,9 +30,9 @@ Default is \code{FALSE}.}
 \code{character()}
 }
 \description{
-Format elementwise point estimate and credible-interval bounds
-into a single string. The function is vectorised over its arguments
-and will return a character vector of the same length as the inputs.
+Format element-wise estimate and credible-interval into a string.
+The function is vectorised over its arguments
+and returns a character vector of the same length as the inputs.
 }
 \examples{
 pe <- c(9.9, 7.69e-02, 1.13)

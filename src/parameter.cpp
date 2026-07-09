@@ -31,298 +31,12 @@
 #include "household.h"
 #include "individual.h"
 #include "parameter.h"
+#include "proposal.h"
 #include "variable.h"
 #include "translator.h"
 
 namespace housepi
 {
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  *** Proposal : class ***  /////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Base class for Metropolis proposals.
-    class Proposal
-    {
-    public:
-        /// Default constructor.
-        Proposal() = default;
-        /// Virtual destructor.
-        virtual ~Proposal() = default;
-        /// Clone this proposal object.
-        virtual std::unique_ptr<Proposal> clone() const = 0;
-
-        /// If adaptive, reset to default proposal scale.
-        virtual void reset_scale(const Distribution * /*prior*/) {}
-
-        /// Propose a value using random number generator.
-        virtual double propose(rnd_gen & /*prng*/, double /*xo*/) const = 0;
-        /// Compute log-ratio of proposal densities for Metropolis-Hastings.
-        virtual double log_ratio(double /*xo*/, double /*xn*/) const = 0;
-
-        /// Adapt proposal parameters based on observed acceptance rate
-        /// and current adaptation ratio.
-        virtual void adapt(double /*accept_rate*/, double /*ratio*/) {};
-
-        /// Check if proposal is adaptive.
-        virtual bool is_adaptive() const noexcept { return false; }
-
-        /// Rebind proposal to a new prior distribution.
-        virtual void rebind_prior(const Distribution * /*new_distr*/) {}
-
-        /// Resolve the read-surface of an owned proposal distribution (evaluation-only).
-        virtual void optimize() {}
-    };
-
-#define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
-    std::unique_ptr<Proposal> clone() const override { return std::make_unique<Class_>(*this); }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  *** NullProposal_ : class ***  /////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    class NullProposal_ final : public Proposal
-    {
-    public:
-        NullProposal_() {}
-        MAKE_PROPOSAL_CLONE_METHOD(NullProposal_)
-
-        double propose(rnd_gen & /*prng*/, double xo) const override final { return xo; }
-        double log_ratio(double /*xo*/, double /*xn*/) const override final { return 0.; }
-    };
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  *** SampleProposal_ : class ***  ////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    class SampleProposal_ final : public Proposal
-    {
-    public:
-        SampleProposal_(const Distribution *distr) : pDistr_(distr) {}
-        MAKE_PROPOSAL_CLONE_METHOD(SampleProposal_)
-
-        void rebind_prior(const Distribution *new_distr) override final { pDistr_ = new_distr; }
-
-        double propose(rnd_gen &prng, double /*xo*/) const override final { return pDistr_->rand(prng); }
-        double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
-
-    private:
-        const Distribution *pDistr_;
-    };
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  *** AdaptableProposal : class ***  ///////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Adaptable version of Metropolis proposals.
-    class AdaptableProposal : public Proposal
-    {
-    public:
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
-
-        AdaptableProposal(
-            const std::string &distr_name,
-            double scale,
-            bool is_discrete)
-            : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"})),
-              is_adaptive_(na::is(scale))
-        {
-            if (is_discrete)
-                pDistr_->init_discretization();
-            pDistr_->init_truncation();
-        }
-        virtual ~AdaptableProposal() = default;
-
-        AdaptableProposal(const AdaptableProposal &other)
-            : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-              is_adaptive_(other.is_adaptive_) {}
-
-        //////////////////////////
-        //////  ADAPTATION  //////
-        //////////////////////////
-
-        void reset_scale(const Distribution *prior) override final
-        {
-            if (is_adaptive())
-                set_scale_(get_default_scale_(prior));
-        }
-
-        void adapt(double accept_rate, double ratio) override final
-        {
-            set_scale_(get_scale_() * robbins_monro_(accept_rate, ratio));
-        }
-
-        /// Wheter proposal is adaptive.
-        bool is_adaptive() const noexcept override final { return is_adaptive_; }
-
-        /// Resolve the read-surface of the owned proposal distribution.
-        void optimize() override final { if (pDistr_) pDistr_->optimize(); }
-
-    protected:
-        std::unique_ptr<Distribution> pDistr_; /// distribution associated to proposal
-        bool is_adaptive_ = true;              /// whether scale is adaptive
-
-        /// Set default proposal scale.
-        virtual double get_default_scale_(const Distribution * /*prior*/) = 0;
-        /// Read the current scale from pDistr_.
-        virtual double get_scale_() const = 0;
-        /// Mechanism to change corresponding scale in pDistr_.
-        virtual void set_scale_(double /*scale*/) = 0;
-
-        /// Vanishing Robbins-Monro multiplier from an observed accept rate.
-        /// Based on @cite andrieu_tutorial_2008
-        static double robbins_monro_(double accept_rate, double ratio) noexcept
-        {
-            return std::exp((1. - ratio) * (accept_rate - Variable::TARGET_ACCEPT_RATE));
-        }
-        /// Compute InterQuartile Range (IQR) from prior distribution (Q25, Q75).
-        static std::pair<double, double> get_iqr_from_prior_(const Distribution *prior)
-        {
-            return {prior->quantile(0.25), prior->quantile(0.75)};
-        }
-        /// Wheter IQR is finite and can be used to compute initial proposal scale.
-        static bool is_iqr_finite_(double q25, double q75) noexcept
-        {
-            return std::isfinite(q25) && std::isfinite(q75) && q75 > q25;
-        }
-    };
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  *** UniformProposal_ : class ***  ////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    class UniformProposal_ final : public AdaptableProposal
-    {
-    public:
-        UniformProposal_(double scale, const Distribution *prior)
-            : AdaptableProposal("uniform", scale, prior->is_discrete())
-        {
-            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
-        }
-        MAKE_PROPOSAL_CLONE_METHOD(UniformProposal_)
-
-        double propose(rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
-        double log_ratio(double, double) const override final { return 0.; }
-
-    protected:
-        double get_default_scale_(const Distribution *prior) override final
-        {
-            const auto [q25, q75] = get_iqr_from_prior_(prior);
-            if (is_iqr_finite_(q25, q75))
-                return q75 - q25;
-            return 1.;
-        }
-        /// NOTE: uniform stores its scale in the bounds, not in the args.
-        double get_scale_() const override final { return pDistr_->upper().value(); }
-        /// Adapt standard minimum and maximum.
-        void set_scale_(double scale) override final
-        {
-            pDistr_->set_lower(-scale);
-            pDistr_->set_upper(scale);
-        }
-    };
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  *** NormalProposal_ : class ***  /////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    class NormalProposal_ final : public AdaptableProposal
-    {
-    public:
-        NormalProposal_(double scale, const Distribution *prior)
-            : AdaptableProposal("normal", scale, prior->is_discrete())
-        {
-            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
-        }
-        MAKE_PROPOSAL_CLONE_METHOD(NormalProposal_)
-
-        double propose(rnd_gen &prng, double xo) const override final { return xo + pDistr_->rand(prng); }
-        double log_ratio(double, double) const override final { return 0.; }
-
-    protected:
-        double get_default_scale_(const Distribution *prior) override final
-        {
-            const auto [q25, q75] = get_iqr_from_prior_(prior);
-            if (is_iqr_finite_(q25, q75))
-                return (q75 - q25) / 1.349;
-            return 1.;
-        }
-        double get_scale_() const override final { return pDistr_->arg(1); }
-        /// Adapt standard deviation.
-        void set_scale_(double scale) override final { pDistr_->set_arg(1, scale); }
-    };
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////  *** LognormalProposal_ : class ***  ///////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    class LognormalProposal_ final : public AdaptableProposal
-    {
-    public:
-        LognormalProposal_(double scale, const Distribution *prior)
-            : AdaptableProposal("lognormal", scale, prior->is_discrete())
-        {
-            // assert that value range is positive
-            if (prior->lower().is_empty() || prior->lower().value() < 0)
-                msg::stop(
-                    "Provided proposal " + msg::val("lognormal") + " for non-positive");
-
-            // associate location parameter from prior
-            if (prior->loc().is_callable())
-                pAttr_loc_ = prior->loc().pointer();
-            mode_ = pAttr_loc_ ? Location::Active : Location::None;
-
-            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
-        }
-        MAKE_PROPOSAL_CLONE_METHOD(LognormalProposal_)
-
-        double propose(rnd_gen &prng, double xo) const override final
-        {
-            switch (mode_)
-            {
-            case Location::None:
-                return xo * pDistr_->rand(prng);
-            default: // Location::Active:
-                const double loc = pAttr_loc_->value();
-                return loc + (xo - loc) * pDistr_->rand(prng);
-            }
-        }
-        double log_ratio(double xo, double xn) const override final
-        {
-            switch (mode_)
-            {
-            case Location::None:
-                return std::log(xo / xn);
-            default: // Location::Active:
-                const double loc = pAttr_loc_->value();
-                return std::log((xo - loc) / (xn - loc));
-            }
-        }
-
-    protected:
-        enum class Location : std::uint8_t
-        {
-            None,
-            Active
-        } mode_ = Location::None;
-        const Attribute *pAttr_loc_ = nullptr;
-
-        double get_default_scale_(const Distribution *prior) override final
-        {
-            const double loc = pAttr_loc_ ? pAttr_loc_->value() : 0.;
-            const auto [q25, q75] = get_iqr_from_prior_(prior);
-            if (is_iqr_finite_(q25 - loc, q75 - loc))
-                return std::log((q75 - loc) / (q25 - loc)) / 1.349;
-            return 1.;
-        }
-        double get_scale_() const override final { return pDistr_->arg(1); }
-        /// Adapt log of standard deviation.
-        void set_scale_(double scale) override final { pDistr_->set_arg(1, scale); }
-    };
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////  *** Variable : class ***  /////////////////////////////////////
@@ -338,8 +52,7 @@ namespace housepi
           ratio_mode_(other.ratio_mode_),
           old_(other.old_),
           pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-          pProp_(other.pProp_ ? other.pProp_->clone() : nullptr),
-          accept_rate_(other.accept_rate_)
+          pProp_(other.pProp_ ? other.pProp_->clone() : nullptr)
     {
         if (pProp_)
             pProp_->rebind_prior(pDistr_.get());
@@ -556,8 +269,6 @@ namespace housepi
     void Variable::propose(rnd_gen &prng)
     {
         set(pProp_->propose(prng, value_));
-        // NOTE: exponential moving average for accept = TRUE
-        accept_rate_ += adapt_smoothing_ * (1. - accept_rate_);
     }
     bool Variable::is_valid_move() const
     {
@@ -569,12 +280,20 @@ namespace housepi
             return true;
         }
     }
+    void Variable::recover() noexcept
+    {
+        value_ = old_;
+        pProp_->recover();
+    }
     double Variable::log_prior() const { return pDistr_->log_pdf(value_); }
     double Variable::log_obs() const { return pDistr_->guarded_log_pdf(value_); }
     double Variable::prior_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
     double Variable::proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
 
-    void Variable::adapt_proposal(double ratio) { pProp_->adapt(accept_rate_, ratio); }
+    void Variable::reset_accept_rate() noexcept { pProp_->reset_accept_rate(); }
+    void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }
+    void Variable::set_adapt_smoothing(double s) noexcept { AdaptableProposal::set_smoothing(s); }
+    double Variable::get_adapt_smoothing() noexcept { return AdaptableProposal::get_smoothing(); }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////

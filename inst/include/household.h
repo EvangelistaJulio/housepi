@@ -64,14 +64,14 @@ namespace housepi
 		/// Iterator for household indexes of members with escaped status.
 		HouseStatusRange_ escaped_hhindexes() const noexcept { return {status_vec_.data() + ninf_, nsus_}; }
 		/// Iterator for household indexes of members with missing status.
-		HouseStatusRange_ missing_hhindexes() const noexcept { return {status_vec_.data() + ninf_ + nsus_, house_size_ - ninf_ - nsus_}; }
+		HouseStatusRange_ missing_hhindexes() const noexcept { return {status_vec_.data() + ninf_ + nsus_, hhsize_ - ninf_ - nsus_}; }
 
 		/// Number of members with infected status.
 		size_t n_infected_status() const noexcept { return ninf_; }
 		/// Number of members with escaped status.
 		size_t n_escaped_status() const noexcept { return nsus_; }
 		/// Number of members with missing status.
-		size_t n_missing_status() const noexcept { return house_size_ - ninf_ - nsus_; }
+		size_t n_missing_status() const noexcept { return hhsize_ - ninf_ - nsus_; }
 
 		/////////////////////////
 		//////  ITERATORS  //////
@@ -87,7 +87,7 @@ namespace housepi
 		////////////////////
 
 		/// Number of household members.
-		size_t size() const noexcept { return house_size_; }
+		size_t size() const noexcept { return hhsize_; }
 		/// Index of equivalence class.
 		size_t eq_class() const noexcept { return eq_class_; }
 		/// Household ID as in data.
@@ -101,7 +101,7 @@ namespace housepi
 		size_t eq_class_ = na::INDEX;		   /// equivalence class index
 		std::vector<Individual> members_ = {}; /// household members
 		std::vector<size_t> status_vec_ = {};  /// partitioned: [infected | escaped | missing]
-		size_t house_size_ = 0;				   /// number of household members
+		size_t hhsize_ = 0;					   /// number of household members
 		size_t ninf_ = 0;					   /// number of infected members
 		size_t nsus_ = 0;					   /// number of escaped members
 

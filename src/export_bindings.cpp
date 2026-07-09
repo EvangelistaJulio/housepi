@@ -1482,9 +1482,46 @@ namespace
         return measure::summarise_houses(house_id, status);
     }
 
-    Rcpp::DataFrame measure_sar_by_house_size(Rcpp::DataFrame data_wide)
+    Rcpp::DataFrame count_houses_by_hhsize(Rcpp::DataFrame data_wide)
     {
-        measure::SecAttackRates res = measure::sar_by_house_size(summarise_houses_from_df(data_wide));
+        measure::cases::HouseCounts res = measure::house_counts(summarise_houses_from_df(data_wide));
+        unsigned grid_len = static_cast<unsigned>(res.total.size());
+
+        Rcpp::IntegerVector out_size(grid_len);
+        Rcpp::IntegerVector out_total(grid_len);
+        Rcpp::IntegerVector out_affected(grid_len);
+        for (unsigned i = 0; i < grid_len; ++i)
+        {
+            out_size[i] = res.grid_min + i;
+            out_total[i] = res.total[i];
+            out_affected[i] = res.at_least_1_case[i];
+        }
+        return Rcpp::DataFrame::create(
+            Rcpp::_["hhsize"] = out_size,
+            Rcpp::_["total"] = out_total,
+            Rcpp::_["at_least_1_case"] = out_affected);
+    }
+
+    Rcpp::DataFrame measure_ar_by_hhsize(Rcpp::DataFrame data_wide)
+    {
+        measure::AttackRates res = measure::attack_rate_by_hhsize(summarise_houses_from_df(data_wide));
+        unsigned grid_len = static_cast<unsigned>(res.ar_mean.size());
+
+        Rcpp::IntegerVector out_size(grid_len);
+        Rcpp::NumericVector out_ar(grid_len);
+        for (unsigned i = 0; i < grid_len; ++i)
+        {
+            out_size[i] = res.grid_min + i;
+            out_ar[i] = res.count[i] > 0 ? res.ar_mean[i] : NA_REAL;
+        }
+        return Rcpp::DataFrame::create(
+            Rcpp::_["hhsize"] = out_size,
+            Rcpp::_["ar"] = out_ar);
+    }
+
+    Rcpp::DataFrame measure_sar_by_hhsize(Rcpp::DataFrame data_wide)
+    {
+        measure::SecAttackRates res = measure::sar_by_hhsize(summarise_houses_from_df(data_wide));
         unsigned grid_len = static_cast<unsigned>(res.sar_mean.size());
 
         Rcpp::IntegerVector out_size(grid_len);
@@ -1495,13 +1532,13 @@ namespace
             out_sar[i] = res.count[i] > 0 ? res.sar_mean[i] : NA_REAL;
         }
         return Rcpp::DataFrame::create(
-            Rcpp::_["house_size"] = out_size,
+            Rcpp::_["hhsize"] = out_size,
             Rcpp::_["sar"] = out_sar);
     }
 
-    Rcpp::DataFrame measure_cases_by_house_size(Rcpp::DataFrame data_wide)
+    Rcpp::DataFrame measure_cases_by_hhsize(Rcpp::DataFrame data_wide)
     {
-        measure::cases::Table res = measure::cases_by_house_size(summarise_houses_from_df(data_wide));
+        measure::cases::Table res = measure::cases_by_hhsize(summarise_houses_from_df(data_wide));
         unsigned n_rows = static_cast<unsigned>(res.counts.size());
 
         Rcpp::IntegerVector out_size(n_rows);
@@ -1509,7 +1546,7 @@ namespace
             out_size[i] = res.min_size + i;
 
         Rcpp::List result;
-        result.push_back(out_size, "house_size");
+        result.push_back(out_size, "hhsize");
 
         unsigned n_case_cols = res.max_size + 1;
         for (unsigned c = 0; c < n_case_cols; ++c)
@@ -1523,23 +1560,6 @@ namespace
         Rcpp::DataFrame df(result);
         df.attr("names") = result.names();
         return df;
-    }
-
-    Rcpp::DataFrame count_non_zero_cases(Rcpp::DataFrame data_wide)
-    {
-        measure::cases::NonZero res = measure::non_zero_cases(summarise_houses_from_df(data_wide));
-        unsigned grid_len = static_cast<unsigned>(res.count.size());
-
-        Rcpp::IntegerVector out_size(grid_len);
-        Rcpp::IntegerVector out_count(grid_len);
-        for (unsigned i = 0; i < grid_len; ++i)
-        {
-            out_size[i] = 2 + i;
-            out_count[i] = res.count[i];
-        }
-        return Rcpp::DataFrame::create(
-            Rcpp::_["house_size"] = out_size,
-            Rcpp::_["count"] = out_count);
     }
 }
 
@@ -1579,9 +1599,10 @@ RCPP_MODULE(housepi)
     Rcpp::function("get_GroupRateKey", &get_GroupRateKey);
     Rcpp::function("get_AugmKey", &get_AugmKey);
 
-    Rcpp::function("measure_sar_by_house_size", &measure_sar_by_house_size);
-    Rcpp::function("measure_cases_by_house_size", &measure_cases_by_house_size);
-    Rcpp::function("count_non_zero_cases", &count_non_zero_cases);
+    Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
+    Rcpp::function("measure_ar_by_hhsize", &measure_ar_by_hhsize);
+    Rcpp::function("measure_cases_by_hhsize", &measure_cases_by_hhsize);
+    Rcpp::function("count_houses_by_hhsize", &count_houses_by_hhsize);
 
     Rcpp::function("auxiliary_chain_binomial_debugger",
                    &housepi::chbi::auxiliary_chain_binomial_debugger);

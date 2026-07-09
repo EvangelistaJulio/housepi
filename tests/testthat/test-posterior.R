@@ -178,7 +178,7 @@ test_that("Diagnostic warning fires on poor mixing", {
                      proposal_scale = 1e-4),
         beta  = list(prior = "uniform", proposal = "lognormal",
                      proposal_scale = 1e-4),
-        gamma = 1, size_ref = 5
+        gamma = 1, hhsize_ref = 5
       ) |>
       run_inference(steps = 1000, thin = 1, adapt = 0, chains = 2,
                     progress = FALSE)

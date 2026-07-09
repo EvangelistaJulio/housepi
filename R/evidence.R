@@ -35,6 +35,42 @@ HousepiPowerPosteriors <- R6::R6Class(
     var_log_lik_ = NULL,
     draws_ = NULL,
 
+    # Extract log-likelihood trace at rung k.
+    ll_at_ = function(k) {
+      posterior::extract_variable(private$draws_, sprintf("log_lik[%d]", k))
+    },
+
+    # Stepping-stone estimator over the ladder.
+    # Tempered increments max-stabilised via log-mean-exp.
+    # @references
+    # \insertRef{xie_improving_2011}{housepi}
+    stepping_stone_ = function() {
+      db <- diff(private$inv_temp_, lag = 1L)
+      rss_k <- vapply(seq_along(db), function(k) {
+        ll <- private$ll_at_(k)
+        ll_peak <- max(ll)
+        w <- exp(db[k] * (ll - ll_peak))
+        db[k] * ll_peak + log(mean(w))
+      }, numeric(1L))
+      sum(rss_k)
+    },
+
+    # Variance of the stepping-stone estimator.
+    # Delta-method approximation with max-stabilisation.
+    # @references
+    # \insertRef{xie_improving_2011}{housepi}
+    stepping_stone_var_ = function() {
+      db <- diff(private$inv_temp_, lag = 1L)
+      var_rss_k <- vapply(seq_along(db), function(k) {
+        ll <- private$ll_at_(k)
+        ll_peak <- max(ll)
+        w <- exp(db[k] * (ll - ll_peak))
+        v <- var(w)
+        v / (posterior::ess_mean(w) * mean(w)^2)
+      }, numeric(1L))
+      sum(var_rss_k)
+    },
+
     # Thermodynamic integration over the ladder.
     # Using trapezoidal rule with variance-based correction.
     # @references
@@ -53,43 +89,6 @@ HousepiPowerPosteriors <- R6::R6Class(
       k <- seq_along(db)
       sum((avg[k + 1L] + avg[k]) * db / 2 +
             (var[k] - var[k + 1L]) * db^2 / 12)
-    },
-
-    # Stepping-stone estimator over the ladder.
-    # Tempered increments max-stabilised via log-mean-exp.
-    # @references
-    # \insertRef{xie_improving_2011}{housepi}
-    stepping_stone_ = function() {
-      db <- diff(private$inv_temp_, lag = 1L)
-      rss_k <- vapply(seq_along(db), function(k) {
-        ll <- posterior::extract_variable(
-          private$draws_, sprintf("log_lik[%d]", k)
-        )
-        ll_peak <- max(ll)
-        w <- exp(db[k] * (ll - ll_peak))
-        db[k] * ll_peak + log(mean(w))
-      }, numeric(1L))
-      sum(rss_k)
-    },
-
-    # Variance of the stepping-stone estimator.
-    # Delta-method approximation with max-stabilisation.
-    # @references
-    # \insertRef{xie_improving_2011}{housepi}
-    stepping_stone_var_ = function() {
-      db <- diff(private$inv_temp_, lag = 1L)
-      var_rss_k <- vapply(seq_along(db), function(k) {
-        ll <- posterior::extract_variable(
-          private$draws_, sprintf("log_lik[%d]", k)
-        )
-        ll_peak <- max(ll)
-        w <- exp(db[k] * (ll - ll_peak))
-        v <- var(w)
-        # constant log-likelihood has 0 variance
-        if (v == 0) return(0)
-        v / (posterior::ess_mean(w) * mean(w)^2)
-      }, numeric(1L))
-      sum(var_rss_k)
     }
   ),
 

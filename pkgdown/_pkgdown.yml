@@ -33,10 +33,11 @@ reference:
   desc: >
     Generate the core housepi model and perform inference and simulations.
   contents:
-    - HousepiModel
     - new_housepi_model
+    - HousepiModel
     - evaluate_log_lik
-    - starts_with("run_")
+    - run_inference
+    - run_simulation
 
 - title: "Model definitions"
   desc: >
@@ -59,10 +60,13 @@ reference:
   desc: >
     Perform posterior predicitive checks.
   contents:
-  - starts_with("measure_")
-  - starts_with("predicted_")
-  - HousepiPrediction
-  - PredictedCasesBySize
+  - measure_ar_by_hhsize
+  - measure_sar_by_hhsize
+  - measure_cases_by_hhsize
+  - run_epi_predictive_check
+  - HousepiPPC
+  - run_custom_predictive_check
+  - HousepiCustomPPC
 
 - title: "Auxiliary tools"
   desc: >
@@ -94,6 +98,7 @@ reference:
   desc: >
     These functions are currently under development and are still experimental.
   contents:
+  - run_power_posteriors
   - HousepiPowerPosteriors
   - evaluate_log_evidence
 

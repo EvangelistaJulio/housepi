@@ -30,12 +30,12 @@ public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintvecKey, order, part_counts, part_indexes)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
-	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
+	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, hhsize_ref)
 
 	/// General advanced inscrition for the setup.
 	void init_advanced_setup() override final
 	{
-		request_param_discrete(ParamKey::size_ref);
+		request_param_discrete(ParamKey::hhsize_ref);
 	}
 
 	/// Allow for contact rate definitions.
@@ -128,7 +128,7 @@ public:
 	double person_to_person_risk(size_t house_size) const
 	{
 		return par(ParamKey::beta) *
-			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
+			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::hhsize_ref) / house_size));
 	}
 
 	/// Store person-to-person escape probabilities inside a cache.

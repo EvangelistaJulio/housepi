@@ -255,10 +255,10 @@ The can be supplied only through single mode."
 #'   # single: beta, fixed to a constant
 #'   add_parameter("beta", value = 0.3, const = TRUE) |>
 #'   # inline bulk: several definitions as `name = value` pairs
-#'   add_parameter(gamma = 1, size_ref = 4)
+#'   add_parameter(gamma = 1, hhsize_ref = 4)
 #'
 #' # list bulk: load a pre-built named list of definitions through `import`
-#' my_import <- list(gamma = 1, size_ref = 4)
+#' my_import <- list(gamma = 1, hhsize_ref = 4)
 #' hhmodel <- flu_1918_frederick |>
 #'   new_housepi_model("final_size") |>
 #'   add_parameter(import = my_import)

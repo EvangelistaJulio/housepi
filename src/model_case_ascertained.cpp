@@ -30,7 +30,7 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHuintvecKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, inst, cumul)
-	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, size_ref)
+	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, hhsize_ref)
 
 	/// Initialize infectivity profile.
 	void init_advanced_setup() override final
@@ -39,7 +39,7 @@ public:
 		request_augm_discrete(AugmKey::infec_time);
 		request_infec_profile_discrete();
 #endif
-		request_param_discrete(ParamKey::size_ref);
+		request_param_discrete(ParamKey::hhsize_ref);
 		request_data_discrete(DataKey::start_date);
 		request_data_discrete(DataKey::study_period);
 		request_data_positive(DataKey::study_period);
@@ -78,7 +78,7 @@ public:
 	double transmission_rate(size_t house_size) const
 	{
 		return par(ParamKey::beta) *
-			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::size_ref) / house_size));
+			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::hhsize_ref) / house_size));
 	}
 
 	/// Compute transmission log-likelihood within household.

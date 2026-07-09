@@ -4,7 +4,6 @@
       browse_housepi_templates()
     Message
       i Available template models:
-      * `augmented_example`
       * `case_ascertained`
       * `final_size`
       * `test`

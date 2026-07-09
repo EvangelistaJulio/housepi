@@ -13,7 +13,7 @@
     Output
       i Household model "final size" (`template`).
       x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
-        "gamma" and "size_ref".
+        "gamma" and "hhsize_ref".
         They are required by model definitions.
 
 ---
@@ -33,7 +33,7 @@
       x Data: there is 1 missing data column start_date.
         It is required by model definitions.
       x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
-        "gamma" and "size_ref".
+        "gamma" and "hhsize_ref".
         They are required by model definitions.
       x Augmented: there is 1 missing augmented definition "infec_time".
         It is required by model definitions.
@@ -50,7 +50,7 @@
     Output
       i Household model "case ascertained" (`template`).
       x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
-        "gamma" and "size_ref".
+        "gamma" and "hhsize_ref".
         They are required by model definitions.
       x Augmented: there is 1 missing augmented definition "infec_time".
         It is required by model definitions.

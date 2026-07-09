@@ -154,7 +154,7 @@ hhmodel <- hhmodel |>
     alpha = list(prior = "uniform", proposal = "lognormal"),
     beta = list(prior = "uniform", proposal = "lognormal"),
     gamma = list(prior = "uniform", proposal = "uniform", max = 5),
-    size_ref = 5
+    hhsize_ref = 5
   ) |>
   # augmented definitions
   add_augmented(

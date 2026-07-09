@@ -89,7 +89,7 @@ test_that("Model class 'test' calls", {
     expect_warning("test")
 
   # zero log-likelihood ('test' model evaluates silently)
-  expect_equal(eval_log_density(hhmodel), 0.)
+  expect_equal(evaluate_log_lik(hhmodel), 0.)
 
   # not existing household id
   hhmodel |>
@@ -155,8 +155,8 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
     expect_equal(10486L)
 
   # house_size vs status equivalence groups correspond to measure non-zeros
-  aux <- measure_cases_by_house_size(flu_2014_matsumoto)
-  aux$house_size <- NULL
+  aux <- measure_cases_by_hhsize(flu_2014_matsumoto)
+  aux$hhsize <- NULL
   subset(case_summary, level == "household" & metric == "distinct")$count |>
     expect_equal(sum(aux[!is.na(aux)] > 0))
 
@@ -642,9 +642,9 @@ test_that("Parameter defined as a function tracks its dependencies", {
     new_housepi_model("final_size") |>
     add_parameter(
       alpha = 1e-4,
-      beta = size_ref@P^-gamma@P,
+      beta = hhsize_ref@P^-gamma@P,
       gamma = list(prior = "uniform"),
-      size_ref = 4
+      hhsize_ref = 4
     )
   res <- suppressWarnings(run_inference(hhmodel,
     steps = 100, chains = 1, adapt = 0, thin = 1
@@ -659,7 +659,7 @@ test_that("Parameter defined as a function tracks its dependencies", {
   )
 
   df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
-  # every draw of beta equals size_ref^(-gamma) exactly
+  # every draw of beta equals hhsize_ref^(-gamma) exactly
   expect_equal(df$beta, 4^(-df$gamma))
 })
 
@@ -669,14 +669,14 @@ test_that("Parameter function rejects non-parameter dependencies", {
 
   # bare names default to augmented source! here @P is missing
   hhmodel |>
-    add_parameter(alpha = 1e-4, gamma = 1, size_ref = 4,
-                  beta = size_ref^-gamma) |>
+    add_parameter(alpha = 1e-4, gamma = 1, hhsize_ref = 4,
+                  beta = hhsize_ref^-gamma) |>
     expect_error("cannot depend on augmented variables")
 
   # explicit reference to a data column is also rejected
   # FIXME: roll-back missing -> append = FALSE should not be necessary
   hhmodel |>
-    add_parameter(alpha = 1e-4, gamma = 1, size_ref = 4,
+    add_parameter(alpha = 1e-4, gamma = 1, hhsize_ref = 4,
                   beta = status@D + 1, append = FALSE) |>
     expect_error("cannot depend on data variables")
 })
@@ -686,9 +686,9 @@ test_that("Parameter defined as a function tracks its dependencies", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter(alpha = 1e-4,
-                  beta = size_ref@P^-gamma@P,
+                  beta = hhsize_ref@P^-gamma@P,
                   gamma = list(prior = "uniform"),
-                  size_ref = 4)
+                  hhsize_ref = 4)
   res <- run_inference(hhmodel, steps = 2000, progress = 0)
   vars <- posterior::variables(res$parameter_draws)
   # both sampled and function-derived parameters appear in the trace
@@ -698,6 +698,6 @@ test_that("Parameter defined as a function tracks its dependencies", {
     res$.__enclos_env__$private$param_prior_draws_))
 
   df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
-  # snake on the trail: every draw of beta equals size_ref^(-gamma) exactly
+  # snake on the trail: every draw of beta equals hhsize_ref^(-gamma) exactly
   expect_equal(df$beta, 4^(-df$gamma))
 })

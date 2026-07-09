@@ -40,7 +40,7 @@ crates_3 <- list(class_a_to_class_c = 0.7,
                  class_c_to_class_c = 1.2)
 
 # parameters matching automatic names
-par_0 <- list(alpha = 0.15, beta = 0.22, gamma = 1, size_ref = 4)
+par_0 <- list(alpha = 0.15, beta = 0.22, gamma = 1, hhsize_ref = 4)
 par_1 <- c(par_0, crates_1,
            list(com_class_b = grates_1$b$com,
                 sus_class_b = grates_1$b$sus,
@@ -213,7 +213,7 @@ test_that("run_inference progress bar shows as expected", {
               info = paste(out, collapse = " | "))
 })
 
-test_that("predicted_cases_by_house_size exercises parallel for_each", {
+test_that("run_epi_predictive_check exercises parallel for_each", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter_template()
@@ -223,11 +223,11 @@ test_that("predicted_cases_by_house_size exercises parallel for_each", {
   outs <- list()
   for (t in c(1L, 2L)) {
     suppressWarnings(
-      outs[[as.character(t)]] <- predicted_cases_by_house_size(
+      outs[[as.character(t)]] <- run_epi_predictive_check(
         hhmodel, results, max_nrep = 4, threads = t
       )
     )
-    expect_s3_class(outs[[as.character(t)]], "PredictedCasesBySize")
+    expect_s3_class(outs[[as.character(t)]], "HousepiPPC")
   }
   expect_identical(outs[["1"]]$cases_table_by_size$observed,
                    outs[["2"]]$cases_table_by_size$observed)
@@ -265,7 +265,7 @@ test_that("Single infected member log-likelihood is correct", {
   n_infec <- sum(house$status > 0L)
   # fill house escape rate matrices
   commu_infec_rate <- par$alpha * house$community
-  p2p_infec_rate <- par$beta * (par$size_ref / n_full) ^ par$gamma *
+  p2p_infec_rate <- par$beta * (par$hhsize_ref / n_full) ^ par$gamma *
     house$infectivity %o% house$susceptibility *
     make_ctr_mtx(house, crates_1)
 
@@ -284,7 +284,7 @@ test_that("Single infected member log-likelihood is correct", {
   hhmodel <- add_group_rate(hhmodel, import = groups)
   hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts))
   hhmodel <- add_parameter(hhmodel, import = par, append = FALSE)
-  expect_equal(log_lik, eval_log_density(hhmodel))
+  expect_equal(log_lik, evaluate_log_lik(hhmodel))
 })
 
 #####################################################
@@ -297,7 +297,7 @@ test_that("Three infected members likelihood is correct", {
   n_full <- nrow(house)
   # fill escape rate matrices
   commu_infec_rate <- par$alpha * house$community
-  p2p_infec_rate <- par$beta * (par$size_ref / n_full) ^ par$gamma *
+  p2p_infec_rate <- par$beta * (par$hhsize_ref / n_full) ^ par$gamma *
     house$infectivity %o% house$susceptibility *
     make_ctr_mtx(house, crates_3)
 
@@ -309,7 +309,7 @@ test_that("Three infected members likelihood is correct", {
   hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts))
   hhmodel <- add_parameter(hhmodel, import = par, append = FALSE)
   log_lik <- -sum(commu_infec_rate)
-  expect_equal(eval_log_density(hhmodel), log_lik)
+  expect_equal(evaluate_log_lik(hhmodel), log_lik)
 
   # CASE 2: mixed infected and escaped
   n_infec <- sum(house$status > 0)
@@ -330,7 +330,7 @@ test_that("Three infected members likelihood is correct", {
   pos <- housepi:::eval_chain_binomial_debugger_(B, Q)
   log_lik <- neg_log + log(pos)
 
-  expect_equal(eval_log_density(hhmodel), log_lik)
+  expect_equal(evaluate_log_lik(hhmodel), log_lik)
 })
 
 ##################################################
@@ -366,7 +366,7 @@ test_that("Chain binomial runs ok on real case with partitions", {
 
 test_that("Chain binomial returns infinite if extreme values are provided", {
   extreme_params <- list(alpha = 1e-20, beta = 1e-20,
-                         gamma = 1, size_ref = 4)
+                         gamma = 1, hhsize_ref = 4)
   # heterogeneous_house
   hhmodel <- data.frame(id = c(1, 2), house_id = "hh1",
                         status = c(1, 1), age = c("child", "adult")) |>
@@ -374,12 +374,12 @@ test_that("Chain binomial returns infinite if extreme values are provided", {
     add_parameter(import = extreme_params)
 
   # homogeneous branch
-  expect_false(is.finite(eval_log_density(hhmodel)))
+  expect_false(is.finite(evaluate_log_lik(hhmodel)))
 
   # heterogeneous branch
   expect_false(is.finite(
     hhmodel |>
       add_group_rate("susceptibility", by = "age") |>
-      eval_log_density()
+      evaluate_log_lik()
   ))
 })

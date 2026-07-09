@@ -9,5 +9,5 @@ list(
                prior = "uniform",
                max = 4,
                proposal = "normal"),
-  size_ref = 4
+  hhsize_ref = 4
 )
