@@ -17,15 +17,15 @@ observed and predicted values.
 \describe{
 \item{\code{formatted_attack_rate}}{\code{data.frame}.
 Observed and predicted attack rates by household size.
-If a maximum house size is set, larger sizes are not returned.}
+Sizes outside the set household size bounds are not returned.}
 
 \item{\code{formatted_sec_attack_rate}}{\code{data.frame}.
 Observed and predicted secondary attack rates by household size.
-If a maximum house size is set, larger sizes are not returned.}
+Sizes outside the set household size bounds are not returned.}
 
 \item{\code{formatted_cases_count}}{\code{data.frame}.
 Formatted observed and predicted cases by household size.
-If a maximum household size is set, larger sizes are not returned.}
+Sizes outside the set household size bounds are not returned.}
 }
 \if{html}{\out{</div>}}
 }
@@ -33,6 +33,8 @@ If a maximum household size is set, larger sizes are not returned.}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-HousepiPPC-new}{\code{HousepiPPC$new()}}
+\item \href{#method-HousepiPPC-set_min_hhsize}{\code{HousepiPPC$set_min_hhsize()}}
+\item \href{#method-HousepiPPC-drop_min_hhsize}{\code{HousepiPPC$drop_min_hhsize()}}
 \item \href{#method-HousepiPPC-set_max_hhsize}{\code{HousepiPPC$set_max_hhsize()}}
 \item \href{#method-HousepiPPC-drop_max_hhsize}{\code{HousepiPPC$drop_max_hhsize()}}
 \item \href{#method-HousepiPPC-chisq_test}{\code{HousepiPPC$chisq_test()}}
@@ -57,6 +59,8 @@ If a maximum household size is set, larger sizes are not returned.}
   obs_process = NULL,
   thin_ess = TRUE,
   max_nrep = 200L,
+  min_hhsize = NA_integer_,
+  max_hhsize = NA_integer_,
   point_estimate = "median",
   threads = 1L,
   progress = TRUE
@@ -86,6 +90,12 @@ Ignored if \code{param_table} has no posterior draws.}
 \item{\code{max_nrep}}{\code{integer(1)} Larger number of replicates.
 The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.}
 
+\item{\code{min_hhsize}}{\code{integer(1)} Minimum household size retained in the outputs.
+If \code{NA}, no lower bound is applied.}
+
+\item{\code{max_hhsize}}{\code{integer(1)} Maximum household size retained in the outputs.
+If \code{NA}, no upper bound is applied.}
+
 \item{\code{point_estimate}}{\code{character(1)} Summary statistic used as the predicted
 point estimate across simulations.
 One between \code{"mean"} and \code{"median"}.}
@@ -102,6 +112,34 @@ One between:
 }
 \if{html}{\out{</div>}}
 }
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiPPC-set_min_hhsize"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiPPC-set_min_hhsize}{}}}
+\subsection{Method \code{set_min_hhsize()}}{
+Set minimum household size to consider in result outputs.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPPC$set_min_hhsize(n)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{n}}{\code{integer(1)}. Minimum household size to consider.
+If \code{NA}, restore observed minimum.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiPPC-drop_min_hhsize"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiPPC-drop_min_hhsize}{}}}
+\subsection{Method \code{drop_min_hhsize()}}{
+Restore minimum household size to observed minimum.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{HousepiPPC$drop_min_hhsize()}\if{html}{\out{</div>}}
+}
+
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiPPC-set_max_hhsize"></a>}}

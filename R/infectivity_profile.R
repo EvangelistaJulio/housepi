@@ -103,7 +103,7 @@ HousepiInfecProfile <- R6::R6Class(
       c()
     },
 
-    #' @inherit add_infec_profile
+    #' @inherit add_infectivity_profile
     add_quo = function(func, ...,
                        status = NA_integer_, discr = FALSE,
                        min = NULL, max = NULL,
@@ -148,7 +148,7 @@ HousepiInfecProfile <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit add_infec_profile
+    #' @inherit add_infectivity_profile
     add_quo_list = function(xquos, append = FALSE) {
       housepi_load_defin_quos(self, "func", xquos, append)
       housepi_assert_args(self)

@@ -128,7 +128,7 @@ test_that("Print behavior works as expected", {
   # infectivity-profile section in print
   hhmodel_ip <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained") |> 
-    add_house_observ(start_date = min(test_date@D))
+    add_house_observation(start_date = min(test_date@D))
   expect_snapshot(print(hhmodel_ip))
 
   # help() dispatches without error in non-interactive mode (emits warning)
@@ -269,18 +269,18 @@ test_that("Modules do not get overwritten", {
   # NOTE: I use profile as a  status flag for models
   out_1 <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained") |>
-    get_infec_profile()
+    get_infectivity_profile()
   expect_gt(length(out_1), 0L)
 
   flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    get_infec_profile() |>
+    get_infectivity_profile() |>
     expect_length(0L)
 
   # reload first model
   sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained") |>
-    get_infec_profile() |>
+    get_infectivity_profile() |>
     expect_identical(out_1)
 })
 
@@ -624,13 +624,13 @@ test_that("add_augmented_template loads", {
     expect_gt(0L)
 })
 
-test_that("add_infec_profile and list update the model directly", {
+test_that("add_infectivity_profile and list update the model directly", {
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained") |>
-    add_infec_profile(func = "gamma", shape = 2, scale = 1)
+    add_infectivity_profile(func = "gamma", shape = 2, scale = 1)
   expect_true("gamma" %in% hhmodel$infec_profile$func)
   expect_warning(
-    hhmodel <- add_infec_profile(hhmodel, func = "lognormal"),
+    hhmodel <- add_infectivity_profile(hhmodel, func = "lognormal"),
     regexp = "Overwriting"
   )
   expect_true("lognormal" %in% hhmodel$infec_profile$func)

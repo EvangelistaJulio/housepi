@@ -9,11 +9,11 @@ test_that("Reject if calling on non-HousepiModel objects", {
   get_parameters(obj) |> expect_error(err)
   get_augmented(obj) |> expect_error(err)
   get_group_rates(obj) |> expect_error(err)
-  get_infec_profile(obj) |> expect_error(err)
+  get_infectivity_profile(obj) |> expect_error(err)
   add_contact_rate(obj) |> expect_error(err)
   add_parameter(obj) |> expect_error(err)
   add_augmented(obj) |> expect_error(err)
-  add_infec_profile(obj, "mk22") |> expect_error(err)
+  add_infectivity_profile(obj, "mk22") |> expect_error(err)
   evaluate_log_lik(obj) |> expect_error(err)
   run_inference(obj) |> expect_error(err)
   run_simulation(obj) |> expect_error(err)
@@ -64,7 +64,7 @@ test_that("Wrappers work as expected on model 'test'", {
   expect_true(all(c("alpha", "beta") %in% pars$name))
 
   # infectivity profile
-  expect_null(get_infec_profile(hhmodel))
+  expect_null(get_infectivity_profile(hhmodel))
 
   # augmented
   result <- add_augmented(hhmodel, name = "dummy", value = 3)
@@ -206,19 +206,19 @@ test_that("add_contact_rate wrapper input branches", {
   expect_true(nrow(cr) > 0)
 })
 
-test_that("add_infec_profile single and bulk forms work", {
+test_that("add_infectivity_profile single and bulk forms work", {
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained")
   ip <- hhmodel |>
-    add_infec_profile(func = "lognormal") |>
-    get_infec_profile()
+    add_infectivity_profile(func = "lognormal") |>
+    get_infectivity_profile()
   expect_false(is.null(ip))
   expect_true("lognormal" %in% ip$func)
 
   # bulk form
   ip2 <- hhmodel |>
-    add_infec_profile(ip1 = list(func = "lognormal")) |>
-    get_infec_profile()
+    add_infectivity_profile(ip1 = list(func = "lognormal")) |>
+    get_infectivity_profile()
   expect_false(is.null(ip2))
   expect_true("lognormal" %in% ip2$func)
 })

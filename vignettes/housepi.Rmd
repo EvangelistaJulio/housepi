@@ -253,7 +253,7 @@ hhsimul <- hhsimul |>
     mean = .onset_time, sd = 1, min = floor(.onset_time)
   ) |> 
   # household-level observation of start date is earliest onset date
-  add_house_observ(start_date = min(onset_date@D))
+  add_house_observation(start_date = min(onset_date@D))
 ```
 
 When dealing with many different nested definitions it is not unusual to lose track of which definitions are missing.

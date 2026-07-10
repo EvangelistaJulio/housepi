@@ -86,9 +86,9 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
                        function(f) identical(dim(f), dim(elem_n1)),
                        logical(1))
   if (!all(dims_match)) stop_h(
-    sprintf("Not all computed measures%s share identical dimensions.",
-            ifelse(!is.na(name), sprintf(" of {.field %s}", name), "")),
-    "Check output of your posterior measure function."
+    paste0("Not all computed measures share identical dimensions",
+           ifelse(is.na(name), ".", " in measure {.field {name}}.")),
+    "Check output of your measure function."
   )
 
   if (is.null(dim(elem_n1))) {
@@ -133,10 +133,9 @@ ppc_frame_apply_stat <- function(frame_list, stat_fn, label,
     else if (all(is.numeric(x))) stat_fn(x)
     else if (length(unique(x)) == 1) unique(x)
     else stop_h(
-      sprintf("Undefined %s for non-numeric, non-unique values%s.",
-              label,
-              ifelse(!is.na(name), sprintf(" in measure {.field %s}", name), "")),
-      "Check output of your posterior measure function."
+      paste0("Undefined {.fn {label}} for non-numeric, non-unique values",
+             ifelse(is.na(name), ".", " in measure {.field {name}}.")),
+      "Check output of your measure function."
     )
   }, name = name)
 }
@@ -178,17 +177,17 @@ ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95,
 
 # Element-wise mask of observed values that fall outside [cri_lower, cri_upper].
 # Non-numeric or NA elements are reported as FALSE (not a mismatch).
-ppc_observed_outside_cri <- function(observed, cri_lower, cri_upper) {
+ppc_observed_outside_cri <- function(x) {
   .vec_outside <- function(obs, low, up) {
     if (!is.numeric(obs) || !is.numeric(low) || !is.numeric(up)) {
       return(rep(FALSE, length(obs)))
     }
     !is.na(obs) & !is.na(low) & !is.na(up) & (obs < low | obs > up)
   }
-  if (is.data.frame(observed)) {
-    return(as.data.frame(Map(.vec_outside, observed, cri_lower, cri_upper)))
+  if (!is.data.frame(x$observed)) {
+    return(.vec_outside(x$observed, x$cri_lower, x$cri_upper))
   }
-  .vec_outside(observed, cri_lower, cri_upper)
+  as.data.frame(Map(.vec_outside, x$observed, x$cri_lower, x$cri_upper))
 }
 
 # extract predicted quantities from cases-by-house-size table list
@@ -224,26 +223,30 @@ HousepiCustomPPC <- R6::R6Class(
     measures_ = list(),
 
     # Compare observed values against the credible interval of each measure.
-    # Emits a warning if any observed entry falls outside its
-    # [cri_lower, cri_upper] bounds. Non-numeric and NA entries are skipped.
+    # Collapses all mismatches into a single warning: one finding line per
+    # measure that has observed entries outside its [cri_lower, cri_upper]
+    # bounds, followed by one closing hint.
     check_observed_in_cri_ = function() {
-      all_within <- TRUE
+      cri_pct <- round(100 * private$cri_level_)
+      findings <- c()
       for (m in private$measure_names_) {
-        mismatch <- ppc_observed_outside_cri(self[[m]]$observed,
-                                             self[[m]]$cri_lower,
-                                             self[[m]]$cri_upper)
+        mismatch <- ppc_observed_outside_cri(self[[m]])
         len_bad <- sum(unlist(mismatch))
-        if (len_bad > 0) {
-          all_within <- FALSE
-          warn_h(paste(
-            "{format_there_were_was(len_bad)} observed",
-            "{as_plural('value', len_bad)} outside of",
-            "{round(100 * private$cri_level_)}% CrI",
-            "for measure {.field {m}}."
-          ))
-        }
+        if (len_bad > 0L) findings <- c(findings, sprintf(
+          "%s observed %s outside of %d%% CrI for measure {.field %s}.",
+          format_there_were_was(len_bad), as_plural("value", len_bad),
+          cri_pct, m
+        ))
       }
-      invisible(all_within)
+      if (length(findings) > 0L) {
+        names(findings) <- rep("!", length(findings))
+        warn_h(c(
+          "Posterior predictive checks flagged the following:",
+          findings,
+          i = "Observed data may be poorly captured by the model."
+        ))
+      }
+      invisible(self)
     }
   ),
 
@@ -464,7 +467,9 @@ helper_house_counts <- function(data_wide) {
 # Return a list with all filtered case tables.
 #
 # @return `list`
-helper_filter_tables <- function(cases_count, max_hhsize) {
+helper_filter_tables <- function(cases_count,
+                                 min_hhsize = NA,
+                                 max_hhsize = NA) {
   # load observed table to use as a type shape template
   obsdf <- cases_count$observed
 
@@ -475,13 +480,17 @@ helper_filter_tables <- function(cases_count, max_hhsize) {
   mask_col <- colnames(obsdf) != "0" |
     colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)
 
-  # implement max household size mask
+  # implement max household size mask (also caps the case columns, as a
+  # household cannot hold more cases than its size)
   if (!is.na(max_hhsize)) {
     col_max <- which(colnames(obsdf) == max_hhsize)
-    row_max <- which(obsdf$hhsize == max_hhsize)
-
     mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
-    mask_row <- mask_row & (seq_along(mask_row) <= row_max & mask_row)
+    mask_row <- mask_row & (obsdf$hhsize <= max_hhsize)
+  }
+
+  # implement min household size mask (rows only: any case column stays valid)
+  if (!is.na(min_hhsize)) {
+    mask_row <- mask_row & (obsdf$hhsize >= min_hhsize)
   }
 
   list(
@@ -545,8 +554,20 @@ HousepiPPC <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
+    min_hhsize_ = NA_integer_,
     max_hhsize_ = NA_integer_,
-    house_counts_ = NULL
+    house_counts_ = NULL,
+
+    # Restrict a by-hhsize data.frame to the set [min_hhsize_, max_hhsize_].
+    filter_hhsize_ = function(df) {
+      if (!is.na(private$min_hhsize_)) {
+        df <- df[df$hhsize >= private$min_hhsize_, ]
+      }
+      if (!is.na(private$max_hhsize_)) {
+        df <- df[df$hhsize <= private$max_hhsize_, ]
+      }
+      df
+    }
   ),
 
   ############################################################################
@@ -556,7 +577,7 @@ HousepiPPC <- R6::R6Class(
   active = list(
     #' @field formatted_attack_rate `data.frame`.
     #' Observed and predicted attack rates by household size.
-    #' If a maximum house size is set, larger sizes are not returned.
+    #' Sizes outside the set household size bounds are not returned.
     formatted_attack_rate = function(value) {
       if (!missing(value)) stop_read_only("formatted_attack_rate")
       # convert internal list to data.frame
@@ -571,16 +592,13 @@ HousepiPPC <- R6::R6Class(
                 private$house_counts_$hhsize)
         ]
       )
-      # filter to maximum house size if applicable
-      if (!is.na(private$max_hhsize_)) {
-        output <- output[output$hhsize <= private$max_hhsize_, ]
-      }
-      output
+      # filter to household size bounds if applicable
+      private$filter_hhsize_(output)
     },
 
     #' @field formatted_sec_attack_rate `data.frame`.
     #' Observed and predicted secondary attack rates by household size.
-    #' If a maximum house size is set, larger sizes are not returned.
+    #' Sizes outside the set household size bounds are not returned.
     formatted_sec_attack_rate = function(value) {
       if (!missing(value)) stop_read_only("formatted_sec_attack_rate")
       # convert internal list to data.frame
@@ -595,20 +613,18 @@ HousepiPPC <- R6::R6Class(
                 private$house_counts_$hhsize)
         ]
       )
-      # filter to maximum house size if applicable
-      if (!is.na(private$max_hhsize_)) {
-        output <- output[output$hhsize <= private$max_hhsize_, ]
-      }
-      output
+      # filter to household size bounds if applicable
+      private$filter_hhsize_(output)
     },
 
     #' @field formatted_cases_count `data.frame`.
     #' Formatted observed and predicted cases by household size.
-    #' If a maximum household size is set, larger sizes are not returned.
+    #' Sizes outside the set household size bounds are not returned.
     formatted_cases_count = function(value) {
       if (!missing(value)) stop_read_only("formatted_cases_count")
-      # filter according to max_hhsize
-      cases <- helper_filter_tables(self$cases_count, private$max_hhsize_)
+      # filter according to household size bounds
+      cases <- helper_filter_tables(self$cases_count,
+                                    private$min_hhsize_, private$max_hhsize_)
 
       # empty frame as a placeholder for Credible Interval
       na_df <- cases$observed
@@ -633,6 +649,8 @@ HousepiPPC <- R6::R6Class(
     #' @param obs_process `r rd_simul_observ_`
     #' @param thin_ess `r rd_thin_ess_`
     #' @param max_nrep `r rd_max_nrep_`
+    #' @param min_hhsize `r rd_min_hhsize_`
+    #' @param max_hhsize `r rd_max_hhsize_`
     #' @param point_estimate `r rd_point_estimate_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
@@ -641,6 +659,8 @@ HousepiPPC <- R6::R6Class(
                           obs_process = NULL,
                           thin_ess = TRUE,
                           max_nrep = 200L,
+                          min_hhsize = NA_integer_,
+                          max_hhsize = NA_integer_,
                           point_estimate = "median",
                           threads = 1L,
                           progress = TRUE) {
@@ -656,7 +676,23 @@ HousepiPPC <- R6::R6Class(
         threads = threads, progress = progress
       )
       private$house_counts_ <- helper_house_counts(hhmodel$data_wide)
+      self$set_min_hhsize(min_hhsize)
+      self$set_max_hhsize(max_hhsize)
 
+      invisible(self)
+    },
+
+    #' @description Set minimum household size to consider in result outputs.
+    #' @param n `integer(1)`. Minimum household size to consider.
+    #' If `NA`, restore observed minimum.
+    set_min_hhsize = function(n) {
+      private$min_hhsize_ <- n
+      invisible(self)
+    },
+
+    #' @description Restore minimum household size to observed minimum.
+    drop_min_hhsize = function() {
+      self$set_min_hhsize(NA_integer_)
       invisible(self)
     },
 
@@ -680,7 +716,8 @@ HousepiPPC <- R6::R6Class(
     #' If `FALSE`, consider upper tail `P[X>x]`.
     #' @return `list`
     chisq_test = function(lower_tail = FALSE) {
-      cases <- helper_filter_tables(self$cases_count, private$max_hhsize_)
+      cases <- helper_filter_tables(self$cases_count,
+                                    private$min_hhsize_, private$max_hhsize_)
       res <- (cases$observed - cases$predicted)^2 / cases$predicted
       x_val <- sum(res, na.rm = TRUE)
       ddof <- prod(dim(res)) - nrow(res) - sum(is.na(res))
@@ -728,7 +765,7 @@ run_custom_predictive_check <- function(hhmodel,
 #' @title Standard epidemiological posterior predictive check
 #' @description
 #' Posterior predictive check on standard epidemiological measures
-#' by household size. It compares observed and predicted values of 
+#' by household size. It compares observed and predicted values of
 #' \describe{
 #' \item{`"attack_rate"`}{see [measure_ar_by_hhsize];}
 #' \item{`"sec_attack_rate"`}{see [measure_sar_by_hhsize];}
@@ -739,6 +776,8 @@ run_custom_predictive_check <- function(hhmodel,
 #' @param obs_process `r rd_simul_observ_`
 #' @param thin_ess `r rd_thin_ess_`
 #' @param max_nrep `r rd_max_nrep_`
+#' @param min_hhsize `r rd_min_hhsize_`
+#' @param max_hhsize `r rd_max_hhsize_`
 #' @param point_estimate `r rd_point_estimate_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
@@ -751,6 +790,8 @@ run_epi_predictive_check <- function(hhmodel,
                                      obs_process = NULL,
                                      thin_ess = TRUE,
                                      max_nrep = 200L,
+                                     min_hhsize = NA_integer_,
+                                     max_hhsize = NA_integer_,
                                      point_estimate = "median",
                                      threads = 1L,
                                      progress = TRUE) {
@@ -758,7 +799,8 @@ run_epi_predictive_check <- function(hhmodel,
   HousepiPPC$new(
     hhmodel$copy(), param_table,
     obs_process = obs_process, thin_ess = thin_ess,
-    max_nrep = max_nrep, point_estimate = point_estimate,
+    max_nrep = max_nrep, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
+    point_estimate = point_estimate,
     threads = threads, progress = progress
   )
 }
@@ -766,7 +808,7 @@ run_epi_predictive_check <- function(hhmodel,
 #' Format credible interval into printable string
 #'
 #' @description
-#' Format element-wise estimate and credible-interval into a string. 
+#' Format element-wise estimate and credible-interval into a string.
 #' The function is vectorised over its arguments
 #' and returns a character vector of the same length as the inputs.
 #' @param point_estimate `numeric()`. Point estimate values.

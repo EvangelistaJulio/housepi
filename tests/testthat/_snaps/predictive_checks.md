@@ -1,4 +1,4 @@
-# run_custom_predictive_check works with custom measure
+# HousepiCustomPPC active fields are read-only
 
     Code
       print(ppc)

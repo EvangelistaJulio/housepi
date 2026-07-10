@@ -968,12 +968,12 @@ test_that("rand() is reproducible and plausible for all distributions", {
 
 test_that("Ferretti20 infectivity profile behave has expected", {
   x <- seq(0, 15, 0.001)
-  profile <- expose_infec_profile("ferretti20", incub_period = 5)
+  profile <- expose_infectivity_profile("ferretti20", incub_period = 5)
   expect_equal(trapezoid(x, profile$inst(x)), profile$cumul(x)[length(x)])
 
   # left discretization works as expected
   x <- seq(1.0, 1.9, 0.1)
-  profile <- expose_infec_profile("ferretti20", incub_period = 5, discr = TRUE)
+  profile <- expose_infectivity_profile("ferretti20", incub_period = 5, discr = TRUE)
   expect_true(all(profile$inst(x) == profile$cumul(1)))
 })
 
@@ -984,7 +984,7 @@ test_that("Ferretti20 infectivity profile behave has expected", {
 test_that("Exposed object print behavior is stable", {
   expect_snapshot(print(expose_function("pow", x2 = 3)))
   expect_snapshot(print(expose_distribution("normal", mean = 2, sd = 3)))
-  expect_snapshot(print(expose_infec_profile("gamma", shape = 2, scale = 1)))
+  expect_snapshot(print(expose_infectivity_profile("gamma", shape = 2, scale = 1)))
   # no-argument object prints only the header
   expect_snapshot(print(expose_function("sin")))
 })

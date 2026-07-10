@@ -161,7 +161,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
                         discr = discr, quiet = TRUE) |>
       add_parameter(import = param) |>
       add_augmented(infec_time = infec_time@D) |>
-      add_infec_profile(func = "gamma", discr = discr,
+      add_infectivity_profile(func = "gamma", discr = discr,
                         shape = shape@P, scale = scale@P)
 
     expect_equal(evaluate_log_lik(hhmodel),
@@ -210,7 +210,7 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
         onset_time = list(prior = "normal", mean = onset_date@D),
         incub_period = list(prior = "weibull", shape = 2, scale = 1)
       ) |>
-      add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+      add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
   }
   id_draws <- house[house$status > 0, ]$id
 
@@ -259,7 +259,7 @@ test_that("Augmented moves preserve log-likelihood", {
       onset_time = list(prior = "normal", mean = onset_date@D),
       incub_period = list(prior = "weibull", shape = 2, scale = 1)
     ) |>
-    add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
   n_steps <- 100
   id_draws <- house[house$status > 0, ]$id
@@ -321,7 +321,7 @@ test_that("Augmented moves preserve log-likelihood", {
                             prior = "weibull", shape = 2, scale = 1)
       ) |>
       add_parameter(import = params_i) |>
-      add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
+      add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
       evaluate_log_lik()
   }
   # the fresh-model likelihood matches the tracked pointwise likelihood
@@ -347,7 +347,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
     ) |>
     add_observation("onset_date", obs = "normal",
                     mean = infec_time@A + incub_period@A, sd = 1) |>
-    add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
   n_steps <- 100
   results <- suppressWarnings(
@@ -405,7 +405,7 @@ test_that("Observation through a deterministic node constrains its ancestors", {
       ) |>
       # tightly informative observation reached through the deterministic node
       add_observation("onset_date", obs = "normal", mean = onset_time@A, sd = 0.2) |>
-      add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
+      add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
       run_inference(steps = 400, burn = 100, thin = 1, adapt = 100,
                     chain = 1, id_draws = id_draws)
   )
@@ -442,7 +442,7 @@ test_that("Discretized observation node initializes finite", {
     # discretized observation: the path that previously broke initialization
     add_observation("onset_date", obs = "normal", discr = TRUE,
                     loc = infec_time@A + incub_period@A) |>
-    add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
   # initialization no longer returns infinity; the chain runs and the
   # complete-data log-likelihood stays finite throughout
@@ -496,7 +496,7 @@ test_that("Household observation derives from simulated observations", {
     ) |>
     add_observation("test_date", obs = "normal",
                     mean = infec_time@A + incub_period@A, sd = 1) |>
-    add_house_observ(start_date = min(test_date@D)) |>
+    add_house_observation(start_date = min(test_date@D)) |>
     run_simulation(nrep = 2)
 
   # each repetition is self-consistent: start_date is the per-household na.rm min
@@ -556,7 +556,7 @@ test_that("Augmented variable reads a static data-bound household observation", 
       infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
                         max = ~ start_date@D + 5, proposal = "normal")
     ) |>
-    add_house_observ(start_date = min(test_date@D)) |>
+    add_house_observation(start_date = min(test_date@D)) |>
     run_simulation()
 
   # start_date is materialized statically (= 5) before the index is drawn
@@ -577,7 +577,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
                         max = ~ start_date@D + 5, proposal = "normal")
     ) |>
     add_observation("test_date", obs = "normal", mean = infec_time@A, sd = 1) |>
-    add_house_observ(start_date = min(test_date@D)) |>
+    add_house_observation(start_date = min(test_date@D)) |>
     run_simulation() |>
     expect_error("[Cc]yclic")
 })
@@ -647,7 +647,7 @@ test_that("Household observations aggregate a data column across members", {
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
-    add_house_observ(
+    add_house_observation(
       first_test = min(test_date@D),
       last_test = max(test_date@D)
     ) |>
@@ -698,7 +698,7 @@ test_that("Data-bound household observation supplies a required data column", {
       new_housepi_model("case_ascertained") |>
       add_parameter_template() |>
       add_augmented_template() |>
-      add_house_observ(start_date = min(test_date@D))
+      add_house_observation(start_date = min(test_date@D))
   }
   # reference: the same quantity provided as an ordinary data column
   build_provided <- function() {
@@ -743,7 +743,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
     new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
-    add_house_observ(start_date = min(test_date@D)) |>
+    add_house_observation(start_date = min(test_date@D)) |>
     evaluate_log_lik() |>
     expect_error("already provided as a data column")
 
@@ -752,7 +752,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
     new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
-    add_house_observ(start_date = min(test_date@D) + alpha@P) |>
+    add_house_observation(start_date = min(test_date@D) + alpha@P) |>
     evaluate_log_lik() |>
     expect_error("pure function of data")
 })
@@ -821,7 +821,7 @@ test_that("Status is a constant in inference", {
       new_housepi_model("case_ascertained", quiet = TRUE) |>
       add_parameter(import = param) |>
       add_augmented(infec_time = infec_time@D) |>
-      add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+      add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
     if (with_status) {
       m <- m |> add_status(symptomatic = 0.7, asymptomatic = 0.3)
     }
@@ -870,7 +870,7 @@ test_that("Character status round-trips with stable codes", {
     add_parameter(alpha = 1e-04, beta = 0.07, gamma = 0.9,
                   hhsize_ref = 4, shape = 2, scale = 1.1) |>
     add_augmented(infec_time = infec_time@D) |>
-    add_infec_profile(func = "gamma", shape = shape@P, scale = scale@P)
+    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
   expect_true(is.finite(evaluate_log_lik(reinfer)))
 
   # the data-derived dictionary matches the simulated infected labels

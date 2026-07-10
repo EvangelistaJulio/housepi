@@ -148,7 +148,7 @@ get_parameters(hhmodel)
 
 test_delay <- 8
 hhmodel <- hhmodel |>
-  add_house_observ(start_date = min(test_date@D)) |> 
+  add_house_observation(start_date = min(test_date@D)) |> 
   # parameter definitions
   add_parameter(
     alpha = list(prior = "uniform", proposal = "lognormal"),
@@ -181,7 +181,7 @@ hhmodel <- hhmodel |>
   ) |>
   # infectivity profile definitions
   # FIXME: this needs to be clarified
-  add_infec_profile("gamma", mean = 4, var = 2.5)
+  add_infectivity_profile("gamma", mean = 4, var = 2.5)
 
 # perform inference
 results <- hhmodel |>

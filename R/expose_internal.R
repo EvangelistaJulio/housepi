@@ -95,14 +95,14 @@ expose_distribution <- function(name, ...,
 #' @param discr `r rd_test_discr_`
 #' @return An exposed infectivity profile with methods `$inst()` and `$cumul()`.
 #' @examples
-#' ipf <- expose_infec_profile("gamma", shape = 2, scale = 1)
+#' ipf <- expose_infectivity_profile("gamma", shape = 2, scale = 1)
 #' ipf$inst(seq(0, 5))
 #' ipf$cumul(seq(0, 5))
 #' @export
-expose_infec_profile <- function(name, ...,
-                                 min = NA_real_,
-                                 max = NA_real_,
-                                 discr = FALSE) {
+expose_infectivity_profile <- function(name, ...,
+                                       min = NA_real_,
+                                       max = NA_real_,
+                                       discr = FALSE) {
   if (is.na(min)) min <- ifelse(discr, 1, 0)
   obj <- .engine$expose_infec_profile(name, unlist(list(...)), min, max, discr)
   housepi_exposed_(obj, "infectivity profile", name)

@@ -18,7 +18,7 @@
 ---
 
     Code
-      print(expose_infec_profile("gamma", shape = 2, scale = 1))
+      print(expose_infectivity_profile("gamma", shape = 2, scale = 1))
     Output
       i Exposed infectivity profile "gamma".
       `shape` = 2

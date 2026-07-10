@@ -245,12 +245,20 @@ test_that("Helper to filter tables by max_hhsize behaves correctly", {
               cri_lower = cri_lo, cri_upper = cri_up)
 
   # no filter
-  result <- helper_filter_tables(tbl, NA)
+  result <- helper_filter_tables(tbl)
   expect_equal(nrow(result$observed), 3)
 
   # filter to max size 3
-  result2 <- helper_filter_tables(tbl, 3)
+  result2 <- helper_filter_tables(tbl, max_hhsize = 3)
   expect_true(all(result2$observed$hhsize <= 3))
+
+  # filter to min size 3
+  result3 <- helper_filter_tables(tbl, min_hhsize = 3)
+  expect_true(all(result3$observed$hhsize >= 3))
+
+  # filter to a size band [3, 3]
+  result4 <- helper_filter_tables(tbl, min_hhsize = 3, max_hhsize = 3)
+  expect_true(all(result4$observed$hhsize == 3))
 })
 
 test_that("Helper to combine observations and predictions interleaves rows", {
@@ -268,14 +276,30 @@ test_that("Helper to combine observations and predictions interleaves rows", {
 })
 
 test_that("HousepiCustomPPC active fields are read-only", {
+  # predicted-measures raises error when no measure is provided
+  local_ppc$hhmodel |>
+    run_custom_predictive_check(local_ppc$results) |>
+    expect_error("No measure was provided")
+
   hhmodel <- local_ppc$hhmodel
   results <- local_ppc$results
+
   suppressWarnings(
-    ppc <- run_custom_predictive_check(hhmodel, results,
-                              sar = measure_sar_by_hhsize,
-                              progress = FALSE)
+    ppc <- hhmodel |>
+      run_custom_predictive_check(
+        results, sar = measure_sar_by_hhsize,
+        progress = FALSE, thin_ess = FALSE, max_nrep = 10
+      )
   )
 
+  expect_s3_class(ppc, "HousepiCustomPPC")
+  expect_true(!is.null(ppc$sar))
+  expect_true("observed" %in% names(ppc$sar))
+  expect_true("predicted" %in% names(ppc$sar))
+  expect_snapshot(print(ppc))
+  expect_identical(ppc$nrep, 10L)
+
+  # active fields are read-only
   ppc |>
     helper_test_read_only(
       "point_estimate", "cri_level", "nrep",
@@ -289,11 +313,6 @@ test_that("HousepiCustomPPC active fields are read-only", {
   expect_silent(ppc$thin_ess)
   expect_silent(ppc$is_posterior)
   expect_silent(ppc$model_name)
-})
-
-test_that("Predicted-measures raises error when no measure is provided", {
-  run_custom_predictive_check(local_ppc$hhmodel, local_ppc$results) |>
-    expect_error("No measure was provided")
 })
 
 test_that("Predicted cases by house size works as expected", {
@@ -326,9 +345,9 @@ test_that("Predicted cases by house size works as expected", {
   # subclass active fields and inherited dynamic measure fields are read-only
   ppc |>
     helper_test_read_only(
-      "formatted_attack_rate", "attack_rate", 
-      "formatted_sec_attack_rate", "sec_attack_rate", 
-      "formatted_cases_count","cases_count"
+      "formatted_attack_rate", "attack_rate",
+      "formatted_sec_attack_rate", "sec_attack_rate",
+      "formatted_cases_count", "cases_count"
     )
 
   # set_max_hhsize and drop
@@ -337,10 +356,31 @@ test_that("Predicted cases by house size works as expected", {
   expect_true(all(sar2$hhsize <= 3))
   ppc$drop_max_hhsize()
 
+  # set_min_hhsize and drop
+  ppc$set_min_hhsize(3)
+  sar3 <- ppc$formatted_sec_attack_rate
+  expect_true(all(sar3$hhsize >= 3))
+  ar3 <- ppc$formatted_attack_rate
+  expect_true(all(ar3$hhsize >= 3))
+  ppc$drop_min_hhsize()
+
   # chisq_test
   chi <- ppc$chisq_test()
   expect_true(is.list(chi))
   expect_true(all(c("chisq_value", "ddof", "p_value") %in% names(chi)))
+})
+
+test_that("run_epi_predictive_check honours min/max_hhsize arguments", {
+  hhmodel <- local_ppc$hhmodel
+  results <- local_ppc$results
+  suppressWarnings(
+    ppc <- hhmodel |>
+      run_epi_predictive_check(results, min_hhsize = 2L, max_hhsize = 3L)
+  )
+  expect_true(all(ppc$formatted_attack_rate$hhsize >= 2))
+  expect_true(all(ppc$formatted_attack_rate$hhsize <= 3))
+  expect_true(all(ppc$formatted_sec_attack_rate$hhsize >= 2))
+  expect_true(all(ppc$formatted_sec_attack_rate$hhsize <= 3))
 })
 
 test_that("PPC does not pollute the engine's data_wide between calls", {
@@ -367,21 +407,24 @@ test_that("PPC does not pollute the engine's data_wide between calls", {
 
 test_that("ppc_observed_outside_cri flags out-of-range numeric entries", {
   # numeric vectors: middle is below, last is above, NA propagates as FALSE
-  obs <- c(1, 5, 10, NA)
-  low <- c(0, 6, 0, 0)
-  up  <- c(2, 8, 9, 10)
-  expect_equal(ppc_observed_outside_cri(obs, low, up),
-               c(FALSE, TRUE, TRUE, FALSE))
+  list(observed = c(1, 5, 10, NA),
+       cri_lower = c(0, 6, 0, 0),
+       cri_upper = c(2, 8, 9, 10)) |>
+    ppc_observed_outside_cri() |>
+    expect_equal(c(FALSE, TRUE, TRUE, FALSE))
 
   # non-numeric input is treated as not-a-mismatch (skipped)
-  expect_equal(ppc_observed_outside_cri(c("a", "b"), c("a", "b"), c("a", "b")),
-               c(FALSE, FALSE))
+  list(observed = c("a", "b"),
+       cri_lower = c("a", "b"),
+       cri_upper = c("a", "b")) |>
+    ppc_observed_outside_cri() |>
+    expect_equal(c(FALSE, FALSE))
 
   # data.frame: numeric column flagged, non-numeric column ignored
-  obs_df <- data.frame(x = c(1, 5), label = c("a", "b"))
-  low_df <- data.frame(x = c(0, 6), label = c("a", "b"))
-  up_df  <- data.frame(x = c(2, 8), label = c("a", "b"))
-  res <- ppc_observed_outside_cri(obs_df, low_df, up_df)
+  res <- list(observed = data.frame(x = c(1, 5), label = c("a", "b")),
+              cri_lower = data.frame(x = c(0, 6), label = c("a", "b")),
+              cri_upper = data.frame(x = c(2, 8), label = c("a", "b"))) |>
+    ppc_observed_outside_cri()
   expect_true(is.data.frame(res))
   expect_equal(res$x, c(FALSE, TRUE))
   expect_equal(res$label, c(FALSE, FALSE))
@@ -398,21 +441,4 @@ test_that("HousepiCustomPPC warns on observed values outside CrI", {
       thin_ess = FALSE, max_nrep = 20L
     ) |>
     expect_warning(".*outside.*CrI")
-})
-
-test_that("run_custom_predictive_check works with custom measure", {
-  hhmodel <- local_ppc$hhmodel
-  results <- local_ppc$results
-  suppressWarnings({
-    ppc <- run_custom_predictive_check(hhmodel, results,
-                              sar = measure_sar_by_hhsize,
-                              thin_ess = FALSE, max_nrep = 10)
-  })
-  expect_s3_class(ppc, "HousepiCustomPPC")
-  expect_true(!is.null(ppc$sar))
-  expect_true("observed" %in% names(ppc$sar))
-  expect_true("predicted" %in% names(ppc$sar))
-  expect_snapshot(print(ppc))
-  # max_nrep caps the number of replicates used for predictions
-  expect_identical(ppc$nrep, 10L)
 })

@@ -163,7 +163,7 @@ get_contact_rates <- function(hhmodel) {
 
 #' @rdname get_definitions
 #' @export
-get_infec_profile <- function(hhmodel) {
+get_infectivity_profile <- function(hhmodel) {
   stopifnothousepi(hhmodel)
   hhmodel$infec_profile
 }
@@ -500,10 +500,10 @@ add_status <- function(hhmodel, ..., dist = "categorical") {
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @export
-add_house_observ <- function(hhmodel, name = NULL, value = NULL, ...,
-                             status = NA_integer_, discr = FALSE,
-                             min = NULL, max = NULL,
-                             import = NULL, append = TRUE) {
+add_house_observation <- function(hhmodel, name = NULL, value = NULL, ...,
+                                  status = NA_integer_, discr = FALSE,
+                                  min = NULL, max = NULL,
+                                  import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -661,11 +661,11 @@ add_contact_rate <- function(hhmodel, by = NA_character_, ...,
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @export
-add_infec_profile <- function(hhmodel,
-                              func = NULL, ...,
-                              status = NA_integer_, discr = FALSE,
-                              max = NULL,
-                              import = NULL, append = TRUE) {
+add_infectivity_profile <- function(hhmodel,
+                                     func = NULL, ...,
+                                     status = NA_integer_, discr = FALSE,
+                                     max = NULL,
+                                     import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private

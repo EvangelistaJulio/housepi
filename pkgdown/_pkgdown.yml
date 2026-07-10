@@ -60,13 +60,9 @@ reference:
   desc: >
     Perform posterior predicitive checks.
   contents:
-  - measure_ar_by_hhsize
-  - measure_sar_by_hhsize
-  - measure_cases_by_hhsize
-  - run_epi_predictive_check
-  - HousepiPPC
-  - run_custom_predictive_check
-  - HousepiCustomPPC
+  - starts_with("measure_")
+  - ends_with("_predictive_check")
+  - ends_with("PPC")
 
 - title: "Auxiliary tools"
   desc: >

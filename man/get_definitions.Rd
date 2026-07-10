@@ -7,7 +7,7 @@
 \alias{get_augmented}
 \alias{get_group_rates}
 \alias{get_contact_rates}
-\alias{get_infec_profile}
+\alias{get_infectivity_profile}
 \title{Retrieve currently loaded data and definitions from a housepi model}
 \usage{
 get_data_wide(hhmodel)
@@ -22,7 +22,7 @@ get_group_rates(hhmodel)
 
 get_contact_rates(hhmodel)
 
-get_infec_profile(hhmodel)
+get_infectivity_profile(hhmodel)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}

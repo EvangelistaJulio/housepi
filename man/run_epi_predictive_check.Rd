@@ -10,6 +10,8 @@ run_epi_predictive_check(
   obs_process = NULL,
   thin_ess = TRUE,
   max_nrep = 200L,
+  min_hhsize = NA_integer_,
+  max_hhsize = NA_integer_,
   point_estimate = "median",
   threads = 1L,
   progress = TRUE
@@ -35,6 +37,12 @@ Ignored if \code{param_table} has no posterior draws.}
 
 \item{max_nrep}{\code{integer(1)} Larger number of replicates.
 The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.}
+
+\item{min_hhsize}{\code{integer(1)} Minimum household size retained in the outputs.
+If \code{NA}, no lower bound is applied.}
+
+\item{max_hhsize}{\code{integer(1)} Maximum household size retained in the outputs.
+If \code{NA}, no upper bound is applied.}
 
 \item{point_estimate}{\code{character(1)} Summary statistic used as the predicted
 point estimate across simulations.
