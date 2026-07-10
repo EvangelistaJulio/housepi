@@ -940,12 +940,10 @@ namespace housepi
             for (const std::vector<std::string> *col : deftable_.source_cols())
                 for (const std::string &dstr : referred_data((*col)[k], live_names))
                     msg::stop(
-                        "Cyclic dependency for simulation: augmented " + msg::val(deftable_.c_name[k]) +
-                        " reads data column " + msg::val(dstr) + ", a household observation derived from a "
-                                                                 "generated observation that depends on augmented variables.\n"
-                                                                 "Define " +
-                        msg::val(deftable_.c_name[k]) + " without referencing " + msg::val(dstr) +
-                        " (an anchor-free distribution; the likelihood is invariant to the time origin).");
+                        "Found cyclic dependency for simulation:\nAugmented " + 
+                        msg::val(deftable_.c_name[k]) + " reads generated household observation " + msg::val(dstr) +
+                        " which depends on augmented definitions.\n " +
+                        "Define " + msg::val(deftable_.c_name[k]) + " without referencing " + msg::val(dstr) + ".");
         }
     }
 
