@@ -8,6 +8,12 @@
 # Reserved constant names forbidden as definition names.
 .reserved_math_consts <- c("pi")
 
+# Coerce an R Date value to its numeric day count.
+coerce_date_ <- function(x) {
+  if (inherits(x, "Date")) as.numeric(unclass(x))
+  else x
+}
+
 # Helper to check type definitions and set defaults.
 helper_default_source <- function(types, values) {
   valid_sources_lst <- list("A" = "augmented",
@@ -129,7 +135,7 @@ housepi_func_from_call <- function(call) {
   func_args <- character()
   if (length(args) > 0) {
     for (i in seq_along(args)) {
-      y <- args[[i]]
+      y <- coerce_date_(args[[i]])
       assert_valid_defin_node(y)
       func_args[[paste0("x", i)]] <- ifelse(
         rlang::is_call(y) && rlang::call_name(y) != "@",
@@ -197,7 +203,7 @@ housepi_smart_unwrap <- function(x, arg_name = NULL) {
   if (!rlang::is_quosure(x) && !rlang::is_quosures(x)) return(x)
 
   # evaluate the quosure
-  result <- rlang::eval_tidy(x)
+  result <- coerce_date_(rlang::eval_tidy(x))
 
   # check if is one of the allowed types
   if (is.character(result) || is.numeric(result) ||
@@ -221,7 +227,7 @@ housepi_smart_unwrap <- function(x, arg_name = NULL) {
 # Deal with housepi quosures.
 housepi_extractor <- function(...) {
   .extract_node <- function(x_quo) {
-    x_expr <- rlang::quo_get_expr(x_quo)
+    x_expr <- coerce_date_(rlang::quo_get_expr(x_quo))
 
     # expand formula in case
     if (rlang::is_formula(x_expr)) x_expr <- rlang::f_rhs(x_expr)

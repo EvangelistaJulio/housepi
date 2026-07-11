@@ -61,6 +61,28 @@ test_that("Variadic sum and prod are flattened", {
                "sum|x:x2|{a|A}:{prod|x:x2:x3|{3|N}:{b|A}:{c|A}}")
 })
 
+test_that("Injected Date literals encode as numeric", {
+  d_min <- as.Date(32)
+  d_max <- as.Date(45)
+
+  housepi_extractor(!!d_min) |>
+    expect_equal(housepi_extractor(!!as.numeric(d_min)))
+
+  # Date leaves inside a call are coerced too (rlang binds !! tighter than -)
+  expect_equal(housepi_extractor(!!d_min - 5), "sub|x:x2|{32|N}:{5|N}")
+  expect_equal(housepi_extractor(log(!!d_min)), "log|x|{32|N}")
+
+  m_date <- new_housepi_model(model = "test") |>
+    add_augmented("gray_fox", prior = "uniform",
+                  min = !!d_min, max = !!d_max)
+  m_num <- new_housepi_model(model = "test") |>
+    add_augmented("gray_fox", prior = "uniform",
+                  min = !!as.numeric(d_min), max = !!as.numeric(d_max))
+
+  expect_identical(m_date$augmented$min, m_num$augmented$min)
+  expect_identical(m_date$augmented$max, m_num$augmented$max)
+})
+
 test_that("Rlang nested expression", {
   expect_equal(housepi_extractor(a + 3 * b),
                "sum|x:x2|{a|A}:{prod|x:x2|{3|N}:{b|A}}")

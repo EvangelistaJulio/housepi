@@ -575,7 +575,7 @@ namespace housepi
             if (status::is_missing(err_status))
                 sms += "\nCheck your generic definitions.";
             else
-                sms += " for status " + std::to_string(err_status) + ".";
+                sms += "\nCheck status-specific definitions for status " + std::to_string(err_status) + ".";
             msg::stop(sms);
         }
     }
