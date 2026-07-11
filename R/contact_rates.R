@@ -382,7 +382,6 @@ HousepiContactRate <- R6::R6Class(
                        prior = NA_character_,
                        min = NA_real_, max = NA_real_,
                        proposal = NA_character_,
-                       proposal_scale = NA_real_,
                        prefix = "ctr",
                        .warn_over = TRUE) {
       # automatic definition
@@ -399,12 +398,14 @@ HousepiContactRate <- R6::R6Class(
       # raw parameter definition
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
-      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
       min <- housepi_smart_unwrap(min, "min")
       max <- housepi_smart_unwrap(max, "max")
       dots <- list(...)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      args <- housepi_extractor(!!!dots)
+      # extract args and proposal
+      def_args <- helper_definition_args(proposal, dots)
+      args <- def_args$args
+      proposal <- def_args$proposal
 
       # distinguish between automatic and custom definitions
       is_auto <- !all(is.na(by))
@@ -425,8 +426,8 @@ HousepiContactRate <- R6::R6Class(
 
       # store MCMC parameter setup
       self$raw_params <- set_group_rates_mcmc_setup(
-        prior = prior, args = args, min = min, max = max,
-        proposal = proposal, proposal_scale = proposal_scale
+        prior = prior, args = args,
+        min = min, max = max, proposal = proposal
       )
 
       invisible(self)

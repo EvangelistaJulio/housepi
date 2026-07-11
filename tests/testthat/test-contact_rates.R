@@ -7,7 +7,6 @@ aux_add <- function(self, by = NA_character_,
                     prior = NA_character_, ...,
                     min = NA_real_, max = NA_real_,
                     proposal = NA_character_,
-                    proposal_scale = NA_real_,
                     prefix = "ctr",
                     .warn_over = TRUE) {
   self$add_quo(by = by,
@@ -19,7 +18,6 @@ aux_add <- function(self, by = NA_character_,
                min = rlang::enquo(min),
                max = rlang::enquo(max),
                proposal = proposal,
-               proposal_scale = proposal_scale,
                prefix = prefix,
                .warn_over = .warn_over)
   invisible(self)

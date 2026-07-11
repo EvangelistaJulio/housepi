@@ -18,7 +18,6 @@ add_augmented(
   min = NULL,
   max = NULL,
   proposal = NA_character_,
-  proposal_scale = NA_real_,
   import = NULL,
   append = TRUE
 )
@@ -37,6 +36,11 @@ One between:
 }}
 
 \item{...}{named arguments for the prior distribution.
+Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
+\code{proposal_}. Currently \code{proposal_scale} sets the proposal scale: if omitted,
+the scale is adapted during inference when \code{adapt > 0}; if a positive numeric,
+the scale is fixed to that value and never adapted (ignored when proposal is
+\code{"sample"}).
 In mode 'multiple', the \code{name = value} definitions.}
 
 \item{status}{\code{integer(1)} Individual positive status.
@@ -85,11 +89,6 @@ One between:
 \item{\code{"sample"}}{sampled from the \%s distribution;}
 \item{\code{NA}}{same as \code{"sample"} (default).}
 }}
-
-\item{proposal_scale}{\code{numeric(1)} Scale of the proposal.
-If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
-If a positive numeric, scale is fixed to that value and never adapted.
-Ignored when proposal is \code{"sample"}.}
 
 \item{import}{Named \code{list} of pre-built definitions to import.
 Cannot be combined with single and/or multiple definitions.}

@@ -229,7 +229,7 @@ namespace housepi
             col c_func = {}, c_fcumul = {};
             col c_value = {}, c_const = {}, c_discr = {};
             col c_prior = {}, c_min = {}, c_max = {};
-            col c_proposal = {}, c_scale = {};
+            col c_proposal = {};
             std::vector<Kind> c_kind = {}; /// augm | obs | house | status
 
             /// Clear all definitions.

@@ -4,14 +4,12 @@ aux_add <- function(self, name = NA_character_, value = NULL,
                     const = NA, discr = FALSE,
                     prior = NA_character_, ...,
                     min = NULL, max = NULL,
-                    proposal = NA_character_,
-                    proposal_scale = NA_real_) {
+                    proposal = NA_character_) {
   self$add_quo(name = name, value = rlang::enquo(value),
                const = const, discr = discr,
                prior = prior, rlang::enquos(...),
                min = rlang::enquo(min), max = rlang::enquo(max),
-               proposal = proposal,
-               proposal_scale = proposal_scale)
+               proposal = proposal)
   invisible(self)
 }
 
@@ -34,7 +32,6 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$defs$const, FALSE)
   expect_equal(param$defs$discr, FALSE)
   expect_equal(param$defs$proposal, "sample")
-  expect_equal(param$defs$proposal_scale, NA_real_)
   expect_equal(param$defs$prior, "uniform")
   expect_equal(param$defs$min, "0|N")
   expect_equal(param$defs$max, "5|N")
@@ -54,13 +51,18 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$defs$value, NA_real_)
   expect_equal(param$defs$const, FALSE)
   expect_equal(param$defs$discr, FALSE)
+  # a bare proposal (no folded scale) stays adaptive
   expect_equal(param$defs$proposal, "normal")
-  # NA_real_ marks the variable as adaptive (C++ side uses NaN as sentinel).
-  # A finite proposal_scale would instead pin the scale (no adaptation).
-  expect_equal(param$defs$proposal_scale, NA_real_)
   expect_equal(param$defs$prior, "uniform")
   expect_equal(param$defs$min, "0|N")
   expect_equal(param$defs$max, "5|N")
+
+  # a user-defined proposal_scale is folded into the proposal call as an
+  # argument of the DSL, pinning the scale (no adaptation)
+  param <- HousepiParameter$new()
+  aux_add(param, name = "dummy", prior = "uniform", min = 0, max = 5,
+          proposal = "normal", proposal_scale = 0.5)
+  expect_equal(param$defs$proposal, "normal|scale|{0.5|N}")
 })
 
 test_that("Constant parameter definitions are correct", {
@@ -80,7 +82,6 @@ test_that("Constant parameter definitions are correct", {
   expect_equal(param$defs$value, "3|N")
   expect_equal(param$defs$const, TRUE)
   expect_equal(param$defs$proposal, NA_character_)
-  expect_equal(param$defs$proposal_scale, NA_real_)
 
   aux_add(param, name = "dummy", value = 3, prior = "uniform",
           min = 0, max = 5, const = TRUE) |>

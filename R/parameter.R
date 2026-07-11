@@ -81,7 +81,6 @@ HousepiParameter <- R6::R6Class(
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
-                       proposal_scale = NA_real_,
                        .warn_over = TRUE,
                        .assert = FALSE) {
       # load non-quosures
@@ -90,7 +89,6 @@ HousepiParameter <- R6::R6Class(
       discr <- housepi_smart_unwrap(discr, "discr")
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
-      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
 
       # load quosures
       value <- housepi_extractor(!!value)
@@ -102,7 +100,10 @@ HousepiParameter <- R6::R6Class(
       dots <- list(...)
       # flatten if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      args <- housepi_extractor(!!!dots)
+      # extract args and proposal
+      def_args <- helper_definition_args(proposal, dots)
+      args <- def_args$args
+      proposal <- def_args$proposal
 
       # flatten function arguments if quosures
       if (rlang::is_quosure(func_args)) {
@@ -134,8 +135,7 @@ HousepiParameter <- R6::R6Class(
                    prior = as.character(prior),
                    min = NA_real_,
                    max = NA_real_,
-                   proposal = as.character(proposal),
-                   proposal_scale = NA_real_)
+                   proposal = proposal)
 
       # drop previous definition eventually
       rmv_name <- self$remove(opts$name)
@@ -144,7 +144,7 @@ HousepiParameter <- R6::R6Class(
 
       opts <- helper_variable_core(opts, self$family, value, func, func_args)
       opts <- helper_variable_model(opts, self$family, args)
-      opts <- helper_variable_move(opts, self$family, proposal_scale)
+      opts <- helper_variable_move(opts, self$family)
 
       if (!isTRUE(const)) {
         if (!is.null(min)) opts$min <- min

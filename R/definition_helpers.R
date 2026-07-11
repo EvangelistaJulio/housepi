@@ -124,8 +124,39 @@ helper_variable_model <- function(opts, family, args) {
   opts
 }
 
+# Extract arguments carried by the dots.
+# Fold any advanced `proposal_*` option into the proposal call.
+helper_definition_args <- function(proposal, dots) {
+  args <- housepi_extractor(!!!dots)
+  nms <- names(args)
+  # skip if empty
+  if (length(nms) == 0) return(list(args = args, proposal = proposal))
+
+  # find proposal advanced definitions
+  mask_prop <- startsWith(nms, "proposal_")
+
+  #>>>>
+  # UPDATE: temporary stop advanced proposal setup
+  unknown <- setdiff(nms[mask_prop], "proposal_scale")
+  if (length(unknown) > 0) stop_h(
+    "Unsupported advanced option{?s} {.arg {unknown}}.",
+    "Only {.arg proposal_scale} is currently available."
+  )
+  #<<<<
+
+  prop_args <- args[mask_prop]
+  names(prop_args) <- stringr::str_remove(names(prop_args), "^proposal_")
+
+  # fold user-defined proposal arguments into the proposal call
+  if (!is.na(proposal) && proposal != "sample") {
+    proposal <- housepi_combine_to_call(proposal, prop_args)
+  }
+
+  list(args = args[!mask_prop], proposal = proposal)
+}
+
 # Interpret user choice for Monte Carlo move.
-helper_variable_move <- function(opts, family, proposal_scale) {
+helper_variable_move <- function(opts, family) {
   # infer if sampling proposal but no constant parameter provided
   if (is.na(opts$const)
       && !(is.na(opts$proposal) && is.na(opts[["prior"]]))) {
@@ -167,14 +198,6 @@ helper_variable_move <- function(opts, family, proposal_scale) {
     if (is.na(opts[["prior"]])) stop_h(
       "No {.arg prior} to sample from for {family} {.val {opts$name}}."
     )
-    if (opts$proposal != "sample")  {
-      # NA proposal scale: adaptive
-      # user defined proposal scale disables adaptation
-      if (is.na(proposal_scale)) opts$proposal_scale <- NA_real_
-      else if (is.numeric(proposal_scale) &&
-                 proposal_scale > 0) opts$proposal_scale <- proposal_scale
-      else stop_h("Proposal scale must be a numeric greater than 0.")
-    }
   }
 
   opts

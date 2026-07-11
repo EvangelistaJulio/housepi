@@ -203,7 +203,6 @@ HousepiAugmented <- R6::R6Class(
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
-                       proposal_scale = NA_real_,
                        .warn_over = TRUE,
                        .assert = FALSE,
                        .kind = private$kind_) {
@@ -217,7 +216,6 @@ HousepiAugmented <- R6::R6Class(
       prior <- housepi_smart_unwrap(prior, "prior")
       obs <- housepi_smart_unwrap(obs, "obs")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
-      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
 
       # load quosures
       value <- housepi_extractor(!!value)
@@ -231,7 +229,10 @@ HousepiAugmented <- R6::R6Class(
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
       # assert augmented does not declare 'obs =' as is not observation
       if (identical(.kind, "augm")) assert_no_obs_declaration(dots)
-      args <- housepi_extractor(!!!dots)
+      # extract args and proposal
+      def_args <- helper_definition_args(proposal, dots)
+      args <- def_args$args
+      proposal <- def_args$proposal
 
       # flatten function arguments if quosures
       if (rlang::is_quosure(func_args)) {
@@ -247,13 +248,16 @@ HousepiAugmented <- R6::R6Class(
           "Conflicting definition for augmented {.val {name}}.",
           "Provide only one between {.arg {c('prior', 'obs')}}."
         )
+
+        # NOTE: observations cannot be sampled
         if (!is.na(proposal)) warn_h(
           "Observation {.val {name}} cannot be sampled.",
           `!` = "Ignored {.arg proposal} definition."
         )
         proposal <- NA_character_
-        proposal_scale <- NA_real_
-        # a status observation keeps its kind; a plain observation becomes "obs"
+
+        # - status observation keeps its kind
+        # - plain observation becomes "obs"
         if (!identical(.kind, "status")) .kind <- "obs"
         prior <- obs
         if (is.na(const)) const <- TRUE
@@ -297,8 +301,7 @@ HousepiAugmented <- R6::R6Class(
                    kind = as.character(.kind),
                    min = NA_real_,
                    max = NA_real_,
-                   proposal = as.character(proposal),
-                   proposal_scale = NA_real_)
+                   proposal = proposal)
 
       # drop previous definition eventually
       rmv_name <- self$remove(opts$name, opts$status)
@@ -307,7 +310,7 @@ HousepiAugmented <- R6::R6Class(
 
       opts <- helper_variable_core(opts, self$family, value, func, func_args)
       opts <- helper_variable_model(opts, self$family, args)
-      opts <- helper_variable_move(opts, self$family, proposal_scale)
+      opts <- helper_variable_move(opts, self$family)
 
       # domain
       if (!is.null(min)) opts$min <- min

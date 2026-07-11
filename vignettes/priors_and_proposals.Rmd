@@ -270,11 +270,11 @@ new_housepi_model(model = "test") |>
   add_parameter(
     sample = list(prior = "normal", min = 0, proposal = "sample"),
     uniform = list(prior = "normal", min = 0,
-                   proposal = "uniform", proposal_scale = sigma),
+                   proposal = "uniform", proposal_scale = !!sigma),
     normal = list(prior = "normal", min = 0,
-                  proposal = "normal", proposal_scale = sigma),
+                  proposal = "normal", proposal_scale = !!sigma),
     lognormal = list(prior = "normal", min = 0,
-                     proposal = "lognormal", proposal_scale = sigma)
+                     proposal = "lognormal", proposal_scale = !!sigma)
   ) |>
   run_inference() |>
   get_parameter_draws() |>

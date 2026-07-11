@@ -304,10 +304,9 @@ tidyup_group_rate_tables <- function(all_tables) {
 #' @return `list`
 #' @keywords internal
 #' @noRd
-set_group_rates_mcmc_setup <- function(name, prior, args, min, max,
-                                       proposal, proposal_scale) {
+set_group_rates_mcmc_setup <- function(name, prior, args, min, max, proposal) {
   # check wheter default configuration
-  is_default <- sapply(c(prior, args, min, max, proposal, proposal_scale),
+  is_default <- sapply(c(prior, args, min, max, proposal),
                        function(x) is.na(x) || is.null(x))
   # if all defaults, provide default choice
   if (all(is_default)) {
@@ -321,8 +320,7 @@ set_group_rates_mcmc_setup <- function(name, prior, args, min, max,
     )
     # else go with user choice
     c(list(prior = prior), args,
-      list(min = min, max = max,
-           proposal = proposal, proposal_scale = proposal_scale))
+      list(min = min, max = max, proposal = proposal))
   }
 }
 
@@ -649,7 +647,7 @@ HousepiGroupRate <- R6::R6Class(
                        strata = NULL, params = NULL,
                        prior = NA_character_,
                        min = NA_real_, max = NA_real_,
-                       proposal = NA_character_, proposal_scale = NA_real_,
+                       proposal = NA_character_,
                        prefix = NA_character_, .warn_over = TRUE) {
       name <- housepi_smart_unwrap(name, "name")
       by <- housepi_smart_unwrap(by, "by")
@@ -668,12 +666,14 @@ HousepiGroupRate <- R6::R6Class(
       # raw parameter definition
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
-      proposal_scale <- housepi_smart_unwrap(proposal_scale, "proposal_scale")
       min <- housepi_smart_unwrap(min, "min")
       max <- housepi_smart_unwrap(max, "max")
       dots <- list(...)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      args <- housepi_extractor(!!!dots)
+      # extract args and proposal
+      def_args <- helper_definition_args(proposal, dots)
+      args <- def_args$args
+      proposal <- def_args$proposal
 
       # distinguish between automatic and custom definitions
       is_auto <- !all(is.na(by))
@@ -692,8 +692,8 @@ HousepiGroupRate <- R6::R6Class(
 
       # store shared MCMC setup (eventually overwrite)
       self$raw_params[[name]] <- set_group_rates_mcmc_setup(
-        name = name, prior = prior, args = args, min = min, max = max,
-        proposal = proposal, proposal_scale = proposal_scale
+        name = name, prior = prior, args = args,
+        min = min, max = max, proposal = proposal
       )
 
       # reorder

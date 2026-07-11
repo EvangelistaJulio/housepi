@@ -242,7 +242,6 @@ The can be supplied only through single mode."
 #' @param func_args `r rd_aug_funargs_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_par_proposal_`
-#' @param proposal_scale `r rd_proposal_scale_`
 #' @param import `r rd_import_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
@@ -270,7 +269,6 @@ add_parameter <- function(hhmodel,
                           func = NULL, func_args = NULL,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
-                          proposal_scale = NA_real_,
                           import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
@@ -285,7 +283,7 @@ add_parameter <- function(hhmodel,
     prior = prior, rlang::enquos(...),
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale,
+    proposal = proposal,
     .assert = TRUE
   )
   else pvt$param_$add_quo_list(
@@ -341,7 +339,6 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param proposal_scale `r rd_proposal_scale_`
 #' @param import `r rd_import_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
@@ -359,7 +356,6 @@ add_augmented <- function(hhmodel,
                           prior = NA_character_,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
-                          proposal_scale = NA_real_,
                           import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
@@ -374,7 +370,7 @@ add_augmented <- function(hhmodel,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale,
+    proposal = proposal,
     .assert = TRUE
   )
   else pvt$augm_$add_quo_list(
@@ -546,7 +542,6 @@ add_house_observation <- function(hhmodel, name = NULL, value = NULL, ...,
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param proposal_scale `r rd_proposal_scale_`
 #' @param prefix `r rd_grr_prefix_`
 #' @param import `r rd_import_`
 #' @param append `r rd_list_append_`
@@ -561,7 +556,6 @@ add_group_rate <-  function(hhmodel,
                             prior = NA_character_,
                             min = NA_real_, max = NA_real_,
                             proposal = NA_character_,
-                            proposal_scale = NA_real_,
                             prefix = NA_character_,
                             import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
@@ -581,8 +575,7 @@ add_group_rate <-  function(hhmodel,
     strata = strata, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale,
-    prefix = prefix
+    proposal = proposal, prefix = prefix
   )
   else pvt$group_rates_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...)),
@@ -610,7 +603,6 @@ add_group_rate <-  function(hhmodel,
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param proposal_scale `r rd_proposal_scale_`
 #' @param prefix `r rd_ctr_prefix_`
 #' @return `r rd_model_out_`
 #' @export
@@ -621,7 +613,6 @@ add_contact_rate <- function(hhmodel, by = NA_character_, ...,
                              prior = NA_character_,
                              min = NA_real_, max = NA_real_,
                              proposal = NA_character_,
-                             proposal_scale = NA_real_,
                              prefix = NA_character_) {
   # FIXME: missing an import for contact-rate
   stopifnothousepi(hhmodel)
@@ -633,8 +624,7 @@ add_contact_rate <- function(hhmodel, by = NA_character_, ...,
     strata = strata, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, proposal_scale = proposal_scale,
-    prefix = prefix
+    proposal = proposal, prefix = prefix
   )
   pvt$rebuild_()
   new_obj

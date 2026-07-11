@@ -9,7 +9,6 @@ aux_add <- function(self, name,
                     prior = NA_character_, ...,
                     min = NA_real_, max = NA_real_,
                     proposal = NA_character_,
-                    proposal_scale = NA_real_,
                     prefix = NA_character_,
                     .warn_over = TRUE) {
   self$add_quo(name = name, by = by,
@@ -19,7 +18,6 @@ aux_add <- function(self, name,
                min = rlang::enquo(min),
                max = rlang::enquo(max),
                proposal = proposal,
-               proposal_scale = proposal_scale,
                prefix = prefix,
                .warn_over = .warn_over)
   invisible(self)
@@ -170,7 +168,7 @@ test_that("Parameter options work correctly", {
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
   expect_equal(grp$parameters[[1]],
                list(prior = "uniform", min = 0, max = 10,
-                    proposal = NA_character_, proposal_scale = NA_real_))
+                    proposal = NA_character_))
 
   grp <- HousepiGroupRate$new()
   aux_add(grp, "walker", by = c("age", "sex"),
@@ -179,7 +177,7 @@ test_that("Parameter options work correctly", {
   expect_equal(grp$parameters[[1]],
                list(prior = "gamma", shape = "2|N", scale = "1|N",
                     min = NA_real_, max = NA_real_,
-                    proposal = NA_character_, proposal_scale = NA_real_))
+                    proposal = NA_character_))
 })
 
 test_that("Load list works as expected", {

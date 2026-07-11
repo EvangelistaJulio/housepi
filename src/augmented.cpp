@@ -229,7 +229,6 @@ namespace housepi
             augm_definitions["min"].push_back(is_discrete ? "1|N" : "0|N");
             augm_definitions["max"].push_back(input.at("max")[r]);
             augm_definitions["proposal"].push_back("");
-            augm_definitions["proposal_scale"].push_back("");
             augm_definitions["kind"].push_back("augm");
         }
     }
@@ -385,7 +384,7 @@ namespace housepi
     {
         for (auto col : {&c_name, &c_status, &c_func, &c_fcumul,
                          &c_value, &c_const, &c_discr, &c_prior,
-                         &c_min, &c_max, &c_proposal, &c_scale})
+                         &c_min, &c_max, &c_proposal})
             col->clear();
         c_kind.clear();
     }
@@ -403,7 +402,6 @@ namespace housepi
         c_min += input.at("min");
         c_max += input.at("max");
         c_proposal += input.at("proposal");
-        c_scale += input.at("proposal_scale");
         for (const std::string &s : input.at("kind"))
             c_kind.push_back(kind_from_string_(s));
     }
@@ -652,10 +650,10 @@ namespace housepi
             is_any_sample_ = true;
             block_at_(status).sample.emplace_back(a);
 
-            // adaptive if proposal is parametric and scale is NA
-            // NOTE: user defined proposal_scale freezes the scale
+            // adaptive if proposal is parametric and carries no pinned scale
+            // NOTE: a user-defined scale (folded into the proposal call) freezes it
             if (deftable_.c_proposal[k] != "sample" &&
-                na::is(deftable_.c_scale[k]))
+                parse::Definition(deftable_.c_proposal[k]).root.children.empty())
             {
                 is_any_adaptive_ = true;
                 block_at_(status).adaptive.emplace_back(a);
@@ -1291,8 +1289,17 @@ namespace housepi
             helper_init_prior_attributes_(member, k);
 
             // assign proposal if variable to be sampled
+            // (scale is folded into the proposal call, if any)
+            // UPDATE: for the moment 'scale' is the only advanced option
             if (!avar.is_constant())
-                avar.init_proposal(deftable_.c_proposal[k], str::tod(deftable_.c_scale[k]));
+            {
+                parse::Definition prop(deftable_.c_proposal[k]);
+                double scale = na::DOUBLE;
+                for (const auto &child : prop.root.children)
+                    if (child.key == "scale")
+                        scale = mcmc_->translator.to_numeric(child).value();
+                avar.init_proposal(prop.root.func, scale);
+            }
 
             // check if satisfies discrete requirement, if any
             if (user_discrete_set_.count(a) && !avar.is_discrete())

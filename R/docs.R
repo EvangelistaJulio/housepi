@@ -64,17 +64,21 @@ One between:
   \\item{`NA`}{same as `\"sample\"` (default).}
 }
 "
-rd_proposal_scale_ <- "`numeric(1)` Scale of the proposal.
-If `NA`, scale is adapted during inference when `adapt > 0` (default).
-If a positive numeric, scale is fixed to that value and never adapted.
-Ignored when proposal is `\"sample\"`."
+# Advanced Monte Carlo knobs supplied through `...`, all prefixed `proposal_`.
+# UPDATE: temporary just proposal_scale
+rd_proposal_opts_ <- "
+Advanced Monte Carlo options may also be passed through `...`, each prefixed
+`proposal_`. Currently `proposal_scale` sets the proposal scale: if omitted,
+the scale is adapted during inference when `adapt > 0`; if a positive numeric,
+the scale is fixed to that value and never adapted (ignored when proposal is
+`\"sample\"`)."
 
 rd_par_discr_ <- sprintf(rd_var_discr_, "prior")
-rd_par_args_ <- sprintf(rd_var_args_, "prior")
+rd_par_args_ <- paste0(sprintf(rd_var_args_, "prior"), rd_proposal_opts_)
 rd_par_proposal_ <- sprintf(rd_var_proposal_, "prior")
 
 rd_aug_discr_ <- sprintf(rd_var_discr_, "prior")
-rd_aug_args_ <- sprintf(rd_var_args_, "prior")
+rd_aug_args_ <- paste0(sprintf(rd_var_args_, "prior"), rd_proposal_opts_)
 rd_aug_proposal_ <- sprintf(rd_var_proposal_, "prior")
 
 rd_obs_dist_ <- "`character(1)` Choice for the observation distribution.

@@ -311,7 +311,7 @@ namespace housepi
         // check entries
         const std::vector<std::string> file_headers = {"name", "value", "const", "discr",
                                                        "func", "prior", "min", "max",
-                                                       "proposal", "proposal_scale"};
+                                                       "proposal"};
         const std::vector<std::string> headers = read::extract_keys(input);
 
         // build dependency graph and validate function parameters
@@ -469,9 +469,13 @@ namespace housepi
             xparam.init_prior_attr(key, translator.to_numeric(input.at(key)[k]));
         xparam.init_prior_reshaping(str::tobool(input.at("discr")[k]));
 
-        // assign proposal
-        xparam.init_proposal(input.at("proposal")[k],
-                             str::tod(input.at("proposal_scale")[k]));
+        // assign proposal (scale is folded into the proposal call, if any)
+        parse::Definition prop(input.at("proposal")[k]);
+        double scale = na::DOUBLE;
+        for (const auto &child : prop.root.children)
+            if (child.key == "scale")
+                scale = translator.to_numeric(child).value();
+        xparam.init_proposal(prop.root.func, scale);
 
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !xparam.is_discrete())

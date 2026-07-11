@@ -5,16 +5,14 @@ aux_add <- function(self, name = NA_character_,  value = NULL,
                     func = NULL, func_args = NULL,
                     prior = NA_character_, ...,
                     min = NULL, max = NULL,
-                    proposal = NA_character_,
-                    proposal_scale = NA_real_) {
+                    proposal = NA_character_) {
   self$add_quo(name = name, value = rlang::enquo(value),
                status = status, const = const, discr = discr,
                func = rlang::enquo(func),
                func_args = rlang::enquos(func_args),
                prior = prior, rlang::enquos(...),
                min = rlang::enquo(min), max = rlang::enquo(max),
-               proposal = proposal,
-               proposal_scale = proposal_scale)
+               proposal = proposal)
   invisible(self)
 }
 
@@ -59,7 +57,6 @@ test_that("Augmented variable definitions are correct", {
   expect_equal(augm$defs$discr, FALSE)
   expect_equal(augm$defs$value, "3|N")
   expect_equal(augm$defs$proposal, NA_character_)
-  expect_equal(augm$defs$proposal_scale, NA_real_)
 
   # variable definition
   augm <- HousepiAugmented$new()

@@ -76,6 +76,7 @@ namespace housepi
         void init_prior_reshaping(bool discr);
         /// Initialize pointer to proposal.
         /// NOTE: it must be assigned after model initialization.
+        /// UPDATE: for the moment 'scale' is the only advanced option.
         void init_proposal(const std::string &proposal, double scale);
 
         /// Enforce user choice for constant.

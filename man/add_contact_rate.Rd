@@ -17,7 +17,6 @@ add_contact_rate(
   min = NA_real_,
   max = NA_real_,
   proposal = NA_character_,
-  proposal_scale = NA_real_,
   prefix = NA_character_
 )
 }
@@ -27,7 +26,12 @@ add_contact_rate(
 \item{by}{\code{character()} Covariates for from/to matching as data headers.
 Corresponding data columns have to be categorical.}
 
-\item{...}{named arguments for the prior distribution.}
+\item{...}{named arguments for the prior distribution.
+Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
+\code{proposal_}. Currently \code{proposal_scale} sets the proposal scale: if omitted,
+the scale is adapted during inference when \code{adapt > 0}; if a positive numeric,
+the scale is fixed to that value and never adapted (ignored when proposal is
+\code{"sample"}).}
 
 \item{reference}{named \code{list} Covariates associated to reference pair.
 Names can use \code{from_}/\code{to_} prefixes matching \code{by},
@@ -64,11 +68,6 @@ One between:
 \item{\code{"sample"}}{sampled from the \%s distribution;}
 \item{\code{NA}}{same as \code{"sample"} (default).}
 }}
-
-\item{proposal_scale}{\code{numeric(1)} Scale of the proposal.
-If \code{NA}, scale is adapted during inference when \code{adapt > 0} (default).
-If a positive numeric, scale is fixed to that value and never adapted.
-Ignored when proposal is \code{"sample"}.}
 
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters.}
 }
