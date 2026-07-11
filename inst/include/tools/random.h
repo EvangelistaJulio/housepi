@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <random>
 
 namespace housepi
 {
@@ -234,4 +235,30 @@ namespace housepi
 
     using rnd_gen = XoShiRo128ss;
 #endif
+
+    ///////////////////////////////
+    //////  STANDARD SAMPLERS  //////
+    ///////////////////////////////
+
+    /// Standard N(0,1) deviate. thread_local cache: race-free when a shared
+    /// Distribution is drawn from concurrently (parallel simulation over households).
+    inline double standard_normal(rnd_gen &prng)
+    {
+        thread_local static std::normal_distribution<double> gen(0., 1.);
+        return gen(prng);
+    }
+
+    /// Uniform [0,1) deviate. Stateless distribution; consolidation only.
+    inline double standard_uniform(rnd_gen &prng)
+    {
+        thread_local static std::uniform_real_distribution<double> gen(0., 1.);
+        return gen(prng);
+    }
+
+    /// Exponential deviate with rate 1. Stateless; consolidation only.
+    inline double standard_exponential(rnd_gen &prng)
+    {
+        thread_local static std::exponential_distribution<double> gen(1.);
+        return gen(prng);
+    }
 }

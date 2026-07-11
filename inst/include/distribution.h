@@ -205,8 +205,6 @@ namespace housepi
 		/// Otherwise falls back to inverse sampling.
 		double truncated_rand_(rnd_gen &prng) const
 		{
-			thread_local static std::uniform_real_distribution<double> unif_gen(0., 1.);
-
 			const double cdf_lo = lower_.is_empty() ? 0. : raw_cdf_(lower_.value());
 			const double cdf_hi = upper_.is_empty() ? 1. : raw_cdf_(upper_.value());
 			const double accept = cdf_hi - cdf_lo;
@@ -219,7 +217,7 @@ namespace housepi
 						(upper_.is_empty() || x <= upper_.value()))
 						return x;
 				}
-			return raw_quantile_(cdf_lo + unif_gen(prng) * accept);
+			return raw_quantile_(cdf_lo + standard_uniform(prng) * accept);
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////

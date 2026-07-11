@@ -32,8 +32,7 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     Setup::Setup()
-        : uniform_(0., 1.),
-          progressbar_(std::make_unique<ProgressBar>()) { reset_defaults(); }
+        : progressbar_(std::make_unique<ProgressBar>()) { reset_defaults(); }
     Setup::~Setup() = default;
 
     void Setup::init_R_context(

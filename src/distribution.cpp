@@ -191,8 +191,7 @@ namespace
     {
     public:
         Uniform_()
-            : Distribution({}, 0., 1.),
-              unif_gen(0., 1.) {}
+            : Distribution({}, 0., 1.) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Uniform_)
         HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
@@ -200,15 +199,13 @@ namespace
         void init_discretization() override final { discr_mode_ = Mode::Discrete::Center; }
 
     protected:
-        mutable std::uniform_real_distribution<double> unif_gen;
-
         double raw_pdf_(double) const override final { return 1. / (upper_.value() - lower_.value()); }
         double raw_cdf_(double x) const override final { return (x - lower_.value()) / (upper_.value() - lower_.value()); }
         double raw_log_pdf_(double) const override final { return -std::log(upper_.value() - lower_.value()); }
         double raw_log_ratio_(double, double) const override final { return 0.; }
         double raw_rand_(rnd_gen &prng) const override final
         {
-            const double r = unif_gen(prng);
+            const double r = standard_uniform(prng);
             return lower_.value() * (1. - r) + upper_.value() * r;
         }
         double raw_quantile_(double p) const override final { return lower_.value() * (1. - p) + upper_.value() * p; }
@@ -223,8 +220,7 @@ namespace
     {
     public:
         Normal_()
-            : Distribution({{"mean", 0.}, {"sd", 1.}}),
-              norm_gen(0., 1.) {}
+            : Distribution({{"mean", 0.}, {"sd", 1.}}) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Normal_)
         HOUSEPI_OVERRIDE_NAME_METHOD(normal)
 
@@ -240,8 +236,6 @@ namespace
         }
 
     protected:
-        mutable std::normal_distribution<double> norm_gen;
-
         double raw_pdf_(double x) const override final
         {
             const double sd = arg(1);
@@ -273,7 +267,7 @@ namespace
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
-            return arg(0) + arg(1) * norm_gen(prng);
+            return arg(0) + arg(1) * standard_normal(prng);
         }
     };
     HOUSEPI_REGISTER_FUNCTION(Normal_, ContinuosDistrib)
@@ -287,16 +281,13 @@ namespace
     {
     public:
         Lognormal_()
-            : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.),
-              norm_gen(0., 1.) { below_mode_ = Mode::Interval::Open; }
+            : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.) { below_mode_ = Mode::Interval::Open; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
         HOUSEPI_OVERRIDE_NAME_METHOD(lognormal)
 
         INIT_DISCR_LEFT_MIN_ZERO_OPEN()
 
     protected:
-        mutable std::normal_distribution<double> norm_gen;
-
         double raw_pdf_(double x) const override final
         {
             const double sdlog = arg(1);
@@ -330,7 +321,7 @@ namespace
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
-            return exp(arg(0) + arg(1) * norm_gen(prng));
+            return exp(arg(0) + arg(1) * standard_normal(prng));
         }
     };
     HOUSEPI_REGISTER_FUNCTION(Lognormal_, ContinuosDistrib)
@@ -506,16 +497,13 @@ namespace
     {
     public:
         Rayleigh_()
-            : Distribution({{"scale", 1.}}, 0.),
-              unif_gen(0., 1.) {}
+            : Distribution({{"scale", 1.}}, 0.) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Rayleigh_)
         HOUSEPI_OVERRIDE_NAME_METHOD(rayleigh)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
-        mutable std::uniform_real_distribution<double> unif_gen;
-
         double raw_pdf_(double x) const override final
         {
             const double scale = arg(0);
@@ -548,7 +536,7 @@ namespace
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
-            return arg(0) * sqrt(-2 * log(unif_gen(prng)));
+            return arg(0) * sqrt(-2 * log(standard_uniform(prng)));
         }
     };
     HOUSEPI_REGISTER_FUNCTION(Rayleigh_, ContinuosDistrib)
@@ -561,16 +549,13 @@ namespace
     {
     public:
         Weibull_()
-            : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.),
-              unif_gen(0., 1.) {}
+            : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Weibull_)
         HOUSEPI_OVERRIDE_NAME_METHOD(weibull)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
-        mutable std::uniform_real_distribution<double> unif_gen;
-
         double raw_pdf_(double x) const override final
         {
             const double shape = arg(0);
@@ -605,7 +590,7 @@ namespace
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
-            return arg(1) * pow(-log(unif_gen(prng)), 1.0 / arg(0));
+            return arg(1) * pow(-log(standard_uniform(prng)), 1.0 / arg(0));
         }
     };
     HOUSEPI_REGISTER_FUNCTION(Weibull_, ContinuosDistrib)
@@ -618,16 +603,13 @@ namespace
     {
     public:
         Exponential_()
-            : Distribution({{"rate", 1.}}, 0.),
-              unif_gen(0., 1.) {}
+            : Distribution({{"rate", 1.}}, 0.) {}
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Exponential_)
         HOUSEPI_OVERRIDE_NAME_METHOD(exponential)
 
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
-        mutable std::uniform_real_distribution<double> unif_gen;
-
         double raw_pdf_(double x) const override final
         {
             const double rate = arg(0);
@@ -656,7 +638,7 @@ namespace
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
-            return -log(unif_gen(prng)) / arg(0);
+            return -log(standard_uniform(prng)) / arg(0);
         }
     };
     HOUSEPI_REGISTER_FUNCTION(Exponential_, ContinuosDistrib)
@@ -881,7 +863,7 @@ namespace
     class Categorical_ final : public Distribution
     {
     public:
-        Categorical_() : Distribution(), unif_gen(0., 1.) { discr_mode_ = Mode::Discrete::Defined; }
+        Categorical_() : Distribution() { discr_mode_ = Mode::Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Categorical_)
         HOUSEPI_OVERRIDE_NAME_METHOD(categorical)
 
@@ -916,8 +898,6 @@ namespace
     protected:
         Attribute &find_arg_(std::string_view key) override final { return find_or_append_arg_(key); }
 
-        mutable std::uniform_real_distribution<double> unif_gen;
-
         double raw_pdf_(double x) const override final
         {
             return arg(static_cast<size_t>(x)) / weight_sum_();
@@ -951,7 +931,7 @@ namespace
         double raw_rand_(rnd_gen &prng) const override final
         {
             const size_t cases = n_args();
-            const double target = unif_gen(prng) * weight_sum_();
+            const double target = standard_uniform(prng) * weight_sum_();
             size_t i = 0;
             double acc = arg(0);
             while (i < cases && acc < target)
