@@ -650,10 +650,16 @@ namespace housepi
             is_any_sample_ = true;
             block_at_(status).sample.emplace_back(a);
 
-            // adaptive if proposal is parametric and carries no pinned scale
+            // adaptive only for a random-walk kernel carrying no pinned scale
             // NOTE: a user-defined scale (folded into the proposal call) freezes it
-            if (deftable_.c_proposal[k] != "sample" &&
-                parse::Definition(deftable_.c_proposal[k]).root.children.empty())
+            parse::Definition pdef(deftable_.c_proposal[k]);
+            const std::string &pf = pdef.root.func;
+            const bool is_random_walk = (pf == "rw" || pf == "rw_log" || pf == "rw_unif");
+            bool has_scale = false;
+            for (const parse::Entry &child : pdef.root.children)
+                if (child.key == "scale")
+                    has_scale = true;
+            if (is_random_walk && !has_scale)
             {
                 is_any_adaptive_ = true;
                 block_at_(status).adaptive.emplace_back(a);
@@ -938,7 +944,7 @@ namespace housepi
             for (const std::vector<std::string> *col : deftable_.source_cols())
                 for (const std::string &dstr : referred_data((*col)[k], live_names))
                     msg::stop(
-                        "Found cyclic dependency for simulation:\nAugmented " + 
+                        "Found cyclic dependency for simulation:\nAugmented " +
                         msg::val(deftable_.c_name[k]) + " reads generated household observation " + msg::val(dstr) +
                         " which depends on augmented definitions.\n " +
                         "Define " + msg::val(deftable_.c_name[k]) + " without referencing " + msg::val(dstr) + ".");
@@ -1289,16 +1295,15 @@ namespace housepi
             helper_init_prior_attributes_(member, k);
 
             // assign proposal if variable to be sampled
-            // (scale is folded into the proposal call, if any)
-            // UPDATE: for the moment 'scale' is the only advanced option
+            // (arguments are folded into the proposal call, if any)
             if (!avar.is_constant())
             {
                 parse::Definition prop(deftable_.c_proposal[k]);
-                double scale = na::DOUBLE;
+                dict<Attribute> prop_args;
                 for (const auto &child : prop.root.children)
-                    if (child.key == "scale")
-                        scale = mcmc_->translator.to_numeric(child).value();
-                avar.init_proposal(prop.root.func, scale);
+                    // UPDATE: relax 'to_numeric_'
+                    prop_args.emplace(child.key, mcmc_->translator.to_numeric(child));
+                avar.init_proposal(prop.root.func, prop_args);
             }
 
             // check if satisfies discrete requirement, if any

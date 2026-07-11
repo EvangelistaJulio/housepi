@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "tools/nan.h"
@@ -76,8 +77,9 @@ namespace housepi
         void init_prior_reshaping(bool discr);
         /// Initialize pointer to proposal.
         /// NOTE: it must be assigned after model initialization.
-        /// UPDATE: for the moment 'scale' is the only advanced option.
-        void init_proposal(const std::string &proposal, double scale);
+        /// Random-walk kernels (rw/rw_log/rw_unif) read a "scale" argument; independence
+        /// samplers (prior, or a distribution name) draw from an owned distribution.
+        void init_proposal(const std::string &proposal, const dict<Attribute> &args);
 
         /// Enforce user choice for constant.
         void enforce_user_const() noexcept { is_user_const_ = true; }
@@ -167,9 +169,11 @@ namespace housepi
 
         /// Initialize null proposal.
         void helper_init_null_proposal_();
-        /// Initialize proposal of direct sample from prior/model.
-        void helper_init_sample_proposal_();
-        /// Initialize parametric Monte Carlo proposal.
-        void helper_init_monte_carlo_proposal_(const std::string &proposal, double scale);
+        /// Initialize independence proposal drawing directly from the prior.
+        void helper_init_prior_proposal_();
+        /// Initialize a random-walk proposal (rw/rw_log/rw_unif kernel).
+        void helper_init_random_walk_proposal_(const std::string &proposal, double scale);
+        /// Initialize an independence proposal drawing from a named distribution.
+        void helper_init_independence_proposal_(const std::string &proposal, const dict<Attribute> &args);
     };
 }

@@ -63,28 +63,28 @@ namespace housepi
     std::unique_ptr<Proposal> clone() const override { return std::make_unique<Class_>(*this); }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  *** NullProposal_ : class ***  /////////////////////////////////
+    //////////////////////////////////  *** NullProposal : class ***  /////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class NullProposal_ final : public Proposal
+    class NullProposal final : public Proposal
     {
     public:
-        NullProposal_() {}
-        MAKE_PROPOSAL_CLONE_METHOD(NullProposal_)
+        NullProposal() {}
+        MAKE_PROPOSAL_CLONE_METHOD(NullProposal)
 
         double propose(rnd_gen & /*prng*/, double xo) override final { return xo; }
         double log_ratio(double /*xo*/, double /*xn*/) const override final { return 0.; }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  *** SampleProposal_ : class ***  ////////////////////////////////
+    /////////////////////////////////  *** PriorProposal : class ***  /////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class SampleProposal_ final : public Proposal
+    class PriorProposal final : public Proposal
     {
     public:
-        SampleProposal_(const Distribution *distr) : pDistr_(distr) {}
-        MAKE_PROPOSAL_CLONE_METHOD(SampleProposal_)
+        PriorProposal(const Distribution *distr) : pDistr_(distr) {}
+        MAKE_PROPOSAL_CLONE_METHOD(PriorProposal)
 
         void rebind_prior(const Distribution *new_distr) override final { pDistr_ = new_distr; }
 
@@ -93,6 +93,32 @@ namespace housepi
 
     private:
         const Distribution *pDistr_;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  *** IndependenceProposal : class ***  /////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Independence sampler drawing from an owned distribution (not the prior).
+    class IndependenceProposal final : public Proposal
+    {
+    public:
+        IndependenceProposal(std::unique_ptr<Distribution> distr) : pDistr_(std::move(distr)) {}
+        IndependenceProposal(const IndependenceProposal &other)
+            : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr) {}
+        MAKE_PROPOSAL_CLONE_METHOD(IndependenceProposal)
+
+        double propose(rnd_gen &prng, double /*xo*/) override final { return pDistr_->rand(prng); }
+        double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
+
+        void optimize() override final
+        {
+            if (pDistr_)
+                pDistr_->optimize();
+        }
+
+    private:
+        std::unique_ptr<Distribution> pDistr_; /// distribution drawn from independently
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -202,18 +228,18 @@ namespace housepi
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  *** UniformProposal_ : class ***  ////////////////////////////////
+    //////////////////////////////  *** RndWalkUnifProposal : class ***  //////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class UniformProposal_ final : public AdaptableProposal
+    class RndWalkUnifProposal final : public AdaptableProposal
     {
     public:
-        UniformProposal_(double scale, const Distribution *prior)
+        RndWalkUnifProposal(double scale, const Distribution *prior)
             : AdaptableProposal("uniform", scale, prior->is_discrete())
         {
             set_scale_(is_adaptive() ? 1. : std::fabs(scale));
         }
-        MAKE_PROPOSAL_CLONE_METHOD(UniformProposal_)
+        MAKE_PROPOSAL_CLONE_METHOD(RndWalkUnifProposal)
 
         double propose(rnd_gen &prng, double xo) override final
         {
@@ -241,18 +267,18 @@ namespace housepi
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  *** NormalProposal_ : class ***  /////////////////////////////////
+    ////////////////////////////////  *** RndWalkProposal : class ***  ////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class NormalProposal_ final : public AdaptableProposal
+    class RndWalkProposal final : public AdaptableProposal
     {
     public:
-        NormalProposal_(double scale, const Distribution *prior)
+        RndWalkProposal(double scale, const Distribution *prior)
             : AdaptableProposal("normal", scale, prior->is_discrete())
         {
             set_scale_(is_adaptive() ? 1. : std::fabs(scale));
         }
-        MAKE_PROPOSAL_CLONE_METHOD(NormalProposal_)
+        MAKE_PROPOSAL_CLONE_METHOD(RndWalkProposal)
 
         double propose(rnd_gen &prng, double xo) override final
         {
@@ -275,13 +301,13 @@ namespace housepi
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////  *** LognormalProposal_ : class ***  ///////////////////////////////
+    ///////////////////////////////  *** RndWalkLogProposal : class ***  //////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class LognormalProposal_ final : public AdaptableProposal
+    class RndWalkLogProposal final : public AdaptableProposal
     {
     public:
-        LognormalProposal_(double scale, const Distribution *prior)
+        RndWalkLogProposal(double scale, const Distribution *prior)
             : AdaptableProposal("lognormal", scale, prior->is_discrete())
         {
             // assert that value range is positive
@@ -296,7 +322,7 @@ namespace housepi
 
             set_scale_(is_adaptive() ? 1. : std::fabs(scale));
         }
-        MAKE_PROPOSAL_CLONE_METHOD(LognormalProposal_)
+        MAKE_PROPOSAL_CLONE_METHOD(RndWalkLogProposal)
 
         double propose(rnd_gen &prng, double xo) override final
         {

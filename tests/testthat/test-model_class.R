@@ -199,19 +199,19 @@ test_that("Discretization is enabled as expected", {
   hhmodel <- add_parameter(hhmodel,
     sample = list(
       prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-      proposal = "sample", min = !!val$min, max = !!val$max
+      proposal = "prior", min = !!val$min, max = !!val$max
     ),
     uniform = list(
       prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-      proposal = "uniform", min = !!val$min, max = !!val$max
+      proposal = "rw_unif", min = !!val$min, max = !!val$max
     ),
     normal = list(
       prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-      proposal = "normal", min = !!val$min, max = !!val$max
+      proposal = "rw", min = !!val$min, max = !!val$max
     ),
     lognormal = list(
       prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-      proposal = "lognormal", min = !!val$min, max = !!val$max
+      proposal = "rw_log", min = !!val$min, max = !!val$max
     )
   )
 
@@ -240,20 +240,20 @@ test_that("Degenerate range raises an error for parameters", {
 test_that("Lognormal proposal non-positive domain", {
   # prior with unbounded lower bound
   new_housepi_model(model = "test") |>
-    add_parameter("huey", prior = "normal", proposal = "lognormal") |>
+    add_parameter("huey", prior = "normal", proposal = "rw_log") |>
     expect_error("non-positive.*huey")
 
   # prior with negative lower bound
   new_housepi_model(model = "test") |>
     add_parameter("miller", prior = "uniform",
-                  min = -1, proposal = "lognormal") |>
+                  min = -1, proposal = "rw_log") |>
     expect_error("non-positive")
 
   # location parameter
   suppressWarnings(
     param_draws <- new_housepi_model(model = "test") |>
       add_parameter("amanda", prior = "gamma", shape = 2,
-                    max = 5, loc = -1, proposal = "lognormal") |>
+                    max = 5, loc = -1, proposal = "rw_log") |>
       run_inference(steps = 20, chains = 1, adapt = 0, thin = 1) |>
       get_parameter_draws()
   )

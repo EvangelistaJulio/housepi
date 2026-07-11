@@ -343,7 +343,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
       infec_time   = list(prior = "uniform", min = -14, max = study_period@D,
-                          proposal = "normal")
+                          proposal = "rw")
     ) |>
     add_observation("onset_date", obs = "normal",
                     mean = infec_time@A + incub_period@A, sd = 1) |>
@@ -400,7 +400,7 @@ test_that("Observation through a deterministic node constrains its ancestors", {
       add_augmented(
         incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
         infec_time   = list(prior = "uniform", min = -14, max = study_period@D,
-                            proposal = "normal"),
+                            proposal = "rw"),
         onset_time   = infec_time@A + incub_period@A
       ) |>
       # tightly informative observation reached through the deterministic node
@@ -437,7 +437,7 @@ test_that("Discretized observation node initializes finite", {
     add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
       infec_time   = list(prior = "uniform", min = -14, max = study_period@D,
-                          proposal = "normal")
+                          proposal = "rw")
     ) |>
     # discretized observation: the path that previously broke initialization
     add_observation("onset_date", obs = "normal", discr = TRUE,
@@ -554,7 +554,7 @@ test_that("Augmented variable reads a static data-bound household observation", 
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
-                        max = ~ start_date@D + 5, proposal = "normal")
+                        max = ~ start_date@D + 5, proposal = "rw")
     ) |>
     add_house_observation(start_date = min(test_date@D)) |>
     run_simulation()
@@ -574,7 +574,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       infec_time = list(prior = "uniform", min = ~ start_date@D - 5,
-                        max = ~ start_date@D + 5, proposal = "normal")
+                        max = ~ start_date@D + 5, proposal = "rw")
     ) |>
     add_observation("test_date", obs = "normal", mean = infec_time@A, sd = 1) |>
     add_house_observation(start_date = min(test_date@D)) |>

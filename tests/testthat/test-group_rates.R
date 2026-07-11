@@ -103,7 +103,7 @@ test_that("Group rates integrate with data and exposes to Cpp format", {
 
   # mcmc setup is default (Cauchemez et al., 2009)
   default_mcmc_setup <- list(prior = "lognormal", meanlog = 0, sdlog = 3,
-                             min = 0, max = 10, proposal = "lognormal")
+                             min = 0, max = 10, proposal = "rw_log")
   expect_equal(grp$parameters[[1]], default_mcmc_setup)
 
   # expose_to_cpp convert factor columns into integers according to factors
@@ -237,7 +237,7 @@ test_that("Group rate parameter overrides work", {
     sus_old = 1.73,
     sus_elderly = list(value = 0.5, prior = "lognormal", sdlog = 1.2,
                        min = NA_real_, max = 10,
-                       proposal = "lognormal", proposal_scale = 1)
+                       proposal = "rw_log", proposal_scale = 1)
   )
   aux_add(grp, name = "susceptibility", strata = strata,
           params = overrides, prior = "gamma", shape = 2, scale = 1)

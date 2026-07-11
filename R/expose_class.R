@@ -249,8 +249,8 @@ The can be supplied only through single mode."
 #' # the single, inline-bulk and list-bulk forms compose freely in a pipe
 #' hhmodel <- flu_1918_frederick |>
 #'   new_housepi_model("final_size") |>
-#'   # single: alpha, with a uniform prior and a lognormal proposal
-#'   add_parameter("alpha", prior = "uniform", proposal = "lognormal") |>
+#'   # single: alpha, with a uniform prior and a lognormal random-walk proposal
+#'   add_parameter("alpha", prior = "uniform", proposal = "rw_log") |>
 #'   # single: beta, fixed to a constant
 #'   add_parameter("beta", value = 0.3, const = TRUE) |>
 #'   # inline bulk: several definitions as `name = value` pairs
@@ -652,10 +652,10 @@ add_contact_rate <- function(hhmodel, by = NA_character_, ...,
 #' @return `r rd_model_out_`
 #' @export
 add_infectivity_profile <- function(hhmodel,
-                                     func = NULL, ...,
-                                     status = NA_integer_, discr = FALSE,
-                                     max = NULL,
-                                     import = NULL, append = TRUE) {
+                                    func = NULL, ...,
+                                    status = NA_integer_, discr = FALSE,
+                                    max = NULL,
+                                    import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private

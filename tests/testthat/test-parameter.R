@@ -31,7 +31,7 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$defs$value, "3|N")
   expect_equal(param$defs$const, FALSE)
   expect_equal(param$defs$discr, FALSE)
-  expect_equal(param$defs$proposal, "sample")
+  expect_equal(param$defs$proposal, "rw")
   expect_equal(param$defs$prior, "uniform")
   expect_equal(param$defs$min, "0|N")
   expect_equal(param$defs$max, "5|N")
@@ -45,14 +45,14 @@ test_that("Default parameter definitions are correct", {
   # proposal
   param <- HousepiParameter$new()
   aux_add(param, name = "dummy", prior = "uniform", min = 0, max = 5,
-          proposal = "normal")
+          proposal = "rw")
 
   expect_equal(param$defs$name, "dummy")
   expect_equal(param$defs$value, NA_real_)
   expect_equal(param$defs$const, FALSE)
   expect_equal(param$defs$discr, FALSE)
   # a bare proposal (no folded scale) stays adaptive
-  expect_equal(param$defs$proposal, "normal")
+  expect_equal(param$defs$proposal, "rw")
   expect_equal(param$defs$prior, "uniform")
   expect_equal(param$defs$min, "0|N")
   expect_equal(param$defs$max, "5|N")
@@ -61,8 +61,40 @@ test_that("Default parameter definitions are correct", {
   # argument of the DSL, pinning the scale (no adaptation)
   param <- HousepiParameter$new()
   aux_add(param, name = "dummy", prior = "uniform", min = 0, max = 5,
-          proposal = "normal", proposal_scale = 0.5)
-  expect_equal(param$defs$proposal, "normal|scale|{0.5|N}")
+          proposal = "rw", proposal_scale = 0.5)
+  expect_equal(param$defs$proposal, "rw|scale|{0.5|N}")
+})
+
+test_that("Proposal families route correctly", {
+  # a distribution name is an independence sampler; its arguments fold in
+  param <- HousepiParameter$new()
+  aux_add(param, name = "otacon", prior = "uniform", min = 0, max = 5,
+          proposal = "normal", proposal_mean = 0, proposal_sd = 1)
+  expect_equal(param$defs$proposal, "normal|mean:sd|{0|N}:{1|N}")
+
+  # sampling from the prior is the default keyword
+  param <- HousepiParameter$new()
+  aux_add(param, name = "otacon", prior = "uniform", min = 0, max = 5,
+          proposal = "prior")
+  expect_equal(param$defs$proposal, "prior")
+
+  # proposal_scale only tunes a random walk
+  param <- HousepiParameter$new()
+  aux_add(param, name = "otacon", prior = "uniform", min = 0, max = 5,
+          proposal = "normal", proposal_scale = 0.5) |>
+    expect_error("random walk")
+
+  # distribution arguments are not random-walk knobs
+  param <- HousepiParameter$new()
+  aux_add(param, name = "otacon", prior = "uniform", min = 0, max = 5,
+          proposal = "rw", proposal_sd = 1) |>
+    expect_error("only")
+
+  # advanced options need an explicit proposal
+  param <- HousepiParameter$new()
+  aux_add(param, name = "otacon", prior = "uniform", min = 0, max = 5,
+          proposal_mean = 0) |>
+    expect_error("explicit")
 })
 
 test_that("Constant parameter definitions are correct", {
@@ -99,9 +131,9 @@ test_that("Non default arguments are loaded correctly", {
   # load list
   expect_no_error(helper_test_aux_load(param,
     normal = list(prior = "gamma", shape = 2, scale = 1,
-                  proposal = "normal"),
+                  proposal = "rw"),
     lognormal = list(prior = "gamma", shape = 2, scale = 1,
-                     proposal = "lognormal")
+                     proposal = "rw_log")
   ))
 })
 

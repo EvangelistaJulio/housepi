@@ -174,9 +174,9 @@ test_that("Diagnostic warning fires on poor mixing", {
     results <- flu_1918_frederick |>
       new_housepi_model("final_size") |>
       add_parameter(
-        alpha = list(prior = "uniform", proposal = "lognormal",
+        alpha = list(prior = "uniform", proposal = "rw_log",
                      proposal_scale = 1e-4),
-        beta  = list(prior = "uniform", proposal = "lognormal",
+        beta  = list(prior = "uniform", proposal = "rw_log",
                      proposal_scale = 1e-4),
         gamma = 1, hhsize_ref = 5
       ) |>

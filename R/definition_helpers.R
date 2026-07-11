@@ -124,8 +124,15 @@ helper_variable_model <- function(opts, family, args) {
   opts
 }
 
+# Random-walk proposal kernels (the marked family). All other proposal names
+# are independence samplers: `"prior"` draws from the prior, a distribution
+# name draws from that distribution.
+.random_walk_proposals <- c("rw", "rw_log", "rw_unif")
+
 # Extract arguments carried by the dots.
-# Fold any advanced `proposal_*` option into the proposal call.
+# Fold any advanced `proposal_*` option into the proposal call, routing
+# `proposal_scale` to random walks and distribution arguments to independence
+# samplers.
 helper_definition_args <- function(proposal, dots) {
   args <- housepi_extractor(!!!dots)
   nms <- names(args)
@@ -134,21 +141,33 @@ helper_definition_args <- function(proposal, dots) {
 
   # find proposal advanced definitions
   mask_prop <- startsWith(nms, "proposal_")
-
-  #>>>>
-  # UPDATE: temporary stop advanced proposal setup
-  unknown <- setdiff(nms[mask_prop], "proposal_scale")
-  if (length(unknown) > 0) stop_h(
-    "Unsupported advanced option{?s} {.arg {unknown}}.",
-    "Only {.arg proposal_scale} is currently available."
-  )
-  #<<<<
-
   prop_args <- args[mask_prop]
   names(prop_args) <- stringr::str_remove(names(prop_args), "^proposal_")
 
+  # validate proposal arguments against the chosen family
+  if (length(prop_args) > 0) {
+    arg_nms <- names(prop_args)
+    is_rw <- !is.na(proposal) && proposal %in% .random_walk_proposals
+    if (is.na(proposal)) stop_h(
+      "Advanced {.arg proposal_*} options require an explicit {.arg proposal}."
+    )
+    if (identical(proposal, "prior")) stop_h(
+      "Independence sampling from {.val prior} takes no {.arg proposal_*} arguments."
+    )
+    if (is_rw && any(arg_nms != "scale")) stop_h(
+      "Random-walk proposal {.val {proposal}} accepts only {.arg proposal_scale}.",
+      x = "Unexpected {.arg {paste0('proposal_', setdiff(arg_nms, 'scale'))}}."
+    )
+    if (!is_rw && "scale" %in% arg_nms) stop_h(
+      "{.arg proposal_scale} tunes a random walk.",
+      i = paste("Use {.val rw}/{.val rw_log}/{.val rw_unif}, or pass",
+                "distribution arguments (e.g. {.arg proposal_mean}) for",
+                "independence sampling from {.val {proposal}}.")
+    )
+  }
+
   # fold user-defined proposal arguments into the proposal call
-  if (!is.na(proposal) && proposal != "sample") {
+  if (!is.na(proposal) && proposal != "prior") {
     proposal <- housepi_combine_to_call(proposal, prop_args)
   }
 
@@ -191,8 +210,8 @@ helper_variable_move <- function(opts, family) {
         opts$const <- TRUE
       }
     } else {
-      # otherwise default proposal
-      opts$proposal <- "sample"
+      # otherwise default proposal: adaptive random walk
+      opts$proposal <- "rw"
     }
   } else {
     if (is.na(opts[["prior"]])) stop_h(

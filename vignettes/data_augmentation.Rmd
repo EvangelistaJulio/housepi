@@ -181,18 +181,18 @@ hhmodel <- dataset |>
   new_housepi_model("test") |>
   # define the gamma distribution parameters to be inferred
   add_parameter(
-    mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal"),
-    var = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal")
+    mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "rw"),
+    var = list(prior = "uniform", min = 0.1, max = 5, proposal = "rw")
   ) |>
   # augmented variable definitions
   add_augmented(
     # infection time uniform within the reported exposure window
     # min = 0 by default for uniform; + 0.99 spans the whole reported day
     .infec_time = list(prior = "uniform", max = exposure_max@D + 0.99,
-                       proposal = "normal"),
+                       proposal = "rw"),
     # incubation period gamma by mean/variance, bounded to a plausible range
     incub_period = list(prior = "gamma", mean = mean@P, var = var@P,
-                        min = 0.1, max = 14, proposal = "normal"),
+                        min = 0.1, max = 14, proposal = "rw"),
     # onset time follows deterministically as their sum
     .onset_time = .infec_time + incub_period
   ) |>

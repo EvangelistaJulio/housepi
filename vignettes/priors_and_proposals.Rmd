@@ -211,14 +211,21 @@ ggplot(dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
 # Monte Carlo proposals
 
 MCMC proposals determine how candidate parameter values are drawn at each step.
-We provide a small set of common mechanisms:
+They come in two families.
 
-* **sample**: direct sampling from the prior;
-* **uniform**: draws uniformly around the current value inside a window;
-* **normal**: Gaussian perturbations of the current value;
-* **lognormal**: multiplicative log-normal proposals (not appropriate for negative values).
+*Independence samplers* draw a fresh value from a distribution, like the prior:
 
-All proposals except `sample` are adaptable:
+* **prior**: direct sampling from the prior;
+* a **distribution name** (e.g. `"normal"`): sampling from that distribution,
+  with its parameters supplied as `proposal_mean`, `proposal_sd`, ...
+
+*Random walks* perturb the current value:
+
+* **rw**: Gaussian increments;
+* **rw_log**: multiplicative log-normal increments (not appropriate for negative values);
+* **rw_unif**: uniform (bounded) increments inside a window.
+
+Only the random walks are adaptable:
 By default, housepi tunes the scale on the fly to target an acceptance rate of 44%.
 This is enabled by supplying `adapt = N` to `run_inference()`.
 Here `N` is the number of adaptation iterations run before the MCMC `steps`.
@@ -240,17 +247,17 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 
 new_housepi_model(model = "test") |>
   add_parameter(
-    sample = list(prior = "normal", min = 0, proposal = "sample"),
-    uniform = list(prior = "normal", min = 0, proposal = "uniform"),
-    normal = list(prior = "normal", min = 0, proposal = "normal"),
-    lognormal = list(prior = "normal", min = 0, proposal = "lognormal")
+    from_prior = list(prior = "normal", min = 0, proposal = "prior"),
+    rw_unif = list(prior = "normal", min = 0, proposal = "rw_unif"),
+    rw = list(prior = "normal", min = 0, proposal = "rw"),
+    rw_log = list(prior = "normal", min = 0, proposal = "rw_log")
   ) |>
   run_inference() |>
   get_parameter_draws() |>
   bayesplot::mcmc_trace()
 ```
 
-Already with the default adaptive steps, mixing is good across the parametric
+Already with the default adaptive steps, mixing is good across the random-walk
 proposals — at the cost of the additional steps before sampling.
 
 ## Fix proposal scales
@@ -268,13 +275,13 @@ This pins the scale to the chosen value and disables adaptation for that variabl
 sigma <- 100
 new_housepi_model(model = "test") |>
   add_parameter(
-    sample = list(prior = "normal", min = 0, proposal = "sample"),
-    uniform = list(prior = "normal", min = 0,
-                   proposal = "uniform", proposal_scale = !!sigma),
-    normal = list(prior = "normal", min = 0,
-                  proposal = "normal", proposal_scale = !!sigma),
-    lognormal = list(prior = "normal", min = 0,
-                     proposal = "lognormal", proposal_scale = !!sigma)
+    from_prior = list(prior = "normal", min = 0, proposal = "prior"),
+    rw_unif = list(prior = "normal", min = 0,
+                   proposal = "rw_unif", proposal_scale = !!sigma),
+    rw = list(prior = "normal", min = 0,
+              proposal = "rw", proposal_scale = !!sigma),
+    rw_log = list(prior = "normal", min = 0,
+                  proposal = "rw_log", proposal_scale = !!sigma)
   ) |>
   run_inference() |>
   get_parameter_draws() |>
@@ -282,8 +289,8 @@ new_housepi_model(model = "test") |>
 ```
 
 Warnings and trace plots show bad mixing:
-the over-sized scale made the parametric proposals barely move.
-On the contrary, the `sample` mechanism mixes as usual.
+the over-sized scale made the random-walk proposals barely move.
+On the contrary, the `from_prior` mechanism mixes as usual.
 Handle `proposal_scale` with care!
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}

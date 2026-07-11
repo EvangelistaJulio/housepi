@@ -188,7 +188,7 @@ test_that("Contact rate custom mode defualt behaves correctly", {
   # custom fine grained parameter override
   overrides <- list(
     list(value = 1, prior = "uniform", min = 1, max = 5,
-         proposal = "normal", proposal_scale = 0.5),
+         proposal = "rw", proposal_scale = 0.5),
     2.34
   )
   fancy_param_1 <- param_name[1] # to override as variable

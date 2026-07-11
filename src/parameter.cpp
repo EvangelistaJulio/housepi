@@ -153,7 +153,7 @@ namespace housepi
     void Variable::helper_init_null_proposal_()
     {
         // assign the pointer to the proposal
-        pProp_ = std::make_unique<NullProposal_>();
+        pProp_ = std::make_unique<NullProposal>();
 
         // setup sample proposal functional methods
         ratio_mode_ = Ratio::None;
@@ -164,7 +164,7 @@ namespace housepi
     /////////////////////////////////  Variable : Setter (Proposal)  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Variable::init_proposal(const std::string &proposal, double scale)
+    void Variable::init_proposal(const std::string &proposal, const dict<Attribute> &args)
     {
         if (mode_ != Mode::Empty && mode_ != Mode::Numeric)
             return;
@@ -175,10 +175,20 @@ namespace housepi
 
         try
         {
-            if (proposal == "sample")
-                helper_init_sample_proposal_();
+            // "prior" and any distribution name are independence samplers;
+            // "rw"/"rw_log"/"rw_unif" are random-walk kernels tuned by a "scale" argument.
+            if (proposal == "prior")
+                helper_init_prior_proposal_();
+            else if (proposal == "rw" || proposal == "rw_log" || proposal == "rw_unif")
+            {
+                double scale = na::DOUBLE;
+                for (const auto &[key, attr] : args)
+                    if (key == "scale")
+                        scale = attr.value();
+                helper_init_random_walk_proposal_(proposal, scale);
+            }
             else
-                helper_init_monte_carlo_proposal_(proposal, scale);
+                helper_init_independence_proposal_(proposal, args);
         }
         catch (const std::exception &e)
         {
@@ -189,28 +199,75 @@ namespace housepi
         }
     }
 
-    void Variable::helper_init_sample_proposal_()
+    void Variable::helper_init_prior_proposal_()
     {
-        pProp_ = std::make_unique<SampleProposal_>(pDistr_.get());
+        pProp_ = std::make_unique<PriorProposal>(pDistr_.get());
         ratio_mode_ = Ratio::None;
         valid_mode_ = Validity::Always;
     }
 
-    void Variable::helper_init_monte_carlo_proposal_(const std::string &proposal, double scale)
+    void Variable::helper_init_random_walk_proposal_(const std::string &proposal, double scale)
     {
         const Distribution *prior = pDistr_.get();
 
-        const std::vector<std::string> options = {"uniform", "normal", "lognormal", "sample"};
+        const std::vector<std::string> options = {"rw_unif", "rw", "rw_log"};
         if (proposal == options[0])
-            pProp_ = std::make_unique<UniformProposal_>(scale, prior);
+            pProp_ = std::make_unique<RndWalkUnifProposal>(scale, prior);
         else if (proposal == options[1])
-            pProp_ = std::make_unique<NormalProposal_>(scale, prior);
+            pProp_ = std::make_unique<RndWalkProposal>(scale, prior);
         else if (proposal == options[2])
-            pProp_ = std::make_unique<LognormalProposal_>(scale, prior);
+            pProp_ = std::make_unique<RndWalkLogProposal>(scale, prior);
         else
             msg::stop(
                 "Unknown proposal " + msg::val(proposal) + "." + str::find_closest(proposal, options));
 
+        ratio_mode_ = Ratio::Compute;
+        valid_mode_ = Validity::Check;
+    }
+
+    void Variable::helper_init_independence_proposal_(
+        const std::string &proposal, const dict<Attribute> &args)
+    {
+        // draw independently from a named distribution (constant arguments only for now)
+        std::unique_ptr<Distribution> distr =
+            compose_distr_registries(proposal, "proposal", {"continuos"});
+        for (const auto &[key, attr] : args)
+            distr->init_attr(key, attr);
+        if (pDistr_ && pDistr_->is_discrete())
+            distr->init_discretization();
+
+        // wire the sampler to the prior domain (cf. rw_log): the proposal must be
+        // able to reach the whole prior support, otherwise the independence sampler
+        // can never visit part of the target. When it does, confine it to that
+        // support so proposals stay in-domain (the truncation constant cancels in
+        // the Metropolis-Hastings ratio).
+        if (pDistr_)
+        {
+            const Attribute &lo = pDistr_->lower();
+            const Attribute &hi = pDistr_->upper();
+
+            auto covers = [](const Attribute &q, const Attribute &p, bool below) {
+                if (!q.is_callable()) // proposal unbounded on this side: always covers
+                    return true;
+                if (!p.is_callable()) // prior unbounded but proposal bounded: gap
+                    return false;
+                return below ? q.value() <= p.value() : q.value() >= p.value();
+            };
+            if (!covers(distr->lower(), lo, true) || !covers(distr->upper(), hi, false))
+                msg::stop("Proposal " + msg::val(proposal) + " domain " + distr->str_range() +
+                          " does not cover prior domain " + pDistr_->str_range());
+
+            auto is_fixed = [](const Attribute &a) { return a.is_callable() && !a.function(); };
+            if (is_fixed(lo) && (distr->lower().is_empty() || lo.value() > distr->lower().value()))
+                distr->set_lower(lo.value());
+            if (is_fixed(hi) && (distr->upper().is_empty() || hi.value() < distr->upper().value()))
+                distr->set_upper(hi.value());
+        }
+
+        distr->init_truncation();
+        distr->assert_is_callable_explicitly();
+
+        pProp_ = std::make_unique<IndependenceProposal>(std::move(distr));
         ratio_mode_ = Ratio::Compute;
         valid_mode_ = Validity::Check;
     }
@@ -469,13 +526,12 @@ namespace housepi
             xparam.init_prior_attr(key, translator.to_numeric(input.at(key)[k]));
         xparam.init_prior_reshaping(str::tobool(input.at("discr")[k]));
 
-        // assign proposal (scale is folded into the proposal call, if any)
+        // assign proposal (arguments are folded into the proposal call, if any)
         parse::Definition prop(input.at("proposal")[k]);
-        double scale = na::DOUBLE;
+        dict<Attribute> prop_args;
         for (const auto &child : prop.root.children)
-            if (child.key == "scale")
-                scale = translator.to_numeric(child).value();
-        xparam.init_proposal(prop.root.func, scale);
+            prop_args.emplace(child.key, translator.to_numeric(child));
+        xparam.init_proposal(prop.root.func, prop_args);
 
         // check if discrete as requested
         if (user_discrete_set_.count(p) && !xparam.is_discrete())

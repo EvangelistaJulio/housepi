@@ -311,7 +311,7 @@ set_group_rates_mcmc_setup <- function(name, prior, args, min, max, proposal) {
   # if all defaults, provide default choice
   if (all(is_default)) {
     list(prior = "lognormal", meanlog = 0, sdlog = 3,
-         min = 0, max = 10, proposal = "lognormal")
+         min = 0, max = 10, proposal = "rw_log")
   } else {
     # if prior is default -> spare arguments
     if (is_default[1]) stop_h(

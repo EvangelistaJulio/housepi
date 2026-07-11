@@ -37,10 +37,11 @@ One between:
 
 \item{...}{named arguments for the prior distribution.
 Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
-\code{proposal_}. Currently \code{proposal_scale} sets the proposal scale: if omitted,
-the scale is adapted during inference when \code{adapt > 0}; if a positive numeric,
-the scale is fixed to that value and never adapted (ignored when proposal is
-\code{"sample"}).
+\code{proposal_}. For a random walk, \code{proposal_scale} sets the step scale: if
+omitted it is adapted during inference when \code{adapt > 0}; if a positive numeric
+it is fixed and never adapted. For independence sampling from a named
+distribution, the distribution parameters are supplied the same way (e.g.
+\code{proposal_mean}, \code{proposal_sd}).
 In mode 'multiple', the \code{name = value} definitions.}
 
 \item{status}{\code{integer(1)} Individual positive status.
@@ -80,15 +81,19 @@ One between:
 }}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
-One between:
+Random walks perturb the current value:
 \describe{
-\item{\code{"uniform"}}{increments drawn from uniform;}
-\item{\code{"normal"}}{increments drawn from normal;}
-\item{\code{"lognormal"}}{log-increments drawn from lognormal
-(positive values only);}
-\item{\code{"sample"}}{sampled from the \%s distribution;}
-\item{\code{NA}}{same as \code{"sample"} (default).}
-}}
+\item{\code{"rw"}}{normal increments (default);}
+\item{\code{"rw_log"}}{lognormal log-increments (positive values only);}
+\item{\code{"rw_unif"}}{uniform (bounded) increments.}
+}
+Independence samplers draw a fresh value from a distribution:
+\describe{
+\item{\code{"prior"}}{drawn from the \%s distribution;}
+\item{a distribution name}{drawn from that distribution, e.g.
+\code{proposal = "normal"} with \code{proposal_mean}/\code{proposal_sd}.}
+}
+\code{NA} defaults to \code{"rw"}.}
 
 \item{import}{Named \code{list} of pre-built definitions to import.
 Cannot be combined with single and/or multiple definitions.}

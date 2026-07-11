@@ -120,7 +120,7 @@ head(hhmodel$data_wide)
 
 # A collection of models
 
-To see the complete list of available template models, from within RStudio just run
+To see the list of currently available model templates, run
 
 ```{r}
 #| label: list-templates
@@ -151,12 +151,12 @@ We can call `add_parameter()` as follows:
 # alpha : community transmission rate
 hhmodel <- hhmodel |>
   add_parameter(
-    "alpha",               # name matching the model requirement
-    prior = "uniform",     # uniform prior
-    proposal = "lognormal" # MCMC proposal
+    "alpha",            # name matching the model requirement
+    prior = "uniform",  # uniform prior
+    proposal = "rw_log" # MCMC proposal
   ) |>
   # beta : in-household person to person transmission rate
-  add_parameter("beta", prior = "uniform", proposal = "lognormal")
+  add_parameter("beta", prior = "uniform", proposal = "rw_log")
 
 # lazily complete parameter definitions from housepi templated definitions
 hhmodel <- hhmodel |>
@@ -304,7 +304,7 @@ hhmodel <- simulated |>
   add_augmented(
     infec_time = list(
       prior = "uniform", loc = start_date@D,
-      min = -14, max = study_period@D, proposal = "normal"
+      min = -14, max = study_period@D
     ),
     .incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
     .onset_time = infec_time + .incub_period

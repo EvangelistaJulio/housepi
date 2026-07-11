@@ -36,13 +36,13 @@ test_that("Constant value definition are coherent", {
 
 test_that("Undefined definitions are controoled", {
   augm <- HousepiAugmented$new()
-  aux_add(augm, name = "test", proposal = "sample", value = NA) |>
+  aux_add(augm, name = "test", proposal = "prior", value = NA) |>
     expect_error("prior.*test")
   aux_add(augm, name = "test", value = NA) |>
     expect_error("Missing value")
 
   augm <- HousepiAugmented$new()
-  aux_add(augm, name = "test", value = 3, const = TRUE, proposal = "sample")
+  aux_add(augm, name = "test", value = 3, const = TRUE, proposal = "prior")
   expect_true(is.na(augm$defs$proposal))
 })
 
@@ -81,7 +81,20 @@ test_that("Augmented sampling default is correct", {
   aux_add(augm, name = "dummy", prior = "norm")
 
   expect_equal(augm$defs$const, FALSE)
-  expect_equal(augm$defs$proposal, "sample")
+  expect_equal(augm$defs$proposal, "rw")
+})
+
+test_that("Augmented independence proposal folds its arguments", {
+  augm <- HousepiAugmented$new()
+  aux_add(augm, name = "dummy", prior = "uniform", min = 0, max = 5,
+          proposal = "normal", proposal_mean = 0, proposal_sd = 1)
+  expect_equal(augm$defs$proposal, "normal|mean:sd|{0|N}:{1|N}")
+
+  # random-walk scale is not accepted by an independence sampler
+  augm <- HousepiAugmented$new()
+  aux_add(augm, name = "dummy", prior = "uniform", min = 0, max = 5,
+          proposal = "normal", proposal_scale = 0.5) |>
+    expect_error("random walk")
 })
 
 test_that("Augmented function definition is correct", {
@@ -211,7 +224,7 @@ test_that("Observation node rejects conflicting options", {
                        .kind = "obs") |>
     expect_error("only one between")
   # observation nodes are data-bound, never sampled
-  helper_test_aux_load(augm, x = list(obs = "normal", proposal = "sample"),
+  helper_test_aux_load(augm, x = list(obs = "normal", proposal = "prior"),
                        .kind = "obs") |>
     expect_warning("[Ii]gnored.*proposal")
 })
@@ -524,14 +537,14 @@ test_that("Incubation augmentation recast runs on the test model", {
     df |>
       new_housepi_model("test") |>
       add_parameter(
-        mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal"),
-        var = list(prior = "uniform", min = 0.1, max = 5, proposal = "normal")
+        mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "rw"),
+        var = list(prior = "uniform", min = 0.1, max = 5, proposal = "rw")
       ) |>
       add_augmented(
         .infec_time = list(prior = "uniform", max = exposure_max@D + 0.99,
-                           proposal = "normal"),
+                           proposal = "rw"),
         incub_period = list(prior = "gamma", mean = mean@P, var = var@P,
-                            min = 0.5, max = 14, proposal = "normal"),
+                            min = 0.5, max = 14, proposal = "rw"),
         .onset_time = .infec_time + incub_period
       ) |>
       add_observation("onset_mid", obs = "normal",

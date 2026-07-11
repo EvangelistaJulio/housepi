@@ -101,7 +101,7 @@ hhmodel |>
 # Parameters associated to rates
 
 To perform inference of the parameters associated to each group we just need to provide options for the Bayesian Monte Carlo.
-By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and lognormal proposal, following @cauchemez_household_2009.
+By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and a lognormal random-walk proposal (`"rw_log"`), following @cauchemez_household_2009.
 This can be customized at the moment of the definition of the group rate similarly to parameters (see documentation).
 
 ```{r}
@@ -151,9 +151,9 @@ hhmodel <- hhmodel |>
   add_house_observation(start_date = min(test_date@D)) |> 
   # parameter definitions
   add_parameter(
-    alpha = list(prior = "uniform", proposal = "lognormal"),
-    beta = list(prior = "uniform", proposal = "lognormal"),
-    gamma = list(prior = "uniform", proposal = "uniform", max = 5),
+    alpha = list(prior = "uniform", proposal = "rw_log"),
+    beta = list(prior = "uniform", proposal = "rw_log"),
+    gamma = list(prior = "uniform", proposal = "rw_unif", max = 5),
     hhsize_ref = 5
   ) |>
   # augmented definitions

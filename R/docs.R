@@ -54,24 +54,28 @@ rd_var_min_ <- "`numeric(1)` Truncate to a minimum value."
 rd_var_max_ <- "`numeric(1)` Truncate to a maximum value."
 
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
-One between:
+Random walks perturb the current value:
 \\describe{
-  \\item{`\"uniform\"`}{increments drawn from uniform;}
-  \\item{`\"normal\"`}{increments drawn from normal;}
-  \\item{`\"lognormal\"`}{log-increments drawn from lognormal
-    (positive values only);}
-  \\item{`\"sample\"`}{sampled from the %s distribution;}
-  \\item{`NA`}{same as `\"sample\"` (default).}
+  \\item{`\"rw\"`}{normal increments (default);}
+  \\item{`\"rw_log\"`}{lognormal log-increments (positive values only);}
+  \\item{`\"rw_unif\"`}{uniform (bounded) increments.}
 }
+Independence samplers draw a fresh value from a distribution:
+\\describe{
+  \\item{`\"prior\"`}{drawn from the %s distribution;}
+  \\item{a distribution name}{drawn from that distribution, e.g.
+    `proposal = \"normal\"` with `proposal_mean`/`proposal_sd`.}
+}
+`NA` defaults to `\"rw\"`.
 "
 # Advanced Monte Carlo knobs supplied through `...`, all prefixed `proposal_`.
-# UPDATE: temporary just proposal_scale
 rd_proposal_opts_ <- "
 Advanced Monte Carlo options may also be passed through `...`, each prefixed
-`proposal_`. Currently `proposal_scale` sets the proposal scale: if omitted,
-the scale is adapted during inference when `adapt > 0`; if a positive numeric,
-the scale is fixed to that value and never adapted (ignored when proposal is
-`\"sample\"`)."
+`proposal_`. For a random walk, `proposal_scale` sets the step scale: if
+omitted it is adapted during inference when `adapt > 0`; if a positive numeric
+it is fixed and never adapted. For independence sampling from a named
+distribution, the distribution parameters are supplied the same way (e.g.
+`proposal_mean`, `proposal_sd`)."
 
 rd_par_discr_ <- sprintf(rd_var_discr_, "prior")
 rd_par_args_ <- paste0(sprintf(rd_var_args_, "prior"), rd_proposal_opts_)
