@@ -129,8 +129,8 @@ namespace housepi
         /// Initialize augmented initial values for all individuals.
         /// NOTE: skips automatically if no augmented to sample.
         void restart(rnd_gen &prng);
-        /// Optimize all variables (see Variable::optimize).
-        void optimize();
+        /// Finalize all variables (see Variable::finalize).
+        void finalize();
 
         /// Resolve individual ids for augmented draws and return tracked pointers.
         std::vector<const Individual *> init_individual_sample(const std::vector<std::string> &id_draws) const;

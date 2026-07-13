@@ -206,7 +206,8 @@ namespace housepi
         valid_mode_ = Validity::Always;
     }
 
-    void Variable::helper_init_random_walk_proposal_(const std::string &proposal, double scale)
+    void Variable::helper_init_random_walk_proposal_(
+        const std::string &proposal, double scale)
     {
         const Distribution *prior = pDistr_.get();
 
@@ -228,48 +229,10 @@ namespace housepi
     void Variable::helper_init_independence_proposal_(
         const std::string &proposal, const dict<Attribute> &args)
     {
-        // draw independently from a named distribution (constant arguments only for now)
-        std::unique_ptr<Distribution> distr =
-            compose_distr_registries(proposal, "proposal", {"continuos"});
-        for (const auto &[key, attr] : args)
-            distr->init_attr(key, attr);
-        if (pDistr_ && pDistr_->is_discrete())
-            distr->init_discretization();
-
-        // wire the sampler to the prior domain (cf. rw_log): the proposal must be
-        // able to reach the whole prior support, otherwise the independence sampler
-        // can never visit part of the target. When it does, confine it to that
-        // support so proposals stay in-domain (the truncation constant cancels in
-        // the Metropolis-Hastings ratio).
-        if (pDistr_)
-        {
-            const Attribute &lo = pDistr_->lower();
-            const Attribute &hi = pDistr_->upper();
-
-            auto covers = [](const Attribute &q, const Attribute &p, bool below) {
-                if (!q.is_callable()) // proposal unbounded on this side: always covers
-                    return true;
-                if (!p.is_callable()) // prior unbounded but proposal bounded: gap
-                    return false;
-                return below ? q.value() <= p.value() : q.value() >= p.value();
-            };
-            if (!covers(distr->lower(), lo, true) || !covers(distr->upper(), hi, false))
-                msg::stop("Proposal " + msg::val(proposal) + " domain " + distr->str_range() +
-                          " does not cover prior domain " + pDistr_->str_range());
-
-            auto is_fixed = [](const Attribute &a) { return a.is_callable() && !a.function(); };
-            if (is_fixed(lo) && (distr->lower().is_empty() || lo.value() > distr->lower().value()))
-                distr->set_lower(lo.value());
-            if (is_fixed(hi) && (distr->upper().is_empty() || hi.value() < distr->upper().value()))
-                distr->set_upper(hi.value());
-        }
-
-        distr->init_truncation();
-        distr->assert_is_callable_explicitly();
-
-        pProp_ = std::make_unique<IndependenceProposal>(std::move(distr));
+        // construction guarantees move never needs a per-step validity check
+        pProp_ = std::make_unique<IndependenceProposal>(proposal, args, pDistr_.get());
         ratio_mode_ = Ratio::Compute;
-        valid_mode_ = Validity::Check;
+        valid_mode_ = Validity::Always;
     }
 
     void Variable::restart(rnd_gen &prng)
@@ -287,13 +250,13 @@ namespace housepi
             set(pDistr_->rand(prng));
     }
 
-    void Variable::optimize()
+    void Variable::finalize()
     {
-        Attribute::optimize();
+        Attribute::finalize();
         if (pDistr_)
-            pDistr_->optimize();
+            pDistr_->finalize();
         if (pProp_)
-            pProp_->optimize();
+            pProp_->finalize();
     }
 
     double Variable::operator()(double x) const
@@ -607,12 +570,12 @@ namespace housepi
             at(p).restart(prng);
     }
 
-    void Parameter::optimize()
+    void Parameter::finalize()
     {
         for (size_t p : list_const)
-            at(p).optimize();
+            at(p).finalize();
         for (size_t p : list_sample)
-            at(p).optimize();
+            at(p).finalize();
     }
 
     void Parameter::load_sample_values(size_t r)
@@ -710,11 +673,11 @@ namespace housepi
             }
     }
 
-    void GroupRate::optimize()
+    void GroupRate::finalize()
     {
         for (IndivGroup_ &group : unique_groups_)
             for (Attribute &rate : group.vec)
-                rate.optimize();
+                rate.finalize();
     }
 
     std::vector<std::string> GroupRate::helper_process_definitions_(DataWide &data_wide, const str_table &input)
@@ -948,11 +911,11 @@ namespace housepi
         }
     }
 
-    void ContactRate::optimize()
+    void ContactRate::finalize()
     {
         for (IndivContact_ &contact : house_contact_rates_)
             for (std::vector<Attribute> &row : contact.mtx)
                 for (Attribute &rate : row)
-                    rate.optimize();
+                    rate.finalize();
     }
 }

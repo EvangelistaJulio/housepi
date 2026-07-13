@@ -293,7 +293,7 @@ namespace housepi
             return;
         }
     }
-    void Attribute::optimize()
+    void Attribute::finalize()
     {
         if (is_constant())
             init_numeric(value());
@@ -305,7 +305,7 @@ namespace housepi
         if (is_pointer() && pointer()->is_function())
             init_function(pointer()->function()->clone());
         if (is_function())
-            pFunc_->optimize();
+            pFunc_->finalize();
     }
 
     void Attribute::init_func_attr(std::string_view key, const Attribute &attr)
@@ -694,14 +694,14 @@ namespace housepi
         }
     }
 
-    void Function::optimize()
+    void Function::finalize()
     {
         for (Attribute &attr : arguments_())
-            attr.optimize();
-        x_arg_.optimize();
-        loc_.optimize();
-        lower_.optimize();
-        upper_.optimize();
+            attr.finalize();
+        x_arg_.finalize();
+        loc_.finalize();
+        lower_.finalize();
+        upper_.finalize();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1043,9 +1043,9 @@ namespace
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)             \
         HOUSEPI_OVERRIDE_NAME_METHOD(name_)                        \
                                                                    \
-        void optimize() override                                   \
+        void finalize() override                                   \
         {                                                          \
-            Function::optimize();                                  \
+            Function::finalize();                                  \
             reduce_const_na_rm_(                                   \
                 [](double a, double b) { return a symbol b; });    \
         }                                                          \
@@ -1070,9 +1070,9 @@ namespace
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                     \
         HOUSEPI_OVERRIDE_NAME_METHOD(name_)                                \
                                                                            \
-        void optimize() override                                           \
+        void finalize() override                                           \
         {                                                                  \
-            Function::optimize();                                          \
+            Function::finalize();                                          \
             reduce_const_na_rm_(                                           \
                 [](double a, double b) { return b symbol a ? b : a; });    \
         }                                                                  \

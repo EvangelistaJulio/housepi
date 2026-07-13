@@ -1101,7 +1101,7 @@ namespace housepi
         {
             msg::stop(
                 std::string(e.what()) +
-                "\nFor household observation " + msg::val(astr) + " of " +
+                "\nCheck household observation " + msg::val(astr) + " for " +
                 house.err_name() + ".");
         }
     }
@@ -1199,8 +1199,8 @@ namespace housepi
                         "Household observation " + msg::val(astr) + " for " + house.err_name() +
                         " was expected to be greater than zero, as requested by model.");
 
-                // enforce inference-optimization
-                hvar.optimize();
+                // enforce inference-finalization
+                hvar.finalize();
 
                 for (const Individual &member : house)
                     data_wide.wire_cell(d, member, &hvar);
@@ -1316,7 +1316,7 @@ namespace housepi
         {
             msg::stop(
                 std::string(e.what()) +
-                "\nFor augmented " + msg::val(astr) + " of " +
+                "\nCheck augmented " + msg::val(astr) + " for " +
                 member.err_name() + " (status " + std::to_string(member.status()) + ").");
         }
     }
@@ -1467,7 +1467,7 @@ namespace housepi
             "Check the individual data or revise the domain.");
     }
 
-    void Augmented::optimize()
+    void Augmented::finalize()
     {
         if (khold_.empty())
             return;
@@ -1477,7 +1477,7 @@ namespace housepi
             {
                 Individual &member = house.member(i);
                 for (Variable &avar : varia_of_(member).vec)
-                    avar.optimize();
+                    avar.finalize();
             }
     }
 

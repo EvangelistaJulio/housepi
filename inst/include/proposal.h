@@ -11,6 +11,8 @@
 
 #include "tools/messages.h"
 #include "tools/random.h"
+#include "tools/string.h"
+#include "tools/types.h"
 
 #include "distribution.h"
 #include "function.h"
@@ -56,7 +58,7 @@ namespace housepi
         virtual void rebind_prior(const Distribution * /*new_distr*/) {}
 
         /// Resolve the read-surface of an owned proposal distribution (evaluation-only).
-        virtual void optimize() {}
+        virtual void finalize() {}
     };
 
 #define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
@@ -103,22 +105,103 @@ namespace housepi
     class IndependenceProposal final : public Proposal
     {
     public:
-        IndependenceProposal(std::unique_ptr<Distribution> distr) : pDistr_(std::move(distr)) {}
+        /// Proposal builds its owned distribution internally, pointing its truncation at the
+        /// prior's (possibly live) domain so draws stay in support. Coverage of the prior
+        /// domain by the proposal family is asserted later, in finalize(), once data is bound.
+        IndependenceProposal(
+            const std::string &distr_name, const dict<Attribute> &args, const Distribution *prior)
+            : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"}))
+        {
+            for (const auto &[key, attr] : args)
+                pDistr_->init_attr(key, attr);
+            if (prior)
+            {
+                if (prior->is_discrete())
+                    pDistr_->init_discretization();
+
+                wire_to_prior_domain_(prior);
+            }
+            pDistr_->init_truncation();
+            pDistr_->assert_is_callable_explicitly();
+        }
         IndependenceProposal(const IndependenceProposal &other)
-            : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr) {}
+            : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
+              intrinsic_lo_(other.intrinsic_lo_), intrinsic_hi_(other.intrinsic_hi_),
+              prior_has_lo_(other.prior_has_lo_), prior_has_hi_(other.prior_has_hi_) {}
         MAKE_PROPOSAL_CLONE_METHOD(IndependenceProposal)
 
         double propose(rnd_gen &prng, double /*xo*/) override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
 
-        void optimize() override final
+        void finalize() override final
         {
-            if (pDistr_)
-                pDistr_->optimize();
+            if (!pDistr_)
+                return;
+            pDistr_->finalize();
+
+            /// guarantee draws are valid: proposal family reaches the whole prior domain
+            assert_covers_side_(prior_has_lo_, pDistr_->lower(), intrinsic_lo_, true);
+            assert_covers_side_(prior_has_hi_, pDistr_->upper(), intrinsic_hi_, false);
         }
 
     private:
         std::unique_ptr<Distribution> pDistr_; /// distribution drawn from independently
+        double intrinsic_lo_ = na::DOUBLE;     /// proposal family's own lower support (NA if unbounded)
+        double intrinsic_hi_ = na::DOUBLE;     /// proposal family's own upper support (NA if unbounded)
+        bool prior_has_lo_ = false;            /// prior is bounded below
+        bool prior_has_hi_ = false;            /// prior is bounded above
+
+        /// Snapshot the proposal family's intrinsic support, then point the proposal
+        /// truncation at the prior's (possibly live/data-bound) domain. No static value is
+        /// baked: transfer keeps pointer/function bounds live, so rand() re-truncates per move.
+        void wire_to_prior_domain_(const Distribution *prior)
+        {
+            intrinsic_lo_ = pDistr_->lower().is_callable() ? pDistr_->lower().value() : na::DOUBLE;
+            intrinsic_hi_ = pDistr_->upper().is_callable() ? pDistr_->upper().value() : na::DOUBLE;
+
+            // inherit the prior's location shift so the proposal samples in the same
+            // absolute frame; bounds below stay in the shared delocated frame
+            if (!prior->loc().is_empty())
+                pDistr_->init_attr("loc", prior->loc());
+
+            const Attribute &lo = prior->lower();
+            const Attribute &hi = prior->upper();
+            prior_has_lo_ = !lo.is_empty();
+            prior_has_hi_ = !hi.is_empty();
+            if (prior_has_lo_)
+                pDistr_->transfer_lower(lo);
+            if (prior_has_hi_)
+                pDistr_->transfer_upper(hi);
+        }
+
+        void assert_covers_side_(bool prior_has, const Attribute &bound, double intrinsic, bool below) const
+        {
+            const bool proposal_bounded = !na::is(intrinsic);
+            if (!prior_has) // prior unbounded here: an intrinsically bounded family leaves a gap
+            {
+                if (proposal_bounded)
+                    raise_uncovered_();
+                return;
+            }
+            if (bound.is_constant()) // known value: verify coverage by value
+            {
+                if (proposal_bounded &&
+                    (below ? intrinsic > bound.value() : intrinsic < bound.value()))
+                    raise_uncovered_();
+                return;
+            }
+            if (proposal_bounded) // non-constant bound, bounded family: range not yet verifiable
+                raise_uncovered_();
+        }
+
+        [[noreturn]] void raise_uncovered_() const
+        {
+            const std::string lo = na::is(intrinsic_lo_) ? "-Inf" : str::format(intrinsic_lo_);
+            const std::string hi = na::is(intrinsic_hi_) ? "Inf" : str::format(intrinsic_hi_);
+            msg::stop("Proposal " + msg::val(pDistr_->name()) + " has support [" + lo + ", " + hi +
+                      "] that cannot cover the prior domain; use proposal = " + msg::val("prior") +
+                      ", a random walk, or a proposal unbounded on that side.");
+        }
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -172,10 +255,10 @@ namespace housepi
         bool is_adaptive() const noexcept override final { return is_adaptive_; }
 
         /// Resolve the read-surface of the owned proposal distribution.
-        void optimize() override final
+        void finalize() override final
         {
             if (pDistr_)
-                pDistr_->optimize();
+                pDistr_->finalize();
         }
 
         /// Correct acceptance rate for refused move.

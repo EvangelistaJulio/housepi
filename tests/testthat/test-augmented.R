@@ -97,6 +97,55 @@ test_that("Augmented independence proposal folds its arguments", {
     expect_error("random walk")
 })
 
+test_that("Augmented independence proposal tracks a data-dependent prior domain", {
+  # the proposal truncation follows the live bound (here max = x@D), so an unbounded
+  # proposal covers a data-dependent domain and runs, no static box required
+  data.frame(house_id = "philanthropy", status = 1, x = 3) |>
+    new_housepi_model("test") |>
+    add_augmented("z", prior = "uniform", min = 0, max = x@D,
+                  proposal = "normal", proposal_mean = 0, proposal_sd = 1) |>
+    evaluate_log_lik() |>
+    suppressMessages() |>
+    expect_no_error()
+
+  # sampling from the prior needs no domain wiring either
+  data.frame(house_id = "philanthropy", status = 1, x = 3) |>
+    new_housepi_model("test") |>
+    add_augmented("z", prior = "uniform", min = 0, max = x@D, proposal = "prior") |>
+    evaluate_log_lik() |>
+    suppressMessages() |>
+    expect_no_error()
+
+  # but a proposal family whose support cannot reach a non-constant bound is rejected:
+  # a gamma is floored at 0 and cannot cover a parameter-dependent lower bound
+  data.frame(house_id = "philanthropy", status = 1, x = 3) |>
+    new_housepi_model("test") |>
+    add_parameter("theta", prior = "uniform") |>
+    add_augmented("z", prior = "uniform", min = theta@P, max = 5,
+                  proposal = "gamma", proposal_shape = 2) |>
+    evaluate_log_lik() |>
+    expect_error("cannot cover")
+})
+
+test_that("Independence proposal inherits the prior location shift", {
+  # a proposal from another family must sample in the prior's absolute frame:
+  # with loc = min@D the support is [min, min + 1], so every draw lands there
+  hhmodel <- data.frame(id = c("tommy", "gina"), house_id = "house",
+                        status = 1, min = c(4, 8)) |>
+    new_housepi_model("test") |>
+    add_augmented("test_date", prior = "uniform", loc = min@D,
+                  proposal = "gamma", proposal_shape = 2)
+  expect_warning(
+    results <- run_inference(hhmodel, steps = 20, adapt = 0, chains = 1,
+                             threads = 1, progress = FALSE,
+                             id_draws = c("tommy", "gina")),
+    regexp = "below 400"
+  )
+  draws <- as.data.frame(get_augmented_draws(results))
+  expect_true(all(draws$tommy_test_date >= 4 & draws$tommy_test_date <= 5))
+  expect_true(all(draws$gina_test_date >= 8 & draws$gina_test_date <= 9))
+})
+
 test_that("Augmented function definition is correct", {
   augm <- HousepiAugmented$new()
   aux_add(augm) |>

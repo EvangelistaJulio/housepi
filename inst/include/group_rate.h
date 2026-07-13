@@ -32,8 +32,8 @@ namespace housepi
         /// Update model report and set group rates associate to new individual.
         /// NOTE: this has to run even if input is empty to initialize existing rates to reference.
         void build(DataWide &data_wide, const Parameter &param, const str_table &deftable);
-        /// Optimize all variables (see Variable::optimize).
-        void optimize();
+        /// Finalize all variables (see Variable::finalize).
+        void finalize();
 
         /// Access the group rate attribute of given key for a member.
         const Attribute &at(size_t g, const Individual &member) const noexcept { return unique_groups_[group_index_[Index::of(member)]].vec[g]; }

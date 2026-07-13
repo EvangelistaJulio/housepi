@@ -100,9 +100,9 @@ namespace housepi
         void init_product(const std::vector<const Attribute *> &other_ptrs);
         /// Transfer from other Attribute.
         void transfer(const Attribute &other);
-        /// Optimizing by pruning indirections and setting constants to numeric.
+        /// Finalizing by pruning indirections and setting constants to numeric.
         /// NOTE: evaluation-only, never run for simulations.
-        virtual void optimize();
+        virtual void finalize();
 
         /// Set attribute value.
         void set(double x)
@@ -300,11 +300,16 @@ namespace housepi
         /// UPDATE: just required by AdaptableProposal.
         void set_upper(double x) { upper_.set(x); }
 
+        /// Transfer a live bound attribute into the lower/upper truncation, preserving
+        /// pointer/function liveness so the range tracks the source per evaluation.
+        void transfer_lower(const Attribute &a) { lower_.transfer(a); }
+        void transfer_upper(const Attribute &a) { upper_.transfer(a); }
+
         /// Initialize function attribute by assigning from another one.
         void init_attr(std::string_view key, const Attribute &attr);
 
-        /// Optimize by pruning indirections and setting constants to numeric.
-        virtual void optimize();
+        /// Finalize by pruning indirections and setting constants to numeric.
+        virtual void finalize();
 
         //////////////////////
         //////  GETTER  //////

@@ -64,8 +64,8 @@ namespace housepi
 
         /// Randomly initialize values of the parameters to be inferred.
         void restart(rnd_gen &prng);
-        /// Optimize all variables (see Variable::optimize).
-        void optimize();
+        /// Finalize all variables (see Variable::finalize).
+        void finalize();
         /// Load parameters values of the n-th posterior sample.
         void load_sample_values(size_t n);
 

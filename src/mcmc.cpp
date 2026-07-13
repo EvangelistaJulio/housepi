@@ -651,12 +651,12 @@ namespace housepi
         data_wide().allocate_all_cache();
         data_wide().allocate_transm_log_lik();
 
-        param.optimize();
-        group_rate.optimize();
-        contact_rate.optimize();
-        augm.optimize();
-        infec_profile.optimize();
-        data_wide().optimize_cells();
+        param.finalize();
+        group_rate.finalize();
+        contact_rate.finalize();
+        augm.finalize();
+        infec_profile.finalize();
+        data_wide().finalize_cells();
 
         model->init_model_for_evaluation();
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)

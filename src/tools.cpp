@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <string>
 #include <unordered_set>
@@ -211,7 +212,14 @@ namespace housepi::str
 
     std::string format(bool condition) { return condition ? "TRUE" : "FALSE"; }
 
-    std::string format(double x) { return na::is(x) ? "NA" : std::to_string(x); }
+    std::string format(double x)
+    {
+        if (na::is(x))
+            return "NA";
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%g", x);
+        return buf;
+    }
 
     std::string format(const std::vector<std::string> &options,
                        size_t max_print, bool add_dot)

@@ -89,9 +89,9 @@ namespace housepi
         /// Draw the value from the distribution (used to generate observation
         /// nodes during simulation; unlike restart it ignores the constant flag).
         void draw_value(rnd_gen &prng);
-        /// Optimize attribute (see Attribute::optimize) and
-        /// distribution arguments (see Function::optimize).
-        void optimize() override final;
+        /// Finalize attribute (see Attribute::finalize) and
+        /// distribution arguments (see Function::finalize).
+        void finalize() override final;
         /// Restore empty. Used in multiple initializations.
         void clear() noexcept;
 
