@@ -993,6 +993,12 @@ namespace housepi
     {
         Variable &avar = get_augm_varia(a, member);
 
+        // if 'a' feeds another variable's prior parameter (loc/min/max), moving 'a' shifts
+        // their density with no change to their value: snapshot that guarded prior sum now,
+        // while 'a' still holds its accepted value, so the ratio can measure the real change.
+        const bool dep = augm.has_prior_dependents(member, a);
+        const double L_old = dep ? augm.sum_guarded_augm_log_prior(member, a) : 0.;
+
         avar.propose(setup.prng()); // propose new value and save old
         if (avar.is_valid_move())   // proceed only if new value is valid
         {
@@ -1006,7 +1012,9 @@ namespace housepi
             ///  METROPOLIS  ///
             ////////////////////
 
-            const double d_prior = commit_augm_log_prior_ratio(member, a);
+            const double d_prior = dep
+                ? augm.commit_augm_log_prior_ratio_dependent(member, a, L_old)
+                : commit_augm_log_prior_ratio(member, a);
 
             // NOTE: likelihood terms are tempered, the augmented prior is not.
             if constexpr (Beta0)

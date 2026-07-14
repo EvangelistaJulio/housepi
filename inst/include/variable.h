@@ -119,6 +119,9 @@ namespace housepi
         void recover() noexcept;
 
         double log_prior() const;
+        /// Log-prior guarded against support: -Inf when the value falls outside the
+        /// (possibly parameter-shifted) domain. Needed when a prior parameter can move.
+        double guarded_log_prior() const;
         /// Log-likelihood of an observation node.
         /// NOTE: observation are not granted valid: need for guarded log-pdf.
         double log_obs() const;

@@ -1492,8 +1492,10 @@ namespace housepi
         if (priors.empty())
             return 0.;
         double new_ll = 0.0;
+        // guarded: a moved parameter (e.g. a param feeding a prior loc/min/max) may push a
+        // value out of its shifted support; that must read as -Inf, not a stale finite density.
         for (size_t a : priors)
-            new_ll += varia_of_(member).vec[a].log_prior();
+            new_ll += varia_of_(member).vec[a].guarded_log_prior();
         varia_of_(member).log_prior.set(new_ll);
         return new_ll;
     }
@@ -1507,6 +1509,24 @@ namespace housepi
         // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
         for (size_t b : block.consumers[a])
             delta_ll += varia_of_(member).vec[b].prior_log_ratio();
+        varia_of_(member).log_prior.increment(delta_ll);
+        return delta_ll;
+    }
+
+    double Augmented::sum_guarded_augm_log_prior(const Individual &member, size_t a) const
+    {
+        double ll = 0.;
+        // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
+        for (size_t b : block_of_(member).consumers[a])
+            ll += varia_of_(member).vec[b].guarded_log_prior();
+        return ll;
+    }
+
+    double Augmented::commit_augm_log_prior_ratio_dependent(Individual &member, size_t a, double L_old)
+    {
+        // 'a' has already been proposed: its prior-consumers now read the moved parameter live.
+        // Compare their guarded prior sum against the pre-move snapshot L_old.
+        const double delta_ll = sum_guarded_augm_log_prior(member, a) - L_old;
         varia_of_(member).log_prior.increment(delta_ll);
         return delta_ll;
     }

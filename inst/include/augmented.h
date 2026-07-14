@@ -158,6 +158,19 @@ namespace housepi
         /// Compute and store log-ratio of prior of single augmented variable.
         double commit_augm_log_prior_ratio(Individual &member, size_t a);
 
+        /// Whether some other variable reads 'a' as a prior parameter (loc/min/max).
+        /// If so, moving 'a' shifts their prior density and the plain value-ratio is wrong.
+        bool has_prior_dependents(const Individual &m, size_t a) const
+        {
+            return block_of_(m).consumers[a].size() > 1;
+        }
+        /// Guarded sum of the priors that 'a' can shift (its prior-consumers, incl. 'a').
+        /// NOTE: guarded, so an out-of-support consumer contributes -Inf.
+        double sum_guarded_augm_log_prior(const Individual &m, size_t a) const;
+        /// Store the log-ratio of a move of 'a' that shifts its prior-consumers' densities.
+        /// L_old must be sum_guarded_augm_log_prior() sampled before 'a' was proposed.
+        double commit_augm_log_prior_ratio_dependent(Individual &m, size_t a, double L_old);
+
         /// Compute and store observation log-likelihood of observation nodes.
         /// NOTE: to be called only if any observation node is defined.
         double commit_obs_log_lik(Individual &member);

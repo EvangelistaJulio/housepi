@@ -146,6 +146,41 @@ test_that("Independence proposal inherits the prior location shift", {
   expect_true(all(draws$gina_test_date >= 8 & draws$gina_test_date <= 9))
 })
 
+test_that("A moving prior parameter keeps augmented draws inside their live support", {
+  # regression: a dynamic prior parameter (loc/min) shifts the support without changing
+  # the consumer's value, so the acceptance ratio must feel that shift (guarded); else the
+  # window drifts off the value and the sampler emits zero-prior draws (~15% pre-fix).
+  df <- data.frame(id = seq(2), house_id = "shadow_moses", status = 1)
+
+  # augmented -> augmented: test_date ~ Uniform(loc = otacon@A), support [otacon, otacon + 1],
+  # so every draw must satisfy 0 <= test_date - otacon <= 1
+  augm <- df |>
+    new_housepi_model("test") |>
+    add_augmented(
+      "otacon"    = list(prior = "uniform"),
+      "test_date" = list(prior = "uniform", loc = otacon@A)
+    ) |>
+    run_inference(steps = 1000, adapt = 200, thin = 1, chains = 1,
+                  threads = 1, progress = FALSE, id_draws = "1") |>
+    suppressMessages()
+  d <- as.data.frame(get_augmented_draws(augm))
+  gap <- d[["1_test_date"]] - d[["1_otacon"]]
+  expect_true(all(gap >= 0 & gap <= 1))
+
+  # parameter -> augmented: z ~ Uniform(min = meryl@P, max = 5), support [meryl, 5],
+  # so every draw must satisfy z >= meryl
+  par <- df |>
+    new_housepi_model("test") |>
+    add_parameter("meryl", prior = "uniform") |>
+    add_augmented("z", prior = "uniform", min = meryl@P, max = 5) |>
+    run_inference(steps = 1000, adapt = 200, thin = 1, chains = 1,
+                  threads = 1, progress = FALSE, id_draws = "1") |>
+    suppressMessages()
+  z <- as.data.frame(get_augmented_draws(par))[["1_z"]]
+  meryl <- as.data.frame(get_parameter_draws(par))[["meryl"]]
+  expect_true(all(z >= meryl))
+})
+
 test_that("Augmented function definition is correct", {
   augm <- HousepiAugmented$new()
   aux_add(augm) |>
