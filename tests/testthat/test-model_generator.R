@@ -107,6 +107,7 @@ test_that("data_required reflects the underlying template", {
 
   ait_gen <- HousepiGenerator$new("case ascertained")
   expect_true("start_date" %in% ait_gen$data_required)
+  expect_true("end_date" %in% ait_gen$data_required)
 })
 
 test_that("factorize_data_wide behaves as expected", {

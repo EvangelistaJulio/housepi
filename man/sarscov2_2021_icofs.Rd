@@ -22,27 +22,26 @@ Contacts averaged 3 tests during follow-up.
 \describe{
 \item{id}{Individual identifier}
 \item{house_id}{Household identifier}
-\item{status}{PCR test result}
-\item{start_date}{Follow-up start date (index case's first positive PCR)}
-\item{study_period}{Duration of the follow-up}
-\item{test_date}{Date of first positive test}
-\item{age}{Age}
+\item{status}{Follow-up outcome: 0 uninfected, 1 symptomatic, 2 asymptomatic}
+\item{age}{Age class, adult or child}
 \item{sex}{Sex}
-\item{vacc_status}{Vaccinated before survey}
+\item{start_date}{Follow-up start: household's first in-window positive PCR}
+\item{end_date}{Follow-up end: last date the household is still observed}
+\item{test_date}{Date of the first positive test within the follow-up}
+\item{vacc_status}{Vaccination status at the follow-up start}
 \item{recovered}{Whether previously recovered from infection}
-\item{isolation}{Whether isolated}
+\item{isolated}{Whether isolated}
 \item{asymptomatic}{Whether asymptomatic}
 }
 
 Original data from household transmission study conducted in Israel, 2021.
 
-Processing steps:
-\enumerate{
-\item Isolation status converted from "no quarantine" string to logical
-\item Positive test status derived from presence of first_pos date
-\item Test dates converted to days since 2021-01-01
-\item Selected relevant columns and renamed for consistency
-}
+Each household is followed from its first in-window positive PCR test
+(\code{start_date}) until the last date it is still observed
+(\code{end_date}), the latest in-window positive or negative test. Positive
+tests predating the Delta wave are treated as prior infection rather than as
+an index case, and vaccination status reflects the doses effective at the
+follow-up start.
 
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}

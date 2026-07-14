@@ -70,10 +70,6 @@ namespace housepi
 		/// Simulation for a single household.
 		virtual void simulate_single_house(Household & /*house*/) = 0;
 
-		/// Whether the model generates its observation nodes itself, in-loop, via
-		/// generate_observations (otherwise they are drawn generically after the loop).
-		virtual bool simulates_observations() const { return false; }
-
 		//////////////////////
 		//////  SETTER  //////
 		//////////////////////

@@ -48,6 +48,8 @@ hhmodel <- sarscov2_2021_icofs |>
   ) |> 
   # use smaller number of households for exploration
   dplyr::filter(house_id %in% sample(unique(house_id), 300)) |>
+  # start_date is derived below from test_date, so drop the raw column
+  dplyr::select(-start_date) |>
   new_housepi_model("case_ascertained")
 ```
 
@@ -160,7 +162,7 @@ hhmodel <- hhmodel |>
   add_augmented(
     # public definitions
     infec_time = list(
-      prior = "uniform", loc = start_date@D, min = -8, max = study_period@D
+      prior = "uniform", min = ~ start_date@D - 8, max = ~ end_date@D
     ),
     # accessory generic definitions
     .incub_period = list(prior = "gamma", mean = 3, var = 2),

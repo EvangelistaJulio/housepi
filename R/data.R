@@ -77,15 +77,15 @@ NULL
 #' \describe{
 #'   \item{id}{Individual identifier}
 #'   \item{house_id}{Household identifier}
-#'   \item{status}{PCR test result}
-#'   \item{start_date}{Follow-up start date (index case's first positive PCR)}
-#'   \item{study_period}{Duration of the follow-up}
-#'   \item{test_date}{Date of first positive test}
-#'   \item{age}{Age}
+#'   \item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic}
+#'   \item{age}{Age class, adult or child}
 #'   \item{sex}{Sex}
-#'   \item{vacc_status}{Vaccinated before survey}
+#'   \item{start_date}{Follow-up start: household's first positive PCR}
+#'   \item{end_date}{Follow-up end: last date the household is still observed}
+#'   \item{test_date}{Date of the first positive test within the follow-up}
+#'   \item{vacc_status}{Vaccination status at the follow-up start}
 #'   \item{recovered}{Whether previously recovered from infection}
-#'   \item{isolation}{Whether isolated}
+#'   \item{isolated}{Whether isolated}
 #'   \item{asymptomatic}{Whether asymptomatic}
 #' }
 #'
@@ -97,15 +97,11 @@ NULL
 #' @source <https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt>
 #'
 #' @details
-#' Original data from household transmission study conducted in Israel, 2021.
-#'
-#' Processing steps:
-#' \enumerate{
-#'   \item Isolation status converted from "no quarantine" string to logical
-#'   \item Positive test status derived from presence of first_pos date
-#'   \item Test dates converted to days since 2021-01-01
-#'   \item Selected relevant columns and renamed for consistency
-#' }
+#' Each household is followed from its first positive SARS-CoV-2 PCR test
+#' following from July 2021 (\code{start_date}),
+#' until the latest in-window positive or negative test (\code{end_date}).
+#' Vaccination status (\code{vacc_status}) reflects the doses effective
+#' at the start of the follow-up, assuming a 7 days delay for effectiveness.
 #'
 #' To reproduce the data processing, see the script at:
 #' \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}
@@ -116,7 +112,7 @@ NULL
 
 #' Flu 2014-15 household survey from Matsumoto, Japan
 #'
-#' Household survey in Matsumoto city for parents having children in primary school.
+#' Household survey in Matsumoto city for families with children in primary school.
 #' Report on influenza episodes of family members during the season 2014-15.
 #' Original observational study from Uchida et al. (2017).
 #'

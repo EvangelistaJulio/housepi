@@ -99,7 +99,7 @@ onset_tommy <- 5
 hhmodel <- data.frame(id = c("tommy", "gina"),
                       house_id = "house_1",
                       start_date = onset_tommy,
-                      study_period = 10,
+                      end_date = onset_tommy + 10,
                       status = c(1, 2),
                       onset_date = c(onset_tommy, NA)) |>
   new_housepi_model("case_ascertained") |>
@@ -115,7 +115,7 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
     # augmented infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
     infec_time = list(status = 2, prior = "uniform",
-                      loc = start_date@D, max = study_period@D)
+                      min = start_date@D, max = end_date@D)
   )
 ```
 

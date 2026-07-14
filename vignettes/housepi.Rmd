@@ -219,7 +219,7 @@ We load the parameter definitions directly from the model template.
 # load a dataset for the data structure (used later for the simulation)
 community_structure <- sarscov2_2021_icofs |>
   dplyr::select(id, house_id) |>
-  dplyr::mutate(status = NA, study_period = 21)
+  dplyr::mutate(status = NA, end_date = 21)
 
 hhsimul <- community_structure |>
   new_housepi_model("case_ascertained") |>
@@ -303,8 +303,7 @@ hhmodel <- simulated |>
   add_parameter_template() |>
   add_augmented(
     infec_time = list(
-      prior = "uniform", loc = start_date@D,
-      min = -14, max = study_period@D
+      prior = "uniform", min = ~ start_date@D - 14, max = ~ end_date@D
     ),
     .incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
     .onset_time = infec_time + .incub_period

@@ -23,7 +23,7 @@ class Model final : public ModelBase
 {
 public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, infec_time)
-	HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, start_date, study_period)
+	HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, start_date, end_date)
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintKey, intro_case)
@@ -41,8 +41,7 @@ public:
 #endif
 		request_param_discrete(ParamKey::hhsize_ref);
 		request_data_discrete(DataKey::start_date);
-		request_data_discrete(DataKey::study_period);
-		request_data_positive(DataKey::study_period);
+		request_data_discrete(DataKey::end_date);
 
 		// template infectivity profile (otherwise user defined)
 		// UPDATE: this should become more user friendly
@@ -52,10 +51,6 @@ public:
 	/// Allow for contact rate definitions.
 	bool has_contact_rates() const override final { return true; }
 
-	/// Observations (e.g. test_date) are generated in-loop by simulate_single_house,
-	/// so a live household observation such as start_date stays current.
-	bool simulates_observations() const override final { return true; }
-
 	/// NOTE: missing status are not modeled
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
@@ -64,8 +59,15 @@ public:
 	{
 		if (house.n_infected_status() == 0)
 			throw std::logic_error(
-				"No infected member were found in " + house.err_name() +
-				".\nThis model is compatible only with households with at least one infected member.");
+				"No infected members were found in " + house.err_name() +
+				".\nCase-ascertained model assumes at least one infected member per household.");
+
+		// study period must be non-negative
+		for (const Individual &member : house)
+			if (data(DataKey::start_date, member) > data(DataKey::end_date, member))
+				throw std::logic_error(
+					"Found negative follow-up period for " + member.err_name() +
+					".\nCheck " +  msg::arg("start_date") + " and " + msg::arg("end_date") + ".");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,6 +81,16 @@ public:
 	{
 		return par(ParamKey::beta) *
 			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::hhsize_ref) / house_size));
+	}
+
+	/// End of follow-up `end_date` is the last fully-observed day (inclusive)
+	double follow_up_end(const Individual &member) const
+	{
+#ifdef _HOUSEPI_DISCRETE_TIME
+		return data(DataKey::end_date, member);
+#else
+		return data(DataKey::end_date, member) + 1.;
+#endif
 	}
 
 	/// Compute transmission log-likelihood within household.
@@ -98,7 +110,7 @@ public:
 		for (size_t s : house.escaped_hhindexes())
 		{
 			const Individual &member_s = house.member(s);
-			const double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_intro;
+			const double exposure = follow_up_end(member_s) - t_intro;
 			output -= alpha * exposure * group_rate(GroupRateKey::community, member_s);
 		}
 
@@ -224,7 +236,7 @@ public:
 			for (size_t s : house.escaped_hhindexes())
 			{
 				const Individual &member_s = house.member(s);
-				const double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_infec_i;
+				const double exposure = follow_up_end(member_s) - t_infec_i;
 				cumul_mtx[i][s] = infec_profile_cumul(member_i, exposure);
 				cumul_mtx[s][i] = 0.0;
 			}
@@ -270,7 +282,7 @@ public:
 		for (size_t s : house.escaped_hhindexes())
 		{
 			const Individual &member_s = house.member(s);
-			double exposure = data(DataKey::start_date, member_s) + data(DataKey::study_period, member_s) - t_infec_i;
+			double exposure = follow_up_end(member_s) - t_infec_i;
 			cumul_mtx[i][s] = infec_profile_cumul(member_i, exposure);
 			cumul_mtx[s][i] = 0.0;
 		}
@@ -343,8 +355,7 @@ public:
 			{
 				if (member_i.is_infected_status())
 					continue;
-				// NOTE: risk-window is live (observation start_date can be wired through `data()`)
-				if (t > data(DataKey::start_date, member_i) + data(DataKey::study_period, member_i))
+				if (t > follow_up_end(member_i))
 					continue;
 				any_at_risk = true;
 

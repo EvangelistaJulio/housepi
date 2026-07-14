@@ -127,7 +127,8 @@ test_that("Print behavior works as expected", {
 
   # infectivity-profile section in print
   hhmodel_ip <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained") |> 
+    dplyr::select(-start_date) |>
+    new_housepi_model("case_ascertained") |>
     add_house_observation(start_date = min(test_date@D))
   expect_snapshot(print(hhmodel_ip))
 
