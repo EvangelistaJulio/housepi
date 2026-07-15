@@ -68,9 +68,11 @@ test_that("Injected Date literals encode as numeric", {
   housepi_extractor(!!d_min) |>
     expect_equal(housepi_extractor(!!as.numeric(d_min)))
 
-  # Date leaves inside a call are coerced too (rlang binds !! tighter than -)
-  expect_equal(housepi_extractor(!!d_min - 5), "sub|x:x2|{32|N}:{5|N}")
-  expect_equal(housepi_extractor(log(!!d_min)), "log|x|{32|N}")
+  # a self-contained constant expression folds to its numeric value; a call
+  # over housepi nodes keeps its folded Date leaves but stays symbolic
+  expect_equal(housepi_extractor(!!d_min - 5), "27|N")
+  expect_equal(housepi_extractor(alpha + !!d_min),
+               "sum|x:x2|{alpha|A}:{32|N}")
 
   m_date <- new_housepi_model(model = "test") |>
     add_augmented("gray_fox", prior = "uniform",
@@ -81,6 +83,22 @@ test_that("Injected Date literals encode as numeric", {
 
   expect_identical(m_date$augmented$min, m_num$augmented$min)
   expect_identical(m_date$augmented$max, m_num$augmented$max)
+})
+
+test_that("Unquoted constant calls fold to their numeric value", {
+  # base-R coercions are not housepi functions: they evaluate to a constant
+  expect_equal(housepi_extractor(as.Date("2021-07-01")),
+               housepi_extractor(!!as.numeric(as.Date("2021-07-01"))))
+  expect_equal(housepi_extractor(as.integer(5.3)), "5|N")
+  expect_equal(housepi_extractor(as.numeric("3")), "3|N")
+
+  # constant leaves fold even nested inside a symbolic housepi call
+  expect_equal(housepi_extractor(diamond_dog + as.integer(5.3)),
+               "sum|x:x2|{diamond_dog|A}:{5|N}")
+
+  # a call over housepi nodes is not evaluable and stays symbolic
+  expect_equal(housepi_extractor(floor(diamond_dog)),
+               "floor|x|{diamond_dog|A}")
 })
 
 test_that("Rlang nested expression", {

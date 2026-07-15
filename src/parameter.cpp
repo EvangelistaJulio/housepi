@@ -237,10 +237,17 @@ namespace housepi
 
     void Variable::restart(rnd_gen &prng)
     {
+        // UPDATE: this should be useless
         if (is_constant() || !has_prior())
             return;
 
-        set(pDistr_->rand(prng));
+        // an independence proposal draws an absolute, data-informed value (e.g.
+        // centered near the observed datum), seeding an observation-feasible start;
+        // otherwise fall back to the prior
+        if (pProp_->is_independent())
+            set(pProp_->propose(prng, value()));
+        else
+            set(pDistr_->rand(prng));
         pProp_->reset_scale(pDistr_.get());
     }
 
@@ -305,10 +312,9 @@ namespace housepi
         value_ = old_;
         pProp_->recover();
     }
-    double Variable::log_prior() const { return pDistr_->log_pdf(value_); }
-    double Variable::guarded_log_prior() const { return pDistr_->guarded_log_pdf(value_); }
-    double Variable::log_obs() const { return pDistr_->guarded_log_pdf(value_); }
-    double Variable::prior_log_ratio() const { return pDistr_->log_ratio(old_, value_); }
+    double Variable::log_pdf() const { return pDistr_->log_pdf(value_); }
+    double Variable::guarded_log_pdf() const { return pDistr_->guarded_log_pdf(value_); }
+    double Variable::log_ratio() const { return pDistr_->log_ratio(old_, value_); }
     double Variable::proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
 
     void Variable::reset_accept_rate() noexcept { pProp_->reset_accept_rate(); }

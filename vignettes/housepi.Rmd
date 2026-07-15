@@ -241,17 +241,20 @@ associated from a list by calling `add_augmented()`.
 #| label: load-augmented-definitions
 hhsimul <- hhsimul |>
   add_augmented(
+    # infection time of primary case
+    infec_time = 0,
     # incubation period for each individual
     .incub_period = list(prior = "gamma", mean = 2, var = 1, max = 14),
-    # infection time of first infected individual
-    infec_time = 0,
+    # onset time is deterministic
     .onset_time = infec_time + .incub_period
   ) |>
-  # onset date observation is noisy around the real onset time
+  # observation of onset date is noisy around the real onset time
   add_observation(
-    "onset_date", obs = "normal", discr = TRUE,
-    mean = .onset_time, sd = 1, min = floor(.onset_time)
-  ) |> 
+    onset_date = list(
+      obs = "normal", discr = TRUE, mean = .onset_time,
+      sd = 1, min = floor(.onset_time)
+    )
+  ) |>
   # household-level observation of start date is earliest onset date
   add_house_observation(start_date = min(onset_date@D))
 ```
@@ -303,15 +306,17 @@ hhmodel <- simulated |>
   add_parameter_template() |>
   add_augmented(
     infec_time = list(
-      prior = "uniform", min = ~ start_date@D - 14, max = ~ end_date@D
+      prior = "uniform", min = start_date@D - 14, max = end_date@D
     ),
     .incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
     .onset_time = infec_time + .incub_period
   ) |>
   # onset date observation is noisy around the real onset time
   add_observation(
-    "onset_date", obs = "normal", discr = TRUE,
-    mean = .onset_time, sd = 1, min = floor(.onset_time)
+    onset_date = list(
+      obs = "normal", discr = TRUE,
+      mean = .onset_time, sd = 1, min = floor(.onset_time)
+    )
   )
 
 results <- hhmodel |>
@@ -379,7 +384,7 @@ param_draws |>
   flextable::autofit()
 ```
 
-Due to the stochastic nature of this kind of simulation, limiting to re-infer parameters is a limiting check.
+Due to the stochastic nature of this kind of simulation, a single parameter recovery is a limiting check.
 In [Posterior predictive checks](posterior_predictive_checks.html) we show how to compute common household measures according to the model posterior distribution.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}

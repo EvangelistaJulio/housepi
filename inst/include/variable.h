@@ -118,14 +118,15 @@ namespace housepi
         /// Recover old value and roll back the tentative accept rate update.
         void recover() noexcept;
 
-        double log_prior() const;
-        /// Log-prior guarded against support: -Inf when the value falls outside the
-        /// (possibly parameter-shifted) domain. Needed when a prior parameter can move.
-        double guarded_log_prior() const;
-        /// Log-likelihood of an observation node.
-        /// NOTE: observation are not granted valid: need for guarded log-pdf.
-        double log_obs() const;
-        double prior_log_ratio() const;
+        /// Log-pdf of the inherent distribution field.
+        /// It assumes current value field is valid (used to avoid double checks).
+        double log_pdf() const;
+        /// Guarded log-pdf guarded.
+        /// Returns -Inf when the value is not valid (used when move not granted valid).
+        double guarded_log_pdf() const;
+        /// Log-ratio between new and old values.
+        /// It assumes the pdf arguemnts (included support) did not change.
+        double log_ratio() const;
         double proposal_log_ratio() const;
         /// Log-ratio of priors, minus log-ratio of proposals for last move.
         double get_move_log_ratio() const
@@ -133,7 +134,7 @@ namespace housepi
             switch (ratio_mode_)
             {
             case Ratio::Compute:
-                return prior_log_ratio() - proposal_log_ratio();
+                return log_ratio() - proposal_log_ratio();
             default: // case Ratio::None:
                 return 0;
             }

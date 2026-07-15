@@ -14,6 +14,16 @@ coerce_date_ <- function(x) {
   else x
 }
 
+# Try to evaluate a self-contained constant (sub)expression to a scalar number.
+# Housepi node references are unbound symbols that fail to evaluate, so a clean
+# scalar result marks a base-R constant to fold (e.g. as.Date(), as.integer());
+# anything else fails and stays symbolic. Date results collapse to a day count.
+try_fold_const_ <- function(expr, env) {
+  val <- tryCatch(suppressWarnings(coerce_date_(eval(expr, envir = env))),
+                  error = function(e) NULL)
+  if (is.numeric(val) && length(val) == 1L && !is.na(val)) val else NULL
+}
+
 # Helper to check type definitions and set defaults.
 helper_default_source <- function(types, values) {
   valid_sources_lst <- list("A" = "augmented",
@@ -114,7 +124,7 @@ housepi_label_leaf <- function(y) {
 }
 
 # Helper to extract functin from call.
-housepi_func_from_call <- function(call) {
+housepi_func_from_call <- function(call, env = rlang::global_env()) {
   args <- lapply(rlang::call_args(call), strip_useless_parens)
 
   # map to function name
@@ -137,11 +147,12 @@ housepi_func_from_call <- function(call) {
     for (i in seq_along(args)) {
       y <- coerce_date_(args[[i]])
       assert_valid_defin_node(y)
-      func_args[[paste0("x", i)]] <- ifelse(
-        rlang::is_call(y) && rlang::call_name(y) != "@",
-        housepi_func_from_call(y),
-        housepi_label_leaf(y)
-      )
+      is_subcall <- rlang::is_call(y) && rlang::call_name(y) != "@"
+      folded <- if (is_subcall) try_fold_const_(y, env) else NULL
+      func_args[[paste0("x", i)]] <-
+        if (!is.null(folded)) as.character(folded)
+        else if (is_subcall) housepi_func_from_call(y, env)
+        else housepi_label_leaf(y)
     }
     names(func_args)[1] <- "x"
   }
@@ -227,6 +238,7 @@ housepi_smart_unwrap <- function(x, arg_name = NULL) {
 # Deal with housepi quosures.
 housepi_extractor <- function(...) {
   .extract_node <- function(x_quo) {
+    x_env <- rlang::quo_get_env(x_quo)
     x_expr <- coerce_date_(rlang::quo_get_expr(x_quo))
 
     # expand formula in case
@@ -244,8 +256,11 @@ housepi_extractor <- function(...) {
       # sourced unary
       housepi_format_sources(c(x = rlang::expr_text(x_expr)))
     } else if (rlang::is_call(x_expr)) {
-      # function
-      housepi_func_from_call(x_expr)
+      # a self-contained constant call (e.g. as.Date()) folds to its numeric
+      # value; a call over housepi nodes fails to evaluate and stays symbolic
+      folded <- try_fold_const_(x_expr, x_env)
+      if (!is.null(folded)) housepi_format_sources(c(x = folded))
+      else housepi_func_from_call(x_expr, x_env)
     } else if (rlang::is_syntactic_literal(x_expr) ||
                  rlang::is_scalar_atomic(x_expr) ||
                  rlang::is_symbol(x_expr)) {

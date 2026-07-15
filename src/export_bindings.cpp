@@ -1074,7 +1074,7 @@ namespace
             {
                 const Variable &avar = mcmc_ptr->get_augm_varia(a, member_i);
                 if (avar.has_prior())
-                    df_double[c++][i] = hsp_to_rcpp(avar.log_prior());
+                    df_double[c++][i] = hsp_to_rcpp(avar.log_pdf());
             }
         }
 

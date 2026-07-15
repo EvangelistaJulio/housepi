@@ -123,7 +123,7 @@ namespace housepi
 		void init_missing_augm(Individual &member)
 		{
 			mcmc_->augm.init_definitions_for_simulation(member);
-			mcmc_->augm.restart(member, mcmc_->setup.prng());
+			mcmc_->augm.draw_sample(member, mcmc_->setup.prng());
 			mcmc_->augm.sample_obs(member, mcmc_->setup.prng());
 		}
 

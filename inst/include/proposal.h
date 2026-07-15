@@ -54,6 +54,10 @@ namespace housepi
         /// Compute log-ratio of proposal densities for Metropolis-Hastings.
         virtual double log_ratio(double /*xo*/, double /*xn*/) const = 0;
 
+        /// Whether propose() yields an absolute draw independent of the current
+        /// value; such a proposal can seed an observation-feasible initial value.
+        virtual bool is_independent() const noexcept { return false; }
+
         /// Rebind proposal to a new prior distribution.
         virtual void rebind_prior(const Distribution * /*new_distr*/) {}
 
@@ -132,6 +136,7 @@ namespace housepi
 
         double propose(rnd_gen &prng, double /*xo*/) override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
+        bool is_independent() const noexcept override final { return true; }
 
         void finalize() override final
         {

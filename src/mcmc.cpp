@@ -322,9 +322,9 @@ namespace housepi
         size_t i = 0;
         for (size_t p : param.list_sample)
         {
-            const Variable &v = param.at(p);
-            param_values[i][count_] = v.value();
-            param_priors[i++][count_] = v.log_prior();
+            const Variable &var = param.at(p);
+            param_values[i][count_] = var.value();
+            param_priors[i++][count_] = var.log_pdf();
         }
         // function-derived parameters: store value, no prior
         for (size_t p : param.list_func)

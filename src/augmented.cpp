@@ -341,6 +341,14 @@ namespace housepi
         return false;
     }
 
+    bool Augmented::is_house_obs(const std::string &name) const noexcept
+    {
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+            if (deftable_.c_kind[k] == Kind::House && deftable_.c_name[k] == name)
+                return true;
+        return false;
+    }
+
     void Augmented::set_prior_param_depen_()
     {
         // initialize list of parameter dependent augmented/observation
@@ -841,6 +849,34 @@ namespace housepi
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
             if (deftable_.c_kind[k] == Kind::House)
                 list_house_export.push_back(k);
+
+        if (list_house_export.size() < 2)
+            return;
+
+        // order household observations producer-before-consumer, so a sibling
+        // read (e.g. end_date = start_date@D + 21) is built after the observation
+        // it depends on. Edges are @D references whose name is another house obs.
+        std::unordered_set<std::string> house_names;
+        for (size_t k : list_house_export)
+            house_names.insert(deftable_.c_name[k]);
+
+        str_table graph;
+        dict<size_t> name_to_row;
+        for (size_t k : list_house_export)
+        {
+            const std::string &nm = deftable_.c_name[k];
+            name_to_row[nm] = k;
+            std::vector<std::string> deps;
+            for (const auto *col : deftable_.source_cols())
+                for (const std::string &d : parse::Definition((*col)[k]).list_data_wide_depen())
+                    if (d != nm && house_names.count(d))
+                        deps.push_back(d);
+            graph[nm] = str::unique(deps);
+        }
+
+        list_house_export.clear();
+        for (const std::string &nm : dpdcy::order_dependencies(graph))
+            list_house_export.push_back(name_to_row[nm]);
     }
 
     void Augmented::init_house_for_simulation()
@@ -864,24 +900,31 @@ namespace housepi
         for (size_t H = 0; H < n_houses; ++H)
         {
             Household &house = data_wide.at(H);
+            // build and wire in dependency order (see helper_init_house_obs_list_):
+            // a sibling read binds the already-wired cell of its producer
             for (size_t b = 0; b < list_house_export.size(); ++b)
+            {
                 helper_init_house_attributes_(house, b);
-            wire_house_obs_cells_(house);
+                wire_house_obs_cell_(house, b);
+            }
         }
+    }
+
+    void Augmented::wire_house_obs_cell_(Household &house, size_t b)
+    {
+        DataWide &data_wide = mcmc_->data_wide();
+        const std::string &name = house_obs_name(b);
+        if (!data_wide.khold().count(name))
+            return; // export-only household observation: no standing-in column
+        const size_t d = data_wide.khold(name);
+        for (const Individual &member : house)
+            data_wide.wire_cell(d, member, &house_varia[Index::of(house)][b]);
     }
 
     void Augmented::wire_house_obs_cells_(Household &house)
     {
-        DataWide &data_wide = mcmc_->data_wide();
         for (size_t b = 0; b < list_house_export.size(); ++b)
-        {
-            const std::string &name = house_obs_name(b);
-            if (!data_wide.khold().count(name))
-                continue; // export-only household observation: no standing-in column
-            const size_t d = data_wide.khold(name);
-            for (const Individual &member : house)
-                data_wide.wire_cell(d, member, &house_varia[Index::of(house)][b]);
-        }
+            wire_house_obs_cell_(house, b);
     }
 
     void Augmented::reset_obs_data_for_simulation(Household &house)
@@ -1058,13 +1101,14 @@ namespace housepi
                 parser.root.func, "function", AUGM_FUNC_REGISTRIES,
                 str::tobool(deftable_.c_fcumul[k])));
 
-            // bind operands: a data (@D) source is spread one live operand per member;
-            // any other source is bound once at household level. Every member is bound
-            // (the function folds na.rm-style at eval, skipping NA), so a generated
-            // observation drawn later is tracked with no rebuild. Only an immutable NA
-            // *constant* (a data cell with no value) is skipped at build, since the
-            // function rejects NA constant args and it can never acquire a value. An
-            // undrawn observation is empty (not constant), so it is bound live.
+            // bind operands: a per-member data (@D) column is spread one live operand
+            // per member. Every member is bound (the function folds na.rm-style at eval,
+            // skipping NA), so a generated observation drawn later is tracked with no
+            // rebuild. Only an immutable NA *constant* (a data cell with no value) is
+            // skipped at build, since the function rejects NA constant args and it can
+            // never acquire a value. An undrawn observation is empty (not constant), so
+            // it is bound live. Any other source -- a numeric or a sibling household
+            // observation, which is one value shared by every member -- is bound once.
             // The first operand seeds the reduction ('x'), the rest are appended.
             size_t op = 0;
             const auto append_operand = [&](const Attribute &attr)
@@ -1074,7 +1118,7 @@ namespace housepi
                 hvar.init_func_attr(key, attr);
             };
             for (const auto &child : parser.root.children)
-                if (parse::is_data_wide(child.type))
+                if (parse::is_data_wide(child.type) && !is_house_obs(child.value))
                     for (const Individual &member : house)
                     {
                         const Attribute &attr = mcmc_->translator.to_attribute(child, &member);
@@ -1295,14 +1339,16 @@ namespace housepi
             helper_init_prior_attributes_(member, k);
 
             // assign proposal if variable to be sampled
-            // (arguments are folded into the proposal call, if any)
-            if (!avar.is_constant())
+            // (arguments are folded into the proposal call, if any); simulation
+            // draws from the prior and never proposes, so its data-bound args
+            // (e.g. an observation column) need not resolve here
+            if (!simulation && !avar.is_constant())
             {
                 parse::Definition prop(deftable_.c_proposal[k]);
                 dict<Attribute> prop_args;
                 for (const auto &child : prop.root.children)
-                    // UPDATE: relax 'to_numeric_'
-                    prop_args.emplace(child.key, mcmc_->translator.to_numeric(child));
+                    // per-member context lets proposal args fold data cells
+                    prop_args.emplace(child.key, mcmc_->translator.to_numeric(child, &member));
                 avar.init_proposal(prop.root.func, prop_args);
             }
 
@@ -1423,7 +1469,7 @@ namespace housepi
                 continue;
 
             const Variable &ovar = varia_of_(member).vec[khold(deftable_.c_name[k])];
-            if (std::isfinite(ovar.log_obs()))
+            if (std::isfinite(ovar.guarded_log_pdf()))
                 continue;
 
             // domain: loc + [min, max]
@@ -1495,7 +1541,7 @@ namespace housepi
         // guarded: a moved parameter (e.g. a param feeding a prior loc/min/max) may push a
         // value out of its shifted support; that must read as -Inf, not a stale finite density.
         for (size_t a : priors)
-            new_ll += varia_of_(member).vec[a].guarded_log_prior();
+            new_ll += varia_of_(member).vec[a].guarded_log_pdf();
         varia_of_(member).log_prior.set(new_ll);
         return new_ll;
     }
@@ -1508,7 +1554,7 @@ namespace housepi
         double delta_ll = 0;
         // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
         for (size_t b : block.consumers[a])
-            delta_ll += varia_of_(member).vec[b].prior_log_ratio();
+            delta_ll += varia_of_(member).vec[b].log_ratio();
         varia_of_(member).log_prior.increment(delta_ll);
         return delta_ll;
     }
@@ -1518,7 +1564,7 @@ namespace housepi
         double ll = 0.;
         // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
         for (size_t b : block_of_(member).consumers[a])
-            ll += varia_of_(member).vec[b].guarded_log_prior();
+            ll += varia_of_(member).vec[b].guarded_log_pdf();
         return ll;
     }
 
@@ -1550,7 +1596,7 @@ namespace housepi
         // log-proba must be recomputed (observation value is just a datum)
         double new_ll = 0.0;
         for (size_t b : block.obs)
-            new_ll += varia_of_(member).vec[b].log_obs();
+            new_ll += varia_of_(member).vec[b].guarded_log_pdf();
         const double delta_ll = new_ll - varia_of_(member).log_obs.value();
         varia_of_(member).log_obs.set(new_ll);
         return delta_ll;

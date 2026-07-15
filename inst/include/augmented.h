@@ -126,6 +126,13 @@ namespace housepi
             for (size_t a : list_sample(member))
                 varia_of_(member).vec[a].restart(prng);
         }
+        /// Draw sampled augmented from their prior for generative simulation;
+        /// unlike restart it uses no proposal (simulation builds none).
+        void draw_sample(Individual &member, rnd_gen &prng)
+        {
+            for (size_t a : list_sample(member))
+                varia_of_(member).vec[a].draw_value(prng);
+        }
         /// Initialize augmented initial values for all individuals.
         /// NOTE: skips automatically if no augmented to sample.
         void restart(rnd_gen &prng);
@@ -178,11 +185,12 @@ namespace housepi
         double commit_obs_log_lik_ratio(Individual &member, size_t a);
 
         /// Read-only individual observation log-likelihood.
+        /// NOTE: an observation value is a datum, never granted valid: must be guarded.
         double eval_log_obs(const Individual &member) const
         {
             double ll = 0.0;
             for (size_t a : list_obs(member))
-                ll += varia_of_(member).vec[a].log_obs();
+                ll += varia_of_(member).vec[a].guarded_log_pdf();
             return ll;
         }
 
@@ -207,6 +215,8 @@ namespace housepi
         bool is_any_status_obs() const noexcept { return !na::is(status_obs_def_); }
         /// Whether the given name is an observation node (kind "obs").
         bool is_obs_node(const std::string &name) const noexcept;
+        /// Whether the given name is a household observation (kind "house").
+        bool is_house_obs(const std::string &name) const noexcept;
         /// If moving given parameter may change the observation log-likelihood.
         bool param_affects_obs_log_lik(size_t p) const noexcept { return obs_param_depen_[p]; }
         /// If moving augmented 'a' for this member parameterizes any obs node.
@@ -340,6 +350,8 @@ namespace housepi
         void helper_init_house_attributes_(Household &house, size_t b);
         /// Build the (reduction) variable for household observation 'k' over 'house'.
         void build_house_obs_variable_(Variable &hvar, Household &house, size_t k);
+        /// Point the standing-in data cells of a house at household-obs 'b'.
+        void wire_house_obs_cell_(Household &house, size_t b);
         /// Point each standing-in data cell of a house at its household-obs Variable.
         void wire_house_obs_cells_(Household &house);
         /// Whether household observation 'k' references only data and numeric sources.
