@@ -61,6 +61,16 @@ test_that("Model choice helper handles malformed input", {
     expect_error("not a folder nor a template")
 })
 
+test_that("Escaped label is validated at construction", {
+  # non-character input is rejected
+  HousepiGenerator$new("test", escaped = 42) |>
+    expect_error("non-empty")
+
+  # length != 1 character input is rejected
+  HousepiGenerator$new("test", escaped = c("liquid", "solid")) |>
+    expect_error("non-empty")
+})
+
 test_that("Compile flags are validated against model source", {
   # unknown user flag → stop
   HousepiGenerator$new("test", flags = "_HAIDARAAA") |>
@@ -78,7 +88,8 @@ test_that("Active fields are read-only and expose state", {
     helper_test_read_only(
       "name", "raw_name", "setup", "mcmc_ptr", "source_dir",
       "data_required", "last_flags",
-      "cols_data_wide", "info_data_wide", "infec_status_set"
+      "cols_data_wide", "info_data_wide", "infec_status_set",
+      "status_data_labels", "escaped"
     )
 
   # field values match expected internals
@@ -89,6 +100,8 @@ test_that("Active fields are read-only and expose state", {
   expect_identical(hhgen$cols_data_wide, character())
   expect_null(hhgen$info_data_wide)
   expect_identical(hhgen$infec_status_set, integer())
+  expect_identical(hhgen$status_data_labels, character())
+  expect_identical(hhgen$escaped, "escaped")
   expect_false(is.null(hhgen$mcmc_ptr))
   expect_true(is.list(hhgen$setup))
 })
@@ -191,6 +204,11 @@ test_that("a session-loaded template warns when compile flags change", {
   # the warning must fire in this direction too (was previously silent)
   HousepiGenerator$new(path, as_template = TRUE, quiet = TRUE) |>
     expect_warning("replace existing template")
+
+  # a dll whose flags sidecar is lost counts as unknown: rebuild is attempted
+  unlink(dll_flags_file(template_dll_file(path)))
+  HousepiGenerator$new(path, discr = TRUE, as_template = TRUE, quiet = TRUE) |>
+    expect_warning("replace existing template")
 })
 
 test_that("custom model directory without model.cpp is rejected", {
@@ -238,4 +256,57 @@ test_that("Model has no leaks", {
   }
   invisible(gc())
   expect_lt(mem_used_mb() - mem_before, 5)
+})
+
+#######################################
+## MODEL GENERATOR : SHARED REGISTRY ##
+#######################################
+
+test_that("Modules do not get overwritten", {
+  # NOTE: I use profile as a  status flag for models
+  out_1 <- sarscov2_2021_icofs |>
+    new_housepi_model("case_ascertained") |>
+    get_infectivity_profile()
+  expect_gt(length(out_1), 0L)
+
+  flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    get_infectivity_profile() |>
+    expect_length(0L)
+
+  # reload first model
+  sarscov2_2021_icofs |>
+    new_housepi_model("case_ascertained") |>
+    get_infectivity_profile() |>
+    expect_identical(out_1)
+})
+
+test_that("Custom models shares function registries", {
+  hhmodel_0 <- new_housepi_model(model = "test")
+  expose_function("growth") |>
+    expect_error("Unknown function")
+
+  # compile example
+  custom <- system.file(file.path("examples", "custom"), package = "housepi")
+  hhmodel_1 <- flu_1918_frederick |>
+    new_housepi_model(custom, quiet = TRUE)
+
+  # no templates available for custom example
+  hhmodel_1 |>
+    add_augmented_template() |>
+    expect_error("file.*not found")
+
+  # Growth_ overrides only raw_function_ and raw_primitive_
+  # other raw_ virtuals fall back to raise_undefined_call_err_
+  x <- seq(0, 3, 0.5)
+  initial <- 2
+  rate <- 0.5
+  fn <- expose_function("growth", initial = initial, rate = rate)
+  expect_equal(fn$func(x), initial * exp(rate * x))
+  expect_equal(fn$prim(x), initial * exp(rate * x) / rate)
+  fn$log_func(x) |>
+    expect_error("undefined")
+  # default raw_log_ratio_ returns 0
+  fn$log_ratio(x, x + 0.1) |>
+    expect_equal(rep(0L, length(x)))
 })

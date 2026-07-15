@@ -222,3 +222,15 @@ test_that("add_infectivity_profile single and bulk forms work", {
   expect_false(is.null(ip2))
   expect_true("lognormal" %in% ip2$func)
 })
+
+test_that("add_infectivity_profile and list update the model directly", {
+  hhmodel <- sarscov2_2021_icofs |>
+    new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(func = "gamma", shape = 2, scale = 1)
+  expect_true("gamma" %in% hhmodel$infec_profile$func)
+  expect_warning(
+    hhmodel <- add_infectivity_profile(hhmodel, func = "lognormal"),
+    regexp = "Overwriting"
+  )
+  expect_true("lognormal" %in% hhmodel$infec_profile$func)
+})

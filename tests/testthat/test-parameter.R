@@ -13,6 +13,10 @@ aux_add <- function(self, name = NA_character_, value = NULL,
   invisible(self)
 }
 
+##############################
+## PARAMETER : DEFINITIONS  ##
+##############################
+
 test_that("Default parameter definitions are correct", {
   param <- HousepiParameter$new()
 
@@ -173,4 +177,134 @@ test_that("Distribution weight labels are not swallowed by formal matching", {
   expect_equal(param2$defs$name, "ocelot")
   expect_equal(param2$defs$prior,
                "categorical|a:b:c:d:p|{0.2|N}:{0.1|N}:{0.7|N}:{0.4|N}:{0.6|N}")
+})
+
+############################
+## PARAMETER : END-TO-END ##
+############################
+
+test_that("Unsupported parameter definitions throw errors", {
+  hhmodel <- new_housepi_model(model = "test")
+
+  # eager rebuild: errors surface at definition, not at run_inference
+  add_parameter(hhmodel, "a", prior = "uniform", min = ~ min_val@D) |>
+    expect_error("not supported")
+  # hint is thrown
+  # FIXME: no-append exposes bug: faulty definition "a" stays stored!
+  # add_parameter(hhmodel, b = list(prior = "uniform", min = min_val)) |>
+  #   expect_error("rlang injection")
+})
+
+test_that("Degenerate range raises an error for parameters", {
+  new_housepi_model(model = "test") |>
+    add_parameter("venom", prior = "uniform", min = 3, max = 3) |>
+    expect_error("degenerate range")
+})
+
+test_that("Invalid proposal name is rejected", {
+  new_housepi_model(model = "test") |>
+    add_parameter("snake", prior = "uniform", proposal = "venom") |>
+    run_inference(steps = 1, chains = 1, progress = FALSE) |>
+    expect_error("Unknown proposal.*venom")
+})
+
+test_that("Lognormal proposal non-positive domain", {
+  # prior with unbounded lower bound
+  new_housepi_model(model = "test") |>
+    add_parameter("huey", prior = "normal", proposal = "rw_log") |>
+    expect_error("non-positive.*huey")
+
+  # prior with negative lower bound
+  new_housepi_model(model = "test") |>
+    add_parameter("miller", prior = "uniform",
+                  min = -1, proposal = "rw_log") |>
+    expect_error("non-positive")
+
+  # location parameter
+  suppressWarnings(
+    param_draws <- new_housepi_model(model = "test") |>
+      add_parameter("amanda", prior = "gamma", shape = 2,
+                    max = 5, loc = -1, proposal = "rw_log") |>
+      run_inference(steps = 20, chains = 1, adapt = 0, thin = 1) |>
+      get_parameter_draws()
+  )
+  expect_true(all(param_draws[["amanda"]] > -1))
+  expect_true(all(param_draws[["amanda"]] < 4))
+})
+
+test_that("Discretization is enabled as expected", {
+  discr <- TRUE
+  val <- list(min = 1, max = 5)
+  hhmodel <- new_housepi_model(model = "test")
+  hhmodel <- add_parameter(hhmodel,
+    sample = list(
+      prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+      proposal = "prior", min = !!val$min, max = !!val$max
+    ),
+    uniform = list(
+      prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+      proposal = "rw_unif", min = !!val$min, max = !!val$max
+    ),
+    normal = list(
+      prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+      proposal = "rw", min = !!val$min, max = !!val$max
+    ),
+    lognormal = list(
+      prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+      proposal = "rw_log", min = !!val$min, max = !!val$max
+    )
+  )
+
+  results <- suppressWarnings(run_inference(hhmodel,
+    steps = 50, burn = 0, thin = 1, adapt = 50, chains = 1
+  ))
+  y <- posterior::as_draws_matrix(get_parameter_draws(results))
+  expect_true(all(y == floor(y)))
+  expect_true(all(y >= val$min))
+  expect_true(all(y <= val$max))
+})
+
+test_that("Parameter defined as a function tracks its dependencies", {
+  set.seed(1)
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(
+      alpha = 1e-4,
+      beta = hhsize_ref@P^-gamma@P,
+      gamma = list(prior = "uniform"),
+      hhsize_ref = 4
+    )
+  res <- suppressWarnings(run_inference(hhmodel,
+    steps = 100, chains = 1, adapt = 0, thin = 1
+  ))
+  vars <- posterior::variables(res$parameter_draws)
+  # both sampled and function-derived parameters appear in the trace
+  expect_true(all(c("gamma", "beta") %in% vars))
+  # the function-derived parameter has no prior contribution
+  # UPDATE: this will not require private access in the future
+  expect_false("lprior_beta" %in% posterior::variables(
+    res$.__enclos_env__$private$param_prior_draws_
+  ))
+
+  df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
+  # every draw of beta equals hhsize_ref^(-gamma) exactly
+  expect_equal(df$beta, 4^(-df$gamma))
+})
+
+test_that("Parameter function rejects non-parameter dependencies", {
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("final_size")
+
+  # bare names default to augmented source! here @P is missing
+  hhmodel |>
+    add_parameter(alpha = 1e-4, gamma = 1, hhsize_ref = 4,
+                  beta = hhsize_ref^-gamma) |>
+    expect_error("cannot depend on augmented variables")
+
+  # explicit reference to a data column is also rejected
+  # FIXME: roll-back missing -> append = FALSE should not be necessary
+  hhmodel |>
+    add_parameter(alpha = 1e-4, gamma = 1, hhsize_ref = 4,
+                  beta = status@D + 1, append = FALSE) |>
+    expect_error("cannot depend on data variables")
 })

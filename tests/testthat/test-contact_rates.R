@@ -498,3 +498,77 @@ test_that("Distinct rule_groups multiply at the cell", {
   # diagonal is 0
   expect_equal(unname(diag(snap$contact_rate)), rep(0., nrow(hh)))
 })
+
+test_that("Contact rate definition work as expected", {
+  hhid <- "hh2"
+  hhmodel <- data.frame(
+    house_id = c(rep("hh1", 3), rep(hhid, 6)),
+    status = c(1, 0, 0, 1, 0, 0, 0, 0, 0),
+    member = c("student", "other", "other",
+               "student", "sibling", "mother", "father", "other", "student")
+  ) |>
+    new_housepi_model("final_size") |>
+    add_parameter_template()
+
+  # no contact rate defs -> empty matrix
+  hhsnapshot <- hhmodel$export_house_snapshot(hhid)
+  cr_mtx <- hhsnapshot$contact_rate
+  expect_true(is.matrix(cr_mtx))
+  expect_equal(nrow(cr_mtx), 0)
+  expect_equal(ncol(cr_mtx), 0)
+
+  # mutually exclusive strata
+  strata <- data.frame(
+    from_member = c(
+      "student", "student", "sibling", "mother",
+      "mother", "father", "other", NA
+    ),
+    to_member = c(
+      "student", "sibling", "sibling", "student",
+      "sibling", "mother", "other", NA
+    ),
+    param_name = c(
+      "child_child", "child_child", "child_child", "mother_child",
+      "mother_child", ".reference", "other_other", "cross_gen"
+    )
+  )
+  # prime numbers as param values to ensure non duplicate pair productes
+  params <- c(2, 3, 5, 7, 11, 13, 17, 19)
+  names(params) <- strata$param_name
+  hhmodel <- hhmodel |>
+    add_contact_rate(strata = strata, params = params)
+
+  # matrix is n x n
+  hhsnapshot <- hhmodel$export_house_snapshot(hhid)
+  cr_mtx <- hhsnapshot$contact_rate
+  n <- nrow(hhsnapshot$data_wide)
+
+  expect_true(is.matrix(cr_mtx))
+  expect_equal(nrow(cr_mtx), n)
+  expect_equal(ncol(cr_mtx), n)
+  # diagonal is 0
+  expect_equal(unname(diag(cr_mtx)), rep(0., n))
+
+  # every off-diagonal cell resolves to the reference (1)
+  # or to exactly one param value: no multiplications
+  expect_true(all(cr_mtx %in% c(0, 1, params)))
+
+  # drop_contact_rates_ cleans up the associated parameter definitions
+  param_names_before <- hhmodel$parameters$name
+  hhmodel$.__enclos_env__$private$drop_contact_rates_()
+  any(setdiff(names(params), ".reference") %in% hhmodel$parameters$name) |>
+    expect_false()
+  # the template parameters added previously must survive
+  template_pars <- c("alpha", "beta", "gamma")
+  expect_true(all(template_pars %in% param_names_before))
+})
+
+test_that("Contact rates raise an error for incompatible models", {
+  data.frame(
+    house_id = 1, id = seq(4), status = seq(4),
+    cohort = c("a", "a", "b", "b")
+  ) |>
+    new_housepi_model("test") |>
+    add_contact_rate(by = "cohort") |>
+    expect_error("not supported")
+})
