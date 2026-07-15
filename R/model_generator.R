@@ -316,17 +316,19 @@ HousepiGenerator <- R6::R6Class(
     # @return `logical(1)`.
     # Wheter nothing is cached or changes are untracked.
     search_for_cached_dll_ = function() {
-      # look for dynamic library name
-      cache_dll_files <- list.files(private$cache_dir_,
-                                    pattern = .Platform$dynlib.ext,
-                                    full.names = TRUE)
+      # look for dynamic library name; anchor the extension so the flags
+      # sidecar sitting next to the dll is not picked up as a second match
+      cache_dll_files <- list.files(
+        private$cache_dir_,
+        pattern = paste0("\\", .Platform$dynlib.ext, "$"),
+        full.names = TRUE
+      )
       # NOTE: multiple dlls are treated as an error
       if (length(cache_dll_files) == 1) {
-        # if all changes are tracked, dll is the one
-        if (!untracked_changes(private$source_dir_, cache_dll_files[1])) {
-          private$dll_ <- cache_dll_files[1]
-          return(FALSE)
-        }
+        private$dll_ <- cache_dll_files[1]
+        # cached dll is the one if changes are tracked and flags still match
+        if (!untracked_changes(private$source_dir_, private$dll_) &&
+              private$has_same_flags_as_dll_()) return(FALSE)
       }
       # no dll cached or multiple dlls require recompilation
       TRUE
