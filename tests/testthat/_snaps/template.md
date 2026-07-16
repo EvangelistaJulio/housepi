@@ -1,7 +1,7 @@
-# browse_housepi_templates branches inform correctly
+# browse_templates branches inform correctly
 
     Code
-      browse_housepi_templates()
+      browse_templates()
     Message
       i Available template models:
       * `case_ascertained`

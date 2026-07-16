@@ -212,7 +212,7 @@ HousepiGenerator <- R6::R6Class(
       choice <- "test"
       if (all(is.na(model) | is.null(model))) warn_h(
         "No model specified. Falling back to {.val test} model.",
-        "To show available templates, run {.fn browse_housepi_templates}."
+        "To show available templates, run {.run browse_templates()}."
       )
       else if (length(model) != 1 || !is.character(model)) stop_h(
         "Model choice must be a non-empty {.cls character}.",
@@ -585,7 +585,7 @@ HousepiGenerator <- R6::R6Class(
         if (isTRUE(as_template)) warn_h(
           "Cannot store template {.val {self$name}} as a new template.",
           "Copy it to a writable folder first, and then load it:",
-          "#> {.code browse_housepi_templates(\"{self$name}\", \"your/dir\")}",
+          "#> {.code browse_templates(\"{self$name}\", \"your/dir\")}",
           "#> {.code new_housepi_model(data = ..., model = \"your/dir\")}"
         )
         private$init_template_model_(choice, force)

@@ -95,8 +95,10 @@ namespace
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        ExposeBase(std::string name, const std::string &family,
-                   std::vector<std::string> registry_types)
+        ExposeBase(
+            std::string name,
+            ErrType family,
+            std::vector<Registry> registry_types)
             : ptr_(compose_func_registries(name, family, registry_types, false)),
               family_(family) {}
         virtual ~ExposeBase() = default;
@@ -150,7 +152,7 @@ namespace
 
     protected:
         std::unique_ptr<Function> ptr_;
-        std::string family_;
+        ErrType family_;
 
         template <class Fn>
         Rcpp::NumericVector call_(Fn fn, Rcpp::NumericVector x) const
@@ -180,7 +182,7 @@ namespace
                 if (xn.size() != n)
                     throw std::invalid_argument(
                         "Size of " + msg::arg("xo") + " must be identical to size of " + msg::arg("xn") +
-                        " for " + family_ + " " + msg::val(ptr_->name()) + ".");
+                        " for " + err_type_name(family_) + " " + msg::val(ptr_->name()) + ".");
                 Rcpp::NumericVector y(n);
                 for (R_xlen_t i = 0; i < n; ++i)
                     y[i] = fn(xo[i], xn[i]);
@@ -207,9 +209,11 @@ namespace
     class ExposeFunction : public ExposeBase
     {
     public:
+        static ErrType family() { return ErrType::Function; }
+        static std::vector<Registry> registries() { return {Registry::Custom, Registry::Transcendental, Registry::Arithmetic}; }
+
         ExposeFunction(std::string name_)
-            : ExposeBase(name_, "function",
-                         {"custom", "transcendental", "arithmetic"}) {}
+            : ExposeBase(name_, family(), registries()) {}
 
         MAKE_EXPOSE_METHOD_CALL(func, ptr_->func(v))
         MAKE_EXPOSE_METHOD_CALL(log_func, ptr_->log_func(v))
@@ -220,9 +224,11 @@ namespace
     class ExposeDistribution : public ExposeBase
     {
     public:
+        static ErrType family() { return ErrType::Distribution; }
+        static std::vector<Registry> registries() { return {Registry::Continuos, Registry::Discrete}; }
+
         ExposeDistribution(std::string name_)
-            : ExposeBase(name_, "distribution",
-                         {"continuos", "discrete"}) {}
+            : ExposeBase(name_, family(), registries()) {}
 
         MAKE_EXPOSE_METHOD_CALL(pdf, ptr_->pdf(v))
         MAKE_EXPOSE_METHOD_CALL(log_pdf, distr_()->guarded_log_pdf(v))
@@ -239,7 +245,7 @@ namespace
                 if (n < 0)
                     throw std::invalid_argument(
                         msg::arg("n") + " must be non-negative for " +
-                        family_ + " " + msg::val(ptr_->name()) + ".");
+                        err_type_name(family_) + " " + msg::val(ptr_->name()) + ".");
 
                 // generate seed from R
                 Rcpp::RNGScope scope;
@@ -265,9 +271,11 @@ namespace
     class ExposeInfecProfile : public ExposeBase
     {
     public:
+        static ErrType family() { return ErrType::InfecProfile; }
+        static std::vector<Registry> registries() { return {Registry::InfecProfile, Registry::Continuos, Registry::Discrete}; }
+
         ExposeInfecProfile(std::string name_)
-            : ExposeBase(name_, "infectivity profile",
-                         {"infecprofile", "continuos", "discrete"})
+            : ExposeBase(name_, family(), registries())
         {
             // core errors from the underlying object should say "infectivity
             // profile X", not the Distribution default "distribution X".
@@ -288,6 +296,13 @@ namespace
         auto obj = std::make_unique<Expose>(std::move(name));
         obj->init(args, min, max, discr);
         return obj.release();
+    }
+
+    // List every name the family accepts from the inherent registries.
+    template <class Expose>
+    std::vector<std::string> list_options_()
+    {
+        return registry_options(Expose::registries(), Expose::family());
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1146,7 +1161,7 @@ namespace
         catch (const std::exception &e)
         {
             msg::stop(std::string(e.what()) +
-                       "\nFor household " + msg::val(house_id) + ".");
+                      "\nFor household " + msg::val(house_id) + ".");
         }
     }
 
@@ -1585,6 +1600,10 @@ RCPP_MODULE(housepi)
     Rcpp::function("expose_function", &expose_<ExposeFunction>);
     Rcpp::function("expose_distribution", &expose_<ExposeDistribution>);
     Rcpp::function("expose_infec_profile", &expose_<ExposeInfecProfile>);
+
+    Rcpp::function("list_functions", &list_options_<ExposeFunction>);
+    Rcpp::function("list_distributions", &list_options_<ExposeDistribution>);
+    Rcpp::function("list_infec_profiles", &list_options_<ExposeInfecProfile>);
 
     Rcpp::function("get_DataKey", &get_DataKey);
     Rcpp::function("get_LongKey", &get_LongKey);

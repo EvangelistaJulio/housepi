@@ -93,21 +93,21 @@ test_that("fmt_assert_cli formats messages correctly", {
   expect_true(any(grepl("can be specified", result)))
 })
 
-test_that("browse_housepi_templates branches inform correctly", {
+test_that("browse_templates branches inform correctly", {
   # print existing templates
-  expect_snapshot(browse_housepi_templates())
+  expect_snapshot(browse_templates())
   # non-character name
-  browse_housepi_templates(42) |>
+  browse_templates(42) |>
     expect_error("not a character")
   # unknown name: error mentions "not a known template" and a hint
-  browse_housepi_templates("foxhound") |>
+  browse_templates("foxhound") |>
     expect_error("not a known template")
   # unknown name close to a real one: hint should suggest "Did you mean"
-  browse_housepi_templates("final siz") |>
+  browse_templates("final siz") |>
     expect_error("Did you mean")
 })
 
-test_that("browse_housepi_templates triggers help preview when path is NA", {
+test_that("browse_templates triggers help preview when path is NA", {
   # mock the internal helper so the test never spawns a real previewer
   called_with <- NULL
   with_mocked_bindings(
@@ -116,7 +116,7 @@ test_that("browse_housepi_templates triggers help preview when path is NA", {
       invisible()
     },
     code = {
-      browse_housepi_templates("final_size")
+      browse_templates("final_size")
     }
   )
   expect_true(!is.null(called_with))
@@ -131,12 +131,12 @@ test_that("open_model_helper_ errors when info.Rd is missing", {
     expect_error("Impossible to show model description")
 })
 
-test_that("browse_housepi_templates copies template to a new path", {
+test_that("browse_templates copies template to a new path", {
   dest <- tempfile("solid_snake_")
   on.exit(unlink(dest, recursive = TRUE), add = TRUE)
 
   # first copy: creates the model.cpp
-  browse_housepi_templates("final_size", path = dest)
+  browse_templates("final_size", path = dest)
   initial_mtime <- file.info(file.path(dest, "model.cpp"))$mtime
 
   expect_true(dir.exists(dest))
@@ -147,14 +147,14 @@ test_that("browse_housepi_templates copies template to a new path", {
   expect_false(file.exists(file.path(dest, "augm.R")))
 
   # second copy without replace: warns and does NOT overwrite
-  browse_housepi_templates("final_size", path = dest) |>
+  browse_templates("final_size", path = dest) |>
     expect_warning("already exists")
   expect_equal(file.info(file.path(dest, "model.cpp"))$mtime, initial_mtime)
 
   # with replace = TRUE: overwrites silently
   Sys.sleep(1.1)  # ensure mtime resolution captures the rewrite
   expect_no_warning(
-    browse_housepi_templates("final_size", path = dest, replace = TRUE)
+    browse_templates("final_size", path = dest, replace = TRUE)
   )
   expect_gt(
     as.numeric(file.info(file.path(dest, "model.cpp"))$mtime),
@@ -162,12 +162,12 @@ test_that("browse_housepi_templates copies template to a new path", {
   )
 })
 
-test_that("browse_housepi_templates rejects '.' as destination path", {
+test_that("browse_templates rejects '.' as destination path", {
   sandbox <- tempfile("mantis_")
   dir.create(sandbox)
   on.exit(unlink(sandbox, recursive = TRUE), add = TRUE)
   withr::with_dir(sandbox, {
-    browse_housepi_templates("final_size", path = ".") |>
+    browse_templates("final_size", path = ".") |>
       expect_warning("current directory")
     # helper redirects "." to a folder named after the template
     expect_true(dir.exists("final_size"))
@@ -189,7 +189,7 @@ test_that("Template name normalization", {
   expect_true(any(grepl("Did you mean", result)))
 
   result2 <- find_closest_template_name("")
-  expect_true(any(grepl("browse_housepi_templates", result2)))
+  expect_true(any(grepl("browse_templates", result2)))
 })
 
 test_that("Template extract keys from model.cpp", {

@@ -339,9 +339,4 @@ namespace housepi
 		}
 	};
 
-	/// Compose registries to get a distribution from them.
-	std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
-														   const std::string &err_type,
-														   const std::vector<std::string> &registries,
-														   bool is_cumul = false);
 }

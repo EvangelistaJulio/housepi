@@ -16,6 +16,7 @@
 
 #include "distribution.h"
 #include "function.h"
+#include "registry.h"
 
 namespace housepi
 {
@@ -113,8 +114,11 @@ namespace housepi
         /// prior's (possibly live) domain so draws stay in support. Coverage of the prior
         /// domain by the proposal family is asserted later, in finalize(), once data is bound.
         IndependenceProposal(
-            const std::string &distr_name, const dict<Attribute> &args, const Distribution *prior)
-            : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"}))
+            const std::string &distr_name,
+            const dict<Attribute> &args,
+            const Distribution *prior)
+            : pDistr_(compose_distr_registries(
+                distr_name, ErrType::Proposal, {Registry::Continuos, Registry::Discrete}))
         {
             for (const auto &[key, attr] : args)
                 pDistr_->init_attr(key, attr);
@@ -225,7 +229,7 @@ namespace housepi
             const std::string &distr_name,
             double scale,
             bool is_discrete)
-            : pDistr_(compose_distr_registries(distr_name, "proposal", {"continuos"})),
+            : pDistr_(compose_distr_registries(distr_name, ErrType::Proposal, {Registry::Continuos})),
               is_adaptive_(na::is(scale))
         {
             if (is_discrete)

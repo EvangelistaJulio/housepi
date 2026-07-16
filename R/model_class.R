@@ -717,7 +717,7 @@ HousepiModel <- R6::R6Class(
     print = function() {
       is_tmpl <- !is.na(get_template_dir(private$generator_$raw_name))
       tmpl_tag <- if (is_tmpl) sprintf(
-        " ({.run [template](housepi::browse_housepi_templates(\"%s\"))})",
+        " ({.run [template](housepi::browse_templates(\"%s\"))})",
         self$name
       ) else ""
       header <- c(

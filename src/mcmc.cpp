@@ -143,9 +143,9 @@ namespace housepi
     {
         Attribute parent;
         parent.init_function(compose_func_registries(
-            node.func, "function",
-            {"custom", "transcendental", "arithmetic",
-             "continuos", "discrete", "infecprofile"}));
+            node.func, ErrType::Function,
+            {Registry::Custom, Registry::Transcendental, Registry::Arithmetic,
+             Registry::Continuos, Registry::Discrete, Registry::InfecProfile}));
 
         for (const auto &child : node.children)
             parent.init_func_attr(child.key, to_attribute(child, member_ptr));

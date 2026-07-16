@@ -23,39 +23,41 @@
 
 namespace housepi
 {
+    std::string err_type_name(ErrType type) noexcept
+    {
+        switch (type)
+        {
+        case ErrType::Numeric:
+            return "numeric";
+        case ErrType::Pointer:
+            return "pointer";
+        case ErrType::Function:
+            return "function";
+        case ErrType::Parameter:
+            return "parameter";
+        case ErrType::Augmented:
+            return "augmented";
+        case ErrType::Observation:
+            return "observation";
+        case ErrType::HouseholdObservation:
+            return "household observation";
+        case ErrType::GroupRate:
+            return "group rate";
+        case ErrType::Data:
+            return "data";
+        case ErrType::Distribution:
+            return "distribution";
+        case ErrType::InfecProfile:
+            return "infectivity profile";
+        case ErrType::Proposal:
+            return "proposal";
+        default: // case ErrType::Empty:
+            return "empty";
+        }
+    }
+
     namespace
     {
-        std::string err_type_name_(ErrType type) noexcept
-        {
-            switch (type)
-            {
-            case ErrType::Numeric:
-                return "numeric";
-            case ErrType::Pointer:
-                return "pointer";
-            case ErrType::Function:
-                return "function";
-            case ErrType::Parameter:
-                return "parameter";
-            case ErrType::Augmented:
-                return "augmented";
-            case ErrType::Observation:
-                return "observation";
-            case ErrType::HouseholdObservation:
-                return "household observation";
-            case ErrType::GroupRate:
-                return "group rate";
-            case ErrType::Data:
-                return "data";
-            case ErrType::Distribution:
-                return "distribution";
-            case ErrType::InfecProfile:
-                return "infectivity profile";
-            default: // case ErrType::Empty:
-                return "empty";
-            }
-        }
-
         /// Deduplicated string pool. Shared across models, thus append only.
         /// NOTE: intern should be run only during serial model construction.
         struct NamePool_
@@ -151,7 +153,7 @@ namespace housepi
     }
 
     std::string Attribute::name() const { return name_pool_().at(name_id_); }
-    std::string Attribute::err_name() const { return err_type_name_(err_type_) + " " + msg::val(name()); }
+    std::string Attribute::err_name() const { return err_type_name(err_type_) + " " + msg::val(name()); }
 
     std::string Attribute::str_val() const
     {
@@ -325,7 +327,7 @@ namespace housepi
     {
         std::string sms = "Tried to change non numeric ";
         if (na::is(name()))
-            sms += "empty " + err_type_name_(err_type_);
+            sms += "empty " + err_type_name(err_type_);
         else
             sms += err_name();
         msg::stop(sms + ".");
@@ -383,7 +385,7 @@ namespace housepi
 
     std::string Function::err_name() const
     {
-        return err_type_name_(err_family_) + " " + msg::val(name());
+        return err_type_name(err_family_) + " " + msg::val(name());
     }
 
     [[noreturn]] void Function::raise_undefined_call_err_(const std::string &call_name) const
@@ -508,7 +510,7 @@ namespace housepi
             msg::stop(
                 std::string("Missing non default argument") +
                 (undefined_args.size() > 1 ? "s " : " ") +
-                str::format(undefined_args, str::MAX_PRINT, false) +
+                str::format(undefined_args, false) +
                 " for " + err_name() + ".");
     }
 
@@ -733,56 +735,75 @@ namespace housepi
         return output;
     }
 
+    namespace
+    {
+        /// Resolve a registry to its singleton instance.
+        const FunctionRegistry &registry_instance_(Registry r)
+        {
+            switch (r)
+            {
+            case Registry::Custom:
+                return CustomRegistry::instance();
+            case Registry::Arithmetic:
+                return ArithmeticRegistry::instance();
+            case Registry::Transcendental:
+                return TranscendentalRegistry::instance();
+            case Registry::Continuos:
+                return ContinuosDistribRegistry::instance();
+            case Registry::Discrete:
+                return DiscreteDistribRegistry::instance();
+            case Registry::InfecProfile:
+                return InfecProfileRegistry::instance();
+            }
+            msg::stop("Unknown registry.");
+        }
+
+        /// Resolve registries to their singleton instances, preserving lookup order.
+        std::vector<const FunctionRegistry *> collect_registries_(const std::vector<Registry> &registries,
+                                                                  ErrType err_type)
+        {
+            if (registries.empty())
+                msg::stop(
+                    "No registries were provided for " + err_type_name(err_type) + ".");
+
+            std::vector<const FunctionRegistry *> registry_ptrs = {};
+            registry_ptrs.reserve(registries.size());
+            for (Registry r : registries)
+                registry_ptrs.push_back(&registry_instance_(r));
+
+            return registry_ptrs;
+        }
+    }
+
+    std::vector<std::string> registry_options(const std::vector<Registry> &registries,
+                                              ErrType err_type)
+    {
+        std::vector<std::string> options = {};
+        for (const FunctionRegistry *ptr : collect_registries_(registries, err_type))
+        {
+            const std::vector<std::string> y = ptr->get_options();
+            options.reserve(options.size() + y.size());
+            options.insert(options.end(), y.begin(), y.end());
+        }
+        return str::unique(options);
+    }
+
     std::unique_ptr<Function> compose_func_registries(std::string_view opt,
-                                                      const std::string &err_type,
-                                                      const std::vector<std::string> &registries,
+                                                      ErrType err_type,
+                                                      const std::vector<Registry> &registries,
                                                       bool is_prim)
     {
-        if (registries.empty())
-            msg::stop(
-                "No registries were provided for " + msg::val(err_type) + ".");
-
         // FIXME: this should be an error
         if (na::is(opt))
             return nullptr;
 
-        std::vector<const FunctionRegistry *> registry_ptrs = {};
-        for (const std::string &r : registries)
-            if (r == "custom")
-                registry_ptrs.push_back(&CustomRegistry::instance());
-
-            else if (r == "transcendental")
-                registry_ptrs.push_back(&TranscendentalRegistry::instance());
-
-            else if (r == "arithmetic")
-                registry_ptrs.push_back(&ArithmeticRegistry::instance());
-
-            else if (r == "continuos")
-                registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
-
-            else if (r == "discrete")
-                registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
-
-            else if (r == "infecprofile")
-                registry_ptrs.push_back(&InfecProfileRegistry::instance());
-
-            else
-                msg::stop(
-                    "Unknown " + err_type + " registry " + msg::val(r) + ".");
-
-        std::vector<std::string> options = {};
-        for (const FunctionRegistry *ptr : registry_ptrs)
-        {
+        for (const FunctionRegistry *ptr : collect_registries_(registries, err_type))
             if (ptr->count(opt))
                 return ptr->create(opt, is_prim);
-            const std::vector<std::string> &y = ptr->get_options();
-            options.reserve(options.size() + y.size());
-            options.insert(options.end(), y.begin(), y.end());
-        }
 
         msg::stop(
-            "Unknown " + err_type + " " + msg::val(std::string(opt)) + "." +
-            str::find_closest(opt, options));
+            "Unknown " + err_type_name(err_type) + " " + msg::val(std::string(opt)) + "." +
+            str::find_closest(opt, registry_options(registries, err_type)));
     }
 }
 

@@ -36,8 +36,12 @@ namespace housepi
         GroupRate,
         Data,
         Distribution,
-        InfecProfile
+        InfecProfile,
+        Proposal
     };
+
+    /// Display word for an error type (e.g. "household observation").
+    std::string err_type_name(ErrType type) noexcept;
 
     /// Index into the process-global name pool.
     /// NOTE: distinct names in a session are few.
@@ -620,10 +624,4 @@ namespace housepi
         }
     };
 
-    /// Compose registries to get a function from them.
-    std::unique_ptr<Function> compose_func_registries(
-        std::string_view opt,
-        const std::string &err_type,
-        const std::vector<std::string> &registries,
-        bool is_prim = false);
 }

@@ -64,44 +64,53 @@ namespace housepi
         return output;
     }
 
+    namespace
+    {
+        /// Resolve a registry to its singleton instance.
+        /// Registries holding plain functions are rejected.
+        const DistributionRegistry &distr_registry_instance_(Registry r, ErrType err_type)
+        {
+            switch (r)
+            {
+            case Registry::Continuos:
+                return ContinuosDistribRegistry::instance();
+            case Registry::Discrete:
+                return DiscreteDistribRegistry::instance();
+            case Registry::InfecProfile:
+                return InfecProfileRegistry::instance();
+            default:
+                msg::stop("Registry does not hold " + err_type_name(err_type) + " objects.");
+            }
+        }
+    }
+
     std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
-                                                           const std::string &err_type,
-                                                           const std::vector<std::string> &registries,
+                                                           ErrType err_type,
+                                                           const std::vector<Registry> &registries,
                                                            bool is_cumul)
     {
         if (registries.empty())
             msg::stop(
-                "No registries were provided for " + msg::val(err_type) + ".");
+                "No registries were provided for " + err_type_name(err_type) + ".");
 
-        // FIXME: this should be an error
+        // UPDATE: is this ever used?
         if (na::is(opt))
             return nullptr;
 
-        std::vector<const DistributionRegistry *> registry_ptrs = {};
-        for (const std::string &r : registries)
-            if (r == "continuos")
-                registry_ptrs.push_back(&ContinuosDistribRegistry::instance());
-            else if (r == "discrete")
-                registry_ptrs.push_back(&DiscreteDistribRegistry::instance());
-            else if (r == "infecprofile")
-                registry_ptrs.push_back(&InfecProfileRegistry::instance());
-            else
-                msg::stop(
-                    "Unknown " + err_type + " registry " + msg::val(r) + ".");
-
         std::vector<std::string> options = {};
-        for (const DistributionRegistry *r : registry_ptrs)
+        for (Registry reg : registries)
         {
-            if (r->count(opt))
+            const DistributionRegistry &r = distr_registry_instance_(reg, err_type);
+            if (r.count(opt))
                 return std::unique_ptr<Distribution>(
-                    static_cast<Distribution *>(r->create(opt, is_cumul).release()));
-            const std::vector<std::string> &y = r->get_options();
+                    static_cast<Distribution *>(r.create(opt, is_cumul).release()));
+            const std::vector<std::string> &y = r.get_options();
             options.reserve(options.size() + y.size());
             options.insert(options.end(), y.begin(), y.end());
         }
 
         msg::stop(
-            "Unknown " + err_type + " " + msg::val(std::string(opt)) + "." +
+            "Unknown " + err_type_name(err_type) + " " + msg::val(std::string(opt)) + "." +
             str::find_closest(opt, options));
     }
 }

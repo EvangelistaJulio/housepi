@@ -69,14 +69,14 @@ defs
 defs$func_args
 ```
 
-Here we accessed the definition associated to the model by calling `get_infectivity_profile`. We can "expose" the behaviour of housepi functions by calling `expose_infectivity_profile`. This will generate an object holding the infectivity profile definitions to be used to compute instantaneous and cumulative values of the profile
+Here we accessed the definition associated to the model by calling `get_infectivity_profile`. We can "expose" the behaviour of housepi functions by calling `browse_infectivity_profiles`. This will generate an object holding the infectivity profile definitions to be used to compute instantaneous and cumulative values of the profile
 
 ```{r}
 #| label: plot-continuous-profile
 #| fig-alt: >
 #|  Instantaneous infectivity profile as a function of the generation time in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
-profile <- expose_infectivity_profile(defs$func, defs$func_args)
+profile <- browse_infectivity_profiles(defs$func, defs$func_args)
 
 library(ggplot2)
 
@@ -134,7 +134,7 @@ The discrete profile is now a discretized gamma with the same parameters^[Since 
 #| fig-alt: >
 #|  Discrete instantaneous infectivity profile as a function of the generation day in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
-profile <- expose_infectivity_profile(defs$func, defs$func_args, discr = TRUE)
+profile <- browse_infectivity_profiles(defs$func, defs$func_args, discr = TRUE)
 plot_profile_demo(profile)
 ```
 
@@ -157,7 +157,7 @@ defs
 #| fig-alt: >
 #|  Custom discrete instantaneous infectivity profile in black.
 #|  On a second axis in orange, the corresponding cumulative infectivity profile.
-profile <- expose_infectivity_profile(defs$func, defs$func_args, discr = TRUE)
+profile <- browse_infectivity_profiles(defs$func, defs$func_args, discr = TRUE)
 plot_profile_demo(profile)
 ```
 

@@ -14,7 +14,7 @@ A data frame with 47,213 rows and 3 columns
 data(flu_2014_matsumoto)
 }
 \description{
-Household survey in Matsumoto city for parents having children in primary school.
+Household survey in Matsumoto city for families with children in primary school.
 Report on influenza episodes of family members during the season 2014-15.
 Original observational study from Uchida et al. (2017).
 }

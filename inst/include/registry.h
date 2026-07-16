@@ -7,12 +7,15 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "function.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,6 +128,39 @@ HOUSEPI_DECLARE_REGISTRY_(Transcendental, Function)
 HOUSEPI_DECLARE_REGISTRY_(ContinuosDistrib, Distribution)
 HOUSEPI_DECLARE_REGISTRY_(DiscreteDistrib, Distribution)
 HOUSEPI_DECLARE_REGISTRY_(InfecProfile, Distribution)
+
+namespace housepi
+{
+    /// Used to identify a registry to compose from.
+    enum class Registry : uint8_t
+    {
+        Custom,
+        Arithmetic,
+        Transcendental,
+        Continuos,
+        Discrete,
+        InfecProfile
+    };
+
+    /// Compose registries to get a function from them.
+    std::unique_ptr<Function> compose_func_registries(
+        std::string_view opt,
+        ErrType err_type,
+        const std::vector<Registry> &registries,
+        bool is_prim = false);
+
+    /// Compose registries to get a distribution from them.
+    std::unique_ptr<Distribution> compose_distr_registries(
+        std::string_view opt,
+        ErrType err_type,
+        const std::vector<Registry> &registries,
+        bool is_cumul = false);
+
+    /// List the names registered across the given registries.
+    std::vector<std::string> registry_options(
+        const std::vector<Registry> &registries,
+        ErrType err_type);
+}
 
 #define HOUSEPI_REGISTER_FUNCTION(T, R)                                 \
     namespace                                                           \

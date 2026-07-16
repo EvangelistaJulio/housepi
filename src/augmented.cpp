@@ -33,6 +33,7 @@
 #include "individual.h"
 #include "infec_profile.h"
 #include "parameter.h"
+#include "registry.h"
 #include "variable.h"
 #include "translator.h"
 
@@ -236,9 +237,12 @@ namespace housepi
     std::unique_ptr<Distribution> InfecProfile::helper_build_(Translator &translator, const str_table &input)
     {
         parse::Definition parser(parse::Definition(input.at("func")[0]));
-        auto output = compose_distr_registries(parser.root.func,
-                                               "infectivity profile",
-                                               {"infecprofile", "continuos", "discrete"});
+        
+        std::unique_ptr<Distribution> output = compose_distr_registries(
+            parser.root.func,
+            ErrType::InfecProfile,
+            {Registry::InfecProfile, Registry::Continuos, Registry::Discrete});
+
         for (const auto &node : parser.root.children)
         {
             output->init_attr(node.key, translator.to_attribute(node));
@@ -248,6 +252,7 @@ namespace housepi
         if (is_discrete_requested_ ||
             (input.count("discr") && str::tobool(input.at("discr")[0])))
             output->init_discretization();
+
         return output;
     }
 
@@ -259,8 +264,9 @@ namespace housepi
 
     /// Registries searched when composing an augmented / household-observation
     /// reduction function (shared by per-member and per-household builders).
-    static const std::vector<std::string> AUGM_FUNC_REGISTRIES = {
-        "custom", "transcendental", "arithmetic", "continuos", "discrete", "infecprofile"};
+    static const std::vector<Registry> AUGM_FUNC_REGISTRIES = {
+        Registry::Custom, Registry::Transcendental, Registry::Arithmetic,
+        Registry::Continuos, Registry::Discrete, Registry::InfecProfile};
 
     /// Map a definition's kind label to its typed Kind.
     static Augmented::Kind kind_from_string_(const std::string &s)
@@ -1098,7 +1104,7 @@ namespace housepi
 
             // reduction: compose the (variadic) function once
             hvar.init_function(compose_func_registries(
-                parser.root.func, "function", AUGM_FUNC_REGISTRIES,
+                parser.root.func, ErrType::Function, AUGM_FUNC_REGISTRIES,
                 str::tobool(deftable_.c_fcumul[k])));
 
             // bind operands: a per-member data (@D) column is spread one live operand
@@ -1401,7 +1407,7 @@ namespace housepi
         // function mode
         bool is_primitive = str::tobool(deftable_.c_fcumul[k]);
         avar.init_function(compose_func_registries(
-            parser.root.func, "function", AUGM_FUNC_REGISTRIES, is_primitive));
+            parser.root.func, ErrType::Function, AUGM_FUNC_REGISTRIES, is_primitive));
 
         // attribute
         for (const auto &child : parser.root.children)
@@ -1491,7 +1497,7 @@ namespace housepi
                 msg::stop(
                     "Exceeded attempts to initialize augmented variables of " +
                     member.err_name() + " due to observations.\n" +
-                    "Widen augmented prior of " + str::format(str::unique(augm_dep), 3, false) +
+                    "Widen augmented prior of " + str::format(str::unique(augm_dep), false, 3) +
                     ", revise the observation domain of " + msg::val(deftable_.c_name[k]) +
                     ", or check the observed individual data.");
 

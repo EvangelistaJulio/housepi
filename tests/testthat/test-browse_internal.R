@@ -4,21 +4,34 @@ trapezoid <- function(x, y) {
   0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
 }
 
+#######################################
+## BROWSE INTERNAL : AVAILABLE NAMES ##
+#######################################
+
+# NOTE: the custom registry is populated at DLL load, so `growth` joins the
+# function listing once test-model_generator.R compiles inst/examples/custom.
+# This file sorts first, hence the snapshot sees a pristine registry.
+test_that("Available names listing is stable", {
+  expect_snapshot(browse_functions())
+  expect_snapshot(browse_distributions())
+  expect_snapshot(browse_infectivity_profiles())
+})
+
 ########################################
-## EXPOSE INTERNAL : MEMORY STABILITY ##
+## BROWSE INTERNAL : MEMORY STABILITY ##
 ########################################
 
 test_that("Expose function has no leaks", {
   mem_used_mb <- function() gc()["Vcells", "(Mb)"]
 
-  fun <- expose_function("sin")
+  fun <- browse_functions("sin")
   rm(fun)
   invisible(gc())
   mem_before <- mem_used_mb()
 
   # heavy allocation loop
   for (i in seq_len(200)) {
-    fun <- expose_function("sin")
+    fun <- browse_functions("sin")
     rm(fun)
     if (i %% 20 == 0) gc()
   }
@@ -27,13 +40,13 @@ test_that("Expose function has no leaks", {
 })
 
 #################################
-## EXPOSE INTERNAL : FUNCTIONS ##
+## BROWSE INTERNAL : FUNCTIONS ##
 #################################
 
 test_that("Power function is correct", {
   x <- seq(0.1, 10, 0.1)
   x2 <- 3
-  fn <- expose_function("pow", x2 = x2)
+  fn <- browse_functions("pow", x2 = x2)
   expect_equal(fn$args(), c(x2 = x2))
   expect_equal(fn$func(x), x^x2)
   expect_equal(fn$prim(x), x^(x2 + 1) / (x2 + 1))
@@ -44,24 +57,24 @@ test_that("Power function is correct", {
     expect_error("[Ss]ize")
 
   # x2 = -1 primitive uses log(|x|)
-  expect_equal(expose_function("pow", x2 = -1)$prim(x), log(abs(x)))
+  expect_equal(browse_functions("pow", x2 = -1)$prim(x), log(abs(x)))
   # x2 = 0.5 equals sqrt
-  expect_equal(expose_function("pow", x2 = 0.5)$func(x), sqrt(x))
+  expect_equal(browse_functions("pow", x2 = 0.5)$func(x), sqrt(x))
 
   # error cases
-  expose_function("pow")$func(x) |>
+  browse_functions("pow")$func(x) |>
     expect_error("Missing non default")
-  expose_function("pow", 5) |>
+  browse_functions("pow", 5) |>
     expect_error("Unnamed argument")
-  expose_function("pow", x2 = 5, y2 = 3) |>
+  browse_functions("pow", x2 = 5, y2 = 3) |>
     expect_error("Unused argument.*y2.*[Dd]id you mean")
-  expose_function("pow", discr = TRUE)$func(x) |>
+  browse_functions("pow", discr = TRUE)$func(x) |>
     expect_error("undefined method")
 })
 
 test_that("Square root function is correct", {
   x <- seq(0.1, 10, 0.1)
-  fn <- expose_function("sqrt")
+  fn <- browse_functions("sqrt")
   expect_equal(fn$func(x), sqrt(x))
   expect_equal(fn$prim(x), x^1.5 / 1.5)
   expect_equal(fn$log_func(x), 0.5 * log(x))
@@ -73,7 +86,7 @@ test_that("Square root function is correct", {
 
 test_that("Exponential function is correct", {
   x <- seq(-5, 5, 0.1)
-  fn <- expose_function("exp")
+  fn <- browse_functions("exp")
   expect_equal(fn$func(x), exp(x))
   expect_equal(fn$prim(x), exp(x))
   expect_equal(fn$log_func(x), x)
@@ -84,13 +97,13 @@ test_that("Exponential function is correct", {
 
   # location parameter
   loc_val <- 1.5
-  expect_equal(expose_function("exp", loc = loc_val)$func(x), exp(x - loc_val))
-  expect_equal(expose_function("exp", loc = loc_val)$prim(x), exp(x - loc_val))
+  expect_equal(browse_functions("exp", loc = loc_val)$func(x), exp(x - loc_val))
+  expect_equal(browse_functions("exp", loc = loc_val)$prim(x), exp(x - loc_val))
 })
 
 test_that("Logarithm function is correct", {
   x <- seq(1.1, 20, 0.1)
-  fn <- expose_function("log")
+  fn <- browse_functions("log")
   expect_equal(fn$func(x), log(x))
   expect_equal(fn$prim(x), x * log(x) - x)
   expect_equal(fn$log_func(x), log(log(x)))
@@ -102,7 +115,7 @@ test_that("Logarithm function is correct", {
 
 test_that("Sine function is correct", {
   x <- seq(0.1, pi - 0.1, 0.05)
-  fn <- expose_function("sin")
+  fn <- browse_functions("sin")
   expect_equal(fn$func(x), sin(x))
   expect_equal(fn$prim(x), -cos(x))
   expect_equal(fn$log_func(x), log(sin(x)))
@@ -114,14 +127,14 @@ test_that("Sine function is correct", {
   # location parameter: sin(x + pi/2) = cos(x)
   x_full <- seq(-10, 10, 0.1)
   expect_equal(
-    expose_function("sin", loc = -0.5 * pi)$func(x_full),
+    browse_functions("sin", loc = -0.5 * pi)$func(x_full),
     cos(x_full)
   )
 })
 
 test_that("Cosine function is correct", {
   x <- seq(-pi / 2 + 0.1, pi / 2 - 0.1, 0.05)
-  fn <- expose_function("cos")
+  fn <- browse_functions("cos")
   expect_equal(fn$func(x), cos(x))
   expect_equal(fn$prim(x), sin(x))
   expect_equal(fn$log_func(x), log(cos(x)))
@@ -133,7 +146,7 @@ test_that("Cosine function is correct", {
 
 test_that("Tangent function is correct", {
   x <- seq(0.1, pi / 2 - 0.1, 0.05)
-  fn <- expose_function("tan")
+  fn <- browse_functions("tan")
   expect_equal(fn$func(x), tan(x))
   expect_equal(fn$log_func(x), log(tan(x)))
   expect_equal(
@@ -147,7 +160,7 @@ test_that("Tangent function is correct", {
 
 test_that("Minus function is correct", {
   x <- seq(-5, 5, 0.5)
-  fn <- expose_function("minus")
+  fn <- browse_functions("minus")
   expect_equal(fn$func(x), -x)
   # default raw_log_ratio returns 0
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
@@ -159,9 +172,9 @@ test_that("Minus function is correct", {
 
 test_that("Subtraction function is correct", {
   x <- seq(-5, 5, 0.5)
-  fn <- expose_function("sub", x2 = 3)
+  fn <- browse_functions("sub", x2 = 3)
   expect_equal(fn$func(x), x - 3)
-  expect_equal(expose_function("sub", x2 = 0)$func(x), x)
+  expect_equal(browse_functions("sub", x2 = 0)$func(x), x)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
   fn$prim(x) |>
     expect_error("undefined method")
@@ -171,9 +184,9 @@ test_that("Subtraction function is correct", {
 
 test_that("Division function is correct", {
   x <- seq(-5, 5, 0.5)
-  fn <- expose_function("div", x2 = 4)
+  fn <- browse_functions("div", x2 = 4)
   expect_equal(fn$func(x), x / 4)
-  expect_equal(expose_function("div", x2 = 1)$func(x), x)
+  expect_equal(browse_functions("div", x2 = 1)$func(x), x)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
   fn$prim(x) |>
     expect_error("undefined method")
@@ -183,7 +196,7 @@ test_that("Division function is correct", {
 
 test_that("Summation function is correct", {
   args <- c(3.3, 5.5, 6.6)
-  fn <- expose_function("sum", args)
+  fn <- browse_functions("sum", args)
   expect_equal(fn$func(0), sum(args))
   expect_equal(fn$log_ratio(0, pi), 0)
   fn$prim(0) |>
@@ -194,7 +207,7 @@ test_that("Summation function is correct", {
 
 test_that("Product function is correct", {
   args <- c(3.3, 5.5, 6.6)
-  fn <- expose_function("prod", args)
+  fn <- browse_functions("prod", args)
   expect_equal(fn$func(1), prod(args))
   expect_equal(fn$log_ratio(1, pi), 0)
   fn$prim(1) |>
@@ -205,7 +218,7 @@ test_that("Product function is correct", {
 
 test_that("Minimum function is correct", {
   args <- c(3.3, 5.5, 6.6)
-  fn <- expose_function("min", args)
+  fn <- browse_functions("min", args)
   expect_equal(fn$func(2), 2)
   expect_equal(fn$log_ratio(2, pi), 0)
   fn$prim(2) |>
@@ -216,7 +229,7 @@ test_that("Minimum function is correct", {
 
 test_that("Maximum function is correct", {
   args <- c(3.3, 5.5, 6.6)
-  fn <- expose_function("max", args)
+  fn <- browse_functions("max", args)
   expect_equal(fn$func(2), 6.6)
   expect_equal(fn$log_ratio(2, pi), 0)
   fn$prim(2) |>
@@ -230,7 +243,7 @@ test_that("Round function is correct", {
   # while R's round() uses round-half-to-even (crazy...)
   x <- c(-2.7, -1.3, -0.3, 0.0, 0.4, 1.3, 2.7)
   x_int <- c(-3, -1, 0, 2, 4)
-  fn <- expose_function("round")
+  fn <- browse_functions("round")
   expect_equal(fn$func(x), round(x))
   expect_equal(fn$func(x_int), x_int)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
@@ -243,7 +256,7 @@ test_that("Round function is correct", {
 test_that("Ceil function is correct", {
   x <- c(-2.7, -1.3, -0.3, 0.0, 0.4, 1.3, 2.7)
   x_int <- c(-3, -1, 0, 2, 4)
-  fn <- expose_function("ceil")
+  fn <- browse_functions("ceil")
   expect_equal(fn$func(x), ceiling(x))
   expect_equal(fn$func(x_int), x_int)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
@@ -256,7 +269,7 @@ test_that("Ceil function is correct", {
 test_that("Floor function is correct", {
   x <- c(-2.7, -1.3, -0.3, 0.0, 0.4, 1.3, 2.7)
   x_int <- c(-3, -1, 0, 2, 4)
-  fn <- expose_function("floor")
+  fn <- browse_functions("floor")
   expect_equal(fn$func(x), floor(x))
   expect_equal(fn$func(x_int), x_int)
   expect_equal(fn$log_ratio(x, x + pi), rep(0, length(x)))
@@ -267,14 +280,14 @@ test_that("Floor function is correct", {
 })
 
 #####################################
-## EXPOSE INTERNAL : DISTRIBUTIONS ##
+## BROWSE INTERNAL : DISTRIBUTIONS ##
 #####################################
 
 # Assert pdf, cdf, log_pdf and log_ratio of an exposed distribution against
 # user-supplied R reference d/p functions.
 expect_distribution_matches <- function(name, args = list(), ref_d, ref_p,
                                         x = seq(-20, 20, 1), h = pi) {
-  distr <- do.call(expose_distribution, c(list(name), args))
+  distr <- do.call(browse_distributions, c(list(name), args))
   expect_equal(distr$pdf(x), ref_d(x))
   expect_equal(distr$cdf(x), ref_p(x))
   expect_equal(distr$log_pdf(x), log(distr$pdf(x)))
@@ -288,7 +301,7 @@ test_that("Truncated binomial is correct", {
   x <- seq(1, 10, 1)
   size <- 12
   prob <- 0.2
-  distr <- expose_distribution("binomial", list(size = size, prob = prob),
+  distr <- browse_distributions("binomial", list(size = size, prob = prob),
     min = 1
   )
   shift <- stats::pbinom(0, size, prob)
@@ -354,7 +367,7 @@ test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
 
 test_that("Categorical distribution is correct", {
   # unnormalized weights still give a normalized pmf
-  distr <- expose_distribution("categorical", fortune = 2, fatman = 1, vamp = 7)
+  distr <- browse_distributions("categorical", fortune = 2, fatman = 1, vamp = 7)
   pmf <- c(0.2, 0.1, 0.7)
   expect_equal(distr$pdf(0:2), pmf)
   expect_equal(distr$pdf(c(-1, 3)), c(0, 0))
@@ -368,25 +381,25 @@ test_that("Categorical distribution is correct", {
   distr$log_ratio(c(0, 1), c(1, 2)) |>
     expect_equal(log(pmf[c(2, 3)] / pmf[c(1, 2)]))
 
-  expose_distribution("categorical") |>
+  browse_distributions("categorical") |>
     expect_error("no weights")
-  expose_distribution("categorical", peace = 1, walker = -2) |>
+  browse_distributions("categorical", peace = 1, walker = -2) |>
     expect_error("non-strictly positive")
 })
 
 test_that("Default parameters match R reference for d", {
   x <- seq(-20, 20, 1)
-  expect_equal(expose_distribution("normal")$pdf(x), stats::dnorm(x))
-  expect_equal(expose_distribution("uniform")$pdf(x), stats::dunif(x))
-  expect_equal(expose_distribution("lognormal")$pdf(x), stats::dlnorm(x))
-  expect_equal(expose_distribution("exponential")$pdf(x), stats::dexp(x))
+  expect_equal(browse_distributions("normal")$pdf(x), stats::dnorm(x))
+  expect_equal(browse_distributions("uniform")$pdf(x), stats::dunif(x))
+  expect_equal(browse_distributions("lognormal")$pdf(x), stats::dlnorm(x))
+  expect_equal(browse_distributions("exponential")$pdf(x), stats::dexp(x))
 })
 
 test_that("Normal both-sided truncation is correct", {
   low <- 0
   up <- 5
   x <- seq(-20, 20, 1)
-  distr <- expose_distribution("normal", mean = 2, sd = 3, min = low, max = up)
+  distr <- browse_distributions("normal", mean = 2, sd = 3, min = low, max = up)
   ref_d <- function(x) stats::dnorm(x, 2, 3)
   ref_p <- function(x) stats::pnorm(x, 2, 3)
   zz <- ref_p(up) - ref_p(low)
@@ -401,9 +414,9 @@ test_that("Normal both-sided truncation is correct", {
 })
 
 test_that("Gamma accepts shape/scale and mean/var parametrizations", {
-  expose_distribution("gamma", mean = 2, scale = 1.1) |>
+  browse_distributions("gamma", mean = 2, scale = 1.1) |>
     expect_error("mix")
-  expose_distribution("gamma", shape = 2, var = 1.1) |>
+  browse_distributions("gamma", shape = 2, var = 1.1) |>
     expect_error("mix")
 
   m <- 2.5
@@ -411,8 +424,8 @@ test_that("Gamma accepts shape/scale and mean/var parametrizations", {
   shape <- m * m / v
   scale <- v / m
   x <- seq(0.1, 12, 0.3)
-  d_can <- expose_distribution("gamma", shape = shape, scale = scale)
-  d_alt <- expose_distribution("gamma", mean = m, var = v)
+  d_can <- browse_distributions("gamma", shape = shape, scale = scale)
+  d_alt <- browse_distributions("gamma", mean = m, var = v)
   expect_equal(d_can$pdf(x), d_alt$pdf(x))
   expect_equal(d_can$cdf(x), d_alt$cdf(x))
   expect_equal(d_can$log_pdf(x), d_alt$log_pdf(x))
@@ -435,7 +448,7 @@ test_that("CDF and quantile make sense", {
     list(name = "rayleigh", scale = 2)
   )
   for (d in distrs) {
-    distr <- do.call(expose_distribution, d)
+    distr <- do.call(browse_distributions, d)
     cdf_vals <- distr$cdf(x)
     pdf_vals <- distr$pdf(x)
     expect_true(all(diff(cdf_vals) >= -1e-12))
@@ -448,21 +461,21 @@ test_that("CDF and quantile make sense", {
 test_that("CDF is the integral of PDF for continuous distributions", {
   # gamma: integrate pdf from 0 to 15, expect cdf(15)
   x <- seq(0.001, 15, length.out = 3000)
-  distr <- expose_distribution("gamma", shape = 2, scale = 1.5)
+  distr <- browse_distributions("gamma", shape = 2, scale = 1.5)
   expect_equal(trapezoid(x, distr$pdf(x)), distr$cdf(tail(x, 1)),
     tolerance = 1e-3
   )
 
   # lognormal: integrate pdf from 0 to 20, expect cdf(20)
   x <- seq(0.001, 20, length.out = 3000)
-  distr <- expose_distribution("lognormal", meanlog = 1, sdlog = 0.5)
+  distr <- browse_distributions("lognormal", meanlog = 1, sdlog = 0.5)
   expect_equal(trapezoid(x, distr$pdf(x)), distr$cdf(tail(x, 1)),
     tolerance = 1e-3
   )
 
   # rayleigh: integrate pdf from 0 to 12, expect cdf(12)
   x <- seq(0.001, 12, length.out = 3000)
-  distr <- expose_distribution("rayleigh", scale = 2)
+  distr <- browse_distributions("rayleigh", scale = 2)
   expect_equal(trapezoid(x, distr$pdf(x)), distr$cdf(tail(x, 1)),
     tolerance = 1e-3
   )
@@ -472,17 +485,17 @@ test_that("CDF equals cumsum of PDF for discrete distributions", {
   x <- seq(0, 20, 1)
 
   # poisson: CDF(k) = sum of PMF from 0 to k
-  distr <- expose_distribution("poisson", lambda = 5)
+  distr <- browse_distributions("poisson", lambda = 5)
   expect_equal(distr$cdf(x), cumsum(distr$pdf(x)), tolerance = 1e-10)
 
   # geometric: CDF(k) = sum of PMF from 0 to k
-  distr <- expose_distribution("geometric", prob = 0.3)
+  distr <- browse_distributions("geometric", prob = 0.3)
   expect_equal(distr$cdf(x), cumsum(distr$pdf(x)), tolerance = 1e-10)
 })
 
 test_that("Non-integer x maps to floor for Discrete::Defined distributions", {
   lambda <- 3
-  distr <- expose_distribution("poisson", lambda = lambda)
+  distr <- browse_distributions("poisson", lambda = lambda)
   x_floor <- seq(0, 9, 1)
   for (k in x_floor) {
     # pdf at k and any value in [k, k+1) should be identical
@@ -495,7 +508,7 @@ test_that("Lognormal truncation is correct", {
   min_val <- 1
   max_val <- 5
   x <- seq(0, 8, 0.5)
-  distr <- expose_distribution("lognormal",
+  distr <- browse_distributions("lognormal",
     meanlog = 1, sdlog = 0.5,
     min = min_val, max = max_val
   )
@@ -518,7 +531,7 @@ test_that("Exponential truncation at max is correct", {
   rate <- 0.3
   max_val <- 5
   x <- seq(0, 8, 0.5)
-  distr <- expose_distribution("exponential", rate = rate, max = max_val)
+  distr <- browse_distributions("exponential", rate = rate, max = max_val)
 
   exppdf <- function(x) stats::dexp(x, rate = rate)
   expcdf <- function(x) stats::pexp(x, rate = rate)
@@ -534,7 +547,7 @@ test_that("Exponential truncation at max is correct", {
 test_that("Discretized exponential uses left-discretization", {
   rate <- 0.4
   x <- seq(0, 5, 1)
-  distr <- expose_distribution("exponential", rate = rate, discr = TRUE)
+  distr <- browse_distributions("exponential", rate = rate, discr = TRUE)
 
   # left discretization: pdf(k) = pexp(k+1) - pexp(k)
   expcdf <- function(x) stats::pexp(x, rate = rate)
@@ -547,7 +560,7 @@ test_that("Discretized gamma uses left-discretization", {
   shape <- 2
   scale <- 1.5
   x <- seq(0, 10, 1)
-  distr <- expose_distribution("gamma",
+  distr <- browse_distributions("gamma",
     shape = shape,
     scale = scale, discr = TRUE
   )
@@ -560,7 +573,7 @@ test_that("Discretized normal uses center-discretization", {
   mu <- 5
   sd <- 2
   x <- seq(0, 10, 1)
-  distr <- expose_distribution("normal", mean = mu, sd = sd, discr = TRUE)
+  distr <- browse_distributions("normal", mean = mu, sd = sd, discr = TRUE)
 
   # center discretization: pdf(k) = pnorm(k+0.5) - pnorm(k-0.5)
   normcdf <- function(x) stats::pnorm(x, mean = mu, sd = sd)
@@ -571,7 +584,7 @@ test_that("Discretized normal stays finite far in the upper tail", {
   # far above the mean both CDFs round to 1 and the naive difference cancels
   # to 0 (-Inf log-pmf); the complementary-CDF branch keeps it finite.
   x <- seq(9, 30, 1)
-  distr <- expose_distribution("normal", mean = 0, sd = 1, discr = TRUE)
+  distr <- browse_distributions("normal", mean = 0, sd = 1, discr = TRUE)
 
   # the bug this guards against: naive CDF difference underflows to exactly 0
   naive <- stats::pnorm(x + 0.5) - stats::pnorm(x - 0.5)
@@ -594,7 +607,7 @@ test_that("Discretized lognormal stays finite far in the upper tail", {
   meanlog <- 0
   sdlog <- 0.5
   x <- seq(60, 200, 5)
-  distr <- expose_distribution("lognormal",
+  distr <- browse_distributions("lognormal",
     meanlog = meanlog, sdlog = sdlog, discr = TRUE
   )
 
@@ -615,7 +628,7 @@ test_that("Discretized gamma stays finite far in the upper tail", {
   shape <- 2
   scale <- 1.5
   x <- seq(60, 120, 5)
-  distr <- expose_distribution("gamma",
+  distr <- browse_distributions("gamma",
     shape = shape, scale = scale, discr = TRUE
   )
 
@@ -632,7 +645,7 @@ test_that("Discretized gamma stays finite far in the upper tail", {
 })
 
 test_that("rand() draws are reproducible and statistically plausible", {
-  d <- expose_distribution("normal", mean = 2, sd = 3)
+  d <- browse_distributions("normal", mean = 2, sd = 3)
   set.seed(42L)
   x1 <- d$rand(50L)
   set.seed(42L)
@@ -659,28 +672,28 @@ test_that("rand() draws are reproducible and statistically plausible", {
 
 test_that("rand() honours location shift (relocate_ Active branch)", {
   loc_val <- 5
-  d <- expose_distribution("normal", mean = 0, sd = 1, loc = loc_val)
+  d <- browse_distributions("normal", mean = 0, sd = 1, loc = loc_val)
   expect_equal(d$pdf(loc_val), stats::dnorm(0))
   set.seed(11L)
   expect_equal(mean(d$rand(20000L)), loc_val, tolerance = 0.05)
 })
 
 test_that("rand() on truncated distribution lands inside the bounds", {
-  d <- expose_distribution("normal", mean = 0, sd = 1, min = -1, max = 2)
+  d <- browse_distributions("normal", mean = 0, sd = 1, min = -1, max = 2)
   set.seed(5L)
   x <- d$rand(5000L)
   expect_true(all(x >= -1 & x <= 2))
 })
 
 test_that("quantile returns NA outside [0, 1]", {
-  distr <- expose_distribution("normal", mean = 0, sd = 1)
+  distr <- browse_distributions("normal", mean = 0, sd = 1)
   expect_true(is.na(distr$quantile(-0.1)))
   expect_true(is.na(distr$quantile(1.5)))
   expect_true(all(is.na(distr$quantile(c(-2, -0.001, 1.001, 7.7)))))
 })
 
 test_that("quantile at boundaries returns +-Inf when domain is unbounded", {
-  distr <- expose_distribution("normal", mean = 0, sd = 1)
+  distr <- browse_distributions("normal", mean = 0, sd = 1)
   expect_equal(distr$quantile(0), -Inf)
   expect_equal(distr$quantile(1), Inf)
 })
@@ -689,7 +702,7 @@ test_that("discretized normal log_pdf, cdf and log_ratio go through Center branc
   mu <- 5
   sd <- 2
   x <- seq(0, 10, 1)
-  distr <- expose_distribution("normal", mean = mu, sd = sd, discr = TRUE)
+  distr <- browse_distributions("normal", mean = mu, sd = sd, discr = TRUE)
 
   normcdf <- function(x) stats::pnorm(x, mean = mu, sd = sd)
   expected_pmf <- normcdf(x + 0.5) - normcdf(x - 0.5)
@@ -713,7 +726,7 @@ test_that("discretized lognormal log_pdf equals log(pdf) (Left branch)", {
   # instead of its log. log_ratio_ Left was already correct, so this
   # asymmetry is what made the bug invisible to MCMC delta computations.
   x <- seq(0, 8, 1)
-  distr <- expose_distribution("lognormal",
+  distr <- browse_distributions("lognormal",
     meanlog = 1, sdlog = 0.5,
     discr = TRUE
   )
@@ -729,7 +742,7 @@ test_that("upper-only truncated normal covers Trunc::Max", {
   sd <- 1
   max_val <- 1.5
   x <- seq(-3, 3, 0.5)
-  distr <- expose_distribution("normal", mean = mu, sd = sd, max = max_val)
+  distr <- browse_distributions("normal", mean = mu, sd = sd, max = max_val)
 
   normpdf <- function(x) stats::dnorm(x, mean = mu, sd = sd)
   normcdf <- function(x) stats::pnorm(x, mean = mu, sd = sd)
@@ -747,7 +760,7 @@ test_that("discretized normal with upper-only truncation exercises Center cdf_up
   sd <- 1.5
   max_val <- 4
   x <- seq(-2, 6, 1)
-  distr <- expose_distribution("normal",
+  distr <- browse_distributions("normal",
     mean = mu, sd = sd,
     max = max_val, discr = TRUE
   )
@@ -803,7 +816,7 @@ test_that("quantile matches R reference for standard distributions", {
     )
   )
   for (case in cases) {
-    distr <- do.call(expose_distribution, case$args)
+    distr <- do.call(browse_distributions, case$args)
     expect_equal(distr$quantile(p), case$ref(p), info = case$args[[1]])
   }
 })
@@ -836,7 +849,7 @@ test_that("quantile is truncation-aware", {
     )
   )
   for (case in cases) {
-    distr <- do.call(expose_distribution, case$args)
+    distr <- do.call(browse_distributions, case$args)
     expect_equal(distr$quantile(p), case$ref(p),
       tolerance = 1e-10, info = case$args[[1]]
     )
@@ -850,14 +863,14 @@ test_that("quantile is truncation-aware", {
 })
 
 test_that("Beta rejects discrete option", {
-  expose_distribution("beta", shape1 = 2, shape2 = 3, discr = TRUE) |>
+  browse_distributions("beta", shape1 = 2, shape2 = 3, discr = TRUE) |>
     expect_error("invalid.*discrete")
 })
 
 test_that("Beta rejects out-of-domain truncation bounds", {
-  expose_distribution("beta", shape1 = 2, shape2 = 3, min = -0.5) |>
+  browse_distributions("beta", shape1 = 2, shape2 = 3, min = -0.5) |>
     expect_error("min")
-  expose_distribution("beta", shape1 = 2, shape2 = 3, max = 1.5) |>
+  browse_distributions("beta", shape1 = 2, shape2 = 3, max = 1.5) |>
     expect_error("max")
 })
 
@@ -867,7 +880,7 @@ test_that("Beta truncation normalises correctly", {
   a <- 2
   b <- 5
   x <- seq(0, 1, 0.05)
-  d <- expose_distribution("beta", shape1 = a, shape2 = b, min = low, max = up)
+  d <- browse_distributions("beta", shape1 = a, shape2 = b, min = low, max = up)
   ref_d <- function(x) stats::dbeta(x, a, b)
   ref_p <- function(x) stats::pbeta(x, a, b)
   zz <- ref_p(up) - ref_p(low)
@@ -877,7 +890,7 @@ test_that("Beta truncation normalises correctly", {
 test_that("Beta rand() produces plausible draws", {
   a <- 2
   b <- 5
-  d <- expose_distribution("beta", shape1 = a, shape2 = b)
+  d <- browse_distributions("beta", shape1 = a, shape2 = b)
   set.seed(99L)
   x1 <- d$rand(50L)
   set.seed(99L)
@@ -892,25 +905,25 @@ test_that("Beta rand() produces plausible draws", {
 test_that("Gamma pdf and log_pdf handle x == 0 across shape regimes", {
   scale <- 2
   # test case: shape < 1
-  d1 <- expose_distribution("gamma", shape = 0.5, scale = scale)
+  d1 <- browse_distributions("gamma", shape = 0.5, scale = scale)
   expect_equal(d1$pdf(0), Inf)
   expect_equal(d1$log_pdf(0), Inf)
 
   # test case: shape == 1
-  d2 <- expose_distribution("gamma", shape = 1, scale = scale)
+  d2 <- browse_distributions("gamma", shape = 1, scale = scale)
   expect_equal(d2$pdf(0), 1 / scale)
   expect_equal(d2$log_pdf(0), -log(scale))
 
   # test case: shape > 1
-  d3 <- expose_distribution("gamma", shape = 2, scale = scale)
+  d3 <- browse_distributions("gamma", shape = 2, scale = scale)
   expect_equal(d3$pdf(0), 0)
   expect_equal(d3$log_pdf(0), -Inf)
 })
 
 test_that("Binomial rejects out-of-domain truncation bounds", {
-  expose_distribution("binomial", size = 10, prob = 0.5, min = -1) |>
+  browse_distributions("binomial", size = 10, prob = 0.5, min = -1) |>
     expect_error("min")
-  expose_distribution("binomial", size = 10, prob = 0.5, min = 11) |>
+  browse_distributions("binomial", size = 10, prob = 0.5, min = 11) |>
     expect_error("max")
 })
 
@@ -942,7 +955,7 @@ test_that("rand() is reproducible and plausible for all distributions", {
     )
   )
   for (cc in cases) {
-    d <- do.call(expose_distribution, cc$args)
+    d <- do.call(browse_distributions, cc$args)
     nm <- cc$args[[1]]
     set.seed(42L)
     x1 <- d$rand(50L)
@@ -963,28 +976,28 @@ test_that("rand() is reproducible and plausible for all distributions", {
 })
 
 ############################################
-## EXPOSE INTERNAL : INFECTIVITY PROFILES ##
+## BROWSE INTERNAL : INFECTIVITY PROFILES ##
 ############################################
 
 test_that("Ferretti20 infectivity profile behave has expected", {
   x <- seq(0, 15, 0.001)
-  profile <- expose_infectivity_profile("ferretti20", incub_period = 5)
+  profile <- browse_infectivity_profiles("ferretti20", incub_period = 5)
   expect_equal(trapezoid(x, profile$inst(x)), profile$cumul(x)[length(x)])
 
   # left discretization works as expected
   x <- seq(1.0, 1.9, 0.1)
-  profile <- expose_infectivity_profile("ferretti20", incub_period = 5, discr = TRUE)
+  profile <- browse_infectivity_profiles("ferretti20", incub_period = 5, discr = TRUE)
   expect_true(all(profile$inst(x) == profile$cumul(1)))
 })
 
 ####################################
-## EXPOSE INTERNAL : PRINT METHOD ##
+## BROWSE INTERNAL : PRINT METHOD ##
 ####################################
 
 test_that("Exposed object print behavior is stable", {
-  expect_snapshot(print(expose_function("pow", x2 = 3)))
-  expect_snapshot(print(expose_distribution("normal", mean = 2, sd = 3)))
-  expect_snapshot(print(expose_infectivity_profile("gamma", shape = 2, scale = 1)))
+  expect_snapshot(print(browse_functions("pow", x2 = 3)))
+  expect_snapshot(print(browse_distributions("normal", mean = 2, sd = 3)))
+  expect_snapshot(print(browse_infectivity_profiles("gamma", shape = 2, scale = 1)))
   # no-argument object prints only the header
-  expect_snapshot(print(expose_function("sin")))
+  expect_snapshot(print(browse_functions("sin")))
 })

@@ -32,6 +32,7 @@
 #include "individual.h"
 #include "parameter.h"
 #include "proposal.h"
+#include "registry.h"
 #include "variable.h"
 #include "translator.h"
 
@@ -90,7 +91,8 @@ namespace housepi
     {
         if (na::is(opt))
             return;
-        pDistr_ = compose_distr_registries(opt, "distribution", {"continuos", "discrete"});
+        pDistr_ = compose_distr_registries(
+            opt, ErrType::Distribution, {Registry::Continuos, Registry::Discrete});
     }
 
     void Variable::init_prior_attr(std::string_view key, const Attribute &attr)
@@ -532,8 +534,8 @@ namespace housepi
 
         // function mode
         xparam.init_function(compose_func_registries(
-            parser.root.func, "function",
-            {"custom", "transcendental", "arithmetic"}));
+            parser.root.func, ErrType::Function,
+            {Registry::Custom, Registry::Transcendental, Registry::Arithmetic}));
 
         // bind function arguments
         for (const auto &child : parser.root.children)

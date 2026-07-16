@@ -222,7 +222,7 @@ namespace housepi::str
     }
 
     std::string format(const std::vector<std::string> &options,
-                       size_t max_print, bool add_dot)
+                       bool add_full_stop, size_t max_print)
     {
         if (options.empty())
             return "";
@@ -232,8 +232,8 @@ namespace housepi::str
         for (size_t i = 1; i < max_print; ++i)
             output += ", " + msg::val(options[i]);
         if (options.size() > max_print)
-            output += add_dot ? ", .." : ", ...";
-        else if (add_dot)
+            output += ", ...";
+        else if (add_full_stop)
             output += ".";
         return output;
     }
@@ -294,11 +294,13 @@ namespace housepi::str
 
     std::string find_closest(std::string_view input,
                              const std::vector<std::string> &options,
-                             size_t min_dist,
-                             bool show_avail_options)
+                             size_t min_dist)
     {
         std::string closest = "";
         size_t dist_closest = min_dist;
+
+        if (options.empty() || min_dist == 0)
+            return "";
 
         for (const std::string &x : options)
         {
@@ -311,16 +313,10 @@ namespace housepi::str
         }
 
         // prepare a message
-        if (options.empty())
-            return "";
-        if (dist_closest == 0)
-            return "";
         if (!closest.empty())
-            return " Did you mean " + msg::val(closest) + "?";
-        if (!show_avail_options)
-            return "";
+            return "\nDid you mean " + msg::val(closest) + "?";
         if (options.size() == 1)
-            return " Available option is " + format(options, 1);
+            return "\nAvailable option is " + format(options);
         return "\nAvailable options are: " + format(options);
     }
 }

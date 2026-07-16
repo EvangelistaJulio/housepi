@@ -170,7 +170,7 @@ test_that("user paths, flags and libs reach the compile command", {
 
 test_that("as_template is refused for a built-in template", {
   expect_warning(hhgen <- HousepiGenerator$new("test", as_template = TRUE),
-                 regexp = "browse_housepi_templates")
+                 regexp = "browse_templates")
   # construction still succeeds
   expect_false(is.null(hhgen$mcmc_ptr))
 })
@@ -193,7 +193,7 @@ test_that("as_template is dropped on the 'test' fallback", {
 test_that("a session-loaded template warns when compile flags change", {
   path <- file.path(tempdir(), "shadow_moses")
   on.exit(unlink(path, recursive = TRUE), add = TRUE)
-  browse_housepi_templates("case_ascertained", path, replace = TRUE)
+  browse_templates("case_ascertained", path, replace = TRUE)
 
   # build + load a discrete template, recording its flags in a sidecar
   HousepiGenerator$new(path, discr = TRUE, as_template = TRUE, quiet = TRUE)
@@ -223,7 +223,7 @@ test_that("an error is raised when tracked referen is lost", {
   dest <- tempfile("solid_snake_")
   on.exit(unlink(dest, recursive = TRUE), add = TRUE)
 
-  browse_housepi_templates("final_size", path = dest)
+  browse_templates("final_size", path = dest)
   hhgen <- HousepiGenerator$new(dest, quiet = TRUE)
   unlink(hhgen$get_reference())
 
@@ -283,7 +283,7 @@ test_that("Modules do not get overwritten", {
 
 test_that("Custom models shares function registries", {
   hhmodel_0 <- new_housepi_model(model = "test")
-  expose_function("growth") |>
+  browse_functions("growth") |>
     expect_error("Unknown function")
 
   # compile example
@@ -301,7 +301,7 @@ test_that("Custom models shares function registries", {
   x <- seq(0, 3, 0.5)
   initial <- 2
   rate <- 0.5
-  fn <- expose_function("growth", initial = initial, rate = rate)
+  fn <- browse_functions("growth", initial = initial, rate = rate)
   expect_equal(fn$func(x), initial * exp(rate * x))
   expect_equal(fn$prim(x), initial * exp(rate * x) / rate)
   fn$log_func(x) |>

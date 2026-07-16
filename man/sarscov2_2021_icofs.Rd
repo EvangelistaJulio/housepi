@@ -22,10 +22,10 @@ Contacts averaged 3 tests during follow-up.
 \describe{
 \item{id}{Individual identifier}
 \item{house_id}{Household identifier}
-\item{status}{Follow-up outcome: 0 uninfected, 1 symptomatic, 2 asymptomatic}
+\item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic}
 \item{age}{Age class, adult or child}
 \item{sex}{Sex}
-\item{start_date}{Follow-up start: household's first in-window positive PCR}
+\item{start_date}{Follow-up start: household's first positive PCR}
 \item{end_date}{Follow-up end: last date the household is still observed}
 \item{test_date}{Date of the first positive test within the follow-up}
 \item{vacc_status}{Vaccination status at the follow-up start}
@@ -34,14 +34,11 @@ Contacts averaged 3 tests during follow-up.
 \item{asymptomatic}{Whether asymptomatic}
 }
 
-Original data from household transmission study conducted in Israel, 2021.
-
-Each household is followed from its first in-window positive PCR test
-(\code{start_date}) until the last date it is still observed
-(\code{end_date}), the latest in-window positive or negative test. Positive
-tests predating the Delta wave are treated as prior infection rather than as
-an index case, and vaccination status reflects the doses effective at the
-follow-up start.
+Each household is followed from its first positive SARS-CoV-2 PCR test
+following from July 2021 (\code{start_date}),
+until the latest in-window positive or negative test (\code{end_date}).
+Vaccination status (\code{vacc_status}) reflects the doses effective
+at the start of the follow-up, assuming a 7 days delay for effectiveness.
 
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}

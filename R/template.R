@@ -104,7 +104,7 @@ find_closest_template_name <- function(x) {
   # NOTE: avoid to attempt a suggestion for silly mistakes
   sms <- find_closest_match(flat_choice, flat_options)
   if (stringr::str_ends(sms, "\\?") && nchar(flat_choice) > 3) return(sms)
-  c("Show available templates calling {.fn browse_housepi_templates}.")
+  c("Show available templates calling {.fn browse_templates}.")
 }
 
 #' @title
@@ -120,7 +120,7 @@ show_model_names <- function() {
   sms <- c(i = "Available template models:")
   for (m in formatted_names) {
     link <- sprintf(
-      "{.run [%s](housepi::browse_housepi_templates(\"%s\"))}", m, m
+      "{.run [%s](housepi::browse_templates(\"%s\"))}", m, m
     )
     sms <- c(sms, paste0(cli::symbol$bullet, " ", link))
   }
@@ -228,9 +228,9 @@ open_model_helper_ <- function(path) {
 #'
 #' @examples
 #' # list all available templates
-#' browse_housepi_templates()
+#' browse_templates()
 #' @export
-browse_housepi_templates <- function(name = NA_character_,
+browse_templates <- function(name = NA_character_,
                                      path = NA_character_,
                                      replace = FALSE) {
   if (is.na(name)) show_model_names()

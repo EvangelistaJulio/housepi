@@ -35,8 +35,8 @@ namespace housepi::str
     std::string format(double x);
     /// Format a list of string options.
     std::string format(const std::vector<std::string> &options,
-                       size_t max_print = MAX_PRINT,
-                       bool add_dot = true);
+                       bool add_full_stop = true,
+                       size_t max_print = MAX_PRINT);
 
     /// Wheter a string starts with a pattern.
     bool starts_with(std::string_view s, std::string_view pattern) noexcept;
@@ -51,6 +51,5 @@ namespace housepi::str
     /// NOTE: I find 'show all available options' annoying at the moment...
     std::string find_closest(std::string_view input,
                              const std::vector<std::string> &options,
-                             size_t min_dist = MIN_DIST,
-                             bool show_avail_options = false);
+                             size_t min_dist = MIN_DIST);
 }

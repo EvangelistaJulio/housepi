@@ -125,7 +125,7 @@ To see the list of currently available model templates, run
 ```{r}
 #| label: list-templates
 # present the list of template model name
-browse_housepi_templates()
+browse_templates()
 ```
 
 Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i.e. "final_size" is equivalent to "final size".].
@@ -135,7 +135,7 @@ To know more about each model, choose a name from the previous list and run, e.g
 #| label: model-help
 #| eval: false
 # show model description in RStudio help window
-browse_housepi_templates("final_size")
+browse_templates("final_size")
 ```
 
 This command will open the relative documentation file in the Help window of your RStudio session.
