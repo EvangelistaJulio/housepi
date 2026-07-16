@@ -4,6 +4,7 @@ test_that("Reject if calling on non-HousepiModel objects", {
   obj <- "not a model"
   err <- "must be of class"
   add_data_long(obj, data.frame()) |> expect_error(err)
+  add_data_wide(obj, data.frame()) |> expect_error(err)
   get_data_wide(obj) |> expect_error(err)
   get_data_long(obj) |> expect_error(err)
   get_parameters(obj) |> expect_error(err)

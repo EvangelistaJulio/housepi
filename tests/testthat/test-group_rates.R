@@ -116,6 +116,31 @@ test_that("Group rates integrate with data and exposes to Cpp format", {
   expect_true(all(cpp_tbl$sex %in% c(1L, 2L)))
 })
 
+test_that("Group rates hold without data and re-derive on add_data_wide", {
+  # rates ingest data: a data-less model holds them, no rate params yet
+  metalgear <- new_housepi_model(model = "final_size") |>
+    add_parameter_template() |>
+    add_group_rate("susceptibility", by = "member")
+  expect_silent(metalgear)
+  expect_false(any(grepl("^sus_member", metalgear$parameters$name)))
+
+  # attaching data materialises the rate parameters and runs
+  diamond <- add_data_wide(metalgear, flu_2014_matsumoto)
+  full_params <- diamond$parameters$name
+  expect_true(any(grepl("^sus_member", full_params)))
+  expect_true(is.finite(evaluate_log_lik(diamond)))
+
+  # replacing data re-derives: a single-level subset drops the stale rate params
+  student <- flu_2014_matsumoto[flu_2014_matsumoto$member == "student", ]
+  mother_base <- add_data_wide(diamond, student)
+  expect_false(any(grepl("^sus_member", mother_base$parameters$name)))
+  expect_true(is.finite(evaluate_log_lik(mother_base)))
+
+  # re-attaching the full data restores the exact original parameter set
+  restored <- add_data_wide(mother_base, flu_2014_matsumoto)
+  expect_setequal(restored$parameters$name, full_params)
+})
+
 test_that("Group rates sentinels work correctly", {
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("final_size")

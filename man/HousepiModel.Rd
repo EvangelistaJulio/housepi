@@ -64,7 +64,9 @@ used to run inference and simulation routines.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data}}{\code{data.frame} Household data used for analysis (wide format).}
+\item{\code{data}}{\code{data.frame} Household data used for analysis (wide format).
+Optional at construction; if omitted, attach it later with
+\link[=add_data_wide]{add_data_wide()}.}
 
 \item{\code{model}}{\code{character(1)} Choice for the model.
 One between:

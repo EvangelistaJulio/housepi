@@ -7,7 +7,9 @@
 measure_ar_by_hhsize(data_wide)
 }
 \arguments{
-\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
+\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).
+Optional at construction; if omitted, attach it later with
+\link[=add_data_wide]{add_data_wide()}.}
 }
 \value{
 \code{data.frame}

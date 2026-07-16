@@ -197,7 +197,9 @@ rd_summ_sizes_ <- "`data.frame`, one row per metric:
   \\item{percent}{percentage of individuals}
 }"
 
-rd_add_wide_ <- "`data.frame` Household data used for analysis (wide format)."
+rd_add_wide_ <- "`data.frame` Household data used for analysis (wide format).
+Optional at construction; if omitted, attach it later with
+[add_data_wide()][housepi::add_data_wide]."
 
 rd_simul_nrep_ <-  "`integer(1)` Number of replicates to generate.
 If `param_table` is `NULL`, all replicates share the same parameters.

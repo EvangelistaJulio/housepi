@@ -5,9 +5,9 @@ library(testthat)
 ##################################
 
 test_that("Model class inconsistent calls", {
-  # non-test models require data_wide at construction
+  # non-test models may construct without data (held until the wall)
   new_housepi_model(model = "final_size") |>
-    expect_error("data")
+    expect_silent()
 
   # test household model object
   hhmodel <- new_housepi_model(model = "test")
@@ -43,6 +43,32 @@ test_that("Model class inconsistent calls", {
     add_parameter_template() |>
     run_inference() |>
     expect_error("missing status")
+})
+
+test_that("Wide data can be deferred and attached with add_data_wide", {
+  # construct without data: silent, no data exposed
+  hhmodel <- new_housepi_model(model = "final_size") |>
+    add_parameter_template() |>
+    expect_silent()
+  expect_null(hhmodel$data_wide)
+  expect_output(print(hhmodel))
+
+  # the wall (evaluate/simulate) refuses a data-less model
+  hhmodel |>
+    evaluate_log_lik() |>
+    expect_error("[Nn]o household data")
+
+  # attach data later: now populated and runnable
+  snake <- add_data_wide(hhmodel, flu_2014_matsumoto)
+  expect_s3_class(snake$data_wide, "data.frame")
+  expect_equal(nrow(snake$data_wide), nrow(flu_2014_matsumoto))
+  expect_true(is.finite(evaluate_log_lik(snake)))
+
+  # bad inputs rejected by the wrapper
+  add_data_wide(hhmodel, NULL) |>
+    expect_error("data")
+  add_data_wide(hhmodel, "ocelot") |>
+    expect_error("data.frame")
 })
 
 test_that("Active fields are read-only", {

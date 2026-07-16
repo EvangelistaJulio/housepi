@@ -46,6 +46,26 @@ stopifnothousepi <- function(hhmodel) {
   )
 }
 
+#' @title Attach household wide-format data to a housepi model
+#' @description
+#' Make an internal copy of the provided household data in wide format,
+#' (re)building any definitions that depend on it.
+#' @param hhmodel `r rd_model_in_`
+#' @param data `r rd_add_wide_`
+#' @return `r rd_model_out_`
+#' @export
+add_data_wide <- function(hhmodel, data) {
+  stopifnothousepi(hhmodel)
+  if (is.null(data)) stop_h("Missing argument {.arg data}.")
+  new_obj <- hhmodel$copy()
+  pvt <- new_obj$.__enclos_env__$private
+  # drop stale rate params (read pre-change tables) before re-importing data
+  pvt$reconcile_rate_params_()
+  pvt$set_data_wide_(assert_household_data(data, NA_character_))
+  pvt$rebuild_()
+  new_obj
+}
+
 #' @title Attach individual-level long-format data to a housepi model
 #' @description
 #' Make an internal copy of the provided data in long format.

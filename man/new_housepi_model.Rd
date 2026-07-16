@@ -15,7 +15,9 @@ new_housepi_model(
 )
 }
 \arguments{
-\item{data}{\code{data.frame} Household data used for analysis (wide format).}
+\item{data}{\code{data.frame} Household data used for analysis (wide format).
+Optional at construction; if omitted, attach it later with
+\link[=add_data_wide]{add_data_wide()}.}
 
 \item{model}{\code{character(1)} Choice for the model.
 One between:

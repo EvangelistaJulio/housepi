@@ -102,6 +102,11 @@ HousepiModel <- R6::R6Class(
     # @param capital `logical(1)` to raise error.
     assert_data_wide_ = function(capital = TRUE, simulating = FALSE) {
       cols <- private$generator_$cols_data_wide
+      # no data attached at all: capital error at the wall
+      if (isTRUE(capital) && length(cols) == 0) stop_h(
+        "No household data attached.",
+        `!` = "Attach it with {.fn add_data_wide}."
+      )
       required <- private$get_all_required_data_wide_()
 
       # observations are generated during simulation: not required
@@ -113,8 +118,8 @@ HousepiModel <- R6::R6Class(
       house_obs <- private$augm_$house_observ_names
       clash <- intersect(house_obs, cols)
       if (isTRUE(capital) && length(clash) > 0) stop_h(
-        "Household observation {.field {clash}} cannot stand in for required data.",
-        `!` = "It is already provided as a data column."
+        "Household observation {.field {clash}} cannot stand in for data.",
+        `!` = "A data column {.field {clash}} is already provided."
       )
       cols <- c(cols, intersect(house_obs, required))
 
@@ -206,6 +211,30 @@ HousepiModel <- R6::R6Class(
     build_contact_rates_ = function() {
       private$assert_contact_rates_()
       private$helper_build_rates_(private$contact_rates_)
+    },
+
+    # @description
+    # Factorize and push wide-format data to the C++ engine.
+    # Data is assumed validated (non-null data.frame).
+    # Definitions are (re)built by the caller via `rebuild_()`.
+    set_data_wide_ = function(data) {
+      data_factorized <- private$generator_$factorize_data_wide(data)
+      # soft check: data may be intentionally incomplete
+      # hard check at the wall
+      private$assert_data_wide_(capital = FALSE)
+      .engine$import_data_wide(private$generator_$mcmc_ptr, data_factorized)
+      invisible(self)
+    },
+
+    # @description
+    # Drop current rate-derived parameters so data change re-derives them.
+    # Reads the pre-change logic tables.
+    # NOTE: must run before the next `rebuild_()` rates re-implementation.
+    reconcile_rate_params_ = function() {
+      stale <- c(names(private$group_rates_$parameters),
+                 names(private$contact_rates_$parameters))
+      for (p in stale) private$param_$remove(p)
+      invisible(self)
     },
 
     # @description
@@ -320,7 +349,8 @@ HousepiModel <- R6::R6Class(
       status_dict <- private$status_dictionary_()
       if (private$generator_$escaped %in% status_dict) stop_h(
         paste("Infected status {.val {private$generator_$escaped}} collides",
-              "with the escaped-status label ({.val {private$generator_$escaped}})."),
+              "with the escaped-status label",
+              "({.val {private$generator_$escaped}})."),
         "Rename the status or define a different {.code escaped =} label."
       )
       if (length(private$augm_$defs) > 0) private$assert_augm_(FALSE, FALSE)
@@ -405,7 +435,8 @@ HousepiModel <- R6::R6Class(
       stop_h(c(
         paste("Posterior draws would exceed the memory budget",
               "({round(budget / 2^30)} GB)."),
-        "Consider increasing {.arg thin}, or reducing {.arg {c('steps', 'chains')}}."
+        paste("Consider increasing {.arg thin},",
+              "or reducing {.arg {c('steps', 'chains')}}.")
       ))
     },
 
@@ -569,6 +600,8 @@ HousepiModel <- R6::R6Class(
     #' One row per individual index by corresponding ID.
     data_wide = function(value) {
       if (!missing(value)) stop_read_only("data_wide")
+      # no data attached yet (deferred until add_data_wide() or the wall)
+      if (length(private$generator_$cols_data_wide) == 0) return(NULL)
       private$generator_$refactor_data_wide(
         .engine$export_data_wide(private$generator_$mcmc_ptr)
       )
@@ -651,6 +684,7 @@ HousepiModel <- R6::R6Class(
       if (isTRUE(.housepi_env$hollow)) return(invisible(self))
 
       # check data and enable dummy_household behavior
+      # NOTE: NULL data is allowed; attach later with add_data_wide()
       data <- assert_household_data(data, model)
 
       # initialize internal fields
@@ -660,15 +694,8 @@ HousepiModel <- R6::R6Class(
         model = model, as_template = as_template,
         force = force, quiet = quiet, escaped = escaped, ...
       )
-      # factorize data in order to pass it to Cpp
-      data_factorized <- private$generator_$factorize_data_wide(data)
-
-      # soft check: data may be intentionally incomplete at construction
-      # NOTE: hard check lives at build_full_
-      private$assert_data_wide_(capital = FALSE)
-      .engine$import_data_wide(
-        private$generator_$mcmc_ptr, data_factorized
-      )
+      # import data, if provided (no user definitions to rebuild yet)
+      if (!is.null(data)) private$set_data_wide_(data)
 
       invisible(self)
     },
@@ -832,7 +859,9 @@ HousepiModel <- R6::R6Class(
     export_house_snapshot = function(house_id) {
       house_id <- as.character(house_id)
       # export household snapshot
-      out <- .engine$export_house_snapshot(private$generator_$mcmc_ptr, house_id)
+      out <- .engine$export_house_snapshot(
+        private$generator_$mcmc_ptr, house_id
+      )
       out$data_wide <- private$generator_$refactor_data_wide(out$data_wide)
       # > data long
       if (all(dim(out$data_long) == 0)) out$data_long <- NULL

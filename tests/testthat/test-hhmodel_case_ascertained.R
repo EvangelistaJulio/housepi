@@ -767,7 +767,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
     add_augmented_template() |>
     add_house_observation(start_date = min(test_date@D)) |>
     evaluate_log_lik() |>
-    expect_error("already provided as a data column")
+    expect_error("already provided")
 
   # forbidden household observation depending on parameters
   base |>

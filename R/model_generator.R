@@ -24,7 +24,8 @@ assert_household_data <- function(data, model) {
   }
 
   if (is.null(data)) {
-    if (!.is_test_model(model)) stop_h("Missing argument {.arg data}.")
+    # data may be supplied later with add_data_wide(): held until the wall
+    if (!.is_test_model(model)) return(NULL)
     env <- new.env(parent = emptyenv())
     utils::data("dummy_household", package = "housepi", envir = env)
     return(env$dummy_household)

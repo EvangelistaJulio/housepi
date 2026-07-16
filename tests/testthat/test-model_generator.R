@@ -11,8 +11,9 @@ test_that("assert_household_data validates inputs", {
     expect_error("new_housepi_model")
   assert_household_data(data.frame(), NA_character_) |>
     expect_error("empty")
+  # NULL data is deferred for non-test models (attach later via add_data_wide)
   assert_household_data(NULL, NA_character_) |>
-    expect_error("Missing argument")
+    expect_null()
   assert_household_data(NULL, "test") |>
     expect_s3_class("data.frame")
 })
