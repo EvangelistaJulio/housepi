@@ -17,7 +17,8 @@ add_contact_rate(
   min = NA_real_,
   max = NA_real_,
   proposal = NA_character_,
-  prefix = NA_character_
+  prefix = NA_character_,
+  import = NULL
 )
 }
 \arguments{
@@ -75,6 +76,9 @@ Independence samplers draw a fresh value from a distribution:
 \code{NA} defaults to \code{"rw"}.}
 
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters.}
+
+\item{import}{Named \code{list} with the arguments of a single pre-built
+contact rate definition. Cannot be combined with the explicit arguments.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

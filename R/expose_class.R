@@ -624,6 +624,7 @@ add_group_rate <-  function(hhmodel,
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
 #' @param prefix `r rd_ctr_prefix_`
+#' @param import `r rd_ctr_import_`
 #' @return `r rd_model_out_`
 #' @export
 add_contact_rate <- function(hhmodel, by = NA_character_, ...,
@@ -633,19 +634,23 @@ add_contact_rate <- function(hhmodel, by = NA_character_, ...,
                              prior = NA_character_,
                              min = NA_real_, max = NA_real_,
                              proposal = NA_character_,
-                             prefix = NA_character_) {
-  # FIXME: missing an import for contact-rate
+                             prefix = NA_character_,
+                             import = NULL) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$contact_rates_$add_quo(
-    by = by, reference = reference,
-    joint = joint, symmetric = symmetric,
-    strata = strata, params = params,
+
+  # contact rate holds a single definition:
+  # import a named arg list, or the explicit arguments
+  def <- import
+  if (is.null(def)) def <- list(
+    by = by, reference = reference, joint = joint,
+    symmetric = symmetric, strata = strata, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, prefix = prefix
   )
+  do.call(pvt$contact_rates_$add_quo, def)
   pvt$rebuild_()
   new_obj
 }

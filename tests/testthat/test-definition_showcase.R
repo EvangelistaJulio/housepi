@@ -76,7 +76,6 @@ test_that("Showcase extract args extracts function arguments", {
   expect_equal(result[[1]], NA_real_)
 
   # non-character, non-NA element: returns c(element, NA_real_)
-  # FIXME:
   result <- showcase_extract_args(list(7))
   expect_equal(result[[1]], c(7, NA_real_))
 })

@@ -181,10 +181,10 @@ test_that("run_inference rejects invalid setup arguments", {
     add_parameter_template()
   hhmodel |>
     run_inference(steps = 5, burn = 10) |>
-    expect_error(regex = "[Bb]urn")
+    expect_error("[Bb]urn")
   hhmodel |>
     run_inference(steps = 5, thin = 10) |>
-    expect_error(regex = "[Tt]hin")
+    expect_error("[Tt]hin")
   # threads-clamp warning and short-run diagnostic both fire here
   expect_warning(
     expect_warning(
@@ -279,12 +279,13 @@ test_that("Single infected member log-likelihood is correct", {
   pos <- housepi:::eval_chain_binomial_debugger_(B, Q)
   log_lik <- neg_log + log(pos)
 
-  # define housepi model
-  hhmodel <- new_housepi_model(house, "final_size")
-  hhmodel <- add_group_rate(hhmodel, import = groups)
-  hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts))
-  hhmodel <- add_parameter(hhmodel, import = par, append = FALSE)
-  expect_equal(log_lik, evaluate_log_lik(hhmodel))
+  new_housepi_model(house, "final_size") |>
+    add_group_rate(import = groups) |>
+    add_contact_rate(import = contacts) |>
+    # FIXME: this overwrites group rate parameters, opaque to user and risky
+    add_parameter(import = par, append = FALSE) |>
+    evaluate_log_lik() |>
+    expect_equal(log_lik)
 })
 
 #####################################################
@@ -304,10 +305,10 @@ test_that("Three infected members likelihood is correct", {
   # CASE 1: no infected
   hhmodel <- house |>
     dplyr::mutate(status = 0) |>
-    new_housepi_model("final_size")
-  hhmodel <- add_group_rate(hhmodel, import = groups)
-  hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts))
-  hhmodel <- add_parameter(hhmodel, import = par, append = FALSE)
+    new_housepi_model("final_size") |>
+    add_group_rate(import = groups) |>
+    add_contact_rate(import = contacts) |>
+    add_parameter(import = par, append = FALSE)
   log_lik <- -sum(commu_infec_rate)
   expect_equal(evaluate_log_lik(hhmodel), log_lik)
 
@@ -315,9 +316,8 @@ test_that("Three infected members likelihood is correct", {
   n_infec <- sum(house$status > 0)
   hhmodel <- house |>
     new_housepi_model("final_size") |>
-    add_group_rate(import = groups)
-  # FIXME: missing an import for contact-rate
-  hhmodel <- do.call(add_contact_rate, c(list(hhmodel), contacts)) |>
+    add_group_rate(import = groups) |>
+    add_contact_rate(import = contacts) |>
     add_parameter(import = par, append = FALSE)
 
   # escape probabilities restricted to seropositives
@@ -333,9 +333,9 @@ test_that("Three infected members likelihood is correct", {
   expect_equal(evaluate_log_lik(hhmodel), log_lik)
 })
 
-##################################################
-## FINAL SIZE HH MODEL : REAL CASE LOG-LIKE ##
-##################################################
+####################################################
+## FINAL SIZE HH MODEL : REAL CASE LOG-LIKELIHOOD ##
+####################################################
 
 test_that("Chain binomial runs ok on real case with partitions", {
   hhmodel <- flu_2014_matsumoto |>

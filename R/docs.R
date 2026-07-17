@@ -169,6 +169,8 @@ rd_ctr_symmetric_ <- "`logical(1)` Treat covariates as joint.
 If `FALSE`, covariates are independent (default)."
 rd_ctr_strata_ <- rd_grr_strata_
 rd_ctr_params_ <- rd_grr_params_
+rd_ctr_import_ <- "Named `list` of pre-built definition to import.
+Cannot be combined with the single definition."
 
 ############################################################################
 ############################################################################

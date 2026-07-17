@@ -165,9 +165,9 @@ test_that("Group rates sentinels work correctly", {
     add_group_rate("susceptibility", by = "sex", max = 3) |>
     expect_error("spare prior arguments")
 
-  # FIXME: this should fire!
-  # hhmodel |>
-  #   add_group_rate("susceptibility", by = "age")
+  hhmodel |>
+    add_group_rate("susceptibility", by = "test_date") |>
+    expect_error("must be a scalar")
 })
 
 test_that("Group rates reference support behaves as expected", {
@@ -187,22 +187,24 @@ test_that("Group rates reference support behaves as expected", {
 })
 
 test_that("Parameter options work correctly", {
-  grp <- HousepiGroupRate$new()
-  aux_add(grp, "peace", by = c("age", "sex"),
-          prior = "uniform", min = 0, max = 10, joint = TRUE)
+  grp <- HousepiGroupRate$new() |>
+    aux_add("peace", by = c("age", "sex"),
+            prior = "uniform", min = 0, max = 10, joint = TRUE)
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
-  expect_equal(grp$parameters[[1]],
-               list(prior = "uniform", min = 0, max = 10,
-                    proposal = NA_character_))
+  grp$parameters[[1]] |>
+    expect_equal(
+      list(prior = "uniform", min = 0, max = 10, proposal = NA_character_)
+    )
 
-  grp <- HousepiGroupRate$new()
-  aux_add(grp, "walker", by = c("age", "sex"),
-          prior = "gamma", shape = 2, scale = 1, joint = TRUE)
+  grp <- HousepiGroupRate$new() |>
+    aux_add("walker", by = c("age", "sex"),
+            prior = "gamma", shape = 2, scale = 1, joint = TRUE)
   expect_silent(grp$implement(dummy_df, dummy_factor_info))
-  expect_equal(grp$parameters[[1]],
-               list(prior = "gamma", shape = "2|N", scale = "1|N",
-                    min = NA_real_, max = NA_real_,
-                    proposal = NA_character_))
+  grp$parameters[[1]] |>
+    expect_equal(
+      list(prior = "gamma", shape = "2|N", scale = "1|N",
+           min = NA_real_, max = NA_real_, proposal = NA_character_)
+    )
 })
 
 test_that("Load list works as expected", {
@@ -255,7 +257,6 @@ test_that("Group rates deal with custom logic table correctly", {
 })
 
 test_that("Group rate parameter overrides work", {
-  grp <- HousepiGroupRate$new()
   strata <- data.frame(age = c("child", "adult", "elderly"),
                        param_name = c(".reference", "sus_old", "sus_elderly"))
   overrides <- list(
@@ -264,8 +265,9 @@ test_that("Group rate parameter overrides work", {
                        min = NA_real_, max = 10,
                        proposal = "rw_log", proposal_scale = 1)
   )
-  aux_add(grp, name = "susceptibility", strata = strata,
-          params = overrides, prior = "gamma", shape = 2, scale = 1)
+  grp <- HousepiGroupRate$new() |>
+    aux_add(name = "susceptibility", strata = strata,
+            params = overrides, prior = "gamma", shape = 2, scale = 1)
 
   expect_length(grp$parameters, 2)
   # overrides used instead of raw params
@@ -273,23 +275,24 @@ test_that("Group rate parameter overrides work", {
   expect_equal(grp$parameters$sus_elderly$prior, "lognormal")
   expect_equal(grp$parameters$sus_elderly$sdlog, 1.2)
 
-  aux_add(grp, name = "susceptibility",
-          strata = data.frame(sex = c("M", "F"),
-                              param_name = c("smtg", ".reference")),
-          params = list(unknown = 2.4)) |>
+  grp |>
+    aux_add(name = "susceptibility",
+            strata = data.frame(
+              sex = c("M", "F"), param_name = c("smtg", ".reference")
+            ),
+            params = list(unknown = 2.4)) |>
     expect_error("unknown")
 })
 
 test_that("Group rate implementation preserves strata entries", {
-  grp <- HousepiGroupRate$new()
-
-  # add a standard auto-mode rate
-  aux_add(grp, "community", by = "age", prefix = "com")
-
-  # add a custom-mode rate
-  aux_add(grp, name = "infectivity",
-          strata = data.frame(age = c("adult", "child"),
-                              param_name = c("inf_old", ".reference")))
+  grp <- HousepiGroupRate$new() |>
+    # add a standard auto-mode rate
+    aux_add("community", by = "age", prefix = "com") |>
+    # add a custom-mode rate
+    aux_add(name = "infectivity",
+            strata = data.frame(
+              age = c("adult", "child"), param_name = c("inf_old", ".reference")
+            ))
 
   # implement should build by-mode and preserve strata-mode
   grp$implement(dummy_df, dummy_factor_info)
@@ -307,9 +310,8 @@ test_that("Group rate implementation preserves strata entries", {
 })
 
 test_that("Group rate mixed auto and custom modes", {
-  grp <- HousepiGroupRate$new()
-
-  aux_add(grp, "community", by = "age", prefix = "com")
+  grp <- HousepiGroupRate$new() |>
+    aux_add("community", by = "age", prefix = "com")
   grp$implement(dummy_df, dummy_factor_info)
   expect_true("community" %in% names(grp$logic_tables))
 

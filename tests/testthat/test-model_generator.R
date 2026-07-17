@@ -40,8 +40,10 @@ test_that("Model generator inconsistent calls are caught", {
 
 test_that("Model choice helper handles malformed input", {
   # NA falls back to 'test' with a warning
-  expect_warning(hhgen <- HousepiGenerator$new(NA_character_),
-                 regexp = "test")
+  expect_warning(
+    hhgen <- HousepiGenerator$new(NA_character_),
+    regexp = "test"
+  )
   expect_equal(hhgen$name, "test")
   expect_true(hhgen$is_test_model())
 
@@ -170,8 +172,10 @@ test_that("user paths, flags and libs reach the compile command", {
 })
 
 test_that("as_template is refused for a built-in template", {
-  expect_warning(hhgen <- HousepiGenerator$new("test", as_template = TRUE),
-                 regexp = "browse_templates")
+  expect_warning(
+    hhgen <- HousepiGenerator$new("test", as_template = TRUE),
+    regexp = "browse_templates"
+  )
   # construction still succeeds
   expect_false(is.null(hhgen$mcmc_ptr))
 })

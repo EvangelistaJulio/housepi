@@ -646,7 +646,6 @@ test_that("Augmented degenerate range warns and collapses", {
     add_parameter("d_dog", prior = "uniform") |>
     add_augmented("d_horse", prior = "uniform", min = 5, max = 5)
   expect_warning(
-    # FIXME double check this
     tryCatch(
       run_inference(hhmodel, steps = 10, chains = 1, adapt = 0, thin = 1),
       error = function(e) NULL

@@ -187,12 +187,13 @@ test_that("Unsupported parameter definitions throw errors", {
   hhmodel <- new_housepi_model(model = "test")
 
   # eager rebuild: errors surface at definition, not at run_inference
-  add_parameter(hhmodel, "a", prior = "uniform", min = ~ min_val@D) |>
+  hhmodel |>
+    add_parameter("a", prior = "uniform", min = min_val@D) |>
     expect_error("not supported")
   # hint is thrown
-  # FIXME: no-append exposes bug: faulty definition "a" stays stored!
-  # add_parameter(hhmodel, b = list(prior = "uniform", min = min_val)) |>
-  #   expect_error("rlang injection")
+  hhmodel |>
+    add_parameter("b", prior = "uniform", min = min_val) |>
+    expect_error("rlang injection")
 })
 
 test_that("Degenerate range raises an error for parameters", {
@@ -236,24 +237,25 @@ test_that("Discretization is enabled as expected", {
   discr <- TRUE
   val <- list(min = 1, max = 5)
   hhmodel <- new_housepi_model(model = "test")
-  hhmodel <- add_parameter(hhmodel,
-    sample = list(
-      prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-      proposal = "prior", min = !!val$min, max = !!val$max
-    ),
-    uniform = list(
-      prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-      proposal = "rw_unif", min = !!val$min, max = !!val$max
-    ),
-    normal = list(
-      prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-      proposal = "rw", min = !!val$min, max = !!val$max
-    ),
-    lognormal = list(
-      prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-      proposal = "rw_log", min = !!val$min, max = !!val$max
+  hhmodel <- hhmodel |>
+    add_parameter(
+      sample = list(
+        prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+        proposal = "prior", min = !!val$min, max = !!val$max
+      ),
+      uniform = list(
+        prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+        proposal = "rw_unif", min = !!val$min, max = !!val$max
+      ),
+      normal = list(
+        prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+        proposal = "rw", min = !!val$min, max = !!val$max
+      ),
+      lognormal = list(
+        prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+        proposal = "rw_log", min = !!val$min, max = !!val$max
+      )
     )
-  )
 
   results <- suppressWarnings(run_inference(hhmodel,
     steps = 50, burn = 0, thin = 1, adapt = 50, chains = 1
@@ -292,8 +294,7 @@ test_that("Parameter defined as a function tracks its dependencies", {
 })
 
 test_that("Parameter function rejects non-parameter dependencies", {
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size")
+  hhmodel <- new_housepi_model(model = "test")
 
   # bare names default to augmented source! here @P is missing
   hhmodel |>
@@ -302,9 +303,8 @@ test_that("Parameter function rejects non-parameter dependencies", {
     expect_error("cannot depend on augmented variables")
 
   # explicit reference to a data column is also rejected
-  # FIXME: roll-back missing -> append = FALSE should not be necessary
   hhmodel |>
     add_parameter(alpha = 1e-4, gamma = 1, hhsize_ref = 4,
-                  beta = status@D + 1, append = FALSE) |>
+                  beta = status@D + 1) |>
     expect_error("cannot depend on data variables")
 })
