@@ -295,16 +295,16 @@ assert_advanced_setup_ <- function(dots, allowed) {
 char_setup_input_ <- function(defs) {
   # change scientific notation locally
   withr::local_options(list(scipen = 500))
-  # correct progress
-  if ("progress" %in% names(defs)) {
-    y <- unlist(defs$progress)
-    if (is.logical(y)) defs$progress <- as.integer(y)
+  # correct logical flags
+  for (flag in intersect(c("progress", "follow_default"), names(defs))) {
+    y <- unlist(defs[[flag]])
+    if (is.logical(y)) defs[[flag]] <- as.integer(y)
   }
-  # correct id trace vector
-  if ("id_draws" %in% names(defs)) {
-    y <- unlist(defs$id_draws)
-    if (length(y) == 0) defs$id_draws <- NA_character_
-    else defs$id_draws <- paste0(unique(y), collapse = ":")
+  # correct id / house trace vectors
+  for (key in intersect(c("id_draws", "house_draws"), names(defs))) {
+    y <- unlist(defs[[key]])
+    if (length(y) == 0) defs[[key]] <- NA_character_
+    else defs[[key]] <- paste0(unique(y), collapse = ":")
   }
   data.frame(lapply(defs, as.character))
 }

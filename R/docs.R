@@ -240,8 +240,12 @@ rd_thread_ <- "`integer(1)` Number of threads for parallel household runs."
 rd_smpl_rndin_ <- "`logical(1)` Control random initialization of variables:
 - If `TRUE` initial values are drawn from respective models (default);
 - If `FALSE` uses initial value definitions."
-rd_smpl_iddrw_ <- "`character()` Individuals identifiers.
-Store draws of public augmented variables for the chosen individuals."
+rd_smpl_iddrw_ <- "Infected members whose public augmented draws are stored.
+Either a `character()` of individual identifiers,
+or a `list` with entries `id` (individual identifiers)
+and/or `house_id` (whole household infected members are stored).
+When unset, one random eligible household is followed (default).
+Pass `\".none\"` to store nothing."
 rd_smpl_cri_level_ <- "`numeric(1)` Level for credible interval.
 It must be a value in (0.5, 1.0)."
 rd_point_estimate_ <- "`character(1)` Summary statistic used as the predicted

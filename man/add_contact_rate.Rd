@@ -77,8 +77,8 @@ Independence samplers draw a fresh value from a distribution:
 
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters.}
 
-\item{import}{Named \code{list} with the arguments of a single pre-built
-contact rate definition. Cannot be combined with the explicit arguments.}
+\item{import}{Named \code{list} of pre-built definition to import.
+Cannot be combined with the single definition.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

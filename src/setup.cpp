@@ -59,6 +59,7 @@ namespace housepi
         n_rungs = 0;
         progress = 1;
         id_draws.clear();
+        house_draws.clear();
         // advanced configuration
         n_adapt_window = 50;
         inv_temp = 1.;
@@ -120,7 +121,11 @@ namespace housepi
 
         // Individual ID for Augmented Trace
         if (input.count("id_draws") && !na::is(input.at("id_draws")[0]))
-            id_draws = read::parse_list(input.at("id_draws")[0]);
+            id_draws = str::unique(read::parse_list(input.at("id_draws")[0]));
+
+        // Household ID for Augmented Trace
+        if (input.count("house_draws") && !na::is(input.at("house_draws")[0]))
+            house_draws = str::unique(read::parse_list(input.at("house_draws")[0]));
 
         // Inverse temperature for a tempered (power-posterior) sample
         if (input.count("inv_temp") && !na::is(input.at("inv_temp")[0]))

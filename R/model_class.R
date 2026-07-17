@@ -366,22 +366,46 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
+    # Normalise the `id_draws` selection into individual and household
+    # identifiers plus the default-follow signal. Status filtering and the
+    # default household pick are left to the engine.
+    resolve_id_draws_ = function(id_draws) {
+      out <- list(id = character(), house_id = character())
+      # unspecified: let the engine follow one random household
+      if (is.null(id_draws) || length(id_draws) == 0L) {
+        return(out)
+      }
+      # explicit opt-out: forward the sentinel so the engine stores nothing
+      if (identical(as.character(id_draws), ".none")) {
+        out$id <- ".none"
+        return(out)
+      }
+      # named list: split individual and household identifiers
+      if (is.list(id_draws)) {
+        extra <- setdiff(names(id_draws), c("id", "house_id"))
+        if (length(extra) > 0) stop_h(
+          "Unknown {.arg id_draws} name{?s}: {.val {extra}}."
+        )
+        if (!is.null(id_draws$id)) out$id <- as.character(id_draws$id)
+        if (!is.null(id_draws$house_id))
+          out$house_id <- as.character(id_draws$house_id)
+        return(out)
+      }
+      # bare vector: individual identifiers
+      out$id <- as.character(id_draws)
+      out
+    },
+
+    # @description
     # Full model build. Refresh runtime setup, enforce hard validation,
     # then push the final state to the engine.
     build_full_ = function(steps = 0L, adapt = 0L, burn = 0L,
                            thin = 1L, chains = 1L, threads = 1L,
                            id_draws = NULL, progress = FALSE,
                            simulating = FALSE, ...) {
-      # if no default columns on a test model, assume debugging mode
-      if (is.null(id_draws) &&
-            private$generator_$is_test_model() &&
-            !is.null(private$augm_$defs) &&
-            length(setdiff(private$generator_$cols_data_wide,
-                           c("house_id", "id", "status"))) == 0) {
-        env <- new.env(parent = emptyenv())
-        utils::data("dummy_household", package = "housepi", envir = env)
-        id_draws <- env$dummy_household$id[1]
-      }
+      # only run_inference resolves a selection; other builds store nothing
+      if (!is.list(id_draws))
+        id_draws <- list(id = character(), house_id = character())
       .engine$import_setup(
         private$generator_$mcmc_ptr,
         char_setup_input_(c(list(
@@ -391,7 +415,8 @@ HousepiModel <- R6::R6Class(
           thin = thin,
           chains = chains,
           threads = threads,
-          id_draws = id_draws,
+          id_draws = id_draws$id,
+          house_draws = id_draws$house_id,
           # generate a seed for Cpp random number generator
           seed = sample.int(.Machine$integer.max, 1L),
           progress = progress
@@ -419,8 +444,15 @@ HousepiModel <- R6::R6Class(
       n_param_cols <- 2L * n_params_defs
       n_augm_defs <- ifelse(is.null(private$augm_$defs), 0L,
                             nrow(private$augm_$defs))
-      n_augm_cols <- length(unique(id_draws)) * n_augm_defs
-      n_house_total <- length(unique(self$data_wide$house_id))
+      # structural upper bound: every named/default household counts as its
+      # largest possible size (status filtering happens in the engine)
+      house_id <- self$data_wide$house_id
+      max_hhsize <- if (length(house_id) == 0) 1L else max(table(house_id))
+
+      n_house_pick <- length(unique(id_draws$house_id))
+      n_members_upper <- length(unique(id_draws$id)) + n_house_pick * max_hhsize
+      n_augm_cols <- n_members_upper * n_augm_defs
+      n_house_total <- length(unique(house_id))
       # total count of columns
       total_cols <- n_param_cols + n_augm_cols + n_house_total + 1L
       bytes_final <- 8L * n_sample * total_cols

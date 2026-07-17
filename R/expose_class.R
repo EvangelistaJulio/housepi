@@ -762,6 +762,7 @@ run_inference <- function(hhmodel,
   stopifnothousepi(hhmodel)
   assert_advanced_setup_(list(...), "inv_temp")
   pvt <- hhmodel$.__enclos_env__$private
+  id_draws <- pvt$resolve_id_draws_(id_draws)
   pvt$assert_posterior_memory_(
     steps = steps, burn = burn, thin = thin,
     chains = chains, id_draws = id_draws

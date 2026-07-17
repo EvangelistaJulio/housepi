@@ -37,19 +37,21 @@ namespace housepi
         const std::vector<std::string> file_headers = {"steps", "burn", "thin",
                                                        "adapt", "adapt_window",
                                                        "chains", "threads",
-                                                       "id_draws", "seed", "progress",
+                                                       "id_draws", "house_draws",
+                                                       "seed", "progress",
                                                        "inv_temp", "time_step"};
 
-        std::int32_t seed;                 /// Seed for pseudo-random number generator initialization.
-        unsigned n_threads;                /// Number of OpenMP threads for parallelization.
-        unsigned long n_steps;             /// Total number of MCMC iterations per chain.
-        unsigned long n_burn;              /// Number of initial burn-in iterations to discard.
-        unsigned long n_thin;              /// Thinning interval (store every n_thin-th iteration).
-        unsigned long n_adapt;             /// Number of adaptive MCMC steps (0 = no adaptation).
-        unsigned long n_chains;            /// Number of independent MCMC chains to run in parallel.
-        unsigned long progress;            /// Progress bar update interval in seconds.
-        unsigned long n_rungs;             /// Number of rungs for power posterior analysis (0 = standard MCMC).
-        std::vector<std::string> id_draws; /// IDs of augmented variables to trace and save.
+        std::int32_t seed;                    /// Seed for pseudo-random number generator initialization.
+        unsigned n_threads;                   /// Number of OpenMP threads for parallelization.
+        unsigned long n_steps;                /// Total number of MCMC iterations per chain.
+        unsigned long n_burn;                 /// Number of initial burn-in iterations to discard.
+        unsigned long n_thin;                 /// Thinning interval (store every n_thin-th iteration).
+        unsigned long n_adapt;                /// Number of adaptive MCMC steps (0 = no adaptation).
+        unsigned long n_chains;               /// Number of independent MCMC chains to run in parallel.
+        unsigned long progress;               /// Progress bar update interval in seconds.
+        unsigned long n_rungs;                /// Number of rungs for power posterior analysis (0 = standard MCMC).
+        std::vector<std::string> id_draws;    /// Individual IDs whose augmented draws are traced.
+        std::vector<std::string> house_draws; /// Household IDs whose infected members are traced.
 
         ///////////////////////////////
         //////  ADVANCED CONFIG  //////

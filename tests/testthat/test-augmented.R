@@ -121,7 +121,9 @@ test_that("Independence proposal reject if unsupported prior domain", {
 
 test_that("Independence proposal inherits the prior location shift", {
   # a proposal from another family must sample in the prior's absolute frame:
-  # with loc = min@D the support is [min, min + 1], so every draw lands there
+  # with loc = min@D the support is [min, min + 1], so every draw lands there.
+  # id_draws = list(house_id =) traces the whole household: both infected members
+  # of "house" are stored, exercising the household -> members expansion.
   hhmodel <- data.frame(
     id = c("tommy", "gina"), house_id = "house",
     status = 1, min = c(4, 8)
@@ -135,7 +137,7 @@ test_that("Independence proposal inherits the prior location shift", {
     results <- run_inference(hhmodel,
       steps = 20, adapt = 0, chains = 1,
       threads = 1, progress = FALSE,
-      id_draws = c("tommy", "gina")
+      id_draws = list(house_id = "house")
     ),
     regexp = "below 400"
   )

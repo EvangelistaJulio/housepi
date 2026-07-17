@@ -203,36 +203,56 @@ test_that("Posterior memory budget is asserted", {
     expect_error("memory budget")
 })
 
+test_that("A followed household without infected members warns", {
+  hhmodel <- data.frame(id = c("chico", "amanda"),
+                        house_id = c("ground-zero", "mother-base"),
+                        status = c(1, 0)) |>
+    new_housepi_model("test") |>
+    add_augmented("test_date", prior = "uniform")
+
+  expect_warning(
+    expect_warning(
+      hhmodel |>
+        run_inference(steps = 20, adapt = 0, chains = 1,
+                      id_draws = list(house_id = "mother-base")),
+      regexp = "no infected members"
+    ),
+    regexp = "below 400"
+  )
+})
+
 test_that("Rlang calls work as expected", {
   # declare indiv_shape as an augmented variable so references resolve
   hhmodel <- new_housepi_model(model = "test") |>
     add_augmented("indiv_shape", prior = "normal")
 
-  add_parameter(hhmodel, "kaz", prior = "normal", mean = indiv_shape + 1) |>
+  hhmodel |>
+    add_parameter("kaz", prior = "normal", mean = indiv_shape + 1) |>
     expect_error("[Ii]ndividual specific")
 
   val <- 1
   # UPDATE: for the moment I am forcing parameter arguments to be co
-  hhmodel <- add_parameter(hhmodel,
-    param_shape = 5,
-    var1 = list(prior = "normal", mean = param_shape@p + 1),
-    var2 = list(prior = "normal", mean = param_shape@p + !!val),
-    var3 = list(prior = "normal", mean = ~ param_shape@P + 1),
-    var4 = list(prior = "normal", mean = ~ param_shape@P + !!val),
-    append = FALSE
-  )
+  hhmodel <- hhmodel |>
+    add_parameter(
+      param_shape = 5,
+      var1 = list(prior = "normal", mean = param_shape@p + 1),
+      var2 = list(prior = "normal", mean = param_shape@p + !!val),
+      var3 = list(prior = "normal", mean = ~ param_shape@P + 1),
+      var4 = list(prior = "normal", mean = ~ param_shape@P + !!val),
+      append = FALSE
+    )
   aux <- hhmodel$parameters
   aux$name <- NULL
   expect_equal(nrow(unique(aux)), 2L)
 
   val <- 3
-  hhmodel <- add_augmented(hhmodel,
-    var1 = list(prior = "normal", mean = indiv_shape + 3),
-    var2 = list(prior = "normal", mean = indiv_shape + !!val),
-    var3 = list(prior = "normal", mean = ~ indiv_shape + 3),
-    var4 = list(prior = "normal", mean = ~ indiv_shape + !!val),
-    append = TRUE
-  )
+  hhmodel <- hhmodel |>
+    add_augmented(
+      var1 = list(prior = "normal", mean = indiv_shape + 3),
+      var2 = list(prior = "normal", mean = indiv_shape + !!val),
+      var3 = list(prior = "normal", mean = ~ indiv_shape + 3),
+      var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
+    )
   aux <- hhmodel$augmented
   aux$name <- NULL
   expect_equal(nrow(unique(aux)), 2L)
@@ -260,8 +280,7 @@ test_that("run_simulation rejects wrong arguments", {
 test_that("Param table with degenerate columns raises an ESS error", {
   pt <- posterior::as_draws_df(data.frame(p = rep(1, 100)))
 
-  hhmodel <- new_housepi_model(model = "test")
-  hhmodel |>
+  hhmodel <- new_housepi_model(model = "test") |>
     run_simulation(param_table = pt) |>
     expect_error("ESS")
 })
@@ -276,8 +295,8 @@ test_that("run_simulation auto-imports parameters from param_table", {
 })
 
 test_that("run_measure_ rejects apply_long without obs_process_long", {
-  hhmodel <- new_housepi_model(model = "test")
-  hhmodel <- add_parameter(hhmodel, alpha = 1)
+  hhmodel <- new_housepi_model(model = "test") |>
+    add_parameter(alpha = 1)
   priv <- hhmodel$.__enclos_env__$private
   pt <- data.frame(alpha = c(0.1, 0.2, 0.3))
 
@@ -297,17 +316,19 @@ test_that("run_simulation returns combined wide/long output", {
   # supplying obs_process_long forces the long branch into a non-empty list
   # single simulation by default
   obs_long <- function(x) data.frame(id = "vic-boss", measure = 1.0)
-  out <- run_simulation(hhmodel, obs_process = function(x) x,
-                        obs_process_long = obs_long)
+  out <- hhmodel |>
+    run_simulation(obs_process = function(x) x,
+                   obs_process_long = obs_long)
   expect_true(is.list(out))
   expect_equal(names(out), c("wide", "long"))
   expect_true(is.data.frame(out$wide))
   expect_true(is.data.frame(out$long))
 
   # multiple repetitions
-  out <- run_simulation(hhmodel, obs_process = function(x) x,
-                        obs_process_long = obs_long,
-                        nrep = 2)
+  out <- hhmodel |>
+    run_simulation(obs_process = function(x) x,
+                   obs_process_long = obs_long,
+                   nrep = 2)
   expect_true(is.data.frame(out$wide[[1]]))
   expect_true(is.data.frame(out$long[[2]]))
 })

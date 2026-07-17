@@ -35,8 +35,12 @@ If no proposals are adaptable  and \code{burn = 0}, repurposed as burn-in instea
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
-\item{id_draws}{\code{character()} Individuals identifiers.
-Store draws of public augmented variables for the chosen individuals.}
+\item{id_draws}{Infected members whose public augmented draws are stored.
+Either a \code{character()} of individual identifiers,
+or a \code{list} with entries \code{id} (individual identifiers)
+and/or \code{house_id} (whole household infected members are stored).
+When unset, one random eligible household is followed (default).
+Pass \code{".none"} to store nothing.}
 
 \item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
 One between:

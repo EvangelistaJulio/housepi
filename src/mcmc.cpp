@@ -241,10 +241,11 @@ namespace housepi
         void helper_init_augm_draws(
             Posterior *post,
             const Augmented &augm,
-            const std::vector<std::string> &id_draws,
+            const Setup &setup,
             unsigned long sample_size)
         {
-            post->tracked_members = augm.init_individual_sample(id_draws);
+            post->tracked_members = augm.init_individual_sample(
+                setup.id_draws, setup.house_draws, setup.prng());
 
             if (post->tracked_members.empty())
                 return;
@@ -301,7 +302,7 @@ namespace housepi
 
         helper_init_param_draws(this, mcmc.param, sample_size);
         helper_init_house_draws(this, mcmc.data_wide(), sample_size);
-        helper_init_augm_draws(this, mcmc.augm, setup.id_draws, sample_size);
+        helper_init_augm_draws(this, mcmc.augm, setup, sample_size);
     }
 
     void Posterior::store(MCMCBase &mcmc)

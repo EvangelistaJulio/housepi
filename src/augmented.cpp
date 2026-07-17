@@ -8,8 +8,10 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <random>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "tools/dependency.h"
@@ -1659,41 +1661,86 @@ namespace housepi
     ////////////////////////////////////  Augmented : sample draws  ///////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::vector<const Individual *> Augmented::init_individual_sample(
-        const std::vector<std::string> &id_draws) const
+    namespace
     {
-        std::vector<const Individual *> output;
+        struct AugmDraws_
+        {
+            std::vector<std::string> ids;
+            std::vector<std::string> house_ids;
+            std::vector<const Individual *> ptrs;
 
-        if (id_draws.empty())
-            return output;
+            void store(const Household &house, size_t i)
+            {
+                ids.emplace_back(house.member(i).id());
+                house_ids.emplace_back(house.house_id());
+                ptrs.emplace_back(&house.member(i));
+            }
+        };
+    }
+
+    std::vector<const Individual *> Augmented::init_individual_sample(
+        const std::vector<std::string> &id_draws,
+        const std::vector<std::string> &house_draws,
+        rnd_gen &prng) const
+    {
+        if (id_draws.size() == 1 && id_draws[0] == ".none" && house_draws.empty())
+            return {};
 
         if (!is_any_sample())
         {
-            msg::warn(
-                "Ignored" + msg::arg("id_draws") + ": no augmented variables to sample were defined.");
-            return output;
+            if (!id_draws.empty() || !house_draws.empty())
+                msg::warn(
+                    "Ignored" + msg::arg("id_draws") +
+                    ": no augmented variables to sample were defined.");
+            return {};
         }
 
-        output.reserve(id_draws.size());
-        std::vector<std::string> existing_ids = {};
+        bool is_default = id_draws.size() == 0 && house_draws.empty();
+
+        AugmDraws_ seen;
+        std::vector<const Household *> eligible;
+
+        // explicit individual selections
+        // store eligible households for default
         for (const Household &house : mcmc_->data_wide())
-            for (const Individual &member : house)
+            if (house.n_infected_status() > 0)
             {
-                if (!contains(id_draws, member.id()))
+                if (is_default)
+                {
+                    eligible.push_back(&house);
                     continue;
+                }
 
-                // unique IDs are granted by class DataWide load
-                existing_ids.push_back(member.id());
-
-                // check status of chosen individual
-                if (member.is_infected_status())
-                    output.emplace_back(&member);
+                if (contains(house_draws, house.house_id()))
+                    for (size_t i : house.infected_hhindexes())
+                        seen.store(house, i);
                 else
-                    msg::warn(
-                        "Ignored draws of non infected " + member.err_name() + ".");
+                    for (size_t i : house.infected_hhindexes())
+                        if (contains(id_draws, house.member(i).id()))
+                            seen.store(house, i);
             }
-        output.shrink_to_fit();
 
-        return output;
+        // raise warnings for draws not found in the data
+        std::vector<std::string> missed_id = id_draws - seen.ids;
+        std::vector<std::string> missed_house = house_draws - seen.house_ids;
+        if (!missed_id.empty())
+            msg::warn(
+                "Ignored draws of non infected " + msg::qty(missed_id) +
+                "individual{?s} " + str::format(missed_id));
+        if (!missed_house.empty())
+            msg::warn(
+                "Ignored draws for " + msg::qty(missed_house) +
+                "household{?s} with no infected members " + str::format(missed_house));
+
+        // default: follow one random household with at least one infected
+        if (!eligible.empty())
+        {
+            std::uniform_int_distribution<size_t> pick(0, eligible.size() - 1);
+            const Household &house = *eligible[pick(prng)];
+            for (size_t i : house.infected_hhindexes())
+                seen.store(house, i);
+        }
+
+        return seen.ptrs;
     }
 }

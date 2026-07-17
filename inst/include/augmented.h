@@ -139,8 +139,12 @@ namespace housepi
         /// Finalize all variables (see Variable::finalize).
         void finalize();
 
-        /// Resolve individual ids for augmented draws and return tracked pointers.
-        std::vector<const Individual *> init_individual_sample(const std::vector<std::string> &id_draws) const;
+        /// Resolve individual and household ids for augmented draws and return tracked pointers.
+        /// NOTE: list of draws are assumed to be unique.
+        std::vector<const Individual *> init_individual_sample(
+            const std::vector<std::string> &id_draws,
+            const std::vector<std::string> &house_draws,
+            rnd_gen &prng) const;
 
         //////////////////////
         //////  GETTER  //////
