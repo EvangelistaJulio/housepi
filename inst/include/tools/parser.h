@@ -15,16 +15,29 @@
 
 namespace housepi::parse
 {
+    /// Single-letter code tagging a definition's terminal type.
+    enum class Type : char
+    {
+        Augmented = 'A',
+        DataWide = 'D',
+        GroupRate = 'G',
+        Numeric = 'N',
+        Parameter = 'P',
+    };
+
+    /// Wheter type code equals the given tag.
+    inline bool is_(std::string_view s, Type t) { return s.size() == 1 && s.front() == static_cast<char>(t); }
+
     /// Wheter definitions is 'augmented'.
-    inline bool is_augmented(std::string_view s) { return s == "A"; }
+    inline bool is_augmented(std::string_view s) { return is_(s, Type::Augmented); }
     /// Wheter definitions is 'data'.
-    inline bool is_data_wide(std::string_view s) { return s == "D"; }
+    inline bool is_data_wide(std::string_view s) { return is_(s, Type::DataWide); }
     /// Wheter definitions is 'group rate'.
-    inline bool is_group_rate(std::string_view s) { return s == "G"; }
+    inline bool is_group_rate(std::string_view s) { return is_(s, Type::GroupRate); }
     /// Wheter definitions is 'numeric'.
-    inline bool is_numeric(std::string_view s) { return s == "N"; }
+    inline bool is_numeric(std::string_view s) { return is_(s, Type::Numeric); }
     /// Wheter definitions is 'parameter'.
-    inline bool is_parameter(std::string_view s) { return s == "P"; }
+    inline bool is_parameter(std::string_view s) { return is_(s, Type::Parameter); }
 
     /// Definition entry as an AST node.
     struct Entry

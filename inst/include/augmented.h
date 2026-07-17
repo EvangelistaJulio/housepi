@@ -365,6 +365,9 @@ namespace housepi
         void assert_no_live_house_obs_cycle_() const;
         /// Reject a definition whose prior reads an observation column.
         void assert_no_obs_entry_collision_() const;
+        /// Reject a simulation override (value + prior) that reads an augmented variable
+        /// or observation: it must resolve from data or parameters at draw time.
+        void assert_no_sim_override_forward_dep_() const;
         /// Reject a group/contact rate keyed on an observation column: it feeds the
         /// transmission model the observation is generated from. Simulation only.
         void assert_no_obs_rate_collision_() const;

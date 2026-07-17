@@ -501,6 +501,30 @@ test_that("Reading an observation node's column: priors and loops are rejected",
     expect_error("[Cc]yclic")
 })
 
+test_that("A simulation override (value + prior) rejects forward dependencies", {
+  # a value paired with a prior pins the variable in simulation only, when it is first
+  # drawn -- so it may read data or parameters, never an observation generated later
+  # nor another latent (which may not be drawn yet).
+
+  # reads an observation
+  data.frame(house_id = "shadow_moses", status = 1, onset = 0.5) |>
+    new_housepi_model("test") |>
+    add_observation("onset", obs = "uniform", min = 0, max = 1) |>
+    add_augmented("liquid", prior = "normal", mean = 0, sd = 1,
+                  proposal = "rw", value = onset@D) |>
+    expect_error("[Ss]imulation override.*observation")
+
+  # reads another augmented (no observation present: guard still fires)
+  data.frame(house_id = "outer_heaven", status = 1) |>
+    new_housepi_model("test") |>
+    add_augmented(
+      liquid = list(prior = "normal", mean = 0, sd = 1, proposal = "rw",
+                    value = solid@A),
+      solid = list(prior = "gamma", shape = 2, scale = 1, proposal = "rw")
+    ) |>
+    expect_error("[Ss]imulation override.*augmented")
+})
+
 test_that("Group/contact rate keyed on an observation is rejected in simulation only", {
   # the rate feeds transmission, which the observation is generated from: fine in
   # inference (observed data), circular when generating during simulation.
@@ -532,6 +556,30 @@ test_that("Augmented aliasing works as expected", {
   expect_true(all(
     simulated$day <= simulated$hour & simulated$hour <= simulated$day + 1
   ))
+})
+
+test_that("A value paired with a prior overrides the draw in simulation only", {
+  # simulation pins the sampled variable to its data-bound value (the wide prior is a
+  # nuisance law that would scatter it); inference is unaffected -- the value is ignored
+  # there, so the draws span the prior instead of collapsing onto the value.
+  hhmodel <- data.frame(id = seq_len(400), house_id = 1, status = 1, anchor = 7) |>
+    new_housepi_model("test") |>
+    add_augmented(
+      snake = list(prior = "uniform", min = 0, max = 100,
+                   proposal = "rw", value = anchor@D)
+    )
+
+  # simulation: every drawn value collapses onto the override
+  expect_true(all(run_simulation(hhmodel)$snake == 7))
+
+  # inference: the value does not pin the sampler (draws span the prior, not the override)
+  draws <- suppressWarnings( # short smoke run trips the convergence-size diagnostic
+    hhmodel |>
+      run_inference(steps = 40, chains = 1, id_draws = "1", progress = FALSE) |>
+      get_augmented_draws()
+  )
+  expect_gt(length(unique(draws[["1_snake"]])), 1)
+  expect_false(all(draws[["1_snake"]] == 7))
 })
 
 test_that("Load augmented list works fine for external lists", {

@@ -237,7 +237,7 @@ namespace housepi
     std::unique_ptr<Distribution> InfecProfile::helper_build_(Translator &translator, const str_table &input)
     {
         parse::Definition parser(parse::Definition(input.at("func")[0]));
-        
+
         std::unique_ptr<Distribution> output = compose_distr_registries(
             parser.root.func,
             ErrType::InfecProfile,
@@ -310,14 +310,15 @@ namespace housepi
         if (input.empty() && !infec_profile.is_augmented())
             return;
 
-        helper_build_assert_input_(input);    // check entries
-        helper_build_append_(infec_profile);  // add infectivity profile
-        helper_build_definition_by_status_(); // process definition by status
-        helper_build_set_allocation_order_(); // allocation and order
-        helper_init_observation_list_();      // observation nodes
-        helper_init_house_obs_list_();        // household-level observations
-        assert_status_obs_consistent_();      // assert status observation
-        assert_no_obs_entry_collision_();     // no definition reads an obs entry column
+        helper_build_assert_input_(input);     // check entries
+        helper_build_append_(infec_profile);   // add infectivity profile
+        helper_build_definition_by_status_();  // process definition by status
+        helper_build_set_allocation_order_();  // allocation and order
+        helper_init_observation_list_();       // observation nodes
+        helper_init_house_obs_list_();         // household-level observations
+        assert_status_obs_consistent_();       // assert status observation
+        assert_no_obs_entry_collision_();      // no definition reads an obs entry column
+        assert_no_sim_override_forward_dep_(); // simulation override reads data/params only
     }
 
     /// Check augmented names and assert no reserved names are used.
@@ -642,7 +643,11 @@ namespace housepi
         {
             is_to_draw = false;
         }
-        else if (!(na::is(deftable_.c_func[k]) && na::is(deftable_.c_value[k])))
+        // deterministic definition: a function, or a value with no prior. A value
+        // paired with a prior is a sampled variable (the value is a simulation-only
+        // override, see helper_init_attributes_), so it falls through to the sample branch.
+        else if (!na::is(deftable_.c_func[k]) ||
+                 (!na::is(deftable_.c_value[k]) && na::is(deftable_.c_prior[k])))
         {
             auto [is_to_export_, is_to_draw_] = set_sample_list_for_function_(status, k);
             is_to_export = is_to_export_;
@@ -1052,6 +1057,33 @@ namespace housepi
         }
     }
 
+    void Augmented::assert_no_sim_override_forward_dep_() const
+    {
+        // a simulation-only override (a value paired with a prior) is applied when the
+        // variable is first drawn in simulation, before any other latent, so it may depend
+        // on data columns and parameters only -- never on augmented variables or observations
+        // (which are not yet available at that point). Unlike the obs-entry collision check,
+        // this must run even when no observation is defined.
+        const std::vector<std::string> obs_names = khold(list_obs_export);
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+        {
+            if (deftable_.c_kind[k] != Kind::Augm ||
+                na::is(deftable_.c_prior[k]) || na::is(deftable_.c_value[k]))
+                continue;
+            const std::string &name = deftable_.c_name[k];
+            if (parse::Definition(deftable_.c_value[k]).is_augmented_depen())
+                msg::stop(
+                    "Simulation override of " + msg::val(name) +
+                    " reads an augmented variable.\nA value paired with a prior is applied "
+                    "before other latents are drawn; depend on data or parameters only.");
+            for (const std::string &dstr : referred_data(deftable_.c_value[k], obs_names))
+                msg::stop(
+                    "Simulation override of " + msg::val(name) + " reads observation " + msg::val(dstr) +
+                    ".\nA value paired with a prior is applied during simulation, before " +
+                    msg::val(dstr) + " is generated; depend on data or parameters only.");
+        }
+    }
+
     void Augmented::assert_no_obs_rate_collision_() const
     {
         if (list_obs_export.empty())
@@ -1338,6 +1370,17 @@ namespace housepi
                         mcmc_->translator.to_numeric(deftable_.c_value[k], &member).value());
                 avar.enforce_user_const(); // enforce user constant choice
             }
+            // simulation-only override: a sampled augmented (prior present) carrying a value is
+            // pinned to that data-bound value in generative simulation (the inference prior is a
+            // nuisance law, unfit to generate). to_numeric evaluates the constant value eagerly --
+            // the index reads its infection time before any lazy pass, so a live function would
+            // still read 0 -- and the early return skips the prior so restart leaves it untouched.
+            else if (simulation && !na::is(deftable_.c_value[k]) && !na::is(deftable_.c_prior[k]))
+            {
+                avar.init_numeric(
+                    mcmc_->translator.to_numeric(deftable_.c_value[k], &member).value());
+                return;
+            }
             else
                 helper_init_func_attributes_(member, k);
 
@@ -1394,7 +1437,11 @@ namespace housepi
     {
         const std::string &astr = deftable_.c_name[k];
         Variable &avar = varia_of_(member).vec[khold(astr)];
-        std::string str_val = deftable_.c_value[k];
+        // value overrides func for a deterministic definition, but a value paired with a prior
+        // is a simulation-only override (intercepted in helper_init_attributes_ before reaching
+        // here): under a prior, value is ignored so inference builds a pure sampled variable.
+        const std::string &str_val =
+            na::is(deftable_.c_prior[k]) ? deftable_.c_value[k] : deftable_.c_func[k];
         parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
 
         // pointer mode
