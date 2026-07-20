@@ -8,10 +8,9 @@ aux_add <- function(self, func, status = NA_integer_,
 }
 
 test_that("Default infectivity profile definitions are correct", {
-  infec <- HousepiInfecProfile$new()
-
-  # Add a profile with default arguments
-  aux_add(infec, func = "dummy", discr = FALSE, a = 1, b = 2, max = 10)
+  infec <- HousepiInfecProfile$new() |>
+    # add a profile with default arguments
+    aux_add(func = "dummy", discr = FALSE, a = 1, b = 2, max = 10)
 
   expect_equal(infec$defs$func, "dummy|a:b|{1|N}:{2|N}")
   expect_equal(infec$defs$status, NA_integer_)
@@ -20,31 +19,27 @@ test_that("Default infectivity profile definitions are correct", {
 })
 
 test_that("Infectivity profile with discrete values is correct", {
-  infec <- HousepiInfecProfile$new()
-
-  # Add a discrete profile
-  aux_add(infec, func = "discrete_profile", discr = TRUE,
-          x = 5, max = 20)
-
-  expect_equal(infec$defs$func, "discrete_profile|x|{5|N}")
+  # add a discrete profile
+  infec <- HousepiInfecProfile$new() |>
+    aux_add("fulton", discr = TRUE, x = 5, max = 20)
+  expect_equal(infec$defs$func, "fulton|x|{5|N}")
   expect_equal(infec$defs$discr, TRUE)
   expect_equal(infec$defs$max, "20|N")
 })
 
 test_that("Error handling in infectivity profile definitions", {
-  infec <- HousepiInfecProfile$new()
-
-  # Missing function name
-  aux_add(infec, func = NA, discr = FALSE, a = 1) |>
+  infec <- HousepiInfecProfile$new() |>
+    # missing function name
+    aux_add(func = NA, discr = FALSE, a = 1) |>
     expect_error("Incomplete definition")
 })
 
 test_that("Status specific definition work fine", {
   infec <- HousepiInfecProfile$new() |>
-    aux_add(func = "discrete_profile", discr = TRUE, x = 5, max = 20)
+    aux_add("generic", discr = TRUE, x = 5, max = 20)
 
-  infec |> 
-    aux_add(func = "another_generic") |>
+  infec |>
+    aux_add("another_generic") |>
     expect_warning("Overwriting")
 
   infec |>
@@ -69,7 +64,7 @@ test_that("Spurious names are dropped", {
   )
 
   infec <- HousepiInfecProfile$new()
-  expect_no_error(helper_test_aux_load(infec, !!!external_list))
+  helper_test_aux_load(infec, !!!external_list)
   defs <- infec$defs
   defs$status <- NULL
   expect_equal(nrow(unique(defs)), 1)

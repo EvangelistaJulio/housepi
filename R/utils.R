@@ -46,7 +46,7 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   # un-named continuation lines become info hints
   nms <- names(parts)
   nms[nms == ""] <- "i"
-  if (length(nms) > 0) nms[[1]] <- ifelse(level == "stop", "x", "")
+  if (length(nms) > 0) nms[[1]] <- ifelse(level == "stop", "x", "!")
   bullets <- stats::setNames(parts, nms)
 
   if (level == "stop") cli::cli_abort(
@@ -94,7 +94,10 @@ with_cpp_conditions <- function(expr) {
     }),
     warning = function(w) {
       if (inherits(w, "housepi_warn")) return(invisible())
-      reemit(w, "warn", inherits(w, "housepi_cpp_warning"))
+      # display in order at emission time, so a warning followed by an error in
+      # the same C++ call is not deferred past that error.
+      withr::with_options(list(warn = 1),
+                          reemit(w, "warn", inherits(w, "housepi_cpp_warning")))
       invokeRestart("muffleWarning")
     }
   )

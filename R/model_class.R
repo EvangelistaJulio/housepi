@@ -307,13 +307,11 @@ HousepiModel <- R6::R6Class(
             is.null(private$generator_$mcmc_ptr)) {
         return(invisible(self))
       }
-      # guard: data_wide not yet imported (during construction)
-      if (length(private$generator_$cols_data_wide) == 0) {
+      # defer the full build while required data is incomplete
+      if (length(private$generator_$cols_data_wide) == 0 ||
+            length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0) {
         return(invisible(self))
       }
-
-      # soft data_wide check (headers vs. implementation file)
-      private$assert_data_wide_(FALSE)
 
       # build rates first (they append to param_$defs)
       if (length(private$group_rates_$defs) > 0) {

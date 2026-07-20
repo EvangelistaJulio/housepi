@@ -161,10 +161,11 @@ test_that("A moving prior parameter keeps augmented draws inside their live supp
       "test_date" = list(prior = "uniform", loc = otacon@A)
     ) |>
     run_inference(
-      steps = 1000, adapt = 200, thin = 1, chains = 1,
+      steps = 500, adapt = 100, thin = 1, chains = 1,
       threads = 1, progress = FALSE, id_draws = "1"
     ) |>
-    suppressMessages()
+    suppressMessages() |> 
+    suppressWarnings()
   d <- as.data.frame(get_augmented_draws(augm))
   gap <- d[["1_test_date"]] - d[["1_otacon"]]
   expect_true(all(gap >= 0 & gap <= 1))

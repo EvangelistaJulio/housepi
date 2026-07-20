@@ -185,6 +185,9 @@ test_that("Log-likelihood of case ascertained model is correct", {
 
     expect_equal(evaluate_log_lik(hhmodel),
                  augm_infec_obs_log_lik(house, param, discr))
+    
+    # test complex print, discrete and continuous time
+    expect_snapshot(print(hhmodel))
   }
 })
 
