@@ -56,6 +56,11 @@ helper_default_source <- function(types, values) {
                    sprintf("(%s)", unlist(valid_sources_lst)),
                    collapse = ", "))
     }
+
+    if (identical(types[i], "D") && y %in% data_reserved_cols) stop_h(
+      "Cannot source column {.field {y}} as data with {.code @D}.",
+      `!` = "Columns {.field {data_reserved_cols}} are reserved."
+    )
   }
   types
 }
