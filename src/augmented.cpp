@@ -331,12 +331,10 @@ namespace housepi
             return;
 
         for (const std::string &astr : input.at("name"))
-        {
             if (astr == infprof::AUGM_FUNC)
                 msg::stop(
                     "Tried to use the reserved augmented name " +
                     msg::val(astr) + ".\nPlease, choose a different one.");
-        }
 
         deftable_.clear();
         deftable_.append(input);
@@ -770,10 +768,7 @@ namespace housepi
 
         bool all_consts = true; // start assuming all constants
         for (const std::string &pstr : parser.list_parameter_depen())
-        {
-            size_t p = mcmc_->param.khold().from_string(pstr);
-            all_consts &= mcmc_->param.at(p).is_constant();
-        }
+            all_consts &= mcmc_->param.at(mcmc_->param.khold(pstr)).is_constant();
 
         // inspect status specific augmented definitions and check if to draw (i. e. not const)
         // NOTE: taking advatange of the order!
@@ -1603,13 +1598,10 @@ namespace housepi
 
             // non-constant parameter in domain cannot be fixed by per-individual resampling
             for (const std::string &pstr : str::unique(param_dep))
-            {
-                size_t p = mcmc_->param.khold().from_string(pstr);
-                if (!mcmc_->param.at(p).is_constant())
+                if (!mcmc_->param.at(mcmc_->param.khold(pstr)).is_constant())
                     msg::stop(
                         "Failed to initialize due to observations of " + member.err_name() + ".\n" +
                         "Try to remove free parameter dependencies in observation domain of " + msg::val(deftable_.c_name[k]) + ".");
-            }
         }
 
         // otherwise observed data are just unreachable

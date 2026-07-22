@@ -28,9 +28,10 @@ flatten_cli_parts_ <- function(dots) {
 
 #' Emit a harmonized cli error or warning condition.
 #'
-#' The first element becomes the header (styled `x` for errors, `!` for
-#' warnings); every other element without an explicit bullet name (`x`, `i`,
-#' `!`, `v`) becomes an `i` hint. Our conditions carry a `housepi_stop` /
+#' The first element becomes the header (styled `x` for errors, unnamed for
+#' warnings so it sits on the `Warning:` line); every other element without an
+#' explicit bullet name (`x`, `i`, `!`, `v`) becomes an `i` hint. Our
+#' conditions carry a `housepi_stop` /
 #' `housepi_warn` class so `with_cpp_conditions()` passes them through.
 #' @param parts `character()` Message lines, optionally named with bullet keys.
 #' @param level `character(1)` Either `"stop"` or `"warn"`.
@@ -46,7 +47,7 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   # un-named continuation lines become info hints
   nms <- names(parts)
   nms[nms == ""] <- "i"
-  if (length(nms) > 0) nms[[1]] <- ifelse(level == "stop", "x", "!")
+  if (length(nms) > 0) nms[[1]] <- ifelse(level == "stop", "x", "")
   bullets <- stats::setNames(parts, nms)
 
   if (level == "stop") cli::cli_abort(

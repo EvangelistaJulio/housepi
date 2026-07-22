@@ -136,20 +136,20 @@ namespace housepi
         if (!lower.is_constant() || !upper.is_constant())
             return;
 
-        if (!is_user_const_)
-        {
-            const std::string sms = "Definitions of " + msg::arg("min") + " as " + lower.err_name() +
-                                    " and " + msg::arg("max") + " as " + upper.err_name() +
-                                    " produced a degenerate range ";
-            // parameter
-            if (err_type_ == ErrType::Parameter)
-                msg::stop(sms + " for " + err_name() + ".");
+        if (is_user_const_)
+            return;
 
-            // augmented
-            msg::warn("Collapsed (at least) one " + err_name() + " to constant.\n" + sms + ".");
-            init_numeric(sx);
-            helper_init_null_proposal_();
-        }
+        const std::string sms = "Definitions of " + msg::arg("min") + " as " + lower.err_name() +
+                                " and " + msg::arg("max") + " as " + upper.err_name() +
+                                " produced a degenerate range ";
+        // parameter
+        if (err_type_ == ErrType::Parameter)
+            msg::stop(sms + " for " + err_name() + ".");
+
+        // augmented
+        msg::warn("Collapsed (at least) one " + err_name() + " to constant.\n" + sms + ".");
+        init_numeric(sx);
+        helper_init_null_proposal_();
     }
 
     void Variable::helper_init_null_proposal_()
@@ -352,19 +352,19 @@ namespace housepi
             name_to_row[pstr] = k;
 
             // validate: function parameters can only depend on other parameters
-            if (!na::is(input.at("func")[k]))
-            {
-                has_func_params = true;
-                parse::Definition parser(input.at("func")[k]);
-                if (parser.is_augmented_depen())
-                    msg::stop(
-                        "Parameter function " + msg::val(pstr) +
-                        " cannot depend on augmented variables.");
-                if (parser.is_data_wide_depen())
-                    msg::stop(
-                        "Parameter function " + msg::val(pstr) +
-                        " cannot depend on data variables.");
-            }
+            if (na::is(input.at("func")[k]))
+                continue;
+
+            has_func_params = true;
+            parse::Definition parser(input.at("func")[k]);
+            if (parser.is_augmented_depen())
+                msg::stop(
+                    "Parameter function " + msg::val(pstr) +
+                    " cannot depend on augmented variables.");
+            if (parser.is_data_wide_depen())
+                msg::stop(
+                    "Parameter function " + msg::val(pstr) +
+                    " cannot depend on data variables.");
         }
 
         // topological sort only when function parameters exist (preserves input order otherwise)

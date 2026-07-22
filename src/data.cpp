@@ -268,7 +268,7 @@ namespace housepi
 
         // assess the presence of house IDs
         if (!contains(headers, "house_id"))
-            msg::warn("Ignored household structure: missing data column " + msg::field("house_id") + ".");
+            msg::warn("Ignored household structure.\nMissing data column " + msg::field("house_id") + ".");
 
         // assess individual IDs are unique
         if (contains(headers, "id") &&
