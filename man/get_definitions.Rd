@@ -5,6 +5,7 @@
 \alias{get_data_long}
 \alias{get_parameters}
 \alias{get_augmented}
+\alias{get_observations}
 \alias{get_group_rates}
 \alias{get_contact_rates}
 \alias{get_infectivity_profile}
@@ -17,6 +18,8 @@ get_data_long(hhmodel)
 get_parameters(hhmodel)
 
 get_augmented(hhmodel)
+
+get_observations(hhmodel)
 
 get_group_rates(hhmodel)
 
@@ -33,7 +36,7 @@ get_infectivity_profile(hhmodel)
 \description{
 Return the definitions currently stored in the housepi model.
 Each variant returns one category (data, parameters, augmented variables,
-group rates, contact rates, infectivity profile).
+observations, group rates, contact rates, infectivity profile).
 }
 \examples{
 hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>

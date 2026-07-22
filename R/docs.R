@@ -86,7 +86,12 @@ rd_aug_args_ <- paste0(sprintf(rd_var_args_, "prior"), rd_proposal_opts_)
 rd_aug_proposal_ <- sprintf(rd_var_proposal_, "prior")
 
 rd_obs_dist_ <- "`character(1)` Choice for the observation distribution.
+Reserved to member-level observations.
 Mutually exclusive with `prior`."
+rd_obs_level_ <- "`character(1)` Level the datum is observed at.
+One between `\"member\"`, one value per positive status individual, and
+`\"house\"`, one value per household reduced over all its members.
+In mode 'multiple', applies to every entry not setting its own."
 rd_obs_args_ <- sprintf(rd_var_args_, "observation")
 
 rd_inf_discr_ <- sprintf(rd_var_discr_, "profile")

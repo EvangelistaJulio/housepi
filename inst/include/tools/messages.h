@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <exception>
 #include <string>
 #include <utility>
@@ -21,6 +22,27 @@ namespace housepi
         explicit CppError(std::string s) : m(std::move(s)) {}
         const char *what() const noexcept override { return m.c_str(); }
     };
+
+    /// Finite set of entity type names displayed in errors.
+    enum class ErrType : std::uint8_t
+    {
+        Empty,
+        Numeric,
+        Pointer,
+        Function,
+        Parameter,
+        Augmented,
+        Observation,
+        HouseholdObservation,
+        GroupRate,
+        Data,
+        Distribution,
+        InfecProfile,
+        Proposal
+    };
+
+    /// Display word for an error type (e.g. "household observation").
+    std::string err_type_name(ErrType type) noexcept;
 }
 
 namespace housepi::msg

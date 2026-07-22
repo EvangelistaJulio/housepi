@@ -22,27 +22,6 @@ namespace housepi
 {
     class Function;
 
-    /// Finite set of attribute type names displayed in errors.
-    enum class ErrType : std::uint8_t
-    {
-        Empty,
-        Numeric,
-        Pointer,
-        Function,
-        Parameter,
-        Augmented,
-        Observation,
-        HouseholdObservation,
-        GroupRate,
-        Data,
-        Distribution,
-        InfecProfile,
-        Proposal
-    };
-
-    /// Display word for an error type (e.g. "household observation").
-    std::string err_type_name(ErrType type) noexcept;
-
     /// Index into the process-global name pool.
     /// NOTE: distinct names in a session are few.
     using NameIndex = std::uint32_t;

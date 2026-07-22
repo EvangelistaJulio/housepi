@@ -23,39 +23,6 @@
 
 namespace housepi
 {
-    std::string err_type_name(ErrType type) noexcept
-    {
-        switch (type)
-        {
-        case ErrType::Numeric:
-            return "numeric";
-        case ErrType::Pointer:
-            return "pointer";
-        case ErrType::Function:
-            return "function";
-        case ErrType::Parameter:
-            return "parameter";
-        case ErrType::Augmented:
-            return "augmented";
-        case ErrType::Observation:
-            return "observation";
-        case ErrType::HouseholdObservation:
-            return "household observation";
-        case ErrType::GroupRate:
-            return "group rate";
-        case ErrType::Data:
-            return "data";
-        case ErrType::Distribution:
-            return "distribution";
-        case ErrType::InfecProfile:
-            return "infectivity profile";
-        case ErrType::Proposal:
-            return "proposal";
-        default: // case ErrType::Empty:
-            return "empty";
-        }
-    }
-
     namespace
     {
         /// Deduplicated string pool. Shared across models, thus append only.

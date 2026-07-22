@@ -299,7 +299,6 @@ HousepiContactRate <- R6::R6Class(
     #' @field parameters `list`.
     #' Parameter definitions associated to contact rates.
     parameters = function(value) {
-      if (!missing(value)) stop_read_only("parameters")
       new_params <- list()
       for (ptbl in self$logic_tables) {
         for (par_id in setdiff(ptbl$param_name, ".reference")) {
@@ -316,7 +315,6 @@ HousepiContactRate <- R6::R6Class(
     #' @field data_required `character()`.
     #' Data required by contact rates.
     data_required = function(value) {
-      if (!missing(value)) stop_read_only("data_required")
       required <- self$defs[["by"]]
       if (is.null(required) || all(is.na(required))) return(character(0))
       required <- required[!is.na(required)]
@@ -326,7 +324,6 @@ HousepiContactRate <- R6::R6Class(
     #' @field param_required `character()`.
     #' Parameters required by contact rates.
     param_required = function(value) {
-      if (!missing(value)) stop_read_only("param_required")
       required <- c()
       for (ptbl in self$logic_tables) required <- c(required, ptbl$param_name)
       required <- setdiff(unique(required), ".reference")
@@ -337,7 +334,6 @@ HousepiContactRate <- R6::R6Class(
     #' @field tidy_table `data.frame()`.
     #' Contact rate definitions table.
     tidy_table = function(value) {
-      if (!missing(value)) stop_read_only("tidy_table")
       tidyup_contact_rate_tables(self$logic_tables)
     }
   ),

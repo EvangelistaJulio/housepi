@@ -124,11 +124,16 @@ compute_rule_groups <- function(tbl) {
 
   # unique patterns for maximality check
   uniq_patterns <- unique(patterns)
-  is_max <- vapply(uniq_patterns, function(p) {
-    !any(vapply(uniq_patterns, function(q)
-      length(q) > length(p) && all(p %in% q), logical(1)))
-  }, logical(1))
-  max_patterns <- uniq_patterns[is_max]
+
+  # a pattern is maximal when no other pattern strictly contains it
+  has_strict_superset <- function(p) {
+    any(vapply(uniq_patterns, function(q) {
+      length(q) > length(p) && all(p %in% q)
+    }, logical(1)))
+  }
+  max_patterns <- uniq_patterns[
+    !vapply(uniq_patterns, has_strict_superset, logical(1))
+  ]
 
   # deterministic ordering: by serialized column set
   ord <- order(vapply(
@@ -531,7 +536,6 @@ HousepiGroupRate <- R6::R6Class(
     #' @field parameters `list`.
     #' Parameter definitions associated to group rates.
     parameters = function(value) {
-      if (!missing(value)) stop_read_only("parameters")
       new_params <- list()
       for (rate_id in names(self$logic_tables)) {
         overrides <- self$param_overrides[[rate_id]]
@@ -550,7 +554,6 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @field data_required `character()`. Data required by group rates.
     data_required = function(value) {
-      if (!missing(value)) stop_read_only("data_required")
       required <- unique(unlist(lapply(self$defs, `[[`, "by")))
       required <- required[!is.na(required)]
       set_source_name_(required, self$family)
@@ -558,7 +561,6 @@ HousepiGroupRate <- R6::R6Class(
 
     #' @field param_required `character()`. Parameters required by group rates.
     param_required = function(value) {
-      if (!missing(value)) stop_read_only("param_required")
       required <- c()
       for (rate_id in names(self$logic_tables)) {
         for (this_table in self$logic_tables[[rate_id]]) {
@@ -572,7 +574,6 @@ HousepiGroupRate <- R6::R6Class(
     #' @field tidy_table `data.frame()`.
     #' Combined list with group rate and parameter definitions.
     tidy_table = function(value) {
-      if (!missing(value)) stop_read_only("tidy_table")
       tidyup_group_rate_tables(self$logic_tables)
     }
   ),

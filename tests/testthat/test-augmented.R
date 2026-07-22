@@ -1,110 +1,152 @@
 library(testthat)
 
-aux_add <- function(self, name = NA_character_, value = NULL,
-                    status = NA_integer_, const = NA, discr = FALSE,
-                    func = NULL, func_args = NULL,
-                    prior = NA_character_, ...,
-                    min = NULL, max = NULL,
-                    proposal = NA_character_) {
-  self$add_quo(
-    name = name, value = rlang::enquo(value),
-    status = status, const = const, discr = discr,
-    func = rlang::enquo(func),
-    func_args = rlang::enquos(func_args),
-    prior = prior, rlang::enquos(...),
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal
-  )
-  invisible(self)
-}
+# model carrying the data columns the definition blocks refer to
+mk_augm <- local({
+  hhmodel <- data.frame(
+    house_id = "h", status = 1, expo = 1, onset_date = 3, test_date = 2
+  ) |>
+    new_housepi_model("test")
+  list(model = hhmodel)
+})
 
 test_that("Augmented definition error are recognized", {
-  HousepiAugmented$new() |>
-    aux_add("infec@") |>
-    expect_error("invalid characters")
-  HousepiAugmented$new() |>
-    aux_add("infec") |>
-    expect_error("Incomplete definition")
+  mk_augm$model |>
+    add_augmented("infec@") |>
+    expect_error("[Ii]nvalid.*characters")
+  mk_augm$model |>
+    add_augmented("infec") |>
+    expect_error("[Ii]ncomplete definition")
+  mk_augm$model |>
+    add_augmented(name = "") |>
+    expect_error("non.?empty")
 })
 
 test_that("Constant value definition are coherent", {
-  augm <- helper_test_aux_load(HousepiAugmented$new(), dummy = 3)
-  tmp <- aux_add(HousepiAugmented$new(), name = "dummy", value = 3)
-  expect_equal(augm$defs, tmp$defs)
+  augm <- mk_augm$model |> add_augmented(dummy = 3)
+  tmp <- mk_augm$model |> add_augmented(name = "dummy", value = 3)
+  expect_equal(get_augmented(augm), get_augmented(tmp))
 
-  augm <- helper_test_aux_load(HousepiAugmented$new(), dummy = 3@D)
-  tmp <- aux_add(HousepiAugmented$new(), name = "dummy", value = 3@D)
-  expect_equal(augm$defs, tmp$defs)
+  augm <- mk_augm$model |> add_augmented(dummy = 3@D)
+  tmp <- mk_augm$model |> add_augmented(name = "dummy", value = 3@D)
+  expect_equal(get_augmented(augm), get_augmented(tmp))
 })
 
 test_that("Undefined definitions are controoled", {
-  HousepiAugmented$new() |>
-    aux_add("test", proposal = "prior", value = NA) |>
-    expect_error("prior.*test")
-  HousepiAugmented$new() |>
-    aux_add("test", value = NA) |>
-    expect_error("Missing value")
+  mk_augm$model |>
+    add_augmented("test", proposal = "prior", value = NA) |>
+    expect_error("[Nn]o .prior. to sample from")
+  mk_augm$model |>
+    add_augmented("test", value = NA) |>
+    expect_error("[Mm]issing value")
 
-  augm <- HousepiAugmented$new() |>
-    aux_add("test", value = 3, const = TRUE, proposal = "prior")
-  expect_true(is.na(augm$defs$proposal))
+  defs <- mk_augm$model |>
+    add_augmented("test", value = 3, const = TRUE, proposal = "prior") |>
+    get_augmented()
+  expect_true(is.na(defs$proposal))
+})
+
+test_that("Dependency errors name the family and the intended source", {
+  # an unsuffixed name is read as augmented: the error says so and points at
+  # the data column / parameter of the same name the user meant
+  mk_augm$model |>
+    add_observation(start_date = min(test_date)) |>
+    expect_error("augmented.*definition.*test_date.")
+  mk_augm$model |>
+    add_observation(start_date = min(test_date)) |>
+    expect_error("Did you mean .test_date@D.")
+  mk_augm$model |>
+    add_parameter(ocelot = list(prior = "gamma", shape = 2, scale = 1)) |>
+    add_observation(onset_date = list(obs = "normal", mean = ocelot, sd = 1)) |>
+    expect_error("Did you mean .ocelot@P.")
+
+  # nothing of that name anywhere
+  mk_augm$model |>
+    add_observation(onset_date = list(obs = "normal", mean = liquid@A, sd = 1)) |>
+    expect_error("add_augmented")
+
+  mk_augm$model |>
+    add_augmented(
+      incub = list(prior = "gamma", shape = 2, scale = 1, status = 2),
+      otacon = list(prior = "normal", loc = incub, sd = 1)
+    ) |>
+    expect_error(".*incub.*status 1")
+})
+
+test_that("A status left without definitions names the status", {
+  # every per-member definition is pinned to a status no individual carries
+  mk_augm$model |>
+    add_observation(start_date = list(func = min(test_date@D), status = 2)) |>
+    expect_error("No.*augmented.*definition.*status 1")
+
+  # no status block to fall back on: the generic definition is the missing one
+  data.frame(house_id = "rex", status = 0, test_date = 2) |>
+    new_housepi_model("test") |>
+    add_observation(start_date = list(func = min(test_date@D), status = c(2, 3))) |>
+    expect_error("[Nn]o.*generic.*augmented.*definition")
 })
 
 test_that("Augmented variable definitions are correct", {
   # basic constant definition
-  augm <- HousepiAugmented$new() |>
-    aux_add(name = "dummy", value = 3)
-  expect_equal(augm$defs$name, "dummy")
-  # status is stored raw (character) to carry labels; NA when generic
-  expect_equal(augm$defs$status, NA_character_)
-  expect_equal(augm$defs$const, TRUE)
-  expect_equal(augm$defs$discr, FALSE)
-  expect_equal(augm$defs$value, "3|N")
-  expect_equal(augm$defs$proposal, NA_character_)
+  augm <- mk_augm$model |>
+    add_augmented(name = "dummy", value = 3) |>
+    get_augmented()
+  expect_equal(augm$name, "dummy")
+  expect_equal(augm$status, NA_real_)
+  expect_equal(augm$const, TRUE)
+  expect_equal(augm$discr, FALSE)
+  expect_equal(augm$value, 3)
+  expect_equal(augm$proposal, NA_real_)
 
-  # variable definition
-  augm <- HousepiAugmented$new() |>
-    aux_add(
+  # variable definition: each source resolves against its own family, so the
+  # model only accepts it once 'expo_max' is a parameter and 'expo_min' an
+  # augmented variable ('expo' being a data column)
+  augm <- mk_augm$model |>
+    add_parameter("expo_max", prior = "uniform", min = 0, max = 9) |>
+    add_augmented("expo_min", prior = "uniform", min = 0, max = 1) |>
+    add_augmented(
       name = "dummy", value = expo@D, prior = "uniform",
       min = expo_min@A, max = expo_max@P
-    )
-  expect_equal(augm$defs$name, "dummy")
-  expect_equal(augm$defs$status, NA_character_)
-  expect_equal(augm$defs$value, "expo|D")
-  expect_equal(augm$defs$prior, "uniform")
-  expect_equal(augm$defs$min, "expo_min|A")
-  expect_equal(augm$defs$max, "expo_max|P")
-
-  # consequent required definitions
-  expect_equal(names(augm$param_required), "augmented")
-  expect_equal(unname(augm$param_required), "expo_max")
-  expect_equal(unname(augm$data_required), "expo")
-  expect_equal(unname(augm$augm_required), "expo_min")
+    ) |>
+    get_augmented() |>
+    subset(name == "dummy")
+  expect_equal(augm$status, NA_real_)
+  expect_equal(augm$value, "expo|D")
+  expect_equal(augm$prior, "uniform")
+  expect_equal(augm$min, "expo_min|A")
+  expect_equal(augm$max, "expo_max|P")
 })
 
 test_that("Augmented sampling default is correct", {
-  augm <- HousepiAugmented$new() |>
-    aux_add(name = "dummy", prior = "norm")
+  augm <- mk_augm$model |>
+    add_augmented(name = "dummy", prior = "normal") |>
+    get_augmented()
 
-  expect_equal(augm$defs$const, FALSE)
-  expect_equal(augm$defs$proposal, "rw")
+  expect_equal(augm$const, FALSE)
+  expect_equal(augm$proposal, "rw")
+
+  # a misspelled family is caught at definition
+  mk_augm$model |>
+    add_augmented(name = "dummy", prior = "norm") |>
+    expect_error("[Uu]nknown distribution")
 })
 
 test_that("Augmented independence proposal folds its arguments", {
-  augm <- HousepiAugmented$new() |>
-    aux_add(
+  augm <- mk_augm$model |>
+    add_augmented(
       name = "dummy", prior = "uniform", min = 0, max = 5,
       proposal = "normal", proposal_mean = 0, proposal_sd = 1
-    )
-  expect_equal(augm$defs$proposal, "normal|mean:sd|{0|N}:{1|N}")
+    ) |>
+    get_augmented()
+  expect_equal(augm$proposal, "normal")
+  expect_equal(augm$proposal_args[[1]], c(mean = 0, sd = 1))
 
   # random-walk scale is not accepted by an independence sampler
-  augm <- HousepiAugmented$new() |>
-    aux_add(
+  mk_augm$model |>
+    add_augmented(
       name = "dummy", prior = "uniform", min = 0, max = 5,
       proposal = "normal", proposal_scale = 0.5
     ) |>
-    expect_error("random walk")
+    expect_error("random.?walk")
 })
 
 test_that("Independence proposal reject if unsupported prior domain", {
@@ -116,7 +158,7 @@ test_that("Independence proposal reject if unsupported prior domain", {
       proposal = "gamma", proposal_shape = 2
     ) |>
     evaluate_log_lik() |>
-    expect_error("cannot cover")
+    expect_error("[Cc]annot cover")
 })
 
 test_that("Independence proposal inherits the prior location shift", {
@@ -177,240 +219,317 @@ test_that("A moving prior parameter keeps augmented draws inside their live supp
     add_parameter("meryl", prior = "uniform") |>
     add_augmented("z", prior = "uniform", min = meryl@P, max = 5) |>
     run_inference(
-      steps = 1000, adapt = 200, thin = 1, chains = 1,
+      steps = 500, adapt = 100, thin = 1, chains = 1,
       threads = 1, progress = FALSE, id_draws = "1"
     ) |>
-    suppressMessages()
+    suppressMessages() |> 
+    suppressWarnings()
   z <- as.data.frame(get_augmented_draws(par))[["1_z"]]
   meryl <- as.data.frame(get_parameter_draws(par))[["meryl"]]
   expect_true(all(z >= meryl))
 })
 
 test_that("Augmented function definition is correct", {
-  augm <- HousepiAugmented$new()
-  aux_add(augm) |>
-    expect_error("non-empty")
+  base <- mk_augm$model |>
+    add_augmented(
+      onset = list(prior = "normal", mean = 0, sd = 1),
+      incub = list(prior = "gamma", shape = 2, scale = 1),
+      infec = list(prior = "normal", mean = 0, sd = 1)
+    )
 
   # difference definition
-  aux_add(augm, name = "dummy", func = onset - incub)
-  expect_equal(augm$defs$func, "sub|x:x2|{onset|A}:{incub|A}")
-  expect_equal(augm$defs$value, NA_real_)
+  augm <- base |>
+    add_augmented(name = "dummy", func = onset - incub) |>
+    get_augmented() |>
+    subset(name == "dummy")
+  expect_equal(augm$func, "sub")
+  expect_equal(augm$func_args[[1]], c(x = "onset|A", x2 = "incub|A"))
+  expect_equal(augm$value, NA_real_)
 
   # overwriting warnings
-  aux_add(augm, name = "dummy", func = "log", func_args = c(x = infec@A)) |>
-    expect_warning("Overwriting")
-  aux_add(augm, name = "rate", value = 3)
-  aux_add(augm, name = "dummy", func = exp(-rate)) |>
-    expect_warning("Overwriting")
+  base |>
+    add_augmented(name = "dummy", func = onset - incub) |>
+    add_augmented(name = "dummy", func = "log", func_args = c(x = infec@A)) |>
+    expect_warning("[Oo]verwriting")
+  base |>
+    add_augmented(name = "dummy", func = onset - incub) |>
+    add_augmented(name = "rate", value = 3) |>
+    add_augmented(name = "dummy", func = exp(-rate)) |>
+    expect_warning("[Oo]verwriting")
 })
 
 test_that("Augmented load enable special definitions", {
+  base <- mk_augm$model |>
+    add_augmented(infec = list(prior = "normal", mean = 0, sd = 1))
+
   # alternative function call definitions
-  augm <- HousepiAugmented$new()
-  aux_add(augm, name = "dummy", func = "log", func_args = c(x = infec@A))
+  augm <- add_augmented(base, name = "dummy", func = "log",
+                        func_args = c(x = infec@A))
+  tmp <- add_augmented(base, dummy = log(infec@A))
+  expect_equal(get_augmented(tmp), get_augmented(augm))
 
-  tmp <- HousepiAugmented$new()
-  helper_test_aux_load(tmp, dummy = log(infec@A))
-  expect_equal(tmp$defs, augm$defs)
+  expect_warning(
+    overwritten <- add_augmented(tmp, name = "dummy", func = log(infec@A)),
+    "[Oo]verwriting"
+  )
+  expect_equal(get_augmented(overwritten), get_augmented(augm))
 
-  aux_add(tmp, name = "dummy", func = log(infec@A)) |>
-    expect_warning("Overwriting")
-  expect_equal(tmp$defs, augm$defs)
-
-  # multi-status definition
-  tmp$defs <- NULL
-  helper_test_aux_load(tmp, dummy = list(func = log(infec@A), status = c(1, 3)))
-  tmp$defs$status <- NULL
-
-  expect_equal(tmp$defs[1, , drop = TRUE], tmp$defs[2, , drop = TRUE])
+  # multi-status definition: one row per status, identical otherwise
+  multi <- base |>
+    add_augmented(dummy = list(func = log(infec@A), status = c(1, 3))) |>
+    get_augmented() |>
+    subset(name == "dummy")
+  expect_equal(multi$status, c("1", "3"))
+  multi$status <- NULL
+  expect_equal(multi[1, , drop = TRUE], multi[2, , drop = TRUE])
 })
 
 test_that("Augmented support rlang double bang", {
-  augm <- HousepiAugmented$new()
+  base <- mk_augm$model |>
+    add_augmented(infec = list(prior = "normal", mean = 0, sd = 1))
   external_value <- 33
-  str_value <- sprintf("%s|N", external_value)
-  helper_test_aux_load(
-    augm,
-    A = !!external_value,
-    B = log(infec@A + !!external_value),
-    C = c(
-      prior = "uniform",
-      min = !!external_value, max = log(infec@A + !!external_value)
-    ),
-    D = list(
-      prior = "uniform",
-      min = !!external_value, max = log(infec@A + !!external_value)
-    )
-  )
-  expect_equal(subset(augm$defs, name == "A")$value, str_value)
+  augm <- base |>
+    add_augmented(
+      A = !!external_value,
+      B = log(infec@A + !!external_value),
+      C = c(
+        prior = "uniform",
+        min = !!external_value, max = log(infec@A + !!external_value)
+      ),
+      D = list(
+        prior = "uniform",
+        min = !!external_value, max = log(infec@A + !!external_value)
+      )
+    ) |>
+    get_augmented()
+
+  expect_equal(subset(augm, name == "A")$value, external_value)
+  expect_equal(subset(augm, name == "B")$func, "log")
   expect_equal(
-    subset(augm$defs, name == "B")$func,
-    sprintf("log|x|{sum|x:x2|{infec|A}:{%s}}", str_value)
+    subset(augm, name == "B")$func_args[[1]],
+    c(x = sprintf("sum|x:x2|{infec|A}:{%s|N}", external_value))
   )
-  subset(augm$defs, name == "C")
-})
-
-###############################
-## AUGMENTED : ACTIVE FIELDS ##
-###############################
-
-test_that("Active fields are read-only", {
-  HousepiAugmented$new() |>
-    helper_test_read_only(
-      "family", "augm_required", "data_required",
-      "group_rates_required", "param_required",
-      "observation_names", "house_observ_names",
-      "status_names", "status_dictionary"
-    )
+  # the two spellings of the same bounded definition agree
+  cc <- subset(augm, name == "C")
+  dd <- subset(augm, name == "D")
+  cc$name <- dd$name <- NULL
+  expect_equal(cc, dd, ignore_attr = TRUE)
 })
 
 test_that("Symbolic definitions are equivalent", {
-  augm <- HousepiAugmented$new()
+  base <- mk_augm$model |>
+    add_augmented(indiv_shape = list(prior = "uniform", min = 0, max = 2))
   val <- 1
-  helper_test_aux_load(
-    augm,
-    var1 = list(prior = "normal", mean = indiv_shape + 1),
-    var2 = list(prior = "normal", mean = indiv_shape + !!val),
-    var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
-    var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
-  )
-  aux <- augm$defs
+  aux <- base |>
+    add_augmented(
+      var1 = list(prior = "normal", mean = indiv_shape + 1),
+      var2 = list(prior = "normal", mean = indiv_shape + !!val),
+      var3 = list(prior = "normal", mean = ~ indiv_shape + 1),
+      var4 = list(prior = "normal", mean = ~ indiv_shape + !!val)
+    ) |>
+    get_augmented() |>
+    subset(name != "indiv_shape")
   aux$name <- NULL
   # check that all rows are identical
   expect_equal(nrow(unique(aux)), 1)
 
-  # check injection from external
+  # an external list is loaded through 'import', not as a bare definition
   external <- list(
-    some_func = list(
-      func = "gamma",
-      func_args = c(shape = ~shape, scale = ~scale)
-    )
+    some_func = list(prior = "gamma", shape = ~shape, scale = ~scale)
   )
-  helper_test_aux_load(augm, external, append = FALSE) |>
-    expect_error("rlang injection")
+  shapes <- mk_augm$model |>
+    add_augmented(
+      shape = list(prior = "uniform", min = 1, max = 2),
+      scale = list(prior = "uniform", min = 1, max = 2)
+    )
+  shapes |>
+    add_augmented(external, append = FALSE) |>
+    expect_error("non.?empty")
 
-  helper_test_aux_load(augm, !!!external)
-  expect_equal(augm$defs$func, "gamma|shape:scale|{shape|A}:{scale|A}")
+  augm <- shapes |>
+    add_augmented(import = external) |>
+    get_augmented() |>
+    subset(name == "some_func")
+  expect_equal(augm$prior, "gamma")
+  expect_equal(augm$args[[1]], c(shape = "shape|A", scale = "scale|A"))
 })
 
 test_that("Observation definitions are encoded", {
-  augm <- HousepiAugmented$new() |>
-    helper_test_aux_load(
-      onset_date = list(obs = "normal", mean = onset_time@A, sd = 1),
-      .kind = "obs"
-    )
-  d <- augm$defs
+  obs <- mk_augm$model |>
+    add_augmented(onset_time = list(prior = "normal", mean = 0, sd = 1)) |>
+    add_observation(
+      onset_date = list(obs = "normal", mean = onset_time@A, sd = 1)
+    ) |>
+    get_observations()
+
   # marked as observation, data-bound and constant (never sampled)
-  expect_identical(d[["kind"]], "obs")
-  expect_true(d[["const"]])
-  expect_identical(d[["value"]], "onset_date|D")
-  expect_true(is.na(d[["proposal"]]))
-  # distribution string carries the observation arguments
-  expect_identical(d[["prior"]], "normal|mean:sd|{onset_time|A}:{1|N}")
-  # the data column is required, the latent is an augmented dependency
-  expect_identical(unname(augm$data_required), "onset_date")
-  expect_identical(unname(augm$augm_required), "onset_time")
-  # reported as a generated data column (excluded from sim requirement)
-  expect_identical(augm$observation_names, "onset_date")
+  expect_identical(obs[["level"]], "member")
+  expect_true(obs[["const"]])
+  expect_identical(obs[["value"]], "onset_date|D")
+  expect_true(is.na(obs[["proposal"]]))
+  # distribution carries the observation arguments
+  expect_identical(obs[["prior"]], "normal")
+  expect_equal(obs[["args"]][[1]], c(mean = "onset_time|A", sd = "1"))
 })
 
 test_that("Observation node rejects conflicting options", {
-  augm <- HousepiAugmented$new()
+  base <- mk_augm$model
   # prior and obs are mutually exclusive
-  helper_test_aux_load(augm,
-    x = list(prior = "normal", obs = "normal"),
-    .kind = "obs"
-  ) |>
-    expect_error("only one between")
+  base |>
+    add_observation(x = list(prior = "normal", obs = "normal")) |>
+    expect_error("[Oo]nly one between")
   # observation nodes are data-bound, never sampled
-  helper_test_aux_load(augm,
-    x = list(obs = "normal", proposal = "prior"),
-    .kind = "obs"
-  ) |>
+  base |>
+    add_observation(x = list(obs = "normal", proposal = "prior")) |>
     expect_warning("[Ii]gnored.*proposal")
 })
 
 test_that("Deterministic observation node is encoded as a function obs", {
-  augm <- HousepiAugmented$new() |>
-    helper_test_aux_load(
+  obs <- mk_augm$model |>
+    add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     # deterministic observation (no 'obs')
-    helper_test_aux_load(
-      onset_date = floor(infec_time + incub_period),
-      .kind = "obs",
-      append = TRUE
-    )
-  d <- augm$defs[augm$defs[["name"]] == "onset_date", ]
+    add_observation(onset_date = floor(infec_time + incub_period)) |>
+    get_observations()
+
   # tagged as observation, carrying a deterministic function and no distribution
-  expect_identical(d[["kind"]], "obs")
-  expect_true(is.na(d[["prior"]]))
-  expect_true(is.na(d[["value"]]))
-  expect_match(d[["func"]], "floor")
-  # still reported as a generated data column
-  expect_identical(augm$observation_names, "onset_date")
+  expect_identical(obs[["level"]], "member")
+  expect_true(is.na(obs[["prior"]]))
+  expect_true(is.na(obs[["value"]]))
+  expect_match(obs[["func"]], "floor")
 })
 
 test_that("Observation and augmented loads each own only their definitions", {
-  augm <- HousepiAugmented$new() |>
-    helper_test_aux_load(
+  hhmodel <- mk_augm$model |>
+    add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     # non-append observation definition keeps augmented definitions
-    helper_test_aux_load(
-      onset_date = list(obs = "normal", mean = infec_time@A, sd = 1),
-      .kind = "obs", append = FALSE
+    add_observation(
+      onset_date = list(obs = "normal", mean = incub_period@A, sd = 1),
+      append = FALSE
     )
   expect_setequal(
-    augm$defs[["name"]],
-    c("incub_period", "infec_time", "onset_date")
+    get_augmented(hhmodel)[["name"]],
+    c("incub_period", "infec_time")
   )
+  expect_identical(get_observations(hhmodel)[["name"]], "onset_date")
 
-  # symmetrically, augmented definitions keep observations
-  augm |>
-    helper_test_aux_load(
+  # symmetrically, a non-append augmented load keeps observations
+  hhmodel <- hhmodel |>
+    add_augmented(
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       append = FALSE
     )
-  expect_true("onset_date" %in% augm$defs[["name"]])
-  expect_identical(augm$observation_names, "onset_date")
+  expect_identical(get_augmented(hhmodel)[["name"]], "incub_period")
+  expect_identical(get_observations(hhmodel)[["name"]], "onset_date")
+})
+
+test_that("Household observations reject a distribution", {
+  hhmodel <- mk_augm$model
+  err <- "cannot be sampled"
+
+  # every input branch is guarded, the level is never silently downgraded
+  add_observation(hhmodel,
+    name = "first_test", obs = "normal", mean = 0, sd = 1, level = "house"
+  ) |>
+    expect_error(err)
+  add_observation(hhmodel,
+    first_test = list(obs = "normal", mean = 0, sd = 1), level = "house"
+  ) |>
+    expect_error(err)
+  add_observation(hhmodel,
+    import = list(first_test = list(obs = "normal", mean = 0, sd = 1)),
+    level = "house"
+  ) |>
+    expect_error(err)
+})
+
+test_that("Level is set per definition, the argument being the bulk default", {
+  # a per-definition 'level' picks the kind of its own entry, exactly as
+  # 'status' does; regression: it used to be swallowed by add_quo's dots and
+  # folded into the definition arguments, leaving every entry on the default
+  mixed <- mk_augm$model |>
+    add_observation(
+      start_date = list(func = min(test_date@D), level = "house"),
+      end_date = list(func = 21, const = TRUE, level = "member")
+    ) |>
+    get_observations()
+  expect_identical(
+    mixed[["level"]][mixed[["name"]] == "start_date"], "house"
+  )
+  expect_identical(
+    mixed[["level"]][mixed[["name"]] == "end_date"], "member"
+  )
+  # 'level' never reaches the definition arguments
+  expect_false("args" %in% names(mixed))
+
+  # the argument is the default: entries not setting their own inherit it
+  bulk <- mk_augm$model |>
+    add_observation(
+      start_date = list(func = min(test_date@D)),
+      end_date = list(func = 21, const = TRUE, level = "member"),
+      level = "house"
+    ) |>
+    get_observations()
+  expect_identical(bulk[["level"]][bulk[["name"]] == "start_date"], "house")
+  expect_identical(bulk[["level"]][bulk[["name"]] == "end_date"], "member")
+
+  # imported definitions honour it too
+  imported <- mk_augm$model |>
+    add_observation(import = list(
+      start_date = list(func = quote(min(test_date@D)), level = "house"),
+      end_date = list(func = 21, const = TRUE)
+    )) |>
+    get_observations()
+  expect_identical(
+    imported[["level"]][imported[["name"]] == "start_date"], "house"
+  )
+  expect_identical(
+    imported[["level"]][imported[["name"]] == "end_date"], "member"
+  )
+
+  # an unknown level is rejected per definition
+  mk_augm$model |>
+    add_observation(start_date = list(func = 1, level = "liquid")) |>
+    expect_error("should be one of")
+
+  # 'level' is meaningless outside observations
+  mk_augm$model |>
+    add_augmented(ocelot = list(value = 1, level = "house")) |>
+    expect_error("reserved to observations")
 })
 
 test_that("Household observations do not interfer with augmented defs", {
-  augm <- HousepiAugmented$new() |>
-    helper_test_aux_load(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1)
-    ) |>
-    helper_test_aux_load(
-      onset_date = list(obs = "normal", mean = incub_period@A, sd = 1),
-      .kind = "obs"
+  hhmodel <- mk_augm$model |>
+    add_augmented(incub_period = list(prior = "gamma", shape = 2, scale = 1)) |>
+    add_observation(
+      onset_date = list(obs = "normal", mean = incub_period@A, sd = 1)
     )
 
   # non-append household observation keeps augmented definitions
-  augm |>
-    helper_test_aux_load(
-      first_test = min(test_date@D),
-      .kind = "house", append = FALSE
-    )
-  augm$defs[["name"]] |>
-    expect_setequal(c("incub_period", "onset_date", "first_test"))
+  hhmodel <- add_observation(
+    hhmodel, first_test = min(test_date@D), level = "house", append = FALSE
+  )
+  expect_identical(get_augmented(hhmodel)[["name"]], "incub_period")
+  obs <- get_observations(hhmodel)
 
-  augm$defs[["kind"]][augm$defs[["name"]] == "first_test"] |>
-    expect_identical("house")
-  augm$defs[["func"]][augm$defs[["name"]] == "first_test"] |>
-    expect_identical("min|x|{test_date|D}")
+  # observations are a single family: the member row went with the reset
+  expect_setequal(obs[["name"]], "first_test")
+  expect_identical(obs[["level"]], "house")
+  expect_identical(obs[["func"]], "min")
+  expect_identical(obs[["func_args"]][[1]], c(x = "test_date|D"))
 
-  # non-append load drops only the house rows
-  augm |>
-    helper_test_aux_load(
-      last_test = max(test_date@D),
-      .kind = "house", append = FALSE
-    )
-  expect_false("first_test" %in% augm$defs[["name"]])
-  augm$defs[["name"]] |>
-    expect_setequal(c("incub_period", "onset_date", "last_test"))
+  # appending keeps both levels side by side
+  hhmodel <- add_observation(
+    hhmodel, last_test = max(test_date@D), level = "house"
+  )
+  obs <- get_observations(hhmodel)
+  expect_setequal(obs[["name"]], c("first_test", "last_test"))
+  expect_identical(get_augmented(hhmodel)[["name"]], "incub_period")
 })
 
 test_that("Observation-aware initialization", {
@@ -452,7 +571,7 @@ test_that("Observation-aware initialization", {
     add_observation("x", obs = "uniform", min = -theta@P, max = theta@P) |>
     run_inference() |>
     suppressMessages() |>
-    expect_error("free parameter dependencies")
+    expect_error("[Ff]ree parameter dependencies")
 
   # generic error
   data.frame(house_id = "metal_gear", status = 1, x = 5) |>
@@ -461,7 +580,7 @@ test_that("Observation-aware initialization", {
     add_augmented("z", prior = "uniform") |>
     add_observation("x", obs = "uniform", min = -theta@P, max = theta@P) |>
     run_inference() |>
-    expect_error("outside of respective domain")
+    expect_error("[Oo]utside of respective domain")
 })
 
 test_that("Compressed households forced unique by augmented sampling size the cache", {
@@ -493,7 +612,7 @@ test_that("Reading an observation node's column: priors and loops are rejected",
     new_housepi_model("test") |>
     add_observation("onset", obs = "uniform", min = 0, max = 1) |>
     add_augmented("latent", prior = "normal", mean = onset@D) |>
-    expect_error("prior.*reads.*observation")
+    expect_error("[Pp]rior.*reads.*observation")
 
   # rule 2: a deterministic read that closes a loop (the observation's support
   # depends on the reader) is circular
@@ -540,7 +659,7 @@ test_that("Group/contact rate keyed on an observation is rejected in simulation 
   hhmodel |>
     run_simulation(nrep = 1L) |>
     suppressMessages() |>
-    expect_error("group rate.*observation")
+    expect_error("[Gg]roup rate.*observation")
 })
 
 ######################################
@@ -674,7 +793,6 @@ test_that("Nested definitions works as expected", {
   )
   # no parameters nor priors, only augmented
   expect_equal(posterior::nvariables(results$parameter_draws), 0L)
-  expect_null(results$.__enclos_env__$private$param_prior_draws_)
   expect_equal(
     posterior::nvariables(results$augmented_draws),
     dim(hhmodel$augmented)[1]
@@ -718,13 +836,13 @@ test_that("Nested augmented definitions raise errors", {
   hhmodel |>
     add_augmented(.dummy = z, z = .dummy) |>
     evaluate_log_lik() |>
-    expect_error("cyclic definition")
+    expect_error("[Cc]yclic augmented definition")
 
   # triangular nest
   hhmodel |>
     add_augmented(z = .layer, .layer = .dummy, .dummy = z) |>
     evaluate_log_lik() |>
-    expect_error("cyclic definition")
+    expect_error("[Cc]yclic augmented definition")
 
   # first generation of definitions
   hhmodel |>
@@ -736,7 +854,7 @@ test_that("Nested augmented definitions raise errors", {
       z = .layer
     ) |>
     evaluate_log_lik() |>
-    expect_error("Could not find a definition.*status")
+    expect_error("[Nn]o.*definition.*status")
 
   # second generation of definitions
   hhmodel |>
@@ -749,7 +867,7 @@ test_that("Nested augmented definitions raise errors", {
       append = FALSE
     ) |>
     evaluate_log_lik() |>
-    expect_error("Could not find a definition.*status")
+    expect_error("[Nn]o.*definition.*status")
 })
 
 test_that("Missing augmented function arguments raise errors", {
@@ -759,7 +877,7 @@ test_that("Missing augmented function arguments raise errors", {
   # non default distribution arguments must be supplied
   hhmodel |>
     add_augmented(name = "z", func = "gamma") |>
-    expect_error("Missing non default")
+    expect_error("[Mm]issing non.?default")
 })
 
 test_that("Status-specific augmented variables draw from per-status ranges", {

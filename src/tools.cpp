@@ -25,6 +25,42 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
+namespace housepi
+{
+    std::string err_type_name(ErrType type) noexcept
+    {
+        switch (type)
+        {
+        case ErrType::Numeric:
+            return "numeric";
+        case ErrType::Pointer:
+            return "pointer";
+        case ErrType::Function:
+            return "function";
+        case ErrType::Parameter:
+            return "parameter";
+        case ErrType::Augmented:
+            return "augmented";
+        case ErrType::Observation:
+            return "observation";
+        case ErrType::HouseholdObservation:
+            return "household observation";
+        case ErrType::GroupRate:
+            return "group rate";
+        case ErrType::Data:
+            return "data";
+        case ErrType::Distribution:
+            return "distribution";
+        case ErrType::InfecProfile:
+            return "infectivity profile";
+        case ErrType::Proposal:
+            return "proposal";
+        default: // case ErrType::Empty:
+            return "empty";
+        }
+    }
+}
+
 namespace housepi::msg
 {
     /// Set of already issued warnings.
@@ -394,43 +430,47 @@ namespace housepi::read
 
 namespace housepi::dpdcy
 {
+    /// Node word displayed in errors (e.g. "augmented definition").
+    std::string node_word_(ErrType type) { return err_type_name(type) + " definition"; }
+
     void walk_graph(const std::string &entry,
                     const str_table &graph,
                     std::vector<std::string> &visited,
                     std::vector<std::string> &recursion_stack,
-                    std::vector<std::string> &ordered)
+                    std::vector<std::string> &ordered,
+                    ErrType type)
     {
-        // FIXME: this is not presenting the error type...
         if (!graph.count(entry))
             msg::stop(
-                "Could not find a definition for " + msg::val(entry) + ".");
+                "Could not find the " + node_word_(type) + " " + msg::val(entry) + ".");
 
         if (contains(recursion_stack, entry))
             msg::stop(
-                "Found inadmissible cyclic definition for " + msg::val(entry) + ".");
+                "Found inadmissible cyclic " + node_word_(type) + " " + msg::val(entry) + ".");
 
         if (contains(visited, entry))
             return;
 
         recursion_stack.push_back(entry);
         for (const std::string &dep : graph.at(entry))
-            walk_graph(dep, graph, visited, recursion_stack, ordered);
+            walk_graph(dep, graph, visited, recursion_stack, ordered, type);
 
         recursion_stack = recursion_stack - std::vector<std::string>({entry});
         visited.push_back(entry);
         ordered.push_back(entry);
     }
 
-    std::vector<std::string> order_dependencies(const str_table &graph)
+    std::vector<std::string> order_dependencies(const str_table &graph, ErrType type)
     {
         std::vector<std::string> visited, recursion_stack, ordered;
         for (const auto &[a, vec] : graph)
             if (!contains(visited, a))
-                walk_graph(a, graph, visited, recursion_stack, ordered);
+                walk_graph(a, graph, visited, recursion_stack, ordered, type);
         return ordered;
     }
 
-    std::vector<std::string> transitive_consumers(const std::string &start, const str_table &graph)
+    std::vector<std::string> transitive_consumers(const std::string &start, const str_table &graph,
+                                                  ErrType type)
     {
         // construct a reversed graph for dependents
         str_table reverse_graph;
@@ -447,18 +487,19 @@ namespace housepi::dpdcy
         // walk dependents of start
         std::vector<std::string> visited, recursion_stack, ordered;
         for (const std::string &dep : reverse_graph.at(start))
-            walk_graph(dep, reverse_graph, visited, recursion_stack, ordered);
+            walk_graph(dep, reverse_graph, visited, recursion_stack, ordered, type);
 
         std::reverse(ordered.begin(), ordered.end());
         return std::vector<std::string>({start}) + ordered;
     }
 
-    std::vector<std::string> transitive_producers(const std::string &start, const str_table &graph)
+    std::vector<std::string> transitive_producers(const std::string &start, const str_table &graph,
+                                                  ErrType type)
     {
         // walk_graph accumulates 'start' and its dependencies in post-order,
         // i.e. producer-before-consumer, with 'start' last.
         std::vector<std::string> visited, recursion_stack, ordered;
-        walk_graph(start, graph, visited, recursion_stack, ordered);
+        walk_graph(start, graph, visited, recursion_stack, ordered, type);
         return ordered;
     }
 }

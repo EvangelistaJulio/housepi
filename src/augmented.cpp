@@ -273,8 +273,8 @@ namespace housepi
     /// Map a definition's kind label to its typed Kind.
     static Augmented::Kind kind_from_string_(const std::string &s)
     {
-        if (s == "obs")
-            return Augmented::Kind::Obs;
+        if (s == "member")
+            return Augmented::Kind::Member;
         if (s == "house")
             return Augmented::Kind::House;
         if (s == "status")
@@ -345,7 +345,7 @@ namespace housepi
     bool Augmented::is_obs_node(const std::string &name) const noexcept
     {
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == Kind::Obs && deftable_.c_name[k] == name)
+            if (deftable_.c_kind[k] == Kind::Member && deftable_.c_name[k] == name)
                 return true;
         return false;
     }
@@ -380,7 +380,7 @@ namespace housepi
                 deftable_.c_kind[k] == Kind::Status)
                 continue;
 
-            const bool is_obs = deftable_.c_kind[k] == Kind::Obs;
+            const bool is_obs = deftable_.c_kind[k] == Kind::Member;
             // a deterministic node forwards its parameters to the observation it feeds
             const bool to_obs = is_obs ||
                                 (na::is(deftable_.c_prior[k]) && feeds_obs[khold(deftable_.c_name[k])]);
@@ -547,6 +547,57 @@ namespace housepi
         return graph;
     }
 
+    void Augmented::assert_augm_depen_declared_(const str_table &graph, int status) const
+    {
+        for (const auto &node : graph)
+            for (const std::string &dstr : node.second)
+            {
+                if (graph.count(dstr))
+                    continue;
+
+                // check if declared for another status and report accordingly
+                if (contains(deftable_.c_name, dstr))
+                {
+                    if (status::is_missing(status))
+                        msg::stop(
+                            "No generic augmented definition was found for " + msg::val(dstr) + ".");
+                    else
+                        msg::stop(
+                            "No augmented definition was found for " + msg::val(dstr) +
+                            " for status " + std::to_string(status) + ".");
+                }
+                // check if declared elsewhere and forgot sourcing
+                else
+                {
+                    std::string sms =
+                        "Could not find an augmented definition for " + msg::val(dstr) + ".";
+                    if (mcmc_->data_wide().khold().count(dstr))
+                        sms += "\nDid you mean " + msg::code(dstr + "@D") + "?";
+                    else if (mcmc_->group_rate.khold().count(dstr))
+                        sms += "\nDid you mean " + msg::code(dstr + "@G") + "?";
+                    else if (mcmc_->param.khold().count(dstr))
+                        sms += "\nDid you mean " + msg::code(dstr + "@P") + "?";
+                    else // true augmented definition missing
+                        sms += "\nDeclare it with " + msg::fn("add_augmented") + ".";
+                    msg::stop(sms);
+                }
+            }
+    }
+
+    /// Report the observed status left without definitions.
+    std::string undeclared_status_message_(int err_status)
+    {
+        if (status::is_missing(err_status))
+            return "No generic augmented definition was declared."
+                   "\nProvide a definition without " +
+                   msg::arg("status") +
+                   " to apply it to every infected status.";
+
+        return "No augmented definition was declared for status " + std::to_string(err_status) +
+               ".\nTry to associate a status-specific definition." +
+               ".\nIn alternative, drop " + msg::arg("status") + " from existing definitions to make them generic.";
+    }
+
     void Augmented::set_definition_dependency_order_for_(int status, int err_status)
     {
         // skip if already passed
@@ -554,15 +605,15 @@ namespace housepi
             return;
         // throw if not defined
         if (!map_status_to_def_row_.count(status))
-            msg::stop(
-                "No definitions were compatible with augmented status " +
-                std::to_string(status) + ".");
+            msg::stop(undeclared_status_message_(err_status));
 
         const std::vector<size_t> rows = get_unsorted_definition_rows_(status);
         str_table graph = build_augm_graph_(rows); // augmented dependency graph
         dict<size_t> name_to_row;                  // reverse dictionary name-to-row-index
         for (size_t k : rows)
             name_to_row[deftable_.c_name[k]] = k;
+
+        assert_augm_depen_declared_(graph, err_status);
 
         // check dependecies and translate order from name to deftable row index
         try
@@ -575,9 +626,9 @@ namespace housepi
             // NOTE: infectivity profile (private) can depend on private
             auto is_kept_consumer = [](const std::string &c)
             { return !str::is_hidden(c) || c == infprof::AUGM_FUNC; };
-            for (const std::string &astr : dpdcy::order_dependencies(graph))
+            for (const std::string &astr : dpdcy::order_dependencies(graph, ErrType::Augmented))
             {
-                const auto consumers = dpdcy::transitive_consumers(astr, graph);
+                const auto consumers = dpdcy::transitive_consumers(astr, graph, ErrType::Augmented);
                 if (astr == infprof::AUGM_FUNC || !str::is_hidden(astr) ||
                     std::any_of(consumers.begin(), consumers.end(), is_kept_consumer))
                     status_blocks_.back().order.emplace_back(name_to_row[astr]);
@@ -688,7 +739,7 @@ namespace housepi
         }
 
         // NOTE: observation exports are listed separately
-        if (deftable_.c_kind[k] == Kind::Obs)
+        if (deftable_.c_kind[k] == Kind::Member)
             is_to_export = false;
 
         // nothing to do if not to export
@@ -747,7 +798,7 @@ namespace housepi
 
         // raise if deterministic observation node for evaluation
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == Kind::Obs && na::is(deftable_.c_prior[k]))
+            if (deftable_.c_kind[k] == Kind::Member && na::is(deftable_.c_prior[k]))
                 msg::stop(
                     "Deterministic observation node " + msg::val(deftable_.c_name[k]) +
                     " cannot be used for evaluation, only simulation.");
@@ -797,7 +848,7 @@ namespace housepi
         // NOTE: observations hold distributions in c_prior but are NOT priors
         std::vector<std::string> without_prior; // augmented names without a prior
         for (size_t k : block.order)
-            if (na::is(deftable_.c_prior[k]) || deftable_.c_kind[k] == Kind::Obs)
+            if (na::is(deftable_.c_prior[k]) || deftable_.c_kind[k] == Kind::Member)
                 without_prior.push_back(deftable_.c_name[k]);
 
         // keep only prior nodes, and prune priorless dependencies from what remains
@@ -809,7 +860,7 @@ namespace housepi
         // assign the ordered consumers of each prior for augmented prior computation
         str_table ordered_priors;
         for (const auto &[key, vec] : graph)
-            ordered_priors.emplace(key, dpdcy::transitive_consumers(key, graph));
+            ordered_priors.emplace(key, dpdcy::transitive_consumers(key, graph, ErrType::Augmented));
 
         return ordered_priors;
     }
@@ -828,7 +879,7 @@ namespace housepi
 
             for (size_t k : block.order)
             {
-                if (deftable_.c_kind[k] != Kind::Obs)
+                if (deftable_.c_kind[k] != Kind::Member)
                     continue;
 
                 const size_t obs_key = khold(deftable_.c_name[k]);
@@ -846,7 +897,7 @@ namespace housepi
 
                 // register the observation under every augmented it transitively
                 // reads, so moving any (sampled) ancestor recomputes it
-                for (const std::string &lstr : dpdcy::transitive_producers(deftable_.c_name[k], graph))
+                for (const std::string &lstr : dpdcy::transitive_producers(deftable_.c_name[k], graph, ErrType::Augmented))
                     if (lstr != deftable_.c_name[k])
                         block.obs_depen[khold(lstr)].push_back(obs_key);
             }
@@ -888,7 +939,7 @@ namespace housepi
         }
 
         list_house_export.clear();
-        for (const std::string &nm : dpdcy::order_dependencies(graph))
+        for (const std::string &nm : dpdcy::order_dependencies(graph, ErrType::HouseholdObservation))
             list_house_export.push_back(name_to_row[nm]);
     }
 
@@ -1018,13 +1069,13 @@ namespace housepi
         // augmented dependency graph (name -> @A deps), over augmented + obs rows
         std::vector<size_t> rows;
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == Kind::Augm || deftable_.c_kind[k] == Kind::Obs)
+            if (deftable_.c_kind[k] == Kind::Augm || deftable_.c_kind[k] == Kind::Member)
                 rows.push_back(k);
         const str_table graph = build_augm_graph_(rows);
 
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            if (deftable_.c_kind[k] != Kind::Augm && deftable_.c_kind[k] != Kind::Obs)
+            if (deftable_.c_kind[k] != Kind::Augm && deftable_.c_kind[k] != Kind::Member)
                 continue;
             const std::string &name = deftable_.c_name[k];
 
@@ -1049,7 +1100,7 @@ namespace housepi
                     if (dstr == name)
                         continue; // observation node reading its own entry column
                     // loop iff the observation 'd' is a (transitive) consumer of 'name'
-                    const auto consumers = dpdcy::transitive_consumers(name, graph);
+                    const auto consumers = dpdcy::transitive_consumers(name, graph, ErrType::Augmented);
                     if (contains(consumers, dstr))
                         msg::stop(
                             "Cyclic definition: " + msg::val(name) + " reads observation " + msg::val(dstr) +
@@ -1365,7 +1416,7 @@ namespace housepi
             {
                 // placeholder for observation node if generated by simulation
                 if (simulation &&
-                    (deftable_.c_kind[k] == Kind::Obs || deftable_.c_kind[k] == Kind::Status))
+                    (deftable_.c_kind[k] == Kind::Member || deftable_.c_kind[k] == Kind::Status))
                     avar.init_numeric(0.);
                 else
                     avar.init_numeric(
@@ -1520,7 +1571,7 @@ namespace housepi
 
         for (size_t k : block.order)
         {
-            if (deftable_.c_kind[k] != Kind::Obs)
+            if (deftable_.c_kind[k] != Kind::Member)
                 continue;
 
             const Variable &ovar = varia_of_(member).vec[khold(deftable_.c_name[k])];

@@ -24,7 +24,7 @@ HousepiAugmented <- R6::R6Class(
     # Kind of definitions currently being managed. Used for display.
     # One between:
     # "augm": augmented variables;
-    # "obs": individual-level observation;
+    # "member": member-level observation;
     # "house": household-level observations;
     # "status": individual status observation (resolves status in simulation).
     kind_ = "augm",
@@ -45,9 +45,8 @@ HousepiAugmented <- R6::R6Class(
   active = list(
     #' @field family `character(1)`. Holder family currently being managed.
     family = function(value) {
-      if (!missing(value)) stop_read_only("family")
       switch(private$kind_,
-        "obs" = "observation",
+        "member" = "observation",
         "house" = "household observation",
         "status" = "status observation",
         "augmented"
@@ -57,44 +56,38 @@ HousepiAugmented <- R6::R6Class(
     #' @field augm_required `character()`.
     #' Find augmented required by augmented variable definitions.
     augm_required = function(value) {
-      if (!missing(value)) stop_read_only("augm_required")
       private$find_required_def_("A")
     },
 
     #' @field data_required `character()`.
     #' Find data required by augmented variable definitions.
     data_required = function(value) {
-      if (!missing(value)) stop_read_only("data_required")
       private$find_required_def_("D")
     },
 
     #' @field group_rates_required `character()`.
     #' Find group rates required by augmented variable definitions.
     group_rates_required = function(value) {
-      if (!missing(value)) stop_read_only("group_rates_required")
       private$find_required_def_("G")
     },
 
     #' @field param_required `character()`.
     #' Find parameters required by augmented variable definitions.
     param_required = function(value) {
-      if (!missing(value)) stop_read_only("param_required")
       private$find_required_def_("P")
     },
 
     #' @field observation_names `character()`.
-    #' Names of individual-level observations.
+    #' Names of member-level observations.
     observation_names = function(value) {
-      if (!missing(value)) stop_read_only("observation_names")
       if (is.null(self$defs) ||
             !"kind" %in% names(self$defs)) return(character())
-      self$defs[["name"]][self$defs[["kind"]] == "obs"]
+      self$defs[["name"]][self$defs[["kind"]] == "member"]
     },
 
     #' @field house_observ_names `character()`.
     #' Names of household-level observations.
     house_observ_names = function(value) {
-      if (!missing(value)) stop_read_only("house_observ_names")
       if (is.null(self$defs) ||
             !"kind" %in% names(self$defs)) return(character())
       self$defs[["name"]][self$defs[["kind"]] == "house"]
@@ -103,7 +96,6 @@ HousepiAugmented <- R6::R6Class(
     #' @field status_names `character()`.
     #' Reserved node name of the status process, if defined.
     status_names = function(value) {
-      if (!missing(value)) stop_read_only("status_names")
       if (is.null(self$defs) ||
             !"kind" %in% names(self$defs)) return(character())
       self$defs[["name"]][self$defs[["kind"]] == "status"]
@@ -114,7 +106,6 @@ HousepiAugmented <- R6::R6Class(
     #' the status process when present, else factorized from literal character
     #' `status =` labels declared across the augmented definitions.
     status_dictionary = function(value) {
-      if (!missing(value)) stop_read_only("status_dictionary")
       if (length(self$status_levels) > 0) return(self$status_levels)
       if (is.null(self$defs) || !"status" %in% names(self$defs)) {
         return(character())
@@ -183,9 +174,9 @@ HousepiAugmented <- R6::R6Class(
 
     #' @description Definitions of a single kind.
     #' Column 'kind' is dropped.
-    #' @param kind `character(1)`. One of "augm", "obs", "house", "status".
+    #' @param kind `character(1)`. One of "augm", "member", "house", "status".
     #' @return `data.frame()` or `NULL` when no definition of that kind exists.
-    defs_of_kind = function(kind = c("augm", "obs", "house", "status")) {
+    defs_of_kind = function(kind = c("augm", "member", "house", "status")) {
       kind <- match.arg(kind)
       if (is.null(self$defs) || !"kind" %in% names(self$defs)) return(NULL)
       out <- self$defs[self$defs[["kind"]] == kind, , drop = FALSE]
@@ -203,13 +194,15 @@ HousepiAugmented <- R6::R6Class(
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
+                       level = NULL,
                        .warn_over = TRUE,
                        .assert = FALSE,
                        .kind = private$kind_) {
       # kind defaults to managed (see private$kind_, public$add_quo_list)
-      .kind <- match.arg(.kind, c("augm", "obs", "house", "status"))
+      .kind <- match.arg(.kind, c("augm", "member", "house", "status"))
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
+      level <- housepi_smart_unwrap(level, "level")
       status <- housepi_smart_unwrap(status, "status")
       const <- housepi_smart_unwrap(const, "const")
       discr <- housepi_smart_unwrap(discr, "discr")
@@ -241,9 +234,24 @@ HousepiAugmented <- R6::R6Class(
         func_args <- housepi_extractor(!!!func_args)
       }
 
-      # individual-level observation
+      # a per-definition 'level' overrides the managed kind for this entry only
+      if (!is.null(level) && !all(is.na(level))) {
+        if (!.kind %in% c("member", "house")) stop_h(
+          "{.arg level} is reserved to observations.",
+          "Declare {.val {name}} with {.fn add_observation}."
+        )
+        .kind <- match.arg(level, c("member", "house"))
+      }
+
+      # member-level observation
       # NOTE: 'obs' string reuses 'prior' column, discriminated by 'kind'
       if (!is.na(obs)) {
+        # a household observation is a reduction over its members: it carries no
+        # density (build_house_obs_variable_ never reads the 'prior' column)
+        if (identical(.kind, "house")) stop_h(
+          "Household observation {.val {name}} cannot be sampled.",
+          "Provide {.arg value} instead of {.arg obs}."
+        )
         if (!is.na(prior)) stop_h(
           "Conflicting definition for augmented {.val {name}}.",
           "Provide only one between {.arg {c('prior', 'obs')}}."
@@ -256,9 +264,9 @@ HousepiAugmented <- R6::R6Class(
         )
         proposal <- NA_character_
 
-        # - status observation keeps its kind
-        # - plain observation becomes "obs"
-        if (!identical(.kind, "status")) .kind <- "obs"
+        # an augmented declaring 'obs' is promoted to observation; an explicit
+        # kind (observation, status) is preserved
+        if (identical(.kind, "augm")) .kind <- "member"
         prior <- obs
         if (is.na(const)) const <- TRUE
         # an observation reads its datum from a like-named column; a status
@@ -326,7 +334,7 @@ HousepiAugmented <- R6::R6Class(
 
     #' @inherit add_augmented
     add_quo_list = function(xquos, append = FALSE, status = NA_integer_,
-                            .kind = c("augm", "obs", "house", "status")) {
+                            .kind = c("augm", "member", "house", "status")) {
       managed <- match.arg(.kind)
 
       # NOTE: single source of truth for currently managed kind
@@ -340,9 +348,12 @@ HousepiAugmented <- R6::R6Class(
       # reject observation-node declarations on the augmented path only
       if (identical(managed, "augm")) assert_no_obs_declaration(xquos)
       if (isFALSE(append)) {
-        # NOTE: kinds share one store, but are treated as independent
+        # NOTE: kinds share one store, but are treated as independent;
+        # observations are a single family, so both levels reset together
+        drop <- if (managed %in% c("member", "house")) c("member", "house")
+        else managed
         if (is.null(self$defs)) self$initialize()
-        else self$defs <- self$defs[self$defs[["kind"]] != managed, ]
+        else self$defs <- self$defs[!self$defs[["kind"]] %in% drop, ]
       }
 
       # a bulk-level 'status =' applies to every entry not setting its own

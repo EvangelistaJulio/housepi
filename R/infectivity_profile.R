@@ -44,28 +44,24 @@ HousepiInfecProfile <- R6::R6Class(
     #' @field augm_required `character()`.
     #' Augmented variables required by infectivity profile definition.
     augm_required = function(value) {
-      if (!missing(value)) stop_read_only("augm_required")
       private$find_required_def_("A")
     },
 
     #' @field data_required `character()`.
     #' Dataset entries required by infectivity profile definition.
     data_required = function(value) {
-      if (!missing(value)) stop_read_only("data_required")
       private$find_required_def_("D")
     },
 
     #' @field group_rates_required `character()`.
     #' Find group rates required by infectivity profile definition.
     group_rates_required = function(value) {
-      if (!missing(value)) stop_read_only("group_rates_required")
       private$find_required_def_("G")
     },
 
     #' @field param_required `character()`.
     #' Parameters required by infectivity profile definition.
     param_required = function(value) {
-      if (!missing(value)) stop_read_only("param_required")
       private$find_required_def_("P")
     }
   ),

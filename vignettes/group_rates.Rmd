@@ -150,7 +150,7 @@ get_parameters(hhmodel)
 
 test_delay <- 8
 hhmodel <- hhmodel |>
-  add_house_observation(start_date = min(test_date@D)) |> 
+  add_observation(start_date = min(test_date@D), level = "house") |> 
   # parameter definitions
   add_parameter(
     alpha = list(prior = "uniform", proposal = "rw_log"),

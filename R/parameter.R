@@ -29,7 +29,6 @@ HousepiParameter <- R6::R6Class(
     #' @field param_required `character()`.
     #' Find parameters required by parameter function definitions.
     param_required = function(value) {
-      if (!missing(value)) stop_read_only("param_required")
       private$find_required_def_("P")
     }
   ),

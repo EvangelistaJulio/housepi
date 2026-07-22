@@ -128,7 +128,7 @@ summarize_house_sizes <- summarise_house_sizes
 #' @description
 #' Return the definitions currently stored in the housepi model.
 #' Each variant returns one category (data, parameters, augmented variables,
-#' group rates, contact rates, infectivity profile).
+#' observations, group rates, contact rates, infectivity profile).
 #' @param hhmodel `r rd_model_in_`
 #' @return `data.frame`
 #' @examples
@@ -167,6 +167,13 @@ get_augmented <- function(hhmodel) {
 
 #' @rdname get_definitions
 #' @export
+get_observations <- function(hhmodel) {
+  stopifnothousepi(hhmodel)
+  hhmodel$observations
+}
+
+#' @rdname get_definitions
+#' @export
 get_group_rates <- function(hhmodel) {
   stopifnothousepi(hhmodel)
   # NOTE: internal build requires deep clone to avoid in-place
@@ -193,14 +200,17 @@ get_infectivity_profile <- function(hhmodel) {
 ############################################################################
 
 definition_helper_ <- c(
-  i = "Supply a {.arg name} for a single definition.",
-  i = "Provide multiple definitions as {.code name = list()} pairs.",
-  i = "Otherwise import an external list using {.args import}."
+  "Supply a {.arg name} for a single definition.",
+  "Provide multiple definitions as {.code name = list()} pairs.",
+  "Otherwise import an external list using {.arg import}."
 )
 
 # Guard the inline (`...`) bulk form.
 assert_bulk_defs_ <- function(dots) {
-  if (length(dots) == 0L) stop_h(definition_helper_)
+  if (length(dots) == 0L) stop_h(c(
+    "No definitions provided.",
+    definition_helper_
+  ))
   dots
 }
 
@@ -410,13 +420,18 @@ add_augmented_template <- function(hhmodel, append = TRUE) {
   new_obj
 }
 
-#' @title Add an individual observation
+#' @title Add an observation
 #' @description
-#' Add observation for positive status individual associated to data \eqn{x}.
-#' If model `obs` is provided, adds to household likelihood during evaluations.
-#' Sample \eqn{x} from the model during simulations.
+#' Add observation associated to data \eqn{x}, at the level set by `level`.
+#'
+#' At member level, the observation is attached to every positive status
+#' individual. If `obs` is provided, adds to household likelihood during
+#' evaluations, and \eqn{x} is sampled from it during simulations.
 #' If observation is deterministic it is considered as a datum.
 #' Note that indicator contribution to log-likelihood are expressily forbidden.
+#'
+#' At household level, the observation is a reduction of `value` over all the
+#' members, shared by the whole household, and must reduce to a constant value.
 #' `r rd_add_modes_`
 #' @details
 #' `r rd_add_details_`
@@ -425,6 +440,8 @@ add_augmented_template <- function(hhmodel, append = TRUE) {
 #' @param obs `r rd_obs_dist_`
 #' @param ... `r rd_obs_args_`
 #' In mode 'multiple', the `name = value` definitions.
+#' @param level `r rd_obs_level_`
+#' @param value `r rd_aug_val_`
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_aug_discr_`
 #' @param min `r rd_aug_min_`
@@ -435,26 +452,29 @@ add_augmented_template <- function(hhmodel, append = TRUE) {
 #' @export
 add_observation <- function(hhmodel, name = NULL,
                             obs = NA_character_, ...,
+                            level = c("member", "house"), value = NULL,
                             status = NA_integer_, discr = FALSE,
                             min = NULL, max = NULL,
                             import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
+  # bulk default: a per-definition 'level =' overrides it (see add_quo)
+  level <- match.arg(level)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
   if (!is.null(import)) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append, .kind = "obs"
+    append = append, .kind = level
   )
   else if (!is.null(name)) pvt$augm_$add_quo(
-    name = name, value = NULL, status = status,
+    name = name, value = rlang::enquo(value), status = status,
     const = NA, discr = discr, prior = NA_character_,
     obs = obs, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
-    .assert = TRUE, .kind = "obs"
+    .assert = TRUE, .kind = level
   )
   else pvt$augm_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...)),
-    append = append, .kind = "obs"
+    append = append, .kind = level
   )
   pvt$rebuild_()
   new_obj
@@ -492,51 +512,6 @@ add_status <- function(hhmodel, ..., dist = "categorical") {
   )
   # record the ordered status labels (the dictionary lives here, not in C++)
   pvt$augm_$set_status_levels(names(weights))
-  pvt$rebuild_()
-  new_obj
-}
-
-#' @title Add household-level observations
-#' @description
-#' Add household-level observations for all members.
-#' Household-level observations must be reducible to a constant value.
-#' `r rd_add_modes_`
-#' @details
-#' `r rd_add_details_`
-#' @param hhmodel `r rd_model_in_`
-#' @param name `r rd_var_name_`
-#' @param value `r rd_aug_val_`
-#' @param ... `r rd_obs_args_`
-#' In mode 'multiple', the `name = value` definitions.
-#' @param status `r rd_aug_status_`
-#' @param discr `r rd_aug_discr_`
-#' @param min `r rd_aug_min_`
-#' @param max `r rd_aug_max_`
-#' @param import `r rd_import_`
-#' @param append `r rd_list_append_`
-#' @return `r rd_model_out_`
-#' @export
-add_house_observation <- function(hhmodel, name = NULL, value = NULL, ...,
-                                  status = NA_integer_, discr = FALSE,
-                                  min = NULL, max = NULL,
-                                  import = NULL, append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  pvt <- new_obj$.__enclos_env__$private
-  if (!is.null(import)) pvt$augm_$add_quo_list(
-    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append, .kind = "house"
-  )
-  else if (!is.null(name)) pvt$augm_$add_quo(
-    name = name, value = rlang::enquo(value),
-    status = status, discr = discr,
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    .assert = TRUE, .kind = "house"
-  )
-  else pvt$augm_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...)),
-    append = append, .kind = "house"
-  )
   pvt$rebuild_()
   new_obj
 }

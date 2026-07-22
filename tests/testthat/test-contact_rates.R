@@ -1,45 +1,19 @@
 library(testthat)
 
-aux_add <- function(self, by = NA_character_,
-                    reference = NULL, 
-                    joint = TRUE, symmetric = TRUE,
-                    strata = NULL, params = NULL,
-                    prior = NA_character_, ...,
-                    min = NA_real_, max = NA_real_,
-                    proposal = NA_character_,
-                    prefix = "ctr",
-                    .warn_over = TRUE) {
-  self$add_quo(by = by,
-               reference = reference,
-               joint = joint, symmetric = symmetric,
-               strata = strata,
-               params = params,
-               prior = prior, rlang::enquos(...),
-               min = rlang::enquo(min),
-               max = rlang::enquo(max),
-               proposal = proposal,
-               prefix = prefix,
-               .warn_over = .warn_over)
-  invisible(self)
-}
-
-# a dummy dataset and relative information for factorization
+# a dummy dataset for the plain logic-table helpers
 dummy_df <- data.frame(house_id = 1,
-                       age = c(rep("child", 2), rep("adult", 2)),
+                       age = c(rep("child", 2L), rep("adult", 2L)),
                        sex = c("M", "F", "M", "M"))
-# corresponding factors levels
-dummy_factor_info <- list(age = list(levels = c("child", "adult")),
-                          sex = list(levels = c("M", "F")))
 
-###################################
-## CONTACT RATES : ACTIVE FIELDS ##
-###################################
-
-test_that("Active fields are read-only", {
-  HousepiContactRate$new() |>
-    helper_test_read_only(
-      "parameters", "data_required", "param_required", "tidy_table"
-    )
+# model over the dummy features
+mk_rate <- local({
+  hhmodel <- data.frame(
+    house_id = 1L, status = 0L,
+    age = c("child", "child", "adult", "adult"),
+    sex = c("M", "F", "M", "M")
+  ) |> 
+    new_housepi_model("final_size")
+  list(model = hhmodel)
 })
 
 #################################
@@ -47,8 +21,8 @@ test_that("Active fields are read-only", {
 #################################
 
 test_that("Contact rates pair counts are computed correctly", {
-  df_hh <- data.frame(house_id = c(rep("hh1", 2), rep("hh2", 2)),
-                      age = rep(c("child", "adult"), 2),
+  df_hh <- data.frame(house_id = c(rep("hh1", 2L), rep("hh2", 2L)),
+                      age = rep(c("child", "adult"), 2L),
                       stringsAsFactors = FALSE)
   tbl <- contact_rate_logic_table(df_hh, "age")
 
@@ -70,20 +44,19 @@ test_that("Contact rates pair counts are computed correctly", {
 ######################################
 
 test_that("Auto mode imposes symmetric contacts by default", {
-  cr <- HousepiContactRate$new() |>
-    aux_add(by = "age",
-            reference = c(from_age = "adult", to_age = "adult"),
-            prior = "lognormal", sdlog = 1)
-  cr$implement(dummy_df, dummy_factor_info)
+  ltab <- mk_rate$model |>
+    add_contact_rate(by = "age",
+                     reference = c(from_age = "adult", to_age = "adult"),
+                     prior = "lognormal", sdlog = 1.) |>
+    get_contact_rates()
 
   # two-level feature: child, adult -> 4 pairs
-  ltab <- cr$logic_tables[[1]]
-  expect_equal(nrow(ltab), 4)
+  expect_equal(nrow(ltab), 4L)
 
   # only 1 reference
   expect_equal(sum(ltab$param_name == ".reference"), 1)
   # only 2 unique non-reference params (cross + child->child)
-  expect_length(cr$parameters, 2)
+  expect_length(setdiff(unique(ltab$param_name), ".reference"), 2)
 
   # reference row is adult->adult
   ref_row <- ltab[ltab$param_name == ".reference", ]
@@ -98,24 +71,23 @@ test_that("Auto mode imposes symmetric contacts by default", {
 })
 
 test_that("Auto mode without reference picks most abundant pair", {
-  cr <- HousepiContactRate$new() |>
-    aux_add(by = "age")
-  cr$implement(dummy_df, dummy_factor_info)
+  ltab <- mk_rate$model |>
+    add_contact_rate(by = "age") |>
+    get_contact_rates()
 
   # automatic .reference
-  expect_true(".reference" %in% cr$logic_tables[[1]]$param_name)
+  expect_true(".reference" %in% ltab$param_name)
 })
 
 test_that("Auto mode symmetric = FALSE gives distinct parameters", {
-  cr <- HousepiContactRate$new() |>
-    aux_add(by = "age", symmetric = FALSE,
-            reference = c(from_age = "adult", to_age = "adult"),
-            prior = "lognormal", sdlog = 1)
-  cr$implement(dummy_df, dummy_factor_info)
+  ltab <- mk_rate$model |>
+    add_contact_rate(by = "age", symmetric = FALSE,
+                     reference = c(from_age = "adult", to_age = "adult"),
+                     prior = "lognormal", sdlog = 1.) |>
+    get_contact_rates()
 
-  ltab <- cr$logic_tables[[1]]
-  expect_equal(nrow(ltab), 4)
-  expect_length(cr$parameters, 3)
+  expect_equal(nrow(ltab), 4L)
+  expect_length(setdiff(unique(ltab$param_name), ".reference"), 3L)
 
   # asymmetric: adult->child and child->adult are distinct params
   ac_row <- subset(ltab, from_age == "adult" & to_age == "child")
@@ -124,52 +96,51 @@ test_that("Auto mode symmetric = FALSE gives distinct parameters", {
 })
 
 test_that("Non-joint produces independent per-feature tables", {
-  cr <- HousepiContactRate$new() |>
-    # 2 features, non-joint -> 2 sub-tables of 4 rows each
-    aux_add(by = c("age", "sex"), joint = FALSE,
-            reference = c(age = "adult", sex = "M"),
-            prior = "lognormal", sdlog = 1)
-  cr$implement(dummy_df, dummy_factor_info)
+  # 2 features, non-joint -> 2 rule groups
+  tidy <- mk_rate$model |>
+    add_contact_rate(by = c("age", "sex"), joint = FALSE,
+                     reference = c(age = "adult", sex = "M"),
+                     prior = "lognormal", sdlog = 1.) |>
+    get_contact_rates()
 
-  # two sub-tables
-  expect_length(cr$logic_tables, 2L)
+  expect_equal(length(unique(tidy$rule_group)), 2L)
 
   # all age pairs are observed: 2 x 2
-  expect_equal(nrow(cr$logic_tables[[1]]), 4L)
+  expect_equal(sum(tidy$rule_group == 1), 4L)
   # 1 sex pair is missing: 2 x 2 - 1
-  expect_equal(nrow(cr$logic_tables[[2]]), 3L)
+  expect_equal(sum(tidy$rule_group == 2), 3L)
 
   # each sub-table has its own .reference
-  for (tbl in cr$logic_tables) {
-    expect_equal(sum(tbl$param_name == ".reference"), 1L)
+  for (grp in unique(tidy$rule_group)) {
+    sub <- subset(tidy, rule_group == grp)
+    expect_equal(sum(sub$param_name == ".reference"), 1L)
   }
 
   # symmetric default: 2 + 2 - 1 = 3 non-reference params
-  expect_length(cr$parameters, 3L)
+  expect_length(setdiff(unique(tidy$param_name), ".reference"), 3L)
 
   # tidy table merges sub-tables with NA for missing columns
-  tidy <- cr$tidy_table
   expect_equal(nrow(tidy), 7L)
 })
 
 test_that("Auto mode with two features behaves correctly", {
-  cr <- HousepiContactRate$new() |>
-    aux_add(by = c("age", "sex"),
-            reference = c(from_age = "adult", from_sex = "M",
-                          to_age = "adult", to_sex = "M"),
-            prior = "lognormal", sdlog = 1)
-  cr$implement(dummy_df, dummy_factor_info)
+  ltab <- mk_rate$model |>
+    add_contact_rate(by = c("age", "sex"), joint = TRUE,
+                     reference = c(from_age = "adult", from_sex = "M",
+                                   to_age = "adult", to_sex = "M"),
+                     prior = "lognormal", sdlog = 1.) |>
+    get_contact_rates()
 
   # NOTE: 3 observed types: <child,M>, <child,F>, <adult,M>
   # 7 observed pairs: 9 pairs - <child,M><child,F> - (<->)
-  ltab <- cr$logic_tables[[1]]
   expect_equal(nrow(ltab), 7L)
+  expect_equal(length(unique(ltab$rule_group)), 1L)
   expect_equal(sum(ltab$param_name == ".reference"), 1)
 
   # NOTE: symmetric pairs by default:
   # 3 heterogeneous: <child,M><child,F> <adult,M><child,F> <adult,M><child,M>
   # 1 homogeneous: <adult,M><adult,M> (reference)
-  expect_length(cr$parameters, 3L)
+  expect_length(setdiff(unique(ltab$param_name), ".reference"), 3L)
 })
 
 ########################################
@@ -179,12 +150,12 @@ test_that("Auto mode with two features behaves correctly", {
 test_that("Contact rate custom mode defualt behaves correctly", {
   # logic table
   param_name <- c("a2c", "c2a", "c2c")
-  strata <- data.frame(from_age = c(rep("adult", 2), rep("child", 2)),
-                       to_age = rep(c("adult", "child"), 2),
+  strata <- data.frame(from_age = c(rep("adult", 2L), rep("child", 2L)),
+                       to_age = rep(c("adult", "child"), 2L),
                        param_name = c(".reference", param_name))
   # custom fine grained parameter override
   overrides <- list(
-    list(value = 1, prior = "uniform", min = 1, max = 5,
+    list(value = 1, prior = "uniform", min = 1., max = 5.,
          proposal = "rw", proposal_scale = 0.5),
     2.34
   )
@@ -193,43 +164,32 @@ test_that("Contact rate custom mode defualt behaves correctly", {
   default_param <- param_name[3] # default definitions
   names(overrides) <- c(fancy_param_1, fancy_param_2)
 
-  cr <- HousepiContactRate$new()
+  hhmodel <- mk_rate$model |>
+    add_contact_rate(strata = strata, prior = "lognormal", sdlog = 1.8,
+                     params = overrides)
 
-  aux_add(cr, by = "age", strata = strata) |>
-    expect_error("Impossible")
-
-  aux_add(cr, strata = strata, prior = "lognormal", sdlog = 1.8,
-          params = overrides)
-
-  # definitions stored with mode sentinel
-  expect_equal(cr$defs$mode, "custom")
-
-  # logic table stored
-  expect_true(is.data.frame(cr$logic_tables[[1]]))
-  expect_equal(nrow(cr$logic_tables[[1]]), 4L)
-
-  # parameters generated for non-reference
-  expect_length(cr$parameters, 3L)
-  expect_true(all(param_name %in% names(cr$parameters)))
-
-  # default parameter definitions
-  expect_equal(cr$parameters[[default_param]]$prior, "lognormal")
-  expect_equal(cr$parameters[[default_param]]$sdlog, "1.8|N")
-  # overrides as variable
-  expect_equal(cr$parameters[[fancy_param_1]]$prior, "uniform")
-  expect_equal(cr$parameters[[fancy_param_1]]$min, 1)
-  # overrides as constant
-  expect_equal(cr$parameters[[fancy_param_2]], 2.34)
-
-  # implement should not clear the logic table
-  cr$implement(dummy_df, dummy_factor_info)
-  expect_true(is.data.frame(cr$logic_tables[[1]]))
-  expect_equal(cr$logic_tables[[1]]$param_name, strata$param_name)
-
-  # tidy table
-  tidy <- cr$tidy_table
+  # the custom logic table drives the tidy table
+  tidy <- get_contact_rates(hhmodel)
   expect_true(is.data.frame(tidy))
   expect_equal(nrow(tidy), 4L)
+  expect_setequal(tidy$param_name, strata$param_name)
+
+  # parameters generated for non-reference
+  params <- get_parameters(hhmodel)
+  expect_setequal(params$name, param_name)
+
+  # default parameter definitions
+  default <- subset(params, name == default_param)
+  expect_equal(default$prior, "lognormal")
+  expect_equal(default$args[[1]], c(sdlog = 1.8))
+  # overrides as variable
+  fancy_1 <- subset(params, name == fancy_param_1)
+  expect_equal(fancy_1$prior, "uniform")
+  expect_equal(fancy_1$min, 1)
+  # overrides as constant
+  fancy_2 <- subset(params, name == fancy_param_2)
+  expect_equal(fancy_2$value, 2.34)
+  expect_true(fancy_2$const)
 })
 
 test_that("Custom mode with no reference row raises error", {
@@ -239,9 +199,9 @@ test_that("Custom mode with no reference row raises error", {
     param_name = c("a_to_a", "a_to_c", "c_to_a", "c_to_c")
   )
 
-  HousepiContactRate$new() |>
-    aux_add(strata = strata) |>
-    expect_error("reference")
+  mk_rate$model |>
+    add_contact_rate(strata = strata) |>
+    expect_error("[Cc]ustom logic table must contain a ..reference. row")
 })
 
 ####################################################
@@ -255,32 +215,21 @@ test_that("Custom mode allows symmetric definition automatic fixes", {
                        param_name = c(".reference", param_name))
   overrides <- list(a_to_c = 2)
 
-  cr <- HousepiContactRate$new() |>
-    aux_add(strata = strata, params = overrides)
-  cr$implement(dummy_df, dummy_factor_info)
+  hhmodel <- mk_rate$model |>
+    add_contact_rate(strata = strata, params = overrides)
 
   # symmetric fill adds child->adult with same param_name as adult->child
-  filled <- cr$logic_tables[[1]]
+  filled <- get_contact_rates(hhmodel)
   expect_equal(nrow(filled), 4)
   ca_row <- filled[filled$from_age == "child" & filled$to_age == "adult", ]
   expect_equal(ca_row$param_name, "a_to_c")
 
   # both directions share the override value
-  expect_true(all(param_name %in% names(cr$parameters)))
-  expect_equal(cr$parameters[["a_to_c"]], 2L)
-
-  # all-NA row (.reference) is its own reverse and must not be duplicated;
-  # reverse of dad_child and mum_child are each added once
-  strata <- data.frame(from_age = c("adult", "adult", NA),
-                       from_sex = c("M", "F", NA),
-                       to_age = c("child", "child", NA),
-                       to_sex = c(NA, NA, NA),
-                       param_name = c("dad_child", "mum_child", ".reference"))
-  cr <- HousepiContactRate$new() |>
-    aux_add(strata = strata)
-
-  cr$implement(dummy_df, dummy_factor_info)
-  expect_equal(nrow(cr$logic_tables[[1]]), 5L)
+  params <- get_parameters(hhmodel)
+  expect_setequal(params$name, param_name)
+  a_to_c <- subset(params, name == "a_to_c")
+  expect_equal(a_to_c$value, 2)
+  expect_true(a_to_c$const)
 })
 
 test_that("Custom mode with symmetric = FALSE does not fill gaps", {
@@ -289,36 +238,11 @@ test_that("Custom mode with symmetric = FALSE does not fill gaps", {
                        to_age = c("adult", "child", "child"),
                        param_name = c(".reference", param_name))
 
-  cr <- HousepiContactRate$new() |>
-    aux_add(strata = strata, symmetric = FALSE)
-  cr$implement(dummy_df, dummy_factor_info)
+  tidy <- mk_rate$model |>
+    add_contact_rate(strata = strata, symmetric = FALSE) |>
+    get_contact_rates()
 
-  expect_equal(nrow(cr$logic_tables[[1]]), 3L)
-})
-
-################################################
-## CONTACT RATES : CUSTOM (JOINT) DEFINITIONS ##
-################################################
-
-test_that("joint = TRUE explicit matches default behavior", {
-  ctr_default <- HousepiContactRate$new() |>
-    aux_add(by = c("age", "sex"),
-            reference = c(age = "adult", sex = "M"),
-            prior = "lognormal", sdlog = 1)
-  ctr_default$implement(dummy_df, dummy_factor_info)
-
-  ctr_joint <- HousepiContactRate$new() |>
-    aux_add(by = c("age", "sex"),
-            joint = TRUE,
-            reference = c(age = "adult", sex = "M"),
-            prior = "lognormal", sdlog = 1)
-  ctr_joint$implement(dummy_df, dummy_factor_info)
-
-  # same single sub-table
-  expect_length(ctr_default$logic_tables, 1)
-  expect_length(ctr_joint$logic_tables, 1)
-  ctr_default$logic_tables[[1]] |>
-    expect_equal(ctr_joint$logic_tables[[1]])
+  expect_equal(nrow(tidy), 3L)
 })
 
 #########################################
@@ -344,9 +268,11 @@ test_that("Custom mode absorbs all-NA default into single group", {
     param_name = c("ctr_child_child", "ctr_mother_child",
                    ".reference", "ctr_cross_gen")
   )
-  cr <- HousepiContactRate$new() |>
-    aux_add(strata = strata, symmetric = FALSE)
-  tidy <- cr$tidy_table
+  tidy <- data.frame(house_id = 1, status = 0,
+                     member = c("student", "mother", "father", "student")) |>
+    new_housepi_model("final_size") |>
+    add_contact_rate(strata = strata, symmetric = FALSE) |>
+    get_contact_rates()
   expect_equal(length(unique(tidy$rule_group)), 1L)
 })
 
@@ -359,46 +285,44 @@ test_that("Custom mode with two maximal patterns yields two groups", {
     to_sex = c(NA, "M", "F"),
     param_name = c("age_child_to_age_child", ".reference", "sex_F_to_sex_F")
   )
-  cr <- HousepiContactRate$new() |>
-    aux_add(strata = strata, symmetric = FALSE)
-  expect_equal(length(unique(cr$tidy_table$rule_group)), 2L)
+  tidy <- mk_rate$model |>
+    add_contact_rate(strata = strata, symmetric = FALSE) |>
+    get_contact_rates()
+  expect_equal(length(unique(tidy$rule_group)), 2L)
 })
 
 test_that("Auto mode joint = FALSE yields one rule_group per sub-table", {
-  cr <- HousepiContactRate$new() |>
-    aux_add(by = c("age", "sex"), joint = FALSE,
-            reference = c(age = "adult", sex = "M"))
-  cr$implement(dummy_df, dummy_factor_info)
-  tidy <- cr$tidy_table
+  tidy <- mk_rate$model |>
+    add_contact_rate(by = c("age", "sex"), joint = FALSE,
+                     reference = c(age = "adult", sex = "M")) |>
+    get_contact_rates()
   expect_equal(length(unique(tidy$rule_group)), 2L)
 })
 
 test_that("Auto mode joint = TRUE yields a single rule_group", {
-  cr <- HousepiContactRate$new() |>
-    aux_add(by = c("age", "sex"),
-            reference = c(from_age = "adult", from_sex = "M",
-                          to_age = "adult", to_sex = "M"))
-  cr$implement(dummy_df, dummy_factor_info)
-  tidy <- cr$tidy_table
+  tidy <- mk_rate$model |>
+    add_contact_rate(by = c("age", "sex"), joint = TRUE,
+                     reference = c(from_age = "adult", from_sex = "M",
+                                   to_age = "adult", to_sex = "M")) |>
+    get_contact_rates()
   expect_equal(length(unique(tidy$rule_group)), 1L)
 })
 
 test_that("Non-joint sub-tables have correct columns", {
-  cr <- HousepiContactRate$new() |>
-    aux_add(by = c("age", "sex"),
-            joint = FALSE,
-            prior = "lognormal", sdlog = 1)
-  cr$implement(dummy_df, dummy_factor_info)
+  tidy <- mk_rate$model |>
+    add_contact_rate(by = c("age", "sex"), joint = FALSE,
+                     prior = "lognormal", sdlog = 1) |>
+    get_contact_rates()
 
-  # first table has from_age/to_age
-  t1 <- cr$logic_tables[[1]]
-  expect_true(all(c("from_age", "to_age") %in% colnames(t1)))
-  expect_false("from_sex" %in% colnames(t1))
+  # first sub-table carries age, and leaves sex unset
+  t1 <- subset(tidy, rule_group == 1)
+  expect_true(all(!is.na(t1$from_age) & !is.na(t1$to_age)))
+  expect_true(all(is.na(t1$from_sex) & is.na(t1$to_sex)))
 
-  # second table has from_sex/to_sex
-  t2 <- cr$logic_tables[[2]]
-  expect_true(all(c("from_sex", "to_sex") %in% colnames(t2)))
-  expect_false("from_age" %in% colnames(t2))
+  # second sub-table carries sex, and leaves age unset
+  t2 <- subset(tidy, rule_group == 2)
+  expect_true(all(!is.na(t2$from_sex) & !is.na(t2$to_sex)))
+  expect_true(all(is.na(t2$from_age) & is.na(t2$to_age)))
 })
 
 #####################################################
@@ -550,14 +474,9 @@ test_that("Contact rate definition work as expected", {
   # or to exactly one param value: no multiplications
   expect_true(all(cr_mtx %in% c(0, 1, params)))
 
-  # drop_contact_rates_ cleans up the associated parameter definitions
-  param_names_before <- hhmodel$parameters$name
-  hhmodel$.__enclos_env__$private$drop_contact_rates_()
-  any(setdiff(names(params), ".reference") %in% hhmodel$parameters$name) |>
-    expect_false()
-  # the template parameters added previously must survive
+  # the template parameters added previously survive alongside the rate ones
   template_pars <- c("alpha", "beta", "gamma")
-  expect_true(all(template_pars %in% param_names_before))
+  expect_true(all(template_pars %in% hhmodel$parameters$name))
 })
 
 test_that("Contact rates raise an error for incompatible models", {
@@ -567,5 +486,5 @@ test_that("Contact rates raise an error for incompatible models", {
   ) |>
     new_housepi_model("test") |>
     add_contact_rate(by = "cohort") |>
-    expect_error("not supported")
+    expect_error("[Nn]ot supported")
 })

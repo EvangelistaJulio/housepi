@@ -46,11 +46,11 @@ namespace housepi
 
     struct Augmented : public KeyModule
     {
-        /// Discriminates definition rows: augmented latent vs observation flavours.
+        /// Discriminates definition rows: augmented latent vs observation levels.
         enum class Kind : std::uint8_t
         {
             Augm,
-            Obs,
+            Member,
             House,
             Status
         };
@@ -217,7 +217,7 @@ namespace housepi
         bool is_any_obs() const noexcept { return is_any_obs_; }
         /// If a status observation is defined.
         bool is_any_status_obs() const noexcept { return !na::is(status_obs_def_); }
-        /// Whether the given name is an observation node (kind "obs").
+        /// Whether the given name is an observation node (kind "member").
         bool is_obs_node(const std::string &name) const noexcept;
         /// Whether the given name is a household observation (kind "house").
         bool is_house_obs(const std::string &name) const noexcept;
@@ -257,7 +257,7 @@ namespace housepi
             col c_value = {}, c_const = {}, c_discr = {};
             col c_prior = {}, c_min = {}, c_max = {};
             col c_proposal = {};
-            std::vector<Kind> c_kind = {}; /// augm | obs | house | status
+            std::vector<Kind> c_kind = {}; /// augm | member | house | status
 
             /// Clear all definitions.
             void clear();
@@ -321,6 +321,11 @@ namespace housepi
         /// Build the augmented producer graph (name -> the @A names it reads across
         /// all source columns) for the given definition rows.
         str_table build_augm_graph_(const std::vector<size_t> &rows) const;
+
+        /// Reject a read of an augmented name absent from the 'status' graph, telling
+        /// apart a name declared for other statuses from a data column or a parameter
+        /// of the same name (an unsuffixed name is read as augmented).
+        void assert_augm_depen_declared_(const str_table &graph, int status) const;
 
         /// Set dependecies ordering for ininitializiation fo given status.
         /// At the same time assert that definition are complet and acyclic.

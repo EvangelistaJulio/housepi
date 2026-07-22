@@ -2,7 +2,7 @@ library(testthat)
 
 # Shared fixture: a freshly templated flu_1918_frederick chain-binomial model
 # and one inference run, reused across PPC tests that don't mutate either.
-local_ppc <- local({
+mk_ppc <- local({
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter_template()
@@ -277,12 +277,12 @@ test_that("Helper to combine observations and predictions interleaves rows", {
 
 test_that("HousepiCustomPPC active fields are read-only", {
   # predicted-measures raises error when no measure is provided
-  local_ppc$hhmodel |>
-    run_custom_predictive_check(local_ppc$results) |>
+  mk_ppc$hhmodel |>
+    run_custom_predictive_check(mk_ppc$results) |>
     expect_error("No measure was provided")
 
-  hhmodel <- local_ppc$hhmodel
-  results <- local_ppc$results
+  hhmodel <- mk_ppc$hhmodel
+  results <- mk_ppc$results
 
   suppressWarnings(
     ppc <- hhmodel |>
@@ -316,8 +316,8 @@ test_that("HousepiCustomPPC active fields are read-only", {
 })
 
 test_that("Predicted cases by house size works as expected", {
-  hhmodel <- local_ppc$hhmodel
-  results <- local_ppc$results
+  hhmodel <- mk_ppc$hhmodel
+  results <- mk_ppc$results
   suppressWarnings(
     ppc <- run_epi_predictive_check(hhmodel, results)
   )
@@ -371,8 +371,8 @@ test_that("Predicted cases by house size works as expected", {
 })
 
 test_that("run_epi_predictive_check honours min/max_hhsize arguments", {
-  hhmodel <- local_ppc$hhmodel
-  results <- local_ppc$results
+  hhmodel <- mk_ppc$hhmodel
+  results <- mk_ppc$results
   suppressWarnings(
     ppc <- hhmodel |>
       run_epi_predictive_check(results, min_hhsize = 2L, max_hhsize = 3L)
@@ -385,8 +385,8 @@ test_that("run_epi_predictive_check honours min/max_hhsize arguments", {
 
 test_that("PPC does not pollute the engine's data_wide between calls", {
   # repeated PPC calls must not mutate the model's data_wide
-  hhmodel <- local_ppc$hhmodel
-  results <- local_ppc$results
+  hhmodel <- mk_ppc$hhmodel
+  results <- mk_ppc$results
 
   dw_before <- hhmodel$data_wide
   suppressWarnings({

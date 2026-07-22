@@ -2,13 +2,15 @@
 % Please edit documentation in R/expose_class.R
 \name{add_observation}
 \alias{add_observation}
-\title{Add an individual observation}
+\title{Add an observation}
 \usage{
 add_observation(
   hhmodel,
   name = NULL,
   obs = NA_character_,
   ...,
+  level = c("member", "house"),
+  value = NULL,
   status = NA_integer_,
   discr = FALSE,
   min = NULL,
@@ -23,10 +25,24 @@ add_observation(
 \item{name}{\code{character(1)} Name used by internal calls.}
 
 \item{obs}{\code{character(1)} Choice for the observation distribution.
+Reserved to member-level observations.
 Mutually exclusive with \code{prior}.}
 
 \item{...}{named arguments for the observation distribution.
 In mode 'multiple', the \code{name = value} definitions.}
+
+\item{level}{\code{character(1)} Level the datum is observed at.
+One between \code{"member"}, one value per positive status individual, and
+\code{"house"}, one value per household reduced over all its members.
+In mode 'multiple', applies to every entry not setting its own.}
+
+\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value.
+One between:
+\itemize{
+\item Scalar value;
+\item Parameter name (followed by \verb{@P});
+\item Dataset name (followed by \verb{@D}).
+}}
 
 \item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
@@ -61,11 +77,16 @@ If \code{FALSE} drop all pre-existing definitions.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add observation for positive status individual associated to data \eqn{x}.
-If model \code{obs} is provided, adds to household likelihood during evaluations.
-Sample \eqn{x} from the model during simulations.
+Add observation associated to data \eqn{x}, at the level set by \code{level}.
+
+At member level, the observation is attached to every positive status
+individual. If \code{obs} is provided, adds to household likelihood during
+evaluations, and \eqn{x} is sampled from it during simulations.
 If observation is deterministic it is considered as a datum.
 Note that indicator contribution to log-likelihood are expressily forbidden.
+
+At household level, the observation is a reduction of \code{value} over all the
+members, shared by the whole household, and must reduce to a constant value.
 There three mutually exclusive definition modes:
 \describe{
 \item{single}{

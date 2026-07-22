@@ -517,7 +517,7 @@ test_that("Household observation derives from simulated observations", {
     ) |>
     add_observation("test_date", obs = "normal",
                     mean = infec_time + incub_period, sd = 1) |>
-    add_house_observation(start_date = min(test_date@D)) |>
+    add_observation(start_date = min(test_date@D), level = "house") |>
     run_simulation(nrep = 2)
 
   # each repetition is self-consistent: start_date is the per-household na.rm min
@@ -578,7 +578,7 @@ test_that("Augmented variable reads a static data-bound household observation", 
       infec_time = list(prior = "uniform", min = start_date@D - 5,
                         max = start_date@D + 5)
     ) |>
-    add_house_observation(start_date = min(test_date@D)) |>
+    add_observation(start_date = min(test_date@D), level = "house") |>
     run_simulation()
 
   # start_date is materialized statically (= 5) before the index is drawn
@@ -599,7 +599,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
                         max = start_date@D + 5)
     ) |>
     add_observation("test_date", obs = "normal", mean = infec_time, sd = 1) |>
-    add_house_observation(start_date = min(test_date@D)) |>
+    add_observation(start_date = min(test_date@D), level = "house") |>
     run_simulation() |>
     expect_error("[Cc]yclic")
 })
@@ -669,9 +669,10 @@ test_that("Household observations aggregate a data column across members", {
       incub_period = list(prior = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
-    add_house_observation(
+    add_observation(
       first_test = min(test_date@D),
-      last_test = max(test_date@D)
+      last_test = max(test_date@D),
+      level = "house"
     ) |>
     run_simulation()
 
@@ -721,7 +722,7 @@ test_that("Data-bound household observation supplies a required data column", {
       new_housepi_model("case_ascertained") |>
       add_parameter_template() |>
       add_augmented_template() |>
-      add_house_observation(start_date = min(test_date@D))
+      add_observation(start_date = min(test_date@D), level = "house")
   }
   # reference: the same quantity provided as an ordinary data column
   build_provided <- function() {
@@ -767,7 +768,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
     new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
-    add_house_observation(start_date = min(test_date@D)) |>
+    add_observation(start_date = min(test_date@D), level = "house") |>
     evaluate_log_lik() |>
     expect_error("already provided")
 
@@ -776,7 +777,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
     new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
-    add_house_observation(start_date = min(test_date@D) + alpha@P) |>
+    add_observation(start_date = min(test_date@D) + alpha@P, level = "house") |>
     evaluate_log_lik() |>
     expect_error("pure function of data")
 })

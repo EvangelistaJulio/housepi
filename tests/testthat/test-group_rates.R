@@ -1,38 +1,22 @@
 library(testthat)
 
-aux_add <- function(self, name,
-                    by = NA_character_,
-                    reference = NULL,
-                    joint = FALSE,
-                    strata = NULL,
-                    params = NULL,
-                    prior = NA_character_, ...,
-                    min = NA_real_, max = NA_real_,
-                    proposal = NA_character_,
-                    prefix = NA_character_,
-                    .warn_over = TRUE) {
-  self$add_quo(name = name, by = by,
-               reference = reference, joint = joint,
-               strata = strata, params = params,
-               prior = prior, rlang::enquos(...),
-               min = rlang::enquo(min),
-               max = rlang::enquo(max),
-               proposal = proposal,
-               prefix = prefix,
-               .warn_over = .warn_over)
-  invisible(self)
-}
-
-# a dummy dataset and relative information for factorization
+# a dummy dataset for the plain logic-table helpers
 dummy_df <- data.frame(house_id = 1,
                        age = c(rep("child", 2), rep("adult", 2)),
                        sex = c("M", "F", "M", "M"))
-# corresponding factors levels
-dummy_factor_info <- list(age = list(levels = c("child", "adult")),
-                          sex = list(levels = c("M", "F")))
 # dummy group rate logic table
 dummy_strata <- data.frame(isolation = c(FALSE, TRUE),
                            param_name = c(".reference", "inf_isol"))
+
+# Model over the dummy features. Feature columns stay character on purpose:
+# levels follow order of first appearance, which fixes the reference stratum.
+mk_rate_model <- function(age = c("child", "child", "adult", "adult")) {
+  data.frame(house_id = 1, status = 0,
+             age = age,
+             sex = c("M", "F", "M", "M"),
+             isolation = c(FALSE, FALSE, TRUE, TRUE)) |>
+    new_housepi_model("final_size")
+}
 
 ####################################
 ## GROUP RATES : HELPER FUNCTIONS ##
@@ -60,60 +44,51 @@ test_that("Associate param names decorates table and marks reference", {
   expect_true(all(grepl("^mgs_", others)))
 })
 
-test_that("Assert-valid-logic-table validates input", {
+test_that("Custom strata logic table is validated", {
   # must be a data.frame
-  assert_valid_logic_table(list(a = 1)) |>
-    expect_error("data.frame")
+  mk_rate_model() |>
+    add_group_rate("susceptibility", strata = list(a = 1)) |>
+    expect_error("data\\.frame")
   # must have param_name column
-  assert_valid_logic_table(data.frame(x = 1)) |>
+  mk_rate_model() |>
+    add_group_rate("susceptibility", strata = data.frame(x = 1)) |>
     expect_error("param_name")
   # must have at least one row
-  assert_valid_logic_table(data.frame(param_name = character(0))) |>
+  mk_rate_model() |>
+    add_group_rate("susceptibility",
+                   strata = data.frame(param_name = character(0))) |>
     expect_error("at least one row")
   # reserved feature column names rejected
-  assert_valid_logic_table(data.frame(param_name = "a", id = 1)) |>
-    expect_error("reserved")
-})
-
-#################################
-## GROUP RATES : ACTIVE FIELDS ##
-#################################
-
-test_that("Active fields are read-only", {
-  HousepiGroupRate$new() |>
-    helper_test_read_only(
-      "parameters", "data_required",
-      "param_required", "tidy_table"
-    )
+  mk_rate_model() |>
+    add_group_rate("susceptibility",
+                   strata = data.frame(param_name = "a", id = 1)) |>
+    expect_error("[Rr]eserved")
 })
 
 ##################################
 ## GROUP RATES : STANDARD CALLS ##
 ##################################
 
-test_that("Group rates integrate with data and exposes to Cpp format", {
-  grp <- HousepiGroupRate$new()
+test_that("Group rates integrate with data", {
+  hhmodel <- mk_rate_model() |>
+    add_group_rate("community", by = c("age", "sex"), joint = TRUE) |>
+    expect_silent()
 
-  # implement should build logic_tables without errors
-  aux_add(grp, "foxhound", by = c("age", "sex"), joint = TRUE)
-  expect_silent(grp$implement(dummy_df, dummy_factor_info))
-  expect_true("foxhound" %in% names(grp$logic_tables))
-  tidy <- grp$tidy_table
+  tidy <- get_group_rates(hhmodel)
   expect_true(is.data.frame(tidy))
+  expect_true(all(tidy$group_rate == "community"))
+  # joint expansion: one rule group over both features
+  expect_equal(length(unique(tidy$rule_group)), 1L)
+  expect_true(all(c("age", "sex") %in% colnames(tidy)))
+  expect_equal(sum(tidy$param_name == ".reference"), 1L)
 
   # mcmc setup is default (Cauchemez et al., 2009)
-  default_mcmc_setup <- list(prior = "lognormal", meanlog = 0, sdlog = 3,
-                             min = 0, max = 10, proposal = "rw_log")
-  expect_equal(grp$parameters[[1]], default_mcmc_setup)
-
-  # expose_to_cpp convert factor columns into integers according to factors
-  # UPDATE: this will change when cpp will allow for characters
-  cpp_tbl <- grp$expose_to_cpp(dummy_factor_info)
-  expect_true(is.data.frame(cpp_tbl))
-  # columns corresponding to features are factorized
-  expect_true(all(c("age", "sex") %in% colnames(cpp_tbl)))
-  expect_true(all(cpp_tbl$age %in% c(1L, 2L)))
-  expect_true(all(cpp_tbl$sex %in% c(1L, 2L)))
+  params <- get_parameters(hhmodel)
+  expect_true(all(params$prior == "lognormal"))
+  expect_equal(params$args[[1]], c(meanlog = 0, sdlog = 3))
+  expect_true(all(params$min == 0))
+  expect_true(all(params$max == 10))
+  expect_true(all(params$proposal == "rw_log"))
 })
 
 test_that("Group rates hold without data and re-derive on add_data_wide", {
@@ -153,21 +128,21 @@ test_that("Group rates sentinels work correctly", {
   # wrong type for covariate column choice
   hhmodel |>
     add_group_rate("susceptibility", by = 4) |>
-    expect_error("character")
+    expect_error("[Aa]rgument .by. must be of type character")
 
   # not implemented group
   hhmodel |>
     add_group_rate("cobras", by = "sex") |>
-    expect_error("unused group rate.*cobras")
+    expect_error("[Uu]nused group rate.*cobras")
 
   # incomplete custom prior definition
   hhmodel |>
     add_group_rate("susceptibility", by = "sex", max = 3) |>
-    expect_error("spare prior arguments")
+    expect_error("[Ss]pare prior arguments")
 
   hhmodel |>
     add_group_rate("susceptibility", by = "test_date") |>
-    expect_error("must be a scalar")
+    expect_error("[Mm]ust be a scalar")
 })
 
 test_that("Group rates reference support behaves as expected", {
@@ -187,36 +162,41 @@ test_that("Group rates reference support behaves as expected", {
 })
 
 test_that("Parameter options work correctly", {
-  grp <- HousepiGroupRate$new() |>
-    aux_add("peace", by = c("age", "sex"),
-            prior = "uniform", min = 0, max = 10, joint = TRUE)
-  expect_silent(grp$implement(dummy_df, dummy_factor_info))
-  grp$parameters[[1]] |>
-    expect_equal(
-      list(prior = "uniform", min = 0, max = 10, proposal = NA_character_)
-    )
+  params <- mk_rate_model() |>
+    add_group_rate("susceptibility", by = c("age", "sex"),
+                   prior = "uniform", min = 0, max = 10, joint = TRUE) |>
+    get_parameters()
+  expect_true(all(params$prior == "uniform"))
+  expect_true(all(params$min == 0))
+  expect_true(all(params$max == 10))
+  # a sampled rate parameter defaults to a random walk
+  expect_true(all(params$proposal == "rw"))
 
-  grp <- HousepiGroupRate$new() |>
-    aux_add("walker", by = c("age", "sex"),
-            prior = "gamma", shape = 2, scale = 1, joint = TRUE)
-  expect_silent(grp$implement(dummy_df, dummy_factor_info))
-  grp$parameters[[1]] |>
-    expect_equal(
-      list(prior = "gamma", shape = "2|N", scale = "1|N",
-           min = NA_real_, max = NA_real_, proposal = NA_character_)
-    )
+  params <- mk_rate_model() |>
+    add_group_rate("infectivity", by = c("age", "sex"),
+                   prior = "gamma", shape = 2, scale = 1, joint = TRUE) |>
+    get_parameters()
+  expect_true(all(params$prior == "gamma"))
+  expect_equal(params$args[[1]], c(shape = 2, scale = 1))
+  expect_true(all(is.na(params$min)))
+  expect_true(all(is.na(params$max)))
+  expect_true(all(params$proposal == "rw"))
 })
 
 test_that("Load list works as expected", {
-  grp <- HousepiGroupRate$new()
-  helper_test_aux_load(
-    grp,
-    whatever = list(by = c("age", "sex"), prefix = "ct",
-                    prior = "uniform", min = 0, max = 10),
-    susceptibility = list(by = c("age", "sex"),
-                          prior = "lognormal", sdlog = 3)
-  )
-  expect_silent(grp$implement(dummy_df, dummy_factor_info))
+  hhmodel <- mk_rate_model() |>
+    add_group_rate(
+      community = list(by = c("age", "sex"), prefix = "ct",
+                       prior = "uniform", min = 0, max = 10),
+      susceptibility = list(by = c("age", "sex"),
+                            prior = "lognormal", sdlog = 3)
+    ) |>
+    expect_silent()
+
+  tidy <- get_group_rates(hhmodel)
+  expect_setequal(unique(tidy$group_rate), c("community", "susceptibility"))
+  expect_true(any(grepl("^ct_", tidy$param_name)))
+  expect_true(any(grepl("^sus_", tidy$param_name)))
 })
 
 #############################################
@@ -224,36 +204,22 @@ test_that("Load list works as expected", {
 #############################################
 
 test_that("Group rates deal with custom logic table correctly", {
-  grp <- HousepiGroupRate$new()
-  aux_add(grp, name = "infectivity", strata = dummy_strata,
-          prior = "lognormal", meanlog = 0, sdlog = 2)
+  hhmodel <- mk_rate_model() |>
+    add_group_rate(name = "infectivity", strata = dummy_strata,
+                   prior = "lognormal", meanlog = 0, sdlog = 2)
 
-  # defs stored with mode sentinel
-  expect_equal(grp$defs$infectivity$mode, "custom")
-  expect_equal(grp$defs$infectivity$by, "isolation")
-
-  # logic table stored
-  expect_length(grp$logic_tables$infectivity, 1)
-  stored <- grp$logic_tables$infectivity[[1]]
-  expect_true("param_name" %in% colnames(stored))
-  expect_equal(stored$param_name, c(".reference", "inf_isol"))
-
-  # parameters generated for non-reference
-  params <- grp$parameters
-  expect_length(params, 1)
-  expect_true("inf_isol" %in% names(params))
-
-  # tidy_table
-  tidy <- grp$tidy_table
+  tidy <- get_group_rates(hhmodel)
   expect_true(is.data.frame(tidy))
-  expect_true("group_rate" %in% colnames(tidy))
   expect_true(all(tidy$group_rate == "infectivity"))
+  # the custom strata drives the feature column and the rows
+  expect_true("isolation" %in% colnames(tidy))
+  expect_setequal(tidy$param_name, c(".reference", "inf_isol"))
 
-  # remove logic
-  grp$remove("infectivity")
-  expect_false("infectivity" %in% names(grp$defs))
-  expect_false("infectivity" %in% names(grp$logic_tables))
-  expect_false("infectivity" %in% names(grp$param_overrides))
+  # parameters generated for non-reference only
+  params <- get_parameters(hhmodel)
+  expect_equal(params$name, "inf_isol")
+  expect_equal(params$prior, "lognormal")
+  expect_equal(params$args[[1]], c(meanlog = 0, sdlog = 2))
 })
 
 test_that("Group rate parameter overrides work", {
@@ -265,69 +231,69 @@ test_that("Group rate parameter overrides work", {
                        min = NA_real_, max = 10,
                        proposal = "rw_log", proposal_scale = 1)
   )
-  grp <- HousepiGroupRate$new() |>
-    aux_add(name = "susceptibility", strata = strata,
-            params = overrides, prior = "gamma", shape = 2, scale = 1)
+  hhmodel <- mk_rate_model(c("child", "adult", "elderly", "adult")) |>
+    add_group_rate(name = "susceptibility", strata = strata,
+                   params = overrides, prior = "gamma", shape = 2, scale = 1)
 
-  expect_length(grp$parameters, 2)
+  params <- get_parameters(hhmodel)
+  expect_setequal(params$name, c("sus_old", "sus_elderly"))
   # overrides used instead of raw params
-  expect_equal(grp$parameters$sus_old, 1.73)
-  expect_equal(grp$parameters$sus_elderly$prior, "lognormal")
-  expect_equal(grp$parameters$sus_elderly$sdlog, 1.2)
+  old <- subset(params, name == "sus_old")
+  expect_equal(old$value, 1.73)
+  expect_true(old$const)
+  elderly <- subset(params, name == "sus_elderly")
+  expect_equal(elderly$prior, "lognormal")
+  expect_equal(elderly$args[[1]], c(sdlog = 1.2))
 
-  grp |>
-    aux_add(name = "susceptibility",
-            strata = data.frame(
-              sex = c("M", "F"), param_name = c("smtg", ".reference")
-            ),
-            params = list(unknown = 2.4)) |>
-    expect_error("unknown")
+  hhmodel |>
+    add_group_rate(name = "susceptibility",
+                   strata = data.frame(
+                     sex = c("M", "F"), param_name = c("smtg", ".reference")
+                   ),
+                   params = list(unknown = 2.4)) |>
+    expect_error("[Uu]nknown")
 })
 
 test_that("Group rate implementation preserves strata entries", {
-  grp <- HousepiGroupRate$new() |>
+  hhmodel <- mk_rate_model() |>
     # add a standard auto-mode rate
-    aux_add("community", by = "age", prefix = "com") |>
+    add_group_rate("community", by = "age", prefix = "com") |>
     # add a custom-mode rate
-    aux_add(name = "infectivity",
-            strata = data.frame(
-              age = c("adult", "child"), param_name = c("inf_old", ".reference")
-            ))
+    add_group_rate(name = "infectivity",
+                   strata = data.frame(
+                     age = c("adult", "child"),
+                     param_name = c("inf_old", ".reference")
+                   ))
 
-  # implement should build by-mode and preserve strata-mode
-  grp$implement(dummy_df, dummy_factor_info)
-
-  expect_true("infectivity" %in% names(grp$logic_tables))
-  expect_true("community" %in% names(grp$logic_tables))
+  tidy <- get_group_rates(hhmodel)
+  expect_setequal(unique(tidy$group_rate), c("community", "infectivity"))
   # strata entry is unchanged
-  grp$logic_tables$infectivity[[1]]$param_name |>
-    expect_equal(c("inf_old", ".reference"))
+  subset(tidy, group_rate == "infectivity")$param_name |>
+    expect_setequal(c("inf_old", ".reference"))
+  expect_true(any(grepl("^com_", tidy$param_name)))
 
-  aux_add(grp, "infectivity", by = "age") |>
-    expect_warning("infectivity")
-  aux_add(grp, "community", strata = dummy_strata) |>
-    expect_warning("community")
+  add_group_rate(hhmodel, "infectivity", by = "age") |>
+    expect_warning("[Oo]verwriting.*infectivity")
+  add_group_rate(hhmodel, "community", strata = dummy_strata) |>
+    expect_warning("[Oo]verwriting.*community")
 })
 
 test_that("Group rate mixed auto and custom modes", {
-  grp <- HousepiGroupRate$new() |>
-    aux_add("community", by = "age", prefix = "com")
-  grp$implement(dummy_df, dummy_factor_info)
-  expect_true("community" %in% names(grp$logic_tables))
+  hhmodel <- mk_rate_model() |>
+    add_group_rate("community", by = "age", prefix = "com") |>
+    add_group_rate(name = "infectivity", strata = dummy_strata)
 
-  aux_add(grp, name = "infectivity", strata = dummy_strata)
-  expect_true("infectivity" %in% names(grp$logic_tables))
+  tidy <- get_group_rates(hhmodel)
+  expect_setequal(unique(tidy$group_rate), c("community", "infectivity"))
+  # both modes materialise their parameters
+  param_names <- get_parameters(hhmodel)$name
+  expect_true("inf_isol" %in% param_names)
+  expect_true(any(grepl("^com_", param_names)))
 
-  # param_required should include both
-  required <- grp$param_required
-  expect_true("inf_isol" %in% required)
-  expect_true(any(grepl("^com_", required)))
-
-  # data required
-  data_req <- grp$data_required
-  expect_true(all(c("age", "isolation") %in% data_req))
-
-  # trigger error (unknown feature in dummy_strata)
-  grp$implement(dummy_df, dummy_factor_info) |>
-    expect_error("Unknown")
+  # a feature the data does not carry only fails at the wall
+  data.frame(house_id = 1, status = 0, age = c("child", "adult")) |>
+    new_housepi_model("final_size") |>
+    add_group_rate(name = "infectivity", strata = dummy_strata) |>
+    evaluate_log_lik() |>
+    expect_error("missing data column")
 })

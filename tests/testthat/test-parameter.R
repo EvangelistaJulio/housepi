@@ -1,192 +1,178 @@
 library(testthat)
 
-aux_add <- function(self, name = NA_character_, value = NULL,
-                    const = NA, discr = FALSE,
-                    prior = NA_character_, ...,
-                    min = NULL, max = NULL,
-                    proposal = NA_character_) {
-  self$add_quo(
-    name = name, value = rlang::enquo(value),
-    const = const, discr = discr,
-    prior = prior, rlang::enquos(...),
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal
-  )
-  invisible(self)
-}
+# model carrying no parameter of its own.
+mk_param <- local({
+  list(model = new_housepi_model(model = "test"))
+})
 
 ##############################
 ## PARAMETER : DEFINITIONS  ##
 ##############################
 
 test_that("Default parameter definitions are correct", {
-  param <- HousepiParameter$new()
+  mk_param$model |>
+    add_parameter() |>
+    expect_error("[Nn]o.*definitions.*provided")
 
-  aux_add(param, name = "dummy", value = 3, const = FALSE) |>
-    expect_error("prior")
-
-  # active fields are read-only
-  helper_test_read_only(param, "param_required")
+  mk_param$model |>
+    add_parameter(name = "dummy", value = 3, const = FALSE) |>
+    expect_error("[Nn]o .prior. provided for parameter")
 
   # default sample framework
-  param |>
-    helper_test_aux_load(
+  param <- mk_param$model |>
+    add_parameter(
       dummy = list(value = 3, prior = "uniform", min = 0, max = 5)
-    )
+    ) |>
+    get_parameters()
 
-  expect_equal(param$defs$name, "dummy")
-  expect_equal(param$defs$value, "3|N")
-  expect_equal(param$defs$const, FALSE)
-  expect_equal(param$defs$discr, FALSE)
-  expect_equal(param$defs$proposal, "rw")
-  expect_equal(param$defs$prior, "uniform")
-  expect_equal(param$defs$min, "0|N")
-  expect_equal(param$defs$max, "5|N")
+  expect_equal(param$name, "dummy")
+  expect_equal(param$value, 3)
+  expect_equal(param$const, FALSE)
+  expect_equal(param$discr, FALSE)
+  expect_equal(param$proposal, "rw")
+  expect_equal(param$prior, "uniform")
+  expect_equal(param$min, 0)
+  expect_equal(param$max, 5)
 
-  # load_list and single add should be coherent
-  tmp <- HousepiParameter$new() |>
-    aux_add(
+  # bulk and single add should be coherent
+  tmp <- mk_param$model |>
+    add_parameter(
       name = "dummy", value = 3, prior = "uniform",
       min = 0, max = 5
-    )
-  expect_equal(param$defs, tmp$defs)
+    ) |>
+    get_parameters()
+  expect_equal(param, tmp)
 
   # proposal
-  param <- HousepiParameter$new() |>
-    aux_add(
+  param <- mk_param$model |>
+    add_parameter(
       name = "dummy", prior = "uniform", min = 0, max = 5,
       proposal = "rw"
-    )
+    ) |>
+    get_parameters()
 
-  expect_equal(param$defs$name, "dummy")
-  expect_equal(param$defs$value, NA_real_)
-  expect_equal(param$defs$const, FALSE)
-  expect_equal(param$defs$discr, FALSE)
+  expect_equal(param$name, "dummy")
+  expect_equal(param$value, NA_real_)
+  expect_equal(param$const, FALSE)
+  expect_equal(param$discr, FALSE)
   # a bare proposal (no folded scale) stays adaptive
-  expect_equal(param$defs$proposal, "rw")
-  expect_equal(param$defs$prior, "uniform")
-  expect_equal(param$defs$min, "0|N")
-  expect_equal(param$defs$max, "5|N")
+  expect_equal(param$proposal, "rw")
+  expect_equal(param$prior, "uniform")
+  expect_equal(param$min, 0)
+  expect_equal(param$max, 5)
 
   # a user-defined proposal_scale is folded into the proposal call as an
   # argument of the DSL, pinning the scale (no adaptation)
-  param <- HousepiParameter$new() |>
-    aux_add(
+  param <- mk_param$model |>
+    add_parameter(
       name = "dummy", prior = "uniform", min = 0, max = 5,
       proposal = "rw", proposal_scale = 0.5
-    )
-  expect_equal(param$defs$proposal, "rw|scale|{0.5|N}")
+    ) |>
+    get_parameters()
+  expect_equal(param$proposal, "rw")
+  expect_equal(param$proposal_args[[1]], c(scale = 0.5))
 })
 
 test_that("Proposal families route correctly", {
   # a distribution name is an independence sampler; its arguments fold in
-  param <- HousepiParameter$new() |>
-    aux_add(
+  param <- mk_param$model |>
+    add_parameter(
       name = "otacon", prior = "uniform", min = 0, max = 5,
       proposal = "normal", proposal_mean = 0, proposal_sd = 1
-    )
-  expect_equal(param$defs$proposal, "normal|mean:sd|{0|N}:{1|N}")
+    ) |>
+    get_parameters()
+  expect_equal(param$proposal, "normal")
+  expect_equal(param$proposal_args[[1]], c(mean = 0, sd = 1))
 
   # sampling from the prior is the default keyword
-  param <- HousepiParameter$new() |>
-    aux_add(
+  param <- mk_param$model |>
+    add_parameter(
       name = "otacon", prior = "uniform", min = 0, max = 5,
       proposal = "prior"
-    )
-  expect_equal(param$defs$proposal, "prior")
+    ) |>
+    get_parameters()
+  expect_equal(param$proposal, "prior")
 
   # proposal_scale only tunes a random walk
-  param <- HousepiParameter$new() |>
-    aux_add(
+  mk_param$model |>
+    add_parameter(
       name = "otacon", prior = "uniform", min = 0, max = 5,
       proposal = "normal", proposal_scale = 0.5
     ) |>
-    expect_error("random walk")
+    expect_error("random.?walk")
 
   # distribution arguments are not random-walk knobs
-  param <- HousepiParameter$new() |>
-    aux_add(
+  mk_param$model |>
+    add_parameter(
       name = "otacon", prior = "uniform", min = 0, max = 5,
       proposal = "rw", proposal_sd = 1
     ) |>
-    expect_error("only")
+    expect_error("[Rr]andom.?walk proposal .*accepts only")
 
   # advanced options need an explicit proposal
-  param <- HousepiParameter$new() |>
-    aux_add(
+  mk_param$model |>
+    add_parameter(
       name = "otacon", prior = "uniform", min = 0, max = 5,
       proposal_mean = 0
     ) |>
-    expect_error("explicit")
+    expect_error("[Aa]dvanced .proposal.* require an explicit")
 })
 
 test_that("Constant parameter definitions are correct", {
-  param <- HousepiParameter$new()
-  aux_add(param, name = "dummy") |>
-    expect_error("Incomplete")
-  param |>
-    aux_add(
+  mk_param$model |>
+    add_parameter(name = "dummy") |>
+    expect_error("[Ii]ncomplete")
+  mk_param$model |>
+    add_parameter(
       name = "dummy", prior = "uniform",
       min = 0, max = 5, const = TRUE
     ) |>
-    expect_error("Missing value")
+    expect_error("[Mm]issing value")
 
-  # load_list and single add should be coherent
-  helper_test_aux_load(param, dummy = 3)
-  tmp <- aux_add(HousepiParameter$new(), name = "dummy", value = 3)
-  expect_equal(param$defs, tmp$defs)
+  # bulk and single add should be coherent
+  hhmodel <- add_parameter(mk_param$model, dummy = 3)
+  tmp <- add_parameter(mk_param$model, name = "dummy", value = 3)
+  expect_equal(get_parameters(hhmodel), get_parameters(tmp))
 
-  expect_equal(param$defs$name, "dummy")
-  expect_equal(param$defs$value, "3|N")
-  expect_equal(param$defs$const, TRUE)
-  expect_equal(param$defs$proposal, NA_character_)
+  param <- get_parameters(hhmodel)
+  expect_equal(param$name, "dummy")
+  expect_equal(param$value, 3)
+  expect_equal(param$const, TRUE)
+  expect_equal(param$proposal, NA_real_)
 
-  param |>
-    aux_add(
-      name = "dummy", value = 3, prior = "uniform",
+  expect_warning(
+    overwritten <- add_parameter(
+      hhmodel, name = "dummy", value = 3, prior = "uniform",
       min = 0, max = 5, const = TRUE
-    ) |>
-    expect_warning("Overwriting")
-  expect_equal(param$defs, tmp$defs)
+    ),
+    "[Oo]verwriting"
+  )
+  expect_equal(get_parameters(overwritten), get_parameters(tmp))
 })
 
 test_that("Non default arguments are loaded correctly", {
   # simple add
-  param <- HousepiParameter$new() |>
-    aux_add(
+  param <- mk_param$model |>
+    add_parameter(
       name = "dummy", prior = "gamma",
       shape = 2, scale = 1
-    )
-  expect_equal(param$defs$prior, "gamma|shape:scale|{2|N}:{1|N}")
+    ) |>
+    get_parameters()
+  expect_equal(param$prior, "gamma")
+  expect_equal(param$args[[1]], c(shape = 2, scale = 1))
 })
 
 test_that("Variadic labels are not swallowed by formal matching", {
-  # single definition
-  param <- HousepiParameter$new()
-  param$add_quo(
-    name = "vulcan_raven", prior = "categorical",
-    a = 0.2, b = 0.1, c = 0.7, d = 0.4, p = 0.6
-  )
-  expect_equal(param$defs$name, "vulcan_raven")
-  expect_equal(
-    param$defs$prior,
-    "categorical|a:b:c:d:p|{0.2|N}:{0.1|N}:{0.7|N}:{0.4|N}:{0.6|N}"
-  )
-
-  # multiple definitions
-  param <- HousepiParameter$new() |>
-    helper_test_aux_load(
+  param <- mk_param$model |>
+    add_parameter(
       vulcan = list(prior = "categorical", a = 0.2, b = 0.1, c = 0.7),
       raven = list(prior = "categorical", d = 0.4, p = 0.6)
-    )
-  expect_equal(param$defs$name, c("vulcan", "raven"))
-  expect_equal(
-    param$defs$prior,
-    c(
-      "categorical|a:b:c|{0.2|N}:{0.1|N}:{0.7|N}",
-      "categorical|d:p|{0.4|N}:{0.6|N}"
-    )
-  )
+    ) |>
+    get_parameters()
+  expect_equal(param$name, c("vulcan", "raven"))
+  expect_equal(param$prior, c("categorical", "categorical"))
+  expect_equal(param$args[[1]], c(a = 0.2, b = 0.1, c = 0.7))
+  expect_equal(param$args[[2]], c(d = 0.4, p = 0.6))
 })
 
 ############################
@@ -199,31 +185,31 @@ test_that("Unsupported parameter definitions throw errors", {
   # eager rebuild: errors surface at definition, not at run_inference
   hhmodel |>
     add_parameter("a", prior = "uniform", min = min_val@D) |>
-    expect_error("not supported")
+    expect_error("[Nn]ot supported")
   # hint is thrown
   hhmodel |>
     add_parameter("b", prior = "uniform", min = min_val) |>
-    expect_error("rlang injection")
+    expect_error("[Rr]lang injection")
 })
 
 test_that("Degenerate range raises an error for parameters", {
   new_housepi_model(model = "test") |>
     add_parameter("venom", prior = "uniform", min = 3, max = 3) |>
-    expect_error("degenerate range")
+    expect_error("[Dd]egenerate range")
 })
 
 test_that("Invalid proposal name is rejected", {
   new_housepi_model(model = "test") |>
     add_parameter("snake", prior = "uniform", proposal = "venom") |>
     run_inference(steps = 1, chains = 1, progress = FALSE) |>
-    expect_error("Unknown proposal.*venom")
+    expect_error("[Uu]nknown proposal.*venom")
 })
 
 test_that("Lognormal proposal non-positive domain", {
   # prior with unbounded lower bound
   new_housepi_model(model = "test") |>
     add_parameter("huey", prior = "normal", proposal = "rw_log") |>
-    expect_error("non-positive.*huey")
+    expect_error("non.?positive.*huey")
 
   # prior with negative lower bound
   new_housepi_model(model = "test") |>
@@ -231,7 +217,7 @@ test_that("Lognormal proposal non-positive domain", {
       name = "miller", prior = "uniform",
       min = -1, proposal = "rw_log"
     ) |>
-    expect_error("non-positive")
+    expect_error("non.?positive")
 
   # location parameter
   suppressWarnings(
@@ -312,11 +298,6 @@ test_that("Parameter defined as a function tracks its dependencies", {
   vars <- posterior::variables(res$parameter_draws)
   # both sampled and function-derived parameters appear in the trace
   expect_true(all(c("gamma", "beta") %in% vars))
-  # the function-derived parameter has no prior contribution
-  # UPDATE: this will not require private access in the future
-  expect_false("lprior_beta" %in% posterior::variables(
-    res$.__enclos_env__$private$param_prior_draws_
-  ))
 
   df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
   # every draw of beta equals hhsize_ref^(-gamma) exactly

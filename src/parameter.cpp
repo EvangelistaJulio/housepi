@@ -381,7 +381,7 @@ namespace housepi
                     deps += parse::Definition(input.at(col)[k]).list_parameter_depen();
                 dep_graph[pstr] = str::unique(deps);
             }
-            ordered = dpdcy::order_dependencies(dep_graph);
+            ordered = dpdcy::order_dependencies(dep_graph, ErrType::Parameter);
         }
         else
         {

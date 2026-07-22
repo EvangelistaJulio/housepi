@@ -7,8 +7,8 @@ library(testthat)
 test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
     helper_test_read_only(
-      "data_wide", "data_long", "parameters", "augmented", "infec_profile",
-      "group_rates", "contact_rates", "name", "setup"
+      "data_wide", "data_long", "parameters", "augmented", "observations",
+      "infec_profile", "group_rates", "contact_rates", "name", "setup"
     )
 })
 

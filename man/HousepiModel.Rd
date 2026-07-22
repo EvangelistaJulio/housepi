@@ -24,6 +24,9 @@ One row per individual index by corresponding ID.}
 
 \item{\code{augmented}}{\code{data.frame}. Augmented definitions.}
 
+\item{\code{observations}}{\code{data.frame}. Observation definitions.
+Column 'level' tells member ("member") from household ("house") entries.}
+
 \item{\code{infec_profile}}{\code{data.frame}. Infectivity profile definitions.}
 
 \item{\code{group_rates}}{\code{data.frame}. Group rate definitions.}

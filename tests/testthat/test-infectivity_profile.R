@@ -1,79 +1,81 @@
 library(testthat)
 
-aux_add <- function(self, func, status = NA_integer_,
-                    discr = FALSE, ..., max = NULL) {
-  self$add_quo(func = func, status = status, discr = discr,
-               rlang::enquos(...), max = rlang::enquo(max))
-  invisible(self)
-}
+# Model carrying no infectivity profile of its own.
+mk_infec_model <- function() new_housepi_model(model = "test")
+
+## INFECTIVITY PROFILE : DEFINITIONS ##
 
 test_that("Default infectivity profile definitions are correct", {
-  infec <- HousepiInfecProfile$new() |>
-    # add a profile with default arguments
-    aux_add(func = "dummy", discr = FALSE, a = 1, b = 2, max = 10)
+  # add a profile with default arguments
+  infec <- mk_infec_model() |>
+    add_infectivity_profile(func = "gamma", discr = FALSE,
+                            shape = 1, scale = 2, max = 10) |>
+    get_infectivity_profile()
 
-  expect_equal(infec$defs$func, "dummy|a:b|{1|N}:{2|N}")
-  expect_equal(infec$defs$status, NA_integer_)
-  expect_equal(infec$defs$discr, FALSE)
-  expect_equal(infec$defs$max, "10|N")
+  expect_equal(infec$func, "gamma")
+  expect_equal(infec$func_args[[1]], c(shape = 1, scale = 2))
+  expect_equal(infec$status, NA_real_)
+  expect_equal(infec$discr, FALSE)
+  expect_equal(infec$max, 10)
 })
 
 test_that("Infectivity profile with discrete values is correct", {
   # add a discrete profile
-  infec <- HousepiInfecProfile$new() |>
-    aux_add("fulton", discr = TRUE, x = 5, max = 20)
-  expect_equal(infec$defs$func, "fulton|x|{5|N}")
-  expect_equal(infec$defs$discr, TRUE)
-  expect_equal(infec$defs$max, "20|N")
+  infec <- mk_infec_model() |>
+    add_infectivity_profile("ferretti20", discr = TRUE,
+                            incub_period = 5, max = 20) |>
+    get_infectivity_profile()
+
+  expect_equal(infec$func, "ferretti20")
+  expect_equal(infec$func_args[[1]], c(incub_period = 5))
+  expect_equal(infec$discr, TRUE)
+  expect_equal(infec$max, 20)
 })
 
 test_that("Error handling in infectivity profile definitions", {
-  infec <- HousepiInfecProfile$new() |>
-    # missing function name
-    aux_add(func = NA, discr = FALSE, a = 1) |>
-    expect_error("Incomplete definition")
+  # missing function name
+  mk_infec_model() |>
+    add_infectivity_profile(func = NA, discr = FALSE, a = 1) |>
+    expect_error("[Ii]ncomplete definition")
+  # unknown family
+  mk_infec_model() |>
+    add_infectivity_profile(func = "fulton", x = 5) |>
+    expect_error("[Uu]nknown infectivity profile")
 })
 
 test_that("Status specific definition work fine", {
-  infec <- HousepiInfecProfile$new() |>
-    aux_add("generic", discr = TRUE, x = 5, max = 20)
-
-  infec |>
-    aux_add("another_generic") |>
-    expect_warning("Overwriting")
-
-  infec |>
-    helper_test_aux_load(
-      list(func = "lognormal", status = 1),
-      list(func = "ferretti20", incub_period = 5, status = 2),
-      v1 = "uniform",
+  infec <- mk_infec_model() |>
+    add_infectivity_profile("ferretti20", discr = TRUE,
+                            incub_period = 5, max = 20) |>
+    add_infectivity_profile(
+      import = list(
+        list(func = "lognormal", status = 1),
+        list(func = "ferretti20", incub_period = 5, status = 2),
+        v1 = "uniform"
+      ),
       append = FALSE
-    )
-  infec$defs$func |>
-    expect_equal(c("lognormal", "ferretti20|incub_period|{5|N}", "uniform"))
-  infec$defs$status |>
-    expect_equal(c(1, 2, NA_integer_))
+    ) |>
+    get_infectivity_profile()
+
+  expect_equal(infec$func, c("lognormal", "ferretti20", "uniform"))
+  expect_equal(infec$func_args[[2]], c(incub_period = 5))
+  expect_equal(infec$status, c(1, 2, NA_real_))
 })
 
 test_that("Spurious names are dropped", {
   external_list <- list(
     ip1 = list(func = "gamma", status = NA,
                discr = TRUE, shape = ~ shape, scale = ~ scale),
-    ip2 = list(func = "gamma", status = 3,
+    ip2 = list(func = "gamma", status = 2,
                discr = TRUE, shape = ~ shape, scale = ~ scale)
   )
 
-  infec <- HousepiInfecProfile$new()
-  helper_test_aux_load(infec, !!!external_list)
-  defs <- infec$defs
-  defs$status <- NULL
-  expect_equal(nrow(unique(defs)), 1)
-})
+  infec <- mk_infec_model() |>
+    add_augmented("shape", prior = "uniform", min = 1, max = 5) |>
+    add_augmented("scale", prior = "uniform", min = 1, max = 5) |>
+    add_infectivity_profile(import = external_list) |>
+    get_infectivity_profile()
 
-test_that("Active fields are read-only", {
-  HousepiInfecProfile$new() |>
-    helper_test_read_only(
-      "augm_required", "data_required",
-      "group_rates_required", "param_required"
-    )
+  infec$status <- NULL
+  expect_equal(nrow(unique(infec)), 1)
 })

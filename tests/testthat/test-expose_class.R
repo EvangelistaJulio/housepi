@@ -115,6 +115,42 @@ test_that("Bulk loading via `defs` mirrors inline name = value pairs", {
     expect_error("Mixing")
 })
 
+test_that("add_observation routes every input branch on `level`", {
+  hhmodel <- data.frame(
+    house_id = "outer_heaven", status = 1,
+    onset_date = 3, test_date = 2
+  ) |>
+    new_housepi_model("test")
+
+  # default level is member
+  expect_identical(
+    add_observation(hhmodel, "onset_date", obs = "normal", mean = 0, sd = 1) |>
+      get_observations() |>
+      subset(name == "onset_date", "level", drop = TRUE),
+    "member"
+  )
+
+  #> single definition
+  single <- hhmodel |>
+    add_observation("first_test", value = min(test_date@D), level = "house")
+  #> multiple definitions
+  bulk <- hhmodel |>
+    add_observation(first_test = min(test_date@D), level = "house")
+  #> import definitions
+  input <- list(first_test = quote(min(test_date@D)))
+  imported <- add_observation(hhmodel, import = input, level = "house")
+
+  expect_identical(get_observations(bulk), get_observations(single))
+  expect_identical(get_observations(imported), get_observations(single))
+  expect_identical(
+    get_observations(single)[["level"]], "house"
+  )
+
+  # an unknown level is rejected before anything is stored
+  add_observation(hhmodel, big_boss = min(test_date@D), level = "snake") |>
+    expect_error("should be one of")
+})
+
 ############################################################################
 ## Wrappers with data
 ############################################################################

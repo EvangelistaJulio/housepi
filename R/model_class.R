@@ -659,6 +659,18 @@ HousepiModel <- R6::R6Class(
       housepi_defin_showcaser(defs)
     },
 
+    #' @field observations `data.frame`. Observation definitions.
+    #' Column 'level' tells member ("member") from household ("house") entries.
+    observations = function(value) {
+      if (!missing(value)) stop_read_only("observations")
+      defs <- do.call(rbind, lapply(c("member", "house"), function(level) {
+        out <- private$augm_$defs_of_kind(level)
+        if (is.null(out)) return(NULL)
+        cbind(out, level = level, stringsAsFactors = FALSE)
+      }))
+      housepi_defin_showcaser(defs)
+    },
+
     #' @field infec_profile `data.frame`. Infectivity profile definitions.
     infec_profile = function(value) {
       if (!missing(value)) stop_read_only("infec_profile")
