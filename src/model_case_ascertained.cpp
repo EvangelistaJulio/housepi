@@ -42,6 +42,9 @@ public:
 		request_param_discrete(ParamKey::hhsize_ref);
 		request_data_discrete(DataKey::start_date);
 		request_data_discrete(DataKey::end_date);
+		request_risk_identifiability(ParamKey::alpha, {GroupRiskKey::community});
+		request_risk_identifiability(ParamKey::beta,
+									 {GroupRiskKey::susceptibility, GroupRiskKey::infectivity}, true);
 
 		// template infectivity profile (otherwise user defined)
 		// UPDATE: this should become more user friendly

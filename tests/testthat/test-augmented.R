@@ -21,7 +21,8 @@ test_that("Augmented definition error are recognized", {
 
   # UPDATE: the hint `'!!!'` here seems off
   mk_augm$model |>
-    add_augmented(import = list(list(prior = "normal")))
+    add_augmented(import = list(list(prior = "normal"))) |> 
+    expect_error("non-empty")
 })
 
 test_that("Constant value definition are coherent", {

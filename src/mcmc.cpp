@@ -642,7 +642,9 @@ namespace housepi
 
     void MCMC::init_for_evaluation_()
     {
+        param.assert_risk_identifiability(group_risk, contact_risk);
         data_wide().assert_not_all_missing_status();
+
         // materialize household observations standing in for required data columns
         // before any @D reference (augmented bounds, model) reads the data store.
         augm.materialize_data_bound_house_obs(data_wide());

@@ -420,11 +420,6 @@ namespace housepi
     void Parameter::build_for_predic(const dbl_table &input)
     {
         const std::vector<std::string> headers = read::extract_keys(input);
-#ifndef NDEBUG
-        if (headers.size() != str::unique(headers).size())
-            msg::stop(
-                "Found multiple definitions for the same parameters.");
-#endif
 
         clear_lists_();
         simulation_values.clear();
@@ -559,6 +554,73 @@ namespace housepi
         list_func.push_back(p);
     }
 
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////  Parameter : risk identifiability  /////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void Parameter::request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts)
+    {
+        risk_anchors_.push_back({p, std::move(risks), contacts});
+    }
+
+    void Parameter::helper_pin_to_reference_(size_t p)
+    {
+        Variable &xparam = at(p);
+        xparam.clear();
+        xparam.init_numeric(risks::VALUE_REFERENCE);
+
+        // update parameter sampling lists
+        const std::vector<size_t> vec({p});
+        list_sample = list_sample - vec;
+        list_sample_standard = list_sample_standard - vec;
+        list_sample_cached = list_sample_cached - vec;
+        list_adaptive = list_adaptive - vec;
+        list_const.push_back(p);
+    }
+
+    void Parameter::assert_risk_identifiability(const GroupRisk &group_risk, const ContactRisk &contact_risk)
+    {
+        for (const RiskAnchor_ &anchor : risk_anchors_)
+        {
+            size_t n_scale_free = 0;
+            std::vector<std::string> free_names = {};
+
+            if (anchor.contacts && contact_risk.n_scale_free() > 0)
+            {
+                n_scale_free += contact_risk.n_scale_free();
+                free_names.emplace_back("contact");
+            }
+
+            for (size_t g : anchor.risks)
+            {
+                if (group_risk.n_scale_free(g) == 0)
+                    continue;
+
+                n_scale_free += group_risk.n_scale_free(g);
+                free_names.emplace_back(group_risk.khold(g));
+            }
+
+            Variable &xparam = at(anchor.baseline);
+            if (n_scale_free == 1 && !param_vec_[anchor.baseline].is_constant())
+            {
+                // UPDATE: when baseline is a function, it's a user choice
+                // NOTE: at the moment is not even possible, but it might be in the future
+                if (xparam.is_function())
+                    continue;
+
+                // if both baseline and group risk are free, pins the baseline
+                msg::warn(
+                    "No reference provided for " + msg::qty(free_names) + " risk{?s:} " + str::format(free_names) +
+                    "\nBaseline " + xparam.err_name() + " was turned into constant reference.");
+                helper_pin_to_reference_(anchor.baseline);
+            }
+            else if (n_scale_free > 1)
+                msg::stop(
+                    "The product of " + msg::qty(free_names) + " risk{?s} introduces non-identifiability: " + str::format(free_names) +
+                    "\nDefine respective " + msg::code("reference") + " to ensure all risks but one are relative.");
+        }
+    }
+
     void Parameter::make_cache_dependent(size_t p)
     {
         // remove a parameter from standard if it was defined as such
@@ -603,6 +665,28 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
+    namespace
+    {
+        /// Scale anchoring of a single group (joint/independent sub-groups).
+        struct ScaleAnchor_
+        {
+            bool anchored = false;   /// some sub-group has reference
+            bool free_param = false; /// some winning parameter can move
+
+            /// Register the parameter winning one cell. An empty name means no rule matched.
+            void update(std::string_view pstr, const Parameter &param)
+            {
+                if (na::is(pstr) || pstr == risks::REFERENCE)
+                    anchored = true;
+                else if (!param.at(param.khold(pstr)).is_constant())
+                    free_param = true;
+            }
+
+            /// Whether the overall scale of the rule group is left free.
+            bool is_free() const noexcept { return !anchored && free_param; }
+        };
+    }
+
     void GroupRisk::build(DataWide &data_wide, const Parameter &param, const str_table &input)
     {
         // reset group risk storage and unbind individuals
@@ -610,6 +694,7 @@ namespace housepi
         unique_groups_.clear();
         group_index_.assign(data_wide.report_indiv.total, 0);
         data_wide_depen_.clear();
+        n_scale_free_.clear();
 
         // load required data headers or skip if no definitions provided
         std::vector<std::string> data_headers = {};
@@ -618,6 +703,7 @@ namespace housepi
         else if (khold_.empty())
             return;
         data_wide_depen_ = data_headers;
+        n_scale_free_.assign(khold_.size(), 0);
 
         // load column with group risk names, if any
         std::vector<std::string> g_input_vec = {};
@@ -635,7 +721,6 @@ namespace housepi
         const auto data_ix = data_wide.khold(data_headers);
 
         // predicate: does rule row r match this member's feature vector?
-        using Key = std::pair<std::string, size_t>;
         auto matches_with = [&](const Individual &mb)
         {
             return [&, mb_ptr = &mb](size_t r)
@@ -649,6 +734,12 @@ namespace housepi
                 return true;
             };
         };
+
+        // per-(risk_name, rule_group) scale anchoring, resolved member by member below
+        using Key = std::pair<std::string, size_t>;
+        std::map<Key, ScaleAnchor_> anchors;
+        for (size_t r = 0; r < rules.n_rows; ++r)
+            anchors.emplace(Key{g_input_vec[r], rules.row_gid[r]}, ScaleAnchor_{});
 
         // unique definition map
         std::map<str_table, size_t> unique_defin_map;
@@ -672,6 +763,16 @@ namespace housepi
                 for (auto &[key, r] : resolved)
                     these_risks[key.first].push_back(input.at("param_name")[r]);
 
+                // a member matching no rule of the group reads the reference value
+                for (auto &[key, anchor] : anchors)
+                {
+                    auto found = resolved.find(key);
+                    anchor.update(found == resolved.end()
+                                      ? std::string_view{}
+                                      : std::string_view(input.at("param_name")[found->second]),
+                                  param);
+                }
+
                 auto it = unique_defin_map.find(these_risks);
                 if (it == unique_defin_map.end())
                 {
@@ -680,6 +781,11 @@ namespace housepi
                 }
                 group_index_[Index::of(member)] = it->second;
             }
+
+        // finalize the number of free scale parameters per group risk
+        for (const auto &[key, anchor] : anchors)
+            if (anchor.is_free())
+                ++n_scale_free_[khold(key.first)];
     }
 
     void GroupRisk::finalize()
@@ -702,11 +808,6 @@ namespace housepi
         dict<size_t> definition_counts = {};
         for (const std::string &gstr : str::unique(input.at("group_risk")))
         {
-#ifndef NDEBUG
-            if (na::is(gstr))
-                msg::stop(
-                    "Found a missing group risk name in the definitions.");
-#endif
             khold_.add(gstr);
             definition_counts.emplace(gstr, 0);
         }
@@ -799,12 +900,13 @@ namespace housepi
                   keys(data_wide.khold(data)),
                   rules(input, concat_(from, to)) {}
 
-            /// Associate parameter pointers to pair.
+            /// Associate parameter pointers to pair. Accumulate the scale anchoring of each group.
             std::vector<const Attribute *> associate_param_ptrs(
                 const DataWide &data_wide,
                 const Parameter &param,
                 const Individual &member_from,
-                const Individual &member_to) const
+                const Individual &member_to,
+                std::map<size_t, ScaleAnchor_> &anchors) const
             {
                 // per-group: keep the most-specific matching rule
                 const auto resolved = rules.resolve<size_t>(
@@ -826,6 +928,16 @@ namespace housepi
                     const auto &pstr = rules.input.at("param_name")[r];
                     if (!na::is(pstr) && pstr != risks::REFERENCE)
                         param_ptrs.push_back(param.at(param.khold(pstr)).pointer());
+                }
+
+                // a pair matching no rule of the group reads the reference value
+                for (auto &[gid, anchor] : anchors)
+                {
+                    auto found = resolved.find(gid);
+                    anchor.update(found == resolved.end()
+                                      ? std::string_view{}
+                                      : std::string_view(rules.input.at("param_name")[found->second]),
+                                  param);
                 }
                 return param_ptrs;
             }
@@ -887,6 +999,7 @@ namespace housepi
         // reset storage
         house_contact_risks_.clear();
         data_wide_depen_.clear();
+        n_scale_free_ = 0;
         if (input.empty())
             return;
 
@@ -895,6 +1008,11 @@ namespace housepi
 
         data_wide.set_eq_class_data_names(defs.data);
         data_wide_depen_ = defs.data;
+
+        // per-rule_group scale anchoring, resolved pair by pair below
+        std::map<size_t, ScaleAnchor_> anchors;
+        for (size_t r = 0; r < defs.rules.n_rows; ++r)
+            anchors.emplace(defs.rules.row_gid[r], ScaleAnchor_{});
 
         // loop over all households
         // UPDATE: this should be just over eq_class_head households.
@@ -912,12 +1030,18 @@ namespace housepi
                 for (size_t to = 0; to < house_size; ++to)
                 {
                     std::vector<const Attribute *> param_ptrs =
-                        defs.associate_param_ptrs(data_wide, param, house.member(from), house.member(to));
+                        defs.associate_param_ptrs(data_wide, param, house.member(from),
+                                                  house.member(to), anchors);
 
                     if (!param_ptrs.empty())
                         house_contact_risks_[H].mtx[from][to].init_product(param_ptrs);
                 }
         }
+
+        // finalize the number of free scale parameters per contact risk
+        for (const auto &[gid, anchor] : anchors)
+            if (anchor.is_free())
+                ++n_scale_free_;
     }
 
     void ContactRisk::finalize()

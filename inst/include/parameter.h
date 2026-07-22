@@ -26,6 +26,8 @@
 
 namespace housepi
 {
+    struct ContactRisk;
+    struct GroupRisk;
     struct Translator;
 
     /// Implementation of Parameters.
@@ -61,6 +63,12 @@ namespace housepi
 
         /// Request discrete parameter definition.
         void request_discrete(size_t p) { user_discrete_set_.emplace(p); }
+        /// Request that a baseline parameter and the relative risks scaling it share one reference.
+        void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts);
+
+        /// Assert that at most one scale is free among a baseline and the risks scaling it.
+        /// Pin the baseline to the reference value when it is the only way to resolve.
+        void assert_risk_identifiability(const GroupRisk &group_risk, const ContactRisk &contact_risk);
 
         /// Randomly initialize values of the parameters to be inferred.
         void restart(rnd_gen &prng);
@@ -92,11 +100,22 @@ namespace housepi
         }
 
     private:
+        /// Baseline parameter and the relative risks scaling it, as declared by the model.
+        struct RiskAnchor_
+        {
+            size_t baseline;           /// parameter scaled by the risks
+            std::vector<size_t> risks; /// (relative) risk keys
+            bool contacts;             /// whether contact risks scale the same term
+        };
+
         std::vector<Variable> param_vec_ = {};              /// parameters vector
         std::unordered_set<size_t> user_discrete_set_ = {}; /// user defined discrete parameters
+        std::vector<RiskAnchor_> risk_anchors_ = {};        /// model requested identifiability
 
         /// Initialize parameter vector.
         void init_param_vec_();
+        /// Turn a parameter into the constant reference value, dropping it from the sample.
+        void helper_pin_to_reference_(size_t p);
         /// Drop current lists of parameters.
         void clear_lists_();
         /// Helper to build constant parameter.

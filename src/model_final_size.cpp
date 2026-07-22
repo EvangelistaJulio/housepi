@@ -36,6 +36,9 @@ public:
 	void init_advanced_setup() override final
 	{
 		request_param_discrete(ParamKey::hhsize_ref);
+		request_risk_identifiability(ParamKey::alpha, {GroupRiskKey::community});
+		request_risk_identifiability(ParamKey::beta,
+									 {GroupRiskKey::susceptibility, GroupRiskKey::infectivity}, true);
 	}
 
 	/// Allow for contact risk definitions.

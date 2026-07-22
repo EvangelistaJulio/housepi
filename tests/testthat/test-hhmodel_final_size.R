@@ -361,7 +361,10 @@ test_that("Chain binomial runs ok on real case with partitions", {
                        "ctr_cross_generational")
       )
     )
-  expect_silent(evaluate_log_lik(hhmodel))
+  
+  hhmodel |>
+    evaluate_log_lik() |> 
+    expect_warning("alpha.*turned.*reference")
 })
 
 test_that("Chain binomial returns infinite if extreme values are provided", {

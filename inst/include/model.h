@@ -89,6 +89,12 @@ namespace housepi
 
 		/// Request discrete parameter definition.
 		void request_param_discrete(size_t p) { mcmc_->param.request_discrete(p); }
+		/// Request that a baseline parameter and the relative risks scaling it share one reference.
+		/// 'contacts' declares that contact risks scale the same term as the listed group risks.
+		void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts = false)
+		{
+			mcmc_->param.request_risk_identifiability(p, std::move(risks), contacts);
+		}
 		/// Request discrete augmented definition.
 		void request_augm_discrete(size_t a) { mcmc_->augm.request_discrete(a); }
 		/// Request discrete infectivity profile definition.
