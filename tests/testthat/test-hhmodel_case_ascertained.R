@@ -183,9 +183,9 @@ test_that("Log-likelihood of case ascertained model is correct", {
       add_infectivity_profile(func = "gamma", discr = discr,
                               shape = shape@P, scale = scale@P)
 
-    expect_equal(evaluate_log_lik(hhmodel),
-                 augm_infec_obs_log_lik(house, param, discr))
-    
+    evaluate_log_lik(hhmodel) |>
+      expect_equal(augm_infec_obs_log_lik(house, param, discr))
+
     # test complex print, discrete and continuous time
     expect_snapshot(print(hhmodel))
   }
@@ -764,7 +764,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
 
   # conflict data and derived household observation
   base |>
-    dplyr::mutate(start_date = 0, end_date = 21) |> 
+    dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
     add_parameter_template() |>
     add_augmented_template() |>
@@ -780,6 +780,12 @@ test_that("Data-bound household observation rejects conflict and latent dependen
     add_observation(start_date = min(test_date@D) + alpha@P, level = "house") |>
     evaluate_log_lik() |>
     expect_error("pure function of data")
+})
+
+test_that("add_status rejects an empty probability list", {
+  new_housepi_model(model = "test") |>
+    add_status() |>
+    expect_error("[Nn]o status probability")
 })
 
 test_that("Status process generates a labelled status factor in simulation", {

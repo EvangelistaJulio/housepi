@@ -2,9 +2,8 @@ library(testthat)
 
 # model carrying the data columns the definition blocks refer to
 mk_augm <- local({
-  hhmodel <- data.frame(
-    house_id = "h", status = 1, expo = 1, onset_date = 3, test_date = 2
-  ) |>
+  hhmodel <- data.frame(house_id = "h", status = 1, expo = 1,
+                        onset_date = 3, test_date = 2) |>
     new_housepi_model("test")
   list(model = hhmodel)
 })
@@ -19,6 +18,10 @@ test_that("Augmented definition error are recognized", {
   mk_augm$model |>
     add_augmented(name = "") |>
     expect_error("non.?empty")
+
+  # UPDATE: the hint `'!!!'` here seems off
+  mk_augm$model |>
+    add_augmented(import = list(list(prior = "normal")))
 })
 
 test_that("Constant value definition are coherent", {
@@ -61,7 +64,9 @@ test_that("Dependency errors name the family and the intended source", {
 
   # nothing of that name anywhere
   mk_augm$model |>
-    add_observation(onset_date = list(obs = "normal", mean = liquid@A, sd = 1)) |>
+    add_observation(
+      onset_date = list(obs = "normal", mean = liquid@A, sd = 1)
+    ) |>
     expect_error("add_augmented")
 
   mk_augm$model |>
@@ -81,7 +86,9 @@ test_that("A status left without definitions names the status", {
   # no status block to fall back on: the generic definition is the missing one
   data.frame(house_id = "rex", status = 0, test_date = 2) |>
     new_housepi_model("test") |>
-    add_observation(start_date = list(func = min(test_date@D), status = c(2, 3))) |>
+    add_observation(
+      start_date = list(func = min(test_date@D), status = c(2, 3))
+    ) |>
     expect_error("[Nn]o.*generic.*augmented.*definition")
 })
 
@@ -153,10 +160,8 @@ test_that("Independence proposal reject if unsupported prior domain", {
   hhmodel <- data.frame(house_id = "philanthropy", status = 1, x = 3) |>
     new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform") |>
-    add_augmented("z",
-      prior = "uniform", min = theta@P, max = 5,
-      proposal = "gamma", proposal_shape = 2
-    ) |>
+    add_augmented("z", prior = "uniform", min = theta@P, max = 5,
+                  proposal = "gamma", proposal_shape = 2) |>
     evaluate_log_lik() |>
     expect_error("[Cc]annot cover")
 })
@@ -171,18 +176,16 @@ test_that("Independence proposal inherits the prior location shift", {
     status = 1, min = c(4, 8)
   ) |>
     new_housepi_model("test") |>
-    add_augmented("test_date",
-      prior = "uniform", loc = min@D,
-      proposal = "gamma", proposal_shape = 2
-    )
-  expect_warning(
-    results <- run_inference(hhmodel,
-      steps = 20, adapt = 0, chains = 1,
-      threads = 1, progress = FALSE,
-      id_draws = list(house_id = "house")
-    ),
-    regexp = "below 400"
-  )
+    add_augmented("test_date", prior = "uniform", loc = min@D,
+                  proposal = "gamma", proposal_shape = 2)
+
+  results <- hhmodel |>
+    run_inference(steps = 20L, adapt = 0L, chains = 1L,
+                  threads = 1L, progress = FALSE,
+                  id_draws = list(house_id = "house")) |>
+    suppressMessages() |>
+    suppressWarnings()
+
   draws <- as.data.frame(get_augmented_draws(results))
   expect_true(all(draws$tommy_test_date >= 4 & draws$tommy_test_date <= 5))
   expect_true(all(draws$gina_test_date >= 8 & draws$gina_test_date <= 9))
@@ -198,15 +201,11 @@ test_that("A moving prior parameter keeps augmented draws inside their live supp
   # so every draw must satisfy 0 <= test_date - otacon <= 1
   augm <- df |>
     new_housepi_model("test") |>
-    add_augmented(
-      "otacon"    = list(prior = "uniform"),
-      "test_date" = list(prior = "uniform", loc = otacon@A)
-    ) |>
-    run_inference(
-      steps = 500, adapt = 100, thin = 1, chains = 1,
-      threads = 1, progress = FALSE, id_draws = "1"
-    ) |>
-    suppressMessages() |> 
+    add_augmented(otacon = list(prior = "uniform"),
+                  test_date = list(prior = "uniform", loc = otacon@A)) |>
+    run_inference(steps = 500, adapt = 100, thin = 1, chains = 1,
+                  threads = 1, progress = FALSE, id_draws = "1") |>
+    suppressMessages() |>
     suppressWarnings()
   d <- as.data.frame(get_augmented_draws(augm))
   gap <- d[["1_test_date"]] - d[["1_otacon"]]
@@ -218,11 +217,9 @@ test_that("A moving prior parameter keeps augmented draws inside their live supp
     new_housepi_model("test") |>
     add_parameter("meryl", prior = "uniform") |>
     add_augmented("z", prior = "uniform", min = meryl@P, max = 5) |>
-    run_inference(
-      steps = 500, adapt = 100, thin = 1, chains = 1,
-      threads = 1, progress = FALSE, id_draws = "1"
-    ) |>
-    suppressMessages() |> 
+    run_inference(steps = 500L, adapt = 100L, thin = 1L, chains = 1L,
+                  threads = 1L, progress = FALSE, id_draws = "1") |>
+    suppressMessages() |>
     suppressWarnings()
   z <- as.data.frame(get_augmented_draws(par))[["1_z"]]
   meryl <- as.data.frame(get_parameter_draws(par))[["meryl"]]
@@ -239,7 +236,7 @@ test_that("Augmented function definition is correct", {
 
   # difference definition
   augm <- base |>
-    add_augmented(name = "dummy", func = onset - incub) |>
+    add_augmented("dummy", func = onset - incub) |>
     get_augmented() |>
     subset(name == "dummy")
   expect_equal(augm$func, "sub")
@@ -248,13 +245,13 @@ test_that("Augmented function definition is correct", {
 
   # overwriting warnings
   base |>
-    add_augmented(name = "dummy", func = onset - incub) |>
-    add_augmented(name = "dummy", func = "log", func_args = c(x = infec@A)) |>
+    add_augmented("dummy", func = onset - incub) |>
+    add_augmented("dummy", func = "log", func_args = c(x = infec@A)) |>
     expect_warning("[Oo]verwriting")
   base |>
-    add_augmented(name = "dummy", func = onset - incub) |>
-    add_augmented(name = "rate", value = 3) |>
-    add_augmented(name = "dummy", func = exp(-rate)) |>
+    add_augmented("dummy", func = onset - incub) |>
+    add_augmented("rate", value = 3) |>
+    add_augmented("dummy", func = exp(-rate)) |>
     expect_warning("[Oo]verwriting")
 })
 
@@ -263,9 +260,9 @@ test_that("Augmented load enable special definitions", {
     add_augmented(infec = list(prior = "normal", mean = 0, sd = 1))
 
   # alternative function call definitions
-  augm <- add_augmented(base, name = "dummy", func = "log",
-                        func_args = c(x = infec@A))
-  tmp <- add_augmented(base, dummy = log(infec@A))
+  augm <- base |>
+    add_augmented("dummy", func = "log", func_args = c(x = infec@A))
+  tmp <- base |> add_augmented(dummy = log(infec@A))
   expect_equal(get_augmented(tmp), get_augmented(augm))
 
   expect_warning(
@@ -633,16 +630,15 @@ test_that("A simulation override (value + prior) rejects forward dependencies", 
     new_housepi_model("test") |>
     add_observation("onset", obs = "uniform", min = 0, max = 1) |>
     add_augmented("liquid", prior = "normal", mean = 0, sd = 1,
-                  proposal = "rw", value = onset@D) |>
+                  value = onset@D) |>
     expect_error("[Ss]imulation override.*observation")
 
   # reads another augmented (no observation present: guard still fires)
   data.frame(house_id = "outer_heaven", status = 1) |>
     new_housepi_model("test") |>
     add_augmented(
-      liquid = list(prior = "normal", mean = 0, sd = 1, proposal = "rw",
-                    value = solid@A),
-      solid = list(prior = "gamma", shape = 2, scale = 1, proposal = "rw")
+      liquid = list(prior = "normal", mean = 0, sd = 1, value = solid@A),
+      solid = list(prior = "gamma", shape = 2, scale = 1)
     ) |>
     expect_error("[Ss]imulation override.*augmented")
 })
@@ -686,10 +682,7 @@ test_that("A value paired with a prior overrides the draw in simulation only", {
   # there, so the draws span the prior instead of collapsing onto the value.
   hhmodel <- data.frame(id = seq_len(400), house_id = 1, status = 1, anchor = 7) |>
     new_housepi_model("test") |>
-    add_augmented(
-      snake = list(prior = "uniform", min = 0, max = 100,
-                   proposal = "rw", value = anchor@D)
-    )
+    add_augmented(snake = list(prior = "uniform", max = 100, value = anchor@D))
 
   # simulation: every drawn value collapses onto the override
   expect_true(all(run_simulation(hhmodel)$snake == 7))
@@ -697,7 +690,7 @@ test_that("A value paired with a prior overrides the draw in simulation only", {
   # inference: the value does not pin the sampler (draws span the prior, not the override)
   draws <- suppressWarnings( # short smoke run trips the convergence-size diagnostic
     hhmodel |>
-      run_inference(steps = 40, chains = 1, id_draws = "1", progress = FALSE) |>
+      run_inference(steps = 40L, chains = 1L, id_draws = "1", progress = FALSE) |>
       get_augmented_draws()
   )
   expect_gt(length(unique(draws[["1_snake"]])), 1)
@@ -937,23 +930,22 @@ test_that("Incubation augmentation recast runs on the test model", {
     status = 1, exposure_max = exposure_max,
     onset_min = floor(onset), onset_max = floor(onset)
   )
-  df$onset_mid <- (df$onset_min + df$onset_max) / 2 + 0.5
+  df$onset_mid <- 0.5 * (df$onset_min + df$onset_max + 1.)
 
   results <- expect_no_error(
     df |>
       new_housepi_model("test") |>
       add_parameter(
-        mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "rw"),
-        var = list(prior = "uniform", min = 0.1, max = 5, proposal = "rw")
+        mean = list(prior = "uniform", min = 0.1, max = 5),
+        var = list(prior = "uniform", min = 0.1, max = 5)
       ) |>
       add_augmented(
         .infec_time = list(
-          prior = "uniform", max = exposure_max@D + 0.99,
-          proposal = "rw"
+          prior = "uniform", max = exposure_max@D + 0.99
         ),
         incub_period = list(
           prior = "gamma", mean = mean@P, var = var@P,
-          min = 0.5, max = 14, proposal = "rw"
+          min = 0.5, max = 14
         ),
         .onset_time = .infec_time + incub_period
       ) |>

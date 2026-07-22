@@ -294,8 +294,6 @@ housepi_quos_declare_obs <- function(xquos) {
     expr <- if (rlang::is_quosure(q)) rlang::quo_get_expr(q) else q
     if (rlang::is_call(expr, c("list", "c"))) {
       "obs" %in% names(rlang::call_args(expr))
-    } else if (is.list(expr)) {
-      "obs" %in% names(expr)
     } else {
       FALSE
     }
@@ -357,18 +355,14 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
       rlang::inject(self$add_quo(name = nm, !!!args_quos, !!!inj,
                                  .warn_over = FALSE))
 
-    } else if (is.list(def_expr)) {
-      # arguments are not quosures
-      inj <- inject_defaults(names(def_expr))
-      rlang::inject(self$add_quo(name = nm, !!!def_expr, !!!inj,
-                                 .warn_over = FALSE))
     } else {
       # single implicit definition to pass to add_quo. A stray 'name' is
       # harmless for the nameless infectivity profile (dropped by its add_quo).
       extra_arg <- rlang::set_names(list(def_quo), implicit_name)
       inj <- inject_defaults(implicit_name)
-      rlang::inject(self$add_quo(name = nm, !!!extra_arg, !!!inj,
-                                 .warn_over = FALSE))
+      rlang::inject(
+        self$add_quo(name = nm, !!!extra_arg, !!!inj, .warn_over = FALSE)
+      )
     }
   }
   template_overwrite_warn(self$store_warn_over, self$family)

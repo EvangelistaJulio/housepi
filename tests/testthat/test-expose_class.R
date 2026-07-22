@@ -194,6 +194,13 @@ test_that("Group rate wrappers", {
       append = FALSE
     ) |>
     expect_warning("[Uu]nknown.*member.*kaiju")
+
+  # append = FALSE drops the existing group rates
+  expect_true("susceptibility" %in% get_group_rates(hhmodel)[["group_rate"]])
+  reset <- hhmodel |>
+    add_group_rate(community = list(by = "member"), append = FALSE)
+  expect_false("susceptibility" %in% get_group_rates(reset)[["group_rate"]])
+  expect_setequal(get_group_rates(reset)[["group_rate"]], "community")
 })
 
 test_that("add_contact_rate wrapper input branches", {

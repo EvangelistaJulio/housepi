@@ -47,7 +47,7 @@ test_that("Default parameter definitions are correct", {
   param <- mk_param$model |>
     add_parameter(
       name = "dummy", prior = "uniform", min = 0, max = 5,
-      proposal = "rw"
+      proposal = "rw_log"
     ) |>
     get_parameters()
 
@@ -56,7 +56,7 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$const, FALSE)
   expect_equal(param$discr, FALSE)
   # a bare proposal (no folded scale) stays adaptive
-  expect_equal(param$proposal, "rw")
+  expect_equal(param$proposal, "rw_log")
   expect_equal(param$prior, "uniform")
   expect_equal(param$min, 0)
   expect_equal(param$max, 5)
