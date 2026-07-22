@@ -17,7 +17,7 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** GroupRate : struct ***  ////////////////////////////////
+///////////////////////////////////  *** GroupRisk : struct ***  ////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -26,38 +26,38 @@ namespace housepi
     struct DataWide;
     struct Parameter;
 
-    struct GroupRate : public KeyModule
+    struct GroupRisk : public KeyModule
     {
     public:
-        /// Update model report and set group rates associate to new individual.
-        /// NOTE: this has to run even if input is empty to initialize existing rates to reference.
+        /// Update model report and set group risks associate to new individual.
+        /// NOTE: this has to run even if input is empty to initialize existing risks to reference.
         void build(DataWide &data_wide, const Parameter &param, const str_table &deftable);
         /// Finalize all variables (see Variable::finalize).
         void finalize();
 
-        /// Access the group rate attribute of given key for a member.
+        /// Access the group risk attribute of given key for a member.
         const Attribute &at(size_t g, const Individual &member) const noexcept { return unique_groups_[group_index_[Index::of(member)]].vec[g]; }
-        /// Access the group rate value of given key for a member.
+        /// Access the group risk value of given key for a member.
         double value(size_t g, const Individual &member) const { return at(g, member).value(); }
-        /// Whether two members belong to the same group-rate partition.
+        /// Whether two members belong to the same group-risk partition.
         bool same_group(const Individual &a, const Individual &b) const noexcept { return group_index_[Index::of(a)] == group_index_[Index::of(b)]; }
 
-        /// Data-wide feature columns the group-rate rules match on.
+        /// Data-wide feature columns the group-risk rules match on.
         const std::vector<std::string> &data_wide_depen() const noexcept { return data_wide_depen_; }
 
     private:
         std::vector<std::string> data_wide_depen_ = {}; /// data feature columns used by rules
-        /// Individual group rates.
+        /// Individual group risks.
         struct IndivGroup_
         {
             std::vector<Attribute> vec = {};
         };
-        std::vector<IndivGroup_> unique_groups_; /// Unique group rate definitions
-        std::vector<size_t> group_index_ = {};   /// Map individual index to unique group rate index
+        std::vector<IndivGroup_> unique_groups_; /// Unique group risk definitions
+        std::vector<size_t> group_index_ = {};   /// Map individual index to unique group risk index
 
-        /// Verify that group rates definitions are correct and pre-process theme.
+        /// Verify that group risks definitions are correct and pre-process theme.
         std::vector<std::string> helper_process_definitions_(DataWide &data_wide, const str_table &input);
         /// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
-        void helper_init_unique_rate_(const Parameter &param, const Individual &member, const str_table &these_rates);
+        void helper_init_unique_risk_(const Parameter &param, const Individual &member, const str_table &these_risks);
     };
 }

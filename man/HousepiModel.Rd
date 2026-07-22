@@ -29,9 +29,9 @@ Column 'level' tells member ("member") from household ("house") entries.}
 
 \item{\code{infec_profile}}{\code{data.frame}. Infectivity profile definitions.}
 
-\item{\code{group_rates}}{\code{data.frame}. Group rate definitions.}
+\item{\code{group_risks}}{\code{data.frame}. Group risk definitions.}
 
-\item{\code{contact_rates}}{\code{data.frame}. Contact rate definitions.}
+\item{\code{contact_risks}}{\code{data.frame}. Contact risk definitions.}
 }
 \if{html}{\out{</div>}}
 }

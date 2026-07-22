@@ -268,8 +268,8 @@ We can inspect the state of the current loaded model definitions just by printin
 hhsimul
 ```
 
-By default, if no group rate definition is provided all values are set to 1 (reference value). 
-To see how to associate group rates in heterogeneous models, see [Group rates](group_rates.html).
+By default, if no group risk definition is provided all values are set to 1 (reference value). 
+To see how to associate group risks in heterogeneous models, see [Group risks](group_risks.html).
 Similarly, we can use the infectivity profile template for the sake of demonstration.
 Provide a custom definition following [Infectivity profiles](infectivity_profiles.html).
 We can overlook these alerts for the rest of the walk-through.

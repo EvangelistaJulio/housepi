@@ -36,7 +36,7 @@
 #include "data_long.h"
 #include "distribution.h"
 #include "function.h"
-#include "group_rate.h"
+#include "group_risk.h"
 #include "infec_profile.h"
 #include "parameter.h"
 #include "variable.h"
@@ -409,15 +409,15 @@ namespace
         mcmc_ptr->data_long().build(mcmc_ptr->data_wide(), rdataframe_to_strmap(input));
     }
 
-    void import_group_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    void import_group_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        mcmc_ptr->group_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+        mcmc_ptr->group_risk.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
         mcmc_ptr->init_equivalence_class_compression();
     }
 
-    void import_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    void import_contact_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        mcmc_ptr->contact_rate.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+        mcmc_ptr->contact_risk.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
         mcmc_ptr->init_equivalence_class_compression();
     }
 
@@ -952,11 +952,11 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_group_rates_rcpp_snapshot(
+    Rcpp::DataFrame helper_group_risks_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
-        const GroupRate &group_rate = mcmc_ptr->group_rate;
-        const std::vector<std::string> &headers = group_rate.khold().all();
+        const GroupRisk &group_risk = mcmc_ptr->group_risk;
+        const std::vector<std::string> &headers = group_risk.khold().all();
 
         if (headers.empty())
             return Rcpp::DataFrame::create();
@@ -974,7 +974,7 @@ namespace
             id_col[i] = member.id();
 
             for (size_t c = 0; c < headers.size(); ++c)
-                df_double[c][i] = hsp_to_rcpp(group_rate.at(c, member));
+                df_double[c][i] = hsp_to_rcpp(group_risk.at(c, member));
         }
 
         Rcpp::List output;
@@ -985,15 +985,15 @@ namespace
         return Rcpp::DataFrame(output);
     }
 
-    /// Export to R a snapshot of current contact rate attribute values
+    /// Export to R a snapshot of current contact risk attribute values
     /// for a household as a (from x to) numeric matrix with member id dimnames.
-    /// Returns an empty 0x0 matrix when no contact rate was defined.
-    Rcpp::NumericMatrix helper_contact_rates_rcpp_snapshot(
+    /// Returns an empty 0x0 matrix when no contact risk was defined.
+    Rcpp::NumericMatrix helper_contact_risks_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
-        const ContactRate &contact_rate = mcmc_ptr->contact_rate;
+        const ContactRisk &contact_risk = mcmc_ptr->contact_risk;
 
-        if (contact_rate.is_empty())
+        if (contact_risk.is_empty())
             return Rcpp::NumericMatrix(0, 0);
 
         const size_t n = house.size();
@@ -1004,7 +1004,7 @@ namespace
         {
             ids[i] = house.member(i).id();
             for (size_t j = 0; j < n; ++j)
-                mtx(i, j) = hsp_to_rcpp(contact_rate.value(house, i, j));
+                mtx(i, j) = hsp_to_rcpp(contact_risk.value(house, i, j));
         }
 
         mtx.attr("dimnames") = Rcpp::List::create(ids, ids);
@@ -1151,8 +1151,8 @@ namespace
                 Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr),
                 Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["group_rate"] = helper_group_rates_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["contact_rate"] = helper_contact_rates_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["group_risk"] = helper_group_risks_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["contact_risk"] = helper_contact_risks_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["augm_log_prior"] = helper_augm_log_prior_rcpp_snapshot(mcmc_ptr, house),
@@ -1414,7 +1414,7 @@ namespace
     MAKE_EXPORT_CHARACTER_VECTOR(get_DataKey)
     MAKE_EXPORT_CHARACTER_VECTOR(get_LongKey)
     MAKE_EXPORT_CHARACTER_VECTOR(get_ParamKey)
-    MAKE_EXPORT_CHARACTER_VECTOR(get_GroupRateKey)
+    MAKE_EXPORT_CHARACTER_VECTOR(get_GroupRiskKey)
     MAKE_EXPORT_CHARACTER_VECTOR(get_AugmKey)
 
     // UPDATE: I am just using this to check flags
@@ -1446,9 +1446,9 @@ namespace
         dest->set_data_store(src->pDataStore);
     }
 
-    bool has_contact_rates(Rcpp::XPtr<MCMC> mcmc_ptr)
+    bool has_contact_risks(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        return mcmc_ptr->model->has_contact_rates();
+        return mcmc_ptr->model->has_contact_risks();
     }
 
     double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
@@ -1608,7 +1608,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("get_DataKey", &get_DataKey);
     Rcpp::function("get_LongKey", &get_LongKey);
     Rcpp::function("get_ParamKey", &get_ParamKey);
-    Rcpp::function("get_GroupRateKey", &get_GroupRateKey);
+    Rcpp::function("get_GroupRiskKey", &get_GroupRiskKey);
     Rcpp::function("get_AugmKey", &get_AugmKey);
 
     Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
@@ -1628,14 +1628,14 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);
     Rcpp::function("share_data_store", &share_data_store);
-    Rcpp::function("import_group_rate", &import_group_rate);
-    Rcpp::function("import_contact_rate", &import_contact_rate);
+    Rcpp::function("import_group_risk", &import_group_risk);
+    Rcpp::function("import_contact_risk", &import_contact_risk);
     Rcpp::function("import_setup", &import_setup);
     Rcpp::function("import_param", &import_param);
     Rcpp::function("import_infec_profile", &import_infec_profile);
     Rcpp::function("import_augm", &import_augm);
     Rcpp::function("import_param_table", &import_param_table);
-    Rcpp::function("has_contact_rates", &has_contact_rates);
+    Rcpp::function("has_contact_risks", &has_contact_risks);
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);
     Rcpp::function("summarise_house_cases", &summarise_house_cases);

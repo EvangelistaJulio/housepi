@@ -6,7 +6,7 @@ dummy_df <- data.frame(house_id = 1,
                        sex = c("M", "F", "M", "M"))
 
 # model over the dummy features
-mk_rate <- local({
+mk_risk <- local({
   hhmodel <- data.frame(
     house_id = 1L, status = 0L,
     age = c("child", "child", "adult", "adult"),
@@ -17,14 +17,14 @@ mk_rate <- local({
 })
 
 #################################
-## CONTACT RATES : PAIR COUNTS ##
+## CONTACT RISKS : PAIR COUNTS ##
 #################################
 
-test_that("Contact rates pair counts are computed correctly", {
+test_that("Contact risks pair counts are computed correctly", {
   df_hh <- data.frame(house_id = c(rep("hh1", 2L), rep("hh2", 2L)),
                       age = rep(c("child", "adult"), 2L),
                       stringsAsFactors = FALSE)
-  tbl <- contact_rate_logic_table(df_hh, "age")
+  tbl <- contact_risk_logic_table(df_hh, "age")
 
   cc <- subset(tbl, from_age == "child" & to_age == "child")$n
   ca <- subset(tbl, from_age == "child" & to_age == "adult")$n
@@ -40,15 +40,15 @@ test_that("Contact rates pair counts are computed correctly", {
 })
 
 ######################################
-## CONTACT RATES : AUTO DEFINITIONS ##
+## CONTACT RISKS : AUTO DEFINITIONS ##
 ######################################
 
 test_that("Auto mode imposes symmetric contacts by default", {
-  ltab <- mk_rate$model |>
-    add_contact_rate(by = "age",
+  ltab <- mk_risk$model |>
+    add_contact_risk(by = "age",
                      reference = c(from_age = "adult", to_age = "adult"),
                      prior = "lognormal", sdlog = 1.) |>
-    get_contact_rates()
+    get_contact_risks()
 
   # two-level feature: child, adult -> 4 pairs
   expect_equal(nrow(ltab), 4L)
@@ -71,20 +71,20 @@ test_that("Auto mode imposes symmetric contacts by default", {
 })
 
 test_that("Auto mode without reference picks most abundant pair", {
-  ltab <- mk_rate$model |>
-    add_contact_rate(by = "age") |>
-    get_contact_rates()
+  ltab <- mk_risk$model |>
+    add_contact_risk(by = "age") |>
+    get_contact_risks()
 
   # automatic .reference
   expect_true(".reference" %in% ltab$param_name)
 })
 
 test_that("Auto mode symmetric = FALSE gives distinct parameters", {
-  ltab <- mk_rate$model |>
-    add_contact_rate(by = "age", symmetric = FALSE,
+  ltab <- mk_risk$model |>
+    add_contact_risk(by = "age", symmetric = FALSE,
                      reference = c(from_age = "adult", to_age = "adult"),
                      prior = "lognormal", sdlog = 1.) |>
-    get_contact_rates()
+    get_contact_risks()
 
   expect_equal(nrow(ltab), 4L)
   expect_length(setdiff(unique(ltab$param_name), ".reference"), 3L)
@@ -97,11 +97,11 @@ test_that("Auto mode symmetric = FALSE gives distinct parameters", {
 
 test_that("Non-joint produces independent per-feature tables", {
   # 2 features, non-joint -> 2 rule groups
-  tidy <- mk_rate$model |>
-    add_contact_rate(by = c("age", "sex"), joint = FALSE,
+  tidy <- mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), joint = FALSE,
                      reference = c(age = "adult", sex = "M"),
                      prior = "lognormal", sdlog = 1.) |>
-    get_contact_rates()
+    get_contact_risks()
 
   expect_equal(length(unique(tidy$rule_group)), 2L)
 
@@ -124,12 +124,12 @@ test_that("Non-joint produces independent per-feature tables", {
 })
 
 test_that("Auto mode with two features behaves correctly", {
-  ltab <- mk_rate$model |>
-    add_contact_rate(by = c("age", "sex"), joint = TRUE,
+  ltab <- mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), joint = TRUE,
                      reference = c(from_age = "adult", from_sex = "M",
                                    to_age = "adult", to_sex = "M"),
                      prior = "lognormal", sdlog = 1.) |>
-    get_contact_rates()
+    get_contact_risks()
 
   # NOTE: 3 observed types: <child,M>, <child,F>, <adult,M>
   # 7 observed pairs: 9 pairs - <child,M><child,F> - (<->)
@@ -144,10 +144,10 @@ test_that("Auto mode with two features behaves correctly", {
 })
 
 ########################################
-## CONTACT RATES : CUSTOM DEFINITIONS ##
+## CONTACT RISKS : CUSTOM DEFINITIONS ##
 ########################################
 
-test_that("Contact rate custom mode defualt behaves correctly", {
+test_that("Contact risk custom mode defualt behaves correctly", {
   # logic table
   param_name <- c("a2c", "c2a", "c2c")
   strata <- data.frame(from_age = c(rep("adult", 2L), rep("child", 2L)),
@@ -164,12 +164,12 @@ test_that("Contact rate custom mode defualt behaves correctly", {
   default_param <- param_name[3] # default definitions
   names(overrides) <- c(fancy_param_1, fancy_param_2)
 
-  hhmodel <- mk_rate$model |>
-    add_contact_rate(strata = strata, prior = "lognormal", sdlog = 1.8,
+  hhmodel <- mk_risk$model |>
+    add_contact_risk(strata = strata, prior = "lognormal", sdlog = 1.8,
                      params = overrides)
 
   # the custom logic table drives the tidy table
-  tidy <- get_contact_rates(hhmodel)
+  tidy <- get_contact_risks(hhmodel)
   expect_true(is.data.frame(tidy))
   expect_equal(nrow(tidy), 4L)
   expect_setequal(tidy$param_name, strata$param_name)
@@ -199,13 +199,13 @@ test_that("Custom mode with no reference row raises error", {
     param_name = c("a_to_a", "a_to_c", "c_to_a", "c_to_c")
   )
 
-  mk_rate$model |>
-    add_contact_rate(strata = strata) |>
+  mk_risk$model |>
+    add_contact_risk(strata = strata) |>
     expect_error("[Cc]ustom logic table must contain a ..reference. row")
 })
 
 ####################################################
-## CONTACT RATES : CUSTOM (SYMMETRIC) DEFINITIONS ##
+## CONTACT RISKS : CUSTOM (SYMMETRIC) DEFINITIONS ##
 ####################################################
 
 test_that("Custom mode allows symmetric definition automatic fixes", {
@@ -215,11 +215,11 @@ test_that("Custom mode allows symmetric definition automatic fixes", {
                        param_name = c(".reference", param_name))
   overrides <- list(a_to_c = 2)
 
-  hhmodel <- mk_rate$model |>
-    add_contact_rate(strata = strata, params = overrides)
+  hhmodel <- mk_risk$model |>
+    add_contact_risk(strata = strata, params = overrides)
 
   # symmetric fill adds child->adult with same param_name as adult->child
-  filled <- get_contact_rates(hhmodel)
+  filled <- get_contact_risks(hhmodel)
   expect_equal(nrow(filled), 4)
   ca_row <- filled[filled$from_age == "child" & filled$to_age == "adult", ]
   expect_equal(ca_row$param_name, "a_to_c")
@@ -238,15 +238,15 @@ test_that("Custom mode with symmetric = FALSE does not fill gaps", {
                        to_age = c("adult", "child", "child"),
                        param_name = c(".reference", param_name))
 
-  tidy <- mk_rate$model |>
-    add_contact_rate(strata = strata, symmetric = FALSE) |>
-    get_contact_rates()
+  tidy <- mk_risk$model |>
+    add_contact_risk(strata = strata, symmetric = FALSE) |>
+    get_contact_risks()
 
   expect_equal(nrow(tidy), 3L)
 })
 
 #########################################
-## CONTACT RATES : RULE GROUPING LOGIC ##
+## CONTACT RISKS : RULE GROUPING LOGIC ##
 #########################################
 
 test_that("compute_rule_groups: ambiguous subset raises error", {
@@ -271,8 +271,8 @@ test_that("Custom mode absorbs all-NA default into single group", {
   tidy <- data.frame(house_id = 1, status = 0,
                      member = c("student", "mother", "father", "student")) |>
     new_housepi_model("final_size") |>
-    add_contact_rate(strata = strata, symmetric = FALSE) |>
-    get_contact_rates()
+    add_contact_risk(strata = strata, symmetric = FALSE) |>
+    get_contact_risks()
   expect_equal(length(unique(tidy$rule_group)), 1L)
 })
 
@@ -285,34 +285,34 @@ test_that("Custom mode with two maximal patterns yields two groups", {
     to_sex = c(NA, "M", "F"),
     param_name = c("age_child_to_age_child", ".reference", "sex_F_to_sex_F")
   )
-  tidy <- mk_rate$model |>
-    add_contact_rate(strata = strata, symmetric = FALSE) |>
-    get_contact_rates()
+  tidy <- mk_risk$model |>
+    add_contact_risk(strata = strata, symmetric = FALSE) |>
+    get_contact_risks()
   expect_equal(length(unique(tidy$rule_group)), 2L)
 })
 
 test_that("Auto mode joint = FALSE yields one rule_group per sub-table", {
-  tidy <- mk_rate$model |>
-    add_contact_rate(by = c("age", "sex"), joint = FALSE,
+  tidy <- mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), joint = FALSE,
                      reference = c(age = "adult", sex = "M")) |>
-    get_contact_rates()
+    get_contact_risks()
   expect_equal(length(unique(tidy$rule_group)), 2L)
 })
 
 test_that("Auto mode joint = TRUE yields a single rule_group", {
-  tidy <- mk_rate$model |>
-    add_contact_rate(by = c("age", "sex"), joint = TRUE,
+  tidy <- mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), joint = TRUE,
                      reference = c(from_age = "adult", from_sex = "M",
                                    to_age = "adult", to_sex = "M")) |>
-    get_contact_rates()
+    get_contact_risks()
   expect_equal(length(unique(tidy$rule_group)), 1L)
 })
 
 test_that("Non-joint sub-tables have correct columns", {
-  tidy <- mk_rate$model |>
-    add_contact_rate(by = c("age", "sex"), joint = FALSE,
+  tidy <- mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), joint = FALSE,
                      prior = "lognormal", sdlog = 1) |>
-    get_contact_rates()
+    get_contact_risks()
 
   # first sub-table carries age, and leaves sex unset
   t1 <- subset(tidy, rule_group == 1)
@@ -326,17 +326,17 @@ test_that("Non-joint sub-tables have correct columns", {
 })
 
 #####################################################
-## CONTACT RATES : C++ RESOLUTION (best_match.h)   ##
+## CONTACT RISKS : C++ RESOLUTION (best_match.h)   ##
 #####################################################
 
-# These tests drive update_best_match / resolve_best_match in src/rates.cpp
+# These tests drive update_best_match / resolve_best_match in src/parameter.cpp
 # through the full model build, so the C++ matrix can be read back and
 # inspected via export_house_snapshot.
 
 # Cell-by-cell readout helper.
 ctr_cell_ <- function(hhsnapshot, from, to, key = "member") {
   ids <- hhsnapshot$data_wide[[key]]
-  hhsnapshot$contact_rate[match(from, ids), match(to, ids)]
+  hhsnapshot$contact_risk[match(from, ids), match(to, ids)]
 }
 
 test_that("Most-specific rule wins over reference (single feature)", {
@@ -360,7 +360,7 @@ test_that("Most-specific rule wins over reference (single feature)", {
   ) |>
     new_housepi_model("final_size") |>
     add_parameter_template() |>
-    add_contact_rate(strata = strata, symmetric = FALSE,
+    add_contact_risk(strata = strata, symmetric = FALSE,
                      params = list(ctr_fm = 2))
   snap <- hhmodel$export_house_snapshot("h1")
 
@@ -371,8 +371,8 @@ test_that("Most-specific rule wins over reference (single feature)", {
   # unrelated pair falls back to reference (spec=0)
   expect_equal(ctr_cell_(snap, "student", "sibling"), 1)
   # diagonal stays 0 (no self-contact)
-  unname(diag(snap$contact_rate)) |>
-    expect_equal(rep(0., nrow(snap$contact_rate)))
+  unname(diag(snap$contact_risk)) |>
+    expect_equal(rep(0., nrow(snap$contact_risk)))
 })
 
 test_that("Distinct rule_groups multiply at the cell", {
@@ -403,24 +403,24 @@ test_that("Distinct rule_groups multiply at the cell", {
 
   hhmodel <- new_housepi_model(hh, "final_size")
   hhmodel <- add_parameter_template(hhmodel)
-  hhmodel <- add_contact_rate(hhmodel,
+  hhmodel <- add_contact_risk(hhmodel,
     strata = strata, symmetric = FALSE, reference = ".none",
     params = list(ctr_aa = 3, ctr_class_aa = 5)
   )
   snap <- hhmodel$export_house_snapshot("h1")
 
   # m1 (adult,a) → m2 (adult,a): BOTH rules match → 3 * 5 = 15
-  # (init_product over two Attribute* — rates.cpp's multi-group loop)
+  # (init_product over two Attribute* — parameter.cpp's multi-group loop)
   expect_equal(ctr_cell_(snap, "m1", "m2", key = "id"), 15)
   # m1 (adult,a) → m4 (adult,b): only age rule matches → 3
   expect_equal(ctr_cell_(snap, "m1", "m4", key = "id"), 3)
   # m1 (adult,a) → m3 (child,b): neither rule matches → reference (1)
   expect_equal(ctr_cell_(snap, "m1", "m3", key = "id"), 1)
   # diagonal is 0
-  expect_equal(unname(diag(snap$contact_rate)), rep(0., nrow(hh)))
+  expect_equal(unname(diag(snap$contact_risk)), rep(0., nrow(hh)))
 })
 
-test_that("Contact rate definition work as expected", {
+test_that("Contact risk definition work as expected", {
   hhid <- "hh2"
   hhmodel <- data.frame(
     house_id = c(rep("hh1", 3), rep(hhid, 6)),
@@ -431,9 +431,9 @@ test_that("Contact rate definition work as expected", {
     new_housepi_model("final_size") |>
     add_parameter_template()
 
-  # no contact rate defs -> empty matrix
+  # no contact risk defs -> empty matrix
   hhsnapshot <- hhmodel$export_house_snapshot(hhid)
-  cr_mtx <- hhsnapshot$contact_rate
+  cr_mtx <- hhsnapshot$contact_risk
   expect_true(is.matrix(cr_mtx))
   expect_equal(nrow(cr_mtx), 0)
   expect_equal(ncol(cr_mtx), 0)
@@ -457,11 +457,11 @@ test_that("Contact rate definition work as expected", {
   params <- c(2, 3, 5, 7, 11, 13, 17, 19)
   names(params) <- strata$param_name
   hhmodel <- hhmodel |>
-    add_contact_rate(strata = strata, params = params)
+    add_contact_risk(strata = strata, params = params)
 
   # matrix is n x n
   hhsnapshot <- hhmodel$export_house_snapshot(hhid)
-  cr_mtx <- hhsnapshot$contact_rate
+  cr_mtx <- hhsnapshot$contact_risk
   n <- nrow(hhsnapshot$data_wide)
 
   expect_true(is.matrix(cr_mtx))
@@ -474,17 +474,17 @@ test_that("Contact rate definition work as expected", {
   # or to exactly one param value: no multiplications
   expect_true(all(cr_mtx %in% c(0, 1, params)))
 
-  # the template parameters added previously survive alongside the rate ones
+  # the template parameters added previously survive alongside the risk ones
   template_pars <- c("alpha", "beta", "gamma")
   expect_true(all(template_pars %in% hhmodel$parameters$name))
 })
 
-test_that("Contact rates raise an error for incompatible models", {
+test_that("Contact risks raise an error for incompatible models", {
   data.frame(
     house_id = 1, id = seq(4), status = seq(4),
     cohort = c("a", "a", "b", "b")
   ) |>
     new_housepi_model("test") |>
-    add_contact_rate(by = "cohort") |>
+    add_contact_risk(by = "cohort") |>
     expect_error("[Nn]ot supported")
 })

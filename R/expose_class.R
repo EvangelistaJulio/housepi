@@ -59,8 +59,8 @@ add_data_wide <- function(hhmodel, data) {
   if (is.null(data)) stop_h("Missing argument {.arg data}.")
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  # drop stale rate params (read pre-change tables) before re-importing data
-  pvt$reconcile_rate_params_()
+  # drop stale risk params (read pre-change tables) before re-importing data
+  pvt$reconcile_risk_params_()
   pvt$set_data_wide_(assert_household_data(data, NA_character_))
   pvt$rebuild_()
   new_obj
@@ -128,7 +128,7 @@ summarize_house_sizes <- summarise_house_sizes
 #' @description
 #' Return the definitions currently stored in the housepi model.
 #' Each variant returns one category (data, parameters, augmented variables,
-#' observations, group rates, contact rates, infectivity profile).
+#' observations, group risks, contact risks, infectivity profile).
 #' @param hhmodel `r rd_model_in_`
 #' @return `data.frame`
 #' @examples
@@ -174,18 +174,18 @@ get_observations <- function(hhmodel) {
 
 #' @rdname get_definitions
 #' @export
-get_group_rates <- function(hhmodel) {
+get_group_risks <- function(hhmodel) {
   stopifnothousepi(hhmodel)
   # NOTE: internal build requires deep clone to avoid in-place
-  hhmodel$copy()$group_rates
+  hhmodel$copy()$group_risks
 }
 
 #' @rdname get_definitions
 #' @export
-get_contact_rates <- function(hhmodel) {
+get_contact_risks <- function(hhmodel) {
   stopifnothousepi(hhmodel)
   # NOTE: internal build requires deep clone to avoid in-place
-  hhmodel$copy()$contact_rates
+  hhmodel$copy()$contact_risks
 }
 
 #' @rdname get_definitions
@@ -520,7 +520,7 @@ add_status <- function(hhmodel, ..., dist = "categorical") {
 ############################################################################
 ############################################################################
 
-#' @title Add a stratified group rate definition
+#' @title Add a stratified group risk definition
 #' @description `r rd_grr_desc_`
 #' `r rd_add_modes_`
 #' @details
@@ -544,7 +544,7 @@ add_status <- function(hhmodel, ..., dist = "categorical") {
 #' \insertRef{cauchemez_household_2009}{housepi}
 #' @return `r rd_model_out_`
 #' @export
-add_group_rate <-  function(hhmodel,
+add_group_risk <-  function(hhmodel,
                             name = NULL, by = NA_character_, ...,
                             reference = NULL, joint = FALSE,
                             strata = NULL, params = NULL,
@@ -557,14 +557,14 @@ add_group_rate <-  function(hhmodel,
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
   if (is.null(name) && isFALSE(append)) {
-    # NOTE: dropping group rates might cause parameter drops
-    pvt$drop_group_rates_()
+    # NOTE: dropping group risks might cause parameter drops
+    pvt$drop_group_risks_()
   }
-  if (!is.null(import)) pvt$group_rates_$add_quo_list(
+  if (!is.null(import)) pvt$group_risks_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append
   )
-  else if (!is.null(name)) pvt$group_rates_$add_quo(
+  else if (!is.null(name)) pvt$group_risks_$add_quo(
     name = name, by = by,
     reference = reference, joint = joint,
     strata = strata, params = params,
@@ -572,7 +572,7 @@ add_group_rate <-  function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, prefix = prefix
   )
-  else pvt$group_rates_$add_quo_list(
+  else pvt$group_risks_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...)),
     append = append
   )
@@ -584,7 +584,7 @@ add_group_rate <-  function(hhmodel,
 ############################################################################
 ############################################################################
 
-#' @title Add a pairwise contact rate definition
+#' @title Add a pairwise contact risk definition
 #' @description `r rd_ctr_desc_`
 #' @param hhmodel `r rd_model_in_`
 #' @param by `r rd_ctr_by_`
@@ -602,7 +602,7 @@ add_group_rate <-  function(hhmodel,
 #' @param import `r rd_ctr_import_`
 #' @return `r rd_model_out_`
 #' @export
-add_contact_rate <- function(hhmodel, by = NA_character_, ...,
+add_contact_risk <- function(hhmodel, by = NA_character_, ...,
                              reference = NULL,
                              joint = FALSE, symmetric = TRUE,
                              strata = NULL, params = NULL,
@@ -615,7 +615,7 @@ add_contact_rate <- function(hhmodel, by = NA_character_, ...,
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
 
-  # contact rate holds a single definition:
+  # contact risk holds a single definition:
   # import a named arg list, or the explicit arguments
   def <- import
   if (is.null(def)) def <- list(
@@ -625,7 +625,7 @@ add_contact_rate <- function(hhmodel, by = NA_character_, ...,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, prefix = prefix
   )
-  do.call(pvt$contact_rates_$add_quo, def)
+  do.call(pvt$contact_risks_$add_quo, def)
   pvt$rebuild_()
   new_obj
 }

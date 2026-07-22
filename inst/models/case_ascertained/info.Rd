@@ -28,7 +28,7 @@ A susceptible member can get infected at time/day \eqn{t_{i}} according to a inh
 }
 \if{html}{\out{<hr>}}
 }
-\section{Group Rates}{
+\section{Group Risks}{
 \itemize{
 \item \code{community} \eqn{\mu^\mathrm{com}} : predisposition to infection from community relative to reference
 \item \code{susceptibility} \eqn{\mu^\mathrm{sus}}: predisposition to infection relative to reference

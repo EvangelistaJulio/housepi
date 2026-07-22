@@ -104,8 +104,8 @@ articles:
     navbar: ~
     contents:
       - priors_and_proposals
-      - group_rates
-      - contact_rates
+      - group_risks
+      - contact_risks
       - data_augmentation
       - infectivity_profiles
       - posterior_predictive_checks

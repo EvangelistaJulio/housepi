@@ -42,15 +42,15 @@ namespace housepi
 		virtual const std::vector<std::string> get_HHdoublemtxKey() const = 0;
 		virtual const std::vector<std::string> get_LongKey() const = 0;
 		virtual const std::vector<std::string> get_ParamKey() const = 0;
-		virtual const std::vector<std::string> get_GroupRateKey() const = 0;
+		virtual const std::vector<std::string> get_GroupRiskKey() const = 0;
 		virtual const std::vector<std::string> get_AugmKey() const = 0;
 
 		/////////////////////
 		//////  MODEL  //////
 		/////////////////////
 
-		/// Whether the model uses contact rates.
-		virtual bool has_contact_rates() const { return false; }
+		/// Whether the model uses contact risks.
+		virtual bool has_contact_risks() const { return false; }
 
 		/// Update cached augmeted dependecies for whole household.
 		virtual void update_house_cache_dependecies(Household & /*house*/) {}
@@ -145,18 +145,18 @@ namespace housepi
 		double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
 		/// Get wide-format data value for given individual.
 		double data(size_t d, const Individual &m) const { return mcmc_->data(d, m); }
-		/// Get group-rate value for given individual.
-		double group_rate(size_t g, const Individual &m) const { return mcmc_->group_rate.value(g, m); }
+		/// Get group-risk value for given individual.
+		double group_risk(size_t g, const Individual &m) const { return mcmc_->group_risk.value(g, m); }
 
-		/// Get contact rate 'from' household member 'to' member.
-		double contact_rate(const Household &house, size_t from, size_t to) const { return mcmc_->contact_rate.value(house, from, to); }
-		/// Wheter hosuehold members i and j are equivalent in terms of rates.
-		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const
+		/// Get contact risk 'from' household member 'to' member.
+		double contact_risk(const Household &house, size_t from, size_t to) const { return mcmc_->contact_risk.value(house, from, to); }
+		/// Wheter hosuehold members i and j are equivalent in terms of risks.
+		bool is_same_risk_partition(const Household &house, size_t i, size_t j) const
 		{
-			return mcmc_->is_same_rate_partition(house, i, j);
+			return mcmc_->is_same_risk_partition(house, i, j);
 		}
-		/// Get contact rate intra member partition (self-contact).
-		double intra_partition_contact_rate(const Household &house, size_t i) const { return mcmc_->contact_rate.intra_value(house, i); }
+		/// Get contact risk intra member partition (self-contact).
+		double intra_partition_contact_risk(const Household &house, size_t i) const { return mcmc_->contact_risk.intra_value(house, i); }
 
 		/// Return maximum number of observed infected household members.
 		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }

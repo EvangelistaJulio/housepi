@@ -2,15 +2,15 @@ library(testthat)
 
 # definitions: `_1` : single infected group
 #              `_3` : 3 infected groups
-# group rate definitions
+# group risk definitions
 groups <- list(community = list("class", reference = "a"),
                susceptibility = list("class", reference = "a"),
                infectivity = list("class", reference = "a"))
-# fixed group rates
+# fixed group risks
 # `a` is the reference class
-grates_1 <- list(a = list(com = 1., sus = 1., inf = 1.),
+grisks_1 <- list(a = list(com = 1., sus = 1., inf = 1.),
                  b = list(com = 2., sus = 3., inf = 0.2))
-grates_3 <- c(grates_1,
+grisks_3 <- c(grisks_1,
               list(c = list(com = 0.5, sus = 0.8, inf = 1.5)))
 
 # members sorted infected, escaped
@@ -21,19 +21,19 @@ house_3 <- data.frame(
   age = rep(c("adult", "child"), 2),
   active = c(TRUE, TRUE, FALSE, FALSE),
   class = c("a", "b", rep("c", 2)),
-  community = c(1, grates_3$b$com, rep(grates_3$c$com, 2)),
-  susceptibility = c(1, grates_3$b$sus, rep(grates_3$c$sus, 2)),
-  infectivity = c(1, grates_3$b$inf, rep(grates_3$c$inf, 2))
+  community = c(1, grisks_3$b$com, rep(grisks_3$c$com, 2)),
+  susceptibility = c(1, grisks_3$b$sus, rep(grisks_3$c$sus, 2)),
+  infectivity = c(1, grisks_3$b$inf, rep(grisks_3$c$inf, 2))
 )
 house_1 <- house_3[1:2, ]
 house_1$status <- c(1, 0)
 
-# contact rate definitions
+# contact risk definitions
 contacts <- list(by = "class", symmetric = FALSE,
                  reference = c(from_class = "a", to_class = "b"))
-# fixed contact rates
-crates_1 <- list(class_b_to_class_a = 2.3)
-crates_3 <- list(class_a_to_class_c = 0.7,
+# fixed contact risks
+crisks_1 <- list(class_b_to_class_a = 2.3)
+crisks_3 <- list(class_a_to_class_c = 0.7,
                  class_c_to_class_a = 0.6,
                  class_b_to_class_c = 1.1,
                  class_c_to_class_b = 0.9,
@@ -41,18 +41,18 @@ crates_3 <- list(class_a_to_class_c = 0.7,
 
 # parameters matching automatic names
 par_0 <- list(alpha = 0.15, beta = 0.22, gamma = 1, hhsize_ref = 4)
-par_1 <- c(par_0, crates_1,
-           list(com_class_b = grates_1$b$com,
-                sus_class_b = grates_1$b$sus,
-                inf_class_b = grates_1$b$inf))
-par_3 <- c(par_1, crates_3,
-           list(com_class_c = grates_3$c$com,
-                sus_class_c = grates_3$c$sus,
-                inf_class_c = grates_3$c$inf))
-crates_3 <- c(crates_1, crates_3)
+par_1 <- c(par_0, crisks_1,
+           list(com_class_b = grisks_1$b$com,
+                sus_class_b = grisks_1$b$sus,
+                inf_class_b = grisks_1$b$inf))
+par_3 <- c(par_1, crisks_3,
+           list(com_class_c = grisks_3$c$com,
+                sus_class_c = grisks_3$c$sus,
+                inf_class_c = grisks_3$c$inf))
+crisks_3 <- c(crisks_1, crisks_3)
 
-# helper building the symmetric contact rate matrix for a given house
-make_ctr_mtx <- function(house, crates, prefix = "") {
+# helper building the symmetric contact risk matrix for a given house
+make_ctr_mtx <- function(house, crisks, prefix = "") {
   n <- nrow(house)
   output <- matrix(0., nrow = n, ncol = n)
   for (i in seq_len(n)) {
@@ -60,7 +60,7 @@ make_ctr_mtx <- function(house, crates, prefix = "") {
       if (i == j) next
       pair <- c(house$class[i], house$class[j])
       key <- paste0(prefix, "class_", pair[1], "_to_class_", pair[2])
-      if (key %in% names(crates)) output[i, j] <- crates[[key]]
+      if (key %in% names(crisks)) output[i, j] <- crisks[[key]]
       # NOTE: it must reference otherwise, errors are dealt elsewhere
       else output[i, j] <- 1
     }
@@ -113,14 +113,14 @@ test_that("Deep clone works as expected", {
   # definitions
   expect_equal(hhmodel$parameters, hhclone$parameters)
   expect_equal(hhmodel$augmented, hhclone$augmented)
-  expect_equal(hhmodel$group_rates, hhclone$group_rates)
+  expect_equal(hhmodel$group_risks, hhclone$group_risks)
 
   # check no backward changes
-  hhmodel <- add_group_rate(hhmodel, "susceptibility", by = "member")
+  hhmodel <- add_group_risk(hhmodel, "susceptibility", by = "member")
   hhclone <- house |>
     dplyr::mutate(status = NA) |>
     new_housepi_model("final_size")
-  expect_failure(expect_equal(hhmodel$group_rates, hhclone$group_rates))
+  expect_failure(expect_equal(hhmodel$group_risks, hhclone$group_risks))
   expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
 })
 
@@ -267,7 +267,7 @@ test_that("Single infected member log-likelihood is correct", {
   commu_infec_rate <- par$alpha * house$community
   p2p_infec_rate <- par$beta * (par$hhsize_ref / n_full) ^ par$gamma *
     house$infectivity %o% house$susceptibility *
-    make_ctr_mtx(house, crates_1)
+    make_ctr_mtx(house, crisks_1)
 
   # escape probabilities restricted to seropositives
   B <- exp(-commu_infec_rate[seq_len(n_infec)])
@@ -280,9 +280,9 @@ test_that("Single infected member log-likelihood is correct", {
   log_lik <- neg_log + log(pos)
 
   new_housepi_model(house, "final_size") |>
-    add_group_rate(import = groups) |>
-    add_contact_rate(import = contacts) |>
-    # FIXME: this overwrites group rate parameters, opaque to user and risky
+    add_group_risk(import = groups) |>
+    add_contact_risk(import = contacts) |>
+    # FIXME: this overwrites group risk parameters, opaque to user and risky
     add_parameter(import = par, append = FALSE) |>
     evaluate_log_lik() |>
     expect_equal(log_lik)
@@ -300,14 +300,14 @@ test_that("Three infected members likelihood is correct", {
   commu_infec_rate <- par$alpha * house$community
   p2p_infec_rate <- par$beta * (par$hhsize_ref / n_full) ^ par$gamma *
     house$infectivity %o% house$susceptibility *
-    make_ctr_mtx(house, crates_3)
+    make_ctr_mtx(house, crisks_3)
 
   # CASE 1: no infected
   hhmodel <- house |>
     dplyr::mutate(status = 0) |>
     new_housepi_model("final_size") |>
-    add_group_rate(import = groups) |>
-    add_contact_rate(import = contacts) |>
+    add_group_risk(import = groups) |>
+    add_contact_risk(import = contacts) |>
     add_parameter(import = par, append = FALSE)
   log_lik <- -sum(commu_infec_rate)
   expect_equal(evaluate_log_lik(hhmodel), log_lik)
@@ -316,8 +316,8 @@ test_that("Three infected members likelihood is correct", {
   n_infec <- sum(house$status > 0)
   hhmodel <- house |>
     new_housepi_model("final_size") |>
-    add_group_rate(import = groups) |>
-    add_contact_rate(import = contacts) |>
+    add_group_risk(import = groups) |>
+    add_contact_risk(import = contacts) |>
     add_parameter(import = par, append = FALSE)
 
   # escape probabilities restricted to seropositives
@@ -341,8 +341,8 @@ test_that("Chain binomial runs ok on real case with partitions", {
   hhmodel <- flu_2014_matsumoto |>
     new_housepi_model("final_size") |>
     add_parameter_template() |>
-    add_group_rate("community", by = "member", reference = ".none") |>
-    add_contact_rate(
+    add_group_risk("community", by = "member", reference = ".none") |>
+    add_contact_risk(
       strata = data.frame(
         from_member = c("student", "student", "sibling",
                         "mother", "mother",
@@ -379,7 +379,7 @@ test_that("Chain binomial returns infinite if extreme values are provided", {
   # heterogeneous branch
   expect_false(is.finite(
     hhmodel |>
-      add_group_rate("susceptibility", by = "age") |>
+      add_group_risk("susceptibility", by = "age") |>
       evaluate_log_lik()
   ))
 })

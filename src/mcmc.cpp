@@ -25,12 +25,12 @@
 #include "tools/types.h"
 
 #include "augmented.h"
-#include "contact_rate.h"
+#include "contact_risk.h"
 #include "data_wide.h"
 #include "data_long.h"
 #include "distribution.h"
 #include "function.h"
-#include "group_rate.h"
+#include "group_risk.h"
 #include "household.h"
 #include "individual.h"
 #include "infec_profile.h"
@@ -122,9 +122,9 @@ namespace housepi
             {
                 return augm_.at(augm_.khold(node.value), *member_ptr);
             }
-            else if (parse::is_group_rate(node.type))
+            else if (parse::is_group_risk(node.type))
             {
-                return pgroup_rate_->at(pgroup_rate_->khold(node.value), *member_ptr);
+                return pgroup_risk_->at(pgroup_risk_->khold(node.value), *member_ptr);
             }
 #ifndef NDEBUG
             else
@@ -388,7 +388,7 @@ namespace housepi
         const std::vector<std::string> &hh_double_mtx_keys,
         const std::vector<std::string> &data_long_keys,
         const std::vector<std::string> &param_keys,
-        const std::vector<std::string> &group_rate_keys,
+        const std::vector<std::string> &group_risk_keys,
         const std::vector<std::string> &augm_keys)
     {
         data_wide().init_key_holder(data_wide_keys);
@@ -398,18 +398,18 @@ namespace housepi
                                            hh_double_mtx_keys);
         data_long().init_key_holder(data_long_keys);
         param.init_key_holder(param_keys);
-        group_rate.init_key_holder(group_rate_keys);
+        group_risk.init_key_holder(group_risk_keys);
         augm.init_key_holder(augm_keys);
 
         translator.bind_data_wide(&data_wide());
-        translator.bind_group_rate(&group_rate);
+        translator.bind_group_risk(&group_risk);
     }
 
-    /// Wheter hosuehold members i and j are equivalent in terms of rates.
-    /// Two members are in the same if group-rate attributes and
-    /// every contact-rate involving one matches the corresponding one involving the
+    /// Wheter hosuehold members i and j are equivalent in terms of risks.
+    /// Two members are in the same if group-risk attributes and
+    /// every contact-risk involving one matches the corresponding one involving the
     /// other, both outgoing and incoming, across all other members.
-    bool MCMCBase::is_same_rate_partition(const Household &house, size_t i, size_t j) const
+    bool MCMCBase::is_same_risk_partition(const Household &house, size_t i, size_t j) const
     {
         if (i == j)
             return true;
@@ -417,12 +417,12 @@ namespace housepi
         const Individual &member_i = house.member(i);
         const Individual &member_j = house.member(j);
 
-        // check all group rates
-        if (!group_rate.same_group(member_i, member_j))
+        // check all group risks
+        if (!group_risk.same_group(member_i, member_j))
             return false;
 
-        // check all contact rates
-        if (!contact_rate.same_contacts(house, i, j))
+        // check all contact risks
+        if (!contact_risk.same_contacts(house, i, j))
             return false;
 
         return true;
@@ -586,7 +586,7 @@ namespace housepi
                         model->get_HHdoublemtxKey(),
                         model->get_LongKey(),
                         model->get_ParamKey(),
-                        model->get_GroupRateKey(),
+                        model->get_GroupRiskKey(),
                         model->get_AugmKey());
         model->bind_solver(this);
         model->init_advanced_setup();
@@ -653,8 +653,8 @@ namespace housepi
         data_wide().allocate_transm_log_lik();
 
         param.finalize();
-        group_rate.finalize();
-        contact_rate.finalize();
+        group_risk.finalize();
+        contact_risk.finalize();
         augm.finalize();
         infec_profile.finalize();
         data_wide().finalize_cells();

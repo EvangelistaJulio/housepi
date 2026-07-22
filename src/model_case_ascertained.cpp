@@ -25,7 +25,7 @@ public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, infec_time)
 	HOUSEPI_DECLARE_REGISTER_KEYS(DataKey, start_date, end_date)
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
+	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRiskKey, community, susceptibility, infectivity)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintKey, intro_case)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHuintvecKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
@@ -48,8 +48,8 @@ public:
 		init_infec_profile_template({{"func", "gamma|mean:var|{2|N}:{1|N}"}});
 	}
 
-	/// Allow for contact rate definitions.
-	bool has_contact_rates() const override final { return true; }
+	/// Allow for contact risk definitions.
+	bool has_contact_risks() const override final { return true; }
 
 	/// NOTE: missing status are not modeled
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }
@@ -111,18 +111,18 @@ public:
 		{
 			const Individual &member_s = house.member(s);
 			const double exposure = follow_up_end(member_s) - t_intro;
-			output -= alpha * exposure * group_rate(GroupRateKey::community, member_s);
+			output -= alpha * exposure * group_risk(GroupRiskKey::community, member_s);
 		}
 
 		for (size_t i : house.infected_hhindexes())
 		{
 			const Individual &member_i = house.member(i);
-			const double mu_i = group_rate(GroupRateKey::infectivity, member_i);
+			const double mu_i = group_risk(GroupRiskKey::infectivity, member_i);
 
 			for (size_t s : house.escaped_hhindexes())
 				output -= mu_i * beta * cumul_mtx[i][s] *
-						  contact_rate(house, i, s) *
-						  group_rate(GroupRateKey::susceptibility, house.member(s));
+						  contact_risk(house, i, s) *
+						  group_risk(GroupRiskKey::susceptibility, house.member(s));
 
 			if (i == i0)
 				continue;
@@ -135,14 +135,14 @@ public:
 				if (j == i)
 					continue;
 
-				const double mu_ji = group_rate(GroupRateKey::infectivity, house.member(j)) *
-									 contact_rate(house, j, i);
+				const double mu_ji = group_risk(GroupRiskKey::infectivity, house.member(j)) *
+									 contact_risk(house, j, i);
 				roi_inst_i += mu_ji * inst_mtx[j][i];
 				roi_cumul_i += mu_ji * cumul_mtx[j][i];
 			}
 
-			const double a_i = alpha * group_rate(GroupRateKey::community, member_i);
-			const double b_i = beta * group_rate(GroupRateKey::susceptibility, member_i);
+			const double a_i = alpha * group_risk(GroupRiskKey::community, member_i);
+			const double b_i = beta * group_risk(GroupRiskKey::susceptibility, member_i);
 
 			roi_inst_i *= b_i;
 			roi_cumul_i *= b_i;
@@ -403,13 +403,13 @@ public:
 		{
 			const Individual &member_j = house.member(j);
 			const double gentime = t_infec_i - aug(AugmKey::infec_time, member_j);
-			roi += group_rate(GroupRateKey::infectivity, member_j) *
-				   contact_rate(house, j, i) *
+			roi += group_risk(GroupRiskKey::infectivity, member_j) *
+				   contact_risk(house, j, i) *
 				   infec_profile_inst(member_j, gentime);
 		}
 
-		return alpha * group_rate(GroupRateKey::community, member_i) +
-			   beta * group_rate(GroupRateKey::susceptibility, member_i) * roi;
+		return alpha * group_risk(GroupRiskKey::community, member_i) +
+			   beta * group_risk(GroupRiskKey::susceptibility, member_i) * roi;
 	}
 };
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

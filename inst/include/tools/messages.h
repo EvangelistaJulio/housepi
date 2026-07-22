@@ -34,7 +34,7 @@ namespace housepi
         Augmented,
         Observation,
         HouseholdObservation,
-        GroupRate,
+        GroupRisk,
         Data,
         Distribution,
         InfecProfile,

@@ -643,19 +643,19 @@ test_that("A simulation override (value + prior) rejects forward dependencies", 
     expect_error("[Ss]imulation override.*augmented")
 })
 
-test_that("Group/contact rate keyed on an observation is rejected in simulation only", {
+test_that("Group/contact risk keyed on an observation is rejected in simulation only", {
   # the rate feeds transmission, which the observation is generated from: fine in
   # inference (observed data), circular when generating during simulation.
   hhmodel <- data.frame(house_id = c(1, 1), status = c(1, 0), severity = c(2, 3)) |>
     new_housepi_model("final_size") |>
-    add_group_rate("susceptibility", by = "severity") |>
+    add_group_risk("susceptibility", by = "severity") |>
     add_observation("severity", obs = "uniform", min = 0, max = 5) |>
     add_parameter_template()
 
   hhmodel |>
     run_simulation(nrep = 1L) |>
     suppressMessages() |>
-    expect_error("[Gg]roup rate.*observation")
+    expect_error("[Gg]roup risk.*observation")
 })
 
 ######################################

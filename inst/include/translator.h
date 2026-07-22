@@ -24,7 +24,7 @@ namespace housepi
         struct Entry;
     }
     struct DataWide;
-    struct GroupRate;
+    struct GroupRisk;
     struct Augmented;
     struct Parameter;
     class Individual;
@@ -34,9 +34,9 @@ namespace housepi
     {
         Translator(Parameter &param, Augmented &augm) : param_(param), augm_(augm) {}
 
-        /// Bind data-wide storage and group-rate storage for member-specific source resolution.
+        /// Bind data-wide storage and group-risk storage for member-specific source resolution.
         void bind_data_wide(const DataWide *data_wide) noexcept { pdata_wide_ = data_wide; }
-        void bind_group_rate(const GroupRate *group_rate) noexcept { pgroup_rate_ = group_rate; }
+        void bind_group_risk(const GroupRisk *group_risk) noexcept { pgroup_risk_ = group_risk; }
 
         /// Translate a definition node or a string to a generic attribute.
         const Attribute &to_attribute(const parse::Entry &node, const Individual *member_ptr = nullptr) const;
@@ -53,7 +53,7 @@ namespace housepi
         Parameter &param_;              /// parameter key-module
         Augmented &augm_;               /// augmented key-module
         const DataWide *pdata_wide_;    /// data-wide storage and key-holder
-        const GroupRate *pgroup_rate_;  /// group-rates storage and key-holder
+        const GroupRisk *pgroup_risk_;  /// group-risks storage and key-holder
         mutable Attribute storage_;     /// auxiliary storage attribute
 
         void helper_store_read_function_(const parse::Entry &node, const Individual *member_ptr) const;

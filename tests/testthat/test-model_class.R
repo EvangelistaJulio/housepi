@@ -8,7 +8,7 @@ test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
     helper_test_read_only(
       "data_wide", "data_long", "parameters", "augmented", "observations",
-      "infec_profile", "group_rates", "contact_rates", "name", "setup"
+      "infec_profile", "group_risks", "contact_risks", "name", "setup"
     )
 })
 
@@ -62,7 +62,7 @@ test_that("Model class 'test' calls", {
   snapshot <- hhmodel$export_house_snapshot("house")
   expect_equal(length(snapshot$param), 0)
   expect_equal(length(snapshot$augm), 0)
-  expect_equal(length(snapshot$group_rate), 0)
+  expect_equal(length(snapshot$group_risk), 0)
 
   # 'test' default data wide format
   expect_equal(hhmodel$data_wide, dummy_household)
@@ -167,7 +167,7 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
 
   # fix expected equivalence classes by member composition
   case_summary <- hhmodel |>
-    add_group_rate("community", by = "member") |>
+    add_group_risk("community", by = "member") |>
     summarise_house_cases()
   subset(case_summary, level == "household" & metric == "distinct")$count |>
     expect_equal(454L)

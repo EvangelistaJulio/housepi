@@ -1,5 +1,5 @@
 ---
-title: "Group rates"
+title: "Group risks"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -7,7 +7,7 @@ output:
 bibliography: ../inst/REFERENCES.bib
 link-citations: true
 vignette: >
-  %\VignetteIndexEntry{Group rates}
+  %\VignetteIndexEntry{Group risks}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options:
@@ -28,14 +28,15 @@ housepi_theme_set()
 set.seed(42)
 ```
 
-Certain models allow for the definition of custom group rates.
-Such models allow for a number of group rates which can then be changed according to the modeler's choice.
+Certain models allow for the definition of custom group risks.
+A group risk is *relative*: each parameter multiplies the baseline risk of a reference class, so it reads as the risk of one group with respect to that reference.
+Such models allow for a number of group risks which can then be changed according to the modeler's choice.
 We provide an example here with the heterogeneous version of the final size model.
 
 # Format data features
 
 Suppose our analysis wants to explore age and/or gender-based effects within a household survey.
-We start by creating categorical groupings to stratify individuals based on their age, sex, etc. and then associate individual group rates.
+We start by creating categorical groupings to stratify individuals based on their age, sex, etc. and then associate individual group risks.
 
 ```{r}
 #| label: format-age-data
@@ -53,86 +54,86 @@ hhmodel <- sarscov2_2021_icofs |>
   new_housepi_model("case_ascertained")
 ```
 
-The current loaded model allows for a number of group rates, among which the individual `"susceptibility"` (use `help()` method to learn more).
-We can define it calling `add_group_rate()`.
-By default, all group rates without a definition will be treated as associated to the reference (i.e. `1`). Definitions will add a new parameter for each group, except for the reference group.
+The current loaded model allows for a number of group risks, among which the individual `"susceptibility"` (use `help()` method to learn more).
+We can define it calling `add_group_risk()`.
+By default, all group risks without a definition will be treated as associated to the reference (i.e. `1`). Definitions will add a new parameter for each group, except for the reference group.
 By default, the definition assumes the reference group to be the one with the largest number of counts.
 
 ```{r}
 #| label: susceptibility-by-age
 hhmodel |>
-  # associate susceptibility group rate by column age
-  add_group_rate("susceptibility", by = "age") |>
-  # inspect group rate definitions
-  # note: to show group rate definitions, add data before
-  get_group_rates()
+  # associate susceptibility group risk by column age
+  add_group_risk("susceptibility", by = "age") |>
+  # inspect group risk definitions
+  # note: to show group risk definitions, add data before
+  get_group_risks()
 ```
-To return a group rate to its default, overwrite its definition with argument `by` set to `NA`.
+To return a group risk to its default, overwrite its definition with argument `by` set to `NA`.
 To drop all previous definitions, add a new one with `append = FALSE`.
 
 # Dependencies between covariates
 
-In the previous example we associated group rates to a single covariate in the data.
+In the previous example we associated group risks to a single covariate in the data.
 In this example we show how to provide more covariates and a custom reference.
 Manually set a `reference` by providing the corresponding group factor values:
 
 ```{r}
 #| label: susceptibility-by-sex-age
 hhmodel |>
-  # multiplicative group rates, adult female chosen as reference
-  add_group_rate("susceptibility", c("sex", "age"),
+  # multiplicative group risks, adult female chosen as reference
+  add_group_risk("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult")) |>
   # show corresponding tables with associations
-  get_group_rates()
+  get_group_risks()
 ```
 
 By default, parameters associated to each grouping are assumed independent,
-i.e. the group rate is the product of two parameters, one for the feature "sex", another for "age".
-In alternative, we can make the rate joint between the features:
+i.e. the group risk is the product of two parameters, one for the feature "sex", another for "age".
+In alternative, we can make the risk joint between the features:
 
 ```{r}
 #| label: susceptibility-joint
 hhmodel |>
   # here covariates are assumed to be joint
-  add_group_rate("susceptibility", c("sex", "age"),
+  add_group_risk("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult"),
                  joint = TRUE) |>
-  get_group_rates()
+  get_group_risks()
 ```
 
-# Parameters associated to rates
+# Parameters associated to risks
 
 To perform inference of the parameters associated to each group we just need to provide options for the Bayesian Monte Carlo.
-By default, group rate assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and a lognormal random-walk proposal (`"rw_log"`), following @cauchemez_household_2009.
-This can be customized at the moment of the definition of the group rate similarly to parameters (see documentation).
+By default, group risk assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and a lognormal random-walk proposal (`"rw_log"`), following @cauchemez_household_2009.
+This can be customized at the moment of the definition of the group risk similarly to parameters (see documentation).
 
 ```{r}
-#| label: group-rate-parameters
-# default parameter associated to group rates
+#| label: group-risk-parameters
+# default parameter associated to group risks
 hhmodel |>
-  add_group_rate("susceptibility", c("sex", "age"), prefix = "") |>
+  add_group_risk("susceptibility", c("sex", "age"), prefix = "") |>
   get_parameters()
 
-# custom parameter priors associated to group rates
+# custom parameter priors associated to group risks
 hhmodel |>
-  add_group_rate("susceptibility", c("sex", "age"), prefix = "",
+  add_group_risk("susceptibility", c("sex", "age"), prefix = "",
                  prior = "normal") |>
   get_parameters()
 
 ```
 
-Note that direct definition of a parameter has the priority, even if a parameter with the same name would be generated by group rate application.
+Note that direct definition of a parameter has the priority, even if a parameter with the same name would be generated by group risk application.
 
-# Inference with group rates
+# Inference with group risks
 
 We can proceed with the inference as shown in [Get started](housepi.html):
 
 ```{r}
-#| label: final-group-rates
+#| label: final-group-risks
 
 hhmodel <- hhmodel |>
-  # load group rates from definition list
-  add_group_rate(
+  # load group risks from definition list
+  add_group_risk(
     infectivity = "isolated",
     susceptibility = list(by = "vacc_status", reference = "unvaccinated")
   )
@@ -143,7 +144,7 @@ get_parameters(hhmodel)
 
 
 ```{r}
-#| label: inference-group-rates
+#| label: inference-group-risks
 #| fig-alt: >
 #|  Six trace plots displaying MCMC sampling behaviour for model parameters: alpha, beta, infectivity by isolation, and susceptibility parameters stratified by vaccination status.
 #|  Multiple chains (1-3) are overlaid across iterations, showing convergence diagnostics and mixing properties of the Markov chains.
@@ -192,12 +193,12 @@ results <- hhmodel |>
 bayesplot::mcmc_trace(get_parameter_draws(results))
 ```
 
-# Compare group rates
+# Compare group risks
 
 Finally, we propose the following approach to visualize the difference between the estimates for the susceptibility with respect to the reference group:
 
 ```{r}
-#| label: compare-group-rates-plot
+#| label: compare-group-risks-plot
 #| warning: false
 #| message: false
 #| fig-alt: >
@@ -205,21 +206,21 @@ Finally, we propose the following approach to visualize the difference between t
 #|  Points show mean estimates with 95% credible intervals derived from MCMC posterior distributions.
 library(ggplot2)
 
-rate_id <- "susceptibility"
+risk_id <- "susceptibility"
 prefix <- "sus_"
 
-tmp <- get_group_rates(hhmodel) |>
+tmp <- get_group_risks(hhmodel) |>
   # extract reference value and create a label
-  dplyr::filter(group_rate == rate_id, param_name == ".reference") |>
+  dplyr::filter(group_risk == risk_id, param_name == ".reference") |>
   dplyr::select(vacc_status)
-ylabel <- sprintf("%s (Ref: %s)", rate_id,
+ylabel <- sprintf("%s (Ref: %s)", risk_id,
                   paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
-# compare inferred susceptibility group rates
+# compare inferred susceptibility group risks
 results |>
   summarise_draws() |>
   dplyr::filter(stringr::str_starts(variable, prefix)) |>
-  dplyr::left_join(get_group_rates(hhmodel) |>
+  dplyr::left_join(get_group_risks(hhmodel) |>
                      dplyr::select(param_name, n) |>
                      dplyr::rename(variable = param_name),
                    by = "variable") |>

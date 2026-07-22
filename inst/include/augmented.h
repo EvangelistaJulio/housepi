@@ -365,8 +365,8 @@ namespace housepi
         void wire_house_obs_cells_(Household &house);
         /// Whether household observation 'k' references only data and numeric sources.
         bool house_obs_is_pure_data_(size_t k) const;
-        /// Whether a parsed definition subtree references any group rate.
-        static bool entry_has_group_rate_(const parse::Entry &node);
+        /// Whether a parsed definition subtree references any group risk.
+        static bool entry_has_group_risk_(const parse::Entry &node);
 
         /// Whether household observation 'k' references a generated observation column.
         bool house_obs_is_live_(size_t k) const;
@@ -377,9 +377,9 @@ namespace housepi
         /// Reject a simulation override (value + prior) that reads an augmented variable
         /// or observation: it must resolve from data or parameters at draw time.
         void assert_no_sim_override_forward_dep_() const;
-        /// Reject a group/contact rate keyed on an observation column: it feeds the
+        /// Reject a group/contact risk keyed on an observation column: it feeds the
         /// transmission model the observation is generated from. Simulation only.
-        void assert_no_obs_rate_collision_() const;
+        void assert_no_obs_risk_collision_() const;
 
         /// Get the definition order for current member according to its status.
         /// NOTE: if status hasn't been observed in data, build on demand.

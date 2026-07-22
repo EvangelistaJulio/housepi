@@ -4,9 +4,9 @@
       print(hhmodel)
     Output
       i Household model "case ascertained" (`template`).
-      ! Group rates: using default group rates.
+      ! Group risks: using default group risks.
         Available: "community", "susceptibility" and "infectivity".
-      ! Contact rates: using default contact rates.
+      ! Contact risks: using default contact risks.
         A custom choice can be provided.
       v Data
       v Parameters
@@ -20,9 +20,9 @@
     Output
       i Household model "case ascertained" (`template`).
       Model is set to discrete time mode.
-      ! Group rates: using default group rates.
+      ! Group risks: using default group risks.
         Available: "community", "susceptibility" and "infectivity".
-      ! Contact rates: using default contact rates.
+      ! Contact risks: using default contact risks.
         A custom choice can be provided.
       v Data
       v Parameters

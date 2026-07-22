@@ -28,7 +28,7 @@ try_fold_const_ <- function(expr, env) {
 helper_default_source <- function(types, values) {
   valid_sources_lst <- list("A" = "augmented",
                             "D" = "data",
-                            "G" = "group rate",
+                            "G" = "group risk",
                             "N" = "numeric",
                             "P" = "parameter")
 

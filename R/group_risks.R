@@ -5,25 +5,26 @@
 ## See the LICENSE file for details.
 ##
 
-rate_stop_hint <- "Choose {.arg by} for automatic definitions, {.arg strata} for custom."
+risk_stop_hint <- paste("Choose {.arg by} for automatic definitions,",
+                        "{.arg strata} for custom.")
 
 # Reserved column names (non-feature) in a logic table.
 data_reserved_cols <- c("id", "house_id", "status")
-rate_reserved_cols <- c("group_rate", "param_name", "n", "rule_group")
+risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group")
 
 # Throw error if empty definition.
 stop_empty_definition <- function() {
   stop_h(
-    "Invalid rate definition: provide one between {.arg {c('by', 'strata')}}.",
-    rate_stop_hint
+    "Invalid risk definition: provide one between {.arg {c('by', 'strata')}}.",
+    risk_stop_hint
   )
 }
 
-# Throw error for ambiguos rate definition.
+# Throw error for ambiguos risk definition.
 stop_ambiguos_definition <- function() {
   stop_h(
     "Impossible to provide at the same time {.arg {c('by', 'logic_table')}}.",
-    rate_stop_hint
+    risk_stop_hint
   )
 }
 
@@ -39,11 +40,11 @@ assert_valid_features <- function(features) {
     format_type_error(features)
   )
 
-  # avoid group rates associated to reserved data/definition names
-  reserved_data <- c(data_reserved_cols, rate_reserved_cols)
+  # avoid group risks associated to reserved data/definition names
+  reserved_data <- c(data_reserved_cols, risk_reserved_cols)
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
-    sprintf("Impossible to associate rate to %s%s",
+    sprintf("Impossible to associate risk to %s%s",
             as_plural("feature", length(forbidden), "s:"),
             character_to_string_list(forbidden)),
     `!` = "These names are reserved.",
@@ -75,7 +76,7 @@ assert_data_features <- function(features, headers) {
 #' @noRd
 assess_feature_values <- function(this_table) {
   # column names to consider
-  colmask <- setdiff(names(this_table), rate_reserved_cols)
+  colmask <- setdiff(names(this_table), risk_reserved_cols)
   for (col in colmask) {
     sapply(this_table[[col]], function(x) assert_valid_feature(x, col))
   }
@@ -97,7 +98,7 @@ assert_valid_logic_table <- function(logic_table) {
     "Logic table must contain at least one row."
   )
   # validate feature column names
-  feature_cols <- setdiff(colnames(logic_table), rate_reserved_cols)
+  feature_cols <- setdiff(colnames(logic_table), risk_reserved_cols)
   assert_valid_features(feature_cols)
 }
 
@@ -115,7 +116,7 @@ compute_rule_groups <- function(tbl) {
     tbl$rule_group <- integer(0)
     return(tbl)
   }
-  feat_cols <- setdiff(colnames(tbl), rate_reserved_cols)
+  feat_cols <- setdiff(colnames(tbl), risk_reserved_cols)
 
   # pattern of each row: names of non-NA feature columns
   patterns <- lapply(seq_len(nrow(tbl)), function(i) {
@@ -171,12 +172,12 @@ compute_rule_groups <- function(tbl) {
   tbl
 }
 
-#' Set ordering for rate logic-tables: `.reference` first, decreasing 'n'.
+#' Set ordering for risk logic-tables: `.reference` first, decreasing 'n'.
 #' @param tbl `data.frame` Logic table with `param_name`, `n`.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
-reorder_rates_logic_table <- function(tbl) {
+reorder_risks_logic_table <- function(tbl) {
   if (nrow(tbl) == 0) return(tbl)
   is_ref <- tbl$param_name == ".reference"
   n_val <- suppressWarnings(as.numeric(tbl[["n"]]))
@@ -184,13 +185,13 @@ reorder_rates_logic_table <- function(tbl) {
   tbl[ord, , drop = FALSE]
 }
 
-#' Return logic table of group rates
-#' @param data_wide Data from which to extract group rates
+#' Return logic table of group risks
+#' @param data_wide Data from which to extract group risks
 #' @param this_feat Feature as list of data column names.
 #' @return data.frame with logic table
 #' @keywords internal
 #' @noRd
-group_rate_logic_table <- function(data_wide, this_feat) {
+group_risk_logic_table <- function(data_wide, this_feat) {
   # extract unique features and sort by list length
   uni_features <- lapply(this_feat, function(f) sort(unique(data_wide[[f]])))
   sorted_indices <- order(sapply(uni_features, length), decreasing = TRUE)
@@ -214,11 +215,11 @@ group_rate_logic_table <- function(data_wide, this_feat) {
   y
 }
 
-#' Associate parameter name to group rate logic table.
+#' Associate parameter name to group risk logic table.
 #' @param this_table
-#' Data.frame containing conditions for the group rate.
+#' Data.frame containing conditions for the group risk.
 #' @param prefix
-#' Prefix to parameter names associated to the group rate.
+#' Prefix to parameter names associated to the group risk.
 #' @param reference
 #' Choose reference providing corresponding features.
 #' Default is the group with the largest sample size.
@@ -259,22 +260,22 @@ associate_group_param_names <- function(this_table, prefix, reference) {
   this_table
 }
 
-#' Combine list with group rate definition into a single dataframe
-#' @param all_tables `list`. Definitions for each group rate.
+#' Combine list with group risk definition into a single dataframe
+#' @param all_tables `list`. Definitions for each group risk.
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
-tidyup_group_rate_tables <- function(all_tables) {
-  # tidy version of group rate tables
-  cbind_rate <- function(x, rate) cbind(group_rate = rate, x)
+tidyup_group_risk_tables <- function(all_tables) {
+  # tidy version of group risk tables
+  cbind_risk <- function(x, risk) cbind(group_risk = risk, x)
   df_list <- c()
-  for (rate in names(all_tables)) {
-    this_table <- all_tables[[rate]]
+  for (risk in names(all_tables)) {
+    this_table <- all_tables[[risk]]
     if (length(this_table) == 0) {
-      df <- list(data.frame(group_rate = rate, param_name = ".reference",
+      df <- list(data.frame(group_risk = risk, param_name = ".reference",
                             rule_group = 1L))
     } else {
-      # concat this rate's sub-tables, then compute rule_groups within rate
+      # concat this risk's sub-tables, then compute rule_groups within risk
       sub_cols <- unique(c("param_name", "n",
                            sort(unlist(lapply(this_table, names)))))
       sub_combined <- do.call(rbind, lapply(this_table, function(x) {
@@ -283,14 +284,14 @@ tidyup_group_rate_tables <- function(all_tables) {
         x[sub_cols]
       }))
       sub_combined <- compute_rule_groups(sub_combined)
-      sub_combined <- reorder_rates_logic_table(sub_combined)
-      df <- list(cbind_rate(sub_combined, rate))
+      sub_combined <- reorder_risks_logic_table(sub_combined)
+      df <- list(cbind_risk(sub_combined, risk))
     }
     df_list <- c(df_list, df)
   }
 
   # all unique column names reordered
-  all_cols <- unique(c(rate_reserved_cols,
+  all_cols <- unique(c(risk_reserved_cols,
                        sort(unlist(lapply(df_list, names)))))
 
   # Add missing columns with NA
@@ -309,7 +310,7 @@ tidyup_group_rate_tables <- function(all_tables) {
 #' @return `list`
 #' @keywords internal
 #' @noRd
-set_group_rates_mcmc_setup <- function(name, prior, args, min, max, proposal) {
+set_group_risks_mcmc_setup <- function(name, prior, args, min, max, proposal) {
   # check wheter default configuration
   is_default <- sapply(c(prior, args, min, max, proposal),
                        function(x) is.na(x) || is.null(x))
@@ -320,7 +321,7 @@ set_group_rates_mcmc_setup <- function(name, prior, args, min, max, proposal) {
   } else {
     # if prior is default -> spare arguments
     if (is_default[1]) stop_h(
-      "Found spare prior arguments for rate {.val {name}}.",
+      "Found spare prior arguments for risk {.val {name}}.",
       "Either leave all as defaults or provide a {.arg prior}."
     )
     # else go with user choice
@@ -331,17 +332,17 @@ set_group_rates_mcmc_setup <- function(name, prior, args, min, max, proposal) {
 
 ############################################################################
 ############################################################################
-############################# Housepi Group Rate ###########################
+############################# Housepi Group Risk ###########################
 ############################################################################
 ############################################################################
 
-#' @title Internal R6 holder for housepi group-rate definitions
+#' @title Internal R6 holder for housepi group-risk definitions
 #' @description
-#' Helper class managing group-rate definitions of the model object.
+#' Helper class managing group-risk definitions of the model object.
 #' @keywords internal
 #' @noRd
-HousepiGroupRate <- R6::R6Class(
-  classname = "HousepiGroupRate",
+HousepiGroupRisk <- R6::R6Class(
+  classname = "HousepiGroupRisk",
   cloneable = TRUE,
 
   ############################################################################
@@ -370,7 +371,7 @@ HousepiGroupRate <- R6::R6Class(
       stats::setNames(reference, by)
     },
 
-    # Add rate definition in automatic mode.
+    # Add risk definition in automatic mode.
     helper_auto_add_ = function(name, by,
                                 prefix = NA_character_,
                                 reference = NULL,
@@ -395,7 +396,7 @@ HousepiGroupRate <- R6::R6Class(
       invisible(self)
     },
 
-    # Add rate definition in custom mode.
+    # Add risk definition in custom mode.
     helper_custom_add_ = function(name, strata,
                                   params = NULL,
                                   reference = NULL,
@@ -442,12 +443,12 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     # Implement through automatic mode.
-    helper_implement_auto_ = function(rate_id, data_wide, factor_info) {
-      this_def <- self$defs[[rate_id]] # definition of the rate
+    helper_implement_auto_ = function(risk_id, data_wide, factor_info) {
+      this_def <- self$defs[[risk_id]] # definition of the risk
       features <- as.list(this_def[["by"]]) # data features
 
       if (all(is.na(features))) {
-        self$logic_tables[[rate_id]] <- list()
+        self$logic_tables[[risk_id]] <- list()
         return(invisible(self))
       }
 
@@ -459,12 +460,12 @@ HousepiGroupRate <- R6::R6Class(
 
       # default prefix
       prefix <- as.character(this_def[["prefix"]])
-      if (is.na(prefix)) prefix <- substring(tolower(rate_id), 1, 3)
+      if (is.na(prefix)) prefix <- substring(tolower(risk_id), 1, 3)
 
       new_logic_table <- list()
       for (this_feat in features) {
-        # 1. create logic table with group rates
-        this_table <- group_rate_logic_table(data_wide, this_feat)
+        # 1. create logic table with group risks
+        this_table <- group_risk_logic_table(data_wide, this_feat)
         # associate names for parameters
         this_table <- associate_group_param_names(
           this_table, prefix, this_def$reference
@@ -476,7 +477,7 @@ HousepiGroupRate <- R6::R6Class(
         for (col in intersect(names(factor_info), colnames(this_table))) {
           lv <- factor_info[[col]]$levels
           if (is.null(lv)) stop_h(
-            "Wrong group rate definition: {.field {col}} has no levels."
+            "Wrong group risk definition: {.field {col}} has no levels."
           )
           this_table[[col]] <- factor(this_table[[col]],
                                       levels = lv,
@@ -486,16 +487,16 @@ HousepiGroupRate <- R6::R6Class(
         # mask reference case
         mask <- this_table$param_name == ".reference"
 
-        # store the new rate logic table
-        self$logic_tables[[rate_id]] <- new_logic_table
+        # store the new risk logic table
+        self$logic_tables[[risk_id]] <- new_logic_table
       }
     },
 
     # Validate custom mode logic table against data, then add counts.
-    helper_implement_custom_ = function(rate_id, data_wide) {
-      for (ti in seq_along(self$logic_tables[[rate_id]])) {
-        tbl <- self$logic_tables[[rate_id]][[ti]]
-        feat_cols <- setdiff(colnames(tbl), rate_reserved_cols)
+    helper_implement_custom_ = function(risk_id, data_wide) {
+      for (ti in seq_along(self$logic_tables[[risk_id]])) {
+        tbl <- self$logic_tables[[risk_id]][[ti]]
+        feat_cols <- setdiff(colnames(tbl), risk_reserved_cols)
         # validate that feature columns exist in data
         assert_data_features(feat_cols, colnames(data_wide))
         # validate that feature values exist in data
@@ -504,9 +505,9 @@ HousepiGroupRate <- R6::R6Class(
           data_vals <- unique(data_wide[[col]])
           missing_vals <- setdiff(as.character(vals), as.character(data_vals))
           if (length(missing_vals) > 0) warn_h(
-            sprintf("Unknown %s for rate {.val %s} in data {.field %s}:%s",
+            sprintf("Unknown %s for risk {.val %s} in data {.field %s}:%s",
                     as_plural("definition", length(missing_vals), "s"),
-                    rate_id, col, character_to_string_list(missing_vals)),
+                    risk_id, col, character_to_string_list(missing_vals)),
             `!` = "Associated entries will be skipped."
           )
         }
@@ -522,7 +523,7 @@ HousepiGroupRate <- R6::R6Class(
         })
         # skip entries with no matching data
         tbl <- tbl[tbl$n > 0, , drop = FALSE]
-        self$logic_tables[[rate_id]][[ti]] <- tbl
+        self$logic_tables[[risk_id]][[ti]] <- tbl
       }
       invisible(self)
     }
@@ -534,17 +535,17 @@ HousepiGroupRate <- R6::R6Class(
 
   active = list(
     #' @field parameters `list`.
-    #' Parameter definitions associated to group rates.
+    #' Parameter definitions associated to group risks.
     parameters = function(value) {
       new_params <- list()
-      for (rate_id in names(self$logic_tables)) {
-        overrides <- self$param_overrides[[rate_id]]
-        for (this_table in self$logic_tables[[rate_id]]) {
+      for (risk_id in names(self$logic_tables)) {
+        overrides <- self$param_overrides[[risk_id]]
+        for (this_table in self$logic_tables[[risk_id]]) {
           for (par_id in setdiff(this_table$param_name, c(".reference"))) {
             if (!is.null(overrides) && !is.null(overrides[[par_id]])) {
               new_params[[par_id]] <- overrides[[par_id]]
             } else {
-              new_params[[par_id]] <- self$raw_params[[rate_id]]
+              new_params[[par_id]] <- self$raw_params[[risk_id]]
             }
           }
         }
@@ -552,18 +553,18 @@ HousepiGroupRate <- R6::R6Class(
       new_params
     },
 
-    #' @field data_required `character()`. Data required by group rates.
+    #' @field data_required `character()`. Data required by group risks.
     data_required = function(value) {
       required <- unique(unlist(lapply(self$defs, `[[`, "by")))
       required <- required[!is.na(required)]
       set_source_name_(required, self$family)
     },
 
-    #' @field param_required `character()`. Parameters required by group rates.
+    #' @field param_required `character()`. Parameters required by group risks.
     param_required = function(value) {
       required <- c()
-      for (rate_id in names(self$logic_tables)) {
-        for (this_table in self$logic_tables[[rate_id]]) {
+      for (risk_id in names(self$logic_tables)) {
+        for (this_table in self$logic_tables[[risk_id]]) {
           required <- c(required, this_table$param_name)
         }
       }
@@ -572,9 +573,9 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @field tidy_table `data.frame()`.
-    #' Combined list with group rate and parameter definitions.
+    #' Combined list with group risk and parameter definitions.
     tidy_table = function(value) {
-      tidyup_group_rate_tables(self$logic_tables)
+      tidyup_group_risk_tables(self$logic_tables)
     }
   ),
 
@@ -584,27 +585,27 @@ HousepiGroupRate <- R6::R6Class(
 
   public = list(
     #' @field family `character(1)`. Holder family.
-    family = "group rate",
+    family = "group risk",
 
     #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
 
-    #' @field defs `list`. Current group rate definitions.
+    #' @field defs `list`. Current group risk definitions.
     defs = list(),
 
     #' @field raw_params `list`. Raw parameter definitions.
     raw_params = list(),
 
     #' @field param_overrides `list`.
-    #' Per-parameter MCMC overrides keyed by rate name.
+    #' Per-parameter MCMC overrides keyed by risk name.
     param_overrides = list(),
 
     #' @field logic_tables `list`.
-    #' Table of parameters associated to each group rate.
+    #' Table of parameters associated to each group risk.
     logic_tables = list(),
 
     #' @description
-    #' New object of class [HousepiGroupRate][housepi::HousepiGroupRate].
+    #' New object of class [HousepiGroupRisk][housepi::HousepiGroupRisk].
     initialize = function() {
       self$defs <- list()
       self$logic_tables <- list()
@@ -614,16 +615,16 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @description
-    #' Find group rates required by the model.
+    #' Find group risks required by the model.
     #' @param refer_file Path to reference file.
     require = function(refer_file) {
-      output <- template_extract_keys(refer_file, "GroupRateKey")
+      output <- template_extract_keys(refer_file, "GroupRiskKey")
       set_source_name_(output, "model")
     },
 
     #' @description
-    #' Remove a given group_rate definition.
-    #' @param name `character(1)`. Name of group rate definition to remove.
+    #' Remove a given group_risk definition.
+    #' @param name `character(1)`. Name of group risk definition to remove.
     remove = function(name) {
       if (any(names(self$defs) == name)) {
         # check if old definition was just placeholder
@@ -642,7 +643,7 @@ HousepiGroupRate <- R6::R6Class(
       c()
     },
 
-    #' @inherit add_group_rate
+    #' @inherit add_group_risk
     add_quo = function(name, by = NA_character_, ...,
                        reference = NULL, joint = FALSE,
                        strata = NULL, params = NULL,
@@ -692,7 +693,7 @@ HousepiGroupRate <- R6::R6Class(
       else stop_empty_definition()
 
       # store shared MCMC setup (eventually overwrite)
-      self$raw_params[[name]] <- set_group_rates_mcmc_setup(
+      self$raw_params[[name]] <- set_group_risks_mcmc_setup(
         name = name, prior = prior, args = args,
         min = min, max = max, proposal = proposal
       )
@@ -705,7 +706,7 @@ HousepiGroupRate <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit add_group_rate
+    #' @inherit add_group_risk
     add_quo_list = function(xquos, append = FALSE) {
       housepi_load_defin_quos(self, "by", xquos, append)
       invisible(self)
@@ -716,7 +717,7 @@ HousepiGroupRate <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Implement group rate definition according to data.
+    #' Implement group risk definition according to data.
     #' @param data_wide
     #' A `data.frame` with the dataset to be considered.
     #' @param factor_info
@@ -728,11 +729,11 @@ HousepiGroupRate <- R6::R6Class(
       )))
       self$logic_tables <- self$logic_tables[mask_custom]
 
-      for (rate_id in names(self$defs)) {
-        if (self$defs[[rate_id]][["mode"]] == "auto") {
-          private$helper_implement_auto_(rate_id, data_wide, factor_info)
+      for (risk_id in names(self$defs)) {
+        if (self$defs[[risk_id]][["mode"]] == "auto") {
+          private$helper_implement_auto_(risk_id, data_wide, factor_info)
         } else {
-          private$helper_implement_custom_(rate_id, data_wide)
+          private$helper_implement_custom_(risk_id, data_wide)
         }
       }
 
@@ -740,21 +741,21 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @description
-    #' Assert that group rate definitions match the requirements.
-    #' @param required `character()`. Required group rates.
+    #' Assert that group risk definitions match the requirements.
+    #' @param required `character()`. Required group risks.
     #' @param capital `logical(1)`. Whether to raise error.
     assert = function(required, capital) {
       # load definitions
       defined <- names(self$defs)
 
       # UPDATE
-      # point out group rates that are not used
+      # point out group risks that are not used
       notused <- template_not_used_find(required, defined)
-      # drop unused group rates
+      # drop unused group risks
       if (length(notused) > 0) {
         sms <- c(
           sprintf("Dropped unused group %s%s",
-                  as_plural("rate", length(notused), "s:"),
+                  as_plural("risk", length(notused), "s:"),
                   character_to_string_list(notused)),
           find_closest_match(notused, required)
         )
@@ -769,7 +770,7 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     #' @description
-    #' Tidy table of group rates definition to be passed to Cpp.
+    #' Tidy table of group risks definition to be passed to Cpp.
     #' @param info
     #' `list` of `list`s. Info about class and levels of data columns.
     expose_to_cpp = function(info) {

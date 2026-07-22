@@ -24,9 +24,9 @@
 
 namespace housepi
 {
-    namespace rates
+    namespace risks
     {
-        constexpr const char *REFERENCE = ".reference"; /// Rate reference choice.
+        constexpr const char *REFERENCE = ".reference"; /// Risk reference choice.
         constexpr double VALUE_REFERENCE = 1.0;         /// Alias for reference value.
     }
 

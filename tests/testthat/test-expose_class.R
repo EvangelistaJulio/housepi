@@ -9,9 +9,9 @@ test_that("Reject if calling on non-HousepiModel objects", {
   get_data_long(obj) |> expect_error(err)
   get_parameters(obj) |> expect_error(err)
   get_augmented(obj) |> expect_error(err)
-  get_group_rates(obj) |> expect_error(err)
+  get_group_risks(obj) |> expect_error(err)
   get_infectivity_profile(obj) |> expect_error(err)
-  add_contact_rate(obj) |> expect_error(err)
+  add_contact_risk(obj) |> expect_error(err)
   add_parameter(obj) |> expect_error(err)
   add_augmented(obj) |> expect_error(err)
   add_infectivity_profile(obj, "mk22") |> expect_error(err)
@@ -20,7 +20,7 @@ test_that("Reject if calling on non-HousepiModel objects", {
   run_simulation(obj) |> expect_error(err)
   add_parameter_template(obj) |> expect_error(err)
   add_augmented_template(obj) |> expect_error(err)
-  add_group_rate(obj) |> expect_error(err)
+  add_group_risk(obj) |> expect_error(err)
   run_custom_predictive_check(obj, NULL) |> expect_error(err)
   run_epi_predictive_check(obj, NULL) |> expect_error(err)
 })
@@ -155,28 +155,28 @@ test_that("add_observation routes every input branch on `level`", {
 ## Wrappers with data
 ############################################################################
 
-test_that("Group rate wrappers", {
+test_that("Group risk wrappers", {
   small_gr <- data.frame(
     house_id = c(1, 1, 2, 2, 2),
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
   )
   hhmodel <- new_housepi_model(small_gr, "final_size")
-  hhmodel <- add_group_rate(hhmodel, "community", by = "member")
-  groups_1 <- get_group_rates(hhmodel)
+  hhmodel <- add_group_risk(hhmodel, "community", by = "member")
+  groups_1 <- get_group_risks(hhmodel)
   expect_true(is.data.frame(groups_1))
   expect_true(nrow(groups_1) > 0)
 
   expect_warning(
-    result <- add_group_rate(hhmodel, community = "member"),
+    result <- add_group_risk(hhmodel, community = "member"),
     "[Oo]verwriting.*community"
   )
-  groups_2 <- get_group_rates(result)
+  groups_2 <- get_group_risks(result)
   expect_identical(groups_1, groups_2)
 
   # load custom definitions
   hhmodel <- hhmodel |>
-    add_group_rate(
+    add_group_risk(
       susceptibility = list(
         strata = data.frame(member = c("student", NA),
                             param_name = c("sus_student", ".reference")),
@@ -187,7 +187,7 @@ test_that("Group rate wrappers", {
 
   # check for non-existing custom features
   hhmodel |>
-    add_group_rate(
+    add_group_risk(
       "susceptibility",
       strata = data.frame(member = c("kaiju", NA),
                           param_name = c("sus_student", ".reference")),
@@ -195,15 +195,15 @@ test_that("Group rate wrappers", {
     ) |>
     expect_warning("[Uu]nknown.*member.*kaiju")
 
-  # append = FALSE drops the existing group rates
-  expect_true("susceptibility" %in% get_group_rates(hhmodel)[["group_rate"]])
+  # append = FALSE drops the existing group risks
+  expect_true("susceptibility" %in% get_group_risks(hhmodel)[["group_risk"]])
   reset <- hhmodel |>
-    add_group_rate(community = list(by = "member"), append = FALSE)
-  expect_false("susceptibility" %in% get_group_rates(reset)[["group_rate"]])
-  expect_setequal(get_group_rates(reset)[["group_rate"]], "community")
+    add_group_risk(community = list(by = "member"), append = FALSE)
+  expect_false("susceptibility" %in% get_group_risks(reset)[["group_risk"]])
+  expect_setequal(get_group_risks(reset)[["group_risk"]], "community")
 })
 
-test_that("add_contact_rate wrapper input branches", {
+test_that("add_contact_risk wrapper input branches", {
   hhmodel <- data.frame(
     house_id = c(1, 1, 2, 2, 2),
     status = c(1, 0, 1, 0, 0),
@@ -219,33 +219,33 @@ test_that("add_contact_rate wrapper input branches", {
 
   # 'by' and 'strata' together is ambiguous
   hhmodel |>
-    add_contact_rate(by = "member", strata = strata) |>
+    add_contact_risk(by = "member", strata = strata) |>
     expect_error("[Ii]mpossible")
 
   # neither 'by' nor 'strata' is empty
   hhmodel |>
-    add_contact_rate() |>
+    add_contact_risk() |>
     expect_error("[Ii]nvalid")
 
   # first call succeeds and returns a NEW model (copy() semantic)
   result <- hhmodel |>
-    add_contact_rate(strata = strata,
+    add_contact_risk(strata = strata,
                      params = list(ctr_kept_you_waiting = 1.21))
   expect_false(identical(hhmodel, result))
-  # original is untouched (tidy contact-rate table stays empty)
-  expect_equal(nrow(hhmodel$contact_rates), 0L)
-  expect_true(nrow(result$contact_rates) > 0L)
+  # original is untouched (tidy contact-risk table stays empty)
+  expect_equal(nrow(hhmodel$contact_risks), 0L)
+  expect_true(nrow(result$contact_risks) > 0L)
   # rebuild_ ran: param is exposed on the returned model
   expect_true("ctr_kept_you_waiting" %in% get_parameters(result)$name)
 
   # second call warns about overwrite
-  add_contact_rate(result, strata = strata,
+  add_contact_risk(result, strata = strata,
                    params = list(ctr_kept_you_waiting = 1.21)) |>
     expect_warning("[Oo]verwriting")
 
   # getter
-  cr <- get_contact_rates(result)
-  expect_equal(cr, result$contact_rates)
+  cr <- get_contact_risks(result)
+  expect_equal(cr, result$contact_risks)
   expect_true(is.data.frame(cr))
   expect_true(nrow(cr) > 0)
 })

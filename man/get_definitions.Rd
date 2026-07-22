@@ -6,8 +6,8 @@
 \alias{get_parameters}
 \alias{get_augmented}
 \alias{get_observations}
-\alias{get_group_rates}
-\alias{get_contact_rates}
+\alias{get_group_risks}
+\alias{get_contact_risks}
 \alias{get_infectivity_profile}
 \title{Retrieve currently loaded data and definitions from a housepi model}
 \usage{
@@ -21,9 +21,9 @@ get_augmented(hhmodel)
 
 get_observations(hhmodel)
 
-get_group_rates(hhmodel)
+get_group_risks(hhmodel)
 
-get_contact_rates(hhmodel)
+get_contact_risks(hhmodel)
 
 get_infectivity_profile(hhmodel)
 }
@@ -36,7 +36,7 @@ get_infectivity_profile(hhmodel)
 \description{
 Return the definitions currently stored in the housepi model.
 Each variant returns one category (data, parameters, augmented variables,
-observations, group rates, contact rates, infectivity profile).
+observations, group risks, contact risks, infectivity profile).
 }
 \examples{
 hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>

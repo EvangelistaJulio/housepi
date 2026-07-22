@@ -20,7 +20,7 @@ namespace housepi::parse
     {
         Augmented = 'A',
         DataWide = 'D',
-        GroupRate = 'G',
+        GroupRisk = 'G',
         Numeric = 'N',
         Parameter = 'P',
     };
@@ -32,8 +32,8 @@ namespace housepi::parse
     inline bool is_augmented(std::string_view s) { return is_(s, Type::Augmented); }
     /// Wheter definitions is 'data'.
     inline bool is_data_wide(std::string_view s) { return is_(s, Type::DataWide); }
-    /// Wheter definitions is 'group rate'.
-    inline bool is_group_rate(std::string_view s) { return is_(s, Type::GroupRate); }
+    /// Wheter definitions is 'group risk'.
+    inline bool is_group_risk(std::string_view s) { return is_(s, Type::GroupRisk); }
     /// Wheter definitions is 'numeric'.
     inline bool is_numeric(std::string_view s) { return is_(s, Type::Numeric); }
     /// Wheter definitions is 'parameter'.

@@ -21,7 +21,7 @@
 #include "data_wide.h"
 #include "data_long.h"
 #include "parameter.h"
-#include "group_rate.h"
+#include "group_risk.h"
 #include "infec_profile.h"
 #include "augmented.h"
 

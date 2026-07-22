@@ -25,7 +25,7 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
 	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRateKey, community, susceptibility, infectivity)
+	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRiskKey, community, susceptibility, infectivity)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintKey, num_parts)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintvecKey, order, part_counts, part_indexes)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
@@ -38,8 +38,8 @@ public:
 		request_param_discrete(ParamKey::hhsize_ref);
 	}
 
-	/// Allow for contact rate definitions.
-	bool has_contact_rates() const override final { return true; }
+	/// Allow for contact risk definitions.
+	bool has_contact_risks() const override final { return true; }
 
 	void init_model_for_evaluation() override final
 	{
@@ -77,7 +77,7 @@ public:
 			// search existing partitions for a match
 			unsigned K = static_cast<unsigned>(partition_indexes.size()); // tentatively new
 			for (unsigned oj = 0; oj < K; ++oj)
-				if (is_same_rate_partition(house, order[partition_indexes[oj]], order[oi]))
+				if (is_same_risk_partition(house, order[partition_indexes[oj]], order[oi]))
 					K = oj; // this acts as a break
 
 			if (K == partition_indexes.size())
@@ -150,12 +150,12 @@ public:
 		{
 			size_t i = order[oi]; // retrieve household member index (partition representative)
 			const Individual &member_i = house.member(i);
-			const double inf_i_scl = group_rate(GroupRateKey::infectivity, member_i) * p2p_rate;
-			const double sus_i = group_rate(GroupRateKey::susceptibility, member_i);
+			const double inf_i_scl = group_risk(GroupRiskKey::infectivity, member_i) * p2p_rate;
+			const double sus_i = group_risk(GroupRiskKey::susceptibility, member_i);
 			const double sus_i_scl = p2p_rate * sus_i;
 
 			// community filled in order
-			commu_mtx[oi] = commu_rate * group_rate(GroupRateKey::community, member_i);
+			commu_mtx[oi] = commu_rate * group_risk(GroupRiskKey::community, member_i);
 
 			// person-to-person
 			for (size_t oj = 0; oj < oi; ++oj)
@@ -163,17 +163,17 @@ public:
 				size_t j = order[oj];
 				const Individual &member_j = house.member(j);
 				// [i] : infector -> [k] : infectee
-				p2p_mtx[oi][oj] = inf_i_scl * contact_rate(house, i, j) *
-								  group_rate(GroupRateKey::susceptibility, member_j);
+				p2p_mtx[oi][oj] = inf_i_scl * contact_risk(house, i, j) *
+								  group_risk(GroupRiskKey::susceptibility, member_j);
 				// [k] : infector -> [i] : infectee
-				p2p_mtx[oj][oi] = group_rate(GroupRateKey::infectivity, member_j) *
-								  contact_rate(house, j, i) * sus_i_scl;
+				p2p_mtx[oj][oi] = group_risk(GroupRiskKey::infectivity, member_j) *
+								  contact_risk(house, j, i) * sus_i_scl;
 			}
 
 			// NOTE: for partitions, I need to compute also diagonal terms:
 			// i. e. from partition 'i' to partition 'i' (intra-partition)
-			// NOTE: by definition contact_rate(house, i, i) = 0
-			p2p_mtx[oi][oi] = inf_i_scl * intra_partition_contact_rate(house, i) * sus_i;
+			// NOTE: by definition contact_risk(house, i, i) = 0
+			p2p_mtx[oi][oi] = inf_i_scl * intra_partition_contact_risk(house, i) * sus_i;
 		}
 	}
 
@@ -211,7 +211,7 @@ public:
 		std::vector<size_t> new_gen_set = {};
 
 		for (Individual &member: house)
-			if (exponential() > commu_rate * group_rate(GroupRateKey::community, member))
+			if (exponential() > commu_rate * group_risk(GroupRiskKey::community, member))
 				set_escaped(house, member);
 			else
 			{
@@ -239,10 +239,10 @@ public:
 
 				double r = 0.;
 				for (size_t j : old_gen_set)
-					r += group_rate(GroupRateKey::infectivity, house.member(j)) *
-						 contact_rate(house, j, i);
+					r += group_risk(GroupRiskKey::infectivity, house.member(j)) *
+						 contact_risk(house, j, i);
 
-				double sus_i = group_rate(GroupRateKey::susceptibility, member_i);
+				double sus_i = group_risk(GroupRiskKey::susceptibility, member_i);
 				if (exponential() < r * p2p_rate * sus_i)
 				{
 					set_infected(house, member_i);

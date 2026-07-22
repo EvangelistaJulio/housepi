@@ -68,7 +68,7 @@ E.g. "visit_day\@D" will source the value from individual data "visit_day", "bet
 |------------|:------:|:-----------------:|
 | Augmented  | A      | infection_time    |
 | Data       | D      | visit_day\@D      |
-| Group Rate | G      | susceptibility\@G |
+| Group Risk | G      | susceptibility\@G |
 | Numeric    | N      | 14                |
 | Parameter  | P      | beta\@P           |
 

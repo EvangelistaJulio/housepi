@@ -65,9 +65,9 @@ HousepiAugmented <- R6::R6Class(
       private$find_required_def_("D")
     },
 
-    #' @field group_rates_required `character()`.
-    #' Find group rates required by augmented variable definitions.
-    group_rates_required = function(value) {
+    #' @field group_risks_required `character()`.
+    #' Find group risks required by augmented variable definitions.
+    group_risks_required = function(value) {
       private$find_required_def_("G")
     },
 

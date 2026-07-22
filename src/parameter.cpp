@@ -23,11 +23,11 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
-#include "contact_rate.h"
+#include "contact_risk.h"
 #include "data_wide.h"
 #include "distribution.h"
 #include "function.h"
-#include "group_rate.h"
+#include "group_risk.h"
 #include "household.h"
 #include "individual.h"
 #include "parameter.h"
@@ -599,13 +599,13 @@ namespace housepi
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  *** GroupRate : struct ***  ////////////////////////////////
+    ///////////////////////////////////  *** GroupRisk : struct ***  ////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void GroupRate::build(DataWide &data_wide, const Parameter &param, const str_table &input)
+    void GroupRisk::build(DataWide &data_wide, const Parameter &param, const str_table &input)
     {
-        // reset group rate storage and unbind individuals
+        // reset group risk storage and unbind individuals
         khold_.clear_optional();
         unique_groups_.clear();
         group_index_.assign(data_wide.report_indiv.total, 0);
@@ -619,16 +619,16 @@ namespace housepi
             return;
         data_wide_depen_ = data_headers;
 
-        // load column with group rate names, if any
+        // load column with group risk names, if any
         std::vector<std::string> g_input_vec = {};
-        if (input.count("group_rate"))
-            g_input_vec = input.at("group_rate");
+        if (input.count("group_risk"))
+            g_input_vec = input.at("group_risk");
 
-        // check for undefined group rates, assumed to be equal to reference
-        str_table undefined_rates = {};
+        // check for undefined group risks, assumed to be equal to reference
+        str_table undefined_risks = {};
         for (const std::string &gstr : khold_.all())
             if (!contains(g_input_vec, gstr))
-                undefined_rates[gstr].push_back(rates::REFERENCE);
+                undefined_risks[gstr].push_back(risks::REFERENCE);
 
         // precompute rule_group / specificity and resolve column indices once
         const RuleTable rules(input, data_headers);
@@ -655,65 +655,65 @@ namespace housepi
         for (Household &house : data_wide)
             for (Individual &member : house)
             {
-                str_table these_rates = undefined_rates;
+                str_table these_risks = undefined_risks;
 
-                // per-(rate_name, rule_group): keep the most-specific matching rule
+                // per-(risk_name, rule_group): keep the most-specific matching rule
                 const auto resolved = rules.resolve<Key>(
                     matches_with(member),
                     [&](size_t r)
                     { return Key{g_input_vec[r], rules.row_gid[r]}; },
                     [&](const Key &key)
                     {
-                        return "group rate " + msg::val(key.first) + " for " +
+                        return "group risk " + msg::val(key.first) + " for " +
                                member.err_name() + " (group " +
                                std::to_string(key.second) + ")";
                     });
 
                 for (auto &[key, r] : resolved)
-                    these_rates[key.first].push_back(input.at("param_name")[r]);
+                    these_risks[key.first].push_back(input.at("param_name")[r]);
 
-                auto it = unique_defin_map.find(these_rates);
+                auto it = unique_defin_map.find(these_risks);
                 if (it == unique_defin_map.end())
                 {
-                    it = unique_defin_map.emplace(these_rates, unique_groups_.size()).first;
-                    helper_init_unique_rate_(param, member, these_rates);
+                    it = unique_defin_map.emplace(these_risks, unique_groups_.size()).first;
+                    helper_init_unique_risk_(param, member, these_risks);
                 }
                 group_index_[Index::of(member)] = it->second;
             }
     }
 
-    void GroupRate::finalize()
+    void GroupRisk::finalize()
     {
         for (IndivGroup_ &group : unique_groups_)
-            for (Attribute &rate : group.vec)
-                rate.finalize();
+            for (Attribute &risk : group.vec)
+                risk.finalize();
     }
 
-    std::vector<std::string> GroupRate::helper_process_definitions_(DataWide &data_wide, const str_table &input)
+    std::vector<std::string> GroupRisk::helper_process_definitions_(DataWide &data_wide, const str_table &input)
     {
-        const std::vector<std::string> file_headers = {"group_rate", "param_name", "rule_group"};
+        const std::vector<std::string> file_headers = {"group_risk", "param_name", "rule_group"};
 
         // check that tempalte headers are present
         std::vector<std::string> data_headers = read::extract_keys(input);
         // remove template headers to keep only data
         data_headers = data_headers - file_headers;
 
-        // assert the group rate names are allowed
+        // assert the group risk names are allowed
         dict<size_t> definition_counts = {};
-        for (const std::string &gstr : str::unique(input.at("group_rate")))
+        for (const std::string &gstr : str::unique(input.at("group_risk")))
         {
 #ifndef NDEBUG
             if (na::is(gstr))
                 msg::stop(
-                    "Found a missing group rate name in the definitions.");
+                    "Found a missing group risk name in the definitions.");
 #endif
             khold_.add(gstr);
             definition_counts.emplace(gstr, 0);
         }
 
-        // allocate unique group rate definitions
-        // NOTE: reserve cartesian product of distinct definitions per group rate
-        for (const std::string &gstr : input.at("group_rate"))
+        // allocate unique group risk definitions
+        // NOTE: reserve cartesian product of distinct definitions per group risk
+        for (const std::string &gstr : input.at("group_risk"))
             ++definition_counts[gstr];
         size_t max_unique = 1;
         for (auto &[gstr, count] : definition_counts)
@@ -725,29 +725,29 @@ namespace housepi
         return data_headers;
     }
 
-    void GroupRate::helper_init_unique_rate_(const Parameter &param, const Individual &member, const str_table &these_rates)
+    void GroupRisk::helper_init_unique_risk_(const Parameter &param, const Individual &member, const str_table &these_risks)
     {
         unique_groups_.emplace_back();
         IndivGroup_ &igr = unique_groups_.back();
         igr.vec.reserve(khold_.size());
         for (const std::string &gstr : khold_.all())
         {
-            if (!these_rates.count(gstr))
+            if (!these_risks.count(gstr))
                 msg::stop(
-                    "A group rate definition " + msg::val(gstr) +
+                    "A group risk definition " + msg::val(gstr) +
                     " was missing for " + member.err_name() + ".");
 
-            igr.vec.emplace_back(rates::VALUE_REFERENCE);
-            igr.vec.back().name(gstr, ErrType::GroupRate);
+            igr.vec.emplace_back(risks::VALUE_REFERENCE);
+            igr.vec.back().name(gstr, ErrType::GroupRisk);
         }
 
         // assign custom definitions
-        for (const auto &[gstr, pstr_vec] : these_rates)
+        for (const auto &[gstr, pstr_vec] : these_risks)
         {
             // extract non-reference parameter pointers
             std::vector<const Attribute *> param_pointers = {};
             for (const std::string &pstr : pstr_vec)
-                if (pstr != rates::REFERENCE)
+                if (pstr != risks::REFERENCE)
                     param_pointers.emplace_back(
                         param.at(param.khold(pstr)).pointer());
 
@@ -758,7 +758,7 @@ namespace housepi
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  *** ContactRate : struct ***  ////////////////////////////////
+    /////////////////////////////////  *** ContactRisk : struct ***  ////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -778,7 +778,7 @@ namespace housepi
             return out;
         }
 
-        /// Auxiliary helper to extract contact rate definition.
+        /// Auxiliary helper to extract contact risk definition.
         struct ContactDefinitions_
         {
         public:
@@ -814,7 +814,7 @@ namespace housepi
                     { return rules.row_gid[r]; },
                     [&](size_t)
                     {
-                        return "contact rate from " + member_from.err_name() +
+                        return "contact risk from " + member_from.err_name() +
                                " to " + member_to.err_name();
                     });
 
@@ -824,7 +824,7 @@ namespace housepi
                 for (auto &[gid, r] : resolved)
                 {
                     const auto &pstr = rules.input.at("param_name")[r];
-                    if (!na::is(pstr) && pstr != rates::REFERENCE)
+                    if (!na::is(pstr) && pstr != risks::REFERENCE)
                         param_ptrs.push_back(param.at(param.khold(pstr)).pointer());
                 }
                 return param_ptrs;
@@ -879,18 +879,18 @@ namespace housepi
         };
     }
 
-    void ContactRate::build(
+    void ContactRisk::build(
         DataWide &data_wide,
         const Parameter &param,
         const str_table &input)
     {
         // reset storage
-        house_contact_rates_.clear();
+        house_contact_risks_.clear();
         data_wide_depen_.clear();
         if (input.empty())
             return;
 
-        // load contact rate definitions
+        // load contact risk definitions
         ContactDefinitions_ defs(input, data_wide);
 
         data_wide.set_eq_class_data_names(defs.data);
@@ -898,16 +898,16 @@ namespace housepi
 
         // loop over all households
         // UPDATE: this should be just over eq_class_head households.
-        house_contact_rates_.resize(data_wide.report_house.total);
+        house_contact_risks_.resize(data_wide.report_house.total);
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
         {
             Household &house = data_wide.at(H);
             size_t house_size = house.size();
 
-            house_contact_rates_[H].mtx.assign(
-                house_size, std::vector<Attribute>(house_size, rates::VALUE_REFERENCE));
+            house_contact_risks_[H].mtx.assign(
+                house_size, std::vector<Attribute>(house_size, risks::VALUE_REFERENCE));
 
-            // NOTE: a priori contact rates are non-symmetric
+            // NOTE: a priori contact risks are non-symmetric
             for (size_t from = 0; from < house_size; ++from)
                 for (size_t to = 0; to < house_size; ++to)
                 {
@@ -915,16 +915,16 @@ namespace housepi
                         defs.associate_param_ptrs(data_wide, param, house.member(from), house.member(to));
 
                     if (!param_ptrs.empty())
-                        house_contact_rates_[H].mtx[from][to].init_product(param_ptrs);
+                        house_contact_risks_[H].mtx[from][to].init_product(param_ptrs);
                 }
         }
     }
 
-    void ContactRate::finalize()
+    void ContactRisk::finalize()
     {
-        for (IndivContact_ &contact : house_contact_rates_)
+        for (IndivContact_ &contact : house_contact_risks_)
             for (std::vector<Attribute> &row : contact.mtx)
-                for (Attribute &rate : row)
-                    rate.finalize();
+                for (Attribute &risk : row)
+                    risk.finalize();
     }
 }

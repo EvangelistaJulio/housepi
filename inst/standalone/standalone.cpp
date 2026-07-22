@@ -24,8 +24,8 @@
 #include "data_wide.h"
 #include "data_long.h"
 #include "parameter.h"
-#include "group_rate.h"
-#include "contact_rate.h"
+#include "group_risk.h"
+#include "contact_risk.h"
 #include "infec_profile.h"
 #include "augmented.h"
 
@@ -159,21 +159,18 @@ namespace housepi
         }
     }
 
-#define STANDALONE_MAKE_READ_METHOD_(module, section_name)          \
-    void Options::read_##module(MCMCBase &model)                    \
-    {                                                               \
-        try                                                         \
-        {                                                           \
-            model.module.build(read::csv_table(file.module));       \
-        }                                                           \
-        catch (const std::exception &e)                             \
-        {                                                           \
-            msg::stop(std::string("While reading ") +               \
-                      section_name + " definitions:\n" + e.what()); \
-        }                                                           \
+    void Options::read_setup(MCMCBase &model)
+    {
+        try
+        {
+            model.setup.build(read::csv_table(file.setup));
+        }
+        catch (const std::exception &e)
+        {
+            msg::stop(std::string("While reading setup definitions:\n") + e.what());
+        }
     }
 
-    STANDALONE_MAKE_READ_METHOD_(setup, "setup")
 
     void Options::read_param(MCMCBase &model)
     {
@@ -211,27 +208,27 @@ namespace housepi
         }
     }
 
-    void Options::read_group_rate(MCMCBase &model)
+    void Options::read_group_risk(MCMCBase &model)
     {
         try
         {
-            model.group_rate.build(model.data_wide(), model.param, read::csv_table(file.group_rate));
+            model.group_risk.build(model.data_wide(), model.param, read::csv_table(file.group_risk));
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string("While reading group rate definitions:\n") + e.what());
+            msg::stop(std::string("While reading group risk definitions:\n") + e.what());
         }
     }
 
-    void Options::read_contact_rate(MCMCBase &model)
+    void Options::read_contact_risk(MCMCBase &model)
     {
         try
         {
-            model.contact_rate.build(model.data_wide(), model.param, read::csv_table(file.contact_rate));
+            model.contact_risk.build(model.data_wide(), model.param, read::csv_table(file.contact_risk));
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string("While reading contact rate definitions:\n") + e.what());
+            msg::stop(std::string("While reading contact risk definitions:\n") + e.what());
         }
     }
 
@@ -472,11 +469,11 @@ namespace housepi
             else if (toup(carg) == "-L" || tolow(carg) == "--datalong")
                 file.data_long = argv[++carg_i];
 
-            else if (toup(carg) == "-G" || tolow(carg) == "--group-rates")
-                file.group_rate = argv[++carg_i];
+            else if (toup(carg) == "-G" || tolow(carg) == "--group-risks")
+                file.group_risk = argv[++carg_i];
 
-            else if (toup(carg) == "-C" || tolow(carg) == "--contact-rates")
-                file.contact_rate = argv[++carg_i];
+            else if (toup(carg) == "-C" || tolow(carg) == "--contact-risks")
+                file.contact_risk = argv[++carg_i];
 
             else if (toup(carg) == "-I" || tolow(carg) == "--infec-profile")
                 file.infec_profile = argv[++carg_i];
@@ -552,8 +549,8 @@ namespace housepi
         opts.read_setup(engine);         // 2) Load Setup
         opts.read_param(engine);         // 3) Load Parameters
         opts.read_infec_profile(engine); // 4) Load Infectivity Profile
-        opts.read_group_rate(engine);    // 5) Load Group Rates
-        opts.read_contact_rate(engine);  // ... and Contact Rates
+        opts.read_group_risk(engine);    // 5) Load Group Risks
+        opts.read_contact_risk(engine);  // ... and Contact Risks
         opts.read_augm(engine);          // 6) Load Augmented Variables
 
         //////////////////////////////

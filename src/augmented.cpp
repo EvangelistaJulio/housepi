@@ -573,7 +573,7 @@ namespace housepi
                         "Could not find an augmented definition for " + msg::val(dstr) + ".";
                     if (mcmc_->data_wide().khold().count(dstr))
                         sms += "\nDid you mean " + msg::code(dstr + "@D") + "?";
-                    else if (mcmc_->group_rate.khold().count(dstr))
+                    else if (mcmc_->group_risk.khold().count(dstr))
                         sms += "\nDid you mean " + msg::code(dstr + "@G") + "?";
                     else if (mcmc_->param.khold().count(dstr))
                         sms += "\nDid you mean " + msg::code(dstr + "@P") + "?";
@@ -949,8 +949,8 @@ namespace housepi
 
         // reject an unsatisfiable cycle (augmented variable reading a live house observation)
         assert_no_live_house_obs_cycle_();
-        // reject a group/contact rate keyed on a generated observation column
-        assert_no_obs_rate_collision_();
+        // reject a group/contact risk keyed on a generated observation column
+        assert_no_obs_risk_collision_();
 
         house_varia.clear();
         if (list_house_export.empty())
@@ -1137,7 +1137,7 @@ namespace housepi
         }
     }
 
-    void Augmented::assert_no_obs_rate_collision_() const
+    void Augmented::assert_no_obs_risk_collision_() const
     {
         if (list_obs_export.empty())
             return;
@@ -1154,12 +1154,12 @@ namespace housepi
                 origin + " on a column that is not an observation node.");
         };
 
-        for (const std::string &d : mcmc_->group_rate.data_wide_depen())
+        for (const std::string &d : mcmc_->group_risk.data_wide_depen())
             if (contains(obs_names, d))
-                reject("group rate", d);
-        for (const std::string &d : mcmc_->contact_rate.data_wide_depen())
+                reject("group risk", d);
+        for (const std::string &d : mcmc_->contact_risk.data_wide_depen())
             if (contains(obs_names, d))
-                reject("contact rate", d);
+                reject("contact risk", d);
     }
 
     void Augmented::helper_init_house_attributes_(Household &house, size_t j)
@@ -1248,7 +1248,7 @@ namespace housepi
     bool Augmented::house_obs_is_pure_data_(size_t k) const
     {
         // every source (value/func/min/max) must reference data or numerics only:
-        // augmented, parameter and group-rate references are not constant data.
+        // augmented, parameter and group-risk references are not constant data.
         for (const std::vector<std::string> *col : deftable_.source_cols())
         {
             const std::string &expr = (*col)[k];
@@ -1256,18 +1256,18 @@ namespace housepi
                 continue;
             parse::Definition def(expr);
             if (def.is_augmented_depen() || def.is_parameter_depen() ||
-                entry_has_group_rate_(def.root))
+                entry_has_group_risk_(def.root))
                 return false;
         }
         return true;
     }
 
-    bool Augmented::entry_has_group_rate_(const parse::Entry &node)
+    bool Augmented::entry_has_group_risk_(const parse::Entry &node)
     {
-        if (parse::is_group_rate(node.type))
+        if (parse::is_group_risk(node.type))
             return true;
         for (const parse::Entry &child : node.children)
-            if (entry_has_group_rate_(child))
+            if (entry_has_group_risk_(child))
                 return true;
         return false;
     }

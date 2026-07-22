@@ -17,8 +17,8 @@
 #include "setup.h"
 #include "data_store.h"
 #include "parameter.h"
-#include "group_rate.h"
-#include "contact_rate.h"
+#include "group_risk.h"
+#include "contact_risk.h"
 #include "infec_profile.h"
 #include "augmented.h"
 #include "posterior.h"
@@ -46,8 +46,8 @@ namespace housepi
 
 		/// Key holders.
 		Parameter param;
-		GroupRate group_rate;
-		ContactRate contact_rate;
+		GroupRisk group_risk;
+		ContactRisk contact_risk;
 		InfecProfile infec_profile;
 		Augmented augm;
 		Translator translator;
@@ -68,7 +68,7 @@ namespace housepi
 			const std::vector<std::string> &hh_double_mtx_keys,
 			const std::vector<std::string> &data_long_keys,
 			const std::vector<std::string> &param_keys,
-			const std::vector<std::string> &group_rate_keys,
+			const std::vector<std::string> &group_risk_keys,
 			const std::vector<std::string> &augm_keys);
 
 		///////////////////////////
@@ -100,8 +100,8 @@ namespace housepi
 		//////  GETTER  //////
 		//////////////////////
 
-		/// Whether two household members belong to same partition according to rates.
-		bool is_same_rate_partition(const Household &house, size_t i, size_t j) const;
+		/// Whether two household members belong to same partition according to risks.
+		bool is_same_risk_partition(const Household &house, size_t i, size_t j) const;
 
 		/// Column names of data shared across simulations.
 		std::vector<std::string> get_static_data_names() const;

@@ -125,7 +125,7 @@ cat("\n```\n")
 
 Key elements:
 
-- **Register keys**: `HOUSEPI_DECLARE_REGISTER_KEYS` declares named keys for augmented variables (`proba`) and parameters (`alpha`). Empty key macros are used for unused slots (data, group rates, etc.).
+- **Register keys**: `HOUSEPI_DECLARE_REGISTER_KEYS` declares named keys for augmented variables (`proba`) and parameters (`alpha`). Empty key macros are used for unused slots (data, group risks, etc.).
 - **Log-likelihood**: `compute_house_obs_log_lik()` sums the log of each infected member's `proba` value, offset by `-alpha`.
 - **Initialization**: `simulate_single_house()` initializes missing augmented variables for each infected member.
 

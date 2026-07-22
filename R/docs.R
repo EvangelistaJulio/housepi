@@ -132,22 +132,23 @@ rd_aug_max_ <- paste(rd_var_max_, rd_types_)
 ############################################################################
 ############################################################################
 
-rd_rate_prefix_ <- "`character(1)` Prefix to names of associated parameters."
-rd_rate_desc_ <- "Add definitions of a %s rate by given data covariate(s).
-Rates are relative to a reference class that can be specified.
+rd_risk_prefix_ <- "`character(1)` Prefix to names of associated parameters."
+rd_risk_desc_ <- "Add definitions of a %s risk by given data covariate(s).
+Risks are relative to a reference class that can be specified:
+each parameter multiplies the baseline risk of its reference class.
 If no MCMC options are provided, the prior is assumed to be
 \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]} with support \\eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table."
 
-rd_grr_desc_ <- sprintf(rd_rate_desc_, "group")
-rd_grr_by_ <- "`list` Covariates associated to group rate as data headers.
+rd_grr_desc_ <- sprintf(rd_risk_desc_, "group")
+rd_grr_by_ <- "`list` Covariates associated to group risk as data headers.
 Corresponding data columns have to be categorical."
 rd_grr_prefix_ <- paste(
-  rd_rate_prefix_,
-  "If `NA` uses the first 3 letters of rate name (default)."
+  rd_risk_prefix_,
+  "If `NA` uses the first 3 letters of risk name (default)."
 )
 rd_grr_refer_ <- "named `list` Covariates associated to reference group.
-Pass `\".none\"` to disable reference, giving every rate its own parameter.
+Pass `\".none\"` to disable reference, giving every risk its own parameter.
 Default reference group is the one with the largest sample size."
 rd_grr_joint_ <- "`logical(1)` Treat covariates as joint.
 If `FALSE`, covariates are independent (default)."
@@ -162,10 +163,10 @@ rd_grr_params_ <- "named `list` Per-parameter MCMC setups as in `param_name`.
 Overrides shared prior/args for parameters specificied in the list.
 Ignored if automatic definition."
 
-rd_ctr_desc_ <- sprintf(rd_rate_desc_, "contact")
+rd_ctr_desc_ <- sprintf(rd_risk_desc_, "contact")
 rd_ctr_by_ <- "`character()` Covariates for from/to matching as data headers.
 Corresponding data columns have to be categorical."
-rd_ctr_prefix_ <- rd_rate_prefix_
+rd_ctr_prefix_ <- rd_risk_prefix_
 rd_ctr_refer_ <- "named `list` Covariates associated to reference pair.
 Names can use `from_`/`to_` prefixes matching `by`,
 or un-prefixed names (applied to both from and to)."
