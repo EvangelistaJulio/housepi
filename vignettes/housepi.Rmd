@@ -76,9 +76,9 @@ This is used in advanced augmented definitions, see [Data augmentation](data_aug
 # The housepi model class
 
 The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) `HousepiModel`.
-A dataset in wide format must be provided at model construction via the `data` argument of `new_housepi_model()`. 
-
-We show how to generate a new instance of such a class with a template model, the final size:
+A dataset in wide format can be provided at model construction via the `data` argument of `new_housepi_model()`. 
+If omitted, it can be attached later with `add_data_wide()`".
+We show how to generate a new instance of such a class with a template model, the final-size:
 
 ```{r}
 #| label: load-model
@@ -89,7 +89,7 @@ set.seed(42)
 # set the theme for visualizations
 housepi_theme_set()
 
-# generate an instance of the final size model with data
+# generate an instance of the final-size model with data
 hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
 ```
 
@@ -128,7 +128,7 @@ To see the list of currently available model templates, run
 browse_templates()
 ```
 
-Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i.e. "final_size" is equivalent to "final size".].
+Each template comes with its template definitions that can be used straight away or changed^[Note that in names both underscores and spaces are accepted, i.e. "final_size" is equivalent to "final-size".].
 To know more about each model, choose a name from the previous list and run, e.g.
 
 ```{r}
@@ -176,8 +176,7 @@ For further information on the available options for priors and MCMC proposals d
 
 After having provided all necessary definitions, we can perform inference calling `run_inference()`.
 With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm.
-Standard options for the MCMC can be provided at this stage, including controls on the number of threads^[Multi-threading is implemented with *openMP* which is unfortunately not supported on latest macOS distributions.
-The option `threads` is disabled on such systems.].
+Standard options for the MCMC can be provided at this stage, including controls on the number of `threads`.
 This will return an object which collects all the relevant MCMC draws.
 The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
 
@@ -201,7 +200,7 @@ We can extract the parameters draws by calling `get_parameter_draws` and plot tr
 ```{r}
 #| label: param-traces
 #| fig-alt: >
-#|  Trace plots for alpha and beta parameters across MCMC iterations with three parallel chains overlaid.
+#|  Trace plots for alpha and beta parameters across MCMC iterations with four parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
 get_parameter_draws(results) |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
@@ -330,7 +329,7 @@ We can visualize traces vs expected values as follows
 #| message: false
 #| warning: false
 #| fig-alt: >
-#|  Trace plots for alpha, beta, and gamma parameters with three chains.
+#|  Trace plots for alpha, beta, and gamma parameters with four chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
 library(ggplot2)
 

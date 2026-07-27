@@ -20,7 +20,7 @@ Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 }
 
 To reproduce the data processing, see the script at:
-\code{system.file("data-raw", "make_flu_1918_baltimora_frederick.R", package = "housepi")}
+\code{system.file("data-raw", "make_flu_1918_baltimore_frederick.R", package = "housepi")}
 }
 \references{
 \insertRef{fraser_influenza_2011}{housepi}

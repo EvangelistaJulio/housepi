@@ -54,7 +54,7 @@ According to this scheme, infectivity profile definitions can be of two kinds:
 * **Augmented**: if profile depends on individual covariates.
 
 At any time one can provide a custom choice for the profile, however all models requiring profiles will have a templated infectivity definition incorporated.
-For example, consider the model "case ascertained" introduced in [Get started](housepi.html).
+For example, consider the model "case-ascertained" introduced in [Get started](housepi.html).
 The model template comes in continuous time and with a templated generic profile which is chosen to be a gamma distribution parametrized with `mean` and `var`:
 
 ```{r}

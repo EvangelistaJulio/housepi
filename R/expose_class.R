@@ -192,7 +192,7 @@ get_contact_risks <- function(hhmodel) {
 #' @export
 get_infectivity_profile <- function(hhmodel) {
   stopifnothousepi(hhmodel)
-  hhmodel$infec_profile
+  hhmodel$infectivity_profile
 }
 
 ############################################################################
@@ -236,10 +236,10 @@ add_template_defs_ <- function(pvt, family, append) {
   pvt$rebuild_()
 }
 
-rd_add_modes_ <- "There three mutually exclusive definition modes:
+rd_add_modes_ <- "There are three mutually exclusive definition modes:
 \\describe{
   \\item{single}{
-  Supply a `name` to adds a single definition using the explicit arguments;
+  Supply a `name` to add a single definition using the explicit arguments;
   }
   \\item{multiple}{
   Pass pairs `name = list()` (or `name = value`) for multiple definitions;
@@ -248,9 +248,9 @@ rd_add_modes_ <- "There three mutually exclusive definition modes:
   Pass a pre-built named list of definitions through `import`.
   }
 }"
-rd_add_details_ <- "Definition names colliding with reserved argument
-are deprecated.
-The can be supplied only through single mode."
+rd_add_details_ <- "A definition name colliding with reserved argument
+is deprecated.
+It can be supplied only via single mode definition."
 
 #' @title Add or overwrite parameter definitions
 #' @description
@@ -271,7 +271,7 @@ The can be supplied only through single mode."
 #' @param func `r rd_aug_func_`
 #' @param func_args `r rd_aug_funargs_`
 #' @param max `r rd_var_max_`
-#' @param proposal `r rd_par_proposal_`
+#' @param proposal `r rd_var_proposal_`
 #' @param import `r rd_import_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
@@ -428,7 +428,6 @@ add_augmented_template <- function(hhmodel, append = TRUE) {
 #' individual. If `obs` is provided, adds to household likelihood during
 #' evaluations, and \eqn{x} is sampled from it during simulations.
 #' If observation is deterministic it is considered as a datum.
-#' Note that indicator contribution to log-likelihood are expressily forbidden.
 #'
 #' At household level, the observation is a reduction of `value` over all the
 #' members, shared by the whole household, and must reduce to a constant value.

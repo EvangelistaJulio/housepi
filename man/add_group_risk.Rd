@@ -51,7 +51,7 @@ Use \code{.reference} in \code{param_name} to designate the reference group.
 Mutually exclusive with \code{by}.}
 
 \item{params}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
-Overrides shared prior/args for parameters specificied in the list.
+Overrides shared prior/args for parameters specified in the list.
 Ignored if automatic definition.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
@@ -93,10 +93,10 @@ each parameter multiplies the baseline risk of its reference class.
 If no MCMC options are provided, the prior is assumed to be
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table.
-There three mutually exclusive definition modes:
+There are three mutually exclusive definition modes:
 \describe{
 \item{single}{
-Supply a \code{name} to adds a single definition using the explicit arguments;
+Supply a \code{name} to add a single definition using the explicit arguments;
 }
 \item{multiple}{
 Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
@@ -107,9 +107,9 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 \details{
-Definition names colliding with reserved argument
-are deprecated.
-The can be supplied only through single mode.
+A definition name colliding with reserved argument
+is deprecated.
+It can be supplied only via single mode definition.
 }
 \references{
 \insertRef{cauchemez_household_2009}{housepi}

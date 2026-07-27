@@ -67,7 +67,7 @@ Random walks perturb the current value:
 }
 Independence samplers draw a fresh value from a distribution:
 \describe{
-\item{\code{"prior"}}{drawn from the prior distribution;}
+\item{\code{"prior"}}{drawn from the \%s distribution;}
 \item{a distribution name}{drawn from that distribution, e.g.
 \code{proposal = "normal"} with \code{proposal_mean}/\code{proposal_sd}.}
 }
@@ -85,10 +85,10 @@ If \code{FALSE} drop all pre-existing definitions.}
 \description{
 Add parameter(s) to a housepi model.
 If a parameter with the same name exists, the former gets overwritten.
-There three mutually exclusive definition modes:
+There are three mutually exclusive definition modes:
 \describe{
 \item{single}{
-Supply a \code{name} to adds a single definition using the explicit arguments;
+Supply a \code{name} to add a single definition using the explicit arguments;
 }
 \item{multiple}{
 Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
@@ -99,9 +99,9 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 \details{
-Definition names colliding with reserved argument
-are deprecated.
-The can be supplied only through single mode.
+A definition name colliding with reserved argument
+is deprecated.
+It can be supplied only via single mode definition.
 }
 \examples{
 # the single, inline-bulk and list-bulk forms compose freely in a pipe

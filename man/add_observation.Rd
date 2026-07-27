@@ -38,10 +38,12 @@ In mode 'multiple', applies to every entry not setting its own.}
 
 \item{value}{\code{numeric(1)} | \code{character(1)}. Initial value.
 One between:
-\itemize{
-\item Scalar value;
-\item Parameter name (followed by \verb{@P});
-\item Dataset name (followed by \verb{@D}).
+\describe{
+\item{augmented}{\verb{@A};}
+\item{data}{\verb{@D};}
+\item{group risk}{\verb{@G};}
+\item{parameter}{\verb{@P};}
+\item{scalar}{\verb{@N}.}
 }}
 
 \item{status}{\code{integer(1)} Individual positive status.
@@ -53,18 +55,22 @@ If applicable, the prior is discretized.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 One between:
-\itemize{
-\item Scalar value;
-\item Parameter name (followed by \verb{@P});
-\item Dataset name (followed by \verb{@D}).
+\describe{
+\item{augmented}{\verb{@A};}
+\item{data}{\verb{@D};}
+\item{group risk}{\verb{@G};}
+\item{parameter}{\verb{@P};}
+\item{scalar}{\verb{@N}.}
 }}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 One between:
-\itemize{
-\item Scalar value;
-\item Parameter name (followed by \verb{@P});
-\item Dataset name (followed by \verb{@D}).
+\describe{
+\item{augmented}{\verb{@A};}
+\item{data}{\verb{@D};}
+\item{group risk}{\verb{@G};}
+\item{parameter}{\verb{@P};}
+\item{scalar}{\verb{@N}.}
 }}
 
 \item{import}{Named \code{list} of pre-built definitions to import.
@@ -83,14 +89,13 @@ At member level, the observation is attached to every positive status
 individual. If \code{obs} is provided, adds to household likelihood during
 evaluations, and \eqn{x} is sampled from it during simulations.
 If observation is deterministic it is considered as a datum.
-Note that indicator contribution to log-likelihood are expressily forbidden.
 
 At household level, the observation is a reduction of \code{value} over all the
 members, shared by the whole household, and must reduce to a constant value.
-There three mutually exclusive definition modes:
+There are three mutually exclusive definition modes:
 \describe{
 \item{single}{
-Supply a \code{name} to adds a single definition using the explicit arguments;
+Supply a \code{name} to add a single definition using the explicit arguments;
 }
 \item{multiple}{
 Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
@@ -101,7 +106,7 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 \details{
-Definition names colliding with reserved argument
-are deprecated.
-The can be supplied only through single mode.
+A definition name colliding with reserved argument
+is deprecated.
+It can be supplied only via single mode definition.
 }

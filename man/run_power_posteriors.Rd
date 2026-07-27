@@ -38,7 +38,7 @@ discard before storing draws.}
 
 \item{adapt}{\code{integer(1)} Number of iterations to adapt proposal scales.
 They are run before \code{steps} and are not stored as draws.
-If no proposals are adaptable  and \code{burn = 0}, repurposed as burn-in instead.}
+If no proposals are adaptable and \code{burn = 0}, repurposed as burn-in instead.}
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 

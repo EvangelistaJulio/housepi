@@ -29,10 +29,12 @@ add_augmented(
 
 \item{value}{\code{numeric(1)} | \code{character(1)}. Initial value.
 One between:
-\itemize{
-\item Scalar value;
-\item Parameter name (followed by \verb{@P});
-\item Dataset name (followed by \verb{@D}).
+\describe{
+\item{augmented}{\verb{@A};}
+\item{data}{\verb{@D};}
+\item{group risk}{\verb{@G};}
+\item{parameter}{\verb{@P};}
+\item{scalar}{\verb{@N}.}
 }}
 
 \item{...}{named arguments for the prior distribution.
@@ -66,18 +68,22 @@ If applicable, the prior is discretized.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 One between:
-\itemize{
-\item Scalar value;
-\item Parameter name (followed by \verb{@P});
-\item Dataset name (followed by \verb{@D}).
+\describe{
+\item{augmented}{\verb{@A};}
+\item{data}{\verb{@D};}
+\item{group risk}{\verb{@G};}
+\item{parameter}{\verb{@P};}
+\item{scalar}{\verb{@N}.}
 }}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 One between:
-\itemize{
-\item Scalar value;
-\item Parameter name (followed by \verb{@P});
-\item Dataset name (followed by \verb{@D}).
+\describe{
+\item{augmented}{\verb{@A};}
+\item{data}{\verb{@D};}
+\item{group risk}{\verb{@G};}
+\item{parameter}{\verb{@P};}
+\item{scalar}{\verb{@N}.}
 }}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
@@ -108,10 +114,10 @@ If \code{FALSE} drop all pre-existing definitions.}
 Add augmented variables/functions to housepi model.
 If an augmented definitions with the same name and status exists,
 the former gets overwritten.
-There three mutually exclusive definition modes:
+There are three mutually exclusive definition modes:
 \describe{
 \item{single}{
-Supply a \code{name} to adds a single definition using the explicit arguments;
+Supply a \code{name} to add a single definition using the explicit arguments;
 }
 \item{multiple}{
 Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
@@ -122,9 +128,9 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 \details{
-Definition names colliding with reserved argument
-are deprecated.
-The can be supplied only through single mode.
+A definition name colliding with reserved argument
+is deprecated.
+It can be supplied only via single mode definition.
 }
 \examples{
 hhmodel <- dummy_household |>

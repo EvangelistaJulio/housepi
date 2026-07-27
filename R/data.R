@@ -19,7 +19,7 @@
 #' @keywords datasets
 #' @name dummy_household
 #' @usage data(dummy_household)
-#' @format A data frame with 2 rows and 2 columns
+#' @format A data frame with 2 rows and 3 columns
 NULL
 
 #' Reported "Spanish" flu cases in Frederick (USA), 1918
@@ -39,15 +39,15 @@ NULL
 #'
 #' @details
 #' To reproduce the data processing, see the script at:
-#' \code{system.file("data-raw", "make_flu_1918_baltimora_frederick.R", package = "housepi")}
+#' \code{system.file("data-raw", "make_flu_1918_baltimore_frederick.R", package = "housepi")}
 #'
 #' @references
 #' \insertRef{fraser_influenza_2011}{housepi}
 NULL
 
-#' Reported "Spanish" flu cases in Baltimora (USA), 1918
+#' Reported "Spanish" flu cases in Baltimore (USA), 1918
 #'
-#' Reported cases of "Spanish" flu in Baltimora (USA), in 1918.
+#' Reported cases of "Spanish" flu in Baltimore (USA), in 1918.
 #'
 #' \describe{
 #'   \item{house_id}{Household identifier}
@@ -56,13 +56,13 @@ NULL
 #'
 #' @docType data
 #' @keywords datasets
-#' @name flu_1918_baltimora
-#' @usage data(flu_1918_baltimora)
+#' @name flu_1918_baltimore
+#' @usage data(flu_1918_baltimore)
 #' @format A data frame with 28,977 rows and 2 columns
 #'
 #' @details
 #' To reproduce the data processing, see the script at:
-#' \code{system.file("data-raw", "make_flu_1918_baltimora_frederick.R", package = "housepi")}
+#' \code{system.file("data-raw", "make_flu_1918_baltimore_frederick.R", package = "housepi")}
 #'
 #' @references
 #' \insertRef{fraser_influenza_2011}{housepi}

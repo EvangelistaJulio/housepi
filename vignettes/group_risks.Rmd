@@ -31,7 +31,7 @@ set.seed(42)
 Certain models allow for the definition of custom group risks.
 A group risk is *relative*: each parameter multiplies the baseline risk of a reference class, so it reads as the risk of one group with respect to that reference.
 Such models allow for a number of group risks which can then be changed according to the modeler's choice.
-We provide an example here with the heterogeneous version of the final size model.
+We provide an example here with the heterogeneous version of the case-ascertained model.
 
 # Format data features
 
@@ -41,16 +41,10 @@ We start by creating categorical groupings to stratify individuals based on thei
 ```{r}
 #| label: format-age-data
 
-# define a model object with a subset of the SarsCoV-2 (ICoFs) data
+# define a model object with a subset of the ICoFs dataset
 hhmodel <- sarscov2_2021_icofs |>
-  dplyr::mutate(
-    # change age in survey as a binary group child/adult
-    age = dplyr::case_when(age < 19 ~ "child", .default = "adult")
-  ) |> 
-  # use smaller number of households for exploration
-  dplyr::filter(house_id %in% sample(unique(house_id), 300)) |>
-  # start_date is derived below from test_date, so drop the raw column
   dplyr::select(-start_date) |>
+  dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
   new_housepi_model("case_ascertained")
 ```
 

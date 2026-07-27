@@ -26,7 +26,7 @@ test_that("Reject if calling on non-HousepiModel objects", {
 })
 
 test_that("data_wide provided at construction is exposed via get_data_wide", {
-  result <- new_housepi_model(flu_1918_baltimora, "test")
+  result <- new_housepi_model(flu_1918_baltimore, "test")
   dw <- get_data_wide(result)
   expect_true(is.data.frame(dw))
   expect_true("house_id" %in% colnames(dw))
@@ -35,9 +35,9 @@ test_that("data_wide provided at construction is exposed via get_data_wide", {
   # id automatically added
   expect_identical(dw$id, as.character(seq_len(dim(dw)[1])))
   # house_id cast to character
-  expect_identical(dw$house_id, as.character(flu_1918_baltimora$house_id))
+  expect_identical(dw$house_id, as.character(flu_1918_baltimore$house_id))
   # statuses are integer
-  expect_identical(dw$status, flu_1918_baltimora$status)
+  expect_identical(dw$status, flu_1918_baltimore$status)
 })
 
 test_that("add_data_long and get_data_long work", {
@@ -271,10 +271,10 @@ test_that("add_infectivity_profile and list update the model directly", {
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(func = "gamma", shape = 2, scale = 1)
-  expect_true("gamma" %in% hhmodel$infec_profile$func)
+  expect_true("gamma" %in% hhmodel$infectivity_profile$func)
   expect_warning(
     hhmodel <- add_infectivity_profile(hhmodel, func = "lognormal"),
     regexp = "Overwriting"
   )
-  expect_true("lognormal" %in% hhmodel$infec_profile$func)
+  expect_true("lognormal" %in% hhmodel$infectivity_profile$func)
 })

@@ -198,7 +198,7 @@ test_that("run_inference rejects invalid setup arguments", {
 
 test_that("run_inference progress bar shows as expected", {
   # FIXME: timing-sensitive
-  hhmodel <- flu_1918_baltimora |>
+  hhmodel <- flu_1918_baltimore |>
     new_housepi_model("final_size") |>
     add_parameter_template()
   out <- capture.output(

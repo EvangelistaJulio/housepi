@@ -29,7 +29,7 @@ reference:
   contents:
     - housepi-package
   
-- title: "Core Functions"
+- title: "Core functions"
   desc: >
     Generate the core housepi model and perform inference and simulations.
   contents:
@@ -58,7 +58,7 @@ reference:
 
 - title: "Posterior predictions"
   desc: >
-    Perform posterior predicitive checks.
+    Perform posterior predictive checks.
   contents:
   - starts_with("measure_")
   - ends_with("_predictive_check")
@@ -84,7 +84,7 @@ reference:
 
 - title: "Datasets"
   desc: >
-    Public available datasets used for model testing.
+    Publicly available datasets used for model testing.
   contents:
   - starts_with("flu_")
   - sarscov2_2021_icofs
@@ -118,7 +118,7 @@ navbar:
       - intro
       - reference
       - articles
-      - hhmodels
+      - templates
     right:
       - search
       - gitlab
@@ -128,16 +128,16 @@ navbar:
       text: "Get started"
       href: articles/housepi.html
 
-    hhmodels:
+    templates:
       text: "Templates"
       href: ~
       menu:
-        - text: "Blank"
-          href: reference/hhmodel_blank.html
+        - text: "Test"
+          href: reference/template_test.html
         - text: "Final Size"
-          href: reference/hhmodel_final_size.html
+          href: reference/template_final_size.html
         - text: "Case Ascertained"
-          href: reference/hhmodel_case_ascertained.html
+          href: reference/template_case_ascertained.html
 
     gitlab:
       icon: fab fa-gitlab

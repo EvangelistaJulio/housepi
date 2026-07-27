@@ -4,20 +4,23 @@
 \name{housepi-package}
 \alias{housepi}
 \alias{housepi-package}
-\title{housepi: Household Epidemiological Modeling and Analysis}
+\title{housepi: Household Epidemiological Modelling and Analysis}
 \description{
-Epidemiological Analysis of Household Outbreaks.
+Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to household studies with Bayesian MCMC. Validation is supported through posterior predictive checks and parameter recovery checks. A C++ back end supports data augmentation of unobserved variables, individual- and household-level covariates, and time-varying infectivity profiles.
 }
 \details{
-Mathematical modeling is a valuable tool for estimating
-key epidemiological parameters from household transmission surveys.
-The relative ease of collecting household data makes it a readily available
-source of information during an epidemic early phases
-(e.g. longitudinal studies).
-Additionally, retrospective serological surveys can provide critical insights
-into the history of transmission within a population (final size studies).
-The package "housepi" aims at supporting straightforward analysis
-and advanced epidemiological investigations from household outbreaks.
+To create a model call \code{\link[=new_housepi_model]{new_housepi_model()}} from one of the built-in transmission models
+or a custom model template.
+Household data can be provided at construction or later with \code{\link[=add_data_wide]{add_data_wide()}}.
+Specify the model features with the decorators \code{\link[=add_parameter]{add_parameter()}},
+\code{\link[=add_group_risk]{add_group_risk()}}, \code{\link[=add_contact_risk]{add_contact_risk()}}, \code{\link[=add_infectivity_profile]{add_infectivity_profile()}},
+\code{\link[=add_augmented]{add_augmented()}} and \code{\link[=add_observation]{add_observation()}}.
+Run the inference with \code{\link[=run_inference]{run_inference()}}, extract draws with
+\code{\link[=get_parameter_draws]{get_parameter_draws()}} and summarise them with \code{\link[=summarise_draws]{summarise_draws()}}.
+Run simulations with \code{\link[=run_simulation]{run_simulation()}},
+predictive checks with \code{\link[=run_epi_predictive_check]{run_epi_predictive_check()}}.
+Explore available building blocks using \code{\link[=browse_templates]{browse_templates()}},
+\code{\link[=browse_distributions]{browse_distributions()}}, \code{\link[=browse_functions]{browse_functions()}} and \code{\link[=browse_infectivity_profiles]{browse_infectivity_profiles()}}.
 }
 \seealso{
 Useful links:
@@ -33,6 +36,11 @@ Useful links:
 Authors:
 \itemize{
   \item Simon Cauchemez (\href{https://orcid.org/0000-0001-9186-4549}{ORCID})
+}
+
+Other contributors:
+\itemize{
+  \item Institut Pasteur [copyright holder]
 }
 
 }

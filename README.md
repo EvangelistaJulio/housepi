@@ -10,8 +10,8 @@
 <!-- badges: end -->
 
 We introduce "housepi", an open source R package for the statistical analysis
-and modeling of epidemiological data from household outbreaks.
-Mathematical modeling has proven to be a valuable tool for estimating
+and modelling of epidemiological data from household outbreaks.
+Mathematical modelling has proven to be a valuable tool for estimating
 key epidemiological parameters from household transmission surveys.
 The relative ease of sampling household data makes it a readily available
 source of information during the early phases of an epidemic
@@ -47,7 +47,7 @@ devtools::install()
 
 GPLv3 © Institut Pasteur, Paris (France).
 Distributed under the terms of the GNU General Public License, Version 3.
-For details, see [LICENSE](LICENSE.md) and [COPYRIGHTS](inst/COPYRIGHTS).
+For details, see [LICENSE](LICENSE.md).
 
 > [!CAUTION]
 > The package has not been released. Sharing the package or parts of its code without consent of the authors is strictly forbidden.

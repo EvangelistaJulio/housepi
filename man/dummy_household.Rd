@@ -5,7 +5,7 @@
 \alias{dummy_household}
 \title{Minimal household survey for testing}
 \format{
-A data frame with 2 rows and 2 columns
+A data frame with 2 rows and 3 columns
 }
 \usage{
 data(dummy_household)

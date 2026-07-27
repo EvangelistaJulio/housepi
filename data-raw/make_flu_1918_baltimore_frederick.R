@@ -24,5 +24,5 @@ format_flu_1918 <- function(location) {
 flu_1918_frederick <- format_flu_1918("frederick")
 usethis::use_data(flu_1918_frederick, overwrite = TRUE)
 
-flu_1918_baltimora <- format_flu_1918("baltimora")
-usethis::use_data(flu_1918_baltimora, overwrite = TRUE)
+flu_1918_baltimore <- format_flu_1918("baltimore")
+usethis::use_data(flu_1918_baltimore, overwrite = TRUE)

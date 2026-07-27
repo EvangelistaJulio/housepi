@@ -25,7 +25,7 @@ library(housepi)
 housepi_theme_set()
 ```
 
-Here we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC). We use the same final size example presented in [Get started](housepi.html):
+Here we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC). We use the same final-size example presented in [Get started](housepi.html):
 
 ```{r}
 #| label: inference-setup
@@ -100,7 +100,7 @@ The $p$-value tells us that there is no significant difference between the distr
 
 # Secondary attack rate
 
-We can have a quick look at secondary attack rates of observed vs predicted cases using the field `$sar`:
+We can have a quick look at secondary attack rates of observed vs predicted cases as follows:
 
 ```{r}
 #| label: sar-plot

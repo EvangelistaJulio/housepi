@@ -9,7 +9,7 @@ stopifnot(length(rd_files) == length(model_dirs))
 
 # copy template Rd files into man/
 copied_files <- file.path(
-  "man", paste0("hhmodel_", basename(dirname(rd_files)), ".Rd")
+  "man", paste0("template_", basename(dirname(rd_files)), ".Rd")
 )
 stopifnot(all(file.copy(rd_files, copied_files, overwrite = TRUE)))
 

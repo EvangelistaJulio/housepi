@@ -42,8 +42,8 @@ or un-prefixed names (applied to both from and to).}
 \item{joint}{\code{logical(1)} Treat covariates as joint.
 If \code{FALSE}, covariates are independent (default).}
 
-\item{symmetric}{\code{logical(1)} Treat covariates as joint.
-If \code{FALSE}, covariates are independent (default).}
+\item{symmetric}{\code{logical(1)} Treat contact as symmetric.
+If \code{TRUE}, contact pairs infector-infectee are treated as equivalent (default).}
 
 \item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
 Each row defines one stratum. If \code{NA}, then match any value.
@@ -51,7 +51,7 @@ Use \code{.reference} in \code{param_name} to designate the reference group.
 Mutually exclusive with \code{by}.}
 
 \item{params}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
-Overrides shared prior/args for parameters specificied in the list.
+Overrides shared prior/args for parameters specified in the list.
 Ignored if automatic definition.}
 
 \item{prior}{\code{character(1)} Choice for the prior distribution.}
