@@ -71,8 +71,8 @@ test_that("Spurious names are dropped", {
   )
 
   infec <- mk_infec_model() |>
-    add_augmented("shape", prior = "uniform", min = 1, max = 5) |>
-    add_augmented("scale", prior = "uniform", min = 1, max = 5) |>
+    add_augmented("shape", model = "uniform", min = 1, max = 5) |>
+    add_augmented("scale", model = "uniform", min = 1, max = 5) |>
     add_infectivity_profile(import = external_list) |>
     get_infectivity_profile()
 

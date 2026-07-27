@@ -40,9 +40,9 @@ where the incubation period is distributed according to a prior.
 Say $x$ the data of a single household (onset date and status), $z$ its augmented variables (infection time and incubation period) and $\theta$ the vector of parameters.
 The joint posterior then reads
 $$p(\theta, z \mid x) \varpropto
-  \underbrace{p^\mathrm{obs}(x \mid \theta, z)\, p^\mathrm{transm}(x \mid \theta, z)}_{\text{likelihood}}\;
-  \underbrace{p^\mathrm{augm}(z \mid \theta)\, p(\theta)}_{\text{prior}},$$
-where the likelihood is the transmission term $p^\mathrm{transm}$ times the observation term $p^\mathrm{obs}$ (the latter only when an observation node is defined, so it contracts to transmission otherwise), and the prior is the augmented-variable prior $p^\mathrm{augm}$ times the parameter prior $p(\theta)$.
+  \underbrace{p^\mathrm{obs}(x \mid \theta, z)\, p^\mathrm{transm}(x \mid \theta, z)\, p^\mathrm{augm}(z \mid \theta)}_{\texttt{log\_lik}}\;
+  \underbrace{p(\theta)}_{\texttt{lprior}},$$
+where the reported `log_lik` gathers the transmission term $p^\mathrm{transm}$, the observation term $p^\mathrm{obs}$ (only when an observation node is defined, so it contracts to transmission otherwise) and the augmented-variable model $p^\mathrm{augm}$, while `lprior` is the parameter prior $p(\theta)$.
 
 We here explain how to associate individual augmented variables in housepi for minimal examples.
 
@@ -110,11 +110,11 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
     # augmented infection time for symptomatic members
     # here we use a generic definition
     infec_time = onset_date@D - incub_period,
-    incub_period = list(prior = "gamma", shape = 2, scale = 1),
+    incub_period = list(model = "gamma", shape = 2, scale = 1),
 
     # augmented infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
-    infec_time = list(status = 2, prior = "uniform",
+    infec_time = list(status = 2, model = "uniform",
                       min = start_date@D, max = end_date@D)
   )
 ```
@@ -160,7 +160,7 @@ head(dataset)
 Note that here the data has no demographic structure: we are implicitly assuming that all individuals live in distinct households.
 
 Assuming the incubation period to be described by a gamma distribution, we want to estimate its `mean` and `var` by augmenting the infection and onset times.
-Following the decomposition introduced above, the incubation period enters the *augmented prior* $p^\mathrm{augm}(z \mid \theta)$, while the reported onset day enters the *observation* term $p^\mathrm{obs}(x \mid \theta, z)$.
+Following the decomposition introduced above, the incubation period enters the *augmented model* $p^\mathrm{augm}(z \mid \theta)$, while the reported onset day enters the *observation* term $p^\mathrm{obs}(x \mid \theta, z)$; both are reported in the pointwise `log_lik`.
 
 We rely on the "test" model, which carries no transmission dynamics ($p^\mathrm{transm} = 1$), and build the whole augmentation from definitions:
 
@@ -188,16 +188,16 @@ hhmodel <- dataset |>
   add_augmented(
     # infection time uniform within the reported exposure window
     # min = 0 by default for uniform; + 0.99 spans the whole reported day
-    .infec_time = list(prior = "uniform", max = exposure_max@D + 0.99,
+    .infec_time = list(model = "uniform", max = exposure_max@D + 0.99,
                        proposal = "rw"),
     # incubation period gamma by mean/variance, bounded to a plausible range
-    incub_period = list(prior = "gamma", mean = mean@P, var = var@P,
+    incub_period = list(model = "gamma", mean = mean@P, var = var@P,
                         min = 0.1, max = 14, proposal = "rw"),
     # onset time follows deterministically as their sum
     .onset_time = .infec_time + incub_period
   ) |>
   # observation model for the observed mid-point
-  add_observation("onset_mid", obs = "normal", mean = .onset_time, sd = 0.3)
+  add_observation("onset_mid", model = "normal", mean = .onset_time, sd = 0.3)
 ```
 
 ```{r}
@@ -240,17 +240,14 @@ bayesplot::color_scheme_set(scheme = "orange")
 ```
 
 When it comes to data augmentation, we might need to explore different options for the Monte Carlo moves.
-In the following examples we show the differences between move choices that can be performed.
-As shown in [Priors and proposals](priors_and_proposals.html), we can do the testing with the "test" model.
-We always recommend a visual assessment before choosing a new move.
+As shown in [Priors and proposals](priors_and_proposals.html), we can do the testing with the "test" template:
 
 ```{r}
-#| label: augmented-sample-model
+#| label: augmented inspection
 #| warning: false
 
-# with model (default sample)
 results <- new_housepi_model(model = "test") |>
-  add_augmented("sample_model", prior = "normal", mean = 14) |>
+  add_augmented("z", model = "normal", mean = 14) |>
   run_inference()
 ```
 
@@ -259,7 +256,9 @@ results <- new_housepi_model(model = "test") |>
 #| fig-height: 2
 #| fig-alt: >
 #|  Trace plot of a single augmented variable sampled from the model.
-bayesplot::mcmc_trace(get_augmented_draws(results))
+results |>
+  get_augmented_draws() |>
+  bayesplot::mcmc_trace()
 ```
 
 ```{r}
@@ -267,7 +266,9 @@ bayesplot::mcmc_trace(get_augmented_draws(results))
 #| fig-height: 2
 #| fig-alt: >
 #|  Trace plot of the pointwise per-household log-likelihood.
-bayesplot::mcmc_trace(get_log_lik_draws(results))
+results |>
+  get_log_lik_draws() |>
+  bayesplot::mcmc_trace()
 ```
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}

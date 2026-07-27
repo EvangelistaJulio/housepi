@@ -291,9 +291,9 @@ namespace housepi
     {
         // drop previous definitions
         is_any_sample_ = false;
-        is_any_prior_ = false;
+        is_any_model_ = false;
         is_any_obs_ = false;
-        prior_param_depen_.clear();
+        model_param_depen_.clear();
         obs_param_depen_.clear();
 
         khold_.clear_optional();
@@ -356,10 +356,10 @@ namespace housepi
         return false;
     }
 
-    void Augmented::set_prior_param_depen_()
+    void Augmented::set_model_param_depen_()
     {
         // initialize list of parameter dependent augmented/observation
-        prior_param_depen_.assign(mcmc_->param.khold().size(), false);
+        model_param_depen_.assign(mcmc_->param.khold().size(), false);
         obs_param_depen_.assign(mcmc_->param.khold().size(), false);
 
         // augmented nodes that (transitively) feed an observation, from the obs
@@ -388,7 +388,7 @@ namespace housepi
                 {
                     const size_t p = mcmc_->param.khold(pstr);
                     if (!is_obs)
-                        prior_param_depen_[p] = true;
+                        model_param_depen_[p] = true;
                     if (to_obs)
                         obs_param_depen_[p] = true;
                 }
@@ -707,7 +707,7 @@ namespace housepi
         else if (na::is(deftable_.c_value[k]) && na::is(deftable_.c_prior[k]))
         {
             msg::stop(
-                "Impossible to initialize augmented " + msg::val(astr) + " without a value or prior");
+                "Impossible to initialize augmented " + msg::val(astr) + " without a value or model");
         }
         else if (na::is(deftable_.c_proposal[k]))
         {
@@ -798,7 +798,7 @@ namespace housepi
                     "Deterministic observation node " + msg::val(deftable_.c_name[k]) +
                     " cannot be used for evaluation, only simulation.");
 
-        helper_init_prior_list_();
+        helper_init_model_list_();
 
         // define augmented variables for all augmented individuals in order
         for (Household &house : mcmc_->data_wide())
@@ -809,55 +809,55 @@ namespace housepi
                     helper_init_attributes_(member, k);
             }
 
-        // parameters that may move the augmented log-prior (params now registered)
-        set_prior_param_depen_();
+        // parameters that may move the augmented log-model (params now registered)
+        set_model_param_depen_();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  Augmented : init augmented priors  /////////////////////////////
+    /////////////////////////////////  Augmented : init augmented models  /////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::helper_init_prior_list_()
+    void Augmented::helper_init_model_list_()
     {
         for (StatusBlock_ &block : status_blocks_)
         {
             block.consumers.resize(khold_.size());
 
             // associate blocks for ordered prior lists
-            const str_table &ordered_priors = get_ordered_priors_(block);
-            if (!ordered_priors.empty())
+            const str_table &ordered_models = get_ordered_models_(block);
+            if (!ordered_models.empty())
             {
-                is_any_prior_ = true;
-                block.priors = khold(read::extract_keys(ordered_priors));
+                is_any_model_ = true;
+                block.models = khold(read::extract_keys(ordered_models));
 
-                for (const auto &[astr, others] : ordered_priors)
+                for (const auto &[astr, others] : ordered_models)
                     block.consumers[khold(astr)] = khold(others);
             }
         }
     }
 
-    str_table Augmented::get_ordered_priors_(const StatusBlock_ &block) const
+    str_table Augmented::get_ordered_models_(const StatusBlock_ &block) const
     {
         str_table graph = build_augm_graph_(block.order);
 
         // NOTE: observations hold distributions in c_prior but are NOT priors
-        std::vector<std::string> without_prior; // augmented names without a prior
+        std::vector<std::string> without_model; // augmented names without a prior
         for (size_t k : block.order)
             if (na::is(deftable_.c_prior[k]) || deftable_.c_kind[k] == Kind::Member)
-                without_prior.push_back(deftable_.c_name[k]);
+                without_model.push_back(deftable_.c_name[k]);
 
         // keep only prior nodes, and prune priorless dependencies from what remains
-        for (const std::string &name : without_prior)
+        for (const std::string &name : without_model)
             graph.erase(name);
         for (auto &[key, vec] : graph)
-            vec = vec - without_prior;
+            vec = vec - without_model;
 
-        // assign the ordered consumers of each prior for augmented prior computation
-        str_table ordered_priors;
+        // assign the ordered consumers of each prior for augmented model computation
+        str_table ordered_models;
         for (const auto &[key, vec] : graph)
-            ordered_priors.emplace(key, dpdcy::transitive_consumers(key, graph, ErrType::Augmented));
+            ordered_models.emplace(key, dpdcy::transitive_consumers(key, graph, ErrType::Augmented));
 
-        return ordered_priors;
+        return ordered_models;
     }
 
     void Augmented::helper_init_observation_list_()
@@ -1084,8 +1084,8 @@ namespace housepi
                 for (const std::string *col : {&deftable_.c_prior[k], &deftable_.c_min[k], &deftable_.c_max[k]})
                     for (const std::string &dstr : referred_data(*col, obs_names))
                         msg::stop(
-                            "Definition collision: the prior of " + msg::val(name) + " reads observation " + msg::val(dstr) +
-                            ".\nA prior cannot depend on an observed or generated value.");
+                            "Definition collision: the model of " + msg::val(name) + " reads observation " + msg::val(dstr) +
+                            ".\nAn augmented model cannot depend on an observed or generated value.");
 
             // Rule 2: a deterministic definition may read an observation (a downstream
             // readout) unless it closes a loop: the observation transitively depends on it.
@@ -1122,12 +1122,12 @@ namespace housepi
             if (parse::Definition(deftable_.c_value[k]).is_augmented_depen())
                 msg::stop(
                     "Simulation override of " + msg::val(name) +
-                    " reads an augmented variable.\nA value paired with a prior is applied "
+                    " reads an augmented variable.\nA value paired with a model is applied "
                     "before other latents are drawn; depend on data or parameters only.");
             for (const std::string &dstr : referred_data(deftable_.c_value[k], obs_names))
                 msg::stop(
                     "Simulation override of " + msg::val(name) + " reads observation " + msg::val(dstr) +
-                    ".\nA value paired with a prior is applied during simulation, before " +
+                    ".\nA value paired with a model is applied during simulation, before " +
                     msg::val(dstr) + " is generated; depend on data or parameters only.");
         }
     }
@@ -1432,8 +1432,8 @@ namespace housepi
             else
                 helper_init_func_attributes_(member, k);
 
-            // initialize prior
-            helper_init_prior_attributes_(member, k);
+            // initialize model attributes
+            helper_init_distr_attributes_(member, k);
 
             // assign proposal if variable to be sampled
             // (arguments are folded into the proposal call, if any); simulation
@@ -1453,7 +1453,7 @@ namespace housepi
             if (user_discrete_set_.count(a) && !avar.is_discrete())
                 msg::stop(
                     "Definition of " + avar.err_name() +
-                    " did not return a discrete object as requested by prior.");
+                    " did not return a discrete object as requested by model.");
         }
         catch (const std::exception &e)
         {
@@ -1464,21 +1464,21 @@ namespace housepi
         }
     }
 
-    void Augmented::helper_init_prior_attributes_(Individual &member, size_t k)
+    void Augmented::helper_init_distr_attributes_(Individual &member, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
         Variable &avar = varia_of_(member).vec[khold(astr)];
         parse::Definition parser(deftable_.c_prior[k]);
 
-        avar.init_prior(parser.root.func);
+        avar.init_distr(parser.root.func);
 
-        if (!avar.has_prior())
+        if (!avar.has_distr())
             return;
         for (const auto &child : parser.root.children)
-            avar.init_prior_attr(child.key, mcmc_->translator.to_attribute(child, &member));
-        avar.init_prior_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &member));
-        avar.init_prior_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &member));
-        avar.init_prior_reshaping(str::tobool(deftable_.c_discr[k]));
+            avar.init_distr_attr(child.key, mcmc_->translator.to_attribute(child, &member));
+        avar.init_distr_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &member));
+        avar.init_distr_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &member));
+        avar.init_distr_reshaping(str::tobool(deftable_.c_discr[k]));
     }
 
     void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
@@ -1592,7 +1592,7 @@ namespace housepi
                 msg::stop(
                     "Exceeded attempts to initialize augmented variables of " +
                     member.err_name() + " due to observations.\n" +
-                    "Widen augmented prior of " + str::format(str::unique(augm_dep), false, 3) +
+                    "Widen augmented model of " + str::format(str::unique(augm_dep), false, 3) +
                     ", revise the observation domain of " + msg::val(deftable_.c_name[k]) +
                     ", or check the observed individual data.");
 
@@ -1629,22 +1629,22 @@ namespace housepi
     ///////////////////////////////////  Augmented : log-likelihood  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    double Augmented::commit_augm_log_prior(Individual &member)
+    double Augmented::commit_augm_log_lik(Individual &member)
     {
-        const std::vector<size_t> &priors = list_priors(member);
+        const std::vector<size_t> &models = list_models(member);
 
-        if (priors.empty())
+        if (models.empty())
             return 0.;
         double new_ll = 0.0;
         // guarded: a moved parameter (e.g. a param feeding a prior loc/min/max) may push a
         // value out of its shifted support; that must read as -Inf, not a stale finite density.
-        for (size_t a : priors)
+        for (size_t a : models)
             new_ll += varia_of_(member).vec[a].guarded_log_pdf();
-        varia_of_(member).log_prior.set(new_ll);
+        varia_of_(member).augm_log_lik.set(new_ll);
         return new_ll;
     }
 
-    double Augmented::commit_augm_log_prior_ratio(Individual &member, size_t a)
+    double Augmented::commit_augm_log_lik_ratio(Individual &member, size_t a)
     {
         const StatusBlock_ &block = block_of_(member);
         if (block.consumers[a].empty())
@@ -1653,11 +1653,11 @@ namespace housepi
         // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
         for (size_t b : block.consumers[a])
             delta_ll += varia_of_(member).vec[b].log_ratio();
-        varia_of_(member).log_prior.increment(delta_ll);
+        varia_of_(member).augm_log_lik.increment(delta_ll);
         return delta_ll;
     }
 
-    double Augmented::sum_guarded_augm_log_prior(const Individual &member, size_t a) const
+    double Augmented::sum_guarded_augm_log_lik(const Individual &member, size_t a) const
     {
         double ll = 0.;
         // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
@@ -1666,12 +1666,12 @@ namespace housepi
         return ll;
     }
 
-    double Augmented::commit_augm_log_prior_ratio_dependent(Individual &member, size_t a, double L_old)
+    double Augmented::commit_augm_log_lik_ratio_dependent(Individual &member, size_t a, double L_old)
     {
         // 'a' has already been proposed: its prior-consumers now read the moved parameter live.
         // Compare their guarded prior sum against the pre-move snapshot L_old.
-        const double delta_ll = sum_guarded_augm_log_prior(member, a) - L_old;
-        varia_of_(member).log_prior.increment(delta_ll);
+        const double delta_ll = sum_guarded_augm_log_lik(member, a) - L_old;
+        varia_of_(member).augm_log_lik.increment(delta_ll);
         return delta_ll;
     }
 
@@ -1680,7 +1680,7 @@ namespace housepi
         if (list_obs(member).empty())
             return 0.;
         const double new_ll = eval_log_obs(member);
-        varia_of_(member).log_obs.set(new_ll);
+        varia_of_(member).obs_log_lik.set(new_ll);
         return new_ll;
     }
 
@@ -1695,8 +1695,8 @@ namespace housepi
         double new_ll = 0.0;
         for (size_t b : block.obs)
             new_ll += varia_of_(member).vec[b].guarded_log_pdf();
-        const double delta_ll = new_ll - varia_of_(member).log_obs.value();
-        varia_of_(member).log_obs.set(new_ll);
+        const double delta_ll = new_ll - varia_of_(member).obs_log_lik.value();
+        varia_of_(member).obs_log_lik.set(new_ll);
         return delta_ll;
     }
 

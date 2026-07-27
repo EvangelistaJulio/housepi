@@ -35,8 +35,8 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
   hhmodel <- data.frame(house_id = "h", status = 1, x = x) |>
     new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform", min = !!a, max = !!b) |>
-    add_augmented("z", prior = "exponential", rate = theta@P) |>
-    add_observation("x", obs = "exponential", rate = z)
+    add_augmented("z", model = "exponential", rate = theta@P) |>
+    add_observation("x", model = "exponential", rate = z)
 
   result <- hhmodel |>
     run_power_posteriors(progress = FALSE, steps = 5e3) |>
@@ -86,7 +86,7 @@ mk_indicator_model_ <- function(house_id, y0 = 0.5, c = 0.45) {
   data.frame(house_id = house_id, status = 1, y = y0) |>
     new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
-    add_observation("y", obs = "uniform", loc = theta@P, min = - !!c, max = !!c)
+    add_observation("y", model = "uniform", loc = theta@P, min = - !!c, max = !!c)
 }
 
 # retry seeds until a ladder starts (a random prior init may land inadmissible)
@@ -138,8 +138,8 @@ test_that("tempered indicator with an augmented variable runs at beta=0 without 
     data.frame(house_id = "liquid", status = 1, x = x0) |>
       new_housepi_model("test") |>
       add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
-      add_augmented("z", prior = "uniform", min = 0, max = 1) |>
-      add_observation("x", obs = "uniform", min = z - !!cc, max = z + !!cc)
+      add_augmented("z", model = "uniform", min = 0, max = 1) |>
+      add_observation("x", model = "uniform", min = z - !!cc, max = z + !!cc)
   }, chains = 1L, rungs = 8L, steps = 2000L)
   expect_false(is.null(res))
 

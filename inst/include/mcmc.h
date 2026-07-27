@@ -77,23 +77,23 @@ namespace housepi
 		/// Assert setup definitions, then proceed with initialization for evaluation.
 		void init_for_evaluation_();
 
-		/// Compute total log-posterior. Store all old values, included for households.
-		/// Result is left in tot_transm_log_lik / tot_augm_log_prior / tot_obs_log_lik.
-		/// NOTE: with_augm_prior / with_obs skip the respective re-evaluation.
+		/// Compute total log-posterior. Store all old values.
+		/// Result is left in tot_obs_log_lik, tot_transm_log_lik, tot_augm_log_lik.
+		/// NOTE: with_augm_model / with_obs skip the respective re-evaluation.
 		void commit_total_log_posterior_(bool is_cache_depen,
-										 bool with_augm_prior = true,
+										 bool with_augm_model = true,
 										 bool with_obs = true);
 		/// Commit single household's posterior contribution.
 		LogProbaAccumulator commit_house_log_posterior_(Household &house,
 														bool is_cache_depen,
-														bool with_augm_prior,
+														bool with_augm_model,
 														bool with_obs);
-		/// Recompute and store the total augmented log-prior across all households.
+		/// Recompute and store the total augmented log-likelihood across all households.
 		/// Used at inverse temperature 0, where a parameter move targets the prior only.
-		/// Returns the log-ratio of the new over the old total augmented log-prior.
-		double commit_total_augm_log_prior_ratio_();
-		/// Recover the total augmented log-prior after a refused prior-only move.
-		void recover_total_augm_log_prior_();
+		/// Returns the log-ratio of the new over the old total augmented log-likelihood.
+		double commit_total_augm_log_lik_ratio_();
+		/// Recover the total augmented log-likelihood after a refused prior-only move.
+		void recover_total_augm_log_lik_();
 
 		/// Guarded total log-posterior computation for initialization.
 		/// Assert for finite initial value and mechanisms to recover in place.
@@ -102,13 +102,13 @@ namespace housepi
 		LogProbaAccumulator init_guarded_commit_house_(Household &house);
 
 		/// Compute and store log-ratio of prior of single augmented variable.
-		double commit_augm_log_prior_ratio(Individual &member, size_t a)
+		double commit_augm_log_lik_ratio(Individual &member, size_t a)
 		{
-			return augm.commit_augm_log_prior_ratio(member, a);
+			return augm.commit_augm_log_lik_ratio(member, a);
 		}
 
 		/// Compute and store log-ratio of observation nodes parameterized by 'a'.
-		double commit_augm_log_obs_ratio(Individual &member, size_t a)
+		double commit_obs_log_lik_ratio(Individual &member, size_t a)
 		{
 			return augm.commit_obs_log_lik_ratio(member, a);
 		}
@@ -164,11 +164,11 @@ namespace housepi
 		void move_all_augm_();
 		/// Move augmented variables of infectious members inside household.
 		/// The move is performed one member at a time, one augmented variable at a time.
-		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
+		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
 		template <bool Beta0>
 		LogProbaAccumulator move_augm_single_house_(size_t H);
 		/// Move a single augmented variable.
-		/// Returns the accepted transmission log-likelihood and augmented log-prior deltas.
+		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
 		template <bool Beta0>
 		LogProbaAccumulator move_augm_single_variable_(Household &house, Individual &member, size_t a);
 

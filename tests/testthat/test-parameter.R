@@ -84,14 +84,14 @@ test_that("Proposal families route correctly", {
   expect_equal(param$proposal, "normal")
   expect_equal(param$proposal_args[[1]], c(mean = 0, sd = 1))
 
-  # sampling from the prior is the default keyword
+  # sampling from the variable's own distribution uses the "forward" keyword
   param <- mk_param$model |>
     add_parameter(
       name = "otacon", prior = "uniform", min = 0, max = 5,
-      proposal = "prior"
+      proposal = "forward"
     ) |>
     get_parameters()
-  expect_equal(param$proposal, "prior")
+  expect_equal(param$proposal, "forward")
 
   # proposal_scale only tunes a random walk
   mk_param$model |>
@@ -258,7 +258,7 @@ test_that("Discretization is enabled as expected", {
     add_parameter(
       sample = list(
         prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-        proposal = "prior", min = !!val$min, max = !!val$max
+        proposal = "forward", min = !!val$min, max = !!val$max
       ),
       uniform = list(
         prior = "gamma", shape = 2, scale = 1, discr = TRUE,
@@ -309,7 +309,7 @@ test_that("Parameter function rejects non-parameter dependencies", {
 
   # parameters do not accept individual-specifc definitons
   hhmodel |>
-    add_augmented("cigar", prior = "normal") |>
+    add_augmented("cigar", model = "normal") |>
     add_parameter("kaz", prior = "normal", mean = cigar + 1) |>
     expect_error("[Ii]ndividual.*specific")
 

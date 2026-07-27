@@ -33,7 +33,7 @@ namespace housepi
         void increment(double delta_ll) { set(value_ + delta_ll); }
         /// Recover old value.
         void recover() noexcept { value_ = old_; }
-        
+
         /// Return current value of log-probability.
         double value() const noexcept { return value_; }
         /// Return log-ratio current vs old values.
@@ -50,15 +50,15 @@ namespace housepi
     /// Accumulator for log-densities computations.
     struct LogProbaAccumulator
     {
-        double obs = 0.;    /// observation
-        double transm = 0.; /// transmission
-        double aprior = 0.; /// augmented-prior
+        double obs_ll = 0.;    /// observation
+        double transm_ll = 0.; /// transmission
+        double augm_ll = 0.;   /// augmented
 
         LogProbaAccumulator &operator+=(const LogProbaAccumulator &other) noexcept
         {
-            obs += other.obs;
-            transm += other.transm;
-            aprior += other.aprior;
+            obs_ll += other.obs_ll;
+            transm_ll += other.transm_ll;
+            augm_ll += other.augm_ll;
             return *this;
         }
     };

@@ -207,7 +207,7 @@ test_that("A followed household without infected members warns", {
     status = c(1, 0)
   ) |>
     new_housepi_model("test") |>
-    add_augmented("test_date", prior = "uniform")
+    add_augmented("test_date", model = "uniform")
 
   expect_warning(
     expect_warning(

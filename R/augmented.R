@@ -189,8 +189,7 @@ HousepiAugmented <- R6::R6Class(
     add_quo = function(name, ...,
                        value = NULL, status = NA_integer_,
                        const = NA, discr = FALSE,
-                       prior = NA_character_,
-                       obs = NA_character_,
+                       model = NA_character_,
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
@@ -206,9 +205,11 @@ HousepiAugmented <- R6::R6Class(
       status <- housepi_smart_unwrap(status, "status")
       const <- housepi_smart_unwrap(const, "const")
       discr <- housepi_smart_unwrap(discr, "discr")
-      prior <- housepi_smart_unwrap(prior, "prior")
-      obs <- housepi_smart_unwrap(obs, "obs")
+      model <- housepi_smart_unwrap(model, "model")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
+      # the model distribution feeds the internal 'prior' transport column,
+      # discriminated by 'kind' (augmented latent vs observation)
+      prior <- NA_character_
 
       # load quosures
       value <- housepi_extractor(!!value)
@@ -220,8 +221,6 @@ HousepiAugmented <- R6::R6Class(
       dots <- list(...)
       # flatten dots if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      # assert augmented does not declare 'obs =' as is not observation
-      if (identical(.kind, "augm")) assert_no_obs_declaration(dots)
       # extract args and proposal
       def_args <- helper_definition_args(proposal, dots)
       args <- def_args$args
@@ -243,20 +242,19 @@ HousepiAugmented <- R6::R6Class(
         .kind <- match.arg(level, c("member", "house"))
       }
 
-      # member-level observation
-      # NOTE: 'obs' string reuses 'prior' column, discriminated by 'kind'
-      if (!is.na(obs)) {
+      # discriminate the model distribution by kind
+      if (identical(.kind, "augm")) {
+        # augmented latent: the model is its density (prior on the latent)
+        prior <- model
+      } else if (!is.na(model)) {
+        # observation kinds (member/house/status): the model string reuses the
+        # 'prior' transport column, discriminated by 'kind'
         # a household observation is a reduction over its members: it carries no
         # density (build_house_obs_variable_ never reads the 'prior' column)
         if (identical(.kind, "house")) stop_h(
           "Household observation {.val {name}} cannot be sampled.",
-          "Provide {.arg value} instead of {.arg obs}."
+          "Provide {.arg value} instead of {.arg model}."
         )
-        if (!is.na(prior)) stop_h(
-          "Conflicting definition for augmented {.val {name}}.",
-          "Provide only one between {.arg {c('prior', 'obs')}}."
-        )
-
         # NOTE: observations cannot be sampled
         if (!is.na(proposal)) warn_h(
           "Observation {.val {name}} cannot be sampled.",
@@ -264,10 +262,7 @@ HousepiAugmented <- R6::R6Class(
         )
         proposal <- NA_character_
 
-        # an augmented declaring 'obs' is promoted to observation; an explicit
-        # kind (observation, status) is preserved
-        if (identical(.kind, "augm")) .kind <- "member"
-        prior <- obs
+        prior <- model
         if (is.na(const)) const <- TRUE
         # an observation reads its datum from a like-named column; a status
         # observation has no inference datum (status is the standard column), so
@@ -290,7 +285,7 @@ HousepiAugmented <- R6::R6Class(
       # control meaningful definition
       if (all(is.null(c(value, func)), is.na(prior))) stop_h(
         "Incomplete definition for augmented {.val {name}}.",
-        "Provide at least one between {.arg {c('value', 'prior', 'func')}}."
+        "Provide at least one between {.arg {c('value', 'model', 'func')}}."
       )
       if (!is.null(value) && !is.null(func)) stop_h(
         "Wrong definition for augmented {.val {name}}.",
@@ -345,8 +340,6 @@ HousepiAugmented <- R6::R6Class(
       # guard before the per-kind reset so an empty call does not silently
       # drop the rows it manages
       assert_nonempty_defin_quos(xquos, self$family)
-      # reject observation-node declarations on the augmented path only
-      if (identical(managed, "augm")) assert_no_obs_declaration(xquos)
       if (isFALSE(append)) {
         # NOTE: kinds share one store, but are treated as independent;
         # observations are a single family, so both levels reset together

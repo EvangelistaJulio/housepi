@@ -74,7 +74,7 @@ test_that("Wrappers work as expected on model 'test'", {
   expect_true("dummy" %in% aug$name)
 
   result <- hhmodel |>
-    add_augmented(dummy = list(prior = "uniform"))
+    add_augmented(dummy = list(model = "uniform"))
   aug <- get_augmented(result)
   expect_true("dummy" %in% aug$name)
 })
@@ -124,7 +124,7 @@ test_that("add_observation routes every input branch on `level`", {
 
   # default level is member
   expect_identical(
-    add_observation(hhmodel, "onset_date", obs = "normal", mean = 0, sd = 1) |>
+    add_observation(hhmodel, "onset_date", model = "normal", mean = 0, sd = 1) |>
       get_observations() |>
       subset(name == "onset_date", "level", drop = TRUE),
     "member"

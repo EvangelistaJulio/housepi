@@ -271,7 +271,6 @@ namespace housepi
         count_ = 0;
         is_power_post_ = false;
         tot_log_lik.clear();
-        tot_augm_log_prior.clear();
         param_values.clear();
         param_priors.clear();
         house_log_lik.clear();
@@ -295,10 +294,6 @@ namespace housepi
             tot_log_lik.emplace_back(sample_size, na::DOUBLE);
             return;
         }
-
-        // allocate the augmented-variable prior total only if any is defined
-        if (mcmc.augm.is_any_prior())
-            tot_augm_log_prior.emplace_back(sample_size, na::DOUBLE);
 
         helper_init_param_draws(this, mcmc.param, sample_size);
         helper_init_house_draws(this, mcmc.data_wide(), sample_size);
@@ -331,17 +326,22 @@ namespace housepi
         for (size_t p : param.list_func)
             param_values[i++][count_] = param.at(p).value();
 
-        // pointwise per-household log-likelihood: transmission plus, when an obs
-        // node exists, the per-household observation contribution summed live from
-        // per-member log_obs (kept current by the move machinery). Obs nodes force
-        // unique eq-classes, so each class is one household.
+        // pointwise per-household log-likelihood: transmission plus, when defined,
+        // the per-household observation and augmented-model contributions summed
+        // live from per-member obs_log_lik / augm_log_lik (kept current by the move
+        // machinery). Both force unique eq-classes when sampled, so each class is
+        // one household; constant augmented models are identical across a class.
         const DataWide &data_wide = mcmc.data_wide();
         const bool with_obs = mcmc.augm.is_any_obs();
+        const bool with_model = mcmc.augm.is_any_model();
         for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
         {
+            const Household &head = data_wide.eq_class_head(R);
             double value = data_wide.house_transm_log_lik(R);
             if (with_obs)
-                value += mcmc.house_log_obs(data_wide.eq_class_head(R));
+                value += mcmc.house_obs_log_lik(head);
+            if (with_model)
+                value += mcmc.house_augm_log_lik(head);
             house_log_lik[R][count_] = value;
         }
 
@@ -356,9 +356,6 @@ namespace housepi
                 member_matrix[c++][count_] = mcmc.aug(a, member);
         }
 
-        // total augmented-variable prior, stored separately when present (feeds lprior)
-        if (!tot_augm_log_prior.empty())
-            tot_augm_log_prior[0][count_] = mcmc.tot_augm_log_prior.value();
         // update sample count
         ++count_;
     }
@@ -431,8 +428,8 @@ namespace housepi
     void MCMCBase::init_equivalence_class_compression()
     {
         // NOTE: equivalence compression is incompatible with sampling augmented data,
-        // per-household augmented priors and per-member observation nodes
-        bool force_unique = augm.is_any_sample() || augm.is_any_prior() || augm.is_any_obs();
+        // per-household augmented models and per-member observation nodes
+        bool force_unique = augm.is_any_sample() || augm.is_any_model() || augm.is_any_obs();
         // however, false could also mean definitions not provided:
         // check if required and in such case set unique preventively
         if (!force_unique && augm.list_export.size() == 0)
@@ -482,17 +479,17 @@ namespace housepi
                 }
     }
 
-    void MCMCBase::recover_total_log_density_(bool is_cache_depen, bool with_augm_prior,
+    void MCMCBase::recover_total_log_density_(bool is_cache_depen, bool with_augm_model,
                                               bool with_obs)
     {
         // recover old value of full log-like
-        // observation / augmented priors were only touched by commit when the matching
+        // observation / augmented models were only touched by commit when the matching
         // flag was set: otherwise recovering would roll them back to a stale value.
         if (with_obs)
             tot_obs_log_lik.recover();
         tot_transm_log_lik.recover();
-        if (with_augm_prior)
-            tot_augm_log_prior.recover();
+        if (with_augm_model)
+            tot_augm_log_lik.recover();
 
         // recover old log-likelihood values for households
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
@@ -501,12 +498,12 @@ namespace housepi
             data_wide().transm_log_lik(house).recover();
 
             // recover from commit_total_log_posterior_
-            if (with_augm_prior)
+            if (with_augm_model)
                 for (size_t i : house.infected_hhindexes())
-                    augm.varia[Index::of(house.member(i))].log_prior.recover();
+                    augm.varia[Index::of(house.member(i))].augm_log_lik.recover();
             if (with_obs)
                 for (size_t i : house.infected_hhindexes())
-                    augm.varia[Index::of(house.member(i))].log_obs.recover();
+                    augm.varia[Index::of(house.member(i))].obs_log_lik.recover();
         }
 
         if (is_cache_depen)
@@ -539,12 +536,20 @@ namespace housepi
         return output;
     }
 
-    double MCMCBase::house_log_obs(const Household &house) const
+    double MCMCBase::house_obs_log_lik(const Household &house) const
     {
         double obs = 0.;
         for (size_t i : house.infected_hhindexes())
-            obs += augm.varia[Index::of(house.member(i))].log_obs.value();
+            obs += augm.varia[Index::of(house.member(i))].obs_log_lik.value();
         return obs;
+    }
+
+    double MCMCBase::house_augm_log_lik(const Household &house) const
+    {
+        double model = 0.;
+        for (size_t i : house.infected_hhindexes())
+            model += augm.varia[Index::of(house.member(i))].augm_log_lik.value();
+        return model;
     }
 
     std::vector<std::string> MCMCBase::get_col_names() const
@@ -624,20 +629,22 @@ namespace housepi
         {
             // evaluation across all households
             commit_total_log_posterior_(true);
-            acc.obs = tot_obs_log_lik.value();
-            acc.transm = tot_transm_log_lik.value();
+            acc.obs_ll = tot_obs_log_lik.value();
+            acc.transm_ll = tot_transm_log_lik.value();
+            if (augm.is_any_model())
+                acc.augm_ll = tot_augm_log_lik.value();
         }
         else
         {
             // single household evaluation
             infec_profile.update(); // eventually recompute infectivity profile
             acc = commit_house_log_posterior_(data_wide().at(house_id), true,
-                                              augm.is_any_prior(), augm.is_any_obs());
+                                              augm.is_any_model(), augm.is_any_obs());
         }
 
         // complete-data household log-likelihood (joint over augmented variables):
-        // observation + transmission
-        return acc.obs + acc.transm;
+        // observation + transmission + augmented model
+        return acc.obs_ll + acc.transm_ll + acc.augm_ll;
     }
 
     void MCMC::init_for_evaluation_()
@@ -650,7 +657,7 @@ namespace housepi
         augm.materialize_data_bound_house_obs(data_wide());
         augm.init_for_evaluation();
         data_wide().init_eq_classes(
-            augm.is_any_sample() || augm.is_any_prior() || augm.is_any_obs());
+            augm.is_any_sample() || augm.is_any_model() || augm.is_any_obs());
         data_wide().allocate_all_cache();
         data_wide().allocate_transm_log_lik();
 
@@ -666,7 +673,7 @@ namespace housepi
             model->init_house_for_evaluation(data_wide().eq_class_head(R));
     }
 
-    void MCMC::commit_total_log_posterior_(bool is_cache_depen, bool with_augm_prior, bool with_obs)
+    void MCMC::commit_total_log_posterior_(bool is_cache_depen, bool with_augm_model, bool with_obs)
     {
         if (is_cache_depen)
         {
@@ -676,66 +683,67 @@ namespace housepi
         }
 
         // NOTE: eq-class coincide with all households when obs/prior exist
-        const bool do_prior = with_augm_prior && augm.is_any_prior();
-        const bool do_obs = with_obs && augm.is_any_obs();
+        const bool do_model = with_augm_model && augm.is_any_model();
+        const bool do_obs = with_obs && augm.is_any_obs(); // UPDATE: this should check for obs_model
         LogProbaAccumulator acc = parallel::for_reduce<LogProbaAccumulator>(
             data_wide().eq_class_size(),
             [&](size_t R) -> LogProbaAccumulator
             {
                 double w = data_wide().eq_class_weight(R);
                 LogProbaAccumulator a = commit_house_log_posterior_(
-                    data_wide().eq_class_head(R), is_cache_depen, do_prior, do_obs);
-                return {w * a.obs, w * a.transm, w * a.aprior};
+                    data_wide().eq_class_head(R), is_cache_depen, do_model, do_obs);
+                return {w * a.obs_ll, w * a.transm_ll, w * a.augm_ll};
             });
         if (do_obs)
-            tot_obs_log_lik.set(acc.obs);
-        tot_transm_log_lik.set(acc.transm);
-        if (do_prior)
-            tot_augm_log_prior.set(acc.aprior);
+            tot_obs_log_lik.set(acc.obs_ll);
+        tot_transm_log_lik.set(acc.transm_ll);
+        if (do_model)
+            tot_augm_log_lik.set(acc.augm_ll);
     }
 
-    LogProbaAccumulator MCMC::commit_house_log_posterior_(Household &house, bool is_cache_depen,
-                                                          bool with_augm_prior, bool with_obs)
+    LogProbaAccumulator MCMC::commit_house_log_posterior_(
+        Household &house, bool is_cache_depen,
+        bool with_augm_model, bool with_obs)
     {
         LogProbaAccumulator acc;
         if (with_obs)
             for (size_t i : house.infected_hhindexes())
-                acc.obs += augm.commit_obs_log_lik(house.member(i));
+                acc.obs_ll += augm.commit_obs_log_lik(house.member(i));
 
         // save all household cache dependencies
         if (is_cache_depen)
             model->update_house_cache_dependecies(house);
-        acc.transm = commit_transm_log_lik_(house);
-        if (with_augm_prior)
+        acc.transm_ll = commit_transm_log_lik_(house);
+        if (with_augm_model)
             for (size_t i : house.infected_hhindexes())
-                acc.aprior += augm.commit_augm_log_prior(house.member(i));
+                acc.augm_ll += augm.commit_augm_log_lik(house.member(i));
         return acc;
     }
 
-    double MCMC::commit_total_augm_log_prior_ratio_()
+    double MCMC::commit_total_augm_log_lik_ratio_()
     {
         double acc = parallel::for_reduce<double>(
             data_wide().eq_class_size(),
             [&](size_t R) -> double
             {
                 Household &house = data_wide().eq_class_head(R);
-                double aprior = 0.;
+                double amodel = 0.;
                 for (size_t i : house.infected_hhindexes())
-                    aprior += augm.commit_augm_log_prior(house.member(i));
-                return data_wide().eq_class_weight(R) * aprior;
+                    amodel += augm.commit_augm_log_lik(house.member(i));
+                return data_wide().eq_class_weight(R) * amodel;
             });
-        tot_augm_log_prior.set(acc);
-        return tot_augm_log_prior.ratio();
+        tot_augm_log_lik.set(acc);
+        return tot_augm_log_lik.ratio();
     }
 
-    void MCMC::recover_total_augm_log_prior_()
+    void MCMC::recover_total_augm_log_lik_()
     {
-        tot_augm_log_prior.recover();
+        tot_augm_log_lik.recover();
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
         {
             Household &house = data_wide().eq_class_head(R);
             for (size_t i : house.infected_hhindexes())
-                augm.varia[Index::of(house.member(i))].log_prior.recover();
+                augm.varia[Index::of(house.member(i))].augm_log_lik.recover();
         }
     }
 
@@ -787,14 +795,14 @@ namespace housepi
         {
             double w = data_wide().eq_class_weight(R);
             LogProbaAccumulator a = init_guarded_commit_house_(data_wide().eq_class_head(R));
-            acc += {w * a.obs, w * a.transm, w * a.aprior};
+            acc += {w * a.obs_ll, w * a.transm_ll, w * a.augm_ll};
         }
 
         if (augm.is_any_obs())
-            tot_obs_log_lik.set(acc.obs);
-        tot_transm_log_lik.set(acc.transm);
-        if (augm.is_any_prior())
-            tot_augm_log_prior.set(acc.aprior);
+            tot_obs_log_lik.set(acc.obs_ll);
+        tot_transm_log_lik.set(acc.transm_ll);
+        if (augm.is_any_model())
+            tot_augm_log_lik.set(acc.augm_ll);
     }
 
     LogProbaAccumulator MCMC::init_guarded_commit_house_(Household &house)
@@ -818,26 +826,26 @@ namespace housepi
                         augm.throw_obs_init_error(member);
                     augm.restart(member, setup.prng());
                 }
-                acc.obs += augm.commit_obs_log_lik(member);
+                acc.obs_ll += augm.commit_obs_log_lik(member);
             }
 
         // Transmission:
         model->update_house_cache_dependecies(house);
-        acc.transm = commit_transm_log_lik_(house);
+        acc.transm_ll = commit_transm_log_lik_(house);
         if (data_wide().transm_log_lik(house).is_inf())
             msg::stop(
                 "Initial transmission log-likelihood returned infinity for " +
                 house.err_name() + ".");
 
         // Augmented Prior:
-        if (augm.is_any_prior())
+        if (augm.is_any_model())
             for (size_t i : house.infected_hhindexes())
             {
                 Individual &member = house.member(i);
-                acc.aprior += augm.commit_augm_log_prior(member);
-                if (augm.varia[Index::of(member)].log_prior.is_inf())
+                acc.augm_ll += augm.commit_augm_log_lik(member);
+                if (augm.varia[Index::of(member)].augm_log_lik.is_inf())
                     msg::stop(
-                        "Initial augmented log-prior returned infinity for " +
+                        "Initial augmented log-model returned infinity for " +
                         member.err_name() + ".");
             }
 
@@ -913,8 +921,8 @@ namespace housepi
         // otherwise automatically refuse move
         if (this_par.is_valid_move())
         {
-            // re-evaluate the augmented log-prior only if the parameter affects it
-            const bool with_augm_prior = augm.is_any_prior() && augm.param_affects_augm_prior(p);
+            // re-evaluate the augmented log-model only if the parameter affects it
+            const bool with_augm_model = augm.is_any_model() && augm.param_affects_augm_model(p);
 
             ////////////////////
             ///  METROPOLIS  ///
@@ -925,12 +933,12 @@ namespace housepi
                 // at inverse temperature 0 the likelihood totals are not tracked
                 // they are refreshed from scratch before each stored draw
                 double r = this_par.get_move_log_ratio();
-                if (with_augm_prior)
-                    r += commit_total_augm_log_prior_ratio_();
+                if (with_augm_model)
+                    r += commit_total_augm_log_lik_ratio_();
                 if (setup.exponential() > -r)
                     return;
-                if (with_augm_prior)
-                    recover_total_augm_log_prior_();
+                if (with_augm_model)
+                    recover_total_augm_log_lik_();
             }
             else
             {
@@ -938,16 +946,16 @@ namespace housepi
                 const bool with_obs = augm.is_any_obs() && augm.param_affects_obs_log_lik(p);
 
                 // if parameter is cache dependent, update cache
-                commit_total_log_posterior_(is_cache_depen, with_augm_prior, with_obs);
+                commit_total_log_posterior_(is_cache_depen, with_augm_model, with_obs);
 
                 const double r = setup.inv_temp * (tot_transm_log_lik.ratio() +
                                                    (with_obs ? tot_obs_log_lik.ratio() : 0.)) +
-                                 (with_augm_prior ? tot_augm_log_prior.ratio() : 0.) +
+                                 (with_augm_model ? tot_augm_log_lik.ratio() : 0.) +
                                  this_par.get_move_log_ratio();
                 if (setup.exponential() > -r)
                     return;
                 // else move is refused and log-likelihood recovered
-                recover_total_log_density_(is_cache_depen, with_augm_prior, with_obs);
+                recover_total_log_density_(is_cache_depen, with_augm_model, with_obs);
             }
         }
         // recover old value of parameter
@@ -970,10 +978,10 @@ namespace housepi
         if constexpr (!Beta0)
         {
             if (augm.is_any_obs())
-                tot_obs_log_lik.increment(acc.obs);
-            tot_transm_log_lik.increment(acc.transm);
+                tot_obs_log_lik.increment(acc.obs_ll);
+            tot_transm_log_lik.increment(acc.transm_ll);
         }
-        tot_augm_log_prior.increment(acc.aprior);
+        tot_augm_log_lik.increment(acc.augm_ll);
     }
 
     template <bool Beta0>
@@ -999,8 +1007,8 @@ namespace housepi
         // if 'a' feeds another variable's prior parameter (loc/min/max), moving 'a' shifts
         // their density with no change to their value: snapshot that guarded prior sum now,
         // while 'a' still holds its accepted value, so the ratio can measure the real change.
-        const bool dep = augm.has_prior_dependents(member, a);
-        const double L_old = dep ? augm.sum_guarded_augm_log_prior(member, a) : 0.;
+        const bool dep = augm.has_model_dependents(member, a);
+        const double L_old = dep ? augm.sum_guarded_augm_log_lik(member, a) : 0.;
 
         avar.propose(setup.prng()); // propose new value and save old
         if (avar.is_valid_move())   // proceed only if new value is valid
@@ -1015,34 +1023,34 @@ namespace housepi
             ///  METROPOLIS  ///
             ////////////////////
 
-            const double d_prior = dep
-                ? augm.commit_augm_log_prior_ratio_dependent(member, a, L_old)
-                : commit_augm_log_prior_ratio(member, a);
+            const double d_model = dep
+                                       ? augm.commit_augm_log_lik_ratio_dependent(member, a, L_old)
+                                       : commit_augm_log_lik_ratio(member, a);
 
-            // NOTE: likelihood terms are tempered, the augmented prior is not.
+            // NOTE: likelihood terms are tempered, the augmented model is not.
             if constexpr (Beta0)
             {
                 // at inverse temperature 0 the likelihood totals are not tracked
                 // they are refreshed from scratch before each stored draw
-                if (setup.exponential() > avar.proposal_log_ratio() - d_prior)
-                    return {0., 0., d_prior};
+                if (setup.exponential() > avar.proposal_log_ratio() - d_model)
+                    return {0., 0., d_model};
             }
             else
             {
-                const double d_obs = commit_augm_log_obs_ratio(member, a);
+                const double d_obs = commit_obs_log_lik_ratio(member, a);
                 const double d_transm = commit_transm_log_lik_ratio_(house);
 
-                const double r = setup.inv_temp * (d_obs + d_transm) + d_prior - avar.proposal_log_ratio();
+                const double r = setup.inv_temp * (d_obs + d_transm) + d_model - avar.proposal_log_ratio();
                 if (setup.exponential() > -r)
-                    return {d_obs, d_transm, d_prior};
+                    return {d_obs, d_transm, d_model};
 
                 // recover log-likelihood values
                 if (augm.affects_obs(member, a))
-                    augm.varia[Index::of(member)].log_obs.recover();
+                    augm.varia[Index::of(member)].obs_log_lik.recover();
                 data_wide().transm_log_lik(house).recover();
             }
             // recover log-prior value
-            augm.varia[Index::of(member)].log_prior.recover();
+            augm.varia[Index::of(member)].augm_log_lik.recover();
             // recover cached values
             data_wide().recover_member_old_cached(house, i);
         }

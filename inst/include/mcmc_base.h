@@ -38,7 +38,7 @@ namespace housepi
 		Setup setup;
 		LogProba tot_obs_log_lik;	 /// observation log-likelihood
 		LogProba tot_transm_log_lik; /// transmission log-likelihood
-		LogProba tot_augm_log_prior; /// augmented-variable log-priors
+		LogProba tot_augm_log_lik; /// augmented-variable log-models
 		Posterior posterior;
 
 		/// Pointer to data storage.
@@ -110,7 +110,9 @@ namespace housepi
 		// Pre-compute per-household row offsets. Used to fix OpenMP race in simulations.
 		std::vector<size_t> get_row_offsets() const;
 		/// Sum per-infected-member observation log-likelihhood.
-		double house_log_obs(const Household &house) const;
+		double house_obs_log_lik(const Household &house) const;
+		/// Sum per-infected-member augmented log-likelihhood.
+		double house_augm_log_lik(const Household &house) const;
 
 	protected:
 		///////////////////////////////////
@@ -122,10 +124,10 @@ namespace housepi
 		/// Intialize a single Markov chain for Monte Carlo.
 		void init_monte_carlo_chain_();
 
-		/// Recover the old total log-likelihood, augmented log-priors and observation.
+		/// Recover the old total, augmented and observation log-likelihoods.
 		/// NOTE: called after a refused parameter move.
 		void recover_total_log_density_(bool is_cache_depen,
-										bool with_augm_prior = true,
+										bool with_augm_model = true,
 										bool with_obs = true);
 	};
 }

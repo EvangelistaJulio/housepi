@@ -67,7 +67,8 @@ Random walks perturb the current value:
 }
 Independence samplers draw a fresh value from a distribution:
 \describe{
-\item{\code{"prior"}}{drawn from the \%s distribution;}
+\item{\code{"forward"}}{drawn from the variable's own defining distribution
+(its prior for a parameter, its model for an augmented variable);}
 \item{a distribution name}{drawn from that distribution, e.g.
 \code{proposal = "normal"} with \code{proposal_mean}/\code{proposal_sd}.}
 }

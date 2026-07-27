@@ -106,7 +106,7 @@ test_that("Simulations behave as expected", {
     add_parameter(alpha = 0, beta = 0,
                   gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     run_simulation(obs_process = obs_process)
@@ -123,7 +123,7 @@ test_that("Simulations behave as expected", {
     add_parameter(alpha = 0, beta = 100,
                   gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     run_simulation(obs_process = obs_process)
@@ -229,8 +229,8 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
       add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
       add_augmented(
         infec_time = onset_time - incub_period,
-        onset_time = list(prior = "normal", mean = onset_date@D),
-        incub_period = list(prior = "weibull", shape = 2, scale = 1)
+        onset_time = list(model = "normal", mean = onset_date@D),
+        incub_period = list(model = "weibull", shape = 2, scale = 1)
       ) |>
       add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
   }
@@ -243,8 +243,9 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
         run_inference(steps = 30, thin = 1, adapt = 20, chain = 1,
                       threads = t, id_draws = id_draws)
     )
-    # pointwise log-lik (transmission only, no obs node) matches an independent
-    # R recomputation for every retained draw, under any thread count
+    # pointwise log-lik (transmission plus the augmented model, no obs node)
+    # matches an independent R recomputation for every retained draw, under any
+    # thread count
     param_draws <- get_parameter_draws(results) |>
       posterior::as_draws_matrix() |>
       as.data.frame()
@@ -256,11 +257,11 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
       dplyr::select(name, value) |>
       tidyr::pivot_wider(names_from = "name", values_from = "value") |>
       as.list()
-    transm_ref <- sapply(seq_len(30), function(i) {
+    ll_ref <- sapply(seq_len(30), function(i) {
       df <- join_augm_data(house, get_augm_state(augm_draws, i))
-      augm_infec_obs_log_lik(df, c(param_draws[i, , drop = FALSE], consts))
+      get_log_lik_i(df, c(param_draws[i, , drop = FALSE], consts))
     })
-    expect_equal(get_log_lik_draws(results)$hh01, transm_ref)
+    expect_equal(get_log_lik_draws(results)$hh01, ll_ref)
   }
 })
 
@@ -278,8 +279,8 @@ test_that("Augmented moves preserve log-likelihood", {
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
       infec_time = onset_time - incub_period,
-      onset_time = list(prior = "normal", mean = onset_date@D),
-      incub_period = list(prior = "weibull", shape = 2, scale = 1)
+      onset_time = list(model = "normal", mean = onset_date@D),
+      incub_period = list(model = "weibull", shape = 2, scale = 1)
     ) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
@@ -291,16 +292,9 @@ test_that("Augmented moves preserve log-likelihood", {
                     chain = 1, id_draws = id_draws)
   )
 
-  # no obs node here, so the pointwise log-lik is the transmission likelihood
-  tot_log_lik <- get_log_lik_draws(results)$hh01
-  # full log-density recomposes the likelihood + augmented priors;
-  # augmented prior = joint lprior minus the parameter log-prior. The
-  # per-parameter prior is internal, so reach the private storage to sum it.
-  param_prior <- results$.__enclos_env__$private$param_prior_draws_
-  param_lprior <- if (is.null(param_prior)) 0 else
-    rowSums(posterior::as_draws_matrix(param_prior))
-  augm_prior <- get_complete_draws(results)$lprior - param_lprior
-  tot_log_dens <- unname(tot_log_lik + augm_prior)
+  # the pointwise log-lik folds transmission and the augmented model; with no
+  # obs node it is the full complete-data density (parameter prior aside)
+  tot_log_dens <- unname(get_log_lik_draws(results)$hh01)
 
   param_draws <- get_parameter_draws(results) |>
     posterior::as_draws_matrix() |>
@@ -338,16 +332,16 @@ test_that("Augmented moves preserve log-likelihood", {
       add_augmented(
         infec_time = onset_time - incub_period,
         onset_time = list(value = onset_time@D, const = TRUE,
-                          prior = "normal", mean = onset_date@D),
+                          model = "normal", mean = onset_date@D),
         incub_period = list(value = incub_period@D, const = TRUE,
-                            prior = "weibull", shape = 2, scale = 1)
+                            model = "weibull", shape = 2, scale = 1)
       ) |>
       add_parameter(import = params_i) |>
       add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
       evaluate_log_lik()
   }
   # the fresh-model likelihood matches the tracked pointwise likelihood
-  expect_equal(tot_log_lik[n_steps], housepi_eval(n_steps))
+  expect_equal(tot_log_dens[n_steps], housepi_eval(n_steps))
 })
 
 test_that("Observation node enters the pointwise log-likelihood", {
@@ -363,10 +357,10 @@ test_that("Observation node enters the pointwise log-likelihood", {
     add_parameter_template() |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
-      infec_time = list(prior = "uniform", min = -14, max = end_date@D)
+      incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
+      infec_time = list(model = "uniform", min = -14, max = end_date@D)
     ) |>
-    add_observation("onset_date", obs = "normal",
+    add_observation("onset_date", model = "normal",
                     mean = infec_time + incub_period, sd = 1) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
@@ -386,16 +380,24 @@ test_that("Observation node enters the pointwise log-likelihood", {
     tidyr::pivot_wider(names_from = "name", values_from = "value") |>
     as.list()
 
-  # the pointwise log_lik combines transmission and observation: it matches an
-  # independent recomputation of both pieces per retained draw
+  # the pointwise log_lik combines transmission, observation and the augmented
+  # model: it matches a fresh-model evaluation with the augmented values pinned
   ref <- sapply(seq_len(n_steps), function(i) {
     df <- join_augm_data(house, get_augm_state(augm_draws, i))
-    transm <- augm_infec_obs_log_lik(df, c(param_draws[i, , drop = FALSE],
-                                           consts))
-    dd <- df[df$status > 0, ]
-    obs <- sum(dnorm(dd$onset_date, mean = dd$infec_time + dd$incub_period,
-                     sd = 1, log = TRUE))
-    transm + obs
+    par <- c(param_draws[i, , drop = FALSE], consts)
+    df |>
+      new_housepi_model("case_ascertained", quiet = TRUE) |>
+      add_augmented(
+        incub_period = list(value = incub_period@D, const = TRUE,
+                            model = "gamma", shape = 2, scale = 1, max = 14),
+        infec_time = list(value = infec_time@D, const = TRUE,
+                          model = "uniform", min = -14, max = end_date@D)
+      ) |>
+      add_observation("onset_date", model = "normal",
+                      mean = infec_time + incub_period, sd = 1) |>
+      add_parameter(import = par) |>
+      add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
+      evaluate_log_lik()
   })
   expect_equal(get_log_lik_draws(results)$hh01, ref)
 })
@@ -419,13 +421,13 @@ test_that("Observation through a deterministic node constrains its ancestors", {
       add_parameter_template() |>
       add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
       add_augmented(
-        incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
-        infec_time = list(prior = "uniform", min = -14, max = end_date@D),
+        incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
+        infec_time = list(model = "uniform", min = -14, max = end_date@D),
         onset_time = infec_time + incub_period
       ) |>
       # tightly informative observation reached through the deterministic node
       add_observation(
-        "onset_date", obs = "normal", mean = onset_time, sd = 0.2
+        "onset_date", model = "normal", mean = onset_time, sd = 0.2
       ) |>
       add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
       run_inference(steps = 400, burn = 100, thin = 1, adapt = 100,
@@ -457,11 +459,11 @@ test_that("Discretized observation node initializes finite", {
     add_parameter_template() |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1, max = 14),
-      infec_time = list(prior = "uniform", min = -14, max = end_date@D)
+      incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
+      infec_time = list(model = "uniform", min = -14, max = end_date@D)
     ) |>
     # discretized observation: the path that previously broke initialization
-    add_observation("onset_date", obs = "normal", discr = TRUE,
+    add_observation("onset_date", model = "normal", discr = TRUE,
                     loc = infec_time + incub_period) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
@@ -482,11 +484,11 @@ test_that("Observation node generates the data column in simulation", {
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time   = -incub_period
     ) |>
     # one definition set drives simulation too: no hand-written obs_process
-    add_observation("onset_date", obs = "normal",
+    add_observation("onset_date", model = "normal",
                     mean = infec_time + incub_period, sd = 1) |>
     run_simulation()
 
@@ -512,10 +514,10 @@ test_that("Household observation derives from simulated observations", {
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time   = -incub_period
     ) |>
-    add_observation("test_date", obs = "normal",
+    add_observation("test_date", model = "normal",
                     mean = infec_time + incub_period, sd = 1) |>
     add_observation(start_date = min(test_date@D), level = "house") |>
     run_simulation(nrep = 2)
@@ -545,12 +547,12 @@ test_that("Simulation leaves overwritten data columns pristine", {
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     # test_date is real provided data AND a generated observation: simulation
     # overwrites it with generated values, then must restore the input
-    add_observation("test_date", obs = "normal",
+    add_observation("test_date", model = "normal",
                     mean = infec_time + incub_period, sd = 1)
 
   before <- m$export_augmented_data()
@@ -575,7 +577,7 @@ test_that("Augmented variable reads a static data-bound household observation", 
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      infec_time = list(prior = "uniform", min = start_date@D - 5,
+      infec_time = list(model = "uniform", min = start_date@D - 5,
                         max = start_date@D + 5)
     ) |>
     add_observation(start_date = min(test_date@D), level = "house") |>
@@ -595,27 +597,13 @@ test_that("Simulation rejects an augmented variable reading a live household obs
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      infec_time = list(prior = "uniform", min = start_date@D - 5,
+      infec_time = list(model = "uniform", min = start_date@D - 5,
                         max = start_date@D + 5)
     ) |>
-    add_observation("test_date", obs = "normal", mean = infec_time, sd = 1) |>
+    add_observation("test_date", model = "normal", mean = infec_time, sd = 1) |>
     add_observation(start_date = min(test_date@D), level = "house") |>
     run_simulation() |>
     expect_error("[Cc]yclic")
-})
-
-test_that("Observation are reserved to add_observation", {
-  hhmodel <- data.frame(id = seq(2), house_id = "h1", status = 0,
-                        start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained")
-
-  # ensure augmented decorators reject 'obs ='
-  hhmodel |>
-    add_augmented("onset_date", obs = "normal") |>
-    expect_error("add_observation")
-  hhmodel |>
-    add_augmented(onset_date = list(obs = "normal")) |>
-    expect_error("add_observation")
 })
 
 test_that("Deterministic observation node simulates, inference rejects it", {
@@ -625,10 +613,10 @@ test_that("Deterministic observation node simulates, inference rejects it", {
       new_housepi_model("case_ascertained") |>
       add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
       add_augmented(
-        incub_period = list(prior = "gamma", shape = 2, scale = 1),
+        incub_period = list(model = "gamma", shape = 2, scale = 1),
         infec_time   = -incub_period
       ) |>
-      # bare expression (no 'obs =' distribution): a deterministic observation
+      # bare expression (no 'model =' distribution): a deterministic observation
       add_observation(onset_date = floor(infec_time + incub_period))
   }
 
@@ -666,7 +654,7 @@ test_that("Household observations aggregate a data column across members", {
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     add_observation(
@@ -796,7 +784,7 @@ test_that("Status process generates a labelled status factor in simulation", {
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     # categorical drawn first; labels (declaration order) name the statuses
@@ -820,12 +808,12 @@ test_that("Status process drives status-specific augmented blocks", {
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     # status-specific block: symptomatic incubation is longer (character status=)
     add_augmented(status = "symptomatic",
-                  incub_period = list(prior = "gamma", shape = 8, scale = 1)) |>
+                  incub_period = list(model = "gamma", shape = 8, scale = 1)) |>
     add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
     run_simulation()
 
@@ -887,7 +875,7 @@ test_that("Character status round-trips with stable codes", {
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
@@ -917,7 +905,7 @@ test_that("escaped label is configurable", {
     new_housepi_model("case_ascertained", escaped = "healthy") |>
     add_parameter(alpha = 0, beta = 0.001, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1),
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
@@ -955,7 +943,7 @@ test_that("Mixing integer and character status declarations is rejected", {
     add_parameter_template() |>
     add_augmented_template() |>
     add_augmented(
-      incub_period = list(prior = "gamma", shape = 2, scale = 1,
+      incub_period = list(model = "gamma", shape = 2, scale = 1,
                           status = "symptomatic"),
       onset = list(value = 1, status = 1)
     ) |>

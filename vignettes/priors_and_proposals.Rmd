@@ -213,9 +213,9 @@ ggplot(dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
 MCMC proposals determine how candidate parameter values are drawn at each step.
 They come in two families.
 
-*Independence samplers* draw a fresh value from a distribution, like the prior:
+*Independence samplers* draw a fresh value from a distribution, like the variable's own:
 
-* **prior**: direct sampling from the prior;
+* **forward**: direct sampling from the variable's own defining distribution;
 * a **distribution name** (e.g. `"normal"`): sampling from that distribution,
   with its parameters supplied as `proposal_mean`, `proposal_sd`, ...
 
@@ -247,7 +247,7 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 
 new_housepi_model(model = "test") |>
   add_parameter(
-    from_prior = list(prior = "normal", min = 0, proposal = "prior"),
+    forward = list(prior = "normal", min = 0, proposal = "forward"),
     rw_unif = list(prior = "normal", min = 0, proposal = "rw_unif"),
     rw = list(prior = "normal", min = 0, proposal = "rw"),
     rw_log = list(prior = "normal", min = 0, proposal = "rw_log")
@@ -275,7 +275,7 @@ This pins the scale to the chosen value and disables adaptation for that variabl
 sigma <- 100
 new_housepi_model(model = "test") |>
   add_parameter(
-    from_prior = list(prior = "normal", min = 0, proposal = "prior"),
+    forward = list(prior = "normal", min = 0, proposal = "forward"),
     rw_unif = list(prior = "normal", min = 0,
                    proposal = "rw_unif", proposal_scale = !!sigma),
     rw = list(prior = "normal", min = 0,
@@ -290,7 +290,7 @@ new_housepi_model(model = "test") |>
 
 Warnings and trace plots show bad mixing:
 the over-sized scale made the random-walk proposals barely move.
-On the contrary, the `from_prior` mechanism mixes as usual.
+On the contrary, the `forward` mechanism mixes as usual.
 Handle `proposal_scale` with care!
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}

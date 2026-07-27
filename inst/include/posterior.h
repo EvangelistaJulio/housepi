@@ -22,11 +22,10 @@ namespace housepi
     {
         using matrix = std::vector<std::vector<double>>;
         /// NOTE: for simplicity tot_* are matrices of 1 column
-        /// NOTE: tot_log_lik is filled only under power posteriors
-        /// while ordinary inference stores pointwise house_log_lik
-        /// log-likelihood = transmission + observation
-        matrix tot_log_lik;                              // joint log-likelihood
-        matrix tot_augm_log_prior;                       // joint augmented priors
+        /// NOTE: tot_log_lik is filled only under power posteriors as the tempered
+        /// transmission + observation; ordinary inference stores the pointwise
+        /// house_log_lik = transmission + observation + augmented model
+        matrix tot_log_lik;                              // joint tempered log-likelihood
         matrix house_log_lik;                            // pointwise log-likelihood
         matrix param_values;                             // parameter values
         matrix param_priors;                             // single parameter priors
@@ -35,7 +34,6 @@ namespace housepi
 
         using headers = std::vector<std::string>;
         /// Column name metadata captured at initialization
-        const headers tot_augm_log_prior_names = {"augm_lprior"};
         headers param_names;
         headers param_prior_names;
         headers augm_col_names;

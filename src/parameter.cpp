@@ -87,7 +87,7 @@ namespace housepi
         pFunc_->assert_is_callable_explicitly();
     }
 
-    void Variable::init_prior(std::string_view opt)
+    void Variable::init_distr(std::string_view opt)
     {
         if (na::is(opt))
             return;
@@ -95,12 +95,12 @@ namespace housepi
             opt, ErrType::Distribution, {Registry::Continuos, Registry::Discrete});
     }
 
-    void Variable::init_prior_attr(std::string_view key, const Attribute &attr)
+    void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
     {
         pDistr_->init_attr(key, attr);
     }
 
-    void Variable::init_prior_reshaping(bool is_discr)
+    void Variable::init_distr_reshaping(bool is_discr)
     {
         if (is_discr)
             pDistr_->init_discretization();
@@ -177,10 +177,10 @@ namespace housepi
 
         try
         {
-            // "prior" and any distribution name are independence samplers;
+            // "forward" and any distribution name are independence samplers;
             // "rw"/"rw_log"/"rw_unif" are random-walk kernels tuned by a "scale" argument.
-            if (proposal == "prior")
-                helper_init_prior_proposal_();
+            if (proposal == "forward")
+                helper_init_distr_proposal_();
             else if (proposal == "rw" || proposal == "rw_log" || proposal == "rw_unif")
             {
                 double scale = na::DOUBLE;
@@ -201,9 +201,9 @@ namespace housepi
         }
     }
 
-    void Variable::helper_init_prior_proposal_()
+    void Variable::helper_init_distr_proposal_()
     {
-        pProp_ = std::make_unique<PriorProposal>(pDistr_.get());
+        pProp_ = std::make_unique<ForwardProposal>(pDistr_.get());
         ratio_mode_ = Ratio::None;
         valid_mode_ = Validity::Always;
     }
@@ -240,7 +240,7 @@ namespace housepi
     void Variable::restart(rnd_gen &prng)
     {
         // UPDATE: this should be useless
-        if (is_constant() || !has_prior())
+        if (is_constant() || !has_distr())
             return;
 
         // an independence proposal draws an absolute, data-informed value (e.g.
@@ -255,7 +255,7 @@ namespace housepi
 
     void Variable::draw_value(rnd_gen &prng)
     {
-        if (has_prior())
+        if (has_distr())
             set(pDistr_->rand(prng));
     }
 
@@ -290,9 +290,9 @@ namespace housepi
         pProp_ = nullptr;
     }
 
-    bool Variable::is_discrete() const noexcept { return has_prior() ? pDistr_->is_discrete()
+    bool Variable::is_discrete() const noexcept { return has_distr() ? pDistr_->is_discrete()
                                                                      : Attribute::is_discrete(); }
-    bool Variable::has_prior() const noexcept { return pDistr_ != nullptr; }
+    bool Variable::has_distr() const noexcept { return pDistr_ != nullptr; }
     bool Variable::is_adaptive() const noexcept { return pProp_ && pProp_->is_adaptive(); }
 
     void Variable::propose(rnd_gen &prng)
@@ -483,15 +483,15 @@ namespace housepi
 
         // assign a prior distribution to the parameter
         parse::Definition parser(input.at("prior")[k]);
-        xparam.init_prior(parser.root.func);
+        xparam.init_distr(parser.root.func);
 
         // load prior arguments
         for (const auto &child : parser.root.children)
-            xparam.init_prior_attr(child.key, translator.to_numeric(child));
+            xparam.init_distr_attr(child.key, translator.to_numeric(child));
         // load parameter range
         for (const auto key : {"min", "max"})
-            xparam.init_prior_attr(key, translator.to_numeric(input.at(key)[k]));
-        xparam.init_prior_reshaping(str::tobool(input.at("discr")[k]));
+            xparam.init_distr_attr(key, translator.to_numeric(input.at(key)[k]));
+        xparam.init_distr_reshaping(str::tobool(input.at("discr")[k]));
 
         // assign proposal (arguments are folded into the proposal call, if any)
         parse::Definition prop(input.at("proposal")[k]);

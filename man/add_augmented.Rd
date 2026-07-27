@@ -14,7 +14,7 @@ add_augmented(
   discr = FALSE,
   func = NULL,
   func_args = NULL,
-  prior = NA_character_,
+  model = NA_character_,
   min = NULL,
   max = NULL,
   proposal = NA_character_,
@@ -37,7 +37,7 @@ One between:
 \item{scalar}{\verb{@N}.}
 }}
 
-\item{...}{named arguments for the prior distribution.
+\item{...}{named arguments for the model distribution.
 Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
 \code{proposal_}. For a random walk, \code{proposal_scale} sets the step scale: if
 omitted it is adapted during inference when \code{adapt > 0}; if a positive numeric
@@ -64,7 +64,7 @@ If applicable, the prior is discretized.}
 
 \item{func_args}{named \code{list} Arguments of the augmented function.}
 
-\item{prior}{\code{character(1)} Choice for the prior distribution.}
+\item{model}{\code{character(1)} Choice for the augmented model distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 One between:
@@ -95,7 +95,8 @@ Random walks perturb the current value:
 }
 Independence samplers draw a fresh value from a distribution:
 \describe{
-\item{\code{"prior"}}{drawn from the \%s distribution;}
+\item{\code{"forward"}}{drawn from the variable's own defining distribution
+(its prior for a parameter, its model for an augmented variable);}
 \item{a distribution name}{drawn from that distribution, e.g.
 \code{proposal = "normal"} with \code{proposal_mean}/\code{proposal_sd}.}
 }
@@ -137,5 +138,5 @@ hhmodel <- dummy_household |>
   new_housepi_model("test") |>
   # define an incubation period drawn from a gamma distribution
   add_augmented("incub_period",
-                prior = "gamma", shape = 2, scale = 1, max = 14)
+                model = "gamma", shape = 2, scale = 1, max = 14)
 }

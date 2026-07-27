@@ -48,6 +48,7 @@ If `TRUE`, additional Monte Carlo details are ignored."
 rd_var_discr_ <- "`logical(1)` Treat definition as discrete.
 If applicable, the %s is discretized."
 rd_var_prior_ <- "`character(1)` Choice for the prior distribution."
+rd_var_model_ <- "`character(1)` Choice for the augmented model distribution."
 rd_var_args_ <- "named arguments for the %s distribution."
 
 rd_var_min_ <- "`numeric(1)` Truncate to a minimum value."
@@ -62,7 +63,8 @@ Random walks perturb the current value:
 }
 Independence samplers draw a fresh value from a distribution:
 \\describe{
-  \\item{`\"prior\"`}{drawn from the %s distribution;}
+  \\item{`\"forward\"`}{drawn from the variable's own defining distribution
+    (its prior for a parameter, its model for an augmented variable);}
   \\item{a distribution name}{drawn from that distribution, e.g.
     `proposal = \"normal\"` with `proposal_mean`/`proposal_sd`.}
 }
@@ -81,11 +83,10 @@ rd_par_discr_ <- sprintf(rd_var_discr_, "prior")
 rd_par_args_ <- paste0(sprintf(rd_var_args_, "prior"), rd_proposal_opts_)
 
 rd_aug_discr_ <- sprintf(rd_var_discr_, "prior")
-rd_aug_args_ <- paste0(sprintf(rd_var_args_, "prior"), rd_proposal_opts_)
+rd_aug_args_ <- paste0(sprintf(rd_var_args_, "model"), rd_proposal_opts_)
 
-rd_obs_dist_ <- "`character(1)` Choice for the observation distribution.
-Reserved to member-level observations.
-Mutually exclusive with `prior`."
+rd_obs_dist_ <- "`character(1)` Choice for the observation model distribution.
+Reserved to member-level observations."
 rd_obs_level_ <- "`character(1)` Level the datum is observed at.
 One between `\"member\"`, one value per positive status individual, and
 `\"house\"`, one value per household reduced over all its members.

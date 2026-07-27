@@ -176,15 +176,16 @@ summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 #' augmented variables. The unnormalised joint log-density splits into the two
 #' bundles this class exposes,
 #' \deqn{\log p(\theta, z, x) =
-#'   \underbrace{\log p(\theta)
-#'               + \log p^\mathrm{augm}(z \mid \theta)}_{\texttt{lprior}}
-#'   + \underbrace{\log p^\mathrm{transm}(x \mid z, \theta)
+#'   \underbrace{\log p(\theta)}_{\texttt{lprior}}
+#'   + \underbrace{\log p^\mathrm{augm}(z \mid \theta)
+#'     + \log p^\mathrm{transm}(x \mid z, \theta)
 #'     + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
 #' where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{augm}} the
-#' augmented-variable prior, \eqn{p^\mathrm{transm}} the transmission likelihood
+#' augmented-variable model, \eqn{p^\mathrm{transm}} the transmission likelihood
 #' and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
-#' the contract of the per-household `log_lik`: with no observation node
-#' \eqn{p^\mathrm{obs} \equiv 1} and `log_lik` contracts to transmission alone.
+#' the contract of the per-household `log_lik`: with no augmented latent or
+#' observation node the remaining terms vanish and `log_lik` contracts to
+#' transmission alone.
 #'
 #' Both bundles are conditional on \eqn{z}, so loo / priorsense operate as
 #' household-leave-one-out under the joint (augmented, parameter) posterior
@@ -203,7 +204,6 @@ HousepiPosteriorDraws <- R6::R6Class(
     param_draws_ = NULL,
     param_prior_draws_ = NULL,
     augm_draws_ = NULL,
-    augm_prior_draws_ = NULL,
     point_log_lik_draws_ = NULL,
     draws_index_ = NULL,
 
@@ -325,9 +325,11 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field log_lik_draws `posterior::draws_df`.
     #' Pointwise per-household log-likelihood
     #' \eqn{\log p^\mathrm{transm}(x \mid z, \theta) +
-    #'   \log p^\mathrm{obs}(x \mid z, \theta)}: transmission plus observation
-    #' (the latter only when an observation node is defined, otherwise the total
-    #' contracts to transmission). It is conditional on the augmented variables
+    #'   \log p^\mathrm{obs}(x \mid z, \theta) +
+    #'   \log p^\mathrm{augm}(z \mid \theta)}: transmission plus observation (the
+    #' latter only when an observation node is defined) plus the augmented-variable
+    #' model (only when augmented latents are defined), otherwise the total
+    #' contracts to transmission. It is conditional on the augmented variables
     #' \eqn{z}, so loo over these columns is a household-leave-one-out under the
     #' joint (augmented, parameter) posterior.
     #' `r rd_natural_log_`
@@ -337,30 +339,26 @@ HousepiPosteriorDraws <- R6::R6Class(
     },
 
     #' @field lprior_draws `posterior::draws_df`.
-    #' Single column `lprior`: the joint log-prior
-    #' \eqn{\log p(\theta) + \log p^\mathrm{augm}(z \mid \theta)}, i.e. the
-    #' parameter log-prior plus the augmented-variable log-prior (the latter
-    #' present only with augmented priors).
+    #' Single column `lprior`: the parameter log-prior \eqn{\log p(\theta)}. The
+    #' augmented-variable log-density enters the `log_lik` bundle, not `lprior`.
     #' `r rd_natural_log_`
     lprior_draws = function(value) {
       if (!missing(value)) stop_read_only("lprior_draws")
       has_param <- !is.null(private$param_prior_draws_) &&
         posterior::nvariables(private$param_prior_draws_) > 0
-      has_augm <- !is.null(private$augm_prior_draws_) &&
-        posterior::nvariables(private$augm_prior_draws_) > 0
-      if (!has_param && !has_augm) return(empty_draws_())
-      base <- if (has_param) private$param_prior_draws_
-      else private$augm_prior_draws_
+      # with no parameter prior the parameter log-prior is an empty product,
+      # log p(theta) = 0; keep a proper zero column over the pointwise draws
+      template <- if (has_param) private$param_prior_draws_
+      else private$point_log_lik_draws_
+      if (is.null(template) || posterior::ndraws(template) == 0) {
+        return(empty_draws_())
+      }
       lp <- if (has_param) {
         rowSums(posterior::as_draws_matrix(private$param_prior_draws_))
       } else {
-        0
+        rep(0, posterior::ndraws(template))
       }
-      if (has_augm) {
-        lp <- lp +
-          as.numeric(posterior::as_draws_matrix(private$augm_prior_draws_)[, 1])
-      }
-      out <- posterior::mutate_variables(base, lprior = lp)
+      out <- posterior::mutate_variables(template, lprior = lp)
       tag_as_housepi_draws(posterior::subset_draws(out, variable = "lprior"))
     },
 
@@ -376,8 +374,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       aux <- private$point_log_lik_draws_
       n_vars <- posterior::nvariables(aux)
       names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
-      # bind parameters, pointwise log_lik and the single joint lprior; the
-      # latter folds in the private per-parameter prior (param_prior_draws_)
+      # bind parameters, pointwise log_lik and the parameter-only lprior
       # NOTE: bind_draws strips the tag, so re-stamp
       tag_as_housepi_draws(
         posterior::bind_draws(private$param_draws_, aux, self$lprior_draws)
@@ -411,11 +408,8 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$augm_draws_ <- private$to_posterior_draws_(
         .engine$flush_augm_draws(ptr)
       )
-      # augmented-prior total kept internal: it feeds `lprior`, not a field
-      private$augm_prior_draws_ <- private$to_posterior_draws_(
-        .engine$flush_tot_augm_log_prior_draws(ptr)
-      )
       # pointwise per-household log-likelihood = transmission (+ observation)
+      # (+ augmented model, when augmented latents are defined)
       private$point_log_lik_draws_ <- private$to_posterior_draws_(
         .engine$flush_house_log_lik_draws(ptr)
       )

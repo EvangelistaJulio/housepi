@@ -84,14 +84,14 @@ namespace housepi
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  *** PriorProposal : class ***  /////////////////////////////////
+    /////////////////////////////////  *** ForwardProposal : class ***  ///////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    class PriorProposal final : public Proposal
+    class ForwardProposal final : public Proposal
     {
     public:
-        PriorProposal(const Distribution *distr) : pDistr_(distr) {}
-        MAKE_PROPOSAL_CLONE_METHOD(PriorProposal)
+        ForwardProposal(const Distribution *distr) : pDistr_(distr) {}
+        MAKE_PROPOSAL_CLONE_METHOD(ForwardProposal)
 
         void rebind_prior(const Distribution *new_distr) override final { pDistr_ = new_distr; }
 
@@ -208,7 +208,7 @@ namespace housepi
             const std::string lo = na::is(intrinsic_lo_) ? "-Inf" : str::format(intrinsic_lo_);
             const std::string hi = na::is(intrinsic_hi_) ? "Inf" : str::format(intrinsic_hi_);
             msg::stop("Proposal " + msg::val(pDistr_->name()) + " has support [" + lo + ", " + hi +
-                      "] that cannot cover the prior domain; use proposal = " + msg::val("prior") +
+                      "] that cannot cover the variable's domain; use proposal = " + msg::val("forward") +
                       ", a random walk, or a proposal unbounded on that side.");
         }
     };

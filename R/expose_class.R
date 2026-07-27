@@ -363,7 +363,7 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 #' @param discr `r rd_aug_discr_`
 #' @param func `r rd_aug_func_`
 #' @param func_args `r rd_aug_funargs_`
-#' @param prior `r rd_var_prior_`
+#' @param model `r rd_var_model_`
 #' @param ... `r rd_aug_args_`
 #' In mode 'multiple', the `name = value` definitions.
 #' @param min `r rd_aug_min_`
@@ -377,13 +377,13 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 #'   new_housepi_model("test") |>
 #'   # define an incubation period drawn from a gamma distribution
 #'   add_augmented("incub_period",
-#'                 prior = "gamma", shape = 2, scale = 1, max = 14)
+#'                 model = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
 add_augmented <- function(hhmodel,
                           name = NULL, value = NULL, ...,
                           status = NA_integer_, const = NA, discr = FALSE,
                           func = NULL, func_args = NULL,
-                          prior = NA_character_,
+                          model = NA_character_,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
                           import = NULL, append = TRUE) {
@@ -398,7 +398,7 @@ add_augmented <- function(hhmodel,
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
     func = rlang::enquo(func), func_args = rlang::enquos(func_args),
-    prior = prior, rlang::enquos(...),
+    model = model, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal,
     .assert = TRUE
@@ -425,7 +425,7 @@ add_augmented_template <- function(hhmodel, append = TRUE) {
 #' Add observation associated to data \eqn{x}, at the level set by `level`.
 #'
 #' At member level, the observation is attached to every positive status
-#' individual. If `obs` is provided, adds to household likelihood during
+#' individual. If `model` is provided, adds to household likelihood during
 #' evaluations, and \eqn{x} is sampled from it during simulations.
 #' If observation is deterministic it is considered as a datum.
 #'
@@ -436,7 +436,7 @@ add_augmented_template <- function(hhmodel, append = TRUE) {
 #' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
-#' @param obs `r rd_obs_dist_`
+#' @param model `r rd_obs_dist_`
 #' @param ... `r rd_obs_args_`
 #' In mode 'multiple', the `name = value` definitions.
 #' @param level `r rd_obs_level_`
@@ -450,7 +450,7 @@ add_augmented_template <- function(hhmodel, append = TRUE) {
 #' @return `r rd_model_out_`
 #' @export
 add_observation <- function(hhmodel, name = NULL,
-                            obs = NA_character_, ...,
+                            model = NA_character_, ...,
                             level = c("member", "house"), value = NULL,
                             status = NA_integer_, discr = FALSE,
                             min = NULL, max = NULL,
@@ -466,8 +466,8 @@ add_observation <- function(hhmodel, name = NULL,
   )
   else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value), status = status,
-    const = NA, discr = discr, prior = NA_character_,
-    obs = obs, rlang::enquos(...),
+    const = NA, discr = discr,
+    model = model, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     .assert = TRUE, .kind = level
   )
@@ -505,8 +505,8 @@ add_status <- function(hhmodel, ..., dist = "categorical") {
   # a single reserved node carries the status process (there is one status)
   pvt$augm_$add_quo(
     name = ".status", value = NULL, status = NA_integer_,
-    const = NA, discr = FALSE, prior = NA_character_,
-    obs = dist, weights,
+    const = NA, discr = FALSE,
+    model = dist, weights,
     .assert = TRUE, .kind = "status"
   )
   # record the ordered status labels (the dictionary lives here, not in C++)

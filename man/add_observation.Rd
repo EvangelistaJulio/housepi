@@ -7,7 +7,7 @@
 add_observation(
   hhmodel,
   name = NULL,
-  obs = NA_character_,
+  model = NA_character_,
   ...,
   level = c("member", "house"),
   value = NULL,
@@ -24,9 +24,8 @@ add_observation(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{obs}{\code{character(1)} Choice for the observation distribution.
-Reserved to member-level observations.
-Mutually exclusive with \code{prior}.}
+\item{model}{\code{character(1)} Choice for the observation model distribution.
+Reserved to member-level observations.}
 
 \item{...}{named arguments for the observation distribution.
 In mode 'multiple', the \code{name = value} definitions.}
@@ -86,7 +85,7 @@ If \code{FALSE} drop all pre-existing definitions.}
 Add observation associated to data \eqn{x}, at the level set by \code{level}.
 
 At member level, the observation is attached to every positive status
-individual. If \code{obs} is provided, adds to household likelihood during
+individual. If \code{model} is provided, adds to household likelihood during
 evaluations, and \eqn{x} is sampled from it during simulations.
 If observation is deterministic it is considered as a datum.
 

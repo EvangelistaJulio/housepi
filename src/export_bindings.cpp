@@ -759,18 +759,6 @@ namespace
         return cols;
     }
 
-    /// Flush total augmented-variable log-prior draws as a data.frame.
-    /// Empty when the model has no augmented prior.
-    Rcpp::List flush_tot_augm_log_prior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
-    {
-        Posterior &post = mcmc_ptr->posterior;
-        if (post.tot_augm_log_prior.empty())
-            return Rcpp::List();
-        return flush_2d_draws_to_df(post.tot_augm_log_prior,
-                                    post.tot_augm_log_prior_names,
-                                    post.count(), "total augmented log-prior");
-    }
-
     /// Rcpp wrapper: parameter value draws as a data.frame.
     Rcpp::List flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
@@ -1088,7 +1076,7 @@ namespace
             for (size_t a : augm.list_export)
             {
                 const Variable &avar = mcmc_ptr->get_augm_varia(a, member_i);
-                if (avar.has_prior())
+                if (avar.has_distr())
                     df_double[c++][i] = hsp_to_rcpp(avar.log_pdf());
             }
         }
@@ -1643,7 +1631,6 @@ RCPP_MODULE(housepi)
     Rcpp::function("export_setup", &export_setup);
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);
     Rcpp::function("export_infec_profile", &export_infec_profile);
-    Rcpp::function("flush_tot_augm_log_prior_draws", &flush_tot_augm_log_prior_draws);
     Rcpp::function("flush_param_draws", &flush_param_draws);
     Rcpp::function("flush_param_log_prior_draws", &flush_param_log_prior_draws);
     Rcpp::function("flush_augm_draws", &flush_augm_draws);

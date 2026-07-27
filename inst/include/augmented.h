@@ -64,8 +64,8 @@ namespace housepi
         {
             size_t idx = 0;                 /// index of status-specific definition
             std::vector<Variable> vec = {}; /// associated variables
-            LogProba log_prior;             /// augmented log-prior
-            LogProba log_obs;               /// observation log-likelihood
+            LogProba augm_log_lik;          /// augmented model log-likelihood
+            LogProba obs_log_lik;           /// observation model log-likelihood
         };
         std::vector<IndivBlock> varia;
 
@@ -157,30 +157,30 @@ namespace housepi
         const std::vector<size_t> &list_sample(const Individual &m) const { return block_of_(m).sample; }
         const std::vector<size_t> &list_adaptive(const Individual &m) const { return block_of_(m).adaptive; }
         const std::vector<size_t> &list_draws(const Individual &m) const { return block_of_(m).draws; }
-        const std::vector<size_t> &list_priors(const Individual &m) const { return block_of_(m).priors; }
+        const std::vector<size_t> &list_models(const Individual &m) const { return block_of_(m).models; }
         const std::vector<size_t> &list_obs(const Individual &m) const { return block_of_(m).obs; }
 
         /// Export column name of the household-level observation.
         const std::string &house_obs_name(size_t b) const { return deftable_.c_name[list_house_export[b]]; }
 
-        /// Compute and store log-prior associated to augmented variables.
+        /// Compute and store log-likelihood of augmented variables associated to Individual.
         /// NOTE: to be called only if any prior is defined.
-        double commit_augm_log_prior(Individual &member);
-        /// Compute and store log-ratio of prior of single augmented variable.
-        double commit_augm_log_prior_ratio(Individual &member, size_t a);
+        double commit_augm_log_lik(Individual &member);
+        /// Compute and store log-ratio of likelihood of single augmented variable.
+        double commit_augm_log_lik_ratio(Individual &member, size_t a);
 
-        /// Whether some other variable reads 'a' as a prior parameter (loc/min/max).
-        /// If so, moving 'a' shifts their prior density and the plain value-ratio is wrong.
-        bool has_prior_dependents(const Individual &m, size_t a) const
+        /// Whether some other variable reads 'a' as a model parameter (loc/min/max).
+        /// If so, moving 'a' shifts their density and the plain value-ratio breaks.
+        bool has_model_dependents(const Individual &m, size_t a) const
         {
             return block_of_(m).consumers[a].size() > 1;
         }
-        /// Guarded sum of the priors that 'a' can shift (its prior-consumers, incl. 'a').
-        /// NOTE: guarded, so an out-of-support consumer contributes -Inf.
-        double sum_guarded_augm_log_prior(const Individual &m, size_t a) const;
-        /// Store the log-ratio of a move of 'a' that shifts its prior-consumers' densities.
-        /// L_old must be sum_guarded_augm_log_prior() sampled before 'a' was proposed.
-        double commit_augm_log_prior_ratio_dependent(Individual &m, size_t a, double L_old);
+        /// Guarded sum of the priors that 'a' can shift (its model-consumers, incl. 'a').
+        /// NOTE: out-of-support consumers contribute with -Inf.
+        double sum_guarded_augm_log_lik(const Individual &m, size_t a) const;
+        /// Store the log-ratio of a move of 'a' that shifts its model-consumers' densities.
+        /// L_old must be sum_guarded_augm_log_lik() sampled before 'a' was proposed.
+        double commit_augm_log_lik_ratio_dependent(Individual &m, size_t a, double L_old);
 
         /// Compute and store observation log-likelihood of observation nodes.
         /// NOTE: to be called only if any observation node is defined.
@@ -210,9 +210,9 @@ namespace housepi
         /// If there are augmented definitions with an adaptive proposal.
         bool is_any_adaptive() const noexcept { return is_any_adaptive_; }
         /// If there are augmented definitions with a prior.
-        bool is_any_prior() const noexcept { return is_any_prior_; }
-        /// If moving given parameter may change the augmented log-prior.
-        bool param_affects_augm_prior(size_t p) const noexcept { return prior_param_depen_[p]; }
+        bool is_any_model() const noexcept { return is_any_model_; }
+        /// If moving given parameter may change the augmented model.
+        bool param_affects_augm_model(size_t p) const noexcept { return model_param_depen_[p]; }
         /// If there are definitions for observations.
         bool is_any_obs() const noexcept { return is_any_obs_; }
         /// If a status observation is defined.
@@ -230,7 +230,7 @@ namespace housepi
         MCMCBase *mcmc_;               /// pointer to owning MCMCBase // UPDATE drop
         bool is_any_sample_ = false;   /// at least one augmented is to sample
         bool is_any_adaptive_ = false; /// at least one augmented has adaptive proposal
-        bool is_any_prior_ = false;    /// at least one augmented prior is provided
+        bool is_any_model_ = false;    /// at least one augmented model is provided
         bool is_any_obs_ = false;      /// at least one observation node is provided
 
         size_t status_obs_def_ = na::INDEX; /// deftable row of status observation
@@ -243,8 +243,8 @@ namespace housepi
         /// Status to internal index.
         std::unordered_map<int, size_t> map_status_to_block_ = {};
 
-        /// Parameters whose moves can change the augmented log-prior.
-        std::vector<bool> prior_param_depen_ = {};
+        /// Parameters whose moves can change the augmented log-likelihood.
+        std::vector<bool> model_param_depen_ = {};
         /// Parameters whose moves can change the observation log-likelihood.
         std::vector<bool> obs_param_depen_ = {};
 
@@ -279,7 +279,7 @@ namespace housepi
 
             std::vector<size_t> order = {}; /// definition order as in the deftable
 
-            std::vector<size_t> priors = {};   /// keys for priors
+            std::vector<size_t> models = {};   /// keys for augmented-model densities
             std::vector<size_t> sample = {};   /// keys for sample
             std::vector<size_t> adaptive = {}; /// keys for adaptive (subset of sample)
             std::vector<size_t> draws = {};    /// keys for draws
@@ -301,10 +301,10 @@ namespace housepi
         /// Check augmented names and assert no reserved names are used.
         void helper_build_assert_input_(const str_table &input);
 
-        /// Collect parameters feeding any augmented prior. Infectivity profile excluded.
+        /// Collect parameters feeding any augmented model. Infectivity profile excluded.
         /// NOTE: call once parameters are registered, i.e. from init_for_evaluation.
         /// NOTE: prior parameters may be registered after the augmented definitions.
-        void set_prior_param_depen_();
+        void set_model_param_depen_();
 
         /// Eventually append infectivity profile definitions.
         void helper_build_append_(InfecProfile &infec_profile);
@@ -342,9 +342,9 @@ namespace housepi
 
         /// Deal with the definition of augmented variable with a prior.
         /// NOTE: process priors only for posterior sampling, not simulations.
-        void helper_init_prior_list_();
-        /// Return dictionary of ordered priors.
-        str_table get_ordered_priors_(const StatusBlock_ &block) const;
+        void helper_init_model_list_();
+        /// Return dictionary of ordered models.
+        str_table get_ordered_models_(const StatusBlock_ &block) const;
 
         /// Deal with observation definitions.
         /// Build per-status obs lists and augmented inverse-dependency map.
@@ -388,9 +388,9 @@ namespace housepi
         /// NOTE: a Variable must already be allocated.
         /// NOTE: observations are generated by simulations.
         void helper_init_attributes_(Individual &member, size_t k, bool simulation = false);
-        /// Auxiliary method to assign attributes to augmented prior.
-        void helper_init_prior_attributes_(Individual &member, size_t k);
-        /// Auxiliary method to assign attributes to augmented function.
+        /// Assign attributes to augmented model.
+        void helper_init_distr_attributes_(Individual &member, size_t k);
+        /// Assign attributes to augmented function.
         void helper_init_func_attributes_(Individual &member, size_t k);
     };
 }

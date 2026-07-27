@@ -16,15 +16,16 @@ data, \eqn{\theta} for the parameter vector and \eqn{z} for that household's
 augmented variables. The unnormalised joint log-density splits into the two
 bundles this class exposes,
 \deqn{\log p(\theta, z, x) =
-  \underbrace{\log p(\theta)
-              + \log p^\mathrm{augm}(z \mid \theta)}_{\texttt{lprior}}
-  + \underbrace{\log p^\mathrm{transm}(x \mid z, \theta)
+  \underbrace{\log p(\theta)}_{\texttt{lprior}}
+  + \underbrace{\log p^\mathrm{augm}(z \mid \theta)
+    + \log p^\mathrm{transm}(x \mid z, \theta)
     + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
 where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{augm}} the
-augmented-variable prior, \eqn{p^\mathrm{transm}} the transmission likelihood
+augmented-variable model, \eqn{p^\mathrm{transm}} the transmission likelihood
 and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
-the contract of the per-household \code{log_lik}: with no observation node
-\eqn{p^\mathrm{obs} \equiv 1} and \code{log_lik} contracts to transmission alone.
+the contract of the per-household \code{log_lik}: with no augmented latent or
+observation node the remaining terms vanish and \code{log_lik} contracts to
+transmission alone.
 
 Both bundles are conditional on \eqn{z}, so loo / priorsense operate as
 household-leave-one-out under the joint (augmented, parameter) posterior
@@ -42,18 +43,18 @@ Draws selected individuals augmented variables.}
 \item{\code{log_lik_draws}}{\code{posterior::draws_df}.
 Pointwise per-household log-likelihood
 \eqn{\log p^\mathrm{transm}(x \mid z, \theta) +
-  \log p^\mathrm{obs}(x \mid z, \theta)}: transmission plus observation
-(the latter only when an observation node is defined, otherwise the total
-contracts to transmission). It is conditional on the augmented variables
+  \log p^\mathrm{obs}(x \mid z, \theta) +
+  \log p^\mathrm{augm}(z \mid \theta)}: transmission plus observation (the
+latter only when an observation node is defined) plus the augmented-variable
+model (only when augmented latents are defined), otherwise the total
+contracts to transmission. It is conditional on the augmented variables
 \eqn{z}, so loo over these columns is a household-leave-one-out under the
 joint (augmented, parameter) posterior.
 Logarithms are natural (base \eqn{e}).}
 
 \item{\code{lprior_draws}}{\code{posterior::draws_df}.
-Single column \code{lprior}: the joint log-prior
-\eqn{\log p(\theta) + \log p^\mathrm{augm}(z \mid \theta)}, i.e. the
-parameter log-prior plus the augmented-variable log-prior (the latter
-present only with augmented priors).
+Single column \code{lprior}: the parameter log-prior \eqn{\log p(\theta)}. The
+augmented-variable log-density enters the \code{log_lik} bundle, not \code{lprior}.
 Logarithms are natural (base \eqn{e}).}
 
 \item{\code{complete_draws}}{\code{posterior::draws_df}.

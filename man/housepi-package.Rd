@@ -6,7 +6,7 @@
 \alias{housepi-package}
 \title{housepi: Household Epidemiological Modelling and Analysis}
 \description{
-Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to household studies with Bayesian MCMC. Validation is supported through posterior predictive checks and parameter recovery checks. A C++ back end supports data augmentation of unobserved variables, individual- and household-level covariates, and time-varying infectivity profiles.
+Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to data with Bayesian MCMC. It enables data augmentation, infectivity profiles, individual group and contact risks. Validation is supported through posterior predictive checks and parameter recovery checks.
 }
 \details{
 To create a model call \code{\link[=new_housepi_model]{new_housepi_model()}} from one of the built-in transmission models

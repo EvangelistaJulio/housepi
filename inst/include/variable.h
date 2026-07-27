@@ -69,21 +69,21 @@ namespace housepi
         void init_func_reshaping(bool discr);
 
         /// Initialize pointer to distribution.
-        void init_prior(std::string_view opt);
+        void init_distr(std::string_view opt);
         /// Assign an attribute to distribution.
-        void init_prior_attr(std::string_view key, const Attribute &attr);
+        void init_distr_attr(std::string_view key, const Attribute &attr);
         /// Finalize reshaping of distribution.
         /// NOTE: to be called necessarily.
-        void init_prior_reshaping(bool discr);
+        void init_distr_reshaping(bool discr);
         /// Initialize pointer to proposal.
         /// NOTE: it must be assigned after model initialization.
-        /// Random-walk kernels (rw/rw_log/rw_unif) read a "scale" argument; independence
-        /// samplers (prior, or a distribution name) draw from an owned distribution.
+        /// Random-walk kernels (rw/rw_log/rw_unif) read a "scale" argument;
+        /// independence samplers draw from an owned distribution.
         void init_proposal(const std::string &proposal, const dict<Attribute> &args);
 
         /// Enforce user choice for constant.
         void enforce_user_const() noexcept { is_user_const_ = true; }
-        /// If applicable, initialize value from prior.
+        /// If applicable, initialize value from distribution.
         /// Reset default scale for adaptive proposal rule.
         void restart(rnd_gen &prng);
         /// Draw the value from the distribution (used to generate observation
@@ -101,8 +101,8 @@ namespace housepi
 
         /// Wheter the variable is discrete.
         bool is_discrete() const noexcept override final;
-        /// Wheter the variable has a prior or a model associated.
-        bool has_prior() const noexcept;
+        /// Wheter the variable has a distribution associated.
+        bool has_distr() const noexcept;
         /// Wheter the variable has an adaptive parametric proposal rule.
         bool is_adaptive() const noexcept;
 
@@ -128,7 +128,7 @@ namespace housepi
         /// It assumes the pdf arguemnts (included support) did not change.
         double log_ratio() const;
         double proposal_log_ratio() const;
-        /// Log-ratio of priors, minus log-ratio of proposals for last move.
+        /// Log-ratio of distributions, minus log-ratio of proposals for last move.
         double get_move_log_ratio() const
         {
             switch (ratio_mode_)
@@ -173,8 +173,8 @@ namespace housepi
 
         /// Initialize null proposal.
         void helper_init_null_proposal_();
-        /// Initialize independence proposal drawing directly from the prior.
-        void helper_init_prior_proposal_();
+        /// Initialize independence proposal drawing directly from distribution.
+        void helper_init_distr_proposal_();
         /// Initialize a random-walk proposal (rw/rw_log/rw_unif kernel).
         void helper_init_random_walk_proposal_(const std::string &proposal, double scale);
         /// Initialize an independence proposal drawing from a named distribution.
