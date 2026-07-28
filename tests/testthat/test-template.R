@@ -84,13 +84,13 @@ test_that("fmt_assert_cli formats messages correctly", {
   expect_true(any(grepl("Parameters", result)))
   expect_true(any(grepl("are", result)))
 
-  # minor mode: rewrites "is required by" to "can be specified for"
+  # minor mode: rewrites "Required by" to "Can be specified for"
   result <- fmt_assert_cli(
     "Parameters",
-    c("There was 1 definition. It was required by augmented definitions."),
+    c("There was 1 definition.", "Required by augmented definitions."),
     minor = TRUE
   )
-  expect_true(any(grepl("can be specified", result)))
+  expect_true(any(grepl("Can be specified", result)))
 })
 
 test_that("browse_templates branches inform correctly", {

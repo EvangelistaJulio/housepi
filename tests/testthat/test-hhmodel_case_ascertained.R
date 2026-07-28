@@ -396,7 +396,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
       add_observation("onset_date", model = "normal",
                       mean = infec_time + incub_period, sd = 1) |>
       add_parameter(import = par) |>
-      add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
+      add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
       evaluate_log_lik()
   })
   expect_equal(get_log_lik_draws(results)$hh01, ref)

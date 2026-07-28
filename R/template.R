@@ -231,8 +231,8 @@ open_model_helper_ <- function(path) {
 #' browse_templates()
 #' @export
 browse_templates <- function(name = NA_character_,
-                                     path = NA_character_,
-                                     replace = FALSE) {
+                             path = NA_character_,
+                             replace = FALSE) {
   if (is.na(name)) show_model_names()
   else if (!is.character(name)) stop_h("Model name is not a character.")
   else if (is.na(get_template_dir(name))) stop_h(
@@ -261,6 +261,13 @@ set_source_name_ <- function(x, name = NA_character_) {
         nchar(name) > 0 &&
         !is.null(x)) names(x) <- rep(name, length(x))
   x
+}
+
+# Collapse definition sources into a phrase.
+format_sources_phrase_ <- function(sources) {
+  if (length(sources) == 0) return(NULL)
+  if (sources == "model") return("transmission model")
+  paste(sources, "definitions")
 }
 
 #' Extract arguments following a key holder in REGISTER_HOUSEPI_KEYS.
@@ -318,9 +325,7 @@ template_missing_stop <- function(required, defined, holder, max_print = 4,
             as_plural(noun, len_miss, "s:"),
             character_to_string_list(miss, max_print = max_print,
                                      style = style)),
-    sprintf("%s required by %s definitions.",
-            as_plural("", len_miss, "They were", "It was"),
-            character_to_phrase(sources))
+    sprintf("Required by %s.", format_sources_phrase_(sources))
   )
   output
 }
@@ -396,8 +401,8 @@ fmt_assert_cli <- function(section, sms, minor = FALSE) {
   # colour the section name to match its bullet
   if (length(sms) == 0) return(stats::setNames(cli::col_green(section), "v"))
   col <- if (minor) cli::col_yellow else cli::col_red
-  if (minor) sms <- gsub(sms, pattern = " (are|is) required by ",
-                         replacement = " can be specified for ")
+  if (minor) sms <- sub(sms, pattern = "^Required by ",
+                        replacement = "Can be specified for ")
   head <- paste0(col(section), ": ", tolower(substr(sms[1], 1, 1)),
                  substr(sms[1], 2, nchar(sms[1])))
   stats::setNames(c(head, sms[-1]),
