@@ -145,16 +145,13 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Assert contact risk definitions are compatible with the model.
-    assert_contact_risks_ = function() {
-      has_defs <- private$contact_risks_$assert()
-      if (has_defs &&
-            !.engine$has_contact_risks(private$generator_$mcmc_ptr)) {
-        private$drop_contact_risks_()
-        stop_h(
-          "Contact risks are not supported for model {.val {self$name}}.",
-          `!` = "Definitions will be dropped."
-        )
-      }
+    assert_contact_risks_supported_ = function() {
+      if (.engine$has_contact_risks(private$generator_$mcmc_ptr))
+        return(invisible(self))
+      stop_h(
+        "Contact risks are not supported for model {.val {self$name}}.",
+        `!` = "Definitions will be dropped."
+      )
     },
 
     # @description
@@ -174,9 +171,30 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Get template or previously implemented infectiviyt profile.
-    get_internal_infec_profile_ = function() {
-      .engine$export_infec_profile(private$generator_$mcmc_ptr)
+    # Whether the model transmits through an infectivity profile.
+    requires_infec_profile_ = function() {
+      .engine$has_infec_profile(private$generator_$mcmc_ptr)
+    },
+
+    # @description
+    # Assert infectivity profile definitions are compatible with the model.
+    assert_infec_profile_supported_ = function() {
+      if (private$requires_infec_profile_()) return(invisible(self))
+      stop_h(
+        "Infectivity profiles are not supported for model {.val {self$name}}.",
+        `!` = "Definitions will be dropped."
+      )
+    },
+
+    # @description
+    # Assert an infectivity profile is defined when the model needs one.
+    # @param capital `logical(1)` to raise error.
+    assert_infec_profile_ = function(capital = TRUE) {
+      if (!private$requires_infec_profile_() ||
+            length(private$infec_profile_$defs) > 0) return(character())
+      sms <- c("Missing infectivity profile definition.",
+               "Define it with {.fn add_infectivity_profile}.")
+      if (isTRUE(capital)) stop_h(sms) else sms
     },
 
     ############################################################################
@@ -213,9 +231,8 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Assert and pre-build contact risks.
+    # Pre-build contact risks.
     build_contact_risks_ = function() {
-      private$assert_contact_risks_()
       private$helper_build_risks_(private$contact_risks_)
     },
 
@@ -274,22 +291,6 @@ HousepiModel <- R6::R6Class(
         }
       }
       private$group_risks_ <- HousepiGroupRisk$new()
-      private$rebuild_()
-      invisible(self)
-    },
-
-    # @description
-    # Drop contact risk definitions, removing any associated parameters.
-    drop_contact_risks_ = function() {
-      if (!is.null(private$contact_risks_)) {
-        for (p in names(private$contact_risks_$parameters)) {
-          private$param_$remove(p)
-        }
-        if (!is.null(private$param_$defs) && nrow(private$param_$defs) == 0) {
-          private$drop_parameters_()
-        }
-      }
-      private$contact_risks_ <- HousepiContactRisk$new()
       private$rebuild_()
       invisible(self)
     },
@@ -434,8 +435,8 @@ HousepiModel <- R6::R6Class(
       private$assert_data_wide_(capital = TRUE, simulating = simulating)
       private$assert_param_(capital = TRUE)
       private$assert_group_risks_(capital = TRUE)
-      private$assert_contact_risks_()
       private$assert_augm_(capital = TRUE)
+      private$assert_infec_profile_(capital = TRUE)
       # push final state (picks up any stage deferred by dep gating)
       private$rebuild_()
       invisible(self)
@@ -684,20 +685,7 @@ HousepiModel <- R6::R6Class(
     #' @field infectivity_profile `data.frame`. Infectivity profile definitions.
     infectivity_profile = function(value) {
       if (!missing(value)) stop_read_only("infectivity_profile")
-      # get custom definition
-      custom <- private$infec_profile_$showcase()
-      if (length(custom) > 0) return(custom)
-      # get template/previously implemented
-      stored <- private$get_internal_infec_profile_()
-      if (length(stored) == 0) return(NULL)
-      # format exported implementation
-      output <- data.frame(func = stored$func,
-                           func_args = base::I(list(stored$func_args)),
-                           min = stored$min, max = stored$max,
-                           discr = stored$discr,
-                           stringsAsFactors = FALSE)
-      class(output$func_args) <- "list"
-      output
+      private$infec_profile_$showcase()
     },
 
     #' @field group_risks `data.frame`. Group risk definitions.
@@ -859,14 +847,11 @@ HousepiModel <- R6::R6Class(
         }
       }
 
-      # infectivity profile (optional)
-      if (length(private$get_internal_infec_profile_()) > 0) blocks <- c(blocks,
-        list(fmt_assert_cli(
-          "Infectivity profile",
-          if (length(private$infec_profile_$showcase()) == 0)
-            "Using templated profile." else NULL,
-          minor = TRUE
-        ))
+      # infectivity profile (required by the model, or defined anyway)
+      if (private$requires_infec_profile_() ||
+            length(private$infec_profile_$defs) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli("Infectivity profile",
+                            private$assert_infec_profile_(FALSE)))
       )
 
       # order blocks by gravity (error, minor, satisfied), stable within ties

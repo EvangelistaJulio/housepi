@@ -257,9 +257,14 @@ untracked_changes <- function(source_dir, dll) {
   any(trunc_mtime(dll) < c(last_mod, install_time))
 }
 
+# File shipped by a model for each templated definition family.
+template_def_files <- c(parameter = "param.R",
+                        augmented = "augm.R",
+                        `infectivity profile` = "infecprof.R")
+
 # Optional helper files
 helper_files <- function(path) {
-  helper_names <- c("augm.R", "param.R", "info.Rd")
+  helper_names <- c(unname(template_def_files), "info.Rd")
   file.path(path, helper_names)
 }
 

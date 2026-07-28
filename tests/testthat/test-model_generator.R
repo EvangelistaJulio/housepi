@@ -267,25 +267,6 @@ test_that("Model has no leaks", {
 ## MODEL GENERATOR : SHARED REGISTRY ##
 #######################################
 
-test_that("Modules do not get overwritten", {
-  # NOTE: I use profile as a  status flag for models
-  out_1 <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained") |>
-    get_infectivity_profile()
-  expect_gt(length(out_1), 0L)
-
-  flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    get_infectivity_profile() |>
-    expect_length(0L)
-
-  # reload first model
-  sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained") |>
-    get_infectivity_profile() |>
-    expect_identical(out_1)
-})
-
 test_that("Custom models shares function registries", {
   hhmodel_0 <- new_housepi_model(model = "test")
   browse_functions("growth") |>

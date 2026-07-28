@@ -45,14 +45,13 @@ public:
 		request_risk_identifiability(ParamKey::alpha, {GroupRiskKey::community});
 		request_risk_identifiability(ParamKey::beta,
 									 {GroupRiskKey::susceptibility, GroupRiskKey::infectivity}, true);
-
-		// template infectivity profile (otherwise user defined)
-		// UPDATE: this should become more user friendly
-		init_infec_profile_template({{"func", "gamma|mean:var|{2|N}:{1|N}"}});
 	}
 
 	/// Allow for contact risk definitions.
 	bool has_contact_risks() const override final { return true; }
+
+	/// Transmission is driven by an infectivity profile.
+	bool has_infec_profile() const override final { return true; }
 
 	/// NOTE: missing status are not modeled
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }

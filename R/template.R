@@ -152,9 +152,10 @@ copy_template_to_path <- function(name, path) {
   }
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   if (dir.exists(path)) {
-    # model.cpp + info.Rd are always present; param.R / augm.R are optional
+    # source cpp and info are always present
     required <- c("model.cpp", "info.Rd")
-    optional <- c("param.R", "augm.R")
+    # definition templates are optional
+    optional <- unname(template_def_files)
     for (f in c(required, optional)) {
       from_file <- file.path(get_template_dir(name), f)
       if (file.exists(from_file)) overwrite(from_file, file.path(path, f))

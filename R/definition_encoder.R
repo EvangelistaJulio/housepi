@@ -354,11 +354,7 @@ convert_list_to_quosures <- function(input_lst, env = rlang::global_env()) {
 
 # Load a templated list of definitions.
 get_template_def_list <- function(path, family) {
-  if (family == "parameter") {
-    templ_file <- file.path(path, "param.R")
-  } else if (family == "augmented") {
-    templ_file <- file.path(path, "augm.R")
-  }
+  templ_file <- file.path(path, template_def_files[[family]])
 
   # check if template file exists
   if (!file.exists(templ_file)) stop_h(

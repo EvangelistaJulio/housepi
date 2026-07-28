@@ -26,10 +26,6 @@ and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
 the contract of the per-household \code{log_lik}: with no augmented latent or
 observation node the remaining terms vanish and \code{log_lik} contracts to
 transmission alone.
-
-Both bundles are conditional on \eqn{z}, so loo / priorsense operate as
-household-leave-one-out under the joint (augmented, parameter) posterior
-rather than over a marginal likelihood.
 }
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
@@ -45,9 +41,9 @@ Pointwise per-household log-likelihood
 \eqn{
   \log p^\mathrm{obs}(y \mid z, \theta) +
   \log p^\mathrm{transm}(y \mid z, \theta) +
-  \log p^\mathrm{augm}(z \mid \theta)
-}:
-observation, transmission, and augmented model contributions.
+  \log p^\mathrm{augm}(z \mid \theta),
+}
+the observation, transmission, and augmented model contributions.
 Logarithms are natural (base \eqn{e}).}
 
 \item{\code{lprior_draws}}{\code{posterior::draws_df}.
@@ -56,8 +52,7 @@ augmented-variable log-density enters the \code{log_lik} bundle, not \code{lprio
 Logarithms are natural (base \eqn{e}).}
 
 \item{\code{complete_draws}}{\code{posterior::draws_df}.
-Parameters, pointwise \code{log_lik} and the joint \code{lprior}, named to the
-loo / priorsense convention so it can be passed straight to those tools.
+Parameters, pointwise \code{log_lik} and the joint \code{lprior}.
 Note \code{log_lik}/\code{lprior} are evaluated over the joint (augmented,
 parameter) posterior (see \code{log_lik_draws} and \code{lprior_draws}).
 Logarithms are natural (base \eqn{e}).}

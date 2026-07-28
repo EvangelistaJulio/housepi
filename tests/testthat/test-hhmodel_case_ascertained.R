@@ -92,6 +92,19 @@ augm_infec_obs_log_lik <- function(house, param, discr = FALSE) {
     loglike_infectious(house, param, discr)
 }
 
+test_that("Template import loads the profile shipped with the model", {
+  defs <- sarscov2_2021_icofs |>
+    new_housepi_model("case_ascertained") |>
+    add_parameter(import = "template") |>
+    add_augmented(import = "template") |>
+    add_infectivity_profile(import = "template") |>
+    get_infectivity_profile()
+
+  expect_equal(defs$func, "gamma")
+  expect_equal(defs$func_args[[1]], c(mean = 4, var = 3))
+  expect_equal(defs$discr, FALSE)
+})
+
 test_that("Simulations behave as expected", {
   obs_process <- function(df) {
     df$onset_time <- df$infec_time + df$incub_period
@@ -103,6 +116,7 @@ test_that("Simulations behave as expected", {
     # pick introduction randomly with onset_time at 0
     dplyr::mutate(status = NA, start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 0,
                   gamma = 1, hhsize_ref = 4) |>
     add_augmented(
@@ -120,6 +134,7 @@ test_that("Simulations behave as expected", {
     # pick introduction informed by original data; relative-frame anchor at 0
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100,
                   gamma = 1, hhsize_ref = 4) |>
     add_augmented(
@@ -138,6 +153,7 @@ test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), house_id = "h1", status = 0,
              start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(import = "template") |>
     add_augmented(import = "template") |>
     run_inference() |>
@@ -482,6 +498,7 @@ test_that("Observation node generates the data column in simulation", {
     dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -512,6 +529,7 @@ test_that("Household observation derives from simulated observations", {
     dplyr::filter(house_id %in% sample(unique(house_id), 80)) |>
     dplyr::select(-test_date, -start_date) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -545,6 +563,7 @@ test_that("Simulation leaves overwritten data columns pristine", {
     dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -575,6 +594,7 @@ test_that("Augmented variable reads a static data-bound household observation", 
     dplyr::mutate(test_date = 5, end_date = 26) |>
     dplyr::select(-start_date) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       infec_time = list(model = "uniform", min = start_date@D - 5,
@@ -595,6 +615,7 @@ test_that("Simulation rejects an augmented variable reading a live household obs
     dplyr::filter(house_id %in% head(unique(house_id), 20)) |>
     dplyr::select(-test_date, -start_date) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       infec_time = list(model = "uniform", min = start_date@D - 5,
@@ -611,6 +632,7 @@ test_that("Deterministic observation node simulates, inference rejects it", {
   build <- function(data) {
     data |>
       new_housepi_model("case_ascertained") |>
+      add_infectivity_profile(import = "template") |>
       add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
       add_augmented(
         incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -652,6 +674,7 @@ test_that("Household observations aggregate a data column across members", {
 
   simulated <- dat |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -708,6 +731,7 @@ test_that("Data-bound household observation supplies a required data column", {
   build_derived <- function() {
     base |>
       new_housepi_model("case_ascertained") |>
+      add_infectivity_profile(import = "template") |>
       add_parameter(import = "template") |>
       add_augmented(import = "template") |>
       add_observation(start_date = min(test_date@D), level = "house")
@@ -719,6 +743,7 @@ test_that("Data-bound household observation supplies a required data column", {
       dplyr::mutate(start_date = min(test_date, na.rm = TRUE)) |>
       dplyr::ungroup() |>
       new_housepi_model("case_ascertained") |>
+      add_infectivity_profile(import = "template") |>
       add_parameter(import = "template") |>
       add_augmented(import = "template")
   }
@@ -754,6 +779,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
   base |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(import = "template") |>
     add_augmented(import = "template") |>
     add_observation(start_date = min(test_date@D), level = "house") |>
@@ -763,6 +789,7 @@ test_that("Data-bound household observation rejects conflict and latent dependen
   # forbidden household observation depending on parameters
   base |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(import = "template") |>
     add_augmented(import = "template") |>
     add_observation(start_date = min(test_date@D) + alpha@P, level = "house") |>
@@ -782,6 +809,7 @@ test_that("Status process generates a labelled status factor in simulation", {
     dplyr::filter(house_id %in% sample(unique(house_id), 150)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -806,6 +834,7 @@ test_that("Status process drives status-specific augmented blocks", {
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -873,6 +902,7 @@ test_that("Character status round-trips with stable codes", {
     dplyr::filter(house_id %in% sample(unique(house_id), 120)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -903,6 +933,7 @@ test_that("escaped label is configurable", {
     dplyr::filter(house_id %in% sample(unique(house_id), 60)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained", escaped = "healthy") |>
+    add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 0, beta = 0.001, gamma = 1, hhsize_ref = 4) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1),

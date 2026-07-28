@@ -101,9 +101,6 @@ namespace housepi
         /// Build infectivity profile distribution.
         /// NOTE: at the moment I am ignoring minimum
         void build(Translator &translator, const str_table &input);
-        /// Set model template while constructiing model.
-        void init_template(Translator &translator, str_table input);
-        void init_template(Translator &translator, dict<std::string> input);
 
         /// Bind augmented storage for runtime per-member profile resolution.
         void bind_augm(const Augmented *augm) noexcept { paugm_ = augm; }

@@ -446,7 +446,10 @@ is_template_import_ <- function(import) {
 # Reject the sentinel combined with single-mode or inline `...` pairs.
 add_template_defs_ <- function(pvt, family, append, key, dots) {
   assert_no_def_mixing_(key, dots)
-  holder <- if (family == "parameter") pvt$param_ else pvt$augm_
+  holder <- switch(family,
+                   parameter = pvt$param_,
+                   augmented = pvt$augm_,
+                   `infectivity profile` = pvt$infec_profile_)
   if (pvt$generator_$is_test_model()) {
     warn_h("No template {family} definitions available for test model.")
   } else {
@@ -751,6 +754,8 @@ add_group_risk <-  function(hhmodel,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
+  # a replaced definition: its parameters are re-derived by `rebuild_()`
+  pvt$reconcile_risk_params_()
   if (is.null(name) && isFALSE(append)) {
     # NOTE: dropping group risks might cause parameter drops
     pvt$drop_group_risks_()
@@ -815,6 +820,9 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
+  pvt$assert_contact_risks_supported_()
+  # the definition is replaced: its parameters are re-derived by `rebuild_()`
+  pvt$reconcile_risk_params_()
 
   # contact risk holds a single definition:
   # import a named arg list, or the explicit arguments
@@ -847,30 +855,42 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 #' @param discr `r rd_var_discr_("profile")`
 #' @param ... `r rd_var_args_("profile")`
 #' In mode 'multiple', the `func` definitions.
+#' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
-#' @param import `r rd_import_`
+#' @param import `r rd_tmpl_import_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
+#' @examples
+#' # `"template"` loads the profile shipped with the model
+#' hhmodel <- sarscov2_2021_icofs |>
+#'   new_housepi_model("case_ascertained") |>
+#'   add_infectivity_profile(import = "template")
+#' get_infectivity_profile(hhmodel)
 #' @export
 add_infectivity_profile <- function(hhmodel,
                                     func = NULL, ...,
                                     status = NA_integer_, discr = FALSE,
-                                    max = NULL,
+                                    min = NULL, max = NULL,
                                     import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  if (!is.null(import)) pvt$infec_profile_$add_quo_list(
+  pvt$assert_infec_profile_supported_()
+  if (is_template_import_(import)) add_template_defs_(
+    pvt, "infectivity profile", append, func, rlang::enquos(...)
+  )
+  else if (!is.null(import)) pvt$infec_profile_$add_quo_list(
     defs_to_quos_(import, func, rlang::enquos(...), rlang::caller_env()),
     append = append
   )
   else if (!is.null(func)) pvt$infec_profile_$add_quo(
     func = func, status = status, discr = discr,
-    rlang::enquos(...), max = rlang::enquo(max),
+    rlang::enquos(...),
+    min = rlang::enquo(min), max = rlang::enquo(max),
     .assert = TRUE
   )
   else pvt$infec_profile_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...)),
+    assert_bulk_defs_(rlang::enquos(...), has_template = TRUE),
     append = append
   )
   pvt$rebuild_()

@@ -72,7 +72,7 @@ make_ctr_mtx <- function(house, crisks, prefix = "") {
 ## FINAL SIZE HH MODEL : STANDARD CALLS ##
 ##############################################
 
-test_that("Chain binomial guards against missusage", {
+test_that("Chain binomial guards against misusage", {
   # not discretizable
   dummy_household |>
     new_housepi_model("final_size", discr = TRUE) |>
@@ -85,6 +85,12 @@ test_that("Chain binomial guards against missusage", {
     add_parameter(import = "template") |>
     run_inference() |>
     expect_error("missing status.*incompatible")
+
+  # no infectivity profile
+  flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_infectivity_profile(import = "template") |>
+    expect_error("not supported.*dropped")
 })
 
 test_that("Deep clone works as expected", {

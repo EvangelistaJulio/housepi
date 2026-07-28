@@ -174,7 +174,6 @@ hhmodel <- hhmodel |>
     )
   ) |>
   # infectivity profile definitions
-  # FIXME: this needs to be clarified
   add_infectivity_profile("gamma", mean = 4, var = 2.5)
 
 # perform inference

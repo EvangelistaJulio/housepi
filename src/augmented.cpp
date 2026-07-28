@@ -102,57 +102,6 @@ namespace housepi
     InfecProfile::InfecProfile() = default;
     InfecProfile::~InfecProfile() = default;
 
-    void InfecProfile::init_template(Translator &translator, str_table input)
-    {
-        // if not previous build, proceed with template
-        // if no template, assume no need for an infectivity profile
-        if (generic || !augm_definitions.empty() || input.empty())
-            return;
-
-        try
-        {
-            size_t n_rows = read::csv_n_rows(input);
-            const auto file_headers = {"func", "status", "discr", "max"};
-
-            for (const auto &key : file_headers)
-                if (!input.count(key))
-                    input.emplace(key, std::vector<std::string>(n_rows, ""));
-
-            // discretization
-            input["discr"] = std::vector<std::string>(n_rows, "false");
-            if (is_discrete_requested_)
-                input["discr"] = std::vector<std::string>(n_rows, "true");
-
-            else if (input.count("discr"))
-                for (size_t r = 0; r < n_rows; ++r)
-                    if (!na::is(input.at("discr")[r]))
-                        input["discr"][r] = input.at("discr")[r];
-
-            build(translator, input); // run build as if external input
-
-            // forbid augmented infectivity profile for template
-            if (is_augmented())
-                msg::stop(
-                    "Impossible to define infectivity profile template with augmented dependencies.");
-
-            // UPDATE: maybe also not depending on parameters?
-        }
-        catch (const std::exception &e)
-        {
-            msg::stop(
-                std::string(e.what()) +
-                "\nWhile building the infectivity profile template.");
-        }
-    }
-
-    void InfecProfile::init_template(Translator &translator, dict<std::string> input)
-    {
-        str_table new_input = {};
-        for (const auto &[key, val] : input)
-            new_input[key] = {val};
-        init_template(translator, std::move(new_input));
-    }
-
     void InfecProfile::build(Translator &translator, const str_table &input)
     {
         augm_definitions.clear();

@@ -10,6 +10,7 @@ add_infectivity_profile(
   ...,
   status = NA_integer_,
   discr = FALSE,
+  min = NULL,
   max = NULL,
   import = NULL,
   append = TRUE
@@ -30,6 +31,16 @@ If \code{NA}, associate definition to all infectious individuals (default).}
 \item{discr}{\code{logical(1)} Treat definition as discrete.
 If applicable, the profile is discretized.}
 
+\item{min}{\code{numeric(1)} Truncate to a minimum value.
+One between:
+\describe{
+\item{augmented}{\verb{@A};}
+\item{data}{\verb{@D};}
+\item{group risk}{\verb{@G};}
+\item{parameter}{\verb{@P};}
+\item{scalar}{\verb{@N}.}
+}}
+
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 One between:
 \describe{
@@ -40,7 +51,8 @@ One between:
 \item{scalar}{\verb{@N}.}
 }}
 
-\item{import}{Named \code{list} of pre-built definitions to import.
+\item{import}{Named \code{list} of pre-built definitions to import,
+or \code{"template"} for the definitions shipped with the model.
 Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
@@ -68,4 +80,11 @@ Pass a pre-built named list of definitions through \code{import}.
 A definition name colliding with reserved argument
 is deprecated.
 It can be supplied only via single mode definition.
+}
+\examples{
+# `"template"` loads the profile shipped with the model
+hhmodel <- sarscov2_2021_icofs |>
+  new_housepi_model("case_ascertained") |>
+  add_infectivity_profile(import = "template")
+get_infectivity_profile(hhmodel)
 }

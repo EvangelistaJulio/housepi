@@ -486,11 +486,6 @@ namespace
             Rcpp::_["time_step"] = setup.time_step);
     }
 
-    Rcpp::List export_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr)
-    {
-        return helper_export_infec_profile(mcmc_ptr->infec_profile);
-    }
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////  MCMC : DataWide : exports  /////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1439,6 +1434,11 @@ namespace
         return mcmc_ptr->model->has_contact_risks();
     }
 
+    bool has_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr)
+    {
+        return mcmc_ptr->model->has_infec_profile();
+    }
+
     double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
     {
         try
@@ -1624,13 +1624,13 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_augm", &import_augm);
     Rcpp::function("import_param_table", &import_param_table);
     Rcpp::function("has_contact_risks", &has_contact_risks);
+    Rcpp::function("has_infec_profile", &has_infec_profile);
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);
     Rcpp::function("summarise_house_cases", &summarise_house_cases);
     Rcpp::function("summarise_house_sizes", &summarise_house_sizes);
     Rcpp::function("export_setup", &export_setup);
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);
-    Rcpp::function("export_infec_profile", &export_infec_profile);
     Rcpp::function("flush_param_draws", &flush_param_draws);
     Rcpp::function("flush_param_log_prior_draws", &flush_param_log_prior_draws);
     Rcpp::function("flush_augm_draws", &flush_augm_draws);

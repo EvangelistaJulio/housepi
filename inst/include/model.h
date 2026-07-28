@@ -51,6 +51,8 @@ namespace housepi
 
 		/// Whether the model uses contact risks.
 		virtual bool has_contact_risks() const { return false; }
+		/// Whether the model requires an infectivity profile definition.
+		virtual bool has_infec_profile() const { return false; }
 
 		/// Update cached augmeted dependecies for whole household.
 		virtual void update_house_cache_dependecies(Household & /*house*/) {}
@@ -76,9 +78,6 @@ namespace housepi
 
 		/// Initialize advanced setup.
 		virtual void init_advanced_setup() {}
-
-		/// Initialize templated infecvitiy profile.
-		void init_infec_profile_template(dict<std::string> x) { mcmc_->infec_profile.init_template(mcmc_->translator, x); }
 
 		/// Throw an exception if at least a member as missing status.
 		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
