@@ -38,7 +38,7 @@ If \code{NULL}, observation process is ignored.}
 Expects processed \code{data_wide} and returns a \code{data_long} data.frame.
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 
-\item{thin_ess}{\code{logical(1)}. Whether to thin \code{param_table} to its
+\item{thin_ess}{\code{logical(1)} Whether to thin \code{param_table} to its
 bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws.}
 

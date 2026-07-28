@@ -135,7 +135,10 @@ Once the custom model has been compiled, the registered function is visible from
 
 ```{r}
 #| label: test-user-function
-hhmodel <- new_housepi_model(data = dummy_household, model = custom_model)
+# compile the custom model to wire its custom functions to registry
+new_housepi_model(model = custom_model)
+
+# explore the custom function 'growth'
 x <- seq(0, 5, 0.5)
 browse_functions("growth", initial = 2, rate = 0.5)$func(x)
 ```

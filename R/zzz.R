@@ -7,18 +7,19 @@
 
 #' @keywords internal
 #' @details
-#' To create a model call [new_housepi_model()] from one of the built-in transmission models
-#' or a custom model template.
-#' Household data can be provided at construction or later with [add_data_wide()].
+#' To create a model call [new_housepi_model()]
+#' from one of the templated transmission models or a custom model.
+#' Provide household data at construction or later with [add_data_wide()].
 #' Specify the model features with the decorators [add_parameter()],
 #' [add_group_risk()], [add_contact_risk()], [add_infectivity_profile()],
 #' [add_augmented()] and [add_observation()].
-#' Run the inference with [run_inference()], extract draws with 
+#' Run the inference with [run_inference()], extract draws with
 #' [get_parameter_draws()] and summarise them with [summarise_draws()].
 #' Run simulations with [run_simulation()],
-#' predictive checks with [run_epi_predictive_check()]. 
-#' Explore available building blocks using [browse_templates()], 
-#' [browse_distributions()], [browse_functions()] and [browse_infectivity_profiles()].
+#' predictive checks with [run_epi_predictive_check()].
+#' Explore available building blocks using [browse_templates()],
+#' [browse_distributions()], [browse_functions()]
+#' and [browse_infectivity_profiles()].
 "_PACKAGE"
 
 #' @useDynLib housepi, .registration = TRUE

@@ -81,7 +81,7 @@ flextable::flextable(combined) |>
   flextable::separate_header() |>
   flextable::bold(j = ~ hhsize, bold = TRUE) |>
   flextable::merge_v(j = ~ hhsize) |>
-  flextable::align(align = "center", , part = "all") |>
+  flextable::align(align = "center", part = "all") |>
   flextable::labelizor(labels = c(hhsize = "Size",
                                   distr = "Distribution",
                                   cases = "Number of Cases")) |>

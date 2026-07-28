@@ -217,7 +217,8 @@ HousepiContactRisk <- R6::R6Class(
         sprintf("Unrecognized %s for reference:%s",
                 as_plural("choice", length(wrong_entries)),
                 character_to_string_list(wrong_entries)),
-        "Reference should match {.arg by} and use {.code from_}\\{.code to_} prefixes."
+        paste("Reference should match {.arg by}",
+              "and use {.code from_}\\{.code to_} prefixes.")
       )
       as.list(reference)
     },

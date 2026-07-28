@@ -5,6 +5,26 @@
 ## See the LICENSE file for details.
 ##
 
+rd_thin_ess_ <- "`logical(1)` Whether to thin `param_table` to its
+bulk effective sample size (ESS).
+Ignored if `param_table` has no posterior draws."
+rd_max_nrep_ <- "`integer(1)` Larger number of replicates.
+The parameter table (optionally ESS-thinned) is thinned to `max_nrep` rows."
+rd_min_hhsize_ <- "`integer(1)` Minimum household size retained in the outputs.
+If `NA`, no lower bound is applied."
+rd_max_hhsize_ <- "`integer(1)` Maximum household size retained in the outputs.
+If `NA`, no upper bound is applied."
+rd_measure_dots_ <- "Named arguments. `function`s to compute measures from data.
+Each function should return one between `numeric()`, `list` or `data.frame`."
+rd_point_estimate_ <- "`character(1)` Summary statistic used as the predicted
+point estimate across simulations.
+One between `\"mean\"` and `\"median\"`."
+
+############################################################################
+############################################################################
+############################################################################
+
+# UPDATE: is this still necessary?
 #' @importFrom rlang .data
 NULL
 
@@ -159,7 +179,8 @@ ppc_frame_apply_summary <- function(frame_list,
 
 #' Compute the credible interval across different dataframes.
 #' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
-#' @param cri_level `r rd_smpl_cri_level_`
+#' @param cri_level `numeric(1)` Level for credible interval.
+#' It must be a value in (0.5, 1.0).
 #' @param upper `logical(1)` Compute the upper credible interval.
 #' If `FALSE`, compute the lower.
 #' @param name `character(1)` Measure name.
@@ -243,7 +264,7 @@ HousepiCustomPPC <- R6::R6Class(
         warn_h(c(
           "Posterior predictive checks flagged the following:",
           findings,
-          i = "Observed data may be poorly captured by the model."
+          "Observed data may be poorly captured by the model."
         ))
       }
       invisible(self)
@@ -303,7 +324,8 @@ HousepiCustomPPC <- R6::R6Class(
     #' @param ... `r rd_measure_dots_`
     #' @param thin_ess `r rd_thin_ess_`
     #' @param max_nrep `r rd_max_nrep_`
-    #' @param measures_long `r rd_measure_long_`
+    #' @param measures_long `function` | `list` of `function`s.
+    #' Applied to `data_long` (derived via `obs_process_long`).
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     #' @param point_estimate `r rd_point_estimate_`

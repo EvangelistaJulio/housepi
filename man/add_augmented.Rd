@@ -54,7 +54,7 @@ If \code{NA}, associate definition to all infectious individuals (default).}
 If \code{TRUE}, additional Monte Carlo details are ignored.}
 
 \item{discr}{\code{logical(1)} Treat definition as discrete.
-If applicable, the prior is discretized.}
+If applicable, the model is discretized.}
 
 \item{func}{One between:
 \itemize{
@@ -64,7 +64,7 @@ If applicable, the prior is discretized.}
 
 \item{func_args}{named \code{list} Arguments of the augmented function.}
 
-\item{model}{\code{character(1)} Choice for the augmented model distribution.}
+\item{model}{\code{character(1)} Augmented model distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 One between:

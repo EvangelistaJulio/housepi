@@ -186,10 +186,6 @@ summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 #' the contract of the per-household `log_lik`: with no augmented latent or
 #' observation node the remaining terms vanish and `log_lik` contracts to
 #' transmission alone.
-#'
-#' Both bundles are conditional on \eqn{z}, so loo / priorsense operate as
-#' household-leave-one-out under the joint (augmented, parameter) posterior
-#' rather than over a marginal likelihood.
 #' @docType class
 HousepiPosteriorDraws <- R6::R6Class(
   classname = "HousepiPosteriorDraws",
@@ -234,7 +230,7 @@ HousepiPosteriorDraws <- R6::R6Class(
         warn_h(
           "Total sample size was below {diagnostic_[['ss_min']]}.",
           `!` = "Convergence diagnostics were skipped.",
-          i = "Estimates may be unreliable."
+          "Estimates may be unreliable."
         )
         return(invisible())
       }
@@ -295,7 +291,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       substr(hint, 1L, 1L) <- toupper(substr(hint, 1L, 1L))
       warn_h(c(
         "Convergence diagnostics flagged the following:",
-        findings, i = paste0(hint, ".")
+        findings, paste0(hint, ".")
       ))
       invisible()
     }
@@ -315,7 +311,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     },
 
     #' @field augmented_draws `posterior::draws_df`.
-    #' Draws selected individuals augmented variables.
+    #' Draws of the selected individuals' augmented variables.
     augmented_draws = function(value) {
       if (!missing(value)) stop_read_only("augm_draws")
       if (is.null(private$augm_draws_)) return(empty_draws_())
@@ -324,14 +320,12 @@ HousepiPosteriorDraws <- R6::R6Class(
 
     #' @field log_lik_draws `posterior::draws_df`.
     #' Pointwise per-household log-likelihood
-    #' \eqn{\log p^\mathrm{transm}(x \mid z, \theta) +
-    #'   \log p^\mathrm{obs}(x \mid z, \theta) +
-    #'   \log p^\mathrm{augm}(z \mid \theta)}: transmission plus observation (the
-    #' latter only when an observation node is defined) plus the augmented-variable
-    #' model (only when augmented latents are defined), otherwise the total
-    #' contracts to transmission. It is conditional on the augmented variables
-    #' \eqn{z}, so loo over these columns is a household-leave-one-out under the
-    #' joint (augmented, parameter) posterior.
+    #' \eqn{
+    #'   \log p^\mathrm{obs}(y \mid z, \theta) +
+    #'   \log p^\mathrm{transm}(y \mid z, \theta) +
+    #'   \log p^\mathrm{augm}(z \mid \theta),
+    #' }
+    #' the observation, transmission, and augmented model contributions.
     #' `r rd_natural_log_`
     log_lik_draws = function(value) {
       if (!missing(value)) stop_read_only("log_lik_draws")
@@ -363,14 +357,13 @@ HousepiPosteriorDraws <- R6::R6Class(
     },
 
     #' @field complete_draws `posterior::draws_df`.
-    #' Parameters, pointwise `log_lik` and the joint `lprior`, named to the
-    #' loo / priorsense convention so it can be passed straight to those tools.
+    #' Parameters, pointwise `log_lik` and the joint `lprior`.
     #' Note `log_lik`/`lprior` are evaluated over the joint (augmented,
     #' parameter) posterior (see `log_lik_draws` and `lprior_draws`).
     #' `r rd_natural_log_`
     complete_draws = function(value) {
       if (!missing(value)) stop_read_only("complete_draws")
-      # rename pointwise log-likelihood to the loo / priorsense convention
+      # rename pointwise log-likelihood standard convention
       aux <- private$point_log_lik_draws_
       n_vars <- posterior::nvariables(aux)
       names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")

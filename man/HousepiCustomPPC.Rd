@@ -78,9 +78,10 @@ When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 \item{\code{...}}{Named arguments. \code{function}s to compute measures from data.
 Each function should return one between \code{numeric()}, \code{list} or \code{data.frame}.}
 
-\item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s. Applied to \code{data_long} (derived via \code{obs_process_long}).}
+\item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s.
+Applied to \code{data_long} (derived via \code{obs_process_long}).}
 
-\item{\code{thin_ess}}{\code{logical(1)}. Whether to thin \code{param_table} to its
+\item{\code{thin_ess}}{\code{logical(1)} Whether to thin \code{param_table} to its
 bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws.}
 

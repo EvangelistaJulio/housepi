@@ -5,6 +5,27 @@
 ## See the LICENSE file for details.
 ##
 
+## Roxygen text shared by several blocks, read at the use site as `r <name>`.
+
+rd_pwr_frac_ <- "\\eqn{\\frac{r^5}{{n_\\mathrm{rungs}}^5}}{r^5 / n_rungs^5}"
+rd_evi_scheme_ <- sprintf("`character(1)` Scheme used for evidence estimation.
+One between
+\\describe{
+  \\item{`\"adaptive\"`}{uses adaptive thermodynamic ladder (default).}
+  \\item{`\"power-fractions\"`}{uses inverse temperatures %s.}
+}", rd_pwr_frac_)
+rd_evi_rungs_ <- "`integer(1)` Number of rungs in thermodynamic ladder."
+rd_evi_method_ <- "`character(1)` Estimator computed from the sampled ladder.
+One between
+\\describe{
+  \\item{`\"stepping-stone\"`}{stepping-stone sampling (default).}
+  \\item{`\"thermodynamic\"`}{thermodynamic integration.}
+}"
+
+############################################################################
+############################################################################
+############################################################################
+
 #' Warn once per session that log-evidence estimation is experimental.
 #' @noRd
 warn_logevidence_experimental_ <- function() {

@@ -148,19 +148,26 @@ We can call `add_parameter()` as follows:
 
 ```{r}
 #| label: add-parameters
-# alpha : community transmission rate
+
+# single paramter definitions
 hhmodel <- hhmodel |>
+  # baseline community transmission rate
   add_parameter(
     "alpha",            # name matching the model requirement
     prior = "uniform",  # uniform prior
-    proposal = "rw_log" # MCMC proposal
+    proposal = "rw_log" # random walk lognormal proposal
   ) |>
-  # beta : in-household person to person transmission rate
+  # within-household baseline person-to-person transmission rate
   add_parameter("beta", prior = "uniform", proposal = "rw_log")
 
-# lazily complete parameter definitions from housepi templated definitions
+# complete parameter definitions using multiple definitions
 hhmodel <- hhmodel |>
-  add_parameter(import = "template")
+  add_parameter(
+    # constant definition for reference household size
+    hhsize_ref = 4L, 
+    # mixing parameter
+    gamma = list(prior = "uniform", max = 3)
+  )
 
 # inspect current definitions
 hhmodel |> 
@@ -168,7 +175,7 @@ hhmodel |>
 ```
 
 We can also turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE`. In such a case a `value` must be provided.
-To inspect current definitions, simply call `get_parameters` on the model object.
+At any moment we can read the definitions associted to the model object calling `get_parameters()`.
 
 For further information on the available options for priors and MCMC proposals definitions, see [Priors and proposals](priors_and_proposals.html).
 

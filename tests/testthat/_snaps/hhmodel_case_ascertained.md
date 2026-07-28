@@ -3,7 +3,7 @@
     Code
       print(hhmodel)
     Output
-      i Household model "case ascertained" (`template`).
+      i Household transmission model "case ascertained" (`template`).
       ! Group risks: using default group risks.
         Available: "community", "susceptibility" and "infectivity".
       ! Contact risks: using default contact risks.
@@ -18,7 +18,7 @@
     Code
       print(hhmodel)
     Output
-      i Household model "case ascertained" (`template`).
+      i Household transmission model "case ascertained" (`template`).
       Model is set to discrete time mode.
       ! Group risks: using default group risks.
         Available: "community", "susceptibility" and "infectivity".

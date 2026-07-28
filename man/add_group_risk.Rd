@@ -54,7 +54,7 @@ Mutually exclusive with \code{by}.}
 Overrides shared prior/args for parameters specified in the list.
 Ignored if automatic definition.}
 
-\item{prior}{\code{character(1)} Choice for the prior distribution.}
+\item{prior}{\code{character(1)} Prior distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.}
 

@@ -50,7 +50,7 @@ Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
 \item{discr}{\code{logical(1)} Treat definition as discrete.
-If applicable, the prior is discretized.}
+If applicable, the model is discretized.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 One between:

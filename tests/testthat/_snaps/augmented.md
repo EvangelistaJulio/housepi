@@ -3,6 +3,6 @@
     Code
       print(hhmodel)
     Output
-      i Household model "test" (`template`).
+      i Household transmission model "test" (`template`).
       v Augmented
 

@@ -798,14 +798,17 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Override the default printing behavior.
     print = function() {
-      is_tmpl <- !is.na(get_template_dir(private$generator_$raw_name))
-      tmpl_tag <- if (is_tmpl) sprintf(
-        " ({.run [template](housepi::browse_templates(\"%s\"))})",
-        self$name
-      ) else ""
-      header <- c(
-        i = sprintf("Household model {.val %s}%s.", self$name, tmpl_tag)
-      )
+      header <- "Household transmission model {.val {self$name}}"
+
+      # append link to template documentation if any
+      if (!is.na(get_template_dir(private$generator_$raw_name))) {
+        header <- paste(header,
+          sprintf("({.run [template](housepi::browse_templates(\"%s\"))})",
+                  self$name)
+        )
+      }
+      header <- c(i = paste0(header, "."))
+
       # UPDATE: to be rationalize in the future if more options are included
       if ("_HOUSEPI_DISCRETE_TIME" %in% private$generator_$last_flags) {
         header <- c(header, "Model is set to {.emph discrete time} mode.")

@@ -152,17 +152,19 @@ helper_definition_args <- function(proposal, dots) {
       "Advanced {.arg proposal_*} options require an explicit {.arg proposal}."
     )
     if (identical(proposal, "forward")) stop_h(
-      "Independence sampling from {.val forward} takes no {.arg proposal_*} arguments."
+      paste("Independence sampling from {.val forward}",
+            "takes no {.arg proposal_*} arguments.")
     )
     if (is_rw && any(arg_nms != "scale")) stop_h(
-      "Random-walk proposal {.val {proposal}} accepts only {.arg proposal_scale}.",
+      paste("Random-walk proposal {.val {proposal}}",
+            "accepts only {.arg proposal_scale}."),
       x = "Unexpected {.arg {paste0('proposal_', setdiff(arg_nms, 'scale'))}}."
     )
     if (!is_rw && "scale" %in% arg_nms) stop_h(
       "{.arg proposal_scale} tunes a random walk.",
-      i = paste("Use {.val rw}/{.val rw_log}/{.val rw_unif}, or pass",
-                "distribution arguments (e.g. {.arg proposal_mean}) for",
-                "independence sampling from {.val {proposal}}.")
+      paste("Use {.val rw}/{.val rw_log}/{.val rw_unif}, or pass",
+            "distribution arguments (e.g. {.arg proposal_mean}) for",
+            "independence sampling from {.val {proposal}}.")
     )
   }
 
@@ -176,9 +178,6 @@ helper_definition_args <- function(proposal, dots) {
 
 # Interpret user choice for Monte Carlo move.
 helper_variable_move <- function(opts, family) {
-  # the defining distribution to sample from is a prior for parameters/risks,
-  # a model for augmented variables
-  dist_word <- if (identical(family, "augmented")) "model" else "prior"
   # infer if sampling proposal but no constant parameter provided
   if (is.na(opts$const)
       && !(is.na(opts$proposal) && is.na(opts[["prior"]]))) {
@@ -202,14 +201,17 @@ helper_variable_move <- function(opts, family) {
     )
   }
 
+  # prior for parameters/risks, model for augmented variables
+  dist_word <- if (identical(family, "augmented")) "model" else "prior"
   if (is.na(opts$proposal)) {
     if (is.na(opts[["prior"]])) {
       if (is.na(opts$func) &&
             is.numeric(showcaser_extract_numeric(opts$value))) {
         # raise error if const is FALSE (not if NA or already TRUE)
-        if (isFALSE(opts$const)) stop_h(
-          "No {.arg {dist_word}} to sample from for {family} {.val {opts$name}}."
-        )
+        if (isFALSE(opts$const)) stop_h(paste(
+          "No {.arg {dist_word}} to sample from",
+          "for {family} {.val {opts$name}}."
+        ))
         opts$const <- TRUE
       }
     } else {

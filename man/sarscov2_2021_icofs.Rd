@@ -35,10 +35,10 @@ Contacts averaged 3 tests during follow-up.
 }
 
 Each household is followed from its first positive SARS-CoV-2 PCR test
-following from July 2021 (\code{start_date}),
+starting from July 2021 (\code{start_date}),
 until the latest in-window positive or negative test (\code{end_date}).
 Vaccination status (\code{vacc_status}) reflects the doses effective
-at the start of the follow-up, assuming a 7 days delay for effectiveness.
+at the start of the follow-up, assuming a 7-day delay for effectiveness.
 
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}

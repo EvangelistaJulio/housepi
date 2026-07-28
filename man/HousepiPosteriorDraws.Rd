@@ -38,18 +38,16 @@ rather than over a marginal likelihood.
 Draws of parameters.}
 
 \item{\code{augmented_draws}}{\code{posterior::draws_df}.
-Draws selected individuals augmented variables.}
+Draws of the selected individuals' augmented variables.}
 
 \item{\code{log_lik_draws}}{\code{posterior::draws_df}.
 Pointwise per-household log-likelihood
-\eqn{\log p^\mathrm{transm}(x \mid z, \theta) +
-  \log p^\mathrm{obs}(x \mid z, \theta) +
-  \log p^\mathrm{augm}(z \mid \theta)}: transmission plus observation (the
-latter only when an observation node is defined) plus the augmented-variable
-model (only when augmented latents are defined), otherwise the total
-contracts to transmission. It is conditional on the augmented variables
-\eqn{z}, so loo over these columns is a household-leave-one-out under the
-joint (augmented, parameter) posterior.
+\eqn{
+  \log p^\mathrm{obs}(y \mid z, \theta) +
+  \log p^\mathrm{transm}(y \mid z, \theta) +
+  \log p^\mathrm{augm}(z \mid \theta)
+}:
+observation, transmission, and augmented model contributions.
 Logarithms are natural (base \eqn{e}).}
 
 \item{\code{lprior_draws}}{\code{posterior::draws_df}.

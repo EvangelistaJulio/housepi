@@ -43,7 +43,8 @@ or un-prefixed names (applied to both from and to).}
 If \code{FALSE}, covariates are independent (default).}
 
 \item{symmetric}{\code{logical(1)} Treat contact as symmetric.
-If \code{TRUE}, contact pairs infector-infectee are treated as equivalent (default).}
+If \code{TRUE}, contact pairs infector-infectee are treated as equivalent
+(default).}
 
 \item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
 Each row defines one stratum. If \code{NA}, then match any value.
@@ -54,7 +55,7 @@ Mutually exclusive with \code{by}.}
 Overrides shared prior/args for parameters specified in the list.
 Ignored if automatic definition.}
 
-\item{prior}{\code{character(1)} Choice for the prior distribution.}
+\item{prior}{\code{character(1)} Prior distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.}
 

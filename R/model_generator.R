@@ -212,7 +212,7 @@ HousepiGenerator <- R6::R6Class(
     helper_init_model_choice_ = function(model) {
       choice <- "test"
       if (all(is.na(model) | is.null(model))) warn_h(
-        "No model specified. Falling back to {.val test} model.",
+        "No model specified: falling back to {.val test} model.",
         "To show available templates, run {.run browse_templates()}."
       )
       else if (length(model) != 1 || !is.character(model)) stop_h(

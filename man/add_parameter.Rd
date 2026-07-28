@@ -44,7 +44,7 @@ If \code{TRUE}, additional Monte Carlo details are ignored.}
 \item{discr}{\code{logical(1)} Treat definition as discrete.
 If applicable, the prior is discretized.}
 
-\item{prior}{\code{character(1)} Choice for the prior distribution.}
+\item{prior}{\code{character(1)} Prior distribution.}
 
 \item{func}{One between:
 \itemize{

@@ -47,7 +47,7 @@ hhmodel <- sarscov2_2021_icofs |>
   new_housepi_model("case_ascertained")
 ```
 
-The current loaded model allows for a number of group risks, among which the individual `"susceptibility"` (use `help()` method to learn more).
+The current loaded model allows for a number of group risks, among which the individual `"susceptibility"` (use `$help()` method to learn more).
 We can define it calling `add_group_risk()`.
 By default, all group risks without a definition will be treated as associated to the reference (i.e. `1`). Definitions will add a new parameter for each group, except for the reference group.
 By default, the definition assumes the reference group to be the one with the largest number of counts.
