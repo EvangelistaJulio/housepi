@@ -298,7 +298,7 @@ test_that("Custom models shares function registries", {
 
   # no templates available for custom example
   hhmodel_1 |>
-    add_augmented_template() |>
+    add_augmented(import = "template") |>
     expect_error("file.*not found")
 
   # Growth_ overrides only raw_function_ and raw_primitive_

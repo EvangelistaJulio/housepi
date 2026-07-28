@@ -98,10 +98,10 @@ rd_inf_args_ <- sprintf(rd_var_args_, "profile")
 
 rd_import_ <- "Named `list` of pre-built definitions to import.
 Cannot be combined with single and/or multiple definitions."
+rd_tmpl_import_ <- "Named `list` of pre-built definitions to import,
+or `\"template\"` for the definitions shipped with the model.
+Cannot be combined with single and/or multiple definitions."
 rd_list_append_ <- "`logical(1)` Append to current definitions.
-If `FALSE` drop all pre-existing definitions."
-
-rd_tmpl_append_ <- "`logical(1)` Append only missing definitions.
 If `FALSE` drop all pre-existing definitions."
 
 ############################################################################

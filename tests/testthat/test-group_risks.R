@@ -94,7 +94,7 @@ test_that("Group risks integrate with data", {
 test_that("Group risks hold without data and re-derive on add_data_wide", {
   # risks ingest data: a data-less model holds them, no risk params yet
   metalgear <- new_housepi_model(model = "final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     add_group_risk("susceptibility", by = "member")
   expect_silent(metalgear)
   expect_false(any(grepl("^sus_member", metalgear$parameters$name)))

@@ -54,7 +54,7 @@ head(dataset)
 # define a final-size model and load parameter template
 hhmodel <- dataset |>
   new_housepi_model("final_size") |>
-  add_parameter_template()
+  add_parameter(import = "template")
 ```
 
 Use `add_contact_risk()` to define pairwise transmission rates based on a categorical feature.

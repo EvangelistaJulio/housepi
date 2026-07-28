@@ -32,7 +32,7 @@ test_that("Model class inconsistent IDs throw errors", {
 test_that("Wide data can be deferred and attached with add_data_wide", {
   # construct without data: silent, no data exposed
   hhmodel <- new_housepi_model(model = "final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   expect_null(hhmodel$data_wide)
 
   # evaluate_/run_ refuse a data-less model
@@ -69,9 +69,9 @@ test_that("Model class 'test' calls", {
   expect_equal(snapshot$data_wide, hhmodel$data_wide)
 
   # templates
-  add_parameter_template(hhmodel) |>
+  add_parameter(hhmodel, import = "template") |>
     expect_warning("test")
-  add_augmented_template(hhmodel) |>
+  add_augmented(hhmodel, import = "template") |>
     expect_warning("test")
 
   # zero log-likelihood ('test' model evaluates silently)
@@ -132,7 +132,7 @@ test_that("Print behavior works as expected", {
   # with data and parameters
   flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     print() |>
     expect_snapshot()
 
@@ -186,7 +186,7 @@ test_that("Model class inconsistent inference throw errors", {
   # missing status: all
   data.frame(id = "m1", house_id = "h1", status = NA) |>
     new_housepi_model("final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     run_inference() |>
     expect_error("missing status")
 })
@@ -194,7 +194,7 @@ test_that("Model class inconsistent inference throw errors", {
 test_that("Posterior memory budget is asserted", {
   house <- data.frame(house_id = 1, id = "a", status = 0)
   hhmodel <- new_housepi_model(house, "final_size")
-  hhmodel <- add_parameter_template(hhmodel)
+  hhmodel <- add_parameter(hhmodel, import = "template")
   hhmodel |>
     run_inference(steps = 1e20, chains = 1e3, progress = FALSE) |>
     expect_error("memory budget")
@@ -261,7 +261,7 @@ test_that("run_simulation auto-imports parameters from param_table", {
 test_that("run_simulation returns combined wide/long output", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   # supplying obs_process_long forces the long branch into a non-empty list
   # single simulation by default
   obs_long <- function(x) data.frame(id = "vic-boss", measure = 1.0)

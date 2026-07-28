@@ -21,7 +21,7 @@ test_that("Augmented definition error are recognized", {
 
   # UPDATE: the hint `'!!!'` here seems off
   mk_augm$model |>
-    add_augmented(import = list(list(model = "normal"))) |> 
+    add_augmented(import = list(list(model = "normal"))) |>
     expect_error("non-empty")
 })
 
@@ -60,7 +60,7 @@ test_that("Dependency errors name the family and the intended source", {
     expect_error("Did you mean .test_date@D.")
   mk_augm$model |>
     add_parameter(ocelot = list(prior = "gamma", shape = 2, scale = 1)) |>
-    add_observation(onset_date = list(model = "normal", mean = ocelot, sd = 1)) |>
+    add_observation(onset_date = list(model = "normal", mean = ocelot)) |>
     expect_error("Did you mean .ocelot@P.")
 
   # nothing of that name anywhere
@@ -640,15 +640,18 @@ test_that("A simulation override (value + prior) rejects forward dependencies", 
     expect_error("[Ss]imulation override.*augmented")
 })
 
-test_that("Group/contact risk keyed on an observation is rejected in simulation only", {
-  # the rate feeds transmission, which the observation is generated from: fine in
-  # inference (observed data), circular when generating during simulation.
-  hhmodel <- data.frame(house_id = c(1, 1), status = c(1, 0), severity = c(2, 3)) |>
+test_that("Group risk keyed on an observation is rejected in simulation", {
+  # Allowing risks on observations...
+  # UPDATE: is this legit? how's the reference chosen here?
+  hhmodel <- data.frame(
+    house_id = c(1, 1), status = c(1, 0), severity = c(2, 3)
+  ) |>
     new_housepi_model("final_size") |>
     add_group_risk("susceptibility", by = "severity") |>
     add_observation("severity", model = "uniform", min = 0, max = 5) |>
-    add_parameter_template()
+    add_parameter(import = "template")
 
+  # group risk depending on simulation observation is illegal
   hhmodel |>
     run_simulation(nrep = 1L) |>
     suppressMessages() |>
@@ -685,16 +688,15 @@ test_that("A value paired with a prior overrides the draw in simulation only", {
   expect_true(all(run_simulation(hhmodel)$snake == 7))
 
   # inference: the value does not pin the sampler (draws span the prior, not the override)
-  draws <- suppressWarnings( # short smoke run trips the convergence-size diagnostic
-    hhmodel |>
-      run_inference(steps = 40L, chains = 1L, id_draws = "1", progress = FALSE) |>
-      get_augmented_draws()
-  )
+  draws <- hhmodel |>
+    run_inference(steps = 40L, chains = 1L, id_draws = "1") |>
+    get_augmented_draws() |>
+    suppressWarnings()
   expect_gt(length(unique(draws[["1_snake"]])), 1)
   expect_false(all(draws[["1_snake"]] == 7))
 })
 
-test_that("Load augmented list works fine for external lists", {
+test_that("load augmented list works fine for external lists", {
   hhmodel <- data.frame(
     id = "id1", house_id = "h1",
     status = 1, date = as.Date("2021-01-01")
@@ -709,13 +711,24 @@ test_that("Load augmented list works fine for external lists", {
   expect_equal(tmp, hhmodel$augmented)
 })
 
-test_that("add_augmented_template loads", {
-  sarscov2_2021_icofs |>
+test_that("augmented template import loads", {
+  hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained") |>
-    add_augmented_template() |>
-    get_augmented() |>
-    nrow() |>
-    expect_gt(0L)
+    add_augmented(pupa = start_date@D + 1)
+
+  # appending keeps the pre-existing definitions beside the template ones
+  augm <- hhmodel |>
+    add_augmented(import = "template") |>
+    get_augmented()
+  augm$name |>
+    expect_setequal(c("pupa", "infec_time"))
+
+  # dropping resets the store first
+  augm <- hhmodel |>
+    add_augmented(import = "template", append = FALSE) |>
+    get_augmented()
+  augm$name |>
+    expect_setequal("infec_time")
 })
 
 test_that("Augmented traces export only relevant variables", {

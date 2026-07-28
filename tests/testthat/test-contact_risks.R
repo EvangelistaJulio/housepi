@@ -11,7 +11,7 @@ mk_risk <- local({
     house_id = 1L, status = 0L,
     age = c("child", "child", "adult", "adult"),
     sex = c("M", "F", "M", "M")
-  ) |> 
+  ) |>
     new_housepi_model("final_size")
   list(model = hhmodel)
 })
@@ -359,7 +359,7 @@ test_that("Most-specific rule wins over reference (single feature)", {
     stringsAsFactors = FALSE
   ) |>
     new_housepi_model("final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     add_contact_risk(strata = strata, symmetric = FALSE,
                      params = list(ctr_fm = 2))
   snap <- hhmodel$export_house_snapshot("h1")
@@ -402,7 +402,7 @@ test_that("Distinct rule_groups multiply at the cell", {
   )
 
   hhmodel <- new_housepi_model(hh, "final_size")
-  hhmodel <- add_parameter_template(hhmodel)
+  hhmodel <- add_parameter(hhmodel, import = "template")
   hhmodel <- add_contact_risk(hhmodel,
     strata = strata, symmetric = FALSE, reference = ".none",
     params = list(ctr_aa = 3, ctr_class_aa = 5)
@@ -429,7 +429,7 @@ test_that("Contact risk definition work as expected", {
                "student", "sibling", "mother", "father", "other", "student")
   ) |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
 
   # no contact risk defs -> empty matrix
   hhsnapshot <- hhmodel$export_house_snapshot(hhid)
@@ -491,7 +491,7 @@ test_that("Contact risks expand on their own covariates only", {
     get_contact_risks()
   expect_setequal(unique(risks$from_age), c("adult", "child"))
   expect_true("age_child_to_age_child" %in% risks$param_name)
-  
+
   # the covariate itself must be a genuine data column
   df |>
     dplyr::select(-age) |>
@@ -502,7 +502,7 @@ test_that("Contact risks expand on their own covariates only", {
   # without data the read surface warns and keeps the table shape
   expect_warning(
     risks <- new_housepi_model(model = "final_size") |>
-      add_contact_risk(by = "member") |> 
+      add_contact_risk(by = "member") |>
       get_contact_risks(),
     regexp = "without data"
   )

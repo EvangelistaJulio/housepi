@@ -5,7 +5,7 @@ library(testthat)
 mk_ppc <- local({
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   results <- suppressWarnings(run_inference(
     hhmodel, steps = 100, chains = 1, adapt = 0, thin = 1, progress = FALSE
   ))
@@ -434,7 +434,7 @@ test_that("HousepiCustomPPC warns on observed values outside CrI", {
   # parameter set deliberately so that SAR~1
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     run_custom_predictive_check(
       data.frame(alpha = 50., beta = 50., gamma = 1., hhsize_ref = 4L),
       sar = measure_sar_by_hhsize,

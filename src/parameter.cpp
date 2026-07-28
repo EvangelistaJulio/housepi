@@ -141,7 +141,7 @@ namespace housepi
 
         const std::string sms = "Definitions of " + msg::arg("min") + " as " + lower.err_name() +
                                 " and " + msg::arg("max") + " as " + upper.err_name() +
-                                " produced a degenerate range ";
+                                " produced a degenerate range";
         // parameter
         if (err_type_ == ErrType::Parameter)
             msg::stop(sms + " for " + err_name() + ".");

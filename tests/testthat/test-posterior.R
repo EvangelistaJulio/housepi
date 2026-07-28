@@ -5,7 +5,7 @@ library(testthat)
 local_results <- local({
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   suppressWarnings(run_inference(hhmodel,
     steps = 100, chains = 1, adapt = 0, thin = 1, progress = FALSE
   ))
@@ -132,7 +132,7 @@ test_that("Print behavior is stable", {
 
 test_that("Multi-chain inference produces correct chain structure", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
-  hhmodel <- add_parameter_template(hhmodel)
+  hhmodel <- add_parameter(hhmodel, import = "template")
   results <- suppressWarnings(
     run_inference(hhmodel, steps = 10, chains = 2, adapt = 0, thin = 1,
                   progress = FALSE)
@@ -162,7 +162,7 @@ test_that("Augm draws are not empty when id_draws is specified", {
 test_that("Diagnostic warning fires on short runs", {
   flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     run_inference(steps = 100, chains = 1, adapt = 0, thin = 1,
                   progress = FALSE) |>
     expect_warning("sample size was below")

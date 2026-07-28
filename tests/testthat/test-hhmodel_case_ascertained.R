@@ -138,8 +138,8 @@ test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), house_id = "h1", status = 0,
              start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter_template() |>
-    add_augmented_template() |>
+    add_parameter(import = "template") |>
+    add_augmented(import = "template") |>
     run_inference() |>
     expect_error("at least one infected member")
 })
@@ -225,7 +225,7 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
   build_hh <- function() {
     house |>
       new_housepi_model("case_ascertained", quiet = TRUE) |>
-      add_parameter_template() |>
+      add_parameter(import = "template") |>
       add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
       add_augmented(
         infec_time = onset_time - incub_period,
@@ -275,7 +275,7 @@ test_that("Augmented moves preserve log-likelihood", {
 
   hhmodel <- house |>
     new_housepi_model("case_ascertained") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
       infec_time = onset_time - incub_period,
@@ -354,7 +354,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
 
   hhmodel <- house |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
@@ -418,7 +418,7 @@ test_that("Observation through a deterministic node constrains its ancestors", {
   results <- suppressWarnings(
     house |>
       new_housepi_model("case_ascertained", quiet = TRUE) |>
-      add_parameter_template() |>
+      add_parameter(import = "template") |>
       add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
       add_augmented(
         incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
@@ -456,7 +456,7 @@ test_that("Discretized observation node initializes finite", {
 
   hhmodel <- house |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
@@ -708,8 +708,8 @@ test_that("Data-bound household observation supplies a required data column", {
   build_derived <- function() {
     base |>
       new_housepi_model("case_ascertained") |>
-      add_parameter_template() |>
-      add_augmented_template() |>
+      add_parameter(import = "template") |>
+      add_augmented(import = "template") |>
       add_observation(start_date = min(test_date@D), level = "house")
   }
   # reference: the same quantity provided as an ordinary data column
@@ -719,8 +719,8 @@ test_that("Data-bound household observation supplies a required data column", {
       dplyr::mutate(start_date = min(test_date, na.rm = TRUE)) |>
       dplyr::ungroup() |>
       new_housepi_model("case_ascertained") |>
-      add_parameter_template() |>
-      add_augmented_template()
+      add_parameter(import = "template") |>
+      add_augmented(import = "template")
   }
 
   # deriving the required column lets inference run without it in the data
@@ -754,8 +754,8 @@ test_that("Data-bound household observation rejects conflict and latent dependen
   base |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
-    add_parameter_template() |>
-    add_augmented_template() |>
+    add_parameter(import = "template") |>
+    add_augmented(import = "template") |>
     add_observation(start_date = min(test_date@D), level = "house") |>
     evaluate_log_lik() |>
     expect_error("already provided")
@@ -763,8 +763,8 @@ test_that("Data-bound household observation rejects conflict and latent dependen
   # forbidden household observation depending on parameters
   base |>
     new_housepi_model("case_ascertained") |>
-    add_parameter_template() |>
-    add_augmented_template() |>
+    add_parameter(import = "template") |>
+    add_augmented(import = "template") |>
     add_observation(start_date = min(test_date@D) + alpha@P, level = "house") |>
     evaluate_log_lik() |>
     expect_error("pure function of data")
@@ -859,8 +859,8 @@ test_that("Status process rejects latent/parameter probabilities", {
 
   house |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter_template() |>
-    add_augmented_template() |>
+    add_parameter(import = "template") |>
+    add_augmented(import = "template") |>
     # probabilities must be a pure function of data/numerics
     add_status(symptomatic = alpha@P, asymptomatic = 3) |>
     evaluate_log_lik() |>
@@ -925,8 +925,8 @@ test_that("Escaped label colliding with an infected status is rejected", {
   house |>
     new_housepi_model("case_ascertained", quiet = TRUE,
                       escaped = "symptomatic") |>
-    add_parameter_template() |>
-    add_augmented_template() |>
+    add_parameter(import = "template") |>
+    add_augmented(import = "template") |>
     add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
     expect_error("collides with the escaped-status label")
 })
@@ -940,8 +940,8 @@ test_that("Mixing integer and character status declarations is rejected", {
   # one call carries both an integer and a character status: caught at the wall
   house |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter_template() |>
-    add_augmented_template() |>
+    add_parameter(import = "template") |>
+    add_augmented(import = "template") |>
     add_augmented(
       incub_period = list(model = "gamma", shape = 2, scale = 1,
                           status = "symptomatic"),

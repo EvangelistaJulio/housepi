@@ -320,7 +320,30 @@ test_that("Parameter function rejects non-parameter dependencies", {
 
   # explicit reference to a data column is also rejected
   hhmodel |>
-    add_data_wide(dplyr::mutate(dummy_household, hush_puppy = 1)) |> 
+    add_data_wide(dplyr::mutate(dummy_household, hush_puppy = 1)) |>
     add_parameter(beta = hush_puppy@D + 1) |>
     expect_error("beta.*cannot.*depend.*data")
+})
+
+test_that("Parameter template import loads the shipped definitions", {
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = "template")
+
+  defs <- get_parameters(hhmodel)
+  expect_setequal(defs$name, c("alpha", "beta", "gamma", "hhsize_ref"))
+
+  # a model shipping no template definition file says so
+  flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_augmented(import = "template") |>
+    expect_error("file.*not found")
+
+  # the test model carries no template at all: warn and add nothing
+  hhmodel <- new_housepi_model(model = "test")
+  expect_warning(
+    result <- add_parameter(hhmodel, import = "template"),
+    regexp = "test model"
+  )
+  expect_identical(nrow(get_parameters(result)), 0L)
 })

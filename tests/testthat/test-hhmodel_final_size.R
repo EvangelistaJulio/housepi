@@ -82,7 +82,7 @@ test_that("Chain binomial guards against missusage", {
   data.frame(id = c("m1", "m2"), house_id = "h1",
              status = c(1, NA)) |>
     new_housepi_model("final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     run_inference() |>
     expect_error("missing status.*incompatible")
 })
@@ -95,7 +95,7 @@ test_that("Deep clone works as expected", {
   )
   hhmodel <- house |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   out <- suppressWarnings(
     run_inference(hhmodel, steps = 2, chains = 1, adapt = 0, thin = 1)
   )
@@ -129,7 +129,7 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
     suppressWarnings(
       results <- flu_1918_frederick |>
         new_housepi_model("final_size") |>
-        add_parameter_template() |>
+        add_parameter(import = "template") |>
         run_inference(steps = 10, thin = 2, adapt = 2,
                       burn = 2, chains = 1, threads = t)
     )
@@ -151,7 +151,7 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
 test_that("Simulation with observation process is correct", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
   withr::with_seed(
     1, result1 <- run_simulation(hhmodel, obs_process = rand_observ)
@@ -168,7 +168,7 @@ test_that("Run simulation with nrep > 1 returns list of dataframes", {
   nrep <- 3
   result <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     run_simulation(nrep = nrep)
   expect_true(is.list(result))
   expect_length(result, nrep)
@@ -178,7 +178,7 @@ test_that("Run simulation with nrep > 1 returns list of dataframes", {
 test_that("run_inference rejects invalid setup arguments", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   hhmodel |>
     run_inference(steps = 5, burn = 10) |>
     expect_error("[Bb]urn")
@@ -200,7 +200,7 @@ test_that("run_inference progress bar shows as expected", {
   # FIXME: timing-sensitive
   hhmodel <- flu_1918_baltimore |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   out <- capture.output(
     res <- suppressWarnings(
       run_inference(hhmodel, steps = 2000, chains = 1,
@@ -216,7 +216,7 @@ test_that("run_inference progress bar shows as expected", {
 test_that("run_epi_predictive_check exercises parallel for_each", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   results <- suppressWarnings(
     run_inference(hhmodel, steps = 50, chains = 1, adapt = 0, thin = 1)
   )
@@ -236,7 +236,7 @@ test_that("run_epi_predictive_check exercises parallel for_each", {
 test_that("Run simulation thins param_table down to nrep when smaller", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter_template()
+    add_parameter(import = "template")
   pt <- as.data.frame(stats::setNames(
     as.list(hhmodel$parameters$value), hhmodel$parameters$name
   ))
@@ -340,7 +340,7 @@ test_that("Three infected members likelihood is correct", {
 test_that("Chain binomial runs ok on real case with partitions", {
   hhmodel <- flu_2014_matsumoto |>
     new_housepi_model("final_size") |>
-    add_parameter_template() |>
+    add_parameter(import = "template") |>
     add_group_risk("community", by = "member", reference = ".none") |>
     add_contact_risk(
       strata = data.frame(
@@ -361,9 +361,9 @@ test_that("Chain binomial runs ok on real case with partitions", {
                        "ctr_cross_generational")
       )
     )
-  
+
   hhmodel |>
-    evaluate_log_lik() |> 
+    evaluate_log_lik() |>
     expect_warning("alpha.*turned.*reference")
 })
 

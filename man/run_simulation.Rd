@@ -49,7 +49,7 @@ It assumes the same community structure of the loaded data.
 \examples{
 flu_1918_frederick |>
   new_housepi_model("final_size") |>
-  add_parameter_template() |>
+  add_parameter(import = "template") |>
   run_simulation() |>
   head()
 }

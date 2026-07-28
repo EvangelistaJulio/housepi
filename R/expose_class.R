@@ -133,7 +133,7 @@ summarize_house_sizes <- summarise_house_sizes
 #' @return `data.frame`
 #' @examples
 #' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
-#'   add_parameter_template()
+#'   add_parameter(import = "template")
 #' get_data_wide(hhmodel) |>
 #'   head()
 #' get_parameters(hhmodel)
@@ -205,27 +205,49 @@ definition_helper_ <- c(
   "Otherwise import an external list using {.arg import}."
 )
 
+# Extra hint for the families shipping a definition template.
+template_helper_ <- paste(
+  "Load the definitions shipped with the model with",
+  '{.code import = "template"}.'
+)
+
 # Guard the inline (`...`) bulk form.
-assert_bulk_defs_ <- function(dots) {
-  if (length(dots) == 0L) stop_h(c(
-    "No definitions provided.",
-    definition_helper_
-  ))
-  dots
+assert_bulk_defs_ <- function(dots, has_template = FALSE) {
+  if (length(dots) > 0L) return(dots)
+  sms <- c("No definitions provided.", definition_helper_)
+  if (isTRUE(has_template)) sms <- c(sms, template_helper_)
+  stop_h(sms)
 }
 
-# Build the quosure list for the explicit `import` bulk form.
 # Reject `import` combined with single-mode or inline `...` pairs.
-defs_to_quos_ <- function(import, key, dots, env) {
+assert_no_def_mixing_ <- function(key, dots) {
   if (!is.null(key) || length(dots) > 0L) stop_h(
     "Mixing imported definitions with single and multiple definitions",
     definition_helper_
   )
+}
+
+# Build the quosure list for the explicit `import` bulk form.
+defs_to_quos_ <- function(import, key, dots, env) {
+  assert_no_def_mixing_(key, dots)
   convert_list_to_quosures(import, env)
 }
 
+# Recognise the `import` sentinel selecting the definitions shipped with the
+# model. Any other character value names a source that does not exist.
+is_template_import_ <- function(import) {
+  if (!is.character(import)) return(FALSE)
+  if (!identical(import, "template")) stop_h(
+    "Unknown import source {.val {import}}.",
+    template_helper_
+  )
+  TRUE
+}
+
 # Load default templated definitions shipped with the package.
-add_template_defs_ <- function(pvt, family, append) {
+# Reject the sentinel combined with single-mode or inline `...` pairs.
+add_template_defs_ <- function(pvt, family, append, key, dots) {
+  assert_no_def_mixing_(key, dots)
   holder <- if (family == "parameter") pvt$param_ else pvt$augm_
   if (pvt$generator_$is_test_model()) {
     warn_h("No template {family} definitions available for test model.")
@@ -233,7 +255,6 @@ add_template_defs_ <- function(pvt, family, append) {
     defs <- get_template_def_list(pvt$generator_$source_dir, family)
     holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
   }
-  pvt$rebuild_()
 }
 
 rd_add_modes_ <- "There are three mutually exclusive definition modes:
@@ -272,7 +293,7 @@ It can be supplied only via single mode definition."
 #' @param func_args `r rd_aug_funargs_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param import `r rd_import_`
+#' @param import `r rd_tmpl_import_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @examples
@@ -291,6 +312,12 @@ It can be supplied only via single mode definition."
 #' hhmodel <- flu_1918_frederick |>
 #'   new_housepi_model("final_size") |>
 #'   add_parameter(import = my_import)
+#'
+#' # `"template"` loads the definitions shipped with the model
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template")
+#' get_parameters(hhmodel)
 #' @export
 add_parameter <- function(hhmodel,
                           name = NULL, value = NULL, ...,
@@ -303,7 +330,10 @@ add_parameter <- function(hhmodel,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  if (!is.null(import)) pvt$param_$add_quo_list(
+  if (is_template_import_(import)) add_template_defs_(
+    pvt, "parameter", append, name, rlang::enquos(...)
+  )
+  else if (!is.null(import)) pvt$param_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append
   )
@@ -317,29 +347,10 @@ add_parameter <- function(hhmodel,
     .assert = TRUE
   )
   else pvt$param_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...)),
+    assert_bulk_defs_(rlang::enquos(...), TRUE),
     append = append
   )
   pvt$rebuild_()
-  new_obj
-}
-
-#' @title Load default definitions from the model template
-#' @description
-#' Load default parameter or augmented definitions from model template.
-#' @param hhmodel `r rd_model_in_`
-#' @param append `r rd_tmpl_append_`
-#' @return `r rd_model_out_`
-#' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
-#'   add_parameter_template()
-#' get_parameters(hhmodel)
-#' @rdname add_template_definitions
-#' @export
-add_parameter_template <- function(hhmodel, append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  add_template_defs_(new_obj$.__enclos_env__$private, "parameter", append)
   new_obj
 }
 
@@ -369,7 +380,7 @@ add_parameter_template <- function(hhmodel, append = TRUE) {
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param import `r rd_import_`
+#' @param import `r rd_tmpl_import_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @examples
@@ -390,7 +401,10 @@ add_augmented <- function(hhmodel,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  if (!is.null(import)) pvt$augm_$add_quo_list(
+  if (is_template_import_(import)) add_template_defs_(
+    pvt, "augmented", append, name, rlang::enquos(...)
+  )
+  else if (!is.null(import)) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append, status = status
   )
@@ -404,19 +418,10 @@ add_augmented <- function(hhmodel,
     .assert = TRUE
   )
   else pvt$augm_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...)),
+    assert_bulk_defs_(rlang::enquos(...), TRUE),
     append = append, status = status
   )
   pvt$rebuild_()
-  new_obj
-}
-
-#' @rdname add_template_definitions
-#' @export
-add_augmented_template <- function(hhmodel, append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
-  add_template_defs_(new_obj$.__enclos_env__$private, "augmented", append)
   new_obj
 }
 
@@ -693,7 +698,7 @@ add_infectivity_profile <- function(hhmodel,
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("final_size") |>
-#'   add_parameter_template() |>
+#'   add_parameter(import = "template") |>
 #'   evaluate_log_lik()
 #' @export
 evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
@@ -720,7 +725,7 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("final_size") |>
-#'   add_parameter_template() |>
+#'   add_parameter(import = "template") |>
 #'   run_inference(steps = 50, burn = 10, thin = 2,
 #'                 chains = 2, progress = FALSE) |>
 #'   get_parameter_draws() |>
@@ -765,7 +770,7 @@ run_inference <- function(hhmodel,
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("final_size") |>
-#'   add_parameter_template() |>
+#'   add_parameter(import = "template") |>
 #'   run_simulation() |>
 #'   head()
 #' @export

@@ -18,8 +18,6 @@ test_that("Reject if calling on non-HousepiModel objects", {
   evaluate_log_lik(obj) |> expect_error(err)
   run_inference(obj) |> expect_error(err)
   run_simulation(obj) |> expect_error(err)
-  add_parameter_template(obj) |> expect_error(err)
-  add_augmented_template(obj) |> expect_error(err)
   add_group_risk(obj) |> expect_error(err)
   run_custom_predictive_check(obj, NULL) |> expect_error(err)
   run_epi_predictive_check(obj, NULL) |> expect_error(err)
@@ -109,10 +107,23 @@ test_that("Bulk loading via `defs` mirrors inline name = value pairs", {
   # `defs` cannot be combined with a single name or with inline pairs
   hhmodel |>
     add_parameter("sokolov", import = defs) |>
-    expect_error("Mixing")
+    expect_error("[Mm]ixing")
   hhmodel |>
     add_parameter(nikolai = 1, import = defs) |>
-    expect_error("Mixing")
+    expect_error("[Mm]ixing")
+
+  # the template sentinel follows the same exclusion rules
+  hhmodel |>
+    add_parameter("sokolov", import = "template") |>
+    expect_error("[Mm]ixing")
+  hhmodel |>
+    add_augmented(nikolai = 1, import = "template") |>
+    expect_error("[Mm]ixing")
+
+  # a character import naming no known source is a typo, not a definition
+  hhmodel |>
+    add_parameter(import = "templte") |>
+    expect_error("[Uu]nknown import source")
 })
 
 test_that("add_observation routes every input branch on `level`", {
@@ -123,12 +134,11 @@ test_that("add_observation routes every input branch on `level`", {
     new_housepi_model("test")
 
   # default level is member
-  expect_identical(
-    add_observation(hhmodel, "onset_date", model = "normal", mean = 0, sd = 1) |>
-      get_observations() |>
-      subset(name == "onset_date", "level", drop = TRUE),
-    "member"
-  )
+  hhmodel |>
+    add_observation("onset_date", model = "normal") |>
+    get_observations() |>
+    subset(name == "onset_date", "level", drop = TRUE) |>
+    expect_identical("member")
 
   #> single definition
   single <- hhmodel |>

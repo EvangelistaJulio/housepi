@@ -160,7 +160,7 @@ hhmodel <- hhmodel |>
 
 # lazily complete parameter definitions from housepi templated definitions
 hhmodel <- hhmodel |>
-  add_parameter_template()
+  add_parameter(import = "template")
 
 # inspect current definitions
 hhmodel |> 
@@ -222,14 +222,14 @@ community_structure <- sarscov2_2021_icofs |>
 
 hhsimul <- community_structure |>
   new_housepi_model("case_ascertained") |>
-  add_parameter_template()
+  add_parameter(import = "template")
 
 # inspect parameter definitions
 get_parameters(hhsimul)
 ```
 
-In this example we used `add_parameter_template()` to use housepi templated parameter definitions.
-Similarly it can be done for augmented definitions via `add_augmented_template()`.
+In this example we passed `import = "template"` to load the parameter definitions shipped with the transmission model.
+The same can be done for augmented definitions through `add_augmented()`.
 
 # Simulate an outbreak
 
@@ -302,7 +302,7 @@ Inference reuses the very same definition set as the simulation: the observed
 #| label: inference-simulated
 hhmodel <- simulated |>
   new_housepi_model("case_ascertained") |>
-  add_parameter_template() |>
+  add_parameter(import = "template") |>
   add_augmented(
     infec_time = list(
       model = "uniform", min = start_date@D - 14, max = end_date@D

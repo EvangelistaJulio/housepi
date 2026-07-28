@@ -44,8 +44,6 @@ reference:
     Decorators used to customize model definitions.
   contents:
   - starts_with("add_")
-  - -ends_with("_template")
-  - ends_with("_template")
   - starts_with("get_")
   - -ends_with("_draws")
 

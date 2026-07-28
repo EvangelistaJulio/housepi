@@ -40,7 +40,7 @@ observations, group risks, contact risks, infectivity profile).
 }
 \examples{
 hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
-  add_parameter_template()
+  add_parameter(import = "template")
 get_data_wide(hhmodel) |>
   head()
 get_parameters(hhmodel)

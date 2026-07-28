@@ -845,7 +845,7 @@ namespace housepi
                 acc.augm_ll += augm.commit_augm_log_lik(member);
                 if (augm.varia[Index::of(member)].augm_log_lik.is_inf())
                     msg::stop(
-                        "Initial augmented log-model returned infinity for " +
+                        "Initial augmented log-likelihood returned infinity for " +
                         member.err_name() + ".");
             }
 

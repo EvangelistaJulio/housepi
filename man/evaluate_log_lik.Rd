@@ -25,6 +25,6 @@ this is conditioned on current augmented values.
 \examples{
 flu_1918_frederick |>
   new_housepi_model("final_size") |>
-  add_parameter_template() |>
+  add_parameter(import = "template") |>
   evaluate_log_lik()
 }

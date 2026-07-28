@@ -259,7 +259,7 @@ untracked_changes <- function(source_dir, dll) {
 
 # Optional helper files
 helper_files <- function(path) {
-  helper_names <- c(paste0("template_", c("augm.R", "param.R")), "info.Rd")
+  helper_names <- c("augm.R", "param.R", "info.Rd")
   file.path(path, helper_names)
 }
 

@@ -102,7 +102,8 @@ Independence samplers draw a fresh value from a distribution:
 }
 \code{NA} defaults to \code{"rw"}.}
 
-\item{import}{Named \code{list} of pre-built definitions to import.
+\item{import}{Named \code{list} of pre-built definitions to import,
+or \code{"template"} for the definitions shipped with the model.
 Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.
