@@ -479,6 +479,37 @@ test_that("Contact risk definition work as expected", {
   expect_true(all(template_pars %in% hhmodel$parameters$name))
 })
 
+test_that("Contact risks expand on their own covariates only", {
+  df <- sarscov2_2021_icofs |>
+    dplyr::select(-start_date) |>
+    dplyr::filter(house_id %in% utils::head(unique(house_id), 50))
+
+  # a data column the risk does not read leaves the expansion untouched
+  risks <- df |>
+    new_housepi_model("case_ascertained") |>
+    add_contact_risk(by = "age") |>
+    get_contact_risks()
+  expect_setequal(unique(risks$from_age), c("adult", "child"))
+  expect_true("age_child_to_age_child" %in% risks$param_name)
+  
+  # the covariate itself must be a genuine data column
+  df |>
+    dplyr::select(-age) |>
+    new_housepi_model("case_ascertained") |>
+    add_contact_risk(by = "age") |>
+    expect_error("[Uu]nknown feature.*age")
+
+  # without data the read surface warns and keeps the table shape
+  expect_warning(
+    risks <- new_housepi_model(model = "final_size") |>
+      add_contact_risk(by = "member") |> 
+      get_contact_risks(),
+    regexp = "without data"
+  )
+  expect_equal(nrow(risks), 0L)
+  expect_named(risks, c("param_name", "n", "rule_group"))
+})
+
 test_that("Contact risks raise an error for incompatible models", {
   data.frame(
     house_id = 1, id = seq(4), status = seq(4),

@@ -12,6 +12,26 @@ risk_stop_hint <- paste("Choose {.arg by} for automatic definitions,",
 data_reserved_cols <- c("id", "house_id", "status")
 risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group")
 
+# Empty logic table with the reserved columns `cols`, in order.
+empty_risk_table <- function(cols) {
+  proto <- list(group_risk = character(), param_name = character(),
+                n = integer(), rule_group = integer())
+  as.data.frame(proto[cols], stringsAsFactors = FALSE)
+}
+
+# @description
+# Tidy risk table for the read surface. Definitions expand from data.
+# If none is attached the table is an empty shell with columns `cols`.
+helper_show_risk_table <- function(module, cols, is_data_attached) {
+  out <- module$tidy_table
+  if (!is.null(out) && nrow(out) > 0) return(out)
+  if (length(module$defs) > 0 && !is_data_attached) warn_h(
+    "Cannot expand {module$family} definitions without data.",
+    "Attach household data using {.fn add_data_wide}."
+  )
+  empty_risk_table(cols)
+}
+
 # Throw error if empty definition.
 stop_empty_definition <- function() {
   stop_h(

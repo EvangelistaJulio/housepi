@@ -116,6 +116,37 @@ test_that("Group risks hold without data and re-derive on add_data_wide", {
   expect_setequal(restored$parameters$name, full_params)
 })
 
+test_that("Group risks expand on their own covariates only", {
+  df  <- sarscov2_2021_icofs |>
+    dplyr::select(-start_date) |>
+    dplyr::filter(house_id %in% utils::head(unique(house_id), 50))
+
+  # a data column the risk does not read leaves the expansion untouched
+  risks <- df |>
+    new_housepi_model("case_ascertained") |>
+    add_group_risk("susceptibility", by = "age") |>
+    get_group_risks()
+  expect_setequal(risks$group_risk, "susceptibility")
+  expect_true("sus_age_child" %in% risks$param_name)
+
+  # the covariate itself must be a genuine data column
+  df |>
+    dplyr::select(-age) |>
+    new_housepi_model("case_ascertained") |>
+    add_group_risk("susceptibility", by = "age") |>
+    expect_error("[Uu]nknown feature.*age")
+
+  # without data the read surface warns and keeps the table shape
+  expect_warning(
+    risks <- new_housepi_model(model = "final_size") |>
+      add_group_risk("susceptibility", by = "member") |>
+      get_group_risks(),
+    regexp = "without data"
+  )
+  expect_equal(nrow(risks), 0L)
+  expect_named(risks, c("group_risk", "param_name", "n", "rule_group"))
+})
+
 test_that("Group risks sentinels work correctly", {
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("final_size")
@@ -290,10 +321,9 @@ test_that("Group risk mixed auto and custom modes", {
   expect_true("inf_isol" %in% param_names)
   expect_true(any(grepl("^com_", param_names)))
 
-  # a feature the data does not carry only fails at the wall
+  # a feature the data does not carry fails as soon as data is attached
   data.frame(house_id = 1, status = 0, age = c("child", "adult")) |>
     new_housepi_model("final_size") |>
     add_group_risk(name = "infectivity", strata = dummy_strata) |>
-    evaluate_log_lik() |>
-    expect_error("missing data column")
+    expect_error("[Uu]nknown feature.*isolation")
 })

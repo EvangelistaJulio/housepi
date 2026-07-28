@@ -43,7 +43,6 @@ We start by creating categorical groupings to stratify individuals based on thei
 
 # define a model object with a subset of the ICoFs dataset
 hhmodel <- sarscov2_2021_icofs |>
-  dplyr::select(-start_date) |>
   dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
   new_housepi_model("case_ascertained")
 ```
@@ -59,7 +58,6 @@ hhmodel |>
   # associate susceptibility group risk by column age
   add_group_risk("susceptibility", by = "age") |>
   # inspect group risk definitions
-  # note: to show group risk definitions, add data before
   get_group_risks()
 ```
 To return a group risk to its default, overwrite its definition with argument `by` set to `NA`.
@@ -145,7 +143,6 @@ get_parameters(hhmodel)
 
 test_delay <- 8
 hhmodel <- hhmodel |>
-  add_observation(start_date = min(test_date@D), level = "house") |> 
   # parameter definitions
   add_parameter(
     alpha = list(prior = "uniform", proposal = "rw_log"),
@@ -157,7 +154,7 @@ hhmodel <- hhmodel |>
   add_augmented(
     # public definitions
     infec_time = list(
-      model = "uniform", min = ~ start_date@D - 8, max = ~ end_date@D
+      model = "uniform", min = start_date@D - 8, max = end_date@D
     ),
     # accessory generic definitions
     .incub_period = list(model = "gamma", mean = 3, var = 2),

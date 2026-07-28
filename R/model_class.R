@@ -86,6 +86,12 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     # @description
+    # Whether household data is attached.
+    has_data_wide_ = function() {
+      length(private$generator_$cols_data_wide) > 0
+    },
+
+    # @description
     # Assert if augmented definitions match the required.
     # @param capital `logical(1)` to raise error.
     assert_augm_ = function(capital = TRUE, warn_unused = TRUE) {
@@ -101,11 +107,10 @@ HousepiModel <- R6::R6Class(
     # Assert if data_wide headers match implementation file.
     # @param capital `logical(1)` to raise error.
     assert_data_wide_ = function(capital = TRUE, simulating = FALSE) {
-      cols <- private$generator_$cols_data_wide
       # no data attached at all: capital error at the wall
-      if (isTRUE(capital) && length(cols) == 0) stop_h(
+      if (isTRUE(capital) && !private$has_data_wide_()) stop_h(
         "No household data attached.",
-        `!` = "Attach it with {.fn add_data_wide}."
+        "Attach it with {.fn add_data_wide}."
       )
       required <- private$get_all_required_data_wide_()
 
@@ -115,6 +120,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # household observations derived purely from data satisfy requirement
+      cols <- private$generator_$cols_data_wide
       house_obs <- private$augm_$house_observ_names
       clash <- intersect(house_obs, cols)
       if (isTRUE(capital) && length(clash) > 0) stop_h(
@@ -307,18 +313,22 @@ HousepiModel <- R6::R6Class(
             is.null(private$generator_$mcmc_ptr)) {
         return(invisible(self))
       }
-      # defer the full build while required data is incomplete
-      if (length(private$generator_$cols_data_wide) == 0 ||
-            length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0) {
+      # risks stratify on data: nothing to derive while none is attached
+      if (length(private$generator_$cols_data_wide) == 0) {
         return(invisible(self))
       }
 
-      # build risks first (they append to param_$defs)
+      # risks derive from their own covariates (they append to param_$defs)
       if (length(private$group_risks_$defs) > 0) {
         private$build_group_risks_()
       }
       if (length(private$contact_risks_$defs) > 0) {
         private$build_contact_risks_()
+      }
+
+      # defer the engine push while required data is incomplete
+      if (length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0) {
+        return(invisible(self))
       }
 
       mcmc_ptr <- private$generator_$mcmc_ptr
@@ -693,13 +703,17 @@ HousepiModel <- R6::R6Class(
     #' @field group_risks `data.frame`. Group risk definitions.
     group_risks = function(value) {
       if (!missing(value)) stop_read_only("group_risks")
-      private$group_risks_$tidy_table
+      helper_show_risk_table(private$group_risks_,
+                             risk_reserved_cols,
+                             private$has_data_wide_())
     },
 
     #' @field contact_risks `data.frame`. Contact risk definitions.
     contact_risks = function(value) {
       if (!missing(value)) stop_read_only("contact_risks")
-      private$contact_risks_$tidy_table
+      helper_show_risk_table(private$contact_risks_,
+                             setdiff(risk_reserved_cols, "group_risk"),
+                             private$has_data_wide_())
     }
   ),
 
