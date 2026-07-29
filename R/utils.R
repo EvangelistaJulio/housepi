@@ -482,7 +482,7 @@ eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {
   stopifnot(is.matrix(p2p_escape),
             identical(dim(p2p_escape), c(n_infec, n_infec)))
 
-  formula <- .engine$auxiliary_chain_binomial_debugger(n_infec)
+  formula <- .engine$aux_chain_binomial_debugger(n_infec)
 
   for (r in seq_len(n_infec)) for (c in seq_len(n_infec)) {
     formula <- gsub(paste0("\\bQ", r, "_", c, "\\b"),

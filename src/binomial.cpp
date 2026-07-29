@@ -21,7 +21,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace housepi::chbi
+namespace housepi::chain_binom
 {
     using std::vector;
     using gentype = vector<unsigned>;
@@ -244,7 +244,7 @@ namespace housepi::chbi
 
     /// Homogeneous chain binomial log-likelihood.
     /// Based on @cite longini_household_1982
-    double chain_binom_log_lik_homogeneous_(
+    double log_lik_homogeneous_(
         unsigned n_infec, double commu_infec_rate, double p2p_infec_rate)
     {
         const double log_commu_esc_proba = -commu_infec_rate;
@@ -491,8 +491,7 @@ namespace housepi::chbi
         }
     }
 
-    /// Auxiliary function to perform debugs
-    std::string auxiliary_chain_binomial_debugger(unsigned max_n_infec)
+    std::string aux_debugger(unsigned max_n_infec)
     {
         unsigned limit_max_n_infec = 8;
         if (max_n_infec < limit_max_n_infec)
@@ -515,7 +514,7 @@ namespace housepi::chbi
 
     /// Heterogeneous final-size using subset bitmasks.
     /// Based on @cite addy_generalized_1991
-    double chain_binom_log_lik_heterogeneous_(
+    double log_lik_heterogeneous_(
         unsigned n_infec,
         const std::vector<double> &commu_infec_rate,
         const std::vector<std::vector<double>> &p2p_infec_rate)
@@ -711,7 +710,7 @@ namespace housepi::chbi
     /// @param part_indexes indexes of household member representative of part
     /// @param commu_infec_rate per-individual community infection rates
     /// @param p2p_infec_rate per-individual p2p infection rates
-    double chain_binom_log_lik_partitioned_(
+    double log_lik_partitioned_(
         size_t dp_idx,
         unsigned n_parts,
         const std::vector<unsigned> &part_indexes,
@@ -737,11 +736,11 @@ namespace housepi::chbi
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////  Chain-Binomial Dispatcher (Public Entry)  ////////////////////////////
+    //////////////////////////  Chain-Binomial Log-Likelihood (Dispatcher)  ///////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    double chain_binom_log_lik(
+    double log_likelihood(
         size_t dp_idx,
         unsigned n_infec, unsigned n_parts,
         const std::vector<unsigned> &part_indexes,
@@ -775,16 +774,16 @@ namespace housepi::chbi
             ll += std::log1p(-std::exp(-commu_infec_rate[0]));
         // homogeneous case
         else if (n_parts < 2)
-            ll += chain_binom_log_lik_homogeneous_(
+            ll += log_lik_homogeneous_(
                 n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
         // partitioned case
         else if (n_parts < n_infec)
-            ll += chain_binom_log_lik_partitioned_(
+            ll += log_lik_partitioned_(
                 dp_idx, n_parts, part_indexes,
                 commu_infec_rate, p2p_infec_rate);
         // heterogeneous case
         else
-            ll += chain_binom_log_lik_heterogeneous_(
+            ll += log_lik_heterogeneous_(
                 n_infec, commu_infec_rate, p2p_infec_rate);
 
         return ll;

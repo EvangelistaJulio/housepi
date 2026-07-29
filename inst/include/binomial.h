@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace housepi::chbi
+namespace housepi::chain_binom
 {
     /// Clear all lookup tables between successive evaluations.
     void clear_lookuptables();
@@ -27,7 +27,7 @@ namespace housepi::chbi
     /// `n_parts == 1` with uniform rates → closed-form homogeneous;
     /// `n_parts == n_infec` → bitmask DP heterogeneous;
     /// otherwise → multitype partition tree (grouped), looked up by dp_idx.
-    double chain_binom_log_lik(
+    double log_likelihood(
         size_t dp_idx,
         unsigned n_infec, unsigned n_parts,
         const std::vector<unsigned> &part_indexes,
@@ -38,5 +38,5 @@ namespace housepi::chbi
     /// @param max_n_infec number of seropositives (< 8)
     /// @return formula string with tokens B<i> (community escape of infected i, 1-indexed)
     ///         and Q<i>_<j> (p2p escape from infector i to infectee j, 1-indexed; i=0 = community)
-    std::string auxiliary_chain_binomial_debugger(unsigned max_n_infec);
+    std::string aux_debugger(unsigned max_n_infec);
 }

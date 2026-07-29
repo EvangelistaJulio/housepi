@@ -47,7 +47,7 @@ public:
 	void init_model_for_evaluation() override final
 	{
 		assert_no_missing_status();
-		chbi::clear_lookuptables();
+		chain_binom::clear_lookuptables();
 	}
 
 	/// Initialize hosuehold for evaluation
@@ -112,9 +112,9 @@ public:
 		cache_uint(house, HHuintKey::num_parts) = K;
 
 		if (K <= 1 && n_infec > 1)
-			chbi::ensure_homogeneous(n_infec);
+			chain_binom::ensure_homogeneous(n_infec);
 		else if (K > 1 && K < n_infec)
-			chbi::ensure_partitioned(
+			chain_binom::ensure_partitioned(
 				house.eq_class(),
 				{partition_counts.begin(), partition_counts.begin() + K});
 	}
@@ -186,7 +186,7 @@ public:
 		// fill per-individual escape rate matrices
 		fill_house_escape_matrix(house);
 
-		return chbi::chain_binom_log_lik(
+		return chain_binom::log_likelihood(
 			house.eq_class(),
 			static_cast<unsigned>(house.n_infected_status()),
 			cache_uint(house, HHuintKey::num_parts),
