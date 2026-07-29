@@ -71,11 +71,13 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @field family `character(1)`. Holder family.
+    #' @field family `character(1)` Holder family.
     family = "infectivity profile",
-    #' @field store_warn_over `character()`. Cached overwritten names.
+    #' @field discr_model `logicla()` Whether model is discrete-time.
+    discr_model = FALSE,
+    #' @field store_warn_over `character()` Cached overwritten names.
     store_warn_over = character(),
-    #' @field defs `data.frame`. Formatted infectivity profile definitions.
+    #' @field defs `data.frame` Formatted infectivity profile definitions.
     defs = NULL,
 
     #' @description
@@ -130,13 +132,18 @@ HousepiInfecProfile <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      # append last definition
+      # impose discrete-time model
+      discr <- isTRUE(discr) || self$discr_model
+
+      # NOTE: if arg 'min' not provided
+      # impose min = 1 for discrete-time, min = 0 for continuous time
+      if (is.null(min)) min <- ifelse(discr, "1|N", "0|N")
+      if (is.null(max)) max <- NA_character_
+
+      # append new definition
       self$defs <- rbind(self$defs, data.frame(list(
         func = housepi_combine_to_call(func, func_args),
-        status = as.integer(status),
-        min = ifelse(is.null(min), ifelse(isTRUE(discr), "1|N", "0|N"), min),
-        max = ifelse(is.null(max), NA_character_, max),
-        discr = isTRUE(discr)
+        status = as.integer(status), discr = discr, min = min, max = max
       )))
       # assert last definition is correct
       if (isTRUE(.assert)) housepi_assert_args(self, last = TRUE)

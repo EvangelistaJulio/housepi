@@ -251,9 +251,9 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Drop current risk-derived parameters so data change re-derives them.
-    # Reads the pre-change logic tables.
+    # NOTE: reads the pre-change logic tables.
     # NOTE: must run before the next `rebuild_()` risks re-implementation.
-    reconcile_risk_params_ = function() {
+    drop_stale_risk_params_ = function() {
       stale <- c(names(private$group_risks_$parameters),
                  names(private$contact_risks_$parameters))
       for (p in stale) private$param_$remove(p)
@@ -634,7 +634,7 @@ HousepiModel <- R6::R6Class(
     #' @field setup `list`. Last setup used by the build process.
     setup = function(value) {
       if (!missing(value)) stop_read_only("setup")
-      private$generator_$setup
+      .engine$export_setup(private$generator_$mcmc_ptr)
     },
 
     #' @field data_wide `data.frame`. Individual level data.
@@ -798,7 +798,7 @@ HousepiModel <- R6::R6Class(
       header <- c(i = paste0(header, "."))
 
       # UPDATE: to be rationalize in the future if more options are included
-      if ("_HOUSEPI_DISCRETE_TIME" %in% private$generator_$last_flags) {
+      if (private$generator_$is_discrete_time) {
         header <- c(header, "Model is set to {.emph discrete time} mode.")
       }
 

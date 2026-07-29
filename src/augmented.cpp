@@ -41,13 +41,6 @@
 
 namespace housepi
 {
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  *** InfecProfile : struct ***  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // UPDATE: this could be just forward declared maybe
     namespace infprof
     {
         void LookUpTable::init(const Distribution *ptr, size_t n)
@@ -99,6 +92,12 @@ namespace housepi
         }
     }
 
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  *** InfecProfile : struct ***  //////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
     InfecProfile::InfecProfile() = default;
     InfecProfile::~InfecProfile() = default;
 
@@ -124,15 +123,12 @@ namespace housepi
         mode_ = Mode::Generic;
         generic = helper_build_(translator,
                                 {{"func", {input.at("func")[0]}},
-                                 {"discr", {input.count("discr") ? input.at("discr")[0] : "false"}}});
+                                 {"discr", {input.at("discr")[0]}}});
         lookup_.clear();
         augm_definitions.clear();
 
         // range minimum
-        std::string min_expr = generic->is_discrete() ? "1|N" : "0|N"; // default
-        if (input.count("min"))
-            min_expr = input.at("min")[0];
-        generic->init_attr("min", translator.to_attribute(min_expr));
+        generic->init_attr("min", translator.to_attribute(input.at("min")[0]));
 
         // range maximum
         if (input.count("max"))
@@ -168,7 +164,8 @@ namespace housepi
         // match infectivity profile and augmented variable definition
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
         {
-            bool is_discrete = str::tobool(input.at("discr")[r]);
+            // a discrete-time model discretizes whatever profile it is handed
+            bool discr = is_discr_requested_ || str::tobool(input.at("discr")[r]);
 
             augm_definitions["name"].push_back(infprof::AUGM_FUNC);
             augm_definitions["status"].push_back(input.at("status")[r]);
@@ -176,9 +173,9 @@ namespace housepi
             augm_definitions["fcumul"].push_back("false");
             augm_definitions["value"].push_back("");
             augm_definitions["const"].push_back("false");
-            augm_definitions["discr"].push_back(str::format(is_discrete));
+            augm_definitions["discr"].push_back(str::format(discr));
             augm_definitions["prior"].push_back("");
-            augm_definitions["min"].push_back(is_discrete ? "1|N" : "0|N");
+            augm_definitions["min"].push_back(input.at("min")[r]);
             augm_definitions["max"].push_back(input.at("max")[r]);
             augm_definitions["proposal"].push_back("");
             augm_definitions["kind"].push_back("augm");
@@ -200,7 +197,7 @@ namespace housepi
             translator.make_cache_dependent(node);
         }
 
-        if (is_discrete_requested_ ||
+        if (is_discr_requested_ ||
             (input.count("discr") && str::tobool(input.at("discr")[0])))
             output->init_discretization();
 

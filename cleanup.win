@@ -1,3 +1,4 @@
 #!/bin/sh
 rm -f inst/models/*/model.cpp
+rm -f src/*.o
 rm -f src/Makevars.win

@@ -471,37 +471,26 @@ HousepiGenerator <- R6::R6Class(
     #' @field name `character(1)`. Model name.
     #' Assign a new `character(1)` to change model name.
     name = function(value) {
-      if (!missing(value)) stop_read_only("name")
       spaced_template_choice(private$name_)
     },
 
     #' @field raw_name `character(1)`. Internal unformmated model name.
     raw_name = function(value) {
-      if (!missing(value)) stop_read_only("raw_name")
       private$name_
-    },
-
-    #' @field setup `list`. Last setup used by the build process.
-    setup = function(value) {
-      if (!missing(value)) stop_read_only("setup")
-      .engine$export_setup(private$mcmc_ptr_)
     },
 
     #' @field mcmc_ptr Internal Rcpp MCMC runner pointer.
     mcmc_ptr = function(value) {
-      if (!missing(value)) stop_read_only("mcmc_ptr")
       private$mcmc_ptr_
     },
 
     #' @field source_dir `character(1)`. Model source directory.
     source_dir = function(value) {
-      if (!missing(value)) stop_read_only("source_dir")
       private$source_dir_
     },
 
     #' @field data_required `character()`. Data required by model definitions.
     data_required = function(value) {
-      if (!missing(value)) stop_read_only("data_required")
       set_source_name_(
         template_extract_keys(self$get_reference(), "DataKey"),
         "model"
@@ -510,37 +499,36 @@ HousepiGenerator <- R6::R6Class(
 
     #' @field last_flags `character()`. Compile flags applied to current dll.
     last_flags = function(value) {
-      if (!missing(value)) stop_read_only("last_flags")
       private$last_flags_
+    },
+
+    #' @field is_discrete_time `logical(1)`. Model steps one whole day at once.
+    is_discrete_time = function(value) {
+      "_HOUSEPI_DISCRETE_TIME" %in% private$last_flags_
     },
 
     #' @field cols_data_wide `character()`. Columns of the imported wide data.
     cols_data_wide = function(value) {
-      if (!missing(value)) stop_read_only("cols_data_wide")
       private$cols_data_wide_
     },
 
     #' @field info_data_wide `list`. Levels of factors of the wide data.
     info_data_wide = function(value) {
-      if (!missing(value)) stop_read_only("info_data_wide")
       private$info_data_wide_
     },
 
     #' @field infec_status_set `integer()`. Positive statuses in the wide data.
     infec_status_set = function(value) {
-      if (!missing(value)) stop_read_only("infec_status_set")
       private$infec_status_set_
     },
 
     #' @field status_data_labels `character()`. Infected labels seen in data.
     status_data_labels = function(value) {
-      if (!missing(value)) stop_read_only("status_data_labels")
       private$status_data_labels_
     },
 
     #' @field escaped `character(1)`. Label for status code 0.
     escaped = function(value) {
-      if (!missing(value)) stop_read_only("escaped")
       private$escaped_
     }
   ),

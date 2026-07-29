@@ -140,7 +140,7 @@ namespace housepi
             }
         }
 
-        void request_discrete() noexcept { is_discrete_requested_ = true; };
+        void request_discrete() noexcept { is_discr_requested_ = true; };
 
         //////////////////////
         //////  GETTER  //////
@@ -177,7 +177,7 @@ namespace housepi
 
         bool is_augmented() const noexcept { return mode_ == Mode::Augmented; }
         bool is_lookup() const noexcept { return mode_ == Mode::LookUp; }
-        bool is_discrete_requested() const noexcept { return is_discrete_requested_; }
+        bool is_discrete_requested() const noexcept { return is_discr_requested_; }
 
     private:
         enum class Mode : std::uint8_t
@@ -187,8 +187,8 @@ namespace housepi
             LookUp     /// generic infectivity profile
         } mode_ = Mode::Generic;
 
-        bool is_discrete_requested_ = false; /// wheter is requested as discrete
-        infprof::LookUpTable lookup_;        /// discrete time lookup table
+        bool is_discr_requested_ = false; /// wheter is requested as discrete
+        infprof::LookUpTable lookup_;     /// discrete time lookup table
 
         const Augmented *paugm_ = nullptr; /// augmented storage for per-member profile
 

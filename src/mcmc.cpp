@@ -439,6 +439,57 @@ namespace housepi
         data_wide().allocate_transm_log_lik();
     }
 
+    namespace infprof
+    {
+        /// Throw if the profile transmits at generation time 0.
+        /// UPDATE: unresolved argument per member leavs pdf undetermined
+        /// only a determinate value is controlled
+        void assert_zero_at_origin(const Function &f, bool is_discr_requested)
+        {
+            // skip for hand-written infectivity profiles
+            if (!is_discr_requested && InfecProfileRegistry::instance().count(f.name()))
+                return;
+
+            // UPDATE: skip if unresolved
+            const double y = f.pdf(0.);
+            if (std::abs(y) < 1.e-10 || std::isnan(y))
+                return;
+
+            std::string sms = "Infectivity profile " + msg::val(f.name()) + " is non-zero at generation ";
+            if (is_discr_requested)
+                sms += "day 0 (F[0] = " + str::format(y) + ").\n" +
+                       "A discrete-time profile admits no transmission on the day of infection.";
+            else
+                sms += "time 0 (f(0) = " + str::format(y) + ").\n" +
+                       "A continuos-time profile admits no transmission at the instant of infection.";
+
+            msg::stop(
+                sms +
+                "\nConsider truncating the distribution with " + msg::arg("min") +
+                ", or shifting with " + msg::arg("loc") + ".");
+        }
+    }
+
+    void MCMCBase::assert_valid_infectivity_profile() const
+    {
+        if (!infec_profile.generic && !infec_profile.is_augmented())
+            return;
+
+        bool is_discr = infec_profile.is_discrete_requested();
+
+        if (infec_profile.generic)
+            infprof::assert_zero_at_origin(*infec_profile.generic, is_discr);
+        else
+            for (const Household &house : data_wide())
+                for (size_t i : house.infected_hhindexes())
+                {
+                    // check status-specific profiles
+                    const Variable &avar = augm.at(infec_profile.augm_key, house.member(i));
+                    // UPDATE: am checking it's a function somewhere?
+                    infprof::assert_zero_at_origin(*avar.function(), is_discr);
+                }
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////  MCMCBase : monte carlo  /////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -667,6 +718,7 @@ namespace housepi
         augm.finalize();
         infec_profile.finalize();
         data_wide().finalize_cells();
+        assert_valid_infectivity_profile();
 
         model->init_model_for_evaluation();
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)

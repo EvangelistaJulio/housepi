@@ -1247,6 +1247,7 @@ namespace
         {
             engine.model->init_model_for_simulation(); // model specific initialization
             engine.augm.init_house_for_simulation();   // build household-level observations
+            engine.assert_valid_infectivity_profile(); // assert profile is valid
 
             //////////////////////////////////////////////
             //////  Observation Process & Measures  //////
@@ -1604,8 +1605,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("measure_cases_by_hhsize", &measure_cases_by_hhsize);
     Rcpp::function("count_houses_by_hhsize", &count_houses_by_hhsize);
 
-    Rcpp::function("auxiliary_chain_binomial_debugger",
-                   &housepi::chbi::auxiliary_chain_binomial_debugger);
+    Rcpp::function("aux_chain_binomial_debugger", &housepi::chain_binom::aux_debugger);
 
     Rcpp::function("new_model", &new_model);
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);

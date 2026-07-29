@@ -212,7 +212,7 @@ get_augm_state <- function(augm_draws, index) {
   augm_draws[index, , drop = FALSE] |>
     tidyr::pivot_longer(dplyr::everything(),
                         names_to = "name", values_to = "value") |>
-    tidyr::separate(name, into = c("id", "augm"),
+    tidyr::separate("name", into = c("id", "augm"),
                     sep = "_", extra = "merge") |>
     tidyr::pivot_wider(names_from = "augm", values_from = "value") |>
     as.data.frame()

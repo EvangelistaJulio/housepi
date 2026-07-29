@@ -69,7 +69,7 @@ public:
 			if (data(DataKey::start_date, member) > data(DataKey::end_date, member))
 				throw std::logic_error(
 					"Found negative follow-up period for " + member.err_name() +
-					".\nCheck " +  msg::arg("start_date") + " and " + msg::arg("end_date") + ".");
+					".\nCheck " + msg::arg("start_date") + " and " + msg::arg("end_date") + ".");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -151,7 +151,12 @@ public:
 			roi_inst_i += a_i;
 
 #ifdef _HOUSEPI_DISCRETE_TIME
-			roi_cumul_i += a_i * (aug(AugmKey::infec_time, member_i) - 1. - t_intro);
+			// days escaped infection before transmission: 
+			// a member infected the day after the introduction survived none
+			// NOTE: co-primary cannot survive fewer
+			const double survived = aug(AugmKey::infec_time, member_i) - 1. - t_intro;
+			if (survived > 0.)
+				roi_cumul_i += a_i * survived;
 			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
 #else
 			roi_cumul_i += a_i * (aug(AugmKey::infec_time, member_i) - t_intro);
@@ -212,6 +217,16 @@ public:
 #endif
 	}
 
+	/// Introduction rule: earliest infection, ties to smallest hosuehold index.
+	static void helper_commit_intro(unsigned &i0, double &t0, size_t i, double t)
+	{
+		if (t < t0 || (t == t0 && i < i0))
+		{
+			t0 = t;
+			i0 = i;
+		}
+	}
+
 	/// Store cumulative and instantaneous infectivity profiles for household.
 	/// WARNING: unpredictable behavior if i is not an infector.
 	/// WARNING: these function must not call any mutable parameter.
@@ -259,11 +274,7 @@ public:
 			}
 
 			// update household introduction case
-			if (t_infec_i < new_t0)
-			{
-				new_t0 = t_infec_i;
-				i0 = i;
-			}
+			helper_commit_intro(i0, new_t0, i, t_infec_i);
 		}
 	}
 
@@ -313,11 +324,7 @@ public:
 										 t_infec_i, t_infec_j);
 
 			// update household introduction case
-			if (t_infec_j < new_t0)
-			{
-				new_t0 = t_infec_j;
-				i0 = j;
-			}
+			helper_commit_intro(i0, new_t0, j, t_infec_j);
 		}
 	}
 

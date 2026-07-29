@@ -246,7 +246,7 @@ add_data_wide <- function(hhmodel, data) {
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
   # drop stale risk params (read pre-change tables) before re-importing data
-  pvt$reconcile_risk_params_()
+  pvt$drop_stale_risk_params_()
   pvt$set_data_wide_(assert_household_data(data, NA_character_))
   pvt$rebuild_()
   new_obj
@@ -517,13 +517,17 @@ add_parameter <- function(hhmodel,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
+
+  #> template mode
   if (is_template_import_(import)) add_template_defs_(
     pvt, "parameter", append, name, rlang::enquos(...)
   )
+  #> import mode
   else if (!is.null(import)) pvt$param_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append
   )
+  #> single mode
   else if (!is.null(name)) pvt$param_$add_quo(
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
@@ -533,6 +537,7 @@ add_parameter <- function(hhmodel,
     proposal = proposal,
     .assert = TRUE
   )
+  #> multiple mode
   else pvt$param_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...), TRUE),
     append = append
@@ -588,13 +593,17 @@ add_augmented <- function(hhmodel,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
+
+  #> template mode
   if (is_template_import_(import)) add_template_defs_(
     pvt, "augmented", append, name, rlang::enquos(...)
   )
+  #> import mode
   else if (!is.null(import)) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append, status = status
   )
+  #> single mode
   else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
@@ -604,6 +613,7 @@ add_augmented <- function(hhmodel,
     proposal = proposal,
     .assert = TRUE
   )
+  #> multiple mode
   else pvt$augm_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...), TRUE),
     append = append, status = status
@@ -656,10 +666,13 @@ add_observation <- function(hhmodel, name = NULL,
   level <- match.arg(level)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
+
+  #> import mode
   if (!is.null(import)) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append, .kind = level
   )
+  #> single mode
   else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value), status = status,
     const = NA, discr = discr,
@@ -667,6 +680,7 @@ add_observation <- function(hhmodel, name = NULL,
     min = rlang::enquo(min), max = rlang::enquo(max),
     .assert = TRUE, .kind = level
   )
+  #> multiple mode
   else pvt$augm_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...)),
     append = append, .kind = level
@@ -754,16 +768,17 @@ add_group_risk <-  function(hhmodel,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  # a replaced definition: its parameters are re-derived by `rebuild_()`
-  pvt$reconcile_risk_params_()
-  if (is.null(name) && isFALSE(append)) {
-    # NOTE: dropping group risks might cause parameter drops
-    pvt$drop_group_risks_()
-  }
+
+  # drop stale parameters and re-derive in `rebuild_()`
+  pvt$drop_stale_risk_params_()
+  if (is.null(name) && isFALSE(append)) pvt$drop_group_risks_()
+
+  #> import mode
   if (!is.null(import)) pvt$group_risks_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append
   )
+  #> single mode
   else if (!is.null(name)) pvt$group_risks_$add_quo(
     name = name, by = by,
     reference = reference, joint = joint,
@@ -772,6 +787,7 @@ add_group_risk <-  function(hhmodel,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, prefix = prefix
   )
+  #> multiple mode
   else pvt$group_risks_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...)),
     append = append
@@ -822,19 +838,18 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
   pvt <- new_obj$.__enclos_env__$private
   pvt$assert_contact_risks_supported_()
   # the definition is replaced: its parameters are re-derived by `rebuild_()`
-  pvt$reconcile_risk_params_()
+  pvt$drop_stale_risk_params_()
 
   # contact risk holds a single definition:
   # import a named arg list, or the explicit arguments
-  def <- import
-  if (is.null(def)) def <- list(
+  if (is.null(import)) import <- list(
     by = by, reference = reference, joint = joint,
     symmetric = symmetric, strata = strata, params = params,
     prior = prior, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, prefix = prefix
   )
-  do.call(pvt$contact_risks_$add_quo, def)
+  do.call(pvt$contact_risks_$add_quo, import)
   pvt$rebuild_()
   new_obj
 }
@@ -845,7 +860,7 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 
 #' @title Add an infectivity profile definition
 #' @description
-#' Add definition of infectivity profile.
+#' Add definitions for the infectivity profiles.
 #' `r rd_add_modes_`
 #' @details
 #' `r rd_add_details_`
@@ -876,19 +891,26 @@ add_infectivity_profile <- function(hhmodel,
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
   pvt$assert_infec_profile_supported_()
+  # impose discrete-time if it's a model choice
+  pvt$infec_profile_$discr_model <- pvt$generator_$is_discrete_time
+
+  #> template mode
   if (is_template_import_(import)) add_template_defs_(
     pvt, "infectivity profile", append, func, rlang::enquos(...)
   )
+  #> import mode
   else if (!is.null(import)) pvt$infec_profile_$add_quo_list(
     defs_to_quos_(import, func, rlang::enquos(...), rlang::caller_env()),
     append = append
   )
+  #> single mode
   else if (!is.null(func)) pvt$infec_profile_$add_quo(
     func = func, status = status, discr = discr,
     rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     .assert = TRUE
   )
+  #> multiple mode
   else pvt$infec_profile_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...), has_template = TRUE),
     append = append

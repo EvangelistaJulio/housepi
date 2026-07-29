@@ -83,17 +83,8 @@ test_that("Compile flags are validated against model source", {
     expect_error("discrete time")
 })
 
-test_that("Active fields are read-only and expose state", {
+test_that("Active fields expose state", {
   hhgen <- HousepiGenerator$new("test")
-
-  # all active fields error on assignment
-  hhgen |>
-    helper_test_read_only(
-      "name", "raw_name", "setup", "mcmc_ptr", "source_dir",
-      "data_required", "last_flags",
-      "cols_data_wide", "info_data_wide", "infec_status_set",
-      "status_data_labels", "escaped"
-    )
 
   # field values match expected internals
   expect_equal(hhgen$raw_name, "test")
@@ -106,7 +97,6 @@ test_that("Active fields are read-only and expose state", {
   expect_identical(hhgen$status_data_labels, character())
   expect_identical(hhgen$escaped, "escaped")
   expect_false(is.null(hhgen$mcmc_ptr))
-  expect_true(is.list(hhgen$setup))
 })
 
 test_that("get_reference points to the model source", {

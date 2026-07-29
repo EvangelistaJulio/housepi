@@ -87,6 +87,10 @@ namespace housepi
 		/// NOTE: assume unique if augmented definitions required, but not imported yet.
 		void init_equivalence_class_compression();
 
+        /// Throw if the generic profile transmits at generation time 0.
+        /// NOTE: a status-specific profile is checked per member, with its variable.
+        void assert_valid_infectivity_profile() const;
+
 		////////////////////////////
 		//////  AUGMENTATION  //////
 		////////////////////////////
