@@ -37,7 +37,7 @@ public:
 	/// Augmented variable initialization.
 	void simulate_single_house(Household &house) override final
 	{
-		for (size_t i : house.infected_hhindexes())
+		for (size_t i : house.infected_members())
 			init_missing_augm(house.member(i));
 	}
 };

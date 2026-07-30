@@ -756,7 +756,7 @@ namespace housepi
                     [&](const Key &key)
                     {
                         return "group risk " + msg::val(key.first) + " for " +
-                               member.err_name() + " (group " +
+                               data_wide.err_name(member) + " (group " +
                                std::to_string(key.second) + ")";
                     });
 
@@ -777,7 +777,7 @@ namespace housepi
                 if (it == unique_defin_map.end())
                 {
                     it = unique_defin_map.emplace(these_risks, unique_groups_.size()).first;
-                    helper_init_unique_risk_(param, member, these_risks);
+                    helper_init_unique_risk_(data_wide, param, member, these_risks);
                 }
                 group_index_[Index::of(member)] = it->second;
             }
@@ -826,7 +826,7 @@ namespace housepi
         return data_headers;
     }
 
-    void GroupRisk::helper_init_unique_risk_(const Parameter &param, const Individual &member, const str_table &these_risks)
+    void GroupRisk::helper_init_unique_risk_(const DataWide &data_wide, const Parameter &param, const Individual &member, const str_table &these_risks)
     {
         unique_groups_.emplace_back();
         IndivGroup_ &igr = unique_groups_.back();
@@ -836,7 +836,7 @@ namespace housepi
             if (!these_risks.count(gstr))
                 msg::stop(
                     "A group risk definition " + msg::val(gstr) +
-                    " was missing for " + member.err_name() + ".");
+                    " was missing for " + data_wide.err_name(member) + ".");
 
             igr.vec.emplace_back(risks::VALUE_REFERENCE);
             igr.vec.back().name(gstr, ErrType::GroupRisk);
@@ -916,8 +916,8 @@ namespace housepi
                     { return rules.row_gid[r]; },
                     [&](size_t)
                     {
-                        return "contact risk from " + member_from.err_name() +
-                               " to " + member_to.err_name();
+                        return "contact risk from " + data_wide.err_name(member_from) +
+                               " to " + data_wide.err_name(member_to);
                     });
 
                 // across groups: multiply the winning params (skip reference)

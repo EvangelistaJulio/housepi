@@ -7,10 +7,10 @@
 
 #pragma once
 
-#include <string>
+#include <cstddef>
 
-#include "tools/messages.h"
 #include "tools/status.h"
+#include "tools/types.h"
 
 namespace housepi
 {
@@ -21,10 +21,11 @@ namespace housepi
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Class for individual household member.
-	class Individual final
+	/// NOTE: the user id lives in DataWide, keyed by the individual index (see Index::of).
+	class alignas(8) Individual final
 	{
 		friend class Household; /// owns and mutates its members
-		friend struct Index;	/// reads the opaque storage index_
+		friend struct Index;	/// reads the opaque storage indexes
 
 	public:
 		/////////////////////////
@@ -32,21 +33,16 @@ namespace housepi
 		/////////////////////////
 
 		/// Equal to operator.
-		bool operator==(const Individual &other) const noexcept { return index_ == other.index_; }
+		bool operator==(const Individual &other) const noexcept { return indiv_index_ == other.indiv_index_; }
 		/// Not equal to operator.
-		bool operator!=(const Individual &other) const noexcept { return index_ != other.index_; }
+		bool operator!=(const Individual &other) const noexcept { return indiv_index_ != other.indiv_index_; }
 
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
 
-		/// Unique identifier as provided in data.
-		const std::string &id() const noexcept { return id_; }
 		/// Associated status.
 		int status() const noexcept { return status_; }
-		/// Within household relative-index.
-		/// UPDATE: this shall be dropped in the future
-		size_t hhindex() const noexcept { return hhindex_; }
 
 		/////////////////////
 		//////  FLAGS  //////
@@ -56,20 +52,15 @@ namespace housepi
 		bool is_escaped_status() const noexcept { return status::is_escaped(status_); }
 		bool is_missing_status() const noexcept { return status::is_missing(status_); }
 
-		////////////////////
-		//////  SHOW  //////
-		////////////////////
-
-		std::string err_name() const { return "individual " + msg::val(id()); }
-
 	private:
-		size_t index_ = 0;	  /// housepi internal index
-		size_t hhindex_ = 0;  /// household relative index
-		std::string id_ = ""; /// user id
+		IndivIndex indiv_index_ = 0;   /// housepi internal individual index
+		MemberIndex member_index_ = 0; /// index within its own household
 
 		/// status of the individual
 		int status_ = status::MISSING;
 	};
+
+	static_assert(sizeof(Individual) % 8 == 0, "Individual must be 8-byte padded.");
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,7 +73,11 @@ namespace housepi
 	/// Index of Individual and Household. Client-Attorney idiom for lightweight viewers.
 	struct Index
 	{
-		static size_t of(const Individual &member) noexcept { return member.index_; }
+		/// Global individual index.
+		static size_t of(const Individual &member) noexcept { return member.indiv_index_; }
+		/// Global household index.
 		static size_t of(const Household &house) noexcept; /// NOTE: defined in household.h
+		/// Index of an individual within its own household.
+		static size_t member(const Individual &member) noexcept { return member.member_index_; }
 	};
 }

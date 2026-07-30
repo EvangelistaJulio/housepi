@@ -233,14 +233,15 @@ namespace housepi
 
             size_t n_houses = data_wide.report_house.total;
             post->house_names.reserve(n_houses);
-            for (Household house : data_wide)
-                post->house_names.push_back(house.house_id());
+            for (const Household &house : data_wide)
+                post->house_names.push_back(data_wide.house_id(house));
         }
 
         // Help initializing augmented draws,
         void helper_init_augm_draws(
             Posterior *post,
             const Augmented &augm,
+            const DataWide &data_wide,
             const Setup &setup,
             unsigned long sample_size)
         {
@@ -260,7 +261,7 @@ namespace housepi
                 for (size_t a : draws_list)
                 {
                     member_matrix.emplace_back(sample_size, na::DOUBLE);
-                    post->augm_col_names.push_back(member.id() + "_" + augm.khold(a));
+                    post->augm_col_names.push_back(data_wide.id(member) + "_" + augm.khold(a));
                 }
             }
         }
@@ -297,7 +298,7 @@ namespace housepi
 
         helper_init_param_draws(this, mcmc.param, sample_size);
         helper_init_house_draws(this, mcmc.data_wide(), sample_size);
-        helper_init_augm_draws(this, mcmc.augm, setup, sample_size);
+        helper_init_augm_draws(this, mcmc.augm, mcmc.data_wide(), setup, sample_size);
     }
 
     void Posterior::store(MCMCBase &mcmc)
@@ -481,7 +482,7 @@ namespace housepi
             infprof::assert_zero_at_origin(*infec_profile.generic, is_discr);
         else
             for (const Household &house : data_wide())
-                for (size_t i : house.infected_hhindexes())
+                for (size_t i : house.infected_members())
                 {
                     // check status-specific profiles
                     const Variable &avar = augm.at(infec_profile.augm_key, house.member(i));
@@ -522,7 +523,7 @@ namespace housepi
 
         if (augm.is_any_adaptive())
             for (Household &house : data_wide())
-                for (size_t i : house.infected_hhindexes())
+                for (size_t i : house.infected_members())
                 {
                     Individual &member = house.member(i);
                     for (size_t a : augm.list_adaptive(member))
@@ -550,10 +551,10 @@ namespace housepi
 
             // recover from commit_total_log_posterior_
             if (with_augm_model)
-                for (size_t i : house.infected_hhindexes())
+                for (size_t i : house.infected_members())
                     augm.varia[Index::of(house.member(i))].augm_log_lik.recover();
             if (with_obs)
-                for (size_t i : house.infected_hhindexes())
+                for (size_t i : house.infected_members())
                     augm.varia[Index::of(house.member(i))].obs_log_lik.recover();
         }
 
@@ -590,7 +591,7 @@ namespace housepi
     double MCMCBase::house_obs_log_lik(const Household &house) const
     {
         double obs = 0.;
-        for (size_t i : house.infected_hhindexes())
+        for (size_t i : house.infected_members())
             obs += augm.varia[Index::of(house.member(i))].obs_log_lik.value();
         return obs;
     }
@@ -598,7 +599,7 @@ namespace housepi
     double MCMCBase::house_augm_log_lik(const Household &house) const
     {
         double model = 0.;
-        for (size_t i : house.infected_hhindexes())
+        for (size_t i : house.infected_members())
             model += augm.varia[Index::of(house.member(i))].augm_log_lik.value();
         return model;
     }
@@ -759,7 +760,7 @@ namespace housepi
     {
         LogProbaAccumulator acc;
         if (with_obs)
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
                 acc.obs_ll += augm.commit_obs_log_lik(house.member(i));
 
         // save all household cache dependencies
@@ -767,7 +768,7 @@ namespace housepi
             model->update_house_cache_dependecies(house);
         acc.transm_ll = commit_transm_log_lik_(house);
         if (with_augm_model)
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
                 acc.augm_ll += augm.commit_augm_log_lik(house.member(i));
         return acc;
     }
@@ -780,7 +781,7 @@ namespace housepi
             {
                 Household &house = data_wide().eq_class_head(R);
                 double amodel = 0.;
-                for (size_t i : house.infected_hhindexes())
+                for (size_t i : house.infected_members())
                     amodel += augm.commit_augm_log_lik(house.member(i));
                 return data_wide().eq_class_weight(R) * amodel;
             });
@@ -794,7 +795,7 @@ namespace housepi
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
         {
             Household &house = data_wide().eq_class_head(R);
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
                 augm.varia[Index::of(house.member(i))].augm_log_lik.recover();
         }
     }
@@ -864,7 +865,7 @@ namespace housepi
         // Observation (individual):
         // resample each member variable upon failure
         if (augm.is_any_obs())
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
             {
                 Individual &member = house.member(i);
                 if (augm.list_obs(member).empty())
@@ -887,18 +888,18 @@ namespace housepi
         if (data_wide().transm_log_lik(house).is_inf())
             msg::stop(
                 "Initial transmission log-likelihood returned infinity for " +
-                house.err_name() + ".");
+                data_wide().err_name(house) + ".");
 
         // Augmented Prior:
         if (augm.is_any_model())
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
             {
                 Individual &member = house.member(i);
                 acc.augm_ll += augm.commit_augm_log_lik(member);
                 if (augm.varia[Index::of(member)].augm_log_lik.is_inf())
                     msg::stop(
                         "Initial augmented log-likelihood returned infinity for " +
-                        member.err_name() + ".");
+                        data_wide().err_name(member) + ".");
             }
 
         return acc;
@@ -919,7 +920,7 @@ namespace housepi
             // adapt all adaptive augmented variables
             if (augm.is_any_adaptive())
                 for (Household &house : data_wide())
-                    for (size_t i : house.infected_hhindexes())
+                    for (size_t i : house.infected_members())
                     {
                         Individual &member_i = house.member(i);
                         for (size_t a : augm.list_adaptive(member_i))
@@ -1042,7 +1043,7 @@ namespace housepi
         Household &house = data_wide().at(H);
 
         LogProbaAccumulator acc;
-        for (size_t i : house.infected_hhindexes())
+        for (size_t i : house.infected_members())
         {
             Individual &member_i = house.member(i);
             for (size_t a : augm.list_sample(member_i))
@@ -1065,7 +1066,7 @@ namespace housepi
         avar.propose(setup.prng()); // propose new value and save old
         if (avar.is_valid_move())   // proceed only if new value is valid
         {
-            size_t i = member.hhindex(); // household-relative index
+            size_t i = Index::member(member); // household-relative index
 
             // update cache dependencies to perform computations
             data_wide().save_member_cache(house, i);

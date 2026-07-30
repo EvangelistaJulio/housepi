@@ -16,6 +16,7 @@
 #include "tools/data_reports.h"
 #include "tools/keys.h"
 #include "tools/logproba.h"
+#include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/types.h"
 
@@ -107,6 +108,14 @@ namespace housepi
         /// NOTE: evaluation-only; simulation re-wires the cells live.
         void finalize_cells();
 
+        /// Unique identifier of a member, as provided in data.
+        const std::string &id(const Individual &member) const noexcept { return indiv_ids_[Index::of(member)]; }
+        /// Identifier of a household, as provided in data.
+        const std::string &house_id(const Household &house) const noexcept { return house_ids_[Index::of(house)]; }
+        /// Names for error messages.
+        std::string err_name(const Individual &member) const { return "individual " + msg::val(id(member)); }
+        std::string err_name(const Household &house) const { return "household " + msg::val(house_id(house)); }
+
         ///////////////////////////////////
         //////  EQUIVALENCE CLASSES  //////
         ///////////////////////////////////
@@ -195,6 +204,8 @@ namespace housepi
 
         dict<size_t> hhid_to_index_ = {};            /// Map house-id to internal index
         std::vector<IndivWide_> indiv_data_;         /// External storage for individual data
+        std::vector<std::string> indiv_ids_ = {};    /// User individual ids, by individual index
+        std::vector<std::string> house_ids_ = {};    /// User house ids, by household index
 
         std::vector<Household> house_vector_ = {};   /// All households in data
         std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood

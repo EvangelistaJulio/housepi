@@ -62,8 +62,8 @@ public:
 		auto &order = cache_uint_vector(house, HHuintvecKey::order);
 		order.clear();
 		order.reserve(house.size());
-		order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
-		order.insert(order.end(), house.escaped_hhindexes().begin(), house.escaped_hhindexes().end());
+		order.insert(order.end(), house.infected_members().begin(), house.infected_members().end());
+		order.insert(order.end(), house.escaped_members().begin(), house.escaped_members().end());
 
 		///////////////////////////////////////
 		/////////////  PARTITIONS  ////////////
@@ -219,7 +219,7 @@ public:
 			else
 			{
 				set_infected(house, member);
-				new_gen_set.push_back(member.hhindex());
+				new_gen_set.push_back(Index::member(member));
 			}
 
 		//////////////////////////////////////////////////////////////////

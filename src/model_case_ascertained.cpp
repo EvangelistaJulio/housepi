@@ -61,14 +61,14 @@ public:
 	{
 		if (house.n_infected_status() == 0)
 			throw std::logic_error(
-				"No infected members were found in " + house.err_name() +
+				"No infected members were found in " + err_name(house) +
 				".\nCase-ascertained model assumes at least one infected member per household.");
 
 		// study period must be non-negative
 		for (const Individual &member : house)
 			if (data(DataKey::start_date, member) > data(DataKey::end_date, member))
 				throw std::logic_error(
-					"Found negative follow-up period for " + member.err_name() +
+					"Found negative follow-up period for " + err_name(member) +
 					".\nCheck " + msg::arg("start_date") + " and " + msg::arg("end_date") + ".");
 	}
 
@@ -109,19 +109,19 @@ public:
 		const double beta = transmission_rate(house.size());
 
 		double output = 0.;
-		for (size_t s : house.escaped_hhindexes())
+		for (size_t s : house.escaped_members())
 		{
 			const Individual &member_s = house.member(s);
 			const double exposure = follow_up_end(member_s) - t_intro;
 			output -= alpha * exposure * group_risk(GroupRiskKey::community, member_s);
 		}
 
-		for (size_t i : house.infected_hhindexes())
+		for (size_t i : house.infected_members())
 		{
 			const Individual &member_i = house.member(i);
 			const double mu_i = group_risk(GroupRiskKey::infectivity, member_i);
 
-			for (size_t s : house.escaped_hhindexes())
+			for (size_t s : house.escaped_members())
 				output -= mu_i * beta * cumul_mtx[i][s] *
 						  contact_risk(house, i, s) *
 						  group_risk(GroupRiskKey::susceptibility, house.member(s));
@@ -132,7 +132,7 @@ public:
 			// Risk of infection from other household members k
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
-			for (size_t j : house.infected_hhindexes())
+			for (size_t j : house.infected_members())
 			{
 				if (j == i)
 					continue;
@@ -179,8 +179,8 @@ public:
 		double t_infec_i,
 		double t_infec_j)
 	{
-		const size_t i = member_i.hhindex();
-		const size_t j = member_j.hhindex();
+		const size_t i = Index::member(member_i);
+		const size_t j = Index::member(member_j);
 		const double gentime = t_infec_j - t_infec_i;
 
 		// note: setting lut to 0 this is necessary because ROI is brute force
@@ -238,11 +238,11 @@ public:
 		double new_t0 = 100000;
 
 		size_t n_infec = house.n_infected_status();
-		const auto &infected_hhindexes = house.infected_hhindexes();
+		const auto &infected_members = house.infected_members();
 
 		for (size_t a = 0; a < n_infec; ++a)
 		{
-			const size_t i = infected_hhindexes[a];
+			const size_t i = infected_members[a];
 			const Individual &member_i = house.member(i);
 			const double t_infec_i = aug(AugmKey::infec_time, member_i);
 
@@ -250,7 +250,7 @@ public:
 			//////  Escaped Members  //////
 			///////////////////////////////
 
-			for (size_t s : house.escaped_hhindexes())
+			for (size_t s : house.escaped_members())
 			{
 				const Individual &member_s = house.member(s);
 				const double exposure = follow_up_end(member_s) - t_infec_i;
@@ -264,7 +264,7 @@ public:
 
 			for (size_t b = a + 1; b < n_infec; ++b)
 			{
-				const size_t j = infected_hhindexes[b];
+				const size_t j = infected_members[b];
 				const Individual &member_j = house.member(j);
 				const double t_infec_j = aug(AugmKey::infec_time, member_j);
 
@@ -285,14 +285,14 @@ public:
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtxKey::cumul);
 		unsigned &i0 = cache_uint(house, HHuintKey::intro_case);
 
-		const size_t i = member_i.hhindex();
+		const size_t i = Index::member(member_i);
 		const double t_infec_i = aug(AugmKey::infec_time, member_i);
 
 		///////////////////////////////
 		//////  Escaped Members  //////
 		///////////////////////////////
 
-		for (size_t s : house.escaped_hhindexes())
+		for (size_t s : house.escaped_members())
 		{
 			const Individual &member_s = house.member(s);
 			double exposure = follow_up_end(member_s) - t_infec_i;
@@ -311,7 +311,7 @@ public:
 		i0 = i;
 		double new_t0 = t_infec_i;
 
-		for (size_t j : house.infected_hhindexes())
+		for (size_t j : house.infected_members())
 		{
 			if (j == i)
 				continue;
@@ -404,11 +404,11 @@ public:
 		double alpha,
 		double beta) const
 	{
-		size_t i = member_i.hhindex();
+		size_t i = Index::member(member_i);
 		double roi = 0.; // instantaneous risk of infection
 
 		// j : infector, i : infectee
-		for (size_t j : house.infected_hhindexes())
+		for (size_t j : house.infected_members())
 		{
 			const Individual &member_j = house.member(j);
 			const double gentime = t_infec_i - aug(AugmKey::infec_time, member_j);

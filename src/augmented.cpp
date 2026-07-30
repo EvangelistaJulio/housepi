@@ -748,7 +748,7 @@ namespace housepi
 
         // define augmented variables for all augmented individuals in order
         for (Household &house : mcmc_->data_wide())
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
             {
                 Individual &member = house.member(i);
                 for (size_t k : helper_materialize_definition_order_(member))
@@ -1178,7 +1178,7 @@ namespace housepi
             msg::stop(
                 std::string(e.what()) +
                 "\nCheck household observation " + msg::val(astr) + " for " +
-                house.err_name() + ".");
+                mcmc_->data_wide().err_name(house) + ".");
         }
     }
 
@@ -1268,11 +1268,11 @@ namespace housepi
 
                 if (data_wide.requires_discrete(d) && v != std::floor(v))
                     msg::stop(
-                        "Household observation " + msg::val(astr) + " for " + house.err_name() +
+                        "Household observation " + msg::val(astr) + " for " + data_wide.err_name(house) +
                         " was expected to be discrete-valued, as requested by model.");
                 if (data_wide.requires_positive(d) && !(v > 0.))
                     msg::stop(
-                        "Household observation " + msg::val(astr) + " for " + house.err_name() +
+                        "Household observation " + msg::val(astr) + " for " + data_wide.err_name(house) +
                         " was expected to be greater than zero, as requested by model.");
 
                 // enforce inference-finalization
@@ -1294,7 +1294,7 @@ namespace housepi
             return;
 
         for (Household &house : mcmc_->data_wide())
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
                 clear_definitions(house.member(i));
     }
 
@@ -1337,11 +1337,11 @@ namespace housepi
         if (member.is_infected_status())
             msg::stop(
                 "No augmented definitions were found for " +
-                member.err_name() + " with status " + std::to_string(status) + ".");
+                mcmc_->data_wide().err_name(member) + " with status " + std::to_string(status) + ".");
 
         msg::stop(
             "Generic augmented definition for non-infectious " +
-            member.err_name() + " was missing.");
+            mcmc_->data_wide().err_name(member) + " was missing.");
     }
 
     void Augmented::helper_init_attributes_(Individual &member, size_t k, bool simulation)
@@ -1406,7 +1406,7 @@ namespace housepi
             msg::stop(
                 std::string(e.what()) +
                 "\nCheck augmented " + msg::val(astr) + " for " +
-                member.err_name() + " (status " + std::to_string(member.status()) + ").");
+                mcmc_->data_wide().err_name(member) + " (status " + std::to_string(member.status()) + ").");
         }
     }
 
@@ -1502,7 +1502,7 @@ namespace housepi
             return;
 
         for (Household &house : mcmc_->data_wide())
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
                 restart(house.member(i), prng);
     }
 
@@ -1537,7 +1537,7 @@ namespace housepi
             if (augm_dep.size() > 0)
                 msg::stop(
                     "Exceeded attempts to initialize augmented variables of " +
-                    member.err_name() + " due to observations.\n" +
+                    mcmc_->data_wide().err_name(member) + " due to observations.\n" +
                     "Widen augmented model of " + str::format(str::unique(augm_dep), false, 3) +
                     ", revise the observation domain of " + msg::val(deftable_.c_name[k]) +
                     ", or check the observed individual data.");
@@ -1546,13 +1546,13 @@ namespace housepi
             for (const std::string &pstr : str::unique(param_dep))
                 if (!mcmc_->param.at(mcmc_->param.khold(pstr)).is_constant())
                     msg::stop(
-                        "Failed to initialize due to observations of " + member.err_name() + ".\n" +
+                        "Failed to initialize due to observations of " + mcmc_->data_wide().err_name(member) + ".\n" +
                         "Try to remove free parameter dependencies in observation domain of " + msg::val(deftable_.c_name[k]) + ".");
         }
 
         // otherwise observed data are just unreachable
         msg::stop(
-            "Failed to initialize due to observations of " + member.err_name() + ".\n" +
+            "Failed to initialize due to observations of " + mcmc_->data_wide().err_name(member) + ".\n" +
             "The observed values lie outside of respective domain.\n" +
             "Check the individual data or revise the domain.");
     }
@@ -1563,7 +1563,7 @@ namespace housepi
             return;
 
         for (Household &house : mcmc_->data_wide())
-            for (size_t i : house.infected_hhindexes())
+            for (size_t i : house.infected_members())
             {
                 Individual &member = house.member(i);
                 for (Variable &avar : varia_of_(member).vec)
@@ -1658,10 +1658,10 @@ namespace housepi
             std::vector<std::string> house_ids;
             std::vector<const Individual *> ptrs;
 
-            void store(const Household &house, size_t i)
+            void store(const DataWide &data_wide, const Household &house, size_t i)
             {
-                ids.emplace_back(house.member(i).id());
-                house_ids.emplace_back(house.house_id());
+                ids.emplace_back(data_wide.id(house.member(i)));
+                house_ids.emplace_back(data_wide.house_id(house));
                 ptrs.emplace_back(&house.member(i));
             }
         };
@@ -1700,13 +1700,13 @@ namespace housepi
                     continue;
                 }
 
-                if (contains(house_draws, house.house_id()))
-                    for (size_t i : house.infected_hhindexes())
-                        seen.store(house, i);
+                if (contains(house_draws, mcmc_->data_wide().house_id(house)))
+                    for (size_t i : house.infected_members())
+                        seen.store(mcmc_->data_wide(), house, i);
                 else
-                    for (size_t i : house.infected_hhindexes())
-                        if (contains(id_draws, house.member(i).id()))
-                            seen.store(house, i);
+                    for (size_t i : house.infected_members())
+                        if (contains(id_draws, mcmc_->data_wide().id(house.member(i))))
+                            seen.store(mcmc_->data_wide(), house, i);
             }
 
         // raise warnings for draws not found in the data
@@ -1726,8 +1726,8 @@ namespace housepi
         {
             std::uniform_int_distribution<size_t> pick(0, eligible.size() - 1);
             const Household &house = *eligible[pick(prng)];
-            for (size_t i : house.infected_hhindexes())
-                seen.store(house, i);
+            for (size_t i : house.infected_members())
+                seen.store(mcmc_->data_wide(), house, i);
         }
 
         return seen.ptrs;

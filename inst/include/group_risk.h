@@ -62,6 +62,6 @@ namespace housepi
         /// Verify that group risks definitions are correct and pre-process theme.
         std::vector<std::string> helper_process_definitions_(DataWide &data_wide, const str_table &input);
         /// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
-        void helper_init_unique_risk_(const Parameter &param, const Individual &member, const str_table &these_risks);
+        void helper_init_unique_risk_(const DataWide &data_wide, const Parameter &param, const Individual &member, const str_table &these_risks);
     };
 }

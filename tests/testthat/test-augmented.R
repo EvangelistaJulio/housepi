@@ -664,7 +664,7 @@ test_that("Group risk keyed on an observation is rejected in simulation", {
 
 test_that("Augmented aliasing works as expected", {
   # check that model arguments are correctly integrated
-  simulated <- data.frame(id = seq(1, 1000), house_id = 1, status = 1) |>
+  simulated <- data.frame(id = seq(1, 1000), house_id = rep(seq(10), each = 100), status = 1) |>
     new_housepi_model("test") |>
     add_augmented(
       hour = list(model = "uniform", min = day, max = day + 1),
@@ -680,7 +680,8 @@ test_that("A value paired with a prior overrides the draw in simulation only", {
   # simulation pins the sampled variable to its data-bound value (the wide prior is a
   # nuisance law that would scatter it); inference is unaffected -- the value is ignored
   # there, so the draws span the prior instead of collapsing onto the value.
-  hhmodel <- data.frame(id = seq_len(400), house_id = 1, status = 1, anchor = 7) |>
+  hhmodel <- data.frame(id = seq_len(400), house_id = rep(seq(4), each = 100),
+                        status = 1, anchor = 7) |>
     new_housepi_model("test") |>
     add_augmented(snake = list(model = "uniform", max = 100, value = anchor@D))
 
