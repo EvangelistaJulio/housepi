@@ -320,8 +320,8 @@ namespace housepi
 
                 // print augmented variable of id trace
                 {
-                    for (auto &member_matrix : post.augm_values)
-                        for (auto &var_vec : member_matrix)
+                    for (auto &indiv_matrix : post.augm_values)
+                        for (auto &var_vec : indiv_matrix)
                             ofs << read::DELIMITER << std::setprecision(5)
                                 << std::fixed << var_vec[i];
                 }
@@ -372,16 +372,16 @@ namespace housepi
         if (!ofs.is_open())
             throw std::runtime_error("Output file closed unexpectedly.");
 
-        for (const Individual &member : house)
+        for (const Individual &indiv : house)
         {
-            ofs << member.id()
-                << read::DELIMITER << house.house_id()
-                << read::DELIMITER << member.status();
+            ofs << data_wide.id(indiv)
+                << read::DELIMITER << data_wide.house_id(house)
+                << read::DELIMITER << indiv.status();
             for (size_t d = 0; d < data_wide.khold().size(); ++d)
-                ofs << read::DELIMITER << data_wide.data(d, member);
+                ofs << read::DELIMITER << data_wide.data(d, indiv);
             for (size_t a : augm_export)
             {
-                const Variable &xaugm = augm.at(a, member);
+                const Variable &xaugm = augm.at(a, indiv);
                 double x = xaugm.is_empty() ? na::DOUBLE : xaugm.value();
                 ofs << read::DELIMITER << x;
             }
@@ -412,7 +412,7 @@ namespace housepi
             catch (const std::exception &e)
             {
                 throw std::runtime_error(
-                    "While simulating " + house.err_name() + ":\n" + e.what());
+                    "While simulating " + data_wide.err_name(house) + ":\n" + e.what());
             }
 
         // close ofstream

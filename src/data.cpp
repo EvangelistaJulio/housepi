@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <map>
 #include <numeric>
 #include <stdexcept>
@@ -40,38 +41,34 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Household::add_member(size_t index,
-                               const std::string &id,
-                               int status)
+    void Household::add_indiv(IndivIndex index, int status)
     {
-        size_t hhindex = size();
-        members_.emplace_back();
-        ++hhsize_;
+        const MemberIndex m = hhsize_++;
+        indivs_.emplace_back();
 
-        Individual &last = members_.back();
-        last.index_ = index;
-        last.hhindex_ = hhindex;
-        last.id_ = id;
+        Individual &last = indivs_.back();
+        last.indiv_index_ = index;
+        last.member_index_ = m;
 
         // new member added as if missing status
         last.status_ = status::MISSING;
-        status_vec_.push_back(hhindex);
+        status_vec_.push_back(m);
         if (!status::is_missing(status))
             set_new_status_(last, status);
     }
 
-    void Household::set_new_status_(Individual &member, int snew)
+    void Household::set_new_status_(Individual &indiv, int snew)
     {
-        const size_t i = member.hhindex();
-        size_t cold = status::category(member.status());
+        const MemberIndex i = indiv.member_index_;
+        size_t cold = status::category(indiv.status());
         size_t cnew = status::category(snew);
 
-        member.status_ = snew; // NOTE: might just change within infected status
+        indiv.status_ = snew; // NOTE: might just change within infected status
         if (cold == cnew)
             return;
 
         // segment boundaries [infected | escaped | missing]
-        size_t bounds[] = {0, ninf_, ninf_ + nsus_, hhsize_};
+        size_t bounds[] = {0, ninf_, static_cast<size_t>(ninf_ + nsus_), hhsize_};
         // extract old position given the old segment
         size_t pos = std::find(&status_vec_[bounds[cold]], &status_vec_[bounds[cold + 1]], i) -
                      &status_vec_[0];
@@ -147,9 +144,14 @@ namespace housepi
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
         report_indiv.total = read::csv_n_rows(input);
+        if (report_indiv.total > std::numeric_limits<IndivIndex>::max())
+            msg::stop(
+                "Data exceeded the maximum of " +
+                std::to_string(std::numeric_limits<IndivIndex>::max()) + " individuals.");
 
         // pre-allocate external data storage
         indiv_data_.resize(report_indiv.total);
+        indiv_ids_.resize(report_indiv.total);
 
         // store households
         for (size_t i = 0; i < report_indiv.total; ++i)
@@ -217,18 +219,26 @@ namespace housepi
             {
                 // map data index to household number
                 size_t H = house_vector_.size();
+                if (H > std::numeric_limits<HouseIndex>::max())
+                    msg::stop(
+                        "Data exceeded the maximum of " +
+                        std::to_string(std::numeric_limits<HouseIndex>::max()) + " households.");
                 hhid_to_index_.emplace(house_id, H);
                 // create a new empty household
                 house_vector_.emplace_back();
-                Household &last = house_vector_.back();
-                last.house_id_ = house_id;
-                last.index_ = H;
+                house_vector_.back().house_index_ = static_cast<HouseIndex>(H);
+                house_ids_.emplace_back(house_id);
             }
             // extract the household reference
             Household &house = house_vector_.at(hhid_to_index_.at(house_id));
+            if (house.size() == std::numeric_limits<MemberIndex>::max())
+                msg::stop(
+                    "Household " + msg::val(house_id) + " exceeded the maximum of " +
+                    std::to_string(std::numeric_limits<MemberIndex>::max()) + " members.");
 
             // assign the individual the respective household
-            house.add_member(i, id, idata.status);
+            indiv_ids_[i] = id;
+            house.add_indiv(static_cast<IndivIndex>(i), idata.status);
         }
 
         // columns known at import: model declared keys plus the user ones. Columns
@@ -282,6 +292,8 @@ namespace housepi
         house_vector_.clear();
         hhid_to_index_.clear();
         indiv_data_.clear();
+        indiv_ids_.clear();
+        house_ids_.clear();
         report_indiv = ReportIndividual();
         report_house = ReportHousehold();
         report_hh_size = ReportHouseSizes();
@@ -376,17 +388,17 @@ namespace housepi
                     std::iota(order.begin(), order.end(), 0);
                     std::sort(order.begin(), order.end(),
                               [this, &house](size_t i, size_t j)
-                              { return member_less_(house.member(i), house.member(j)); });
+                              { return indiv_less_(house.at(i), house.at(j)); });
 
                     // equal house sizes share seeding
                     size_t seed = std::hash<size_t>{}(house.size());
                     // combine hashes over sorted members
                     for (size_t i : order)
                     {
-                        const Individual &member = house.member(i);
-                        hash_combine_(seed, std::hash<int>{}(member.status()));
+                        const Individual &indiv = house.at(i);
+                        hash_combine_(seed, std::hash<int>{}(indiv.status()));
                         for (size_t d : data_list_)
-                            hash_combine_(seed, std::hash<double>{}(data_wide_.data(d, member)));
+                            hash_combine_(seed, std::hash<double>{}(data_wide_.data(d, indiv)));
                     }
                     output[seed].emplace_back(H);
                 }
@@ -401,7 +413,7 @@ namespace housepi
             const DataWide &data_wide_;
 
             /// Comparison functor: sort members by (status, data[0], data[1], ...)
-            bool member_less_(const Individual &a, const Individual &b) const
+            bool indiv_less_(const Individual &a, const Individual &b) const
             {
                 if (a.status() != b.status())
                     return a.status() < b.status();
@@ -459,7 +471,7 @@ namespace housepi
         {
             const size_t refer_restrict = eq_classes_.size();
             for (size_t H : group)
-                at(H).eq_class_ = refer_restrict;
+                at(H).eq_class_ = static_cast<HouseIndex>(refer_restrict);
 
             eq_classes_.emplace_back(group);
         }
@@ -479,7 +491,7 @@ namespace housepi
         for (size_t H = 0; H < report_house.total; ++H)
         {
             eq_classes_[H].head_ = H;
-            at(H).eq_class_ = H;
+            at(H).eq_class_ = static_cast<HouseIndex>(H);
         }
     }
 
@@ -599,8 +611,8 @@ namespace housepi
     void DataWide::recover_all_status() noexcept
     {
         for (Household &house : house_vector_)
-            for (Individual &member : house)
-                house.set_new_status_(member, indiv_data_[Index::of(member)].status);
+            for (Individual &indiv : house)
+                house.set_new_status_(indiv, indiv_data_[Index::of(indiv)].status);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -626,8 +638,8 @@ namespace housepi
         // individual map for id -> index
         dict<size_t> id_to_index = {};
         for (const Household &house : data_wide)
-            for (const Individual &member : house)
-                id_to_index.emplace(member.id(), Index::of(member));
+            for (const Individual &indiv : house)
+                id_to_index.emplace(data_wide.id(indiv), Index::of(indiv));
 
         // load individual data list
         size_t n_rows = read::csv_n_rows(input);

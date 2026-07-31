@@ -112,7 +112,7 @@ namespace housepi
         void clear_definitions(Individual &m);
         /// Initialize augmented variables only if missing.
         void init_definitions_for_simulation(Individual &m);
-        /// Initialize augmented dependecies and priors.
+        /// Initialize augmented dependencies and priors.
         /// NOTE: evaluation-only, never run for simulations.
         void init_for_evaluation();
 
@@ -121,11 +121,11 @@ namespace housepi
 
         /// Sample observation values from their distributions.
         /// NOTE: used for simulations.
-        void sample_obs(Individual &member, rnd_gen &prng);
+        void sample_obs(Individual &indiv, rnd_gen &prng);
 
         /// Sample the status observation, if any.
         /// NOTE: used for simulations.
-        void simulate_infected_status(Household &house, Individual &member, rnd_gen &prng);
+        void simulate_infected_status(Household &house, Individual &indiv, rnd_gen &prng);
 
         /// Initialize surrogate columns of both levels for simulations.
         void init_house_for_simulation();
@@ -137,20 +137,20 @@ namespace housepi
         /// member's read-surface at its Variable before evaluation.
         /// NOTE: only static columns are eligible, a live one has no fixed value:
         /// rejected, or skipped when exporting the data view.
-        void materialize_surrogate_columns(DataWide &data_wide, bool for_export = false);
+        void materialize_surrogate_columns(bool for_export = false);
 
         /// Reset augmented initial values for given individual.
-        void restart(Individual &member, rnd_gen &prng)
+        void restart(Individual &indiv, rnd_gen &prng)
         {
-            for (size_t a : list_sample(member))
-                varia_of_(member).vec[a].restart(prng);
+            for (size_t a : list_sample(indiv))
+                varia_of_(indiv).vec[a].restart(prng);
         }
         /// Draw sampled augmented from their prior for generative simulation;
         /// unlike restart it uses no proposal (simulation builds none).
-        void draw_sample(Individual &member, rnd_gen &prng)
+        void draw_sample(Individual &indiv, rnd_gen &prng)
         {
-            for (size_t a : list_sample(member))
-                varia_of_(member).vec[a].draw_value(prng);
+            for (size_t a : list_sample(indiv))
+                varia_of_(indiv).vec[a].draw_value(prng);
         }
         /// Initialize augmented initial values for all individuals.
         /// NOTE: skips automatically if no augmented to sample.
@@ -169,7 +169,7 @@ namespace housepi
         //////  GETTER  //////
         //////////////////////
 
-        /// Access the augmented variable of given key for a member.
+        /// Access the augmented variable of given key for an individual.
         Variable &at(size_t a, const Individual &m) noexcept { return varia_of_(m).vec[a]; }
         const Variable &at(size_t a, const Individual &m) const noexcept { return varia_of_(m).vec[a]; }
 
@@ -203,9 +203,9 @@ namespace housepi
 
         /// Compute and store log-likelihood of augmented variables associated to Individual.
         /// NOTE: to be called only if any prior is defined.
-        double commit_augm_log_lik(Individual &member);
+        double commit_augm_log_lik(Individual &indiv);
         /// Compute and store log-ratio of likelihood of single augmented variable.
-        double commit_augm_log_lik_ratio(Individual &member, size_t a);
+        double commit_augm_log_lik_ratio(Individual &indiv, size_t a);
 
         /// Whether some other variable reads 'a' as a model parameter (loc/min/max).
         /// If so, moving 'a' shifts their density and the plain value-ratio breaks.
@@ -222,22 +222,22 @@ namespace housepi
 
         /// Compute and store observation log-likelihood of observation nodes.
         /// NOTE: to be called only if any observation node is defined.
-        double commit_obs_log_lik(Individual &member);
+        double commit_obs_log_lik(Individual &indiv);
         /// Compute and store log-ratio of observation node.
-        double commit_obs_log_lik_ratio(Individual &member, size_t a);
+        double commit_obs_log_lik_ratio(Individual &indiv, size_t a);
 
         /// Read-only individual observation log-likelihood.
         /// NOTE: an observation value is a datum, never granted valid: must be guarded.
-        double eval_log_obs(const Individual &member) const
+        double eval_log_obs(const Individual &indiv) const
         {
             double ll = 0.0;
-            for (size_t a : list_obs(member))
-                ll += varia_of_(member).vec[a].guarded_log_pdf();
+            for (size_t a : list_obs(indiv))
+                ll += varia_of_(indiv).vec[a].guarded_log_pdf();
             return ll;
         }
 
         /// Throw initialization error for associated to observation model.
-        [[noreturn]] void throw_obs_init_error(const Individual &member) const;
+        [[noreturn]] void throw_obs_init_error(const Individual &indiv) const;
 
         /////////////////////
         //////  FLAGS  //////
@@ -329,7 +329,7 @@ namespace housepi
         };
         std::vector<StatusBlock_> status_blocks_;
 
-        /// Access IndivBlock for a member.
+        /// Access IndivBlock for an individual.
         IndivBlock &varia_of_(const Individual &m) noexcept { return varia[Index::of(m)]; }
         const IndivBlock &varia_of_(const Individual &m) const noexcept { return varia[Index::of(m)]; }
         /// Status-specific block governing augmented definitions of member.
@@ -365,7 +365,7 @@ namespace housepi
         /// of the same name (an unsuffixed name is read as augmented).
         void assert_augm_depen_declared_(const str_table &graph, int status) const;
 
-        /// Set dependecies ordering for ininitializiation fo given status.
+        /// Set dependencies ordering for ininitializiation fo given status.
         /// At the same time assert that definition are complet and acyclic.
         void set_definition_dependency_order_for_(int status, int err_status);
         /// Extract status-specific definitions row indexes.
@@ -400,11 +400,10 @@ namespace housepi
         /// stands in for. Household level reduces over the members, member level
         /// assigns one Variable per member. Evaluation fixes the value it settles on.
         // NOTE: assume every surrogate column is registered as a data key
-        void build_surrogate_column_(const Surrogate &surr, DataWide &data_wide,
-                                     Household &house, bool for_evaluation);
+        void build_surrogate_column_(const Surrogate &surr, Household &house, bool for_evaluation);
         /// Assert a surrogate value honours what the model requires of the column.
-        void assert_surrogate_datum_requirements_(const DataWide &data_wide, size_t d, double v,
-                                                  const std::string &name, const Household &house) const;
+        void assert_surrogate_datum_requirements_(size_t d, double v, const std::string &name,
+                                                  const Household &house) const;
         /// Whether definition row 'k' references only data and numeric sources.
         bool def_is_pure_data_(size_t k) const;
         /// Whether a parsed definition subtree references any group risk.
@@ -420,13 +419,13 @@ namespace housepi
 
         /// Get the definition order for current member according to its status.
         /// NOTE: if status hasn't been observed in data, build on demand.
-        std::vector<size_t> helper_materialize_definition_order_(Individual &member);
+        std::vector<size_t> helper_materialize_definition_order_(Individual &indiv);
         /// Assign prior arguments and range. Same for function, otherwise assign proposer.
         /// NOTE: a Variable must already be allocated.
         /// NOTE: observations are generated by simulations.
-        void helper_init_attributes_(Individual &member, size_t k, bool simulation = false);
+        void helper_init_attributes_(Individual &indiv, size_t k, bool simulation = false);
         /// Assign attributes to augmented model.
-        void helper_init_distr_attributes_(Individual &member, size_t k);
+        void helper_init_distr_attributes_(Individual &indiv, size_t k);
         /// Build the Variable of definition row 'k' on 'anchor'. Its level selects the
         /// operand policy: a household row reduces over the members of 'house', any other
         /// row binds every operand to 'anchor' alone and needs no household.

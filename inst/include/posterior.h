@@ -30,7 +30,7 @@ namespace housepi
         matrix param_values;                             // parameter values
         matrix param_priors;                             // single parameter priors
         std::vector<matrix> augm_values;                 // selected augmented values
-        std::vector<const Individual *> tracked_members; // members to track
+        std::vector<const Individual *> tracked_indivs; // members to track
 
         using headers = std::vector<std::string>;
         /// Column name metadata captured at initialization

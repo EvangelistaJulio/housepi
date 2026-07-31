@@ -54,10 +54,10 @@ namespace housepi
 		/// Whether the model requires an infectivity profile definition.
 		virtual bool has_infec_profile() const { return false; }
 
-		/// Update cached augmeted dependecies for whole household.
-		virtual void update_house_cache_dependecies(Household & /*house*/) {}
-		/// Update cached augmeted dependecies for single household member.
-		virtual void update_member_cache_dependecies(Household & /*house*/, Individual & /*member*/) {}
+		/// Update cached augmented dependencies for whole household.
+		virtual void update_house_cache_dependencies(Household & /*house*/) {}
+		/// Update cached augmented dependencies for a single individual.
+		virtual void update_member_cache_dependencies(Household & /*house*/, Individual & /*indiv*/) {}
 		/// Compute the transmission log-likelihood within a single household.
 		virtual double compute_house_transm_log_lik(Household & /*house*/) = 0;
 
@@ -104,20 +104,20 @@ namespace housepi
 		/// Request data definition greater than zero.
 		void request_data_positive(size_t d) { mcmc_->data_wide().request_positive(d); }
 
-		/// Set a member status to infected. Resolve status observation, if any.
+		/// Set an individual status to infected. Resolve status observation, if any.
 		/// NOTE: call init_missing_augm to materialize status-specific definition block after.
-		void set_infected(Household &house, Individual &member)
+		void set_infected(Household &house, Individual &indiv)
 		{
-			mcmc_->augm.simulate_infected_status(house, member, mcmc_->setup.prng());
+			mcmc_->augm.simulate_infected_status(house, indiv, mcmc_->setup.prng());
 		}
-		/// Set a member status to escaped status.
-		void set_escaped(Household &house, Individual &member)
+		/// Set an individual status to escaped status.
+		void set_escaped(Household &house, Individual &indiv)
 		{
-			house.set_new_status_(member, status::ESCAPED);
+			house.set_new_status_(indiv, status::ESCAPED);
 		}
 
 		/// Drop all augmented definitions of given individual.
-		void clear_augm(Individual &member) { mcmc_->augm.clear_definitions(member); }
+		void clear_augm(Individual &indiv) { mcmc_->augm.clear_definitions(indiv); }
 
 		/// Set numeric value of augmented variable. If not allowed, raise exception.
 		void set_augm_value(size_t a, const Individual &m, double x) { mcmc_->get_augm_varia(a, m).set(x); }
@@ -125,11 +125,11 @@ namespace housepi
 		/// Initialize all augmented variables and observations.
 		/// If a variable has been set by the user, it's skipped.
 		/// UPDATE: right now simulations assignments must be order independent.
-		void init_missing_augm(Individual &member)
+		void init_missing_augm(Individual &indiv)
 		{
-			mcmc_->augm.init_definitions_for_simulation(member);
-			mcmc_->augm.draw_sample(member, mcmc_->setup.prng());
-			mcmc_->augm.sample_obs(member, mcmc_->setup.prng());
+			mcmc_->augm.init_definitions_for_simulation(indiv);
+			mcmc_->augm.draw_sample(indiv, mcmc_->setup.prng());
+			mcmc_->augm.sample_obs(indiv, mcmc_->setup.prng());
 		}
 
 		//////////////////////
@@ -152,6 +152,10 @@ namespace housepi
 		double data(size_t d, const Individual &m) const { return mcmc_->data(d, m); }
 		/// Get group-risk value for given individual.
 		double group_risk(size_t g, const Individual &m) const { return mcmc_->group_risk.value(g, m); }
+
+		/// Names for error messages.
+		std::string err_name(const Individual &m) const { return mcmc_->data_wide().err_name(m); }
+		std::string err_name(const Household &h) const { return mcmc_->data_wide().err_name(h); }
 
 		/// Get contact risk 'from' household member 'to' member.
 		double contact_risk(const Household &house, size_t from, size_t to) const { return mcmc_->contact_risk.value(house, from, to); }

@@ -35,10 +35,10 @@ namespace housepi
         /// Finalize all variables (see Variable::finalize).
         void finalize();
 
-        /// Access the group risk attribute of given key for a member.
-        const Attribute &at(size_t g, const Individual &member) const noexcept { return unique_groups_[group_index_[Index::of(member)]].vec[g]; }
-        /// Access the group risk value of given key for a member.
-        double value(size_t g, const Individual &member) const { return at(g, member).value(); }
+        /// Access the group risk attribute of given key for an individual.
+        const Attribute &at(size_t g, const Individual &indiv) const noexcept { return unique_groups_[group_index_[Index::of(indiv)]].vec[g]; }
+        /// Access the group risk value of given key for an individual.
+        double value(size_t g, const Individual &indiv) const { return at(g, indiv).value(); }
         /// Whether two members belong to the same group-risk partition.
         bool same_group(const Individual &a, const Individual &b) const noexcept { return group_index_[Index::of(a)] == group_index_[Index::of(b)]; }
 
@@ -58,6 +58,6 @@ namespace housepi
         /// Verify that group risks definitions are correct and pre-process theme.
         std::vector<std::string> helper_process_definitions_(DataWide &data_wide, const str_table &input);
         /// Convert to a dictionary of parameter pointers and pass the pointers to the individual.
-        void helper_init_unique_risk_(const Parameter &param, const Individual &member, const str_table &these_risks);
+        void helper_init_unique_risk_(const DataWide &data_wide, const Parameter &param, const Individual &indiv, const str_table &these_risks);
     };
 }

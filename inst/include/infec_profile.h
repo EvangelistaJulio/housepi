@@ -146,24 +146,24 @@ namespace housepi
         //////  GETTER  //////
         //////////////////////
 
-        double inst(const Individual *member_ptr, double t) const
+        double inst(const Individual *indiv_ptr, double t) const
         {
             switch (mode_)
             {
             case Mode::Augmented:
-                return paugm_->at(augm_key, *member_ptr).function()->pdf(t);
+                return paugm_->at(augm_key, *indiv_ptr).function()->pdf(t);
             case Mode::LookUp:
                 return lookup_.inst(t);
             default: // case Mode::Generic
                 return generic->pdf(t);
             }
         }
-        double cumul(const Individual *member_ptr, double t) const
+        double cumul(const Individual *indiv_ptr, double t) const
         {
             switch (mode_)
             {
             case Mode::Augmented:
-                return paugm_->at(augm_key, *member_ptr).function()->cdf(t);
+                return paugm_->at(augm_key, *indiv_ptr).function()->cdf(t);
             case Mode::LookUp:
                 return generic->is_below(t) ? 0. : lookup_.cumul(t);
             default: // case Mode::Generic

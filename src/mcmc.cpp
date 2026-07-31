@@ -73,13 +73,13 @@ namespace housepi
 
     const Attribute &Translator::to_attribute(
         const parse::Entry &node,
-        const Individual *member_ptr) const
+        const Individual *indiv_ptr) const
     {
         storage_ = Attribute(); // reset auxiliary storage to default empty
 
         if (!node.is_terminal())
         {
-            helper_store_read_function_(node, member_ptr);
+            helper_store_read_function_(node, indiv_ptr);
         }
         else if (parse::is_numeric(node.type))
         {
@@ -91,7 +91,7 @@ namespace housepi
         }
         else if (!node.is_empty())
         {
-            if (!member_ptr)
+            if (!indiv_ptr)
             {
                 std::string sms = "Individual specific definitions as " + node.err_str() +
                                   " are not supported here.";
@@ -106,16 +106,16 @@ namespace housepi
                 // wire the column's read-cell: whatever produces the column points
                 // that cell at itself, so the reader needs no rule of its own
                 storage_.init_pointer(
-                    &pdata_wide_->readcell(pdata_wide_->khold(node.value), *member_ptr));
+                    &pdata_wide_->readcell(pdata_wide_->khold(node.value), *indiv_ptr));
                 storage_.name(node.value, ErrType::Data);
             }
             else if (parse::is_augmented(node.type))
             {
-                return augm_.at(augm_.khold(node.value), *member_ptr);
+                return augm_.at(augm_.khold(node.value), *indiv_ptr);
             }
             else if (parse::is_group_risk(node.type))
             {
-                return pgroup_risk_->at(pgroup_risk_->khold(node.value), *member_ptr);
+                return pgroup_risk_->at(pgroup_risk_->khold(node.value), *indiv_ptr);
             }
         }
 
@@ -124,7 +124,7 @@ namespace housepi
 
     void Translator::helper_store_read_function_(
         const parse::Entry &node,
-        const Individual *member_ptr) const
+        const Individual *indiv_ptr) const
     {
         Attribute parent;
         parent.init_function(compose_func_registries(
@@ -133,22 +133,22 @@ namespace housepi
              Registry::Continuos, Registry::Discrete, Registry::InfecProfile}));
 
         for (const auto &child : node.children)
-            parent.init_func_attr(child.key, to_attribute(child, member_ptr));
+            parent.init_func_attr(child.key, to_attribute(child, indiv_ptr));
 
         storage_ = parent;
     }
     const Attribute &Translator::to_attribute(
         const std::string &expr,
-        const Individual *member_ptr) const
+        const Individual *indiv_ptr) const
     {
-        return to_attribute(parse::Definition(expr).root, member_ptr);
+        return to_attribute(parse::Definition(expr).root, indiv_ptr);
     }
 
     const Attribute &Translator::to_numeric(
         const parse::Entry &node,
-        const Individual *member_ptr) const
+        const Individual *indiv_ptr) const
     {
-        storage_ = to_attribute(node, member_ptr);
+        storage_ = to_attribute(node, indiv_ptr);
         if (!storage_.is_empty() && !storage_.is_constant())
             msg::stop(
                 "Definition " + node.err_str() +
@@ -157,9 +157,9 @@ namespace housepi
     }
     const Attribute &Translator::to_numeric(
         const std::string &expr,
-        const Individual *member_ptr) const
+        const Individual *indiv_ptr) const
     {
-        return to_numeric(parse::Definition(expr).root, member_ptr);
+        return to_numeric(parse::Definition(expr).root, indiv_ptr);
     }
 
     void Translator::make_cache_dependent(const parse::Entry &node) const
@@ -218,34 +218,35 @@ namespace housepi
 
             size_t n_houses = data_wide.report_house.total;
             post->house_names.reserve(n_houses);
-            for (Household house : data_wide)
-                post->house_names.push_back(house.house_id());
+            for (const Household &house : data_wide)
+                post->house_names.push_back(data_wide.house_id(house));
         }
 
         // Help initializing augmented draws,
         void helper_init_augm_draws(
             Posterior *post,
             const Augmented &augm,
+            const DataWide &data_wide,
             const Setup &setup,
             unsigned long sample_size)
         {
-            post->tracked_members = augm.init_individual_sample(
+            post->tracked_indivs = augm.init_individual_sample(
                 setup.id_draws, setup.house_draws, setup.prng());
 
-            if (post->tracked_members.empty())
+            if (post->tracked_indivs.empty())
                 return;
 
-            post->augm_values.resize(post->tracked_members.size());
-            for (size_t i = 0; i < post->tracked_members.size(); ++i)
+            post->augm_values.resize(post->tracked_indivs.size());
+            for (size_t i = 0; i < post->tracked_indivs.size(); ++i)
             {
-                const Individual &member = *post->tracked_members[i];
-                const auto &draws_list = augm.list_draws(member);
-                auto &member_matrix = post->augm_values[i];
-                member_matrix.reserve(draws_list.size());
+                const Individual &indiv = *post->tracked_indivs[i];
+                const auto &draws_list = augm.list_draws(indiv);
+                auto &indiv_matrix = post->augm_values[i];
+                indiv_matrix.reserve(draws_list.size());
                 for (size_t a : draws_list)
                 {
-                    member_matrix.emplace_back(sample_size, na::DOUBLE);
-                    post->augm_col_names.push_back(member.id() + "_" + augm.khold(a));
+                    indiv_matrix.emplace_back(sample_size, na::DOUBLE);
+                    post->augm_col_names.push_back(data_wide.id(indiv) + "_" + augm.khold(a));
                 }
             }
         }
@@ -260,7 +261,7 @@ namespace housepi
         param_priors.clear();
         house_log_lik.clear();
         augm_values.clear();
-        tracked_members.clear();
+        tracked_indivs.clear();
         param_names.clear();
         param_prior_names.clear();
         augm_col_names.clear();
@@ -282,7 +283,7 @@ namespace housepi
 
         helper_init_param_draws(this, mcmc.param, sample_size);
         helper_init_house_draws(this, mcmc.data_wide(), sample_size);
-        helper_init_augm_draws(this, mcmc.augm, setup, sample_size);
+        helper_init_augm_draws(this, mcmc.augm, mcmc.data_wide(), setup, sample_size);
     }
 
     void Posterior::store(MCMCBase &mcmc)
@@ -332,13 +333,13 @@ namespace housepi
 
         // augmented variable draws
         const Augmented &augm = mcmc.augm;
-        for (size_t j = 0; j < tracked_members.size(); ++j)
+        for (size_t j = 0; j < tracked_indivs.size(); ++j)
         {
-            const Individual &member = *tracked_members[j];
-            auto &member_matrix = augm_values[j];
+            const Individual &indiv = *tracked_indivs[j];
+            auto &indiv_matrix = augm_values[j];
             size_t c = 0;
-            for (size_t a : augm.list_draws(member))
-                member_matrix[c++][count_] = mcmc.aug(a, member);
+            for (size_t a : augm.list_draws(indiv))
+                indiv_matrix[c++][count_] = mcmc.aug(a, indiv);
         }
 
         // update sample count
@@ -396,11 +397,11 @@ namespace housepi
         if (i == j)
             return true;
 
-        const Individual &member_i = house.member(i);
-        const Individual &member_j = house.member(j);
+        const Individual &indiv_i = house.at(i);
+        const Individual &indiv_j = house.at(j);
 
         // check all group risks
-        if (!group_risk.same_group(member_i, member_j))
+        if (!group_risk.same_group(indiv_i, indiv_j))
             return false;
 
         // check all contact risks
@@ -466,10 +467,10 @@ namespace housepi
             infprof::assert_zero_at_origin(*infec_profile.generic, is_discr);
         else
             for (const Household &house : data_wide())
-                for (size_t i : house.infected_hhindexes())
+                for (const Individual &indiv : house.infected_indivs())
                 {
                     // check status-specific profiles
-                    const Variable &avar = augm.at(infec_profile.augm_key, house.member(i));
+                    const Variable &avar = augm.at(infec_profile.augm_key, indiv);
                     // UPDATE: am checking it's a function somewhere?
                     infprof::assert_zero_at_origin(*avar.function(), is_discr);
                 }
@@ -507,12 +508,9 @@ namespace housepi
 
         if (augm.is_any_adaptive())
             for (Household &house : data_wide())
-                for (size_t i : house.infected_hhindexes())
-                {
-                    Individual &member = house.member(i);
-                    for (size_t a : augm.list_adaptive(member))
-                        get_augm_varia(a, member).reset_accept_rate();
-                }
+                for (Individual &indiv : house.infected_indivs())
+                    for (size_t a : augm.list_adaptive(indiv))
+                        get_augm_varia(a, indiv).reset_accept_rate();
     }
 
     void MCMCBase::recover_total_log_density_(bool is_cache_depen, bool with_augm_model,
@@ -535,11 +533,11 @@ namespace housepi
 
             // recover from commit_total_log_posterior_
             if (with_augm_model)
-                for (size_t i : house.infected_hhindexes())
-                    augm.varia[Index::of(house.member(i))].augm_log_lik.recover();
+                for (const Individual &indiv : house.infected_indivs())
+                    augm.varia[Index::of(indiv)].augm_log_lik.recover();
             if (with_obs)
-                for (size_t i : house.infected_hhindexes())
-                    augm.varia[Index::of(house.member(i))].obs_log_lik.recover();
+                for (const Individual &indiv : house.infected_indivs())
+                    augm.varia[Index::of(indiv)].obs_log_lik.recover();
         }
 
         if (is_cache_depen)
@@ -575,16 +573,16 @@ namespace housepi
     double MCMCBase::house_obs_log_lik(const Household &house) const
     {
         double obs = 0.;
-        for (size_t i : house.infected_hhindexes())
-            obs += augm.varia[Index::of(house.member(i))].obs_log_lik.value();
+        for (const Individual &indiv : house.infected_indivs())
+            obs += augm.varia[Index::of(indiv)].obs_log_lik.value();
         return obs;
     }
 
     double MCMCBase::house_augm_log_lik(const Household &house) const
     {
         double model = 0.;
-        for (size_t i : house.infected_hhindexes())
-            model += augm.varia[Index::of(house.member(i))].augm_log_lik.value();
+        for (const Individual &indiv : house.infected_indivs())
+            model += augm.varia[Index::of(indiv)].augm_log_lik.value();
         return model;
     }
 
@@ -693,7 +691,6 @@ namespace housepi
         // @D reference (augmented bounds, model) reads the data store. An observation
         // is not generated in this pass, so its read-cell keeps the datum.
         data_wide().reset_readcells(augm.get_produced_cols());
-        augm.materialize_surrogate_columns(data_wide());
         augm.init_for_evaluation();
         data_wide().init_eq_classes(
             augm.is_any_sample() || augm.is_any_model() || augm.is_any_obs());
@@ -747,16 +744,16 @@ namespace housepi
     {
         LogProbaAccumulator acc;
         if (with_obs)
-            for (size_t i : house.infected_hhindexes())
-                acc.obs_ll += augm.commit_obs_log_lik(house.member(i));
+            for (Individual &indiv : house.infected_indivs())
+                acc.obs_ll += augm.commit_obs_log_lik(indiv);
 
         // save all household cache dependencies
         if (is_cache_depen)
-            model->update_house_cache_dependecies(house);
+            model->update_house_cache_dependencies(house);
         acc.transm_ll = commit_transm_log_lik_(house);
         if (with_augm_model)
-            for (size_t i : house.infected_hhindexes())
-                acc.augm_ll += augm.commit_augm_log_lik(house.member(i));
+            for (Individual &indiv : house.infected_indivs())
+                acc.augm_ll += augm.commit_augm_log_lik(indiv);
         return acc;
     }
 
@@ -768,8 +765,8 @@ namespace housepi
             {
                 Household &house = data_wide().eq_class_head(R);
                 double amodel = 0.;
-                for (size_t i : house.infected_hhindexes())
-                    amodel += augm.commit_augm_log_lik(house.member(i));
+                for (Individual &indiv : house.infected_indivs())
+                    amodel += augm.commit_augm_log_lik(indiv);
                 return data_wide().eq_class_weight(R) * amodel;
             });
         tot_augm_log_lik.set(acc);
@@ -782,8 +779,8 @@ namespace housepi
         for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
         {
             Household &house = data_wide().eq_class_head(R);
-            for (size_t i : house.infected_hhindexes())
-                augm.varia[Index::of(house.member(i))].augm_log_lik.recover();
+            for (const Individual &indiv : house.infected_indivs())
+                augm.varia[Index::of(indiv)].augm_log_lik.recover();
         }
     }
 
@@ -850,43 +847,41 @@ namespace housepi
         LogProbaAccumulator acc;
 
         // Observation (individual):
-        // resample each member variable upon failure
+        // resample each individual variable upon failure
         if (augm.is_any_obs())
-            for (size_t i : house.infected_hhindexes())
+            for (Individual &indiv : house.infected_indivs())
             {
-                Individual &member = house.member(i);
-                if (augm.list_obs(member).empty())
+                if (augm.list_obs(indiv).empty())
                     continue;
 
                 size_t attempt = 0;
-                while (!std::isfinite(augm.eval_log_obs(member)))
+                while (!std::isfinite(augm.eval_log_obs(indiv)))
                 {
                     ++attempt;
                     if (!augm.is_any_sample() || attempt >= N_INIT_ATTEMPTS_)
-                        augm.throw_obs_init_error(member);
-                    augm.restart(member, setup.prng());
+                        augm.throw_obs_init_error(indiv);
+                    augm.restart(indiv, setup.prng());
                 }
-                acc.obs_ll += augm.commit_obs_log_lik(member);
+                acc.obs_ll += augm.commit_obs_log_lik(indiv);
             }
 
         // Transmission:
-        model->update_house_cache_dependecies(house);
+        model->update_house_cache_dependencies(house);
         acc.transm_ll = commit_transm_log_lik_(house);
         if (data_wide().transm_log_lik(house).is_inf())
             msg::stop(
                 "Initial transmission log-likelihood returned infinity for " +
-                house.err_name() + ".");
+                data_wide().err_name(house) + ".");
 
         // Augmented Prior:
         if (augm.is_any_model())
-            for (size_t i : house.infected_hhindexes())
+            for (Individual &indiv : house.infected_indivs())
             {
-                Individual &member = house.member(i);
-                acc.augm_ll += augm.commit_augm_log_lik(member);
-                if (augm.varia[Index::of(member)].augm_log_lik.is_inf())
+                acc.augm_ll += augm.commit_augm_log_lik(indiv);
+                if (augm.varia[Index::of(indiv)].augm_log_lik.is_inf())
                     msg::stop(
                         "Initial augmented log-likelihood returned infinity for " +
-                        member.err_name() + ".");
+                        data_wide().err_name(indiv) + ".");
             }
 
         return acc;
@@ -907,12 +902,9 @@ namespace housepi
             // adapt all adaptive augmented variables
             if (augm.is_any_adaptive())
                 for (Household &house : data_wide())
-                    for (size_t i : house.infected_hhindexes())
-                    {
-                        Individual &member_i = house.member(i);
-                        for (size_t a : augm.list_adaptive(member_i))
-                            get_augm_varia(a, member_i).adapt_proposal(ratio);
-                    }
+                    for (Individual &indiv : house.infected_indivs())
+                        for (size_t a : augm.list_adaptive(indiv))
+                            get_augm_varia(a, indiv).adapt_proposal(ratio);
         }
     }
 
@@ -942,7 +934,7 @@ namespace housepi
         // move standard model parameters
         for (size_t p : param.list_sample_standard)
             move_single_parameter_<Beta0>(p, false);
-        // move parameters with cached dependecies
+        // move parameters with cached dependencies
         for (size_t p : param.list_sample_cached)
             move_single_parameter_<Beta0>(p, true);
 
@@ -1030,42 +1022,39 @@ namespace housepi
         Household &house = data_wide().at(H);
 
         LogProbaAccumulator acc;
-        for (size_t i : house.infected_hhindexes())
-        {
-            Individual &member_i = house.member(i);
-            for (size_t a : augm.list_sample(member_i))
-                acc += move_augm_single_variable_<Beta0>(house, member_i, a);
-        }
+        for (Individual &indiv : house.infected_indivs())
+            for (size_t a : augm.list_sample(indiv))
+                acc += move_augm_single_variable_<Beta0>(house, indiv, a);
         return acc;
     }
 
     template <bool Beta0>
-    LogProbaAccumulator MCMC::move_augm_single_variable_(Household &house, Individual &member, size_t a)
+    LogProbaAccumulator MCMC::move_augm_single_variable_(Household &house, Individual &indiv, size_t a)
     {
-        Variable &avar = get_augm_varia(a, member);
+        Variable &avar = get_augm_varia(a, indiv);
 
         // if 'a' feeds another variable's prior parameter (loc/min/max), moving 'a' shifts
         // their density with no change to their value: snapshot that guarded prior sum now,
         // while 'a' still holds its accepted value, so the ratio can measure the real change.
-        const bool dep = augm.has_model_dependents(member, a);
-        const double L_old = dep ? augm.sum_guarded_augm_log_lik(member, a) : 0.;
+        const bool dep = augm.has_model_dependents(indiv, a);
+        const double L_old = dep ? augm.sum_guarded_augm_log_lik(indiv, a) : 0.;
 
         avar.propose(setup.prng()); // propose new value and save old
         if (avar.is_valid_move())   // proceed only if new value is valid
         {
-            size_t i = member.hhindex(); // household-relative index
+            size_t i = Index::member(indiv); // household-relative index
 
             // update cache dependencies to perform computations
             data_wide().save_member_cache(house, i);
-            model->update_member_cache_dependecies(house, member);
+            model->update_member_cache_dependencies(house, indiv);
 
             ////////////////////
             ///  METROPOLIS  ///
             ////////////////////
 
             const double d_model = dep
-                                       ? augm.commit_augm_log_lik_ratio_dependent(member, a, L_old)
-                                       : commit_augm_log_lik_ratio(member, a);
+                                       ? augm.commit_augm_log_lik_ratio_dependent(indiv, a, L_old)
+                                       : commit_augm_log_lik_ratio(indiv, a);
 
             // NOTE: likelihood terms are tempered, the augmented model is not.
             if constexpr (Beta0)
@@ -1077,7 +1066,7 @@ namespace housepi
             }
             else
             {
-                const double d_obs = commit_obs_log_lik_ratio(member, a);
+                const double d_obs = commit_obs_log_lik_ratio(indiv, a);
                 const double d_transm = commit_transm_log_lik_ratio_(house);
 
                 const double r = setup.inv_temp * (d_obs + d_transm) + d_model - avar.proposal_log_ratio();
@@ -1085,12 +1074,12 @@ namespace housepi
                     return {d_obs, d_transm, d_model};
 
                 // recover log-likelihood values
-                if (augm.affects_obs(member, a))
-                    augm.varia[Index::of(member)].obs_log_lik.recover();
+                if (augm.affects_obs(indiv, a))
+                    augm.varia[Index::of(indiv)].obs_log_lik.recover();
                 data_wide().transm_log_lik(house).recover();
             }
             // recover log-prior value
-            augm.varia[Index::of(member)].augm_log_lik.recover();
+            augm.varia[Index::of(indiv)].augm_log_lik.recover();
             // recover cached values
             data_wide().recover_member_old_cached(house, i);
         }

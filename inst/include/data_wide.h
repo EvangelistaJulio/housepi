@@ -16,6 +16,7 @@
 #include "tools/data_reports.h"
 #include "tools/keys.h"
 #include "tools/logproba.h"
+#include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/types.h"
 
@@ -100,16 +101,24 @@ namespace housepi
         Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
         const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
 
-        /// Access wide-format data of given column for a member.
+        /// Access wide-format data of given column for an individual.
         /// NOTE: resolves through the per-member read-surface (raw or a wired Variable).
-        double data(size_t d, const Individual &member) const noexcept { return readcell(d, member).value(); }
-        /// Read-surface attribute of given column for a member (for live @D resolution).
-        const Attribute &readcell(size_t d, const Individual &member) const noexcept { return indiv_data_[Index::of(member)].readcell[d]; }
+        double data(size_t d, const Individual &indiv) const noexcept { return readcell(d, indiv).value(); }
+        /// Read-surface attribute of given column for an individual (for live @D resolution).
+        const Attribute &readcell(size_t d, const Individual &indiv) const noexcept { return indiv_data_[Index::of(indiv)].readcell[d]; }
         /// Point a column's read-surface at the Variable of a surrogate column.
-        void wire_readcell(size_t d, const Individual &member, const Attribute *p) noexcept { indiv_data_[Index::of(member)].readcell[d].init_pointer(p); }
+        void wire_readcell(size_t d, const Individual &indiv, const Attribute *p) noexcept { indiv_data_[Index::of(indiv)].readcell[d].init_pointer(p); }
         /// Finalize every read-cell (constant surrogate columns collapse to numeric).
         /// NOTE: evaluation-only; simulation re-wires the cells live.
         void finalize_cells();
+
+        /// Unique identifier of an individual, as provided in data.
+        const std::string &id(const Individual &indiv) const noexcept { return indiv_ids_[Index::of(indiv)]; }
+        /// Identifier of a household, as provided in data.
+        const std::string &house_id(const Household &house) const noexcept { return house_ids_[Index::of(house)]; }
+        /// Names for error messages.
+        std::string err_name(const Individual &indiv) const { return "individual " + msg::val(id(indiv)); }
+        std::string err_name(const Household &house) const { return "household " + msg::val(house_id(house)); }
 
         /// Column names known at import, without those produced by an observation.
         std::vector<std::string> imported_cols() const;
@@ -202,6 +211,8 @@ namespace housepi
 
         dict<size_t> hhid_to_index_ = {};    /// Map house-id to internal index
         std::vector<IndivWide_> indiv_data_; /// External storage for individual data
+        std::vector<std::string> indiv_ids_ = {};    /// User individual ids, by individual index
+        std::vector<std::string> house_ids_ = {};    /// User house ids, by household index
         size_t n_imported_ = 0;              /// Number of columns known at import
 
         std::vector<Household> house_vector_ = {};   /// All households in data

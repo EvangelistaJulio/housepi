@@ -742,19 +742,19 @@ namespace housepi
         // unique definition map
         std::map<str_table, size_t> unique_defin_map;
         for (Household &house : data_wide)
-            for (Individual &member : house)
+            for (Individual &indiv : house)
             {
                 str_table these_risks = undefined_risks;
 
                 // per-(risk_name, rule_group): keep the most-specific matching rule
                 const auto resolved = rules.resolve<Key>(
-                    matches_with(member),
+                    matches_with(indiv),
                     [&](size_t r)
                     { return Key{g_input_vec[r], rules.row_gid[r]}; },
                     [&](const Key &key)
                     {
                         return "group risk " + msg::val(key.first) + " for " +
-                               member.err_name() + " (group " +
+                               data_wide.err_name(indiv) + " (group " +
                                std::to_string(key.second) + ")";
                     });
 
@@ -775,9 +775,9 @@ namespace housepi
                 if (it == unique_defin_map.end())
                 {
                     it = unique_defin_map.emplace(these_risks, unique_groups_.size()).first;
-                    helper_init_unique_risk_(param, member, these_risks);
+                    helper_init_unique_risk_(data_wide, param, indiv, these_risks);
                 }
-                group_index_[Index::of(member)] = it->second;
+                group_index_[Index::of(indiv)] = it->second;
             }
 
         // finalize the number of free scale parameters per group risk
@@ -824,7 +824,7 @@ namespace housepi
         return data_headers;
     }
 
-    void GroupRisk::helper_init_unique_risk_(const Parameter &param, const Individual &member, const str_table &these_risks)
+    void GroupRisk::helper_init_unique_risk_(const DataWide &data_wide, const Parameter &param, const Individual &indiv, const str_table &these_risks)
     {
         unique_groups_.emplace_back();
         IndivGroup_ &igr = unique_groups_.back();
@@ -834,7 +834,7 @@ namespace housepi
             if (!these_risks.count(gstr))
                 msg::stop(
                     "A group risk definition " + msg::val(gstr) +
-                    " was missing for " + member.err_name() + ".");
+                    " was missing for " + data_wide.err_name(indiv) + ".");
 
             igr.vec.emplace_back(risks::VALUE_REFERENCE);
             igr.vec.back().name(gstr, ErrType::GroupRisk);
@@ -902,20 +902,20 @@ namespace housepi
             std::vector<const Attribute *> associate_param_ptrs(
                 const DataWide &data_wide,
                 const Parameter &param,
-                const Individual &member_from,
-                const Individual &member_to,
+                const Individual &indiv_from,
+                const Individual &indiv_to,
                 std::map<size_t, ScaleAnchor_> &anchors) const
             {
                 // per-group: keep the most-specific matching rule
                 const auto resolved = rules.resolve<size_t>(
                     [&](size_t r)
-                    { return matches_(data_wide, r, member_from, member_to); },
+                    { return matches_(data_wide, r, indiv_from, indiv_to); },
                     [&](size_t r)
                     { return rules.row_gid[r]; },
                     [&](size_t)
                     {
-                        return "contact risk from " + member_from.err_name() +
-                               " to " + member_to.err_name();
+                        return "contact risk from " + data_wide.err_name(indiv_from) +
+                               " to " + data_wide.err_name(indiv_to);
                     });
 
                 // across groups: multiply the winning params (skip reference)
@@ -971,17 +971,17 @@ namespace housepi
             bool matches_(
                 const DataWide &data_wide,
                 size_t r,
-                const Individual &member_from,
-                const Individual &member_to) const
+                const Individual &indiv_from,
+                const Individual &indiv_to) const
             {
                 for (size_t i = 0; i < from.size(); ++i)
                 {
                     const std::string &fval = rules.input.at(from[i])[r];
-                    if (!na::is(fval) && data_wide.data(keys[i], member_from) != str::tod(fval))
+                    if (!na::is(fval) && data_wide.data(keys[i], indiv_from) != str::tod(fval))
                         return false;
 
                     const std::string &tval = rules.input.at(to[i])[r];
-                    if (!na::is(tval) && data_wide.data(keys[i], member_to) != str::tod(tval))
+                    if (!na::is(tval) && data_wide.data(keys[i], indiv_to) != str::tod(tval))
                         return false;
                 }
                 return true;
@@ -1026,8 +1026,8 @@ namespace housepi
                 for (size_t to = 0; to < house_size; ++to)
                 {
                     std::vector<const Attribute *> param_ptrs =
-                        defs.associate_param_ptrs(data_wide, param, house.member(from),
-                                                  house.member(to), anchors);
+                        defs.associate_param_ptrs(data_wide, param, house.at(from),
+                                                  house.at(to), anchors);
 
                     if (!param_ptrs.empty())
                         house_contact_risks_[H].mtx[from][to].init_product(param_ptrs);

@@ -39,12 +39,12 @@ namespace housepi
         void bind_group_risk(const GroupRisk *group_risk) noexcept { pgroup_risk_ = group_risk; }
 
         /// Translate a definition node or a string to a generic attribute.
-        const Attribute &to_attribute(const parse::Entry &node, const Individual *member_ptr = nullptr) const;
-        const Attribute &to_attribute(const std::string &expr, const Individual *member_ptr = nullptr) const;
+        const Attribute &to_attribute(const parse::Entry &node, const Individual *indiv_ptr = nullptr) const;
+        const Attribute &to_attribute(const std::string &expr, const Individual *indiv_ptr = nullptr) const;
 
         /// Translate a definition node or a string to a numeric constant attribute.
-        const Attribute &to_numeric(const parse::Entry &node, const Individual *member_ptr = nullptr) const;
-        const Attribute &to_numeric(const std::string &expr, const Individual *member_ptr = nullptr) const;
+        const Attribute &to_numeric(const parse::Entry &node, const Individual *indiv_ptr = nullptr) const;
+        const Attribute &to_numeric(const std::string &expr, const Individual *indiv_ptr = nullptr) const;
 
         /// Mark a referenced non-constant parameter as cache-dependent.
         void make_cache_dependent(const parse::Entry &node) const;
@@ -56,6 +56,6 @@ namespace housepi
         const GroupRisk *pgroup_risk_;  /// group-risks storage and key-holder
         mutable Attribute storage_;     /// auxiliary storage attribute
 
-        void helper_store_read_function_(const parse::Entry &node, const Individual *member_ptr) const;
+        void helper_store_read_function_(const parse::Entry &node, const Individual *indiv_ptr) const;
     };
 }

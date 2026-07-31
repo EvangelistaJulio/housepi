@@ -102,15 +102,15 @@ namespace housepi
 		LogProbaAccumulator init_guarded_commit_house_(Household &house);
 
 		/// Compute and store log-ratio of prior of single augmented variable.
-		double commit_augm_log_lik_ratio(Individual &member, size_t a)
+		double commit_augm_log_lik_ratio(Individual &indiv, size_t a)
 		{
-			return augm.commit_augm_log_lik_ratio(member, a);
+			return augm.commit_augm_log_lik_ratio(indiv, a);
 		}
 
 		/// Compute and store log-ratio of observation nodes parameterized by 'a'.
-		double commit_obs_log_lik_ratio(Individual &member, size_t a)
+		double commit_obs_log_lik_ratio(Individual &indiv, size_t a)
 		{
-			return augm.commit_obs_log_lik_ratio(member, a);
+			return augm.commit_obs_log_lik_ratio(indiv, a);
 		}
 
 		/// Compute and set value of observation log-likelihood. Return log-like.
@@ -170,7 +170,7 @@ namespace housepi
 		/// Move a single augmented variable.
 		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
 		template <bool Beta0>
-		LogProbaAccumulator move_augm_single_variable_(Household &house, Individual &member, size_t a);
+		LogProbaAccumulator move_augm_single_variable_(Household &house, Individual &indiv, size_t a);
 
 		/// Power posteriors at 0 inverse temperature.
 		void power_post_zero_(PowerLadder &ladder);

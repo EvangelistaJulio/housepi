@@ -507,14 +507,14 @@ namespace
 
         size_t row = 0;
         for (const Household &house : data_wide)
-            for (const Individual &member : house)
+            for (const Individual &indiv : house)
             {
-                id_col[row] = member.id();
-                house_id_col[row] = house.house_id();
-                status_col[row] = member.status();
+                id_col[row] = data_wide.id(indiv);
+                house_id_col[row] = data_wide.house_id(house);
+                status_col[row] = indiv.status();
 
                 for (size_t d = 0; d < columns.size(); ++d)
-                    data_col[d][row] = hsp_to_rcpp(data_wide.data(data_keys[d], member));
+                    data_col[d][row] = hsp_to_rcpp(data_wide.data(data_keys[d], indiv));
                 ++row;
             }
 
@@ -543,7 +543,7 @@ namespace
             engine.data_wide().reset_readcells(engine.augm.get_produced_cols());
             try
             {
-                engine.augm.materialize_surrogate_columns(engine.data_wide(), true);
+                engine.augm.materialize_surrogate_columns(true);
                 engine.data_wide().finalize_cells();
             }
             catch (const std::exception &)
@@ -575,11 +575,11 @@ namespace
 
         size_t row = 0;
         for (const Household &house : data_wide)
-            for (const Individual &member : house)
+            for (const Individual &indiv : house)
             {
                 size_t c = 0;
                 for (size_t a : augm.list_augm_export)
-                    augm_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, member));
+                    augm_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, indiv));
                 ++row;
             }
 
@@ -618,13 +618,13 @@ namespace
 
         size_t row = 0;
         for (const Household &house : data_wide)
-            for (const Individual &member : house)
+            for (const Individual &indiv : house)
             {
-                const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(member);
+                const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(indiv);
                 if (!ptr->empty())
                     for (size_t k = 0; k < ptr->begin()->size(); ++k)
                     {
-                        datalist_index[row] = member.id();
+                        datalist_index[row] = data_wide.id(indiv);
                         for (size_t d = 0; d < datalist_dbl.size(); ++d)
                             datalist_dbl[d][row] = hsp_to_rcpp(ptr->at(d)[k]);
                         ++row;
@@ -804,11 +804,11 @@ namespace
         Rcpp::List cols(n_cols);
 
         size_t col = 0;
-        for (auto &member_matrix : post.augm_values)
+        for (auto &indiv_matrix : post.augm_values)
         {
-            for (auto &var_vec : member_matrix)
+            for (auto &var_vec : indiv_matrix)
                 cols[col++] = flush_vector_to_numvec(var_vec);
-            std::vector<std::vector<double>>().swap(member_matrix);
+            std::vector<std::vector<double>>().swap(indiv_matrix);
         }
         std::vector<std::vector<std::vector<double>>>().swap(post.augm_values);
 
@@ -891,15 +891,15 @@ namespace
         for (size_t d = 0; d < headers.size(); ++d)
             df_double[d] = Rcpp::NumericVector(n_rows);
 
-        for (const Individual &member : house)
+        for (const Individual &indiv : house)
         {
-            size_t i = member.hhindex();
-            id_col[i] = member.id();
-            house_id_col[i] = house.house_id();
-            status_col[i] = member.status();
+            size_t i = Index::member(indiv);
+            id_col[i] = data_wide.id(indiv);
+            house_id_col[i] = data_wide.house_id(house);
+            status_col[i] = indiv.status();
 
             for (size_t d = 0; d < headers.size(); ++d)
-                df_double[d][i] = hsp_to_rcpp(data_wide.data(d, member));
+                df_double[d][i] = hsp_to_rcpp(data_wide.data(d, indiv));
         }
 
         auto output = Rcpp::DataFrame::create(
@@ -916,15 +916,16 @@ namespace
     Rcpp::DataFrame helper_data_long_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const DataLong &data_long = mcmc_ptr->data_long();
 
         if (data_long.indiv_datalist.empty())
             return Rcpp::DataFrame::create();
 
         size_t n_rows = 0;
-        for (const Individual &member : house)
+        for (const Individual &indiv : house)
         {
-            const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(member);
+            const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(indiv);
             if (!ptr->empty())
                 n_rows += ptr->begin()->size();
         }
@@ -935,15 +936,15 @@ namespace
             df_double[d] = Rcpp::NumericVector(n_rows);
 
         size_t r = 0;
-        for (const Individual &member : house)
+        for (const Individual &indiv : house)
         {
-            const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(member);
+            const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(indiv);
             if (!ptr->empty())
                 for (size_t k = 0; k < ptr->begin()->size(); ++k)
                 {
                     for (size_t d = 0; d < df_double.size(); ++d)
                         df_double[d][r] = hsp_to_rcpp(ptr->at(d)[k]);
-                    datalist_id[r++] = member.id();
+                    datalist_id[r++] = data_wide.id(indiv);
                 }
         }
 
@@ -960,6 +961,7 @@ namespace
     Rcpp::DataFrame helper_group_risks_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const GroupRisk &group_risk = mcmc_ptr->group_risk;
         const std::vector<std::string> &headers = group_risk.khold().all();
 
@@ -973,13 +975,13 @@ namespace
         for (size_t c = 0; c < headers.size(); ++c)
             df_double[c] = Rcpp::NumericVector(n_rows);
 
-        for (const Individual &member : house)
+        for (const Individual &indiv : house)
         {
-            size_t i = member.hhindex();
-            id_col[i] = member.id();
+            size_t i = Index::member(indiv);
+            id_col[i] = data_wide.id(indiv);
 
             for (size_t c = 0; c < headers.size(); ++c)
-                df_double[c][i] = hsp_to_rcpp(group_risk.at(c, member));
+                df_double[c][i] = hsp_to_rcpp(group_risk.at(c, indiv));
         }
 
         Rcpp::List output;
@@ -996,6 +998,7 @@ namespace
     Rcpp::NumericMatrix helper_contact_risks_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const ContactRisk &contact_risk = mcmc_ptr->contact_risk;
 
         if (contact_risk.is_empty())
@@ -1007,7 +1010,7 @@ namespace
 
         for (size_t i = 0; i < n; ++i)
         {
-            ids[i] = house.member(i).id();
+            ids[i] = data_wide.id(house.at(i));
             for (size_t j = 0; j < n; ++j)
                 mtx(i, j) = hsp_to_rcpp(contact_risk.value(house, i, j));
         }
@@ -1020,6 +1023,7 @@ namespace
     Rcpp::List helper_infec_profile_rcpp_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
     {
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const InfecProfile &infec_profile = mcmc_ptr->infec_profile;
 
         if (!infec_profile.generic && !infec_profile.is_augmented())
@@ -1035,12 +1039,12 @@ namespace
         Rcpp::NumericVector infprof_max(n_rows, NA_REAL);
 
         for (size_t i = 0; i < house.size(); ++i)
-            id_col[i] = house.member(i).id();
+            id_col[i] = data_wide.id(house.at(i));
 
-        for (size_t i : house.infected_hhindexes())
+        for (MemberIndex i : house.infected_members())
             if (infec_profile.is_augmented())
             {
-                const auto &f = mcmc_ptr->get_augm_varia(infec_profile.augm_key, house.member(i)).function();
+                const auto &f = mcmc_ptr->get_augm_varia(infec_profile.augm_key, house.at(i)).function();
 
                 infprof_name[i] = f->name();
                 infprof_discr[i] = f->is_discrete();
@@ -1070,6 +1074,7 @@ namespace
     Rcpp::DataFrame helper_augm_log_prior_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
 
         size_t n_cols = augm.list_augm_export.size();
@@ -1086,13 +1091,13 @@ namespace
 
         for (size_t i = 0; i < house.size(); ++i)
         {
-            const Individual &member_i = house.member(i);
-            id_col[i] = member_i.id();
+            const Individual &indiv_i = house.at(i);
+            id_col[i] = data_wide.id(indiv_i);
 
             size_t c = 0;
             for (size_t a : augm.list_augm_export)
             {
-                const Variable &avar = mcmc_ptr->get_augm_varia(a, member_i);
+                const Variable &avar = mcmc_ptr->get_augm_varia(a, indiv_i);
                 if (avar.has_distr())
                     df_double[c++][i] = hsp_to_rcpp(avar.log_pdf());
             }
@@ -1111,6 +1116,7 @@ namespace
     Rcpp::DataFrame helper_augm_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
+        const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
         size_t n_cols = augm.list_augm_export.size();
 
@@ -1126,11 +1132,11 @@ namespace
 
         for (size_t i = 0; i < house.size(); ++i)
         {
-            const Individual &member_i = house.member(i);
-            id_col[i] = member_i.id();
+            const Individual &indiv_i = house.at(i);
+            id_col[i] = data_wide.id(indiv_i);
             size_t c = 0;
             for (size_t a : augm.list_augm_export)
-                df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, member_i));
+                df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, indiv_i));
         }
 
         Rcpp::List output;
@@ -1201,16 +1207,16 @@ namespace
                         engine.model->simulate_single_house(house);
 
                         size_t row = row_offsets[H]; // thread-local: no shared counter
-                        for (const Individual &member : house)
+                        for (const Individual &indiv : house)
                         {
-                            status_col[row] = member.status();
+                            status_col[row] = indiv.status();
                             size_t c = 0;
                             for (size_t a : augm.list_augm_export)
-                                augm_cols[c++][row] = hsp_to_rcpp(engine.get_augm_varia(a, member));
+                                augm_cols[c++][row] = hsp_to_rcpp(engine.get_augm_varia(a, indiv));
                             // observation nodes: generated for infected members, NA otherwise
                             for (size_t a : augm.list_obs_member)
-                                augm_cols[c++][row] = member.is_infected_status()
-                                                          ? hsp_to_rcpp(engine.get_augm_varia(a, member))
+                                augm_cols[c++][row] = indiv.is_infected_status()
+                                                          ? hsp_to_rcpp(engine.get_augm_varia(a, indiv))
                                                           : NA_REAL;
                             ++row;
                         }
@@ -1233,8 +1239,8 @@ namespace
                             {
                                 const size_t a = augm.khold(augm.surrogate_name(surr));
                                 size_t r = row_offsets[H];
-                                for (const Individual &member : house)
-                                    augm_cols[c][r++] = hsp_to_rcpp(engine.get_augm_varia(a, member));
+                                for (const Individual &indiv : house)
+                                    augm_cols[c][r++] = hsp_to_rcpp(engine.get_augm_varia(a, indiv));
                             }
                             ++c;
                         }
@@ -1243,7 +1249,7 @@ namespace
                     {
                         throw std::runtime_error(
                             std::string(e.what()) +
-                            "\nFor " + data_wide.at(H).err_name() + ".");
+                            "\nFor " + data_wide.err_name(data_wide.at(H)) + ".");
                     }
                 });
         }

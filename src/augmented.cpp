@@ -453,9 +453,9 @@ namespace housepi
 
         size_t n = khold_.size();
         for (Household &house : mcmc_->data_wide())
-            for (Individual &member : house)
+            for (Individual &indiv : house)
             {
-                IndivBlock &iaugm = varia_of_(member);
+                IndivBlock &iaugm = varia_of_(indiv);
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                     if (is_member_obs(khold(a)))
@@ -463,8 +463,8 @@ namespace housepi
                     else
                         iaugm.vec[a].name(khold(a), ErrType::Augmented);
 
-                if (member.is_infected_status())
-                    all_infected_statuses.emplace(member.status());
+                if (indiv.is_infected_status())
+                    all_infected_statuses.emplace(indiv.status());
             }
 
         // skip if no per-member definition to place into status blocks
@@ -578,7 +578,7 @@ namespace housepi
 
         assert_augm_depen_declared_(graph, err_status);
 
-        // check dependecies and translate order from name to deftable row index
+        // check dependencies and translate order from name to deftable row index
         try
         {
             // NOTE: this method is just called once per status
@@ -762,16 +762,14 @@ namespace housepi
         if (khold_.empty())
             return;
 
+        materialize_surrogate_columns(false);
         helper_init_model_list_();
 
         // define augmented variables for all augmented individuals in order
         for (Household &house : mcmc_->data_wide())
-            for (size_t i : house.infected_hhindexes())
-            {
-                Individual &member = house.member(i);
-                for (size_t k : helper_materialize_definition_order_(member))
-                    helper_init_attributes_(member, k);
-            }
+            for (Individual &indiv : house.infected_indivs())
+                for (size_t k : helper_materialize_definition_order_(indiv))
+                    helper_init_attributes_(indiv, k);
 
         // parameters that may move the augmented log-model (params now registered)
         set_model_param_depen_();
@@ -955,24 +953,24 @@ namespace housepi
         for (Household &house : data_wide)
         {
             // wire stochastic member-level observations to data read-cell
-            for (Individual &member : house)
+            for (Individual &indiv : house)
                 for (size_t a : list_obs_member)
-                    data_wide.wire_readcell(data_wide.khold(khold(a)), member,
-                                            &varia_of_(member).vec[a]);
+                    data_wide.wire_readcell(data_wide.khold(khold(a)), indiv,
+                                            &varia_of_(indiv).vec[a]);
 
             // build and wire surrogate columns in dependency order
             for (const Surrogate &surr : list_surrogate)
                 // defer live member observation (drawn with the member)
                 if (surr.is_house || surr.is_static)
-                    build_surrogate_column_(surr, data_wide, house, false);
+                    build_surrogate_column_(surr, house, false);
         }
     }
 
     void Augmented::build_surrogate_column_(const Surrogate &surr,
-                                            DataWide &data_wide,
                                             Household &house,
                                             bool for_evaluation)
     {
+        DataWide &data_wide = mcmc_->data_wide();
         const std::string &name = deftable_.c_name[surr.row];
         const size_t d = data_wide.khold(name);
 
@@ -980,43 +978,43 @@ namespace housepi
         if (surr.is_house)
         {
             Variable &hvar = house_varia[Index::of(house)][surr.slot];
-            build_definition_variable_(hvar, surr.row, house.member(0), &house);
+            build_definition_variable_(hvar, surr.row, house.at(0), &house);
             if (for_evaluation)
             {
-                assert_surrogate_datum_requirements_(data_wide, d, hvar.value(), name, house);
+                assert_surrogate_datum_requirements_(d, hvar.value(), name, house);
                 hvar.finalize(); // enforce inference-finalization
             }
-            for (const Individual &member : house)
-                data_wide.wire_readcell(d, member, &hvar);
+            for (const Individual &indiv : house)
+                data_wide.wire_readcell(d, indiv, &hvar);
             return;
         }
 
         // member level
         const size_t a = khold(name);
-        for (Individual &member : house)
+        for (Individual &indiv : house)
         {
-            Variable &avar = varia_of_(member).vec[a];
-            build_definition_variable_(avar, surr.row, member, nullptr);
+            Variable &avar = varia_of_(indiv).vec[a];
+            build_definition_variable_(avar, surr.row, indiv, nullptr);
             if (for_evaluation)
             {
-                assert_surrogate_datum_requirements_(data_wide, d, avar.value(), name, house);
+                assert_surrogate_datum_requirements_(d, avar.value(), name, house);
                 avar.finalize(); // enforce inference-finalization
             }
-            data_wide.wire_readcell(d, member, &avar);
+            data_wide.wire_readcell(d, indiv, &avar);
         }
     }
 
     void Augmented::assert_surrogate_datum_requirements_(
-        const DataWide &data_wide, size_t d, double v,
-        const std::string &name, const Household &house) const
+        size_t d, double v, const std::string &name, const Household &house) const
     {
+        const DataWide &data_wide = mcmc_->data_wide();
         if (data_wide.requires_discrete(d) && v != std::floor(v))
             msg::stop(
-                "Observation " + msg::val(name) + " for " + house.err_name() +
+                "Observation " + msg::val(name) + " for " + data_wide.err_name(house) +
                 " was expected to be discrete-valued, as requested by model.");
         if (data_wide.requires_positive(d) && !(v > 0.))
             msg::stop(
-                "Observation " + msg::val(name) + " for " + house.err_name() +
+                "Observation " + msg::val(name) + " for " + data_wide.err_name(house) +
                 " was expected to be greater than zero, as requested by model.");
     }
 
@@ -1025,9 +1023,9 @@ namespace housepi
         // clear every member's observation Variables before re-sampling: a member
         // infected in a previous repetition must not leak a stale value into this
         // one. The live household reductions point at these slots and follow them.
-        for (Individual &member : house)
+        for (Individual &indiv : house)
             for (size_t a : list_obs_member)
-                varia_of_(member).vec[a].clear();
+                varia_of_(indiv).vec[a].clear();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1214,10 +1212,10 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
+            const DataWide &data_wide = mcmc_->data_wide();
             msg::stop(
-                std::string(e.what()) +
-                "\nCheck " + err_type_name(kind_to_err_type(kind)) + " " + msg::val(astr) +
-                " for " + (house ? house->err_name() : anchor.err_name()) + ".");
+                std::string(e.what()) + "\nCheck " + var.err_name() + " for " +
+                (house ? data_wide.err_name(*house) : data_wide.err_name(anchor)) + ".");
         }
     }
 
@@ -1237,9 +1235,9 @@ namespace housepi
             // a per-member data cell unfolds over the house; a household observation is
             // already one value for the whole house and enters the reduction once
             if (parse::is_data_wide(child.type) && !is_house_obs(child.value))
-                for (const Individual &member : house)
+                for (const Individual &indiv : house)
                 {
-                    const Attribute &attr = mcmc_->translator.to_attribute(child, &member);
+                    const Attribute &attr = mcmc_->translator.to_attribute(child, &indiv);
                     if (attr.is_constant() && na::is(attr.value()))
                         continue; // an empty cell drops out of the reduction
                     append(attr);
@@ -1297,10 +1295,12 @@ namespace housepi
                 "Status observation " + msg::val(astr) + " must depend only on data or numeric constants.");
     }
 
-    void Augmented::materialize_surrogate_columns(DataWide &data_wide, bool for_export)
+    void Augmented::materialize_surrogate_columns(bool for_export)
     {
         if (list_surrogate.empty())
             return;
+
+        DataWide &data_wide = mcmc_->data_wide();
 
         // build the surrogate Variables (inference home, shared with the simulation init)
         // and point each standing-in data column's read-surface at its Variable, so @D
@@ -1329,7 +1329,7 @@ namespace housepi
             }
 
             for (Household &house : data_wide)
-                build_surrogate_column_(surr, data_wide, house, true);
+                build_surrogate_column_(surr, house, true);
         }
     }
 
@@ -1343,33 +1343,33 @@ namespace housepi
             return;
 
         for (Household &house : mcmc_->data_wide())
-            for (size_t i : house.infected_hhindexes())
-                clear_definitions(house.member(i));
+            for (Individual &indiv : house.infected_indivs())
+                clear_definitions(indiv);
     }
 
-    void Augmented::clear_definitions(Individual &member)
+    void Augmented::clear_definitions(Individual &indiv)
     {
-        for (Variable &avar : varia_of_(member).vec)
+        for (Variable &avar : varia_of_(indiv).vec)
             avar.clear();
     }
 
-    void Augmented::init_definitions_for_simulation(Individual &member)
+    void Augmented::init_definitions_for_simulation(Individual &indiv)
     {
-        for (size_t k : helper_materialize_definition_order_(member))
-            if (varia_of_(member).vec[khold(deftable_.c_name[k])].is_empty())
-                helper_init_attributes_(member, k, true);
+        for (size_t k : helper_materialize_definition_order_(indiv))
+            if (varia_of_(indiv).vec[khold(deftable_.c_name[k])].is_empty())
+                helper_init_attributes_(indiv, k, true);
     }
 
-    std::vector<size_t> Augmented::helper_materialize_definition_order_(Individual &member)
+    std::vector<size_t> Augmented::helper_materialize_definition_order_(Individual &indiv)
     {
-        int status = member.status();
+        int status = indiv.status();
 
         // if known status, then load its definition
         const auto it = map_status_to_block_.find(status);
         if (it != map_status_to_block_.end())
         {
             const size_t i = it->second;
-            varia_of_(member).idx = i;
+            varia_of_(indiv).idx = i;
             return status_blocks_[i].order;
         }
 
@@ -1379,28 +1379,28 @@ namespace housepi
         {
             const size_t i = generic_it->second;
             map_status_to_block_.emplace(status, i);
-            varia_of_(member).idx = i;
+            varia_of_(indiv).idx = i;
             return status_blocks_[i].order;
         }
 
-        if (member.is_infected_status())
+        if (indiv.is_infected_status())
             msg::stop(
                 "No augmented definitions were found for " +
-                member.err_name() + " with status " + std::to_string(status) + ".");
+                mcmc_->data_wide().err_name(indiv) + " with status " + std::to_string(status) + ".");
 
         msg::stop(
             "Generic augmented definition for non-infectious " +
-            member.err_name() + " was missing.");
+            mcmc_->data_wide().err_name(indiv) + " was missing.");
     }
 
-    void Augmented::helper_init_attributes_(Individual &member, size_t k, bool simulation)
+    void Augmented::helper_init_attributes_(Individual &indiv, size_t k, bool simulation)
     {
         const std::string &astr = deftable_.c_name[k];
         size_t a = khold(astr);
 
         try
         {
-            Variable &avar = varia_of_(member).vec[a];
+            Variable &avar = varia_of_(indiv).vec[a];
 
             if (str::tobool(deftable_.c_const[k]))
             {
@@ -1410,7 +1410,7 @@ namespace housepi
                     avar.init_numeric(0.);
                 else
                     avar.init_numeric(
-                        mcmc_->translator.to_numeric(deftable_.c_value[k], &member).value());
+                        mcmc_->translator.to_numeric(deftable_.c_value[k], &indiv).value());
                 avar.enforce_user_const(); // enforce user constant choice
             }
             // simulation-only override: a sampled augmented (prior present) carrying a value is
@@ -1421,14 +1421,14 @@ namespace housepi
             else if (simulation && !na::is(deftable_.c_value[k]) && !na::is(deftable_.c_prior[k]))
             {
                 avar.init_numeric(
-                    mcmc_->translator.to_numeric(deftable_.c_value[k], &member).value());
+                    mcmc_->translator.to_numeric(deftable_.c_value[k], &indiv).value());
                 return;
             }
             else
-                build_definition_variable_(avar, k, member, nullptr);
+                build_definition_variable_(avar, k, indiv, nullptr);
 
             // initialize model attributes
-            helper_init_distr_attributes_(member, k);
+            helper_init_distr_attributes_(indiv, k);
 
             // assign proposal if variable to be sampled
             // (arguments are folded into the proposal call, if any); simulation
@@ -1440,7 +1440,7 @@ namespace housepi
                 dict<Attribute> prop_args;
                 for (const auto &child : prop.root.children)
                     // per-member context lets proposal args fold data cells
-                    prop_args.emplace(child.key, mcmc_->translator.to_numeric(child, &member));
+                    prop_args.emplace(child.key, mcmc_->translator.to_numeric(child, &indiv));
                 avar.init_proposal(prop.root.func, prop_args);
             }
 
@@ -1455,14 +1455,14 @@ namespace housepi
             msg::stop(
                 std::string(e.what()) +
                 "\nCheck augmented " + msg::val(astr) + " for " +
-                member.err_name() + " (status " + std::to_string(member.status()) + ").");
+                mcmc_->data_wide().err_name(indiv) + " (status " + std::to_string(indiv.status()) + ").");
         }
     }
 
-    void Augmented::helper_init_distr_attributes_(Individual &member, size_t k)
+    void Augmented::helper_init_distr_attributes_(Individual &indiv, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
-        Variable &avar = varia_of_(member).vec[khold(astr)];
+        Variable &avar = varia_of_(indiv).vec[khold(astr)];
         parse::Definition parser(deftable_.c_prior[k]);
 
         avar.init_distr(parser.root.func);
@@ -1470,9 +1470,9 @@ namespace housepi
         if (!avar.has_distr())
             return;
         for (const auto &child : parser.root.children)
-            avar.init_distr_attr(child.key, mcmc_->translator.to_attribute(child, &member));
-        avar.init_distr_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &member));
-        avar.init_distr_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &member));
+            avar.init_distr_attr(child.key, mcmc_->translator.to_attribute(child, &indiv));
+        avar.init_distr_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &indiv));
+        avar.init_distr_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &indiv));
         avar.init_distr_reshaping(str::tobool(deftable_.c_discr[k]));
     }
 
@@ -1480,31 +1480,31 @@ namespace housepi
     ///////////////////////////////////  Augmented : user reset  ////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::sample_obs(Individual &member, rnd_gen &prng)
+    void Augmented::sample_obs(Individual &indiv, rnd_gen &prng)
     {
         // draw each observation into its Variable; @D consumers read it straight from
         // there (the data column, if any, is never overwritten).
-        for (size_t a : list_obs(member))
-            varia_of_(member).vec[a].draw_value(prng);
+        for (size_t a : list_obs(indiv))
+            varia_of_(indiv).vec[a].draw_value(prng);
     }
 
-    void Augmented::simulate_infected_status(Household &house, Individual &member, rnd_gen &prng)
+    void Augmented::simulate_infected_status(Household &house, Individual &indiv, rnd_gen &prng)
     {
         int new_status = status::INFECTED;
 
         if (is_any_status_obs())
         {
-            Variable &svar = varia_of_(member).vec[status_obs_key_];
+            Variable &svar = varia_of_(indiv).vec[status_obs_key_];
             // lazy materialize status observation on first use
             if (svar.is_empty())
-                helper_init_attributes_(member, status_obs_def_, true);
+                helper_init_attributes_(indiv, status_obs_def_, true);
             svar.draw_value(prng);
 
             // NOTE: I am assuming value draws are integer in [0, max - 1]
             new_status += static_cast<int>(svar.value());
         }
 
-        house.set_new_status_(member, new_status);
+        house.set_new_status_(indiv, new_status);
     }
 
     void Augmented::restart(rnd_gen &prng)
@@ -1513,20 +1513,20 @@ namespace housepi
             return;
 
         for (Household &house : mcmc_->data_wide())
-            for (size_t i : house.infected_hhindexes())
-                restart(house.member(i), prng);
+            for (Individual &indiv : house.infected_indivs())
+                restart(indiv, prng);
     }
 
-    [[noreturn]] void Augmented::throw_obs_init_error(const Individual &member) const
+    [[noreturn]] void Augmented::throw_obs_init_error(const Individual &indiv) const
     {
-        const StatusBlock_ &block = block_of_(member);
+        const StatusBlock_ &block = block_of_(indiv);
 
         for (size_t k : block.order)
         {
             if (deftable_.c_kind[k] != Kind::Member)
                 continue;
 
-            const Variable &ovar = varia_of_(member).vec[khold(deftable_.c_name[k])];
+            const Variable &ovar = varia_of_(indiv).vec[khold(deftable_.c_name[k])];
             if (std::isfinite(ovar.guarded_log_pdf()))
                 continue;
 
@@ -1548,7 +1548,7 @@ namespace housepi
             if (augm_dep.size() > 0)
                 msg::stop(
                     "Exceeded attempts to initialize augmented variables of " +
-                    member.err_name() + " due to observations.\n" +
+                    mcmc_->data_wide().err_name(indiv) + " due to observations.\n" +
                     "Widen augmented model of " + str::format(str::unique(augm_dep), false, 3) +
                     ", revise the observation domain of " + msg::val(deftable_.c_name[k]) +
                     ", or check the observed individual data.");
@@ -1557,13 +1557,13 @@ namespace housepi
             for (const std::string &pstr : str::unique(param_dep))
                 if (!mcmc_->param.at(mcmc_->param.khold(pstr)).is_constant())
                     msg::stop(
-                        "Failed to initialize due to observations of " + member.err_name() + ".\n" +
+                        "Failed to initialize due to observations of " + mcmc_->data_wide().err_name(indiv) + ".\n" +
                         "Try to remove free parameter dependencies in observation domain of " + msg::val(deftable_.c_name[k]) + ".");
         }
 
         // otherwise observed data are just unreachable
         msg::stop(
-            "Failed to initialize due to observations of " + member.err_name() + ".\n" +
+            "Failed to initialize due to observations of " + mcmc_->data_wide().err_name(indiv) + ".\n" +
             "The observed values lie outside of respective domain.\n" +
             "Check the individual data or revise the domain.");
     }
@@ -1574,21 +1574,18 @@ namespace housepi
             return;
 
         for (Household &house : mcmc_->data_wide())
-            for (size_t i : house.infected_hhindexes())
-            {
-                Individual &member = house.member(i);
-                for (Variable &avar : varia_of_(member).vec)
+            for (Individual &indiv : house.infected_indivs())
+                for (Variable &avar : varia_of_(indiv).vec)
                     avar.finalize();
-            }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  Augmented : log-likelihood  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    double Augmented::commit_augm_log_lik(Individual &member)
+    double Augmented::commit_augm_log_lik(Individual &indiv)
     {
-        const std::vector<size_t> &models = list_models(member);
+        const std::vector<size_t> &models = list_models(indiv);
 
         if (models.empty())
             return 0.;
@@ -1596,54 +1593,54 @@ namespace housepi
         // guarded: a moved parameter (e.g. a param feeding a prior loc/min/max) may push a
         // value out of its shifted support; that must read as -Inf, not a stale finite density.
         for (size_t a : models)
-            new_ll += varia_of_(member).vec[a].guarded_log_pdf();
-        varia_of_(member).augm_log_lik.set(new_ll);
+            new_ll += varia_of_(indiv).vec[a].guarded_log_pdf();
+        varia_of_(indiv).augm_log_lik.set(new_ll);
         return new_ll;
     }
 
-    double Augmented::commit_augm_log_lik_ratio(Individual &member, size_t a)
+    double Augmented::commit_augm_log_lik_ratio(Individual &indiv, size_t a)
     {
-        const StatusBlock_ &block = block_of_(member);
+        const StatusBlock_ &block = block_of_(indiv);
         if (block.consumers[a].empty())
             return 0.;
         double delta_ll = 0;
         // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
         for (size_t b : block.consumers[a])
-            delta_ll += varia_of_(member).vec[b].log_ratio();
-        varia_of_(member).augm_log_lik.increment(delta_ll);
+            delta_ll += varia_of_(indiv).vec[b].log_ratio();
+        varia_of_(indiv).augm_log_lik.increment(delta_ll);
         return delta_ll;
     }
 
-    double Augmented::sum_guarded_augm_log_lik(const Individual &member, size_t a) const
+    double Augmented::sum_guarded_augm_log_lik(const Individual &indiv, size_t a) const
     {
         double ll = 0.;
         // NOTE: consumers[a] includes 'a' itself, so prior of 'a' is counted
-        for (size_t b : block_of_(member).consumers[a])
-            ll += varia_of_(member).vec[b].guarded_log_pdf();
+        for (size_t b : block_of_(indiv).consumers[a])
+            ll += varia_of_(indiv).vec[b].guarded_log_pdf();
         return ll;
     }
 
-    double Augmented::commit_augm_log_lik_ratio_dependent(Individual &member, size_t a, double L_old)
+    double Augmented::commit_augm_log_lik_ratio_dependent(Individual &indiv, size_t a, double L_old)
     {
         // 'a' has already been proposed: its prior-consumers now read the moved parameter live.
         // Compare their guarded prior sum against the pre-move snapshot L_old.
-        const double delta_ll = sum_guarded_augm_log_lik(member, a) - L_old;
-        varia_of_(member).augm_log_lik.increment(delta_ll);
+        const double delta_ll = sum_guarded_augm_log_lik(indiv, a) - L_old;
+        varia_of_(indiv).augm_log_lik.increment(delta_ll);
         return delta_ll;
     }
 
-    double Augmented::commit_obs_log_lik(Individual &member)
+    double Augmented::commit_obs_log_lik(Individual &indiv)
     {
-        if (list_obs(member).empty())
+        if (list_obs(indiv).empty())
             return 0.;
-        const double new_ll = eval_log_obs(member);
-        varia_of_(member).obs_log_lik.set(new_ll);
+        const double new_ll = eval_log_obs(indiv);
+        varia_of_(indiv).obs_log_lik.set(new_ll);
         return new_ll;
     }
 
-    double Augmented::commit_obs_log_lik_ratio(Individual &member, size_t a)
+    double Augmented::commit_obs_log_lik_ratio(Individual &indiv, size_t a)
     {
-        const StatusBlock_ &block = block_of_(member);
+        const StatusBlock_ &block = block_of_(indiv);
         // skip unless the moved augmented 'a' parameterizes some observation node
         if (block.obs_depen[a].empty())
             return 0.;
@@ -1651,9 +1648,9 @@ namespace housepi
         // log-proba must be recomputed (observation value is just a datum)
         double new_ll = 0.0;
         for (size_t b : block.obs)
-            new_ll += varia_of_(member).vec[b].guarded_log_pdf();
-        const double delta_ll = new_ll - varia_of_(member).obs_log_lik.value();
-        varia_of_(member).obs_log_lik.set(new_ll);
+            new_ll += varia_of_(indiv).vec[b].guarded_log_pdf();
+        const double delta_ll = new_ll - varia_of_(indiv).obs_log_lik.value();
+        varia_of_(indiv).obs_log_lik.set(new_ll);
         return delta_ll;
     }
 
@@ -1669,11 +1666,11 @@ namespace housepi
             std::vector<std::string> house_ids;
             std::vector<const Individual *> ptrs;
 
-            void store(const Household &house, size_t i)
+            void store(const DataWide &data_wide, const Household &house, const Individual &indiv)
             {
-                ids.emplace_back(house.member(i).id());
-                house_ids.emplace_back(house.house_id());
-                ptrs.emplace_back(&house.member(i));
+                ids.emplace_back(data_wide.id(indiv));
+                house_ids.emplace_back(data_wide.house_id(house));
+                ptrs.emplace_back(&indiv);
             }
         };
     }
@@ -1711,13 +1708,13 @@ namespace housepi
                     continue;
                 }
 
-                if (contains(house_draws, house.house_id()))
-                    for (size_t i : house.infected_hhindexes())
-                        seen.store(house, i);
+                if (contains(house_draws, mcmc_->data_wide().house_id(house)))
+                    for (const Individual &indiv : house.infected_indivs())
+                        seen.store(mcmc_->data_wide(), house, indiv);
                 else
-                    for (size_t i : house.infected_hhindexes())
-                        if (contains(id_draws, house.member(i).id()))
-                            seen.store(house, i);
+                    for (const Individual &indiv : house.infected_indivs())
+                        if (contains(id_draws, mcmc_->data_wide().id(indiv)))
+                            seen.store(mcmc_->data_wide(), house, indiv);
             }
 
         // raise warnings for draws not found in the data
@@ -1737,8 +1734,8 @@ namespace housepi
         {
             std::uniform_int_distribution<size_t> pick(0, eligible.size() - 1);
             const Household &house = *eligible[pick(prng)];
-            for (size_t i : house.infected_hhindexes())
-                seen.store(house, i);
+            for (const Individual &indiv : house.infected_indivs())
+                seen.store(mcmc_->data_wide(), house, indiv);
         }
 
         return seen.ptrs;

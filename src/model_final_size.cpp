@@ -62,8 +62,8 @@ public:
 		auto &order = cache_uint_vector(house, HHuintvecKey::order);
 		order.clear();
 		order.reserve(house.size());
-		order.insert(order.end(), house.infected_hhindexes().begin(), house.infected_hhindexes().end());
-		order.insert(order.end(), house.escaped_hhindexes().begin(), house.escaped_hhindexes().end());
+		order.insert(order.end(), house.infected_members().begin(), house.infected_members().end());
+		order.insert(order.end(), house.escaped_members().begin(), house.escaped_members().end());
 
 		///////////////////////////////////////
 		/////////////  PARTITIONS  ////////////
@@ -152,24 +152,24 @@ public:
 		for (size_t oi = 0; oi < house_size; ++oi)
 		{
 			size_t i = order[oi]; // retrieve household member index (partition representative)
-			const Individual &member_i = house.member(i);
-			const double inf_i_scl = group_risk(GroupRiskKey::infectivity, member_i) * p2p_rate;
-			const double sus_i = group_risk(GroupRiskKey::susceptibility, member_i);
+			const Individual &indiv_i = house.at(i);
+			const double inf_i_scl = group_risk(GroupRiskKey::infectivity, indiv_i) * p2p_rate;
+			const double sus_i = group_risk(GroupRiskKey::susceptibility, indiv_i);
 			const double sus_i_scl = p2p_rate * sus_i;
 
 			// community filled in order
-			commu_mtx[oi] = commu_rate * group_risk(GroupRiskKey::community, member_i);
+			commu_mtx[oi] = commu_rate * group_risk(GroupRiskKey::community, indiv_i);
 
 			// person-to-person
 			for (size_t oj = 0; oj < oi; ++oj)
 			{
 				size_t j = order[oj];
-				const Individual &member_j = house.member(j);
+				const Individual &indiv_j = house.at(j);
 				// [i] : infector -> [k] : infectee
 				p2p_mtx[oi][oj] = inf_i_scl * contact_risk(house, i, j) *
-								  group_risk(GroupRiskKey::susceptibility, member_j);
+								  group_risk(GroupRiskKey::susceptibility, indiv_j);
 				// [k] : infector -> [i] : infectee
-				p2p_mtx[oj][oi] = group_risk(GroupRiskKey::infectivity, member_j) *
+				p2p_mtx[oj][oi] = group_risk(GroupRiskKey::infectivity, indiv_j) *
 								  contact_risk(house, j, i) * sus_i_scl;
 			}
 
@@ -213,13 +213,13 @@ public:
 
 		std::vector<size_t> new_gen_set = {};
 
-		for (Individual &member: house)
-			if (exponential() > commu_rate * group_risk(GroupRiskKey::community, member))
-				set_escaped(house, member);
+		for (Individual &indiv : house)
+			if (exponential() > commu_rate * group_risk(GroupRiskKey::community, indiv))
+				set_escaped(house, indiv);
 			else
 			{
-				set_infected(house, member);
-				new_gen_set.push_back(member.hhindex());
+				set_infected(house, indiv);
+				new_gen_set.push_back(Index::member(indiv));
 			}
 
 		//////////////////////////////////////////////////////////////////
@@ -235,20 +235,20 @@ public:
 
 			for (size_t i = 0; i < house.size(); ++i)
 			{
-				Individual &member_i = house.member(i);
+				Individual &indiv_i = house.at(i);
 
-				if (member_i.is_infected_status())
+				if (indiv_i.is_infected_status())
 					continue;
 
 				double r = 0.;
 				for (size_t j : old_gen_set)
-					r += group_risk(GroupRiskKey::infectivity, house.member(j)) *
+					r += group_risk(GroupRiskKey::infectivity, house.at(j)) *
 						 contact_risk(house, j, i);
 
-				double sus_i = group_risk(GroupRiskKey::susceptibility, member_i);
+				double sus_i = group_risk(GroupRiskKey::susceptibility, indiv_i);
 				if (exponential() < r * p2p_rate * sus_i)
 				{
-					set_infected(house, member_i);
+					set_infected(house, indiv_i);
 					new_gen_set.push_back(i);
 				}
 			}

@@ -56,16 +56,16 @@ public:
     double compute_house_transm_log_lik(Household &house) override final
     {
         double output = -ParamKey::alpha;
-        for (size_t i : house.infected_hhindexes())
-            output += std::log(aug(AugmKey::proba, house.member(i)));
+        for (const Individual &indiv : house.infected_indivs())
+            output += std::log(aug(AugmKey::proba, indiv));
         return output;
     }
 
     /// Augmented variable initialization.
     void simulate_single_house(Household &house) override final
     {
-        for (size_t i : house.infected_hhindexes())
-            init_missing_augm(house.member(i));
+        for (Individual &indiv : house.infected_indivs())
+            init_missing_augm(indiv);
     }
 };
 

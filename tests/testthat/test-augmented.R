@@ -685,7 +685,9 @@ test_that("degenerate reduction at member-level is cast to house-level", {
 
 test_that("Augmented aliasing works as expected", {
   # check that model arguments are correctly integrated
-  simulated <- data.frame(id = seq(1, 1000), house_id = 1, status = 1) |>
+  simulated <- data.frame(id = seq(1, 1000),
+                          house_id = rep(seq(10), each = 100),
+                          status = 1) |>
     new_housepi_model("test") |>
     add_augmented(
       hour = list(model = "uniform", min = day, max = day + 1),
