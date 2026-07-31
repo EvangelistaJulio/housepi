@@ -510,6 +510,25 @@ test_that("Contact risks expand on their own covariates only", {
   expect_named(risks, c("param_name", "n", "rule_group"))
 })
 
+test_that("A contact risk keyed on an observation is rejected", {
+  # the risk feeds the transmission model the observation is generated from
+  df <- data.frame(house_id = c(1, 1), status = c(1, 0),
+                   severity = c(2, 3), test_date = c(2, 6))
+
+  df |>
+    new_housepi_model("final_size") |>
+    add_contact_risk(by = "severity") |>
+    add_observation("severity", model = "uniform", min = 0, max = 5) |>
+    expect_error("keyed on observation.*severity")
+
+  # a deterministic household observation stands in for the column all the same
+  df |>
+    new_housepi_model("final_size") |>
+    add_observation(severity = min(test_date@D), level = "house") |>
+    add_contact_risk(by = "severity") |>
+    expect_error("keyed on observation.*severity")
+})
+
 test_that("Contact risks raise an error for incompatible models", {
   data.frame(
     house_id = 1, id = seq(4), status = seq(4),

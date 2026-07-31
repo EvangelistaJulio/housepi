@@ -44,6 +44,10 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   parts <- flatten_cli_parts_(parts)
   level <- match.arg(level)
 
+  # foreign text carries no markup: doubling renders its braces literally
+  if (!trusted) parts[] <- gsub("}", "}}", gsub("{", "{{", parts, fixed = TRUE),
+                                fixed = TRUE)
+
   # un-named continuation lines become info hints
   nms <- names(parts)
   nms[nms == ""] <- "i"
@@ -177,7 +181,7 @@ character_to_string_list <- function(mylist, max_print = 4, style = "val") {
   overflow <- len_list > max_print
   sms <- character_to_phrase(mylist[seq_len(max_print)],
                              quote = TRUE, and = !overflow, style = style)
-  paste0(" ", sms, ifelse(overflow, ", ...", "."))
+  paste0(sms, ifelse(overflow, ", ...", "."))
 }
 
 #' Find closest match across list of options.
@@ -203,7 +207,7 @@ find_closest_match <- function(input, options, min_dist = 3, max_print = 4) {
     }
 
     if (!all(idxs)) output <- c(output,
-      sprintf("Available %s%s",
+      sprintf("Available %s %s",
               as_plural("option", len_opts, "s are:", " is"),
               character_to_string_list(options))
     )

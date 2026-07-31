@@ -259,21 +259,21 @@ HousepiPosteriorDraws <- R6::R6Class(
 
       findings <- c()
       if (length(both) > 0L) findings <- c(findings,
-        sprintf("%s %s with R-hat > %.2f and Bulk ESS < %.0f%%:%s",
+        sprintf("%s %s with R-hat > %.2f and Bulk ESS < %.0f%%: %s",
                 format_there_were_was(length(both)),
                 as_plural(draws_kind, length(both)),
                 rhat_max, 100. * neff_min,
                 character_to_string_list(sm$variable[both]))
       )
       if (length(only_rhat) > 0L) findings <- c(findings,
-        sprintf("%s %s with R-hat > %.2f:%s",
+        sprintf("%s %s with R-hat > %.2f: %s",
                 format_there_were_was(length(only_rhat)),
                 as_plural(draws_kind, length(only_rhat)),
                 rhat_max,
                 character_to_string_list(sm$variable[only_rhat]))
       )
       if (length(only_bulk) > 0L) findings <- c(findings,
-        sprintf("%s %s with Bulk Effective Sample Size (ESS) < %.0f%%:%s",
+        sprintf("%s %s with Bulk Effective Sample Size (ESS) < %.0f%%: %s",
                 format_there_were_was(length(only_bulk)),
                 as_plural(draws_kind, length(only_bulk)),
                 100. * neff_min,

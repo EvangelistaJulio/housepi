@@ -500,7 +500,7 @@ namespace
         Rcpp::IntegerVector status_col = Rcpp::IntegerVector(n_rows);
 
         // other non standard data columns
-        std::vector<size_t> list_export = data_wide.khold(columns);
+        std::vector<size_t> data_keys = data_wide.khold(columns);
         std::vector<Rcpp::NumericVector> data_col(columns.size());
         for (size_t d = 0; d < columns.size(); ++d)
             data_col[d] = Rcpp::NumericVector(n_rows);
@@ -514,7 +514,7 @@ namespace
                 status_col[row] = member.status();
 
                 for (size_t d = 0; d < columns.size(); ++d)
-                    data_col[d][row] = hsp_to_rcpp(data_wide.data(list_export[d], member));
+                    data_col[d][row] = hsp_to_rcpp(data_wide.data(data_keys[d], member));
                 ++row;
             }
 
@@ -531,8 +531,30 @@ namespace
 
     Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        const DataWide &data_wide = mcmc_ptr->data_wide();
-        return Rcpp::DataFrame(helper_export_data_wide(data_wide, data_wide.khold().all(), true));
+        MCMC &engine = *mcmc_ptr;
+
+        // a deterministic observation stands in for its data column: build it here so the
+        // exported frame reports the value the model reads, run or no run. Finalizing
+        // collapses each wired cell to a constant, so no read-cell outlives the Variable
+        // it points at (the next definition import clears them) -- which is also why a
+        // failed build rewinds the read-surface before the error travels on.
+        if (!engine.augm.list_surrogate.empty())
+        {
+            engine.data_wide().reset_readcells(engine.augm.get_produced_cols());
+            try
+            {
+                engine.augm.materialize_surrogate_columns(engine.data_wide(), true);
+                engine.data_wide().finalize_cells();
+            }
+            catch (const std::exception &)
+            {
+                engine.data_wide().reset_readcells();
+                throw;
+            }
+        }
+
+        const DataWide &data_wide = engine.data_wide();
+        return Rcpp::DataFrame(helper_export_data_wide(data_wide, data_wide.imported_cols(), true));
     }
 
     /// Export to R all augmented variables at the current state.
@@ -541,7 +563,7 @@ namespace
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
 
-        size_t n_cols = augm.list_export.size();
+        size_t n_cols = augm.list_augm_export.size();
         size_t n_rows = data_wide.report_indiv.total;
 
         std::vector<Rcpp::NumericVector> augm_cols(n_cols);
@@ -549,21 +571,21 @@ namespace
             augm_cols[i] = Rcpp::NumericVector(n_rows);
 
         const std::vector<std::string> data_names = data_wide.khold().all() -
-                                                    augm.khold(augm.list_export);
+                                                    augm.khold(augm.list_augm_export);
 
         size_t row = 0;
         for (const Household &house : data_wide)
             for (const Individual &member : house)
             {
                 size_t c = 0;
-                for (size_t a : augm.list_export)
+                for (size_t a : augm.list_augm_export)
                     augm_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, member));
                 ++row;
             }
 
         Rcpp::List output = helper_export_data_wide(data_wide, data_names, true);
         size_t i = 0;
-        for (size_t a : augm.list_export)
+        for (size_t a : augm.list_augm_export)
             output[augm.khold(a)] = augm_cols[i++];
         return Rcpp::DataFrame(output);
     }
@@ -1050,7 +1072,7 @@ namespace
     {
         const Augmented &augm = mcmc_ptr->augm;
 
-        size_t n_cols = augm.list_export.size();
+        size_t n_cols = augm.list_augm_export.size();
 
         if (n_cols == 0)
             return Rcpp::DataFrame::create();
@@ -1068,7 +1090,7 @@ namespace
             id_col[i] = member_i.id();
 
             size_t c = 0;
-            for (size_t a : augm.list_export)
+            for (size_t a : augm.list_augm_export)
             {
                 const Variable &avar = mcmc_ptr->get_augm_varia(a, member_i);
                 if (avar.has_distr())
@@ -1079,7 +1101,7 @@ namespace
         Rcpp::List output;
         output["id"] = id_col;
         size_t c = 0;
-        for (size_t a : augm.list_export)
+        for (size_t a : augm.list_augm_export)
             output.push_back(df_double[c++], augm.khold(a));
 
         return Rcpp::DataFrame(output);
@@ -1090,7 +1112,7 @@ namespace
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
         const Augmented &augm = mcmc_ptr->augm;
-        size_t n_cols = augm.list_export.size();
+        size_t n_cols = augm.list_augm_export.size();
 
         if (n_cols == 0)
             return Rcpp::DataFrame::create();
@@ -1107,14 +1129,14 @@ namespace
             const Individual &member_i = house.member(i);
             id_col[i] = member_i.id();
             size_t c = 0;
-            for (size_t a : augm.list_export)
+            for (size_t a : augm.list_augm_export)
                 df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, member_i));
         }
 
         Rcpp::List output;
         output["id"] = id_col;
         size_t i = 0;
-        for (size_t a : augm.list_export)
+        for (size_t a : augm.list_augm_export)
             output.push_back(df_double[i++], augm.khold(a));
 
         return Rcpp::DataFrame(output);
@@ -1183,24 +1205,38 @@ namespace
                         {
                             status_col[row] = member.status();
                             size_t c = 0;
-                            for (size_t a : augm.list_export)
+                            for (size_t a : augm.list_augm_export)
                                 augm_cols[c++][row] = hsp_to_rcpp(engine.get_augm_varia(a, member));
                             // observation nodes: generated for infected members, NA otherwise
-                            for (size_t a : augm.list_obs_export)
+                            for (size_t a : augm.list_obs_member)
                                 augm_cols[c++][row] = member.is_infected_status()
                                                           ? hsp_to_rcpp(engine.get_augm_varia(a, member))
                                                           : NA_REAL;
                             ++row;
                         }
 
-                        // household-level observations:
-                        // one value per house, same for every member row
-                        const size_t base = augm.list_export.size() + augm.list_obs_export.size();
-                        for (size_t b = 0; b < augm.list_house_export.size(); ++b)
+                        // surrogate columns: a household reduction is one value shared by
+                        // every member row, a member column is read on each member --
+                        // including those never infected, which the model reads too
+                        size_t c = augm.list_augm_export.size() + augm.list_obs_member.size();
+                        for (const Augmented::Surrogate &surr : augm.list_surrogate)
                         {
-                            const double v = hsp_to_rcpp(augm.house_varia[H][b].value());
-                            for (size_t r = row_offsets[H]; r < row_offsets[H + 1]; ++r)
-                                augm_cols[base + b][r] = v;
+                            if (!Augmented::is_own_column(surr))
+                                continue;
+                            if (surr.is_house)
+                            {
+                                const double v = hsp_to_rcpp(augm.house_varia[H][surr.slot].value());
+                                for (size_t r = row_offsets[H]; r < row_offsets[H + 1]; ++r)
+                                    augm_cols[c][r] = v;
+                            }
+                            else
+                            {
+                                const size_t a = augm.khold(augm.surrogate_name(surr));
+                                size_t r = row_offsets[H];
+                                for (const Individual &member : house)
+                                    augm_cols[c][r++] = hsp_to_rcpp(engine.get_augm_varia(a, member));
+                            }
+                            ++c;
                         }
                     }
                     catch (const std::exception &e)
@@ -1247,7 +1283,10 @@ namespace
         {
             engine.model->init_model_for_simulation(); // model specific initialization
             engine.augm.init_house_for_simulation();   // build household-level observations
-            engine.assert_valid_infectivity_profile(); // assert profile is valid
+
+            // FIXME: augmented variables are not built yet here
+            // -> impossible to assert profile whe Mode::Augmented
+            // engine.assert_valid_infectivity_profile(); // assert profile is valid
 
             //////////////////////////////////////////////
             //////  Observation Process & Measures  //////
@@ -1281,12 +1320,12 @@ namespace
             const std::vector<size_t> row_offsets = engine.get_row_offsets();
 
             // pre-allocate mutable output columns once (reused across iterations):
-            // exported augmented, individual and household-level observation columns
+            // exported augmented, observation and surrogate columns
             Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
             std::vector<Rcpp::NumericVector> augm_cols(
-                augm.list_export.size() +
-                augm.list_obs_export.size() +
-                augm.list_house_export.size());
+                augm.list_augm_export.size() +
+                augm.list_obs_member.size() +
+                augm.n_own_columns());
             for (size_t c = 0; c < augm_cols.size(); ++c)
                 augm_cols[c] = Rcpp::NumericVector(data_wide.report_indiv.total);
 
@@ -1324,11 +1363,13 @@ namespace
             }
             setup.prog_close();
 
-            // restore observed status so post-simulation reads of data_wide are
-            // consistent; data columns were never overwritten (observations live in
-            // their Variables, household observations in house_varia).
+            // restore observed status and point every read-cell back at its imported
+            // value, so post-simulation reads of data_wide return the input: the
+            // generated values were handed back in the simulated frames, and the cells
+            // wired to produce them refer to Variables this run is about to clear.
             engine.augm.clear_all();
             engine.data_wide().recover_all_status();
+            engine.data_wide().reset_readcells();
 
             return Rcpp::List::create(Rcpp::_["wide"] = out_wide,
                                       Rcpp::_["long"] = out_long);

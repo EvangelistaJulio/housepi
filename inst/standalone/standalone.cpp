@@ -397,7 +397,7 @@ namespace housepi
         // initialization
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.khold().all(),
-                                                   augm.khold().as_string(augm.list_export));
+                                                   augm.khold().as_string(augm.list_augm_export));
         // model specific initialization
         engine.model->init_model_for_simulation();
 
@@ -407,7 +407,7 @@ namespace housepi
                 engine.model->simulate_single_house(house);
                 update_ofstream_datawide(ofs, house,
                                          data_wide,
-                                         augm.list_export, augm);
+                                         augm.list_augm_export, augm);
             }
             catch (const std::exception &e)
             {

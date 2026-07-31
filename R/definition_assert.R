@@ -123,7 +123,8 @@ assert_valid_feature <- function(x, family, arg_name = "Feature value") {
 }
 
 # Assert that given definition name is valid.
-assert_valid_definition_name <- function(x, family) {
+# A leading dot marks a hidden definition, not allowed by default.
+assert_valid_definition_name <- function(x, family, allow_hidden = FALSE) {
   if (length(x) != 1 || is.na(x) || !is.character(x)) {
     stop_h(
       "Name of {family} must be a non-empty string.",
@@ -134,7 +135,23 @@ assert_valid_definition_name <- function(x, family) {
     if (x %in% .reserved_math_consts) stop_h(
       "Name {.val {x}} for {family} is reserved for constants."
     )
+    if (!allow_hidden && startsWith(x, ".")) stop_h(
+      "Name {.val {x}} of {family} cannot start with a dot.",
+      "A leading dot marks a hidden definition (see {.fn add_augmented})."
+    )
   }
+}
+
+# Assert that no data column claims the hidden-definition prefix.
+assert_no_private_columns <- function(cols, arg = "data") {
+  forbidden <- cols[startsWith(cols, ".")]
+  if (length(forbidden) == 0) return(invisible())
+  stop_h(
+    paste("Argument {.arg {arg}} carried {cli::qty(forbidden)}column{?s}",
+          "starting with a dot:",
+          character_to_string_list(forbidden, style = "field")),
+    `!` = "A leading dot is reserved to private definitions."
+  )
 }
 
 # Assert that given status(es) name is(are) valid.

@@ -327,3 +327,48 @@ test_that("Group risk mixed auto and custom modes", {
     add_group_risk(name = "infectivity", strata = dummy_strata) |>
     expect_error("[Uu]nknown feature.*isolation")
 })
+
+#########################################
+## GROUP RISKS : OBSERVATION COLLISION ##
+#########################################
+
+# Data carrying a numeric feature a risk can stratify on.
+mk_obs_risk_data <- function() {
+  data.frame(house_id = c(1, 1), status = c(1, 0),
+             severity = c(2, 3), test_date = c(2, 6))
+}
+
+test_that("A group risk keyed on an observation is rejected", {
+  # the risk feeds the transmission model the observation is generated from
+  mk_obs_risk_data() |>
+    new_housepi_model("final_size") |>
+    add_group_risk("susceptibility", by = "severity") |>
+    add_observation("severity", model = "uniform", min = 0, max = 5) |>
+    expect_error("keyed on observation.*severity")
+
+  # the reverse declaration order fails just the same
+  mk_obs_risk_data() |>
+    new_housepi_model("final_size") |>
+    add_observation("severity", model = "uniform", min = 0, max = 5) |>
+    add_group_risk("susceptibility", by = "severity") |>
+    expect_error("keyed on observation.*severity")
+})
+
+test_that("A deterministic household observation cannot key a group risk", {
+  # severity stands in for its data column: derived, an observation all the same
+  mk_obs_risk_data() |>
+    new_housepi_model("final_size") |>
+    add_observation(severity = min(test_date@D), level = "house") |>
+    add_group_risk("susceptibility", by = "severity") |>
+    expect_error("keyed on observation.*severity")
+})
+
+test_that("A custom strata table cannot key a group risk on an observation", {
+  strata <- data.frame(severity = c(2, 3),
+                       param_name = c(".reference", "sus_high"))
+  mk_obs_risk_data() |>
+    new_housepi_model("final_size") |>
+    add_observation("severity", model = "uniform", min = 0, max = 5) |>
+    add_group_risk(name = "susceptibility", strata = strata) |>
+    expect_error("keyed on observation.*severity")
+})

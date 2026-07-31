@@ -214,7 +214,7 @@ HousepiContactRisk <- R6::R6Class(
       }
       wrong_entries <- setdiff(names(reference), valid_names)
       if (length(wrong_entries) != 0) stop_h(
-        sprintf("Unrecognized %s for reference:%s",
+        sprintf("Unrecognized %s for reference: %s",
                 as_plural("choice", length(wrong_entries)),
                 character_to_string_list(wrong_entries)),
         paste("Reference should match {.arg by}",
@@ -320,6 +320,16 @@ HousepiContactRisk <- R6::R6Class(
       if (is.null(required) || all(is.na(required))) return(character(0))
       required <- required[!is.na(required)]
       set_source_name_(required, self$family)
+    },
+
+    #' @field feature_names `character()`. Data columns the risks stratify on,
+    #' declared through `by` or carried by a custom logic table.
+    feature_names = function(value) {
+      custom <- lapply(self$logic_tables, function(tbl) {
+        sub("^from_", "", grep("^from_", names(tbl), value = TRUE))
+      })
+      feats <- as.character(unlist(c(self$defs[["by"]], custom)))
+      unique(feats[!is.na(feats)])
     },
 
     #' @field param_required `character()`.

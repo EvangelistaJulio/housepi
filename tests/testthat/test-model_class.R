@@ -29,6 +29,21 @@ test_that("Model class inconsistent IDs throw errors", {
     expect_error("not unique")
 })
 
+test_that("data columns cannot claim the hidden-definition prefix", {
+  df <- dummy_household
+  df$.tx <- 55
+
+  new_housepi_model(df, "test") |>
+    expect_error("with a dot")
+  new_housepi_model(model = "test") |>
+    add_data_wide(df) |>
+    expect_error("with a dot")
+
+  new_housepi_model(model = "test") |>
+    add_data_long(data.frame(id = "m1", .shagohod = 1)) |>
+    expect_error("with a dot")
+})
+
 test_that("Wide data can be deferred and attached with add_data_wide", {
   # construct without data: silent, no data exposed
   hhmodel <- new_housepi_model(model = "final_size") |>

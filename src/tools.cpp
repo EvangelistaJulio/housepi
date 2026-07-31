@@ -532,7 +532,7 @@ namespace housepi::dpdcy
 
 namespace housepi::parse
 {
-    /// Split on sep at top level (ignore separators inside braces).
+    /// Split on sep at top level (ignore separators inside brackets).
     std::vector<std::string> split_top_(const std::string &s)
     {
         std::vector<std::string> entries;
@@ -541,10 +541,10 @@ namespace housepi::parse
 
         for (char c : s)
         {
-            // check the level accroding to braces
-            if (c == '{')
+            // check the level accroding to brackets
+            if (c == '[')
                 ++level;
-            else if (c == '}')
+            else if (c == ']')
                 --level;
             // parse only top level
             if (c == read::LIST_DELIMITER && level == 0)
@@ -581,7 +581,7 @@ namespace housepi::parse
         const std::string expr_head = expr.substr(0, bar_1);
         const std::string expr_tail = expr.substr(bar_1 + 1);
 
-        // if not found, then it's a terminal node {value|type}
+        // if not found, then it's a terminal node "value|type"
         size_t bar_2 = expr_tail.find('|');
         if (bar_2 == std::string::npos)
             return Entry(expr_head, expr_tail);
@@ -603,12 +603,12 @@ namespace housepi::parse
         {
             const std::string &c = children[i];
 
-            if (c.size() >= 2 && c.front() == '{' && c.back() == '}')
+            if (c.size() >= 2 && c.front() == '[' && c.back() == ']')
             {
                 // function child node
-                // parse inner expression and keep braced flag
+                // parse inner expression and keep bracketed flag
                 auto child = parse_expression_(c.substr(1, c.size() - 2));
-                child.is_braced = true;
+                child.is_bracketed = true;
                 child.key = args[i];
                 node.children.emplace_back(child);
             }
@@ -663,8 +663,8 @@ namespace housepi::parse
             str_args += child.key;
 
             const std::string &cs = child.str();
-            if (child.is_braced)
-                str_children += "{" + cs + "}";
+            if (child.is_bracketed)
+                str_children += "[" + cs + "]";
             else
                 str_children += cs;
         }

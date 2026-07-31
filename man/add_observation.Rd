@@ -84,13 +84,16 @@ If \code{FALSE} drop all pre-existing definitions.}
 \description{
 Add observation associated to data \eqn{x}, at the level set by \code{level}.
 
-At member level, the observation is attached to every positive status
-individual. If \code{model} is provided, adds to household likelihood during
-evaluations, and \eqn{x} is sampled from it during simulations.
-If observation is deterministic it is considered as a datum.
+At member level, the observation is attached to every infected individual.
+If \code{model} is provided, adds to household likelihood during evaluations,
+and \eqn{x} is sampled from it during simulations.
 
-At household level, the observation is a reduction of \code{value} over all the
-members, shared by the whole household, and must reduce to a constant value.
+At household level, the observation is a reduction across all members,
+it's shared by the whole household, and must reduce to a constant value.
+
+An observation carrying no \code{model} produces its own data column, at either
+level: it is evaluated for every member, and eventually overwrites data
+column of the same name
 There are three mutually exclusive definition modes:
 \describe{
 \item{single}{

@@ -81,7 +81,7 @@ housepi_format_sources <- function(func_args) {
 housepi_format_call <- function(func_name, func_args) {
   paste0(c(func_name,
            paste0(names(func_args), collapse = ":"),
-           paste0(sprintf("{%s}", housepi_format_sources(func_args)),
+           paste0(sprintf("[%s]", housepi_format_sources(func_args)),
                   collapse = ":")),
          collapse = "|")
 }
@@ -193,7 +193,7 @@ housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
 
   sprintf("%s|%s|%s", func_name,
           paste(names(func_args), collapse = ":"),
-          paste(sprintf("{%s}", func_args), collapse = ":"))
+          paste(sprintf("[%s]", func_args), collapse = ":"))
 }
 
 # Handle case of list() or c() container.

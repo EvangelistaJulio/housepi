@@ -86,7 +86,9 @@ mk_indicator_model_ <- function(house_id, y0 = 0.5, c = 0.45) {
   data.frame(house_id = house_id, status = 1, y = y0) |>
     new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
-    add_observation("y", model = "uniform", loc = theta@P, min = - !!c, max = !!c)
+    add_observation(
+      "y", model = "uniform", loc = theta@P, min = - !!c, max = !!c
+    )
 }
 
 # retry seeds until a ladder starts (a random prior init may land inadmissible)

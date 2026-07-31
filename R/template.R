@@ -267,8 +267,8 @@ set_source_name_ <- function(x, name = NA_character_) {
 # Collapse definition sources into a phrase.
 format_sources_phrase_ <- function(sources) {
   if (length(sources) == 0) return(NULL)
-  if (sources == "model") return("transmission model")
-  paste(sources, "definitions")
+  character_to_phrase(ifelse(sources == "model", "transmission model",
+                             paste(sources, "definitions")))
 }
 
 #' Extract arguments following a key holder in REGISTER_HOUSEPI_KEYS.
@@ -320,7 +320,7 @@ template_missing_stop <- function(required, defined, holder, max_print = 4,
   output <- c()
   len_miss <- length(miss)
   if (len_miss > 0) output <- c(
-    sprintf("%s missing %s %s%s",
+    sprintf("%s missing %s %s %s",
             format_there_were_was(len_miss, max_print = max_print),
             holder,
             as_plural(noun, len_miss, "s:"),
@@ -340,7 +340,7 @@ template_missing_stop <- function(required, defined, holder, max_print = 4,
 template_overwrite_warn <- function(all_rmv, holder, max_print = 4) {
   len_rmv <- length(all_rmv)
   if (len_rmv > 0) warn_h(sprintf(
-    "Overwriting %s %s %s%s",
+    "Overwriting %s %s %s %s",
     ifelse(len_rmv > max_print,
            paste0("more than ", max_print), len_rmv),
     holder,
@@ -377,7 +377,7 @@ template_not_used_warn <- function(required, defined, holder, max_print = 4) {
   notused <- template_not_used_find(required, defined)
   len_unused <- length(notused)
   if (len_unused > 0) warn_h(
-    sprintf("%s unused %s %s%s",
+    sprintf("%s unused %s %s %s",
             format_there_were_was(len_unused, max_print),
             holder,
             as_plural("definition", len_unused, "s:"),

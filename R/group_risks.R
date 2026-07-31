@@ -64,7 +64,7 @@ assert_valid_features <- function(features) {
   reserved_data <- c(data_reserved_cols, risk_reserved_cols)
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
-    sprintf("Impossible to associate risk to %s%s",
+    sprintf("Impossible to associate risk to %s %s",
             as_plural("feature", length(forbidden), "s:"),
             character_to_string_list(forbidden)),
     `!` = "These names are reserved.",
@@ -82,7 +82,7 @@ assert_data_features <- function(features, headers) {
   # assert that features are present
   missing <- setdiff(features, headers)
   if (length(missing) > 0) stop_h(
-    sprintf("Unknown %s%s",
+    sprintf("Unknown %s %s",
             as_plural("feature", length(missing), "s:"),
             character_to_string_list(missing)),
     "Please check your data headers."
@@ -434,7 +434,7 @@ HousepiGroupRisk <- R6::R6Class(
         valid_names <- setdiff(strata$param_name, ".reference")
         unknown <- setdiff(names(params), valid_names)
         if (length(unknown) > 0) stop_h(
-          sprintf("Unknown %s in {.arg params}:%s",
+          sprintf("Unknown %s in {.arg params}: %s",
                   as_plural("parameter", length(unknown)),
                   character_to_string_list(unknown))
         )
@@ -525,7 +525,7 @@ HousepiGroupRisk <- R6::R6Class(
           data_vals <- unique(data_wide[[col]])
           missing_vals <- setdiff(as.character(vals), as.character(data_vals))
           if (length(missing_vals) > 0) warn_h(
-            sprintf("Unknown %s for risk {.val %s} in data {.field %s}:%s",
+            sprintf("Unknown %s for risk {.val %s} in data {.field %s}: %s",
                     as_plural("definition", length(missing_vals), "s"),
                     risk_id, col, character_to_string_list(missing_vals)),
             `!` = "Associated entries will be skipped."
@@ -578,6 +578,15 @@ HousepiGroupRisk <- R6::R6Class(
       required <- unique(unlist(lapply(self$defs, `[[`, "by")))
       required <- required[!is.na(required)]
       set_source_name_(required, self$family)
+    },
+
+    #' @field feature_names `character()`. Data columns the risks stratify on,
+    #' declared through `by` or carried by a custom logic table.
+    feature_names = function(value) {
+      custom <- lapply(unlist(self$logic_tables, recursive = FALSE),
+                       function(tbl) setdiff(colnames(tbl), risk_reserved_cols))
+      feats <- as.character(unlist(c(lapply(self$defs, `[[`, "by"), custom)))
+      unique(feats[!is.na(feats)])
     },
 
     #' @field param_required `character()`. Parameters required by group risks.
@@ -774,7 +783,7 @@ HousepiGroupRisk <- R6::R6Class(
       # drop unused group risks
       if (length(notused) > 0) {
         sms <- c(
-          sprintf("Dropped unused group %s%s",
+          sprintf("Dropped unused group %s %s",
                   as_plural("risk", length(notused), "s:"),
                   character_to_string_list(notused)),
           find_closest_match(notused, required)

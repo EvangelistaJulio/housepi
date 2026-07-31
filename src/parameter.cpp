@@ -693,7 +693,6 @@ namespace housepi
         khold_.clear_optional();
         unique_groups_.clear();
         group_index_.assign(data_wide.report_indiv.total, 0);
-        data_wide_depen_.clear();
         n_scale_free_.clear();
 
         // load required data headers or skip if no definitions provided
@@ -702,7 +701,6 @@ namespace housepi
             data_headers = helper_process_definitions_(data_wide, input);
         else if (khold_.empty())
             return;
-        data_wide_depen_ = data_headers;
         n_scale_free_.assign(khold_.size(), 0);
 
         // load column with group risk names, if any
@@ -998,7 +996,6 @@ namespace housepi
     {
         // reset storage
         house_contact_risks_.clear();
-        data_wide_depen_.clear();
         n_scale_free_ = 0;
         if (input.empty())
             return;
@@ -1007,7 +1004,6 @@ namespace housepi
         ContactDefinitions_ defs(input, data_wide);
 
         data_wide.set_eq_class_data_names(defs.data);
-        data_wide_depen_ = defs.data;
 
         // per-rule_group scale anchoring, resolved pair by pair below
         std::map<size_t, ScaleAnchor_> anchors;

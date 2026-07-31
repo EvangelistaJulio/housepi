@@ -207,11 +207,10 @@ namespace housepi
                 }
             }
 
-            // per-column read-surface defaults to the imported raw value; derived
-            // columns (household observations) are wired to their Variable later.
-            idata.cell.resize(idata.vec.size());
+            // per-column read-cell defaults to the imported raw data value
+            idata.readcell.resize(idata.vec.size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
-                idata.cell[d].init_numeric(idata.vec[d]);
+                idata.readcell[d].init_numeric(idata.vec[d]);
 
             // if household index doesn't exist, add new household
             if (!hhid_to_index_.count(house_id))
@@ -232,14 +231,40 @@ namespace housepi
             house.add_member(i, id, idata.status);
         }
 
+        // columns known at import: model declared keys plus the user ones. Columns
+        // produced by an observation are appended later (see reset_readcells).
+        n_imported_ = khold_.size();
+
         // update report for data
         build_helper_fill_report_data_();
+    }
+
+    std::vector<std::string> DataWide::imported_cols() const
+    {
+        std::vector<std::string> all = khold_.all();
+        all.resize(n_imported_);
+        return all;
+    }
+
+    void DataWide::reset_readcells(const std::vector<std::string> &produced_cols)
+    {
+        for (const std::string &name : produced_cols)
+            khold_.add(name);
+        const size_t total = khold_.size();
+
+        for (IndivWide_ &idata : indiv_data_)
+        {
+            idata.vec.resize(total, na::DOUBLE);
+            idata.readcell.resize(total);
+            for (size_t d = 0; d < total; ++d)
+                idata.readcell[d].init_numeric(idata.vec[d]);
+        }
     }
 
     void DataWide::finalize_cells()
     {
         for (IndivWide_ &idata : indiv_data_)
-            for (Attribute &attr : idata.cell)
+            for (Attribute &attr : idata.readcell)
                 attr.finalize();
     }
 
@@ -574,7 +599,7 @@ namespace housepi
     void DataWide::recover_all_status() noexcept
     {
         for (Household &house : house_vector_)
-            for (Individual &member: house)
+            for (Individual &member : house)
                 house.set_new_status_(member, indiv_data_[Index::of(member)].status);
     }
 

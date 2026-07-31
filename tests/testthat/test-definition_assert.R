@@ -38,10 +38,12 @@ test_that("Assert valid definition name rejects invalid names", {
   # reserved name pi
   assert_valid_definition_name("pi", "parameter") |>
     expect_error("reserved")
+  # a leading dot marks a hidden definition, forbidden by default
+  assert_valid_definition_name(".ration", "observation") |>
+    expect_error("cannot start with a dot")
   # valid names pass
   expect_no_error(assert_valid_definition_name("alpha", "parameter"))
   expect_no_error(assert_valid_definition_name("beta_1", "parameter"))
-  expect_no_error(assert_valid_definition_name("ga.2", "parameter"))
 })
 
 test_that("Assert valid status rejects non-positive integers", {

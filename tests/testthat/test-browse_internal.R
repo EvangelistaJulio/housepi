@@ -674,13 +674,11 @@ test_that("rand() honours location shift (relocate_ Active branch)", {
   loc_val <- 5
   d <- browse_distributions("normal", mean = 0, sd = 1, loc = loc_val)
   expect_equal(d$pdf(loc_val), stats::dnorm(0))
-  set.seed(11L)
   expect_equal(mean(d$rand(20000L)), loc_val, tolerance = 0.05)
 })
 
 test_that("rand() on truncated distribution lands inside the bounds", {
   d <- browse_distributions("normal", mean = 0, sd = 1, min = -1, max = 2)
-  set.seed(5L)
   x <- d$rand(5000L)
   expect_true(all(x >= -1 & x <= 2))
 })
@@ -896,7 +894,6 @@ test_that("Beta rand() produces plausible draws", {
   set.seed(99L)
   x2 <- d$rand(50L)
   expect_identical(x1, x2)
-  set.seed(1L)
   big <- d$rand(2000L)
   expect_true(all(big >= 0 & big <= 1))
   expect_equal(mean(big), a / (a + b), tolerance = 0.02)

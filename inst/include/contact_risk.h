@@ -37,9 +37,6 @@ namespace housepi
         /// Whether no contact risk definitions were provided in the last build.
         bool is_empty() const noexcept { return house_contact_risks_.empty(); }
 
-        /// Data-wide feature columns the contact-risk rules match on.
-        const std::vector<std::string> &data_wide_depen() const noexcept { return data_wide_depen_; }
-
         /// Rule groups whose overall scale is free (see Parameter::assert_risk_identifiability).
         size_t n_scale_free() const noexcept { return n_scale_free_; }
 
@@ -84,7 +81,6 @@ namespace housepi
             std::vector<std::vector<Attribute>> mtx = {}; /// contact risks
         };
         std::vector<IndivContact_> house_contact_risks_; /// Storage for household contact risks
-        std::vector<std::string> data_wide_depen_ = {};  /// data feature columns used by rules
-        size_t n_scale_free_ = 0;                              /// free-scale rule groups
+        size_t n_scale_free_ = 0;                        /// free-scale rule groups
     };
 }

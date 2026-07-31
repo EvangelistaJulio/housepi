@@ -284,7 +284,6 @@ test_that("Discretization is enabled as expected", {
 })
 
 test_that("Parameter defined as a function tracks its dependencies", {
-  set.seed(1)
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter(

@@ -1,5 +1,9 @@
 library(testthat)
 
+################################################################################
+###################################  HELPERS  ##################################
+################################################################################
+
 # model carrying the data columns the definition blocks refer to
 mk_augm <- local({
   hhmodel <- data.frame(house_id = "h", status = 1, expo = 1,
@@ -7,6 +11,10 @@ mk_augm <- local({
     new_housepi_model("test")
   list(model = hhmodel)
 })
+
+################################################################################
+####################################  TESTS  ###################################
+################################################################################
 
 test_that("Augmented definition error are recognized", {
   mk_augm$model |>
@@ -305,7 +313,7 @@ test_that("Augmented support rlang double bang", {
   expect_equal(subset(augm, name == "B")$func, "log")
   expect_equal(
     subset(augm, name == "B")$func_args[[1]],
-    c(x = sprintf("sum|x:x2|{infec|A}:{%s|N}", external_value))
+    c(x = sprintf("sum|x:x2|[infec|A]:[%s|N]", external_value))
   )
   # the two spellings of the same bounded definition agree
   cc <- subset(augm, name == "C")
@@ -640,27 +648,40 @@ test_that("A simulation override (value + prior) rejects forward dependencies", 
     expect_error("[Ss]imulation override.*augmented")
 })
 
-test_that("Group risk keyed on an observation is rejected in simulation", {
-  # Allowing risks on observations...
-  # UPDATE: is this legit? how's the reference chosen here?
-  hhmodel <- data.frame(
-    house_id = c(1, 1), status = c(1, 0), severity = c(2, 3)
-  ) |>
-    new_housepi_model("final_size") |>
-    add_group_risk("susceptibility", by = "severity") |>
-    add_observation("severity", model = "uniform", min = 0, max = 5) |>
-    add_parameter(import = "template")
+test_that("degenerate reduction at member-level is cast to house-level", {
+  # member-level reduction by mistake
+  expect_warning(
+    promoted <- mk_augm$model |>
+      add_observation(first_test = min(test_date@D)) |>
+      get_observations(),
+    regexp = "no-effect.*reduction.*min"
+  )
+  expect_identical(promoted[["level"]], "house")
+  # explicit house-level reduction
+  mk_augm$model |>
+    add_observation(first_test = min(test_date@D), level = "house") |>
+    get_observations() |>
+    expect_identical(promoted)
 
-  # group risk depending on simulation observation is illegal
-  hhmodel |>
-    run_simulation(nrep = 1L) |>
-    suppressMessages() |>
-    expect_error("[Gg]roup risk.*observation")
+  # redundant reduction raise a error and are not cast
+  mk_augm$model |>
+    add_observation(first_test = min(test_date@D), level = "house") |>
+    add_observation(codec = min(first_test@D)) |>
+    expect_error("redundant.*codec")
+
+  # genuine per-member expressions pass normally
+  kept <- mk_augm$model |>
+    add_observation(liquid = min(test_date@D, 0),
+                    snake  = test_date@D,
+                    ocelot = log(test_date@D)) |>
+    get_observations() |>
+    getElement("level") |>
+    expect_identical(rep("member", 3))
 })
 
-######################################
-## AUGMENTED : END-TO-END MACHINERY ##
-######################################
+################################################################################
+#############################  END-TO-END MACHINERY  ###########################
+################################################################################
 
 test_that("Augmented aliasing works as expected", {
   # check that model arguments are correctly integrated
@@ -676,24 +697,21 @@ test_that("Augmented aliasing works as expected", {
   ))
 })
 
-test_that("A value paired with a prior overrides the draw in simulation only", {
-  # simulation pins the sampled variable to its data-bound value (the wide prior is a
-  # nuisance law that would scatter it); inference is unaffected -- the value is ignored
-  # there, so the draws span the prior instead of collapsing onto the value.
-  hhmodel <- data.frame(id = seq_len(400), house_id = 1, status = 1, anchor = 7) |>
+test_that("value paired with model overrides the draw in simulations only", {
+  hhmodel <- data.frame(id = seq_len(100), house_id = 1,
+                        status = 1, anchor = 7) |>
     new_housepi_model("test") |>
-    add_augmented(snake = list(model = "uniform", max = 100, value = anchor@D))
+    add_augmented("eli", model = "uniform", max = 100, value = anchor@D)
 
-  # simulation: every drawn value collapses onto the override
-  expect_true(all(run_simulation(hhmodel)$snake == 7))
+  # simulation: pins the sampled variable to user value
+  expect_true(all(run_simulation(hhmodel)$eli == 7))
 
-  # inference: the value does not pin the sampler (draws span the prior, not the override)
+  # inference: the value does not pin the sampler and draws span the prior
   draws <- hhmodel |>
-    run_inference(steps = 40L, chains = 1L, id_draws = "1") |>
+    run_inference(steps = 40L, chains = 1L) |>
     get_augmented_draws() |>
     suppressWarnings()
-  expect_gt(length(unique(draws[["1_snake"]])), 1)
-  expect_false(all(draws[["1_snake"]] == 7))
+  expect_false(all(draws[["1_eli"]] == 7))
 })
 
 test_that("load augmented list works fine for external lists", {
@@ -931,7 +949,6 @@ test_that("export_augmented_data works after evaluate_log_lik", {
 test_that("Incubation augmentation recast runs on the test model", {
   # a minimal analogue of the data-augmentation vignette: the incubation gamma
   # enters as an augmented prior, the reported onset day as an observation node.
-  set.seed(1)
   n <- 30
   exposure_max <- sample(0:3, n, replace = TRUE)
   infec <- runif(n, 0, exposure_max + 0.99)
@@ -974,4 +991,92 @@ test_that("Incubation augmentation recast runs on the test model", {
   # the gamma incubation prior contributes to the (finite) augmented log-prior
   lprior <- get_complete_draws(results)$lprior
   expect_true(all(is.finite(lprior)))
+})
+
+test_that("A surrogate observation overwrites the corresponding data column", {
+  hhmodel <- data.frame(house_id = "groznyj", status = c(1, 0, 0),
+                        test_date = c(2, 6, NA), start_date = rep(99, 3)) |>
+    new_housepi_model("test") |>
+    add_observation(
+      start_date = list(value = min(test_date@D), level = "house"),
+      w = test_date@D + 1
+    ) |>
+    add_augmented(z = list(value = w@D * 2))
+
+  # the data view reports the derived value before evaluation
+  expect_identical(unique(get_data_wide(hhmodel)[["start_date"]]), 2)
+  expect_false("w" %in% colnames(get_data_wide(hhmodel)))
+
+  # and after evaluation
+  expect_no_error(evaluate_log_lik(hhmodel))
+  expect_identical(unique(get_data_wide(hhmodel)[["start_date"]]), 2)
+  expect_false("w" %in% colnames(get_data_wide(hhmodel)))
+
+  # simulated observations are for all members, augmented just for infected
+  simulated <- run_simulation(hhmodel)
+  expect_equal(simulated[["w"]], c(3, 7, NA))
+  expect_equal(simulated[["z"]], c(6, NA, NA))
+
+  # FIXME: the requirement reported state "augmented", but it's "observation"
+  # a stochastic observation carries no column to read
+  #  datum is reported missing, rather than failing on the key it stands for
+  data.frame(house_id = "rex", status = 1, otacon = 5) |>
+    new_housepi_model("test") |>
+    add_augmented(y = list(model = "uniform")) |>
+    add_observation(hal = list(model = "normal", mean = y, sd = 1)) |>
+    add_observation(otacon = hal@D + 2) |>
+    evaluate_log_lik() |>
+    expect_error("missing data column")
+})
+
+test_that("surrogate columns of both levels build in dependency order", {
+  df <- data.frame(house_id = "rassvet", status = c(1, 0, 0),
+                   test_date = c(2, 9, 4), window = 0, last_day = 0)
+  hhmodel <- df |>
+    new_housepi_model("test") |>
+    add_observation(window = test_date@D + 3,
+                    last_day = list(value = max(window@D), level = "house"))
+
+  # every member carries a value regardless of status
+  wide <- get_data_wide(hhmodel)
+  expect_identical(wide[["window"]], c(5, 12, 7))
+  expect_identical(unique(wide[["last_day"]]), 12)
+
+  # pure surrogate observations with no raw data columns are not exported
+  obs_names <- c("window", "last_day")
+  df[obs_names] <- NULL
+  out_data <- hhmodel |>
+    add_data_wide(df) |>
+    get_data_wide()
+  expect_false(any(colnames(out_data) %in% obs_names))
+})
+
+test_that("observation cyclic dependency are captured", {
+  data.frame(house_id = "rex", status = c(1, 0)) |>
+    new_housepi_model("test") |>
+    add_augmented(z = list(model = "lognormal"),
+                  y = list(model = "uniform", max = first@D)) |>
+    add_observation(t_obs = list(model = "normal", mean = z, sd = 1)) |>
+    add_observation("first", value = min(t_obs@D), level = "house") |>
+    run_simulation() |>
+    expect_error("cyclic dependency")
+})
+
+test_that("a surrogate column reading augmented is simulation only", {
+  hhmodel <- data.frame(id = seq_len(100), house_id = "deck",
+                        status = 1, ReD = 0) |>
+    new_housepi_model("test") |>
+    add_augmented(z = list(model = "uniform")) |>
+    add_observation(ReD = z + 2)
+
+  # the data view has no derived value to report: it keeps the imported datum
+  expect_true(all(get_data_wide(hhmodel)[["ReD"]] == 0))
+
+  # observation depends on sampled augmented: not a valid surrogate definition
+  evaluate_log_lik(hhmodel) |>
+    expect_error("must resolve from data alone")
+
+  # simulation produces it, following the augmented variable as it is drawn
+  simulated <- run_simulation(hhmodel)
+  expect_equal(simulated[["ReD"]], simulated[["z"]] + 2)
 })

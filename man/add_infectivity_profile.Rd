@@ -62,7 +62,7 @@ If \code{FALSE} drop all pre-existing definitions.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add definition of infectivity profile.
+Add definitions for the infectivity profiles.
 There are three mutually exclusive definition modes:
 \describe{
 \item{single}{
@@ -80,12 +80,6 @@ Pass a pre-built named list of definitions through \code{import}.
 A definition name colliding with reserved argument
 is deprecated.
 It can be supplied only via single mode definition.
-
-A profile gives no infectivity at generation time 0: nobody transmits at the
-instant of being infected. A profile that does is refused, and either
-truncating it with \code{min} or shifting it with \code{loc} excludes the origin.
-A discrete-time model reads the profile in whole days, and takes the first
-day of transmission as \code{min} unless another one is given.
 }
 \examples{
 # `"template"` loads the profile shipped with the model

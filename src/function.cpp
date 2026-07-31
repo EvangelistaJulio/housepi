@@ -954,11 +954,11 @@ namespace
     HOUSEPI_REGISTER_FUNCTION(Tangent_, Transcendental)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  VariadicFunction : class  ///////////////////////////////////
+    //////////////////////////////////  ReductionFunction : class  //////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Auxialiary class to deal with variadic functions.
-    class VariadicFunction : public Function
+    /// Auxialiary class to deal with reduction functions.
+    class ReductionFunction : public Function
     {
     public:
         bool is_discrete() const noexcept override final
@@ -1024,10 +1024,10 @@ namespace
     };
 
 #define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol)             \
-    class Class_ final : public VariadicFunction                   \
+    class Class_ final : public ReductionFunction                  \
     {                                                              \
     public:                                                        \
-        Class_() : VariadicFunction() {}                           \
+        Class_() : ReductionFunction() {}                          \
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)             \
         HOUSEPI_OVERRIDE_NAME_METHOD(name_)                        \
                                                                    \
@@ -1051,10 +1051,10 @@ namespace
     HOUSEPI_REGISTER_FUNCTION(Product_, Arithmetic)
 
 #define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol)                       \
-    class Class_ final : public VariadicFunction                           \
+    class Class_ final : public ReductionFunction                          \
     {                                                                      \
     public:                                                                \
-        Class_() : VariadicFunction() {}                                   \
+        Class_() : ReductionFunction() {}                                  \
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                     \
         HOUSEPI_OVERRIDE_NAME_METHOD(name_)                                \
                                                                            \

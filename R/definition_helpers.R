@@ -5,17 +5,18 @@
 ## See the LICENSE file for details.
 ##
 
-# Helper to extract balanced {something} blocks at the top level.
+# @description
+# Helper to extract balanced [something] blocks at the top level.
 helper_extract_defin_blocks <- function(s) {
   blocks <- list()
   depth <- 0
   start <- NULL
   for (i in seq_along(strsplit(s, "")[[1]])) {
     ch <- substr(s, i, i)
-    if (ch == "{") {
+    if (ch == "[") {
       if (depth == 0) start <- i
       depth <- depth + 1
-    } else if (ch == "}") {
+    } else if (ch == "]") {
       depth <- depth - 1
       if (depth == 0 && !is.null(start)) {
         blocks <- c(blocks, substr(s, start, i))
@@ -26,11 +27,12 @@ helper_extract_defin_blocks <- function(s) {
   blocks
 }
 
+# @description
 # Recursive helper function to evaluate blocks.
 helper_evaluate_defin_block <- function(block, type) {
-  # Remove curly braces
-  block <- sub("^\\{", "", block)
-  block <- sub("\\}$", "", block)
+  # Remove square brackets
+  block <- sub("^\\[", "", block)
+  block <- sub("\\]$", "", block)
 
   # split the block into individual conditions
   conditions <- unlist(strsplit(block, ":"))
@@ -38,7 +40,7 @@ helper_evaluate_defin_block <- function(block, type) {
 
   # Evaluate each condition
   for (cond in conditions) {
-    if (grepl("\\{", cond)) {
+    if (grepl("\\[", cond)) {
       # recurse on nested blocks
       output <- c(output, housepi_walk_definition(cond, type))
     } else {
@@ -73,6 +75,7 @@ housepi_walk_definition <- function(input, type) {
   output
 }
 
+# @description
 # Definitions required by definitions according to the "source"
 find_required_definitions <- function(defs, src, col_with_sources, family) {
   output <- c()
@@ -87,6 +90,7 @@ find_required_definitions <- function(defs, src, col_with_sources, family) {
   set_source_name_(unique(output), family)
 }
 
+# @description
 # Parse implicit function/value.
 helper_variable_core <- function(opts, family, value, func, func_args) {
   if (is.null(value) && is.null(func)) return(opts)
@@ -112,6 +116,7 @@ helper_variable_core <- function(opts, family, value, func, func_args) {
   opts
 }
 
+# @description
 # process model arguments
 helper_variable_model <- function(opts, family, args) {
   if (is.null(args)) return(opts)
@@ -129,6 +134,7 @@ helper_variable_model <- function(opts, family, args) {
 # distribution, a distribution name draws from that distribution.
 .random_walk_proposals <- c("rw", "rw_log", "rw_unif")
 
+# @description
 # Extract arguments carried by the dots.
 # Fold any advanced `proposal_*` option into the proposal call, routing
 # `proposal_scale` to random walks and distribution arguments to independence
@@ -176,6 +182,7 @@ helper_definition_args <- function(proposal, dots) {
   list(args = args[!mask_prop], proposal = proposal)
 }
 
+# @description
 # Interpret user choice for Monte Carlo move.
 helper_variable_move <- function(opts, family) {
   # infer if sampling proposal but no constant parameter provided
@@ -201,8 +208,11 @@ helper_variable_move <- function(opts, family) {
     )
   }
 
-  # prior for parameters/risks, model for augmented variables
-  dist_word <- if (identical(family, "augmented")) "model" else "prior"
+  # prior for parameters/risks, model for augmented/observation
+  if (identical(family, "augmented")) dist_word <- "model"
+  else if (identical(family, "observation")) dist_word <- "model"
+  else dist_word <- "model"
+
   if (is.na(opts$proposal)) {
     if (is.na(opts[["prior"]])) {
       if (is.na(opts$func) &&
@@ -224,5 +234,47 @@ helper_variable_move <- function(opts, family) {
     )
   }
 
+  opts
+}
+
+# Reduction functions: folding a per-member column yields one household value.
+.reduction_functions <- c("sum", "prod", "min", "max")
+
+# @description
+# Settle the level a deterministic observation is read at
+helper_variable_level <- function(opts, defs) {
+  if (!identical(opts$kind, "member") ||
+        !is.na(opts[["prior"]]) ||
+        !all(is.na(opts$status)) ||
+        is.na(opts$func)) {
+    return(opts)
+  }
+  # a bare reference folds nothing at all
+  if (!housepi_is_call(opts$func)) return(opts)
+  folded <- showcaser_extract_func(opts$func)
+  if (!folded %in% .reduction_functions) return(opts)
+
+  # a fold over a single per-member operand returns that operand: what the
+  # definition asks for is the household reduction over its column
+  operands <- showcase_extract_args(opts$func)[[1]]
+  if (length(operands) != 1) return(opts)
+  operand <- strsplit(as.character(operands[[1]]), "\\|")[[1]]
+  if (length(operand) != 2 || operand[2] != "D") return(opts)
+
+  sms <- paste("Member-level observation {.val {opts$name}}",
+               "is a no-effect reduction {.fn {folded}}.")
+  # a sibling household observation is already one value
+  house <- character()
+  if (!is.null(defs)) house <- defs[["name"]][defs[["kind"]] == "house"]
+  if (operand[1] %in% house) stop_h(
+    sms, "Drop redundant observation {.val {opts$name}}."
+  )
+
+  warn_h(
+    sms, `!` = "Interpreted as an household-level observation instead.",
+    paste("Silence this warning passing {.code level = \"house\"}",
+          "or dropping {.fn {folded}}.")
+  )
+  opts$kind <- "house"
   opts
 }

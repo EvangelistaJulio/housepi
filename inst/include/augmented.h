@@ -55,9 +55,28 @@ namespace housepi
             Status
         };
 
-        std::vector<size_t> list_export = {};       /// augmented to export
-        std::vector<size_t> list_obs_export = {};   /// observation to export
-        std::vector<size_t> list_house_export = {}; /// household-observation to export
+        /// Augmented latents selected for export: private ones (see str::is_hidden)
+        /// and definitions that cannot be rendered are dropped.
+        std::vector<size_t> list_augm_export = {};
+        /// Every drawn member-level observation. No visibility filter applies: a
+        /// definition name carrying a leading dot is rejected unless it is an
+        /// augmented latent (see assert_valid_definition_name).
+        std::vector<size_t> list_obs_member = {};
+        /// House-level definition rows, in house_varia slot order. Household
+        /// observations are exported as surrogate columns (see is_own_column).
+        std::vector<size_t> list_obs_house = {};
+
+        /// A surrogate column: a deterministic definition standing in for a data column.
+        /// NOTE: both member- and house-level observation.
+        struct Surrogate
+        {
+            size_t row = 0;         /// definition row in the table
+            size_t slot = 0;        /// index in house_varia, household level only
+            bool is_house = false;  /// reduction over members, else one value per member
+            bool is_static = false; /// built from data, not drawn with the members it reads
+        };
+        /// Surrogate columns of both levels, ordered producer-before-consumer.
+        std::vector<Surrogate> list_surrogate = {};
 
         /// Auxiliary block for individual augmented objects.
         struct IndivBlock
@@ -69,8 +88,7 @@ namespace housepi
         };
         std::vector<IndivBlock> varia;
 
-        /// Household-level observations, per house per house-export slot. The single
-        /// source of truth for a derived column: standing-in data cells point at it.
+        /// Household-level observations, per house per observation slot.
         /// NOTE: built for both inference (data-bound) and simulation (live).
         std::vector<std::vector<Variable>> house_varia;
 
@@ -109,16 +127,17 @@ namespace housepi
         /// NOTE: used for simulations.
         void simulate_infected_status(Household &house, Individual &member, rnd_gen &prng);
 
-        /// Initialize household-level observations for simulations.
+        /// Initialize surrogate columns of both levels for simulations.
         void init_house_for_simulation();
         /// Clear every member's observation Variables of a household before re-sampling.
         /// FIXME: I don't think I need this anymore
         void reset_obs_data_for_simulation(Household &house);
 
-        /// Build the household observations that stand in for required data columns and
-        /// point each member's read-surface at its Variable before evaluation.
-        /// NOTE: only pure-data (constant) household observations are eligible.
-        void materialize_data_bound_house_obs(DataWide &data_wide);
+        /// Build the surrogate columns that stand in for data columns and point each
+        /// member's read-surface at its Variable before evaluation.
+        /// NOTE: only static columns are eligible, a live one has no fixed value:
+        /// rejected, or skipped when exporting the data view.
+        void materialize_surrogate_columns(DataWide &data_wide, bool for_export = false);
 
         /// Reset augmented initial values for given individual.
         void restart(Individual &member, rnd_gen &prng)
@@ -160,8 +179,27 @@ namespace housepi
         const std::vector<size_t> &list_models(const Individual &m) const { return block_of_(m).models; }
         const std::vector<size_t> &list_obs(const Individual &m) const { return block_of_(m).obs; }
 
-        /// Export column name of the household-level observation.
-        const std::string &house_obs_name(size_t b) const { return deftable_.c_name[list_house_export[b]]; }
+        /// Declare a read-cell for every column a definition produces, so a name
+        /// standing in for no imported column resolves like any other data name.
+        /// NOTE: run-scoped, an import drops the optional keys of the previous one.
+        std::vector<std::string> get_produced_cols();
+
+        /// Export column name of a surrogate column.
+        const std::string &surrogate_name(const Surrogate &surr) const { return deftable_.c_name[surr.row]; }
+        /// Whether a surrogate column is produced as a column of its own, rather than
+        /// drawn with the observations of each infected member (see list_obs_member).
+        static bool is_own_column(const Surrogate &surr) noexcept
+        {
+            return surr.is_house || surr.is_static;
+        }
+        /// How many surrogate columns are produced as columns of their own.
+        size_t n_own_columns() const noexcept
+        {
+            size_t n = 0;
+            for (const Surrogate &surr : list_surrogate)
+                n += is_own_column(surr);
+            return n;
+        }
 
         /// Compute and store log-likelihood of augmented variables associated to Individual.
         /// NOTE: to be called only if any prior is defined.
@@ -217,9 +255,9 @@ namespace housepi
         bool is_any_obs() const noexcept { return is_any_obs_; }
         /// If a status observation is defined.
         bool is_any_status_obs() const noexcept { return !na::is(status_obs_def_); }
-        /// Whether the given name is an observation node (kind "member").
-        bool is_obs_node(const std::string &name) const noexcept;
-        /// Whether the given name is a household observation (kind "house").
+        /// Whether the given name is an member-level observation node.
+        bool is_member_obs(const std::string &name) const noexcept;
+        /// Whether the given name is a household-level observation.
         bool is_house_obs(const std::string &name) const noexcept;
         /// If moving given parameter may change the observation log-likelihood.
         bool param_affects_obs_log_lik(size_t p) const noexcept { return obs_param_depen_[p]; }
@@ -353,23 +391,25 @@ namespace housepi
         /// Assert status observation as correct dependency and output.
         void assert_status_obs_consistent_();
 
-        /// Collect household-level deftable rows into list_house_export.
-        void helper_init_house_obs_list_();
-        /// Deal with household-level observations.
-        void helper_init_house_attributes_(Household &house, size_t b);
-        /// Build the (reduction) variable for household observation 'k' over 'house'.
-        void build_house_obs_variable_(Variable &hvar, Household &house, size_t k);
-        /// Point the standing-in data cells of a house at household-obs 'b'.
-        void wire_house_obs_cell_(Household &house, size_t b);
-        /// Point each standing-in data cell of a house at its household-obs Variable.
-        void wire_house_obs_cells_(Household &house);
-        /// Whether household observation 'k' references only data and numeric sources.
-        bool house_obs_is_pure_data_(size_t k) const;
+        /// Order and classify the surrogate columns of both levels into list_surrogate,
+        /// and collect the household ones into list_obs_house.
+        void helper_init_surrogate_list_();
+        /// Whether definition row 'k' is a surrogate column materialized from data.
+        bool is_surrogate_(size_t k) const noexcept;
+        /// Build the Variable of a surrogate column over a house, wiring the cells it
+        /// stands in for. Household level reduces over the members, member level
+        /// assigns one Variable per member. Evaluation fixes the value it settles on.
+        // NOTE: assume every surrogate column is registered as a data key
+        void build_surrogate_column_(const Surrogate &surr, DataWide &data_wide,
+                                     Household &house, bool for_evaluation);
+        /// Assert a surrogate value honours what the model requires of the column.
+        void assert_surrogate_datum_requirements_(const DataWide &data_wide, size_t d, double v,
+                                                  const std::string &name, const Household &house) const;
+        /// Whether definition row 'k' references only data and numeric sources.
+        bool def_is_pure_data_(size_t k) const;
         /// Whether a parsed definition subtree references any group risk.
         static bool entry_has_group_risk_(const parse::Entry &node);
 
-        /// Whether household observation 'k' references a generated observation column.
-        bool house_obs_is_live_(size_t k) const;
         /// Reject an augmented variable that reads a live data-bound household observation.
         void assert_no_live_house_obs_cycle_() const;
         /// Reject a definition whose prior reads an observation column.
@@ -377,9 +417,6 @@ namespace housepi
         /// Reject a simulation override (value + prior) that reads an augmented variable
         /// or observation: it must resolve from data or parameters at draw time.
         void assert_no_sim_override_forward_dep_() const;
-        /// Reject a group/contact risk keyed on an observation column: it feeds the
-        /// transmission model the observation is generated from. Simulation only.
-        void assert_no_obs_risk_collision_() const;
 
         /// Get the definition order for current member according to its status.
         /// NOTE: if status hasn't been observed in data, build on demand.
@@ -390,7 +427,16 @@ namespace housepi
         void helper_init_attributes_(Individual &member, size_t k, bool simulation = false);
         /// Assign attributes to augmented model.
         void helper_init_distr_attributes_(Individual &member, size_t k);
-        /// Assign attributes to augmented function.
-        void helper_init_func_attributes_(Individual &member, size_t k);
+        /// Build the Variable of definition row 'k' on 'anchor'. Its level selects the
+        /// operand policy: a household row reduces over the members of 'house', any other
+        /// row binds every operand to 'anchor' alone and needs no household.
+        void build_definition_variable_(Variable &var, size_t k,
+                                        Individual &anchor, Household *house);
+        /// Fold a household-level definition into a reduction over 'house': a per-member
+        /// data cell unfolds into one operand each, any other operand contributes once
+        /// from 'anchor'. Empty cells drop out (na.rm convention).
+        /// Return whether the reduction holds any operand.
+        bool bind_house_reduction_(Variable &var, const parse::Entry &root,
+                                   Household &house, Individual &anchor);
     };
 }

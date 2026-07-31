@@ -55,6 +55,10 @@ namespace housepi
         void build(const str_table &input);
         /// Recover all status.
         void recover_all_status() noexcept;
+        /// Re-wire every read-cell back at its imported raw value.
+        /// Optionally associate data columns produced by observations.
+        /// NOTE: necessary because of stale pointers during Variable re-build.
+        void reset_readcells(const std::vector<std::string> &produced_cols = {});
 
         /// Request data column to be discrete-valued.
         void request_discrete(size_t d) { user_discrete_set_.emplace(d); }
@@ -98,14 +102,17 @@ namespace housepi
 
         /// Access wide-format data of given column for a member.
         /// NOTE: resolves through the per-member read-surface (raw or a wired Variable).
-        double data(size_t d, const Individual &member) const noexcept { return cell(d, member).value(); }
+        double data(size_t d, const Individual &member) const noexcept { return readcell(d, member).value(); }
         /// Read-surface attribute of given column for a member (for live @D resolution).
-        const Attribute &cell(size_t d, const Individual &member) const noexcept { return indiv_data_[Index::of(member)].cell[d]; }
-        /// Point a column's read-surface at a derived Variable (household observation).
-        void wire_cell(size_t d, const Individual &member, const Attribute *p) noexcept { indiv_data_[Index::of(member)].cell[d].init_pointer(p); }
-        /// Finalize every read-cell (constant household observations collapse to numeric).
+        const Attribute &readcell(size_t d, const Individual &member) const noexcept { return indiv_data_[Index::of(member)].readcell[d]; }
+        /// Point a column's read-surface at the Variable of a surrogate column.
+        void wire_readcell(size_t d, const Individual &member, const Attribute *p) noexcept { indiv_data_[Index::of(member)].readcell[d].init_pointer(p); }
+        /// Finalize every read-cell (constant surrogate columns collapse to numeric).
         /// NOTE: evaluation-only; simulation re-wires the cells live.
         void finalize_cells();
+
+        /// Column names known at import, without those produced by an observation.
+        std::vector<std::string> imported_cols() const;
 
         ///////////////////////////////////
         //////  EQUIVALENCE CLASSES  //////
@@ -189,12 +196,13 @@ namespace housepi
         struct IndivWide_
         {
             int status = status::MISSING;
-            std::vector<double> vec = {};       /// immutable imported-raw backing
-            std::vector<Attribute> cell = {};   /// per-column read-surface (raw or wired)
+            std::vector<double> vec = {};         /// immutable imported-raw backing
+            std::vector<Attribute> readcell = {}; /// per-column read-surface (raw or wired)
         };
 
-        dict<size_t> hhid_to_index_ = {};            /// Map house-id to internal index
-        std::vector<IndivWide_> indiv_data_;         /// External storage for individual data
+        dict<size_t> hhid_to_index_ = {};    /// Map house-id to internal index
+        std::vector<IndivWide_> indiv_data_; /// External storage for individual data
+        size_t n_imported_ = 0;              /// Number of columns known at import
 
         std::vector<Household> house_vector_ = {};   /// All households in data
         std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood

@@ -85,12 +85,16 @@ HousepiAugmented <- R6::R6Class(
       self$defs[["name"]][self$defs[["kind"]] == "member"]
     },
 
-    #' @field house_observ_names `character()`.
-    #' Names of household-level observations.
-    house_observ_names = function(value) {
-      if (is.null(self$defs) ||
-            !"kind" %in% names(self$defs)) return(character())
-      self$defs[["name"]][self$defs[["kind"]] == "house"]
+    #' @field surrogate_names `character()`.
+    #' Names of deterministic observations producing a data column:
+    #' member- and household-level observations, carrying no model.
+    surrogate_names = function(value) {
+      if (is.null(self$defs) || !"kind" %in% names(self$defs)) {
+        return(character())
+      }
+      mask <- self$defs[["kind"]] == "house" |
+        (self$defs[["kind"]] == "member" & is.na(self$defs[["prior"]]))
+      self$defs[["name"]][mask]
     },
 
     #' @field status_names `character()`.
@@ -247,10 +251,7 @@ HousepiAugmented <- R6::R6Class(
         # augmented latent: the model is its density (prior on the latent)
         prior <- model
       } else if (!is.na(model)) {
-        # observation kinds (member/house/status): the model string reuses the
-        # 'prior' transport column, discriminated by 'kind'
-        # a household observation is a reduction over its members: it carries no
-        # density (build_house_obs_variable_ never reads the 'prior' column)
+        # a household observation cannot be sampled
         if (identical(.kind, "house")) stop_h(
           "Household observation {.val {name}} cannot be sampled.",
           "Provide {.arg value} instead of {.arg model}."
@@ -278,8 +279,10 @@ HousepiAugmented <- R6::R6Class(
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- .kind
 
-      # control valid name
-      assert_valid_definition_name(name, self$family)
+      # only augmented and status (see add_status) can be hidden
+      assert_valid_definition_name(
+        name, self$family, allow_hidden = .kind %in% c("augm", "status")
+      )
       # control valid status
       assert_valid_status(status)
       # control meaningful definition
@@ -314,6 +317,7 @@ HousepiAugmented <- R6::R6Class(
       opts <- helper_variable_core(opts, self$family, value, func, func_args)
       opts <- helper_variable_model(opts, self$family, args)
       opts <- helper_variable_move(opts, self$family)
+      opts <- helper_variable_level(opts, self$defs)
 
       # domain
       if (!is.null(min)) opts$min <- min

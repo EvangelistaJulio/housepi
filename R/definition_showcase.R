@@ -46,8 +46,8 @@ helper_split_external_semicol <- function(x) {
   depth <- 0
   split_pos <- c(0)  # start of string
   for (i in seq_along(chars)) {
-    if (chars[i] == "{") depth <- depth + 1
-    else if (chars[i] == "}") depth <- depth - 1
+    if (chars[i] == "[") depth <- depth + 1
+    else if (chars[i] == "]") depth <- depth - 1
     else if (chars[i] == ":" && depth == 0) split_pos <- c(split_pos, i)
   }
   split_pos <- c(split_pos, nchar(x) + 1)
@@ -60,8 +60,8 @@ helper_split_external_semicol <- function(x) {
     result[i] <- substr(x, start, end)
   }
 
-  # remove outer braces at the edges
-  gsub("^\\{(.*)\\}$", "\\1", result)
+  # remove outer brackets at the edges
+  gsub("^\\[(.*)\\]$", "\\1", result)
 }
 
 # Helper to extract arguments from a definition.

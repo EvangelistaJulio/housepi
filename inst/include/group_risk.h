@@ -42,15 +42,11 @@ namespace housepi
         /// Whether two members belong to the same group-risk partition.
         bool same_group(const Individual &a, const Individual &b) const noexcept { return group_index_[Index::of(a)] == group_index_[Index::of(b)]; }
 
-        /// Data-wide feature columns the group-risk rules match on.
-        const std::vector<std::string> &data_wide_depen() const noexcept { return data_wide_depen_; }
-
         /// Rule groups of given key whose overall scale is free (see Parameter::assert_risk_identifiability).
         size_t n_scale_free(size_t g) const noexcept { return n_scale_free_[g]; }
 
     private:
-        std::vector<std::string> data_wide_depen_ = {}; /// data feature columns used by rules
-        std::vector<size_t> n_scale_free_ = {};               /// free-scale rule groups per group risk
+        std::vector<size_t> n_scale_free_ = {}; /// free-scale rule groups per group risk
         /// Individual group risks.
         struct IndivGroup_
         {

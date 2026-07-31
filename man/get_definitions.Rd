@@ -38,6 +38,12 @@ Return the definitions currently stored in the housepi model.
 Each variant returns one category (data, parameters, augmented variables,
 observations, group risks, contact risks, infectivity profile).
 }
+\details{
+\code{get_data_wide()} returns the individual-level data the model reads: a column
+a deterministic observation stands in for carries the derived value, not the
+imported one. A column an observation produces without standing in for data
+is not part of the dataset, and is reported by \code{\link[=get_observations]{get_observations()}}.
+}
 \examples{
 hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
   add_parameter(import = "template")

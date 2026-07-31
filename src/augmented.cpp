@@ -216,8 +216,22 @@ namespace housepi
         Registry::Custom, Registry::Transcendental, Registry::Arithmetic,
         Registry::Continuos, Registry::Discrete, Registry::InfecProfile};
 
+    /// Error-message family of a definition row's level.
+    static ErrType kind_to_err_type(Augmented::Kind kind)
+    {
+        switch (kind)
+        {
+        case Augmented::Kind::Member:
+            return ErrType::Observation;
+        case Augmented::Kind::House:
+            return ErrType::HouseholdObservation;
+        default:
+            return ErrType::Augmented;
+        }
+    }
+
     /// Map a definition's kind label to its typed Kind.
-    static Augmented::Kind kind_from_string_(const std::string &s)
+    static Augmented::Kind string_to_kind(const std::string &s)
     {
         if (s == "member")
             return Augmented::Kind::Member;
@@ -246,9 +260,10 @@ namespace housepi
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();
-        list_export.clear();
-        list_obs_export.clear();
-        list_house_export.clear();
+        list_augm_export.clear();
+        list_obs_member.clear();
+        list_obs_house.clear();
+        list_surrogate.clear();
         varia.clear();
         house_varia.clear();
         status_obs_def_ = na::INDEX;
@@ -262,8 +277,8 @@ namespace housepi
         helper_build_append_(infec_profile);   // add infectivity profile
         helper_build_definition_by_status_();  // process definition by status
         helper_build_set_allocation_order_();  // allocation and order
+        helper_init_surrogate_list_();         // surrogate columns
         helper_init_observation_list_();       // observation nodes
-        helper_init_house_obs_list_();         // household-level observations
         assert_status_obs_consistent_();       // assert status observation
         assert_no_obs_entry_collision_();      // no definition reads an obs entry column
         assert_no_sim_override_forward_dep_(); // simulation override reads data/params only
@@ -286,7 +301,7 @@ namespace housepi
         deftable_.append(input);
     }
 
-    bool Augmented::is_obs_node(const std::string &name) const noexcept
+    bool Augmented::is_member_obs(const std::string &name) const noexcept
     {
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
             if (deftable_.c_kind[k] == Kind::Member && deftable_.c_name[k] == name)
@@ -299,6 +314,14 @@ namespace housepi
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
             if (deftable_.c_kind[k] == Kind::House && deftable_.c_name[k] == name)
                 return true;
+        return false;
+    }
+
+    bool Augmented::is_surrogate_(size_t k) const noexcept
+    {
+        for (const Surrogate &surr : list_surrogate)
+            if (surr.row == k)
+                return surr.is_static;
         return false;
     }
 
@@ -364,7 +387,7 @@ namespace housepi
         c_max += input.at("max");
         c_proposal += input.at("proposal");
         for (const std::string &s : input.at("kind"))
-            c_kind.push_back(kind_from_string_(s));
+            c_kind.push_back(string_to_kind(s));
     }
 
     void Augmented::helper_build_append_(InfecProfile &infec_profile)
@@ -390,8 +413,7 @@ namespace housepi
     {
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            // household-level observations are not per-member
-            // (see helper_init_house_obs_list_ / init_house_for_simulation).
+            // skip household-level observations, not per-member
             if (deftable_.c_kind[k] == Kind::House)
                 continue;
 
@@ -436,19 +458,17 @@ namespace housepi
                 IndivBlock &iaugm = varia_of_(member);
                 iaugm.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
-                    iaugm.vec[a].name(
-                        khold(a),
-                        is_obs_node(khold(a)) ? ErrType::Observation : ErrType::Augmented);
+                    if (is_member_obs(khold(a)))
+                        iaugm.vec[a].name(khold(a), ErrType::Observation);
+                    else
+                        iaugm.vec[a].name(khold(a), ErrType::Augmented);
 
                 if (member.is_infected_status())
                     all_infected_statuses.emplace(member.status());
             }
 
-        // no per-member definition to place into status blocks: a model carrying
-        // only household-level observations needs no status block (they are handled
-        // by helper_init_house_obs_list_). Skip block generation so such a model can
-        // be built before its per-member augmented definitions are declared; a
-        // genuinely required augmented variable is still enforced at the run wall.
+        // skip if no per-member definition to place into status blocks
+        // NOTE: household-level observations need no status block
         if (map_status_to_def_row_.empty())
             return;
 
@@ -529,17 +549,16 @@ namespace housepi
     }
 
     /// Report the observed status left without definitions.
-    std::string undeclared_status_message_(int err_status)
+    static std::string undeclared_status_message_(int err_status)
     {
         if (status::is_missing(err_status))
-            return "No generic augmented definition was declared."
-                   "\nProvide a definition without " +
-                   msg::arg("status") +
-                   " to apply it to every infected status.";
+            return "No generic augmented definition was declared.\n"
+                   "Provide a definition without " +
+                   msg::arg("status") + " to apply it to every infected status.";
 
-        return "No augmented definition was declared for status " + std::to_string(err_status) +
-               ".\nTry to associate a status-specific definition." +
-               ".\nIn alternative, drop " + msg::arg("status") + " from existing definitions to make them generic.";
+        return "No augmented definition was declared for status " + std::to_string(err_status) + ".\n" +
+               "Try to associate a status-specific definition.\n" +
+               "In alternative, drop " + msg::arg("status") + " from existing definitions to make them generic.";
     }
 
     void Augmented::set_definition_dependency_order_for_(int status, int err_status)
@@ -623,8 +642,8 @@ namespace housepi
         for (size_t k : block.order)
             set_sample_list_for_single_definition_(status, k);
 
-        // NOTE: by construction of draws list, I am forced to drop private at the end
-        list_export = khold(str::drop_hidden(khold(list_export)));
+        // NOTE: to construct draws list, I drop hidden at the end
+        list_augm_export = khold(str::drop_hidden(khold(list_augm_export)));
         block.draws = khold(str::drop_hidden(khold(block.draws)));
     }
 
@@ -670,11 +689,12 @@ namespace housepi
             // NOTE: a user-defined scale (folded into the proposal call) freezes it
             parse::Definition pdef(deftable_.c_proposal[k]);
             const std::string &pf = pdef.root.func;
-            const bool is_random_walk = (pf == "rw" || pf == "rw_log" || pf == "rw_unif");
             bool has_scale = false;
             for (const parse::Entry &child : pdef.root.children)
                 if (child.key == "scale")
                     has_scale = true;
+
+            bool is_random_walk = (pf == "rw" || pf == "rw_log" || pf == "rw_unif");
             if (is_random_walk && !has_scale)
             {
                 is_any_adaptive_ = true;
@@ -690,8 +710,8 @@ namespace housepi
         if (!is_to_export)
             return;
 
-        if (!contains(list_export, a))
-            list_export.emplace_back(a);
+        if (!contains(list_augm_export, a))
+            list_augm_export.emplace_back(a);
 
         if (is_to_draw)
             block_at_(status).draws.emplace_back(a);
@@ -706,7 +726,12 @@ namespace housepi
         const std::string &str_val = deftable_.c_value[k];
         const parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
 
-        mcmc_->data_wide().set_eq_class_data_names(parser.list_data_wide_depen());
+        // raw data are equivalence-class covariates if not-produced
+        std::vector<std::string> covariates;
+        for (const std::string &dstr : parser.list_data_wide_depen())
+            if (!is_member_obs(dstr) && !is_house_obs(dstr))
+                covariates.push_back(dstr);
+        mcmc_->data_wide().set_eq_class_data_names(covariates);
 
         // NOTE: do not export if not callable (otherwise crashes)
         if (!parser.is_callable_implicitly("x"))
@@ -736,13 +761,6 @@ namespace housepi
     {
         if (khold_.empty())
             return;
-
-        // raise if deterministic observation node for evaluation
-        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == Kind::Member && na::is(deftable_.c_prior[k]))
-                msg::stop(
-                    "Deterministic observation node " + msg::val(deftable_.c_name[k]) +
-                    " cannot be used for evaluation, only simulation.");
 
         helper_init_model_list_();
 
@@ -823,11 +841,15 @@ namespace housepi
                 if (deftable_.c_kind[k] != Kind::Member)
                     continue;
 
+                // a surrogate column is data, not drawn
+                if (is_surrogate_(k))
+                    continue;
+
                 const size_t obs_key = khold(deftable_.c_name[k]);
 
                 // unique observation keys to return as simulated columns
-                if (!contains(list_obs_export, obs_key))
-                    list_obs_export.push_back(obs_key);
+                if (!contains(list_obs_member, obs_key))
+                    list_obs_member.push_back(obs_key);
 
                 // a deterministic observation node carries no distribution
                 if (na::is(deftable_.c_prior[k]))
@@ -846,90 +868,156 @@ namespace housepi
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  Augmented : household observations  /////////////////////////////
+    ////////////////////////////////  Augmented : surrogate columns  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::helper_init_house_obs_list_()
+    void Augmented::helper_init_surrogate_list_()
     {
+        // look for surrogate column definitions
+        // i.e. deterministic definition producing standing for a data column
+        dict<size_t> name_to_row;
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == Kind::House)
-                list_house_export.push_back(k);
+            // household reduction or member-level definition carrying no model
+            if (deftable_.c_kind[k] == Kind::House ||
+                (deftable_.c_kind[k] == Kind::Member && na::is(deftable_.c_prior[k])))
+                name_to_row[deftable_.c_name[k]] = k;
 
-        if (list_house_export.size() < 2)
+        if (name_to_row.empty())
             return;
 
-        // order household observations producer-before-consumer, so a sibling
-        // read (e.g. end_date = start_date@D + 21) is built after the observation
-        // it depends on. Edges are @D references whose name is another house obs.
-        std::unordered_set<std::string> house_names;
-        for (size_t k : list_house_export)
-            house_names.insert(deftable_.c_name[k]);
-
+        // order producer-before-consumer surrogate columns
         str_table graph;
-        dict<size_t> name_to_row;
-        for (size_t k : list_house_export)
+        for (const auto &[nm, k] : name_to_row)
         {
-            const std::string &nm = deftable_.c_name[k];
-            name_to_row[nm] = k;
             std::vector<std::string> deps;
             for (const auto *col : deftable_.source_cols())
-                for (const std::string &d : parse::Definition((*col)[k]).list_data_wide_depen())
-                    if (d != nm && house_names.count(d))
-                        deps.push_back(d);
+                for (const std::string &dstr : parse::Definition((*col)[k]).list_data_wide_depen())
+                    if (dstr != nm && name_to_row.count(dstr))
+                        deps.push_back(dstr);
             graph[nm] = str::unique(deps);
         }
 
-        list_house_export.clear();
-        for (const std::string &nm : dpdcy::order_dependencies(graph, ErrType::HouseholdObservation))
-            list_house_export.push_back(name_to_row[nm]);
+        // extract member-level live observations (with a model)
+        std::unordered_set<std::string> live_names;
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+            if (deftable_.c_kind[k] == Kind::Member && !na::is(deftable_.c_prior[k]))
+                live_names.insert(deftable_.c_name[k]);
+
+        // build list of surrogate data columns in order
+        for (const std::string &nm : dpdcy::order_dependencies(graph, ErrType::Observation))
+        {
+            Surrogate surr;
+            surr.row = name_to_row.at(nm);
+            surr.is_house = deftable_.c_kind[surr.row] == Kind::House;
+            surr.is_static = def_is_pure_data_(surr.row);
+
+            // update house-level observations
+            if (surr.is_house)
+            {
+                surr.slot = list_obs_house.size();
+                list_obs_house.push_back(surr.row);
+            }
+
+            // check if depends on live, then it's live
+            if (surr.is_static)
+                for (const auto *col : deftable_.source_cols())
+                    for (const std::string &dstr : parse::Definition((*col)[surr.row]).list_data_wide_depen())
+                        if (live_names.count(dstr))
+                            surr.is_static = false;
+            if (!surr.is_static)
+                live_names.insert(nm);
+
+            list_surrogate.push_back(std::move(surr));
+        }
+    }
+
+    std::vector<std::string> Augmented::get_produced_cols()
+    {
+        std::vector<std::string> produced_cols = khold(list_obs_member);
+        for (const Surrogate &surr : list_surrogate)
+            produced_cols.push_back(deftable_.c_name[surr.row]);
+        return produced_cols;
     }
 
     void Augmented::init_house_for_simulation()
     {
         DataWide &data_wide = mcmc_->data_wide();
 
-        // reject an unsatisfiable cycle (augmented variable reading a live house observation)
         assert_no_live_house_obs_cycle_();
-        // reject a group/contact risk keyed on a generated observation column
-        assert_no_obs_risk_collision_();
+        data_wide.reset_readcells(get_produced_cols());
 
+        // reserve household-level observations
         house_varia.clear();
-        if (list_house_export.empty())
-            return;
+        if (!list_obs_house.empty())
+            house_varia.assign(data_wide.report_house.total,
+                               std::vector<Variable>(list_obs_house.size()));
 
-        // household observations are first-class Variables: build the reduction for
-        // every house once and point each standing-in data column at it. Live
-        // reductions (over generated observations) are rebuilt as they are drawn.
-        const size_t n_houses = data_wide.report_house.total;
-        house_varia.assign(n_houses, std::vector<Variable>(list_house_export.size()));
-        for (size_t H = 0; H < n_houses; ++H)
+        for (Household &house : data_wide)
         {
-            Household &house = data_wide.at(H);
-            // build and wire in dependency order (see helper_init_house_obs_list_):
-            // a sibling read binds the already-wired cell of its producer
-            for (size_t b = 0; b < list_house_export.size(); ++b)
-            {
-                helper_init_house_attributes_(house, b);
-                wire_house_obs_cell_(house, b);
-            }
+            // wire stochastic member-level observations to data read-cell
+            for (Individual &member : house)
+                for (size_t a : list_obs_member)
+                    data_wide.wire_readcell(data_wide.khold(khold(a)), member,
+                                            &varia_of_(member).vec[a]);
+
+            // build and wire surrogate columns in dependency order
+            for (const Surrogate &surr : list_surrogate)
+                // defer live member observation (drawn with the member)
+                if (surr.is_house || surr.is_static)
+                    build_surrogate_column_(surr, data_wide, house, false);
         }
     }
 
-    void Augmented::wire_house_obs_cell_(Household &house, size_t b)
+    void Augmented::build_surrogate_column_(const Surrogate &surr,
+                                            DataWide &data_wide,
+                                            Household &house,
+                                            bool for_evaluation)
     {
-        DataWide &data_wide = mcmc_->data_wide();
-        const std::string &name = house_obs_name(b);
-        if (!data_wide.khold().count(name))
-            return; // export-only household observation: no standing-in column
+        const std::string &name = deftable_.c_name[surr.row];
         const size_t d = data_wide.khold(name);
-        for (const Individual &member : house)
-            data_wide.wire_cell(d, member, &house_varia[Index::of(house)][b]);
+
+        // household-level
+        if (surr.is_house)
+        {
+            Variable &hvar = house_varia[Index::of(house)][surr.slot];
+            build_definition_variable_(hvar, surr.row, house.member(0), &house);
+            if (for_evaluation)
+            {
+                assert_surrogate_datum_requirements_(data_wide, d, hvar.value(), name, house);
+                hvar.finalize(); // enforce inference-finalization
+            }
+            for (const Individual &member : house)
+                data_wide.wire_readcell(d, member, &hvar);
+            return;
+        }
+
+        // member level
+        const size_t a = khold(name);
+        for (Individual &member : house)
+        {
+            Variable &avar = varia_of_(member).vec[a];
+            build_definition_variable_(avar, surr.row, member, nullptr);
+            if (for_evaluation)
+            {
+                assert_surrogate_datum_requirements_(data_wide, d, avar.value(), name, house);
+                avar.finalize(); // enforce inference-finalization
+            }
+            data_wide.wire_readcell(d, member, &avar);
+        }
     }
 
-    void Augmented::wire_house_obs_cells_(Household &house)
+    void Augmented::assert_surrogate_datum_requirements_(
+        const DataWide &data_wide, size_t d, double v,
+        const std::string &name, const Household &house) const
     {
-        for (size_t b = 0; b < list_house_export.size(); ++b)
-            wire_house_obs_cell_(house, b);
+        if (data_wide.requires_discrete(d) && v != std::floor(v))
+            msg::stop(
+                "Observation " + msg::val(name) + " for " + house.err_name() +
+                " was expected to be discrete-valued, as requested by model.");
+        if (data_wide.requires_positive(d) && !(v > 0.))
+            msg::stop(
+                "Observation " + msg::val(name) + " for " + house.err_name() +
+                " was expected to be greater than zero, as requested by model.");
     }
 
     void Augmented::reset_obs_data_for_simulation(Household &house)
@@ -938,12 +1026,12 @@ namespace housepi
         // infected in a previous repetition must not leak a stale value into this
         // one. The live household reductions point at these slots and follow them.
         for (Individual &member : house)
-            for (size_t a : list_obs_export)
+            for (size_t a : list_obs_member)
                 varia_of_(member).vec[a].clear();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////  Augmented : data-bound household observations (simulation)  /////////////////
+    ///////////////////////  Augmented : definition collisions and variable build  ////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Data names (@D) referenced by 'expr' that are also in 'names'.
@@ -960,28 +1048,12 @@ namespace housepi
         return output;
     }
 
-    bool Augmented::house_obs_is_live_(size_t k) const
-    {
-        // live iff a source references an observation node's data column, i.e. a
-        // column generated during simulation rather than fixed input data.
-        const std::vector<std::string> obs_names = khold(list_obs_export);
-        for (const std::vector<std::string> *col : deftable_.source_cols())
-            if (!referred_data((*col)[k], obs_names).empty())
-                return true;
-        return false;
-    }
-
     void Augmented::assert_no_live_house_obs_cycle_() const
     {
-        const DataWide &data_wide = mcmc_->data_wide();
         std::vector<std::string> live_names;
-        for (size_t b = 0; b < list_house_export.size(); ++b)
-        {
-            const size_t k = list_house_export[b];
-            const std::string &name = deftable_.c_name[k];
-            if (data_wide.khold().count(name) && house_obs_is_live_(k))
-                live_names.push_back(name);
-        }
+        for (const Surrogate &surr : list_surrogate)
+            if (surr.is_house && !surr.is_static)
+                live_names.push_back(deftable_.c_name[surr.row]);
         if (live_names.empty())
             return;
 
@@ -992,20 +1064,20 @@ namespace housepi
             for (const std::vector<std::string> *col : deftable_.source_cols())
                 for (const std::string &dstr : referred_data((*col)[k], live_names))
                     msg::stop(
-                        "Found cyclic dependency for simulation:\nAugmented " +
+                        "Found cyclic dependency in simulation.\nAugmented " +
                         msg::val(deftable_.c_name[k]) + " reads generated household observation " + msg::val(dstr) +
-                        " which depends on augmented definitions.\n " +
-                        "Define " + msg::val(deftable_.c_name[k]) + " without referencing " + msg::val(dstr) + ".");
+                        ".\nDefine " + msg::val(deftable_.c_name[k]) +
+                        " without referencing " + msg::val(dstr) + ", or viceversa.");
         }
     }
 
     void Augmented::assert_no_obs_entry_collision_() const
     {
-        if (list_obs_export.empty())
+        if (list_obs_member.empty())
             return;
 
         // entry-point data column of each single observation node
-        const std::vector<std::string> obs_names = khold(list_obs_export);
+        const std::vector<std::string> obs_names = khold(list_obs_member);
 
         // augmented dependency graph (name -> @A deps), over augmented + obs rows
         std::vector<size_t> rows;
@@ -1058,7 +1130,7 @@ namespace housepi
         // on data columns and parameters only -- never on augmented variables or observations
         // (which are not yet available at that point). Unlike the obs-entry collision check,
         // this must run even when no observation is defined.
-        const std::vector<std::string> obs_names = khold(list_obs_export);
+        const std::vector<std::string> obs_names = khold(list_obs_member);
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
             if (deftable_.c_kind[k] != Kind::Augm ||
@@ -1078,118 +1150,112 @@ namespace housepi
         }
     }
 
-    void Augmented::assert_no_obs_risk_collision_() const
+    void Augmented::build_definition_variable_(Variable &var,
+                                               size_t k,
+                                               Individual &anchor,
+                                               Household *house)
     {
-        if (list_obs_export.empty())
-            return;
-
-        // entry-point data column of each single observation node
-        const std::vector<std::string> obs_names = khold(list_obs_export);
-
-        const auto reject = [&](const std::string &origin, const std::string &d)
-        {
-            msg::stop(
-                "Definition collision: a " + origin + " is keyed on observation " + msg::val(d) +
-                ".\nThe " + origin + " feeds the transmission model, which the observation is "
-                                     "generated from, so it cannot be assigned coherently during simulation. Key the " +
-                origin + " on a column that is not an observation node.");
-        };
-
-        for (const std::string &d : mcmc_->group_risk.data_wide_depen())
-            if (contains(obs_names, d))
-                reject("group risk", d);
-        for (const std::string &d : mcmc_->contact_risk.data_wide_depen())
-            if (contains(obs_names, d))
-                reject("contact risk", d);
-    }
-
-    void Augmented::helper_init_house_attributes_(Household &house, size_t j)
-    {
-        const size_t k = list_house_export[j];
-        Variable &hvar = house_varia[Index::of(house)][j];
-        build_house_obs_variable_(hvar, house, k);
-    }
-
-    void Augmented::build_house_obs_variable_(Variable &hvar, Household &house, size_t k)
-    {
+        const Kind kind = deftable_.c_kind[k];
         const std::string &astr = deftable_.c_name[k];
-        hvar.name(astr, ErrType::HouseholdObservation);
+        var.name(astr, kind_to_err_type(kind));
 
         try
         {
-            const std::string &str_val = deftable_.c_value[k];
-            parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
+            // a deterministic definition is driven by its value, anything else by its
+            // function: a value paired with a model is a simulation-only override,
+            // applied before this
+            const bool has_model = !na::is(deftable_.c_prior[k]);
+            const std::string &value = deftable_.c_value[k];
+            parse::Definition parser(has_model || na::is(value) ? deftable_.c_func[k] : value);
 
-            // bare reference (no reduction): bind to the first member, which for a
-            // singleton household is the household value itself.
+            // pointer mode: a bare reference points at what it names
             if (parser.is_terminal())
             {
-                hvar.transfer(mcmc_->translator.to_attribute(parser.root, &house.member(0)));
+                var.transfer(mcmc_->translator.to_attribute(parser.root, &anchor));
                 return;
             }
 
-            // reduction: compose the (variadic) function once
-            hvar.init_function(compose_func_registries(
+            // function mode: compose it once
+            var.init_function(compose_func_registries(
                 parser.root.func, ErrType::Function, AUGM_FUNC_REGISTRIES,
                 str::tobool(deftable_.c_fcumul[k])));
 
-            // bind operands: a per-member data (@D) column is spread one live operand
-            // per member. Every member is bound (the function folds na.rm-style at eval,
-            // skipping NA), so a generated observation drawn later is tracked with no
-            // rebuild. Only an immutable NA *constant* (a data cell with no value) is
-            // skipped at build, since the function rejects NA constant args and it can
-            // never acquire a value. An undrawn observation is empty (not constant), so
-            // it is bound live. Any other source -- a numeric or a sibling household
-            // observation, which is one value shared by every member -- is bound once.
-            // The first operand seeds the reduction ('x'), the rest are appended.
-            size_t op = 0;
-            const auto append_operand = [&](const Attribute &attr)
-            {
-                const std::string key = op == 0 ? "x" : "x" + std::to_string(op);
-                ++op;
-                hvar.init_func_attr(key, attr);
-            };
-            for (const auto &child : parser.root.children)
-                if (parse::is_data_wide(child.type) && !is_house_obs(child.value))
-                    for (const Individual &member : house)
-                    {
-                        const Attribute &attr = mcmc_->translator.to_attribute(child, &member);
-                        if (attr.is_constant() && na::is(attr.value()))
-                            continue;
-                        append_operand(attr);
-                    }
-                else
-                    append_operand(mcmc_->translator.to_attribute(child, &house.member(0)));
+            // a surrogate member-observation materializes a data column for every member:
+            // where the cells it reads are empty it has nothing to stand for
+            const bool is_surrogate = kind == Kind::Member && !has_model;
 
-            // every operand was NA: the reduction is empty, yield NA (na.rm convention)
-            if (op == 0)
+            bool is_defined = true;
+            if (kind == Kind::House)
+                is_defined = bind_house_reduction_(var, parser.root, *house, anchor);
+            else
+                for (const parse::Entry &child : parser.root.children)
+                {
+                    const Attribute &attr = mcmc_->translator.to_attribute(child, &anchor);
+                    if (is_surrogate && attr.is_constant() && na::is(attr.value()))
+                    {
+                        is_defined = false;
+                        break;
+                    }
+                    var.init_func_attr(child.key, attr);
+                    mcmc_->translator.make_cache_dependent(child);
+                }
+
+            // no operand carries a value: the definition yields NA here
+            if (!is_defined)
             {
-                hvar.init_numeric(na::DOUBLE);
+                var.init_numeric(na::DOUBLE);
                 return;
             }
 
             // range and reshaping
-            hvar.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &house.member(0)));
-            hvar.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &house.member(0)));
-            hvar.init_func_reshaping(str::tobool(deftable_.c_discr[k]));
+            var.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &anchor));
+            var.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &anchor));
+            var.init_func_reshaping(str::tobool(deftable_.c_discr[k]));
         }
         catch (const std::exception &e)
         {
             msg::stop(
                 std::string(e.what()) +
-                "\nCheck household observation " + msg::val(astr) + " for " +
-                house.err_name() + ".");
+                "\nCheck " + err_type_name(kind_to_err_type(kind)) + " " + msg::val(astr) +
+                " for " + (house ? house->err_name() : anchor.err_name()) + ".");
         }
     }
 
+    bool Augmented::bind_house_reduction_(Variable &var,
+                                          const parse::Entry &root,
+                                          Household &house,
+                                          Individual &anchor)
+    {
+        size_t n_operand = 0;
+        const auto append = [&](const Attribute &attr)
+        {
+            var.init_func_attr(n_operand ? "x" + std::to_string(n_operand) : "x", attr);
+            ++n_operand;
+        };
+
+        for (const parse::Entry &child : root.children)
+            // a per-member data cell unfolds over the house; a household observation is
+            // already one value for the whole house and enters the reduction once
+            if (parse::is_data_wide(child.type) && !is_house_obs(child.value))
+                for (const Individual &member : house)
+                {
+                    const Attribute &attr = mcmc_->translator.to_attribute(child, &member);
+                    if (attr.is_constant() && na::is(attr.value()))
+                        continue; // an empty cell drops out of the reduction
+                    append(attr);
+                }
+            else
+                append(mcmc_->translator.to_attribute(child, &anchor));
+
+        return n_operand > 0;
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  Augmented : data-bound household observations  //////////////////////
+    ////////////////////////////  Augmented : data-bound surrogate columns  ///////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    bool Augmented::house_obs_is_pure_data_(size_t k) const
+    bool Augmented::def_is_pure_data_(size_t k) const
     {
-        // every source (value/func/min/max) must reference data or numerics only:
-        // augmented, parameter and group-risk references are not constant data.
         for (const std::vector<std::string> *col : deftable_.source_cols())
         {
             const std::string &expr = (*col)[k];
@@ -1226,61 +1292,44 @@ namespace housepi
         // NOTE: outcome k resolves to infected status (INFECTED + k); the matching
         // augmented/observation block is selected at simulation (status-specific if
         // declared, otherwise the generic one), so no block count is enforced here.
-        if (!house_obs_is_pure_data_(k))
+        if (!def_is_pure_data_(k))
             msg::stop(
                 "Status observation " + msg::val(astr) + " must depend only on data or numeric constants.");
     }
 
-    void Augmented::materialize_data_bound_house_obs(DataWide &data_wide)
+    void Augmented::materialize_surrogate_columns(DataWide &data_wide, bool for_export)
     {
-        if (list_house_export.empty())
+        if (list_surrogate.empty())
             return;
 
-        // build the household-observation Variables (inference home, shared with the
-        // simulation init) and point each standing-in data column's read-surface at
-        // its Variable, so @D readers resolve the derived value without a data copy.
-        const size_t n_houses = data_wide.report_house.total;
-        house_varia.assign(n_houses, std::vector<Variable>(list_house_export.size()));
+        // build the surrogate Variables (inference home, shared with the simulation init)
+        // and point each standing-in data column's read-surface at its Variable, so @D
+        // readers resolve the surrogate value without a data copy.
+        house_varia.assign(data_wide.report_house.total,
+                           std::vector<Variable>(list_obs_house.size()));
 
-        for (size_t b = 0; b < list_house_export.size(); ++b)
+        for (const Surrogate &surr : list_surrogate)
         {
-            const size_t k = list_house_export[b];
-            const std::string &astr = deftable_.c_name[k];
-            // export-only household observation: its name is not a data column
-            if (!data_wide.khold().count(astr))
-                continue;
-
-            // a household observation standing in for required data must be a pure
-            // function of data: a latent/parameter-dependent one has no fixed value
-            // during inference (it would impose an indicator constraint).
-            if (!house_obs_is_pure_data_(k))
-                msg::stop(
-                    "Data-bound household observation " + msg::val(astr) + "must be a pure function of data.\n"
-                                                                           "Live observations are only meaningful in simulation.");
-
-            const size_t d = data_wide.khold(astr);
-            for (size_t H = 0; H < n_houses; ++H)
+            const std::string &astr = deftable_.c_name[surr.row];
+            // a surrogate column must resolve from data: a latent, parameter or group-risk
+            // source has no fixed value during inference (it would impose an indicator
+            // constraint).
+            if (!def_is_pure_data_(surr.row))
             {
-                Household &house = data_wide.at(H);
-                Variable &hvar = house_varia[H][b];
-                build_house_obs_variable_(hvar, house, k);
-                const double v = hvar.value();
-
-                if (data_wide.requires_discrete(d) && v != std::floor(v))
-                    msg::stop(
-                        "Household observation " + msg::val(astr) + " for " + house.err_name() +
-                        " was expected to be discrete-valued, as requested by model.");
-                if (data_wide.requires_positive(d) && !(v > 0.))
-                    msg::stop(
-                        "Household observation " + msg::val(astr) + " for " + house.err_name() +
-                        " was expected to be greater than zero, as requested by model.");
-
-                // enforce inference-finalization
-                hvar.finalize();
-
-                for (const Individual &member : house)
-                    data_wide.wire_cell(d, member, &hvar);
+                // exporting the data view is not inferring: the column has no derived
+                // value to report and keeps its datum, the run wall still refuses it
+                if (for_export)
+                    continue;
+                msg::stop(
+                    "Cannot infer from " +
+                    err_type_name(kind_to_err_type(deftable_.c_kind[surr.row])) + " " +
+                    msg::val(astr) + ": it must resolve from data alone.\n"
+                                     "A definition reading a latent variable or a parameter is only "
+                                     "meaningful in simulation.");
             }
+
+            for (Household &house : data_wide)
+                build_surrogate_column_(surr, data_wide, house, true);
         }
     }
 
@@ -1376,7 +1425,7 @@ namespace housepi
                 return;
             }
             else
-                helper_init_func_attributes_(member, k);
+                build_definition_variable_(avar, k, member, nullptr);
 
             // initialize model attributes
             helper_init_distr_attributes_(member, k);
@@ -1425,44 +1474,6 @@ namespace housepi
         avar.init_distr_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &member));
         avar.init_distr_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &member));
         avar.init_distr_reshaping(str::tobool(deftable_.c_discr[k]));
-    }
-
-    void Augmented::helper_init_func_attributes_(Individual &member, size_t k)
-    {
-        const std::string &astr = deftable_.c_name[k];
-        Variable &avar = varia_of_(member).vec[khold(astr)];
-        // value overrides func for a deterministic definition, but a value paired with a prior
-        // is a simulation-only override (intercepted in helper_init_attributes_ before reaching
-        // here): under a prior, value is ignored so inference builds a pure sampled variable.
-        const std::string &str_val =
-            na::is(deftable_.c_prior[k]) ? deftable_.c_value[k] : deftable_.c_func[k];
-        parse::Definition parser(na::is(str_val) ? deftable_.c_func[k] : str_val);
-
-        // pointer mode
-        if (parser.is_terminal())
-        {
-            avar.transfer(mcmc_->translator.to_attribute(parser.root, &member));
-            return;
-        }
-
-        // function mode
-        bool is_primitive = str::tobool(deftable_.c_fcumul[k]);
-        avar.init_function(compose_func_registries(
-            parser.root.func, ErrType::Function, AUGM_FUNC_REGISTRIES, is_primitive));
-
-        // attribute
-        for (const auto &child : parser.root.children)
-        {
-            avar.init_func_attr(child.key, mcmc_->translator.to_attribute(child, &member));
-            mcmc_->translator.make_cache_dependent(child);
-        }
-
-        // range
-        avar.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &member));
-        avar.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &member));
-
-        // discretization and truncation
-        avar.init_func_reshaping(str::tobool(deftable_.c_discr[k]));
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

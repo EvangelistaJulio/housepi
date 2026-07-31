@@ -327,6 +327,11 @@ summarize_house_sizes <- summarise_house_sizes
 #' Return the definitions currently stored in the housepi model.
 #' Each variant returns one category (data, parameters, augmented variables,
 #' observations, group risks, contact risks, infectivity profile).
+#' @details
+#' `get_data_wide()` returns the individual-level data the model reads: a column
+#' a deterministic observation stands in for carries the derived value, not the
+#' imported one. A column an observation produces without standing in for data
+#' is not part of the dataset, and is reported by [get_observations()].
 #' @param hhmodel `r rd_model_in_`
 #' @return `data.frame`
 #' @examples
@@ -339,6 +344,7 @@ summarize_house_sizes <- summarise_house_sizes
 #' @export
 get_data_wide <- function(hhmodel) {
   stopifnothousepi(hhmodel)
+  # UPDATE: drop active getter fields and move logic here
   hhmodel$data_wide
 }
 
@@ -626,13 +632,16 @@ add_augmented <- function(hhmodel,
 #' @description
 #' Add observation associated to data \eqn{x}, at the level set by `level`.
 #'
-#' At member level, the observation is attached to every positive status
-#' individual. If `model` is provided, adds to household likelihood during
-#' evaluations, and \eqn{x} is sampled from it during simulations.
-#' If observation is deterministic it is considered as a datum.
+#' At member level, the observation is attached to every infected individual.
+#' If `model` is provided, adds to household likelihood during evaluations,
+#' and \eqn{x} is sampled from it during simulations.
 #'
-#' At household level, the observation is a reduction of `value` over all the
-#' members, shared by the whole household, and must reduce to a constant value.
+#' At household level, the observation is a reduction across all members,
+#' it's shared by the whole household, and must reduce to a constant value.
+#'
+#' An observation carrying no `model` produces its own data column, at either
+#' level: it is evaluated for every member, and eventually overwrites data
+#' column of the same name
 #' `r rd_add_modes_`
 #' @details
 #' `r rd_add_details_`

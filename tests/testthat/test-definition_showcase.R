@@ -31,8 +31,8 @@ test_that("Showcaser extract numeric handles double and pi constant", {
 
 test_that("Showcaser extract func extracts function names", {
   # 3+ pipe segments: returns function name
-  expect_equal(showcaser_extract_func("log|x|{alpha|A}"), "log")
-  expect_equal(showcaser_extract_func("sum|x:x2|{a|A}:{b|A}"), "sum")
+  expect_equal(showcaser_extract_func("log|x|[alpha|A]"), "log")
+  expect_equal(showcaser_extract_func("sum|x:x2|[a|A]:[b|A]"), "sum")
   # 2 segments: returns original
   expect_equal(showcaser_extract_func("alpha|A"), "alpha|A")
   # NA returns NA_real_
@@ -44,27 +44,27 @@ test_that("Showcaser extract func extracts function names", {
 test_that("helper_split_external_semicol splits at depth 0 colons", {
   # simple split
   expect_equal(helper_split_external_semicol("a:b"), c("a", "b"))
-  # nested braces preserve inner colon
-  expect_equal(helper_split_external_semicol("{a:b}:c"),
+  # nested brackets preserve inner colon
+  expect_equal(helper_split_external_semicol("[a:b]:c"),
                c("a:b", "c"))
   # single element (no colon)
   expect_equal(helper_split_external_semicol("abc"), "abc")
-  # outer braces stripped
-  expect_equal(helper_split_external_semicol("{abc}"), "abc")
+  # outer brackets stripped
+  expect_equal(helper_split_external_semicol("[abc]"), "abc")
   # multiple nesting levels
   expect_equal(
-    helper_split_external_semicol("{a:{b:c}}:d"),
-    c("a:{b:c}", "d")
+    helper_split_external_semicol("[a:[b:c]]:d"),
+    c("a:[b:c]", "d")
   )
 })
 
 test_that("Showcase extract args extracts function arguments", {
   # encoded function with arguments
-  result <- showcase_extract_args(list("log|x|{3|N}"))
+  result <- showcase_extract_args(list("log|x|[3|N]"))
   expect_equal(result[[1]], c(x = 3))
 
   # multi-argument function
-  result <- showcase_extract_args(list("sum|x:x2|{1|N}:{2|N}"))
+  result <- showcase_extract_args(list("sum|x:x2|[1|N]:[2|N]"))
   expect_equal(result[[1]], c(x = 1, x2 = 2))
 
   # NA input
@@ -87,7 +87,7 @@ test_that("Housepi defininition showcaser converts encoded defs to readable", {
   expect_equal(result$value, 3)
 
   # function column gets split into name + args
-  defs <- data.frame(func = "log|x|{alpha|A}", min = "0|N",
+  defs <- data.frame(func = "log|x|[alpha|A]", min = "0|N",
                      stringsAsFactors = FALSE)
   result <- housepi_defin_showcaser(defs)
   expect_equal(result$func, "log")
