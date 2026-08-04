@@ -40,8 +40,8 @@ namespace housepi
 		void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
 
 		virtual const std::vector<std::string> key_Data() const = 0;
-		virtual const std::vector<std::string> key_HHuint() const = 0;
-		virtual const std::vector<std::string> key_HHuintvec() const = 0;
+		virtual const std::vector<std::string> key_HHmember() const = 0;
+		virtual const std::vector<std::string> key_HHmembervec() const = 0;
 		virtual const std::vector<std::string> key_HHdoublevec() const = 0;
 		virtual const std::vector<std::string> key_HHdoublemtx() const = 0;
 		virtual const std::vector<std::string> key_Long() const = 0;
@@ -162,14 +162,14 @@ namespace housepi
 		std::string err_name(const Household &h) const { return mcmc_->data_wide().err_name(h); }
 
 		/// Get contact risk 'from' household member 'to' member.
-		double contact_risk(const Household &house, size_t from, size_t to) const { return mcmc_->contact_risk.value(house, from, to); }
+		double contact_risk(const Household &house, MemberIndex from, MemberIndex to) const { return mcmc_->contact_risk.value(house, from, to); }
 		/// Wheter hosuehold members i and j are equivalent in terms of risks.
-		bool is_same_risk_partition(const Household &house, size_t i, size_t j) const
+		bool is_same_risk_partition(const Household &house, MemberIndex i, MemberIndex j) const
 		{
 			return mcmc_->is_same_risk_partition(house, i, j);
 		}
 		/// Get contact risk intra member partition (self-contact).
-		double intra_partition_contact_risk(const Household &house, size_t i) const { return mcmc_->contact_risk.intra_value(house, i); }
+		double intra_partition_contact_risk(const Household &house, MemberIndex i) const { return mcmc_->contact_risk.intra_value(house, i); }
 
 		/// Return maximum number of observed infected household members.
 		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }
@@ -177,10 +177,10 @@ namespace housepi
 		double infec_profile_inst(const Individual &m, double t) const { return mcmc_->infec_profile.inst(&m, t); }
 		double infec_profile_cumul(const Individual &m, double t) const { return mcmc_->infec_profile.cumul(&m, t); }
 
-		/// Return cached unsigned value.
-		MAKE_HOUSEPI_CACHE_FORWARDER(uint)
-		/// Return cached unsigned vector.
-		MAKE_HOUSEPI_CACHE_FORWARDER(uint_vector)
+		/// Return cached member value.
+		MAKE_HOUSEPI_CACHE_FORWARDER(member)
+		/// Return cached member vector.
+		MAKE_HOUSEPI_CACHE_FORWARDER(member_vector)
 		/// Return cached double vector.
 		MAKE_HOUSEPI_CACHE_FORWARDER(double_vector)
 		/// Return cached double matrix.

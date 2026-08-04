@@ -1501,7 +1501,7 @@ namespace housepi
                                              Individual &indiv,
                                              rnd_gen &prng)
     {
-        int new_status = status::INFECTED;
+        StatusLevel new_status = status::INFECTED;
 
         if (is_any_status_obs())
         {
@@ -1512,7 +1512,7 @@ namespace housepi
             svar.draw_value(prng);
 
             // NOTE: I am assuming value draws are integer in [0, max - 1]
-            new_status += static_cast<int>(svar.value());
+            new_status += static_cast<StatusLevel>(svar.value());
         }
 
         house.set_new_status_(indiv, new_status);

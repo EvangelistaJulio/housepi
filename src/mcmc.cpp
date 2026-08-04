@@ -363,8 +363,8 @@ namespace housepi
 
     void MCMCBase::init_key_holder(
         const std::vector<std::string> &data_wide_keys,
-        const std::vector<std::string> &hh_size_keys,
-        const std::vector<std::string> &hh_size_vec_keys,
+        const std::vector<std::string> &hh_member_keys,
+        const std::vector<std::string> &hh_member_vec_keys,
         const std::vector<std::string> &hh_double_vec_keys,
         const std::vector<std::string> &hh_double_mtx_keys,
         const std::vector<std::string> &data_long_keys,
@@ -373,8 +373,8 @@ namespace housepi
         const std::vector<std::string> &augm_keys)
     {
         data_wide().init_key_holder(data_wide_keys);
-        data_wide().init_cache_key_holders(hh_size_keys,
-                                           hh_size_vec_keys,
+        data_wide().init_cache_key_holders(hh_member_keys,
+                                           hh_member_vec_keys,
                                            hh_double_vec_keys,
                                            hh_double_mtx_keys);
         data_long().init_key_holder(data_long_keys);
@@ -390,7 +390,9 @@ namespace housepi
     /// Two members are in the same if group-risk attributes and
     /// every contact-risk involving one matches the corresponding one involving the
     /// other, both outgoing and incoming, across all other members.
-    bool MCMCBase::is_same_risk_partition(const Household &house, size_t i, size_t j) const
+    bool MCMCBase::is_same_risk_partition(const Household &house,
+                                          MemberIndex i,
+                                          MemberIndex j) const
     {
         if (i == j)
             return true;
@@ -616,8 +618,8 @@ namespace housepi
         : model(ModelRegistry::instance().create(model_name))
     {
         init_key_holder(model->key_Data(),
-                        model->key_HHuint(),
-                        model->key_HHuintvec(),
+                        model->key_HHmember(),
+                        model->key_HHmembervec(),
                         model->key_HHdoublevec(),
                         model->key_HHdoublemtx(),
                         model->key_Long(),
@@ -635,8 +637,8 @@ namespace housepi
         auto new_ds = std::make_shared<DataStore>();
         new_ds->data_wide.init_key_holder(model->key_Data());
         new_ds->data_wide.init_cache_key_holders(
-            model->key_HHuint(),
-            model->key_HHuintvec(),
+            model->key_HHmember(),
+            model->key_HHmembervec(),
             model->key_HHdoublevec(),
             model->key_HHdoublemtx());
         new_ds->data_long.init_key_holder(model->key_Long());
@@ -1072,8 +1074,8 @@ namespace housepi
             /////////////////////////////
 
             const double d_augm = has_consumers
-                                       ? augm.commit_augm_log_lik_ratio_with_consumers(indiv, a, cons_ll_old)
-                                       : commit_augm_log_lik_ratio(indiv, a);
+                                      ? augm.commit_augm_log_lik_ratio_with_consumers(indiv, a, cons_ll_old)
+                                      : commit_augm_log_lik_ratio(indiv, a);
 
             // NOTE: likelihood terms are tempered, the augmented model is not.
             if constexpr (Beta0)

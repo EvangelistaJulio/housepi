@@ -26,8 +26,8 @@ public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(Data, start_date, end_date)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Long)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRisk, community, susceptibility, infectivity)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHuint, intro_case)
-	HOUSEPI_DECLARE_EMPTY_KEYS(HHuintvec)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHmember, intro_case)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHmembervec)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevec)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtx, inst, cumul)
 	HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha, beta, gamma, hhsize_ref)
@@ -84,7 +84,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Transmission rate.
-	double transmission_rate(size_t house_size) const
+	double transmission_rate(MemberIndex house_size) const
 	{
 		return par(Param::beta) *
 			   std::exp(par(Param::gamma) * std::log(par(Param::hhsize_ref) / house_size));
@@ -103,7 +103,7 @@ public:
 	/// Compute transmission log-likelihood within household.
 	double compute_house_transm_log_lik(const Household &house) override final
 	{
-		const size_t i0 = cache_uint(house, HHuint::intro_case);
+		const MemberIndex i0 = cache_member(house, HHmember::intro_case);
 		const Individual &indiv_0 = house.at(i0);
 		const double t_intro = aug(Augm::infec_time, indiv_0);
 
@@ -183,8 +183,8 @@ public:
 		double t_infec_i,
 		double t_infec_j)
 	{
-		const size_t i = Index::member(indiv_i);
-		const size_t j = Index::member(indiv_j);
+		const MemberIndex i = Index::member(indiv_i);
+		const MemberIndex j = Index::member(indiv_j);
 		const double gentime = t_infec_j - t_infec_i;
 
 		// note: setting lut to 0 this is necessary because ROI is brute force
@@ -222,7 +222,7 @@ public:
 	}
 
 	/// Introduction rule: earliest infection, ties to smallest hosuehold index.
-	static void helper_commit_intro(unsigned &i0, double &t0, size_t i, double t)
+	static void helper_commit_intro(MemberIndex &i0, double &t0, MemberIndex i, double t)
 	{
 		if (t < t0 || (t == t0 && i < i0))
 		{
@@ -238,15 +238,15 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtx::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtx::cumul);
-		unsigned &i0 = cache_uint(house, HHuint::intro_case);
+		MemberIndex &i0 = cache_member(house, HHmember::intro_case);
 		double new_t0 = 100000;
 
-		size_t n_infec = house.n_infected_status();
+		const MemberIndex n_infec = house.n_infected_status();
 		const auto &infected_members = house.infected_members();
 
-		for (size_t a = 0; a < n_infec; ++a)
+		for (MemberIndex a = 0; a < n_infec; ++a)
 		{
-			const size_t i = infected_members[a];
+			const MemberIndex i = infected_members[a];
 			const Individual &indiv_i = house.at(i);
 			const double t_infec_i = aug(Augm::infec_time, indiv_i);
 
@@ -266,9 +266,9 @@ public:
 			//////// Infectious Members ///////
 			///////////////////////////////////
 
-			for (size_t b = a + 1; b < n_infec; ++b)
+			for (MemberIndex b = a + 1; b < n_infec; ++b)
 			{
-				const size_t j = infected_members[b];
+				const MemberIndex j = infected_members[b];
 				const Individual &indiv_j = house.at(j);
 				const double t_infec_j = aug(Augm::infec_time, indiv_j);
 
@@ -288,9 +288,9 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtx::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtx::cumul);
-		unsigned &i0 = cache_uint(house, HHuint::intro_case);
+		MemberIndex &i0 = cache_member(house, HHmember::intro_case);
 
-		const size_t i = Index::member(indiv_i);
+		const MemberIndex i = Index::member(indiv_i);
 		const double t_infec_i = aug(Augm::infec_time, indiv_i);
 
 		///////////////////////////////
@@ -351,7 +351,7 @@ public:
 		/////////////  Generation 0 : by single introduction  ///////////
 		/////////////////////////////////////////////////////////////////
 
-		size_t i0 = helper_rand_intro(house);
+		const MemberIndex i0 = helper_rand_intro(house);
 		Individual &indiv_0 = house.at(i0);
 
 		/////////////////////////////////////////////////////////////////
@@ -386,9 +386,9 @@ public:
 	}
 
 	/// Draw introduction uniformly among all members.
-	size_t helper_rand_intro(Household &house)
+	MemberIndex helper_rand_intro(Household &house)
 	{
-		size_t i0 = uniform() * house.size();
+		const MemberIndex i0 = uniform() * house.size();
 		Individual &indiv_0 = house.at(i0);
 		set_infected(house, indiv_0);
 		init_missing_augm(indiv_0);
@@ -409,7 +409,7 @@ public:
 		double alpha,
 		double beta) const
 	{
-		size_t i = Index::member(indiv_i);
+		MemberIndex i = Index::member(indiv_i);
 		double roi = 0.; // instantaneous risk of infection
 
 		// j : infector, i : infectee

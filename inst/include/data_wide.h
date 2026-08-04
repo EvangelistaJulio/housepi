@@ -43,8 +43,8 @@ namespace housepi
 
     struct DataWide : public KeyModule
     {
-        KeyHolder khold_uint_val;   /// cache key-holder unsigned values
-        KeyHolder khold_uint_vec;   /// cache key-holder unsigned vectors
+        KeyHolder khold_member_val; /// cache key-holder member values
+        KeyHolder khold_member_vec; /// cache key-holder member vectors
         KeyHolder khold_double_vec; /// cache key-holder double vectors
         KeyHolder khold_double_mtx; /// cache key-holder double matrices
 
@@ -153,8 +153,8 @@ namespace housepi
 
         /// Initialize cache key-holder with model declared keys.
         void init_cache_key_holders(
-            const std::vector<std::string> &size_keys,
-            const std::vector<std::string> &size_vec_keys,
+            const std::vector<std::string> &member_keys,
+            const std::vector<std::string> &member_vec_keys,
             const std::vector<std::string> &double_vec_keys,
             const std::vector<std::string> &double_mtx_keys);
 
@@ -169,10 +169,10 @@ namespace housepi
         /// Recover member old values of cached member depedencies and member attributes.
         void recover_member_old_cached(const Household &house, const Individual &indiv);
 
-        /// Return cached unsigned value.
-        MAKE_HOUSEPI_CACHE_ACCESSOR(unsigned, uint)
-        /// Return cached unsigned vector.
-        MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<unsigned>, uint_vector)
+        /// Return cached member value.
+        MAKE_HOUSEPI_CACHE_ACCESSOR(MemberIndex, member)
+        /// Return cached member vector.
+        MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<MemberIndex>, member_vector)
         /// Return cached double vector.
         MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<double>, double_vector)
         /// Return cached double matrix.
@@ -241,8 +241,8 @@ namespace housepi
         {
             struct State_
             {
-                std::vector<unsigned> uint;
-                std::vector<std::vector<unsigned>> uint_vector = {};
+                std::vector<MemberIndex> member = {};
+                std::vector<std::vector<MemberIndex>> member_vector = {};
                 std::vector<std::vector<double>> double_vector = {};
                 std::vector<std::vector<std::vector<double>>> double_matrix = {};
             };

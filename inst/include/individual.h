@@ -44,7 +44,7 @@ namespace housepi
 		//////////////////////
 
 		/// Associated status.
-		unsigned status() const noexcept { return status_; }
+		StatusLevel status() const noexcept { return status_; }
 
 		/////////////////////
 		//////  FLAGS  //////
@@ -73,11 +73,11 @@ namespace housepi
 	/// Index of Individual and Household. Client-Attorney idiom for lightweight viewers.
 	struct Index
 	{
-		/// Global individual index.
-		static size_t of(const Individual &indiv) noexcept { return indiv.indiv_index_; }
-		/// Global household index.
-		static size_t of(const Household &house) noexcept; /// NOTE: defined in household.h
 		/// Index of an individual within its own household.
-		static size_t member(const Individual &indiv) noexcept { return indiv.member_index_; }
+		static MemberIndex member(const Individual &indiv) noexcept { return indiv.member_index_; }
+		/// Global individual index.
+		static IndivIndex of(const Individual &indiv) noexcept { return indiv.indiv_index_; }
+		/// Global household index.
+		static HouseIndex of(const Household &house) noexcept; /// see household.h
 	};
 }

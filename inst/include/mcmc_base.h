@@ -62,8 +62,8 @@ namespace housepi
 		/// Initialize all key-holders.
 		void init_key_holder(
 			const std::vector<std::string> &data_wide_keys,
-			const std::vector<std::string> &hh_size_keys,
-			const std::vector<std::string> &hh_size_vec_keys,
+			const std::vector<std::string> &hh_member_keys,
+			const std::vector<std::string> &hh_member_vec_keys,
 			const std::vector<std::string> &hh_double_vec_keys,
 			const std::vector<std::string> &hh_double_mtx_keys,
 			const std::vector<std::string> &data_long_keys,
@@ -105,7 +105,9 @@ namespace housepi
 		//////////////////////
 
 		/// Whether two household members belong to same partition according to risks.
-		bool is_same_risk_partition(const Household &house, size_t i, size_t j) const;
+		bool is_same_risk_partition(const Household &house,
+									MemberIndex i,
+									MemberIndex j) const;
 
 		/// Column names of data shared across simulations.
 		std::vector<std::string> get_static_data_names() const;
@@ -153,16 +155,22 @@ namespace housepi
 
 		/// Recover old log-likelihood contributions.
 		/// NOTE: called after a refused parameter move.
-		void recover_augm_log_lik_(const Individual &indiv) noexcept { augm_log_lik_(indiv).recover(); }
-		void recover_obs_log_lik_(const Individual &indiv) noexcept { obs_log_lik_(indiv).recover(); }
+		void recover_augm_log_lik_(const Individual &indiv) noexcept
+		{
+			augm_log_lik_(indiv).recover();
+		}
+		void recover_obs_log_lik_(const Individual &indiv) noexcept
+		{
+			obs_log_lik_(indiv).recover();
+		}
 		void recover_transm_log_lik_(const Household &house) noexcept
 		{
 			data_wide().transm_log_lik(house).recover();
 		}
 		/// @brief Recover old value of the total log-likelihood.
 		/// @param with_cache Whether to recover cached values.
-		/// @param with_augm_ll Whether to recover augmented model log-likelihood.
-		/// @param with_obs_ll Whether to recover observation model log-likelihood.
+		/// @param with_augm_ll Whether to recover augmented log-likelihood.
+		/// @param with_obs_ll Whether to recover observation log-likelihood.
 		void recover_total_log_lik_(bool with_cache,
 									bool with_augm_ll = true,
 									bool with_obs_ll = true);

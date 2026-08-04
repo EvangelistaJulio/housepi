@@ -74,15 +74,15 @@ namespace housepi
 		//////////////////////
 
 		/// Emplace a new individual in the household.
-		void add_indiv(IndivIndex index, int status);
+		void add_indiv(IndivIndex index, StatusLevel status);
 
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
 
 		/// Individual with member index i.
-		Individual &at(size_t i) noexcept { return indivs_[i]; }
-		const Individual &at(size_t i) const noexcept { return indivs_[i]; }
+		Individual &at(MemberIndex i) noexcept { return indivs_[i]; }
+		const Individual &at(MemberIndex i) const noexcept { return indivs_[i]; }
 
 		/// Iterator for member indexes of members with infected status.
 		MemberRange_ infected_members() const noexcept { return {status_vec_.data(), ninf_}; }
@@ -99,11 +99,11 @@ namespace housepi
 		ConstIndivRange_ missing_indivs() const noexcept { return {this, status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 
 		/// Number of members with infected status.
-		size_t n_infected_status() const noexcept { return ninf_; }
+		MemberIndex n_infected_status() const noexcept { return ninf_; }
 		/// Number of members with escaped status.
-		size_t n_escaped_status() const noexcept { return nsus_; }
+		MemberIndex n_escaped_status() const noexcept { return nsus_; }
 		/// Number of members with missing status.
-		size_t n_missing_status() const noexcept { return static_cast<size_t>(hhsize_ - ninf_ - nsus_); }
+		MemberIndex n_missing_status() const noexcept { return hhsize_ - ninf_ - nsus_; }
 
 		/////////////////////////
 		//////  ITERATORS  //////
@@ -119,9 +119,9 @@ namespace housepi
 		////////////////////
 
 		/// Number of household members.
-		size_t size() const noexcept { return hhsize_; }
+		MemberIndex size() const noexcept { return hhsize_; }
 		/// Index of equivalence class.
-		size_t eq_class() const noexcept { return eq_class_; }
+		HouseIndex eq_class() const noexcept { return eq_class_; }
 
 	private:
 		HouseIndex house_index_ = 0;			   /// housepi internal household index
@@ -134,9 +134,9 @@ namespace housepi
 
 		/// Change status of individual i to new status.
 		/// NOTE: Using 'partition refinement' to track member statuses.
-		void set_new_status_(Individual &indiv, int new_status);
+		void set_new_status_(Individual &indiv, StatusLevel new_status);
 	};
 
 	/// Index of Household (see individual.h).
-	inline size_t Index::of(const Household &house) noexcept { return house.house_index_; }
+	inline HouseIndex Index::of(const Household &house) noexcept { return house.house_index_; }
 }

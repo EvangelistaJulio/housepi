@@ -25,8 +25,8 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(Data)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Long)
 	HOUSEPI_DECLARE_EMPTY_KEYS(GroupRisk)
-	HOUSEPI_DECLARE_EMPTY_KEYS(HHuint)
-	HOUSEPI_DECLARE_EMPTY_KEYS(HHuintvec)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHmember)
+	HOUSEPI_DECLARE_EMPTY_KEYS(HHmembervec)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevec)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtx)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Param)
@@ -37,7 +37,7 @@ public:
 	/// Augmented variable initialization.
 	void simulate_single_house(Household &house) override final
 	{
-		for (size_t i = 0; i < house.size(); ++i)
+		for (MemberIndex i = 0; i < house.size(); ++i)
 		{
 			Individual &indiv = house.at(i);
 			if (indiv.is_infected_status())

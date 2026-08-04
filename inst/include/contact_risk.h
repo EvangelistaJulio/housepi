@@ -30,7 +30,9 @@ namespace housepi
     {
     public:
         /// Build symmetric contact risks from table definitions.
-        void build(DataWide &data_wide, const Parameter &param, const str_table &input);
+        void build(DataWide &data_wide,
+                   const Parameter &param,
+                   const str_table &input);
         /// Finalize all variables (see Variable::finalize).
         void finalize();
 
@@ -41,7 +43,9 @@ namespace housepi
         size_t n_scale_free() const noexcept { return n_scale_free_; }
 
         /// Contact risk 'from' household member 'to' member. No self-contact (set 0 for safety).
-        double value(const Household &house, size_t from, size_t to) const
+        double value(const Household &house,
+                     MemberIndex from,
+                     MemberIndex to) const
         {
             if (from == to)
                 return 0.;
@@ -51,7 +55,8 @@ namespace housepi
         }
 
         /// Contact risk intra member partition (self-contact).
-        double intra_value(const Household &house, size_t i) const
+        double intra_value(const Household &house,
+                           MemberIndex i) const
         {
             if (house_contact_risks_.empty())
                 return 1.;
@@ -59,12 +64,14 @@ namespace housepi
         }
 
         /// Whether household members i and j have matching contact risks across all members.
-        bool same_contacts(const Household &house, size_t i, size_t j) const noexcept
+        bool same_contacts(const Household &house,
+                           MemberIndex i,
+                           MemberIndex j) const noexcept
         {
             if (house_contact_risks_.empty())
                 return true;
             const auto &mtx = house_contact_risks_[Index::of(house)].mtx;
-            for (size_t k = 0; k < house.size(); ++k)
+            for (MemberIndex k = 0; k < house.size(); ++k)
             {
                 if (k == j || k == i)
                     continue;

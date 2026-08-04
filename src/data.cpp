@@ -41,7 +41,7 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Household::add_indiv(IndivIndex index, int status)
+    void Household::add_indiv(IndivIndex index, StatusLevel status)
     {
         const MemberIndex m = hhsize_++;
         indivs_.emplace_back();
@@ -57,14 +57,13 @@ namespace housepi
             set_new_status_(last, status);
     }
 
-    void Household::set_new_status_(Individual &indiv, int snew)
+    void Household::set_new_status_(Individual &indiv, StatusLevel snew)
     {
         const MemberIndex i = indiv.member_index_;
         size_t cold = status::category(indiv.status());
         size_t cnew = status::category(snew);
 
-        // NOTE: might just change within infected status
-        indiv.status_ = static_cast<StatusLevel>(snew);
+        indiv.status_ = snew; // NOTE: might just change within infected status
         if (cold == cnew)
             return;
 
@@ -122,13 +121,13 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void DataWide::init_cache_key_holders(const std::vector<std::string> &size_keys,
-                                          const std::vector<std::string> &size_vec_keys,
+    void DataWide::init_cache_key_holders(const std::vector<std::string> &member_keys,
+                                          const std::vector<std::string> &member_vec_keys,
                                           const std::vector<std::string> &double_vec_keys,
                                           const std::vector<std::string> &double_mtx_keys)
     {
-        khold_uint_val.init(size_keys);
-        khold_uint_vec.init(size_vec_keys);
+        khold_member_val.init(member_keys);
+        khold_member_vec.init(member_vec_keys);
         khold_double_vec.init(double_vec_keys);
         khold_double_mtx.init(double_mtx_keys);
     }
@@ -136,8 +135,8 @@ namespace housepi
     void DataWide::build(const str_table &input)
     {
         khold_.clear_optional();
-        khold_uint_val.clear_optional();
-        khold_uint_vec.clear_optional();
+        khold_member_val.clear_optional();
+        khold_member_vec.clear_optional();
         khold_double_vec.clear_optional();
         khold_double_mtx.clear_optional();
 
@@ -525,19 +524,19 @@ namespace housepi
             Cached_::State_ &prev = cached_.previous[R];
             Cached_::State_ &curr = cached_.current[R];
 
-            // size_t
-            size_t s_size = khold_uint_val.size();
-            curr.uint.assign(s_size, 0);
-            prev.uint.assign(s_size, 0);
+            // member value
+            size_t s_member = khold_member_val.size();
+            curr.member.assign(s_member, 0);
+            prev.member.assign(s_member, 0);
 
-            // size_t vector
-            size_t s_size_vec = khold_uint_vec.size();
-            curr.uint_vector.resize(s_size_vec);
-            prev.uint_vector.resize(s_size_vec);
-            for (size_t e = 0; e < s_size_vec; ++e)
+            // member vector
+            size_t s_member_vec = khold_member_vec.size();
+            curr.member_vector.resize(s_member_vec);
+            prev.member_vector.resize(s_member_vec);
+            for (size_t e = 0; e < s_member_vec; ++e)
             {
-                curr.uint_vector[e].assign(hh_size, 0);
-                prev.uint_vector[e].assign(hh_size, 0);
+                curr.member_vector[e].assign(hh_size, 0);
+                prev.member_vector[e].assign(hh_size, 0);
             }
 
             // double vector
@@ -568,10 +567,10 @@ namespace housepi
         size_t i = Index::member(indiv);
         Cached_::State_ &prev = cached_.previous[house.eq_class_];
         Cached_::State_ &curr = cached_.current[house.eq_class_];
-        prev.uint = curr.uint;
+        prev.member = curr.member;
 
-        for (size_t e = 0; e < curr.uint_vector.size(); ++e)
-            prev.uint_vector[e][i] = curr.uint_vector[e][i];
+        for (size_t e = 0; e < curr.member_vector.size(); ++e)
+            prev.member_vector[e][i] = curr.member_vector[e][i];
 
         for (size_t e = 0; e < curr.double_vector.size(); ++e)
             prev.double_vector[e][i] = curr.double_vector[e][i];
@@ -591,10 +590,10 @@ namespace housepi
         size_t i = Index::member(indiv);
         Cached_::State_ &prev = cached_.previous[house.eq_class_];
         Cached_::State_ &curr = cached_.current[house.eq_class_];
-        curr.uint.swap(prev.uint);
+        curr.member.swap(prev.member);
 
-        for (size_t e = 0; e < prev.uint_vector.size(); ++e)
-            curr.uint_vector[e][i] = prev.uint_vector[e][i];
+        for (size_t e = 0; e < prev.member_vector.size(); ++e)
+            curr.member_vector[e][i] = prev.member_vector[e][i];
 
         for (size_t e = 0; e < prev.double_vector.size(); ++e)
             curr.double_vector[e][i] = prev.double_vector[e][i];
