@@ -160,15 +160,23 @@ assert_no_private_columns <- function(cols, arg = "data") {
   )
 }
 
+# Highest infected status level the engine stores.
+# StatusLevel is an unsigned 8-bit integer (see inst/include/tools/status.h).
+max_status_level <- 254L
+
 # Assert that given status(es) name is(are) valid.
 # Numeric statuses must be positive integers; character labels are allowed and
 # resolved to integer codes against the status dictionary at build time.
 assert_valid_status <- function(status) {
   status <- status[!is.na(status)]
   if (length(status) == 0) return(invisible())
-  if (is.numeric(status) &&
-        (any(status <= 0) || any(status != as.integer(status)))) stop_h(
+  if (!is.numeric(status)) return(invisible())
+  if (any(status <= 0) || any(status != as.integer(status))) stop_h(
     "Status specific definition is valid only for positive integer values."
+  )
+  if (any(status > max_status_level)) stop_h(
+    paste("Status specific definition exceeded the maximum of",
+          "{max_status_level} infected statuses.")
   )
   invisible()
 }

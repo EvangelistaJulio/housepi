@@ -101,6 +101,16 @@ test_that("A status left without definitions names the status", {
     expect_error("[Nn]o.*generic.*augmented.*definition")
 })
 
+test_that("The status process is capped by the engine status storage", {
+  weights <- function(k) {
+    stats::setNames(as.list(rep(1 / k, k)), paste0("unit_", seq_len(k)))
+  }
+  do.call(add_status, c(list(mk_augm$model), weights(254))) |>
+    expect_silent()
+  do.call(add_status, c(list(mk_augm$model), weights(255))) |>
+    expect_error("255 statuses.*maximum of 254")
+})
+
 test_that("Augmented variable definitions are correct", {
   # basic constant definition
   augm <- mk_augm$model |>
@@ -230,7 +240,7 @@ test_that("augmented draws stay inside their live support", {
     run_inference(steps = 500L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressMessages() |>
     suppressWarnings()
-    
+
   eva <- as.data.frame(get_augmented_draws(results))[["1_eva"]]
   meryl <- as.data.frame(get_parameter_draws(results))[["meryl"]]
   expect_true(all(eva >= meryl))

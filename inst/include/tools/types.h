@@ -21,5 +21,6 @@ namespace housepi
 
     using IndivIndex = std::uint32_t;  /// global individual index
     using HouseIndex = std::uint32_t;  /// global household index
-    using MemberIndex = std::uint8_t;  /// index of a member within its household
+    using MemberIndex = std::uint8_t;  /// index of a member within household
+    using StatusLevel = std::uint8_t;  /// individual status level
 }

@@ -321,6 +321,11 @@ namespace
             return NA_REAL;
         return hsp_to_rcpp(attr.value());
     }
+    /// Auxiliary converter of an individual status, missing status to R NA integer.
+    int hsp_to_rcpp(const Individual &indiv)
+    {
+        return indiv.is_missing_status() ? NA_INTEGER : static_cast<int>(indiv.status());
+    }
 
     /// Convert R dataframe map of string vectors.
     str_table rdataframe_to_strmap(SEXP input)
@@ -511,7 +516,7 @@ namespace
             {
                 id_col[row] = data_wide.id(indiv);
                 house_id_col[row] = data_wide.house_id(house);
-                status_col[row] = indiv.status();
+                status_col[row] = hsp_to_rcpp(indiv);
 
                 for (size_t d = 0; d < columns.size(); ++d)
                     data_col[d][row] = hsp_to_rcpp(data_wide.data(data_keys[d], indiv));
@@ -896,7 +901,7 @@ namespace
             size_t i = Index::member(indiv);
             id_col[i] = data_wide.id(indiv);
             house_id_col[i] = data_wide.house_id(house);
-            status_col[i] = indiv.status();
+            status_col[i] = hsp_to_rcpp(indiv);
 
             for (size_t d = 0; d < headers.size(); ++d)
                 df_double[d][i] = hsp_to_rcpp(data_wide.data(d, indiv));
@@ -1204,7 +1209,7 @@ namespace
                         size_t row = row_offsets[H]; // thread-local: no shared counter
                         for (const Individual &indiv : house)
                         {
-                            status_col[row] = indiv.status();
+                            status_col[row] = hsp_to_rcpp(indiv);
                             size_t c = 0;
                             for (size_t a : augm.list_augm_export)
                                 augm_cols[c++][row] = hsp_to_rcpp(engine.get_augm_varia(a, indiv));
@@ -1499,7 +1504,7 @@ namespace
         }
     }
 
-    /// Aggregate individuals by house_id. NA status becomes negative (NA_INTEGER is INT_MIN).
+    /// Aggregate individuals by house_id. A missing status reads NA (NA_INTEGER is INT_MIN).
     measure::cases::Report summarise_houses_from_df(Rcpp::DataFrame data_wide)
     {
         Rcpp::CharacterVector col_names = data_wide.names();

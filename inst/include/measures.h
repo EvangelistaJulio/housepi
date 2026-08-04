@@ -77,7 +77,7 @@ namespace housepi::measure
     }
 
     /// Aggregate individual statuses by house_id, tracking the size range in the same pass.
-    /// `status` values: negative = missing/NA, 0 = escaped, >=1 = infected.
+    /// `status` values as read from an R column: NA = missing, 0 = escaped, >=1 = infected.
     inline cases::Report summarise_houses(
         const std::vector<std::string> &house_id,
         const std::vector<int> &status)

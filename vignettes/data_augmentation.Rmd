@@ -40,8 +40,8 @@ where the incubation period is distributed according to a prior.
 Say $x$ the data of a single household (onset date and status), $z$ its augmented variables (infection time and incubation period) and $\theta$ the vector of parameters.
 The joint posterior then reads
 $$p(\theta, z \mid x) \varpropto
-  \underbrace{p^\mathrm{obs}(x \mid \theta, z)\, p^\mathrm{transm}(x \mid \theta, z)\, p^\mathrm{augm}(z \mid \theta)}_{\texttt{log\_lik}}\;
-  \underbrace{p(\theta)}_{\texttt{lprior}},$$
+  \underbrace{p^\mathrm{obs}(x \mid \theta, z)\, p^\mathrm{transm}(x \mid \theta, z)\, p^\mathrm{augm}(z \mid \theta)}_{\texttt{likelihood}}\;
+  \underbrace{p(\theta)}_{\texttt{prior}},$$
 where the reported `log_lik` gathers the transmission term $p^\mathrm{transm}$, the observation term $p^\mathrm{obs}$ (only when an observation node is defined, so it contracts to transmission otherwise) and the augmented-variable model $p^\mathrm{augm}$, while `lprior` is the parameter prior $p(\theta)$.
 
 We here explain how to associate individual augmented variables in housepi for minimal examples.
@@ -222,15 +222,16 @@ bayesplot::mcmc_trace(get_parameter_draws(results)) +
 
 ```{r}
 #| label: augmented-draws-traces
+#| fig-height: 3
 #| fig-alt: >
 #|  Trace plots for individual augmented variables across three MCMC chains.
 #|  Incubation period for two subjects (IDs 7 and 13).
-# plot traces of augmented draws
+# plot traces of augmented draws that are not marked as hidden
 bayesplot::mcmc_trace(get_augmented_draws(results))
 ```
 
 In this example we had to introduce auxiliary augmented variables `.onset_time` and `.infec_time`.
-The prefix `.` we added to the names is a convention to ensure that housepi will not store the associated draws.
+The prefix `.` we added to the names is a convention to ensure that housepi will not store the associated draws, so that they will stay hidden.
 
 # More about models and proposals
 

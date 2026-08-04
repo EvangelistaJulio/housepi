@@ -452,7 +452,6 @@ cpp_data_refactor <- function(data, info, headers,
 
   if ("status" %in% colnames(data)) {
     s <- as.integer(data[["status"]])
-    s[s < 0] <- NA # missing
     if (length(status_levels) > 0) {
       # code 0 -> escaped label, code k -> k-th infected label
       lv <- c(escaped, status_levels)

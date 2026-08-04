@@ -201,7 +201,7 @@ namespace housepi
         /// Individual wide-format data.
         struct IndivWide_
         {
-            int status = status::MISSING;
+            StatusLevel status = status::MISSING;
             std::vector<double> vec = {};         /// immutable imported-raw backing
             std::vector<Attribute> readcell = {}; /// per-column read-surface (raw or wired)
         };

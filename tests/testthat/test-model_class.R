@@ -29,6 +29,24 @@ test_that("Model class inconsistent IDs throw errors", {
     expect_error("not unique")
 })
 
+test_that("Data status is capped by the engine status storage", {
+  # above the highest storable infected status
+  data.frame(house_id = "h1", status = 255) |>
+    new_housepi_model("test") |>
+    expect_error("maximum of 254")
+
+  # a negative status has no meaning: NA declares a missing status
+  data.frame(house_id = "h1", status = -200) |>
+    new_housepi_model("test") |>
+    expect_error("negative status")
+
+  # a missing status round trips as NA, the top level is never exported
+  df <- data.frame(house_id = "h1", status = c(NA, 254)) |>
+    new_housepi_model("test") |>
+    get_data_wide()
+  expect_equal(df$status, c(NA, 254))
+})
+
 test_that("data columns cannot claim the hidden-definition prefix", {
   df <- dummy_household
   df$.tx <- 55

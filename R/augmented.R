@@ -146,6 +146,12 @@ HousepiAugmented <- R6::R6Class(
     #' @param levels `character()`. Status labels in declaration order.
     set_status_levels = function(levels) {
       levels <- levels[!is.na(levels) & nzchar(levels)]
+      # the labels are coded 1...K
+      # K is capped by the engine status storage
+      if (length(levels) > max_status_level) stop_h(
+        paste("Status process implies {length(levels)} statuses, exceeding",
+              "the maximum of {max_status_level}.")
+      )
       self$status_levels <- as.character(levels)
       invisible(self)
     },

@@ -58,4 +58,8 @@ test_that("Assert valid status rejects non-positive integers", {
   # decimal
   assert_valid_status(c(1.5)) |>
     expect_error("positive integer")
+  # above the engine status storage
+  expect_no_error(assert_valid_status(254))
+  assert_valid_status(c(1, 255)) |>
+    expect_error("maximum of 254")
 })

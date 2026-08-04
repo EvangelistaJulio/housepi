@@ -44,7 +44,7 @@ namespace housepi
 		//////////////////////
 
 		/// Associated status.
-		int status() const noexcept { return status_; }
+		unsigned status() const noexcept { return status_; }
 
 		/////////////////////
 		//////  FLAGS  //////
@@ -59,7 +59,7 @@ namespace housepi
 		MemberIndex member_index_ = 0; /// index within its own household
 
 		/// status of the individual
-		int status_ = status::MISSING;
+		StatusLevel status_ = status::MISSING;
 	};
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////

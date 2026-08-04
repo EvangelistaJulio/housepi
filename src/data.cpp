@@ -63,7 +63,8 @@ namespace housepi
         size_t cold = status::category(indiv.status());
         size_t cnew = status::category(snew);
 
-        indiv.status_ = snew; // NOTE: might just change within infected status
+        // NOTE: might just change within infected status
+        indiv.status_ = static_cast<StatusLevel>(snew);
         if (cold == cnew)
             return;
 
@@ -121,11 +122,10 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void DataWide::init_cache_key_holders(
-        const std::vector<std::string> &size_keys,
-        const std::vector<std::string> &size_vec_keys,
-        const std::vector<std::string> &double_vec_keys,
-        const std::vector<std::string> &double_mtx_keys)
+    void DataWide::init_cache_key_holders(const std::vector<std::string> &size_keys,
+                                          const std::vector<std::string> &size_vec_keys,
+                                          const std::vector<std::string> &double_vec_keys,
+                                          const std::vector<std::string> &double_mtx_keys)
     {
         khold_uint_val.init(size_keys);
         khold_uint_vec.init(size_vec_keys);
@@ -158,27 +158,41 @@ namespace housepi
         {
             std::string id = std::to_string(i + 1);                          // default id
             std::string house_id = std::to_string(house_vector_.size() + 1); // default house_id
-            int status = status::MISSING;
+            StatusLevel status = status::MISSING;
 
             if (input.count("id"))
             {
                 id = input.at("id")[i]; // user id
                 if (na::is(id))
                     msg::stop(
-                        "Individual in row n." + std::to_string(i + 1) + " had missing " + msg::field("id") + ".");
+                        "Individual in row n." + std::to_string(i + 1) +
+                        " had missing " + msg::field("id") + ".");
             }
             if (input.count("house_id"))
             {
                 house_id = input.at("house_id")[i]; // user house_id
                 if (na::is(house_id))
                     msg::stop(
-                        "Individual in row n." + std::to_string(i + 1) + " had missing " + msg::field("house_id") + ".");
+                        "Individual in row n." + std::to_string(i + 1) +
+                        " had missing " + msg::field("house_id") + ".");
             }
             if (input.count("status"))
             {
                 // note: NA status is a missing status
                 if (!na::is(input.at("status")[i]))
-                    status = str::toi(input.at("status")[i], "individual status");
+                {
+                    const int s = str::toi(input.at("status")[i], "individual status");
+                    if (s < 0)
+                        msg::stop(
+                            "Individual in row n." + std::to_string(i + 1) +
+                            " had a negative status.\nUse " + msg::val("NA") +
+                            " to declare a missing status.");
+                    if (s > status::MAX_INFECTED)
+                        msg::stop(
+                            "Data exceeded the maximum of " +
+                            std::to_string(status::MAX_INFECTED) + " infected statuses.");
+                    status = static_cast<StatusLevel>(s);
+                }
             }
 
             // read individual data into external storage
@@ -548,7 +562,8 @@ namespace housepi
         }
     }
 
-    void DataWide::save_member_cache(const Household &house, const Individual &indiv)
+    void DataWide::save_member_cache(const Household &house,
+                                     const Individual &indiv)
     {
         size_t i = Index::member(indiv);
         Cached_::State_ &prev = cached_.previous[house.eq_class_];
@@ -570,7 +585,8 @@ namespace housepi
             }
     }
 
-    void DataWide::recover_member_old_cached(const Household &house, const Individual &indiv)
+    void DataWide::recover_member_old_cached(const Household &house,
+                                             const Individual &indiv)
     {
         size_t i = Index::member(indiv);
         Cached_::State_ &prev = cached_.previous[house.eq_class_];
@@ -675,13 +691,12 @@ namespace housepi
         indiv_datalist.clear();
     }
 
-    void DataLong::helper_build_data_headers_([[maybe_unused]] const DataWide &data_wide, const str_table &input)
+    void DataLong::helper_build_data_headers_(const DataWide &data_wide,
+                                              const str_table &input)
     {
-#ifndef NDEBUG
         if (data_wide.is_empty())
             msg::stop(
                 "Tried to define data long format before wide format.");
-#endif
 
         headers = read::extract_keys(input);
         // check for individual IDs
