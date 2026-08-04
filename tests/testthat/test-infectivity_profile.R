@@ -187,3 +187,39 @@ test_that("non-zero profile for day-0 is always refused in discrete time", {
     evaluate_log_lik() |>
     expect_error("non-zero at generation day 0")
 })
+
+test_that("an augmented parameterizing the profile drives transmission", {
+  shadow_moses <- data.frame(
+    id = c("ocelot", "raiden", "otacon"), house_id = "shadow_moses",
+    status = c(1, 1, 0), start_date = 0, end_date = 20
+  ) |>
+    new_housepi_model("case_ascertained") |>
+    add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>
+    add_augmented(
+      infec_time = list(model = "uniform", min = start_date@D, max = end_date@D)
+    )
+
+  # the profile is resolved per member, so the augmented reaches the household
+  # cache without ever passing through 'infec_time'
+  short <- shadow_moses |>
+    add_augmented(.incub_period = 3) |>
+    add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
+    evaluate_log_lik()
+  long <- shadow_moses |>
+    add_augmented(.incub_period = 8) |>
+    add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
+    evaluate_log_lik()
+  expect_false(identical(short, long))
+
+  # sampling it must keep the transmission likelihood in step
+  set.seed(1998)
+  shadow_moses |>
+    add_augmented(
+      .incub_period = list(model = "gamma", shape = 2, scale = 1,
+                           min = 1, max = 14)
+    ) |>
+    add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
+    run_inference(steps = 800, thin = 2, adapt = 100, chains = 1,
+                  progress = FALSE) |>
+    expect_silent()
+})

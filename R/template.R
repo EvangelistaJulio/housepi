@@ -271,24 +271,6 @@ format_sources_phrase_ <- function(sources) {
                              paste(sources, "definitions")))
 }
 
-#' Extract arguments following a key holder in REGISTER_HOUSEPI_KEYS.
-#' @param refer_file `character(1)` Path to reference file.
-#' @param key_holder `character(1)` Key holder name to search for.
-#' @return `character()`
-#' @keywords internal
-#' @noRd
-template_extract_keys <- function(refer_file, key_holder) {
-  script <- paste(readLines(refer_file), collapse = " ")
-  reg <- sprintf(
-    "HOUSEPI_DECLARE_REGISTER_KEYS\\(%s,\\s*([^)]+)\\)",
-    key_holder
-  )
-  args <- stringr::str_match(script, reg)[1, 2]
-  if (is.na(args)) return(character(0))
-  args <- stringr::str_trim(stringr::str_split(args, ",")[[1]])
-  args[nzchar(args)]
-}
-
 #' Compare required definitions to current definitions and find missing ones.
 #' @param required `character()` Required definitions.
 #' @param defined `character()` Current definitions.

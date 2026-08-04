@@ -31,6 +31,10 @@ namespace housepi
         constexpr double VALUE_REFERENCE = 1.0;         /// Alias for reference value.
     }
 
+#define MAKE_HOUSEPI_CACHE_ACCESSOR(TYPE, NAME)                                                                        \
+    TYPE &cache_##NAME(const Household &house, size_t e) noexcept { return cached_.current[house.eq_class_].NAME[e]; } \
+    const TYPE &cache_##NAME(const Household &house, size_t e) const noexcept { return cached_.current[house.eq_class_].NAME[e]; }
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////  *** DataWide : struct ***  ///////////////////////////////
@@ -62,9 +66,9 @@ namespace housepi
         void reset_readcells(const std::vector<std::string> &produced_cols = {});
 
         /// Request data column to be discrete-valued.
-        void request_discrete(size_t d) { user_discrete_set_.emplace(d); }
+        void request_discrete(std::vector<size_t> d) { user_discrete_set_.insert(d.begin(), d.end()); }
         /// Request data column to be strictly greater than zero.
-        void request_positive(size_t d) { user_positive_set_.emplace(d); }
+        void request_positive(std::vector<size_t> d) { user_positive_set_.insert(d.begin(), d.end()); }
 
         /// Whether the modeler requested column 'd' to be discrete-valued.
         bool requires_discrete(size_t d) const { return user_discrete_set_.count(d) > 0; }
@@ -108,9 +112,9 @@ namespace housepi
         const Attribute &readcell(size_t d, const Individual &indiv) const noexcept { return indiv_data_[Index::of(indiv)].readcell[d]; }
         /// Point a column's read-surface at the Variable of a surrogate column.
         void wire_readcell(size_t d, const Individual &indiv, const Attribute *p) noexcept { indiv_data_[Index::of(indiv)].readcell[d].init_pointer(p); }
-        /// Finalize every read-cell (constant surrogate columns collapse to numeric).
+        /// Finalize every Variable object in the read-cells.
         /// NOTE: evaluation-only; simulation re-wires the cells live.
-        void finalize_cells();
+        void finalize();
 
         /// Unique identifier of an individual, as provided in data.
         const std::string &id(const Individual &indiv) const noexcept { return indiv_ids_[Index::of(indiv)]; }
@@ -161,25 +165,18 @@ namespace housepi
         /// Recover old values of cached depedencies and attributes.
         void recover_old_cached() noexcept { cached_.recover(); }
         /// Save member cached attributes.
-        void save_member_cache(Household &house, size_t i);
+        void save_member_cache(const Household &house, const Individual &indiv);
         /// Recover member old values of cached member depedencies and member attributes.
-        void recover_member_old_cached(Household &house, size_t i);
+        void recover_member_old_cached(const Household &house, const Individual &indiv);
 
         /// Return cached unsigned value.
-        unsigned &cache_uint(Household &house, size_t e) noexcept { return cached_.current[house.eq_class_].uint_val[e]; }
-        unsigned cache_uint(const Household &house, size_t e) const noexcept { return cached_.current[house.eq_class_].uint_val[e]; }
-
+        MAKE_HOUSEPI_CACHE_ACCESSOR(unsigned, uint)
         /// Return cached unsigned vector.
-        std::vector<unsigned> &cache_uint_vector(Household &house, size_t e) noexcept { return cached_.current[house.eq_class_].uint_vec[e]; }
-        const std::vector<unsigned> &cache_uint_vector(const Household &house, size_t e) const noexcept { return cached_.current[house.eq_class_].uint_vec[e]; }
-
+        MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<unsigned>, uint_vector)
         /// Return cached double vector.
-        std::vector<double> &cache_double_vector(Household &house, size_t e) noexcept { return cached_.current[house.eq_class_].dbl_vec[e]; }
-        const std::vector<double> &cache_double_vector(const Household &house, size_t e) const noexcept { return cached_.current[house.eq_class_].dbl_vec[e]; }
-
+        MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<double>, double_vector)
         /// Return cached double matrix.
-        std::vector<std::vector<double>> &cache_double_matrix(Household &house, size_t e) noexcept { return cached_.current[house.eq_class_].dbl_mtx[e]; }
-        const std::vector<std::vector<double>> &cache_double_matrix(const Household &house, size_t e) const noexcept { return cached_.current[house.eq_class_].dbl_mtx[e]; }
+        MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<std::vector<double>>, double_matrix)
 
         /////////////////////
         //////  FLAGS  //////
@@ -209,11 +206,11 @@ namespace housepi
             std::vector<Attribute> readcell = {}; /// per-column read-surface (raw or wired)
         };
 
-        dict<size_t> hhid_to_index_ = {};    /// Map house-id to internal index
-        std::vector<IndivWide_> indiv_data_; /// External storage for individual data
-        std::vector<std::string> indiv_ids_ = {};    /// User individual ids, by individual index
-        std::vector<std::string> house_ids_ = {};    /// User house ids, by household index
-        size_t n_imported_ = 0;              /// Number of columns known at import
+        dict<size_t> hhid_to_index_ = {};         /// Map house-id to internal index
+        std::vector<IndivWide_> indiv_data_;      /// External storage for individual data
+        std::vector<std::string> indiv_ids_ = {}; /// User individual ids, by individual index
+        std::vector<std::string> house_ids_ = {}; /// User house ids, by household index
+        size_t n_imported_ = 0;                   /// Number of columns known at import
 
         std::vector<Household> house_vector_ = {};   /// All households in data
         std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood
@@ -244,10 +241,10 @@ namespace housepi
         {
             struct State_
             {
-                std::vector<unsigned> uint_val;
-                std::vector<std::vector<unsigned>> uint_vec = {};
-                std::vector<std::vector<double>> dbl_vec = {};
-                std::vector<std::vector<std::vector<double>>> dbl_mtx = {};
+                std::vector<unsigned> uint;
+                std::vector<std::vector<unsigned>> uint_vector = {};
+                std::vector<std::vector<double>> double_vector = {};
+                std::vector<std::vector<std::vector<double>>> double_matrix = {};
             };
             std::vector<State_> previous, current;
 

@@ -127,7 +127,7 @@ test_that("Augmented variable definitions are correct", {
     subset(name == "dummy")
   expect_equal(augm$status, NA_real_)
   expect_equal(augm$value, "expo|D")
-  expect_equal(augm$prior, "uniform")
+  expect_equal(augm$model, "uniform")
   expect_equal(augm$min, "expo_min|A")
   expect_equal(augm$max, "expo_max|P")
 })
@@ -175,15 +175,9 @@ test_that("Independence proposal reject if unsupported prior domain", {
     expect_error("[Cc]annot cover")
 })
 
-test_that("Independence proposal inherits the prior location shift", {
-  # a proposal from another family must sample in the prior's absolute frame:
-  # with loc = min@D the support is [min, min + 1], so every draw lands there.
-  # id_draws = list(house_id =) traces the whole household: both infected members
-  # of "house" are stored, exercising the household -> members expansion.
-  hhmodel <- data.frame(
-    id = c("tommy", "gina"), house_id = "house",
-    status = 1, min = c(4, 8)
-  ) |>
+test_that("Independence proposal inherits the model location shift", {
+  hhmodel <- data.frame(id = c("tommy", "gina"), house_id = "house",
+                        status = 1, min = c(4, 8)) |>
     new_housepi_model("test") |>
     add_augmented("test_date", model = "uniform", loc = min@D,
                   proposal = "gamma", proposal_shape = 2)
@@ -200,48 +194,53 @@ test_that("Independence proposal inherits the prior location shift", {
   expect_true(all(draws$gina_test_date >= 8 & draws$gina_test_date <= 9))
 })
 
-test_that("A moving prior parameter keeps augmented draws inside their live support", {
-  # regression: a dynamic prior parameter (loc/min) shifts the support without changing
-  # the consumer's value, so the acceptance ratio must feel that shift (guarded); else the
-  # window drifts off the value and the sampler emits zero-prior draws (~15% pre-fix).
+test_that("augmented draws stay inside their live support", {
   df <- data.frame(id = seq(2), house_id = "shadow_moses", status = 1)
 
-  # augmented -> augmented: test_date ~ Uniform(loc = otacon@A), support [otacon, otacon + 1],
-  # so every draw must satisfy 0 <= test_date - otacon <= 1
-  augm <- df |>
+  # other augmented variable
+  results <- df |>
     new_housepi_model("test") |>
     add_augmented(otacon = list(model = "uniform"),
                   test_date = list(model = "uniform", loc = otacon@A)) |>
-    run_inference(steps = 500, adapt = 100, thin = 1, chains = 1,
-                  threads = 1, progress = FALSE, id_draws = "1") |>
+    run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressMessages() |>
     suppressWarnings()
-  d <- as.data.frame(get_augmented_draws(augm))
+  d <- as.data.frame(get_augmented_draws(results))
   gap <- d[["1_test_date"]] - d[["1_otacon"]]
   expect_true(all(gap >= 0 & gap <= 1))
 
-  # parameter -> augmented: z ~ Uniform(min = meryl@P, max = 5), support [meryl, 5],
-  # so every draw must satisfy z >= meryl
-  par <- df |>
+  # transitive deterministic augmented variable
+  results <- df |>
     new_housepi_model("test") |>
-    add_parameter("meryl", prior = "uniform") |>
-    add_augmented("z", model = "uniform", min = meryl@P, max = 5) |>
-    run_inference(steps = 500L, adapt = 100L, thin = 1L, chains = 1L,
-                  threads = 1L, progress = FALSE, id_draws = "1") |>
+    add_augmented(jaeger = list(model = "uniform"),
+                  gray_fox = jaeger,
+                  test_date = list(model = "uniform", loc = gray_fox@A)) |>
+    run_inference(steps = 500L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressMessages() |>
     suppressWarnings()
-  z <- as.data.frame(get_augmented_draws(par))[["1_z"]]
-  meryl <- as.data.frame(get_parameter_draws(par))[["meryl"]]
-  expect_true(all(z >= meryl))
+  draws <- as.data.frame(get_augmented_draws(results))
+  gap <- draws[["1_test_date"]] - draws[["1_jaeger"]]
+  expect_true(all(gap >= 0 & gap <= 1))
+
+  # parameter
+  results <- df |>
+    new_housepi_model("test") |>
+    add_parameter("meryl", prior = "uniform") |>
+    add_augmented("eva", model = "uniform", min = meryl@P, max = 5) |>
+    run_inference(steps = 500L, adapt = 0L, thin = 1L, chains = 1L) |>
+    suppressMessages() |>
+    suppressWarnings()
+    
+  eva <- as.data.frame(get_augmented_draws(results))[["1_eva"]]
+  meryl <- as.data.frame(get_parameter_draws(results))[["meryl"]]
+  expect_true(all(eva >= meryl))
 })
 
 test_that("Augmented function definition is correct", {
   base <- mk_augm$model |>
-    add_augmented(
-      onset = list(model = "normal", mean = 0, sd = 1),
-      incub = list(model = "gamma", shape = 2, scale = 1),
-      infec = list(model = "normal", mean = 0, sd = 1)
-    )
+    add_augmented(onset = list(model = "normal", mean = 0, sd = 1),
+                  incub = list(model = "gamma", shape = 2, scale = 1),
+                  infec = list(model = "normal", mean = 0, sd = 1))
 
   # difference definition
   augm <- base |>
@@ -356,7 +355,7 @@ test_that("Symbolic definitions are equivalent", {
     add_augmented(import = external) |>
     get_augmented() |>
     subset(name == "some_func")
-  expect_equal(augm$prior, "gamma")
+  expect_equal(augm$model, "gamma")
   expect_equal(augm$args[[1]], c(shape = "shape|A", scale = "scale|A"))
 })
 
@@ -374,7 +373,7 @@ test_that("Observation definitions are encoded", {
   expect_identical(obs[["value"]], "onset_date|D")
   expect_true(is.na(obs[["proposal"]]))
   # distribution carries the observation arguments
-  expect_identical(obs[["prior"]], "normal")
+  expect_identical(obs[["model"]], "normal")
   expect_equal(obs[["args"]][[1]], c(mean = "onset_time|A", sd = "1"))
 })
 
@@ -398,7 +397,7 @@ test_that("Deterministic observation node is encoded as a function obs", {
 
   # tagged as observation, carrying a deterministic function and no distribution
   expect_identical(obs[["level"]], "member")
-  expect_true(is.na(obs[["prior"]]))
+  expect_true(is.na(obs[["model"]]))
   expect_true(is.na(obs[["value"]]))
   expect_match(obs[["func"]], "floor")
 })

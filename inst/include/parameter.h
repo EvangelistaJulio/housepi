@@ -58,11 +58,11 @@ namespace housepi
         /// Build parameter dictionaries for expected measure on posterior sample.
         /// Expect a non-empty table.
         void build_for_predic(const dbl_table &deftable);
-        /// Adjust lists of parameters to be inferred making parameter as dependent on cache.
-        void make_cache_dependent(size_t p);
+        /// Mark parameter as a producer of transmission cache.
+        void mark_produces_transm_cache(size_t p);
 
         /// Request discrete parameter definition.
-        void request_discrete(size_t p) { user_discrete_set_.emplace(p); }
+        void request_discrete(std::vector<size_t> vec) { user_discrete_set_.insert(vec.begin(), vec.end()); }
         /// Request that a baseline parameter and the relative risks scaling it share one reference.
         void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts);
 

@@ -361,13 +361,6 @@ HousepiGenerator <- R6::R6Class(
       overwrite(file.path(private$source_dir_, "model.cpp"),
                 file.path(private$cache_dir_, "src", "model.cpp"))
 
-      # copy helper files in the output directory
-      for (f in helper_files(private$source_dir_)) {
-        if (file.exists(f)) {
-          overwrite(f, file.path(dirname(private$dll_), basename(f)))
-        }
-      }
-
       invisible(self)
     },
 
@@ -469,13 +462,13 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field name `character(1)`. Model name.
+    #' @field name `character(1)` Model name.
     #' Assign a new `character(1)` to change model name.
     name = function(value) {
       spaced_template_choice(private$name_)
     },
 
-    #' @field raw_name `character(1)`. Internal unformmated model name.
+    #' @field raw_name `character(1)` Internal unformmated model name.
     raw_name = function(value) {
       private$name_
     },
@@ -485,50 +478,59 @@ HousepiGenerator <- R6::R6Class(
       private$mcmc_ptr_
     },
 
-    #' @field source_dir `character(1)`. Model source directory.
+    #' @field source_dir `character(1)` Model source directory.
     source_dir = function(value) {
       private$source_dir_
     },
 
-    #' @field data_required `character()`. Data required by model definitions.
+    #' @field data_required `character()` Data required by the model.
     data_required = function(value) {
-      set_source_name_(
-        template_extract_keys(self$get_reference(), "DataKey"),
-        "model"
-      )
+      set_source_name_(.engine$key_Data(private$mcmc_ptr_), "model")
     },
 
-    #' @field last_flags `character()`. Compile flags applied to current dll.
-    last_flags = function(value) {
-      private$last_flags_
+    #' @field param_required `character()` Parameters required by the model.
+    param_required = function(value) {
+      set_source_name_(.engine$key_Param(private$mcmc_ptr_), "model")
     },
 
-    #' @field is_discrete_time `logical(1)`. Model steps one whole day at once.
+    #' @field group_risks_required `character()` Group risks required by the
+    #' model.
+    group_risks_required = function(value) {
+      set_source_name_(.engine$key_GroupRisk(private$mcmc_ptr_), "model")
+    },
+
+    #' @field augm_required `character()` Augmented variables required by the
+    #' model.
+    augm_required = function(value) {
+      set_source_name_(.engine$key_Augm(private$mcmc_ptr_), "model")
+    },
+
+    #' @field is_discrete_time `logical(1)` Model steps one whole day at once.
     is_discrete_time = function(value) {
       "_HOUSEPI_DISCRETE_TIME" %in% private$last_flags_
     },
 
-    #' @field cols_data_wide `character()`. Columns of the imported wide data.
+    #' @field cols_data_wide `character()` Columns of the imported wide data.
     cols_data_wide = function(value) {
       private$cols_data_wide_
     },
 
-    #' @field info_data_wide `list`. Levels of factors of the wide data.
+    #' @field info_data_wide `list` Levels of factors of the wide data.
     info_data_wide = function(value) {
       private$info_data_wide_
     },
 
-    #' @field infec_status_set `integer()`. Positive statuses in the wide data.
+    #' @field infec_status_set `integer()` Positive statuses in the wide data.
     infec_status_set = function(value) {
       private$infec_status_set_
     },
 
-    #' @field status_data_labels `character()`. Infected labels seen in data.
+    #' @field status_data_labels `character()` Infected labels seen in data.
     status_data_labels = function(value) {
       private$status_data_labels_
     },
 
-    #' @field escaped `character(1)`. Label for status code 0.
+    #' @field escaped `character(1)` Label for status code 0.
     escaped = function(value) {
       private$escaped_
     }
@@ -603,20 +605,8 @@ HousepiGenerator <- R6::R6Class(
       private$name_ == "test"
     },
 
-    #' @description Reference script.
-    #' @return `character(1)`
-    get_reference = function() {
-      output <- file.path(private$source_dir_, "model.cpp")
-      # check if reference file exists
-      if (!file.exists(output)) stop_h(
-        "Impossible to find reference file: {.file {output}}.",
-        "Try to re-generate the model with {.code force = TRUE}."
-      )
-      output
-    },
-
     #' @description Record the ordered infected-status labels for refactoring.
-    #' @param levels `character()`. Status labels in code order (1..K).
+    #' @param levels `character()` Status labels in code order (1..K).
     set_status_levels = function(levels) {
       private$status_levels_ <- as.character(levels)
       invisible(self)
@@ -645,7 +635,7 @@ HousepiGenerator <- R6::R6Class(
     #' @description
     #' Validate and factorize wide-format data, populating `cols_data_wide`
     #' so it can be asserted before pushing to the C++ engine.
-    #' @param data `data.frame`.
+    #' @param data `data.frame` Input line-list data in wide format.
     #' @return `data.frame` Factorized data, ready for `push_data_wide()`.
     factorize_data_wide = function(data) {
       embed <- cpp_data_factorize(data, private$escaped_)
@@ -658,7 +648,7 @@ HousepiGenerator <- R6::R6Class(
 
     #' @description
     #' Validate, factorize, and push long-format data into the C++ engine.
-    #' @param data_long `data.frame`.
+    #' @param data_long `data.frame` Input line-list data in long format.
     import_data_long = function(data_long) {
       if (!is.data.frame(data_long)) stop_h(
         "Data-long should be an object of class {.cls data.frame}.",

@@ -46,8 +46,8 @@ namespace housepi
         const Attribute &to_numeric(const parse::Entry &node, const Individual *indiv_ptr = nullptr) const;
         const Attribute &to_numeric(const std::string &expr, const Individual *indiv_ptr = nullptr) const;
 
-        /// Mark a referenced non-constant parameter as cache-dependent.
-        void make_cache_dependent(const parse::Entry &node) const;
+        /// If node is parameter, mark as producer of transmission cache.
+        void mark_param_produces_transm_cache(const parse::Entry &node) const;
 
     private:
         Parameter &param_;              /// parameter key-module

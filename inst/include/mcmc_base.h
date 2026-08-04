@@ -38,7 +38,7 @@ namespace housepi
 		Setup setup;
 		LogProba tot_obs_log_lik;	 /// observation log-likelihood
 		LogProba tot_transm_log_lik; /// transmission log-likelihood
-		LogProba tot_augm_log_lik; /// augmented-variable log-models
+		LogProba tot_augm_log_lik;	 /// augmented-variable log-models
 		Posterior posterior;
 
 		/// Pointer to data storage.
@@ -87,9 +87,9 @@ namespace housepi
 		/// NOTE: assume unique if augmented definitions required, but not imported yet.
 		void init_equivalence_class_compression();
 
-        /// Throw if the generic profile transmits at generation time 0.
-        /// NOTE: a status-specific profile is checked per member, with its variable.
-        void assert_valid_infectivity_profile() const;
+		/// Throw if the generic profile transmits at generation time 0.
+		/// NOTE: a status-specific profile is checked per member, with its variable.
+		void assert_valid_infectivity_profile() const;
 
 		////////////////////////////
 		//////  AUGMENTATION  //////
@@ -119,6 +119,29 @@ namespace housepi
 		double house_augm_log_lik(const Household &house) const;
 
 	protected:
+		//////////////////////////////
+		//////  LOG-LIKELIHOOD  //////
+		//////////////////////////////
+
+		/// Log-likelihood of individual observation model.
+		LogProba &obs_log_lik_(const Individual &indiv) noexcept
+		{
+			return augm.varia[Index::of(indiv)].obs_log_lik;
+		}
+		const LogProba &obs_log_lik_(const Individual &indiv) const noexcept
+		{
+			return augm.varia[Index::of(indiv)].obs_log_lik;
+		}
+		/// Log-likelihood of individual augmented model.
+		LogProba &augm_log_lik_(const Individual &indiv) noexcept
+		{
+			return augm.varia[Index::of(indiv)].augm_log_lik;
+		}
+		const LogProba &augm_log_lik_(const Individual &indiv) const noexcept
+		{
+			return augm.varia[Index::of(indiv)].augm_log_lik;
+		}
+
 		///////////////////////////////////
 		//////  METROPOLIS-HASTINGS  //////
 		///////////////////////////////////
@@ -128,10 +151,20 @@ namespace housepi
 		/// Intialize a single Markov chain for Monte Carlo.
 		void init_monte_carlo_chain_();
 
-		/// Recover the old total, augmented and observation log-likelihoods.
+		/// Recover old log-likelihood contributions.
 		/// NOTE: called after a refused parameter move.
-		void recover_total_log_density_(bool is_cache_depen,
-										bool with_augm_model = true,
-										bool with_obs = true);
+		void recover_augm_log_lik_(const Individual &indiv) noexcept { augm_log_lik_(indiv).recover(); }
+		void recover_obs_log_lik_(const Individual &indiv) noexcept { obs_log_lik_(indiv).recover(); }
+		void recover_transm_log_lik_(const Household &house) noexcept
+		{
+			data_wide().transm_log_lik(house).recover();
+		}
+		/// @brief Recover old value of the total log-likelihood.
+		/// @param with_cache Whether to recover cached values.
+		/// @param with_augm_ll Whether to recover augmented model log-likelihood.
+		/// @param with_obs_ll Whether to recover observation model log-likelihood.
+		void recover_total_log_lik_(bool with_cache,
+									bool with_augm_ll = true,
+									bool with_obs_ll = true);
 	};
 }

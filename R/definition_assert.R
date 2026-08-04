@@ -5,14 +5,20 @@
 ## See the LICENSE file for details.
 ##
 
-# Augmented stores three display families.
+# Augmented stores four display families.
 is_augmented_family <- function(family) {
-  family %in% c("augmented", "observation", "household observation")
+  family %in% c("augmented", "observation", "household observation",
+                "status observation")
+}
+
+# Column carrying the defining distribution of the holder family.
+family2model_col <- function(family) {
+  if (is_augmented_family(family)) "model" else "prior"
 }
 
 # Function columns associated to holder family.
 family2function_col <- function(family) {
-  if (is_augmented_family(family)) c("prior", "func")
+  if (is_augmented_family(family)) c("model", "func")
   else if (family == "infectivity profile") "func"
   else "prior"
 }

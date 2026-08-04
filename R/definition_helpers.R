@@ -98,7 +98,8 @@ helper_variable_core <- function(opts, family, value, func, func_args) {
     # implicit numeric definition
     opts$value <- value
     if (is.na(opts$const)) {
-      opts$const <- isTRUE(all(is.na(c(opts[["prior"]], opts$proposal))))
+      dcol <- family2model_col(family)
+      opts$const <- isTRUE(all(is.na(c(opts[[dcol]], opts$proposal))))
     }
   } else {
     # NOTE: ensured just one between the 2 is not NULL
@@ -120,12 +121,13 @@ helper_variable_core <- function(opts, family, value, func, func_args) {
 # process model arguments
 helper_variable_model <- function(opts, family, args) {
   if (is.null(args)) return(opts)
-  if (is.na(opts[["prior"]])) {
+  dcol <- family2model_col(family)
+  if (is.na(opts[[dcol]])) {
     sms <- "Spare arguments for {family} {.val {opts$name}}."
     if (!is.na(opts$func)) sms <- c(sms, "Did you mean {.arg func_args}?")
     stop_h(sms)
   }
-  opts[["prior"]] <- housepi_combine_to_call(opts[["prior"]], args)
+  opts[[dcol]] <- housepi_combine_to_call(opts[[dcol]], args)
   opts
 }
 
@@ -185,9 +187,12 @@ helper_definition_args <- function(proposal, dots) {
 # @description
 # Interpret user choice for Monte Carlo move.
 helper_variable_move <- function(opts, family) {
+  # prior for parameters/risks, model for augmented/observations
+  dist_word <- family2model_col(family)
+
   # infer if sampling proposal but no constant parameter provided
   if (is.na(opts$const)
-      && !(is.na(opts$proposal) && is.na(opts[["prior"]]))) {
+      && !(is.na(opts$proposal) && is.na(opts[[dist_word]]))) {
     opts$const <- FALSE
   }
 
@@ -197,24 +202,19 @@ helper_variable_move <- function(opts, family) {
     )
     opts$proposal <- NA_character_
     # drop prior if constant
-    if (family == "parameter") opts[["prior"]] <- NA_character_
+    if (family == "parameter") opts[[dist_word]] <- NA_character_
     # skip proposal if constant
     return(opts)
   } else {
     # check for prior if not constant (skip for func-defined parameters)
-    if (family == "parameter" && is.na(opts[["prior"]])
+    if (family == "parameter" && is.na(opts[[dist_word]])
         && is.na(opts$func)) stop_h(
-      "No {.arg prior} provided for {family} {.val {opts$name}}."
+      "No {.arg {dist_word}} provided for {family} {.val {opts$name}}."
     )
   }
 
-  # prior for parameters/risks, model for augmented/observation
-  if (identical(family, "augmented")) dist_word <- "model"
-  else if (identical(family, "observation")) dist_word <- "model"
-  else dist_word <- "model"
-
   if (is.na(opts$proposal)) {
-    if (is.na(opts[["prior"]])) {
+    if (is.na(opts[[dist_word]])) {
       if (is.na(opts$func) &&
             is.numeric(showcaser_extract_numeric(opts$value))) {
         # raise error if const is FALSE (not if NA or already TRUE)
@@ -229,7 +229,7 @@ helper_variable_move <- function(opts, family) {
       opts$proposal <- "rw"
     }
   } else {
-    if (is.na(opts[["prior"]])) stop_h(
+    if (is.na(opts[[dist_word]])) stop_h(
       "No {.arg {dist_word}} to sample from for {family} {.val {opts$name}}."
     )
   }
@@ -244,7 +244,7 @@ helper_variable_move <- function(opts, family) {
 # Settle the level a deterministic observation is read at
 helper_variable_level <- function(opts, defs) {
   if (!identical(opts$kind, "member") ||
-        !is.na(opts[["prior"]]) ||
+        !is.na(opts[["model"]]) ||
         !all(is.na(opts$status)) ||
         is.na(opts$func)) {
     return(opts)

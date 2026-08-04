@@ -22,23 +22,25 @@ HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Model final : public ModelBase
 {
 public:
-	HOUSEPI_DECLARE_EMPTY_KEYS(AugmKey)
-	HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
-	HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRiskKey, community, susceptibility, infectivity)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintKey, num_parts)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintvecKey, order, part_counts, part_indexes)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevecKey, commu_escape_rate)
-	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtxKey, p2p_escape_rate)
-	HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha, beta, gamma, hhsize_ref)
+	HOUSEPI_DECLARE_EMPTY_KEYS(Augm)
+	HOUSEPI_DECLARE_EMPTY_KEYS(Data)
+	HOUSEPI_DECLARE_EMPTY_KEYS(Long)
+	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRisk, community, susceptibility, infectivity)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHuint, num_parts)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHuintvec, order, part_counts, part_indexes)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevec, commu_escape_rate)
+	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtx, p2p_escape_rate)
+	HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha, beta, gamma, hhsize_ref)
 
 	/// General advanced inscrition for the setup.
-	void init_advanced_setup() override final
+	void init_model_requirements() override final
 	{
-		request_param_discrete(ParamKey::hhsize_ref);
-		request_risk_identifiability(ParamKey::alpha, {GroupRiskKey::community});
-		request_risk_identifiability(ParamKey::beta,
-									 {GroupRiskKey::susceptibility, GroupRiskKey::infectivity}, true);
+		request_param_discrete(
+			{Param::hhsize_ref});
+		request_risk_identifiability(
+			Param::alpha, {GroupRisk::community});
+		request_risk_identifiability(
+			Param::beta, {GroupRisk::susceptibility, GroupRisk::infectivity}, true);
 	}
 
 	/// Allow for contact risk definitions.
@@ -51,7 +53,7 @@ public:
 	}
 
 	/// Initialize hosuehold for evaluation
-	void init_house_for_evaluation(Household &house) override final
+	void init_house_for_evaluation(const Household &house) override final
 	{
 		//////////////////////////////////
 		/////////////  ORDER  ////////////
@@ -59,7 +61,7 @@ public:
 
 		// initialize internal order for house escape matrix
 		// ordered members : 1) infected, 2) escaped
-		auto &order = cache_uint_vector(house, HHuintvecKey::order);
+		auto &order = cache_uint_vector(house, HHuintvec::order);
 		order.clear();
 		order.reserve(house.size());
 		order.insert(order.end(), house.infected_members().begin(), house.infected_members().end());
@@ -106,10 +108,10 @@ public:
 		unsigned K = static_cast<unsigned>(partition_indexes.size());
 		for (unsigned i = 0; i < K; ++i)
 		{
-			cache_uint_vector(house, HHuintvecKey::part_counts)[i] = partition_counts[i];
-			cache_uint_vector(house, HHuintvecKey::part_indexes)[i] = partition_indexes[i];
+			cache_uint_vector(house, HHuintvec::part_counts)[i] = partition_counts[i];
+			cache_uint_vector(house, HHuintvec::part_indexes)[i] = partition_indexes[i];
 		}
-		cache_uint(house, HHuintKey::num_parts) = K;
+		cache_uint(house, HHuint::num_parts) = K;
 
 		if (K <= 1 && n_infec > 1)
 			chain_binom::ensure_homogeneous(n_infec);
@@ -126,39 +128,39 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Risk of infection from the community.
-	double community_risk() const { return par(ParamKey::alpha); }
+	double community_risk() const { return par(Param::alpha); }
 	/// Risk of infection from another household member.
 	double person_to_person_risk(size_t house_size) const
 	{
-		return par(ParamKey::beta) *
-			   std::exp(par(ParamKey::gamma) * std::log(par(ParamKey::hhsize_ref) / house_size));
+		return par(Param::beta) *
+			   std::exp(par(Param::gamma) * std::log(par(Param::hhsize_ref) / house_size));
 	}
 
 	/// Store person-to-person escape probabilities inside a cache.
 	/// UPDATE: I don't need to compute for all members, just for partitions.
 	/// This requires to compute also escaped partitions.
-	void fill_house_escape_matrix(Household &house)
+	void fill_house_escape_matrix(const Household &house)
 	{
 		size_t house_size = house.size();
-		const auto &order = cache_uint_vector(house, HHuintvecKey::order);
+		const auto &order = cache_uint_vector(house, HHuintvec::order);
 		const double commu_rate = community_risk();
 		const double p2p_rate = person_to_person_risk(house_size);
 
 		// assign values to escape matrix
-		auto &commu_mtx = cache_double_vector(house, HHdoublevecKey::commu_escape_rate);
-		auto &p2p_mtx = cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate);
+		auto &commu_mtx = cache_double_vector(house, HHdoublevec::commu_escape_rate);
+		auto &p2p_mtx = cache_double_matrix(house, HHdoublemtx::p2p_escape_rate);
 
 		// fill matrix according to order
 		for (size_t oi = 0; oi < house_size; ++oi)
 		{
 			size_t i = order[oi]; // retrieve household member index (partition representative)
 			const Individual &indiv_i = house.at(i);
-			const double inf_i_scl = group_risk(GroupRiskKey::infectivity, indiv_i) * p2p_rate;
-			const double sus_i = group_risk(GroupRiskKey::susceptibility, indiv_i);
+			const double inf_i_scl = group_risk(GroupRisk::infectivity, indiv_i) * p2p_rate;
+			const double sus_i = group_risk(GroupRisk::susceptibility, indiv_i);
 			const double sus_i_scl = p2p_rate * sus_i;
 
 			// community filled in order
-			commu_mtx[oi] = commu_rate * group_risk(GroupRiskKey::community, indiv_i);
+			commu_mtx[oi] = commu_rate * group_risk(GroupRisk::community, indiv_i);
 
 			// person-to-person
 			for (size_t oj = 0; oj < oi; ++oj)
@@ -167,9 +169,9 @@ public:
 				const Individual &indiv_j = house.at(j);
 				// [i] : infector -> [k] : infectee
 				p2p_mtx[oi][oj] = inf_i_scl * contact_risk(house, i, j) *
-								  group_risk(GroupRiskKey::susceptibility, indiv_j);
+								  group_risk(GroupRisk::susceptibility, indiv_j);
 				// [k] : infector -> [i] : infectee
-				p2p_mtx[oj][oi] = group_risk(GroupRiskKey::infectivity, indiv_j) *
+				p2p_mtx[oj][oi] = group_risk(GroupRisk::infectivity, indiv_j) *
 								  contact_risk(house, j, i) * sus_i_scl;
 			}
 
@@ -181,7 +183,7 @@ public:
 	}
 
 	/// Compute transmission log-likelihood within household.
-	double compute_house_transm_log_lik(Household &house) override final
+	double compute_house_transm_log_lik(const Household &house) override final
 	{
 		// fill per-individual escape rate matrices
 		fill_house_escape_matrix(house);
@@ -189,10 +191,10 @@ public:
 		return chain_binom::log_likelihood(
 			house.eq_class(),
 			static_cast<unsigned>(house.n_infected_status()),
-			cache_uint(house, HHuintKey::num_parts),
-			cache_uint_vector(house, HHuintvecKey::part_indexes),
-			cache_double_vector(house, HHdoublevecKey::commu_escape_rate),
-			cache_double_matrix(house, HHdoublemtxKey::p2p_escape_rate));
+			cache_uint(house, HHuint::num_parts),
+			cache_uint_vector(house, HHuintvec::part_indexes),
+			cache_double_vector(house, HHdoublevec::commu_escape_rate),
+			cache_double_matrix(house, HHdoublemtx::p2p_escape_rate));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -214,7 +216,7 @@ public:
 		std::vector<size_t> new_gen_set = {};
 
 		for (Individual &indiv : house)
-			if (exponential() > commu_rate * group_risk(GroupRiskKey::community, indiv))
+			if (exponential() > commu_rate * group_risk(GroupRisk::community, indiv))
 				set_escaped(house, indiv);
 			else
 			{
@@ -242,10 +244,10 @@ public:
 
 				double r = 0.;
 				for (size_t j : old_gen_set)
-					r += group_risk(GroupRiskKey::infectivity, house.at(j)) *
+					r += group_risk(GroupRisk::infectivity, house.at(j)) *
 						 contact_risk(house, j, i);
 
-				double sus_i = group_risk(GroupRiskKey::susceptibility, indiv_i);
+				double sus_i = group_risk(GroupRisk::susceptibility, indiv_i);
 				if (exponential() < r * p2p_rate * sus_i)
 				{
 					set_infected(house, indiv_i);

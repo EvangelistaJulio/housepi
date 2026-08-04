@@ -266,12 +266,6 @@ template_def_files <- c(parameter = "param.R",
                         augmented = "augm.R",
                         `infectivity profile` = "infecprof.R")
 
-# Optional helper files
-helper_files <- function(path) {
-  helper_names <- c(unname(template_def_files), "info.Rd")
-  file.path(path, helper_names)
-}
-
 # helper function to deep clone R6 objects
 helper_clone <- function(x) {
   if (is.data.frame(x)) x[TRUE, , drop = FALSE]

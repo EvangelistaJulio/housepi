@@ -709,10 +709,10 @@ add_observation <- function(hhmodel, name = NULL,
 #' @param hhmodel `r rd_model_in_`
 #' @param ... Probabilities of the infected statuses, in order. When named, the
 #' names label the corresponding statuses.
-#' @param dist `character(1)`. Discrete distribution generating the status.
+#' @param model `character(1)`. Discrete distribution generating the status.
 #' @return `r rd_model_out_`
 #' @export
-add_status <- function(hhmodel, ..., dist = "categorical") {
+add_status <- function(hhmodel, ..., model = "categorical") {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -725,7 +725,7 @@ add_status <- function(hhmodel, ..., dist = "categorical") {
   pvt$augm_$add_quo(
     name = ".status", value = NULL, status = NA_integer_,
     const = NA, discr = FALSE,
-    model = dist, weights,
+    model = model, weights,
     .assert = TRUE, .kind = "status"
   )
   # record the ordered status labels (the dictionary lives here, not in C++)

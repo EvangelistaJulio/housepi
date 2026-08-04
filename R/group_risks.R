@@ -644,14 +644,6 @@ HousepiGroupRisk <- R6::R6Class(
     },
 
     #' @description
-    #' Find group risks required by the model.
-    #' @param refer_file Path to reference file.
-    require = function(refer_file) {
-      output <- template_extract_keys(refer_file, "GroupRiskKey")
-      set_source_name_(output, "model")
-    },
-
-    #' @description
     #' Remove a given group_risk definition.
     #' @param name `character(1)`. Name of group risk definition to remove.
     remove = function(name) {

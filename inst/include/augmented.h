@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "tools/dependency.h"
 #include "tools/keys.h"
 #include "tools/logproba.h"
 #include "tools/nan.h"
@@ -106,32 +107,34 @@ namespace housepi
         /// Assign augmented variables to all individuals.
         void build(InfecProfile &infec_profile, const str_table &input);
 
-        /// Set all augmented definitions to empty for all individuals.
+        /// Set definitions to empty for every infected individual.
+        /// NOTE: Used in simulations.
         void clear_all();
-        /// Set individual augmented definitions to empty. Used in simulations.
-        void clear_definitions(Individual &m);
+        /// Set individual definitions to empty.
+        void clear_definitions(const Individual &m);
         /// Initialize augmented variables only if missing.
-        void init_definitions_for_simulation(Individual &m);
-        /// Initialize augmented dependencies and priors.
+        void init_definitions_for_simulation(const Individual &m);
+        /// Initialize augmented dependencies and models.
         /// NOTE: evaluation-only, never run for simulations.
         void init_for_evaluation();
 
-        /// Request discrete augmented definition.
-        void request_discrete(size_t a) { user_discrete_set_.emplace(a); }
+        /// Request augmented keys to return discrete definitions.
+        void request_discrete(std::vector<size_t> vec) { user_discrete_set_.insert(vec.begin(), vec.end()); }
+        /// Declare augmented keys as read by the transmission computation.
+        void request_transmission(std::vector<size_t> vec) { user_transm_set_.insert(vec.begin(), vec.end()); }
 
         /// Sample observation values from their distributions.
         /// NOTE: used for simulations.
-        void sample_obs(Individual &indiv, rnd_gen &prng);
-
-        /// Sample the status observation, if any.
-        /// NOTE: used for simulations.
-        void simulate_infected_status(Household &house, Individual &indiv, rnd_gen &prng);
+        void sample_obs(const Individual &indiv, rnd_gen &prng);
 
         /// Initialize surrogate columns of both levels for simulations.
         void init_house_for_simulation();
-        /// Clear every member's observation Variables of a household before re-sampling.
-        /// FIXME: I don't think I need this anymore
-        void reset_obs_data_for_simulation(Household &house);
+
+        /// Sample the status observation, if any.
+        /// NOTE: used for simulations.
+        void simulate_infected_status(Household &house,
+                                      Individual &indiv,
+                                      rnd_gen &prng);
 
         /// Build the surrogate columns that stand in for data columns and point each
         /// member's read-surface at its Variable before evaluation.
@@ -140,14 +143,14 @@ namespace housepi
         void materialize_surrogate_columns(bool for_export = false);
 
         /// Reset augmented initial values for given individual.
-        void restart(Individual &indiv, rnd_gen &prng)
+        void restart(const Individual &indiv, rnd_gen &prng)
         {
             for (size_t a : list_sample(indiv))
                 varia_of_(indiv).vec[a].restart(prng);
         }
-        /// Draw sampled augmented from their prior for generative simulation;
+        /// Draw sampled augmented from their model for generative simulation;
         /// unlike restart it uses no proposal (simulation builds none).
-        void draw_sample(Individual &indiv, rnd_gen &prng)
+        void draw_sample(const Individual &indiv, rnd_gen &prng)
         {
             for (size_t a : list_sample(indiv))
                 varia_of_(indiv).vec[a].draw_value(prng);
@@ -176,8 +179,8 @@ namespace housepi
         const std::vector<size_t> &list_sample(const Individual &m) const { return block_of_(m).sample; }
         const std::vector<size_t> &list_adaptive(const Individual &m) const { return block_of_(m).adaptive; }
         const std::vector<size_t> &list_draws(const Individual &m) const { return block_of_(m).draws; }
-        const std::vector<size_t> &list_models(const Individual &m) const { return block_of_(m).models; }
-        const std::vector<size_t> &list_obs(const Individual &m) const { return block_of_(m).obs; }
+        const std::vector<size_t> &list_augm_models(const Individual &m) const { return block_of_(m).augm_models; }
+        const std::vector<size_t> &list_obs_models(const Individual &m) const { return block_of_(m).obs_models; }
 
         /// Declare a read-cell for every column a definition produces, so a name
         /// standing in for no imported column resolves like any other data name.
@@ -202,36 +205,38 @@ namespace housepi
         }
 
         /// Compute and store log-likelihood of augmented variables associated to Individual.
-        /// NOTE: to be called only if any prior is defined.
-        double commit_augm_log_lik(Individual &indiv);
+        /// NOTE: to be called only if any augmented model is defined.
+        double commit_augm_log_lik(const Individual &indiv);
         /// Compute and store log-ratio of likelihood of single augmented variable.
-        double commit_augm_log_lik_ratio(Individual &indiv, size_t a);
+        double commit_augm_log_lik_ratio(const Individual &indiv, size_t a);
 
-        /// Whether some other variable reads 'a' as a model parameter (loc/min/max).
+        /// Whether some other variable consumes 'a' as a model parameter (loc/min/max).
         /// If so, moving 'a' shifts their density and the plain value-ratio breaks.
-        bool has_model_dependents(const Individual &m, size_t a) const
+        bool has_model_consumers(const Individual &m, size_t a) const
         {
             return block_of_(m).consumers[a].size() > 1;
         }
-        /// Guarded sum of the priors that 'a' can shift (its model-consumers, incl. 'a').
+        /// Guarded sum of the models that 'a' can shift (its model-consumers, incl. 'a').
         /// NOTE: out-of-support consumers contribute with -Inf.
         double sum_guarded_augm_log_lik(const Individual &m, size_t a) const;
         /// Store the log-ratio of a move of 'a' that shifts its model-consumers' densities.
         /// L_old must be sum_guarded_augm_log_lik() sampled before 'a' was proposed.
-        double commit_augm_log_lik_ratio_dependent(Individual &m, size_t a, double L_old);
+        double commit_augm_log_lik_ratio_with_consumers(const Individual &m,
+                                                        size_t a,
+                                                        double L_old);
 
         /// Compute and store observation log-likelihood of observation nodes.
-        /// NOTE: to be called only if any observation node is defined.
-        double commit_obs_log_lik(Individual &indiv);
+        /// NOTE: to be called only if any observation model is defined.
+        double commit_obs_log_lik(const Individual &indiv);
         /// Compute and store log-ratio of observation node.
-        double commit_obs_log_lik_ratio(Individual &indiv, size_t a);
+        double commit_obs_log_lik_ratio(const Individual &indiv, size_t a);
 
         /// Read-only individual observation log-likelihood.
         /// NOTE: an observation value is a datum, never granted valid: must be guarded.
         double eval_log_obs(const Individual &indiv) const
         {
             double ll = 0.0;
-            for (size_t a : list_obs(indiv))
+            for (size_t a : list_obs_models(indiv))
                 ll += varia_of_(indiv).vec[a].guarded_log_pdf();
             return ll;
         }
@@ -247,44 +252,56 @@ namespace housepi
         bool is_any_sample() const noexcept { return is_any_sample_; }
         /// If there are augmented definitions with an adaptive proposal.
         bool is_any_adaptive() const noexcept { return is_any_adaptive_; }
-        /// If there are augmented definitions with a prior.
-        bool is_any_model() const noexcept { return is_any_model_; }
-        /// If moving given parameter may change the augmented model.
-        bool param_affects_augm_model(size_t p) const noexcept { return model_param_depen_[p]; }
-        /// If there are definitions for observations.
-        bool is_any_obs() const noexcept { return is_any_obs_; }
+        /// If any augmented latent carries a model density.
+        bool is_any_augm_model() const noexcept { return is_any_augm_model_; }
+        /// If any observation carries a model density.
+        bool is_any_obs_model() const noexcept { return is_any_obs_model_; }
+        /// If any member-level observation column is produced, model-carrying or deterministic.
+        bool is_any_obs_node() const noexcept { return !list_obs_member.empty(); }
         /// If a status observation is defined.
         bool is_any_status_obs() const noexcept { return !na::is(status_obs_def_); }
         /// Whether the given name is an member-level observation node.
         bool is_member_obs(const std::string &name) const noexcept;
         /// Whether the given name is a household-level observation.
         bool is_house_obs(const std::string &name) const noexcept;
+        /// Whether definitions imply a unique household equivalence-class.
+        bool is_unique_eq_class() const noexcept
+        {
+            return is_any_sample() || is_any_augm_model() || is_any_obs_node();
+        }
+
+        /// If moving given parameter may change the augmented log-likelihood.
+        bool param_produces_augm_log_lik(size_t p) const noexcept { return param_produces_augm_ll_[p]; }
         /// If moving given parameter may change the observation log-likelihood.
-        bool param_affects_obs_log_lik(size_t p) const noexcept { return obs_param_depen_[p]; }
+        bool param_produces_obs_log_lik(size_t p) const noexcept { return param_produces_obs_ll_[p]; }
+        /// Whether moving augmented 'a' affects transmission log-likelihood.
+        bool produces_transm(const Individual &m, size_t a) const { return block_of_(m).produces_transm[a]; }
         /// If moving augmented 'a' for this member parameterizes any obs node.
-        bool affects_obs(const Individual &m, size_t a) const { return !block_of_(m).obs_depen[a].empty(); }
+        bool produces_obs(const Individual &m, size_t a) const { return !block_of_(m).obs_consumers[a].empty(); }
 
     private:
-        MCMCBase *mcmc_;               /// pointer to owning MCMCBase // UPDATE drop
-        bool is_any_sample_ = false;   /// at least one augmented is to sample
-        bool is_any_adaptive_ = false; /// at least one augmented has adaptive proposal
-        bool is_any_model_ = false;    /// at least one augmented model is provided
-        bool is_any_obs_ = false;      /// at least one observation node is provided
+        MCMCBase *mcmc_;                 /// pointer to owning MCMCBase // UPDATE drop
+        bool is_any_sample_ = false;     /// at least one augmented is to sample
+        bool is_any_adaptive_ = false;   /// at least one augmented has adaptive proposal
+        bool is_any_augm_model_ = false; /// at least one augmented latent carries a model
+        bool is_any_obs_model_ = false;  /// at least one observation carries a model
 
         size_t status_obs_def_ = na::INDEX; /// deftable row of status observation
         size_t status_obs_key_ = na::INDEX; /// key-holder slot of status observation
 
         /// User defined discrete parameters
         std::unordered_set<size_t> user_discrete_set_ = {};
+        /// Model declared augmented keys read by the transmission computation.
+        std::unordered_set<size_t> user_transm_set_ = {};
         /// Status to definition row.
         std::unordered_map<int, std::vector<size_t>> map_status_to_def_row_ = {};
         /// Status to internal index.
         std::unordered_map<int, size_t> map_status_to_block_ = {};
 
-        /// Parameters whose moves can change the augmented log-likelihood.
-        std::vector<bool> model_param_depen_ = {};
-        /// Parameters whose moves can change the observation log-likelihood.
-        std::vector<bool> obs_param_depen_ = {};
+        /// Parameter -> whether an augmented model consumes it, so its moves shift the density.
+        std::vector<bool> param_produces_augm_ll_ = {};
+        /// Parameter -> whether an observation consumes it, through its model or a latent value.
+        std::vector<bool> param_produces_obs_ll_ = {};
 
         /// Auxiliary definition table.
         struct DefTable_
@@ -293,10 +310,13 @@ namespace housepi
             col c_name = {}, c_status = {};
             col c_func = {}, c_fcumul = {};
             col c_value = {}, c_const = {}, c_discr = {};
-            col c_prior = {}, c_min = {}, c_max = {};
+            col c_model = {}, c_min = {}, c_max = {};
             col c_proposal = {};
-            std::vector<Kind> c_kind = {}; /// augm | member | house | status
+            /// augm | member | house | status
+            std::vector<Kind> c_kind = {};
 
+            /// Whether the table is empty.
+            bool empty() const noexcept { return c_name.empty(); }
             /// Clear all definitions.
             void clear();
             /// Append definitions to current table.
@@ -304,11 +324,11 @@ namespace housepi
             /// Columns presenting definitions possibly containing sources.
             std::vector<const col *> source_cols() const
             {
-                return {&c_value, &c_prior, &c_func, &c_min, &c_max};
+                return {&c_value, &c_model, &c_func, &c_min, &c_max};
             }
         } deftable_;
 
-        /// Auxiliary block for status-specific priors.
+        /// Auxiliary block for status-specific models.
         struct StatusBlock_
         {
             StatusBlock_(int status_) { status = status_; }
@@ -317,15 +337,19 @@ namespace housepi
 
             std::vector<size_t> order = {}; /// definition order as in the deftable
 
-            std::vector<size_t> models = {};   /// keys for augmented-model densities
-            std::vector<size_t> sample = {};   /// keys for sample
-            std::vector<size_t> adaptive = {}; /// keys for adaptive (subset of sample)
-            std::vector<size_t> draws = {};    /// keys for draws
-            /// key -> key and its transitive consumers
+            std::vector<size_t> augm_models = {}; /// keys for augmented-model densities
+            std::vector<size_t> sample = {};      /// keys for sample
+            std::vector<size_t> adaptive = {};    /// keys for adaptive (subset of sample)
+            std::vector<size_t> draws = {};       /// keys for draws
+            /// key -> the key and its transitive consumers, producer before consumer
             std::vector<std::vector<size_t>> consumers = {};
 
-            std::vector<size_t> obs = {};                    /// keys for observation nodes
-            std::vector<std::vector<size_t>> obs_depen = {}; /// latent key -> obs nodes conditioned on it
+            std::vector<size_t> obs_models = {}; /// keys for observation-model densities
+            /// key -> the obs nodes that transitively consume it, itself excluded
+            std::vector<std::vector<size_t>> obs_consumers = {};
+
+            /// key -> whether transmission consumes it, directly or through intermediaries
+            std::vector<bool> produces_transm = {};
         };
         std::vector<StatusBlock_> status_blocks_;
 
@@ -336,38 +360,40 @@ namespace housepi
         StatusBlock_ &block_at_(int status) { return status_blocks_[map_status_to_block_.at(status)]; }
         const StatusBlock_ &block_of_(const Individual &m) const { return status_blocks_[varia_of_(m).idx]; }
 
+        // Restore internal list and flags definitions.
+        void build_restore_internal_();
         /// Check augmented names and assert no reserved names are used.
-        void helper_build_assert_input_(const str_table &input);
+        void build_assert_input_(const str_table &input);
+        /// Eventually append infectivity profile definitions.
+        void build_append_profile_(InfecProfile &infec_profile);
 
         /// Collect parameters feeding any augmented model. Infectivity profile excluded.
         /// NOTE: call once parameters are registered, i.e. from init_for_evaluation.
-        /// NOTE: prior parameters may be registered after the augmented definitions.
-        void set_model_param_depen_();
-
-        /// Eventually append infectivity profile definitions.
-        void helper_build_append_(InfecProfile &infec_profile);
+        /// NOTE: model parameters may be registered after the augmented definitions.
+        void set_param_producer_lists_();
 
         /// Assert augmented status/generic definitions are non degenerate.
         /// Assert status-specific definitions are only for infected status.
         /// NOTE: generic definitions are associated to MISSING status.
-        void helper_build_definition_by_status_();
+        void build_definition_by_status_();
 
         /// Deal with the definition 'k' of augmented to be sampled (const = FALSE).
         /// NOTE: this assume definitions are univocal and status correct.
-        void helper_build_set_allocation_order_();
+        void build_set_allocation_order_();
 
         /// Build the augmented producer graph (name -> the @A names it reads across
         /// all source columns) for the given definition rows.
-        str_table build_augm_graph_(const std::vector<size_t> &rows) const;
+        dpdcy::prod_graph build_producer_graph_(const std::vector<size_t> &rows) const;
 
         /// Reject a read of an augmented name absent from the 'status' graph, telling
         /// apart a name declared for other statuses from a data column or a parameter
         /// of the same name (an unsuffixed name is read as augmented).
-        void assert_augm_depen_declared_(const str_table &graph, int status) const;
+        void assert_producers_declared_(const dpdcy::prod_graph &graph,
+                                        int status) const;
 
-        /// Set dependencies ordering for ininitializiation fo given status.
-        /// At the same time assert that definition are complet and acyclic.
-        void set_definition_dependency_order_for_(int status, int err_status);
+        /// Order the definitions of given status, producer before consumer.
+        /// At the same time assert that definitions are complete and acyclic.
+        void set_definition_order_for_(int status, int err_status);
         /// Extract status-specific definitions row indexes.
         std::vector<size_t> get_unsorted_definition_rows_(int status) const;
         /// Set sample and draws list for given status.
@@ -378,31 +404,38 @@ namespace housepi
         /// Inspect if constant definition.
         std::pair<bool, bool> set_sample_list_for_function_(int status, size_t k);
 
-        /// Deal with the definition of augmented variable with a prior.
-        /// NOTE: process priors only for posterior sampling, not simulations.
-        void helper_init_model_list_();
-        /// Return dictionary of ordered models.
-        str_table get_ordered_models_(const StatusBlock_ &block) const;
+        /// Deal with the definition of augmented variable with a model.
+        /// Fills StatusBlock_::consumers, i.e. keyed by producer.
+        /// NOTE: process models only for posterior sampling, not simulations.
+        void init_model_list_();
+        /// Model name -> its transitive consumers among the other model nodes.
+        str_table get_model_consumers_(const StatusBlock_ &block) const;
 
         /// Deal with observation definitions.
-        /// Build per-status obs lists and augmented inverse-dependency map.
-        void helper_init_observation_list_();
+        /// Fills StatusBlock_::obs_consumers, i.e. keyed by producer.
+        void init_observation_list_();
+
+        /// Mark the augmented keys the transmission side consumes, per status.
+        /// NOTE: follows model request.
+        void init_transm_producers_();
 
         /// Assert status observation as correct dependency and output.
         void assert_status_obs_consistent_();
 
         /// Order and classify the surrogate columns of both levels into list_surrogate,
         /// and collect the household ones into list_obs_house.
-        void helper_init_surrogate_list_();
-        /// Whether definition row 'k' is a surrogate column materialized from data.
-        bool is_surrogate_(size_t k) const noexcept;
+        void init_surrogate_list_();
         /// Build the Variable of a surrogate column over a house, wiring the cells it
         /// stands in for. Household level reduces over the members, member level
         /// assigns one Variable per member. Evaluation fixes the value it settles on.
         // NOTE: assume every surrogate column is registered as a data key
-        void build_surrogate_column_(const Surrogate &surr, Household &house, bool for_evaluation);
+        void build_surrogate_column_(const Surrogate &surr,
+                                     const Household &house,
+                                     bool for_evaluation);
         /// Assert a surrogate value honours what the model requires of the column.
-        void assert_surrogate_datum_requirements_(size_t d, double v, const std::string &name,
+        void assert_surrogate_datum_requirements_(size_t d,
+                                                  double v,
+                                                  const std::string &name,
                                                   const Household &house) const;
         /// Whether definition row 'k' references only data and numeric sources.
         bool def_is_pure_data_(size_t k) const;
@@ -411,31 +444,38 @@ namespace housepi
 
         /// Reject an augmented variable that reads a live data-bound household observation.
         void assert_no_live_house_obs_cycle_() const;
-        /// Reject a definition whose prior reads an observation column.
+        /// Reject a definition whose model reads an observation column.
         void assert_no_obs_entry_collision_() const;
-        /// Reject a simulation override (value + prior) that reads an augmented variable
+        /// Reject a simulation override (value + model) that reads an augmented variable
         /// or observation: it must resolve from data or parameters at draw time.
-        void assert_no_sim_override_forward_dep_() const;
+        void assert_no_sim_override_latent_read_() const;
 
         /// Get the definition order for current member according to its status.
         /// NOTE: if status hasn't been observed in data, build on demand.
-        std::vector<size_t> helper_materialize_definition_order_(Individual &indiv);
-        /// Assign prior arguments and range. Same for function, otherwise assign proposer.
+        std::vector<size_t> helper_materialize_definition_order_(const Individual &indiv);
+        /// Assign model arguments and range. Same for function, otherwise assign proposer.
         /// NOTE: a Variable must already be allocated.
         /// NOTE: observations are generated by simulations.
-        void helper_init_attributes_(Individual &indiv, size_t k, bool simulation = false);
+        void helper_init_attributes_(const Individual &indiv,
+                                     size_t k,
+                                     bool simulation = false);
         /// Assign attributes to augmented model.
-        void helper_init_distr_attributes_(Individual &indiv, size_t k);
+        void helper_init_distr_attributes_(const Individual &indiv,
+                                           size_t k);
         /// Build the Variable of definition row 'k' on 'anchor'. Its level selects the
         /// operand policy: a household row reduces over the members of 'house', any other
         /// row binds every operand to 'anchor' alone and needs no household.
-        void build_definition_variable_(Variable &var, size_t k,
-                                        Individual &anchor, Household *house);
+        void build_definition_variable_(Variable &var,
+                                        size_t k,
+                                        const Individual &anchor,
+                                        const Household *house);
         /// Fold a household-level definition into a reduction over 'house': a per-member
         /// data cell unfolds into one operand each, any other operand contributes once
         /// from 'anchor'. Empty cells drop out (na.rm convention).
         /// Return whether the reduction holds any operand.
-        bool bind_house_reduction_(Variable &var, const parse::Entry &root,
-                                   Household &house, Individual &anchor);
+        bool bind_house_reduction_(Variable &var,
+                                   const parse::Entry &root,
+                                   const Household &house,
+                                   const Individual &anchor);
     };
 }

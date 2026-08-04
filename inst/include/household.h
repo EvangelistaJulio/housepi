@@ -44,17 +44,16 @@ namespace housepi
 		};
 
 		/// Auxiliary iterator for individuals with same status.
-		template <class HouseT, class IndivT>
-		struct IndivRange_
+		struct ConstIndivRange_
 		{
-			HouseT *house_;
+			const Household *house_;
 			const MemberIndex *data_;
 			size_t size_;
 			struct Iterator_
 			{
-				HouseT *house_;
+				const Household *house_;
 				const MemberIndex *ptr_;
-				IndivT &operator*() const noexcept { return house_->indivs_[*ptr_]; }
+				const Individual &operator*() const noexcept { return house_->indivs_[*ptr_]; }
 				Iterator_ &operator++() noexcept
 				{
 					++ptr_;
@@ -66,11 +65,8 @@ namespace housepi
 			Iterator_ end() const noexcept { return {house_, data_ + size_}; }
 			size_t size() const noexcept { return size_; }
 			bool empty() const noexcept { return size_ == 0; }
-			IndivT &operator[](size_t k) const noexcept { return house_->indivs_[data_[k]]; }
+			const Individual &operator[](size_t k) const noexcept { return house_->indivs_[data_[k]]; }
 		};
-
-		using MutIndivRange_ = IndivRange_<Household, Individual>;
-		using ConstIndivRange_ = IndivRange_<const Household, const Individual>;
 
 	public:
 		//////////////////////
@@ -96,13 +92,10 @@ namespace housepi
 		MemberRange_ missing_members() const noexcept { return {status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 
 		/// Iterator for individuals with infected status.
-		MutIndivRange_ infected_indivs() noexcept { return {this, status_vec_.data(), ninf_}; }
 		ConstIndivRange_ infected_indivs() const noexcept { return {this, status_vec_.data(), ninf_}; }
 		/// Iterator for individuals with escaped status.
-		MutIndivRange_ escaped_indivs() noexcept { return {this, status_vec_.data() + ninf_, nsus_}; }
 		ConstIndivRange_ escaped_indivs() const noexcept { return {this, status_vec_.data() + ninf_, nsus_}; }
 		/// Iterator for individuals with missing status.
-		MutIndivRange_ missing_indivs() noexcept { return {this, status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 		ConstIndivRange_ missing_indivs() const noexcept { return {this, status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 
 		/// Number of members with infected status.

@@ -42,30 +42,34 @@ class Model : public ModelBase
 {
 public:
     /// Model specific registries of mandatory definitions
-    HOUSEPI_DECLARE_REGISTER_KEYS(AugmKey, proba)
-    HOUSEPI_DECLARE_EMPTY_KEYS(DataKey)
-    HOUSEPI_DECLARE_EMPTY_KEYS(LongKey)
-    HOUSEPI_DECLARE_EMPTY_KEYS(GroupRiskKey)
-    HOUSEPI_DECLARE_EMPTY_KEYS(HHuintKey)
-    HOUSEPI_DECLARE_EMPTY_KEYS(HHuintvecKey)
-    HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevecKey)
-    HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtxKey)
-    HOUSEPI_DECLARE_REGISTER_KEYS(ParamKey, alpha)
+    HOUSEPI_DECLARE_REGISTER_KEYS(Augm, proba)
+    HOUSEPI_DECLARE_EMPTY_KEYS(Data)
+    HOUSEPI_DECLARE_EMPTY_KEYS(Long)
+    HOUSEPI_DECLARE_EMPTY_KEYS(GroupRisk)
+    HOUSEPI_DECLARE_EMPTY_KEYS(HHuint)
+    HOUSEPI_DECLARE_EMPTY_KEYS(HHuintvec)
+    HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevec)
+    HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtx)
+    HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha)
 
     /// Compute the log-likelihood within household.
-    double compute_house_transm_log_lik(Household &house) override final
+    double compute_house_transm_log_lik(const Household &house) override final
     {
-        double output = -ParamKey::alpha;
+        double output = -Param::alpha;
         for (const Individual &indiv : house.infected_indivs())
-            output += std::log(aug(AugmKey::proba, indiv));
+            output += std::log(aug(Augm::proba, indiv));
         return output;
     }
 
     /// Augmented variable initialization.
     void simulate_single_house(Household &house) override final
     {
-        for (Individual &indiv : house.infected_indivs())
-            init_missing_augm(indiv);
+		for (size_t i = 0; i < house.size(); ++i)
+		{
+			Individual &indiv = house.at(i);
+			if (indiv.is_infected_status())
+				init_missing_augm(indiv);
+		}
     }
 };
 

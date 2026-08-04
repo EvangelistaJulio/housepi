@@ -48,13 +48,13 @@ namespace housepi
     };
 
     /// Accumulator for log-densities computations.
-    struct LogProbaAccumulator
+    struct LogLikAccumulator
     {
         double obs_ll = 0.;    /// observation
         double transm_ll = 0.; /// transmission
         double augm_ll = 0.;   /// augmented
 
-        LogProbaAccumulator &operator+=(const LogProbaAccumulator &other) noexcept
+        LogLikAccumulator &operator+=(const LogLikAccumulator &other) noexcept
         {
             obs_ll += other.obs_ll;
             transm_ll += other.transm_ll;

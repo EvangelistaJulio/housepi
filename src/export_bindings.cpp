@@ -544,7 +544,7 @@ namespace
             try
             {
                 engine.augm.materialize_surrogate_columns(true);
-                engine.data_wide().finalize_cells();
+                engine.data_wide().finalize();
             }
             catch (const std::exception &)
             {
@@ -1071,7 +1071,7 @@ namespace
             Rcpp::_["max"] = infprof_max);
     }
 
-    Rcpp::DataFrame helper_augm_log_prior_rcpp_snapshot(
+    Rcpp::DataFrame helper_augm_log_lik_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
@@ -1166,7 +1166,7 @@ namespace
                 Rcpp::_["contact_risk"] = helper_contact_risks_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["augm_log_prior"] = helper_augm_log_prior_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["augm_log_lik"] = helper_augm_log_lik_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["transm_log_lik"] = mcmc_ptr->data_wide().transm_log_lik(house).value());
         }
         catch (const std::exception &e)
@@ -1198,11 +1198,6 @@ namespace
                     try
                     {
                         Household &house = data_wide.at(H);
-
-                        // clean slate for the live observation Variables (static
-                        // household observations were built once at house init).
-                        if (augm.is_any_obs())
-                            engine.augm.reset_obs_data_for_simulation(house);
 
                         engine.model->simulate_single_house(house);
 
@@ -1436,24 +1431,18 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MAKE_EXPORT_CHARACTER_VECTOR(method)                                \
-    Rcpp::CharacterVector method(Rcpp::XPtr<housepi::ModelBase> model_xptr) \
-    {                                                                       \
-        return Rcpp::wrap(model_xptr->method());                            \
+/// Keys the model declares through HOUSEPI_DECLARE_REGISTER_KEYS.
+#define MAKE_EXPORT_CHARACTER_VECTOR(method)                         \
+    Rcpp::CharacterVector method(Rcpp::XPtr<housepi::MCMC> mcmc_ptr) \
+    {                                                                \
+        return Rcpp::wrap(mcmc_ptr->model->method());                \
     }
 
-    MAKE_EXPORT_CHARACTER_VECTOR(get_DataKey)
-    MAKE_EXPORT_CHARACTER_VECTOR(get_LongKey)
-    MAKE_EXPORT_CHARACTER_VECTOR(get_ParamKey)
-    MAKE_EXPORT_CHARACTER_VECTOR(get_GroupRiskKey)
-    MAKE_EXPORT_CHARACTER_VECTOR(get_AugmKey)
-
-    // UPDATE: I am just using this to check flags
-    Rcpp::XPtr<ModelBase> new_model(std::string module_name)
-    {
-        auto model = housepi::ModelRegistry::instance().create(module_name);
-        return Rcpp::XPtr<ModelBase>(model.release(), true);
-    }
+    MAKE_EXPORT_CHARACTER_VECTOR(key_Data)
+    MAKE_EXPORT_CHARACTER_VECTOR(key_Long)
+    MAKE_EXPORT_CHARACTER_VECTOR(key_Param)
+    MAKE_EXPORT_CHARACTER_VECTOR(key_GroupRisk)
+    MAKE_EXPORT_CHARACTER_VECTOR(key_Augm)
 
     Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
     {
@@ -1641,11 +1630,11 @@ RCPP_MODULE(housepi)
     Rcpp::function("list_distributions", &list_options_<ExposeDistribution>);
     Rcpp::function("list_infec_profiles", &list_options_<ExposeInfecProfile>);
 
-    Rcpp::function("get_DataKey", &get_DataKey);
-    Rcpp::function("get_LongKey", &get_LongKey);
-    Rcpp::function("get_ParamKey", &get_ParamKey);
-    Rcpp::function("get_GroupRiskKey", &get_GroupRiskKey);
-    Rcpp::function("get_AugmKey", &get_AugmKey);
+    Rcpp::function("key_Data", &key_Data);
+    Rcpp::function("key_Long", &key_Long);
+    Rcpp::function("key_Param", &key_Param);
+    Rcpp::function("key_GroupRisk", &key_GroupRisk);
+    Rcpp::function("key_Augm", &key_Augm);
 
     Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
     Rcpp::function("measure_ar_by_hhsize", &measure_ar_by_hhsize);
@@ -1654,7 +1643,6 @@ RCPP_MODULE(housepi)
 
     Rcpp::function("aux_chain_binomial_debugger", &housepi::chain_binom::aux_debugger);
 
-    Rcpp::function("new_model", &new_model);
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
     Rcpp::function("run_simulation", &run_simulation);

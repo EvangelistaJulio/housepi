@@ -115,7 +115,7 @@ namespace housepi
 
         /// If infectivity profile is a lookup table, store its values.
         /// NOTE: infectivity is set to 0 on day 0.
-        void update()
+        void update_cache()
         {
             switch (mode_)
             {

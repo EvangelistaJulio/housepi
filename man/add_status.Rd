@@ -4,7 +4,7 @@
 \alias{add_status}
 \title{Add a status process}
 \usage{
-add_status(hhmodel, ..., dist = "categorical")
+add_status(hhmodel, ..., model = "categorical")
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
@@ -12,7 +12,7 @@ add_status(hhmodel, ..., dist = "categorical")
 \item{...}{Probabilities of the infected statuses, in order. When named, the
 names label the corresponding statuses.}
 
-\item{dist}{\code{character(1)}. Discrete distribution generating the status.}
+\item{model}{\code{character(1)}. Discrete distribution generating the status.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

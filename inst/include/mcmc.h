@@ -79,18 +79,16 @@ namespace housepi
 
 		/// Compute total log-posterior. Store all old values.
 		/// Result is left in tot_obs_log_lik, tot_transm_log_lik, tot_augm_log_lik.
-		/// NOTE: with_augm_model / with_obs skip the respective re-evaluation.
-		void commit_total_log_posterior_(bool is_cache_depen,
-										 bool with_augm_model = true,
-										 bool with_obs = true);
+		/// NOTE: with_augm_ll / with_obs_ll run respective re-evaluations.
+		void commit_total_log_posterior_(bool with_cache,
+										 bool with_augm_ll = true,
+										 bool with_obs_ll = true);
 		/// Commit single household's posterior contribution.
-		LogProbaAccumulator commit_house_log_posterior_(Household &house,
-														bool is_cache_depen,
-														bool with_augm_model,
-														bool with_obs);
+		LogLikAccumulator commit_house_log_posterior_(const Household &house,
+													  bool with_cache,
+													  bool with_augm_ll,
+													  bool with_obs_ll);
 		/// Recompute and store the total augmented log-likelihood across all households.
-		/// Used at inverse temperature 0, where a parameter move targets the prior only.
-		/// Returns the log-ratio of the new over the old total augmented log-likelihood.
 		double commit_total_augm_log_lik_ratio_();
 		/// Recover the total augmented log-likelihood after a refused prior-only move.
 		void recover_total_augm_log_lik_();
@@ -99,22 +97,22 @@ namespace housepi
 		/// Assert for finite initial value and mechanisms to recover in place.
 		void init_guarded_commit_total_();
 		/// Single household's guarded contribution.
-		LogProbaAccumulator init_guarded_commit_house_(Household &house);
+		LogLikAccumulator init_guarded_commit_house_(Household &house);
 
 		/// Compute and store log-ratio of prior of single augmented variable.
-		double commit_augm_log_lik_ratio(Individual &indiv, size_t a)
+		double commit_augm_log_lik_ratio(const Individual &indiv, size_t a)
 		{
 			return augm.commit_augm_log_lik_ratio(indiv, a);
 		}
 
 		/// Compute and store log-ratio of observation nodes parameterized by 'a'.
-		double commit_obs_log_lik_ratio(Individual &indiv, size_t a)
+		double commit_obs_log_lik_ratio(const Individual &indiv, size_t a)
 		{
 			return augm.commit_obs_log_lik_ratio(indiv, a);
 		}
 
 		/// Compute and set value of observation log-likelihood. Return log-like.
-		double commit_transm_log_lik_(Household &house)
+		double commit_transm_log_lik_(const Household &house)
 		{
 			double output = model->compute_house_transm_log_lik(house);
 			data_wide().transm_log_lik(house).set(output);
@@ -122,7 +120,7 @@ namespace housepi
 		}
 
 		/// Compute and set value of observation log-likelihood. Return log-like ratio.
-		double commit_transm_log_lik_ratio_(Household &house)
+		double commit_transm_log_lik_ratio_(const Household &house)
 		{
 			double output = -data_wide().transm_log_lik(house).value();
 			output += commit_transm_log_lik_(house);
@@ -158,7 +156,7 @@ namespace housepi
 		void move_all_();
 		/// Attempt to move a single parameter.
 		template <bool Beta0>
-		void move_single_parameter_(size_t p, bool is_cache_depen);
+		void move_single_parameter_(size_t p, bool with_cache);
 		/// Move augmented variables of all infected individuals.
 		template <bool Beta0>
 		void move_all_augm_();
@@ -166,11 +164,13 @@ namespace housepi
 		/// The move is performed one member at a time, one augmented variable at a time.
 		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
 		template <bool Beta0>
-		LogProbaAccumulator move_augm_single_house_(size_t H);
+		LogLikAccumulator move_augm_single_house_(size_t H);
 		/// Move a single augmented variable.
 		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
 		template <bool Beta0>
-		LogProbaAccumulator move_augm_single_variable_(Household &house, Individual &indiv, size_t a);
+		LogLikAccumulator move_augm_single_variable_(const Household &house,
+													 const Individual &indiv,
+													 size_t a);
 
 		/// Power posteriors at 0 inverse temperature.
 		void power_post_zero_(PowerLadder &ladder);

@@ -90,7 +90,6 @@ test_that("Active fields expose state", {
   expect_equal(hhgen$raw_name, "test")
   expect_equal(hhgen$name, "test")
   expect_true(dir.exists(hhgen$source_dir))
-  expect_identical(hhgen$last_flags, character())
   expect_identical(hhgen$cols_data_wide, character())
   expect_null(hhgen$info_data_wide)
   expect_identical(hhgen$infec_status_set, integer())
@@ -99,21 +98,30 @@ test_that("Active fields expose state", {
   expect_false(is.null(hhgen$mcmc_ptr))
 })
 
-test_that("get_reference points to the model source", {
-  hhgen <- HousepiGenerator$new("test")
-  ref <- hhgen$get_reference()
-  expect_true(file.exists(ref))
-  expect_equal(basename(ref), "model.cpp")
-})
-
-test_that("data_required reflects the underlying template", {
+test_that("required keys reflect the underlying template", {
   test_gen <- HousepiGenerator$new("test")
   test_gen$data_required |>
     expect_length(0L)
+  test_gen$group_risks_required |>
+    expect_length(0L)
+  test_gen$augm_required |>
+    expect_length(0L)
 
   ait_gen <- HousepiGenerator$new("case ascertained")
-  expect_true("start_date" %in% ait_gen$data_required)
-  expect_true("end_date" %in% ait_gen$data_required)
+  ait_gen$data_required |>
+    expect_setequal(c("start_date", "end_date"))
+  ait_gen$param_required |>
+    expect_setequal(c("alpha", "beta", "gamma", "hhsize_ref"))
+  ait_gen$group_risks_required |>
+    expect_setequal(c("community", "susceptibility", "infectivity"))
+  ait_gen$augm_required |>
+    expect_setequal("infec_time")
+
+  # every entry is tagged as coming from the transmission model
+  ait_gen$param_required |>
+    names() |>
+    unique() |>
+    expect_equal("model")
 })
 
 test_that("factorize_data_wide behaves as expected", {
@@ -213,19 +221,6 @@ test_that("custom model directory without model.cpp is rejected", {
   HousepiGenerator$new(path) |>
     expect_error("outer_heaven.*was not found")
 })
-
-test_that("an error is raised when tracked referen is lost", {
-  dest <- tempfile("solid_snake_")
-  on.exit(unlink(dest, recursive = TRUE), add = TRUE)
-
-  browse_templates("final_size", path = dest)
-  hhgen <- HousepiGenerator$new(dest, quiet = TRUE)
-  unlink(hhgen$get_reference())
-
-  hhgen$data_required |>
-    expect_error("[Ii]mpossible to find reference file")
-})
-
 
 test_that("init_pointers is a no-op when pointers already exist", {
   hhgen <- HousepiGenerator$new("test")

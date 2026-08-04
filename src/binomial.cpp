@@ -597,7 +597,8 @@ namespace housepi::chain_binom
             }
         }
 
-        // topological sort: |v|_1 ascending, lex as tiebreak
+        // linear extension of the componentwise order:
+        // |v|_1 ascending, lex as tiebreak
         std::sort(sub_vecs.begin(), sub_vecs.end(),
                   [](const vector<unsigned> &a, const vector<unsigned> &b)
                   {

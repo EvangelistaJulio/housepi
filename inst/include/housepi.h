@@ -28,7 +28,7 @@
     {                                 \
     };                                \
                                       \
-    const std::vector<std::string> get_##T() const override final { return {}; }
+    const std::vector<std::string> key_##T() const override final { return {}; }
 
 #define HOUSEPI_DECLARE_REGISTER_KEYS(T, ...)                     \
     struct T                                                      \
@@ -39,7 +39,7 @@
         };                                                        \
     };                                                            \
                                                                   \
-    const std::vector<std::string> get_##T() const override final \
+    const std::vector<std::string> key_##T() const override final \
     {                                                             \
         return housepi::read::helper_parse_names(#__VA_ARGS__);   \
     }

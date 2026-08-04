@@ -47,7 +47,7 @@ namespace housepi::parse
         std::string type;            /// terminal type
         std::string value;           /// terminal value
         bool is_bracketed = false;   /// wheter node was wrapped in []
-        std::vector<Entry> children; /// children if function node
+        std::vector<Entry> children; /// arguments of a function node.
 
         Entry() = default;
         explicit Entry(const std::string &value_, const std::string &type_);
@@ -67,10 +67,10 @@ namespace housepi::parse
         /// Wheter is implicitely callable on argument 'point'.
         bool is_callable_implicitly(std::string_view point) const noexcept;
 
-        /// List of dependencies per type contained in current and children definitions.
-        void append_augmented_depen(std::vector<std::string> &stack) const;
-        void append_data_wide_depen(std::vector<std::string> &stack) const;
-        void append_parameter_depen(std::vector<std::string> &stack) const;
+        /// Append producer names of a given type, consumed by this node and its arguments.
+        void append_augmented_producers(std::vector<std::string> &stack) const;
+        void append_data_wide_producers(std::vector<std::string> &stack) const;
+        void append_parameter_producers(std::vector<std::string> &stack) const;
     };
 
     /// Abstract Syntax Tree (AST) for parsing definitions of functions.
@@ -89,14 +89,14 @@ namespace housepi::parse
         /// Wheter is implicitely callable.
         bool is_callable_implicitly(std::string_view point) const noexcept { return root.is_callable_implicitly(point); }
 
-        /// List of dependencies per type contained in currenet definition.
-        std::vector<std::string> list_augmented_depen() const;
-        std::vector<std::string> list_data_wide_depen() const;
-        std::vector<std::string> list_parameter_depen() const;
+        /// Names of the given type this definition consumes, i.e. its producers.
+        std::vector<std::string> list_augmented_producers() const;
+        std::vector<std::string> list_data_wide_producers() const;
+        std::vector<std::string> list_parameter_producers() const;
 
-        /// Wheter there is any dependency on augmented, data, or parameters.
-        bool is_augmented_depen() const { return !list_augmented_depen().empty(); }
-        bool is_data_wide_depen() const { return !list_data_wide_depen().empty(); }
-        bool is_parameter_depen() const { return !list_parameter_depen().empty(); }
+        /// Wheter this definition consumes any augmented, data, or parameter name.
+        bool consumes_augmented() const { return !list_augmented_producers().empty(); }
+        bool consumes_data_wide() const { return !list_data_wide_producers().empty(); }
+        bool consumes_parameter() const { return !list_parameter_producers().empty(); }
     };
 }

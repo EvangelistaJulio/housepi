@@ -191,15 +191,3 @@ test_that("Template name normalization", {
   result2 <- find_closest_template_name("")
   expect_true(any(grepl("browse_templates", result2)))
 })
-
-test_that("Template extract keys from model.cpp", {
-  model_dir <- get_template_dir("final_size")
-  model_cpp <- file.path(model_dir, "model.cpp")
-  # DataKey should return empty character vector
-  result <- template_extract_keys(model_cpp, "DataKey")
-  expect_true(is.character(result))
-
-  # non-existent key returns empty
-  template_extract_keys(model_cpp, "Raiden") |>
-    expect_equal(character(0))
-})

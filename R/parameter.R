@@ -55,13 +55,6 @@ HousepiParameter <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Find parameters required by model.
-    #' @param refer_file Path to reference file.
-    require = function(refer_file) {
-      set_source_name_(template_extract_keys(refer_file, "ParamKey"),
-                       "model")
-    },
-
     #' @description Remove a given parameter.
     #' @param name `character(1)`. Parameter definition to remove.
     remove = function(name) {

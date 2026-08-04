@@ -11,6 +11,8 @@
 #include <unordered_set>
 #include <vector>
 
+// UPDATE: these operators should be cleaned with a proper namespace...
+
 /// (+= overload) Concatenate containers.
 template <typename T>
 std::vector<T> &operator+=(std::vector<T> &x, const std::vector<T> &y)

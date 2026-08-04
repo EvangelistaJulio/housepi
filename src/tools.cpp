@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "tools/dependency.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
@@ -430,77 +431,78 @@ namespace housepi::read
 
 namespace housepi::dpdcy
 {
-    /// Node word displayed in errors (e.g. "augmented definition").
-    std::string node_word_(ErrType type) { return err_type_name(type) + " definition"; }
-
     void walk_graph(const std::string &entry,
-                    const str_table &graph,
+                    const prod_graph &graph,
                     std::vector<std::string> &visited,
                     std::vector<std::string> &recursion_stack,
                     std::vector<std::string> &ordered,
-                    ErrType type)
+                    ErrType err)
     {
         if (!graph.count(entry))
             msg::stop(
-                "Could not find the " + node_word_(type) + " " + msg::val(entry) + ".");
+                "Could not find the " + err_type_name(err) +
+                " definition " + msg::val(entry) + ".");
 
         if (contains(recursion_stack, entry))
             msg::stop(
-                "Found inadmissible cyclic " + node_word_(type) + " " + msg::val(entry) + ".");
+                "Found inadmissible cyclic " + err_type_name(err) +
+                " definition " + msg::val(entry) + ".");
 
         if (contains(visited, entry))
             return;
 
         recursion_stack.push_back(entry);
-        for (const std::string &dep : graph.at(entry))
-            walk_graph(dep, graph, visited, recursion_stack, ordered, type);
+        for (const std::string &next : graph.at(entry))
+            walk_graph(next, graph, visited, recursion_stack, ordered, err);
 
         recursion_stack = recursion_stack - std::vector<std::string>({entry});
         visited.push_back(entry);
         ordered.push_back(entry);
     }
 
-    std::vector<std::string> order_dependencies(const str_table &graph, ErrType type)
+    std::vector<std::string> order_producers_first(const prod_graph &graph, ErrType err)
     {
         std::vector<std::string> visited, recursion_stack, ordered;
         for (const auto &[a, vec] : graph)
             if (!contains(visited, a))
-                walk_graph(a, graph, visited, recursion_stack, ordered, type);
+                walk_graph(a, graph, visited, recursion_stack, ordered, err);
         return ordered;
     }
 
-    std::vector<std::string> transitive_consumers(const std::string &start, const str_table &graph,
-                                                  ErrType type)
+    std::vector<std::string> transitive_producers(const std::string &start,
+                                                  const prod_graph &graph,
+                                                  ErrType err)
     {
-        // construct a reversed graph for dependents
-        str_table reverse_graph;
-        for (const auto &[node, dependents] : graph)
+        // walk_graph accumulates 'start' and its producers in post-order,
+        // i.e. producer-before-consumer, with 'start' last.
+        std::vector<std::string> visited, recursion_stack, ordered;
+        walk_graph(start, graph, visited, recursion_stack, ordered, err);
+        return ordered;
+    }
+
+    std::vector<std::string> transitive_consumers(const std::string &start,
+                                                  const prod_graph &graph,
+                                                  ErrType err)
+    {
+        // invert producer graph and create a consumer graph,
+        // where every node is the consumer of what it reads
+        prod_graph consumer_graph;
+        for (const auto &[node, producers] : graph)
         {
-            for (const std::string &dep : dependents)
-                reverse_graph[dep].push_back(node);
+            for (const std::string &prod : producers)
+                consumer_graph[prod].insert(node);
 
             // ensure isolated nodes are present
-            if (!reverse_graph.count(node))
-                reverse_graph[node] = {};
+            consumer_graph.try_emplace(node);
         }
 
-        // walk dependents of start
+        // walk downstream of start
         std::vector<std::string> visited, recursion_stack, ordered;
-        for (const std::string &dep : reverse_graph.at(start))
-            walk_graph(dep, reverse_graph, visited, recursion_stack, ordered, type);
+        for (const std::string &cons : consumer_graph.at(start))
+            walk_graph(cons, consumer_graph, visited, recursion_stack, ordered, err);
 
         std::reverse(ordered.begin(), ordered.end());
         return std::vector<std::string>({start}) + ordered;
-    }
-
-    std::vector<std::string> transitive_producers(const std::string &start, const str_table &graph,
-                                                  ErrType type)
-    {
-        // walk_graph accumulates 'start' and its dependencies in post-order,
-        // i.e. producer-before-consumer, with 'start' last.
-        std::vector<std::string> visited, recursion_stack, ordered;
-        walk_graph(start, graph, visited, recursion_stack, ordered, type);
-        return ordered;
     }
 }
 
@@ -510,24 +512,24 @@ namespace housepi::dpdcy
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Append dependencies of chosen type to stack.
-#define MAKE_NODE_LIST_TYPE_DEPEN(type_flag)                                      \
-    void Entry::append_##type_flag##_depen(std::vector<std::string> &stack) const \
-    {                                                                             \
-        if (is_terminal() && is_##type_flag(type))                                \
-            stack.push_back(value);                                               \
-        else                                                                      \
-            for (const auto &child : children)                                    \
-                child.append_##type_flag##_depen(stack);                          \
+/// Append the producers of chosen type to stack.
+#define MAKE_NODE_LIST_PRODUCERS(type_flag)                                           \
+    void Entry::append_##type_flag##_producers(std::vector<std::string> &stack) const \
+    {                                                                                 \
+        if (is_terminal() && is_##type_flag(type))                                    \
+            stack.push_back(value);                                                   \
+        else                                                                          \
+            for (const auto &child : children)                                        \
+                child.append_##type_flag##_producers(stack);                          \
     }
 
-/// Return unique list of dependencies of chosen type.
-#define MAKE_PARSER_LIST_TYPE_DEPEN(type_flag)                            \
-    std::vector<std::string> Definition::list_##type_flag##_depen() const \
-    {                                                                     \
-        std::vector<std::string> stack = {};                              \
-        root.append_##type_flag##_depen(stack);                           \
-        return str::unique(stack);                                        \
+/// Return unique list of producers of chosen type.
+#define MAKE_PARSER_LIST_PRODUCERS(type_flag)                                 \
+    std::vector<std::string> Definition::list_##type_flag##_producers() const \
+    {                                                                         \
+        std::vector<std::string> stack = {};                                  \
+        root.append_##type_flag##_producers(stack);                           \
+        return str::unique(stack);                                            \
     }
 
 namespace housepi::parse
@@ -710,13 +712,13 @@ namespace housepi::parse
         return is_x_arg;
     }
 
-    MAKE_NODE_LIST_TYPE_DEPEN(augmented)
-    MAKE_NODE_LIST_TYPE_DEPEN(data_wide)
-    MAKE_NODE_LIST_TYPE_DEPEN(parameter)
+    MAKE_NODE_LIST_PRODUCERS(augmented)
+    MAKE_NODE_LIST_PRODUCERS(data_wide)
+    MAKE_NODE_LIST_PRODUCERS(parameter)
 
     Definition::Definition(std::string_view expr) { root = parse_expression_(expr); }
 
-    MAKE_PARSER_LIST_TYPE_DEPEN(augmented)
-    MAKE_PARSER_LIST_TYPE_DEPEN(data_wide)
-    MAKE_PARSER_LIST_TYPE_DEPEN(parameter)
+    MAKE_PARSER_LIST_PRODUCERS(augmented)
+    MAKE_PARSER_LIST_PRODUCERS(data_wide)
+    MAKE_PARSER_LIST_PRODUCERS(parameter)
 }

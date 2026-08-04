@@ -33,7 +33,7 @@ HousepiAugmented <- R6::R6Class(
     # according to the "type" of the definition.
     find_required_def_ = function(type) {
       find_required_definitions(
-        self$defs, type, c("value", "func", "prior", "min", "max"), self$family
+        self$defs, type, c("value", "func", "model", "min", "max"), self$family
       )
     }
   ),
@@ -93,7 +93,7 @@ HousepiAugmented <- R6::R6Class(
         return(character())
       }
       mask <- self$defs[["kind"]] == "house" |
-        (self$defs[["kind"]] == "member" & is.na(self$defs[["prior"]]))
+        (self$defs[["kind"]] == "member" & is.na(self$defs[["model"]]))
       self$defs[["name"]][mask]
     },
 
@@ -150,13 +150,6 @@ HousepiAugmented <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Find augmented variables required by model.
-    #' @param refer_file Path to reference file.
-    require = function(refer_file) {
-      output <- template_extract_keys(refer_file, "AugmKey")
-      c(set_source_name_(output, "model"), self$augm_required)
-    },
-
     #' @description Remove a given augmented definition.
     #' @param name `character(1)`. Augmented definitions to remove.
     #' @param status `integer(1)`. Associated status of definition.
@@ -211,9 +204,6 @@ HousepiAugmented <- R6::R6Class(
       discr <- housepi_smart_unwrap(discr, "discr")
       model <- housepi_smart_unwrap(model, "model")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
-      # the model distribution feeds the internal 'prior' transport column,
-      # discriminated by 'kind' (augmented latent vs observation)
-      prior <- NA_character_
 
       # load quosures
       value <- housepi_extractor(!!value)
@@ -246,11 +236,7 @@ HousepiAugmented <- R6::R6Class(
         .kind <- match.arg(level, c("member", "house"))
       }
 
-      # discriminate the model distribution by kind
-      if (identical(.kind, "augm")) {
-        # augmented latent: the model is its density (prior on the latent)
-        prior <- model
-      } else if (!is.na(model)) {
+      if (!identical(.kind, "augm") && !is.na(model)) {
         # a household observation cannot be sampled
         if (identical(.kind, "house")) stop_h(
           "Household observation {.val {name}} cannot be sampled.",
@@ -263,11 +249,9 @@ HousepiAugmented <- R6::R6Class(
         )
         proposal <- NA_character_
 
-        prior <- model
         if (is.na(const)) const <- TRUE
-        # an observation reads its datum from a like-named column; a status
-        # observation has no inference datum (status is the standard column), so
-        # it carries a numeric placeholder and requires no data column
+        # observation reads its datum from a like-named column
+        # status observation requires no data column
         if (is.null(value)) {
           value <- if (identical(.kind, "status")) "0|N"
           else paste0(name, "|D")
@@ -286,7 +270,7 @@ HousepiAugmented <- R6::R6Class(
       # control valid status
       assert_valid_status(status)
       # control meaningful definition
-      if (all(is.null(c(value, func)), is.na(prior))) stop_h(
+      if (all(is.null(c(value, func)), is.na(model))) stop_h(
         "Incomplete definition for augmented {.val {name}}.",
         "Provide at least one between {.arg {c('value', 'model', 'func')}}."
       )
@@ -303,7 +287,7 @@ HousepiAugmented <- R6::R6Class(
                    discr = isTRUE(discr),
                    func = NA_character_,
                    fcumul = FALSE, # UPDATE: can I make this an option?
-                   prior = as.character(prior),
+                   model = as.character(model),
                    kind = as.character(.kind),
                    min = NA_real_,
                    max = NA_real_,

@@ -160,7 +160,7 @@ namespace housepi
         } ratio_mode_ = Ratio::None;
 
         double old_ = na::DOUBLE;              /// old value
-        std::unique_ptr<Distribution> pDistr_; /// prior\model distribution
+        std::unique_ptr<Distribution> pDistr_; /// defining distribution
         std::unique_ptr<Proposal> pProp_;      /// Monte Carlo proposal
 
     private:

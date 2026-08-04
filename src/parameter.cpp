@@ -343,7 +343,7 @@ namespace housepi
                                                        "proposal"};
         const std::vector<std::string> headers = read::extract_keys(input);
 
-        // build dependency graph and validate function parameters
+        // build the producer graph over parameters and validate function parameters
         bool has_func_params = false;
         dict<size_t> name_to_row;
         for (size_t k = 0; k < input.at("name").size(); ++k)
@@ -351,37 +351,36 @@ namespace housepi
             const std::string &pstr = input.at("name")[k];
             name_to_row[pstr] = k;
 
-            // validate: function parameters can only depend on other parameters
+            // validate: a function parameter may only read other parameters
             if (na::is(input.at("func")[k]))
                 continue;
 
             has_func_params = true;
             parse::Definition parser(input.at("func")[k]);
-            if (parser.is_augmented_depen())
+            if (parser.consumes_augmented())
                 msg::stop(
                     "Parameter function " + msg::val(pstr) +
                     " cannot depend on augmented variables.");
-            if (parser.is_data_wide_depen())
+            if (parser.consumes_data_wide())
                 msg::stop(
                     "Parameter function " + msg::val(pstr) +
                     " cannot depend on data variables.");
         }
 
-        // topological sort only when function parameters exist (preserves input order otherwise)
+        // topological sort only when parameter-functions exist
+        // preserves input order otherwise
         std::vector<std::string> ordered;
         if (has_func_params)
         {
-            // use input order as iteration base for stable topological sort
-            str_table dep_graph;
+            dpdcy::prod_graph producer_graph;
             for (size_t k = 0; k < input.at("name").size(); ++k)
             {
-                const std::string &pstr = input.at("name")[k];
-                std::vector<std::string> deps;
+                auto &producers = producer_graph[input.at("name")[k]];
                 for (const auto col : {"func", "min", "max"})
-                    deps += parse::Definition(input.at(col)[k]).list_parameter_depen();
-                dep_graph[pstr] = str::unique(deps);
+                    for (const std::string &pstr : parse::Definition(input.at(col)[k]).list_parameter_producers())
+                        producers.insert(pstr);
             }
-            ordered = dpdcy::order_dependencies(dep_graph, ErrType::Parameter);
+            ordered = dpdcy::order_producers_first(producer_graph, ErrType::Parameter);
         }
         else
         {
@@ -390,7 +389,7 @@ namespace housepi
 
         init_param_vec_();
         clear_lists_();
-        // load parameters in dependency order
+        // load parameters producer before consumer
         for (const std::string &pstr : ordered)
         {
             size_t k = name_to_row.at(pstr);
@@ -410,7 +409,7 @@ namespace housepi
                 helper_build_to_sample_(input, k, translator);
         }
 
-        // initialize all parameters to standard (i.e. no cache dependencies)
+        // initialize all parameters to standard, i.e. none feeds transmission cache
         list_sample_standard = list_sample;
         for (size_t p : list_sample)
             if (at(p).is_adaptive())
@@ -621,18 +620,16 @@ namespace housepi
         }
     }
 
-    void Parameter::make_cache_dependent(size_t p)
+    void Parameter::mark_produces_transm_cache(size_t p)
     {
-        // remove a parameter from standard if it was defined as such
-        if (contains(list_sample_standard, p))
-        {
-            const std::vector<size_t> vec({p});
-            list_sample_standard = list_sample_standard - vec;
-        }
-
         // add the parameter as cache if not already present
         if (!contains(list_sample_cached, p))
             list_sample_cached.push_back(p);
+
+        // if a parameter was originally defined as standard, remove it
+        if (!contains(list_sample_standard, p))
+            return;
+        list_sample_standard = list_sample_standard - std::vector<size_t>({p});
     }
 
     void Parameter::restart(rnd_gen &prng)

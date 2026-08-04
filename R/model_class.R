@@ -45,9 +45,9 @@ HousepiModel <- R6::R6Class(
     # @description
     # Augmented variables required by implementation file and other definitions.
     get_all_required_augm_ = function() {
-      refer_file <- private$generator_$get_reference()
-      c(private$augm_$require(refer_file),    # by the model
-        private$infec_profile_$augm_required) # by infec profile
+      c(private$generator_$augm_required,     # by the model
+        private$augm_$augm_required,          # by augmented/observation
+        private$infec_profile_$augm_required) # by infectivity profile
     },
 
     # @description
@@ -56,29 +56,27 @@ HousepiModel <- R6::R6Class(
       c(private$generator_$data_required,     # by the model
         private$group_risks_$data_required,   # by group risks
         private$contact_risks_$data_required, # by contact risks
-        private$augm_$data_required,          # by augmented
-        private$infec_profile_$data_required) # by infec profile
+        private$augm_$data_required,          # by augmented/observation
+        private$infec_profile_$data_required) # by infectivity profile
     },
 
     # @description
     # Group risks required by implementation file and other definitions.
     get_all_required_group_risks_ = function() {
-      refer_file <- private$generator_$get_reference()
-      c(private$group_risks_$require(refer_file),    # by the model
-        private$augm_$group_risks_required,          # by augmented
-        private$infec_profile_$group_risks_required) # by infec profile
+      c(private$generator_$group_risks_required,     # by the model
+        private$augm_$group_risks_required,          # by augmented/observation
+        private$infec_profile_$group_risks_required) # by infectivity profile
     },
 
     # @description
     # Parameters required by implementation file and other definitions.
     get_all_required_param_ = function() {
-      refer_file <- private$generator_$get_reference()
-      c(private$param_$require(refer_file),    # by the model
+      c(private$generator_$param_required,     # by the model
         private$param_$param_required,         # by parameter functions
         private$group_risks_$param_required,   # by group risks
         private$contact_risks_$param_required, # by contact risks
-        private$augm_$param_required,          # by augmented
-        private$infec_profile_$param_required) # by infec profile
+        private$augm_$param_required,          # by augmented/observation
+        private$infec_profile_$param_required) # by infectivity profile
     },
 
     ############################################################################
