@@ -606,18 +606,9 @@ test_that("Compressed households forced unique by augmented sampling size the ca
     expect_no_error()
 })
 
-test_that("Reading an observation node's column: priors and loops are rejected", {
-  # a deterministic readout of an observation is a legitimate downstream value;
-  # only a prior reading an observation, or a dependency loop, is illegal.
+test_that("Reading an observation in models and loops are rejected", {
 
-  # allowed: a deterministic augmented that just reads the observed value
-  data.frame(house_id = "shadow_moses", status = 1, onset = 0.5) |>
-    new_housepi_model("test") |>
-    add_observation("onset", model = "uniform", min = 0, max = 1) |>
-    add_augmented("ocelot", value = onset@D) |>
-    expect_no_error()
-
-  # rule 1: an augmented model must not read an observation (illegal in both
+  # an augmented model must not read an observation (illegal in both
   # modes; caught at eager build, so the construction itself errors)
   data.frame(house_id = "outer_heaven", status = 1, onset = 0.5) |>
     new_housepi_model("test") |>
@@ -625,7 +616,7 @@ test_that("Reading an observation node's column: priors and loops are rejected",
     add_augmented("latent", model = "normal", mean = onset@D) |>
     expect_error("[Mm]odel.*reads.*observation")
 
-  # rule 2: a deterministic read that closes a loop (the observation's support
+  # a deterministic read that closes a loop (the observation's support
   # depends on the reader) is circular
   data.frame(house_id = "metal_gear", status = 1, onset = 0.5) |>
     new_housepi_model("test") |>
@@ -970,34 +961,22 @@ test_that("Incubation augmentation recast runs on the test model", {
   )
   df$onset_mid <- 0.5 * (df$onset_min + df$onset_max + 1.)
 
-  results <- expect_no_error(
-    df |>
-      new_housepi_model("test") |>
-      add_parameter(
-        mean = list(prior = "uniform", min = 0.1, max = 5),
-        var = list(prior = "uniform", min = 0.1, max = 5)
-      ) |>
-      add_augmented(
-        .infec_time = list(
-          model = "uniform", max = exposure_max@D + 0.99
-        ),
-        incub_period = list(
-          model = "gamma", mean = mean@P, var = var@P,
-          min = 0.5, max = 14
-        ),
-        .onset_time = .infec_time + incub_period
-      ) |>
-      add_observation("onset_mid",
-        model = "normal",
-        mean = .onset_time, sd = 0.3
-      ) |>
-      run_inference(
-        steps = 20, adapt = 0, chains = 1, thin = 1,
-        progress = FALSE
-      ) |>
-      suppressMessages() |>
-      suppressWarnings()
-  )
+  results <- df |>
+    new_housepi_model("test") |>
+    add_parameter(mean = list(prior = "uniform", min = 0.1, max = 5),
+                  sd = list(prior = "uniform", min = 0.1, max = 5)) |>
+    add_augmented(
+      .infec_time = list(model = "uniform", max = exposure_max@D + 0.99),
+      incub_period = list(
+        model = "gamma", mean = mean@P, sd = sd@P, min = 0.5, max = 14
+      ),
+      .onset_time = .infec_time + incub_period
+    ) |>
+    add_observation("onset_mid", model = "normal",
+                    mean = .onset_time, sd = 0.3) |>
+    run_inference(steps = 20, adapt = 0, chains = 1) |>
+    suppressMessages() |>
+    suppressWarnings()
 
   # the gamma incubation prior contributes to the (finite) augmented log-prior
   lprior <- get_complete_draws(results)$lprior

@@ -17,9 +17,11 @@ browse_functions(
 
 \item{...}{named arguments. User argument values for the function}
 
-\item{min}{\code{numeric(1)} Truncate to a minimum value.}
+\item{min}{\code{numeric(1)} Truncate to a minimum value.
+Relative to the location argument \code{loc}, when one is given.}
 
-\item{max}{\code{numeric(1)} Truncate to a maximum value.}
+\item{max}{\code{numeric(1)} Truncate to a maximum value.
+Relative to the location argument \code{loc}, when one is given.}
 
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }

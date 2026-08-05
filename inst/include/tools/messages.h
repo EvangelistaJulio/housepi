@@ -49,12 +49,8 @@ namespace housepi::msg
 {
     /// Show a message to stdout and flush.
     void info(const std::string &txt) noexcept;
-    /// Display a warning message if not already displayed before.
+    /// Display a warning message.
     void warn(const std::string &txt);
-    /// Wheter text represent a previously unseen warning.
-    bool is_new_warning(const std::string &txt) noexcept;
-    /// Mark given text as an already seen warning.
-    void add_new_warning(const std::string &txt) noexcept;
     /// Throw an error message.
     [[noreturn]] void stop(const std::string &txt);
 

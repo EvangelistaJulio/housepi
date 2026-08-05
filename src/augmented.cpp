@@ -143,8 +143,12 @@ namespace housepi
         {
             mode_ = Mode::LookUp;
             size_t n = infprof::LOOKUP_SIZE;
-            if (!generic->upper().is_empty())
-                n = 1 + generic->upper().value();
+            if (generic->upper().is_callable())
+            {
+                // ensure enough space when 'max' is de-located
+                const double loc = generic->loc().is_callable() ? generic->loc().value() : 0.;
+                n = std::max(n, static_cast<size_t>(1. + generic->upper().value() + loc));
+            }
             lookup_.init(generic.get(), n);
         }
     }

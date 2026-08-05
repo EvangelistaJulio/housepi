@@ -93,6 +93,7 @@ namespace housepi::chain_binom
 
     /// Multitype partition tree for the respective chain-binomial.
     /// Based on @cite ball_unified_1986
+    /// UPDATE: this could be flattened.
     struct PartitionTree
     {
         vector<gentype> sub_vecs;

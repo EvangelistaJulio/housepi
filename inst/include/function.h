@@ -336,16 +336,21 @@ namespace housepi
         /// Return value as for a probability density/mass function.
         double pdf(double x) const { return is_valid(x) ? function_(delocate_(x)) : 0.; }
         /// Return value as for a cumulative distribution function.
-        double cdf(double x) const { return is_below(x) ? 0 : primitive_(delocate_(is_above(x) ? upper_.value() : x)); }
+        /// NOTE: the upper bound already lives in the de-located frame.
+        double cdf(double x) const { return is_below(x) ? 0 : primitive_(is_above(x) ? upper_.value() : delocate_(x)); }
 
         /// Return value of log-ratio of probability density/mass functions.
-        double log_ratio(double xo, double xn) const { return log_ratio_(delocate_(xo), delocate_(xn)); }
+        /// NOTE: a null move carries no density change, whatever the density at that point.
+        double log_ratio(double xo, double xn) const
+        {
+            return xo == xn ? 0. : log_ratio_(delocate_(xo), delocate_(xn));
+        }
         /// Check for validity, then return value of log-ratio of probability density/mass functions.
         double guarded_log_ratio(double xo, double xn) const
         {
             bool ov = is_valid(xo), nv = is_valid(xn);
             if (ov && nv)
-                return log_ratio_(delocate_(xo), delocate_(xn));
+                return log_ratio(xo, xn);
             else if (!ov && nv)
                 return std::numeric_limits<double>::infinity();
             else if (ov && !nv)
@@ -552,7 +557,6 @@ namespace housepi
         ////////////////////////
 
         /// Delocate according to mode.
-        /// FIXME: this hasn't been tested.
         double delocate_(double x) const
         {
             switch (deloc_mode_)

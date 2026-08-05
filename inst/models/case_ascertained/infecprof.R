@@ -1,3 +1,3 @@
 list(
-  profile = list(func = "gamma", mean = 4, var = 3)
+  profile = list(func = "gamma", mean = 4, sd = 1.7)
 )

@@ -133,7 +133,7 @@ test_that("Template import loads the profile shipped with the model", {
     get_infectivity_profile()
 
   expect_equal(defs$func, "gamma")
-  expect_equal(defs$func_args[[1]], c(mean = 4, var = 3))
+  expect_equal(defs$func_args[[1]], c(mean = 4, sd = 1.7))
   expect_equal(defs$discr, FALSE)
 })
 

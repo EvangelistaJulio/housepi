@@ -134,9 +134,9 @@ hhmodel |>
   run_inference(id_draws = c("tommy", "gina")) |>
   get_augmented_draws() |>
   posterior::subset_draws(variable = "infec_time$", regex = TRUE) |>
-  bayesplot::mcmc_dens(facet_args = list(ncol = 1)) +
+  bayesplot::mcmc_hist(facet_args = list(ncol = 1), alpha = 0.5, binwidth = 1) +
   geom_vline(data = data.frame(xintercept = onset_tommy),
-             aes(xintercept = xintercept), linetype = 2) +
+             aes(xintercept = xintercept)) +
   coord_cartesian(xlim = onset_tommy + c(-10, 10))
 ```
 
@@ -153,20 +153,20 @@ Instead we consider a simulated report documenting the days when a number of cas
 source("helpers/generate_delays.R")
 # generate delays according to a gamma distribution
 true_mean <- 2.2
-true_var <- 1.4
-dataset <- generate_delays_report(223, mean = true_mean, var = true_var,
+true_sd <- sqrt(1.4)
+dataset <- generate_delays_report(223, mean = true_mean, sd = true_sd,
                                   report_error = 0.73)
 head(dataset)
 ```
 Note that here the data has no demographic structure: we are implicitly assuming that all individuals live in distinct households.
 
-Assuming the incubation period to be described by a gamma distribution, we want to estimate its `mean` and `var` by augmenting the infection and onset times.
+Assuming the incubation period to be described by a gamma distribution, we want to estimate its `mean` and `sd` by augmenting the infection and onset times.
 Following the decomposition introduced above, the incubation period enters the *augmented model* $p^\mathrm{augm}(z \mid \theta)$, while the reported onset day enters the *observation* term $p^\mathrm{obs}(x \mid \theta, z)$; both are reported in the pointwise `log_lik`.
 
 We rely on the "test" model, which carries no transmission dynamics ($p^\mathrm{transm} = 1$), and build the whole augmentation from definitions:
 
 - the infection time `.infec_time` is drawn uniformly within the reported exposure window;
-- the incubation period `incub_period` is the quantity we model, gamma distributed with the inferred `mean` and `var` and bounded to a plausible range;
+- the incubation period `incub_period` is the quantity we model, gamma distributed with the inferred `mean` and `sd` and bounded to a plausible range;
 - the onset time `.onset_time` follows deterministically as their sum.
 
 Finally, an observation node ties the latent onset time to the data: we model the reported onset day `onset_mid` as a noisy measurement of the true onset time, normally distributed around `.onset_time`.
@@ -182,18 +182,17 @@ hhmodel <- dataset |>
   new_housepi_model("test") |>
   # define the gamma distribution parameters to be inferred
   add_parameter(
-    mean = list(prior = "uniform", min = 0.1, max = 5, proposal = "rw"),
-    var = list(prior = "uniform", min = 0.1, max = 5, proposal = "rw")
+    mean = list(prior = "uniform", min = 0.1, max = 5),
+    sd = list(prior = "uniform", min = 0.1, max = 5)
   ) |>
   # augmented variable definitions
   add_augmented(
     # infection time uniform within the reported exposure window
     # min = 0 by default for uniform; + 0.99 spans the whole reported day
-    .infec_time = list(model = "uniform", max = exposure_max@D + 0.99,
-                       proposal = "rw"),
-    # incubation period gamma by mean/variance, bounded to a plausible range
-    incub_period = list(model = "gamma", mean = mean@P, var = var@P,
-                        min = 0.1, max = 14, proposal = "rw"),
+    .infec_time = list(model = "uniform", max = exposure_max@D + 0.99),
+    # incubation period gamma by mean/std. deviation, bounded to a plausible range
+    incub_period = list(model = "gamma", mean = mean@P, sd = sd@P,
+                        min = 0.1, max = 14),
     # onset time follows deterministically as their sum
     .onset_time = .infec_time + incub_period
   ) |>
@@ -207,7 +206,7 @@ hhmodel <- dataset |>
 #| message: false
 #| warning: false
 #| fig-alt: >
-#|  Trace plots for mean and variance parameters with three parallel chains.
+#|  Trace plots for mean and standard deviation parameters with three parallel chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
 results <- hhmodel |>
   # store augmented draws of "7" and "13"
@@ -215,8 +214,8 @@ results <- hhmodel |>
 
 # plot traces of parameter draws
 bayesplot::mcmc_trace(get_parameter_draws(results)) +
-  geom_hline(data = data.frame(parameter = c("mean", "var"),
-                               simulated = c(true_mean, true_var)),
+  geom_hline(data = data.frame(parameter = c("mean", "sd"),
+                               simulated = c(true_mean, true_sd)),
              aes(yintercept = simulated))
 ```
 

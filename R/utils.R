@@ -495,6 +495,7 @@ eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {
 #' @title Set a warm default theme for housepi visualizations
 #' @param base_size Base font size (pts). Default `11`.
 #' @param base_family Base font family. Default `""` (device default).
+#' @param transparent `logical(1)` Leave the plot background transparent.
 #' @description
 #' If suggested packages are installed, sets corresponding `ggplot2`,
 #' `bayesplot` and `flextable` themes as used in housepi vignettes.
@@ -502,7 +503,9 @@ eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {
 #' # apply housepi defaults to ggplot2, bayesplot and flextable
 #' housepi_theme_set()
 #' @export
-housepi_theme_set <- function(base_size = 11, base_family = "") {
+housepi_theme_set <- function(base_size = 11,
+                              base_family = "",
+                              transparent = FALSE) {
   # ggplot theme
   if (requireNamespace("ggplot2", quietly = TRUE)) {
     my_elem_text <- ggplot2::element_text(size = base_size,
@@ -514,6 +517,9 @@ housepi_theme_set <- function(base_size = 11, base_family = "") {
     my_panel <- ggplot2::element_rect(fill = "#FEF9EC", color = NA)
     my_strip <- ggplot2::element_rect(fill = "#FBE09B", color = NA)
     my_grid <- ggplot2::element_line(color = "#FDFEFE", linewidth = 1)
+    my_plot <- ggplot2::element_rect(
+      color = NA, fill = ifelse(isTRUE(transparent), "transparent", "white")
+    )
     ggplot2::theme_set(
       ggplot2::theme_minimal(base_size = base_size,
                              base_family = base_family) +
@@ -523,6 +529,7 @@ housepi_theme_set <- function(base_size = 11, base_family = "") {
                        plot.tag = my_elem_tag,
                        panel.background = my_panel,
                        strip.background = my_strip,
+                       plot.background = my_plot,
                        legend.position = "bottom",
                        legend.text = my_elem_text,
                        panel.grid.major = my_grid,

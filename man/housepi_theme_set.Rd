@@ -4,12 +4,14 @@
 \alias{housepi_theme_set}
 \title{Set a warm default theme for housepi visualizations}
 \usage{
-housepi_theme_set(base_size = 11, base_family = "")
+housepi_theme_set(base_size = 11, base_family = "", transparent = FALSE)
 }
 \arguments{
 \item{base_size}{Base font size (pts). Default \code{11}.}
 
 \item{base_family}{Base font family. Default \code{""} (device default).}
+
+\item{transparent}{\code{logical(1)} Leave the plot background transparent.}
 }
 \description{
 If suggested packages are installed, sets corresponding \code{ggplot2},

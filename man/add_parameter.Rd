@@ -54,9 +54,11 @@ If applicable, the prior is discretized.}
 
 \item{func_args}{named \code{list} Arguments of the augmented function.}
 
-\item{min}{\code{numeric(1)} Truncate to a minimum value.}
+\item{min}{\code{numeric(1)} Truncate to a minimum value.
+Relative to the location argument \code{loc}, when one is given.}
 
-\item{max}{\code{numeric(1)} Truncate to a maximum value.}
+\item{max}{\code{numeric(1)} Truncate to a maximum value.
+Relative to the location argument \code{loc}, when one is given.}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
 Random walks perturb the current value:

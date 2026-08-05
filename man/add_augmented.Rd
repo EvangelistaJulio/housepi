@@ -67,6 +67,7 @@ If applicable, the model is discretized.}
 \item{model}{\code{character(1)} Augmented model distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
+Relative to the location argument \code{loc}, when one is given.
 One between:
 \describe{
 \item{augmented}{\verb{@A};}
@@ -77,6 +78,7 @@ One between:
 }}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
+Relative to the location argument \code{loc}, when one is given.
 One between:
 \describe{
 \item{augmented}{\verb{@A};}

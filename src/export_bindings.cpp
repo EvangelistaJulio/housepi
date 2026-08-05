@@ -62,18 +62,15 @@ namespace housepi::msg
         Rcpp::Rcout.flush();
     }
 
-    /// Display a warning message if not already displayed before.
+    /// Display a warning message.
     /// Raised as a classed condition to identify housepi-authored warnings.
     void warn(const std::string &txt)
     {
-        if (!is_new_warning(txt))
-            return;
         Rcpp::List cond = Rcpp::List::create(Rcpp::_["message"] = txt,
                                              Rcpp::_["call"] = R_NilValue);
         cond.attr("class") = Rcpp::CharacterVector::create(
             "housepi_cpp_warning", "warning", "condition");
         Rcpp::Function("warning")(cond);
-        add_new_warning(txt);
     }
 }
 

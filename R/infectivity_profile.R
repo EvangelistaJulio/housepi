@@ -31,7 +31,7 @@ HousepiInfecProfile <- R6::R6Class(
     # according to the "type" of the definition
     find_required_def_ = function(type) {
       find_required_definitions(
-        self$defs, type, c("func", "max"), self$family
+        self$defs, type, c("func", "min", "max"), self$family
       )
     }
   ),
@@ -137,7 +137,10 @@ HousepiInfecProfile <- R6::R6Class(
 
       # NOTE: if arg 'min' not provided
       # impose min = 1 for discrete-time, min = 0 for continuous time
-      if (is.null(min)) min <- ifelse(discr, "1|N", "0|N")
+      # NOTE: 'loc' already places the origin, no further shift is stacked on it
+      if (is.null(min)) min <- ifelse(
+        discr && !"loc" %in% names(func_args), "1|N", "0|N"
+      )
       if (is.null(max)) max <- NA_character_
 
       # append new definition

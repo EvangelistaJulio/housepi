@@ -62,15 +62,6 @@ namespace housepi
     }
 }
 
-namespace housepi::msg
-{
-    /// Set of already issued warnings.
-    std::unordered_set<std::string> issued_warnings_set_;
-
-    bool is_new_warning(const std::string &txt) noexcept { return !issued_warnings_set_.count(txt); }
-    void add_new_warning(const std::string &txt) noexcept { issued_warnings_set_.insert(txt); }
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////  Housepi Model Keys  ///////////////////////////////////////

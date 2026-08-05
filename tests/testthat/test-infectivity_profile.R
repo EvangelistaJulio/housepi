@@ -118,16 +118,28 @@ test_that("range minimum defaults to the first transmission day", {
   }
 
   # discrete profile change it even in continuous time
-  profile_min(mk_infec$model, "gamma", mean = 4, var = 3, discr = TRUE) |>
+  profile_min(mk_infec$model, "gamma", mean = 4, sd = sqrt(3), discr = TRUE) |>
     expect_equal(1)
   # a user-supplied minimum wins in either build
-  profile_min(mk_infec_discr$model, "gamma", mean = 4, var = 3, min = 2) |>
+  profile_min(mk_infec_discr$model, "gamma", mean = 4, sd = sqrt(3), min = 2) |>
     expect_equal(2)
   # template definitions return minimum according to model time choice
   profile_min(mk_infec$model, import = "template") |>
     expect_equal(0)
   profile_min(mk_infec_discr$model, import = "template") |>
     expect_equal(1)
+
+  # 'loc' already places the origin: no further shift is stacked on top of it
+  profile_min(mk_infec_discr$model, "gamma", mean = 4, sd = sqrt(3), loc = 2) |>
+    expect_equal(0)
+})
+
+test_that("a profile dependency reached through 'min' is reported", {
+  # 'min' carries the only reference to the missing column
+  mk_infec_discr$model |>
+    add_infectivity_profile("uniform", min = liquid_snake@D, max = infec_time) |>
+    evaluate_log_lik() |>
+    expect_error("liquid_snake")
 })
 
 ############################################################################
@@ -152,7 +164,7 @@ test_that("a model needing a profile throws", {
 test_that("a profile transmitting at generation time 0 is refused", {
   # distribution with non-zero at 0
   mk_infec$model |>
-    add_infectivity_profile("gamma", mean = 4, var = 3, loc = -1) |>
+    add_infectivity_profile("gamma", mean = 4, sd = sqrt(3), loc = -1) |>
     evaluate_log_lik() |>
     expect_error("non-zero at generation")
 
@@ -179,13 +191,41 @@ test_that("a profile transmitting at generation time 0 is refused", {
 
 test_that("non-zero profile for day-0 is always refused in discrete time", {
   mk_infec_discr$model |>
-    add_infectivity_profile("gamma", mean = 4, var = 3, min = 0) |>
+    add_infectivity_profile("gamma", mean = 4, sd = sqrt(3), min = 0) |>
     evaluate_log_lik() |>
     expect_error("non-zero at generation day 0")
   mk_infec_discr$model |>
     add_infectivity_profile("ferretti20", incub_period = 5, min = 0) |>
     evaluate_log_lik() |>
     expect_error("non-zero at generation day 0")
+})
+
+test_that("shifting a profile with 'loc' matches the explicit bounds", {
+  # the support is loc + [min, max]: both spellings place it on
+  # [.incub_period, .incub_period + 2]
+  outer_heaven <- data.frame(
+    id = c("venom", "kaz", "ocelot"), house_id = "outer_heaven",
+    status = c(1, 1, 0), start_date = 0, end_date = 20
+  ) |>
+    new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
+    add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>
+    # deterministic, so the likelihood is reproducible across builds
+    add_augmented(infec_time = start_date@D, .incub_period = 3)
+
+  shifted <- outer_heaven |>
+    add_infectivity_profile("uniform", loc = .incub_period, max = 2) |>
+    evaluate_log_lik()
+  explicit <- outer_heaven |>
+    add_infectivity_profile("uniform", min = .incub_period,
+                            max = .incub_period + 2) |>
+    evaluate_log_lik()
+  expect_equal(shifted, explicit)
+
+  # and 'max' still widens the support it is handed
+  wider <- outer_heaven |>
+    add_infectivity_profile("uniform", loc = .incub_period, max = 4) |>
+    evaluate_log_lik()
+  expect_false(isTRUE(all.equal(shifted, wider)))
 })
 
 test_that("an augmented parameterizing the profile drives transmission", {

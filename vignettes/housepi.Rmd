@@ -251,7 +251,7 @@ hhsimul <- hhsimul |>
     # infection time of primary case
     infec_time = 0,
     # incubation period for each individual
-    .incub_period = list(model = "gamma", mean = 2, var = 1, max = 14),
+    .incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14),
     # onset time is deterministic
     .onset_time = infec_time + .incub_period
   ) |>

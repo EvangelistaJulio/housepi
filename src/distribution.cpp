@@ -168,20 +168,16 @@ namespace
     }
 
 // Macro for left discretization when min = 0 (close).
-#define INIT_DISCR_LEFT_MIN_ZERO_(is_open)       \
-    void init_discretization() override final    \
-    {                                            \
-        discr_mode_ = Mode::Discrete::Left;      \
-    }                                            \
-    void init_truncation() override final        \
-    {                                            \
-        if (helper_init_range_min_(0., is_open)) \
-            helper_init_distr_truncation_();     \
+#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
+    void init_discretization() override final \
+    {                                         \
+        discr_mode_ = Mode::Discrete::Left;   \
+    }                                         \
+    void init_truncation() override final     \
+    {                                         \
+        if (helper_init_range_min_(0., false))\
+            helper_init_distr_truncation_();  \
     }
-#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE() \
-    INIT_DISCR_LEFT_MIN_ZERO_(false)
-#define INIT_DISCR_LEFT_MIN_ZERO_OPEN() \
-    INIT_DISCR_LEFT_MIN_ZERO_(true)
 
 // Macro for discrete defined when min = 0 (close).
 #define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()      \
@@ -289,48 +285,85 @@ namespace
     class Lognormal_ final : public Distribution
     {
     public:
+        /// Alternative parametrizations:
+        /// 0. "meanlog-sdlog"
+        /// 1. "mean-sd"
         Lognormal_()
-            : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.) { below_mode_ = Mode::Interval::Open; }
+            : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.)
+        {
+            alts_[0].name = "meanlog-sdlog";
+            register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
+        }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
         HOUSEPI_OVERRIDE_NAME_METHOD(lognormal)
 
-        INIT_DISCR_LEFT_MIN_ZERO_OPEN()
+        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
+        /// Effective (meanlog, sdlog) for the active parametrization.
+        std::pair<double, double> eff_params_() const
+        {
+            switch (alt_idx_)
+            {
+            case 1: // "mean-sd"
+            {
+                const double m = arg(0), r = arg(1) / m;
+                const double v = std::log1p(r * r);
+                return {log(m) - 0.5 * v, std::sqrt(v)};
+            }
+            default: // case 0: "meanlog-sdlog"
+                return {arg(0), arg(1)};
+            }
+        }
+
         double raw_pdf_(double x) const override final
         {
-            const double sdlog = arg(1);
-            const double z = (log(x) - arg(0)) / sdlog;
+            if (x == 0.)
+                return 0.;
+
+            const auto [meanlog, sdlog] = eff_params_();
+            const double z = (log(x) - meanlog) / sdlog;
             return exp(-0.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
         }
         double raw_cdf_(double x) const override final
         {
-            return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - log(x)) / arg(1));
+            const auto [meanlog, sdlog] = eff_params_();
+            return 0.5 * std::erfc(M_SQRT1_2 * (meanlog - log(x)) / sdlog);
         }
         double raw_ccdf_(double x) const override final
         {
-            return 0.5 * std::erfc(M_SQRT1_2 * (log(x) - arg(0)) / arg(1));
+            const auto [meanlog, sdlog] = eff_params_();
+            return 0.5 * std::erfc(M_SQRT1_2 * (log(x) - meanlog) / sdlog);
         }
         double raw_log_pdf_(double x) const override final
         {
-            const double sdlog = arg(1);
-            const double z = (log(x) - arg(0)) / sdlog;
+            if (x == 0.)
+                return -std::numeric_limits<double>::infinity();
+
+            const auto [meanlog, sdlog] = eff_params_();
+            const double z = (log(x) - meanlog) / sdlog;
             return -0.5 * z * z - log(x * sdlog) - M_LN_SQRT_2PI;
         }
         double raw_log_ratio_(double xo, double xn) const override final
         {
+            // the origin carries no density: the ratio saturates
+            if (xo == 0. || xn == 0.)
+                return std::copysign(std::numeric_limits<double>::infinity(), xn - xo);
+
+            const auto [meanlog, sdlog] = eff_params_();
             const double lxo = log(xo);
             const double lxn = log(xn);
-            const double sdlog = arg(1);
-            return (0.5 * (lxo * lxo - lxn * lxn) + (lxn - lxo) * arg(0)) / (sdlog * sdlog) + lxo - lxn;
+            return (0.5 * (lxo * lxo - lxn * lxn) + (lxn - lxo) * meanlog) / (sdlog * sdlog) + lxo - lxn;
         }
         double raw_quantile_(double p) const override final
         {
-            return exp(arg(0) + arg(1) * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2);
+            const auto [meanlog, sdlog] = eff_params_();
+            return exp(meanlog + sdlog * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2);
         }
         double raw_rand_(rnd_gen &prng) const override final
         {
-            return exp(arg(0) + arg(1) * standard_normal(prng));
+            const auto [meanlog, sdlog] = eff_params_();
+            return exp(meanlog + sdlog * standard_normal(prng));
         }
     };
     HOUSEPI_REGISTER_FUNCTION(Lognormal_, ContinuosDistrib)
@@ -413,14 +446,14 @@ namespace
     class Gamma_ final : public Distribution
     {
     public:
-        /// Alternative arametrizations:
+        /// Alternative parametrizations:
         /// 0. "shape-scale"
-        /// 1. "mean-var"
+        /// 1. "mean-sd"
         Gamma_()
             : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.)
         {
             alts_[0].name = "shape-scale";
-            register_alt_("mean-var", {{"mean", na::DOUBLE}, {"var", na::DOUBLE}});
+            register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
         }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Gamma_)
         HOUSEPI_OVERRIDE_NAME_METHOD(gamma)
@@ -433,10 +466,10 @@ namespace
         {
             switch (alt_idx_)
             {
-            case 1: // "mean-var"
+            case 1: // "mean-sd"
             {
-                const double m = arg(0), v = arg(1);
-                return {m * m / v, v / m};
+                const double sd = arg(1), r = arg(0) / sd;
+                return {r * r, sd / r};
             }
             default: // case 0: "shape-scale"
                 return {arg(0), arg(1)};

@@ -8,7 +8,7 @@
 #'
 #' @param size `integer(1)` Number of individuals to simulate.
 #' @param mean `numeric(1)` Mean of the incubation period distribution.
-#' @param df `numeric(1)` Std. deviation of the incubation period distribution.
+#' @param sd `numeric(1)` Std. deviation of the incubation period distribution.
 #' @param report_error `numeric(1)` Probability of reporting error on symptom onset date.
 #' @param proba_duration `numeric()` Probabilities of duration of exposure.
 #'
@@ -19,11 +19,11 @@
 #' \item{status}{Individual status }
 #'
 #' @keywords internal
-generate_delays_report <- function(size, mean = 2.2, var = 1.4,
+generate_delays_report <- function(size, mean = 2.2, sd = 1.2,
                                    report_error = 0.73,
                                    proba_duration = c(0.28, 0.34, 0.26, 0.12)) {
-  shape <- mean * mean / var
-  scale <- var / mean
+  shape <- mean * mean / (sd * sd)
+  scale <- sd * sd / mean
 
   simulate_delay_data <- function(x) {
     # exposure interval

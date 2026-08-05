@@ -64,14 +64,10 @@ namespace housepi
             std::cout.flush();
         }
 
-        /// Display a warning message if not already displayed before.
+        /// Display a warning message.
         void warn(const std::string &txt)
         {
-            if (is_new_warning(txt))
-            {
-                std::cerr << "Warning: " << txt << std::endl;
-                add_new_warning(txt);
-            }
+            std::cerr << "Warning: " << txt << std::endl;
         }
     }
 

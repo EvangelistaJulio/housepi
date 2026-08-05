@@ -58,8 +58,10 @@ rd_var_args_ <- function(what, proposal = FALSE) {
   paste0(sprintf("named arguments for the %s distribution.", what),
          if (proposal) rd_proposal_opts_)
 }
-rd_var_min_ <- "`numeric(1)` Truncate to a minimum value."
-rd_var_max_ <- "`numeric(1)` Truncate to a maximum value."
+rd_var_min_ <- "`numeric(1)` Truncate to a minimum value.
+Relative to the location argument `loc`, when one is given."
+rd_var_max_ <- "`numeric(1)` Truncate to a maximum value.
+Relative to the location argument `loc`, when one is given."
 rd_var_func_ <- "One between:
 - `character(1)` Name of augmented function;
 - rlang expression."

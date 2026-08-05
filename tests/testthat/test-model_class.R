@@ -89,6 +89,22 @@ test_that("Wide data can be deferred and attached with add_data_wide", {
   expect_true(is.finite(evaluate_log_lik(hhmodel)))
 })
 
+test_that("Data without house_id warns on every attach", {
+  # no household structure: every row becomes a household of its own
+  zanzibar <- data.frame(id = c("frank", "gray", "fox"), status = c(1, 0, 1))
+
+  expect_warning(
+    new_housepi_model(zanzibar, "test"), "[Ii]gnored household structure"
+  )
+  # a second model in the same session must warn again
+  expect_warning(
+    new_housepi_model(zanzibar, "test"), "[Ii]gnored household structure"
+  )
+  # and so must a later attach on an existing model
+  hhmodel <- suppressWarnings(new_housepi_model(zanzibar, "test"))
+  expect_warning(add_data_wide(hhmodel, zanzibar), "[Ii]gnored household")
+})
+
 test_that("Model class 'test' calls", {
   # test household model object
   hhmodel <- new_housepi_model(model = "test")

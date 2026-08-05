@@ -61,7 +61,7 @@ A profile that does is refused, and the error points at the two ways of excludin
 Distributions such as `exponential` or `uniform` carry no opinion about the origin and need one of the two; profiles written as such, like `ferretti20`, are taken as authored.
 
 For example, consider the model "case-ascertained" introduced in [Get started](housepi.html).
-Its template is a generic profile in continuous time, a gamma distribution parametrized with `mean` and `var`:
+Its template is a generic profile in continuous time, a gamma distribution parametrized with `mean` and `sd`:
 
 ```{r}
 #| label: load-continuous-profile

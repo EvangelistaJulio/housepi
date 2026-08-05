@@ -157,7 +157,7 @@ hhmodel <- hhmodel |>
       model = "uniform", min = start_date@D - 8, max = end_date@D
     ),
     # accessory generic definitions
-    .incub_period = list(model = "gamma", mean = 3, var = 2),
+    .incub_period = list(model = "gamma", mean = 3, sd = 1.4),
     .onset_time = infec_time + .incub_period,
   ) |>
   # observation model
@@ -174,7 +174,7 @@ hhmodel <- hhmodel |>
     )
   ) |>
   # infectivity profile definitions
-  add_infectivity_profile("gamma", mean = 4, var = 2.5)
+  add_infectivity_profile("gamma", mean = 4, sd = 1.6)
 
 # perform inference
 results <- hhmodel |>
