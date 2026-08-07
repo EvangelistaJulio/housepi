@@ -44,7 +44,7 @@ public:
 	}
 
 	/// Allow for contact risk definitions.
-	bool has_contact_risks() const override final { return true; }
+	bool has_contact_risk() const override final { return true; }
 
 	void init_model_for_evaluation() override final
 	{

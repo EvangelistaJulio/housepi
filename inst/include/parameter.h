@@ -8,7 +8,6 @@
 #pragma once
 
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "tools/keys.h"
@@ -31,7 +30,7 @@ namespace housepi
     struct Translator;
 
     /// Implementation of Parameters.
-    struct Parameter : public KeyModule
+    struct Parameter : public KeyModuleWithRequests
     {
         /// NOTE:
         /// list_const + list_sample = all parameters in param_vec_
@@ -52,6 +51,9 @@ namespace housepi
         //////  SETTER  //////
         //////////////////////
 
+        /// Request that a baseline parameter and the relative risks scaling it share one reference.
+        void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts);
+
         /// Assign parameter definitions to dictionary.
         /// Expect unique definitions.
         void build(const str_table &deftable, const Translator &translator);
@@ -60,11 +62,6 @@ namespace housepi
         void build_for_predic(const dbl_table &deftable);
         /// Mark parameter as a producer of transmission cache.
         void mark_produces_transm_cache(size_t p);
-
-        /// Request discrete parameter definition.
-        void request_discrete(std::vector<size_t> vec) { user_discrete_set_.insert(vec.begin(), vec.end()); }
-        /// Request that a baseline parameter and the relative risks scaling it share one reference.
-        void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts);
 
         /// Assert that at most one scale is free among a baseline and the risks scaling it.
         /// Pin the baseline to the reference value when it is the only way to resolve.
@@ -85,7 +82,9 @@ namespace housepi
         Variable &at(size_t p) noexcept { return param_vec_[p]; }
         /// Get reference to parameter constant Variable class.
         const Variable &at(size_t p) const noexcept { return param_vec_[p]; }
-        /// Get reference to parameter constant Variable class.
+
+        /// Whether parameter storage was allocated.
+        bool is_allocated() const noexcept { return !param_vec_.empty(); }
 
         /// Flag to check if there are parameters to sample.
         bool is_any_sample() const noexcept { return !list_sample.empty(); }
@@ -108,9 +107,8 @@ namespace housepi
             bool contacts;             /// whether contact risks scale the same term
         };
 
-        std::vector<Variable> param_vec_ = {};              /// parameters vector
-        std::unordered_set<size_t> user_discrete_set_ = {}; /// user defined discrete parameters
-        std::vector<RiskAnchor_> risk_anchors_ = {};        /// model requested identifiability
+        std::vector<Variable> param_vec_ = {};       /// parameters vector
+        std::vector<RiskAnchor_> risk_anchors_ = {}; /// model requested identifiability
 
         /// Initialize parameter vector.
         void init_param_vec_();

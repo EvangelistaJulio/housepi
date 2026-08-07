@@ -105,6 +105,26 @@ test_that("cpp data factorization handles default types", {
   expect_equal(result$cols, colnames(df))
 })
 
+test_that("cpp data factorization flags discrete-valued columns", {
+  df <- data.frame(id = c("p1", "p2"),
+                   house_id = c("h1", "h1"),
+                   status = c(1, 0),
+                   date_col = as.Date(c("2024-01-01", "2024-01-02")),
+                   int_col = c(3L, 5L),
+                   whole_col = c(3, 5),
+                   frac_col = c(2.4, 5.1),
+                   empty_int = c(NA_integer_, NA_integer_),
+                   char_col = c("elisa", "ursula"),
+                   empty_col = c(NA_real_, NA_real_),
+                   stringsAsFactors = FALSE)
+  discr <- cpp_data_factorize(df)$discr
+  expect_type(discr, "logical")
+  expect_equal(names(discr), colnames(df))
+
+  expect_true(all(discr[c("date_col", "int_col", "empty_int")]))
+  expect_false(any(discr[c("whole_col", "frac_col", "char_col", "empty_col")]))
+})
+
 test_that("cpp data refactor restores original types", {
   df <- df_factory()
   factored <- cpp_data_factorize(df)

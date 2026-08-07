@@ -35,16 +35,18 @@ public:
 	/// Initialize infectivity profile.
 	void init_model_requirements() override final
 	{
-		request_augm_transmission(
-			{Augm::infec_time});
-		request_param_discrete(
-			{Param::hhsize_ref});
 		request_data_discrete(
 			{Data::start_date, Data::end_date});
+		request_param_discrete(
+			{Param::hhsize_ref});
+		request_param_positive(
+			{Param::hhsize_ref});
 		request_risk_identifiability(
 			Param::alpha, {GroupRisk::community});
 		request_risk_identifiability(
 			Param::beta, {GroupRisk::susceptibility, GroupRisk::infectivity}, true);
+		request_augm_transmission(
+			{Augm::infec_time});
 #ifdef _HOUSEPI_DISCRETE_TIME
 		request_augm_discrete(
 			{Augm::infec_time});
@@ -53,7 +55,7 @@ public:
 	}
 
 	/// Allow for contact risk definitions.
-	bool has_contact_risks() const override final { return true; }
+	bool has_contact_risk() const override final { return true; }
 
 	/// Transmission is driven by an infectivity profile.
 	bool has_infec_profile() const override final { return true; }

@@ -11,7 +11,7 @@ add_augmented(
   ...,
   status = NA_integer_,
   const = NA,
-  discr = FALSE,
+  discr = NA,
   func = NULL,
   func_args = NULL,
   model = NA_character_,
@@ -27,14 +27,15 @@ add_augmented(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value.
-One between:
+\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value. Either a plain value, a single external source
+following the convention \code{argument@source} ("argument at source"),
+or an arithmetic expression. Sources are:
 \describe{
-\item{augmented}{\verb{@A};}
-\item{data}{\verb{@D};}
-\item{group risk}{\verb{@G};}
-\item{parameter}{\verb{@P};}
-\item{scalar}{\verb{@N}.}
+\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@D}}{data column;}
+\item{\verb{@G}}{group risk;}
+\item{\verb{@N}}{numeric value (assumed for a number);}
+\item{\verb{@P}}{parameter.}
 }}
 
 \item{...}{named arguments for the model distribution.
@@ -53,8 +54,8 @@ If \code{NA}, associate definition to all infectious individuals (default).}
 \item{const}{\code{logical(1)} Treat definition as constant.
 If \code{TRUE}, additional Monte Carlo details are ignored.}
 
-\item{discr}{\code{logical(1)} Treat definition as discrete.
-If applicable, the model is discretized.}
+\item{discr}{\code{logical(1)} Treat model definition as discrete, if applicable.
+Inferred from the model requirements if \code{NA} (default).}
 
 \item{func}{One between:
 \itemize{
@@ -67,25 +68,27 @@ If applicable, the model is discretized.}
 \item{model}{\code{character(1)} Augmented model distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
-Relative to the location argument \code{loc}, when one is given.
-One between:
+Relative to the location argument \code{loc}, when one is given. Either a plain value, a single external source
+following the convention \code{argument@source} ("argument at source"),
+or an arithmetic expression. Sources are:
 \describe{
-\item{augmented}{\verb{@A};}
-\item{data}{\verb{@D};}
-\item{group risk}{\verb{@G};}
-\item{parameter}{\verb{@P};}
-\item{scalar}{\verb{@N}.}
+\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@D}}{data column;}
+\item{\verb{@G}}{group risk;}
+\item{\verb{@N}}{numeric value (assumed for a number);}
+\item{\verb{@P}}{parameter.}
 }}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
-Relative to the location argument \code{loc}, when one is given.
-One between:
+Relative to the location argument \code{loc}, when one is given. Either a plain value, a single external source
+following the convention \code{argument@source} ("argument at source"),
+or an arithmetic expression. Sources are:
 \describe{
-\item{augmented}{\verb{@A};}
-\item{data}{\verb{@D};}
-\item{group risk}{\verb{@G};}
-\item{parameter}{\verb{@P};}
-\item{scalar}{\verb{@N}.}
+\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@D}}{data column;}
+\item{\verb{@G}}{group risk;}
+\item{\verb{@N}}{numeric value (assumed for a number);}
+\item{\verb{@P}}{parameter.}
 }}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.

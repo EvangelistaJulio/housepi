@@ -23,8 +23,10 @@ test_that("Showcaser extract numeric handles double and pi constant", {
   expect_equal(showcaser_extract_numeric("pi|N"), pi)
   # non-N type returns original string
   expect_equal(showcaser_extract_numeric("alpha|A"), "alpha|A")
-  # NA returns NA_real_
-  expect_equal(showcaser_extract_numeric(NA), NA_real_)
+  # a missing datum returns NA_real_
+  expect_equal(showcaser_extract_numeric(NA_character_), NA_real_)
+  # an unresolved flag stays logical, so the column keeps its type
+  expect_equal(showcaser_extract_numeric(c(NA, FALSE)), c(NA, FALSE))
   # numeric passthrough
   expect_equal(showcaser_extract_numeric(42), 42)
 })

@@ -8,7 +8,7 @@
 \alias{get_observations}
 \alias{get_group_risks}
 \alias{get_contact_risks}
-\alias{get_infectivity_profile}
+\alias{get_infectivity_profiles}
 \title{Retrieve currently loaded data and definitions from a housepi model}
 \usage{
 get_data_wide(hhmodel)
@@ -25,7 +25,7 @@ get_group_risks(hhmodel)
 
 get_contact_risks(hhmodel)
 
-get_infectivity_profile(hhmodel)
+get_infectivity_profiles(hhmodel)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}

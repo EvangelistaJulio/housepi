@@ -49,10 +49,11 @@ rd_mdl_flags_ <- "Named arguments. Additional compilation options:
 rd_var_name_ <- "`character(1)` Name used by internal calls."
 rd_var_const_ <- "`logical(1)` Treat definition as constant.
 If `TRUE`, additional Monte Carlo details are ignored."
-rd_var_discr_ <- function(what) {
-  sprintf("`logical(1)` Treat definition as discrete.
-If applicable, the %s is discretized.", what)
+rd_var_discr_ <- function(what, from) {
+  sprintf("`logical(1)` Treat %s definition as discrete, if applicable.
+          Inferred from %s if `NA` (default).", what, from)
 }
+rd_obs_discr_from_ <- "the observed data column, or the model requirements"
 rd_var_prior_ <- "`character(1)` Prior distribution."
 rd_var_args_ <- function(what, proposal = FALSE) {
   paste0(sprintf("named arguments for the %s distribution.", what),
@@ -89,23 +90,23 @@ omitted it is adapted during inference when `adapt > 0`; if a positive numeric
 it is fixed and never adapted. For independence sampling from a named
 distribution, the distribution parameters are supplied the same way (e.g.
 `proposal_mean`, `proposal_sd`)."
-# FIXME:
-rd_types_ <- "
-One between:
+rd_sources_ <- "Either a plain value, a single external source
+following the convention `argument@source` (\"argument at source\"),
+or an arithmetic expression. Sources are:
 \\describe{
-  \\item{augmented}{`@A`;}
-  \\item{data}{`@D`;}
-  \\item{group risk}{`@G`;}
-  \\item{parameter}{`@P`;}
-  \\item{scalar}{`@N`.}
+  \\item{`@A`}{augmented variable (assumed for a bare name);}
+  \\item{`@D`}{data column;}
+  \\item{`@G`}{group risk;}
+  \\item{`@N`}{numeric value (assumed for a number);}
+  \\item{`@P`}{parameter.}
 }"
 rd_aug_status_ <- "`integer(1)` Individual positive status.
 Used to specify status-specific definitions.
 If `NA`, associate definition to all infectious individuals (default)."
 rd_aug_val_ <- paste("`numeric(1)` | `character(1)`. Initial value.",
-                     rd_types_)
-rd_aug_min_ <- paste(rd_var_min_, rd_types_)
-rd_aug_max_ <- paste(rd_var_max_, rd_types_)
+                     rd_sources_)
+rd_aug_min_ <- paste(rd_var_min_, rd_sources_)
+rd_aug_max_ <- paste(rd_var_max_, rd_sources_)
 
 ## Definition modes ##
 
@@ -396,9 +397,9 @@ get_contact_risks <- function(hhmodel) {
 
 #' @rdname get_definitions
 #' @export
-get_infectivity_profile <- function(hhmodel) {
+get_infectivity_profiles <- function(hhmodel) {
   stopifnothousepi(hhmodel)
-  hhmodel$infectivity_profile
+  hhmodel$infectivity_profiles
 }
 
 ############################################################################
@@ -479,7 +480,7 @@ add_template_defs_ <- function(pvt, family, append, key, dots) {
 #' @param value `numeric(1)` Initial value.
 #' Required only if constant or random initialization has been disabled.
 #' @param const `r rd_var_const_`
-#' @param discr `r rd_var_discr_("prior")`
+#' @param discr `r rd_var_discr_("prior", "the model requirements")`
 #' @param prior `r rd_var_prior_`
 #' @param ... `r rd_var_args_("prior", proposal = TRUE)`
 #' In mode 'multiple', the `name = value` definitions.
@@ -516,7 +517,7 @@ add_template_defs_ <- function(pvt, family, append, key, dots) {
 #' @export
 add_parameter <- function(hhmodel,
                           name = NULL, value = NULL, ...,
-                          const = NA, discr = FALSE,
+                          const = NA, discr = NA,
                           prior = NA_character_,
                           func = NULL, func_args = NULL,
                           min = NULL, max = NULL,
@@ -571,7 +572,7 @@ add_parameter <- function(hhmodel,
 #' @param value `r rd_aug_val_`
 #' @param status `r rd_aug_status_`
 #' @param const `r rd_var_const_`
-#' @param discr `r rd_var_discr_("model")`
+#' @param discr `r rd_var_discr_("model", "the model requirements")`
 #' @param func `r rd_var_func_`
 #' @param func_args `r rd_var_funargs_`
 #' @param model `character(1)` Augmented model distribution.
@@ -592,7 +593,7 @@ add_parameter <- function(hhmodel,
 #' @export
 add_augmented <- function(hhmodel,
                           name = NULL, value = NULL, ...,
-                          status = NA_integer_, const = NA, discr = FALSE,
+                          status = NA_integer_, const = NA, discr = NA,
                           func = NULL, func_args = NULL,
                           model = NA_character_,
                           min = NULL, max = NULL,
@@ -659,7 +660,7 @@ add_augmented <- function(hhmodel,
 #' In mode 'multiple', applies to every entry not setting its own.
 #' @param value `r rd_aug_val_`
 #' @param status `r rd_aug_status_`
-#' @param discr `r rd_var_discr_("model")`
+#' @param discr `r rd_var_discr_("model", rd_obs_discr_from_)`
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
 #' @param import `r rd_import_`
@@ -669,7 +670,7 @@ add_augmented <- function(hhmodel,
 add_observation <- function(hhmodel, name = NULL,
                             model = NA_character_, ...,
                             level = c("member", "house"), value = NULL,
-                            status = NA_integer_, discr = FALSE,
+                            status = NA_integer_, discr = NA,
                             min = NULL, max = NULL,
                             import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
@@ -878,7 +879,7 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 #' @param hhmodel `r rd_model_in_`
 #' @param func `r rd_var_name_`
 #' @param status `r rd_aug_status_`
-#' @param discr `r rd_var_discr_("profile")`
+#' @param discr `r rd_var_discr_("profile", "the model time discretization")`
 #' @param ... `r rd_var_args_("profile")`
 #' In mode 'multiple', the `func` definitions.
 #' @param min `r rd_aug_min_`
@@ -891,11 +892,11 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 #' hhmodel <- sarscov2_2021_icofs |>
 #'   new_housepi_model("case_ascertained") |>
 #'   add_infectivity_profile(import = "template")
-#' get_infectivity_profile(hhmodel)
+#' get_infectivity_profiles(hhmodel)
 #' @export
 add_infectivity_profile <- function(hhmodel,
                                     func = NULL, ...,
-                                    status = NA_integer_, discr = FALSE,
+                                    status = NA_integer_, discr = NA,
                                     min = NULL, max = NULL,
                                     import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
@@ -972,7 +973,7 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' Either a `character()` of individual identifiers,
 #' or a `list` with entries `id` (individual identifiers)
 #' and/or `house_id` (whole household infected members are stored).
-#' When unset, one random eligible household is followed (default).
+#' If `NA`, one random eligible household is followed (default).
 #' Pass `".none"` to store nothing.
 #' @param progress `r rd_progress_`
 #' @param ... `r rd_dots_config_`

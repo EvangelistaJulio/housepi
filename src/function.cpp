@@ -580,8 +580,15 @@ namespace housepi
     /// Return formatted range.
     std::string Function::str_range() const
     {
-        const std::string &str_min = lower_.str_val();
-        const std::string &str_max = upper_.str_val();
+        std::string str_min = lower_.str_val();
+        std::string str_max = upper_.str_val();
+        if (deloc_mode_ == Mode::Location::Active && loc_.is_callable())
+        {
+            if (lower_.is_callable())
+                str_min = str::format(relocate_(lower_.value()));
+            if (upper_.is_callable())
+                str_max = str::format(relocate_(upper_.value()));
+        }
 
         std::string output;
 

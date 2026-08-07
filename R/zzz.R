@@ -54,10 +54,6 @@ wrap_cpp_member_ <- function(x, name) {
   .engine <<- structure(list(module = module), class = "housepi_engine")
   registerS3method("$", "housepi_engine", `$.housepi_engine`,
                    envir = asNamespace(pkgname))
-  registerS3method("$", "housepi_exposed", `$.housepi_exposed`,
-                   envir = asNamespace(pkgname))
-  registerS3method("print", "housepi_exposed", print.housepi_exposed,
-                   envir = asNamespace(pkgname))
   # default label for the susceptible status (code 0) in character status output
   op <- options()
   if (is.null(op[["housepi.susceptible_label"]])) {

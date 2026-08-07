@@ -10,7 +10,7 @@ add_parameter(
   value = NULL,
   ...,
   const = NA,
-  discr = FALSE,
+  discr = NA,
   prior = NA_character_,
   func = NULL,
   func_args = NULL,
@@ -41,8 +41,8 @@ In mode 'multiple', the \code{name = value} definitions.}
 \item{const}{\code{logical(1)} Treat definition as constant.
 If \code{TRUE}, additional Monte Carlo details are ignored.}
 
-\item{discr}{\code{logical(1)} Treat definition as discrete.
-If applicable, the prior is discretized.}
+\item{discr}{\code{logical(1)} Treat prior definition as discrete, if applicable.
+Inferred from the model requirements if \code{NA} (default).}
 
 \item{prior}{\code{character(1)} Prior distribution.}
 

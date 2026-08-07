@@ -14,12 +14,7 @@ mk_infec_discr <- local({
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(import = "template") |>
-    # UPDATE: 'infec_time' is declared discrete here because
-    # template leaves it continuous, which a discrete-time model refuses
-    add_augmented(
-      infec_time = list(model = "uniform", discr = TRUE,
-                        min = start_date@D - 10,  max = end_date@D)
-    )
+    add_augmented(import = "template")
   list(model = hhmodel)
 })
 
@@ -50,7 +45,7 @@ test_that("infectivity profile definitions are correct", {
   defs <- mk_infec$model |>
     add_infectivity_profile(func = "gamma", shape = 1, scale = 2,
                             min = 2, max = 10) |>
-    get_infectivity_profile()
+    get_infectivity_profiles()
 
   expect_equal(defs$func, "gamma")
   expect_equal(defs$func_args[[1]], c(shape = 1, scale = 2))
@@ -65,7 +60,7 @@ test_that("infectivity profile with discrete passes on continuos time", {
   defs <- mk_infec$model |>
     add_infectivity_profile("ferretti20", discr = TRUE,
                             incub_period = 5, max = 20) |>
-    get_infectivity_profile()
+    get_infectivity_profiles()
 
   expect_equal(defs$func, "ferretti20")
   expect_equal(defs$func_args[[1]], c(incub_period = 5))
@@ -85,7 +80,7 @@ test_that("status specific definition work fine", {
       ),
       append = FALSE
     ) |>
-    get_infectivity_profile()
+    get_infectivity_profiles()
 
   expect_equal(defs$func, c("lognormal", "ferretti20", "uniform"))
   expect_equal(defs$func_args[[2]], c(incub_period = 5))
@@ -103,7 +98,7 @@ test_that("spurious names are dropped", {
   infec <- mk_infec$model |>
     add_parameter(shape = 4, scale = 2) |>
     add_infectivity_profile(import = external_list) |>
-    get_infectivity_profile()
+    get_infectivity_profiles()
 
   infec$status <- NULL
   expect_equal(nrow(unique(infec)), 1)
@@ -113,7 +108,7 @@ test_that("range minimum defaults to the first transmission day", {
   profile_min <- function(hhmodel, ...) {
     hhmodel |>
       add_infectivity_profile(...) |>
-      get_infectivity_profile() |>
+      get_infectivity_profiles() |>
       getElement("min")
   }
 
@@ -134,10 +129,25 @@ test_that("range minimum defaults to the first transmission day", {
     expect_equal(0)
 })
 
+test_that("a discrete-time model refuses a profile declared continuous", {
+  mk_infec_discr$model |>
+    add_infectivity_profile("gamma", discr = FALSE, mean = 4, sd = sqrt(3)) |>
+    expect_error("must be discrete")
+
+  # the same declaration is honoured in continuous time
+  mk_infec$model |>
+    add_infectivity_profile("gamma", discr = FALSE, mean = 4, sd = sqrt(3)) |>
+    get_infectivity_profiles() |>
+    getElement("discr") |>
+    expect_false()
+})
+
 test_that("a profile dependency reached through 'min' is reported", {
   # 'min' carries the only reference to the missing column
   mk_infec_discr$model |>
-    add_infectivity_profile("uniform", min = liquid_snake@D, max = infec_time) |>
+    add_infectivity_profile(
+      "uniform", min = liquid_snake@D, max = infec_time
+    ) |>
     evaluate_log_lik() |>
     expect_error("liquid_snake")
 })
@@ -148,7 +158,7 @@ test_that("a profile dependency reached through 'min' is reported", {
 
 test_that("a model needing a profile throws", {
   mk_infec$model |>
-    get_infectivity_profile() |>
+    get_infectivity_profiles() |>
     expect_null()
   mk_infec$model |>
     evaluate_log_lik() |>
@@ -262,4 +272,74 @@ test_that("an augmented parameterizing the profile drives transmission", {
     run_inference(steps = 800, thin = 2, adapt = 100, chains = 1,
                   progress = FALSE) |>
     expect_silent()
+})
+
+test_that("the household snapshot reports the profile of each member", {
+  zanzibar <- data.frame(
+    id = c("venom", "kaz", "ocelot"), house_id = "zanzibar",
+    status = c(1, 1, 0), start_date = 0, end_date = 20, latency = c(2, 9, 4)
+  ) |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4)
+
+  # the model requires a profile, so the entry is kept but reads empty
+  zanzibar$export_house_snapshot("zanzibar")$infectivity_profiles |>
+    nrow() |>
+    expect_equal(0L)
+
+  # a generic profile repeats on every infected member, susceptibles read NA
+  generic <- zanzibar |>
+    add_augmented(infec_time = start_date@D) |>
+    add_infectivity_profile("gamma", shape = 2, scale = 1) |>
+    (\(x) x$export_house_snapshot("zanzibar")$infectivity_profiles)()
+
+  expect_equal(names(generic),
+               c("id", "discr", "func", "min", "max", "func_args"))
+  expect_equal(generic$id, c("venom", "kaz", "ocelot"))
+  expect_equal(generic$func, c("gamma", "gamma", NA_character_))
+  expect_equal(generic$discr, c(FALSE, FALSE, NA))
+  expect_equal(generic$func_args[[1]], c(shape = 2, scale = 1))
+  expect_equal(generic$func_args[[2]], generic$func_args[[1]])
+  # the susceptible carries no profile at all
+  expect_length(generic$func_args[[3]], 0)
+
+  # an augmented profile is resolved per member: same house, two incubations
+  augmented <- zanzibar |>
+    add_augmented(infec_time = start_date@D, .incub_period = latency@D) |>
+    add_infectivity_profile("ferretti20", incub_period = .incub_period)
+
+  # the augmented storage is not allocated until the model is evaluated
+  augmented$export_house_snapshot("zanzibar")$infectivity_profiles$func |>
+    expect_equal(rep(NA_character_, 3))
+
+  invisible(evaluate_log_lik(augmented))
+  snapshot <- augmented$export_house_snapshot("zanzibar")$infectivity_profiles
+
+  expect_equal(snapshot$func, c("ferretti20", "ferretti20", NA_character_))
+  expect_equal(unname(snapshot$func_args[[1]]["incub_period"]), 2)
+  expect_equal(unname(snapshot$func_args[[2]]["incub_period"]), 9)
+})
+
+test_that("add_infectivity_profile single and bulk forms work", {
+  ip <- mk_infec$model |>
+    add_infectivity_profile(func = "lognormal") |>
+    get_infectivity_profiles()
+  expect_true("lognormal" %in% ip$func)
+
+  # bulk form
+  ip2 <- mk_infec$model |>
+    add_infectivity_profile(ip1 = list(func = "lognormal")) |>
+    get_infectivity_profiles()
+  expect_true("lognormal" %in% ip2$func)
+})
+
+test_that("add_infectivity_profile and list update the model directly", {
+  hhmodel <- mk_infec$model |>
+    add_infectivity_profile(func = "gamma", shape = 2, scale = 1)
+  expect_true("gamma" %in% hhmodel$infectivity_profiles$func)
+  expect_warning(
+    hhmodel <- add_infectivity_profile(hhmodel, func = "lognormal"),
+    regexp = "Overwriting"
+  )
+  expect_true("lognormal" %in% hhmodel$infectivity_profiles$func)
 })

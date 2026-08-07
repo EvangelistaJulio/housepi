@@ -211,11 +211,11 @@ namespace housepi
                 {
                     x = str::tod(input.at(dname)[i], "data " + msg::arg(dname));
 
-                    if (user_discrete_set_.count(d) && x != std::floor(x))
+                    if (is_required_discrete(d) && x != std::floor(x))
                         msg::stop(
                             "Data " + msg::arg(dname) + " for individual in row n." + std::to_string(i + 1) +
                             " was expected to be discrete-valued, as requested by model.");
-                    if (user_positive_set_.count(d) && !(x > 0.))
+                    if (is_required_positive(d) && !(x > 0.))
                         msg::stop(
                             "Data " + msg::arg(dname) + " for individual in row n." + std::to_string(i + 1) +
                             " was expected to be greater than zero, as requested by model.");
@@ -409,7 +409,7 @@ namespace housepi
                     for (size_t i : order)
                     {
                         const Individual &indiv = house.at(i);
-                        hash_combine_(seed, std::hash<int>{}(indiv.status()));
+                        hash_combine_(seed, std::hash<StatusLevel>{}(indiv.status()));
                         for (size_t d : data_list_)
                             hash_combine_(seed, std::hash<double>{}(data_wide_.data(d, indiv)));
                     }

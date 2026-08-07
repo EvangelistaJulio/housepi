@@ -9,7 +9,6 @@
 
 #include <cstdint>
 #include <string>
-#include <unordered_set>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -42,10 +41,7 @@ namespace housepi
         struct Entry;
     }
 
-    /// Max resamples per member (see Augmented::restart_obs_aware).
-    static constexpr size_t N_INIT_ATTEMPTS_ = 100;
-
-    struct Augmented : public KeyModule
+    struct Augmented : public KeyModuleWithRequests
     {
         /// Discriminates definition rows: augmented latent vs observation levels.
         enum class Kind : std::uint8_t
@@ -104,6 +100,9 @@ namespace housepi
         //////  SETTER  //////
         //////////////////////
 
+        /// Declare augmented keys as read by the transmission computation.
+        void request_transmission(std::vector<size_t> vec);
+
         /// Assign augmented variables to all individuals.
         void build(InfecProfile &infec_profile, const str_table &input);
 
@@ -118,23 +117,16 @@ namespace housepi
         /// NOTE: evaluation-only, never run for simulations.
         void init_for_evaluation();
 
-        /// Request augmented keys to return discrete definitions.
-        void request_discrete(std::vector<size_t> vec) { user_discrete_set_.insert(vec.begin(), vec.end()); }
-        /// Declare augmented keys as read by the transmission computation.
-        void request_transmission(std::vector<size_t> vec) { user_transm_set_.insert(vec.begin(), vec.end()); }
-
-        /// Sample observation values from their distributions.
-        /// NOTE: used for simulations.
-        void sample_obs(const Individual &indiv, rnd_gen &prng);
-
         /// Initialize surrogate columns of both levels for simulations.
         void init_house_for_simulation();
-
         /// Sample the status observation, if any.
-        /// NOTE: used for simulations.
+        /// UPDATE: status should not be stored in viewers.
         void simulate_infected_status(Household &house,
                                       Individual &indiv,
                                       rnd_gen &prng);
+        /// Sample observation values from their distributions.
+        /// NOTE: used for simulations.
+        void sample_obs(const Individual &indiv, rnd_gen &prng);
 
         /// Build the surrogate columns that stand in for data columns and point each
         /// member's read-surface at its Variable before evaluation.
@@ -248,6 +240,10 @@ namespace housepi
         //////  FLAGS  //////
         /////////////////////
 
+        /// Whether the per-individual storage covers current data.
+        /// NOTE: deferred definition can leave data stale.
+        bool is_allocated() const noexcept;
+
         /// If there are non-constant augmented definitions.
         bool is_any_sample() const noexcept { return is_any_sample_; }
         /// If there are augmented definitions with an adaptive proposal.
@@ -260,6 +256,7 @@ namespace housepi
         bool is_any_obs_node() const noexcept { return !list_obs_member.empty(); }
         /// If a status observation is defined.
         bool is_any_status_obs() const noexcept { return !na::is(status_obs_def_); }
+
         /// Whether the given name is an member-level observation node.
         bool is_member_obs(const std::string &name) const noexcept;
         /// Whether the given name is a household-level observation.
@@ -289,14 +286,12 @@ namespace housepi
         size_t status_obs_def_ = na::INDEX; /// deftable row of status observation
         size_t status_obs_key_ = na::INDEX; /// key-holder slot of status observation
 
-        /// User defined discrete parameters
-        std::unordered_set<size_t> user_discrete_set_ = {};
         /// Model declared augmented keys read by the transmission computation.
-        std::unordered_set<size_t> user_transm_set_ = {};
+        std::vector<size_t> user_transm_vec_ = {};
         /// Status to definition row.
-        std::unordered_map<int, std::vector<size_t>> map_status_to_def_row_ = {};
+        std::unordered_map<StatusLevel, std::vector<size_t>> map_status_to_def_row_ = {};
         /// Status to internal index.
-        std::unordered_map<int, size_t> map_status_to_block_ = {};
+        std::unordered_map<StatusLevel, size_t> map_status_to_block_ = {};
 
         /// Parameter -> whether an augmented model consumes it, so its moves shift the density.
         std::vector<bool> param_produces_augm_ll_ = {};
@@ -331,10 +326,6 @@ namespace housepi
         /// Auxiliary block for status-specific models.
         struct StatusBlock_
         {
-            StatusBlock_(int status_) { status = status_; }
-
-            int status; /// associated status
-
             std::vector<size_t> order = {}; /// definition order as in the deftable
 
             std::vector<size_t> augm_models = {}; /// keys for augmented-model densities
@@ -357,7 +348,7 @@ namespace housepi
         IndivBlock &varia_of_(const Individual &m) noexcept { return varia[Index::of(m)]; }
         const IndivBlock &varia_of_(const Individual &m) const noexcept { return varia[Index::of(m)]; }
         /// Status-specific block governing augmented definitions of member.
-        StatusBlock_ &block_at_(int status) { return status_blocks_[map_status_to_block_.at(status)]; }
+        StatusBlock_ &block_at_(StatusLevel s) { return status_blocks_[map_status_to_block_.at(s)]; }
         const StatusBlock_ &block_of_(const Individual &m) const { return status_blocks_[varia_of_(m).idx]; }
 
         // Restore internal list and flags definitions.
@@ -375,6 +366,7 @@ namespace housepi
         /// Assert augmented status/generic definitions are non degenerate.
         /// Assert status-specific definitions are only for infected status.
         /// NOTE: generic definitions are associated to MISSING status.
+        /// NOTE: assertion of univocal name-status is done in R
         void build_definition_by_status_();
 
         /// Deal with the definition 'k' of augmented to be sampled (const = FALSE).
@@ -388,21 +380,20 @@ namespace housepi
         /// Reject a read of an augmented name absent from the 'status' graph, telling
         /// apart a name declared for other statuses from a data column or a parameter
         /// of the same name (an unsuffixed name is read as augmented).
-        void assert_producers_declared_(const dpdcy::prod_graph &graph,
-                                        int status) const;
+        void assert_producers_declared_(const dpdcy::prod_graph &graph, StatusLevel s) const;
 
         /// Order the definitions of given status, producer before consumer.
         /// At the same time assert that definitions are complete and acyclic.
-        void set_definition_order_for_(int status, int err_status);
+        void set_definition_order_for_(StatusLevel s, StatusLevel err_status);
         /// Extract status-specific definitions row indexes.
-        std::vector<size_t> get_unsorted_definition_rows_(int status) const;
+        std::vector<size_t> get_unsorted_definition_rows_(StatusLevel s) const;
         /// Set sample and draws list for given status.
-        void set_sample_list_(int status);
+        void set_sample_list_(StatusLevel s);
         /// Set sample and draws list for given definition.
-        void set_sample_list_for_single_definition_(int status, size_t k);
+        void set_sample_list_for_single_definition_(StatusLevel s, size_t k);
 
         /// Inspect if constant definition.
-        std::pair<bool, bool> set_sample_list_for_function_(int status, size_t k);
+        std::pair<bool, bool> set_sample_list_for_function_(StatusLevel s, size_t k);
 
         /// Deal with the definition of augmented variable with a model.
         /// Fills StatusBlock_::consumers, i.e. keyed by producer.
@@ -460,8 +451,7 @@ namespace housepi
                                      size_t k,
                                      bool simulation = false);
         /// Assign attributes to augmented model.
-        void helper_init_distr_attributes_(const Individual &indiv,
-                                           size_t k);
+        void helper_init_distr_attributes_(const Individual &indiv, size_t k);
         /// Build the Variable of definition row 'k' on 'anchor'. Its level selects the
         /// operand policy: a household row reduces over the members of 'house', any other
         /// row binds every operand to 'anchor' alone and needs no household.

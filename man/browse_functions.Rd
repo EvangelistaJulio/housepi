@@ -26,7 +26,7 @@ Relative to the location argument \code{loc}, when one is given.}
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }
 \value{
-An exposed function object with methods \verb{$func()} and \verb{$prim()}, or \code{NULL} if the available names were printed.
+\code{NULL} if the available names were printed. Otherwise \link[=HousepiExposedFunction]{HousepiExposedFunction} object.
 }
 \description{
 Print the list of available functions,

@@ -8,7 +8,7 @@ test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
     helper_test_read_only(
       "data_wide", "data_long", "parameters", "augmented", "observations",
-      "infectivity_profile", "group_risks", "contact_risks", "name", "setup"
+      "infectivity_profiles", "group_risks", "contact_risks", "name", "setup"
     )
 })
 
@@ -108,14 +108,9 @@ test_that("Data without house_id warns on every attach", {
 test_that("Model class 'test' calls", {
   # test household model object
   hhmodel <- new_housepi_model(model = "test")
-  snapshot <- hhmodel$export_house_snapshot("house")
-  expect_equal(length(snapshot$param), 0)
-  expect_equal(length(snapshot$augm), 0)
-  expect_equal(length(snapshot$group_risk), 0)
 
   # 'test' default data wide format
   expect_equal(hhmodel$data_wide, dummy_household)
-  expect_equal(snapshot$data_wide, hhmodel$data_wide)
 
   # templates
   add_parameter(hhmodel, import = "template") |>
@@ -138,6 +133,27 @@ test_that("Model class 'test' calls", {
     expect_error("[Ii]ndex.*mother-base.*did not match")
 })
 
+test_that("Household snapshot reads before any definition is pushed", {
+  # entries required by the model are kept even when still empty
+  hhmodel <- dummy_household |>
+    new_housepi_model("final_size")
+  snapshot <- hhmodel$export_house_snapshot("house")
+
+  field_names <- c(
+    "data_wide", "parameters", "group_risks", "contact_risks", "augmented",
+    "augmented_log_lik", "observation_log_lik", "transmission_log_lik"
+  )
+  expect_equal(names(snapshot), field_names)
+
+  for (f in c("parameters", "group_risks", "augmented",
+              "augmented_log_lik", "observation_log_lik")) {
+    expect_length(snapshot[[f]], 0)
+  }
+
+  # single household
+  expect_equal(snapshot$data_wide, dummy_household)
+})
+
 test_that("Data long format is correctly handled", {
   hhmodel <- new_housepi_model(model = "test")
 
@@ -147,10 +163,8 @@ test_that("Data long format is correctly handled", {
     expect_error("data.frame")
 
   # correct data long format
-  data_long <- data.frame(
-    id = hhmodel$data_wide$id[1],
-    time = seq(3), measure = seq(3)**3
-  )
+  data_long <- data.frame(id = hhmodel$data_wide$id[1],
+                          time = seq(3), measure = seq(3)**3)
 
   hhmodel <- hhmodel |>
     add_data_long(data_long)
@@ -163,30 +177,26 @@ test_that("Data long format is correctly handled", {
 
 test_that("Print behavior works as expected", {
   # 'test' model
-  new_housepi_model(model = "test") |>
-    print() |>
+  print(new_housepi_model(model = "test")) |>
     expect_snapshot()
 
   # without data
-  new_housepi_model(model = "final_size") |>
-    print() |>
+  print(new_housepi_model(model = "final_size")) |>
     expect_snapshot()
 
   # without parameters
-  flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    print() |>
+  print(new_housepi_model(flu_1918_frederick, "final_size")) |>
     expect_snapshot()
 
   # with data and parameters
-  flu_1918_frederick |>
+  hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter(import = "template") |>
-    print() |>
+    add_parameter(import = "template")
+  print(hhmodel) |>
     expect_snapshot()
 
   # help() dispatches without error in non-interactive mode (emits warning)
-  expect_warning(new_housepi_model(model = "final_size")$help())
+  expect_warning(hhmodel$help())
 })
 
 ##################################
@@ -250,21 +260,17 @@ test_that("Posterior memory budget is asserted", {
 })
 
 test_that("A followed household without infected members warns", {
-  hhmodel <- data.frame(
-    id = c("chico", "amanda"),
-    house_id = c("ground-zero", "mother-base"),
-    status = c(1, 0)
-  ) |>
+  hhmodel <- data.frame(id = c("chico", "amanda"),
+                        house_id = c("ground-zero", "mother-base"),
+                        status = c(1, 0)) |>
     new_housepi_model("test") |>
     add_augmented("test_date", model = "uniform")
 
   expect_warning(
     expect_warning(
       hhmodel |>
-        run_inference(
-          steps = 20, adapt = 0, chains = 1,
-          id_draws = list(house_id = "mother-base")
-        ),
+        run_inference(steps = 20, adapt = 0, chains = 1,
+                      id_draws = list(house_id = "mother-base")),
       regexp = "no infected members"
     ),
     regexp = "below 400"

@@ -44,8 +44,13 @@ std::vector<T> operator-(const std::vector<T> &v, const std::vector<T> &w)
     return result;
 }
 
+/// Whether the given element is contained in the given vector.
 template <typename T, typename U>
 bool contains(const T &vec, U elem)
 {
     return std::find(vec.begin(), vec.end(), elem) != vec.end();
 }
+
+/// Appends elements from another container that are not already in the first.
+template <typename T>
+void union_append(T &vec, const T &other) { vec += (other - vec); }

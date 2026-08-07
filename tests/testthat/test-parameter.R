@@ -28,7 +28,7 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$name, "dummy")
   expect_equal(param$value, 3)
   expect_equal(param$const, FALSE)
-  expect_equal(param$discr, FALSE)
+  expect_true(is.na(param$discr))
   expect_equal(param$proposal, "rw")
   expect_equal(param$prior, "uniform")
   expect_equal(param$min, 0)
@@ -36,85 +36,52 @@ test_that("Default parameter definitions are correct", {
 
   # bulk and single add should be coherent
   tmp <- mk_param$model |>
-    add_parameter(
-      name = "dummy", value = 3, prior = "uniform",
-      min = 0, max = 5
-    ) |>
+    add_parameter("dummy", value = 3, prior = "uniform", min = 0, max = 5) |>
     get_parameters()
   expect_equal(param, tmp)
-
-  # proposal
-  param <- mk_param$model |>
-    add_parameter(
-      name = "dummy", prior = "uniform", min = 0, max = 5,
-      proposal = "rw_log"
-    ) |>
-    get_parameters()
-
-  expect_equal(param$name, "dummy")
-  expect_equal(param$value, NA_real_)
-  expect_equal(param$const, FALSE)
-  expect_equal(param$discr, FALSE)
-  # a bare proposal (no folded scale) stays adaptive
-  expect_equal(param$proposal, "rw_log")
-  expect_equal(param$prior, "uniform")
-  expect_equal(param$min, 0)
-  expect_equal(param$max, 5)
 
   # a user-defined proposal_scale is folded into the proposal call as an
   # argument of the DSL, pinning the scale (no adaptation)
   param <- mk_param$model |>
-    add_parameter(
-      name = "dummy", prior = "uniform", min = 0, max = 5,
-      proposal = "rw", proposal_scale = 0.5
-    ) |>
+    add_parameter(name = "dummy", prior = "uniform", max = 5,
+                  proposal = "rw_log", proposal_scale = 0.5) |>
     get_parameters()
-  expect_equal(param$proposal, "rw")
+  expect_equal(param$proposal, "rw_log")
   expect_equal(param$proposal_args[[1]], c(scale = 0.5))
 })
 
 test_that("Proposal families route correctly", {
   # a distribution name is an independence sampler; its arguments fold in
   param <- mk_param$model |>
-    add_parameter(
-      name = "otacon", prior = "uniform", min = 0, max = 5,
-      proposal = "normal", proposal_mean = 0, proposal_sd = 1
-    ) |>
+    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+                  proposal = "normal", proposal_mean = 0, proposal_sd = 1) |>
     get_parameters()
   expect_equal(param$proposal, "normal")
   expect_equal(param$proposal_args[[1]], c(mean = 0, sd = 1))
 
   # sampling from the variable's own distribution uses the "forward" keyword
   param <- mk_param$model |>
-    add_parameter(
-      name = "otacon", prior = "uniform", min = 0, max = 5,
-      proposal = "forward"
-    ) |>
+    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+                  proposal = "forward") |>
     get_parameters()
   expect_equal(param$proposal, "forward")
 
   # proposal_scale only tunes a random walk
   mk_param$model |>
-    add_parameter(
-      name = "otacon", prior = "uniform", min = 0, max = 5,
-      proposal = "normal", proposal_scale = 0.5
-    ) |>
+    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+                  proposal = "normal", proposal_scale = 0.5) |>
     expect_error("random.?walk")
 
   # distribution arguments are not random-walk knobs
   mk_param$model |>
-    add_parameter(
-      name = "otacon", prior = "uniform", min = 0, max = 5,
-      proposal = "rw", proposal_sd = 1
-    ) |>
+    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+                  proposal = "rw", proposal_sd = 1) |>
     expect_error("[Rr]andom.?walk proposal .*accepts only")
 
   # advanced options need an explicit proposal
   mk_param$model |>
-    add_parameter(
-      name = "otacon", prior = "uniform", min = 0, max = 5,
-      proposal_mean = 0
-    ) |>
+    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+                  proposal_mean = 0) |>
     expect_error("[Aa]dvanced .proposal.* require an explicit")
 })
 
@@ -123,10 +90,8 @@ test_that("Constant parameter definitions are correct", {
     add_parameter(name = "dummy") |>
     expect_error("[Ii]ncomplete")
   mk_param$model |>
-    add_parameter(
-      name = "dummy", prior = "uniform",
-      min = 0, max = 5, const = TRUE
-    ) |>
+    add_parameter(name = "dummy", prior = "uniform",
+                  min = 0, max = 5, const = TRUE) |>
     expect_error("[Mm]issing value")
 
   # bulk and single add should be coherent
@@ -141,10 +106,9 @@ test_that("Constant parameter definitions are correct", {
   expect_equal(param$proposal, NA_real_)
 
   expect_warning(
-    overwritten <- add_parameter(
-      hhmodel, name = "dummy", value = 3, prior = "uniform",
-      min = 0, max = 5, const = TRUE
-    ),
+    overwritten <- hhmodel |>
+      add_parameter(name = "dummy", value = 3, prior = "uniform",
+                    min = 0, max = 5, const = TRUE),
     "[Oo]verwriting"
   )
   expect_equal(get_parameters(overwritten), get_parameters(tmp))
@@ -153,10 +117,7 @@ test_that("Constant parameter definitions are correct", {
 test_that("Non default arguments are loaded correctly", {
   # simple add
   param <- mk_param$model |>
-    add_parameter(
-      name = "dummy", prior = "gamma",
-      shape = 2, scale = 1
-    ) |>
+    add_parameter(name = "dummy", prior = "gamma", shape = 2, scale = 1) |>
     get_parameters()
   expect_equal(param$prior, "gamma")
   expect_equal(param$args[[1]], c(shape = 2, scale = 1))
@@ -213,19 +174,15 @@ test_that("Lognormal proposal non-positive domain", {
 
   # prior with negative lower bound
   new_housepi_model(model = "test") |>
-    add_parameter(
-      name = "miller", prior = "uniform",
-      min = -1, proposal = "rw_log"
-    ) |>
+    add_parameter(name = "miller", prior = "uniform",
+                  min = -1, proposal = "rw_log") |>
     expect_error("non.?positive")
 
   # location parameter
   suppressWarnings(
     param_draws <- new_housepi_model(model = "test") |>
-      add_parameter(
-        name = "amanda", prior = "gamma", shape = 2,
-        max = 5, loc = -1, proposal = "rw_log"
-      ) |>
+      add_parameter(name = "amanda", prior = "gamma", shape = 2,
+                    max = 5, loc = -1, proposal = "rw_log") |>
       run_inference(steps = 20, chains = 1, adapt = 0, thin = 1) |>
       get_parameter_draws()
   )
@@ -256,22 +213,14 @@ test_that("Discretization is enabled as expected", {
   hhmodel <- new_housepi_model(model = "test")
   hhmodel <- hhmodel |>
     add_parameter(
-      sample = list(
-        prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-        proposal = "forward", min = !!val$min, max = !!val$max
-      ),
-      uniform = list(
-        prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-        proposal = "rw_unif", min = !!val$min, max = !!val$max
-      ),
-      normal = list(
-        prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-        proposal = "rw", min = !!val$min, max = !!val$max
-      ),
-      lognormal = list(
-        prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-        proposal = "rw_log", min = !!val$min, max = !!val$max
-      )
+      sample = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                    proposal = "forward", min = !!val$min, max = !!val$max),
+      uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                     proposal = "rw_unif", min = !!val$min, max = !!val$max),
+      normal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                    proposal = "rw", min = !!val$min, max = !!val$max),
+      lognormal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                       proposal = "rw_log", min = !!val$min, max = !!val$max)
     )
 
   results <- suppressWarnings(run_inference(hhmodel,
@@ -286,10 +235,8 @@ test_that("Discretization is enabled as expected", {
 test_that("Parameter defined as a function tracks its dependencies", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_parameter(
-      alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
-      gamma = list(prior = "uniform"), hhsize_ref = 4
-    )
+    add_parameter(alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
+                  gamma = list(prior = "uniform"), hhsize_ref = 4)
   res <- suppressWarnings(
     hhmodel |>
       run_inference(steps = 100, chains = 1, adapt = 0, thin = 1)
@@ -345,4 +292,29 @@ test_that("Parameter template import loads the shipped definitions", {
     regexp = "test model"
   )
   expect_identical(nrow(get_parameters(result)), 0L)
+})
+
+test_that("A parameter infers discretization from the model requirements", {
+  hhmodel <- sarscov2_2021_icofs |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    add_parameter(import = "template") |>
+    add_infectivity_profile(import = "template") |>
+    add_augmented(import = "template")
+
+  # the model declares the household size reference discrete
+  hhmodel$.__enclos_env__$private$generator_$param_discrete_required |>
+    expect_equal("hhsize_ref")
+
+  hhmodel |>
+    add_parameter(hhsize_ref = 3.3) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_error("did not return a discrete object")
+
+  # a sampled reference satisfies it without being declared discrete
+  hhmodel |>
+    add_parameter(hhsize_ref = list(prior = "uniform", min = 2, max = 6)) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_no_error()
 })

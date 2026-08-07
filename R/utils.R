@@ -367,6 +367,45 @@ resolve_status_codes_ <- function(defs, dictionary) {
   defs
 }
 
+#' Resolve unspecified `discr` declarations against model and data.
+#' A definition without model/prior keeps discr = FALSE.
+#' @param defs `data.frame` Definitions table.
+#' @param discr_keys `character()` Keys the model requests discrete.
+#' @param discr_data_cols named `logical()` Discrete data.
+#' @param is_prior `logical(1)` Whether prior, otherwise model.
+#' @return `data.frame` with a logical `discr` column.
+#' @keywords internal
+#' @noRd
+resolve_discr_flags_ <- function(defs, discr_keys,
+                                 discr_data_cols = NULL,
+                                 is_prior = FALSE) {
+  if (is.null(defs) || !"discr" %in% names(defs)) return(defs)
+  discr <- as.logical(defs[["discr"]])
+  unresolved <- is.na(discr)
+  if (!any(unresolved)) return(defs)
+
+  # whether the transmission model requires the key discrete
+  by_model <- defs[["name"]] %in% discr_keys
+
+  # whether the datum column the definition reads is discrete
+  by_data <- rep(FALSE, length(discr))
+  if (!is.null(discr_data_cols)) {
+    # name of the data column a definition value reads
+    col <- as.character(defs[["value"]])
+    hit <- grepl("^[A-Za-z0-9_.]+\\|D$", col)
+    # NA if it reads none
+    col <- ifelse(hit, sub("\\|D$", "", col), NA_character_)
+    by_data <- unname(discr_data_cols[col])
+    by_data[is.na(by_data)] <- FALSE
+  }
+
+  distr_col <- ifelse(is_prior, "prior", "model")
+  mask <- !is.na(defs[[distr_col]]) & (by_model | by_data)
+  discr[unresolved] <- mask[unresolved]
+  defs[["discr"]] <- discr
+  defs
+}
+
 #' Factorize dates and non-numerical quantities from data to pass to C++.
 #' @param df `data.frame` Dataset.
 #' @param escaped `character(1)` Label for status code 0 in character/factor
@@ -402,8 +441,11 @@ cpp_data_factorize <- function(df, escaped = "escaped") {
     status <- sort(unique(s[!is.na(s) & s > 0]))
   }
 
+  discr <- stats::setNames(logical(length(cols)), cols)
+
   for (col in setdiff(cols, skip)) {
     x <- df[[col]]
+    discr[[col]] <- inherits(x, "Date") || is.integer(x)
     if (inherits(x, "Date")) {
       info[[col]] <- list(class = "Date")
       df[[col]] <- as.numeric(x)
@@ -416,7 +458,7 @@ cpp_data_factorize <- function(df, escaped = "escaped") {
     }
   }
 
-  list(data = char_data_input_(df), info = info, cols = cols,
+  list(data = char_data_input_(df), info = info, cols = cols, discr = discr,
        status = status, status_labels = status_labels)
 }
 

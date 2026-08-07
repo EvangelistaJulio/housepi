@@ -219,6 +219,8 @@ namespace housepi
         : mcmc_(mcmc) {}
     Augmented::~Augmented() = default;
 
+    void Augmented::request_transmission(std::vector<size_t> vec) { union_append(user_transm_vec_, vec); }
+
     /// Registries searched when composing an augmented / household-observation
     /// reduction function (shared by per-member and per-household builders).
     static const std::vector<Registry> AUGM_FUNC_REGISTRIES = {
@@ -238,17 +240,21 @@ namespace housepi
             return ErrType::Augmented;
         }
     }
+    std::string kind_to_err_name(Augmented::Kind kind)
+    {
+        return err_type_name(kind_to_err_type(kind));
+    }
 
     /// Map a definition's kind label to its typed Kind.
-    static Augmented::Kind string_to_kind(const std::string &s)
+    static Augmented::Kind string_to_kind(const std::string &kstr)
     {
-        if (s == "member")
+        if (kstr == "member")
             return Augmented::Kind::Member;
-        if (s == "house")
+        if (kstr == "house")
             return Augmented::Kind::House;
-        if (s == "status")
+        if (kstr == "status")
             return Augmented::Kind::Status;
-        // if (s == "augm")
+        // if (kstr == "augm")
         return Augmented::Kind::Augm;
     }
 
@@ -274,8 +280,8 @@ namespace housepi
         c_min += input.at("min");
         c_max += input.at("max");
         c_proposal += input.at("proposal");
-        for (const std::string &s : input.at("kind"))
-            c_kind.push_back(string_to_kind(s));
+        for (const std::string &kstr : input.at("kind"))
+            c_kind.push_back(string_to_kind(kstr));
     }
 
     void Augmented::build(InfecProfile &infec_profile, const str_table &input)
@@ -347,12 +353,17 @@ namespace housepi
 
         // append discrete infectivity profile definitions if any
         if (infec_profile.is_discrete_requested())
-            user_discrete_set_.emplace(infec_profile.augm_key);
+            request_discrete({infec_profile.augm_key});
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  Augmented : assert univocal definitions  //////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    bool Augmented::is_allocated() const noexcept
+    {
+        return varia.size() == mcmc_->data_wide().report_indiv.total;
+    }
 
     // UPDATE: these flags are not precise if multi-status!
     bool Augmented::is_member_obs(const std::string &name) const noexcept
@@ -392,14 +403,13 @@ namespace housepi
             }
 
             // check associated status
-            int status = status::MISSING;
-            const std::string &s = deftable_.c_status[k];
-            if (!na::is(s))
-                status = str::toi(s, "augmented status");
-            map_status_to_def_row_[status].push_back(k); // store status to definition row index
+            StatusLevel s = status::MISSING;
+            const std::string &sstr = deftable_.c_status[k];
+            if (!na::is(sstr))
+                s = static_cast<StatusLevel>(
+                    str::toi(sstr, kind_to_err_name(deftable_.c_kind[k]) + " status"));
+            map_status_to_def_row_[s].push_back(k); // store status to definition row index
         }
-
-        // NOTE: assertion of univocal name-status is done in R
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -408,7 +418,7 @@ namespace housepi
 
     void Augmented::build_set_allocation_order_()
     {
-        std::unordered_set<int> all_infected_statuses = {};
+        std::unordered_set<StatusLevel> all_infected_statuses = {};
 
         // allocate storage
         varia.resize(mcmc_->data_wide().report_indiv.total);
@@ -436,18 +446,18 @@ namespace housepi
 
         // first, load status specific user definitions
         // NOTE: NA (i. e. generic) does not necessarily need checking
-        for (auto &[status, vec] : map_status_to_def_row_)
-            if (status::is_infected(status))
-                set_definition_order_for_(status, status);
+        for (auto &[s, vec] : map_status_to_def_row_)
+            if (status::is_infected(s))
+                set_definition_order_for_(s, s);
 
         // associate observed status to corresponding status block
         // if not defined specifically, then associate to generic
-        for (int status : all_infected_statuses)
-            if (!map_status_to_block_.count(status))
+        for (StatusLevel s : all_infected_statuses)
+            if (!map_status_to_block_.count(s))
             {
                 if (!map_status_to_block_.count(status::MISSING))
-                    set_definition_order_for_(status::MISSING, status);
-                map_status_to_block_.emplace(status, map_status_to_block_.at(status::MISSING));
+                    set_definition_order_for_(status::MISSING, s);
+                map_status_to_block_.emplace(s, map_status_to_block_.at(status::MISSING));
             }
 
         // if no observed infected status or status-specific definitions
@@ -459,7 +469,7 @@ namespace housepi
     }
 
     /// Report the observed status left without definitions.
-    static std::string undeclared_status_message_(int err_status)
+    static std::string undeclared_status_message_(StatusLevel err_status)
     {
         if (status::is_missing(err_status))
             return "No generic augmented definition was declared.\n"
@@ -471,16 +481,16 @@ namespace housepi
                "In alternative, drop " + msg::arg("status") + " from existing definitions to make them generic.";
     }
 
-    void Augmented::set_definition_order_for_(int status, int err_status)
+    void Augmented::set_definition_order_for_(StatusLevel s, StatusLevel err_status)
     {
         // skip if already passed
-        if (map_status_to_block_.count(status))
+        if (map_status_to_block_.count(s))
             return;
         // throw if not defined
-        if (!map_status_to_def_row_.count(status))
+        if (!map_status_to_def_row_.count(s))
             msg::stop(undeclared_status_message_(err_status));
 
-        const std::vector<size_t> rows = get_unsorted_definition_rows_(status);
+        const std::vector<size_t> rows = get_unsorted_definition_rows_(s);
         dpdcy::prod_graph pgraph = build_producer_graph_(rows);
         dict<size_t> name_to_row; // reverse dictionary name-to-row-index
         for (size_t k : rows)
@@ -492,8 +502,8 @@ namespace housepi
         try
         {
             // NOTE: this method is just called once per status
-            map_status_to_block_.emplace(status, status_blocks_.size());
-            status_blocks_.emplace_back(status);
+            map_status_to_block_.emplace(s, status_blocks_.size());
+            status_blocks_.emplace_back();
 
             // ignore spurious hidden definition if no kept definition consumes it
             // NOTE: infectivity profile (hidden) can consume hidden
@@ -509,7 +519,7 @@ namespace housepi
             }
 
             // define usage lists respecting definition order
-            set_sample_list_(status);
+            set_sample_list_(s);
         }
         catch (const std::exception &e)
         {
@@ -536,7 +546,7 @@ namespace housepi
     }
 
     void Augmented::assert_producers_declared_(const dpdcy::prod_graph &pgraph,
-                                               int status) const
+                                               StatusLevel s) const
     {
         for (const auto &node : pgraph)
             for (const std::string &astr : node.second)
@@ -544,21 +554,18 @@ namespace housepi
                 if (pgraph.count(astr))
                     continue;
 
-                std::string sms;
-
                 // declared for another status and report accordingly
                 if (contains(deftable_.c_name, astr))
                 {
-                    if (status::is_missing(status))
-                        sms = "No generic augmented definition was found for " + msg::val(astr) + ".";
+                    if (status::is_missing(s))
+                        msg::stop("No generic augmented definition was found for " + msg::val(astr) + ".");
                     else
-                        sms = "No augmented definition was found for " + msg::val(astr) +
-                              " for status " + std::to_string(status) + ".";
-                    msg::stop(sms);
+                        msg::stop("No augmented definition was found for " + msg::val(astr) +
+                                  " for status " + std::to_string(s) + ".");
                 }
 
                 // declared elsewhere and forgot sourcing
-                sms = "Could not find an augmented definition for " + msg::val(astr) + ".";
+                std::string sms = "Could not find an augmented definition for " + msg::val(astr) + ".";
                 if (mcmc_->data_wide().khold().count(astr))
                     sms += "\nDid you mean " + msg::code(astr + "@D") + "?";
                 else if (mcmc_->group_risk.khold().count(astr))
@@ -571,10 +578,10 @@ namespace housepi
             }
     }
 
-    std::vector<size_t> Augmented::get_unsorted_definition_rows_(int status) const
+    std::vector<size_t> Augmented::get_unsorted_definition_rows_(StatusLevel s) const
     {
         // load the list of status-specific definition rows
-        std::vector<size_t> allrows = map_status_to_def_row_.at(status);
+        std::vector<size_t> allrows = map_status_to_def_row_.at(s);
 
         // extract names
         std::vector<std::string> name_to_status = {};
@@ -583,8 +590,7 @@ namespace housepi
 
         // add generic definitions to current list (if not generic already)
         // skip generic if a status-specific already exist
-        if (status::is_infected(status) &&
-            map_status_to_def_row_.count(status::MISSING))
+        if (status::is_infected(s) && map_status_to_def_row_.count(status::MISSING))
             for (size_t k : map_status_to_def_row_.at(status::MISSING))
                 if (!contains(name_to_status, deftable_.c_name[k]))
                     allrows.push_back(k);
@@ -596,18 +602,18 @@ namespace housepi
     /////////////////////////////////////  Augmented : sample lists  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::set_sample_list_(int status)
+    void Augmented::set_sample_list_(StatusLevel s)
     {
-        StatusBlock_ &block = block_at_(status);
+        StatusBlock_ &block = block_at_(s);
         for (size_t k : block.order)
-            set_sample_list_for_single_definition_(status, k);
+            set_sample_list_for_single_definition_(s, k);
 
         // NOTE: to construct draws list, I drop hidden at the end
         list_augm_export = khold(str::drop_hidden(khold(list_augm_export)));
         block.draws = khold(str::drop_hidden(khold(block.draws)));
     }
 
-    void Augmented::set_sample_list_for_single_definition_(int status, size_t k)
+    void Augmented::set_sample_list_for_single_definition_(StatusLevel s, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
         size_t a = khold(astr);
@@ -625,7 +631,7 @@ namespace housepi
         else if (!na::is(deftable_.c_func[k]) ||
                  (!na::is(deftable_.c_value[k]) && na::is(deftable_.c_model[k])))
         {
-            auto [is_to_export_, is_to_draw_] = set_sample_list_for_function_(status, k);
+            auto [is_to_export_, is_to_draw_] = set_sample_list_for_function_(s, k);
             is_to_export = is_to_export_;
             is_to_draw = is_to_draw_;
         }
@@ -643,7 +649,7 @@ namespace housepi
         else
         {
             is_any_sample_ = true;
-            block_at_(status).sample.emplace_back(a);
+            block_at_(s).sample.emplace_back(a);
 
             // adaptive only for a random-walk kernel carrying no pinned scale
             // NOTE: a user-defined scale (folded into the proposal call) freezes it
@@ -658,7 +664,7 @@ namespace housepi
             if (is_random_walk && !has_scale)
             {
                 is_any_adaptive_ = true;
-                block_at_(status).adaptive.emplace_back(a);
+                block_at_(s).adaptive.emplace_back(a);
             }
         }
 
@@ -674,10 +680,10 @@ namespace housepi
             list_augm_export.emplace_back(a);
 
         if (is_to_draw)
-            block_at_(status).draws.emplace_back(a);
+            block_at_(s).draws.emplace_back(a);
     }
 
-    std::pair<bool, bool> Augmented::set_sample_list_for_function_(int status, size_t k)
+    std::pair<bool, bool> Augmented::set_sample_list_for_function_(StatusLevel s, size_t k)
     {
         bool is_to_export = true;
         bool is_to_draw = true;
@@ -704,7 +710,7 @@ namespace housepi
         // inspect status specific augmented definitions and check if to draw (i. e. not const)
         // NOTE: taking advatange of the order!
         for (const std::string &bstr : parser.list_augmented_producers())
-            if (contains(block_at_(status).draws, khold(bstr)))
+            if (contains(block_at_(s).draws, khold(bstr)))
                 all_consts = false;
 
         // to draw if not all constant dependencies
@@ -868,7 +874,7 @@ namespace housepi
         // transmission reads only model-declared keys
         // and eventually augmented infectivity profile
         std::vector<std::string> transm_astr;
-        for (size_t a : user_transm_set_)
+        for (size_t a : user_transm_vec_)
             transm_astr.push_back(khold(a));
         transm_astr.push_back(infprof::AUGM_FUNC);
 
@@ -876,7 +882,7 @@ namespace housepi
         {
             block.produces_transm.assign(khold_.size(), false);
             // declaring no transmission-key skip computation
-            if (user_transm_set_.empty())
+            if (user_transm_vec_.empty())
                 continue;
 
             // whatever a node consumes, transmission consumes
@@ -1031,11 +1037,11 @@ namespace housepi
         size_t d, double v, const std::string &name, const Household &house) const
     {
         const DataWide &data_wide = mcmc_->data_wide();
-        if (data_wide.requires_discrete(d) && v != std::floor(v))
+        if (data_wide.is_required_discrete(d) && v != std::floor(v))
             msg::stop(
                 "Observation " + msg::val(name) + " for " + data_wide.err_name(house) +
                 " was expected to be discrete-valued, as requested by model.");
-        if (data_wide.requires_positive(d) && !(v > 0.))
+        if (data_wide.is_required_positive(d) && !(v > 0.))
             msg::stop(
                 "Observation " + msg::val(name) + " for " + data_wide.err_name(house) +
                 " was expected to be greater than zero, as requested by model.");
@@ -1335,7 +1341,7 @@ namespace housepi
                     continue;
                 msg::stop(
                     "Cannot infer from " +
-                    err_type_name(kind_to_err_type(deftable_.c_kind[surr.row])) + " " +
+                    kind_to_err_name(deftable_.c_kind[surr.row]) + " " +
                     msg::val(astr) + ": it must resolve from data alone.\n"
                                      "A definition reading a latent variable or a parameter is only "
                                      "meaningful in simulation.");
@@ -1375,10 +1381,10 @@ namespace housepi
 
     std::vector<size_t> Augmented::helper_materialize_definition_order_(const Individual &indiv)
     {
-        int status = indiv.status();
+        StatusLevel s = indiv.status();
 
         // if known status, then load its definition
-        const auto it = map_status_to_block_.find(status);
+        const auto it = map_status_to_block_.find(s);
         if (it != map_status_to_block_.end())
         {
             const size_t i = it->second;
@@ -1391,7 +1397,7 @@ namespace housepi
         if (generic_it != map_status_to_block_.end())
         {
             const size_t i = generic_it->second;
-            map_status_to_block_.emplace(status, i);
+            map_status_to_block_.emplace(s, i);
             varia_of_(indiv).idx = i;
             return status_blocks_[i].order;
         }
@@ -1399,7 +1405,7 @@ namespace housepi
         if (indiv.is_infected_status())
             msg::stop(
                 "No augmented definitions were found for " +
-                mcmc_->data_wide().err_name(indiv) + " with status " + std::to_string(status) + ".");
+                mcmc_->data_wide().err_name(indiv) + " with status " + std::to_string(s) + ".");
 
         msg::stop(
             "Generic augmented definition for non-infectious " +
@@ -1458,7 +1464,7 @@ namespace housepi
             }
 
             // check if satisfies discrete requirement, if any
-            if (user_discrete_set_.count(a) && !avar.is_discrete())
+            if (is_required_discrete(a) && !avar.is_discrete())
                 msg::stop(
                     "Definition of " + avar.err_name() +
                     " did not return a discrete object as requested by model.");
@@ -1505,7 +1511,7 @@ namespace housepi
                                              Individual &indiv,
                                              rnd_gen &prng)
     {
-        StatusLevel new_status = status::INFECTED;
+        StatusLevel s = status::INFECTED;
 
         if (is_any_status_obs())
         {
@@ -1516,10 +1522,10 @@ namespace housepi
             svar.draw_value(prng);
 
             // NOTE: I am assuming value draws are integer in [0, max - 1]
-            new_status += static_cast<StatusLevel>(svar.value());
+            s += static_cast<StatusLevel>(svar.value());
         }
 
-        house.set_new_status_(indiv, new_status);
+        house.set_new_status_(indiv, s);
     }
 
     void Augmented::restart(rnd_gen &prng)

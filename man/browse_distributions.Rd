@@ -26,7 +26,7 @@ Relative to the location argument \code{loc}, when one is given.}
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }
 \value{
-An exposed distribution object with methods \verb{$pdf()} and \verb{$cdf()}, or \code{NULL} if the available names were printed.
+\code{NULL} if the available names were printed. Otherwise \link[=HousepiExposedDistribution]{HousepiExposedDistribution} object.
 }
 \description{
 Print the list of available distributions,
@@ -39,4 +39,5 @@ browse_distributions()
 dst <- browse_distributions("weibull", shape = 2, scale = 1)
 dst$pdf(seq(0, 5))
 dst$cdf(seq(0, 5))
+dst$range
 }

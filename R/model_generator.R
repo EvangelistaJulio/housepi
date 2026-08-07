@@ -84,6 +84,10 @@ HousepiGenerator <- R6::R6Class(
     # List of levels of the factors in data wide.
     info_data_wide_ = NULL,
 
+    # @field discr_data_wide_ `logical()`\cr
+    # Discrete-valued columns of data wide, named by column.
+    discr_data_wide_ = NULL,
+
     # @field cols_data_long_ `character()`\cr
     # Headers of the last data long imported.
     cols_data_long_ = character(),
@@ -462,75 +466,116 @@ HousepiGenerator <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field name `character(1)` Model name.
-    #' Assign a new `character(1)` to change model name.
+    #' @field name `character(1)`
+    #' Model name.
     name = function(value) {
       spaced_template_choice(private$name_)
     },
 
-    #' @field raw_name `character(1)` Internal unformmated model name.
+    #' @field raw_name `character(1)`
+    #' Internal unformmated model name.
     raw_name = function(value) {
       private$name_
     },
 
-    #' @field mcmc_ptr Internal Rcpp MCMC runner pointer.
+    #' @field mcmc_ptr
+    #' Internal Rcpp MCMC runner pointer.
     mcmc_ptr = function(value) {
       private$mcmc_ptr_
     },
 
-    #' @field source_dir `character(1)` Model source directory.
+    #' @field source_dir `character(1)`
+    #' Model source directory.
     source_dir = function(value) {
       private$source_dir_
     },
 
-    #' @field data_required `character()` Data required by the model.
+    #' @field data_required `character()`
+    #' Data required by the model.
     data_required = function(value) {
       set_source_name_(.engine$key_Data(private$mcmc_ptr_), "model")
     },
 
-    #' @field param_required `character()` Parameters required by the model.
+    #' @field param_required `character()`
+    #' Parameters required by the model.
     param_required = function(value) {
       set_source_name_(.engine$key_Param(private$mcmc_ptr_), "model")
     },
 
-    #' @field group_risks_required `character()` Group risks required by the
-    #' model.
+    #' @field group_risks_required `character()`
+    #' Group risks required by the model.
     group_risks_required = function(value) {
       set_source_name_(.engine$key_GroupRisk(private$mcmc_ptr_), "model")
     },
 
-    #' @field augm_required `character()` Augmented variables required by the
-    #' model.
+    #' @field augm_required `character()`
+    #' Augmented variables required by the model.
     augm_required = function(value) {
       set_source_name_(.engine$key_Augm(private$mcmc_ptr_), "model")
     },
 
-    #' @field is_discrete_time `logical(1)` Model steps one whole day at once.
+    #' @field param_discrete_required `character()`
+    #' Parameters the model requires discrete.
+    param_discrete_required = function(value) {
+      .engine$key_Param_discrete(private$mcmc_ptr_)
+    },
+
+    #' @field augm_discrete_required `character()`
+    #' Augmented variables the model requires discrete.
+    augm_discrete_required = function(value) {
+      .engine$key_Augm_discrete(private$mcmc_ptr_)
+    },
+
+    #' @field has_contact_risk `logical(1)`
+    #' Whether model allows for contact risk definitions.
+    has_contact_risk = function(value) {
+      .engine$has_contact_risk(private$mcmc_ptr_)
+    },
+
+    #' @field has_infec_profile `logical(1)`
+    #' Whether model allows for infectivity profile definitions.
+    has_infec_profile = function(value) {
+      .engine$has_infec_profile(private$mcmc_ptr_)
+    },
+
+    #' @field is_discrete_time `logical(1)`
+    #' Model steps one whole day at once.
     is_discrete_time = function(value) {
       "_HOUSEPI_DISCRETE_TIME" %in% private$last_flags_
     },
 
-    #' @field cols_data_wide `character()` Columns of the imported wide data.
+    #' @field cols_data_wide `character()`
+    #' Columns of the imported wide data.
     cols_data_wide = function(value) {
       private$cols_data_wide_
     },
 
-    #' @field info_data_wide `list` Levels of factors of the wide data.
+    #' @field info_data_wide `list`
+    #' Levels of factors of the wide data.
     info_data_wide = function(value) {
       private$info_data_wide_
     },
 
-    #' @field infec_status_set `integer()` Positive statuses in the wide data.
+    #' @field discr_data_wide `logical()`
+    #' Discrete-valued columns of the imported data-wide, named by column.
+    discr_data_wide = function(value) {
+      private$discr_data_wide_
+    },
+
+    #' @field infec_status_set `integer()`
+    #' Positive statuses in the wide data.
     infec_status_set = function(value) {
       private$infec_status_set_
     },
 
-    #' @field status_data_labels `character()` Infected labels seen in data.
+    #' @field status_data_labels `character()`
+    #' Infected labels seen in data.
     status_data_labels = function(value) {
       private$status_data_labels_
     },
 
-    #' @field escaped `character(1)` Label for status code 0.
+    #' @field escaped `character(1)`
+    #' Label for status code 0.
     escaped = function(value) {
       private$escaped_
     }
@@ -641,6 +686,7 @@ HousepiGenerator <- R6::R6Class(
       embed <- cpp_data_factorize(data, private$escaped_)
       private$info_data_wide_ <- embed$info
       private$cols_data_wide_ <- embed$cols
+      private$discr_data_wide_ <- embed$discr
       private$infec_status_set_ <- embed$status
       private$status_data_labels_ <- embed$status_labels
       embed$data

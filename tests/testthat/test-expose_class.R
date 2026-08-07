@@ -10,7 +10,7 @@ test_that("Reject if calling on non-HousepiModel objects", {
   get_parameters(obj) |> expect_error(err)
   get_augmented(obj) |> expect_error(err)
   get_group_risks(obj) |> expect_error(err)
-  get_infectivity_profile(obj) |> expect_error(err)
+  get_infectivity_profiles(obj) |> expect_error(err)
   add_contact_risk(obj) |> expect_error(err)
   add_parameter(obj) |> expect_error(err)
   add_augmented(obj) |> expect_error(err)
@@ -63,7 +63,7 @@ test_that("Wrappers work as expected on model 'test'", {
   expect_true(all(c("alpha", "beta") %in% pars$name))
 
   # infectivity profile
-  expect_null(get_infectivity_profile(hhmodel))
+  expect_null(get_infectivity_profiles(hhmodel))
 
   # augmented
   result <- add_augmented(hhmodel, name = "dummy", value = 3)
@@ -260,31 +260,3 @@ test_that("add_contact_risk wrapper input branches", {
   expect_true(nrow(cr) > 0)
 })
 
-test_that("add_infectivity_profile single and bulk forms work", {
-  hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained")
-  ip <- hhmodel |>
-    add_infectivity_profile(func = "lognormal") |>
-    get_infectivity_profile()
-  expect_false(is.null(ip))
-  expect_true("lognormal" %in% ip$func)
-
-  # bulk form
-  ip2 <- hhmodel |>
-    add_infectivity_profile(ip1 = list(func = "lognormal")) |>
-    get_infectivity_profile()
-  expect_false(is.null(ip2))
-  expect_true("lognormal" %in% ip2$func)
-})
-
-test_that("add_infectivity_profile and list update the model directly", {
-  hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(func = "gamma", shape = 2, scale = 1)
-  expect_true("gamma" %in% hhmodel$infectivity_profile$func)
-  expect_warning(
-    hhmodel <- add_infectivity_profile(hhmodel, func = "lognormal"),
-    regexp = "Overwriting"
-  )
-  expect_true("lognormal" %in% hhmodel$infectivity_profile$func)
-})

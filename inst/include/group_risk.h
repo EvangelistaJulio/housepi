@@ -42,6 +42,9 @@ namespace housepi
         /// Whether two members belong to the same group-risk partition.
         bool same_group(const Individual &a, const Individual &b) const noexcept { return group_index_[Index::of(a)] == group_index_[Index::of(b)]; }
 
+        /// Whether group risk storage was allocated.
+        bool is_allocated() const noexcept { return !unique_groups_.empty(); }
+
         /// Rule groups of given key whose overall scale is free (see Parameter::assert_risk_identifiability).
         size_t n_scale_free(size_t g) const noexcept { return n_scale_free_[g]; }
 

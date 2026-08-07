@@ -12,7 +12,7 @@ add_observation(
   level = c("member", "house"),
   value = NULL,
   status = NA_integer_,
-  discr = FALSE,
+  discr = NA,
   min = NULL,
   max = NULL,
   import = NULL,
@@ -35,43 +35,46 @@ One between \code{"member"}, one value per positive status individual, and
 \code{"house"}, one value per household reduced over all its members.
 In mode 'multiple', applies to every entry not setting its own.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value.
-One between:
+\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value. Either a plain value, a single external source
+following the convention \code{argument@source} ("argument at source"),
+or an arithmetic expression. Sources are:
 \describe{
-\item{augmented}{\verb{@A};}
-\item{data}{\verb{@D};}
-\item{group risk}{\verb{@G};}
-\item{parameter}{\verb{@P};}
-\item{scalar}{\verb{@N}.}
+\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@D}}{data column;}
+\item{\verb{@G}}{group risk;}
+\item{\verb{@N}}{numeric value (assumed for a number);}
+\item{\verb{@P}}{parameter.}
 }}
 
 \item{status}{\code{integer(1)} Individual positive status.
 Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{discr}{\code{logical(1)} Treat definition as discrete.
-If applicable, the model is discretized.}
+\item{discr}{\code{logical(1)} Treat model definition as discrete, if applicable.
+Inferred from the observed data column, or the model requirements if \code{NA} (default).}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
-Relative to the location argument \code{loc}, when one is given.
-One between:
+Relative to the location argument \code{loc}, when one is given. Either a plain value, a single external source
+following the convention \code{argument@source} ("argument at source"),
+or an arithmetic expression. Sources are:
 \describe{
-\item{augmented}{\verb{@A};}
-\item{data}{\verb{@D};}
-\item{group risk}{\verb{@G};}
-\item{parameter}{\verb{@P};}
-\item{scalar}{\verb{@N}.}
+\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@D}}{data column;}
+\item{\verb{@G}}{group risk;}
+\item{\verb{@N}}{numeric value (assumed for a number);}
+\item{\verb{@P}}{parameter.}
 }}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
-Relative to the location argument \code{loc}, when one is given.
-One between:
+Relative to the location argument \code{loc}, when one is given. Either a plain value, a single external source
+following the convention \code{argument@source} ("argument at source"),
+or an arithmetic expression. Sources are:
 \describe{
-\item{augmented}{\verb{@A};}
-\item{data}{\verb{@D};}
-\item{group risk}{\verb{@G};}
-\item{parameter}{\verb{@P};}
-\item{scalar}{\verb{@N}.}
+\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@D}}{data column;}
+\item{\verb{@G}}{group risk;}
+\item{\verb{@N}}{numeric value (assumed for a number);}
+\item{\verb{@P}}{parameter.}
 }}
 
 \item{import}{Named \code{list} of pre-built definitions to import.

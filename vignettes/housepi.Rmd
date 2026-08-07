@@ -237,12 +237,12 @@ get_parameters(hhsimul)
 ```
 
 In this example we passed `import = "template"` to load the parameter definitions shipped with the transmission model.
-The same can be done for augmented definitions through `add_augmented()`.
 
 # Simulate an outbreak
 
-We propose the following definitions for the augmented variables,
-associated from a list by calling `add_augmented()`.
+We propose the following definitions for the augmented variables, associated from a list by calling `add_augmented()`.
+Alongside augmented definitions, we need to define observations, in this case of the onset symptom dates and the consequent start date. 
+We do so with `add_observation()`.
 
 ```{r}
 #| label: load-augmented-definitions
@@ -255,15 +255,13 @@ hhsimul <- hhsimul |>
     # onset time is deterministic
     .onset_time = infec_time + .incub_period
   ) |>
-  # observation of onset date is noisy around the real onset time
   add_observation(
-    onset_date = list(
-      model = "normal", discr = TRUE, mean = .onset_time,
-      sd = 1, min = floor(.onset_time)
-    )
-  ) |>
-  # household-level observation of start date is earliest onset date
-  add_observation(start_date = min(onset_date@D), level = "house")
+    # observation of onset date is noisy around the real onset time
+    onset_date = list(model = "normal", discr = TRUE, mean = .onset_time,
+                      sd = 1, min = floor(.onset_time)),
+    # household-level observation of start date is earliest onset date
+    start_date = list(value = min(onset_date@D), level = "house")
+  )
 ```
 
 When dealing with many different nested definitions it is not unusual to lose track of which definitions are missing.
@@ -318,10 +316,10 @@ hhmodel <- simulated |>
     .incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
     .onset_time = infec_time + .incub_period
   ) |>
-  # onset date observation is noisy around the real onset time
   add_observation(
+    # observation is automatically discrete when datum is integer or Data
     onset_date = list(
-      model = "normal", discr = TRUE,
+      model = "normal",
       mean = .onset_time, sd = 1, min = floor(.onset_time)
     )
   )

@@ -79,6 +79,7 @@ reference:
     and infectivity profiles.
   contents:
   - starts_with("browse_")
+  - starts_with("HousepiExposed")
 
 - title: "Datasets"
   desc: >

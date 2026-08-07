@@ -69,14 +69,14 @@ hhcontinuous <- sarscov2_2021_icofs |>
   new_housepi_model("case ascertained") |>
   add_infectivity_profile(import = "template")
 # extract current loaded profile definitions
-defs <- get_infectivity_profile(hhcontinuous)
+defs <- get_infectivity_profiles(hhcontinuous)
 # display definitions
 defs
 # display function arguments
 defs$func_args
 ```
 
-Here we accessed the definition associated to the model by calling `get_infectivity_profile`.
+Here we accessed the definition associated to the model by calling `get_infectivity_profiles`.
 We can explore the infectivity profiles by calling `browse_infectivity_profiles`.
 This generates an object holding the infectivity profile definitions to be used to compute instantaneous and cumulative values of the profile
 
@@ -131,7 +131,7 @@ hhdiscrete <- sarscov2_2021_icofs |>
   new_housepi_model("case ascertained",
                     discr = TRUE, quiet = TRUE) |>
   add_infectivity_profile(import = "template")
-defs <- get_infectivity_profile(hhdiscrete)
+defs <- get_infectivity_profiles(hhdiscrete)
 defs
 ```
 
@@ -158,7 +158,7 @@ We can provide a custom infectivity profile calling `add_infectivity_profile()` 
 #| label: add-custom-profile
 hhdiscrete <- hhdiscrete |>
   add_infectivity_profile("gamma", shape = 4, scale = 1.3)
-defs <- get_infectivity_profile(hhdiscrete)
+defs <- get_infectivity_profiles(hhdiscrete)
 defs
 ```
 

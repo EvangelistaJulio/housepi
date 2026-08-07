@@ -41,7 +41,7 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    struct DataWide : public KeyModule
+    struct DataWide : public KeyModuleWithRequests
     {
         KeyHolder khold_member_val; /// cache key-holder member values
         KeyHolder khold_member_vec; /// cache key-holder member vectors
@@ -64,16 +64,6 @@ namespace housepi
         /// Optionally associate data columns produced by observations.
         /// NOTE: necessary because of stale pointers during Variable re-build.
         void reset_readcells(const std::vector<std::string> &produced_cols = {});
-
-        /// Request data column to be discrete-valued.
-        void request_discrete(std::vector<size_t> d) { user_discrete_set_.insert(d.begin(), d.end()); }
-        /// Request data column to be strictly greater than zero.
-        void request_positive(std::vector<size_t> d) { user_positive_set_.insert(d.begin(), d.end()); }
-
-        /// Whether the modeler requested column 'd' to be discrete-valued.
-        bool requires_discrete(size_t d) const { return user_discrete_set_.count(d) > 0; }
-        /// Whether the modeler requested column 'd' to be strictly positive.
-        bool requires_positive(size_t d) const { return user_positive_set_.count(d) > 0; }
 
         /// Transmission log-likelihood of head of household equivalence class.
         double house_transm_log_lik(size_t R) const { return transm_log_lik(eq_class_head(R)).value(); }
@@ -214,9 +204,6 @@ namespace housepi
 
         std::vector<Household> house_vector_ = {};   /// All households in data
         std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood
-
-        std::unordered_set<size_t> user_discrete_set_ = {}; /// modeler requested discrete data
-        std::unordered_set<size_t> user_positive_set_ = {}; /// modeler requested positive data
 
         /////////////////////////////////
         //////  EQUIVALENCE CLASS  //////

@@ -103,7 +103,7 @@ HousepiInfecProfile <- R6::R6Class(
 
     #' @inherit add_infectivity_profile
     add_quo = function(func, ...,
-                       status = NA_integer_, discr = FALSE,
+                       status = NA_integer_, discr = NA,
                        min = NULL, max = NULL,
                        .warn_over = TRUE, .assert = FALSE) {
       # load non-quosures
@@ -132,8 +132,12 @@ HousepiInfecProfile <- R6::R6Class(
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      # impose discrete-time model
-      discr <- isTRUE(discr) || self$discr_model
+      # a discrete-time model requires a discrete profile
+      if (isFALSE(discr) && self$discr_model) stop_h(
+        "Infectivity profile of a discrete-time model must be discrete.",
+        "Drop {.code discr = FALSE} or compile the model in continuous time."
+      )
+      if (is.na(discr)) discr <- self$discr_model
 
       # NOTE: if arg 'min' not provided
       # impose min = 1 for discrete-time, min = 0 for continuous time

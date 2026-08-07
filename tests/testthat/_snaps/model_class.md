@@ -28,8 +28,7 @@
 ---
 
     Code
-      print(add_parameter(new_housepi_model(flu_1918_frederick, "final_size"),
-      import = "template"))
+      print(hhmodel)
     Output
       i Household transmission model "final size" (`template`).
       v Parameters

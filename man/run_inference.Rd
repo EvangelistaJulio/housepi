@@ -39,7 +39,7 @@ If no proposals are adaptable and \code{burn = 0}, repurposed as burn-in instead
 Either a \code{character()} of individual identifiers,
 or a \code{list} with entries \code{id} (individual identifiers)
 and/or \code{house_id} (whole household infected members are stored).
-When unset, one random eligible household is followed (default).
+If \code{NA}, one random eligible household is followed (default).
 Pass \code{".none"} to store nothing.}
 
 \item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.

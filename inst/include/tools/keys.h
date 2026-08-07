@@ -78,4 +78,25 @@ namespace housepi
     protected:
         KeyHolder khold_; /// definitions key-holder
     };
+
+    struct KeyModuleWithRequests : public KeyModule
+    {
+        /// Request discrete definition.
+        void request_discrete(std::vector<size_t> vec);
+        /// Request positive definition.
+        void request_positive(std::vector<size_t> vec);
+
+        /// Whether a key was requested discrete.
+        bool is_required_discrete(size_t p) const noexcept;
+        /// Whether a key was requested positive.
+        bool is_required_positive(size_t p) const noexcept;
+        /// Names of the keys requested discrete.
+        std::vector<std::string> discrete_keys() const { return khold(discr_); }
+        /// Names of the keys requested positive.
+        std::vector<std::string> positive_keys() const { return khold(posit_); }
+
+    private:
+        std::vector<size_t> discr_ = {}; /// Store keys requested discrete
+        std::vector<size_t> posit_ = {}; /// Store keys requested positive
+    };
 }

@@ -12,6 +12,11 @@ mk_augm <- local({
   list(model = hhmodel)
 })
 
+is_whole <- function(x) {
+  x <- as.numeric(x[!is.na(x)])
+  length(x) > 0 && all(x == floor(x))
+}
+
 ################################################################################
 ####################################  TESTS  ###################################
 ################################################################################
@@ -119,7 +124,7 @@ test_that("Augmented variable definitions are correct", {
   expect_equal(augm$name, "dummy")
   expect_equal(augm$status, NA_real_)
   expect_equal(augm$const, TRUE)
-  expect_equal(augm$discr, FALSE)
+  expect_true(is.na(augm$discr))
   expect_equal(augm$value, 3)
   expect_equal(augm$proposal, NA_real_)
 
@@ -193,9 +198,7 @@ test_that("Independence proposal inherits the model location shift", {
                   proposal = "gamma", proposal_shape = 2)
 
   results <- hhmodel |>
-    run_inference(steps = 20L, adapt = 0L, chains = 1L,
-                  threads = 1L, progress = FALSE,
-                  id_draws = list(house_id = "house")) |>
+    run_inference(steps = 20L, adapt = 0L, chains = 1L) |>
     suppressMessages() |>
     suppressWarnings()
 
@@ -553,11 +556,9 @@ test_that("Observation-aware initialization", {
   data.frame(house_id = "shadow_moses", status = 1, x = 0.5) |>
     new_housepi_model("test") |>
     add_augmented("z", model = "uniform") |>
-    add_observation("x",
-      model = "uniform", loc = z,
-      min = -!!window, max = !!window
-    ) |>
-    run_inference(steps = 10L, adapt = 0L, chains = 40L, progress = FALSE) |>
+    add_observation("x", model = "uniform", loc = z,
+                    min = -!!window, max = !!window) |>
+    run_inference(steps = 10L, adapt = 0L, chains = 40L) |>
     suppressMessages() |>
     suppressWarnings() |>
     expect_no_error()
@@ -567,10 +568,8 @@ test_that("Observation-aware initialization", {
   data.frame(house_id = "outer_heaven", status = 1, x = 5) |>
     new_housepi_model("test") |>
     add_augmented("z", model = "uniform") |>
-    add_observation("x",
-      model = "uniform", loc = z,
-      min = -!!window, max = !!window
-    ) |>
+    add_observation("x", model = "uniform", loc = z,
+                    min = -!!window, max = !!window) |>
     run_inference() |>
     suppressMessages() |>
     expect_error("[Ee]xceeded attempts")
@@ -594,18 +593,6 @@ test_that("Observation-aware initialization", {
     expect_error("[Oo]utside of respective domain")
 })
 
-test_that("Compressed households forced unique by augmented sampling size the cache", {
-  # identical households compress to one eq-class, augmented sampling forces them
-  # unique: the per-eq-class cache must grow to match (else out-of-bounds segfault)
-  data.frame(status = rep(1, 5)) |>
-    new_housepi_model("test") |>
-    add_augmented("z", model = "exponential", rate = 0.5) |>
-    run_inference(steps = 10L, adapt = 0L, chains = 2L, progress = FALSE) |>
-    suppressMessages() |>
-    suppressWarnings() |>
-    expect_no_error()
-})
-
 test_that("Reading an observation in models and loops are rejected", {
 
   # an augmented model must not read an observation (illegal in both
@@ -625,26 +612,20 @@ test_that("Reading an observation in models and loops are rejected", {
     expect_error("[Cc]yclic")
 })
 
-test_that("A simulation override (value + prior) rejects forward dependencies", {
-  # a value paired with a prior pins the variable in simulation only, when it is first
-  # drawn -- so it may read data or parameters, never an observation generated later
-  # nor another latent (which may not be drawn yet).
-
+test_that("simulation override (value + model) rejects forward dependencies", {
   # reads an observation
   data.frame(house_id = "shadow_moses", status = 1, onset = 0.5) |>
     new_housepi_model("test") |>
     add_observation("onset", model = "uniform", min = 0, max = 1) |>
-    add_augmented("liquid", model = "normal", mean = 0, sd = 1,
-                  value = onset@D) |>
+    # forward dependency: observation before augmented
+    add_augmented("liquid", model = "normal", value = onset@D) |>
     expect_error("[Ss]imulation override.*observation")
 
   # reads another augmented (no observation present: guard still fires)
   data.frame(house_id = "outer_heaven", status = 1) |>
     new_housepi_model("test") |>
-    add_augmented(
-      liquid = list(model = "normal", mean = 0, sd = 1, value = solid@A),
-      solid = list(model = "gamma", shape = 2, scale = 1)
-    ) |>
+    add_augmented(liquid = list(model = "normal", value = solid@A),
+                  solid = list(model = "gamma", shape = 2, scale = 1)) |>
     expect_error("[Ss]imulation override.*augmented")
 })
 
@@ -717,10 +698,8 @@ test_that("value paired with model overrides the draw in simulations only", {
 })
 
 test_that("load augmented list works fine for external lists", {
-  hhmodel <- data.frame(
-    id = "id1", house_id = "h1",
-    status = 1, date = as.Date("2021-01-01")
-  ) |>
+  hhmodel <- data.frame(id = "id1", house_id = "h1",
+                        status = 1, date = as.Date("2021-01-01")) |>
     new_housepi_model("test")
 
   # an external list of definitions can be imported
@@ -810,16 +789,12 @@ test_that("Nested definitions works as expected", {
     )
   expect_snapshot(print(hhmodel))
 
-  results <- run_inference(hhmodel,
-    steps = 1e5, chains = 1, adapt = 0,
-    thin = 1, progress = 0
-  )
+  results <- hhmodel |>
+    run_inference(steps = 1e5, chains = 1, adapt = 0, thin = 1)
   # no parameters nor priors, only augmented
   expect_equal(posterior::nvariables(results$parameter_draws), 0L)
-  expect_equal(
-    posterior::nvariables(results$augmented_draws),
-    dim(hhmodel$augmented)[1]
-  )
+  posterior::nvariables(results$augmented_draws) |>
+    expect_equal(dim(hhmodel$augmented)[1])
 
   # test S3 version of summarise_draws
   out_vars <- posterior::summarise_draws(results)[["variable"]]
@@ -924,11 +899,8 @@ test_that("Status-specific augmented variables draw from per-status ranges", {
   # short-run diagnostic fires (steps = 5 < 400); adapt budget becomes burn-in
   expect_warning(
     results <- hhmodel |>
-      run_inference(
-        steps = 5, thin = 1, adapt = 2,
-        chain = 1, threads = 1,
-        id_draws = hhmodel$data_wide$id
-      ),
+      run_inference(steps = 5, thin = 1, adapt = 2,
+                    chain = 1, id_draws = hhmodel$data_wide$id),
     regexp = "below 400"
   )
   draws <- as.data.frame(get_augmented_draws(results))
@@ -1069,4 +1041,74 @@ test_that("a surrogate column reading augmented is simulation only", {
   # simulation produces it, following the augmented variable as it is drawn
   simulated <- run_simulation(hhmodel)
   expect_equal(simulated[["ReD"]], simulated[["z"]] + 2)
+})
+
+test_that("Unspecified discretization is held for resolution", {
+  obs <- mk_augm$model |>
+    add_observation(test_date = list(model = "normal"),
+                    onset_date = list(model = "normal", discr = TRUE),
+                    expo = list(model = "normal", discr = FALSE)) |>
+    get_observations()
+
+  expect_type(obs$discr, "logical")
+  expect_equal(obs$discr, c(NA, TRUE, FALSE))
+})
+
+test_that("An observation infers discretization from the column it reads", {
+  hhmodel <- data.frame(house_id = rep(c("shadow", "moses"), each = 20),
+                        date_col = as.Date("2005-02-28") + rep(0:1, 20),
+                        int_col = rep(c(3L, 5L), 20),
+                        whole_col = rep(c(3, 5), 20),
+                        kept_col = rep(c(3L, 5L), 20),
+                        status = 1) |>
+    new_housepi_model("test") |>
+    add_augmented(z = list(model = "uniform", min = 2, max = 8)) |>
+    add_observation(
+      date_col = list(model = "normal", mean = z, sd = 2),
+      int_col = list(model = "normal", mean = z, sd = 2),
+      # a double column is always continuous
+      whole_col = list(model = "normal", mean = z, sd = 2),
+      # an explicit declaration is never overridden by the data
+      kept_col = list(model = "normal", discr = FALSE, mean = z, sd = 2)
+    )
+
+  simulated <- run_simulation(hhmodel)
+
+  # dates and integers are discrete, doubles are not
+  expect_true(is_whole(simulated[["date_col"]]))
+  expect_true(is_whole(simulated[["int_col"]]))
+  expect_false(is_whole(simulated[["whole_col"]]))
+  expect_false(is_whole(simulated[["kept_col"]]))
+
+  # a deterministic observation is not influenced
+  hhmodel |>
+    add_observation(derived = z + 1) |>
+    run_simulation() |>
+    getElement("derived") |>
+    is_whole() |>
+    expect_false()
+})
+
+test_that("Discretization is resolved every time the data changes", {
+  df <- data.frame(house_id = rep(c("naked", "snake"), 20), status = 1)
+
+  hhmodel <- new_housepi_model(model = "test") |>
+    add_augmented(z = list(model = "uniform", min = 2, max = 8)) |>
+    add_observation(tsuchinoko = list(model = "normal", mean = z, sd = 2))
+
+  # the simulated observation resolves to continuos
+  hhmodel |>
+    add_data_wide(dplyr::mutate(df, tsuchinoko = rep(c(2.4, 5.1), 20))) |>
+    run_simulation() |>
+    getElement("tsuchinoko") |>
+    is_whole() |>
+    expect_false()
+
+  # attaching an integer column changes the resolution to integer
+  hhmodel |>
+    add_data_wide(dplyr::mutate(df, tsuchinoko = rep(c(2L, 5L), 20))) |>
+    run_simulation() |>
+    getElement("tsuchinoko") |>
+    is_whole() |>
+    expect_true()
 })

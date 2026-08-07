@@ -36,6 +36,9 @@ namespace housepi
 	class Individual;
 	class Household;
 
+	/// Max resamples per member.
+	static constexpr size_t N_INIT_ATTEMPTS_ = 100;
+
 	/// Output of a power-posterior ladder run.
 	struct PowerLadder
 	{

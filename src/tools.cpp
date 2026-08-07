@@ -143,6 +143,22 @@ namespace housepi
     {
         return contains(declared_, name) || contains(optional_, name);
     }
+    void KeyModuleWithRequests::request_discrete(std::vector<size_t> vec)
+    {
+        union_append(discr_, vec);
+    }
+    void KeyModuleWithRequests::request_positive(std::vector<size_t> vec)
+    {
+        union_append(posit_, vec);
+    }
+    bool KeyModuleWithRequests::is_required_discrete(size_t p) const noexcept
+    {
+        return contains(discr_, p);
+    }
+    bool KeyModuleWithRequests::is_required_positive(size_t p) const noexcept
+    {
+        return contains(posit_, p);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

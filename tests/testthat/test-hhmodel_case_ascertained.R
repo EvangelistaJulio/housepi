@@ -130,7 +130,7 @@ test_that("Template import loads the profile shipped with the model", {
     add_parameter(import = "template") |>
     add_augmented(import = "template") |>
     add_infectivity_profile(import = "template") |>
-    get_infectivity_profile()
+    get_infectivity_profiles()
 
   expect_equal(defs$func, "gamma")
   expect_equal(defs$func_args[[1]], c(mean = 4, sd = 1.7))
@@ -336,9 +336,9 @@ test_that("Augmented moves preserve log-likelihood", {
   # check that snapshot is last state
   snapshot <- hhmodel$export_house_snapshot("hh01")
   expect_identical(unlist(c(param_draws[n_steps, ], consts)),
-                   snapshot$param)
+                   snapshot$parameters)
   expect_identical(get_augm_state(augm_draws, n_steps),
-                   snapshot$augm[house$status > 0, ])
+                   snapshot$augmented[house$status > 0, ])
 
   check_eval <- function(i) {
     df <- join_augm_data(house, get_augm_state(augm_draws, i))

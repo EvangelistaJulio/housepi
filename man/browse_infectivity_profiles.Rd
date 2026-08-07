@@ -26,7 +26,7 @@ Relative to the location argument \code{loc}, when one is given.}
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }
 \value{
-An exposed infectivity profile object with methods \verb{$inst()} and \verb{$cumul()}, or \code{NULL} if the available names were printed.
+\code{NULL} if the available names were printed. Otherwise \link[=HousepiExposedProfile]{HousepiExposedProfile} object.
 }
 \description{
 Print the list of available infectivity profiles,

@@ -31,9 +31,9 @@ namespace housepi
 	class ModelBase
 	{
 	public:
-		///////////////////////////
-		//////  CONSTRUCTOR  //////
-		///////////////////////////
+		/////////////////////
+		///  CONSTRUCTOR  ///
+		/////////////////////
 
 		virtual ~ModelBase() = default;
 
@@ -49,12 +49,12 @@ namespace housepi
 		virtual const std::vector<std::string> key_GroupRisk() const = 0;
 		virtual const std::vector<std::string> key_Augm() const = 0;
 
-		/////////////////////
-		//////  MODEL  //////
-		/////////////////////
+		///////////////
+		///  MODEL  ///
+		///////////////
 
 		/// Whether the model uses contact risks.
-		virtual bool has_contact_risks() const { return false; }
+		virtual bool has_contact_risk() const { return false; }
 		/// Whether the model requires an infectivity profile definition.
 		virtual bool has_infec_profile() const { return false; }
 
@@ -77,32 +77,32 @@ namespace housepi
 		/// Simulation for a single household.
 		virtual void simulate_single_house(Household & /*house*/) = 0;
 
-		//////////////////////
-		//////  SETTER  //////
-		//////////////////////
+		/////////////////////////////////
+		///  SETTER : MODEL REQUESTS  ///
+		/////////////////////////////////
 
 		/// Initialize model-specific definition requirements.
 		virtual void init_model_requirements() {}
 
-		/// Throw an exception if at least a member as missing status.
-		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
-
-		//////////////////////////////////////
-		//////  SETTER : MODELER CALLS  //////
-		//////////////////////////////////////
-
-		/// Request discrete parameter definition.
-		void request_param_discrete(std::vector<size_t> vec) { mcmc_->param.request_discrete(vec); }
 		/// Request that a baseline parameter and the relative risks scaling it share one reference.
 		/// 'contacts' declares that contact risks scale the same term as the listed group risks.
 		void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts = false)
 		{
 			mcmc_->param.request_risk_identifiability(p, std::move(risks), contacts);
 		}
+
+		/// Request discrete parameter definition.
+		void request_param_discrete(std::vector<size_t> vec) { mcmc_->param.request_discrete(vec); }
+		/// Request positive parameter definition.
+		void request_param_positive(std::vector<size_t> vec) { mcmc_->param.request_positive(vec); }
+
 		/// Request discrete augmented definition.
 		void request_augm_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }
+		/// Request positive augmented definition.
+		void request_augm_positive(std::vector<size_t> vec) { mcmc_->augm.request_positive(vec); }
 		/// Declare an augmented key read by the transmission computation (included cache).
 		void request_augm_transmission(std::vector<size_t> vec) { mcmc_->augm.request_transmission(vec); }
+
 		/// Request discrete infectivity profile definition.
 		void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
 
@@ -110,6 +110,13 @@ namespace housepi
 		void request_data_discrete(std::vector<size_t> vec) { mcmc_->data_wide().request_discrete(vec); }
 		/// Request data definition greater than zero.
 		void request_data_positive(std::vector<size_t> vec) { mcmc_->data_wide().request_positive(vec); }
+
+		/// Throw an exception if at least a member as missing status.
+		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
+
+		//////////////////////////////
+		///  SETTER : MODEL CALLS  ///
+		//////////////////////////////
 
 		/// Set an individual status to infected. Resolve status observation, if any.
 		/// NOTE: call init_missing_augm to materialize status-specific definition block after.
@@ -136,9 +143,9 @@ namespace housepi
 			mcmc_->augm.sample_obs(indiv, mcmc_->setup.prng());
 		}
 
-		//////////////////////
-		//////  GETTER  //////
-		//////////////////////
+		////////////////
+		///  GETTER  ///
+		////////////////
 
 		/// Sample a uniform-distributed variable between 0 and 1.
 		double uniform() const { return mcmc_->setup.uniform(); }
@@ -176,6 +183,10 @@ namespace housepi
 
 		double infec_profile_inst(const Individual &m, double t) const { return mcmc_->infec_profile.inst(&m, t); }
 		double infec_profile_cumul(const Individual &m, double t) const { return mcmc_->infec_profile.cumul(&m, t); }
+
+		///////////////
+		///  CACHE  ///
+		///////////////
 
 		/// Return cached member value.
 		MAKE_HOUSEPI_CACHE_FORWARDER(member)

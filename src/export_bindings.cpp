@@ -84,6 +84,22 @@ namespace
 {
     using namespace housepi;
 
+    /// Auxiliary converter to R NA real values.
+    double hsp_to_rcpp(double x) { return na::is(x) ? NA_REAL : x; }
+    double hsp_to_rcpp(const Attribute &attr)
+    {
+        if (attr.is_empty())
+            return NA_REAL;
+        if (attr.is_function() && !attr.function()->is_callable_implicitly())
+            return NA_REAL;
+        return hsp_to_rcpp(attr.value());
+    }
+    /// Auxiliary converter of an individual status, missing status to R NA integer.
+    int hsp_to_rcpp(const Individual &indiv)
+    {
+        return indiv.is_missing_status() ? NA_INTEGER : static_cast<int>(indiv.status());
+    }
+
     // Base class to wrap internal hosuepi functions
     class ExposeBase
     {
@@ -146,6 +162,13 @@ namespace
             output.names() = std::move(names);
             return output;
         }
+
+        /// Wheter the definition takes discrete values.
+        bool is_discrete() const { return ptr_->is_discrete(); }
+        /// Formatted range of valid values, in the absolute frame.
+        std::string range() const { return ptr_->str_range(); }
+        /// Location shift, NA when no location argument was given.
+        double loc() const { return ptr_->loc().value(); }
 
     protected:
         std::unique_ptr<Function> ptr_;
@@ -308,22 +331,6 @@ namespace
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Auxiliary converter to R NA real values.
-    double hsp_to_rcpp(double x) { return na::is(x) ? NA_REAL : x; }
-    double hsp_to_rcpp(const Attribute &attr)
-    {
-        if (attr.is_empty())
-            return NA_REAL;
-        if (attr.is_function() && !attr.function()->is_callable_implicitly())
-            return NA_REAL;
-        return hsp_to_rcpp(attr.value());
-    }
-    /// Auxiliary converter of an individual status, missing status to R NA integer.
-    int hsp_to_rcpp(const Individual &indiv)
-    {
-        return indiv.is_missing_status() ? NA_INTEGER : static_cast<int>(indiv.status());
-    }
-
     /// Convert R dataframe map of string vectors.
     str_table rdataframe_to_strmap(SEXP input)
     {
@@ -444,30 +451,6 @@ namespace
     ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Export to R definitions of infectivity profile.
-    Rcpp::List helper_export_infec_profile(const InfecProfile &infec_profile)
-    {
-        if (infec_profile.is_augmented())
-            /// FIXME: I need to reverse parser here + cast to numeric
-            return Rcpp::List::create(
-                Rcpp::_["func"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("func"))),
-                Rcpp::_["func_args"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("func"))),
-                Rcpp::_["min"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("min"))),
-                Rcpp::_["max"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("max"))),
-                Rcpp::_["discr"] = Rcpp::CharacterVector(Rcpp::wrap(infec_profile.augm_definitions.at("discr"))));
-
-        if (!infec_profile.generic)
-            return Rcpp::List::create();
-
-        // NOTE: arguments should not be polymorphic when called here
-        return Rcpp::List::create(
-            Rcpp::_["func"] = infec_profile.generic->name(),
-            Rcpp::_["func_args"] = rcpp_export_args(infec_profile.generic.get()),
-            Rcpp::_["min"] = hsp_to_rcpp(infec_profile.generic->lower()),
-            Rcpp::_["max"] = hsp_to_rcpp(infec_profile.generic->upper()),
-            Rcpp::_["discr"] = infec_profile.generic->is_discrete());
-    }
 
     /// Export current setup configurations to R List.
     Rcpp::List export_setup(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -851,17 +834,17 @@ namespace
         return cols;
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  MCMC : house state snapshot /////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  MCMC : house state snapshot ///////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Export to R a snapshot of current state of house data.
     /// NOTE: there are not private parameters so far.
-    Rcpp::NumericVector helper_param_rcpp_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr)
+    Rcpp::NumericVector rcpp_snapshot_param(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const Parameter &param = mcmc_ptr->param;
 
-        if (param.khold().empty())
+        if (!param.is_allocated())
             return Rcpp::NumericVector::create();
 
         size_t n = param.khold().size();
@@ -878,8 +861,8 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house data.
-    Rcpp::DataFrame helper_data_wide_rcpp_snapshot(
-        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
+    Rcpp::DataFrame rcpp_snapshot_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr,
+                                            const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const std::vector<std::string> &headers = data_wide.khold().all();
@@ -915,8 +898,8 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house data-long.
-    Rcpp::DataFrame helper_data_long_rcpp_snapshot(
-        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
+    Rcpp::DataFrame rcpp_snapshot_data_long(Rcpp::XPtr<MCMC> mcmc_ptr,
+                                            const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const DataLong &data_long = mcmc_ptr->data_long();
@@ -960,14 +943,14 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_group_risks_rcpp_snapshot(
-        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
+    Rcpp::DataFrame rcpp_snapshot_group_risks(Rcpp::XPtr<MCMC> mcmc_ptr,
+                                              const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const GroupRisk &group_risk = mcmc_ptr->group_risk;
         const std::vector<std::string> &headers = group_risk.khold().all();
 
-        if (headers.empty())
+        if (headers.empty() || !group_risk.is_allocated())
             return Rcpp::DataFrame::create();
 
         size_t n_rows = house.size();
@@ -997,8 +980,8 @@ namespace
     /// Export to R a snapshot of current contact risk attribute values
     /// for a household as a (from x to) numeric matrix with member id dimnames.
     /// Returns an empty 0x0 matrix when no contact risk was defined.
-    Rcpp::NumericMatrix helper_contact_risks_rcpp_snapshot(
-        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
+    Rcpp::NumericMatrix rcpp_snapshot_contact_risks(Rcpp::XPtr<MCMC> mcmc_ptr,
+                                                    const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const ContactRisk &contact_risk = mcmc_ptr->contact_risk;
@@ -1022,13 +1005,15 @@ namespace
     }
 
     /// Export to R a snapshot of current state of house infectivity profile.
-    Rcpp::List helper_infec_profile_rcpp_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr,
-                                                  const Household &house)
+    /// Each infected member reads the profile resolved for it.
+    Rcpp::List rcpp_snapshot_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr,
+                                           const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const InfecProfile &infec_profile = mcmc_ptr->infec_profile;
+        const bool is_augm = infec_profile.is_augmented();
 
-        if (!infec_profile.generic && !infec_profile.is_augmented())
+        if (!infec_profile.generic && !is_augm)
             return Rcpp::List::create();
 
         size_t n_rows = house.size();
@@ -1043,25 +1028,20 @@ namespace
         for (size_t i = 0; i < house.size(); ++i)
             id_col[i] = data_wide.id(house.at(i));
 
-        for (MemberIndex i : house.infected_members())
-            if (infec_profile.is_augmented())
+        // an augmented profile reads NA until its storage is allocated
+        if (!is_augm || mcmc_ptr->augm.is_allocated())
+            for (MemberIndex i : house.infected_members())
             {
-                const auto &f = mcmc_ptr->get_augm_varia(infec_profile.augm_key, house.at(i)).function();
-
+                const Function *f =
+                    is_augm ? mcmc_ptr->get_augm_varia(infec_profile.augm_key, house.at(i)).function()
+                            : infec_profile.generic.get();
+                if (!f)
+                    continue;
                 infprof_name[i] = f->name();
                 infprof_discr[i] = f->is_discrete();
                 infprof_args[i] = rcpp_export_args(f);
                 infprof_min[i] = hsp_to_rcpp(f->lower());
                 infprof_max[i] = hsp_to_rcpp(f->upper());
-            }
-            else
-            {
-                Rcpp::List generic = helper_export_infec_profile(infec_profile);
-                infprof_name[i] = Rcpp::as<std::string>(generic["func"]);
-                infprof_discr[i] = Rcpp::as<bool>(generic["discr"]);
-                infprof_args[i] = generic["func_args"];
-                infprof_min[i] = Rcpp::as<double>(generic["min"]);
-                infprof_max[i] = Rcpp::as<double>(generic["max"]);
             }
 
         return Rcpp::List::create(
@@ -1073,15 +1053,18 @@ namespace
             Rcpp::_["max"] = infprof_max);
     }
 
-    Rcpp::DataFrame helper_augm_log_lik_rcpp_snapshot(
-        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
+    /// Export to R the log-density of each key of 'list', per household member.
+    /// A key carrying no distribution for a member reads NA.
+    Rcpp::DataFrame helper_log_lik_rcpp_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr,
+                                                 const Household &house,
+                                                 const std::vector<size_t> &list)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
 
-        size_t n_cols = augm.list_augm_export.size();
+        size_t n_cols = list.size();
 
-        if (n_cols == 0)
+        if (n_cols == 0 || !augm.is_allocated())
             return Rcpp::DataFrame::create();
 
         size_t n_rows = house.size();
@@ -1096,20 +1079,18 @@ namespace
             const Individual &indiv_i = house.at(i);
             id_col[i] = data_wide.id(indiv_i);
 
-            size_t c = 0;
-            for (size_t a : augm.list_augm_export)
+            for (size_t c = 0; c < n_cols; ++c)
             {
-                const Variable &avar = mcmc_ptr->get_augm_varia(a, indiv_i);
+                const Variable &avar = mcmc_ptr->get_augm_varia(list[c], indiv_i);
                 if (avar.has_distr())
-                    df_double[c++][i] = hsp_to_rcpp(avar.log_pdf());
+                    df_double[c][i] = hsp_to_rcpp(avar.guarded_log_pdf());
             }
         }
 
         Rcpp::List output;
         output["id"] = id_col;
-        size_t c = 0;
-        for (size_t a : augm.list_augm_export)
-            output.push_back(df_double[c++], augm.khold(a));
+        for (size_t c = 0; c < n_cols; ++c)
+            output.push_back(df_double[c], augm.khold(list[c]));
 
         return Rcpp::DataFrame(output);
     }
@@ -1122,7 +1103,7 @@ namespace
         const Augmented &augm = mcmc_ptr->augm;
         size_t n_cols = augm.list_augm_export.size();
 
-        if (n_cols == 0)
+        if (n_cols == 0 || !augm.is_allocated())
             return Rcpp::DataFrame::create();
 
         size_t n_rows = house.size();
@@ -1159,22 +1140,23 @@ namespace
                 return Rcpp::List::create();
 
             const Household &house = mcmc_ptr->data_wide().at(house_id);
+            const Augmented &augm = mcmc_ptr->augm;
 
             return Rcpp::List::create(
-                Rcpp::_["param"] = helper_param_rcpp_snapshot(mcmc_ptr),
-                Rcpp::_["data_wide"] = helper_data_wide_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["data_long"] = helper_data_long_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["group_risk"] = helper_group_risks_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["contact_risk"] = helper_contact_risks_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["infec_profile"] = helper_infec_profile_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["augm"] = helper_augm_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["augm_log_lik"] = helper_augm_log_lik_rcpp_snapshot(mcmc_ptr, house),
-                Rcpp::_["transm_log_lik"] = mcmc_ptr->data_wide().transm_log_lik(house).value());
+                Rcpp::_["data_wide"] = rcpp_snapshot_data_wide(mcmc_ptr, house),
+                Rcpp::_["data_long"] = rcpp_snapshot_data_long(mcmc_ptr, house),
+                Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),                
+                Rcpp::_["group_risks"] = rcpp_snapshot_group_risks(mcmc_ptr, house),
+                Rcpp::_["contact_risks"] = rcpp_snapshot_contact_risks(mcmc_ptr, house),
+                Rcpp::_["augmented"] = helper_augm_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["infectivity_profiles"] = rcpp_snapshot_infec_profile(mcmc_ptr, house),
+                Rcpp::_["augmented_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.list_augm_export),
+                Rcpp::_["observation_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.list_obs_member),
+                Rcpp::_["transmission_log_lik"] = mcmc_ptr->data_wide().transm_log_lik(house).value());
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string(e.what()) +
-                      "\nFor household " + msg::val(house_id) + ".");
+            msg::stop(std::string(e.what()) + "\nFor household " + msg::val(house_id) + ".");
         }
     }
 
@@ -1446,6 +1428,16 @@ namespace
     MAKE_EXPORT_CHARACTER_VECTOR(key_GroupRisk)
     MAKE_EXPORT_CHARACTER_VECTOR(key_Augm)
 
+/// Keys the model requests as discrete.
+#define MAKE_EXPORT_DISCRETE_KEYS(method, module)                    \
+    Rcpp::CharacterVector method(Rcpp::XPtr<housepi::MCMC> mcmc_ptr) \
+    {                                                                \
+        return Rcpp::wrap(mcmc_ptr->module.discrete_keys());         \
+    }
+
+    MAKE_EXPORT_DISCRETE_KEYS(key_Param_discrete, param)
+    MAKE_EXPORT_DISCRETE_KEYS(key_Augm_discrete, augm)
+
     Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
     {
         Rcpp::XPtr<MCMC> mcmc(new MCMC(module_name), true);
@@ -1468,9 +1460,9 @@ namespace
         dest->set_data_store(src->pDataStore);
     }
 
-    bool has_contact_risks(Rcpp::XPtr<MCMC> mcmc_ptr)
+    bool has_contact_risk(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
-        return mcmc_ptr->model->has_contact_risks();
+        return mcmc_ptr->model->has_contact_risk();
     }
 
     bool has_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -1601,7 +1593,10 @@ namespace
 RCPP_MODULE(housepi)
 {
     Rcpp::class_<ExposeBase>("ExposeBase")
-        .method("args", &ExposeBase::args);
+        .method("args", &ExposeBase::args)
+        .method("range", &ExposeBase::range)
+        .method("is_discrete", &ExposeBase::is_discrete)
+        .method("loc", &ExposeBase::loc);
 
     Rcpp::class_<ExposeFunction>("ExposeFunction")
         .derives<ExposeBase>("ExposeBase")
@@ -1637,6 +1632,8 @@ RCPP_MODULE(housepi)
     Rcpp::function("key_Param", &key_Param);
     Rcpp::function("key_GroupRisk", &key_GroupRisk);
     Rcpp::function("key_Augm", &key_Augm);
+    Rcpp::function("key_Param_discrete", &key_Param_discrete);
+    Rcpp::function("key_Augm_discrete", &key_Augm_discrete);
 
     Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
     Rcpp::function("measure_ar_by_hhsize", &measure_ar_by_hhsize);
@@ -1660,7 +1657,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_infec_profile", &import_infec_profile);
     Rcpp::function("import_augm", &import_augm);
     Rcpp::function("import_param_table", &import_param_table);
-    Rcpp::function("has_contact_risks", &has_contact_risks);
+    Rcpp::function("has_contact_risk", &has_contact_risk);
     Rcpp::function("has_infec_profile", &has_infec_profile);
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);

@@ -156,7 +156,7 @@ hhmodel <- hhmodel |>
     infec_time = list(
       model = "uniform", min = start_date@D - 8, max = end_date@D
     ),
-    # accessory generic definitions
+    # accessory hidden definitions, generic to all statuses
     .incub_period = list(model = "gamma", mean = 3, sd = 1.4),
     .onset_time = infec_time + .incub_period,
   ) |>
@@ -164,12 +164,12 @@ hhmodel <- hhmodel |>
   add_observation(
     #> symptomatic (status = 1)
     test_date = list(
-      status = 1, discr = TRUE, model = "normal",
+      status = 1, model = "normal",
       mean = .onset_time, sd = 1, min = floor(.onset_time)
     ),
     #> asymptomatic (status = 2)
     test_date = list(
-      status = 2, discr = TRUE, model = "uniform",
+      status = 2, model = "uniform",
       loc = ceil(infec_time), min = 0, max = 8
     )
   ) |>

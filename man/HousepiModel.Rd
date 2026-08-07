@@ -11,27 +11,37 @@ definitions, run inference and simulations from a single class.
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{name}}{\code{character(1)}. Model name.}
+\item{\code{name}}{\code{character(1)}
+Model name.}
 
-\item{\code{setup}}{\code{list}. Last setup used by the build process.}
+\item{\code{setup}}{\code{list}
+Last setup used by the build process.}
 
-\item{\code{data_wide}}{\code{data.frame}. Individual level data.
+\item{\code{data_wide}}{\code{data.frame}
+Individual level data.
 One row per individual index by corresponding ID.}
 
-\item{\code{data_long}}{\code{data.frame}. Additional data rows indexed by individual (long format).}
+\item{\code{data_long}}{\code{data.frame}
+Additional data rows indexed by individual (long format).}
 
-\item{\code{parameters}}{\code{data.frame}. Parameter definitions.}
+\item{\code{parameters}}{\code{data.frame}
+Parameter definitions.}
 
-\item{\code{augmented}}{\code{data.frame}. Augmented definitions.}
+\item{\code{group_risks}}{\code{data.frame}
+Group risk definitions.}
 
-\item{\code{observations}}{\code{data.frame}. Observation definitions.
+\item{\code{contact_risks}}{\code{data.frame}
+Contact risk definitions.}
+
+\item{\code{augmented}}{\code{data.frame}
+Augmented definitions.}
+
+\item{\code{observations}}{\code{data.frame}
+Observation definitions.
 Column 'level' tells member ("member") from household ("house") entries.}
 
-\item{\code{infectivity_profile}}{\code{data.frame}. Infectivity profile definitions.}
-
-\item{\code{group_risks}}{\code{data.frame}. Group risk definitions.}
-
-\item{\code{contact_risks}}{\code{data.frame}. Contact risk definitions.}
+\item{\code{infectivity_profiles}}{\code{data.frame}
+Infectivity profile definitions.}
 }
 \if{html}{\out{</div>}}
 }
@@ -154,6 +164,9 @@ Dataset with associated augmented variables for last state.
 \if{latex}{\out{\hypertarget{method-HousepiModel-export_house_snapshot}{}}}
 \subsection{Method \code{export_house_snapshot()}}{
 All variables associated to given household for last state.
+Entries are named after the homonymous active fields, followed by the
+augmented, observation and transmission log-likelihood contributions.
+Empty definitions are dropped.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_house_snapshot(house_id)}\if{html}{\out{</div>}}
 }

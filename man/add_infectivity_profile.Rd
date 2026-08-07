@@ -9,7 +9,7 @@ add_infectivity_profile(
   func = NULL,
   ...,
   status = NA_integer_,
-  discr = FALSE,
+  discr = NA,
   min = NULL,
   max = NULL,
   import = NULL,
@@ -28,29 +28,31 @@ In mode 'multiple', the \code{func} definitions.}
 Used to specify status-specific definitions.
 If \code{NA}, associate definition to all infectious individuals (default).}
 
-\item{discr}{\code{logical(1)} Treat definition as discrete.
-If applicable, the profile is discretized.}
+\item{discr}{\code{logical(1)} Treat profile definition as discrete, if applicable.
+Inferred from the model time discretization if \code{NA} (default).}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
-Relative to the location argument \code{loc}, when one is given.
-One between:
+Relative to the location argument \code{loc}, when one is given. Either a plain value, a single external source
+following the convention \code{argument@source} ("argument at source"),
+or an arithmetic expression. Sources are:
 \describe{
-\item{augmented}{\verb{@A};}
-\item{data}{\verb{@D};}
-\item{group risk}{\verb{@G};}
-\item{parameter}{\verb{@P};}
-\item{scalar}{\verb{@N}.}
+\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@D}}{data column;}
+\item{\verb{@G}}{group risk;}
+\item{\verb{@N}}{numeric value (assumed for a number);}
+\item{\verb{@P}}{parameter.}
 }}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
-Relative to the location argument \code{loc}, when one is given.
-One between:
+Relative to the location argument \code{loc}, when one is given. Either a plain value, a single external source
+following the convention \code{argument@source} ("argument at source"),
+or an arithmetic expression. Sources are:
 \describe{
-\item{augmented}{\verb{@A};}
-\item{data}{\verb{@D};}
-\item{group risk}{\verb{@G};}
-\item{parameter}{\verb{@P};}
-\item{scalar}{\verb{@N}.}
+\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@D}}{data column;}
+\item{\verb{@G}}{group risk;}
+\item{\verb{@N}}{numeric value (assumed for a number);}
+\item{\verb{@P}}{parameter.}
 }}
 
 \item{import}{Named \code{list} of pre-built definitions to import,
@@ -88,5 +90,5 @@ It can be supplied only via single mode definition.
 hhmodel <- sarscov2_2021_icofs |>
   new_housepi_model("case_ascertained") |>
   add_infectivity_profile(import = "template")
-get_infectivity_profile(hhmodel)
+get_infectivity_profiles(hhmodel)
 }

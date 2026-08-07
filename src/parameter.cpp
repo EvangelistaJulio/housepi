@@ -407,6 +407,13 @@ namespace housepi
                 helper_build_constant_(input, k, translator);
             else
                 helper_build_to_sample_(input, k, translator);
+
+            // check if discrete as requested
+            size_t p = khold(pstr);
+            if (is_required_discrete(p) && !at(p).is_discrete())
+                msg::stop(
+                    "Definition of " + at(p).err_name() +
+                    " did not return a discrete object as requested by model.");
         }
 
         // initialize all parameters to standard, i.e. none feeds transmission cache
@@ -439,7 +446,7 @@ namespace housepi
         param_vec_.clear();
         param_vec_.resize(n);
         for (size_t p = 0; p < n; ++p)
-            param_vec_[p].name(khold(p), ErrType::Parameter);
+            at(p).name(khold(p), ErrType::Parameter);
     }
 
     void Parameter::clear_lists_()
@@ -460,12 +467,7 @@ namespace housepi
 
         // assign constant parameter to the set of variables
         size_t p = khold(pstr);
-        param_vec_[p].transfer(translator.to_numeric(input.at("value")[k]));
-        // check if discrete as requested
-        if (user_discrete_set_.count(p) && !param_vec_[p].is_discrete())
-            msg::stop(
-                "Definition of " + param_vec_[p].err_name() +
-                " did not return a discrete object as requested by model.");
+        at(p).transfer(translator.to_numeric(input.at("value")[k]));
 
         // update the lists of constant parameters
         list_const.push_back(p);
@@ -498,12 +500,6 @@ namespace housepi
         for (const auto &child : prop.root.children)
             prop_args.emplace(child.key, translator.to_numeric(child));
         xparam.init_proposal(prop.root.func, prop_args);
-
-        // check if discrete as requested
-        if (user_discrete_set_.count(p) && !xparam.is_discrete())
-            msg::stop(
-                "Definition of " + xparam.err_name() +
-                " did not return a discrete object as requested by model.");
 
         // update the lists of parameters to sample
         list_sample.push_back(p);
@@ -541,12 +537,6 @@ namespace housepi
 
         // discretization
         xparam.init_func_reshaping(str::tobool(input.at("discr")[k]));
-
-        // check if discrete as requested
-        if (user_discrete_set_.count(p) && !xparam.is_discrete())
-            msg::stop(
-                "Definition of " + xparam.err_name() +
-                " did not return a discrete object as requested by model.");
 
         // classify: deterministic, not sampled
         list_const.push_back(p);
@@ -600,7 +590,7 @@ namespace housepi
             }
 
             Variable &xparam = at(anchor.baseline);
-            if (n_scale_free == 1 && !param_vec_[anchor.baseline].is_constant())
+            if (n_scale_free == 1 && !at(anchor.baseline).is_constant())
             {
                 // UPDATE: when baseline is a function, it's a user choice
                 // NOTE: at the moment is not even possible, but it might be in the future

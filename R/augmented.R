@@ -191,7 +191,7 @@ HousepiAugmented <- R6::R6Class(
     #' @inherit add_augmented
     add_quo = function(name, ...,
                        value = NULL, status = NA_integer_,
-                       const = NA, discr = FALSE,
+                       const = NA, discr = NA,
                        model = NA_character_,
                        func = NULL, func_args = NULL,
                        min = NULL, max = NULL,
@@ -290,7 +290,7 @@ HousepiAugmented <- R6::R6Class(
                    value = NA_real_,
                    status = as.character(status),
                    const = as.logical(const),
-                   discr = isTRUE(discr),
+                   discr = as.logical(discr),
                    func = NA_character_,
                    fcumul = FALSE, # UPDATE: can I make this an option?
                    model = as.character(model),

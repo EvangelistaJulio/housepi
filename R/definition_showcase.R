@@ -19,7 +19,7 @@ showcaser_extract <- function(x, src) {
 # helper to extract numeric values from a definition
 showcaser_extract_numeric <- function(x) {
   sapply(x, function(element) {
-    if (is.na(element)) return(NA_real_)
+    if (is.na(element)) return(if (is.logical(element)) element else NA_real_)
     if (!is.character(element)) return(element)
     z <- strsplit(element, "\\|")[[1]]
     if (length(z) != 2 || z[2] != "N") return(element)

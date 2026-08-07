@@ -139,7 +139,7 @@ HousepiModel <- R6::R6Class(
     # @description
     # Assert contact risk definitions are compatible with the model.
     assert_contact_risks_supported_ = function() {
-      if (.engine$has_contact_risks(private$generator_$mcmc_ptr))
+      if (private$generator_$has_contact_risk)
         return(invisible(self))
       stop_h(
         "Contact risks are not supported for model {.val {self$name}}.",
@@ -164,15 +164,9 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Whether the model transmits through an infectivity profile.
-    requires_infec_profile_ = function() {
-      .engine$has_infec_profile(private$generator_$mcmc_ptr)
-    },
-
-    # @description
     # Assert infectivity profile definitions are compatible with the model.
     assert_infec_profile_supported_ = function() {
-      if (private$requires_infec_profile_()) return(invisible(self))
+      if (private$generator_$has_infec_profile) return(invisible(self))
       stop_h(
         "Infectivity profiles are not supported for model {.val {self$name}}.",
         `!` = "Definitions will be dropped."
@@ -183,7 +177,7 @@ HousepiModel <- R6::R6Class(
     # Assert an infectivity profile is defined when the model needs one.
     # @param capital `logical(1)` to raise error.
     assert_infec_profile_ = function(capital = TRUE) {
-      if (!private$requires_infec_profile_() ||
+      if (!private$generator_$has_infec_profile ||
             length(private$infec_profile_$defs) > 0) return(character())
       sms <- c("Missing infectivity profile definition.",
                "Define it with {.fn add_infectivity_profile}.")
@@ -347,10 +341,16 @@ HousepiModel <- R6::R6Class(
 
       mcmc_ptr <- private$generator_$mcmc_ptr
       info_wide <- private$generator_$info_data_wide
+      discr_wide <- private$generator_$discr_data_wide
 
-      #> parameters
+      #> parameters (resolve unspecified discretization against the model)
       if (length(private$param_$defs) > 0) private$assert_param_(FALSE, FALSE)
-      .engine$import_param(mcmc_ptr, private$param_$defs)
+      .engine$import_param(
+        mcmc_ptr,
+        resolve_discr_flags_(private$param_$defs,
+                             private$generator_$param_discrete_required,
+                             is_prior = TRUE)
+      )
 
       #> group risks
       .engine$import_group_risk(
@@ -367,7 +367,8 @@ HousepiModel <- R6::R6Class(
       #> infectivity profile
       .engine$import_infec_profile(mcmc_ptr, private$infec_profile_$defs)
 
-      #> augmented (resolve character status labels to integer codes for C++)
+      #> augmented (resolve character status labels to integer codes for C++,
+      #> and unspecified discretization against the model and the data)
       status_dict <- private$status_dictionary_()
       if (private$generator_$escaped %in% status_dict) stop_h(
         paste("Infected status {.val {private$generator_$escaped}} collides",
@@ -378,7 +379,12 @@ HousepiModel <- R6::R6Class(
       if (length(private$augm_$defs) > 0) private$assert_augm_(FALSE, FALSE)
       .engine$import_augm(
         mcmc_ptr,
-        resolve_status_codes_(private$augm_$defs, status_dict)
+        resolve_status_codes_(
+          resolve_discr_flags_(private$augm_$defs,
+                               private$generator_$augm_discrete_required,
+                               discr_wide),
+          status_dict
+        )
       )
 
       # status dictionary drives the factor refactoring of the status column
@@ -477,7 +483,8 @@ HousepiModel <- R6::R6Class(
       n_house_total <- length(unique(house_id))
       # total count of columns
       total_cols <- n_param_cols + n_augm_cols + n_house_total + 1L
-      bytes_final <- 8L * n_sample * total_cols
+      # the column-by-sample product exceeds the 32-bit range on large runs
+      bytes_final <- 8 * as.double(n_sample) * as.double(total_cols)
 
       # byte budget for posterior draws materialisation
       # set 80% cap under R vsize, otherwise fall back to 16 GiB
@@ -638,19 +645,22 @@ HousepiModel <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field name `character(1)`. Model name.
+    #' @field name `character(1)`
+    #'  Model name.
     name = function(value) {
       if (!missing(value)) stop_read_only("name")
       private$generator_$name
     },
 
-    #' @field setup `list`. Last setup used by the build process.
+    #' @field setup `list`
+    #' Last setup used by the build process.
     setup = function(value) {
       if (!missing(value)) stop_read_only("setup")
       .engine$export_setup(private$generator_$mcmc_ptr)
     },
 
-    #' @field data_wide `data.frame`. Individual level data.
+    #' @field data_wide `data.frame`
+    #' Individual level data.
     #' One row per individual index by corresponding ID.
     data_wide = function(value) {
       if (!missing(value)) stop_read_only("data_wide")
@@ -661,8 +671,8 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    #' @field data_long
-    #' `data.frame`. Additional data rows indexed by individual (long format).
+    #' @field data_long `data.frame`
+    #' Additional data rows indexed by individual (long format).
     data_long = function(value) {
       if (!missing(value)) stop_read_only("data_long")
       private$generator_$refactor_data_long(
@@ -670,20 +680,41 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    #' @field parameters `data.frame`. Parameter definitions.
+    #' @field parameters `data.frame`
+    #' Parameter definitions.
     parameters = function(value) {
       if (!missing(value)) stop_read_only("parameters")
       housepi_defin_showcaser(private$param_$defs)
     },
 
-    #' @field augmented `data.frame`. Augmented definitions.
+    #' @field group_risks `data.frame`
+    #' Group risk definitions.
+    group_risks = function(value) {
+      if (!missing(value)) stop_read_only("group_risks")
+      helper_show_risk_table(private$group_risks_,
+                             risk_reserved_cols,
+                             private$has_data_wide_())
+    },
+
+    #' @field contact_risks `data.frame`
+    #' Contact risk definitions.
+    contact_risks = function(value) {
+      if (!missing(value)) stop_read_only("contact_risks")
+      helper_show_risk_table(private$contact_risks_,
+                             setdiff(risk_reserved_cols, "group_risk"),
+                             private$has_data_wide_())
+    },
+
+    #' @field augmented `data.frame`
+    #' Augmented definitions.
     augmented = function(value) {
       if (!missing(value)) stop_read_only("augmented")
       defs <- private$augm_$defs_of_kind("augm")
       housepi_defin_showcaser(defs)
     },
 
-    #' @field observations `data.frame`. Observation definitions.
+    #' @field observations `data.frame`
+    #' Observation definitions.
     #' Column 'level' tells member ("member") from household ("house") entries.
     observations = function(value) {
       if (!missing(value)) stop_read_only("observations")
@@ -695,26 +726,11 @@ HousepiModel <- R6::R6Class(
       housepi_defin_showcaser(defs)
     },
 
-    #' @field infectivity_profile `data.frame`. Infectivity profile definitions.
-    infectivity_profile = function(value) {
-      if (!missing(value)) stop_read_only("infectivity_profile")
+    #' @field infectivity_profiles `data.frame`
+    #' Infectivity profile definitions.
+    infectivity_profiles = function(value) {
+      if (!missing(value)) stop_read_only("infectivity_profiles")
       private$infec_profile_$showcase()
-    },
-
-    #' @field group_risks `data.frame`. Group risk definitions.
-    group_risks = function(value) {
-      if (!missing(value)) stop_read_only("group_risks")
-      helper_show_risk_table(private$group_risks_,
-                             risk_reserved_cols,
-                             private$has_data_wide_())
-    },
-
-    #' @field contact_risks `data.frame`. Contact risk definitions.
-    contact_risks = function(value) {
-      if (!missing(value)) stop_read_only("contact_risks")
-      helper_show_risk_table(private$contact_risks_,
-                             setdiff(risk_reserved_cols, "group_risk"),
-                             private$has_data_wide_())
     }
   ),
 
@@ -850,7 +866,7 @@ HousepiModel <- R6::R6Class(
           )))
         }
         # contact risks (optional)
-        if (.engine$has_contact_risks(private$generator_$mcmc_ptr)) {
+        if (private$generator_$has_contact_risk) {
           blocks <- c(blocks, list(fmt_assert_cli(
             "Contact risks",
             if (!private$contact_risks_$assert()) "Using default contact risks."
@@ -861,7 +877,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # infectivity profile (required by the model, or defined anyway)
-      if (private$requires_infec_profile_() ||
+      if (private$generator_$has_infec_profile ||
             length(private$infec_profile_$defs) > 0) blocks <- c(blocks,
         list(fmt_assert_cli("Infectivity profile",
                             private$assert_infec_profile_(FALSE)))
@@ -911,6 +927,9 @@ HousepiModel <- R6::R6Class(
 
     #' @description
     #' All variables associated to given household for last state.
+    #' Entries are named after the homonymous active fields, followed by the
+    #' augmented, observation and transmission log-likelihood contributions.
+    #' An empty definition is dropped unless the model requires it.
     #' @param house_id `r rd_house_id_`
     #' @return `list`
     export_house_snapshot = function(house_id) {
@@ -920,20 +939,28 @@ HousepiModel <- R6::R6Class(
         private$generator_$mcmc_ptr, house_id
       )
       out$data_wide <- private$generator_$refactor_data_wide(out$data_wide)
-      # > data long
+      ## data long
       if (all(dim(out$data_long) == 0)) out$data_long <- NULL
       else out$data_long <- private$generator_$refactor_data_long(out$data_long)
-      # > group risks
-      if (all(dim(out$group_risks) == 0)) out$group_risks <- NULL
-      # > infectivity profile # UPDATE
-      if (length(out$infec_profile) == 0) {
-        out$infec_profile <- NULL
+      ## parameters
+      if (length(private$generator_$param_required) == 0 &&
+            all(dim(out$parameters) == 0)) out$parameters <- NULL
+      ## group risks
+      if (length(private$generator_$group_risks_required) == 0 &&
+            all(dim(out$group_risks) == 0)) out$group_risks <- NULL
+      ## conctact risks
+      if (!private$generator_$has_contact_risk &&
+            all(dim(out$contact_risks) == 0)) out$contact_risks <- NULL
+      ## infectivity profiles
+      if (!private$generator_$has_infec_profile &&
+            length(out$infectivity_profiles) == 0) {
+        out$infectivity_profiles <- NULL
       } else {
-        lst <- out$infec_profile
+        lst <- out$infectivity_profiles
         df <- data.frame(id = lst$id, discr = lst$discr, func = lst$func,
                          min = lst$min, max = lst$max)
         df$func_args <- lst$func_args
-        out$infec_profile <- df
+        out$infectivity_profiles <- df
       }
       out
     }

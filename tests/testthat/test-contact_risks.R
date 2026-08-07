@@ -336,7 +336,7 @@ test_that("Non-joint sub-tables have correct columns", {
 # Cell-by-cell readout helper.
 ctr_cell_ <- function(hhsnapshot, from, to, key = "member") {
   ids <- hhsnapshot$data_wide[[key]]
-  hhsnapshot$contact_risk[match(from, ids), match(to, ids)]
+  hhsnapshot$contact_risks[match(from, ids), match(to, ids)]
 }
 
 test_that("Most-specific rule wins over reference (single feature)", {
@@ -371,8 +371,8 @@ test_that("Most-specific rule wins over reference (single feature)", {
   # unrelated pair falls back to reference (spec=0)
   expect_equal(ctr_cell_(snap, "student", "sibling"), 1)
   # diagonal stays 0 (no self-contact)
-  unname(diag(snap$contact_risk)) |>
-    expect_equal(rep(0., nrow(snap$contact_risk)))
+  unname(diag(snap$contact_risks)) |>
+    expect_equal(rep(0., nrow(snap$contact_risks)))
 })
 
 test_that("Distinct rule_groups multiply at the cell", {
@@ -417,7 +417,7 @@ test_that("Distinct rule_groups multiply at the cell", {
   # m1 (adult,a) → m3 (child,b): neither rule matches → reference (1)
   expect_equal(ctr_cell_(snap, "m1", "m3", key = "id"), 1)
   # diagonal is 0
-  expect_equal(unname(diag(snap$contact_risk)), rep(0., nrow(hh)))
+  expect_equal(unname(diag(snap$contact_risks)), rep(0., nrow(hh)))
 })
 
 test_that("Contact risk definition work as expected", {
@@ -433,7 +433,7 @@ test_that("Contact risk definition work as expected", {
 
   # no contact risk defs -> empty matrix
   hhsnapshot <- hhmodel$export_house_snapshot(hhid)
-  cr_mtx <- hhsnapshot$contact_risk
+  cr_mtx <- hhsnapshot$contact_risks
   expect_true(is.matrix(cr_mtx))
   expect_equal(nrow(cr_mtx), 0)
   expect_equal(ncol(cr_mtx), 0)
@@ -461,7 +461,7 @@ test_that("Contact risk definition work as expected", {
 
   # matrix is n x n
   hhsnapshot <- hhmodel$export_house_snapshot(hhid)
-  cr_mtx <- hhsnapshot$contact_risk
+  cr_mtx <- hhsnapshot$contact_risks
   n <- nrow(hhsnapshot$data_wide)
 
   expect_true(is.matrix(cr_mtx))
