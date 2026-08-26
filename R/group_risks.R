@@ -192,6 +192,50 @@ compute_rule_groups <- function(tbl) {
   tbl
 }
 
+#' @title Assert that each rule group designates at most one reference cell.
+#' @description A reference sets the unit scale of its rule group,
+#' so two distinct cells of one group cannot both carry the tag.
+#' Symmetric contact rules reach one cell through either direction,
+#' hence both orderings of a pair count as the same cell.
+#' @param strata `data.frame` logic table with a `param_name` column.
+#' @param symmetric `logical(1)` Treat reversed from/to pairs as one cell.
+#' @return `data.frame` the input, invisibly.
+#' @keywords internal
+#' @noRd
+assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
+  idx_refer <- which(strata$param_name == ".reference")
+  if (length(idx_refer) < 2) return(invisible(strata))
+
+  tbl <- compute_rule_groups(strata)[idx_refer, , drop = FALSE]
+  feat_cols <- setdiff(colnames(tbl), risk_reserved_cols)
+  features <- sub("^from_", "", grep("^from_", feat_cols, value = TRUE))
+  pair_wise <- isTRUE(symmetric) && length(features) > 0
+
+  # cell identity: the rule itself, or the unordered pair when symmetric
+  cell_key <- function(i) {
+    row <- vapply(tbl[i, feat_cols, drop = FALSE], as.character, character(1))
+    if (!pair_wise) return(paste(feat_cols, row, sep = "_", collapse = "\x1F"))
+    ends <- lapply(c("from_", "to_"), function(side) {
+      paste(features, row[paste0(side, features)], sep = "_", collapse = "\x1F")
+    })
+    paste(sort(unlist(ends)), collapse = "\x1E")
+  }
+  keys <- vapply(seq_along(idx_refer), cell_key, character(1))
+
+  # within a rule group, every tagged row must denote the same cell
+  clash <- unlist(lapply(
+    split(seq_along(idx_refer), tbl$rule_group),
+    function(k) if (length(unique(keys[k])) > 1) idx_refer[k]
+  ))
+  if (length(clash) > 0) stop_h(
+    sprintf("%s %s of one rule group are tagged {.val .reference}.",
+            as_plural("Row", length(clash)),
+            character_to_phrase(sort(clash))),
+    "A rule group has a single reference, setting its unit scale."
+  )
+  invisible(strata)
+}
+
 #' Set ordering for risk logic-tables: `.reference` first, decreasing 'n'.
 #' @param tbl `data.frame` Logic table with `param_name`, `n`.
 #' @return `data.frame`
@@ -242,7 +286,8 @@ group_risk_logic_table <- function(data_wide, this_feat) {
 #' Prefix to parameter names associated to the group risk.
 #' @param reference
 #' Choose reference providing corresponding features.
-#' Default is the group with the largest sample size.
+#' `".auto"` picks the group with the largest sample size.
+#' Empty leaves the risk without a reference.
 #' @return
 #' input data.frame with logic table with parameter names.
 #' @keywords internal
@@ -253,10 +298,10 @@ associate_group_param_names <- function(this_table, prefix, reference) {
 
   # find reference index
   idx_refer <- NULL
-  if (length(reference) == 0) {
+  if (identical(reference, ".auto")) {
     idx_refer <- which.max(this_table$n)
 
-  } else if (!all(reference == ".none")) {
+  } else if (length(reference) > 0) {
     # find definition row
     idx_refer <- unname(which(
       apply(this_table[colmask], 1,
@@ -326,18 +371,21 @@ tidyup_group_risk_tables <- function(all_tables) {
 }
 
 #' Return list with default MCMC setup if user choice is missing.
-#' Defaults follow \insertRef{cauchemez_household_2009}{housepi}.
+#' Absolute risks are rates on their own; relative ones are ratios,
+#' whose defaults follow \insertRef{cauchemez_household_2009}{housepi}.
 #' @return `list`
 #' @keywords internal
 #' @noRd
-set_group_risks_mcmc_setup <- function(name, prior, args, min, max, proposal) {
+set_group_risks_mcmc_setup <- function(name, prior, args, min, max, proposal,
+                                       absolute = FALSE) {
   # check wheter default configuration
   is_default <- sapply(c(prior, args, min, max, proposal),
                        function(x) is.na(x) || is.null(x))
   # if all defaults, provide default choice
   if (all(is_default)) {
-    list(prior = "lognormal", meanlog = 0, sdlog = 3,
-         min = 0, max = 10, proposal = "rw_log")
+    if (isTRUE(absolute)) list(prior = "uniform", proposal = "rw_log")
+    else list(prior = "lognormal", meanlog = 0, sdlog = 3,
+              min = 0, max = 10, proposal = "rw_log")
   } else {
     # if prior is default -> spare arguments
     if (is_default[1]) stop_h(
@@ -374,12 +422,7 @@ HousepiGroupRisk <- R6::R6Class(
 
     # Help defining the automatic reference.
     helper_auto_reference_ = function(by, reference) {
-      # UPDATE: when multiple covariates and something is set to ".none"
-      # I think it's ambiguos, but maybe it's not always the case
-      if (isTRUE(any(reference == ".none"))) {
-        if (isTRUE(all(reference == ".none"))) return(".none")
-        else stop_h("Ambiguous entry {.val .none} in reference vector.")
-      }
+      if (identical(reference, ".auto")) return(".auto")
 
       if (length(by) != length(reference)) stop_h(
         "Arguments {.arg {c('by', 'reference')}} should have equal dimensions."
@@ -422,13 +465,12 @@ HousepiGroupRisk <- R6::R6Class(
                                   reference = NULL,
                                   .warn_over = TRUE) {
       assert_valid_logic_table(strata)
-      # require .reference row unless reference is explicitly ".none"
-      none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
-      if (!none_ref && !".reference" %in% strata$param_name) stop_h(
-        "Custom {.arg strata} must contain a {.val .reference} row.",
-        paste0("Designate one row of {.field param_name} as {.val .reference},",
-               " or pass {.code reference = \".none\"} to explicitly drop it.")
+      if (length(reference) > 0) stop_h(
+        paste("Argument {.arg reference} is not used",
+              "with a custom {.arg strata} table."),
+        "Tag one row's {.field param_name} as {.val .reference} instead."
       )
+      assert_one_reference_per_group(strata)
       # validate params keys against logic table param_names
       if (length(params) > 0) {
         valid_names <- setdiff(strata$param_name, ".reference")
@@ -664,6 +706,18 @@ HousepiGroupRisk <- R6::R6Class(
       c()
     },
 
+    #' @description
+    #' Whether a risk carries absolute values, having no reference.
+    #' @param name `character(1)`. Name of the group risk definition.
+    #' @return `logical(1)`
+    is_absolute = function(name) {
+      def <- self$defs[[name]]
+      if (is.null(def)) return(FALSE)
+      if (identical(def$mode, "auto")) return(is.null(def$reference))
+      !any(vapply(self$logic_tables[[name]],
+                  function(tbl) ".reference" %in% tbl$param_name, logical(1)))
+    },
+
     #' @inherit add_group_risk
     add_quo = function(name, by = NA_character_, ...,
                        reference = NULL, joint = FALSE,
@@ -717,7 +771,8 @@ HousepiGroupRisk <- R6::R6Class(
       # store shared MCMC setup (eventually overwrite)
       self$raw_params[[name]] <- set_group_risks_mcmc_setup(
         name = name, prior = prior, args = args,
-        min = min, max = max, proposal = proposal
+        min = min, max = max, proposal = proposal,
+        absolute = self$is_absolute(name)
       )
 
       # reorder

@@ -557,7 +557,7 @@ namespace housepi
 
     void Parameter::assert_risk_identifiability(const GroupRisk &group_risk, const ContactRisk &contact_risk)
     {
-        for (const RiskAnchor_ &anchor : risk_anchors_)
+        for (const RiskAnchor &anchor : risk_anchors_)
         {
             size_t n_scale_free = 0;
             std::vector<std::string> free_names = {};
@@ -594,7 +594,8 @@ namespace housepi
             else if (n_scale_free > 1)
                 msg::stop(
                     "The product of " + msg::qty(free_names) + " risk{?s} introduces non-identifiability: " + str::format(free_names) +
-                    "\nDefine respective " + msg::code("reference") + " to ensure all risks but one are relative.");
+                    "\nRisks are absolute unless a " + msg::code("reference") + " is given: make all but one relative," +
+                    " naming their reference group or asking for " + msg::val(".auto") + ".");
         }
     }
 

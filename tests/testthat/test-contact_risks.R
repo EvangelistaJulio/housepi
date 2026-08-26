@@ -70,13 +70,24 @@ test_that("Auto mode imposes symmetric contacts by default", {
   )
 })
 
-test_that("Auto mode without reference picks most abundant pair", {
+test_that("Auto mode reference is opt-in and picks most abundant pair", {
   ltab <- mk_risk$model |>
-    add_contact_risk(by = "age") |>
+    add_contact_risk(by = "age", reference = ".auto") |>
     get_contact_risks()
 
-  # automatic .reference
-  expect_true(".reference" %in% ltab$param_name)
+  # automatic .reference on the most abundant pair,
+  # tagged in both directions since the contact is symmetric
+  ref <- subset(ltab, param_name == ".reference")
+  expect_gte(nrow(ref), 1L)
+  expect_true(all(ref$n == max(ltab$n)))
+
+  # absolute by default: every pair keeps its own parameter
+  mk_risk$model |>
+    add_contact_risk(by = "age") |>
+    get_contact_risks() |>
+    subset(param_name == ".reference") |>
+    nrow() |>
+    expect_equal(0L)
 })
 
 test_that("Auto mode symmetric = FALSE gives distinct parameters", {
@@ -143,6 +154,34 @@ test_that("Auto mode with two features behaves correctly", {
   expect_length(setdiff(unique(ltab$param_name), ".reference"), 3L)
 })
 
+test_that("Absoluteness follows the reference across every definition mode", {
+  # the default prior tracks whether a risk carries absolute values
+  risk_prior <- function(...) {
+    params <- get_parameters(add_contact_risk(mk_risk$model, ...))
+    unique(params$prior[!params$const])
+  }
+  tagged <- data.frame(from_age = c("adult", "adult"),
+                       to_age = c("adult", "child"),
+                       param_name = c(".reference", "a_to_c"))
+  untagged <- tagged
+  untagged$param_name[1] <- "a_to_a"
+
+  # auto mode: absolute unless a reference is resolved
+  expect_equal(risk_prior(by = "age"), "uniform")
+  expect_equal(risk_prior(by = "age", reference = ".auto"), "lognormal")
+  expect_equal(risk_prior(by = "age",
+                          reference = c(age = "adult")), "lognormal")
+  # custom mode: the tag alone decides
+  expect_equal(risk_prior(strata = untagged), "uniform")
+  expect_equal(risk_prior(strata = tagged), "lognormal")
+})
+
+test_that("Spare prior arguments on a contact risk are reported", {
+  mk_risk$model |>
+    add_contact_risk(by = "age", sdlog = 1.8) |>
+    expect_error("[Ss]pare prior arguments.*contact risk")
+})
+
 ########################################
 ## CONTACT RISKS : CUSTOM DEFINITIONS ##
 ########################################
@@ -192,16 +231,39 @@ test_that("Contact risk custom mode defualt behaves correctly", {
   expect_true(fancy_2$const)
 })
 
-test_that("Custom mode with no reference row raises error", {
+test_that("Custom mode with no reference row is absolute", {
   strata <- data.frame(
     from_age = c("adult", "adult", "child", "child"),
     to_age   = c("adult", "child", "adult", "child"),
     param_name = c("a_to_a", "a_to_c", "c_to_a", "c_to_c")
   )
 
+  # every pair keeps its own parameter, none is the unit
+  params <- mk_risk$model |>
+    add_contact_risk(strata = strata, symmetric = FALSE) |>
+    get_parameters()
+  expect_true(all(strata$param_name %in% params$name))
+
+  # reference has no meaning against a custom table
   mk_risk$model |>
-    add_contact_risk(strata = strata) |>
-    expect_error("[Cc]ustom logic table must contain a ..reference. row")
+    add_contact_risk(strata = strata, reference = ".auto") |>
+    expect_error("[Nn]ot used with a custom")
+})
+
+test_that("Custom contact strata carry at most one reference per rule group", {
+  # a symmetric pair reaches one cell through either direction
+  revolver <- data.frame(
+    from_age = c("adult", "child", "child"),
+    to_age   = c("child", "adult", "child"),
+    param_name = c(".reference", ".reference", "c_to_c")
+  )
+  mk_risk$model |>
+    add_contact_risk(strata = revolver, symmetric = TRUE) |>
+    expect_no_error()
+  # without symmetry the two directions are two competing scales
+  mk_risk$model |>
+    add_contact_risk(strata = revolver, symmetric = FALSE) |>
+    expect_error("[Rr]ows.*one rule group")
 })
 
 ####################################################
@@ -389,7 +451,7 @@ test_that("Distinct rule_groups multiply at the cell", {
   )
 
   # disjoint patterns -> two rule_groups; prime values catch any
-  # accidental sum / overwrite. .reference is dropped (".none") so the
+  # accidental sum / overwrite. The table tags no .reference, so the
   # two maximal patterns don't conflict in compute_rule_groups; the C++
   # side still fills unmatched cells with VALUE_REFERENCE (= 1).
   strata <- data.frame(
@@ -404,7 +466,7 @@ test_that("Distinct rule_groups multiply at the cell", {
   hhmodel <- new_housepi_model(hh, "final_size")
   hhmodel <- add_parameter(hhmodel, import = "template")
   hhmodel <- add_contact_risk(hhmodel,
-    strata = strata, symmetric = FALSE, reference = ".none",
+    strata = strata, symmetric = FALSE,
     params = list(ctr_aa = 3, ctr_class_aa = 5)
   )
   snap <- hhmodel$export_house_snapshot("h1")

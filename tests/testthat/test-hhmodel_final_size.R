@@ -347,7 +347,7 @@ test_that("Chain binomial runs ok on real case with partitions", {
   hhmodel <- flu_2014_matsumoto |>
     new_housepi_model("final_size") |>
     add_parameter(import = "template") |>
-    add_group_risk("community", by = "member", reference = ".none") |>
+    add_group_risk("community", by = "member") |>
     add_contact_risk(
       strata = data.frame(
         from_member = c("student", "student", "sibling",
@@ -368,6 +368,8 @@ test_that("Chain binomial runs ok on real case with partitions", {
       )
     )
 
+  # the template declares a free alpha, which the absolute community risk
+  # leaves no scale for: it is pinned, and the anomaly is reported
   hhmodel |>
     evaluate_log_lik() |>
     expect_warning("alpha.*turned.*reference")

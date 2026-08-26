@@ -1483,6 +1483,24 @@ namespace
         return Rcpp::wrap(mcmc_ptr->data_wide().discrete_keys());
     }
 
+    /// Baselines the model anchors to risks, keyed by parameter name.
+    Rcpp::List risk_anchors(Rcpp::XPtr<housepi::MCMC> mcmc_ptr)
+    {
+        const std::vector<Parameter::RiskAnchor> &anchors = mcmc_ptr->param.risk_anchors();
+
+        Rcpp::List out(anchors.size());
+        Rcpp::CharacterVector names(anchors.size());
+        for (size_t a = 0; a < anchors.size(); ++a)
+        {
+            names[a] = mcmc_ptr->param.khold(anchors[a].baseline);
+            out[a] = Rcpp::List::create(
+                Rcpp::_["risks"] = Rcpp::wrap(mcmc_ptr->group_risk.khold(anchors[a].risks)),
+                Rcpp::_["contacts"] = anchors[a].contacts);
+        }
+        out.names() = names;
+        return out;
+    }
+
     Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
     {
         Rcpp::XPtr<MCMC> mcmc(new MCMC(module_name), true);
@@ -1680,6 +1698,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("key_Param_discrete", &key_Param_discrete);
     Rcpp::function("key_Augm_discrete", &key_Augm_discrete);
     Rcpp::function("key_Data_discrete", &key_Data_discrete);
+    Rcpp::function("risk_anchors", &risk_anchors);
 
     Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
     Rcpp::function("measure_ar_by_hhsize", &measure_ar_by_hhsize);

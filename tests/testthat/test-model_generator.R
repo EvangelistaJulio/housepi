@@ -124,6 +124,22 @@ test_that("required keys reflect the underlying template", {
     expect_equal("model")
 })
 
+test_that("risk anchors reflect the baselines the model declares", {
+  anchors <- HousepiGenerator$new("final_size")$risk_anchors
+  expect_setequal(names(anchors), c("alpha", "beta"))
+
+  # the community risk scales alpha alone, no contact involved
+  expect_equal(anchors$alpha$risks, "community")
+  expect_false(anchors$alpha$contacts)
+
+  # susceptibility and infectivity scale beta, alongside contact risks
+  expect_setequal(anchors$beta$risks, c("susceptibility", "infectivity"))
+  expect_true(anchors$beta$contacts)
+
+  # a model without risks declares no anchor
+  expect_length(HousepiGenerator$new("test")$risk_anchors, 0L)
+})
+
 test_that("factorize_data_wide behaves as expected", {
   hhgen <- HousepiGenerator$new("test")
 

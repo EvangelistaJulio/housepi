@@ -56,6 +56,8 @@ contact_risk_logic_table <- function(data_wide, features) {
 #' @param this_table `data.frame` with from_X and to_X columns.
 #' @param prefix Prefix for parameter names.
 #' @param reference Named vector with from_/to_ prefixed names and values.
+#' `".auto"` picks the pair with the largest sample size.
+#' Empty leaves the risk without a reference.
 #' @return `data.frame` with param_name column added.
 #' @keywords internal
 #' @noRd
@@ -68,10 +70,10 @@ associate_contact_param_names <- function(this_table, prefix, reference,
 
   # find reference index
   idx_refer <- NULL
-  if (length(reference) == 0) {
+  if (identical(reference, ".auto")) {
     idx_refer <- which.max(this_table$n)
 
-  } else if (!all(reference == ".none")) {
+  } else if (length(reference) > 0) {
     # find definition row
     refer_mask <- apply(this_table[colmask], 1, function(row) {
       all(row == unlist(reference[colmask]))
@@ -201,10 +203,7 @@ HousepiContactRisk <- R6::R6Class(
 
     # Help defining the automatic reference.
     helper_auto_reference_ = function(by, reference) {
-      if (isTRUE(any(reference == ".none"))) {
-        if (isTRUE(all(reference == ".none"))) return(".none")
-        else stop_h("Ambigous entry {.val .none} in reference vector.")
-      }
+      if (identical(reference, ".auto")) return(".auto")
 
       valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
       # convenience: allow un-prefixed names
@@ -245,12 +244,12 @@ HousepiContactRisk <- R6::R6Class(
     # Add risk definition in custom mode.
     helper_custom_add_ = function(strata, params, symmetric, reference) {
       assert_valid_logic_table(strata)
-      none_ref <- length(reference) > 0 && isTRUE(all(reference == ".none"))
-      if (!none_ref && !".reference" %in% strata$param_name) stop_h(
-        "Custom logic table must contain a {.val .reference} row.",
-        paste("Designate one row's param_name as {.val .reference},",
-              "or pass {.code reference = \".none\"} to opt out.")
+      if (length(reference) > 0) stop_h(
+        paste("Argument {.arg reference} is not used",
+              "with a custom {.arg strata} table."),
+        "Tag one row's {.field param_name} as {.val .reference} instead."
       )
+      assert_one_reference_per_group(strata, symmetric)
       # cast feature columns to character (consistent with auto mode)
       feat_cols <- setdiff(colnames(strata), risk_reserved_cols)
       strata[feat_cols] <- lapply(strata[feat_cols], as.character)
@@ -381,6 +380,17 @@ HousepiContactRisk <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description
+    #' Whether the risk carries absolute values, having no reference.
+    #' @return `logical(1)`
+    is_absolute = function() {
+      if (length(self$defs) == 0) return(FALSE)
+      if (identical(self$defs$mode, "auto"))
+        return(is.null(self$defs$reference))
+      !any(vapply(self$logic_tables,
+                  function(tbl) ".reference" %in% tbl$param_name, logical(1)))
+    },
+
     #' @inherit add_contact_risk
     add_quo = function(by = NA_character_, ...,
                        reference = NULL,
@@ -434,8 +444,9 @@ HousepiContactRisk <- R6::R6Class(
 
       # store MCMC parameter setup
       self$raw_params <- set_group_risks_mcmc_setup(
-        prior = prior, args = args,
-        min = min, max = max, proposal = proposal
+        name = self$family, prior = prior, args = args,
+        min = min, max = max, proposal = proposal,
+        absolute = self$is_absolute()
       )
 
       invisible(self)
@@ -475,15 +486,11 @@ HousepiContactRisk <- R6::R6Class(
       new_tables <- list()
       for (this_feat in features) {
         this_table <- contact_risk_logic_table(data_wide, this_feat)
-        # extract reference entries for this sub-table, propagating .none
-        ref <- self$defs$reference
-        if (length(ref) > 0 && isTRUE(all(ref == ".none"))) {
-          relevant_ref <- ".none"
-        } else {
+        # extract reference entries for this sub-table, propagating .auto
+        relevant_ref <- self$defs$reference
+        if (!identical(relevant_ref, ".auto")) {
           ref_cols <- c(paste0("from_", this_feat), paste0("to_", this_feat))
-          relevant_ref <- self$defs$reference[
-            names(self$defs$reference) %in% ref_cols
-          ]
+          relevant_ref <- relevant_ref[names(relevant_ref) %in% ref_cols]
         }
         this_table <- associate_contact_param_names(
           this_table, prefix, relevant_ref, symmetric

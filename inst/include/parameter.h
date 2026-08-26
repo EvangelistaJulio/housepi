@@ -74,9 +74,20 @@ namespace housepi
         /// Load parameters values of the n-th posterior sample.
         void load_sample_values(size_t n);
 
+        /// Baseline parameter and the relative risks scaling it, as declared by the model.
+        struct RiskAnchor
+        {
+            size_t baseline;           /// parameter scaled by the risks
+            std::vector<size_t> risks; /// (relative) risk keys
+            bool contacts;             /// whether contact risks scale the same term
+        };
+
         //////////////////////
         //////  GETTER  //////
         //////////////////////
+
+        /// Baselines declared by the model, with the risks anchored to them.
+        const std::vector<RiskAnchor> &risk_anchors() const noexcept { return risk_anchors_; }
 
         /// Get reference to parameter Variable class.
         Variable &at(size_t p) noexcept { return param_vec_[p]; }
@@ -99,16 +110,8 @@ namespace housepi
         }
 
     private:
-        /// Baseline parameter and the relative risks scaling it, as declared by the model.
-        struct RiskAnchor_
-        {
-            size_t baseline;           /// parameter scaled by the risks
-            std::vector<size_t> risks; /// (relative) risk keys
-            bool contacts;             /// whether contact risks scale the same term
-        };
-
-        std::vector<Variable> param_vec_ = {};       /// parameters vector
-        std::vector<RiskAnchor_> risk_anchors_ = {}; /// model requested identifiability
+        std::vector<Variable> param_vec_ = {};      /// parameters vector
+        std::vector<RiskAnchor> risk_anchors_ = {}; /// model requested identifiability
 
         /// Initialize parameter vector.
         void init_param_vec_();

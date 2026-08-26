@@ -35,7 +35,10 @@ it is fixed and never adapted. For independence sampling from a named
 distribution, the distribution parameters are supplied the same way (e.g.
 \code{proposal_mean}, \code{proposal_sd}).}
 
-\item{reference}{named \code{list} Covariates associated to reference pair.
+\item{reference}{named \code{list} Covariates associated to the reference pair,
+whose risk becomes the unit that every other parameter multiplies.
+Pass \code{".auto"} to take the pair with the largest sample size.
+Left empty, each stratum carries its own absolute risk.
 Names can use \code{from_}/\code{to_} prefixes matching \code{by},
 or un-prefixed names (applied to both from and to).}
 
@@ -48,7 +51,8 @@ If \code{TRUE}, contact pairs infector-infectee are treated as equivalent
 
 \item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
 Each row defines one stratum. If \code{NA}, then match any value.
-Use \code{.reference} in \code{param_name} to designate the reference group.
+Use \code{.reference} in \code{param_name} to designate the reference group;
+omit it to leave the risk absolute.
 Mutually exclusive with \code{by}.}
 
 \item{params}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
@@ -89,9 +93,10 @@ Cannot be combined with the single definition.}
 }
 \description{
 Add definitions of a contact risk by given data covariate(s).
-Risks are relative to a reference class that can be specified:
-each parameter multiplies the baseline risk of its reference class.
-If no MCMC options are provided, the prior is assumed to be
+Each stratum carries its own absolute risk, unless a reference is chosen:
+then every parameter multiplies the baseline risk of the reference stratum.
+If no MCMC options are provided, absolute risks are assumed
+\eqn{\mathrm{uniform}} over their support, and relative ones
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table.
 }

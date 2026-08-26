@@ -29,7 +29,8 @@ set.seed(42)
 ```
 
 Certain models allow for the definition of custom group risks.
-A group risk is *relative*: each parameter multiplies the baseline risk of a reference class, so it reads as the risk of one group with respect to that reference.
+A group risk is *absolute*: each group gets its own risk, and the model's baseline risk is then fixed to `1`.
+Choosing a reference group makes the risk *relative* instead: each parameter multiplies the baseline risk of the reference, so it reads as the risk of one group with respect to that reference.
 Such models allow for a number of group risks which can then be changed according to the modeler's choice.
 We provide an example here with the heterogeneous version of the case-ascertained model.
 
@@ -49,8 +50,7 @@ hhmodel <- sarscov2_2021_icofs |>
 
 The current loaded model allows for a number of group risks, among which the individual `"susceptibility"` (use `$help()` method to learn more).
 We can define it calling `add_group_risk()`.
-By default, all group risks without a definition will be treated as associated to the reference (i.e. `1`). Definitions will add a new parameter for each group, except for the reference group.
-By default, the definition assumes the reference group to be the one with the largest number of counts.
+All group risks without a definition are treated as associated to the reference (i.e. `1`). A definition adds a new parameter for each group, and one more for the reference group unless a reference is chosen.
 
 ```{r}
 #| label: susceptibility-by-age
@@ -66,8 +66,8 @@ To drop all previous definitions, add a new one with `append = FALSE`.
 # Dependencies between covariates
 
 In the previous example we associated group risks to a single covariate in the data.
-In this example we show how to provide more covariates and a custom reference.
-Manually set a `reference` by providing the corresponding group factor values:
+In this example we show how to provide more covariates and a reference, which turns the risk relative.
+Manually set a `reference` by providing the corresponding group factor values, or ask for `".auto"` to take the group with the largest number of counts:
 
 ```{r}
 #| label: susceptibility-by-sex-age
@@ -96,7 +96,7 @@ hhmodel |>
 # Parameters associated to risks
 
 To perform inference of the parameters associated to each group we just need to provide options for the Bayesian Monte Carlo.
-By default, group risk assumes lognormal prior (`meanlog = 0` and `sdlog = 3`) and a lognormal random-walk proposal (`"rw_log"`), following @cauchemez_household_2009.
+By default, an absolute group risk assumes a uniform prior over its support, while a relative one assumes a lognormal prior (`meanlog = 0` and `sdlog = 3`), following @cauchemez_household_2009. Both use a lognormal random-walk proposal (`"rw_log"`).
 This can be customized at the moment of the definition of the group risk similarly to parameters (see documentation).
 
 ```{r}
@@ -124,9 +124,9 @@ We can proceed with the inference as shown in [Get started](housepi.html):
 #| label: final-group-risks
 
 hhmodel <- hhmodel |>
-  # load group risks from definition list
+  # load group risks from definition list, both relative to keep beta free
   add_group_risk(
-    infectivity = "isolated",
+    infectivity = list(by = "isolated", reference = ".auto"),
     susceptibility = list(by = "vacc_status", reference = "unvaccinated")
   )
 
@@ -203,8 +203,10 @@ tmp <- get_group_risks(hhmodel) |>
   # extract reference value and create a label
   dplyr::filter(group_risk == risk_id, param_name == ".reference") |>
   dplyr::select(vacc_status)
-ylabel <- sprintf("%s (Ref: %s)", risk_id,
-                  paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
+# an absolute risk has no reference row: the estimates read on their own
+ylabel <- if (nrow(tmp) == 0) risk_id else
+  sprintf("%s (Ref: %s)", risk_id,
+          paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group risks
 results |>

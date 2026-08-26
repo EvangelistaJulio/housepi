@@ -538,6 +538,14 @@ HousepiGenerator <- R6::R6Class(
       .engine$has_contact_risk(private$mcmc_ptr_)
     },
 
+    #' @field risk_anchors `list`
+    #' Baseline parameters and the risks scaling them, keyed by parameter.
+    #' Each entry lists the `risks` group names and whether `contacts`
+    #' scale the same term.
+    risk_anchors = function(value) {
+      .engine$risk_anchors(private$mcmc_ptr_)
+    },
+
     #' @field has_infec_profile `logical(1)`
     #' Whether model allows for infectivity profile definitions.
     has_infec_profile = function(value) {

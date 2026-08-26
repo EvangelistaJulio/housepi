@@ -137,9 +137,10 @@ If `FALSE` drop all pre-existing definitions."
 
 rd_risk_desc_ <- function(kind) {
   sprintf("Add definitions of a %s risk by given data covariate(s).
-Risks are relative to a reference class that can be specified:
-each parameter multiplies the baseline risk of its reference class.
-If no MCMC options are provided, the prior is assumed to be
+Each stratum carries its own absolute risk, unless a reference is chosen:
+then every parameter multiplies the baseline risk of the reference stratum.
+If no MCMC options are provided, absolute risks are assumed
+\\eqn{\\mathrm{uniform}} over their support, and relative ones
 \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]} with support \\eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table.",
           kind)
@@ -154,11 +155,18 @@ If `FALSE`, covariates are independent (default)."
 rd_risk_strata_ <-
   "`data.frame` Individual covariates and relative `param_name`.
 Each row defines one stratum. If `NA`, then match any value.
-Use `.reference` in `param_name` to designate the reference group.
+Use `.reference` in `param_name` to designate the reference group;
+omit it to leave the risk absolute.
 Mutually exclusive with `by`."
 rd_risk_params_ <- "named `list` Per-parameter MCMC setups as in `param_name`.
 Overrides shared prior/args for parameters specified in the list.
 Ignored if automatic definition."
+rd_risk_reference_ <- function(cell) {
+  sprintf("named `list` Covariates associated to the reference %s,
+whose risk becomes the unit that every other parameter multiplies.
+Pass `\".auto\"` to take the %s with the largest sample size.
+Left empty, each stratum carries its own absolute risk.", cell, cell)
+}
 
 ## Run-time knobs.
 
@@ -750,9 +758,7 @@ add_status <- function(hhmodel, ..., model = "categorical") {
 #' @param name `r rd_var_name_`
 #' @param by `list` Covariates associated to group risk as data headers.
 #' Corresponding data columns have to be categorical.
-#' @param reference named `list` Covariates associated to reference group.
-#' Pass `".none"` to disable reference, giving every risk its own parameter.
-#' Default reference group is the one with the largest sample size.
+#' @param reference `r rd_risk_reference_("group")`
 #' @param joint `r rd_risk_joint_`
 #' @param strata `r rd_risk_strata_`
 #' @param params `r rd_risk_params_`
@@ -817,7 +823,7 @@ add_group_risk <-  function(hhmodel,
 #' @param hhmodel `r rd_model_in_`
 #' @param by `character()` Covariates for from/to matching as data headers.
 #' Corresponding data columns have to be categorical.
-#' @param reference named `list` Covariates associated to reference pair.
+#' @param reference `r rd_risk_reference_("pair")`
 #' Names can use `from_`/`to_` prefixes matching `by`,
 #' or un-prefixed names (applied to both from and to).
 #' @param joint `r rd_risk_joint_`

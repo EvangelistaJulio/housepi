@@ -147,10 +147,30 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
+    # Pin to 1 the baselines whose anchored risks all carry absolute values.
+    # An absolute risk leaves no scale for its baseline to take.
+    autofill_baseline_params_ = function() {
+      anchors <- private$generator_$risk_anchors
+      for (name in names(anchors)) {
+        if (name %in% private$param_$defs[["name"]]) next
+        absolute <- vapply(anchors[[name]]$risks,
+                           private$group_risks_$is_absolute, logical(1))
+        if (isTRUE(anchors[[name]]$contacts)) {
+          absolute <- c(absolute, private$contact_risks_$is_absolute())
+        }
+        if (any(absolute)) private$param_$add_quo(
+          name, value = 1, const = TRUE, .warn_over = FALSE
+        )
+      }
+      invisible(self)
+    },
+
+    # @description
     # Assert if parameter definitions match required.
     # @param wall `logical(1)` to raise error.
     # @param warn_unused `logical(1)` warn if unused.
     assert_param_ = function(wall = TRUE, warn_unused = TRUE) {
+      private$autofill_baseline_params_()
       private$param_$assert(
         private$get_all_required_param_(),
         wall = wall,
@@ -381,6 +401,7 @@ HousepiModel <- R6::R6Class(
       info_wide <- private$generator_$info_data_wide
 
       #> parameters (resolve unspecified discretization against the model)
+      private$autofill_baseline_params_()
       .engine$import_param(mcmc_ptr, private$resolved_param_defs_())
 
       #> group risks
