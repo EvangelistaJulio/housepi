@@ -122,9 +122,7 @@ namespace housepi
     void InfecProfile::build_generic_(Translator &translator, const str_table &input)
     {
         mode_ = Mode::Generic;
-        generic = helper_build_(translator,
-                                {{"func", {input.at("func")[0]}},
-                                 {"discr", {input.at("discr")[0]}}});
+        generic = helper_build_(translator, input.at("func")[0]);
         lookup_.clear();
         augm_definitions.clear();
 
@@ -135,8 +133,8 @@ namespace housepi
         if (input.count("max"))
             generic->init_attr("max", translator.to_attribute(input.at("max")[0]));
 
-        // range truncation
-        generic->init_truncation();
+        // discretization and range truncation
+        generic->reshape(is_discr_requested_ || str::tobool(input.at("discr")[0]));
 
         // if discrete and generic, initializes lookup table
         if (generic->is_discrete())
@@ -161,16 +159,16 @@ namespace housepi
         lookup_.clear();
         augm_definitions.clear();
 
-        // use helper to check profile name and discretization
-        for (size_t r = 0; r < read::csv_n_rows(input); ++r)
-            helper_build_(translator, {{"func", {parse::Definition(input.at("func")[r]).root.func}},
-                                       {"discr", {input.at("discr")[r]}}});
-
         // match infectivity profile and augmented variable definition
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
         {
             // a discrete-time model discretizes whatever profile it is handed
             bool discr = is_discr_requested_ || str::tobool(input.at("discr")[r]);
+
+            // check profile name and discretization
+            auto probe = helper_build_(translator, parse::Definition(input.at("func")[r]).root.func);
+            if (discr)
+                probe->discretize();
 
             augm_definitions["name"].push_back(infprof::AUGM_FUNC);
             augm_definitions["status"].push_back(input.at("status")[r]);
@@ -187,9 +185,10 @@ namespace housepi
         }
     }
 
-    std::unique_ptr<Distribution> InfecProfile::helper_build_(Translator &translator, const str_table &input)
+    std::unique_ptr<Distribution> InfecProfile::helper_build_(Translator &translator,
+                                                              const std::string &func)
     {
-        parse::Definition parser(parse::Definition(input.at("func")[0]));
+        parse::Definition parser(func);
 
         std::unique_ptr<Distribution> output = compose_distr_registries(
             parser.root.func,
@@ -201,10 +200,6 @@ namespace housepi
             output->init_attr(node.key, translator.to_attribute(node));
             translator.mark_param_produces_transm_cache(node);
         }
-
-        if (is_discr_requested_ ||
-            (input.count("discr") && str::tobool(input.at("discr")[0])))
-            output->init_discretization();
 
         return output;
     }
@@ -363,6 +358,83 @@ namespace housepi
     bool Augmented::is_allocated() const noexcept
     {
         return varia.size() == mcmc_->data_wide().report_indiv.total;
+    }
+
+    size_t Augmented::n_export_cols() const noexcept
+    {
+        size_t n = list_augm_export.size() + list_obs_member.size();
+        // add number of surrogate columns to be exported
+        for (const Surrogate &surr : list_surrogate)
+            n += is_own_column(surr);
+        return n;
+    }
+
+    bool Augmented::is_member_col_discrete_(size_t a) const
+    {
+        bool seen = false;
+        for (const IndivBlock &block : varia)
+        {
+            if (block.vec[a].is_na())
+                continue;
+            if (!block.vec[a].is_discrete())
+                return false;
+            seen = true;
+        }
+        return seen;
+    }
+
+    bool Augmented::is_house_col_discrete_(size_t slot) const
+    {
+        bool seen = false;
+        for (const std::vector<Variable> &vec : house_varia)
+        {
+            if (vec[slot].is_na())
+                continue;
+            if (!vec[slot].is_discrete())
+                return false;
+            seen = true;
+        }
+        return seen;
+    }
+
+    bool Augmented::has_continuous_declaration_(const std::string &name) const
+    {
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+            if (deftable_.c_name[k] == name &&
+                !na::is(deftable_.c_model[k]) &&
+                !str::tobool(deftable_.c_discr[k]))
+                return true;
+        return false;
+    }
+
+    std::vector<bool> Augmented::discrete_export_cols() const
+    {
+        std::vector<bool> out;
+        out.reserve(n_export_cols());
+
+        for (size_t a : list_augm_export + list_obs_member)
+            out.push_back(is_member_col_discrete_(a) &&
+                          !has_continuous_declaration_(khold(a)));
+
+        for (const Surrogate &surr : list_surrogate)
+        {
+            if (!is_own_column(surr))
+                continue;
+
+            // NOTE: a household column carries no status partition
+            if (surr.is_house)
+            {
+                out.push_back(is_house_col_discrete_(surr.slot));
+            }
+            else
+            {
+                const std::string &name = surrogate_name(surr);
+                out.push_back(is_member_col_discrete_(khold(name)) &&
+                              !has_continuous_declaration_(name));
+            }
+        }
+
+        return out;
     }
 
     // UPDATE: these flags are not precise if multi-status!
@@ -1208,7 +1280,7 @@ namespace housepi
                 for (const parse::Entry &child : parser.root.children)
                 {
                     const Attribute &attr = mcmc_->translator.to_attribute(child, &anchor);
-                    if (is_surrogate && attr.is_constant() && na::is(attr.value()))
+                    if (is_surrogate && attr.is_constant() && attr.is_na())
                     {
                         is_defined = false;
                         break;
@@ -1227,7 +1299,7 @@ namespace housepi
             // range and reshaping
             var.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &anchor));
             var.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &anchor));
-            var.init_func_reshaping(str::tobool(deftable_.c_discr[k]));
+            var.reshape_function(str::tobool(deftable_.c_discr[k]));
         }
         catch (const std::exception &e)
         {
@@ -1257,7 +1329,7 @@ namespace housepi
                 for (const Individual &indiv : house)
                 {
                     const Attribute &attr = mcmc_->translator.to_attribute(child, &indiv);
-                    if (attr.is_constant() && na::is(attr.value()))
+                    if (attr.is_constant() && attr.is_na())
                         continue; // an empty cell drops out of the reduction
                     append(attr);
                 }
@@ -1492,7 +1564,7 @@ namespace housepi
             avar.init_distr_attr(child.key, mcmc_->translator.to_attribute(child, &indiv));
         avar.init_distr_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &indiv));
         avar.init_distr_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &indiv));
-        avar.init_distr_reshaping(str::tobool(deftable_.c_discr[k]));
+        avar.reshape_distribution(str::tobool(deftable_.c_discr[k]));
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

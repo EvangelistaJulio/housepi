@@ -697,6 +697,7 @@ HousepiGroupRisk <- R6::R6Class(
       def_args <- helper_definition_args(proposal, dots)
       args <- def_args$args
       proposal <- def_args$proposal
+      assert_no_sibling_dist_arg(args, self$family, name)
 
       # distinguish between automatic and custom definitions
       is_auto <- !all(is.na(by))
@@ -764,8 +765,8 @@ HousepiGroupRisk <- R6::R6Class(
     #' @description
     #' Assert that group risk definitions match the requirements.
     #' @param required `character()`. Required group risks.
-    #' @param capital `logical(1)`. Whether to raise error.
-    assert = function(required, capital) {
+    #' @param wall `logical(1)`. Whether to raise error.
+    assert = function(required, wall) {
       # load definitions
       defined <- names(self$defs)
 
@@ -780,7 +781,7 @@ HousepiGroupRisk <- R6::R6Class(
                   character_to_string_list(notused)),
           find_closest_match(notused, required)
         )
-        if (isTRUE(capital)) {
+        if (isTRUE(wall)) {
           for (which in notused) self$remove(which)
           stop_h(sms)
         }

@@ -204,7 +204,7 @@ namespace housepi
                 double &x = idata.vec[d];
 
                 // placeholder for model-required columns absent at import
-                // NOTE: capital check is deferred to the R-side wall (see build_full_)
+                // NOTE: the check is deferred to the R-side wall (see build_full_)
                 x = na::DOUBLE;
 
                 if (input.count(dname))

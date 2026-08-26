@@ -52,12 +52,10 @@ namespace housepi
             Status
         };
 
-        /// Augmented latents selected for export: private ones (see str::is_hidden)
-        /// and definitions that cannot be rendered are dropped.
+        /// Augmented latents selected for export.
+        /// Hidden ones are not included (see str::is_hidden).
         std::vector<size_t> list_augm_export = {};
-        /// Every drawn member-level observation. No visibility filter applies: a
-        /// definition name carrying a leading dot is rejected unless it is an
-        /// augmented latent (see assert_valid_definition_name).
+        /// Every drawn member-level observation.
         std::vector<size_t> list_obs_member = {};
         /// House-level definition rows, in house_varia slot order. Household
         /// observations are exported as surrogate columns (see is_own_column).
@@ -187,14 +185,13 @@ namespace housepi
         {
             return surr.is_house || surr.is_static;
         }
-        /// How many surrogate columns are produced as columns of their own.
-        size_t n_own_columns() const noexcept
-        {
-            size_t n = 0;
-            for (const Surrogate &surr : list_surrogate)
-                n += is_own_column(surr);
-            return n;
-        }
+
+        /// Number of exported columns in simulations.
+        size_t n_export_cols() const noexcept;
+        /// Whether each exported column has discrete-requested output type.
+        /// NOTE: mixed continuous/discrete definitions are treated continuous.
+        /// NOTE: it requires a simulation repetition to have run before.
+        std::vector<bool> discrete_export_cols() const;
 
         /// Compute and store log-likelihood of augmented variables associated to Individual.
         /// NOTE: to be called only if any augmented model is defined.
@@ -377,14 +374,15 @@ namespace housepi
         /// all source columns) for the given definition rows.
         dpdcy::prod_graph build_producer_graph_(const std::vector<size_t> &rows) const;
 
-        /// Reject a read of an augmented name absent from the 'status' graph, telling
-        /// apart a name declared for other statuses from a data column or a parameter
-        /// of the same name (an unsuffixed name is read as augmented).
+        /// Reject a read of an augmented name absent from the 'status' graph.
+        /// Tell apart a name declared for other statuses,
+        /// from an unsuffixed name is read as augmented.
         void assert_producers_declared_(const dpdcy::prod_graph &graph, StatusLevel s) const;
 
         /// Order the definitions of given status, producer before consumer.
         /// At the same time assert that definitions are complete and acyclic.
         void set_definition_order_for_(StatusLevel s, StatusLevel err_status);
+
         /// Extract status-specific definitions row indexes.
         std::vector<size_t> get_unsorted_definition_rows_(StatusLevel s) const;
         /// Set sample and draws list for given status.
@@ -428,6 +426,14 @@ namespace housepi
                                                   double v,
                                                   const std::string &name,
                                                   const Household &house) const;
+
+        /// Whether member variable filling one exported column is discrete.
+        bool is_member_col_discrete_(size_t a) const;
+        /// Whether household variable filling one exported column is discrete.
+        bool is_house_col_discrete_(size_t slot) const;
+        /// Whether any status-specific declaration is declared continuous.
+        bool has_continuous_declaration_(const std::string &name) const;
+
         /// Whether definition row 'k' references only data and numeric sources.
         bool def_is_pure_data_(size_t k) const;
         /// Whether a parsed definition subtree references any group risk.

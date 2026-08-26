@@ -6,7 +6,6 @@
  */
 
 #include <cmath>
-#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -438,7 +437,7 @@ namespace housepi
 
             // UPDATE: skip if unresolved
             const double y = f.pdf(0.);
-            if (std::abs(y) < 1.e-10 || std::isnan(y))
+            if (std::abs(y) < 1.e-10 || na::is(y))
                 return;
 
             std::string sms = "Infectivity profile " + msg::val(f.name()) + " is non-zero at generation ";
@@ -1125,8 +1124,7 @@ namespace housepi
             for (double v : data)
             {
                 if (!std::isfinite(v))
-                    return {-std::numeric_limits<double>::infinity(),
-                            std::numeric_limits<double>::quiet_NaN()};
+                    return {-inf::DOUBLE, na::DOUBLE};
 
                 const double delta = v - avg;
                 avg += delta / ++n;

@@ -91,29 +91,44 @@ find_required_definitions <- function(defs, src, col_with_sources, family) {
 }
 
 # @description
+# Catch the sibling defining-distribution keyword landing in the dots.
+assert_no_sibling_dist_arg <- function(args, family, name = NULL) {
+  dcol <- family2model_col(family)
+  spare <- setdiff(c("prior", "model"), dcol)
+  if (!spare %in% names(args)) return(invisible())
+  holder <- if (is.null(name)) "{family}" else "{family} {.val {name}}"
+  stop_h(
+    paste0("Spare argument {.arg {spare}} for ", holder, "."),
+    "Did you mean {.arg {dcol}} instead of {.arg {spare}}?"
+  )
+}
+
+# @description
 # Parse implicit function/value.
 helper_variable_core <- function(opts, family, value, func, func_args) {
   if (is.null(value) && is.null(func)) return(opts)
-  if (is.numeric(showcaser_extract_numeric(value))) {
-    # implicit numeric definition
-    opts$value <- value
+
+  # NOTE: ensured just one between the 2 is not NULL
+  x <- if (is.null(value)) func else value
+  if (length(func_args) == 0 && is.numeric(showcaser_extract_numeric(x))) {
+    # implicit numeric definition, whichever argument carried it
+    opts$value <- x
     if (is.na(opts$const)) {
       dcol <- family2model_col(family)
       opts$const <- isTRUE(all(is.na(c(opts[[dcol]], opts$proposal))))
     }
-  } else {
-    # NOTE: ensured just one between the 2 is not NULL
-    x <- if (is.null(value)) func else value
-    # distinguish purely implicit function to plain name
-    y <- housepi_combine_to_call(func_name = x,
-                                 func_args = func_args,
-                                 is_func = is.null(value))
-    if (housepi_is_sourced_value(y)) opts$value <- y
-    else opts$func <- y
-
-    # note: a priori a function is not constant
-    if (is.na(opts$const)) opts$const <- FALSE
+    return(opts)
   }
+
+  # distinguish purely implicit function from plain name
+  y <- housepi_combine_to_call(func_name = x,
+                               func_args = func_args,
+                               is_func = is.null(value))
+  if (housepi_is_sourced_value(y)) opts$value <- y
+  else opts$func <- y
+
+  # note: a priori a function is not constant
+  if (is.na(opts$const)) opts$const <- FALSE
   opts
 }
 
@@ -189,8 +204,9 @@ helper_definition_args <- function(proposal, dots) {
 helper_variable_move <- function(opts, family) {
   # prior for parameters/risks, model for augmented/observations
   dist_word <- family2model_col(family)
+  is_param <- family == "parameter"
 
-  # infer if sampling proposal but no constant parameter provided
+  # infer if sampling proposal but no constant provided
   if (is.na(opts$const)
       && !(is.na(opts$proposal) && is.na(opts[[dist_word]]))) {
     opts$const <- FALSE
@@ -202,15 +218,12 @@ helper_variable_move <- function(opts, family) {
     )
     opts$proposal <- NA_character_
     # drop prior if constant
-    if (family == "parameter") opts[[dist_word]] <- NA_character_
+    if (is_param) opts[[dist_word]] <- NA_character_
     # skip proposal if constant
     return(opts)
-  } else {
-    # check for prior if not constant (skip for func-defined parameters)
-    if (family == "parameter" && is.na(opts[[dist_word]])
-        && is.na(opts$func)) stop_h(
-      "No {.arg {dist_word}} provided for {family} {.val {opts$name}}."
-    )
+  } else if (is_param && is.na(opts[[dist_word]]) && is.na(opts$func)) {
+    # missing prior/func for not constant parameter
+    stop_h("No {.arg {dist_word}} provided for {family} {.val {opts$name}}.")
   }
 
   if (is.na(opts$proposal)) {
@@ -229,6 +242,10 @@ helper_variable_move <- function(opts, family) {
       opts$proposal <- "rw"
     }
   } else {
+    if (!is.na(opts$func)) stop_h(
+      "Deterministic {family} {.val {opts$name}} cannot be sampled.",
+      "Drop {.arg proposal} and {.arg {dist_word}}, or drop {.arg func}."
+    )
     if (is.na(opts[[dist_word]])) stop_h(
       "No {.arg {dist_word}} to sample from for {family} {.val {opts$name}}."
     )

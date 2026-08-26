@@ -9,7 +9,6 @@
 
 #include <cmath>
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <random>
 #include <string>
@@ -68,12 +67,8 @@ namespace housepi
 		}
 		/// Return value of log-probability density/mass function.
 		double log_pdf(double x) const { return log_func_(delocate_(x)); }
-		/// Check for validity, then return value of log-probability density/mass function
-		double guarded_log_pdf(double x) const
-		{
-			return is_valid(x) ? log_pdf(x)
-							   : -std::numeric_limits<double>::infinity();
-		}
+		/// Check for validity, then return value of log-probability density/mass function.
+		double guarded_log_pdf(double x) const { return is_valid(x) ? log_pdf(x) : -inf::DOUBLE; }
 
 		/// Check for validity, then  return the quantile (inverse CDF) at probability p.
 		double quantile(double p) const
@@ -81,11 +76,9 @@ namespace housepi
 			if (p < 0 || p > 1)
 				return na::DOUBLE;
 			if (p <= 0.)
-				return lower_.is_empty() ? -std::numeric_limits<double>::infinity()
-										 : relocate_(lower_.value());
+				return lower_.is_empty() ? -inf::DOUBLE : relocate_(lower_.value());
 			if (p >= 1.)
-				return upper_.is_empty() ? std::numeric_limits<double>::infinity()
-										 : relocate_(upper_.value());
+				return upper_.is_empty() ? inf::DOUBLE : relocate_(upper_.value());
 			return relocate_(cast_discr_(raw_quantile_(shift_() + p * trunc_())));
 		}
 
@@ -194,8 +187,8 @@ namespace housepi
 			}
 		}
 
-		/// Minimum retained mass for rejection sampling to beat CDF inversion.
-		static constexpr double MAX_REJECT_ACCEPT = 0.5;
+		/// Minimum CDF window for rejection sampling.
+		static constexpr double MIN_REJECT_WINDOW = 0.5;
 		/// Rejection attempts before falling back to inverse sampling.
 		/// NOTE: succeeds with > 99% proba
 		static constexpr int MAX_REJECT_DRAWS = 8;
@@ -205,19 +198,22 @@ namespace housepi
 		/// Otherwise falls back to inverse sampling.
 		double truncated_rand_(rnd_gen &prng) const
 		{
-			const double cdf_lo = lower_.is_empty() ? 0. : raw_cdf_(lower_.value());
-			const double cdf_hi = upper_.is_empty() ? 1. : raw_cdf_(upper_.value());
-			const double accept = cdf_hi - cdf_lo;
+			const double cdf_lo = trunc_mode_ == Trunc::Max ? 0. : cdf_lower_();
+			const double cdf_hi = trunc_mode_ == Trunc::Min ? 1. : cdf_upper_();
+			const double window = cdf_hi - cdf_lo;
 
-			if (accept > MAX_REJECT_ACCEPT)
+			if (window > MIN_REJECT_WINDOW)
+			{
+				const double lo = trunc_mode_ == Trunc::Max ? -inf::DOUBLE : lower_.value();
+				const double hi = trunc_mode_ == Trunc::Min ? inf::DOUBLE : upper_.value();
 				for (int k = 0; k < MAX_REJECT_DRAWS; ++k)
 				{
-					const double x = raw_rand_(prng);
-					if ((lower_.is_empty() || x >= lower_.value()) &&
-						(upper_.is_empty() || x <= upper_.value()))
+					const double x = cast_discr_(raw_rand_(prng));
+					if (x >= lo && x <= hi)
 						return x;
 				}
-			return raw_quantile_(cdf_lo + standard_uniform(prng) * accept);
+			}
+			return raw_quantile_(cdf_lo + standard_uniform(prng) * window);
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////
@@ -254,11 +250,11 @@ namespace housepi
 			switch (discr_mode_)
 			{
 			case Mode::Discrete::Defined:
-				return raw_cdf_(lower_.value() - 1);
+				return raw_cdf_(std::ceil(lower_.value()) - 1.);
 			case Mode::Discrete::Center:
 				return raw_cdf_(std::ceil(lower_.value()) - 0.5);
 			case Mode::Discrete::Left:
-				return raw_cdf_(std::floor(lower_.value()));
+				return raw_cdf_(std::ceil(lower_.value()));
 			default: // case Mode::Discrete::None:
 				return raw_cdf_(lower_.value());
 			}
@@ -270,11 +266,11 @@ namespace housepi
 			switch (discr_mode_)
 			{
 			case Mode::Discrete::Defined:
-				return raw_cdf_(upper_.value() + 1);
+				return raw_cdf_(std::floor(upper_.value()));
 			case Mode::Discrete::Center:
 				return raw_cdf_(std::floor(upper_.value()) + 0.5);
 			case Mode::Discrete::Left:
-				return raw_cdf_(std::ceil(upper_.value() + 1));
+				return raw_cdf_(std::floor(upper_.value()) + 1.);
 			default: // case Mode::Discrete::None:
 				return raw_cdf_(upper_.value());
 			}

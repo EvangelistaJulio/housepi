@@ -66,7 +66,7 @@ namespace housepi
         /// Drop function if it's constant when reshaping.
         /// NOTE: discretization of model has priority
         /// e. g. user discr is FALSE, but discrete-defined model
-        void init_func_reshaping(bool discr);
+        void reshape_function(bool discr);
 
         /// Initialize pointer to distribution.
         void init_distr(std::string_view opt);
@@ -74,7 +74,7 @@ namespace housepi
         void init_distr_attr(std::string_view key, const Attribute &attr);
         /// Finalize reshaping of distribution.
         /// NOTE: to be called necessarily.
-        void init_distr_reshaping(bool discr);
+        void reshape_distribution(bool discr);
         /// Initialize pointer to proposal.
         /// NOTE: it must be assigned after model initialization.
         /// Random-walk kernels (rw/rw_log/rw_unif) read a "scale" argument;

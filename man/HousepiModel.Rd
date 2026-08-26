@@ -166,7 +166,7 @@ Dataset with associated augmented variables for last state.
 All variables associated to given household for last state.
 Entries are named after the homonymous active fields, followed by the
 augmented, observation and transmission log-likelihood contributions.
-Empty definitions are dropped.
+An empty definition is dropped unless the model requires it.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_house_snapshot(house_id)}\if{html}{\out{</div>}}
 }

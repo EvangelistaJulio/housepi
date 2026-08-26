@@ -91,22 +91,21 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Assert if augmented definitions match the required.
-    # @param capital `logical(1)` to raise error.
-    assert_augm_ = function(capital = TRUE, warn_unused = TRUE) {
+    # @param wall `logical(1)` to raise error.
+    assert_augm_ = function(wall = TRUE, warn_unused = TRUE) {
       private$augm_$assert(
         private$get_all_required_augm_(),
-        private$generator_$infec_status_set,
-        capital = capital,
+        wall = wall,
         warn_unused = warn_unused && !private$generator_$is_test_model()
       )
     },
 
     # @description
     # Assert if data_wide headers match implementation file.
-    # @param capital `logical(1)` to raise error.
-    assert_data_wide_ = function(capital = TRUE, simulating = FALSE) {
+    # @param wall `logical(1)` to raise error.
+    assert_data_wide_ = function(wall = TRUE, simulating = FALSE) {
       # no data attached at all: capital error at the wall
-      if (isTRUE(capital) && !private$has_data_wide_()) stop_h(
+      if (isTRUE(wall) && !private$has_data_wide_()) stop_h(
         "No household data attached.",
         "Attach it with {.fn add_data_wide}."
       )
@@ -124,16 +123,16 @@ HousepiModel <- R6::R6Class(
 
       sms <- template_missing_stop(required, cols, "data",
                                    noun = "column", style = "field")
-      if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
+      if (isTRUE(wall) && length(sms) > 0) stop_h(sms)
       else sms
     },
 
     # @description
     # Assert group risk definitions from the model implementation script.
-    # @param capital `logical(1)` to raise error.
-    assert_group_risks_ = function(capital = TRUE) {
+    # @param wall `logical(1)` to raise error.
+    assert_group_risks_ = function(wall = TRUE) {
       private$group_risks_$assert(private$get_all_required_group_risks_(),
-                                  capital = capital)
+                                  wall = wall)
     },
 
     # @description
@@ -149,12 +148,12 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Assert if parameter definitions match required.
-    # @param capital `logical(1)` to raise error.
+    # @param wall `logical(1)` to raise error.
     # @param warn_unused `logical(1)` warn if unused.
-    assert_param_ = function(capital = TRUE, warn_unused = TRUE) {
+    assert_param_ = function(wall = TRUE, warn_unused = TRUE) {
       private$param_$assert(
         private$get_all_required_param_(),
-        capital = capital,
+        wall = wall,
         warn_unused = warn_unused && !private$generator_$is_test_model()
       )
     },
@@ -175,13 +174,13 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Assert an infectivity profile is defined when the model needs one.
-    # @param capital `logical(1)` to raise error.
-    assert_infec_profile_ = function(capital = TRUE) {
+    # @param wall `logical(1)` to raise error.
+    assert_infec_profile_ = function(wall = TRUE) {
       if (!private$generator_$has_infec_profile ||
             length(private$infec_profile_$defs) > 0) return(character())
       sms <- c("Missing infectivity profile definition.",
                "Define it with {.fn add_infectivity_profile}.")
-      if (isTRUE(capital)) stop_h(sms) else sms
+      if (isTRUE(wall)) stop_h(sms) else sms
     },
 
     ############################################################################
@@ -251,7 +250,7 @@ HousepiModel <- R6::R6Class(
       data_factorized <- private$generator_$factorize_data_wide(data)
       # soft check: data may be intentionally incomplete
       # hard check at the wall
-      private$assert_data_wide_(capital = FALSE)
+      private$assert_data_wide_(wall = FALSE)
       .engine$import_data_wide(private$generator_$mcmc_ptr, data_factorized)
       invisible(self)
     },
@@ -313,9 +312,48 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
+    # Parameter definitions with `discr` resolved against the model on demand.
+    resolved_param_defs_ = function() {
+      resolve_discr_flags_(private$param_$defs,
+                           private$generator_$param_discr_required,
+                           is_prior = TRUE)
+    },
+
+    # @description
+    # Augmented definitions with `discr` resolved against the model on demand.
+    resolved_augm_defs_ = function() {
+      resolve_discr_flags_(
+        private$augm_$defs,
+        private$generator_$augm_discr_required,
+        discr_col_types = private$generator_$discr_data_wide,
+        discr_req_cols = private$generator_$data_wide_discr_required
+      )
+    },
+
+    # @description
+    # Whether the augmented declaration can be built as it stands. Producers
+    # land in the engine on their own decorator, and a status block needs a
+    # definition to fill it; either gap waits for the next decorator.
+    # NOTE: what the model requires stays out, being supplied by its own
+    # decorator too (see `rebuild_`).
+    # @param defs `data.frame()`. Declarations with status codes resolved.
+    augm_declaration_complete_ = function(defs) {
+      # the infectivity profile folds into the augmented build
+      need_augm <- c(private$augm_$augm_required,
+                     private$infec_profile_$augm_required)
+      need_param <- c(private$augm_$param_required,
+                      private$infec_profile_$param_required)
+      all(need_augm %in% private$augm_$defs[["name"]]) &&
+        all(need_param %in% private$param_$defs[["name"]]) &&
+        private$augm_$covers_statuses(defs,
+                                      private$generator_$infec_status_set)
+    },
+
+    # @description
     # Soft re-push of R-side definitions to the C++ engine.
     # NOTE: Hard validation lives in `build_full_`.
-    rebuild_ = function() {
+    # @param wall `logical(1)` Whether to raise error.
+    rebuild_ = function(wall = FALSE) {
       # guard: pre-init (before generator is created)
       if (is.null(private$generator_) ||
             is.null(private$generator_$mcmc_ptr)) {
@@ -341,16 +379,9 @@ HousepiModel <- R6::R6Class(
 
       mcmc_ptr <- private$generator_$mcmc_ptr
       info_wide <- private$generator_$info_data_wide
-      discr_wide <- private$generator_$discr_data_wide
 
       #> parameters (resolve unspecified discretization against the model)
-      if (length(private$param_$defs) > 0) private$assert_param_(FALSE, FALSE)
-      .engine$import_param(
-        mcmc_ptr,
-        resolve_discr_flags_(private$param_$defs,
-                             private$generator_$param_discrete_required,
-                             is_prior = TRUE)
-      )
+      .engine$import_param(mcmc_ptr, private$resolved_param_defs_())
 
       #> group risks
       .engine$import_group_risk(
@@ -376,16 +407,12 @@ HousepiModel <- R6::R6Class(
               "({.val {private$generator_$escaped}})."),
         "Rename the status or define a different {.code escaped =} label."
       )
-      if (length(private$augm_$defs) > 0) private$assert_augm_(FALSE, FALSE)
-      .engine$import_augm(
-        mcmc_ptr,
-        resolve_status_codes_(
-          resolve_discr_flags_(private$augm_$defs,
-                               private$generator_$augm_discrete_required,
-                               discr_wide),
-          status_dict
-        )
-      )
+      augm_defs <- resolve_status_codes_(private$resolved_augm_defs_(),
+                                         status_dict)
+      # NOTE: unresolved definitions wait for completeness or for the wall
+      if (wall || private$augm_declaration_complete_(augm_defs)) {
+        .engine$import_augm(mcmc_ptr, augm_defs)
+      }
 
       # status dictionary drives the factor refactoring of the status column
       private$generator_$set_status_levels(status_dict)
@@ -451,13 +478,14 @@ HousepiModel <- R6::R6Class(
         ), list(...)))
       )
       # hard validation before MCMC
-      private$assert_data_wide_(capital = TRUE, simulating = simulating)
-      private$assert_param_(capital = TRUE)
-      private$assert_group_risks_(capital = TRUE)
-      private$assert_augm_(capital = TRUE)
-      private$assert_infec_profile_(capital = TRUE)
-      # push final state (picks up any stage deferred by dep gating)
-      private$rebuild_()
+      private$assert_data_wide_(wall = TRUE, simulating = simulating)
+      private$assert_param_(wall = TRUE)
+      private$assert_group_risks_(wall = TRUE)
+      private$assert_infec_profile_(wall = TRUE)
+      # engine build reports unresolved read first
+      private$rebuild_(wall = TRUE)
+      # augmented assertion reports plainly missing definitions
+      private$assert_augm_(wall = TRUE)
       invisible(self)
     },
 
@@ -684,7 +712,7 @@ HousepiModel <- R6::R6Class(
     #' Parameter definitions.
     parameters = function(value) {
       if (!missing(value)) stop_read_only("parameters")
-      housepi_defin_showcaser(private$param_$defs)
+      housepi_defin_showcaser(private$resolved_param_defs_())
     },
 
     #' @field group_risks `data.frame`
@@ -709,7 +737,7 @@ HousepiModel <- R6::R6Class(
     #' Augmented definitions.
     augmented = function(value) {
       if (!missing(value)) stop_read_only("augmented")
-      defs <- private$augm_$defs_of_kind("augm")
+      defs <- private$augm_$defs_of_kind(private$resolved_augm_defs_(), "augm")
       housepi_defin_showcaser(defs)
     },
 
@@ -718,8 +746,9 @@ HousepiModel <- R6::R6Class(
     #' Column 'level' tells member ("member") from household ("house") entries.
     observations = function(value) {
       if (!missing(value)) stop_read_only("observations")
+      resolved <- private$resolved_augm_defs_()
       defs <- do.call(rbind, lapply(c("member", "house"), function(level) {
-        out <- private$augm_$defs_of_kind(level)
+        out <- private$augm_$defs_of_kind(resolved, level)
         if (is.null(out)) return(NULL)
         cbind(out, level = level, stringsAsFactors = FALSE)
       }))

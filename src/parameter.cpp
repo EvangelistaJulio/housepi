@@ -77,15 +77,7 @@ namespace housepi
     {
         pFunc_->init_attr(key, attr);
     }
-    void Variable::init_func_reshaping(bool discr)
-    {
-        if (discr)
-            pFunc_->init_discretization();
-        pFunc_->init_truncation();
-
-        // assert no missing arguments
-        pFunc_->assert_is_callable_explicitly();
-    }
+    void Variable::reshape_function(bool discr) { pFunc_->reshape(discr); }
 
     void Variable::init_distr(std::string_view opt)
     {
@@ -100,13 +92,9 @@ namespace housepi
         pDistr_->init_attr(key, attr);
     }
 
-    void Variable::init_distr_reshaping(bool is_discr)
+    void Variable::reshape_distribution(bool is_discr)
     {
-        if (is_discr)
-            pDistr_->init_discretization();
-        pDistr_->init_truncation();
-
-        pDistr_->assert_is_callable_explicitly();
+        pDistr_->reshape(is_discr);
 
         // check that non-constant variable has non-zero dimensional range
         helper_assert_non_degenerate_range_();
@@ -492,7 +480,7 @@ namespace housepi
         // load parameter range
         for (const auto key : {"min", "max"})
             xparam.init_distr_attr(key, translator.to_numeric(input.at(key)[k]));
-        xparam.init_distr_reshaping(str::tobool(input.at("discr")[k]));
+        xparam.reshape_distribution(str::tobool(input.at("discr")[k]));
 
         // assign proposal (arguments are folded into the proposal call, if any)
         parse::Definition prop(input.at("proposal")[k]);
@@ -536,7 +524,7 @@ namespace housepi
             xparam.init_func_attr(key, translator.to_attribute(input.at(key)[k]));
 
         // discretization
-        xparam.init_func_reshaping(str::tobool(input.at("discr")[k]));
+        xparam.reshape_function(str::tobool(input.at("discr")[k]));
 
         // classify: deterministic, not sampled
         list_const.push_back(p);

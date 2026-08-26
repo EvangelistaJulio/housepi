@@ -169,7 +169,6 @@ namespace housepi
 
 namespace housepi::na
 {
-    bool is(double x) noexcept { return std::isnan(x); }
     bool is(std::string_view txt) noexcept
     {
         return txt.empty() ||

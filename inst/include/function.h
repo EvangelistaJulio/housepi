@@ -22,8 +22,7 @@ namespace housepi
 {
     class Function;
 
-    /// Index into the process-global name pool.
-    /// NOTE: distinct names in a session are few.
+    /// Index for the global name pool of the process.
     using NameIndex = std::uint32_t;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,9 +34,9 @@ namespace housepi
     class Attribute
     {
     public:
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
+        /////////////////////
+        ///  CONSTRUCTOR  ///
+        /////////////////////
 
         Attribute();
         Attribute(double x) { init_numeric(x); }
@@ -52,18 +51,19 @@ namespace housepi
 
         void swap(Attribute &other) noexcept;
 
-        /////////////////////////
-        //////  OPERATORS  //////
-        /////////////////////////
+        ///////////////////
+        ///  OPERATORS  ///
+        ///////////////////
 
         /// Equal to operator.
+        /// UPDATE: are these still necessary?
         bool operator==(const Attribute &other) const noexcept;
         /// Not equal to operator.
         bool operator!=(const Attribute &other) const noexcept { return !(*this == other); }
 
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        ////////////////
+        ///  SETTER  ///
+        ////////////////
 
         /// Set attribute name.
         void name(const std::string &txt);
@@ -107,9 +107,9 @@ namespace housepi
         /// Initialize function attribute by assigning from another one.
         void init_func_attr(std::string_view key, const Attribute &attr);
 
-        //////////////////////
-        //////  GETTER  //////
-        //////////////////////
+        ////////////////
+        ///  GETTER  ///
+        ////////////////
 
         /// Get attribute numeric value.
         // UPDATE: Mode::Pointer forces value out-of-line.
@@ -141,14 +141,20 @@ namespace housepi
             }
         }
 
-        /////////////////////
-        //////  FLAGS  //////
-        /////////////////////
+        ///////////////
+        ///  FLAGS  ///
+        ///////////////
 
+        /// Wheter it holds no value.
+        /// NOTE: by convention function is never missing.
+        /// NOTE: reductions function can still return NA. 
+        bool is_na() const noexcept;
         /// Wheter it's constant.
         bool is_constant() const noexcept;
         /// Wheter it's discrete.
         virtual bool is_discrete() const noexcept;
+        /// Wheter it's able to return.
+        bool is_callable() const noexcept;
 
         /// Wheter it has no definitions.
         bool is_empty() const noexcept { return mode_ == Mode::Empty; }
@@ -159,12 +165,9 @@ namespace housepi
         /// Wheter it's a function.
         bool is_function() const noexcept { return mode_ == Mode::Function; }
 
-        /// Wheter it's able to return.
-        bool is_callable() const noexcept;
-
-        ////////////////////
-        //////  SHOW  //////
-        ////////////////////
+        //////////////
+        ///  SHOW  ///
+        //////////////
 
         /// Get attribute name.
         std::string name() const;
@@ -259,12 +262,24 @@ namespace housepi
         //////  SETTER  //////
         //////////////////////
 
+        /// UPDATE: these two methods can turn into protected probably.
         /// Virtual function to initialize discretization.
-        virtual void init_discretization() { raise_undefined_call_err_("discretization"); }
-
+        virtual void discretize() { raise_undefined_call_err_("discretize"); }
         /// Virtual function to initialize truncation.
-        /// NOTE: always to be called ONLY after init_discretization.
-        virtual void init_truncation() { helper_init_standard_range_(); };
+        /// NOTE: always to be called ONLY after discretize.
+        virtual void truncate() { helper_init_standard_range_(); };
+
+        /// Finalize discretization, truncation and consistency asserts.
+        /// NOTE: to be called once all arguments and range are assigned.
+        void reshape(bool discr)
+        {
+            if (discr)
+                discretize();
+            truncate();
+
+            assert_is_callable_explicitly();
+            assert_location_matches_discrete();
+        }
 
         /// Select primitive method for implicit evaluate.
         void set_eval_as_prim() noexcept { eval_mode_ = Mode::Evaluate::Primitive; }
@@ -352,9 +367,9 @@ namespace housepi
             if (ov && nv)
                 return log_ratio(xo, xn);
             else if (!ov && nv)
-                return std::numeric_limits<double>::infinity();
+                return inf::DOUBLE;
             else if (ov && !nv)
-                return -std::numeric_limits<double>::infinity();
+                return -inf::DOUBLE;
             return na::DOUBLE;
         }
 
@@ -375,6 +390,8 @@ namespace housepi
         std::vector<std::string> get_missing_argument() const;
         /// Throw exception if not callable explicitly.
         void assert_is_callable_explicitly() const;
+        /// Throw exception if discrete and location do not match.
+        void assert_location_matches_discrete() const;
 
         /// Returns TRUE if value x is below range minimum.
         bool is_below(double x) const

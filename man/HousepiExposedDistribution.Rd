@@ -20,7 +20,6 @@ and random generation.
 \item \href{#method-HousepiExposedDistribution-cdf}{\code{HousepiExposedDistribution$cdf()}}
 \item \href{#method-HousepiExposedDistribution-quantile}{\code{HousepiExposedDistribution$quantile()}}
 \item \href{#method-HousepiExposedDistribution-rand}{\code{HousepiExposedDistribution$rand()}}
-\item \href{#method-HousepiExposedDistribution-clone}{\code{HousepiExposedDistribution$clone()}}
 }
 }
 \if{html}{\out{
@@ -152,23 +151,6 @@ Draw from the distribution.
 }
 \subsection{Returns}{
 \code{integer()} for a discrete distribution, \code{numeric()} otherwise.
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiExposedDistribution-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiExposedDistribution-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedDistribution$clone(deep = FALSE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
 }
 }
 }

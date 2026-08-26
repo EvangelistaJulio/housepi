@@ -15,6 +15,7 @@
 
 #include "binomial.h"
 #include "tools/messages.h"
+#include "tools/nan.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -545,8 +546,7 @@ namespace housepi::chain_binom
                 if (R == 0) // last subset
                     break;
             }
-            log_pi[S] = (sum < 1.0) ? std::log1p(-sum)
-                                    : -std::numeric_limits<double>::infinity();
+            log_pi[S] = (sum < 1.0) ? std::log1p(-sum) : -inf::DOUBLE;
         }
 
         return log_pi[Nsets - 1];
@@ -674,8 +674,7 @@ namespace housepi::chain_binom
 
                 sum += std::exp(log_C + log_pi[wi] + expo);
             }
-            log_pi[ti] = (sum < 1.0) ? std::log1p(-sum)
-                                     : -std::numeric_limits<double>::infinity();
+            log_pi[ti] = (sum < 1.0) ? std::log1p(-sum) : -inf::DOUBLE;
         }
 
         return log_pi.back();

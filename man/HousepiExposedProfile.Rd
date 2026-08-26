@@ -15,7 +15,6 @@ A housepi infectivity profile, its instantaneous and cumulative profile.
 \itemize{
 \item \href{#method-HousepiExposedProfile-inst}{\code{HousepiExposedProfile$inst()}}
 \item \href{#method-HousepiExposedProfile-cumul}{\code{HousepiExposedProfile$cumul()}}
-\item \href{#method-HousepiExposedProfile-clone}{\code{HousepiExposedProfile$clone()}}
 }
 }
 \if{html}{\out{
@@ -64,23 +63,6 @@ Evaluate the cumulative infectivity profile.
 }
 \subsection{Returns}{
 \code{numeric()}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiExposedProfile-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiExposedProfile-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedProfile$clone(deep = FALSE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
 }
 }
 }

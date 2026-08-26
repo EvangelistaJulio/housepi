@@ -514,16 +514,22 @@ HousepiGenerator <- R6::R6Class(
       set_source_name_(.engine$key_Augm(private$mcmc_ptr_), "model")
     },
 
-    #' @field param_discrete_required `character()`
+    #' @field param_discr_required `character()`
     #' Parameters the model requires discrete.
-    param_discrete_required = function(value) {
+    param_discr_required = function(value) {
       .engine$key_Param_discrete(private$mcmc_ptr_)
     },
 
-    #' @field augm_discrete_required `character()`
+    #' @field augm_discr_required `character()`
     #' Augmented variables the model requires discrete.
-    augm_discrete_required = function(value) {
+    augm_discr_required = function(value) {
       .engine$key_Augm_discrete(private$mcmc_ptr_)
+    },
+
+    #' @field data_wide_discr_required `character()`
+    #' Data columns the model requires discrete.
+    data_wide_discr_required = function(value) {
+      .engine$key_Data_discrete(private$mcmc_ptr_)
     },
 
     #' @field has_contact_risk `logical(1)`

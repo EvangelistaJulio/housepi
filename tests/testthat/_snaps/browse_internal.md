@@ -103,16 +103,6 @@
 ---
 
     Code
-      print(browse_distributions("poisson", lambda = 3, loc = 0.5))
-    Output
-      i Exposed distribution "poisson".
-      `lambda` = 3
-      `loc` = 0.5
-      Discrete on [0.5, Inf), at whole numbers + 0.5.
-
----
-
-    Code
       print(browse_distributions("poisson", lambda = 3, min = 0.5))
     Output
       i Exposed distribution "poisson".

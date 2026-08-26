@@ -255,3 +255,5 @@ namespace housepi
         void helper_init_unique_eq_classes_();
     };
 }
+
+#undef MAKE_HOUSEPI_CACHE_ACCESSOR

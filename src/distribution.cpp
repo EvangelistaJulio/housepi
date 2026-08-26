@@ -168,24 +168,24 @@ namespace
     }
 
 // Macro for left discretization when min = 0 (close).
-#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()      \
-    void init_discretization() override final \
-    {                                         \
-        discr_mode_ = Mode::Discrete::Left;   \
-    }                                         \
-    void init_truncation() override final     \
-    {                                         \
-        if (helper_init_range_min_(0., false))\
-            helper_init_distr_truncation_();  \
+#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()       \
+    void discretize() override final           \
+    {                                          \
+        discr_mode_ = Mode::Discrete::Left;    \
+    }                                          \
+    void truncate() override final             \
+    {                                          \
+        if (helper_init_range_min_(0., false)) \
+            helper_init_distr_truncation_();   \
     }
 
 // Macro for discrete defined when min = 0 (close).
-#define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()      \
-    void init_discretization() override final {} \
-    void init_truncation() override final        \
-    {                                            \
-        if (helper_init_range_min_(0., false))   \
-            helper_init_distr_truncation_();     \
+#define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()    \
+    void discretize() override final {}        \
+    void truncate() override final             \
+    {                                          \
+        if (helper_init_range_min_(0., false)) \
+            helper_init_distr_truncation_();   \
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -201,7 +201,7 @@ namespace
         HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
         /// UPDATE: should understand when discrete defined...
-        void init_discretization() override final { discr_mode_ = Mode::Discrete::Center; }
+        void discretize() override final { discr_mode_ = Mode::Discrete::Center; }
 
     protected:
         double raw_pdf_(double) const override final { return 1. / (upper_.value() - lower_.value()); }
@@ -229,12 +229,12 @@ namespace
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Normal_)
         HOUSEPI_OVERRIDE_NAME_METHOD(normal)
 
-        void init_discretization() override final
+        void discretize() override final
         {
             discr_mode_ = lower_.is_empty() ? Mode::Discrete::Center
                                             : Mode::Discrete::Left;
         }
-        void init_truncation() override final
+        void truncate() override final
         {
             helper_init_standard_range_();
             helper_init_distr_truncation_();
@@ -338,7 +338,7 @@ namespace
         double raw_log_pdf_(double x) const override final
         {
             if (x == 0.)
-                return -std::numeric_limits<double>::infinity();
+                return -inf::DOUBLE;
 
             const auto [meanlog, sdlog] = eff_params_();
             const double z = (log(x) - meanlog) / sdlog;
@@ -348,7 +348,7 @@ namespace
         {
             // the origin carries no density: the ratio saturates
             if (xo == 0. || xn == 0.)
-                return std::copysign(std::numeric_limits<double>::infinity(), xn - xo);
+                return std::copysign(inf::DOUBLE, xn - xo);
 
             const auto [meanlog, sdlog] = eff_params_();
             const double lxo = log(xo);
@@ -385,12 +385,12 @@ namespace
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Beta_)
         HOUSEPI_OVERRIDE_NAME_METHOD(beta)
 
-        void init_discretization() override final
+        void discretize() override final
         {
             msg::stop(
                 "Invoked invalid option discrete for " + err_name() + ".");
         }
-        void init_truncation() override final
+        void truncate() override final
         {
             const double sx = lower_.value();
             const double dx = upper_.value();
@@ -483,7 +483,7 @@ namespace
 
             const auto [shape, scale] = eff_params_();
             if (shape < 1.)
-                return std::numeric_limits<double>::infinity();
+                return inf::DOUBLE;
             else if (shape == 1.)
                 return exp(-log(scale) - lgamma(1));
             else
@@ -505,10 +505,10 @@ namespace
             if (x == 0.)
             {
                 if (shape < 1.)
-                    return std::numeric_limits<double>::infinity();
+                    return inf::DOUBLE;
                 if (shape == 1.)
                     return -std::log(scale);
-                return -std::numeric_limits<double>::infinity();
+                return -inf::DOUBLE;
             }
             const double t = x / scale;
             return shape * log(t) - log(x) - lgamma(shape) - t;
@@ -747,8 +747,8 @@ namespace
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Binomial_)
         HOUSEPI_OVERRIDE_NAME_METHOD(binomial)
 
-        void init_discretization() override final {}
-        void init_truncation() override final
+        void discretize() override final {}
+        void truncate() override final
         {
             const double sx = lower_.value();
             if (sx < 0.)
@@ -909,8 +909,8 @@ namespace
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Categorical_)
         HOUSEPI_OVERRIDE_NAME_METHOD(categorical)
 
-        void init_discretization() override final {}
-        void init_truncation() override final
+        void discretize() override final {}
+        void truncate() override final
         {
             const size_t cases = n_args();
             if (cases == 0)

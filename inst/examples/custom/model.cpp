@@ -14,7 +14,7 @@ public:
     HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Growth_)
     HOUSEPI_OVERRIDE_NAME_METHOD(growth)
 
-    void init_discretization() override final { helper_init_range_min_(0.); }
+    void truncate() override final { helper_init_range_min_(0.); }
 
 protected:
     /// Internal method called when the function is evaluated.

@@ -102,7 +102,7 @@ Here is what each part does:
 
 2. **Name macro**: `HOUSEPI_OVERRIDE_NAME_METHOD(growth)` sets the register name to `"growth"`.
 
-3. **Discretization**: `init_discretization()` is overridden to enable discretization with a minimum range of 0.
+3. **Truncation**: `truncate()` is overridden to bound the support below at 0.
 
 4. **Core computation**: `raw_function_()` implements the actual function. Arguments are accessed by position with `arg(0)`, `arg(1)`, etc. (note that `x` is reserved as the function input).
 

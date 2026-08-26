@@ -17,7 +17,6 @@ A housepi function and its primitive on user-supplied points.
 \item \href{#method-HousepiExposedFunction-log_func}{\code{HousepiExposedFunction$log_func()}}
 \item \href{#method-HousepiExposedFunction-log_ratio}{\code{HousepiExposedFunction$log_ratio()}}
 \item \href{#method-HousepiExposedFunction-prim}{\code{HousepiExposedFunction$prim()}}
-\item \href{#method-HousepiExposedFunction-clone}{\code{HousepiExposedFunction$clone()}}
 }
 }
 \if{html}{\out{
@@ -109,23 +108,6 @@ Evaluate the primitive of the function.
 }
 \subsection{Returns}{
 \code{numeric()}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiExposedFunction-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiExposedFunction-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedFunction$clone(deep = FALSE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
 }
 }
 }

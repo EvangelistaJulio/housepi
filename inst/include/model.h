@@ -201,3 +201,5 @@ namespace housepi
 		MCMCBase *mcmc_;
 	};
 }
+
+#undef MAKE_HOUSEPI_CACHE_FORWARDER

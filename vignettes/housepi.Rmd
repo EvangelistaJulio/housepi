@@ -319,8 +319,7 @@ hhmodel <- simulated |>
   add_observation(
     # observation is automatically discrete when datum is integer or Data
     onset_date = list(
-      model = "normal",
-      mean = .onset_time, sd = 1, min = floor(.onset_time)
+      model = "normal", mean = .onset_time, sd = 1, min = floor(.onset_time)
     )
   )
 

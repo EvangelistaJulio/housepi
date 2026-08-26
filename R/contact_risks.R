@@ -413,6 +413,7 @@ HousepiContactRisk <- R6::R6Class(
       def_args <- helper_definition_args(proposal, dots)
       args <- def_args$args
       proposal <- def_args$proposal
+      assert_no_sibling_dist_arg(args, self$family)
 
       # distinguish between automatic and custom definitions
       is_auto <- !all(is.na(by))

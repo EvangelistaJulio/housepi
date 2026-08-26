@@ -23,14 +23,6 @@ show_registered_ <- function(names, family) {
   invisible()
 }
 
-# Grid the values of a definition sit on, reported only when a fractional
-# location shift takes them off the whole numbers.
-str_grid_ <- function(discr, loc) {
-  if (!discr || is.na(loc) || loc == trunc(loc)) return("")
-  sprintf(", at whole numbers %s %s",
-          if (loc < 0) "-" else "+", format(abs(loc)))
-}
-
 ############################################################################
 ############################################################################
 ############################# Housepi Exposed ##############################
@@ -126,8 +118,8 @@ HousepiExposed <- R6::R6Class(
       print_bullets(c(
         i = sprintf("Exposed %s {.val %s}.", private$family_, private$name_),
         items,
-        sprintf("%s on %s%s.", ifelse(private$discr_, "Discrete", "Continuous"),
-                self$range, str_grid_(private$discr_, private$loc_))
+        sprintf("%s on %s.", ifelse(private$discr_, "Discrete", "Continuous"),
+                self$range)
       ))
       invisible(self)
     }
@@ -228,14 +220,7 @@ HousepiExposedDistribution <- R6::R6Class(
     #' @description Draw from the distribution.
     #' @param n `integer(1)` Number of draws.
     #' @return `integer()` for a discrete distribution, `numeric()` otherwise.
-    rand = function(n) {
-      # cast to integer draw of discretized or discrete defined distributions
-      y <- private$call_("rand", n)
-      if (!private$discr_) return(y)
-      fits <- all(is.finite(y)) && all(abs(y) <= .Machine$integer.max) &&
-        all(y == trunc(y))
-      if (fits) as.integer(y) else y
-    }
+    rand = function(n) private$call_("rand", n)
   )
 )
 

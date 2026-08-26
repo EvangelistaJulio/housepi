@@ -12,7 +12,7 @@ mk_augm <- local({
   list(model = hhmodel)
 })
 
-is_whole <- function(x) {
+on_integer_lattice <- function(x) {
   x <- as.numeric(x[!is.na(x)])
   length(x) > 0 && all(x == floor(x))
 }
@@ -62,25 +62,58 @@ test_that("Undefined definitions are controoled", {
   expect_true(is.na(defs$proposal))
 })
 
+test_that("Passing a prior raise a hint on model", {
+  mk_augm$model |>
+    add_augmented(infec_time = list(prior = "uniform", min = -1, max = 2)) |>
+    expect_error("[Ss]pare.*prior.*infec_time")
+  mk_augm$model |>
+    add_augmented(infec_time = list(prior = "uniform", min = -1, max = 2)) |>
+    expect_error("[Dd]id you mean.*model")
+})
+
+test_that("A func definition is deterministic", {
+  # a plain number is a constant value, whichever argument carried it
+  by_func <- mk_augm$model |> add_augmented(dummy = list(func = 21))
+  by_value <- mk_augm$model |> add_augmented(dummy = list(value = 21))
+  expect_equal(get_augmented(by_func), get_augmented(by_value))
+
+  # deterministic definitions reject model or proposal
+  mk_augm$model |>
+    add_augmented(dummy = list(func = "log", func_args = c(x = 2),
+                               model = "normal", mean = 0, sd = 1)) |>
+    expect_error("only one.*func.*model")
+  mk_augm$model |>
+    add_augmented(dummy = list(func = "log", func_args = c(x = 2),
+                               proposal = "rw")) |>
+    expect_error("[Dd]eterministic.*dummy.*cannot be sampled")
+})
+
 test_that("Dependency errors name the family and the intended source", {
+  # definitions are left unresolved until a wall
+  mk_augm$model |>
+    add_observation(start_date = min(test_date)) |>
+    expect_silent()
+
   # an unsuffixed name is read as augmented: the error says so and points at
   # the data column / parameter of the same name the user meant
   mk_augm$model |>
     add_observation(start_date = min(test_date)) |>
+    evaluate_log_lik() |>
     expect_error("augmented.*definition.*test_date.")
   mk_augm$model |>
     add_observation(start_date = min(test_date)) |>
-    expect_error("Did you mean .test_date@D.")
+    evaluate_log_lik() |>
+    expect_error("[Dd]id you mean.*test_date@D")
   mk_augm$model |>
-    add_parameter(ocelot = list(prior = "gamma", shape = 2, scale = 1)) |>
-    add_observation(onset_date = list(model = "normal", mean = ocelot)) |>
-    expect_error("Did you mean .ocelot@P.")
+    add_parameter(ddog = list(prior = "gamma", shape = 2, scale = 1)) |>
+    add_observation(onset_date = list(model = "normal", mean = ddog)) |>
+    evaluate_log_lik() |>
+    expect_error("[Dd]id you mean.*ddog@P")
 
   # nothing of that name anywhere
   mk_augm$model |>
-    add_observation(
-      onset_date = list(model = "normal", mean = liquid@A, sd = 1)
-    ) |>
+    add_observation(onset_date = list(model = "normal", mean = liquid@A)) |>
+    evaluate_log_lik() |>
     expect_error("add_augmented")
 
   mk_augm$model |>
@@ -88,13 +121,21 @@ test_that("Dependency errors name the family and the intended source", {
       incub = list(model = "gamma", shape = 2, scale = 1, status = 2),
       otacon = list(model = "normal", loc = incub, sd = 1)
     ) |>
+    evaluate_log_lik() |>
     expect_error(".*incub.*status 1")
 })
 
 test_that("A status left without definitions names the status", {
+  # definitions are left unresolved until a wall
+  mk_augm$model |>
+    add_observation(start_date = list(func = min(test_date@D), status = 2)) |>
+    add_observation(start_date = list(func = min(test_date@D), status = 1)) |>
+    expect_silent()
+
   # every per-member definition is pinned to a status no individual carries
   mk_augm$model |>
     add_observation(start_date = list(func = min(test_date@D), status = 2)) |>
+    evaluate_log_lik() |>
     expect_error("No.*augmented.*definition.*status 1")
 
   # no status block to fall back on: the generic definition is the missing one
@@ -103,6 +144,7 @@ test_that("A status left without definitions names the status", {
     add_observation(
       start_date = list(func = min(test_date@D), status = c(2, 3))
     ) |>
+    evaluate_log_lik() |>
     expect_error("[Nn]o.*generic.*augmented.*definition")
 })
 
@@ -124,7 +166,7 @@ test_that("Augmented variable definitions are correct", {
   expect_equal(augm$name, "dummy")
   expect_equal(augm$status, NA_real_)
   expect_equal(augm$const, TRUE)
-  expect_true(is.na(augm$discr))
+  expect_equal(augm$discr, FALSE)
   expect_equal(augm$value, 3)
   expect_equal(augm$proposal, NA_real_)
 
@@ -462,6 +504,107 @@ test_that("Household observations reject a distribution", {
     expect_error(err)
 })
 
+test_that("Household observations reject a status", {
+  hhmodel <- mk_augm$model
+  err <- "cannot be status specific"
+
+  # every input branch is guarded, at the bulk default level and per definition
+  add_observation(hhmodel,
+    name = "raiden", func = min(test_date@D), status = 1, level = "house"
+  ) |>
+    expect_error(err)
+  add_observation(hhmodel,
+    raiden = list(func = min(test_date@D), status = 1), level = "house"
+  ) |>
+    expect_error(err)
+  add_observation(hhmodel,
+    import = list(raiden = list(func = quote(min(test_date@D)), status = 1)),
+    level = "house"
+  ) |>
+    expect_error(err)
+  add_observation(hhmodel,
+    raiden = list(func = min(test_date@D), status = 1, level = "house")
+  ) |>
+    expect_error(err)
+  add_observation(hhmodel, raiden = list(func = min(test_date@D)),
+                  status = 1, level = "house") |>
+    expect_error(err)
+
+  # a member-level declaration keeps its status, and the no-effect reduction
+  # that would promote it to household level is not taken when one is set
+  member <- hhmodel |>
+    add_observation(raiden = list(func = min(test_date@D), status = 1)) |>
+    get_observations()
+  expect_identical(member[["level"]], "member")
+  expect_identical(as.integer(member[["status"]]), 1L)
+
+  # a bulk 'status =' reaches every entry, single and bulk modes alike
+  bulk <- hhmodel |>
+    add_observation(raiden = list(func = min(test_date@D)), status = 1) |>
+    get_observations()
+  expect_identical(as.integer(bulk[["status"]]), 1L)
+  imported <- hhmodel |>
+    add_observation(import = list(raiden = list(func = quote(min(test_date@D)))),
+                    status = 1) |>
+    get_observations()
+  expect_identical(as.integer(imported[["status"]]), 1L)
+})
+
+test_that("A name is declared under a single kind", {
+  hhmodel <- mk_augm$model
+  err <- "already declared as"
+
+  # augmented and observations share one store: every pair collides, either way
+  hhmodel |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 1)) |>
+    add_observation(ocelot = list(func = test_date@D)) |>
+    expect_error(err)
+  hhmodel |>
+    add_observation(ocelot = list(func = test_date@D)) |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 1)) |>
+    expect_error(err)
+  hhmodel |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 1)) |>
+    add_observation(ocelot = min(test_date@D), level = "house") |>
+    expect_error(err)
+  hhmodel |>
+    add_observation(ocelot = min(test_date@D), level = "house") |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 1)) |>
+    expect_error(err)
+  hhmodel |>
+    add_observation(ocelot = list(func = test_date@D)) |>
+    add_observation(ocelot = min(test_date@D), level = "house") |>
+    expect_error(err)
+
+  # a status-specific declaration is no loophole: the store is keyed by name
+  hhmodel |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 1, status = 1)) |>
+    add_observation(ocelot = min(test_date@D), level = "house") |>
+    expect_error(err)
+
+  # the reserved status node is a declaration like any other
+  hhmodel |>
+    add_augmented(.status = list(value = 1, const = TRUE)) |>
+    add_status(a = 1) |>
+    expect_error(err)
+
+  # siblings of one kind stay legal: statuses of the same name, and overwrites
+  hhmodel |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 1, status = 1)) |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 1, status = 2)) |>
+    expect_silent()
+  hhmodel |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 1)) |>
+    add_augmented(ocelot = list(model = "normal", mean = 0, sd = 2)) |>
+    expect_warning("Overwriting")
+
+  # an observation standing in for a like-named data column is the surrogate
+  # design, not a clash: only declarations collide with each other
+  hhmodel |>
+    add_observation(test_date = list(func = onset_date@D)) |>
+    expect_silent()
+})
+
 test_that("Level is set per definition, the argument being the bulk default", {
   # a per-definition 'level' picks the kind of its own entry, exactly as
   # 'status' does; regression: it used to be swallowed by add_quo's dots and
@@ -664,16 +807,47 @@ test_that("degenerate reduction at member-level is cast to house-level", {
 #############################  END-TO-END MACHINERY  ###########################
 ################################################################################
 
+test_that("An undeclared producer defers the build to the wall", {
+  # parameters land in the engine on their own decorator, so a definition
+  # reading one that is not declared yet waits instead of failing a key lookup
+  raiden <- sarscov2_2021_icofs |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    add_augmented(z = list(model = "gamma", shape = shape@P, scale = scale@P))
+  expect_silent(raiden)
+
+  # the wall names the missing parameters, not the key that could not be found
+  sms <- tryCatch(evaluate_log_lik(raiden), error = conditionMessage)
+  expect_match(sms, "missing parameter definitions")
+  expect_false(grepl("status-specific", sms))
+})
+
+test_that("A location off the integers is refused when discrete", {
+  hhmodel <- data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0)) |>
+      new_housepi_model("test")
+
+  # a sampled location would shift the lattice under the chain at every step:
+  # the fix is on the declaration it reads, named in place of `loc`
+  hhmodel |>
+    add_parameter("ocelot", prior = "uniform", min = 0, max = 1) |>
+    add_augmented("quiet", model = "poisson", lambda = 2, loc = ocelot@P) |>
+    evaluate_log_lik() |>
+    expect_error("[Cc]hange parameter.*ocelot.*discrete")
+  # a fractional constant is refused just the same, but carries no declaration
+  # to flag: only its value can move
+  hhmodel |>
+    add_augmented(name = "quiet", model = "poisson", lambda = 2, loc = 0.5) |>
+    evaluate_log_lik() |>
+    expect_error("[Ss]et.*loc.*integer")
+})
+
 test_that("Augmented aliasing works as expected", {
   # check that model arguments are correctly integrated
   simulated <- data.frame(id = seq(1, 1000),
                           house_id = rep(seq(10), each = 100),
                           status = 1) |>
     new_housepi_model("test") |>
-    add_augmented(
-      hour = list(model = "uniform", min = day, max = day + 1),
-      day = list(model = "gamma", shape = 2, scale = 1)
-    ) |>
+    add_augmented(hour = list(model = "uniform", min = day, max = day + 1),
+                  day = list(model = "gamma", shape = 2, scale = 1)) |>
     run_simulation()
   expect_true(all(
     simulated$day <= simulated$hour & simulated$hour <= simulated$day + 1
@@ -781,12 +955,10 @@ test_that("Augmented degenerate range warns and collapses", {
 test_that("Nested definitions works as expected", {
   hhmodel <- new_housepi_model(model = "test") |>
     # define Box-Muller transformation
-    add_augmented(
-      norm = list(model = "normal"),
-      u1 = list(model = "uniform"),
-      u2 = list(model = "uniform"),
-      z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2)
-    )
+    add_augmented(norm = list(model = "normal"),
+                  u1 = list(model = "uniform"),
+                  u2 = list(model = "uniform"),
+                  z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
   expect_snapshot(print(hhmodel))
 
   results <- hhmodel |>
@@ -821,12 +993,10 @@ test_that("Nested augmented definitions raise errors", {
     new_housepi_model("test")
 
   hhmodel |>
-    add_augmented(
-      .layer = list(model = "uniform", status = 1),
-      .layer = list(value = .dummy, status = c(2, 3, 4)),
-      .dummy = list(model = "uniform"),
-      z = .layer
-    ) |>
+    add_augmented(.layer = list(model = "uniform", status = 1),
+                  .layer = list(value = .dummy, status = c(2, 3, 4)),
+                  .dummy = list(model = "uniform"),
+                  z = .layer) |>
     evaluate_log_lik() |>
     expect_no_error()
 
@@ -844,26 +1014,22 @@ test_that("Nested augmented definitions raise errors", {
 
   # first generation of definitions
   hhmodel |>
-    add_augmented(
-      .layer = list(model = "normal", status = 1),
-      .layer = list(value = .dummy, status = 2),
-      #> NO .layer provided for status 3 and 4
-      .dummy = list(model = "lognormal", status = 2),
-      z = .layer
-    ) |>
+    add_augmented(.layer = list(model = "normal", status = 1),
+                  .layer = list(value = .dummy, status = 2),
+                  #> NO .layer provided for status 3 and 4
+                  .dummy = list(model = "lognormal", status = 2),
+                  z = .layer) |>
     evaluate_log_lik() |>
     expect_error("[Nn]o.*definition.*status")
 
   # second generation of definitions
   hhmodel |>
-    add_augmented(
-      .layer = list(model = "normal", status = 1),
-      .layer = list(value = .dummy, status = c(2, 3, 4)),
-      #> NO .dummy provided for status 3, 4
-      .dummy = list(model = "lognormal", status = c(2, 3)),
-      z = .layer,
-      append = FALSE
-    ) |>
+    add_augmented(.layer = list(model = "normal", status = 1),
+                  .layer = list(value = .dummy, status = c(2, 3, 4)),
+                  #> NO .dummy provided for status 3, 4
+                  .dummy = list(model = "lognormal", status = c(2, 3)),
+                  z = .layer,
+                  append = FALSE) |>
     evaluate_log_lik() |>
     expect_error("[Nn]o.*definition.*status")
 })
@@ -881,12 +1047,10 @@ test_that("Missing augmented function arguments raise errors", {
 test_that("Status-specific augmented variables draw from per-status ranges", {
   hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
     new_housepi_model("test") |>
-    add_augmented(
-      z = list(status = 1, model = "uniform", min = 0, max = 1),
-      z = list(status = 2, model = "uniform", min = 1, max = 2),
-      z = list(status = 3, model = "uniform", min = 2, max = 3),
-      z = list(status = 4, model = "uniform", min = 3, max = 4)
-    )
+    add_augmented(z = list(status = 1, model = "uniform", min = 0, max = 1),
+                  z = list(status = 2, model = "uniform", min = 1, max = 2),
+                  z = list(status = 3, model = "uniform", min = 2, max = 3),
+                  z = list(status = 4, model = "uniform", min = 3, max = 4))
 
   # simulation routes draws into per-status supports
   withr::with_seed(1, sim <- run_simulation(hhmodel, nrep = 50))
@@ -1043,7 +1207,7 @@ test_that("a surrogate column reading augmented is simulation only", {
   expect_equal(simulated[["ReD"]], simulated[["z"]] + 2)
 })
 
-test_that("Unspecified discretization is held for resolution", {
+test_that("Unspecified discretization reads back resolved to continuous", {
   obs <- mk_augm$model |>
     add_observation(test_date = list(model = "normal"),
                     onset_date = list(model = "normal", discr = TRUE),
@@ -1051,7 +1215,7 @@ test_that("Unspecified discretization is held for resolution", {
     get_observations()
 
   expect_type(obs$discr, "logical")
-  expect_equal(obs$discr, c(NA, TRUE, FALSE))
+  expect_equal(obs$discr, c(FALSE, TRUE, FALSE))
 })
 
 test_that("An observation infers discretization from the column it reads", {
@@ -1075,18 +1239,65 @@ test_that("An observation infers discretization from the column it reads", {
   simulated <- run_simulation(hhmodel)
 
   # dates and integers are discrete, doubles are not
-  expect_true(is_whole(simulated[["date_col"]]))
-  expect_true(is_whole(simulated[["int_col"]]))
-  expect_false(is_whole(simulated[["whole_col"]]))
-  expect_false(is_whole(simulated[["kept_col"]]))
+  expect_true(on_integer_lattice(simulated[["date_col"]]))
+  expect_true(on_integer_lattice(simulated[["int_col"]]))
+  expect_false(on_integer_lattice(simulated[["whole_col"]]))
+  expect_false(on_integer_lattice(simulated[["kept_col"]]))
 
   # a deterministic observation is not influenced
   hhmodel |>
     add_observation(derived = z + 1) |>
     run_simulation() |>
     getElement("derived") |>
-    is_whole() |>
+    on_integer_lattice() |>
     expect_false()
+})
+
+test_that("Simulated columns carry the discretization of their definition", {
+  hhmodel <- data.frame(house_id = rep(c("otacon", "meryl"), each = 3),
+                        id = seq(6), status = 1) |>
+    new_housepi_model("test") |>
+    add_augmented(z = list(model = "uniform", min = 2, max = 8)) |>
+    add_observation(
+      codec = list(model = "normal", discr = TRUE, mean = z, sd = 1),
+      nomad = list(model = "normal", mean = z, sd = 1),
+      first_codec = list(value = min(codec@D), level = "house")
+    )
+
+  withr::with_seed(5, simulated <- run_simulation(hhmodel))
+
+  # a discrete declaration, and the reduction folding it, export as integers
+  expect_type(simulated[["codec"]], "integer")
+  expect_type(simulated[["first_codec"]], "integer")
+  # a continuous observation and a continuous latent stay double
+  expect_type(simulated[["nomad"]], "double")
+  expect_type(simulated[["z"]], "double")
+
+  # feeding the simulated data back resolves the same discretization
+  simulated |>
+    new_housepi_model("test") |>
+    add_augmented(z = list(model = "uniform", min = 2, max = 8)) |>
+    add_observation(codec = list(model = "normal", mean = z, sd = 1)) |>
+    get_observations() |>
+    getElement("discr") |>
+    expect_true()
+})
+
+test_that("A column a status declares continuous keeps its fractions", {
+  hhmodel <- data.frame(house_id = rep(c("otacon", "meryl"), each = 2),
+                        id = seq(4), status = rep(c(1, 2), 2)) |>
+    new_housepi_model("test") |>
+    add_augmented(z = list(model = "uniform", min = 2, max = 8)) |>
+    add_observation(
+      codec = list(status = 1, model = "normal", discr = TRUE, mean = z),
+      codec = list(status = 2, model = "normal", mean = z)
+    )
+
+  withr::with_seed(3, simulated <- run_simulation(hhmodel))
+
+  # one column, two declarations: the continuous one has values to lose
+  expect_type(simulated[["codec"]], "double")
+  expect_false(on_integer_lattice(simulated[["codec"]][simulated$status == 2]))
 })
 
 test_that("Discretization is resolved every time the data changes", {
@@ -1096,19 +1307,19 @@ test_that("Discretization is resolved every time the data changes", {
     add_augmented(z = list(model = "uniform", min = 2, max = 8)) |>
     add_observation(tsuchinoko = list(model = "normal", mean = z, sd = 2))
 
-  # the simulated observation resolves to continuos
-  hhmodel |>
-    add_data_wide(dplyr::mutate(df, tsuchinoko = rep(c(2.4, 5.1), 20))) |>
-    run_simulation() |>
-    getElement("tsuchinoko") |>
-    is_whole() |>
+  # observations resolve to continuos in simulations and definitions
+  hhmodel <- hhmodel |>
+    add_data_wide(dplyr::mutate(df, tsuchinoko = rep(c(2.4, 5.1), 20)))
+  get_observations(hhmodel)$discr |>
+    expect_false()
+  on_integer_lattice(run_simulation(hhmodel)$tsuchinoko) |>
     expect_false()
 
-  # attaching an integer column changes the resolution to integer
-  hhmodel |>
-    add_data_wide(dplyr::mutate(df, tsuchinoko = rep(c(2L, 5L), 20))) |>
-    run_simulation() |>
-    getElement("tsuchinoko") |>
-    is_whole() |>
+  # observations resolve to discrete in simulations and definitions
+  hhmodel <- hhmodel |>
+    add_data_wide(dplyr::mutate(df, tsuchinoko = rep(c(2L, 5L), 20)))
+  get_observations(hhmodel)$discr |>
+    expect_true()
+  on_integer_lattice(run_simulation(hhmodel)$tsuchinoko) |>
     expect_true()
 })

@@ -110,27 +110,21 @@ namespace housepi
     class IndependenceProposal final : public Proposal
     {
     public:
-        /// Proposal builds its owned distribution internally, pointing its truncation at the
-        /// prior's (possibly live) domain so draws stay in support. Coverage of the prior
-        /// domain by the proposal family is asserted later, in finalize(), once data is bound.
+        /// Proposal builds its owned distribution internally.
+        /// Truncate at prior's domain, wired before reshaping.
         IndependenceProposal(
             const std::string &distr_name,
             const dict<Attribute> &args,
             const Distribution *prior)
             : pDistr_(compose_distr_registries(
-                distr_name, ErrType::Proposal, {Registry::Continuos, Registry::Discrete}))
+                  distr_name, ErrType::Proposal, {Registry::Continuos, Registry::Discrete}))
         {
             for (const auto &[key, attr] : args)
                 pDistr_->init_attr(key, attr);
-            if (prior)
-            {
-                if (prior->is_discrete())
-                    pDistr_->init_discretization();
 
+            if (prior)
                 wire_to_prior_domain_(prior);
-            }
-            pDistr_->init_truncation();
-            pDistr_->assert_is_callable_explicitly();
+            pDistr_->reshape(prior && prior->is_discrete());
         }
         IndependenceProposal(const IndependenceProposal &other)
             : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
@@ -230,12 +224,7 @@ namespace housepi
             double scale,
             bool is_discrete)
             : pDistr_(compose_distr_registries(distr_name, ErrType::Proposal, {Registry::Continuos})),
-              is_adaptive_(na::is(scale))
-        {
-            if (is_discrete)
-                pDistr_->init_discretization();
-            pDistr_->init_truncation();
-        }
+              is_adaptive_(na::is(scale)) { pDistr_->reshape(is_discrete); }
         virtual ~AdaptableProposal() = default;
 
         AdaptableProposal(const AdaptableProposal &other)
@@ -461,3 +450,5 @@ namespace housepi
         void set_scale_(double scale) override final { pDistr_->set_arg(1, scale); }
     };
 }
+
+#undef MAKE_PROPOSAL_CLONE_METHOD

@@ -11,6 +11,16 @@ is_augmented_family <- function(family) {
                 "status observation")
 }
 
+# Display family of a definition kind.
+kind2family <- function(kind) {
+  switch(kind,
+    "member" = "observation",
+    "house" = "household observation",
+    "status" = "status observation",
+    "augmented"
+  )
+}
+
 # Column carrying the defining distribution of the holder family.
 family2model_col <- function(family) {
   if (is_augmented_family(family)) "model" else "prior"
@@ -97,6 +107,19 @@ housepi_assert_args <- function(gear, last = FALSE) {
       family, col
     )
   }
+}
+
+# Assert a name carries no declaration of another kind: augmented variables,
+# observations of either level and the status process share one definition store,
+# and each name stands for a single quantity of the model.
+assert_no_kind_clash <- function(defs, name, kind) {
+  if (is.null(defs) || !"kind" %in% names(defs)) return(invisible())
+  other <- defs[["kind"]][defs[["name"]] == name & defs[["kind"]] != kind]
+  if (length(other) == 0) return(invisible())
+  stop_h(
+    "Name {.val {name}} is already declared as {kind2family(other[1])}.",
+    "Each name stands for one quantity: choose a different name."
+  )
 }
 
 # Assert that character respect convention.

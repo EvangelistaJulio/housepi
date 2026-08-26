@@ -682,7 +682,7 @@ add_observation <- function(hhmodel, name = NULL,
   #> import mode
   if (!is.null(import)) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append, .kind = level
+    append = append, status = status, .kind = level
   )
   #> single mode
   else if (!is.null(name)) pvt$augm_$add_quo(
@@ -695,7 +695,7 @@ add_observation <- function(hhmodel, name = NULL,
   #> multiple mode
   else pvt$augm_$add_quo_list(
     assert_bulk_defs_(rlang::enquos(...)),
-    append = append, .kind = level
+    append = append, status = status, .kind = level
   )
   pvt$rebuild_()
   new_obj

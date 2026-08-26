@@ -106,6 +106,7 @@ HousepiParameter <- R6::R6Class(
 
       # control valid name
       assert_valid_definition_name(name, self$family)
+      assert_no_sibling_dist_arg(args, self$family, name)
       if (all(is.null(c(value, func)), is.na(prior))) stop_h(
         "Incomplete definition for parameter {.val {name}}.",
         "Provide at least one between {.arg {c('value', 'prior', 'func')}}."
@@ -160,10 +161,10 @@ HousepiParameter <- R6::R6Class(
 
     #' @description
     #' Assert parameter definitions match the requirement list.
-    #' @param required `character()`. Required definitions.
-    #' @param capital `logical(1)`. Whether to raise error.
-    #' @param warn_unused `logical(1)`. Warn if unused are found.
-    assert = function(required, capital, warn_unused = TRUE) {
+    #' @param required `character()` Required definitions.
+    #' @param wall `logical(1)` Whether to raise error.
+    #' @param warn_unused `logical(1)` Warn if unused are found.
+    assert = function(required, wall, warn_unused = TRUE) {
       defined <- self$defs[["name"]]
       # point out parameters that are not used
       if (isTRUE(warn_unused)) {
@@ -171,7 +172,7 @@ HousepiParameter <- R6::R6Class(
       }
       # stop if parameters are missing
       sms <- template_missing_stop(required, defined, self$family)
-      if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
+      if (isTRUE(wall) && length(sms) > 0) stop_h(sms)
       else sms
     }
   )

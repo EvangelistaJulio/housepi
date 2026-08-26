@@ -370,32 +370,35 @@ resolve_status_codes_ <- function(defs, dictionary) {
 #' Resolve unspecified `discr` declarations against model and data.
 #' A definition without model/prior keeps discr = FALSE.
 #' @param defs `data.frame` Definitions table.
-#' @param discr_keys `character()` Keys the model requests discrete.
-#' @param discr_data_cols named `logical()` Discrete data.
+#' @param discr_req_defs `character()` Definitions the model requires discrete.
+#' @param discr_col_types named `logical()` Storage type per data column.
+#' @param discr_req_cols `character()` Data columns the model requires discrete.
 #' @param is_prior `logical(1)` Whether prior, otherwise model.
 #' @return `data.frame` with a logical `discr` column.
 #' @keywords internal
 #' @noRd
-resolve_discr_flags_ <- function(defs, discr_keys,
-                                 discr_data_cols = NULL,
+resolve_discr_flags_ <- function(defs, discr_req_defs,
+                                 discr_col_types = NULL,
+                                 discr_req_cols = character(),
                                  is_prior = FALSE) {
   if (is.null(defs) || !"discr" %in% names(defs)) return(defs)
   discr <- as.logical(defs[["discr"]])
   unresolved <- is.na(discr)
   if (!any(unresolved)) return(defs)
 
-  # whether the transmission model requires the key discrete
-  by_model <- defs[["name"]] %in% discr_keys
+  # whether the transmission model requires the definition's name discrete
+  by_model <- defs[["name"]] %in% discr_req_defs
 
   # whether the datum column the definition reads is discrete
   by_data <- rep(FALSE, length(discr))
-  if (!is.null(discr_data_cols)) {
+  if (!is.null(discr_col_types)) {
     # name of the data column a definition value reads
     col <- as.character(defs[["value"]])
     hit <- grepl("^[A-Za-z0-9_.]+\\|D$", col)
     # NA if it reads none
     col <- ifelse(hit, sub("\\|D$", "", col), NA_character_)
-    by_data <- unname(discr_data_cols[col])
+    # the column storage type, or the model requiring that column discrete
+    by_data <- unname(discr_col_types[col]) | col %in% discr_req_cols
     by_data[is.na(by_data)] <- FALSE
   }
 

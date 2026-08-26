@@ -156,6 +156,28 @@ test_that("a profile dependency reached through 'min' is reported", {
 ################ INFECTIVITY PROFILE : END-TO-END ##########################
 ############################################################################
 
+test_that("declaration order does not matter", {
+  # the profile folds into the augmented build, so it reads parameters that
+  # only reach the engine on their own decorator
+  before <- sarscov2_2021_icofs |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    add_infectivity_profile(import = "template") |>
+    add_augmented(import = "template") |>
+    add_parameter(import = "template")
+  expect_silent(before)
+
+  after <- sarscov2_2021_icofs |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    add_parameter(import = "template") |>
+    add_infectivity_profile(import = "template") |>
+    add_augmented(import = "template")
+
+  # both reach the wall: the log-likelihood is random, only finiteness is
+  # comparable (see evaluate_log_lik)
+  expect_true(is.finite(evaluate_log_lik(before)))
+  expect_true(is.finite(evaluate_log_lik(after)))
+})
+
 test_that("a model needing a profile throws", {
   mk_infec$model |>
     get_infectivity_profiles() |>

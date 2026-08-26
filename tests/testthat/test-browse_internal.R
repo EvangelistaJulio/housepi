@@ -137,9 +137,9 @@ test_that("Truncation and location shift the reported support", {
   snake <- browse_distributions("normal", mean = 0, sd = 1,
                                 min = -1, max = 2, loc = 10)
   expect_equal(snake$range, "[9, 12]")
-  # arguments report the parametrization, the shift is not one of them
-  raiden <- browse_distributions("poisson", lambda = 3, loc = 0.5)
-  expect_equal(raiden$args, c(lambda = 3))
+  # arguments report the parametrization, location stays unreported
+  distr <- browse_distributions("poisson", lambda = 3, loc = 1)
+  expect_equal(distr$args, c(lambda = 3))
 })
 
 #################################
@@ -312,6 +312,52 @@ test_that("Truncated binomial is correct", {
     expect_equal(stats::dbinom(x, args$size, args$prob) / (1 - shift))
   distr$cdf(x) |>
     expect_equal((stats::pbinom(x, args$size, args$prob) - shift) / (1 - shift))
+})
+
+test_that("Truncated discrete mass is normalised on the bins inside the range", {
+  # the window closes on the last bin inside the range, not one atom past it
+  k <- 2:6
+  distr <- browse_distributions("poisson", lambda = 3, min = min(k), max = max(k))
+  norm <- diff(stats::ppois(c(min(k) - 1, max(k)), 3))
+  expect_equal(distr$pdf(k), stats::dpois(k, 3) / norm)
+  expect_equal(sum(distr$pdf(k)), 1)
+  expect_equal(distr$cdf(max(k)), 1)
+
+  # left-discretized: bin i carries [i, i + 1), so the range holds 5 bins
+  i <- 1:5
+  distr <- browse_distributions("gamma", shape = 2, scale = 1,
+                                min = min(i), max = max(i), discr = TRUE)
+  norm <- diff(stats::pgamma(c(min(i), max(i) + 1), shape = 2, scale = 1))
+  expect_equal(distr$pdf(i),
+               diff(stats::pgamma(c(i, max(i) + 1), shape = 2, scale = 1)) / norm)
+  expect_equal(sum(distr$pdf(i)), 1)
+  expect_equal(distr$cdf(max(i)), 1)
+})
+
+test_that("Truncated discrete rand() reaches every bin of the support", {
+  # both sampling branches must reproduce the mass they are scored against
+  expect_draws_match_pdf <- function(distr, k, n = 2e4) {
+    freq <- as.vector(table(factor(distr$rand(n), levels = k))) / n
+    expect_equal(freq, distr$pdf(k), tolerance = 0.05)
+  }
+
+  set.seed(37L)
+  # retained mass 0.54: rejection branch
+  k <- 2:6
+  browse_distributions("poisson", lambda = 3, min = min(k), max = max(k)) |>
+    expect_draws_match_pdf(k)
+
+  # retained mass 0.17: inverse branch, whose window used to drop the first atom
+  k <- 3:4
+  browse_distributions("poisson", lambda = 3, min = min(k), max = max(k)) |>
+    expect_draws_match_pdf(k)
+
+  # left-discretized: the top bin is drawable, not only scorable
+  i <- 1:5
+  distr <- browse_distributions("gamma", shape = 2, scale = 1,
+                                min = min(i), max = max(i), discr = TRUE)
+  expect_draws_match_pdf(distr, i)
+  expect_identical(max(distr$rand(2e4L)), max(i))
 })
 
 test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
@@ -769,12 +815,25 @@ test_that("Discrete draws from rand() have type integer", {
 
   browse_distributions("poisson", lambda = 3)$rand(5L) |>
     expect_type("integer")
-  # a non-integral location takes the draws off the integer lattice
-  browse_distributions("poisson", lambda = 3, loc = 0.5)$rand(5L) |>
-    expect_type("double")
+  # an integer location keeps the draws on the lattice
+  browse_distributions("poisson", lambda = 3, loc = 2)$rand(5L) |>
+    expect_type("integer")
   # past machine integer max, draw back to double
   browse_distributions("poisson", lambda = 3e9)$rand(2L) |>
     expect_type("double")
+})
+
+test_that("Location off the integers is refused when discrete", {
+  browse_distributions("poisson", lambda = 3, loc = 0.5) |>
+    expect_error("[Ss]et.*location.*integer")
+  browse_distributions("gamma", shape = 2, discr = TRUE, loc = -1.5) |>
+    expect_error("[Ss]et.*location.*integer")
+  # an integer shift, and a fractional bound that only truncates, are fine
+  browse_distributions("poisson", lambda = 3, loc = -2) |> expect_no_error()
+  browse_distributions("poisson", lambda = 3, min = 0.5) |> expect_no_error()
+  # a continuous definition is free to sit anywhere
+  browse_distributions("gamma", shape = 2, scale = 1, loc = 0.5) |>
+    expect_no_error()
 })
 
 test_that("quantile returns NA outside [0, 1]", {
@@ -1023,13 +1082,10 @@ test_that("Exposed object print behavior is stable", {
   # no-argument object prints the header and the support
   print(browse_functions("sin")) |>
     expect_snapshot()
-  # a fractional shift takes the values off the whole numbers
-  print(browse_distributions("poisson", lambda = 3, loc = 0.5)) |>
-    expect_snapshot()
-  # truncating to the same bound leaves the values on the whole numbers
+  # truncating to the same bound leaves the values on the integers
   print(browse_distributions("poisson", lambda = 3, min = 0.5)) |>
     expect_snapshot()
-  # a whole-number shift reports the argument and no grid
+  # an integer shift reports the argument and no grid
   print(browse_distributions("poisson", lambda = 3, loc = 2)) |>
     expect_snapshot()
   # a continuous definition reports the argument and no grid

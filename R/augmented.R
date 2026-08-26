@@ -44,14 +44,7 @@ HousepiAugmented <- R6::R6Class(
 
   active = list(
     #' @field family `character(1)`. Holder family currently being managed.
-    family = function(value) {
-      switch(private$kind_,
-        "member" = "observation",
-        "house" = "household observation",
-        "status" = "status observation",
-        "augmented"
-      )
-    },
+    family = function(value) kind2family(private$kind_),
 
     #' @field augm_required `character()`.
     #' Find augmented required by augmented variable definitions.
@@ -177,15 +170,36 @@ HousepiAugmented <- R6::R6Class(
 
     #' @description Definitions of a single kind.
     #' Column 'kind' is dropped.
-    #' @param kind `character(1)`. One of "augm", "member", "house", "status".
+    #' @param defs `data.frame()` Definitions to filter.
+    #' @param kind `character(1)` One of "augm", "member", "house", "status".
+    #' @details Used to read a resolved copy of the declarations.
     #' @return `data.frame()` or `NULL` when no definition of that kind exists.
-    defs_of_kind = function(kind = c("augm", "member", "house", "status")) {
+    defs_of_kind = function(defs,
+                            kind = c("augm", "member", "house", "status")) {
       kind <- match.arg(kind)
-      if (is.null(self$defs) || !"kind" %in% names(self$defs)) return(NULL)
-      out <- self$defs[self$defs[["kind"]] == kind, , drop = FALSE]
+      if (is.null(defs) || !"kind" %in% names(defs)) return(NULL)
+      out <- defs[defs[["kind"]] == kind, , drop = FALSE]
       if (nrow(out) == 0) return(NULL)
       out[["kind"]] <- NULL
       out
+    },
+
+    #' @description Whether every infected status lands on a definition block.
+    #' A generic (unstatused) definition covers them all, otherwise each
+    #' observed status needs one of its own; with no infected status observed
+    #' the generic one is the one required.
+    #' @param defs `data.frame()`. Definitions with status codes resolved.
+    #' @param status_set `integer()`. Infected statuses observed in data.
+    #' @return `logical(1)`
+    covers_statuses = function(defs, status_set) {
+      if (is.null(defs) || !"kind" %in% names(defs)) return(TRUE)
+      # household observations and the status process need no status block
+      block <- defs[!defs[["kind"]] %in% c("house", "status"), , drop = FALSE]
+      if (nrow(block) == 0) return(TRUE)
+      declared <- unlist(block[["status"]], use.names = FALSE)
+      if (anyNA(declared)) return(TRUE)
+      observed <- status_set[!is.na(status_set)]
+      length(observed) > 0 && all(observed %in% as.integer(declared))
     },
 
     #' @inherit add_augmented
@@ -242,6 +256,12 @@ HousepiAugmented <- R6::R6Class(
         .kind <- match.arg(level, c("member", "house"))
       }
 
+      # a household value is one per household: no status block selects it
+      if (identical(.kind, "house") && !all(is.na(status))) stop_h(
+        "Household observation {.val {name}} cannot be status specific.",
+        "Drop {.arg status} or declare {.val {name}} at member level."
+      )
+
       if (!identical(.kind, "augm") && !is.na(model)) {
         # a household observation cannot be sampled
         if (identical(.kind, "house")) stop_h(
@@ -276,9 +296,14 @@ HousepiAugmented <- R6::R6Class(
       # control valid status
       assert_valid_status(status)
       # control meaningful definition
+      assert_no_sibling_dist_arg(args, self$family, name)
       if (all(is.null(c(value, func)), is.na(model))) stop_h(
         "Incomplete definition for augmented {.val {name}}.",
         "Provide at least one between {.arg {c('value', 'model', 'func')}}."
+      )
+      if (!is.null(func) && !is.na(model)) stop_h(
+        "Wrong definition for augmented {.val {name}}.",
+        "Provide only one between {.arg {c('func', 'model')}}."
       )
       if (!is.null(value) && !is.null(func)) stop_h(
         "Wrong definition for augmented {.val {name}}.",
@@ -298,6 +323,9 @@ HousepiAugmented <- R6::R6Class(
                    min = NA_real_,
                    max = NA_real_,
                    proposal = proposal)
+
+      # a name stands for one quantity of the model, whatever kind declares it
+      assert_no_kind_clash(self$defs, opts$name, .kind)
 
       # drop previous definition eventually
       rmv_name <- self$remove(opts$name, opts$status)
@@ -354,11 +382,9 @@ HousepiAugmented <- R6::R6Class(
     #' @description
     #' Assert augmented definitions from the model implementation script.
     #' @param required `character()`. Required definitions.
-    #' @param status_set `integer()`. All known statuses in data.
-    #' @param capital `logical(1)`. Whether to raise error.
+    #' @param wall `logical(1)`. Whether to raise error.
     #' @param warn_unused `logical(1)`. Warn if unused are found.
-    assert = function(required, status_set, capital, warn_unused) {
-      status_set <- sort(status_set)
+    assert = function(required, wall, warn_unused) {
       defined <- self$defs[["name"]]
 
       # point out augmented variables that are not used
@@ -369,7 +395,7 @@ HousepiAugmented <- R6::R6Class(
       }
       # stop if augmented variables are missing
       sms <- template_missing_stop(required, defined, self$family)
-      if (isTRUE(capital) && length(sms) > 0) stop_h(sms)
+      if (isTRUE(wall) && length(sms) > 0) stop_h(sms)
       else sms
     }
   )

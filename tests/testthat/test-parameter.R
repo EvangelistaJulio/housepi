@@ -28,7 +28,7 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$name, "dummy")
   expect_equal(param$value, 3)
   expect_equal(param$const, FALSE)
-  expect_true(is.na(param$discr))
+  expect_equal(param$discr, FALSE)
   expect_equal(param$proposal, "rw")
   expect_equal(param$prior, "uniform")
   expect_equal(param$min, 0)
@@ -48,6 +48,30 @@ test_that("Default parameter definitions are correct", {
     get_parameters()
   expect_equal(param$proposal, "rw_log")
   expect_equal(param$proposal_args[[1]], c(scale = 0.5))
+})
+
+test_that("The defining distribution of the sibling family is named as spare", {
+  # `model` keys augmented and observations, `prior` keys parameters
+  mk_param$model |>
+    add_parameter(dummy = list(model = "uniform", min = 0, max = 5)) |>
+    expect_error("[Ss]pare argument .model. for parameter .dummy.")
+  mk_param$model |>
+    add_parameter(dummy = list(model = "uniform", min = 0, max = 5)) |>
+    expect_error("Did you mean .prior. instead of .model..")
+})
+
+test_that("A func definition is deterministic", {
+  # a plain number is a constant value, whichever argument carried it
+  by_func <- mk_param$model |> add_parameter(dummy = list(func = 21))
+  by_value <- mk_param$model |> add_parameter(dummy = list(value = 21))
+  expect_equal(get_parameters(by_func), get_parameters(by_value))
+
+  # a deterministic definition accepts no proposal
+  mk_param$model |>
+    add_parameter(
+      dummy = list(func = "log", func_args = c(x = 2), proposal = "rw")
+    ) |>
+    expect_error("[Dd]eterministic parameter.*dummy.*cannot be sampled")
 })
 
 test_that("Proposal families route correctly", {
@@ -302,7 +326,7 @@ test_that("A parameter infers discretization from the model requirements", {
     add_augmented(import = "template")
 
   # the model declares the household size reference discrete
-  hhmodel$.__enclos_env__$private$generator_$param_discrete_required |>
+  hhmodel$.__enclos_env__$private$generator_$param_discr_required |>
     expect_equal("hhsize_ref")
 
   hhmodel |>

@@ -196,7 +196,7 @@ namespace housepi
         void build_generic_(Translator &translator, const str_table &input);
         /// Build for individual augmented function infectivity profile.
         void build_augmented_(Translator &translator, const str_table &input);
-        /// Helper to build profile.
-        std::unique_ptr<Distribution> helper_build_(Translator &translator, const str_table &input);
+        /// Helper to compose a profile distribution and bind its arguments.
+        std::unique_ptr<Distribution> helper_build_(Translator &translator, const std::string &func);
     };
 }

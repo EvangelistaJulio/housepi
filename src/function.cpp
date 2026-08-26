@@ -66,6 +66,20 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
+    /// Read the attribute through its storage mode, one branch per mode.
+#define MAKE_ATTR_MODE(numeric, pointer, function, empty) \
+    switch (mode_)                                        \
+    {                                                     \
+    case Mode::Numeric:                                   \
+        return numeric;                                   \
+    case Mode::Pointer:                                   \
+        return pointer;                                   \
+    case Mode::Function:                                  \
+        return function;                                  \
+    default: /* case Mode::Empty: */                      \
+        return empty;                                     \
+    }
+
     Attribute::Attribute() = default;
     Attribute::~Attribute() = default;
 
@@ -106,17 +120,10 @@ namespace housepi
         if (is_discrete() != other.is_discrete())
             return false;
 
-        switch (mode_)
-        {
-        case Mode::Numeric:
-            return value_ == other.value_;
-        case Mode::Pointer:
-            return pAttr_ == other.pAttr_;
-        case Mode::Function:
-            return pFunc_ == other.pFunc_;
-        default:
-            return true;
-        }
+        MAKE_ATTR_MODE(value_ == other.value_,
+                       pAttr_ == other.pAttr_,
+                       pFunc_ == other.pFunc_,
+                       true)
     }
 
     std::string Attribute::name() const { return name_pool_().at(name_id_); }
@@ -124,64 +131,47 @@ namespace housepi
 
     std::string Attribute::str_val() const
     {
-        switch (mode_)
-        {
-        case Mode::Numeric:
-            return str::format(value_);
-        case Mode::Pointer:
-            return pAttr_->str_val();
-        case Mode::Function:
-            if (pFunc_->is_callable_implicitly())
-                return str::format(pFunc_->evaluate());
-            return "<>";
-        default: // case Mode::Empty:
-            return str::format(na::DOUBLE);
-        }
+        MAKE_ATTR_MODE(str::format(value_),
+                       pAttr_->str_val(),
+                       "<>",
+                       str::format(na::DOUBLE))
     }
 
     bool Attribute::is_constant() const noexcept
     {
-        switch (mode_)
-        {
-        case Mode::Numeric:
-            return is_user_const_;
-        case Mode::Pointer:
-            return pAttr_->is_constant();
-        case Mode::Function:
-            return pFunc_->is_constant();
-        default: // case Mode::Empty:
-            return false;
-        }
+        MAKE_ATTR_MODE(is_user_const_,
+                       pAttr_->is_constant(),
+                       pFunc_->is_constant(),
+                       false)
     }
-
     bool Attribute::is_discrete() const noexcept
     {
-        switch (mode_)
-        {
-        case Mode::Numeric:
-            return value_ == std::floor(value_);
-        case Mode::Pointer:
-            return pAttr_->is_discrete();
-        case Mode::Function:
-            return pFunc_->is_discrete();
-        default: // case Mode::Empty:
-            return false;
-        }
+        MAKE_ATTR_MODE(value_ == std::floor(value_),
+                       pAttr_->is_discrete(),
+                       pFunc_->is_discrete(),
+                       false)
     }
-
+    bool Attribute::is_na() const noexcept
+    {
+        MAKE_ATTR_MODE(na::is(value_),
+                       pAttr_->is_na(),
+                       false,
+                       true)
+    }
     bool Attribute::is_callable() const noexcept
     {
-        switch (mode_)
-        {
-        case Mode::Numeric:
-            return !na::is(value_);
-        case Mode::Pointer:
-            return pAttr_->is_callable();
-        case Mode::Function:
-            return pFunc_->is_callable_implicitly();
-        default: // case Mode::Empty:
-            return false;
-        }
+        MAKE_ATTR_MODE(!na::is(value_),
+                       pAttr_->is_callable(),
+                       pFunc_->is_callable_implicitly(),
+                       false)
+    }
+    /// NOTE: the pointer branch is not inlineable.
+    double Attribute::value() const
+    {
+        MAKE_ATTR_MODE(value_,
+                       pAttr_->value(),
+                       pFunc_->evaluate(),
+                       na::DOUBLE)
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -298,21 +288,6 @@ namespace housepi
         else
             sms += err_name();
         msg::stop(sms + ".");
-    }
-
-    double Attribute::value() const
-    {
-        switch (mode_)
-        {
-        case Mode::Numeric:
-            return value_;
-        case Mode::Pointer:
-            return pAttr_->value(); // UPDATE: not inlineable
-        case Mode::Function:
-            return pFunc_->evaluate();
-        default: // case Mode::Empty:
-            return na::DOUBLE;
-        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -479,6 +454,18 @@ namespace housepi
                 (undefined_args.size() > 1 ? "s " : " ") +
                 str::format(undefined_args, false) +
                 " for " + err_name() + ".");
+    }
+
+    void Function::assert_location_matches_discrete() const
+    {
+        if (!is_discrete() || loc_.is_empty() || loc_.is_discrete())
+            return;
+
+        msg::stop(
+            msg::arg("loc") + " definition is incompatible with discrete " + err_name() + ".\n" +
+            (loc_.is_numeric()
+                 ? "Set location argument " + msg::arg("loc") + " from " + loc_.str_val() + " to integer."
+                 : "Change " + loc_.pointer()->err_name() + " to discrete " + msg::code("discr = TRUE") + "."));
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -663,7 +650,7 @@ namespace housepi
         else if (attr.is_constant())
         {
             double x = attr.value();
-            if (na::is(x) || (key == "x" && !is_valid(x)))
+            if (attr.is_na() || (key == "x" && !is_valid(x)))
                 msg::stop(
                     "Value " + str::format(x) + " for argument " + msg::arg(std::string(key)) +
                     " is outside of range " + str_range() + ".");
@@ -879,7 +866,7 @@ namespace
         SquareRoot_() : Function({}, 0.) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(SquareRoot_)
         HOUSEPI_OVERRIDE_NAME_METHOD(sqrt)
-        void init_truncation() override final { helper_init_range_min_(); }
+        void truncate() override final { helper_init_range_min_(); }
 
     protected:
         double raw_function_(double x) const override final { return std::sqrt(x); }
@@ -909,7 +896,7 @@ namespace
         Logarithm_() : Function({}, 0.) { below_mode_ = Mode::Interval::Open; }
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Logarithm_)
         HOUSEPI_OVERRIDE_NAME_METHOD(log)
-        void init_truncation() override final { helper_init_range_min_(0., true); }
+        void truncate() override final { helper_init_range_min_(0., true); }
 
     protected:
         double raw_function_(double x) const override final { return std::log(x); }
@@ -970,10 +957,10 @@ namespace
     public:
         bool is_discrete() const noexcept override final
         {
-            if (!x_arg_.is_discrete())
+            if (!x_arg_.is_na() && !x_arg_.is_discrete())
                 return false;
             for (const Attribute &attr : arguments_())
-                if (!attr.is_discrete())
+                if (!attr.is_na() && !attr.is_discrete())
                     return false;
             return true;
         }
@@ -1005,10 +992,10 @@ namespace
         void reduce_const_na_rm_(Op op)
         {
             Attribute *first_const = nullptr;
-            if (x_arg_.is_constant() && !na::is(x_arg_.value()))
+            if (x_arg_.is_constant() && !x_arg_.is_na())
                 first_const = &x_arg_;
             for (Attribute &attr : arguments_())
-                if (attr.is_constant() && !na::is(attr.value()))
+                if (attr.is_constant() && !attr.is_na())
                 {
                     if (first_const)
                         first_const->set(op(first_const->value(), attr.value()));

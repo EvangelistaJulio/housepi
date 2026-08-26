@@ -6,7 +6,9 @@
  */
 
 #ifndef _STANDALONE
+#include <cmath>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <exception>
 #include <stdexcept>
@@ -100,13 +102,34 @@ namespace
         return indiv.is_missing_status() ? NA_INTEGER : static_cast<int>(indiv.status());
     }
 
-    // Base class to wrap internal hosuepi functions
+    /// Return IntegerVector conversion of 'x' if discrete is a request.
+    /// Values are granted discrete, draw back to continuos if beyond max integer.
+    SEXP rcpp_typed_column(const Rcpp::NumericVector &input, bool discr)
+    {
+        static int machine_max_int = static_cast<double>(std::numeric_limits<int>::max());
+
+        if (!discr)
+            return input;
+        Rcpp::IntegerVector out(input.size());
+        for (R_xlen_t i = 0; i < input.size(); ++i)
+        {
+            if (ISNAN(input[i]))
+                out[i] = NA_INTEGER;
+            else if (std::abs(input[i]) > machine_max_int)
+                return input;
+            else
+                out[i] = static_cast<int>(input[i]);
+        }
+        return out;
+    }
+
+    /// Base class to wrap internal hosuepi functions.
     class ExposeBase
     {
     public:
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
+        /////////////////////
+        ///  CONSTRUCTOR  ///
+        /////////////////////
 
         ExposeBase(
             std::string name,
@@ -116,9 +139,9 @@ namespace
               family_(family) {}
         virtual ~ExposeBase() = default;
 
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        ////////////////
+        ///  SETTER  ///
+        ////////////////
 
         void init(SEXP args_, double min, double max, bool is_discr)
         {
@@ -140,15 +163,12 @@ namespace
             if (!na::is(max))
                 ptr_->init_attr("max", Attribute(max));
 
-            if (is_discr)
-                ptr_->init_discretization();
-            ptr_->init_truncation();
-            ptr_->assert_is_callable_explicitly();
+            ptr_->reshape(is_discr);
         }
 
-        //////////////////////
-        //////  GETTER  //////
-        //////////////////////
+        ////////////////
+        ///  GETTER  ///
+        ////////////////
 
         Rcpp::NumericVector args() const
         {
@@ -256,9 +276,9 @@ namespace
         MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
         MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile(v))
 
-        /// Sample n random draws. Seed is drawn from R's RNG so that
-        /// set.seed() in R controls the result.
-        Rcpp::NumericVector rand(int n) const
+        /// Sample n random draws. Integer-typed on a discrete distribution.
+        /// NOTE: seed is drawn from R so that set.seed() controls the result.
+        SEXP rand(int n) const
         {
             try
             {
@@ -276,7 +296,7 @@ namespace
                 Rcpp::NumericVector y(n);
                 for (int i = 0; i < n; ++i)
                     y[i] = distr_()->rand(prng);
-                return y;
+                return rcpp_typed_column(y, ptr_->is_discrete());
             }
             catch (const std::exception &e)
             {
@@ -568,10 +588,16 @@ namespace
                 ++row;
             }
 
+        // NOTE: discrete_export_cols starts with list_augm_export.
+        const std::vector<bool> discr_cols = augm.discrete_export_cols();
+
         Rcpp::List output = helper_export_data_wide(data_wide, data_names, true);
         size_t i = 0;
         for (size_t a : augm.list_augm_export)
-            output[augm.khold(a)] = augm_cols[i++];
+        {
+            output.push_back(rcpp_typed_column(augm_cols[i], discr_cols[i]), augm.khold(a));
+            ++i;
+        }
         return Rcpp::DataFrame(output);
     }
 
@@ -1122,11 +1148,17 @@ namespace
                 df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, indiv_i));
         }
 
+        // NOTE: discrete_export_cols starts with list_augm_export.
+        const std::vector<bool> discr_cols = augm.discrete_export_cols();
+
         Rcpp::List output;
-        output["id"] = id_col;
+        output.push_back(id_col, "id");
         size_t i = 0;
         for (size_t a : augm.list_augm_export)
-            output.push_back(df_double[i++], augm.khold(a));
+        {
+            output.push_back(rcpp_typed_column(df_double[i], discr_cols[i]), augm.khold(a));
+            ++i;
+        }
 
         return Rcpp::DataFrame(output);
     }
@@ -1145,7 +1177,7 @@ namespace
             return Rcpp::List::create(
                 Rcpp::_["data_wide"] = rcpp_snapshot_data_wide(mcmc_ptr, house),
                 Rcpp::_["data_long"] = rcpp_snapshot_data_long(mcmc_ptr, house),
-                Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),                
+                Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),
                 Rcpp::_["group_risks"] = rcpp_snapshot_group_risks(mcmc_ptr, house),
                 Rcpp::_["contact_risks"] = rcpp_snapshot_contact_risks(mcmc_ptr, house),
                 Rcpp::_["augmented"] = helper_augm_rcpp_snapshot(mcmc_ptr, house),
@@ -1237,6 +1269,7 @@ namespace
         Rcpp::DataFrame build_simulated(const Rcpp::List &shared_df,
                                         const Rcpp::IntegerVector &status_col,
                                         const std::vector<Rcpp::NumericVector> &augm_cols,
+                                        const std::vector<bool> &discr_cols,
                                         const Rcpp::CharacterVector &sim_names)
         {
             // build simulated list
@@ -1247,7 +1280,8 @@ namespace
                 sim_list[i] = shared_df[i];
             sim_list[n_shared] = status_col;
             for (size_t c = 0; c < n_augm_cols; ++c)
-                sim_list[n_shared + 1 + static_cast<int>(c)] = augm_cols[c];
+                sim_list[n_shared + 1 + static_cast<int>(c)] =
+                    rcpp_typed_column(augm_cols[c], discr_cols[c]);
             sim_list.attr("names") = sim_names;
             return Rcpp::DataFrame(sim_list);
         }
@@ -1307,12 +1341,14 @@ namespace
             // pre-allocate mutable output columns once (reused across iterations):
             // exported augmented, observation and surrogate columns
             Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
-            std::vector<Rcpp::NumericVector> augm_cols(
-                augm.list_augm_export.size() +
-                augm.list_obs_member.size() +
-                augm.n_own_columns());
+
+            std::vector<Rcpp::NumericVector> augm_cols(augm.n_export_cols());
             for (size_t c = 0; c < augm_cols.size(); ++c)
                 augm_cols[c] = Rcpp::NumericVector(data_wide.report_indiv.total);
+
+            // flags for discrete columns
+            // NOTE: variables are bound after first repepetion
+            std::vector<bool> discr_cols(augm_cols.size(), false);
 
             ///////////////////////////
             //////  Simulations  //////
@@ -1329,9 +1365,12 @@ namespace
                 simulate::single_repetition(
                     engine, status_col, augm_cols, row_offsets);
 
+                if (r == 0)
+                    discr_cols = augm.discrete_export_cols();
+
                 // build simulated list
                 Rcpp::DataFrame simulated(simulate::build_simulated(
-                    shared_df, status_col, augm_cols, sim_names));
+                    shared_df, status_col, augm_cols, discr_cols, sim_names));
 
                 // observation process
                 if (f_obs_process)
@@ -1437,6 +1476,12 @@ namespace
 
     MAKE_EXPORT_DISCRETE_KEYS(key_Param_discrete, param)
     MAKE_EXPORT_DISCRETE_KEYS(key_Augm_discrete, augm)
+
+    /// Data columns the model requests as discrete (data_wide is an accessor).
+    Rcpp::CharacterVector key_Data_discrete(Rcpp::XPtr<housepi::MCMC> mcmc_ptr)
+    {
+        return Rcpp::wrap(mcmc_ptr->data_wide().discrete_keys());
+    }
 
     Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
     {
@@ -1634,6 +1679,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("key_Augm", &key_Augm);
     Rcpp::function("key_Param_discrete", &key_Param_discrete);
     Rcpp::function("key_Augm_discrete", &key_Augm_discrete);
+    Rcpp::function("key_Data_discrete", &key_Data_discrete);
 
     Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
     Rcpp::function("measure_ar_by_hhsize", &measure_ar_by_hhsize);
