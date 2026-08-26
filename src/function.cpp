@@ -14,6 +14,7 @@
 
 #include "tools/messages.h"
 #include "tools/nan.h"
+#include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/string.h"
 #include "tools/types.h"
@@ -373,11 +374,14 @@ namespace housepi
             msg::stop(
                 "Unnamed argument passed to " + err_name() + ".");
 
-        // else format the error showing options from every parametrization
-        std::vector<std::string> options = {"x", "loc", "min", "max"};
-        for (const AltArgSet &alt : alts_)
-            for (const Attribute &attr : alt.args)
-                options.emplace_back(attr.name());
+        // keys a definition call can carry:
+        std::vector<std::string> options;
+        for (size_t i = 0; i < alts_.size(); ++i)
+            // parametrization the user has picked excludes the others
+            if (!is_user_alt_ || i == static_cast<size_t>(alt_idx_))
+                for (const Attribute &attr : alts_[i].args)
+                    options.emplace_back(attr.name());
+        options += {"loc", "min", "max", "x"};
         msg::stop(
             "Unused argument " + msg::arg(std::string(key)) + " in " + err_name() + "." +
             str::find_closest(key, options));

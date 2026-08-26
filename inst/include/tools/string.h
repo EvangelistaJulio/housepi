@@ -47,7 +47,8 @@ namespace housepi::str
     /// Drop hidden strings from list.
     std::vector<std::string> drop_hidden(std::vector<std::string> v);
 
-    /// Find the closest match.
+    /// Find the closest match, or list the options when none is close enough.
+    /// The accepted distance is capped by half the length of the input.
     /// NOTE: I find 'show all available options' annoying at the moment...
     std::string find_closest(std::string_view input,
                              const std::vector<std::string> &options,

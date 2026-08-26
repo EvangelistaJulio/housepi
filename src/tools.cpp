@@ -339,21 +339,23 @@ namespace housepi::str
                              const std::vector<std::string> &options,
                              size_t min_dist)
     {
-        std::string closest = "";
-        size_t dist_closest = min_dist;
-
-        if (options.empty() || min_dist == 0)
+        if (options.empty())
             return "";
 
-        for (const std::string &x : options)
-        {
-            size_t d = helper_levenshtein_(input, x);
-            if (d <= dist_closest)
+        std::string closest = "";
+        // shorer inputs tolerate fewer edits
+        size_t dist_closest = std::min(min_dist, input.size() / 2);
+
+        if (dist_closest > 0)
+            for (const std::string &x : options)
             {
-                dist_closest = d;
-                closest = x;
+                const size_t d = helper_levenshtein_(input, x);
+                if (d <= dist_closest)
+                {
+                    dist_closest = d;
+                    closest = x;
+                }
             }
-        }
 
         // prepare a message
         if (!closest.empty())

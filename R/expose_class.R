@@ -427,9 +427,9 @@ template_helper_ <- paste(
 )
 
 # Guard the inline (`...`) bulk form.
-assert_bulk_defs_ <- function(dots, has_template = FALSE) {
+assert_bulk_defs_ <- function(family, dots, has_template = FALSE) {
   if (length(dots) > 0L) return(dots)
-  sms <- c("No definitions provided.", definition_helper_)
+  sms <- c("No {family} definitions provided.", definition_helper_)
   if (isTRUE(has_template)) sms <- c(sms, template_helper_)
   stop_h(sms)
 }
@@ -556,7 +556,7 @@ add_parameter <- function(hhmodel,
   )
   #> multiple mode
   else pvt$param_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...), TRUE),
+    assert_bulk_defs_(pvt$param_$family, rlang::enquos(...), TRUE),
     append = append
   )
   pvt$rebuild_()
@@ -632,7 +632,7 @@ add_augmented <- function(hhmodel,
   )
   #> multiple mode
   else pvt$augm_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...), TRUE),
+    assert_bulk_defs_(pvt$augm_$family, rlang::enquos(...), TRUE),
     append = append, status = status
   )
   pvt$rebuild_()
@@ -702,7 +702,7 @@ add_observation <- function(hhmodel, name = NULL,
   )
   #> multiple mode
   else pvt$augm_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...)),
+    assert_bulk_defs_(kind2family(level), rlang::enquos(...)),
     append = append, status = status, .kind = level
   )
   pvt$rebuild_()
@@ -807,7 +807,7 @@ add_group_risk <-  function(hhmodel,
   )
   #> multiple mode
   else pvt$group_risks_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...)),
+    assert_bulk_defs_(pvt$group_risks_$family, rlang::enquos(...)),
     append = append
   )
   pvt$rebuild_()
@@ -930,7 +930,8 @@ add_infectivity_profile <- function(hhmodel,
   )
   #> multiple mode
   else pvt$infec_profile_$add_quo_list(
-    assert_bulk_defs_(rlang::enquos(...), has_template = TRUE),
+    assert_bulk_defs_(pvt$infec_profile_$family, rlang::enquos(...),
+                      has_template = TRUE),
     append = append
   )
   pvt$rebuild_()

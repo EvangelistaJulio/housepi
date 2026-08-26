@@ -41,6 +41,18 @@ test_that("Find closest match suggests close options", {
   expect_equal(find_closest_match("x", character(0)), c())
 })
 
+test_that("A warning is signalled without being deferred", {
+  deferral <- NA_integer_
+  withCallingHandlers(
+    warn_h("kept you waiting huh"),
+    warning = function(w) {
+      deferral <<- getOption("warn")
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_equal(deferral, 1)
+})
+
 test_that("Deep clone helper work as expected on default types", {
   # scalar passthrough
   expect_equal(helper_clone(42), 42)

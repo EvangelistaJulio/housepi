@@ -57,9 +57,10 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   if (level == "stop") cli::cli_abort(
     bullets, call = NULL, class = "housepi_stop", .envir = .envir
   )
-  else cli::cli_warn(
+  # display at emission time, so warning are not deferred past the errors
+  else withr::with_options(list(warn = 1), cli::cli_warn(
     bullets, call = NULL, class = "housepi_warn", .envir = .envir
-  )
+  ))
 }
 
 #' Stop execution with a harmonized, cli-rendered error.
@@ -99,10 +100,7 @@ with_cpp_conditions <- function(expr) {
     }),
     warning = function(w) {
       if (inherits(w, "housepi_warn")) return(invisible())
-      # display in order at emission time, so a warning followed by an error in
-      # the same C++ call is not deferred past that error.
-      withr::with_options(list(warn = 1),
-                          reemit(w, "warn", inherits(w, "housepi_cpp_warning")))
+      reemit(w, "warn", inherits(w, "housepi_cpp_warning"))
       invokeRestart("muffleWarning")
     }
   )
