@@ -45,23 +45,26 @@ namespace housepi
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////// *** ModelRegistry : class ***  //////////////////////////////
+    /////////////////////////////////  *** registry::RegModels : class ***  ////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    ModelRegistry &ModelRegistry::instance()
+    namespace registry
     {
-        static ModelRegistry _inst;
-        return _inst;
-    }
+        RegModels &RegModels::instance()
+        {
+            static RegModels _inst;
+            return _inst;
+        }
 
-    std::unique_ptr<ModelBase> ModelRegistry::create(std::string_view name) const
-    {
-        auto it = factory_map_.find(name);
-        if (it == factory_map_.end())
-            msg::stop(
-                "Model registration failed: unknown model " + msg::val(std::string(name)) + ".\n");
-        return it->second();
+        std::unique_ptr<ModelBase> RegModels::create(std::string_view name) const
+        {
+            auto it = factory_map_.find(name);
+            if (it == factory_map_.end())
+                msg::stop(
+                    "Model registration failed: unknown model " + msg::val(std::string(name)) + ".\n");
+            return it->second();
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,10 +129,15 @@ namespace housepi
         const Individual *indiv_ptr) const
     {
         Attribute parent;
-        parent.init_function(compose_func_registries(
-            node.func, ErrType::Function,
-            {Registry::Custom, Registry::Transcendental, Registry::Arithmetic,
-             Registry::Continuos, Registry::Discrete, Registry::InfecProfile}));
+        parent.init_function(registry::create_function(
+            node.func,
+            ErrType::Function,
+            {registry::Kind::Custom,
+             registry::Kind::Transcendental,
+             registry::Kind::Arithmetic,
+             registry::Kind::Continuous,
+             registry::Kind::Discrete,
+             registry::Kind::InfecProfile}));
 
         for (const auto &child : node.children)
             parent.init_func_attr(child.key, to_attribute(child, indiv_ptr));
@@ -432,7 +440,7 @@ namespace housepi
         void assert_zero_at_origin(const Function &f, bool is_discr_requested)
         {
             // skip for hand-written infectivity profiles
-            if (!is_discr_requested && InfecProfileRegistry::instance().count(f.name()))
+            if (!is_discr_requested && registry::instance(registry::Kind::InfecProfile).contains(f.name()))
                 return;
 
             // UPDATE: skip if unresolved
@@ -460,7 +468,7 @@ namespace housepi
         if (!infec_profile.generic && !infec_profile.is_augmented())
             return;
 
-        bool is_discr = infec_profile.is_discrete_requested();
+        bool is_discr = infec_profile.is_required_discrete();
 
         if (infec_profile.generic)
             infprof::assert_zero_at_origin(*infec_profile.generic, is_discr);
@@ -614,7 +622,7 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
     MCMC::MCMC(std::string_view model_name)
-        : model(ModelRegistry::instance().create(model_name))
+        : model(registry::RegModels::instance().create(model_name))
     {
         init_key_holder(model->key_Data(),
                         model->key_HHmember(),

@@ -83,6 +83,7 @@ expect_distribution_matches <- function(name, args,
 ################################################################################
 
 test_that("Available names listing is stable", {
+  # "uniform" is carried by both distribution registries and must be listed once
   expect_snapshot(browse_functions())
   expect_snapshot(browse_distributions())
   expect_snapshot(browse_infectivity_profiles())
@@ -358,6 +359,63 @@ test_that("Truncated discrete rand() reaches every bin of the support", {
                                 min = min(i), max = max(i), discr = TRUE)
   expect_draws_match_pdf(distr, i)
   expect_identical(max(distr$rand(2e4L)), max(i))
+})
+
+test_that("Discrete uniform spreads flat mass over the whole values", {
+  k <- 0:10
+  distr <- browse_distributions("uniform", min = min(k), max = max(k), discr = TRUE)
+
+  # every whole value in the range carries the same mass
+  expect_equal(distr$pdf(k), rep(1 / length(k), length(k)))
+  expect_equal(sum(distr$pdf(k)), 1)
+  expect_equal(distr$log_pdf(k), rep(-log(length(k)), length(k)))
+  expect_equal(distr$pdf(c(-1, 11)), c(0, 0))
+
+  # the cumulative closes on the last atom, and is the running mass
+  expect_equal(distr$cdf(k), cumsum(distr$pdf(k)))
+  expect_equal(distr$cdf(max(k)), 1)
+
+  # flat mass leaves every move even
+  expect_equal(distr$log_ratio(c(0, 5), c(10, 6)), c(0, 0))
+
+  # the quantile is the first atom whose cumulative reaches p
+  p <- c(0.01, 0.25, 0.5, 0.75, 0.99)
+  expect_equal(distr$quantile(p), vapply(p, function(q) k[which(cumsum(distr$pdf(k)) >= q)[1]], 0))
+
+  # the default range is a coin flip
+  coin <- browse_distributions("uniform", discr = TRUE)
+  expect_equal(coin$pdf(0:1), c(0.5, 0.5))
+  expect_equal(coin$cdf(0:1), c(0.5, 1))
+
+  # 'loc' carries the atoms without reshaping them
+  browse_distributions("uniform", min = 0, max = 10, loc = 100, discr = TRUE)$pdf(100 + k) |>
+    expect_equal(distr$pdf(k))
+})
+
+test_that("Discrete uniform draws match its mass and stay whole", {
+  set.seed(1998L)
+  k <- 0:10
+  distr <- browse_distributions("uniform", min = min(k), max = max(k), discr = TRUE)
+
+  draws <- distr$rand(2e4L)
+  expect_type(draws, "integer")
+  expect_identical(range(draws), range(k))
+  freq <- as.vector(table(factor(draws, levels = k))) / length(draws)
+  expect_equal(freq, distr$pdf(k), tolerance = 0.05)
+})
+
+test_that("An argument off the whole values is refused where one is required", {
+  # the flat lattice law owns every whole value in its range
+  browse_distributions("uniform", min = 0.5, max = 3.2, discr = TRUE) |>
+    expect_error("min.*uniform.*discrete")
+  browse_distributions("uniform", min = 0, max = 3.2, discr = TRUE) |>
+    expect_error("max.*uniform.*discrete")
+
+  # a count of trials or successes is whole whatever the support looks like
+  browse_distributions("binomial", size = 10.5, prob = 0.5) |>
+    expect_error("size.*binomial.*discrete")
+  browse_distributions("negative_binomial", size = 5.5, prob = 0.5) |>
+    expect_error("size.*negative_binomial.*discrete")
 })
 
 test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
@@ -825,9 +883,9 @@ test_that("Discrete draws from rand() have type integer", {
 
 test_that("Location off the integers is refused when discrete", {
   browse_distributions("poisson", lambda = 3, loc = 0.5) |>
-    expect_error("[Ss]et.*location.*integer")
+    expect_error("[Ss]et.*`loc`.*integer")
   browse_distributions("gamma", shape = 2, discr = TRUE, loc = -1.5) |>
-    expect_error("[Ss]et.*location.*integer")
+    expect_error("[Ss]et.*`loc`.*integer")
   # an integer shift, and a fractional bound that only truncates, are fine
   browse_distributions("poisson", lambda = 3, loc = -2) |> expect_no_error()
   browse_distributions("poisson", lambda = 3, min = 0.5) |> expect_no_error()

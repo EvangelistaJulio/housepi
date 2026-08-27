@@ -234,10 +234,11 @@ test_that("non-zero profile for day-0 is always refused in discrete time", {
 
 test_that("shifting a profile with 'loc' matches the explicit bounds", {
   # the support is loc + [min, max]: both spellings place it on
-  # [.incub_period, .incub_period + 2]
+  # [.incub_period, .incub_period + 2]. The follow-up stops at day 6, so a
+  # profile reaching past it loses the mass it puts outside
   outer_heaven <- data.frame(
     id = c("venom", "kaz", "ocelot"), house_id = "outer_heaven",
-    status = c(1, 1, 0), start_date = 0, end_date = 20
+    status = c(1, 1, 0), start_date = 0, end_date = 6
   ) |>
     new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>

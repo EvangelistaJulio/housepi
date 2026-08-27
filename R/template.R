@@ -58,11 +58,9 @@ is_dll_loaded <- function(dll) {
 }
 
 # Load model DLL if not already loaded.
-# Auto-registration in the DLL's static init populates the ModelRegistry.
+# NOTE: auto-registration in the DLL's static init populates the model registry.
 load_model_dll_ <- function(dll) {
-  if (!is.null(dll) && !is.na(dll) && !is_dll_loaded(dll)) {
-    dyn.load(dll)
-  }
+  if (!is.null(dll) && !is.na(dll) && !is_dll_loaded(dll)) dyn.load(dll)
 }
 
 #' @title

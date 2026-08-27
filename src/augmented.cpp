@@ -122,7 +122,8 @@ namespace housepi
     void InfecProfile::build_generic_(Translator &translator, const str_table &input)
     {
         mode_ = Mode::Generic;
-        generic = helper_build_(translator, input.at("func")[0]);
+        const bool is_discr = is_required_discrete_ || str::tobool(input.at("discr")[0]);
+        generic = helper_build_(translator, input.at("func")[0], is_discr);
         lookup_.clear();
         augm_definitions.clear();
 
@@ -134,7 +135,7 @@ namespace housepi
             generic->init_attr("max", translator.to_attribute(input.at("max")[0]));
 
         // discretization and range truncation
-        generic->reshape(is_discr_requested_ || str::tobool(input.at("discr")[0]));
+        generic->reshape(is_discr);
 
         // if discrete and generic, initializes lookup table
         if (generic->is_discrete())
@@ -163,10 +164,11 @@ namespace housepi
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
         {
             // a discrete-time model discretizes whatever profile it is handed
-            bool discr = is_discr_requested_ || str::tobool(input.at("discr")[r]);
+            bool discr = is_required_discrete_ || str::tobool(input.at("discr")[r]);
 
             // check profile name and discretization
-            auto probe = helper_build_(translator, parse::Definition(input.at("func")[r]).root.func);
+            const std::string &func_name = parse::Definition(input.at("func")[r]).root.func;
+            auto probe = helper_build_(translator, func_name, discr);
             if (discr)
                 probe->discretize();
 
@@ -186,14 +188,17 @@ namespace housepi
     }
 
     std::unique_ptr<Distribution> InfecProfile::helper_build_(Translator &translator,
-                                                              const std::string &func)
+                                                              const std::string &func,
+                                                              bool discr)
     {
         parse::Definition parser(func);
 
-        std::unique_ptr<Distribution> output = compose_distr_registries(
-            parser.root.func,
-            ErrType::InfecProfile,
-            {Registry::InfecProfile, Registry::Continuos, Registry::Discrete});
+        std::vector<registry::Kind> kinds = {registry::Kind::InfecProfile};
+        for (registry::Kind r : registry::distr_kinds(discr))
+            kinds.push_back(r);
+
+        std::unique_ptr<Distribution> output = registry::create_distribution(
+            parser.root.func, ErrType::InfecProfile, kinds);
 
         for (const auto &node : parser.root.children)
         {
@@ -216,11 +221,17 @@ namespace housepi
 
     void Augmented::request_transmission(std::vector<size_t> vec) { union_append(user_transm_vec_, vec); }
 
-    /// Registries searched when composing an augmented / household-observation
+    /// Kinds searched when composing an augmented / household-observation
     /// reduction function (shared by per-member and per-household builders).
-    static const std::vector<Registry> AUGM_FUNC_REGISTRIES = {
-        Registry::Custom, Registry::Transcendental, Registry::Arithmetic,
-        Registry::Continuos, Registry::Discrete, Registry::InfecProfile};
+    static std::vector<registry::Kind> augm_func_kinds(bool discr)
+    {
+        std::vector<registry::Kind> out = {registry::Kind::Custom,
+                                           registry::Kind::Transcendental,
+                                           registry::Kind::Arithmetic};
+        out += registry::distr_kinds(discr);
+        out.push_back(registry::Kind::InfecProfile);
+        return out;
+    }
 
     /// Error-message family of a definition row's level.
     static ErrType kind_to_err_type(Augmented::Kind kind)
@@ -347,7 +358,7 @@ namespace housepi
         infec_profile.bind_augm(this); // for runtime per-member profile resolution
 
         // append discrete infectivity profile definitions if any
-        if (infec_profile.is_discrete_requested())
+        if (infec_profile.is_required_discrete())
             request_discrete({infec_profile.augm_key});
     }
 
@@ -1265,8 +1276,11 @@ namespace housepi
             }
 
             // function mode: compose it once
-            var.init_function(compose_func_registries(
-                parser.root.func, ErrType::Function, AUGM_FUNC_REGISTRIES,
+            const bool is_discr = str::tobool(deftable_.c_discr[k]);
+            var.init_function(registry::create_function(
+                parser.root.func,
+                ErrType::Function,
+                augm_func_kinds(is_discr),
                 str::tobool(deftable_.c_fcumul[k])));
 
             // a surrogate member-observation materializes a data column for every member:
@@ -1299,7 +1313,7 @@ namespace housepi
             // range and reshaping
             var.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &anchor));
             var.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &anchor));
-            var.reshape_function(str::tobool(deftable_.c_discr[k]));
+            var.reshape_function(is_discr);
         }
         catch (const std::exception &e)
         {
@@ -1556,7 +1570,8 @@ namespace housepi
         Variable &avar = varia_of_(indiv).vec[khold(astr)];
         parse::Definition parser(deftable_.c_model[k]);
 
-        avar.init_distr(parser.root.func);
+        const bool is_discr = str::tobool(deftable_.c_discr[k]);
+        avar.init_distr(parser.root.func, is_discr);
 
         if (!avar.has_distr())
             return;
@@ -1564,7 +1579,7 @@ namespace housepi
             avar.init_distr_attr(child.key, mcmc_->translator.to_attribute(child, &indiv));
         avar.init_distr_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &indiv));
         avar.init_distr_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &indiv));
-        avar.reshape_distribution(str::tobool(deftable_.c_discr[k]));
+        avar.reshape_distribution(is_discr);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////

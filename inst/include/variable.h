@@ -18,7 +18,9 @@
 #include "tools/nan.h"
 #include "tools/random.h"
 
+#include "distribution.h"
 #include "function.h"
+#include "proposal.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,9 +30,6 @@
 
 namespace housepi
 {
-    class Distribution;
-    class Proposal;
-
     class Variable final : public Attribute
     {
     public:
@@ -61,17 +60,17 @@ namespace housepi
         }
 
         /// Assign an attribute to function.
-        void init_func_attr(std::string_view key, const Attribute &attr);
+        void init_func_attr(std::string_view key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
         /// Finalize reshaping of function.
         /// Drop function if it's constant when reshaping.
         /// NOTE: discretization of model has priority
         /// e. g. user discr is FALSE, but discrete-defined model
-        void reshape_function(bool discr);
+        void reshape_function(bool discr) { pFunc_->reshape(discr); }
 
         /// Initialize pointer to distribution.
-        void init_distr(std::string_view opt);
+        void init_distr(std::string_view opt, bool discr);
         /// Assign an attribute to distribution.
-        void init_distr_attr(std::string_view key, const Attribute &attr);
+        void init_distr_attr(std::string_view key, const Attribute &attr) { pDistr_->init_attr(key, attr); }
         /// Finalize reshaping of distribution.
         /// NOTE: to be called necessarily.
         void reshape_distribution(bool discr);
@@ -100,11 +99,14 @@ namespace housepi
         /////////////////////
 
         /// Wheter the variable is discrete.
-        bool is_discrete() const noexcept override final;
+        bool is_discrete() const noexcept override final
+        {
+            return has_distr() ? pDistr_->is_discrete() : Attribute::is_discrete();
+        }
         /// Wheter the variable has a distribution associated.
-        bool has_distr() const noexcept;
+        bool has_distr() const noexcept { return pDistr_ != nullptr; }
         /// Wheter the variable has an adaptive parametric proposal rule.
-        bool is_adaptive() const noexcept;
+        bool is_adaptive() const noexcept { return pProp_ && pProp_->is_adaptive(); }
 
         ///////////////////////////////////
         //////  METROPOLIS-HASTINGS  //////
@@ -112,22 +114,35 @@ namespace housepi
 
         /// Set new proposal internally and store old value.
         /// NOTE: tentatively credits the move as accepted.
-        void propose(rnd_gen &prng);
+        void propose(rnd_gen &prng) { set(pProp_->propose(prng, value_)); }
         /// Check whether last propose move stored a valid value.
-        bool is_valid_move() const;
+        bool is_valid_move() const
+        {
+            switch (valid_mode_)
+            {
+            case Validity::Check:
+                return pDistr_->is_valid(value_);
+            default: // case Validity::Always:
+                return true;
+            }
+        }
         /// Recover old value and roll back the tentative accept rate update.
-        void recover() noexcept;
+        void recover() noexcept
+        {
+            value_ = old_;
+            pProp_->recover();
+        }
 
         /// Log-pdf of the inherent distribution field.
         /// It assumes current value field is valid (used to avoid double checks).
-        double log_pdf() const;
+        double log_pdf() const { return pDistr_->log_pdf(value_); }
         /// Guarded log-pdf guarded.
         /// Returns -Inf when the value is not valid (used when move not granted valid).
-        double guarded_log_pdf() const;
+        double guarded_log_pdf() const { return pDistr_->guarded_log_pdf(value_); }
         /// Log-ratio between new and old values.
         /// It assumes the pdf arguemnts (included support) did not change.
-        double log_ratio() const;
-        double proposal_log_ratio() const;
+        double log_ratio() const { return pDistr_->log_ratio(old_, value_); }
+        double proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
         /// Log-ratio of distributions, minus log-ratio of proposals for last move.
         double get_move_log_ratio() const
         {
@@ -141,11 +156,11 @@ namespace housepi
         }
 
         /// Reset the acceptance rate estimate.
-        void reset_accept_rate() noexcept;
+        void reset_accept_rate() noexcept { pProp_->reset_accept_rate(); }
         /// Adapt the proposal rule from the acceptance estimate.
-        void adapt_proposal(double ratio);
-        static void set_adapt_smoothing(double s) noexcept;
-        static double get_adapt_smoothing() noexcept;
+        void adapt_proposal(double ratio) { pProp_->adapt(ratio); }
+        static void set_adapt_smoothing(double s) noexcept { AdaptableProposal::set_smoothing(s); }
+        static double get_adapt_smoothing() noexcept { return AdaptableProposal::get_smoothing(); }
 
     private:
         enum class Validity : std::uint8_t
@@ -168,7 +183,7 @@ namespace housepi
         //////  HELPERS  //////
         ///////////////////////
 
-        /// Assert that range is non-degenerate.
+        /// Assert that range of non-constant variable is not degenerate (non-zero).
         void helper_assert_non_degenerate_range_();
 
         /// Initialize null proposal.

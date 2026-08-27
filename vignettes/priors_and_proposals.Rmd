@@ -223,7 +223,8 @@ They come in two families.
 
 * **rw**: Gaussian increments;
 * **rw_log**: multiplicative log-normal increments (not appropriate for negative values);
-* **rw_unif**: uniform (bounded) increments inside a window.
+* **rw_unif**: uniform (bounded) increments inside a window,
+  stepping over whole values on a discrete variable.
 
 Only the random walks are adaptable:
 By default, housepi tunes the scale on the fly to target an acceptance rate of 44%.

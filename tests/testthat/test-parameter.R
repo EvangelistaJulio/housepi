@@ -254,6 +254,21 @@ test_that("Discretization is enabled as expected", {
   expect_true(all(y == floor(y)))
   expect_true(all(y >= val$min))
   expect_true(all(y <= val$max))
+
+  # a discrete uniform window narrower than one whole value would leave the
+  # 'rw_unif' kernel pinned to its starting point
+  expect_gt(length(unique(y[, "uniform"])), 1L)
+})
+
+test_that("A discrete prior resolves 'uniform' to the discrete distribution", {
+  hhmodel <- new_housepi_model(model = "test")
+
+  # the flat lattice law owns every whole value in the range, so a bound off
+  # the lattice has no reading
+  hhmodel |>
+    add_parameter(theta = list(prior = "uniform", min = 0.5, discr = TRUE)) |>
+    evaluate_log_lik() |>
+    expect_error("min.*uniform.*discrete")
 })
 
 test_that("Parameter defined as a function tracks its dependencies", {

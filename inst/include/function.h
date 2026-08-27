@@ -279,6 +279,7 @@ namespace housepi
 
             assert_is_callable_explicitly();
             assert_location_matches_discrete();
+            assert_discrete_args();
         }
 
         /// Select primitive method for implicit evaluate.
@@ -392,6 +393,8 @@ namespace housepi
         void assert_is_callable_explicitly() const;
         /// Throw exception if discrete and location do not match.
         void assert_location_matches_discrete() const;
+        /// Throw exception if a declared argument does not hold a whole value.
+        void assert_discrete_args() const;
 
         /// Returns TRUE if value x is below range minimum.
         bool is_below(double x) const
@@ -486,6 +489,10 @@ namespace housepi
 
         /// Helper to raise call if undefined virtual methods are called.
         [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
+
+        /// Attributes that must hold whole values, whatever the support looks like.
+        /// NOTE: read once, when the definition is reshaped.
+        virtual std::vector<const Attribute *> discrete_args_() const { return {}; }
 
         /// Raw method to call.
         virtual double raw_function_(double /*x*/) const = 0;

@@ -372,7 +372,7 @@ HousepiGenerator <- R6::R6Class(
     # Generate flags used for environment compilation.
     build_compile_flags_ = function(paths = NULL, flags = NULL, libs = NULL) {
       flags <- c(
-        # flag to pass the model name for ModelRegistry auto-registration
+        # flag to pass the model name for model factory auto-registration
         paste0("_HOUSEPI_MODULE=", get_template_from_dll(private$dll_)),
         flags
       )

@@ -45,73 +45,69 @@ namespace housepi
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////// *** DistributionRegistry : class ***  ///////////////////////////
+    ////////////////////////////  *** registry::RegDistributions : class ***  //////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::unique_ptr<Function> DistributionRegistry::create(std::string_view opt, bool is_prim) const
+    namespace registry
     {
-        auto it = factory_map_.find(opt);
-        if (it == factory_map_.end())
-            return nullptr;
-
-        auto output = it->second();
-        if (is_prim)
-            output->set_eval_as_cdf();
-        else
-            output->set_eval_as_pdf();
-
-        return output;
-    }
-
-    namespace
-    {
-        /// Resolve a registry to its singleton instance.
-        /// Registries holding plain functions are rejected.
-        const DistributionRegistry &distr_registry_instance_(Registry r, ErrType err_type)
+        std::unique_ptr<Function> RegDistributions::create(std::string_view name, bool is_cumul) const
         {
-            switch (r)
+            auto it = factory_map_.find(name);
+            if (it == factory_map_.end())
+                return nullptr;
+
+            auto output = it->second();
+            if (is_cumul)
+                output->set_eval_as_cdf();
+            else
+                output->set_eval_as_pdf();
+
+            return output;
+        }
+
+        namespace
+        {
+            /// Resolve a kind to its singleton registry.
+            /// Kinds holding plain functions are rejected.
+            const RegDistributions &distr_instance_(Kind kind, ErrType err_type)
             {
-            case Registry::Continuos:
-                return ContinuosDistribRegistry::instance();
-            case Registry::Discrete:
-                return DiscreteDistribRegistry::instance();
-            case Registry::InfecProfile:
-                return InfecProfileRegistry::instance();
-            default:
-                msg::stop("Registry does not hold " + err_type_name(err_type) + " objects.");
+                switch (kind)
+                {
+                case Kind::Continuous:
+                case Kind::Discrete:
+                case Kind::InfecProfile:
+                    return static_cast<const RegDistributions &>(instance(kind));
+                default:
+                    msg::stop("Registry does not hold " + err_type_name(err_type) + " objects.");
+                }
             }
         }
-    }
 
-    std::unique_ptr<Distribution> compose_distr_registries(std::string_view opt,
-                                                           ErrType err_type,
-                                                           const std::vector<Registry> &registries,
-                                                           bool is_cumul)
-    {
-        if (registries.empty())
-            msg::stop(
-                "No registries were provided for " + err_type_name(err_type) + ".");
-
-        // UPDATE: is this ever used?
-        if (na::is(opt))
-            return nullptr;
-
-        std::vector<std::string> options = {};
-        for (Registry reg : registries)
+        std::unique_ptr<Distribution> create_distribution(std::string_view name,
+                                                          ErrType err_type,
+                                                          const std::vector<Kind> &kinds,
+                                                          bool is_cumul)
         {
-            const DistributionRegistry &r = distr_registry_instance_(reg, err_type);
-            if (r.count(opt))
-                return std::unique_ptr<Distribution>(
-                    static_cast<Distribution *>(r.create(opt, is_cumul).release()));
-            const std::vector<std::string> &y = r.get_options();
-            options.reserve(options.size() + y.size());
-            options.insert(options.end(), y.begin(), y.end());
-        }
+            if (na::is(name))
+                return nullptr;
 
-        msg::stop(
-            "Unknown " + err_type_name(err_type) + " " + msg::val(std::string(opt)) + "." +
-            str::find_closest(opt, options));
+            std::vector<std::string> options = {};
+            for (Kind kind : kinds)
+            {
+                const RegDistributions &reg = distr_instance_(kind, err_type);
+                if (auto output = reg.create(name, is_cumul))
+                    return std::unique_ptr<Distribution>(
+                        static_cast<Distribution *>(output.release()));
+                const std::vector<std::string> y = reg.names();
+                options.reserve(options.size() + y.size());
+                options.insert(options.end(), y.begin(), y.end());
+            }
+
+            msg::stop(
+                "Unknown " + err_type_name(err_type) + " " + msg::val(std::string(name)) + "." +
+                str::find_closest(name, options));
+        }
     }
 }
 
@@ -200,13 +196,12 @@ namespace
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Uniform_)
         HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
-        /// UPDATE: should understand when discrete defined...
-        void discretize() override final { discr_mode_ = Mode::Discrete::Center; }
-
     protected:
-        double raw_pdf_(double) const override final { return 1. / (upper_.value() - lower_.value()); }
-        double raw_cdf_(double x) const override final { return (x - lower_.value()) / (upper_.value() - lower_.value()); }
-        double raw_log_pdf_(double) const override final { return -std::log(upper_.value() - lower_.value()); }
+        double n_() const { return upper_.value() - lower_.value(); }
+
+        double raw_pdf_(double) const override final { return 1. / n_(); }
+        double raw_cdf_(double x) const override final { return (x - lower_.value()) / n_(); }
+        double raw_log_pdf_(double) const override final { return -std::log(n_()); }
         double raw_log_ratio_(double, double) const override final { return 0.; }
         double raw_rand_(rnd_gen &prng) const override final
         {
@@ -215,7 +210,40 @@ namespace
         }
         double raw_quantile_(double p) const override final { return lower_.value() * (1. - p) + upper_.value() * p; }
     };
-    HOUSEPI_REGISTER_FUNCTION(Uniform_, ContinuosDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Uniform_, Continuous)
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////  *** Uniform Discrete Distribution : class ***  /////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Flat mass over the whole values in [min, max].
+    class UniformDiscrete_ final : public Distribution
+    {
+    public:
+        UniformDiscrete_()
+            : Distribution({}, 0., 1.) { discr_mode_ = Mode::Discrete::Defined; }
+        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(UniformDiscrete_)
+        HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
+
+        void discretize() override final {}
+
+    protected:
+        std::vector<const Attribute *> discrete_args_() const override final { return {&lower_, &upper_}; }
+
+        double n_() const { return upper_.value() - lower_.value() + 1.; }
+
+        double raw_pdf_(double) const override final { return 1. / n_(); }
+        double raw_cdf_(double x) const override final { return (x - lower_.value() + 1.) / n_(); }
+        double raw_log_pdf_(double) const override final { return -log(n_()); }
+        double raw_log_ratio_(double, double) const override final { return 0.; }
+        double raw_quantile_(double p) const override final { return lower_.value() + std::ceil(p * n_()) - 1.; }
+        double raw_rand_(rnd_gen &prng) const override final
+        {
+            return std::uniform_int_distribution<long>(
+                static_cast<long>(lower_.value()), static_cast<long>(upper_.value()))(prng);
+        }
+    };
+    HOUSEPI_REGISTER_FUNCTION(UniformDiscrete_, Discrete)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Normal Distribution : class ***  //////////////////////////////
@@ -275,7 +303,7 @@ namespace
             return arg(0) + arg(1) * standard_normal(prng);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Normal_, ContinuosDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Normal_, Continuous)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////  *** Lognormal Distribution : class ***  /////////////////////////////
@@ -366,7 +394,7 @@ namespace
             return exp(meanlog + sdlog * standard_normal(prng));
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Lognormal_, ContinuosDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Lognormal_, Continuous)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  *** Beta Distribution : class ***  //////////////////////////////
@@ -437,7 +465,7 @@ namespace
             return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Beta_, ContinuosDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Beta_, Continuous)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////  *** Gamma Distribution : class ***  /////////////////////////////
@@ -529,7 +557,7 @@ namespace
             return std::gamma_distribution<double>(shape, scale)(prng);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Gamma_, ContinuosDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Gamma_, Continuous)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Rayleigh Distribution : class ***  ////////////////////////////
@@ -581,7 +609,7 @@ namespace
             return arg(0) * sqrt(-2 * log(standard_uniform(prng)));
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Rayleigh_, ContinuosDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Rayleigh_, Continuous)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Weibull Distribution : class ***  /////////////////////////////
@@ -635,7 +663,7 @@ namespace
             return arg(1) * pow(-log(standard_uniform(prng)), 1.0 / arg(0));
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Weibull_, ContinuosDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Weibull_, Continuous)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////  *** Exponential Distribution : class ***  //////////////////////////
@@ -683,7 +711,7 @@ namespace
             return -log(standard_uniform(prng)) / arg(0);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Exponential_, ContinuosDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Exponential_, Continuous)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** Poisson Distribution : class ***  ////////////////////////////
@@ -727,7 +755,7 @@ namespace
             return std::poisson_distribution<unsigned>(arg(0))(prng);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Poisson_, DiscreteDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Poisson_, Discrete)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** Binomial Distribution : class ***  ///////////////////////////
@@ -768,6 +796,9 @@ namespace
         }
 
     protected:
+        /// 'size' counts trials.
+        std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
+
         double raw_pdf_(double x) const override final
         {
             const double size = arg(0);
@@ -802,7 +833,7 @@ namespace
             return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Binomial_, DiscreteDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Binomial_, Discrete)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////  *** NegativeBinomial Distribution : class ***  ///////////////////////
@@ -819,6 +850,9 @@ namespace
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
     protected:
+        /// 'size' counts successes: the binomial coefficient truncates it whole.
+        std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
+
         double raw_pdf_(double x) const override final
         {
             const double size = arg(0);
@@ -851,7 +885,7 @@ namespace
             return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(NegativeBinomial_, DiscreteDistrib)
+    HOUSEPI_REGISTER_FUNCTION(NegativeBinomial_, Discrete)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Geometric Distribution : class ***  ///////////////////////////
@@ -896,7 +930,7 @@ namespace
             return std::geometric_distribution<unsigned>(arg(0))(prng);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Geometric_, DiscreteDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Geometric_, Discrete)
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////  *** Categorical Distribution : class ***  /////////////////////////
@@ -981,7 +1015,7 @@ namespace
             return static_cast<double>(i);
         }
     };
-    HOUSEPI_REGISTER_FUNCTION(Categorical_, DiscreteDistrib)
+    HOUSEPI_REGISTER_FUNCTION(Categorical_, Discrete)
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////  *** Ferretti20_ : class ***  ///////////////////////////

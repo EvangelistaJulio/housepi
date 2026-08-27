@@ -460,16 +460,31 @@ namespace housepi
                 " for " + err_name() + ".");
     }
 
+    /// Raise on an attribute that must hold a whole value but does not.
+    [[noreturn]] void raise_not_discrete_(const Attribute &attr, std::string sms)
+    {
+        if (attr.is_numeric())
+            sms += "\nSet argument " + msg::arg(attr.name()) + " from " + attr.str_val() + " to integer.";
+        else
+            sms += "\nChange " + attr.pointer()->err_name() + " to discrete " + msg::code("discr = TRUE") + ".";
+        msg::stop(sms);
+    }
+
     void Function::assert_location_matches_discrete() const
     {
         if (!is_discrete() || loc_.is_empty() || loc_.is_discrete())
             return;
 
-        msg::stop(
-            msg::arg("loc") + " definition is incompatible with discrete " + err_name() + ".\n" +
-            (loc_.is_numeric()
-                 ? "Set location argument " + msg::arg("loc") + " from " + loc_.str_val() + " to integer."
-                 : "Change " + loc_.pointer()->err_name() + " to discrete " + msg::code("discr = TRUE") + "."));
+        raise_not_discrete_(
+            loc_, msg::arg("loc") + " definition is incompatible with discrete " + err_name() + ".");
+    }
+
+    void Function::assert_discrete_args() const
+    {
+        for (const Attribute *attr : discrete_args_())
+            if (!attr->is_empty() && !attr->is_discrete())
+                raise_not_discrete_(
+                    *attr, msg::arg(attr->name()) + " of " + err_name() + " must be discrete.");
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -673,102 +688,85 @@ namespace housepi
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////// *** FunctionRegistry : class ***  /////////////////////////////
+    /////////////////////////////  *** registry::RegFunctions : class ***  //////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::vector<std::string> FunctionRegistry::get_options() const
+    namespace registry
     {
-        std::vector<std::string> entries;
-        entries.reserve(factory_map_.size());
-        for (const auto &[key, val] : factory_map_)
-            entries.push_back(key);
-        return entries;
-    }
-
-    std::unique_ptr<Function> FunctionRegistry::create(std::string_view opt, bool is_prim) const
-    {
-        auto it = factory_map_.find(opt);
-        if (it == factory_map_.end())
-            return nullptr;
-
-        auto output = it->second();
-        if (is_prim)
-            output->set_eval_as_prim();
-        // evaluate as function by default
-
-        return output;
-    }
-
-    namespace
-    {
-        /// Resolve a registry to its singleton instance.
-        const FunctionRegistry &registry_instance_(Registry r)
+        std::vector<std::string> RegFunctions::names() const
         {
-            switch (r)
+            std::vector<std::string> entries;
+            entries.reserve(factory_map_.size());
+            for (const auto &[key, val] : factory_map_)
+                entries.push_back(key);
+            return entries;
+        }
+
+        std::unique_ptr<Function> RegFunctions::create(std::string_view name, bool is_prim) const
+        {
+            auto it = factory_map_.find(name);
+            if (it == factory_map_.end())
+                return nullptr;
+
+            auto output = it->second();
+            // NOTE: by default evaluates as function
+            if (is_prim)
+                output->set_eval_as_prim();
+
+            return output;
+        }
+
+        RegFunctions &instance(Kind kind)
+        {
+            static RegFunctions custom, arithmetic, transcendental;
+            static RegDistributions continuous, discrete, infec_profile;
+            switch (kind)
             {
-            case Registry::Custom:
-                return CustomRegistry::instance();
-            case Registry::Arithmetic:
-                return ArithmeticRegistry::instance();
-            case Registry::Transcendental:
-                return TranscendentalRegistry::instance();
-            case Registry::Continuos:
-                return ContinuosDistribRegistry::instance();
-            case Registry::Discrete:
-                return DiscreteDistribRegistry::instance();
-            case Registry::InfecProfile:
-                return InfecProfileRegistry::instance();
+            case Kind::Custom:
+                return custom;
+            case Kind::Arithmetic:
+                return arithmetic;
+            case Kind::Transcendental:
+                return transcendental;
+            case Kind::Continuous:
+                return continuous;
+            case Kind::Discrete:
+                return discrete;
+            case Kind::InfecProfile:
+                return infec_profile;
             }
             msg::stop("Unknown registry.");
         }
 
-        /// Resolve registries to their singleton instances, preserving lookup order.
-        std::vector<const FunctionRegistry *> collect_registries_(const std::vector<Registry> &registries,
-                                                                  ErrType err_type)
+        std::vector<std::string> list_names(const std::vector<Kind> &kinds)
         {
-            if (registries.empty())
-                msg::stop(
-                    "No registries were provided for " + err_type_name(err_type) + ".");
-
-            std::vector<const FunctionRegistry *> registry_ptrs = {};
-            registry_ptrs.reserve(registries.size());
-            for (Registry r : registries)
-                registry_ptrs.push_back(&registry_instance_(r));
-
-            return registry_ptrs;
+            std::vector<std::string> options = {};
+            for (Kind kind : kinds)
+            {
+                const std::vector<std::string> y = instance(kind).names();
+                options.reserve(options.size() + y.size());
+                options.insert(options.end(), y.begin(), y.end());
+            }
+            return str::unique(options);
         }
-    }
 
-    std::vector<std::string> registry_options(const std::vector<Registry> &registries,
-                                              ErrType err_type)
-    {
-        std::vector<std::string> options = {};
-        for (const FunctionRegistry *ptr : collect_registries_(registries, err_type))
+        std::unique_ptr<Function> create_function(std::string_view name,
+                                                  ErrType err_type,
+                                                  const std::vector<Kind> &kinds,
+                                                  bool is_prim)
         {
-            const std::vector<std::string> y = ptr->get_options();
-            options.reserve(options.size() + y.size());
-            options.insert(options.end(), y.begin(), y.end());
+            if (na::is(name))
+                return nullptr;
+
+            for (Kind kind : kinds)
+                if (auto output = instance(kind).create(name, is_prim))
+                    return output;
+
+            msg::stop(
+                "Unknown " + err_type_name(err_type) + " " + msg::val(std::string(name)) + "." +
+                str::find_closest(name, list_names(kinds)));
         }
-        return str::unique(options);
-    }
-
-    std::unique_ptr<Function> compose_func_registries(std::string_view opt,
-                                                      ErrType err_type,
-                                                      const std::vector<Registry> &registries,
-                                                      bool is_prim)
-    {
-        // FIXME: this should be an error
-        if (na::is(opt))
-            return nullptr;
-
-        for (const FunctionRegistry *ptr : collect_registries_(registries, err_type))
-            if (ptr->count(opt))
-                return ptr->create(opt, is_prim);
-
-        msg::stop(
-            "Unknown " + err_type_name(err_type) + " " + msg::val(std::string(opt)) + "." +
-            str::find_closest(opt, registry_options(registries, err_type)));
     }
 }
 
@@ -777,13 +775,6 @@ namespace housepi
 ////////////////////////////////  *** Function : implementations ***  /////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Custom)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Arithmetic)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(Transcendental)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(ContinuosDistrib)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(DiscreteDistrib)
-HOUSEPI_DEFINE_REGISTRY_INSTANCE_(InfecProfile)
 
 namespace
 {

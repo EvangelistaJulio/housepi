@@ -134,8 +134,8 @@ namespace
         ExposeBase(
             std::string name,
             ErrType family,
-            std::vector<Registry> registry_types)
-            : ptr_(compose_func_registries(name, family, registry_types, false)),
+            std::vector<registry::Kind> reg_kinds)
+            : ptr_(registry::create_function(name, family, reg_kinds, false)),
               family_(family) {}
         virtual ~ExposeBase() = default;
 
@@ -250,10 +250,15 @@ namespace
     {
     public:
         static ErrType family() { return ErrType::Function; }
-        static std::vector<Registry> registries() { return {Registry::Custom, Registry::Transcendental, Registry::Arithmetic}; }
+        static std::vector<registry::Kind> reg_kinds()
+        {
+            return {registry::Kind::Custom,
+                    registry::Kind::Transcendental,
+                    registry::Kind::Arithmetic};
+        }
 
-        ExposeFunction(std::string name_)
-            : ExposeBase(name_, family(), registries()) {}
+        ExposeFunction(std::string name_, bool /*discr*/)
+            : ExposeBase(name_, family(), reg_kinds()) {}
 
         MAKE_EXPOSE_METHOD_CALL(func, ptr_->func(v))
         MAKE_EXPOSE_METHOD_CALL(log_func, ptr_->log_func(v))
@@ -265,10 +270,13 @@ namespace
     {
     public:
         static ErrType family() { return ErrType::Distribution; }
-        static std::vector<Registry> registries() { return {Registry::Continuos, Registry::Discrete}; }
+        static std::vector<registry::Kind> reg_kinds(bool discr = false)
+        {
+            return registry::distr_kinds(discr);
+        }
 
-        ExposeDistribution(std::string name_)
-            : ExposeBase(name_, family(), registries()) {}
+        ExposeDistribution(std::string name_, bool discr)
+            : ExposeBase(name_, family(), reg_kinds(discr)) {}
 
         MAKE_EXPOSE_METHOD_CALL(pdf, ptr_->pdf(v))
         MAKE_EXPOSE_METHOD_CALL(log_pdf, distr_()->guarded_log_pdf(v))
@@ -312,10 +320,15 @@ namespace
     {
     public:
         static ErrType family() { return ErrType::InfecProfile; }
-        static std::vector<Registry> registries() { return {Registry::InfecProfile, Registry::Continuos, Registry::Discrete}; }
+        static std::vector<registry::Kind> reg_kinds(bool discr = false)
+        {
+            std::vector<registry::Kind> out = {registry::Kind::InfecProfile};
+            out += registry::distr_kinds(discr);
+            return out;
+        }
 
-        ExposeInfecProfile(std::string name_)
-            : ExposeBase(name_, family(), registries())
+        ExposeInfecProfile(std::string name_, bool discr)
+            : ExposeBase(name_, family(), reg_kinds(discr))
         {
             // core errors from the underlying object should say "infectivity
             // profile X", not the Distribution default "distribution X".
@@ -333,16 +346,16 @@ namespace
     template <class Expose>
     Expose *expose_(std::string name, SEXP args, double min, double max, bool discr)
     {
-        auto obj = std::make_unique<Expose>(std::move(name));
+        auto obj = std::make_unique<Expose>(std::move(name), discr);
         obj->init(args, min, max, discr);
         return obj.release();
     }
 
-    // List every name the family accepts from the inherent registries.
+    // List every name the family accepts from the registry kinds it looks up.
     template <class Expose>
     std::vector<std::string> list_options_()
     {
-        return registry_options(Expose::registries(), Expose::family());
+        return registry::list_names(Expose::reg_kinds());
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

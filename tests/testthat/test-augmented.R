@@ -821,9 +821,32 @@ test_that("An undeclared producer defers the build to the wall", {
   expect_false(grepl("status-specific", sms))
 })
 
+test_that("A discrete model resolves 'uniform' to the discrete distribution", {
+  outer_heaven <- data.frame(
+    id = c("snake", "meryl", "otacon"), house_id = "shadow_moses",
+    status = c(1, 1, 0), start_date = 0, end_date = 10
+  )
+  build <- function(min) {
+    outer_heaven |>
+      new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
+      add_parameter(import = "template") |>
+      add_augmented(infec_time = list(model = "uniform", min = !!min, max = 3)) |>
+      add_infectivity_profile("uniform", max = 4) |>
+      evaluate_log_lik()
+  }
+  
+  expect_silent(build(0))
+  
+  # the flat lattice law owns every whole value in the window, so a bound that
+  # is not one has no reading, and the error names the augmented that carries it
+  sms <- tryCatch(build(0.5), error = conditionMessage)
+  expect_match(sms, "min.*uniform.*discrete")
+  expect_match(sms, "infec_time")
+})
+
 test_that("A location off the integers is refused when discrete", {
   hhmodel <- data.frame(house_id = 1, id = c("a", "b"), status = c(1, 0)) |>
-      new_housepi_model("test")
+    new_housepi_model("test")
 
   # a sampled location would shift the lattice under the chain at every step:
   # the fix is on the declaration it reads, named in place of `loc`

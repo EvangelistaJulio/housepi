@@ -73,30 +73,15 @@ namespace housepi
         std::swap(pProp_, other.pProp_);
     }
 
-    void Variable::init_func_attr(std::string_view key, const Attribute &attr)
+    void Variable::init_distr(std::string_view opt, bool discr)
     {
-        pFunc_->init_attr(key, attr);
-    }
-    void Variable::reshape_function(bool discr) { pFunc_->reshape(discr); }
-
-    void Variable::init_distr(std::string_view opt)
-    {
-        if (na::is(opt))
-            return;
-        pDistr_ = compose_distr_registries(
-            opt, ErrType::Distribution, {Registry::Continuos, Registry::Discrete});
-    }
-
-    void Variable::init_distr_attr(std::string_view key, const Attribute &attr)
-    {
-        pDistr_->init_attr(key, attr);
+        pDistr_ = registry::create_distribution(
+            opt, ErrType::Distribution, registry::distr_kinds(discr));
     }
 
     void Variable::reshape_distribution(bool is_discr)
     {
         pDistr_->reshape(is_discr);
-
-        // check that non-constant variable has non-zero dimensional range
         helper_assert_non_degenerate_range_();
     }
 
@@ -278,40 +263,6 @@ namespace housepi
         pProp_ = nullptr;
     }
 
-    bool Variable::is_discrete() const noexcept { return has_distr() ? pDistr_->is_discrete()
-                                                                     : Attribute::is_discrete(); }
-    bool Variable::has_distr() const noexcept { return pDistr_ != nullptr; }
-    bool Variable::is_adaptive() const noexcept { return pProp_ && pProp_->is_adaptive(); }
-
-    void Variable::propose(rnd_gen &prng)
-    {
-        set(pProp_->propose(prng, value_));
-    }
-    bool Variable::is_valid_move() const
-    {
-        switch (valid_mode_)
-        {
-        case Validity::Check:
-            return pDistr_->is_valid(value_);
-        default: // case Validity::Always:
-            return true;
-        }
-    }
-    void Variable::recover() noexcept
-    {
-        value_ = old_;
-        pProp_->recover();
-    }
-    double Variable::log_pdf() const { return pDistr_->log_pdf(value_); }
-    double Variable::guarded_log_pdf() const { return pDistr_->guarded_log_pdf(value_); }
-    double Variable::log_ratio() const { return pDistr_->log_ratio(old_, value_); }
-    double Variable::proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
-
-    void Variable::reset_accept_rate() noexcept { pProp_->reset_accept_rate(); }
-    void Variable::adapt_proposal(double ratio) { pProp_->adapt(ratio); }
-    void Variable::set_adapt_smoothing(double s) noexcept { AdaptableProposal::set_smoothing(s); }
-    double Variable::get_adapt_smoothing() noexcept { return AdaptableProposal::get_smoothing(); }
-
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////  *** Parameter : struct ***  ////////////////////////////////
@@ -471,8 +422,9 @@ namespace housepi
         xparam.transfer(translator.to_numeric(input.at("value")[k]));
 
         // assign a prior distribution to the parameter
+        const bool is_discr = str::tobool(input.at("discr")[k]);
         parse::Definition parser(input.at("prior")[k]);
-        xparam.init_distr(parser.root.func);
+        xparam.init_distr(parser.root.func, is_discr);
 
         // load prior arguments
         for (const auto &child : parser.root.children)
@@ -480,7 +432,7 @@ namespace housepi
         // load parameter range
         for (const auto key : {"min", "max"})
             xparam.init_distr_attr(key, translator.to_numeric(input.at(key)[k]));
-        xparam.reshape_distribution(str::tobool(input.at("discr")[k]));
+        xparam.reshape_distribution(is_discr);
 
         // assign proposal (arguments are folded into the proposal call, if any)
         parse::Definition prop(input.at("proposal")[k]);
@@ -511,9 +463,12 @@ namespace housepi
         }
 
         // function mode
-        xparam.init_function(compose_func_registries(
-            parser.root.func, ErrType::Function,
-            {Registry::Custom, Registry::Transcendental, Registry::Arithmetic}));
+        xparam.init_function(registry::create_function(
+            parser.root.func,
+            ErrType::Function,
+            {registry::Kind::Custom,
+             registry::Kind::Transcendental,
+             registry::Kind::Arithmetic}));
 
         // bind function arguments
         for (const auto &child : parser.root.children)

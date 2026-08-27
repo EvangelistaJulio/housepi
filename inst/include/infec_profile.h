@@ -140,7 +140,7 @@ namespace housepi
             }
         }
 
-        void request_discrete() noexcept { is_discr_requested_ = true; };
+        void request_discrete() noexcept { is_required_discrete_ = true; };
 
         //////////////////////
         //////  GETTER  //////
@@ -177,7 +177,7 @@ namespace housepi
 
         bool is_augmented() const noexcept { return mode_ == Mode::Augmented; }
         bool is_lookup() const noexcept { return mode_ == Mode::LookUp; }
-        bool is_discrete_requested() const noexcept { return is_discr_requested_; }
+        bool is_required_discrete() const noexcept { return is_required_discrete_; }
 
     private:
         enum class Mode : std::uint8_t
@@ -187,8 +187,8 @@ namespace housepi
             LookUp     /// generic infectivity profile
         } mode_ = Mode::Generic;
 
-        bool is_discr_requested_ = false; /// wheter is requested as discrete
-        infprof::LookUpTable lookup_;     /// discrete time lookup table
+        bool is_required_discrete_ = false; /// wheter is requested as discrete
+        infprof::LookUpTable lookup_;       /// discrete time lookup table
 
         const Augmented *paugm_ = nullptr; /// augmented storage for per-member profile
 
@@ -197,6 +197,8 @@ namespace housepi
         /// Build for individual augmented function infectivity profile.
         void build_augmented_(Translator &translator, const str_table &input);
         /// Helper to compose a profile distribution and bind its arguments.
-        std::unique_ptr<Distribution> helper_build_(Translator &translator, const std::string &func);
+        std::unique_ptr<Distribution> helper_build_(Translator &translator,
+                                                    const std::string &func,
+                                                    bool discr);
     };
 }

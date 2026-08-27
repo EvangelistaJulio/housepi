@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
 #include "tools/messages.h"
@@ -116,8 +118,10 @@ namespace housepi
             const std::string &distr_name,
             const dict<Attribute> &args,
             const Distribution *prior)
-            : pDistr_(compose_distr_registries(
-                  distr_name, ErrType::Proposal, {Registry::Continuos, Registry::Discrete}))
+            : pDistr_(registry::create_distribution(
+                  distr_name,
+                  ErrType::Proposal,
+                  registry::distr_kinds(prior && prior->is_discrete())))
         {
             for (const auto &[key, attr] : args)
                 pDistr_->init_attr(key, attr);
@@ -223,7 +227,10 @@ namespace housepi
             const std::string &distr_name,
             double scale,
             bool is_discrete)
-            : pDistr_(compose_distr_registries(distr_name, ErrType::Proposal, {Registry::Continuos})),
+            : pDistr_(registry::create_distribution(
+                  distr_name,
+                  ErrType::Proposal,
+                  registry::distr_kinds(is_discrete))),
               is_adaptive_(na::is(scale)) { pDistr_->reshape(is_discrete); }
         virtual ~AdaptableProposal() = default;
 
@@ -337,14 +344,20 @@ namespace housepi
                 return q75 - q25;
             return 1.;
         }
-        /// NOTE: uniform stores its scale in the bounds, not in the args.
-        double get_scale_() const override final { return pDistr_->upper().value(); }
-        /// Adapt standard minimum and maximum.
+        // FIXME: this is a patch for the discrete case that must change 
+        double get_scale_() const override final { return scale_; }
         void set_scale_(double scale) override final
         {
-            pDistr_->set_lower(-scale);
-            pDistr_->set_upper(scale);
+            scale_ = scale;
+            const double s = pDistr_->is_discrete() ? std::max(1., std::round(scale)) : scale;
+            pDistr_->set_lower(-s);
+            pDistr_->set_upper(s);
         }
+
+    private:
+        /// NOTE: uniform holds its window in the bounds, which the lattice rounds:
+        /// adaptation reads the scale from here so no increment is lost to rounding.
+        double scale_ = 1.;
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
