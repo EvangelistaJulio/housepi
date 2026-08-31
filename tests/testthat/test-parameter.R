@@ -51,7 +51,7 @@ test_that("Default parameter definitions are correct", {
 })
 
 test_that("The defining distribution of the sibling family is named as spare", {
-  # `model` keys augmented and observations, `prior` keys parameters
+  # `model` keys latent and observations, `prior` keys parameters
   mk_param$model |>
     add_parameter(dummy = list(model = "uniform", min = 0, max = 5)) |>
     expect_error("[Ss]pare argument .model. for parameter .dummy.")
@@ -319,14 +319,14 @@ test_that("Parameter function rejects non-parameter dependencies", {
 
   # parameters do not accept individual-specifc definitons
   hhmodel |>
-    add_augmented("cigar", model = "normal") |>
+    add_latent("cigar", model = "normal") |>
     add_parameter("kaz", prior = "normal", mean = cigar + 1) |>
     expect_error("[Ii]ndividual.*specific")
 
-  # bare names default to augmented source! here @P is missing
+  # bare names default to latent source! here @P is missing
   hhmodel |>
     add_parameter(beta = hhsize_ref^-gamma) |>
-    expect_error("beta.*cannot.*depend.*augmented")
+    expect_error("beta.*cannot.*depend.*latent")
 
   # explicit reference to a data column is also rejected
   hhmodel |>
@@ -346,7 +346,7 @@ test_that("Parameter template import loads the shipped definitions", {
   # a model shipping no template definition file says so
   flu_1918_frederick |>
     new_housepi_model("final_size") |>
-    add_augmented(import = "template") |>
+    add_latent(import = "template") |>
     expect_error("file.*not found")
 
   # the test model carries no template at all: warn and add nothing
@@ -363,7 +363,7 @@ test_that("A parameter infers discretization from the model requirements", {
     new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_infectivity_profile(import = "template") |>
-    add_augmented(import = "template")
+    add_latent(import = "template")
 
   # the model declares the household size reference discrete
   hhmodel$.__enclos_env__$private$generator_$param_discr_required |>

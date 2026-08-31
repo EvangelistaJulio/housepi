@@ -41,9 +41,9 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   active = list(
-    #' @field augm_required `character()`.
-    #' Augmented variables required by infectivity profile definition.
-    augm_required = function(value) {
+    #' @field latent_required `character()`.
+    #' Latent variables required by infectivity profile definition.
+    latent_required = function(value) {
       private$find_required_def_("A")
     },
 

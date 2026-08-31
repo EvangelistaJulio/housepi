@@ -75,14 +75,14 @@ test_that("Injected Date literals encode as numeric", {
                "sum|x:x2|[alpha|A]:[32|N]")
 
   m_date <- new_housepi_model(model = "test") |>
-    add_augmented("gray_fox", model = "uniform",
+    add_latent("gray_fox", model = "uniform",
                   min = !!d_min, max = !!d_max)
   m_num <- new_housepi_model(model = "test") |>
-    add_augmented("gray_fox", model = "uniform",
+    add_latent("gray_fox", model = "uniform",
                   min = !!as.numeric(d_min), max = !!as.numeric(d_max))
 
-  expect_identical(m_date$augmented$min, m_num$augmented$min)
-  expect_identical(m_date$augmented$max, m_num$augmented$max)
+  expect_identical(m_date$latent$min, m_num$latent$min)
+  expect_identical(m_date$latent$max, m_num$latent$max)
 })
 
 test_that("Unquoted constant calls fold to their numeric value", {

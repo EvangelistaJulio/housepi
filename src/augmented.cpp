@@ -103,18 +103,18 @@ namespace housepi
 
     void InfecProfile::build(Translator &translator, const str_table &input)
     {
-        augm_definitions.clear();
+        latent_definitions.clear();
 
         if (input.empty())
             return;
 
-        // check if definition is generic or augmented
+        // check if definition is generic or latent
         if (read::csv_n_rows(input) > 1 ||
-            parse::Definition(input.at("func")[0]).consumes_augmented() ||
-            parse::Definition(input.at("min")[0]).consumes_augmented() ||
-            parse::Definition(input.at("max")[0]).consumes_augmented() ||
+            parse::Definition(input.at("func")[0]).consumes_latent() ||
+            parse::Definition(input.at("min")[0]).consumes_latent() ||
+            parse::Definition(input.at("max")[0]).consumes_latent() ||
             !na::is(input.at("status")[0]))
-            build_augmented_(translator, input);
+            build_latent_(translator, input);
         else
             build_generic_(translator, input);
     }
@@ -125,7 +125,7 @@ namespace housepi
         const bool is_discr = is_required_discrete_ || str::tobool(input.at("discr")[0]);
         generic = helper_build_(translator, input.at("func")[0], is_discr);
         lookup_.clear();
-        augm_definitions.clear();
+        latent_definitions.clear();
 
         // range minimum
         generic->init_attr("min", translator.to_attribute(input.at("min")[0]));
@@ -152,15 +152,15 @@ namespace housepi
         }
     }
 
-    void InfecProfile::build_augmented_(Translator &translator, const str_table &input)
+    void InfecProfile::build_latent_(Translator &translator, const str_table &input)
     {
         // drop generic definition
-        mode_ = Mode::Augmented;
+        mode_ = Mode::Latent;
         generic = nullptr;
         lookup_.clear();
-        augm_definitions.clear();
+        latent_definitions.clear();
 
-        // match infectivity profile and augmented variable definition
+        // match infectivity profile and latent variable definition
         for (size_t r = 0; r < read::csv_n_rows(input); ++r)
         {
             // a discrete-time model discretizes whatever profile it is handed
@@ -172,18 +172,18 @@ namespace housepi
             if (discr)
                 probe->discretize();
 
-            augm_definitions["name"].push_back(infprof::AUGM_FUNC);
-            augm_definitions["status"].push_back(input.at("status")[r]);
-            augm_definitions["func"].push_back(input.at("func")[r]);
-            augm_definitions["fcumul"].push_back("false");
-            augm_definitions["value"].push_back("");
-            augm_definitions["const"].push_back("false");
-            augm_definitions["discr"].push_back(str::format(discr));
-            augm_definitions["model"].push_back("");
-            augm_definitions["min"].push_back(input.at("min")[r]);
-            augm_definitions["max"].push_back(input.at("max")[r]);
-            augm_definitions["proposal"].push_back("");
-            augm_definitions["kind"].push_back("augm");
+            latent_definitions["name"].push_back(infprof::LATENT_FUNC);
+            latent_definitions["status"].push_back(input.at("status")[r]);
+            latent_definitions["func"].push_back(input.at("func")[r]);
+            latent_definitions["fcumul"].push_back("false");
+            latent_definitions["value"].push_back("");
+            latent_definitions["const"].push_back("false");
+            latent_definitions["discr"].push_back(str::format(discr));
+            latent_definitions["model"].push_back("");
+            latent_definitions["min"].push_back(input.at("min")[r]);
+            latent_definitions["max"].push_back(input.at("max")[r]);
+            latent_definitions["proposal"].push_back("");
+            latent_definitions["kind"].push_back("latent");
         }
     }
 
@@ -221,9 +221,9 @@ namespace housepi
 
     void Augmented::request_transmission(std::vector<size_t> vec) { union_append(user_transm_vec_, vec); }
 
-    /// Kinds searched when composing an augmented / household-observation
+    /// Kinds searched when composing a latent / household-observation
     /// reduction function (shared by per-member and per-household builders).
-    static std::vector<registry::Kind> augm_func_kinds(bool discr)
+    static std::vector<registry::Kind> latent_func_kinds(bool discr)
     {
         std::vector<registry::Kind> out = {registry::Kind::Custom,
                                            registry::Kind::Transcendental,
@@ -243,7 +243,7 @@ namespace housepi
         case Augmented::Kind::House:
             return ErrType::HouseholdObservation;
         default:
-            return ErrType::Augmented;
+            return ErrType::Latent;
         }
     }
     std::string kind_to_err_name(Augmented::Kind kind)
@@ -260,8 +260,8 @@ namespace housepi
             return Augmented::Kind::House;
         if (kstr == "status")
             return Augmented::Kind::Status;
-        // if (kstr == "augm")
-        return Augmented::Kind::Augm;
+        // if (kstr == "latent")
+        return Augmented::Kind::Latent;
     }
 
     void Augmented::DefTable_::clear()
@@ -296,7 +296,7 @@ namespace housepi
         build_assert_input_(input);           // check entries
         build_append_profile_(infec_profile); // add infectivity profile
 
-        // skip if no augmented definitions
+        // skip if no latent definitions
         if (deftable_.empty())
             return;
 
@@ -313,9 +313,9 @@ namespace housepi
     void Augmented::build_restore_internal_()
     {
         is_any_sample_ = false;
-        is_any_augm_model_ = false;
+        is_any_latent_model_ = false;
         is_any_obs_model_ = false;
-        param_produces_augm_ll_.clear();
+        param_produces_latent_ll_.clear();
         param_produces_obs_ll_.clear();
 
         deftable_.clear();
@@ -323,7 +323,7 @@ namespace housepi
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();
-        list_augm_export.clear();
+        list_latent_export.clear();
         list_obs_member.clear();
         list_obs_house.clear();
         list_surrogate.clear();
@@ -339,9 +339,9 @@ namespace housepi
             return;
 
         for (const std::string &astr : input.at("name"))
-            if (astr == infprof::AUGM_FUNC)
+            if (astr == infprof::LATENT_FUNC)
                 msg::stop(
-                    "Tried to use the reserved augmented name " +
+                    "Tried to use the reserved latent name " +
                     msg::val(astr) + ".\nPlease, choose a different one.");
 
         deftable_.append(input);
@@ -349,17 +349,17 @@ namespace housepi
 
     void Augmented::build_append_profile_(InfecProfile &infec_profile)
     {
-        if (!infec_profile.is_augmented())
+        if (!infec_profile.is_latent())
             return;
 
-        deftable_.append(infec_profile.augm_definitions);
-        khold_.add(infprof::AUGM_FUNC);
-        infec_profile.augm_key = khold(infprof::AUGM_FUNC);
+        deftable_.append(infec_profile.latent_definitions);
+        khold_.add(infprof::LATENT_FUNC);
+        infec_profile.latent_key = khold(infprof::LATENT_FUNC);
         infec_profile.bind_augm(this); // for runtime per-member profile resolution
 
         // append discrete infectivity profile definitions if any
         if (infec_profile.is_required_discrete())
-            request_discrete({infec_profile.augm_key});
+            request_discrete({infec_profile.latent_key});
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -373,7 +373,7 @@ namespace housepi
 
     size_t Augmented::n_export_cols() const noexcept
     {
-        size_t n = list_augm_export.size() + list_obs_member.size();
+        size_t n = list_latent_export.size() + list_obs_member.size();
         // add number of surrogate columns to be exported
         for (const Surrogate &surr : list_surrogate)
             n += is_own_column(surr);
@@ -423,7 +423,7 @@ namespace housepi
         std::vector<bool> out;
         out.reserve(n_export_cols());
 
-        for (size_t a : list_augm_export + list_obs_member)
+        for (size_t a : list_latent_export + list_obs_member)
             out.push_back(is_member_col_discrete_(a) &&
                           !has_continuous_declaration_(khold(a)));
 
@@ -473,7 +473,7 @@ namespace housepi
             if (deftable_.c_kind[k] == Kind::House)
                 continue;
 
-            // fill registry with optional augmented definitions
+            // fill registry with optional latent definitions
             const std::string astr = deftable_.c_name[k];
             khold_.add(astr);
 
@@ -510,13 +510,13 @@ namespace housepi
         for (const Household &house : mcmc_->data_wide())
             for (const Individual &indiv : house)
             {
-                IndivBlock &iaugm = varia_of_(indiv);
-                iaugm.vec.resize(n);
+                IndivBlock &ilatent = varia_of_(indiv);
+                ilatent.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                     if (is_member_obs(khold(a)))
-                        iaugm.vec[a].name(khold(a), ErrType::Observation);
+                        ilatent.vec[a].name(khold(a), ErrType::Observation);
                     else
-                        iaugm.vec[a].name(khold(a), ErrType::Augmented);
+                        ilatent.vec[a].name(khold(a), ErrType::Latent);
 
                 if (indiv.is_infected_status())
                     all_infected_statuses.emplace(indiv.status());
@@ -555,11 +555,11 @@ namespace housepi
     static std::string undeclared_status_message_(StatusLevel err_status)
     {
         if (status::is_missing(err_status))
-            return "No generic augmented definition was declared.\n"
+            return "No generic latent definition was declared.\n"
                    "Provide a definition without " +
                    msg::arg("status") + " to apply it to every infected status.";
 
-        return "No augmented definition was declared for status " + std::to_string(err_status) + ".\n" +
+        return "No latent definition was declared for status " + std::to_string(err_status) + ".\n" +
                "Try to associate a status-specific definition.\n" +
                "In alternative, drop " + msg::arg("status") + " from existing definitions to make them generic.";
     }
@@ -591,12 +591,12 @@ namespace housepi
             // ignore spurious hidden definition if no kept definition consumes it
             // NOTE: infectivity profile (hidden) can consume hidden
             auto is_kept_consumer = [](const std::string &c)
-            { return !str::is_hidden(c) || c == infprof::AUGM_FUNC; };
+            { return !str::is_hidden(c) || c == infprof::LATENT_FUNC; };
 
-            for (const std::string &astr : dpdcy::order_producers_first(pgraph, ErrType::Augmented))
+            for (const std::string &astr : dpdcy::order_producers_first(pgraph, ErrType::Latent))
             {
-                const auto consumers = dpdcy::transitive_consumers(astr, pgraph, ErrType::Augmented);
-                if (astr == infprof::AUGM_FUNC || !str::is_hidden(astr) ||
+                const auto consumers = dpdcy::transitive_consumers(astr, pgraph, ErrType::Latent);
+                if (astr == infprof::LATENT_FUNC || !str::is_hidden(astr) ||
                     std::any_of(consumers.begin(), consumers.end(), is_kept_consumer))
                     status_blocks_.back().order.emplace_back(name_to_row[astr]);
             }
@@ -622,7 +622,7 @@ namespace housepi
         {
             auto &producers = pgraph[deftable_.c_name[k]];
             for (const DefTable_::col *col : deftable_.source_cols())
-                for (const std::string &astr : parse::Definition((*col)[k]).list_augmented_producers())
+                for (const std::string &astr : parse::Definition((*col)[k]).list_latent_producers())
                     producers.insert(astr);
         }
         return pgraph;
@@ -641,22 +641,22 @@ namespace housepi
                 if (contains(deftable_.c_name, astr))
                 {
                     if (status::is_missing(s))
-                        msg::stop("No generic augmented definition was found for " + msg::val(astr) + ".");
+                        msg::stop("No generic latent definition was found for " + msg::val(astr) + ".");
                     else
-                        msg::stop("No augmented definition was found for " + msg::val(astr) +
+                        msg::stop("No latent definition was found for " + msg::val(astr) +
                                   " for status " + std::to_string(s) + ".");
                 }
 
                 // declared elsewhere and forgot sourcing
-                std::string sms = "Could not find an augmented definition for " + msg::val(astr) + ".";
+                std::string sms = "Could not find a latent definition for " + msg::val(astr) + ".";
                 if (mcmc_->data_wide().khold().count(astr))
                     sms += "\nDid you mean " + msg::code(astr + "@D") + "?";
                 else if (mcmc_->group_risk.khold().count(astr))
                     sms += "\nDid you mean " + msg::code(astr + "@G") + "?";
                 else if (mcmc_->param.khold().count(astr))
                     sms += "\nDid you mean " + msg::code(astr + "@P") + "?";
-                else // true augmented definition missing
-                    sms += "\nDeclare it with " + msg::fn("add_augmented") + ".";
+                else // true latent definition missing
+                    sms += "\nDeclare it with " + msg::fn("add_latent") + ".";
                 msg::stop(sms);
             }
     }
@@ -692,7 +692,7 @@ namespace housepi
             set_sample_list_for_single_definition_(s, k);
 
         // NOTE: to construct draws list, I drop hidden at the end
-        list_augm_export = khold(str::drop_hidden(khold(list_augm_export)));
+        list_latent_export = khold(str::drop_hidden(khold(list_latent_export)));
         block.draws = khold(str::drop_hidden(khold(block.draws)));
     }
 
@@ -721,12 +721,12 @@ namespace housepi
         else if (na::is(deftable_.c_value[k]) && na::is(deftable_.c_model[k]))
         {
             msg::stop(
-                "Impossible to initialize augmented " + msg::val(astr) + " without a value or model");
+                "Impossible to initialize latent " + msg::val(astr) + " without a value or model");
         }
         else if (na::is(deftable_.c_proposal[k]))
         {
             msg::stop(
-                "No proposal was provided for non-constant definition of augmented " +
+                "No proposal was provided for non-constant definition of latent " +
                 msg::val(astr));
         }
         else
@@ -759,8 +759,8 @@ namespace housepi
         if (!is_to_export)
             return;
 
-        if (!contains(list_augm_export, a))
-            list_augm_export.emplace_back(a);
+        if (!contains(list_latent_export, a))
+            list_latent_export.emplace_back(a);
 
         if (is_to_draw)
             block_at_(s).draws.emplace_back(a);
@@ -790,9 +790,9 @@ namespace housepi
         for (const std::string &pstr : parser.list_parameter_producers())
             all_consts &= mcmc_->param.at(mcmc_->param.khold(pstr)).is_constant();
 
-        // inspect status specific augmented definitions and check if to draw (i. e. not const)
+        // inspect status specific latent definitions and check if to draw (i. e. not const)
         // NOTE: taking advatange of the order!
-        for (const std::string &bstr : parser.list_augmented_producers())
+        for (const std::string &bstr : parser.list_latent_producers())
             if (contains(block_at_(s).draws, khold(bstr)))
                 all_consts = false;
 
@@ -803,7 +803,7 @@ namespace housepi
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  Augmented : initialize augmented  //////////////////////////////
+    /////////////////////////////////  Augmented : initialize latent  //////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     void Augmented::init_for_evaluation()
@@ -814,46 +814,46 @@ namespace housepi
         materialize_surrogate_columns(false);
         init_model_list_();
 
-        // define augmented variables for all augmented individuals in order
+        // define latent variables for all latent individuals in order
         for (const Household &house : mcmc_->data_wide())
             for (const Individual &indiv : house.infected_indivs())
                 for (size_t k : helper_materialize_definition_order_(indiv))
                     helper_init_attributes_(indiv, k);
 
-        // parameters that may move augmented/observation models
+        // parameters that may move latent/observation models
         set_param_producer_lists_();
     }
 
     void Augmented::set_param_producer_lists_()
     {
-        // mark parameter as producers ofaugmented/observation models
-        param_produces_augm_ll_.assign(mcmc_->param.khold().size(), false);
+        // mark parameter as producers oflatent/observation models
+        param_produces_latent_ll_.assign(mcmc_->param.khold().size(), false);
         param_produces_obs_ll_.assign(mcmc_->param.khold().size(), false);
 
-        std::vector<bool> augm_produces_obs(khold_.size(), false);
+        std::vector<bool> latent_produces_obs(khold_.size(), false);
         for (const StatusBlock_ &block : status_blocks_)
             for (size_t a = 0; a < block.obs_consumers.size(); ++a)
                 if (!block.obs_consumers[a].empty())
-                    augm_produces_obs[a] = true;
+                    latent_produces_obs[a] = true;
 
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            if (deftable_.c_name[k] == infprof::AUGM_FUNC ||
+            if (deftable_.c_name[k] == infprof::LATENT_FUNC ||
                 deftable_.c_kind[k] == Kind::House ||
                 deftable_.c_kind[k] == Kind::Status)
                 continue;
 
-            const bool is_obs = deftable_.c_kind[k] == Kind::Member; // else Kind::Augm
-            // a deterministic augmented forwards its parameters to the observation it produces
+            const bool is_obs = deftable_.c_kind[k] == Kind::Member; // else Kind::Latent
+            // a deterministic latent forwards its parameters to the observation it produces
             const bool to_obs = is_obs ||
                                 (na::is(deftable_.c_model[k]) &&
-                                 augm_produces_obs[khold(deftable_.c_name[k])]);
+                                 latent_produces_obs[khold(deftable_.c_name[k])]);
 
             for (const DefTable_::col *col : deftable_.source_cols())
                 for (size_t p : mcmc_->param.khold(parse::Definition((*col)[k]).list_parameter_producers()))
                 {
                     if (!is_obs)
-                        param_produces_augm_ll_[p] = true;
+                        param_produces_latent_ll_[p] = true;
                     if (to_obs)
                         param_produces_obs_ll_[p] = true;
                 }
@@ -861,7 +861,7 @@ namespace housepi
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  Augmented : init augmented models  /////////////////////////////
+    /////////////////////////////////  Augmented : init latent models  /////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     void Augmented::init_model_list_()
@@ -874,8 +874,8 @@ namespace housepi
             const str_table &model_consumers = get_model_consumers_(block);
             if (!model_consumers.empty())
             {
-                is_any_augm_model_ = true;
-                block.augm_models = khold(read::extract_keys(model_consumers));
+                is_any_latent_model_ = true;
+                block.latent_models = khold(read::extract_keys(model_consumers));
 
                 for (const auto &[astr, consumers] : model_consumers)
                     block.consumers[khold(astr)] = khold(consumers);
@@ -899,7 +899,7 @@ namespace housepi
         for (const auto &[key, producers] : pgraph)
             if (!contains(without_model, key))
                 model_consumers.emplace(key,
-                                        dpdcy::transitive_consumers(key, pgraph, ErrType::Augmented) -
+                                        dpdcy::transitive_consumers(key, pgraph, ErrType::Latent) -
                                             without_model);
 
         return model_consumers;
@@ -913,7 +913,7 @@ namespace housepi
 
             // An observation reaches its sampled producers through deterministic
             // nodes, so the consumer map must follow the transitive closure (as the
-            // augmented-model map does), else moving such a producer would skip
+            // latent-model map does), else moving such a producer would skip
             // the observation ratio.
             dpdcy::prod_graph pgraph = build_producer_graph_(block.order);
 
@@ -945,7 +945,7 @@ namespace housepi
 
                 // list the observation under each of its producers,
                 // so moving any  of them recomputes it
-                for (const std::string &astr : dpdcy::transitive_producers(deftable_.c_name[k], pgraph, ErrType::Augmented))
+                for (const std::string &astr : dpdcy::transitive_producers(deftable_.c_name[k], pgraph, ErrType::Latent))
                     if (astr != deftable_.c_name[k]) // transitive_producers returns 'start' last
                         block.obs_consumers[khold(astr)].push_back(obs_key);
             }
@@ -955,11 +955,11 @@ namespace housepi
     void Augmented::init_transm_producers_()
     {
         // transmission reads only model-declared keys
-        // and eventually augmented infectivity profile
+        // and eventually latent infectivity profile
         std::vector<std::string> transm_astr;
         for (size_t a : user_transm_vec_)
             transm_astr.push_back(khold(a));
-        transm_astr.push_back(infprof::AUGM_FUNC);
+        transm_astr.push_back(infprof::LATENT_FUNC);
 
         for (StatusBlock_ &block : status_blocks_)
         {
@@ -973,7 +973,7 @@ namespace housepi
             for (const std::string &node : transm_astr)
                 if (pgraph.count(node)) // a root needs no definition in every block
                     for (const std::string &pstr :
-                         dpdcy::transitive_producers(node, pgraph, ErrType::Augmented))
+                         dpdcy::transitive_producers(node, pgraph, ErrType::Latent))
                         block.produces_transm[khold(pstr)] = true;
         }
     }
@@ -1159,12 +1159,12 @@ namespace housepi
 
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            if (deftable_.c_kind[k] != Kind::Augm)
+            if (deftable_.c_kind[k] != Kind::Latent)
                 continue;
             for (const DefTable_::col *col : deftable_.source_cols())
                 for (const std::string &dstr : referred_data((*col)[k], live_names))
                     msg::stop(
-                        "Found cyclic dependency in simulation.\nAugmented " +
+                        "Found cyclic dependency in simulation.\nLatent " +
                         msg::val(deftable_.c_name[k]) + " reads generated household observation " + msg::val(dstr) +
                         ".\nDefine " + msg::val(deftable_.c_name[k]) +
                         " without referencing " + msg::val(dstr) + ", or viceversa.");
@@ -1179,16 +1179,16 @@ namespace housepi
         // entry-point data column of each single observation node
         const std::vector<std::string> obs_names = khold(list_obs_member);
 
-        // producer graph (name -> the @A names it reads), over augmented + obs rows
+        // producer graph (name -> the @A names it reads), over latent + obs rows
         std::vector<size_t> rows;
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
-            if (deftable_.c_kind[k] == Kind::Augm || deftable_.c_kind[k] == Kind::Member)
+            if (deftable_.c_kind[k] == Kind::Latent || deftable_.c_kind[k] == Kind::Member)
                 rows.push_back(k);
         const dpdcy::prod_graph pgraph = build_producer_graph_(rows);
 
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            if (deftable_.c_kind[k] != Kind::Augm && deftable_.c_kind[k] != Kind::Member)
+            if (deftable_.c_kind[k] != Kind::Latent && deftable_.c_kind[k] != Kind::Member)
                 continue;
             const std::string &name = deftable_.c_name[k];
 
@@ -1203,7 +1203,7 @@ namespace housepi
                     for (const std::string &dstr : referred_data(*col, obs_names))
                         msg::stop(
                             "Definition collision: the model of " + msg::val(name) + " reads observation " + msg::val(dstr) +
-                            ".\nAn augmented model cannot depend on an observed or generated value.");
+                            ".\nAn latent model cannot depend on an observed or generated value.");
 
             // Rule 2: a deterministic definition may read an observation (a downstream
             // readout) unless it closes a loop, i.e. the observation is also its consumer.
@@ -1213,7 +1213,7 @@ namespace housepi
                     if (dstr == name)
                         continue; // observation node reading its own entry column
                     // loop iff the observation 'd' is a (transitive) consumer of 'name'
-                    const auto consumers = dpdcy::transitive_consumers(name, pgraph, ErrType::Augmented);
+                    const auto consumers = dpdcy::transitive_consumers(name, pgraph, ErrType::Latent);
                     if (contains(consumers, dstr))
                         msg::stop(
                             "Cyclic definition: " + msg::val(name) + " reads observation " + msg::val(dstr) +
@@ -1227,20 +1227,20 @@ namespace housepi
     {
         // a simulation-only override (a value paired with a model) is applied when the
         // variable is first drawn in simulation, before any other latent, so it may depend
-        // on data columns and parameters only -- never on augmented variables or observations
+        // on data columns and parameters only -- never on latent variables or observations
         // (which are not yet available at that point). Unlike the obs-entry collision check,
         // this must run even when no observation is defined.
         const std::vector<std::string> obs_names = khold(list_obs_member);
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
-            if (deftable_.c_kind[k] != Kind::Augm ||
+            if (deftable_.c_kind[k] != Kind::Latent ||
                 na::is(deftable_.c_model[k]) || na::is(deftable_.c_value[k]))
                 continue;
             const std::string &name = deftable_.c_name[k];
-            if (parse::Definition(deftable_.c_value[k]).consumes_augmented())
+            if (parse::Definition(deftable_.c_value[k]).consumes_latent())
                 msg::stop(
                     "Simulation override of " + msg::val(name) +
-                    " reads an augmented variable.\nA value paired with a model is applied "
+                    " reads a latent variable.\nA value paired with a model is applied "
                     "before other latents are drawn; depend on data or parameters only.");
             for (const std::string &dstr : referred_data(deftable_.c_value[k], obs_names))
                 msg::stop(
@@ -1280,7 +1280,7 @@ namespace housepi
             var.init_function(registry::create_function(
                 parser.root.func,
                 ErrType::Function,
-                augm_func_kinds(is_discr),
+                latent_func_kinds(is_discr),
                 str::tobool(deftable_.c_fcumul[k])));
 
             // a surrogate member-observation materializes a data column for every member:
@@ -1365,7 +1365,7 @@ namespace housepi
             if (na::is(expr))
                 continue;
             parse::Definition def(expr);
-            if (def.consumes_augmented() || def.consumes_parameter() ||
+            if (def.consumes_latent() || def.consumes_parameter() ||
                 entry_has_group_risk_(def.root))
                 return false;
         }
@@ -1393,7 +1393,7 @@ namespace housepi
         // a status observation's weights must be constant data: a status fixed in the
         // data contributes a constant to the likelihood, dropped during inference.
         // NOTE: outcome k resolves to infected status (INFECTED + k); the matching
-        // augmented/observation block is selected at simulation (status-specific if
+        // latent/observation block is selected at simulation (status-specific if
         // declared, otherwise the generic one), so no block count is enforced here.
         if (!def_is_pure_data_(k))
             msg::stop(
@@ -1490,11 +1490,11 @@ namespace housepi
 
         if (indiv.is_infected_status())
             msg::stop(
-                "No augmented definitions were found for " +
+                "No latent definitions were found for " +
                 mcmc_->data_wide().err_name(indiv) + " with status " + std::to_string(s) + ".");
 
         msg::stop(
-            "Generic augmented definition for non-infectious " +
+            "Generic latent definition for non-infectious " +
             mcmc_->data_wide().err_name(indiv) + " was missing.");
     }
 
@@ -1518,7 +1518,7 @@ namespace housepi
                         mcmc_->translator.to_numeric(deftable_.c_value[k], &indiv).value());
                 avar.enforce_user_const(); // enforce user constant choice
             }
-            // simulation-only override: a sampled augmented (model present) carrying a value is
+            // simulation-only override: a sampled latent (model present) carrying a value is
             // pinned to that data-bound value in generative simulation (the inference model is a
             // nuisance law, unfit to generate). to_numeric evaluates the constant value eagerly --
             // the index reads its infection time before any lazy pass, so a live function would
@@ -1559,7 +1559,7 @@ namespace housepi
         {
             msg::stop(
                 std::string(e.what()) +
-                "\nCheck augmented " + msg::val(astr) + " for " +
+                "\nCheck latent " + msg::val(astr) + " for " +
                 mcmc_->data_wide().err_name(indiv) + " (status " + std::to_string(indiv.status()) + ").");
         }
     }
@@ -1639,25 +1639,25 @@ namespace housepi
                 continue;
 
             // domain: loc + [min, max]
-            std::vector<std::string> augm_producers, param_producers;
+            std::vector<std::string> latent_producers, param_producers;
             for (const parse::Entry &child : parse::Definition(deftable_.c_model[k]).root.children)
                 if (child.key == "loc")
                 {
-                    child.append_augmented_producers(augm_producers);
+                    child.append_latent_producers(latent_producers);
                     child.append_parameter_producers(param_producers);
                 }
             for (const std::string &col : {deftable_.c_min[k], deftable_.c_max[k]})
             {
                 parse::Definition def(col);
-                augm_producers += def.list_augmented_producers();
+                latent_producers += def.list_latent_producers();
                 param_producers += def.list_parameter_producers();
             }
 
-            if (augm_producers.size() > 0)
+            if (latent_producers.size() > 0)
                 msg::stop(
-                    "Exceeded attempts to initialize augmented variables of " +
+                    "Exceeded attempts to initialize latent variables of " +
                     mcmc_->data_wide().err_name(indiv) + " due to observations.\n" +
-                    "Widen augmented model of " + str::format(str::unique(augm_producers), false, 3) +
+                    "Widen latent model of " + str::format(str::unique(latent_producers), false, 3) +
                     ", revise the observation domain of " + msg::val(deftable_.c_name[k]) +
                     ", or check the observed individual data.");
 
@@ -1691,9 +1691,9 @@ namespace housepi
     ///////////////////////////////////  Augmented : log-likelihood  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    double Augmented::commit_augm_log_lik(const Individual &indiv)
+    double Augmented::commit_latent_log_lik(const Individual &indiv)
     {
-        const std::vector<size_t> &models = list_augm_models(indiv);
+        const std::vector<size_t> &models = list_latent_models(indiv);
 
         if (models.empty())
             return 0.;
@@ -1702,11 +1702,11 @@ namespace housepi
         // value out of its shifted support; that must read as -Inf, not a stale finite density.
         for (size_t a : models)
             new_ll += varia_of_(indiv).vec[a].guarded_log_pdf();
-        varia_of_(indiv).augm_log_lik.set(new_ll);
+        varia_of_(indiv).latent_log_lik.set(new_ll);
         return new_ll;
     }
 
-    double Augmented::commit_augm_log_lik_ratio(const Individual &indiv, size_t a)
+    double Augmented::commit_latent_log_lik_ratio(const Individual &indiv, size_t a)
     {
         const StatusBlock_ &block = block_of_(indiv);
         if (block.consumers[a].empty())
@@ -1715,11 +1715,11 @@ namespace housepi
         // NOTE: consumers[a] includes 'a' itself, so model of 'a' is counted
         for (size_t b : block.consumers[a])
             delta_ll += varia_of_(indiv).vec[b].log_ratio();
-        varia_of_(indiv).augm_log_lik.increment(delta_ll);
+        varia_of_(indiv).latent_log_lik.increment(delta_ll);
         return delta_ll;
     }
 
-    double Augmented::sum_guarded_augm_log_lik(const Individual &indiv, size_t a) const
+    double Augmented::sum_guarded_latent_log_lik(const Individual &indiv, size_t a) const
     {
         double ll = 0.;
         // NOTE: consumers[a] includes 'a' itself, so model of 'a' is counted
@@ -1728,14 +1728,14 @@ namespace housepi
         return ll;
     }
 
-    double Augmented::commit_augm_log_lik_ratio_with_consumers(const Individual &indiv,
+    double Augmented::commit_latent_log_lik_ratio_with_consumers(const Individual &indiv,
                                                                size_t a,
                                                                double L_old)
     {
         // 'a' has already been proposed: its model-consumers now read the moved parameter live.
         // Compare their guarded model sum against the pre-move snapshot L_old.
-        const double delta_ll = sum_guarded_augm_log_lik(indiv, a) - L_old;
-        varia_of_(indiv).augm_log_lik.increment(delta_ll);
+        const double delta_ll = sum_guarded_latent_log_lik(indiv, a) - L_old;
+        varia_of_(indiv).latent_log_lik.increment(delta_ll);
         return delta_ll;
     }
 
@@ -1751,7 +1751,7 @@ namespace housepi
     double Augmented::commit_obs_log_lik_ratio(const Individual &indiv, size_t a)
     {
         const StatusBlock_ &block = block_of_(indiv);
-        // skip unless the moved augmented 'a' parameterizes some observation node
+        // skip unless the moved latent 'a' parameterizes some observation node
         if (block.obs_consumers[a].empty())
             return 0.;
 
@@ -1770,7 +1770,7 @@ namespace housepi
 
     namespace
     {
-        struct AugmDraws_
+        struct LatentDraws_
         {
             std::vector<std::string> ids;
             std::vector<std::string> house_ids;
@@ -1798,13 +1798,13 @@ namespace housepi
             if (!id_draws.empty() || !house_draws.empty())
                 msg::warn(
                     "Ignored" + msg::arg("id_draws") +
-                    ": no augmented variables to sample were defined.");
+                    ": no latent variables to sample were defined.");
             return {};
         }
 
         bool is_default = id_draws.size() == 0 && house_draws.empty();
 
-        AugmDraws_ seen;
+        LatentDraws_ seen;
         std::vector<const Household *> eligible;
 
         // explicit individual selections

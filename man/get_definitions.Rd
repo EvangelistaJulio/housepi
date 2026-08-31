@@ -4,7 +4,7 @@
 \alias{get_data_wide}
 \alias{get_data_long}
 \alias{get_parameters}
-\alias{get_augmented}
+\alias{get_latent}
 \alias{get_observations}
 \alias{get_group_risks}
 \alias{get_contact_risks}
@@ -17,7 +17,7 @@ get_data_long(hhmodel)
 
 get_parameters(hhmodel)
 
-get_augmented(hhmodel)
+get_latent(hhmodel)
 
 get_observations(hhmodel)
 
@@ -35,7 +35,7 @@ get_infectivity_profiles(hhmodel)
 }
 \description{
 Return the definitions currently stored in the housepi model.
-Each variant returns one category (data, parameters, augmented variables,
+Each variant returns one category (data, parameters, latent variables,
 observations, group risks, contact risks, infectivity profile).
 }
 \details{

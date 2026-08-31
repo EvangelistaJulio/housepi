@@ -81,7 +81,7 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
   hhmodel <- data.frame(house_id = "h", status = 1, x = x) |>
     new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform", min = !!a, max = !!b) |>
-    add_augmented("z", model = "exponential", rate = theta@P) |>
+    add_latent("z", model = "exponential", rate = theta@P) |>
     add_observation("x", model = "exponential", rate = z)
 
   result <- hhmodel |>
@@ -147,14 +147,14 @@ test_that("stepping-stone is unbiased and thermodynamic refuses a -Inf ladder", 
     expect_error("stepping-stone")
 })
 
-test_that("tempered indicator with an augmented variable runs at beta=0 without NaN", {
+test_that("tempered indicator with a latent variable runs at beta=0 without NaN", {
   x0 <- 0.5
   cc <- 0.4
   res <- start_ladder_(function() {
     data.frame(house_id = "liquid", status = 1, x = x0) |>
       new_housepi_model("test") |>
       add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
-      add_augmented("z", model = "uniform", min = 0, max = 1) |>
+      add_latent("z", model = "uniform", min = 0, max = 1) |>
       add_observation("x", model = "uniform", min = z - !!cc, max = z + !!cc)
   }, chains = 1L, rungs = 8L)
   expect_false(is.null(res))

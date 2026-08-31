@@ -24,7 +24,7 @@ namespace housepi
 
         struct PathToFiles
         {
-            std::string augm = "";
+            std::string latent = "";
             std::string data_wide = "";
             std::string data_long = "";
             std::string group_risk = "";
@@ -44,7 +44,7 @@ namespace housepi
         void read_infec_profile(MCMCBase &engine);
         void read_group_risk(MCMCBase &engine);
         void read_contact_risk(MCMCBase &engine);
-        void read_augm(MCMCBase &engine);
+        void read_latent(MCMCBase &engine);
 
         bool is_log_evidence() const noexcept { return num_rungs > 0; }
         void assert();
@@ -53,16 +53,16 @@ namespace housepi
     /// Initialize the output file with inferred parameters with column names and initial values.
     void print_infer_state(MCMC &engine, const std::string &f);
 
-    /// Print all augmented variables of each individual.
+    /// Print all latent variables of each individual.
     std::ofstream open_ofstream_datawide(const std::string &f,
                                          const std::vector<std::string> &data_headers,
-                                         const std::vector<std::string> &augm_headers);
+                                         const std::vector<std::string> &latent_headers);
 
-    /// Print all augmented variables of each individual.
+    /// Print all latent variables of each individual.
     void update_ofstream_datawide(std::ofstream &ofs,
                                   const Household &house,
                                   size_t data_wide_size,
-                                  const std::vector<size_t> &augm_export);
+                                  const std::vector<size_t> &latent_export);
 
     /// Print the simulated data to the provided file.
     void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile);

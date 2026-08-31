@@ -4,5 +4,5 @@
       print(hhmodel)
     Output
       i Household transmission model "test" (`template`).
-      v Augmented
+      v Latent
 

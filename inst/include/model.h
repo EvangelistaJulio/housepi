@@ -47,7 +47,7 @@ namespace housepi
 		virtual const std::vector<std::string> key_Long() const = 0;
 		virtual const std::vector<std::string> key_Param() const = 0;
 		virtual const std::vector<std::string> key_GroupRisk() const = 0;
-		virtual const std::vector<std::string> key_Augm() const = 0;
+		virtual const std::vector<std::string> key_Latent() const = 0;
 
 		///////////////
 		///  MODEL  ///
@@ -96,12 +96,12 @@ namespace housepi
 		/// Request positive parameter definition.
 		void request_param_positive(std::vector<size_t> vec) { mcmc_->param.request_positive(vec); }
 
-		/// Request discrete augmented definition.
-		void request_augm_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }
-		/// Request positive augmented definition.
-		void request_augm_positive(std::vector<size_t> vec) { mcmc_->augm.request_positive(vec); }
-		/// Declare an augmented key read by the transmission computation (included cache).
-		void request_augm_transmission(std::vector<size_t> vec) { mcmc_->augm.request_transmission(vec); }
+		/// Request discrete latent definition.
+		void request_latent_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }
+		/// Request positive latent definition.
+		void request_latent_positive(std::vector<size_t> vec) { mcmc_->augm.request_positive(vec); }
+		/// Declare a latent key read by the transmission computation (included cache).
+		void request_latent_transmission(std::vector<size_t> vec) { mcmc_->augm.request_transmission(vec); }
 
 		/// Request discrete infectivity profile definition.
 		void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
@@ -119,7 +119,7 @@ namespace housepi
 		//////////////////////////////
 
 		/// Set an individual status to infected. Resolve status observation, if any.
-		/// NOTE: call init_missing_augm to materialize status-specific definition block after.
+		/// NOTE: call init_missing_latent to materialize status-specific definition block after.
 		void set_infected(Household &house, Individual &indiv)
 		{
 			mcmc_->augm.simulate_infected_status(house, indiv, mcmc_->setup.prng());
@@ -130,13 +130,13 @@ namespace housepi
 			house.set_new_status_(indiv, status::ESCAPED);
 		}
 
-		/// Set numeric value of augmented variable. If not allowed, raise exception.
-		void set_augm_value(size_t a, const Individual &m, double x) { mcmc_->get_augm_varia(a, m).set(x); }
+		/// Set numeric value of latent variable. If not allowed, raise exception.
+		void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->get_latent_varia(a, m).set(x); }
 
-		/// Initialize all augmented variables and observations.
+		/// Initialize all latent variables and observations.
 		/// If a variable has been set by the user, it's skipped.
 		/// UPDATE: right now simulations assignments must be order independent.
-		void init_missing_augm(Individual &indiv)
+		void init_missing_latent(Individual &indiv)
 		{
 			mcmc_->augm.init_definitions_for_simulation(indiv);
 			mcmc_->augm.draw_sample(indiv, mcmc_->setup.prng());
@@ -157,7 +157,7 @@ namespace housepi
 
 		/// Get parameter value.
 		double par(size_t p) const { return mcmc_->param.at(p).value(); }
-		/// Get augmented value for given individual.
+		/// Get latent value for given individual.
 		double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
 		/// Get wide-format data value for given individual.
 		double data(size_t d, const Individual &m) const { return mcmc_->data(d, m); }

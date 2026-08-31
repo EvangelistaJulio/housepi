@@ -14,7 +14,7 @@ local_results <- local({
 test_that("Active fields are read-only", {
   local_results |>
     helper_test_read_only(
-      "parameter_draws", "augmented_draws",
+      "parameter_draws", "latent_draws",
       "log_lik_draws", "lprior_draws", "complete_draws"
     )
 })
@@ -83,7 +83,7 @@ test_that("Draws active fields are correct", {
   expect_equal(posterior::niterations(pd), 100L)
 
   # empty draws
-  ad <- local_results$augmented_draws
+  ad <- local_results$latent_draws
   expect_true(posterior::is_draws(ad))
   expect_equal(posterior::nvariables(ad), 0)
 
@@ -109,20 +109,20 @@ test_that("Exported getter functions work correctly", {
   expect_true(posterior::is_draws(get_complete_draws(local_results)))
 
   expect_error(get_parameter_draws("snake.eater"))
-  expect_error(get_augmented_draws(42))
+  expect_error(get_latent_draws(42))
   expect_error(get_log_lik_draws(list()))
   expect_error(get_lprior_draws(NULL))
   expect_error(get_complete_draws(lnorm))
 })
 
 test_that("Empty draws getters warn", {
-  # local_results has parameters but no augmented draws
+  # local_results has parameters but no latent draws
   get_parameter_draws(local_results) |>
     expect_silent() |>
     posterior::is_draws() |>
     expect_true()
 
-  get_augmented_draws(local_results) |>
+  get_latent_draws(local_results) |>
     expect_warning("id_draws")
 })
 
@@ -143,17 +143,17 @@ test_that("Multi-chain inference produces correct chain structure", {
   expect_equal(posterior::niterations(pd), 10L)
 })
 
-test_that("Augm draws are not empty when id_draws is specified", {
+test_that("Latent draws are not empty when id_draws is specified", {
   hhmodel <- data.frame(house_id = 1,
                         id = c("a", "b"),
                         status = c(1, 0)) |>
     new_housepi_model("test")
-  hhmodel <- add_augmented(hhmodel, name = "proba", model = "uniform")
+  hhmodel <- add_latent(hhmodel, name = "proba", model = "uniform")
   results <- hhmodel |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = "a") |>
     suppressWarnings()
-  ad <- results$augmented_draws
+  ad <- results$latent_draws
   expect_true(posterior::is_draws(ad))
   expect_true(posterior::nvariables(ad) > 0)
 })

@@ -42,7 +42,7 @@ class Model : public ModelBase
 {
 public:
     /// Model specific registries of mandatory definitions
-    HOUSEPI_DECLARE_REGISTER_KEYS(Augm, proba)
+    HOUSEPI_DECLARE_REGISTER_KEYS(Latent, proba)
     HOUSEPI_DECLARE_EMPTY_KEYS(Data)
     HOUSEPI_DECLARE_EMPTY_KEYS(Long)
     HOUSEPI_DECLARE_EMPTY_KEYS(GroupRisk)
@@ -57,18 +57,18 @@ public:
     {
         double output = -Param::alpha;
         for (const Individual &indiv : house.infected_indivs())
-            output += std::log(aug(Augm::proba, indiv));
+            output += std::log(aug(Latent::proba, indiv));
         return output;
     }
 
-    /// Augmented variable initialization.
+    /// Latent variable initialization.
     void simulate_single_house(Household &house) override final
     {
 		for (MemberIndex i = 0; i < house.size(); ++i)
 		{
 			Individual &indiv = house.at(i);
 			if (indiv.is_infected_status())
-				init_missing_augm(indiv);
+				init_missing_latent(indiv);
 		}
     }
 };

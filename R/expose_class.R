@@ -64,9 +64,9 @@ Relative to the location argument `loc`, when one is given."
 rd_var_max_ <- "`numeric(1)` Truncate to a maximum value.
 Relative to the location argument `loc`, when one is given."
 rd_var_func_ <- "One between:
-- `character(1)` Name of augmented function;
+- `character(1)` Name of latent function;
 - rlang expression."
-rd_var_funargs_ <- "named `list` Arguments of the augmented function."
+rd_var_funargs_ <- "named `list` Arguments of the latent function."
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
 Random walks changes current value:
 \\describe{
@@ -78,7 +78,7 @@ Random walks changes current value:
 Independence samplers draw a fresh value from a distribution:
 \\describe{
   \\item{`\"forward\"`}{drawn from the variable's own defining distribution
-    (its prior for a parameter, its model for an augmented variable);}
+    (its prior for a parameter, its model for a latent variable);}
   \\item{a distribution name}{drawn from that distribution, e.g.
     `proposal = \"normal\"` with `proposal_mean`/`proposal_sd`.}
 }
@@ -95,7 +95,7 @@ rd_sources_ <- "Either a plain value, a single external source
 following the convention `argument@source` (\"argument at source\"),
 or an arithmetic expression. Sources are:
 \\describe{
-  \\item{`@A`}{augmented variable (assumed for a bare name);}
+  \\item{`@A`}{latent variable (assumed for a bare name);}
   \\item{`@D`}{data column;}
   \\item{`@G`}{group risk;}
   \\item{`@N`}{numeric value (assumed for a number);}
@@ -337,7 +337,7 @@ summarize_house_sizes <- summarise_house_sizes
 #' @title Retrieve currently loaded data and definitions from a housepi model
 #' @description
 #' Return the definitions currently stored in the housepi model.
-#' Each variant returns one category (data, parameters, augmented variables,
+#' Each variant returns one category (data, parameters, latent variables,
 #' observations, group risks, contact risks, infectivity profile).
 #' @details
 #' `get_data_wide()` returns the individual-level data the model reads: a column
@@ -376,9 +376,9 @@ get_parameters <- function(hhmodel) {
 
 #' @rdname get_definitions
 #' @export
-get_augmented <- function(hhmodel) {
+get_latent <- function(hhmodel) {
   stopifnothousepi(hhmodel)
-  hhmodel$augmented
+  hhmodel$latent
 }
 
 #' @rdname get_definitions
@@ -466,7 +466,7 @@ add_template_defs_ <- function(pvt, family, append, key, dots) {
   assert_no_def_mixing_(key, dots)
   holder <- switch(family,
                    parameter = pvt$param_,
-                   augmented = pvt$augm_,
+                   latent = pvt$augm_,
                    `infectivity profile` = pvt$infec_profile_)
   if (pvt$generator_$is_test_model()) {
     warn_h("No template {family} definitions available for test model.")
@@ -568,10 +568,10 @@ add_parameter <- function(hhmodel,
 ############################################################################
 ############################################################################
 
-#' @title Add or update augmented variable definitions
+#' @title Add or update latent variable definitions
 #' @description
-#' Add augmented variables/functions to housepi model.
-#' If an augmented definitions with the same name and status exists,
+#' Add latent variables/functions to housepi model.
+#' If a latent definitions with the same name and status exists,
 #' the former gets overwritten.
 #' `r rd_add_modes_`
 #' @details
@@ -584,7 +584,7 @@ add_parameter <- function(hhmodel,
 #' @param discr `r rd_var_discr_("model", "the model requirements")`
 #' @param func `r rd_var_func_`
 #' @param func_args `r rd_var_funargs_`
-#' @param model `character(1)` Augmented model distribution.
+#' @param model `character(1)` Latent model distribution.
 #' @param ... `r rd_var_args_("model", proposal = TRUE)`
 #' In mode 'multiple', the `name = value` definitions.
 #' @param min `r rd_aug_min_`
@@ -597,10 +597,10 @@ add_parameter <- function(hhmodel,
 #' hhmodel <- dummy_household |>
 #'   new_housepi_model("test") |>
 #'   # define an incubation period drawn from a gamma distribution
-#'   add_augmented("incub_period",
+#'   add_latent("incub_period",
 #'                 model = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
-add_augmented <- function(hhmodel,
+add_latent <- function(hhmodel,
                           name = NULL, value = NULL, ...,
                           status = NA_integer_, const = NA, discr = NA,
                           func = NULL, func_args = NULL,
@@ -614,7 +614,7 @@ add_augmented <- function(hhmodel,
 
   #> template mode
   if (is_template_import_(import)) add_template_defs_(
-    pvt, "augmented", append, name, rlang::enquos(...)
+    pvt, "latent", append, name, rlang::enquos(...)
   )
   #> import mode
   else if (!is.null(import)) pvt$augm_$add_quo_list(
@@ -947,8 +947,8 @@ add_infectivity_profile <- function(hhmodel,
 #' @description
 #' Compute the complete-data log-likelihood of a `HousepiModel`:
 #' transmission plus observation.
-#' For models with augmented variables
-#' this is conditioned on current augmented values.
+#' For models with latent variables
+#' this is conditioned on current latent values.
 #' @param hhmodel `r rd_model_in_`
 #' @param house_id `r rd_house_id_`
 #' If `NA` (default) it computes for the whole data.
@@ -977,7 +977,7 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
 #' @param threads `r rd_thread_`
-#' @param id_draws Infected members whose public augmented draws are stored.
+#' @param id_draws Infected members whose public latent draws are stored.
 #' Either a `character()` of individual identifiers,
 #' or a `list` with entries `id` (individual identifiers)
 #' and/or `house_id` (whole household infected members are stored).

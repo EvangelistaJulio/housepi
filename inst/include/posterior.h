@@ -24,19 +24,19 @@ namespace housepi
         /// NOTE: for simplicity tot_* are matrices of 1 column
         /// NOTE: tot_log_lik is filled only under power posteriors as the tempered
         /// transmission + observation; ordinary inference stores the pointwise
-        /// house_log_lik = transmission + observation + augmented model
+        /// house_log_lik = transmission + observation + latent model
         matrix tot_log_lik;                              // joint tempered log-likelihood
         matrix house_log_lik;                            // pointwise log-likelihood
         matrix param_values;                             // parameter values
         matrix param_priors;                             // single parameter priors
-        std::vector<matrix> augm_values;                 // selected augmented values
+        std::vector<matrix> latent_values;                 // selected latent values
         std::vector<const Individual *> tracked_indivs; // members to track
 
         using headers = std::vector<std::string>;
         /// Column name metadata captured at initialization
         headers param_names;
         headers param_prior_names;
-        headers augm_col_names;
+        headers latent_col_names;
         headers house_names;
 
         /// Initialize posterior sample.

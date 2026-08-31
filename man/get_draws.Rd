@@ -2,14 +2,14 @@
 % Please edit documentation in R/posterior.R
 \name{get_parameter_draws}
 \alias{get_parameter_draws}
-\alias{get_augmented_draws}
+\alias{get_latent_draws}
 \alias{get_log_lik_draws}
 \alias{get_complete_draws}
 \title{Get posterior draws of respective variables}
 \usage{
 get_parameter_draws(hhdraws)
 
-get_augmented_draws(hhdraws)
+get_latent_draws(hhdraws)
 
 get_log_lik_draws(hhdraws)
 
@@ -25,6 +25,6 @@ For \code{log_lik}/\code{lprior} columns: Logarithms are natural (base \eqn{e}).
 }
 \description{
 Return a posterior draws dataframe with the MCMC samples.
-\code{get_parameter_draws()} and \code{get_augmented_draws()} warn and return an empty
+\code{get_parameter_draws()} and \code{get_latent_draws()} warn and return an empty
 draws object when no such draws were stored.
 }

@@ -468,7 +468,7 @@ namespace
         mcmc_ptr->infec_profile.build(mcmc_ptr->translator, rdataframe_to_strmap(input));
     }
 
-    void import_augm(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+    void import_latent(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
         mcmc_ptr->augm.build(mcmc_ptr->infec_profile, rdataframe_to_strmap(input));
         mcmc_ptr->init_equivalence_class_compression();
@@ -576,40 +576,40 @@ namespace
         return Rcpp::DataFrame(helper_export_data_wide(data_wide, data_wide.imported_cols(), true));
     }
 
-    /// Export to R all augmented variables at the current state.
+    /// Export to R all latent variables at the current state.
     Rcpp::DataFrame export_augmented_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
 
-        size_t n_cols = augm.list_augm_export.size();
+        size_t n_cols = augm.list_latent_export.size();
         size_t n_rows = data_wide.report_indiv.total;
 
-        std::vector<Rcpp::NumericVector> augm_cols(n_cols);
+        std::vector<Rcpp::NumericVector> latent_cols(n_cols);
         for (size_t i = 0; i < n_cols; ++i)
-            augm_cols[i] = Rcpp::NumericVector(n_rows);
+            latent_cols[i] = Rcpp::NumericVector(n_rows);
 
         const std::vector<std::string> data_names = data_wide.khold().all() -
-                                                    augm.khold(augm.list_augm_export);
+                                                    augm.khold(augm.list_latent_export);
 
         size_t row = 0;
         for (const Household &house : data_wide)
             for (const Individual &indiv : house)
             {
                 size_t c = 0;
-                for (size_t a : augm.list_augm_export)
-                    augm_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, indiv));
+                for (size_t a : augm.list_latent_export)
+                    latent_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->get_latent_varia(a, indiv));
                 ++row;
             }
 
-        // NOTE: discrete_export_cols starts with list_augm_export.
+        // NOTE: discrete_export_cols starts with list_latent_export.
         const std::vector<bool> discr_cols = augm.discrete_export_cols();
 
         Rcpp::List output = helper_export_data_wide(data_wide, data_names, true);
         size_t i = 0;
-        for (size_t a : augm.list_augm_export)
+        for (size_t a : augm.list_latent_export)
         {
-            output.push_back(rcpp_typed_column(augm_cols[i], discr_cols[i]), augm.khold(a));
+            output.push_back(rcpp_typed_column(latent_cols[i], discr_cols[i]), augm.khold(a));
             ++i;
         }
         return Rcpp::DataFrame(output);
@@ -817,27 +817,27 @@ namespace
                                     post.count(), "parameter log-prior");
     }
 
-    /// Rcpp wrapper: augmented variable draws as a data.frame.
-    Rcpp::List flush_augm_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
+    /// Rcpp wrapper: latent variable draws as a data.frame.
+    Rcpp::List flush_latent_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
 
-        if (post.augm_values.empty())
+        if (post.latent_values.empty())
             return Rcpp::List();
 
-        size_t n_cols = post.augm_col_names.size();
+        size_t n_cols = post.latent_col_names.size();
         Rcpp::List cols(n_cols);
 
         size_t col = 0;
-        for (auto &indiv_matrix : post.augm_values)
+        for (auto &indiv_matrix : post.latent_values)
         {
             for (auto &var_vec : indiv_matrix)
                 cols[col++] = flush_vector_to_numvec(var_vec);
             std::vector<std::vector<double>>().swap(indiv_matrix);
         }
-        std::vector<std::vector<std::vector<double>>>().swap(post.augm_values);
+        std::vector<std::vector<std::vector<double>>>().swap(post.latent_values);
 
-        cols.attr("names") = Rcpp::wrap(post.augm_col_names);
+        cols.attr("names") = Rcpp::wrap(post.latent_col_names);
         helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
         return cols;
     }
@@ -982,7 +982,7 @@ namespace
         return Rcpp::DataFrame(output);
     }
 
-    /// Export to R a snapshot of current state of house augmented variables.
+    /// Export to R a snapshot of current state of house latent variables.
     Rcpp::DataFrame rcpp_snapshot_group_risks(Rcpp::XPtr<MCMC> mcmc_ptr,
                                               const Household &house)
     {
@@ -1051,9 +1051,9 @@ namespace
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const InfecProfile &infec_profile = mcmc_ptr->infec_profile;
-        const bool is_augm = infec_profile.is_augmented();
+        const bool is_latent = infec_profile.is_latent();
 
-        if (!infec_profile.generic && !is_augm)
+        if (!infec_profile.generic && !is_latent)
             return Rcpp::List::create();
 
         size_t n_rows = house.size();
@@ -1068,12 +1068,12 @@ namespace
         for (size_t i = 0; i < house.size(); ++i)
             id_col[i] = data_wide.id(house.at(i));
 
-        // an augmented profile reads NA until its storage is allocated
-        if (!is_augm || mcmc_ptr->augm.is_allocated())
+        // a latent profile reads NA until its storage is allocated
+        if (!is_latent || mcmc_ptr->augm.is_allocated())
             for (MemberIndex i : house.infected_members())
             {
                 const Function *f =
-                    is_augm ? mcmc_ptr->get_augm_varia(infec_profile.augm_key, house.at(i)).function()
+                    is_latent ? mcmc_ptr->get_latent_varia(infec_profile.latent_key, house.at(i)).function()
                             : infec_profile.generic.get();
                 if (!f)
                     continue;
@@ -1121,7 +1121,7 @@ namespace
 
             for (size_t c = 0; c < n_cols; ++c)
             {
-                const Variable &avar = mcmc_ptr->get_augm_varia(list[c], indiv_i);
+                const Variable &avar = mcmc_ptr->get_latent_varia(list[c], indiv_i);
                 if (avar.has_distr())
                     df_double[c][i] = hsp_to_rcpp(avar.guarded_log_pdf());
             }
@@ -1135,13 +1135,13 @@ namespace
         return Rcpp::DataFrame(output);
     }
 
-    /// Export to R a snapshot of current state of house augmented variables.
-    Rcpp::DataFrame helper_augm_rcpp_snapshot(
+    /// Export to R a snapshot of current state of house latent variables.
+    Rcpp::DataFrame helper_latent_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
-        size_t n_cols = augm.list_augm_export.size();
+        size_t n_cols = augm.list_latent_export.size();
 
         if (n_cols == 0 || !augm.is_allocated())
             return Rcpp::DataFrame::create();
@@ -1158,17 +1158,17 @@ namespace
             const Individual &indiv_i = house.at(i);
             id_col[i] = data_wide.id(indiv_i);
             size_t c = 0;
-            for (size_t a : augm.list_augm_export)
-                df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->get_augm_varia(a, indiv_i));
+            for (size_t a : augm.list_latent_export)
+                df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->get_latent_varia(a, indiv_i));
         }
 
-        // NOTE: discrete_export_cols starts with list_augm_export.
+        // NOTE: discrete_export_cols starts with list_latent_export.
         const std::vector<bool> discr_cols = augm.discrete_export_cols();
 
         Rcpp::List output;
         output.push_back(id_col, "id");
         size_t i = 0;
-        for (size_t a : augm.list_augm_export)
+        for (size_t a : augm.list_latent_export)
         {
             output.push_back(rcpp_typed_column(df_double[i], discr_cols[i]), augm.khold(a));
             ++i;
@@ -1194,9 +1194,9 @@ namespace
                 Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),
                 Rcpp::_["group_risks"] = rcpp_snapshot_group_risks(mcmc_ptr, house),
                 Rcpp::_["contact_risks"] = rcpp_snapshot_contact_risks(mcmc_ptr, house),
-                Rcpp::_["augmented"] = helper_augm_rcpp_snapshot(mcmc_ptr, house),
+                Rcpp::_["latent"] = helper_latent_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["infectivity_profiles"] = rcpp_snapshot_infec_profile(mcmc_ptr, house),
-                Rcpp::_["augmented_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.list_augm_export),
+                Rcpp::_["latent_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.list_latent_export),
                 Rcpp::_["observation_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.list_obs_member),
                 Rcpp::_["transmission_log_lik"] = mcmc_ptr->data_wide().transm_log_lik(house).value());
         }
@@ -1215,7 +1215,7 @@ namespace
         /// Perform a single repetition.
         void single_repetition(MCMC &engine,
                                Rcpp::IntegerVector &status_col,
-                               std::vector<Rcpp::NumericVector> &augm_cols,
+                               std::vector<Rcpp::NumericVector> &latent_cols,
                                const std::vector<size_t> &row_offsets)
         {
             DataWide &data_wide = engine.data_wide();
@@ -1236,12 +1236,12 @@ namespace
                         {
                             status_col[row] = hsp_to_rcpp(indiv);
                             size_t c = 0;
-                            for (size_t a : augm.list_augm_export)
-                                augm_cols[c++][row] = hsp_to_rcpp(engine.get_augm_varia(a, indiv));
+                            for (size_t a : augm.list_latent_export)
+                                latent_cols[c++][row] = hsp_to_rcpp(engine.get_latent_varia(a, indiv));
                             // observation nodes: generated for infected members, NA otherwise
                             for (size_t a : augm.list_obs_member)
-                                augm_cols[c++][row] = indiv.is_infected_status()
-                                                          ? hsp_to_rcpp(engine.get_augm_varia(a, indiv))
+                                latent_cols[c++][row] = indiv.is_infected_status()
+                                                          ? hsp_to_rcpp(engine.get_latent_varia(a, indiv))
                                                           : NA_REAL;
                             ++row;
                         }
@@ -1249,7 +1249,7 @@ namespace
                         // surrogate columns: a household reduction is one value shared by
                         // every member row, a member column is read on each member --
                         // including those never infected, which the model reads too
-                        size_t c = augm.list_augm_export.size() + augm.list_obs_member.size();
+                        size_t c = augm.list_latent_export.size() + augm.list_obs_member.size();
                         for (const Augmented::Surrogate &surr : augm.list_surrogate)
                         {
                             if (!Augmented::is_own_column(surr))
@@ -1258,14 +1258,14 @@ namespace
                             {
                                 const double v = hsp_to_rcpp(augm.house_varia[H][surr.slot].value());
                                 for (size_t r = row_offsets[H]; r < row_offsets[H + 1]; ++r)
-                                    augm_cols[c][r] = v;
+                                    latent_cols[c][r] = v;
                             }
                             else
                             {
                                 const size_t a = augm.khold(augm.surrogate_name(surr));
                                 size_t r = row_offsets[H];
                                 for (const Individual &indiv : house)
-                                    augm_cols[c][r++] = hsp_to_rcpp(engine.get_augm_varia(a, indiv));
+                                    latent_cols[c][r++] = hsp_to_rcpp(engine.get_latent_varia(a, indiv));
                             }
                             ++c;
                         }
@@ -1282,20 +1282,20 @@ namespace
         // pre-compute per-household row offsets (fixes OpenMP race on row counter)
         Rcpp::DataFrame build_simulated(const Rcpp::List &shared_df,
                                         const Rcpp::IntegerVector &status_col,
-                                        const std::vector<Rcpp::NumericVector> &augm_cols,
+                                        const std::vector<Rcpp::NumericVector> &latent_cols,
                                         const std::vector<bool> &discr_cols,
                                         const Rcpp::CharacterVector &sim_names)
         {
             // build simulated list
             const size_t n_shared(shared_df.size());
-            const size_t n_augm_cols(augm_cols.size());
-            Rcpp::List sim_list(n_shared + 1 + n_augm_cols);
+            const size_t n_latent_cols(latent_cols.size());
+            Rcpp::List sim_list(n_shared + 1 + n_latent_cols);
             for (size_t i = 0; i < n_shared; ++i)
                 sim_list[i] = shared_df[i];
             sim_list[n_shared] = status_col;
-            for (size_t c = 0; c < n_augm_cols; ++c)
+            for (size_t c = 0; c < n_latent_cols; ++c)
                 sim_list[n_shared + 1 + static_cast<int>(c)] =
-                    rcpp_typed_column(augm_cols[c], discr_cols[c]);
+                    rcpp_typed_column(latent_cols[c], discr_cols[c]);
             sim_list.attr("names") = sim_names;
             return Rcpp::DataFrame(sim_list);
         }
@@ -1317,8 +1317,8 @@ namespace
             engine.model->init_model_for_simulation(); // model specific initialization
             engine.augm.init_house_for_simulation();   // build household-level observations
 
-            // FIXME: augmented variables are not built yet here
-            // -> impossible to assert profile whe Mode::Augmented
+            // FIXME: latent variables are not built yet here
+            // -> impossible to assert profile whe Mode::Latent
             // engine.assert_valid_infectivity_profile(); // assert profile is valid
 
             //////////////////////////////////////////////
@@ -1353,16 +1353,16 @@ namespace
             const std::vector<size_t> row_offsets = engine.get_row_offsets();
 
             // pre-allocate mutable output columns once (reused across iterations):
-            // exported augmented, observation and surrogate columns
+            // exported latent, observation and surrogate columns
             Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
 
-            std::vector<Rcpp::NumericVector> augm_cols(augm.n_export_cols());
-            for (size_t c = 0; c < augm_cols.size(); ++c)
-                augm_cols[c] = Rcpp::NumericVector(data_wide.report_indiv.total);
+            std::vector<Rcpp::NumericVector> latent_cols(augm.n_export_cols());
+            for (size_t c = 0; c < latent_cols.size(); ++c)
+                latent_cols[c] = Rcpp::NumericVector(data_wide.report_indiv.total);
 
             // flags for discrete columns
             // NOTE: variables are bound after first repepetion
-            std::vector<bool> discr_cols(augm_cols.size(), false);
+            std::vector<bool> discr_cols(latent_cols.size(), false);
 
             ///////////////////////////
             //////  Simulations  //////
@@ -1377,14 +1377,14 @@ namespace
 
                 // run single repetition
                 simulate::single_repetition(
-                    engine, status_col, augm_cols, row_offsets);
+                    engine, status_col, latent_cols, row_offsets);
 
                 if (r == 0)
                     discr_cols = augm.discrete_export_cols();
 
                 // build simulated list
                 Rcpp::DataFrame simulated(simulate::build_simulated(
-                    shared_df, status_col, augm_cols, discr_cols, sim_names));
+                    shared_df, status_col, latent_cols, discr_cols, sim_names));
 
                 // observation process
                 if (f_obs_process)
@@ -1479,7 +1479,7 @@ namespace
     MAKE_EXPORT_CHARACTER_VECTOR(key_Long)
     MAKE_EXPORT_CHARACTER_VECTOR(key_Param)
     MAKE_EXPORT_CHARACTER_VECTOR(key_GroupRisk)
-    MAKE_EXPORT_CHARACTER_VECTOR(key_Augm)
+    MAKE_EXPORT_CHARACTER_VECTOR(key_Latent)
 
 /// Keys the model requests as discrete.
 #define MAKE_EXPORT_DISCRETE_KEYS(method, module)                    \
@@ -1489,7 +1489,7 @@ namespace
     }
 
     MAKE_EXPORT_DISCRETE_KEYS(key_Param_discrete, param)
-    MAKE_EXPORT_DISCRETE_KEYS(key_Augm_discrete, augm)
+    MAKE_EXPORT_DISCRETE_KEYS(key_Latent_discrete, augm)
 
     /// Data columns the model requests as discrete (data_wide is an accessor).
     Rcpp::CharacterVector key_Data_discrete(Rcpp::XPtr<housepi::MCMC> mcmc_ptr)
@@ -1708,9 +1708,9 @@ RCPP_MODULE(housepi)
     Rcpp::function("key_Long", &key_Long);
     Rcpp::function("key_Param", &key_Param);
     Rcpp::function("key_GroupRisk", &key_GroupRisk);
-    Rcpp::function("key_Augm", &key_Augm);
+    Rcpp::function("key_Latent", &key_Latent);
     Rcpp::function("key_Param_discrete", &key_Param_discrete);
-    Rcpp::function("key_Augm_discrete", &key_Augm_discrete);
+    Rcpp::function("key_Latent_discrete", &key_Latent_discrete);
     Rcpp::function("key_Data_discrete", &key_Data_discrete);
     Rcpp::function("risk_anchors", &risk_anchors);
 
@@ -1734,7 +1734,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_setup", &import_setup);
     Rcpp::function("import_param", &import_param);
     Rcpp::function("import_infec_profile", &import_infec_profile);
-    Rcpp::function("import_augm", &import_augm);
+    Rcpp::function("import_latent", &import_latent);
     Rcpp::function("import_param_table", &import_param_table);
     Rcpp::function("has_contact_risk", &has_contact_risk);
     Rcpp::function("has_infec_profile", &has_infec_profile);
@@ -1746,7 +1746,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);
     Rcpp::function("flush_param_draws", &flush_param_draws);
     Rcpp::function("flush_param_log_prior_draws", &flush_param_log_prior_draws);
-    Rcpp::function("flush_augm_draws", &flush_augm_draws);
+    Rcpp::function("flush_latent_draws", &flush_latent_draws);
     Rcpp::function("flush_house_log_lik_draws", &flush_house_log_lik_draws);
     Rcpp::function("export_house_snapshot", &export_house_snapshot);
 }

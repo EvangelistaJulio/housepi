@@ -22,7 +22,7 @@ A susceptible member can get infected at time/day \eqn{t_{i}} according to a inh
 }
 \if{html}{\out{<hr>}}
 }
-\section{Augmented}{
+\section{Latent}{
 \itemize{
 \item \code{infec_time} \eqn{t_{i}} : time of infection of infectious member
 }

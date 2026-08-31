@@ -119,7 +119,7 @@ namespace housepi
         if (err_type_ == ErrType::Parameter)
             msg::stop(sms + " for " + err_name() + ".");
 
-        // augmented
+        // latent
         msg::warn("Collapsed (at least) one " + err_name() + " to constant.\n" + sms + ".");
         init_numeric(sx);
         helper_init_null_proposal_();
@@ -295,10 +295,10 @@ namespace housepi
 
             has_func_params = true;
             parse::Definition parser(input.at("func")[k]);
-            if (parser.consumes_augmented())
+            if (parser.consumes_latent())
                 msg::stop(
                     "Parameter function " + msg::val(pstr) +
-                    " cannot depend on augmented variables.");
+                    " cannot depend on latent variables.");
             if (parser.consumes_data_wide())
                 msg::stop(
                     "Parameter function " + msg::val(pstr) +

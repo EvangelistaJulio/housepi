@@ -19,8 +19,8 @@ Logarithms are natural (base \eqn{e}).
 \description{
 Compute the complete-data log-likelihood of a \code{HousepiModel}:
 transmission plus observation.
-For models with augmented variables
-this is conditioned on current augmented values.
+For models with latent variables
+this is conditioned on current latent values.
 }
 \examples{
 flu_1918_frederick |>

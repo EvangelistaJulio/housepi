@@ -33,8 +33,8 @@ Group risk definitions.}
 \item{\code{contact_risks}}{\code{data.frame}
 Contact risk definitions.}
 
-\item{\code{augmented}}{\code{data.frame}
-Augmented definitions.}
+\item{\code{latent}}{\code{data.frame}
+Latent definitions.}
 
 \item{\code{observations}}{\code{data.frame}
 Observation definitions.
@@ -150,7 +150,7 @@ Show model description in RStudio Help window.
 \if{html}{\out{<a id="method-HousepiModel-export_augmented_data"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-export_augmented_data}{}}}
 \subsection{Method \code{export_augmented_data()}}{
-Dataset with associated augmented variables for last state.
+Dataset with associated latent variables for last state.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_augmented_data()}\if{html}{\out{</div>}}
 }
@@ -165,7 +165,7 @@ Dataset with associated augmented variables for last state.
 \subsection{Method \code{export_house_snapshot()}}{
 All variables associated to given household for last state.
 Entries are named after the homonymous active fields, followed by the
-augmented, observation and transmission log-likelihood contributions.
+latent, observation and transmission log-likelihood contributions.
 An empty definition is dropped unless the model requires it.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_house_snapshot(house_id)}\if{html}{\out{</div>}}

@@ -52,13 +52,13 @@ namespace housepi
     {
         double obs_ll = 0.;    /// observation
         double transm_ll = 0.; /// transmission
-        double augm_ll = 0.;   /// augmented
+        double latent_ll = 0.;   /// latent
 
         LogLikAccumulator &operator+=(const LogLikAccumulator &other) noexcept
         {
             obs_ll += other.obs_ll;
             transm_ll += other.transm_ll;
-            augm_ll += other.augm_ll;
+            latent_ll += other.latent_ll;
             return *this;
         }
     };

@@ -40,8 +40,8 @@ namespace housepi
             return "function";
         case ErrType::Parameter:
             return "parameter";
-        case ErrType::Augmented:
-            return "augmented";
+        case ErrType::Latent:
+            return "latent";
         case ErrType::Observation:
             return "observation";
         case ErrType::HouseholdObservation:
@@ -688,8 +688,8 @@ namespace housepi::parse
         if (is_terminal())
         {
             std::string str_type;
-            if (is_augmented(type))
-                str_type = "augmented";
+            if (is_latent(type))
+                str_type = "latent";
             else if (is_data_wide(type))
                 str_type = "data";
             else if (is_group_risk(type))
@@ -720,13 +720,13 @@ namespace housepi::parse
         return is_x_arg;
     }
 
-    MAKE_NODE_LIST_PRODUCERS(augmented)
+    MAKE_NODE_LIST_PRODUCERS(latent)
     MAKE_NODE_LIST_PRODUCERS(data_wide)
     MAKE_NODE_LIST_PRODUCERS(parameter)
 
     Definition::Definition(std::string_view expr) { root = parse_expression_(expr); }
 
-    MAKE_PARSER_LIST_PRODUCERS(augmented)
+    MAKE_PARSER_LIST_PRODUCERS(latent)
     MAKE_PARSER_LIST_PRODUCERS(data_wide)
     MAKE_PARSER_LIST_PRODUCERS(parameter)
 }

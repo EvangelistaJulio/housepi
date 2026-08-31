@@ -34,7 +34,7 @@ We illustrate this with a concrete example from `inst/examples/custom/model.cpp`
 
 # The full custom model source
 
-The complete source file defines both a custom user function and a minimal augmented model:
+The complete source file defines both a custom user function and a minimal latent model:
 ```{r}
 #| label: load-custom-model
 custom_model <- system.file("examples", "custom", package = "housepi")
@@ -110,7 +110,7 @@ Here is what each part does:
 
 # The custom model
 
-The `Model` class defines a minimal augmented model with a single augmented variable `proba` and a single parameter `alpha`:
+The `Model` class defines a minimal latent model with a single latent variable `proba` and a single parameter `alpha`:
 
 ```{r}
 #| label: display-model-class
@@ -125,9 +125,9 @@ cat("\n```\n")
 
 Key elements:
 
-- **Register keys**: `HOUSEPI_DECLARE_REGISTER_KEYS` declares named keys for augmented variables (`proba`) and parameters (`alpha`). Empty key macros are used for unused slots (data, group risks, etc.).
+- **Register keys**: `HOUSEPI_DECLARE_REGISTER_KEYS` declares named keys for latent variables (`proba`) and parameters (`alpha`). Empty key macros are used for unused slots (data, group risks, etc.).
 - **Log-likelihood**: `compute_house_obs_log_lik()` sums the log of each infected member's `proba` value, offset by `-alpha`.
-- **Initialization**: `simulate_single_house()` initializes missing augmented variables for each infected member.
+- **Initialization**: `simulate_single_house()` initializes missing latent variables for each infected member.
 
 # Testing user functions from R
 

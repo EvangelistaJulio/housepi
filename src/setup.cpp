@@ -119,11 +119,11 @@ namespace housepi
         if (input.count("burn") && !na::is(input.at("burn")[0]))
             n_burn = str::toul(input.at("burn")[0], "burn");
 
-        // Individual ID for Augmented Trace
+        // Individual ID for Latent Trace
         if (input.count("id_draws") && !na::is(input.at("id_draws")[0]))
             id_draws = str::unique(read::parse_list(input.at("id_draws")[0]));
 
-        // Household ID for Augmented Trace
+        // Household ID for Latent Trace
         if (input.count("house_draws") && !na::is(input.at("house_draws")[0]))
             house_draws = str::unique(read::parse_list(input.at("house_draws")[0]));
 

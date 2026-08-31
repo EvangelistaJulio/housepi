@@ -150,8 +150,8 @@ hhmodel <- hhmodel |>
     gamma = list(prior = "uniform", proposal = "rw_unif", max = 5),
     hhsize_ref = 5
   ) |>
-  # augmented definitions
-  add_augmented(
+  # latent definitions
+  add_latent(
     # public definitions
     infec_time = list(
       model = "uniform", min = start_date@D - 8, max = end_date@D

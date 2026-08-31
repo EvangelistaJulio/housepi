@@ -6,8 +6,8 @@
 ##
 
 # Augmented stores four display families.
-is_augmented_family <- function(family) {
-  family %in% c("augmented", "observation", "household observation",
+is_latent_family <- function(family) {
+  family %in% c("latent", "observation", "household observation",
                 "status observation")
 }
 
@@ -17,18 +17,18 @@ kind2family <- function(kind) {
     "member" = "observation",
     "house" = "household observation",
     "status" = "status observation",
-    "augmented"
+    "latent"
   )
 }
 
 # Column carrying the defining distribution of the holder family.
 family2model_col <- function(family) {
-  if (is_augmented_family(family)) "model" else "prior"
+  if (is_latent_family(family)) "model" else "prior"
 }
 
 # Function columns associated to holder family.
 family2function_col <- function(family) {
-  if (is_augmented_family(family)) c("model", "func")
+  if (is_latent_family(family)) c("model", "func")
   else if (family == "infectivity profile") "func"
   else "prior"
 }
@@ -67,18 +67,18 @@ raise_def_error <- function(func_name, arg_names, def_name,
   func_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
 
   is_infec_prof <- family == "infectivity profile"
-  is_augm_func <- is_augmented_family(family) && model_col == "func"
+  is_latent_func <- is_latent_family(family) && model_col == "func"
 
   err <- list()
-  if (is_augm_func)
+  if (is_latent_func)
     err$func <- probe_exposer_("expose_function", func_name, func_args)
   if (!is_infec_prof)
     err$dist <- probe_exposer_("expose_distribution", func_name, func_args)
-  if (is_augm_func || is_infec_prof)
+  if (is_latent_func || is_infec_prof)
     err$infec <- probe_exposer_("expose_infec_profile", func_name, func_args)
 
-  if ((is_augm_func && length(err) == 3) ||
-        (!is_augm_func && length(err) == 1)) stop_h(
+  if ((is_latent_func && length(err) == 3) ||
+        (!is_latent_func && length(err) == 1)) stop_h(
     sprintf("Wrong definition found for %s.",
             ifelse(is.na(def_name), family, sprintf("{.val %s}", def_name))),
     helper_format_error(err)
@@ -86,7 +86,7 @@ raise_def_error <- function(func_name, arg_names, def_name,
 }
 
 # Assert that arguments provided to model are legitimate.
-# UPDATE: at the moment augmented functions are not testable
+# UPDATE: at the moment latent functions are not testable
 # because my registries are exposed separately
 housepi_assert_args <- function(gear, last = FALSE) {
   defs <- gear$defs
@@ -109,7 +109,7 @@ housepi_assert_args <- function(gear, last = FALSE) {
   }
 }
 
-# Assert a name carries no declaration of another kind: augmented variables,
+# Assert a name carries no declaration of another kind: latent variables,
 # observations of either level and the status process share one definition store,
 # and each name stands for a single quantity of the model.
 assert_no_kind_clash <- function(defs, name, kind) {
@@ -166,7 +166,7 @@ assert_valid_definition_name <- function(x, family, allow_hidden = FALSE) {
     )
     if (!allow_hidden && startsWith(x, ".")) stop_h(
       "Name {.val {x}} of {family} cannot start with a dot.",
-      "A leading dot marks a hidden definition (see {.fn add_augmented})."
+      "A leading dot marks a hidden definition (see {.fn add_latent})."
     )
   }
 }

@@ -21,7 +21,7 @@ HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Model final : public ModelBase
 {
 public:
-	HOUSEPI_DECLARE_EMPTY_KEYS(Augm)
+	HOUSEPI_DECLARE_EMPTY_KEYS(Latent)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Data)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Long)
 	HOUSEPI_DECLARE_EMPTY_KEYS(GroupRisk)
@@ -34,14 +34,14 @@ public:
 	/// Compute transmission log-likelihood within household. Unitary likelihood.
 	double compute_house_transm_log_lik(const Household &) override final { return 0.; }
 
-	/// Augmented variable initialization.
+	/// Latent variable initialization.
 	void simulate_single_house(Household &house) override final
 	{
 		for (MemberIndex i = 0; i < house.size(); ++i)
 		{
 			Individual &indiv = house.at(i);
 			if (indiv.is_infected_status())
-				init_missing_augm(indiv);
+				init_missing_latent(indiv);
 		}
 	}
 };

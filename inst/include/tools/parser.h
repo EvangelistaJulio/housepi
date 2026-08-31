@@ -18,7 +18,7 @@ namespace housepi::parse
     /// Single-letter code tagging a definition's terminal type.
     enum class Type : char
     {
-        Augmented = 'A',
+        Latent = 'A',
         DataWide = 'D',
         GroupRisk = 'G',
         Numeric = 'N',
@@ -28,8 +28,8 @@ namespace housepi::parse
     /// Wheter type code equals the given tag.
     inline bool is_(std::string_view s, Type t) { return s.size() == 1 && s.front() == static_cast<char>(t); }
 
-    /// Wheter definitions is 'augmented'.
-    inline bool is_augmented(std::string_view s) { return is_(s, Type::Augmented); }
+    /// Wheter definitions is 'latent'.
+    inline bool is_latent(std::string_view s) { return is_(s, Type::Latent); }
     /// Wheter definitions is 'data'.
     inline bool is_data_wide(std::string_view s) { return is_(s, Type::DataWide); }
     /// Wheter definitions is 'group risk'.
@@ -68,7 +68,7 @@ namespace housepi::parse
         bool is_callable_implicitly(std::string_view point) const noexcept;
 
         /// Append producer names of a given type, consumed by this node and its arguments.
-        void append_augmented_producers(std::vector<std::string> &stack) const;
+        void append_latent_producers(std::vector<std::string> &stack) const;
         void append_data_wide_producers(std::vector<std::string> &stack) const;
         void append_parameter_producers(std::vector<std::string> &stack) const;
     };
@@ -90,12 +90,12 @@ namespace housepi::parse
         bool is_callable_implicitly(std::string_view point) const noexcept { return root.is_callable_implicitly(point); }
 
         /// Names of the given type this definition consumes, i.e. its producers.
-        std::vector<std::string> list_augmented_producers() const;
+        std::vector<std::string> list_latent_producers() const;
         std::vector<std::string> list_data_wide_producers() const;
         std::vector<std::string> list_parameter_producers() const;
 
-        /// Wheter this definition consumes any augmented, data, or parameter name.
-        bool consumes_augmented() const { return !list_augmented_producers().empty(); }
+        /// Wheter this definition consumes any latent, data, or parameter name.
+        bool consumes_latent() const { return !list_latent_producers().empty(); }
         bool consumes_data_wide() const { return !list_data_wide_producers().empty(); }
         bool consumes_parameter() const { return !list_parameter_producers().empty(); }
     };

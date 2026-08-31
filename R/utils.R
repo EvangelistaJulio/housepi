@@ -261,7 +261,7 @@ untracked_changes <- function(source_dir, dll) {
 
 # File shipped by a model for each templated definition family.
 template_def_files <- c(parameter = "param.R",
-                        augmented = "augm.R",
+                        latent = "latent.R",
                         `infectivity profile` = "infecprof.R")
 
 # helper function to deep clone R6 objects
@@ -333,11 +333,11 @@ char_data_input_ <- function(df) {
   else data.frame(lapply(df, as.character))
 }
 
-#' Resolve character `status =` labels in an augmented defs frame to integer
+#' Resolve character `status =` labels in a latent defs frame to integer
 #' codes (1..K) against the model status dictionary. Integer codes pass through.
 #' Guards against mixing integer and character status declarations and against
 #' labels absent from the dictionary.
-#' @param defs `data.frame` or `NULL`. Augmented definitions.
+#' @param defs `data.frame` or `NULL`. Latent definitions.
 #' @param dictionary `character()`. Ordered infected-status labels.
 #' @return `data.frame` with an integer-coded `status` column.
 #' @keywords internal

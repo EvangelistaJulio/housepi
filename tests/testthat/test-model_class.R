@@ -7,7 +7,7 @@ library(testthat)
 test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
     helper_test_read_only(
-      "data_wide", "data_long", "parameters", "augmented", "observations",
+      "data_wide", "data_long", "parameters", "latent", "observations",
       "infectivity_profiles", "group_risks", "contact_risks", "name", "setup"
     )
 })
@@ -115,7 +115,7 @@ test_that("Model class 'test' calls", {
   # templates
   add_parameter(hhmodel, import = "template") |>
     expect_warning("test")
-  add_augmented(hhmodel, import = "template") |>
+  add_latent(hhmodel, import = "template") |>
     expect_warning("test")
 
   # zero log-likelihood ('test' model evaluates silently)
@@ -140,13 +140,13 @@ test_that("Household snapshot reads before any definition is pushed", {
   snapshot <- hhmodel$export_house_snapshot("house")
 
   field_names <- c(
-    "data_wide", "parameters", "group_risks", "contact_risks", "augmented",
-    "augmented_log_lik", "observation_log_lik", "transmission_log_lik"
+    "data_wide", "parameters", "group_risks", "contact_risks", "latent",
+    "latent_log_lik", "observation_log_lik", "transmission_log_lik"
   )
   expect_equal(names(snapshot), field_names)
 
-  for (f in c("parameters", "group_risks", "augmented",
-              "augmented_log_lik", "observation_log_lik")) {
+  for (f in c("parameters", "group_risks", "latent",
+              "latent_log_lik", "observation_log_lik")) {
     expect_length(snapshot[[f]], 0)
   }
 
@@ -264,7 +264,7 @@ test_that("A followed household without infected members warns", {
                         house_id = c("ground-zero", "mother-base"),
                         status = c(1, 0)) |>
     new_housepi_model("test") |>
-    add_augmented("test_date", model = "uniform")
+    add_latent("test_date", model = "uniform")
 
   expect_warning(
     expect_warning(

@@ -73,7 +73,7 @@ namespace housepi
 		//////////////////////////
 
 		/// Initialize model and evaluate the scalar complete-data household
-		/// log-likelihood (observation + transmission), joint over augmented variables.
+		/// log-likelihood (observation + transmission), joint over latent variables.
 		double evaluate_log_lik(std::string_view house_id);
 
 	private:
@@ -81,20 +81,20 @@ namespace housepi
 		void init_for_evaluation_();
 
 		/// Compute total log-posterior. Store all old values.
-		/// Result is left in tot_obs_log_lik, tot_transm_log_lik, tot_augm_log_lik.
-		/// NOTE: with_augm_ll / with_obs_ll run respective re-evaluations.
+		/// Result is left in tot_obs_log_lik, tot_transm_log_lik, tot_latent_log_lik.
+		/// NOTE: with_latent_ll / with_obs_ll run respective re-evaluations.
 		void commit_total_log_posterior_(bool with_cache,
-										 bool with_augm_ll = true,
+										 bool with_latent_ll = true,
 										 bool with_obs_ll = true);
 		/// Commit single household's posterior contribution.
 		LogLikAccumulator commit_house_log_posterior_(const Household &house,
 													  bool with_cache,
-													  bool with_augm_ll,
+													  bool with_latent_ll,
 													  bool with_obs_ll);
-		/// Recompute and store the total augmented log-likelihood across all households.
-		double commit_total_augm_log_lik_ratio_();
-		/// Recover the total augmented log-likelihood after a refused prior-only move.
-		void recover_total_augm_log_lik_();
+		/// Recompute and store the total latent log-likelihood across all households.
+		double commit_total_latent_log_lik_ratio_();
+		/// Recover the total latent log-likelihood after a refused prior-only move.
+		void recover_total_latent_log_lik_();
 
 		/// Guarded total log-posterior computation for initialization.
 		/// Assert for finite initial value and mechanisms to recover in place.
@@ -102,10 +102,10 @@ namespace housepi
 		/// Single household's guarded contribution.
 		LogLikAccumulator init_guarded_commit_house_(Household &house);
 
-		/// Compute and store log-ratio of prior of single augmented variable.
-		double commit_augm_log_lik_ratio(const Individual &indiv, size_t a)
+		/// Compute and store log-ratio of prior of single latent variable.
+		double commit_latent_log_lik_ratio(const Individual &indiv, size_t a)
 		{
-			return augm.commit_augm_log_lik_ratio(indiv, a);
+			return augm.commit_latent_log_lik_ratio(indiv, a);
 		}
 
 		/// Compute and store log-ratio of observation nodes parameterized by 'a'.
@@ -154,25 +154,25 @@ namespace housepi
 		template <bool Beta0>
 		void run_mc_posterior_sampling_();
 
-		/// Move all model parameters and augmented variables.
+		/// Move all model parameters and latent variables.
 		/// Adapt: moves are credited to the proposals, which only adaptation reads.
 		template <bool Adapt, bool Beta0>
 		void move_all_();
 		/// Attempt to move a single parameter.
 		template <bool Adapt, bool Beta0>
 		void move_single_parameter_(size_t p, bool with_cache);
-		/// Move augmented variables of all infected individuals.
+		/// Move latent variables of all infected individuals.
 		template <bool Adapt, bool Beta0>
-		void move_all_augm_();
-		/// Move augmented variables of infectious members inside household.
-		/// The move is performed one member at a time, one augmented variable at a time.
-		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
+		void move_all_latent_();
+		/// Move latent variables of infectious members inside household.
+		/// The move is performed one member at a time, one latent variable at a time.
+		/// Returns the accepted transmission log-likelihood and latent log-model deltas.
 		template <bool Adapt, bool Beta0>
-		LogLikAccumulator move_augm_single_house_(size_t H);
-		/// Move a single augmented variable.
-		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
+		LogLikAccumulator move_latent_single_house_(size_t H);
+		/// Move a single latent variable.
+		/// Returns the accepted transmission log-likelihood and latent log-model deltas.
 		template <bool Adapt, bool Beta0>
-		LogLikAccumulator move_augm_single_variable_(const Household &house,
+		LogLikAccumulator move_latent_single_variable_(const Household &house,
 													 const Individual &indiv,
 													 size_t a);
 

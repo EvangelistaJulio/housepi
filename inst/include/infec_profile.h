@@ -28,8 +28,8 @@ namespace housepi
 {
     namespace infprof
     {
-        /// Augmented instantaneous infectivity profile.
-        constexpr const char *AUGM_FUNC = ".infec_prof_augm_func";
+        /// Latent instantaneous infectivity profile.
+        constexpr const char *LATENT_FUNC = ".infec_prof_latent_func";
         /// Default size for lookup table for discrete case
         constexpr unsigned LOOKUP_SIZE = 30;
 
@@ -80,12 +80,12 @@ namespace housepi
 
     struct InfecProfile
     {
-        friend struct Augmented; /// process augmented infectivity profile
+        friend struct Augmented; /// process latent infectivity profile
 
     public:
         std::unique_ptr<Distribution> generic; /// generic profile
-        str_table augm_definitions = {};       /// augmented definitions
-        size_t augm_key;                       /// augmented key
+        str_table latent_definitions = {};       /// latent definitions
+        size_t latent_key;                       /// latent key
 
         ///////////////////////////
         //////  CONSTRUCTOR  //////
@@ -102,11 +102,11 @@ namespace housepi
         /// NOTE: at the moment I am ignoring minimum
         void build(Translator &translator, const str_table &input);
 
-        /// Bind augmented storage for runtime per-member profile resolution.
+        /// Bind latent storage for runtime per-member profile resolution.
         void bind_augm(const Augmented *augm) noexcept { paugm_ = augm; }
 
         /// Finalize the generic distribution (resolve its read-surface) before use.
-        /// NOTE: evaluation-only; the augmented profile is finalized with its variable.
+        /// NOTE: evaluation-only; the latent profile is finalized with its variable.
         void finalize()
         {
             if (generic)
@@ -122,7 +122,7 @@ namespace housepi
             case Mode::LookUp:
                 lookup_.update();
                 break;
-            default: // cases Mode::Generic, Mode::Augmented
+            default: // cases Mode::Generic, Mode::Latent
                 return;
             }
         }
@@ -135,7 +135,7 @@ namespace housepi
             case Mode::LookUp:
                 lookup_.recover();
                 break;
-            default: // cases Mode::Generic, Mode::Augmented
+            default: // cases Mode::Generic, Mode::Latent
                 return;
             }
         }
@@ -150,8 +150,8 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Augmented:
-                return paugm_->at(augm_key, *indiv_ptr).function()->pdf(t);
+            case Mode::Latent:
+                return paugm_->at(latent_key, *indiv_ptr).function()->pdf(t);
             case Mode::LookUp:
                 return lookup_.inst(t);
             default: // case Mode::Generic
@@ -162,8 +162,8 @@ namespace housepi
         {
             switch (mode_)
             {
-            case Mode::Augmented:
-                return paugm_->at(augm_key, *indiv_ptr).function()->cdf(t);
+            case Mode::Latent:
+                return paugm_->at(latent_key, *indiv_ptr).function()->cdf(t);
             case Mode::LookUp:
                 return generic->is_below(t) ? 0. : lookup_.cumul(t);
             default: // case Mode::Generic
@@ -175,14 +175,14 @@ namespace housepi
         //////  FLAGS  //////
         /////////////////////
 
-        bool is_augmented() const noexcept { return mode_ == Mode::Augmented; }
+        bool is_latent() const noexcept { return mode_ == Mode::Latent; }
         bool is_lookup() const noexcept { return mode_ == Mode::LookUp; }
         bool is_required_discrete() const noexcept { return is_required_discrete_; }
 
     private:
         enum class Mode : std::uint8_t
         {
-            Augmented, /// augmented infectivity profile
+            Latent, /// latent infectivity profile
             Generic,   /// generic infectivity profile
             LookUp     /// generic infectivity profile
         } mode_ = Mode::Generic;
@@ -190,12 +190,12 @@ namespace housepi
         bool is_required_discrete_ = false; /// wheter is requested as discrete
         infprof::LookUpTable lookup_;       /// discrete time lookup table
 
-        const Augmented *paugm_ = nullptr; /// augmented storage for per-member profile
+        const Augmented *paugm_ = nullptr; /// latent storage for per-member profile
 
         /// Build for generic infectivity profile (no status dependence).
         void build_generic_(Translator &translator, const str_table &input);
-        /// Build for individual augmented function infectivity profile.
-        void build_augmented_(Translator &translator, const str_table &input);
+        /// Build for individual latent function infectivity profile.
+        void build_latent_(Translator &translator, const str_table &input);
         /// Helper to compose a profile distribution and bind its arguments.
         std::unique_ptr<Distribution> helper_build_(Translator &translator,
                                                     const std::string &func,

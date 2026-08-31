@@ -26,7 +26,7 @@ try_fold_const_ <- function(expr, env) {
 
 # Helper to check type definitions and set defaults.
 helper_default_source <- function(types, values) {
-  valid_sources_lst <- list("A" = "augmented",
+  valid_sources_lst <- list("A" = "latent",
                             "D" = "data",
                             "G" = "group risk",
                             "N" = "numeric",

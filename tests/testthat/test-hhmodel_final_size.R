@@ -118,7 +118,7 @@ test_that("Deep clone works as expected", {
 
   # definitions
   expect_equal(hhmodel$parameters, hhclone$parameters)
-  expect_equal(hhmodel$augmented, hhclone$augmented)
+  expect_equal(hhmodel$latent, hhclone$latent)
   expect_equal(hhmodel$group_risks, hhclone$group_risks)
 
   # check no backward changes

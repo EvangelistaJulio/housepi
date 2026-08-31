@@ -8,22 +8,22 @@
 Posterior draws as a result of housepi inference on a household model.
 This class stores posterior draws of model parameters, the joint log-prior
 (\code{lprior}) and the pointwise per-household log-likelihood (\code{log_lik}).
-If requested during inference, it also stores augmented variables.
+If requested during inference, it also stores latent variables.
 
-For models with augmented variables the chain targets the joint
-(augmented, parameter) posterior. Write \eqn{x} for a single household's
+For models with latent variables the chain targets the joint
+(latent, parameter) posterior. Write \eqn{x} for a single household's
 data, \eqn{\theta} for the parameter vector and \eqn{z} for that household's
-augmented variables. The unnormalised joint log-density splits into the two
+latent variables. The unnormalised joint log-density splits into the two
 bundles this class exposes,
 \deqn{\log p(\theta, z, x) =
   \underbrace{\log p(\theta)}_{\texttt{lprior}}
-  + \underbrace{\log p^\mathrm{augm}(z \mid \theta)
+  + \underbrace{\log p^\mathrm{lat}(z \mid \theta)
     + \log p^\mathrm{transm}(x \mid z, \theta)
     + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
-where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{augm}} the
-augmented-variable model, \eqn{p^\mathrm{transm}} the transmission likelihood
+where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{lat}} the
+latent-variable model, \eqn{p^\mathrm{transm}} the transmission likelihood
 and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
-the contract of the per-household \code{log_lik}: with no augmented latent or
+the contract of the per-household \code{log_lik}: with no latent variable or
 observation node the remaining terms vanish and \code{log_lik} contracts to
 transmission alone.
 }
@@ -33,27 +33,27 @@ transmission alone.
 \item{\code{parameter_draws}}{\code{posterior::draws_df}.
 Draws of parameters.}
 
-\item{\code{augmented_draws}}{\code{posterior::draws_df}.
-Draws of the selected individuals' augmented variables.}
+\item{\code{latent_draws}}{\code{posterior::draws_df}.
+Draws of the selected individuals' latent variables.}
 
 \item{\code{log_lik_draws}}{\code{posterior::draws_df}.
 Pointwise per-household log-likelihood
 \eqn{
   \log p^\mathrm{obs}(y \mid z, \theta) +
   \log p^\mathrm{transm}(y \mid z, \theta) +
-  \log p^\mathrm{augm}(z \mid \theta),
+  \log p^\mathrm{lat}(z \mid \theta),
 }
-the observation, transmission, and augmented model contributions.
+the observation, transmission, and latent model contributions.
 Logarithms are natural (base \eqn{e}).}
 
 \item{\code{lprior_draws}}{\code{posterior::draws_df}.
 Single column \code{lprior}: the parameter log-prior \eqn{\log p(\theta)}. The
-augmented-variable log-density enters the \code{log_lik} bundle, not \code{lprior}.
+latent-variable log-density enters the \code{log_lik} bundle, not \code{lprior}.
 Logarithms are natural (base \eqn{e}).}
 
 \item{\code{complete_draws}}{\code{posterior::draws_df}.
 Parameters, pointwise \code{log_lik} and the joint \code{lprior}.
-Note \code{log_lik}/\code{lprior} are evaluated over the joint (augmented,
+Note \code{log_lik}/\code{lprior} are evaluated over the joint (latent,
 parameter) posterior (see \code{log_lik_draws} and \code{lprior_draws}).
 Logarithms are natural (base \eqn{e}).}
 }

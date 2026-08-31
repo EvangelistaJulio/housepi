@@ -38,7 +38,7 @@ namespace housepi
 		Setup setup;
 		LogProba tot_obs_log_lik;	 /// observation log-likelihood
 		LogProba tot_transm_log_lik; /// transmission log-likelihood
-		LogProba tot_augm_log_lik;	 /// augmented-variable log-models
+		LogProba tot_latent_log_lik;	 /// latent-variable log-models
 		Posterior posterior;
 
 		/// Pointer to data storage.
@@ -69,7 +69,7 @@ namespace housepi
 			const std::vector<std::string> &data_long_keys,
 			const std::vector<std::string> &param_keys,
 			const std::vector<std::string> &group_risk_keys,
-			const std::vector<std::string> &augm_keys);
+			const std::vector<std::string> &latent_keys);
 
 		///////////////////////////
 		//////  DATA ACCESS  //////
@@ -84,7 +84,7 @@ namespace housepi
 		const DataLong &data_long() const noexcept { return pDataStore->data_long; }
 
 		/// Initialize equivalence class compression.
-		/// NOTE: assume unique if augmented definitions required, but not imported yet.
+		/// NOTE: assume unique if latent definitions required, but not imported yet.
 		void init_equivalence_class_compression();
 
 		/// Throw if the generic profile transmits at generation time 0.
@@ -97,8 +97,8 @@ namespace housepi
 
 		double aug(size_t a, const Individual &m) const { return augm.at(a, m).value(); }
 		double data(size_t d, const Individual &m) const noexcept { return data_wide().data(d, m); }
-		Variable &get_augm_varia(size_t a, const Individual &m) noexcept { return augm.at(a, m); }
-		const Variable &get_augm_varia(size_t a, const Individual &m) const noexcept { return augm.at(a, m); }
+		Variable &get_latent_varia(size_t a, const Individual &m) noexcept { return augm.at(a, m); }
+		const Variable &get_latent_varia(size_t a, const Individual &m) const noexcept { return augm.at(a, m); }
 
 		//////////////////////
 		//////  GETTER  //////
@@ -117,8 +117,8 @@ namespace housepi
 		std::vector<size_t> get_row_offsets() const;
 		/// Sum per-infected-member observation log-likelihhood.
 		double house_obs_log_lik(const Household &house) const;
-		/// Sum per-infected-member augmented log-likelihhood.
-		double house_augm_log_lik(const Household &house) const;
+		/// Sum per-infected-member latent log-likelihhood.
+		double house_latent_log_lik(const Household &house) const;
 
 	protected:
 		//////////////////////////////
@@ -134,14 +134,14 @@ namespace housepi
 		{
 			return augm.varia[Index::of(indiv)].obs_log_lik;
 		}
-		/// Log-likelihood of individual augmented model.
-		LogProba &augm_log_lik_(const Individual &indiv) noexcept
+		/// Log-likelihood of individual latent model.
+		LogProba &latent_log_lik_(const Individual &indiv) noexcept
 		{
-			return augm.varia[Index::of(indiv)].augm_log_lik;
+			return augm.varia[Index::of(indiv)].latent_log_lik;
 		}
-		const LogProba &augm_log_lik_(const Individual &indiv) const noexcept
+		const LogProba &latent_log_lik_(const Individual &indiv) const noexcept
 		{
-			return augm.varia[Index::of(indiv)].augm_log_lik;
+			return augm.varia[Index::of(indiv)].latent_log_lik;
 		}
 
 		///////////////////////////////////
@@ -155,9 +155,9 @@ namespace housepi
 
 		/// Recover old log-likelihood contributions.
 		/// NOTE: called after a refused parameter move.
-		void recover_augm_log_lik_(const Individual &indiv) noexcept
+		void recover_latent_log_lik_(const Individual &indiv) noexcept
 		{
-			augm_log_lik_(indiv).recover();
+			latent_log_lik_(indiv).recover();
 		}
 		void recover_obs_log_lik_(const Individual &indiv) noexcept
 		{
@@ -169,10 +169,10 @@ namespace housepi
 		}
 		/// @brief Recover old value of the total log-likelihood.
 		/// @param with_cache Whether to recover cached values.
-		/// @param with_augm_ll Whether to recover augmented log-likelihood.
+		/// @param with_latent_ll Whether to recover latent log-likelihood.
 		/// @param with_obs_ll Whether to recover observation log-likelihood.
 		void recover_total_log_lik_(bool with_cache,
-									bool with_augm_ll = true,
+									bool with_latent_ll = true,
 									bool with_obs_ll = true);
 	};
 }

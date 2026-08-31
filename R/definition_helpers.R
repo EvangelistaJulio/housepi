@@ -202,7 +202,7 @@ helper_definition_args <- function(proposal, dots) {
 # @description
 # Interpret user choice for Monte Carlo move.
 helper_variable_move <- function(opts, family) {
-  # prior for parameters/risks, model for augmented/observations
+  # prior for parameters/risks, model for latent/observations
   dist_word <- family2model_col(family)
   is_param <- family == "parameter"
 

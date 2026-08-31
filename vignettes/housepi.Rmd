@@ -71,7 +71,7 @@ Status $s_{i}$ should be an integer value satisfying the following convention:
 
 In this way we can use the status as a label for different classes of infectious household members.
 E.g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ for asymptomatic.
-This is used in advanced augmented definitions, see [Data augmentation](data_augmentation.html) for an example.
+This is used in advanced latent definitions, see [Data augmentation](data_augmentation.html) for an example.
 
 # The housepi model class
 
@@ -215,13 +215,13 @@ get_parameter_draws(results) |>
 
 # Models with data augmentation
 
-For models requiring augmented variables, the definition procedure is analogous.
-In [Data augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex augmented definitions.
+For models requiring latent variables, the definition procedure is analogous.
+In [Data augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex latent definitions.
 Here we present a case study, using the template model "case_ascertained" where surveys are conditioned on single introduction.
 We load the parameter definitions directly from the model template.
 
 ```{r}
-#| label: load-augmented-model
+#| label: load-latent-model
 # load a dataset for the data structure (used later for the simulation)
 community_structure <- sarscov2_2021_icofs |>
   dplyr::select(id, house_id) |>
@@ -240,14 +240,14 @@ In this example we passed `import = "template"` to load the parameter definition
 
 # Simulate an outbreak
 
-We propose the following definitions for the augmented variables, associated from a list by calling `add_augmented()`.
-Alongside augmented definitions, we need to define observations, in this case of the onset symptom dates and the consequent start date. 
+We propose the following definitions for the latent variables, associated from a list by calling `add_latent()`.
+Alongside latent definitions, we need to define observations, in this case of the onset symptom dates and the consequent start date. 
 We do so with `add_observation()`.
 
 ```{r}
-#| label: load-augmented-definitions
+#| label: load-latent-definitions
 hhsimul <- hhsimul |>
-  add_augmented(
+  add_latent(
     # infection time of primary case
     infec_time = 0,
     # incubation period for each individual
@@ -280,7 +280,7 @@ The infectivity profile, instead, is mandatory for this model: above we loaded t
 
 We run a simulation with the method `run_simulation`, using the same community structure from the survey.
 The index case is sampled randomly among all members for each household.
-Simulations will associates augmented incubation periods, infection times and sampled onset dates to all infected individuals:
+Simulations will associates latent incubation periods, infection times and sampled onset dates to all infected individuals:
 
 ```{r}
 #| label: run-simulation
@@ -297,7 +297,7 @@ An `obs_process` argument remains available for post-processing refinements.
 
 It is important to validate our approach checking that inference is able to recover the parameters used for the simulation, with a so called simulation study.
 
-The pointwise `log_lik` is the per-household complete-data log-likelihood: for models with augmented variables it includes augmented models.
+The pointwise `log_lik` is the per-household complete-data log-likelihood: for models with latent variables it includes latent models.
 
 Inference reuses the very same definition set as the simulation: the observed
 `onset_date` now enters as a proper observation likelihood (traced separately as
@@ -309,7 +309,7 @@ hhmodel <- simulated |>
   new_housepi_model("case_ascertained") |>
   add_parameter(import = "template") |>
   add_infectivity_profile(import = "template") |>
-  add_augmented(
+  add_latent(
     infec_time = list(
       model = "uniform", min = start_date@D - 14, max = end_date@D
     ),

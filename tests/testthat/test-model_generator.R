@@ -104,7 +104,7 @@ test_that("required keys reflect the underlying template", {
     expect_length(0L)
   test_gen$group_risks_required |>
     expect_length(0L)
-  test_gen$augm_required |>
+  test_gen$latent_required |>
     expect_length(0L)
 
   ait_gen <- HousepiGenerator$new("case ascertained")
@@ -114,7 +114,7 @@ test_that("required keys reflect the underlying template", {
     expect_setequal(c("alpha", "beta", "gamma", "hhsize_ref"))
   ait_gen$group_risks_required |>
     expect_setequal(c("community", "susceptibility", "infectivity"))
-  ait_gen$augm_required |>
+  ait_gen$latent_required |>
     expect_setequal("infec_time")
 
   # every entry is tagged as coming from the transmission model
@@ -280,7 +280,7 @@ test_that("Custom models shares function registries", {
 
   # no templates available for custom example
   hhmodel_1 |>
-    add_augmented(import = "template") |>
+    add_latent(import = "template") |>
     expect_error("file.*not found")
 
   # Growth_ overrides only raw_function_ and raw_primitive_

@@ -12,7 +12,7 @@
 #' Provide household data at construction or later with [add_data_wide()].
 #' Specify the model features with the decorators [add_parameter()],
 #' [add_group_risk()], [add_contact_risk()], [add_infectivity_profile()],
-#' [add_augmented()] and [add_observation()].
+#' [add_latent()] and [add_observation()].
 #' Run the inference with [run_inference()], extract draws with
 #' [get_parameter_draws()] and summarise them with [summarise_draws()].
 #' Run simulations with [run_simulation()],

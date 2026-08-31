@@ -8,12 +8,12 @@ test_that("Reject if calling on non-HousepiModel objects", {
   get_data_wide(obj) |> expect_error(err)
   get_data_long(obj) |> expect_error(err)
   get_parameters(obj) |> expect_error(err)
-  get_augmented(obj) |> expect_error(err)
+  get_latent(obj) |> expect_error(err)
   get_group_risks(obj) |> expect_error(err)
   get_infectivity_profiles(obj) |> expect_error(err)
   add_contact_risk(obj) |> expect_error(err)
   add_parameter(obj) |> expect_error(err)
-  add_augmented(obj) |> expect_error(err)
+  add_latent(obj) |> expect_error(err)
   add_infectivity_profile(obj, "mk22") |> expect_error(err)
   evaluate_log_lik(obj) |> expect_error(err)
   run_inference(obj) |> expect_error(err)
@@ -65,15 +65,15 @@ test_that("Wrappers work as expected on model 'test'", {
   # infectivity profile
   expect_null(get_infectivity_profiles(hhmodel))
 
-  # augmented
-  result <- add_augmented(hhmodel, name = "dummy", value = 3)
-  aug <- get_augmented(result)
+  # latent
+  result <- add_latent(hhmodel, name = "dummy", value = 3)
+  aug <- get_latent(result)
   expect_true(is.data.frame(aug))
   expect_true("dummy" %in% aug$name)
 
   result <- hhmodel |>
-    add_augmented(dummy = list(model = "uniform"))
-  aug <- get_augmented(result)
+    add_latent(dummy = list(model = "uniform"))
+  aug <- get_latent(result)
   expect_true("dummy" %in% aug$name)
 })
 
@@ -117,7 +117,7 @@ test_that("Bulk loading via `defs` mirrors inline name = value pairs", {
     add_parameter("sokolov", import = "template") |>
     expect_error("[Mm]ixing")
   hhmodel |>
-    add_augmented(nikolai = 1, import = "template") |>
+    add_latent(nikolai = 1, import = "template") |>
     expect_error("[Mm]ixing")
 
   # a character import naming no known source is a typo, not a definition

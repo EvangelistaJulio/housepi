@@ -10,7 +10,7 @@
         A custom choice can be provided.
       v Data
       v Parameters
-      v Augmented
+      v Latent
       v Infectivity profile
 
 ---
@@ -26,6 +26,6 @@
         A custom choice can be provided.
       v Data
       v Parameters
-      v Augmented
+      v Latent
       v Infectivity profile
 

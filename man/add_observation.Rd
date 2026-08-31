@@ -39,7 +39,7 @@ In mode 'multiple', applies to every entry not setting its own.}
 following the convention \code{argument@source} ("argument at source"),
 or an arithmetic expression. Sources are:
 \describe{
-\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@A}}{latent variable (assumed for a bare name);}
 \item{\verb{@D}}{data column;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
@@ -58,7 +58,7 @@ Relative to the location argument \code{loc}, when one is given. Either a plain 
 following the convention \code{argument@source} ("argument at source"),
 or an arithmetic expression. Sources are:
 \describe{
-\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@A}}{latent variable (assumed for a bare name);}
 \item{\verb{@D}}{data column;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
@@ -70,7 +70,7 @@ Relative to the location argument \code{loc}, when one is given. Either a plain 
 following the convention \code{argument@source} ("argument at source"),
 or an arithmetic expression. Sources are:
 \describe{
-\item{\verb{@A}}{augmented variable (assumed for a bare name);}
+\item{\verb{@A}}{latent variable (assumed for a bare name);}
 \item{\verb{@D}}{data column;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}

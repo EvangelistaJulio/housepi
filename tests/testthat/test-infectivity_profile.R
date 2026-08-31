@@ -5,7 +5,7 @@ mk_infec <- local({
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained") |>
     add_parameter(import = "template") |>
-    add_augmented(import = "template")
+    add_latent(import = "template")
   list(model = hhmodel)
 })
 
@@ -14,7 +14,7 @@ mk_infec_discr <- local({
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(import = "template") |>
-    add_augmented(import = "template")
+    add_latent(import = "template")
   list(model = hhmodel)
 })
 
@@ -157,12 +157,12 @@ test_that("a profile dependency reached through 'min' is reported", {
 ############################################################################
 
 test_that("declaration order does not matter", {
-  # the profile folds into the augmented build, so it reads parameters that
+  # the profile folds into the latent build, so it reads parameters that
   # only reach the engine on their own decorator
   before <- sarscov2_2021_icofs |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_infectivity_profile(import = "template") |>
-    add_augmented(import = "template") |>
+    add_latent(import = "template") |>
     add_parameter(import = "template")
   expect_silent(before)
 
@@ -170,7 +170,7 @@ test_that("declaration order does not matter", {
     new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_infectivity_profile(import = "template") |>
-    add_augmented(import = "template")
+    add_latent(import = "template")
 
   # both reach the wall: the log-likelihood is random, only finiteness is
   # comparable (see evaluate_log_lik)
@@ -243,7 +243,7 @@ test_that("shifting a profile with 'loc' matches the explicit bounds", {
     new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>
     # deterministic, so the likelihood is reproducible across builds
-    add_augmented(infec_time = start_date@D, .incub_period = 3)
+    add_latent(infec_time = start_date@D, .incub_period = 3)
 
   shifted <- outer_heaven |>
     add_infectivity_profile("uniform", loc = .incub_period, max = 2) |>
@@ -261,25 +261,25 @@ test_that("shifting a profile with 'loc' matches the explicit bounds", {
   expect_false(isTRUE(all.equal(shifted, wider)))
 })
 
-test_that("an augmented parameterizing the profile drives transmission", {
+test_that("a latent parameterizing the profile drives transmission", {
   shadow_moses <- data.frame(
     id = c("ocelot", "raiden", "otacon"), house_id = "shadow_moses",
     status = c(1, 1, 0), start_date = 0, end_date = 20
   ) |>
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>
-    add_augmented(
+    add_latent(
       infec_time = list(model = "uniform", min = start_date@D, max = end_date@D)
     )
 
-  # the profile is resolved per member, so the augmented reaches the household
+  # the profile is resolved per member, so the latent reaches the household
   # cache without ever passing through 'infec_time'
   short <- shadow_moses |>
-    add_augmented(.incub_period = 3) |>
+    add_latent(.incub_period = 3) |>
     add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
     evaluate_log_lik()
   long <- shadow_moses |>
-    add_augmented(.incub_period = 8) |>
+    add_latent(.incub_period = 8) |>
     add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
     evaluate_log_lik()
   expect_false(identical(short, long))
@@ -300,7 +300,7 @@ test_that("the household snapshot reports the profile of each member", {
 
   # a generic profile repeats on every infected member, susceptibles read NA
   generic <- zanzibar |>
-    add_augmented(infec_time = start_date@D) |>
+    add_latent(infec_time = start_date@D) |>
     add_infectivity_profile("gamma", shape = 2, scale = 1) |>
     (\(x) x$export_house_snapshot("zanzibar")$infectivity_profiles)()
 
@@ -314,17 +314,17 @@ test_that("the household snapshot reports the profile of each member", {
   # the susceptible carries no profile at all
   expect_length(generic$func_args[[3]], 0)
 
-  # an augmented profile is resolved per member: same house, two incubations
-  augmented <- zanzibar |>
-    add_augmented(infec_time = start_date@D, .incub_period = latency@D) |>
+  # a latent profile is resolved per member: same house, two incubations
+  latent <- zanzibar |>
+    add_latent(infec_time = start_date@D, .incub_period = latency@D) |>
     add_infectivity_profile("ferretti20", incub_period = .incub_period)
 
-  # the augmented storage is not allocated until the model is evaluated
-  augmented$export_house_snapshot("zanzibar")$infectivity_profiles$func |>
+  # the latent storage is not allocated until the model is evaluated
+  latent$export_house_snapshot("zanzibar")$infectivity_profiles$func |>
     expect_equal(rep(NA_character_, 3))
 
-  invisible(evaluate_log_lik(augmented))
-  snapshot <- augmented$export_house_snapshot("zanzibar")$infectivity_profiles
+  invisible(evaluate_log_lik(latent))
+  snapshot <- latent$export_house_snapshot("zanzibar")$infectivity_profiles
 
   expect_equal(snapshot$func, c("ferretti20", "ferretti20", NA_character_))
   expect_equal(unname(snapshot$func_args[[1]]["incub_period"]), 2)

@@ -43,11 +43,11 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     # @description
-    # Augmented variables required by implementation file and other definitions.
-    get_all_required_augm_ = function() {
-      c(private$generator_$augm_required,     # by the model
-        private$augm_$augm_required,          # by augmented/observation
-        private$infec_profile_$augm_required) # by infectivity profile
+    # Latent variables required by implementation file and other definitions.
+    get_all_required_latent_ = function() {
+      c(private$generator_$latent_required,     # by the model
+        private$augm_$latent_required,          # by latent/observation
+        private$infec_profile_$latent_required) # by infectivity profile
     },
 
     # @description
@@ -56,7 +56,7 @@ HousepiModel <- R6::R6Class(
       c(private$generator_$data_required,     # by the model
         private$group_risks_$data_required,   # by group risks
         private$contact_risks_$data_required, # by contact risks
-        private$augm_$data_required,          # by augmented/observation
+        private$augm_$data_required,          # by latent/observation
         private$infec_profile_$data_required) # by infectivity profile
     },
 
@@ -64,7 +64,7 @@ HousepiModel <- R6::R6Class(
     # Group risks required by implementation file and other definitions.
     get_all_required_group_risks_ = function() {
       c(private$generator_$group_risks_required,     # by the model
-        private$augm_$group_risks_required,          # by augmented/observation
+        private$augm_$group_risks_required,          # by latent/observation
         private$infec_profile_$group_risks_required) # by infectivity profile
     },
 
@@ -75,7 +75,7 @@ HousepiModel <- R6::R6Class(
         private$param_$param_required,         # by parameter functions
         private$group_risks_$param_required,   # by group risks
         private$contact_risks_$param_required, # by contact risks
-        private$augm_$param_required,          # by augmented/observation
+        private$augm_$param_required,          # by latent/observation
         private$infec_profile_$param_required) # by infectivity profile
     },
 
@@ -90,11 +90,11 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Assert if augmented definitions match the required.
+    # Assert if latent definitions match the required.
     # @param wall `logical(1)` to raise error.
-    assert_augm_ = function(wall = TRUE, warn_unused = TRUE) {
+    assert_latent_ = function(wall = TRUE, warn_unused = TRUE) {
       private$augm_$assert(
-        private$get_all_required_augm_(),
+        private$get_all_required_latent_(),
         wall = wall,
         warn_unused = warn_unused && !private$generator_$is_test_model()
       )
@@ -324,7 +324,7 @@ HousepiModel <- R6::R6Class(
     # @description
     # Single, model-owned ordered infected-status dictionary. Data labels win
     # (the data is already coded), else the status process order, else literal
-    # character labels declared on augmented definitions.
+    # character labels declared on latent definitions.
     status_dictionary_ = function() {
       data_lab <- private$generator_$status_data_labels
       if (length(data_lab) > 0) return(data_lab)
@@ -340,30 +340,30 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Augmented definitions with `discr` resolved against the model on demand.
-    resolved_augm_defs_ = function() {
+    # Latent definitions with `discr` resolved against the model on demand.
+    resolved_latent_defs_ = function() {
       resolve_discr_flags_(
         private$augm_$defs,
-        private$generator_$augm_discr_required,
+        private$generator_$latent_discr_required,
         discr_col_types = private$generator_$discr_data_wide,
         discr_req_cols = private$generator_$data_wide_discr_required
       )
     },
 
     # @description
-    # Whether the augmented declaration can be built as it stands. Producers
+    # Whether the latent declaration can be built as it stands. Producers
     # land in the engine on their own decorator, and a status block needs a
     # definition to fill it; either gap waits for the next decorator.
     # NOTE: what the model requires stays out, being supplied by its own
     # decorator too (see `rebuild_`).
     # @param defs `data.frame()`. Declarations with status codes resolved.
-    augm_declaration_complete_ = function(defs) {
-      # the infectivity profile folds into the augmented build
-      need_augm <- c(private$augm_$augm_required,
-                     private$infec_profile_$augm_required)
+    latent_declaration_complete_ = function(defs) {
+      # the infectivity profile folds into the latent build
+      need_latent <- c(private$augm_$latent_required,
+                     private$infec_profile_$latent_required)
       need_param <- c(private$augm_$param_required,
                       private$infec_profile_$param_required)
-      all(need_augm %in% private$augm_$defs[["name"]]) &&
+      all(need_latent %in% private$augm_$defs[["name"]]) &&
         all(need_param %in% private$param_$defs[["name"]]) &&
         private$augm_$covers_statuses(defs,
                                       private$generator_$infec_status_set)
@@ -419,7 +419,7 @@ HousepiModel <- R6::R6Class(
       #> infectivity profile
       .engine$import_infec_profile(mcmc_ptr, private$infec_profile_$defs)
 
-      #> augmented (resolve character status labels to integer codes for C++,
+      #> latent (resolve character status labels to integer codes for C++,
       #> and unspecified discretization against the model and the data)
       status_dict <- private$status_dictionary_()
       if (private$generator_$escaped %in% status_dict) stop_h(
@@ -428,11 +428,11 @@ HousepiModel <- R6::R6Class(
               "({.val {private$generator_$escaped}})."),
         "Rename the status or define a different {.code escaped =} label."
       )
-      augm_defs <- resolve_status_codes_(private$resolved_augm_defs_(),
+      latent_defs <- resolve_status_codes_(private$resolved_latent_defs_(),
                                          status_dict)
       # NOTE: unresolved definitions wait for completeness or for the wall
-      if (wall || private$augm_declaration_complete_(augm_defs)) {
-        .engine$import_augm(mcmc_ptr, augm_defs)
+      if (wall || private$latent_declaration_complete_(latent_defs)) {
+        .engine$import_latent(mcmc_ptr, latent_defs)
       }
 
       # status dictionary drives the factor refactoring of the status column
@@ -505,8 +505,8 @@ HousepiModel <- R6::R6Class(
       private$assert_infec_profile_(wall = TRUE)
       # engine build reports unresolved read first
       private$rebuild_(wall = TRUE)
-      # augmented assertion reports plainly missing definitions
-      private$assert_augm_(wall = TRUE)
+      # latent assertion reports plainly missing definitions
+      private$assert_latent_(wall = TRUE)
       invisible(self)
     },
 
@@ -515,11 +515,11 @@ HousepiModel <- R6::R6Class(
       n_sample <- setup_sample_size_(steps = steps, burn = burn,
                                      thin = thin, chains = chains)$total
 
-      # UPDATE: n. of augmented/parameters might be smaller if functions/private
+      # UPDATE: n. of latent/parameters might be smaller if functions/private
       n_params_defs <- ifelse(is.null(private$param_$defs), 0L,
                               nrow(private$param_$defs))
       n_param_cols <- 2L * n_params_defs
-      n_augm_defs <- ifelse(is.null(private$augm_$defs), 0L,
+      n_latent_defs <- ifelse(is.null(private$augm_$defs), 0L,
                             nrow(private$augm_$defs))
       # structural upper bound: every named/default household counts as its
       # largest possible size (status filtering happens in the engine)
@@ -528,10 +528,10 @@ HousepiModel <- R6::R6Class(
 
       n_house_pick <- length(unique(id_draws$house_id))
       n_members_upper <- length(unique(id_draws$id)) + n_house_pick * max_hhsize
-      n_augm_cols <- n_members_upper * n_augm_defs
+      n_latent_cols <- n_members_upper * n_latent_defs
       n_house_total <- length(unique(house_id))
       # total count of columns
-      total_cols <- n_param_cols + n_augm_cols + n_house_total + 1L
+      total_cols <- n_param_cols + n_latent_cols + n_house_total + 1L
       # the column-by-sample product exceeds the 32-bit range on large runs
       bytes_final <- 8 * as.double(n_sample) * as.double(total_cols)
 
@@ -754,11 +754,11 @@ HousepiModel <- R6::R6Class(
                              private$has_data_wide_())
     },
 
-    #' @field augmented `data.frame`
-    #' Augmented definitions.
-    augmented = function(value) {
-      if (!missing(value)) stop_read_only("augmented")
-      defs <- private$augm_$defs_of_kind(private$resolved_augm_defs_(), "augm")
+    #' @field latent `data.frame`
+    #' Latent definitions.
+    latent = function(value) {
+      if (!missing(value)) stop_read_only("latent")
+      defs <- private$augm_$defs_of_kind(private$resolved_latent_defs_(), "latent")
       housepi_defin_showcaser(defs)
     },
 
@@ -767,7 +767,7 @@ HousepiModel <- R6::R6Class(
     #' Column 'level' tells member ("member") from household ("house") entries.
     observations = function(value) {
       if (!missing(value)) stop_read_only("observations")
-      resolved <- private$resolved_augm_defs_()
+      resolved <- private$resolved_latent_defs_()
       defs <- do.call(rbind, lapply(c("member", "house"), function(level) {
         out <- private$augm_$defs_of_kind(resolved, level)
         if (is.null(out)) return(NULL)
@@ -891,9 +891,9 @@ HousepiModel <- R6::R6Class(
       if (length(private$get_all_required_param_()) > 0) blocks <- c(blocks,
         list(fmt_assert_cli("Parameters", private$assert_param_(FALSE)))
       )
-      # augmented
-      if (length(private$get_all_required_augm_()) > 0) blocks <- c(blocks,
-        list(fmt_assert_cli("Augmented", private$assert_augm_(FALSE)))
+      # latent
+      if (length(private$get_all_required_latent_()) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli("Latent", private$assert_latent_(FALSE)))
       )
 
       # inform about optional risks if dataset is suitable
@@ -967,7 +967,7 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     #' @description
-    #' Dataset with associated augmented variables for last state.
+    #' Dataset with associated latent variables for last state.
     #' @return `data.frame`
     export_augmented_data = function() {
       private$generator_$refactor_data_wide(
@@ -978,7 +978,7 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' All variables associated to given household for last state.
     #' Entries are named after the homonymous active fields, followed by the
-    #' augmented, observation and transmission log-likelihood contributions.
+    #' latent, observation and transmission log-likelihood contributions.
     #' An empty definition is dropped unless the model requires it.
     #' @param house_id `r rd_house_id_`
     #' @return `list`
@@ -1037,7 +1037,7 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   gen <- pvt$generator_
   info_wide <- gen$info_data_wide
   utils::write.csv(pvt$augm_$defs,
-                   file.path(outpath, "augm.csv"),
+                   file.path(outpath, "latent.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(pvt$contact_risks_$expose_to_cpp(info_wide),
                    file.path(outpath, "contact_risks.csv"),

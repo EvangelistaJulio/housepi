@@ -51,7 +51,7 @@ namespace housepi
 
     private:
         Parameter &param_;              /// parameter key-module
-        Augmented &augm_;               /// augmented key-module
+        Augmented &augm_;               /// latent key-module
         const DataWide *pdata_wide_;    /// data-wide storage and key-holder
         const GroupRisk *pgroup_risk_;  /// group-risks storage and key-holder
         mutable Attribute storage_;     /// auxiliary storage attribute

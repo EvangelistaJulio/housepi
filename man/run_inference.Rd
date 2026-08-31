@@ -35,7 +35,7 @@ If no proposals are adaptable and \code{burn = 0}, repurposed as burn-in instead
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
-\item{id_draws}{Infected members whose public augmented draws are stored.
+\item{id_draws}{Infected members whose public latent draws are stored.
 Either a \code{character()} of individual identifiers,
 or a \code{list} with entries \code{id} (individual identifiers)
 and/or \code{house_id} (whole household infected members are stored).

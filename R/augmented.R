@@ -5,9 +5,9 @@
 ## See the LICENSE file for details.
 ##
 
-#' @title Internal R6 holder for housepi augmented definitions
+#' @title Internal R6 holder for housepi latent definitions
 #' @description
-#' Helper class managing augmented definitions of the model object.
+#' Helper class managing latent definitions of the model object.
 #' @keywords internal
 #' @noRd
 HousepiAugmented <- R6::R6Class(
@@ -23,13 +23,13 @@ HousepiAugmented <- R6::R6Class(
 
     # Kind of definitions currently being managed. Used for display.
     # One between:
-    # "augm": augmented variables;
+    # "latent": latent variables;
     # "member": member-level observation;
     # "house": household-level observations;
     # "status": individual status observation (resolves status in simulation).
-    kind_ = "augm",
+    kind_ = "latent",
 
-    # Definitions required by augmented definitions
+    # Definitions required by latent definitions
     # according to the "type" of the definition.
     find_required_def_ = function(type) {
       find_required_definitions(
@@ -46,26 +46,26 @@ HousepiAugmented <- R6::R6Class(
     #' @field family `character(1)`. Holder family currently being managed.
     family = function(value) kind2family(private$kind_),
 
-    #' @field augm_required `character()`.
-    #' Find augmented required by augmented variable definitions.
-    augm_required = function(value) {
+    #' @field latent_required `character()`.
+    #' Find latent required by latent variable definitions.
+    latent_required = function(value) {
       private$find_required_def_("A")
     },
 
     #' @field data_required `character()`.
-    #' Find data required by augmented variable definitions.
+    #' Find data required by latent variable definitions.
     data_required = function(value) {
       private$find_required_def_("D")
     },
 
     #' @field group_risks_required `character()`.
-    #' Find group risks required by augmented variable definitions.
+    #' Find group risks required by latent variable definitions.
     group_risks_required = function(value) {
       private$find_required_def_("G")
     },
 
     #' @field param_required `character()`.
-    #' Find parameters required by augmented variable definitions.
+    #' Find parameters required by latent variable definitions.
     param_required = function(value) {
       private$find_required_def_("P")
     },
@@ -101,7 +101,7 @@ HousepiAugmented <- R6::R6Class(
     #' @field status_dictionary `character()`.
     #' Ordered infected-status labels (code `k` is the `k`-th entry). Taken from
     #' the status process when present, else factorized from literal character
-    #' `status =` labels declared across the augmented definitions.
+    #' `status =` labels declared across the latent definitions.
     status_dictionary = function(value) {
       if (length(self$status_levels) > 0) return(self$status_levels)
       if (is.null(self$defs) || !"status" %in% names(self$defs)) {
@@ -122,7 +122,7 @@ HousepiAugmented <- R6::R6Class(
   public = list(
     #' @field store_warn_over `character()`. Cached overwritten names.
     store_warn_over = character(),
-    #' @field defs `data.frame`. Formatted augmented definitions.
+    #' @field defs `data.frame`. Formatted latent definitions.
     defs = NULL,
     #' @field status_levels `character()`. Ordered status-process labels.
     status_levels = character(),
@@ -149,8 +149,8 @@ HousepiAugmented <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Remove a given augmented definition.
-    #' @param name `character(1)`. Augmented definitions to remove.
+    #' @description Remove a given latent definition.
+    #' @param name `character(1)`. Latent definitions to remove.
     #' @param status `integer(1)`. Associated status of definition.
     remove = function(name, status) {
       mask <- self$defs[["name"]] == name
@@ -171,11 +171,11 @@ HousepiAugmented <- R6::R6Class(
     #' @description Definitions of a single kind.
     #' Column 'kind' is dropped.
     #' @param defs `data.frame()` Definitions to filter.
-    #' @param kind `character(1)` One of "augm", "member", "house", "status".
+    #' @param kind `character(1)` One of "latent", "member", "house", "status".
     #' @details Used to read a resolved copy of the declarations.
     #' @return `data.frame()` or `NULL` when no definition of that kind exists.
     defs_of_kind = function(defs,
-                            kind = c("augm", "member", "house", "status")) {
+                            kind = c("latent", "member", "house", "status")) {
       kind <- match.arg(kind)
       if (is.null(defs) || !"kind" %in% names(defs)) return(NULL)
       out <- defs[defs[["kind"]] == kind, , drop = FALSE]
@@ -202,7 +202,7 @@ HousepiAugmented <- R6::R6Class(
       length(observed) > 0 && all(observed %in% as.integer(declared))
     },
 
-    #' @inherit add_augmented
+    #' @inherit add_latent
     add_quo = function(name, ...,
                        value = NULL, status = NA_integer_,
                        const = NA, discr = NA,
@@ -215,7 +215,7 @@ HousepiAugmented <- R6::R6Class(
                        .assert = FALSE,
                        .kind = private$kind_) {
       # kind defaults to managed (see private$kind_, public$add_quo_list)
-      .kind <- match.arg(.kind, c("augm", "member", "house", "status"))
+      .kind <- match.arg(.kind, c("latent", "member", "house", "status"))
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       level <- housepi_smart_unwrap(level, "level")
@@ -262,7 +262,7 @@ HousepiAugmented <- R6::R6Class(
         "Drop {.arg status} or declare {.val {name}} at member level."
       )
 
-      if (!identical(.kind, "augm") && !is.na(model)) {
+      if (!identical(.kind, "latent") && !is.na(model)) {
         # a household observation cannot be sampled
         if (identical(.kind, "house")) stop_h(
           "Household observation {.val {name}} cannot be sampled.",
@@ -289,24 +289,24 @@ HousepiAugmented <- R6::R6Class(
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- .kind
 
-      # only augmented and status (see add_status) can be hidden
+      # only latent and status (see add_status) can be hidden
       assert_valid_definition_name(
-        name, self$family, allow_hidden = .kind %in% c("augm", "status")
+        name, self$family, allow_hidden = .kind %in% c("latent", "status")
       )
       # control valid status
       assert_valid_status(status)
       # control meaningful definition
       assert_no_sibling_dist_arg(args, self$family, name)
       if (all(is.null(c(value, func)), is.na(model))) stop_h(
-        "Incomplete definition for augmented {.val {name}}.",
+        "Incomplete definition for latent {.val {name}}.",
         "Provide at least one between {.arg {c('value', 'model', 'func')}}."
       )
       if (!is.null(func) && !is.na(model)) stop_h(
-        "Wrong definition for augmented {.val {name}}.",
+        "Wrong definition for latent {.val {name}}.",
         "Provide only one between {.arg {c('func', 'model')}}."
       )
       if (!is.null(value) && !is.null(func)) stop_h(
-        "Wrong definition for augmented {.val {name}}.",
+        "Wrong definition for latent {.val {name}}.",
         "Provide only one between {.arg {c('value', 'func')}}."
       )
 
@@ -349,9 +349,9 @@ HousepiAugmented <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit add_augmented
+    #' @inherit add_latent
     add_quo_list = function(xquos, append = FALSE, status = NA_integer_,
-                            .kind = c("augm", "member", "house", "status")) {
+                            .kind = c("latent", "member", "house", "status")) {
       managed <- match.arg(.kind)
 
       # NOTE: single source of truth for currently managed kind
@@ -380,20 +380,20 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @description
-    #' Assert augmented definitions from the model implementation script.
+    #' Assert latent definitions from the model implementation script.
     #' @param required `character()`. Required definitions.
     #' @param wall `logical(1)`. Whether to raise error.
     #' @param warn_unused `logical(1)`. Warn if unused are found.
     assert = function(required, wall, warn_unused) {
       defined <- self$defs[["name"]]
 
-      # point out augmented variables that are not used
+      # point out latent variables that are not used
       # NOTE: observations are never model-required, so excluded from check
       if (isTRUE(warn_unused)) {
-        non_obs <- defined[self$defs[["kind"]] == "augm"]
+        non_obs <- defined[self$defs[["kind"]] == "latent"]
         template_not_used_warn(required, non_obs, self$family)
       }
-      # stop if augmented variables are missing
+      # stop if latent variables are missing
       sms <- template_missing_stop(required, defined, self$family)
       if (isTRUE(wall) && length(sms) > 0) stop_h(sms)
       else sms

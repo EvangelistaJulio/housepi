@@ -14,7 +14,7 @@ from one of the templated transmission models or a custom model.
 Provide household data at construction or later with \code{\link[=add_data_wide]{add_data_wide()}}.
 Specify the model features with the decorators \code{\link[=add_parameter]{add_parameter()}},
 \code{\link[=add_group_risk]{add_group_risk()}}, \code{\link[=add_contact_risk]{add_contact_risk()}}, \code{\link[=add_infectivity_profile]{add_infectivity_profile()}},
-\code{\link[=add_augmented]{add_augmented()}} and \code{\link[=add_observation]{add_observation()}}.
+\code{\link[=add_latent]{add_latent()}} and \code{\link[=add_observation]{add_observation()}}.
 Run the inference with \code{\link[=run_inference]{run_inference()}}, extract draws with
 \code{\link[=get_parameter_draws]{get_parameter_draws()}} and summarise them with \code{\link[=summarise_draws]{summarise_draws()}}.
 Run simulations with \code{\link[=run_simulation]{run_simulation()}},

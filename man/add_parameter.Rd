@@ -48,11 +48,11 @@ Inferred from the model requirements if \code{NA} (default).}
 
 \item{func}{One between:
 \itemize{
-\item \code{character(1)} Name of augmented function;
+\item \code{character(1)} Name of latent function;
 \item rlang expression.
 }}
 
-\item{func_args}{named \code{list} Arguments of the augmented function.}
+\item{func_args}{named \code{list} Arguments of the latent function.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 Relative to the location argument \code{loc}, when one is given.}
@@ -71,7 +71,7 @@ values only);}
 Independence samplers draw a fresh value from a distribution:
 \describe{
 \item{\code{"forward"}}{drawn from the variable's own defining distribution
-(its prior for a parameter, its model for an augmented variable);}
+(its prior for a parameter, its model for a latent variable);}
 \item{a distribution name}{drawn from that distribution, e.g.
 \code{proposal = "normal"} with \code{proposal_mean}/\code{proposal_sd}.}
 }

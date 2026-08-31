@@ -22,7 +22,7 @@ HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Model final : public ModelBase
 {
 public:
-	HOUSEPI_DECLARE_REGISTER_KEYS(Augm, infec_time)
+	HOUSEPI_DECLARE_REGISTER_KEYS(Latent, infec_time)
 	HOUSEPI_DECLARE_REGISTER_KEYS(Data, start_date, end_date)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Long)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRisk, community, susceptibility, infectivity)
@@ -45,11 +45,11 @@ public:
 			Param::alpha, {GroupRisk::community});
 		request_risk_identifiability(
 			Param::beta, {GroupRisk::susceptibility, GroupRisk::infectivity}, true);
-		request_augm_transmission(
-			{Augm::infec_time});
+		request_latent_transmission(
+			{Latent::infec_time});
 #ifdef _HOUSEPI_DISCRETE_TIME
-		request_augm_discrete(
-			{Augm::infec_time});
+		request_latent_discrete(
+			{Latent::infec_time});
 		request_infec_profile_discrete();
 #endif
 	}
@@ -107,7 +107,7 @@ public:
 	{
 		const MemberIndex i0 = cache_member(house, HHmember::intro_case);
 		const Individual &indiv_0 = house.at(i0);
-		const double t_intro = aug(Augm::infec_time, indiv_0);
+		const double t_intro = aug(Latent::infec_time, indiv_0);
 
 		const auto &inst_mtx = cache_double_matrix(house, HHdoublemtx::inst);
 		const auto &cumul_mtx = cache_double_matrix(house, HHdoublemtx::cumul);
@@ -160,12 +160,12 @@ public:
 			// days escaped infection before transmission:
 			// a member infected the day after the introduction survived none
 			// NOTE: co-primary cannot survive fewer
-			const double survived = aug(Augm::infec_time, indiv_i) - 1. - t_intro;
+			const double survived = aug(Latent::infec_time, indiv_i) - 1. - t_intro;
 			if (survived > 0.)
 				roi_cumul_i += a_i * survived;
 			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
 #else
-			roi_cumul_i += a_i * (aug(Augm::infec_time, indiv_i) - t_intro);
+			roi_cumul_i += a_i * (aug(Latent::infec_time, indiv_i) - t_intro);
 			output += std::log(roi_inst_i) - roi_cumul_i;
 #endif
 		}
@@ -174,7 +174,7 @@ public:
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////// Model : cached quantities consuming augmented variables  ////////////////////
+	//////////////////// Model : cached quantities consuming latent variables  ////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void helper_update_pairwise_cache(
@@ -250,7 +250,7 @@ public:
 		{
 			const MemberIndex i = infected_members[a];
 			const Individual &indiv_i = house.at(i);
-			const double t_infec_i = aug(Augm::infec_time, indiv_i);
+			const double t_infec_i = aug(Latent::infec_time, indiv_i);
 
 			///////////////////////////////
 			//////  Escaped Members  //////
@@ -272,7 +272,7 @@ public:
 			{
 				const MemberIndex j = infected_members[b];
 				const Individual &indiv_j = house.at(j);
-				const double t_infec_j = aug(Augm::infec_time, indiv_j);
+				const double t_infec_j = aug(Latent::infec_time, indiv_j);
 
 				helper_update_pairwise_cache(inst_mtx, cumul_mtx,
 											 indiv_i, indiv_j,
@@ -293,7 +293,7 @@ public:
 		MemberIndex &i0 = cache_member(house, HHmember::intro_case);
 
 		const MemberIndex i = Index::member(indiv_i);
-		const double t_infec_i = aug(Augm::infec_time, indiv_i);
+		const double t_infec_i = aug(Latent::infec_time, indiv_i);
 
 		///////////////////////////////
 		//////  Escaped Members  //////
@@ -324,7 +324,7 @@ public:
 				continue;
 
 			const Individual &indiv_j = house.at(j);
-			const double t_infec_j = aug(Augm::infec_time, indiv_j);
+			const double t_infec_j = aug(Latent::infec_time, indiv_j);
 
 			helper_update_pairwise_cache(inst_mtx, cumul_mtx,
 										 indiv_i, indiv_j,
@@ -363,7 +363,7 @@ public:
 		const double alpha = par(Param::alpha);
 		const double beta = transmission_rate(house.size());
 
-		const double t0 = aug(Augm::infec_time, indiv_0);
+		const double t0 = aug(Latent::infec_time, indiv_0);
 		for (double t = t0 + Dt; house.n_escaped_status() > 0; t += Dt)
 		{
 			bool any_at_risk = false;
@@ -378,8 +378,8 @@ public:
 				if (exponential() < roi_inst_simulation(house, indiv_i, t, alpha, beta) * Dt)
 				{
 					set_infected(house, indiv_i);
-					set_augm_value(Augm::infec_time, indiv_i, t);
-					init_missing_augm(indiv_i);
+					set_latent_value(Latent::infec_time, indiv_i, t);
+					init_missing_latent(indiv_i);
 				}
 			}
 			if (!any_at_risk)
@@ -393,7 +393,7 @@ public:
 		const MemberIndex i0 = uniform() * house.size();
 		Individual &indiv_0 = house.at(i0);
 		set_infected(house, indiv_0);
-		init_missing_augm(indiv_0);
+		init_missing_latent(indiv_0);
 
 		// set all others members to escaped status
 		for (Individual &indiv : house)
@@ -418,7 +418,7 @@ public:
 		for (MemberIndex j : house.infected_members())
 		{
 			const Individual &indiv_j = house.at(j);
-			const double gentime = t_infec_i - aug(Augm::infec_time, indiv_j);
+			const double gentime = t_infec_i - aug(Latent::infec_time, indiv_j);
 			roi += group_risk(GroupRisk::infectivity, indiv_j) *
 				   contact_risk(house, j, i) *
 				   infec_profile_inst(indiv_j, gentime);

@@ -508,10 +508,10 @@ HousepiGenerator <- R6::R6Class(
       set_source_name_(.engine$key_GroupRisk(private$mcmc_ptr_), "model")
     },
 
-    #' @field augm_required `character()`
-    #' Augmented variables required by the model.
-    augm_required = function(value) {
-      set_source_name_(.engine$key_Augm(private$mcmc_ptr_), "model")
+    #' @field latent_required `character()`
+    #' Latent variables required by the model.
+    latent_required = function(value) {
+      set_source_name_(.engine$key_Latent(private$mcmc_ptr_), "model")
     },
 
     #' @field param_discr_required `character()`
@@ -520,10 +520,10 @@ HousepiGenerator <- R6::R6Class(
       .engine$key_Param_discrete(private$mcmc_ptr_)
     },
 
-    #' @field augm_discr_required `character()`
-    #' Augmented variables the model requires discrete.
-    augm_discr_required = function(value) {
-      .engine$key_Augm_discrete(private$mcmc_ptr_)
+    #' @field latent_discr_required `character()`
+    #' Latent variables the model requires discrete.
+    latent_discr_required = function(value) {
+      .engine$key_Latent_discrete(private$mcmc_ptr_)
     },
 
     #' @field data_wide_discr_required `character()`

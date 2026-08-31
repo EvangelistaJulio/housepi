@@ -31,7 +31,7 @@ namespace housepi
         Pointer,
         Function,
         Parameter,
-        Augmented,
+        Latent,
         Observation,
         HouseholdObservation,
         GroupRisk,

@@ -240,15 +240,15 @@ namespace housepi
         }
     }
 
-    void Options::read_augm(MCMCBase &model)
+    void Options::read_latent(MCMCBase &model)
     {
         try
         {
-            model.augm.build(model.infec_profile, read::csv_table(file.augm));
+            model.augm.build(model.infec_profile, read::csv_table(file.latent));
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string("While reading augmented definitions:\n") + e.what());
+            msg::stop(std::string("While reading latent definitions:\n") + e.what());
         }
     }
 
@@ -284,8 +284,8 @@ namespace housepi
         for (const auto &name : post.param_names)
             ofs << read::DELIMITER << name;
 
-        // header augmented variable of id trace
-        for (const auto &name : post.augm_col_names)
+        // header latent variable of id trace
+        for (const auto &name : post.latent_col_names)
             ofs << read::DELIMITER << name;
 
         // header chain
@@ -314,9 +314,9 @@ namespace housepi
                     ofs << read::DELIMITER << std::setprecision(5)
                         << std::fixed << post.param_values[u][i];
 
-                // print augmented variable of id trace
+                // print latent variable of id trace
                 {
-                    for (auto &indiv_matrix : post.augm_values)
+                    for (auto &indiv_matrix : post.latent_values)
                         for (auto &var_vec : indiv_matrix)
                             ofs << read::DELIMITER << std::setprecision(5)
                                 << std::fixed << var_vec[i];
@@ -335,10 +335,10 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Print all augmented variables of each individual.
+    /// Print all latent variables of each individual.
     std::ofstream open_ofstream_datawide(const std::string &f,
                                          const std::vector<std::string> &data_headers,
-                                         const std::vector<std::string> &augm_headers)
+                                         const std::vector<std::string> &latent_headers)
     {
         std::ofstream ofs;
         ofs.open(f);
@@ -351,18 +351,18 @@ namespace housepi
             << read::DELIMITER << "status";
         for (const std::string &datastr : data_headers)
             ofs << read::DELIMITER << datastr;
-        for (const std::string &augmstr : augm_headers)
-            ofs << read::DELIMITER << augmstr;
+        for (const std::string &latentstr : latent_headers)
+            ofs << read::DELIMITER << latentstr;
         ofs << std::endl;
 
         return ofs;
     }
 
-    /// Print all augmented variables of each individual.
+    /// Print all latent variables of each individual.
     void update_ofstream_datawide(std::ofstream &ofs,
                                   const Household &house,
                                   const DataWide &data_wide,
-                                  const std::vector<size_t> &augm_export,
+                                  const std::vector<size_t> &latent_export,
                                   const Augmented &augm)
     {
         if (!ofs.is_open())
@@ -375,10 +375,10 @@ namespace housepi
                 << read::DELIMITER << indiv.status();
             for (size_t d = 0; d < data_wide.khold().size(); ++d)
                 ofs << read::DELIMITER << data_wide.data(d, indiv);
-            for (size_t a : augm_export)
+            for (size_t a : latent_export)
             {
-                const Variable &xaugm = augm.at(a, indiv);
-                double x = xaugm.is_empty() ? na::DOUBLE : xaugm.value();
+                const Variable &xlatent = augm.at(a, indiv);
+                double x = xlatent.is_empty() ? na::DOUBLE : xlatent.value();
                 ofs << read::DELIMITER << x;
             }
             ofs << std::endl;
@@ -393,7 +393,7 @@ namespace housepi
         // initialization
         std::ofstream ofs = open_ofstream_datawide(pathtofile,
                                                    data_wide.khold().all(),
-                                                   augm.khold().as_string(augm.list_augm_export));
+                                                   augm.khold().as_string(augm.list_latent_export));
         // model specific initialization
         engine.model->init_model_for_simulation();
 
@@ -403,7 +403,7 @@ namespace housepi
                 engine.model->simulate_single_house(house);
                 update_ofstream_datawide(ofs, house,
                                          data_wide,
-                                         augm.list_augm_export, augm);
+                                         augm.list_latent_export, augm);
             }
             catch (const std::exception &e)
             {
@@ -456,8 +456,8 @@ namespace housepi
                 num_rungs = str::toul(argv[++carg_i], "number of rungs");
             */
 
-            else if (toup(carg) == "-A" || tolow(carg) == "--augmented")
-                file.augm = argv[++carg_i];
+            else if (toup(carg) == "-A" || tolow(carg) == "--latent")
+                file.latent = argv[++carg_i];
 
             else if (toup(carg) == "-D" || tolow(carg) == "--dataset")
                 file.data_wide = argv[++carg_i];
@@ -547,7 +547,7 @@ namespace housepi
         opts.read_infec_profile(engine); // 4) Load Infectivity Profile
         opts.read_group_risk(engine);    // 5) Load Group Risks
         opts.read_contact_risk(engine);  // ... and Contact Risks
-        opts.read_augm(engine);          // 6) Load Augmented Variables
+        opts.read_latent(engine);        // 6) Load Latent Variables
 
         //////////////////////////////
         ////////  EXECUTION  /////////

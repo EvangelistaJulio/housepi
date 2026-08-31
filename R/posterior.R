@@ -141,7 +141,7 @@ summarise_draws.HousepiPosteriorDraws <- function(
     .num_args = getOption("posterior.num_args", list()),
     .cores = 1) {
   params <- .x$parameter_draws
-  augm <- .x$augmented_draws
+  augm <- .x$latent_draws
   draws <- if (posterior::nvariables(augm) == 0) params
   else if (posterior::nvariables(params) == 0) augm
   else tag_as_housepi_draws(posterior::bind_draws(params, augm))
@@ -168,22 +168,22 @@ summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 #' Posterior draws as a result of housepi inference on a household model.
 #' This class stores posterior draws of model parameters, the joint log-prior
 #' (`lprior`) and the pointwise per-household log-likelihood (`log_lik`).
-#' If requested during inference, it also stores augmented variables.
+#' If requested during inference, it also stores latent variables.
 #'
-#' For models with augmented variables the chain targets the joint
-#' (augmented, parameter) posterior. Write \eqn{x} for a single household's
+#' For models with latent variables the chain targets the joint
+#' (latent, parameter) posterior. Write \eqn{x} for a single household's
 #' data, \eqn{\theta} for the parameter vector and \eqn{z} for that household's
-#' augmented variables. The unnormalised joint log-density splits into the two
+#' latent variables. The unnormalised joint log-density splits into the two
 #' bundles this class exposes,
 #' \deqn{\log p(\theta, z, x) =
 #'   \underbrace{\log p(\theta)}_{\texttt{lprior}}
-#'   + \underbrace{\log p^\mathrm{augm}(z \mid \theta)
+#'   + \underbrace{\log p^\mathrm{lat}(z \mid \theta)
 #'     + \log p^\mathrm{transm}(x \mid z, \theta)
 #'     + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
-#' where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{augm}} the
-#' augmented-variable model, \eqn{p^\mathrm{transm}} the transmission likelihood
+#' where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{lat}} the
+#' latent-variable model, \eqn{p^\mathrm{transm}} the transmission likelihood
 #' and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
-#' the contract of the per-household `log_lik`: with no augmented latent or
+#' the contract of the per-household `log_lik`: with no latent variable or
 #' observation node the remaining terms vanish and `log_lik` contracts to
 #' transmission alone.
 #' @docType class
@@ -199,7 +199,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     name_ = NA_character_,
     param_draws_ = NULL,
     param_prior_draws_ = NULL,
-    augm_draws_ = NULL,
+    latent_draws_ = NULL,
     point_log_lik_draws_ = NULL,
     draws_index_ = NULL,
 
@@ -236,7 +236,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       }
 
       private$check_diagnostics_one_(private$param_draws_, "parameter")
-      private$check_diagnostics_one_(private$augm_draws_, "augmented variable")
+      private$check_diagnostics_one_(private$latent_draws_, "latent variable")
       invisible()
     },
 
@@ -310,12 +310,12 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$param_draws_
     },
 
-    #' @field augmented_draws `posterior::draws_df`.
-    #' Draws of the selected individuals' augmented variables.
-    augmented_draws = function(value) {
-      if (!missing(value)) stop_read_only("augm_draws")
-      if (is.null(private$augm_draws_)) return(empty_draws_())
-      private$augm_draws_
+    #' @field latent_draws `posterior::draws_df`.
+    #' Draws of the selected individuals' latent variables.
+    latent_draws = function(value) {
+      if (!missing(value)) stop_read_only("latent_draws")
+      if (is.null(private$latent_draws_)) return(empty_draws_())
+      private$latent_draws_
     },
 
     #' @field log_lik_draws `posterior::draws_df`.
@@ -323,9 +323,9 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' \eqn{
     #'   \log p^\mathrm{obs}(y \mid z, \theta) +
     #'   \log p^\mathrm{transm}(y \mid z, \theta) +
-    #'   \log p^\mathrm{augm}(z \mid \theta),
+    #'   \log p^\mathrm{lat}(z \mid \theta),
     #' }
-    #' the observation, transmission, and augmented model contributions.
+    #' the observation, transmission, and latent model contributions.
     #' `r rd_natural_log_`
     log_lik_draws = function(value) {
       if (!missing(value)) stop_read_only("log_lik_draws")
@@ -334,7 +334,7 @@ HousepiPosteriorDraws <- R6::R6Class(
 
     #' @field lprior_draws `posterior::draws_df`.
     #' Single column `lprior`: the parameter log-prior \eqn{\log p(\theta)}. The
-    #' augmented-variable log-density enters the `log_lik` bundle, not `lprior`.
+    #' latent-variable log-density enters the `log_lik` bundle, not `lprior`.
     #' `r rd_natural_log_`
     lprior_draws = function(value) {
       if (!missing(value)) stop_read_only("lprior_draws")
@@ -358,7 +358,7 @@ HousepiPosteriorDraws <- R6::R6Class(
 
     #' @field complete_draws `posterior::draws_df`.
     #' Parameters, pointwise `log_lik` and the joint `lprior`.
-    #' Note `log_lik`/`lprior` are evaluated over the joint (augmented,
+    #' Note `log_lik`/`lprior` are evaluated over the joint (latent,
     #' parameter) posterior (see `log_lik_draws` and `lprior_draws`).
     #' `r rd_natural_log_`
     complete_draws = function(value) {
@@ -398,11 +398,11 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$param_prior_draws_ <- private$to_posterior_draws_(
         .engine$flush_param_log_prior_draws(ptr)
       )
-      private$augm_draws_ <- private$to_posterior_draws_(
-        .engine$flush_augm_draws(ptr)
+      private$latent_draws_ <- private$to_posterior_draws_(
+        .engine$flush_latent_draws(ptr)
       )
       # pointwise per-household log-likelihood = transmission (+ observation)
-      # (+ augmented model, when augmented latents are defined)
+      # (+ latent model, when latents are defined)
       private$point_log_lik_draws_ <- private$to_posterior_draws_(
         .engine$flush_house_log_lik_draws(ptr)
       )
@@ -424,8 +424,8 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (is.null(private$param_draws_)) nparams <- 0
       else nparams <- posterior::nvariables(private$param_draws_)
 
-      if (is.null(private$augm_draws_)) naugm <- 0
-      else naugm <- posterior::nvariables(private$augm_draws_)
+      if (is.null(private$latent_draws_)) nlatent <- 0
+      else nlatent <- posterior::nvariables(private$latent_draws_)
 
       model <- spaced_template_choice(private$name_)
       print_bullets(c(
@@ -433,7 +433,7 @@ HousepiPosteriorDraws <- R6::R6Class(
         paste0(
           "{niter} iteration{?s}, {nchains} chain{?s}",
           ifelse(nparams > 0, ", {nparams} parameter{?s}", ""),
-          ifelse(naugm > 0, ", {naugm} augmented", ""), "."
+          ifelse(nlatent > 0, ", {nlatent} latent", ""), "."
         )
       ))
       invisible()
@@ -447,7 +447,7 @@ HousepiPosteriorDraws <- R6::R6Class(
 
 #' @title Get posterior draws of respective variables
 #' @description Return a posterior draws dataframe with the MCMC samples.
-#' `get_parameter_draws()` and `get_augmented_draws()` warn and return an empty
+#' `get_parameter_draws()` and `get_latent_draws()` warn and return an empty
 #' draws object when no such draws were stored.
 #' @param hhdraws `HousepiPosteriorDraws` object.
 #' Generated by `HousepiModel` inference.
@@ -466,12 +466,12 @@ get_parameter_draws <- function(hhdraws) {
 
 #' @rdname get_draws
 #' @export
-get_augmented_draws <- function(hhdraws) {
+get_latent_draws <- function(hhdraws) {
   stopifnot(inherits(hhdraws, "HousepiPosteriorDraws"))
-  out <- hhdraws$augmented_draws
+  out <- hhdraws$latent_draws
   if (posterior::nvariables(out) == 0) warn_h(
-    "Empty draws: augmented variables were not defined or not stored.",
-    "Set {.arg id_draws} in {.fn run_inference} to store augmented draws."
+    "Empty draws: latent variables were not defined or not stored.",
+    "Set {.arg id_draws} in {.fn run_inference} to store latent draws."
   )
   out
 }

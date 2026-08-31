@@ -22,7 +22,7 @@ HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Model final : public ModelBase
 {
 public:
-	HOUSEPI_DECLARE_EMPTY_KEYS(Augm)
+	HOUSEPI_DECLARE_EMPTY_KEYS(Latent)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Data)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Long)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRisk, community, susceptibility, infectivity)

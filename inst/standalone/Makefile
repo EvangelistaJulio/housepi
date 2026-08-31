@@ -5,7 +5,7 @@ MODEL ?= ../../src/model_test.cpp
 
 # Standard fields used for debugging
 # exported by private$.export_to_cpp_standalone
-STD_IN := -A augm.csv \
+STD_IN := -A latent.csv \
 -C contact_risks.csv \
 -D data_wide.csv \
 -L data_long.csv \

@@ -50,7 +50,7 @@ namespace housepi
         unsigned long n_chains;               /// Number of independent MCMC chains to run in parallel.
         unsigned long progress;               /// Progress bar update interval in seconds.
         unsigned long n_rungs;                /// Number of rungs for power posterior analysis (0 = standard MCMC).
-        std::vector<std::string> id_draws;    /// Individual IDs whose augmented draws are traced.
+        std::vector<std::string> id_draws;    /// Individual IDs whose latent draws are traced.
         std::vector<std::string> house_draws; /// Household IDs whose infected members are traced.
 
         ///////////////////////////////

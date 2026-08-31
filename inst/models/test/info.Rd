@@ -3,7 +3,7 @@
 \name{housepi template : Blank}
 \description{
 A minimal placeholder model used to test the housepi infrastructure without committing to a specific transmission mechanism.
-The observation likelihood is constant for every household, and simulation only fills augmented variables.
+The observation likelihood is constant for every household, and simulation only fills latent variables.
 This template is intended for sanity checks, demos and end-to-end tests.
 \if{html}{\out{<hr>}}
 }
