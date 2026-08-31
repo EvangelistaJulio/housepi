@@ -186,11 +186,11 @@ test_that("Degenerate range raises an error for parameters", {
 test_that("Invalid proposal name is rejected", {
   new_housepi_model(model = "test") |>
     add_parameter("snake", prior = "uniform", proposal = "venom") |>
-    run_inference(steps = 1, chains = 1, progress = FALSE) |>
+    run_inference(steps = 1L, chains = 1L) |>
     expect_error("[Uu]nknown proposal.*venom")
 })
 
-test_that("Lognormal proposal non-positive domain", {
+test_that("Lognormal proposal rejects unsupported domains", {
   # prior with unbounded lower bound
   new_housepi_model(model = "test") |>
     add_parameter("huey", prior = "normal", proposal = "rw_log") |>
@@ -198,16 +198,22 @@ test_that("Lognormal proposal non-positive domain", {
 
   # prior with negative lower bound
   new_housepi_model(model = "test") |>
-    add_parameter(name = "miller", prior = "uniform",
+    add_parameter("miller", prior = "uniform",
                   min = -1, proposal = "rw_log") |>
     expect_error("non.?positive")
+
+  # discrete lognormal proposal is forbidden
+  new_housepi_model(model = "test") |>
+    add_parameter("ocelot", prior = "gamma", shape = 2, scale = 1,
+                  discr = TRUE, proposal = "rw_log") |>
+    expect_error("lognormal.*discrete.*ocelot")
 
   # location parameter
   suppressWarnings(
     param_draws <- new_housepi_model(model = "test") |>
-      add_parameter(name = "amanda", prior = "gamma", shape = 2,
+      add_parameter("amanda", prior = "gamma", shape = 2,
                     max = 5, loc = -1, proposal = "rw_log") |>
-      run_inference(steps = 20, chains = 1, adapt = 0, thin = 1) |>
+      run_inference(steps = 20L, chains = 1L, adapt = 0L, thin = 1L) |>
       get_parameter_draws()
   )
   expect_true(all(param_draws[["amanda"]] > -1))
@@ -242,22 +248,42 @@ test_that("Discretization is enabled as expected", {
       uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
                      proposal = "rw_unif", min = !!val$min, max = !!val$max),
       normal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                    proposal = "rw", min = !!val$min, max = !!val$max),
-      lognormal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                       proposal = "rw_log", min = !!val$min, max = !!val$max)
+                    proposal = "rw", min = !!val$min, max = !!val$max)
     )
 
-  results <- suppressWarnings(run_inference(hhmodel,
-    steps = 50, burn = 0, thin = 1, adapt = 50, chains = 1
-  ))
+  results <- hhmodel |>
+    run_inference(steps = 50L, thin = 1L, adapt = 50L, chains = 1L) |>
+    suppressWarnings()
   y <- posterior::as_draws_matrix(get_parameter_draws(results))
   expect_true(all(y == floor(y)))
   expect_true(all(y >= val$min))
   expect_true(all(y <= val$max))
 
-  # a discrete uniform window narrower than one whole value would leave the
-  # 'rw_unif' kernel pinned to its starting point
+  # a lattice kernel tuned narrower than one whole value stays pinned to its
+  # starting point, every step proposing the value it already holds
   expect_gt(length(unique(y[, "uniform"])), 1L)
+  expect_gt(length(unique(y[, "normal"])), 1L)
+})
+
+test_that("Lattice random walks sample their target", {
+  # a parameter no model reads keeps its prior as posterior, so the draws are
+  # checked against the exact mass function: a kernel whose acceptance ratio
+  # does not describe the moves it makes settles on a different law
+  exact <- dbinom(0:6, size = 6, prob = 0.4)
+
+  for (kernel in c("rw", "rw_unif")) {
+    draws <- new_housepi_model(model = "test") |>
+      add_parameter(revolver = list(prior = "binomial", size = 6, prob = 0.4,
+                                    proposal = !!kernel)) |>
+      run_inference(steps = 1e4L, thin = 1L, adapt = 500L, chains = 1L) |>
+      suppressWarnings() |>
+      get_parameter_draws()
+
+    empirical <- as.numeric(table(factor(draws[["revolver"]], levels = 0:6)))
+    empirical <- empirical / sum(empirical)
+    # total variation distance, well within the spread of a correct kernel
+    expect_lt(0.5 * sum(abs(empirical - exact)), 0.06)
+  }
 })
 
 test_that("A discrete prior resolves 'uniform' to the discrete distribution", {
@@ -276,10 +302,9 @@ test_that("Parameter defined as a function tracks its dependencies", {
     new_housepi_model("final_size") |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
                   gamma = list(prior = "uniform"), hhsize_ref = 4)
-  res <- suppressWarnings(
-    hhmodel |>
-      run_inference(steps = 100, chains = 1, adapt = 0, thin = 1)
-  )
+  res <- hhmodel |>
+    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
+    suppressWarnings()
   vars <- posterior::variables(res$parameter_draws)
   # both sampled and function-derived parameters appear in the trace
   expect_true(all(c("gamma", "beta") %in% vars))

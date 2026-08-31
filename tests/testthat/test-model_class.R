@@ -255,7 +255,7 @@ test_that("Posterior memory budget is asserted", {
   hhmodel <- new_housepi_model(house, "final_size")
   hhmodel <- add_parameter(hhmodel, import = "template")
   hhmodel |>
-    run_inference(steps = 1e20, chains = 1e3, progress = FALSE) |>
+    run_inference(steps = 1e20, chains = 1e3) |>
     expect_error("memory budget")
 })
 
@@ -269,7 +269,7 @@ test_that("A followed household without infected members warns", {
   expect_warning(
     expect_warning(
       hhmodel |>
-        run_inference(steps = 20, adapt = 0, chains = 1,
+        run_inference(steps = 20L, adapt = 0L, chains = 1L,
                       id_draws = list(house_id = "mother-base")),
       regexp = "no infected members"
     ),
@@ -344,16 +344,14 @@ test_that("run_simulation returns combined wide/long output", {
 test_that("run_measure_ rejects apply_long without obs_process_long", {
   hhmodel <- new_housepi_model(model = "test") |>
     add_parameter(alpha = 1)
-  priv <- hhmodel$.__enclos_env__$private
-  pt <- data.frame(alpha = c(0.1, 0.2, 0.3))
+  pvt <- hhmodel$.__enclos_env__$private
 
-  priv$run_measure_(
-    param_table = pt,
+  pvt$run_measure_(
+    param_table = data.frame(alpha = c(0.1, 0.2, 0.3)),
     apply_wide = function(x) list(x),
     apply_long = function(x) list(x),
     obs_proc_wide = NULL,
-    obs_proc_long = NULL,
-    progress = FALSE
+    obs_proc_long = NULL
   ) |>
     expect_error("obs_process_long")
 })

@@ -83,7 +83,6 @@ namespace housepi
         /// Enforce user choice for constant.
         void enforce_user_const() noexcept { is_user_const_ = true; }
         /// If applicable, initialize value from distribution.
-        /// Reset default scale for adaptive proposal rule.
         void restart(rnd_gen &prng);
         /// Draw the value from the distribution (used to generate observation
         /// nodes during simulation; unlike restart it ignores the constant flag).
@@ -113,7 +112,6 @@ namespace housepi
         ///////////////////////////////////
 
         /// Set new proposal internally and store old value.
-        /// NOTE: tentatively credits the move as accepted.
         void propose(rnd_gen &prng) { set(pProp_->propose(prng, value_)); }
         /// Check whether last propose move stored a valid value.
         bool is_valid_move() const
@@ -126,12 +124,23 @@ namespace housepi
                 return true;
             }
         }
-        /// Recover old value and roll back the tentative accept rate update.
-        void recover() noexcept
-        {
-            value_ = old_;
-            pProp_->recover();
-        }
+
+        /// Recover old value.
+        void restore() noexcept { value_ = old_; }
+
+        /// Eventually reset the adaptable proposal to its default scale.
+        void init_proposal() { pProp_->reset(pDistr_.get()); }
+        /// Eventually adapt the proposal rule.
+        void adapt_proposal(double ratio) { pProp_->adapt(ratio); }
+
+        /// Setter/getter of shared smoothing factor for moving average in adaptable proposals.
+        static void set_adapt_smoothing(double s) noexcept { AdaptableProposal::set_smoothing(s); }
+        static double get_adapt_smoothing() noexcept { return AdaptableProposal::get_smoothing(); }
+
+        /// Under adaptation, inform the proposal about refusal.
+        void refuse_proposal_move() noexcept { pProp_->refuse_move(); }
+        /// Under adaptation, inform the proposal about acceptance.
+        void commit_proposal_move() noexcept { pProp_->commit_move(old_, value_); }
 
         /// Log-pdf of the inherent distribution field.
         /// It assumes current value field is valid (used to avoid double checks).
@@ -154,13 +163,6 @@ namespace housepi
                 return 0;
             }
         }
-
-        /// Reset the acceptance rate estimate.
-        void reset_accept_rate() noexcept { pProp_->reset_accept_rate(); }
-        /// Adapt the proposal rule from the acceptance estimate.
-        void adapt_proposal(double ratio) { pProp_->adapt(ratio); }
-        static void set_adapt_smoothing(double s) noexcept { AdaptableProposal::set_smoothing(s); }
-        static double get_adapt_smoothing() noexcept { return AdaptableProposal::get_smoothing(); }
 
     private:
         enum class Validity : std::uint8_t

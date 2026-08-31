@@ -6,9 +6,9 @@ local_results <- local({
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter(import = "template")
-  suppressWarnings(run_inference(hhmodel,
-    steps = 100, chains = 1, adapt = 0, thin = 1, progress = FALSE
-  ))
+  hhmodel |>
+    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
+    suppressWarnings()
 })
 
 test_that("Active fields are read-only", {
@@ -133,10 +133,9 @@ test_that("Print behavior is stable", {
 test_that("Multi-chain inference produces correct chain structure", {
   hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
   hhmodel <- add_parameter(hhmodel, import = "template")
-  results <- suppressWarnings(
-    run_inference(hhmodel, steps = 10, chains = 2, adapt = 0, thin = 1,
-                  progress = FALSE)
-  )
+  results <- hhmodel |>
+    run_inference(steps = 10L, chains = 2L, adapt = 0L, thin = 1L) |>
+    suppressWarnings()
 
   pd <- results$parameter_draws
   expect_true(posterior::is_draws(pd))
@@ -150,10 +149,10 @@ test_that("Augm draws are not empty when id_draws is specified", {
                         status = c(1, 0)) |>
     new_housepi_model("test")
   hhmodel <- add_augmented(hhmodel, name = "proba", model = "uniform")
-  results <- suppressWarnings(
-    run_inference(hhmodel, steps = 5, chains = 1, adapt = 0, thin = 1,
-                  id_draws = "a", progress = FALSE)
-  )
+  results <- hhmodel |>
+    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
+                  id_draws = "a") |>
+    suppressWarnings()
   ad <- results$augmented_draws
   expect_true(posterior::is_draws(ad))
   expect_true(posterior::nvariables(ad) > 0)
@@ -163,24 +162,21 @@ test_that("Diagnostic warning fires on short runs", {
   flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter(import = "template") |>
-    run_inference(steps = 100, chains = 1, adapt = 0, thin = 1,
-                  progress = FALSE) |>
+    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
     expect_warning("sample size was below")
 })
 
 test_that("Diagnostic warning fires on poor mixing", {
-  # explicitly define micro-steps
-  expect_warning(
-    results <- flu_1918_frederick |>
-      new_housepi_model("final_size") |>
-      add_parameter(
-        alpha = list(prior = "uniform", proposal = "rw_log",
-                     proposal_scale = 1e-4),
-        beta  = list(prior = "uniform", proposal = "rw_log",
-                     proposal_scale = 1e-4),
-        gamma = 1, hhsize_ref = 5
-      ) |>
-      run_inference(steps = 1000, thin = 1, adapt = 0, chains = 2,
-                    progress = FALSE)
-  )
+  flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(
+      # explicitly define micro-steps
+      alpha = list(prior = "uniform", proposal = "rw_log",
+                   proposal_scale = 1e-4),
+      beta  = list(prior = "uniform", proposal = "rw_log",
+                   proposal_scale = 1e-4),
+      gamma = 1, hhsize_ref = 5
+    ) |>
+    run_inference(steps = 1000L, thin = 1L, adapt = 0L, chains = 2L) |>
+    expect_warning("alpha.*beta.*not mixed")
 })

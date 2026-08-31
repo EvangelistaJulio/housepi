@@ -204,10 +204,10 @@ find_closest_match <- function(input, options, min_dist = 3, max_print = 4) {
       output <- sprintf("Did you mean {.val %s}?", closest)
     }
 
-    if (!all(idxs)) output <- c(output,
+    if (!all(idxs) && max_print > 0L) output <- c(output,
       sprintf("Available %s %s",
               as_plural("option", len_opts, "s are:", " is"),
-              character_to_string_list(options))
+              character_to_string_list(options, max_print = max_print))
     )
   }
   output
@@ -278,7 +278,7 @@ helper_clone <- function(x) {
 
 #' Assert undocumented advanced setup overrides from `...`.
 #' @param dots `list` Captured `...` from a run method.
-#' @param allowed Named `character()` accepted argument names.
+#' @param allowed `character()` accepted argument names.
 #' @return `list` Non-null overrides keyed by engine setup key.
 #' @keywords internal
 #' @noRd
@@ -286,7 +286,8 @@ assert_advanced_setup_ <- function(dots, allowed) {
   for (nm in names(dots)) {
     if (!(nm %in% allowed)) stop_h(
       "Unexpected argument {.arg {nm}} passed through {.code ...}.",
-      find_closest_match(nm, setdiff(allowed, names(dots)))
+      # NOTE: do not print all advanced options, just suggest
+      find_closest_match(nm, setdiff(allowed, names(dots)), max_print = 0)
     )
   }
   invisible()

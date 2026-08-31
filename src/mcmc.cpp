@@ -509,15 +509,14 @@ namespace housepi
         param.restart(setup.prng()); // reset parameters
         augm.restart(setup.prng());  // reset augmented
 
-        // re-initialize the acceptance estimate for every variable
+        // re-initialize the adaptable proposal of every variable
         for (size_t p : param.list_adaptive)
-            param.at(p).reset_accept_rate();
-
+            param.at(p).init_proposal();
         if (augm.is_any_adaptive())
             for (const Household &house : data_wide())
                 for (const Individual &indiv : house.infected_indivs())
                     for (size_t a : augm.list_adaptive(indiv))
-                        get_augm_varia(a, indiv).reset_accept_rate();
+                        get_augm_varia(a, indiv).init_proposal();
     }
 
     void MCMCBase::recover_total_log_lik_(bool with_cache,
@@ -908,14 +907,13 @@ namespace housepi
     {
         for (unsigned long i = 0; i < setup.n_adapt; ++i)
         {
-            move_all_<Beta0>();
+            move_all_<true, Beta0>();
 
-            // compute vanishing ratio
-            const double ratio = static_cast<double>(i + 1) / setup.n_adapt;
-            // adapt all adaptive parameters
+            // vanishing ratio of the adaptation budget already spent
+            const double ratio = static_cast<double>(i) / setup.n_adapt;
+
             for (size_t p : param.list_adaptive)
                 param.at(p).adapt_proposal(ratio);
-            // adapt all adaptive augmented variables
             if (augm.is_any_adaptive())
                 for (const Household &house : data_wide())
                     for (const Individual &indiv : house.infected_indivs())
@@ -928,12 +926,12 @@ namespace housepi
     void MCMC::run_mc_posterior_sampling_()
     {
         for (unsigned long i = 0; i < setup.n_burn; ++i)
-            move_all_<Beta0>();
+            move_all_<false, Beta0>();
 
         for (unsigned long i = setup.n_burn; i < setup.n_steps; i += setup.n_thin)
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
-                move_all_<Beta0>();
+                move_all_<false, Beta0>();
             // NOTE: recomputing likelihood, not tracked at inverse temperature 0
             if constexpr (Beta0)
                 commit_total_log_posterior_(true, false, augm.is_any_obs_model());
@@ -941,24 +939,24 @@ namespace housepi
         }
     }
 
-    template <bool Beta0>
+    template <bool Adapt, bool Beta0>
     void MCMC::move_all_()
     {
         // move augmented variables to sample, if any
-        move_all_augm_<Beta0>();
+        move_all_augm_<Adapt, Beta0>();
 
         // move standard model parameters
         for (size_t p : param.list_sample_standard)
-            move_single_parameter_<Beta0>(p, false);
+            move_single_parameter_<Adapt, Beta0>(p, false);
         // move parameters with cached dependencies
         for (size_t p : param.list_sample_cached)
-            move_single_parameter_<Beta0>(p, true);
+            move_single_parameter_<Adapt, Beta0>(p, true);
 
         // update progress bar
         setup.prog_update();
     }
 
-    template <bool Beta0>
+    template <bool Adapt, bool Beta0>
     void MCMC::move_single_parameter_(size_t p, bool with_cache)
     {
         Variable &this_par = param.at(p);
@@ -984,7 +982,11 @@ namespace housepi
                 if (with_augm_ll)
                     r += commit_total_augm_log_lik_ratio_();
                 if (setup.exponential() > -r)
+                {
+                    if constexpr (Adapt)
+                        this_par.commit_proposal_move();
                     return;
+                }
                 if (with_augm_ll)
                     recover_total_augm_log_lik_();
             }
@@ -1005,17 +1007,22 @@ namespace housepi
                 r += this_par.get_move_log_ratio();
 
                 if (setup.exponential() > -r)
+                {
+                    if constexpr (Adapt)
+                        this_par.commit_proposal_move();
                     return;
+                }
 
                 // else move is refused and log-likelihood recovered
                 recover_total_log_lik_(with_cache, with_augm_ll, with_obs_ll);
             }
         }
-        // recover old value of parameter
-        this_par.recover();
+        this_par.restore();
+        if constexpr (Adapt)
+            this_par.refuse_proposal_move();
     }
 
-    template <bool Beta0>
+    template <bool Adapt, bool Beta0>
     void MCMC::move_all_augm_()
     {
         if (!augm.is_any_sample())
@@ -1025,7 +1032,7 @@ namespace housepi
         LogLikAccumulator acc = parallel::for_reduce<LogLikAccumulator>(
             data_wide().report_house.total,
             [&](size_t H) -> LogLikAccumulator
-            { return move_augm_single_house_<Beta0>(H); });
+            { return move_augm_single_house_<Adapt, Beta0>(H); });
         // at inverse temperature 0 the likelihood totals are not tracked
         // they are refreshed from scratch before each stored draw
         if constexpr (!Beta0)
@@ -1037,7 +1044,7 @@ namespace housepi
         tot_augm_log_lik.increment(acc.augm_ll);
     }
 
-    template <bool Beta0>
+    template <bool Adapt, bool Beta0>
     LogLikAccumulator MCMC::move_augm_single_house_(size_t H)
     {
         const Household &house = data_wide().at(H);
@@ -1045,11 +1052,11 @@ namespace housepi
         LogLikAccumulator acc;
         for (const Individual &indiv : house.infected_indivs())
             for (size_t a : augm.list_sample(indiv))
-                acc += move_augm_single_variable_<Beta0>(house, indiv, a);
+                acc += move_augm_single_variable_<Adapt, Beta0>(house, indiv, a);
         return acc;
     }
 
-    template <bool Beta0>
+    template <bool Adapt, bool Beta0>
     LogLikAccumulator MCMC::move_augm_single_variable_(const Household &house,
                                                        const Individual &indiv,
                                                        size_t a)
@@ -1090,7 +1097,11 @@ namespace housepi
                 // at inverse temperature 0 the likelihood totals are not tracked
                 // they are refreshed from scratch before each stored draw
                 if (setup.exponential() > avar.proposal_log_ratio() - d_augm)
+                {
+                    if constexpr (Adapt)
+                        avar.commit_proposal_move();
                     return {0., 0., d_augm};
+                }
             }
             else
             {
@@ -1099,7 +1110,11 @@ namespace housepi
 
                 const double r = setup.inv_temp * (d_obs + d_transm) + d_augm - avar.proposal_log_ratio();
                 if (setup.exponential() > -r)
+                {
+                    if constexpr (Adapt)
+                        avar.commit_proposal_move();
                     return {d_obs, d_transm, d_augm};
+                }
 
                 if (augm.produces_obs(indiv, a))
                     recover_obs_log_lik_(indiv);
@@ -1111,7 +1126,9 @@ namespace housepi
             if (produces_transm)
                 data_wide().recover_member_old_cached(house, indiv);
         }
-        avar.recover(); // recover old value
+        avar.restore();
+        if constexpr (Adapt)
+            avar.refuse_proposal_move();
 
         return {0., 0., 0.};
     }

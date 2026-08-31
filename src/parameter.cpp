@@ -223,7 +223,6 @@ namespace housepi
             set(pProp_->propose(prng, value()));
         else
             set(pDistr_->rand(prng));
-        pProp_->reset_scale(pDistr_.get());
     }
 
     void Variable::draw_value(rnd_gen &prng)

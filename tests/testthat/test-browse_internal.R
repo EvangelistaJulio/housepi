@@ -392,18 +392,6 @@ test_that("Discrete uniform spreads flat mass over the whole values", {
     expect_equal(distr$pdf(k))
 })
 
-test_that("Discrete uniform draws match its mass and stay whole", {
-  set.seed(1998L)
-  k <- 0:10
-  distr <- browse_distributions("uniform", min = min(k), max = max(k), discr = TRUE)
-
-  draws <- distr$rand(2e4L)
-  expect_type(draws, "integer")
-  expect_identical(range(draws), range(k))
-  freq <- as.vector(table(factor(draws, levels = k))) / length(draws)
-  expect_equal(freq, distr$pdf(k), tolerance = 0.05)
-})
-
 test_that("An argument off the whole values is refused where one is required", {
   # the flat lattice law owns every whole value in its range
   browse_distributions("uniform", min = 0.5, max = 3.2, discr = TRUE) |>

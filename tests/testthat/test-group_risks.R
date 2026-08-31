@@ -424,20 +424,20 @@ test_that("Absoluteness follows the reference across every definition mode", {
 
 test_that("An absolute risk collapses the baseline it scales", {
   # alpha is never declared: the community risk carries the whole rate
-  bigboss <- flu_2014_matsumoto |>
+  hhmodel <- flu_2014_matsumoto |>
     new_housepi_model("final_size") |>
     add_group_risk("community", by = "member") |>
     add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
 
-  expect_true(is.finite(evaluate_log_lik(bigboss)))
-  params <- get_parameters(bigboss)
+  expect_true(is.finite(evaluate_log_lik(hhmodel)))
+  params <- get_parameters(hhmodel)
   expect_true(params$const[params$name == "alpha"])
   expect_equal(params$value[params$name == "alpha"], 1)
 
   # the collapsed baseline is carried into the posterior
-  draws <- bigboss |>
-    run_inference(steps = 2000, thin = 2, adapt = 500, chains = 2,
-                  progress = FALSE) |>
+  draws <- hhmodel |>
+    run_inference(steps = 5L, thin = 1L, adapt = 0L, chains = 1L) |>
+    suppressWarnings() |> 
     summarise_draws()
   expect_false("alpha" %in% draws$variable)
   expect_true(any(grepl("^com_member", draws$variable)))

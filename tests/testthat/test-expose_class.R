@@ -161,9 +161,43 @@ test_that("add_observation routes every input branch on `level`", {
     expect_error("should be one of")
 })
 
+test_that("Advanced setup options route through `...`", {
+  hhmodel <- new_housepi_model(model = "test") |>
+    add_parameter(ocelot = list(prior = "gamma", shape = 2, scale = 1))
+
+  # a name that is no advanced option is rejected, closest match suggested
+  hhmodel |>
+    run_inference(adapt_windows = 2L) |>
+    expect_error("adapt_windows.*adapt_window")
+
+  # the adaptation window is carried to the engine and read back
+  hhmodel |>
+    run_inference(steps = 4L, thin = 1L, adapt = 4L, chains = 1L,
+                  adapt_window = 2L) |>
+    suppressWarnings()
+  expect_equal(hhmodel$setup$adapt_window, 2)
+})
+
 ############################################################################
 ## Wrappers with data
 ############################################################################
+
+test_that("A long enough run renders the progress bar", {
+  hhmodel <- flu_1918_baltimore |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = "template")
+
+  # NOTE: bar must take longer than 1 second in order to be printed
+  bar <- capture.output(
+    draws <- hhmodel |>
+      run_inference(steps = 5e3L, adapt = 0L, chains = 1L, progress = TRUE) |>
+      suppressWarnings(),
+    type = "output"
+  )
+  expect_s3_class(draws, "HousepiPosteriorDraws")
+  expect_true(any(grepl("%|sample", bar)),
+              info = paste(bar, collapse = " | "))
+})
 
 test_that("Group risk wrappers", {
   small_gr <- data.frame(
@@ -259,4 +293,3 @@ test_that("add_contact_risk wrapper input branches", {
   expect_true(is.data.frame(cr))
   expect_true(nrow(cr) > 0)
 })
-

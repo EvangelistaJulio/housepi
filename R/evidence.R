@@ -228,6 +228,7 @@ HousepiPowerPosteriors <- R6::R6Class(
 #' @param chains `r rd_smpl_chain_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
+#' @param ... `r rd_dots_config_`
 #' @return An object of class `HousepiPowerPosteriors`.
 #' @references
 #' \insertRef{friel_improving_2014}{housepi}
@@ -238,16 +239,18 @@ run_power_posteriors <- function(hhmodel,
                                  steps = 1000L, burn = 0L,
                                  thin = 5L, adapt = 500L,
                                  chains = 4L, threads = 1L,
-                                 progress = TRUE) {
+                                 progress = TRUE,
+                                 ...) {
   stopifnothousepi(hhmodel)
   warn_logevidence_experimental_()
+  assert_advanced_setup_(list(...), "adapt_window")
   scheme <- match.arg(scheme)
   pvt <- hhmodel$.__enclos_env__$private
   # internal build function
   pvt$build_full_(steps = steps, burn = burn,
                   thin = thin, adapt = adapt,
                   chains = chains, threads = threads,
-                  progress = progress)
+                  progress = progress, ...)
   # sample the ladder from the internal Rcpp object
   HousepiPowerPosteriors$new(pvt$generator_, scheme = scheme, rungs = rungs)
 }

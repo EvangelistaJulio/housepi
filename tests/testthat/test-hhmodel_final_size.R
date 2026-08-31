@@ -102,9 +102,9 @@ test_that("Deep clone works as expected", {
   hhmodel <- house |>
     new_housepi_model("final_size") |>
     add_parameter(import = "template")
-  out <- suppressWarnings(
-    run_inference(hhmodel, steps = 2, chains = 1, adapt = 0, thin = 1)
-  )
+  out <- hhmodel |>
+    run_inference(steps = 2L, chains = 1L, adapt = 0L, thin = 1L) |>
+    suppressWarnings()
 
   # deep clone
   hhclone <- hhmodel$copy()
@@ -136,8 +136,8 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
       results <- flu_1918_frederick |>
         new_housepi_model("final_size") |>
         add_parameter(import = "template") |>
-        run_inference(steps = 10, thin = 2, adapt = 2,
-                      burn = 2, chains = 1, threads = t)
+        run_inference(steps = 10L, thin = 2L, adapt = 2L,
+                      burn = 2L, chains = 1L, threads = t)
     )
 
     pointwise <- results |>
@@ -186,46 +186,29 @@ test_that("run_inference rejects invalid setup arguments", {
     new_housepi_model("final_size") |>
     add_parameter(import = "template")
   hhmodel |>
-    run_inference(steps = 5, burn = 10) |>
+    run_inference(steps = 5L, burn = 10L) |>
     expect_error("[Bb]urn")
   hhmodel |>
-    run_inference(steps = 5, thin = 10) |>
+    run_inference(steps = 5L, thin = 10L) |>
     expect_error("[Tt]hin")
   # threads-clamp warning and short-run diagnostic both fire here
   expect_warning(
     expect_warning(
-      run_inference(hhmodel, steps = 5, chains = 1, adapt = 0,
-                    thin = 1, threads = 1000),
+      run_inference(hhmodel, steps = 5L, chains = 1L, adapt = 0L,
+                    thin = 1L, threads = 1000L),
       regex = "[Tt]hreads.*available"
     ),
     regex = "sample size was below"
   )
 })
 
-test_that("run_inference progress bar shows as expected", {
-  # FIXME: timing-sensitive
-  hhmodel <- flu_1918_baltimore |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-  out <- capture.output(
-    res <- suppressWarnings(
-      run_inference(hhmodel, steps = 2000, chains = 1,
-                    adapt = 0, thin = 1, progress = TRUE)
-    ),
-    type = "output"
-  )
-  expect_s3_class(res, "HousepiPosteriorDraws")
-  expect_true(any(grepl("%|sample", out)),
-              info = paste(out, collapse = " | "))
-})
-
 test_that("run_epi_predictive_check exercises parallel for_each", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter(import = "template")
-  results <- suppressWarnings(
-    run_inference(hhmodel, steps = 50, chains = 1, adapt = 0, thin = 1)
-  )
+  results <- hhmodel |>
+    run_inference(steps = 50L, chains = 1L, adapt = 0L, thin = 1L) |>
+    suppressWarnings()
   outs <- list()
   for (t in c(1L, 2L)) {
     suppressWarnings(

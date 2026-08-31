@@ -92,11 +92,12 @@ or an arithmetic expression. Sources are:
 }}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
-Random walks perturb the current value:
+Random walks changes current value:
 \describe{
 \item{\code{"rw"}}{normal increments (default);}
-\item{\code{"rw_log"}}{lognormal log-increments (positive values only);}
-\item{\code{"rw_unif"}}{uniform (bounded) increments.}
+\item{\code{"rw_log"}}{lognormal log-increments (positive, non-discrete
+values only);}
+\item{\code{"rw_unif"}}{uniform increments (bounded).}
 }
 Independence samplers draw a fresh value from a distribution:
 \describe{

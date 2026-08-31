@@ -264,7 +264,7 @@ test_that("Parallel augmented-move reduction preserves log-lik invariant", {
     hhmodel <- build_hh()
     suppressWarnings(
       results <- hhmodel |>
-        run_inference(steps = 30, thin = 1, adapt = 20, chain = 1,
+        run_inference(steps = 30L, thin = 1L, adapt = 20L, chain = 1L,
                       threads = t, id_draws = id_draws)
     )
     # pointwise log-lik (transmission plus the augmented model, no obs node)
@@ -308,12 +308,12 @@ test_that("Augmented moves preserve log-likelihood", {
     ) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
-  n_steps <- 100
+  n_steps <- 100L
   id_draws <- house[house$status > 0, ]$id
   results <- suppressWarnings(
     hhmodel |>
-      run_inference(steps = n_steps, thin = 1, adapt = 0,
-                    chain = 1, id_draws = id_draws)
+      run_inference(steps = n_steps, thin = 1L, adapt = 0L,
+                    chain = 1L, id_draws = id_draws)
   )
 
   # the pointwise log-lik folds transmission and the augmented model; with no
@@ -388,7 +388,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
 
   n_steps <- 100
   results <- hhmodel |>
-    run_inference(steps = n_steps, thin = 1, adapt = 0, chain = 1) |>
+    run_inference(steps = n_steps, thin = 1L, adapt = 0L, chain = 1L) |>
     suppressWarnings()
 
   param_draws <- get_parameter_draws(results) |>
@@ -447,7 +447,7 @@ test_that("deterministic observation constrains its ancestors", {
       "onset_date", model = "normal", mean = onset_time, sd = 0.2
     ) |>
     add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
-    run_inference(steps = 400, thin = 1, adapt = 100, chain = 1) |>
+    run_inference(steps = 400L, thin = 1L, adapt = 100L, chain = 1L) |>
     suppressWarnings()
 
   onset <- get_augmented_draws(results) |>
@@ -483,7 +483,7 @@ test_that("Discretized observation node initializes finite", {
   # initialization no longer returns infinity; the chain runs and the
   # complete-data log-likelihood stays finite throughout
   results <- hhmodel |>
-    run_inference(steps = 50, thin = 1, adapt = 0, chain = 1) |>
+    run_inference(steps = 50L, thin = 1L, adapt = 0L, chain = 1L) |>
     suppressWarnings()
   expect_true(all(is.finite(get_log_lik_draws(results)$shadowmoses)))
 })
@@ -717,27 +717,27 @@ test_that("Household observations aggregate a data column across members", {
 test_that("Data-bound household observation supplies a required data column", {
   df <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% head(unique(house_id), 40))
-  
+
   base_hh_model <- new_housepi_model(model = "case_ascertained") |>
-      add_infectivity_profile(import = "template") |>
-      add_parameter(import = "template") |>
-      add_augmented(import = "template")
-  
+    add_infectivity_profile(import = "template") |>
+    add_parameter(import = "template") |>
+    add_augmented(import = "template")
+
   # 'start_date' provided as an ordinary data column
   provided <- add_data_wide(base_hh_model, df)
-  
+
   # 'start_date' is passed as a surrogate observation
   surrogate <- base_hh_model |>
     add_data_wide(dplyr::select(df, -start_date)) |>
     add_observation(start_date = min(test_date@D), level = "house")
-  
+
   # log-likelihood of provided and surrogate should be the same
   set.seed(42)
   ll_provided <- evaluate_log_lik(provided)
   set.seed(42)
   evaluate_log_lik(surrogate) |>
     expect_equal(ll_provided)
-  
+
   # the materialized column equals the per-household na.rm min of test_date
   # (start_date is a surrogate numeric column; test_date round-trips as a Date)
   aug <- surrogate$export_augmented_data()

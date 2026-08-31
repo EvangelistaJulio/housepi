@@ -222,12 +222,12 @@ They come in two families.
 *Random walks* perturb the current value:
 
 * **rw**: Gaussian increments;
-* **rw_log**: multiplicative log-normal increments (not appropriate for negative values);
-* **rw_unif**: uniform (bounded) increments inside a window,
-  stepping over whole values on a discrete variable.
+* **rw_log**: multiplicative log-normal increments (not appropriate for negative
+  nor discrete values);
+* **rw_unif**: uniform (bounded) increments inside a window.
 
 Only the random walks are adaptable:
-By default, housepi tunes the scale on the fly to target an acceptance rate of 44%.
+By default, housepi tunes the scale on the fly to target an acceptance rate of 44% [@roberts_weak_1997].
 This is enabled by supplying `adapt = N` to `run_inference()`.
 Here `N` is the number of adaptation iterations run before the MCMC `steps`.
 The adaptation uses a Robbins-Monro update at every iteration

@@ -241,7 +241,6 @@ test_that("Independence proposal inherits the model location shift", {
 
   results <- hhmodel |>
     run_inference(steps = 20L, adapt = 0L, chains = 1L) |>
-    suppressMessages() |>
     suppressWarnings()
 
   draws <- as.data.frame(get_augmented_draws(results))
@@ -258,7 +257,6 @@ test_that("augmented draws stay inside their live support", {
     add_augmented(otacon = list(model = "uniform"),
                   test_date = list(model = "uniform", loc = otacon@A)) |>
     run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
-    suppressMessages() |>
     suppressWarnings()
   d <- as.data.frame(get_augmented_draws(results))
   gap <- d[["1_test_date"]] - d[["1_otacon"]]
@@ -270,8 +268,7 @@ test_that("augmented draws stay inside their live support", {
     add_augmented(jaeger = list(model = "uniform"),
                   gray_fox = jaeger,
                   test_date = list(model = "uniform", loc = gray_fox@A)) |>
-    run_inference(steps = 500L, adapt = 0L, thin = 1L, chains = 1L) |>
-    suppressMessages() |>
+    run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressWarnings()
   draws <- as.data.frame(get_augmented_draws(results))
   gap <- draws[["1_test_date"]] - draws[["1_jaeger"]]
@@ -282,8 +279,7 @@ test_that("augmented draws stay inside their live support", {
     new_housepi_model("test") |>
     add_parameter("meryl", prior = "uniform") |>
     add_augmented("eva", model = "uniform", min = meryl@P, max = 5) |>
-    run_inference(steps = 500L, adapt = 0L, thin = 1L, chains = 1L) |>
-    suppressMessages() |>
+    run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressWarnings()
 
   eva <- as.data.frame(get_augmented_draws(results))[["1_eva"]]
@@ -702,7 +698,6 @@ test_that("Observation-aware initialization", {
     add_observation("x", model = "uniform", loc = z,
                     min = -!!window, max = !!window) |>
     run_inference(steps = 10L, adapt = 0L, chains = 40L) |>
-    suppressMessages() |>
     suppressWarnings() |>
     expect_no_error()
 
@@ -714,7 +709,6 @@ test_that("Observation-aware initialization", {
     add_observation("x", model = "uniform", loc = z,
                     min = -!!window, max = !!window) |>
     run_inference() |>
-    suppressMessages() |>
     expect_error("[Ee]xceeded attempts")
 
   # sampled parameter in the domain still makes null observation
@@ -723,7 +717,6 @@ test_that("Observation-aware initialization", {
     add_parameter("theta", prior = "uniform") |>
     add_observation("x", model = "uniform", min = -theta@P, max = theta@P) |>
     run_inference() |>
-    suppressMessages() |>
     expect_error("[Ff]ree parameter dependencies")
 
   # generic error
@@ -953,7 +946,7 @@ test_that("Augmented traces export only relevant variables", {
     )
   infec_df <- subset(hhmodel$data_wide, status > 0)
   result <- suppressWarnings(run_inference(hhmodel,
-    steps = 200, burn = 0, thin = 1, adapt = 0, chains = 1,
+    steps = 200L, burn = 0L, thin = 1L, adapt = 0L, chains = 1L,
     id_draws = infec_df$id
   ))
   expect_equal(
@@ -968,7 +961,7 @@ test_that("Augmented degenerate range warns and collapses", {
     add_augmented("d_horse", model = "uniform", min = 5, max = 5)
   expect_warning(
     tryCatch(
-      run_inference(hhmodel, steps = 10, chains = 1, adapt = 0, thin = 1),
+      run_inference(hhmodel, steps = 10L, chains = 1L, adapt = 0L, thin = 1L),
       error = function(e) NULL
     ),
     regexp = "[Dd]egenerate range|[Cc]ollapsed"
@@ -985,7 +978,7 @@ test_that("Nested definitions works as expected", {
   expect_snapshot(print(hhmodel))
 
   results <- hhmodel |>
-    run_inference(steps = 1e5, chains = 1, adapt = 0, thin = 1)
+    run_inference(steps = 1e5L, chains = 1L, adapt = 0L, thin = 1L)
   # no parameters nor priors, only augmented
   expect_equal(posterior::nvariables(results$parameter_draws), 0L)
   posterior::nvariables(results$augmented_draws) |>
@@ -1083,11 +1076,11 @@ test_that("Status-specific augmented variables draw from per-status ranges", {
     expect_true(all(vals >= s - 1 & vals <= s))
   }
 
-  # short-run diagnostic fires (steps = 5 < 400); adapt budget becomes burn-in
+  # short-run diagnostic fires (steps = 5 < 400)
   expect_warning(
     results <- hhmodel |>
-      run_inference(steps = 5, thin = 1, adapt = 2,
-                    chain = 1, id_draws = hhmodel$data_wide$id),
+      run_inference(steps = 5L, thin = 1L, adapt = 2L,
+                    chain = 1L, id_draws = hhmodel$data_wide$id),
     regexp = "below 400"
   )
   draws <- as.data.frame(get_augmented_draws(results))
@@ -1133,8 +1126,7 @@ test_that("Incubation augmentation recast runs on the test model", {
     ) |>
     add_observation("onset_mid", model = "normal",
                     mean = .onset_time, sd = 0.3) |>
-    run_inference(steps = 20, adapt = 0, chains = 1) |>
-    suppressMessages() |>
+    run_inference(steps = 20L, adapt = 0L, chains = 1L) |>
     suppressWarnings()
 
   # the gamma incubation prior contributes to the (finite) augmented log-prior

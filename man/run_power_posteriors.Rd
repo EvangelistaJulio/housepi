@@ -14,7 +14,8 @@ run_power_posteriors(
   adapt = 500L,
   chains = 4L,
   threads = 1L,
-  progress = TRUE
+  progress = TRUE,
+  ...
 )
 }
 \arguments{
@@ -51,6 +52,8 @@ One between:
 \item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
+
+\item{...}{Advanced configuration.}
 }
 \value{
 An object of class \code{HousepiPowerPosteriors}.

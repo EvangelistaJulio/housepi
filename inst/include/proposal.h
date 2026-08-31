@@ -39,18 +39,19 @@ namespace housepi
         /// Clone this proposal object.
         virtual std::unique_ptr<Proposal> clone() const = 0;
 
-        /// If adaptive, reset to default proposal scale.
-        virtual void reset_scale(const Distribution * /*prior*/) {}
+        virtual void reset_scale() {}
 
         /// Check if proposal is adaptive.
         virtual bool is_adaptive() const noexcept { return false; }
 
-        /// Reset the acceptance rate estimate.
-        virtual void reset_accept_rate() noexcept {}
+        /// If adaptive, reset proposal before moving.
+        virtual void reset(const Distribution * /*prior*/) noexcept {}
         /// Adapt parametric proposal based on current steps ratio.
         virtual void adapt(double /*ratio*/) {}
-        /// Adapt parametric proposal based on current steps ratio.
-        virtual void recover() noexcept {}
+        /// Refuse last proposed move.
+        virtual void refuse_move() noexcept {}
+        /// Commit last proposed move.
+        virtual void commit_move(double /*xo*/, double /*xn*/) noexcept {}
 
         /// Propose a value using random number generator.
         virtual double propose(rnd_gen & /*prng*/, double /*xo*/) = 0;
@@ -146,7 +147,6 @@ namespace housepi
                 return;
             pDistr_->finalize();
 
-            /// guarantee draws are valid: proposal family reaches the whole prior domain
             assert_covers_side_(prior_has_lo_, pDistr_->lower(), intrinsic_lo_, true);
             assert_covers_side_(prior_has_hi_, pDistr_->upper(), intrinsic_hi_, false);
         }
@@ -223,38 +223,50 @@ namespace housepi
         //////  CONSTRUCTOR  //////
         ///////////////////////////
 
-        AdaptableProposal(
-            const std::string &distr_name,
-            double scale,
-            bool is_discrete)
-            : pDistr_(registry::create_distribution(
-                  distr_name,
-                  ErrType::Proposal,
-                  registry::distr_kinds(is_discrete))),
-              is_adaptive_(na::is(scale)) { pDistr_->reshape(is_discrete); }
+        /// constructor
+        AdaptableProposal(const std::string &distr_name,
+                          double scale,
+                          bool is_discr)
+            : pDistr_(registry::create_distribution(distr_name,
+                                                    ErrType::Proposal,
+                                                    registry::distr_kinds(is_discr)))
+        {
+            is_adaptive_ = na::is(scale);
+            pDistr_->reshape(is_discr);
+            is_discrete_ = pDistr_->is_discrete();
+        }
+
+        /// destructor
         virtual ~AdaptableProposal() = default;
 
+        /// copy
         AdaptableProposal(const AdaptableProposal &other)
             : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-              is_adaptive_(other.is_adaptive_) {}
+              is_adaptive_(other.is_adaptive_),
+              is_discrete_(pDistr_ && pDistr_->is_discrete()) {}
 
         //////////////////////////
         //////  ADAPTATION  //////
         //////////////////////////
 
-        /// NOTE: initialised at the target to avoid first steps adaptation.
-        void reset_accept_rate() noexcept override final { accept_rate_ = TARGET_ACCEPT_RATE; }
-
-        void reset_scale(const Distribution *prior) override final
+        /// Initialize adaptable proposal before moving.
+        void reset(const Distribution *prior) noexcept override final
         {
+            /// NOTE: initialised at the target to avoid first steps adaptation
+            accept_rate_ = TARGET_ACCEPT_RATE;
+
             if (is_adaptive())
                 set_scale_(get_default_scale_(prior));
         }
 
-        void adapt(double ratio) override final
-        {
-            set_scale_(get_scale_() * robbins_monro_(accept_rate_, ratio));
-        }
+        /// Move the scale towards the target acceptance rate.
+        /// NOTE: ratio is the spent fraction of the adaptation budget, in [0, 1).
+        void adapt(double ratio) override final { robbins_monro_(ratio); }
+
+        /// Credit the accepted move to the acceptance rate.
+        void commit_move(double /*xo*/, double /*xn*/) noexcept override final { update_accept_rate_(1.); }
+        /// Credit the refused move to the acceptance rate.
+        void refuse_move() noexcept override final { update_accept_rate_(0.); }
 
         /// Wheter proposal is adaptive.
         bool is_adaptive() const noexcept override final { return is_adaptive_; }
@@ -266,25 +278,26 @@ namespace housepi
                 pDistr_->finalize();
         }
 
-        /// Correct acceptance rate for refused move.
-        /// NOTE: exponential moving average for accept = FALSE.
-        void recover() noexcept override final { accept_rate_ -= EMA_SMOOTHING; }
-
         /// Set EMA smoothing factor (0, 1). NOTE: shared across variables.
         static void set_smoothing(double s) noexcept { EMA_SMOOTHING = s; }
         /// Get EMA smoothing factor.
         static double get_smoothing() noexcept { return EMA_SMOOTHING; }
 
     protected:
-        /// Target Metropolis acceptance rate.
-        /// Based on @cite roberts_weak_1997
-        static constexpr double TARGET_ACCEPT_RATE = 0.44;
         /// EMA smoothing factor. NOTE: effective window is 1. / EMA_SMOOTHING.
         inline static double EMA_SMOOTHING = 1.;
 
+        /// Target Metropolis acceptance rate.
+        /// Based on @cite roberts_weak_1997
+        static constexpr double TARGET_ACCEPT_RATE = 0.44;
+
         std::unique_ptr<Distribution> pDistr_;    /// distribution associated to proposal
         bool is_adaptive_ = true;                 /// whether scale is adaptive
+        bool is_discrete_ = false;                /// whether the proposal steps on discrete values
         double accept_rate_ = TARGET_ACCEPT_RATE; /// acceptance rate
+
+        /// Initialize scale at construction.
+        void init_scale_(double scale) { set_scale_(is_adaptive() ? 1. : std::fabs(scale)); }
 
         /// Set default proposal scale.
         virtual double get_default_scale_(const Distribution * /*prior*/) = 0;
@@ -293,15 +306,18 @@ namespace housepi
         /// Mechanism to change corresponding scale in pDistr_.
         virtual void set_scale_(double /*scale*/) = 0;
 
-        /// Exponentially moving average (EMA) of the acceptance indicator.
-        /// NOTE: exponential moving average for accept = TRUE.
-        void forward_accept_rate_() { accept_rate_ += EMA_SMOOTHING * (1. - accept_rate_); }
+        /// Exponentially moving average (EMA) of the acceptance rate.
+        void update_accept_rate_(double granted) noexcept
+        {
+            accept_rate_ += EMA_SMOOTHING * (granted - accept_rate_);
+        }
 
         /// Vanishing Robbins-Monro multiplier from an observed accept rate.
         /// Based on @cite andrieu_tutorial_2008
-        static double robbins_monro_(double accept_rate, double ratio) noexcept
+        void robbins_monro_(double ratio) noexcept
         {
-            return std::exp((1. - ratio) * (accept_rate - TARGET_ACCEPT_RATE));
+            set_scale_(
+                get_scale_() * std::exp((1. - ratio) * (accept_rate_ - TARGET_ACCEPT_RATE)));
         }
         /// Compute InterQuartile Range (IQR) from prior distribution (Q25, Q75).
         static std::pair<double, double> get_iqr_from_prior_(const Distribution *prior)
@@ -323,17 +339,10 @@ namespace housepi
     {
     public:
         RndWalkUnifProposal(double scale, const Distribution *prior)
-            : AdaptableProposal("uniform", scale, prior->is_discrete())
-        {
-            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
-        }
+            : AdaptableProposal("uniform", scale, prior->is_discrete()) { init_scale_(scale); }
         MAKE_PROPOSAL_CLONE_METHOD(RndWalkUnifProposal)
 
-        double propose(rnd_gen &prng, double xo) override final
-        {
-            forward_accept_rate_();
-            return xo + pDistr_->rand(prng);
-        }
+        double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
         double log_ratio(double, double) const override final { return 0.; }
 
     protected:
@@ -344,20 +353,15 @@ namespace housepi
                 return q75 - q25;
             return 1.;
         }
-        // FIXME: this is a patch for the discrete case that must change 
-        double get_scale_() const override final { return scale_; }
+        double get_scale_() const override final { return pDistr_->upper().value(); }
+        /// Adapt standard minimum and maximum.
+        /// NOTE: scale cannot be smaller than 1 in the discrete case.
         void set_scale_(double scale) override final
         {
-            scale_ = scale;
-            const double s = pDistr_->is_discrete() ? std::max(1., std::round(scale)) : scale;
+            const double s = is_discrete_ ? std::max(1., std::round(scale)) : scale;
             pDistr_->set_lower(-s);
             pDistr_->set_upper(s);
         }
-
-    private:
-        /// NOTE: uniform holds its window in the bounds, which the lattice rounds:
-        /// adaptation reads the scale from here so no increment is lost to rounding.
-        double scale_ = 1.;
     };
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -368,17 +372,10 @@ namespace housepi
     {
     public:
         RndWalkProposal(double scale, const Distribution *prior)
-            : AdaptableProposal("normal", scale, prior->is_discrete())
-        {
-            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
-        }
+            : AdaptableProposal("normal", scale, prior->is_discrete()) { init_scale_(scale); }
         MAKE_PROPOSAL_CLONE_METHOD(RndWalkProposal)
 
-        double propose(rnd_gen &prng, double xo) override final
-        {
-            forward_accept_rate_();
-            return xo + pDistr_->rand(prng);
-        }
+        double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
         double log_ratio(double, double) const override final { return 0.; }
 
     protected:
@@ -404,6 +401,12 @@ namespace housepi
         RndWalkLogProposal(double scale, const Distribution *prior)
             : AdaptableProposal("lognormal", scale, prior->is_discrete())
         {
+            // forbid the discrete case
+            if (prior->is_discrete())
+                msg::stop(
+                    "Provided proposal " + msg::val("lognormal") + " for discrete.\nUse instead" +
+                    msg::val("rw") + " or " + msg::val("rw_unif"));
+
             // assert that value range is positive
             if (prior->lower().is_empty() || prior->lower().value() < 0)
                 msg::stop(
@@ -414,13 +417,12 @@ namespace housepi
                 pAttr_loc_ = prior->loc().pointer();
             mode_ = pAttr_loc_ ? Location::Active : Location::None;
 
-            set_scale_(is_adaptive() ? 1. : std::fabs(scale));
+            init_scale_(scale);
         }
         MAKE_PROPOSAL_CLONE_METHOD(RndWalkLogProposal)
 
         double propose(rnd_gen &prng, double xo) override final
         {
-            forward_accept_rate_();
             switch (mode_)
             {
             case Location::None:

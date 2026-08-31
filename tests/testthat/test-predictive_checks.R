@@ -6,9 +6,9 @@ mk_ppc <- local({
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final_size") |>
     add_parameter(import = "template")
-  results <- suppressWarnings(run_inference(
-    hhmodel, steps = 100, chains = 1, adapt = 0, thin = 1, progress = FALSE
-  ))
+  results <- hhmodel |>
+    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
+    suppressWarnings()
   list(hhmodel = hhmodel, results = results)
 })
 
@@ -284,13 +284,12 @@ test_that("HousepiCustomPPC active fields are read-only", {
   hhmodel <- mk_ppc$hhmodel
   results <- mk_ppc$results
 
-  suppressWarnings(
-    ppc <- hhmodel |>
-      run_custom_predictive_check(
-        results, sar = measure_sar_by_hhsize,
-        progress = FALSE, thin_ess = FALSE, max_nrep = 10
-      )
-  )
+  ppc <- hhmodel |>
+    run_custom_predictive_check(
+      results, sar = measure_sar_by_hhsize,
+      thin_ess = FALSE, max_nrep = 10
+    ) |>
+    suppressWarnings()
 
   expect_s3_class(ppc, "HousepiCustomPPC")
   expect_true(!is.null(ppc$sar))

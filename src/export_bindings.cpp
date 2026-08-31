@@ -495,6 +495,7 @@ namespace
             Rcpp::_["burn"] = setup.n_burn,
             Rcpp::_["thin"] = setup.n_thin,
             Rcpp::_["adapt"] = setup.n_adapt,
+            Rcpp::_["adapt_window"] = setup.n_adapt_window,
             Rcpp::_["chains"] = setup.n_chains,
             Rcpp::_["threads"] = setup.n_threads,
             Rcpp::_["id_draws"] = Rcpp::CharacterVector(Rcpp::wrap(setup.id_draws)),

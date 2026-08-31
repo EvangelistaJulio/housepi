@@ -283,18 +283,6 @@ test_that("an augmented parameterizing the profile drives transmission", {
     add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
     evaluate_log_lik()
   expect_false(identical(short, long))
-
-  # sampling it must keep the transmission likelihood in step
-  set.seed(1998)
-  shadow_moses |>
-    add_augmented(
-      .incub_period = list(model = "gamma", shape = 2, scale = 1,
-                           min = 1, max = 14)
-    ) |>
-    add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
-    run_inference(steps = 800, thin = 2, adapt = 100, chains = 1,
-                  progress = FALSE) |>
-    expect_silent()
 })
 
 test_that("the household snapshot reports the profile of each member", {

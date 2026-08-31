@@ -68,11 +68,12 @@ rd_var_func_ <- "One between:
 - rlang expression."
 rd_var_funargs_ <- "named `list` Arguments of the augmented function."
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
-Random walks perturb the current value:
+Random walks changes current value:
 \\describe{
   \\item{`\"rw\"`}{normal increments (default);}
-  \\item{`\"rw_log\"`}{lognormal log-increments (positive values only);}
-  \\item{`\"rw_unif\"`}{uniform (bounded) increments.}
+  \\item{`\"rw_log\"`}{lognormal log-increments (positive, non-discrete
+    values only);}
+  \\item{`\"rw_unif\"`}{uniform increments (bounded).}
 }
 Independence samplers draw a fresh value from a distribution:
 \\describe{
@@ -1002,7 +1003,7 @@ run_inference <- function(hhmodel,
                           progress = TRUE,
                           ...) {
   stopifnothousepi(hhmodel)
-  assert_advanced_setup_(list(...), "inv_temp")
+  assert_advanced_setup_(list(...), c("inv_temp", "adapt_window"))
   pvt <- hhmodel$.__enclos_env__$private
   id_draws <- pvt$resolve_id_draws_(id_draws)
   pvt$assert_posterior_memory_(

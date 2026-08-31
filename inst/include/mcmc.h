@@ -155,22 +155,23 @@ namespace housepi
 		void run_mc_posterior_sampling_();
 
 		/// Move all model parameters and augmented variables.
-		template <bool Beta0>
+		/// Adapt: moves are credited to the proposals, which only adaptation reads.
+		template <bool Adapt, bool Beta0>
 		void move_all_();
 		/// Attempt to move a single parameter.
-		template <bool Beta0>
+		template <bool Adapt, bool Beta0>
 		void move_single_parameter_(size_t p, bool with_cache);
 		/// Move augmented variables of all infected individuals.
-		template <bool Beta0>
+		template <bool Adapt, bool Beta0>
 		void move_all_augm_();
 		/// Move augmented variables of infectious members inside household.
 		/// The move is performed one member at a time, one augmented variable at a time.
 		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
-		template <bool Beta0>
+		template <bool Adapt, bool Beta0>
 		LogLikAccumulator move_augm_single_house_(size_t H);
 		/// Move a single augmented variable.
 		/// Returns the accepted transmission log-likelihood and augmented log-model deltas.
-		template <bool Beta0>
+		template <bool Adapt, bool Beta0>
 		LogLikAccumulator move_augm_single_variable_(const Household &house,
 													 const Individual &indiv,
 													 size_t a);
