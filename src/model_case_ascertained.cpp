@@ -40,7 +40,7 @@ public:
 		request_param_discrete(
 			{Param::hhsize_ref});
 		request_param_positive(
-			{Param::hhsize_ref});
+			{Param::alpha, Param::hhsize_ref});
 		request_risk_identifiability(
 			Param::alpha, {GroupRisk::community});
 		request_risk_identifiability(
@@ -68,14 +68,14 @@ public:
 	{
 		if (house.n_infected_status() == 0)
 			throw std::logic_error(
-				"No infected members were found in " + err_name(house) +
+				"No infected members were found in " + str(house) +
 				".\nCase-ascertained model assumes at least one infected member per household.");
 
 		// study period must be non-negative
 		for (const Individual &indiv : house)
 			if (data(Data::start_date, indiv) > data(Data::end_date, indiv))
 				throw std::logic_error(
-					"Found negative follow-up period for " + err_name(indiv) +
+					"Found negative follow-up period for " + str(indiv) +
 					".\nCheck " + msg::arg("start_date") + " and " + msg::arg("end_date") + ".");
 	}
 

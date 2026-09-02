@@ -82,46 +82,27 @@ namespace housepi
     void Variable::reshape_distribution(bool is_discr)
     {
         pDistr_->reshape(is_discr);
-        helper_assert_non_degenerate_range_();
-    }
 
-    void Variable::helper_assert_non_degenerate_range_()
-    {
-        const Attribute &lower = pDistr_->lower();
-        const Attribute &upper = pDistr_->upper();
+        const Domain &domain = pDistr_->domain();
+        domain.assert_consistent(str());
 
-        // skip if one of the range extremes is not provided
-        if (!lower.is_callable() || !upper.is_callable())
+        // skip if the domain is not degenerate
+        if (!domain.is_degenerate())
             return;
 
-        // skip if range is not degenerate
-        const double sx = lower.value();
-        const double dx = upper.value();
-        if (sx < dx)
+        if (!domain.min.is_constant() || !domain.max.is_constant() || is_user_const_)
             return;
 
-        // case empty interval, lower and upper are "open"
-        if (sx > dx || !pDistr_->is_valid(sx) || !pDistr_->is_valid(dx))
-            msg::stop(
-                "Definition produced an inconsistent range " + pDistr_->str_range() +
-                " for " + err_name() + ".");
-
-        if (!lower.is_constant() || !upper.is_constant())
-            return;
-
-        if (is_user_const_)
-            return;
-
-        const std::string sms = "Definitions of " + msg::arg("min") + " as " + lower.err_name() +
-                                " and " + msg::arg("max") + " as " + upper.err_name() +
-                                " produced a degenerate range";
+        const std::string sms = "Definitions of " + msg::arg("min") + " as " + domain.min.str() +
+                                " and " + msg::arg("max") + " as " + domain.max.str() +
+                                " produced a degenerate domain";
         // parameter
         if (err_type_ == ErrType::Parameter)
-            msg::stop(sms + " for " + err_name() + ".");
+            msg::stop(sms + " for " + str() + ".");
 
         // latent
-        msg::warn("Collapsed (at least) one " + err_name() + " to constant.\n" + sms + ".");
-        init_numeric(sx);
+        msg::warn("Collapsed (at least) one " + str() + " to constant.\n" + sms + ".");
+        init_numeric(domain.min.value());
         helper_init_null_proposal_();
     }
 
@@ -170,7 +151,7 @@ namespace housepi
             std::string sm = e.what();
             if (!sm.empty() && sm.back() == '.')
                 sm.pop_back();
-            msg::stop(sm + " for " + err_name() + ".");
+            msg::stop(sm + " for " + str() + ".");
         }
     }
 
@@ -248,7 +229,7 @@ namespace housepi
             return pFunc_->evaluate(x);
         default: // cases Mode::Empty, Mode::Numeric, Mode::Pointer
             msg::stop(
-                "Called undefined evaluate operator for non-function " + err_name() + ".");
+                "Called undefined evaluate operator for non-function " + str() + ".");
         }
     }
 
@@ -346,12 +327,9 @@ namespace housepi
             else
                 helper_build_to_sample_(input, k, translator);
 
-            // check if discrete as requested
+            // check discreteness and positivity
             size_t p = khold(pstr);
-            if (is_required_discrete(p) && !at(p).is_discrete())
-                msg::stop(
-                    "Definition of " + at(p).err_name() +
-                    " did not return a discrete object as requested by model.");
+            assert_requests(p, at(p));
         }
 
         // initialize all parameters to standard, i.e. none feeds transmission cache
@@ -428,7 +406,7 @@ namespace housepi
         // load prior arguments
         for (const auto &child : parser.root.children)
             xparam.init_distr_attr(child.key, translator.to_numeric(child));
-        // load parameter range
+        // load parameter domain
         for (const auto key : {"min", "max"})
             xparam.init_distr_attr(key, translator.to_numeric(input.at(key)[k]));
         xparam.reshape_distribution(is_discr);
@@ -473,7 +451,7 @@ namespace housepi
         for (const auto &child : parser.root.children)
             xparam.init_func_attr(child.key, translator.to_attribute(child));
 
-        // range
+        // domain
         for (const auto key : {"min", "max"})
             xparam.init_func_attr(key, translator.to_attribute(input.at(key)[k]));
 
@@ -542,7 +520,7 @@ namespace housepi
                 // if both baseline and group risk are free, pins the baseline
                 msg::warn(
                     "No reference provided for " + msg::qty(free_names) + " risk{?s:} " + str::format(free_names) +
-                    "\nBaseline " + xparam.err_name() + " was turned into constant reference.");
+                    "\nBaseline " + xparam.str() + " was turned into constant reference.");
                 helper_pin_to_reference_(anchor.baseline);
             }
             else if (n_scale_free > 1)
@@ -684,7 +662,7 @@ namespace housepi
                     [&](const Key &key)
                     {
                         return "group risk " + msg::val(key.first) + " for " +
-                               data_wide.err_name(indiv) + " (group " +
+                               data_wide.str(indiv) + " (group " +
                                std::to_string(key.second) + ")";
                     });
 
@@ -764,7 +742,7 @@ namespace housepi
             if (!these_risks.count(gstr))
                 msg::stop(
                     "A group risk definition " + msg::val(gstr) +
-                    " was missing for " + data_wide.err_name(indiv) + ".");
+                    " was missing for " + data_wide.str(indiv) + ".");
 
             igr.vec.emplace_back(risks::VALUE_REFERENCE);
             igr.vec.back().name(gstr, ErrType::GroupRisk);
@@ -844,8 +822,8 @@ namespace housepi
                     { return rules.row_gid[r]; },
                     [&](size_t)
                     {
-                        return "contact risk from " + data_wide.err_name(indiv_from) +
-                               " to " + data_wide.err_name(indiv_to);
+                        return "contact risk from " + data_wide.str(indiv_from) +
+                               " to " + data_wide.str(indiv_to);
                     });
 
                 // across groups: multiply the winning params (skip reference)

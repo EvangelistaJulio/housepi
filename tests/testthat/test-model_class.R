@@ -47,6 +47,46 @@ test_that("Data status is capped by the engine status storage", {
   expect_equal(df$status, c(NA, 254))
 })
 
+test_that("A missing datum is not a requirement violation", {
+  # 'case_ascertained' requires start_date and end_date discrete; an absent
+  # cell carries no verdict, so it imports and reads back as NA -- the
+  # requirement itself is asserted at the run wall
+  df <- data.frame(
+    id = c("snake", "meryl", "otacon"), house_id = "shadow",
+    status = c(1, 1, 0),
+    start_date = c(1, NA, 1), end_date = c(21, 21, NA)
+  ) |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    get_data_wide()
+
+  expect_equal(df$start_date, c(1, NA, 1))
+  expect_equal(df$end_date, c(21, 21, NA))
+})
+
+test_that("A datum violating a model requirement is refused at import", {
+  mk <- function(...) {
+    data.frame(
+      id = c("snake", "meryl", "otacon"), house_id = "shadow",
+      status = c(1, 1, 0), ...
+    ) |>
+      new_housepi_model("case_ascertained", quiet = TRUE)
+  }
+
+  # 'case_ascertained' requires start_date and end_date discrete, and the
+  # offending row is named alongside the column
+  sms <- tryCatch(mk(start_date = c(1, 2.5, 1), end_date = 21),
+                  error = conditionMessage)
+  expect_match(sms, "not discrete-valued")
+  expect_match(sms, "start_date")
+  expect_match(sms, "row n.2")
+
+  mk(start_date = 1, end_date = c(21, 21, 20.5)) |>
+    expect_error("not discrete-valued")
+
+  # integer-valued cells clear the requirement, negative ones included
+  expect_no_error(mk(start_date = c(-3, 0, 1), end_date = 21))
+})
+
 test_that("data columns cannot claim the hidden-definition prefix", {
   df <- dummy_household
   df$.tx <- 55

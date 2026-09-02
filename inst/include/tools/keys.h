@@ -95,8 +95,12 @@ namespace housepi
         /// Names of the keys requested positive.
         std::vector<std::string> positive_keys() const { return khold(posit_); }
 
+        /// Throw if a definition does not satisfy the requests registred on its key.
+        template <class Def>
+        void assert_requests(size_t p, const Def &def) const;
+
     private:
-        std::vector<size_t> discr_ = {}; /// Store keys requested discrete
-        std::vector<size_t> posit_ = {}; /// Store keys requested positive
+        std::vector<size_t> discr_ = {}; /// Keys requested discrete
+        std::vector<size_t> posit_ = {}; /// Keys requested positive
     };
 }

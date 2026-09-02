@@ -289,7 +289,7 @@ namespace housepi
             ofs << read::DELIMITER << name;
 
         // header chain
-        ofs << read::DELIMITER << "_chain_" << std::endl;
+        ofs << read::DELIMITER << "_chain_\n";
 
         // Values
         for (size_t c = 0; c < setup.n_chains; ++c)
@@ -323,7 +323,7 @@ namespace housepi
                 }
 
                 // print which chain
-                ofs << read::DELIMITER << (c + 1) << std::endl;
+                ofs << read::DELIMITER << (c + 1) << '\n';
             }
 
         ofs.close();
@@ -346,20 +346,22 @@ namespace housepi
         if (!ofs.is_open())
             throw std::runtime_error("Unable to open file: '" + f + "'");
 
-        ofs << "id"
+        ofs << "rep"
+            << read::DELIMITER << "id"
             << read::DELIMITER << "house_id"
             << read::DELIMITER << "status";
         for (const std::string &datastr : data_headers)
             ofs << read::DELIMITER << datastr;
         for (const std::string &latentstr : latent_headers)
             ofs << read::DELIMITER << latentstr;
-        ofs << std::endl;
+        ofs << '\n';
 
         return ofs;
     }
 
     /// Print all latent variables of each individual.
     void update_ofstream_datawide(std::ofstream &ofs,
+                                  size_t rep,
                                   const Household &house,
                                   const DataWide &data_wide,
                                   const std::vector<size_t> &latent_export,
@@ -370,9 +372,15 @@ namespace housepi
 
         for (const Individual &indiv : house)
         {
-            ofs << data_wide.id(indiv)
+            ofs << rep
+                << read::DELIMITER << data_wide.id(indiv)
                 << read::DELIMITER << data_wide.house_id(house)
-                << read::DELIMITER << indiv.status();
+                << read::DELIMITER;
+            // StatusLevel is a byte: stream it as a number, not as a character
+            if (indiv.is_missing_status())
+                ofs << "NA";
+            else
+                ofs << static_cast<int>(indiv.status());
             for (size_t d = 0; d < data_wide.khold().size(); ++d)
                 ofs << read::DELIMITER << data_wide.data(d, indiv);
             for (size_t a : latent_export)
@@ -381,7 +389,7 @@ namespace housepi
                 double x = xlatent.is_empty() ? na::DOUBLE : xlatent.value();
                 ofs << read::DELIMITER << x;
             }
-            ofs << std::endl;
+            ofs << '\n';
         }
     }
 
@@ -390,28 +398,48 @@ namespace housepi
         DataWide &data_wide = engine.data_wide();
         const Augmented &augm = engine.augm;
 
-        // initialization
-        std::ofstream ofs = open_ofstream_datawide(pathtofile,
-                                                   data_wide.khold().all(),
-                                                   augm.khold().as_string(augm.list_latent_export));
+        // no output file: simulate without serializing
+        const bool is_writing = !na::is(pathtofile);
+
         // model specific initialization
         engine.model->init_model_for_simulation();
+        engine.augm.init_house_for_simulation(); // build household-level observations
 
-        for (Household &house : data_wide)
-            try
-            {
-                engine.model->simulate_single_house(house);
-                update_ofstream_datawide(ofs, house,
-                                         data_wide,
-                                         augm.list_latent_export, augm);
-            }
-            catch (const std::exception &e)
-            {
-                throw std::runtime_error(
-                    "While simulating " + data_wide.err_name(house) + ":\n" + e.what());
-            }
+        // header after initialization: a produced observation registers its data
+        // column there, and the row loop reports every column the holder carries
+        std::ofstream ofs;
+        if (is_writing)
+            ofs = open_ofstream_datawide(pathtofile,
+                                         data_wide.khold().all(),
+                                         augm.khold().as_string(augm.list_latent_export));
+
+        // the setup step count is the number of replicates
+        for (size_t r = 0; r < engine.setup.n_steps; ++r)
+        {
+            // clear before recovering: clear_all() walks the infected members
+            // of the replicate that just ran
+            engine.augm.clear_all();
+            data_wide.recover_all_status();
+
+            for (Household &house : data_wide)
+                try
+                {
+                    engine.model->simulate_single_house(house);
+                    if (is_writing)
+                        update_ofstream_datawide(ofs, r, house,
+                                                 data_wide,
+                                                 augm.list_latent_export, augm);
+                }
+                catch (const std::exception &e)
+                {
+                    throw std::runtime_error(
+                        "While simulating " + data_wide.err_name(house) + ":\n" + e.what());
+                }
+        }
 
         // close ofstream
+        if (!is_writing)
+            return;
         if (!ofs.is_open())
             throw std::runtime_error(
                 "Output file '" + pathtofile + "' closed unexpectedly.");
@@ -502,33 +530,12 @@ namespace housepi
             msg::stop(
                 "Incompatible commands: choose one between --log-lik, --infer, --simulate or --log-evidence.");
 
-        if (!na::is(file.output))
+        // simulation without an output file runs but does not serialize
+        if (!na::is(file.output) || is_simulate)
             return;
         if (is_infer)
             msg::stop("Missing output file for inference.");
-        if (is_simulate)
-            msg::stop("Missing output file for simulation.");
     }
-
-    /* --FUTURE-LOG-EVIDENCE--
-    double log_evidence(MCMC &engine, std::string_view scheme, unsigned long n_rungs)
-    {
-    double output = 0;
-    const auto pp = engine.run_power_posteriors(scheme, n_rungs);
-    const std::vector<double> &inv_tem = pp[0];
-    const std::vector<double> &avg_vec = pp[1];
-    const std::vector<double> &var_vec = pp[2];
-
-    for (unsigned long k = 0; k < engine.setup.n_rungs; ++k)
-    {
-        double d_inv_tem = inv_tem[k + 1] - inv_tem[k];
-        output += (avg_vec[k + 1] + avg_vec[k]) * d_inv_tem / 2.;
-        output += (var_vec[k] - var_vec[k + 1]) * d_inv_tem * d_inv_tem / 12.;
-    }
-
-    return output;
-    }
-    */
 
     /// Main function for the standalone version of 'housepi'.
     int standalone(std::string_view model_name, int argc, char *argv[])
@@ -561,11 +568,6 @@ namespace housepi
                 print_simulated_data_wide(engine, opts.file.output);
             if (opts.is_infer)
                 print_infer_state(engine, opts.file.output);
-
-            /* --FUTURE-LOG-EVIDENCE--
-            if (opts.is_log_evidence())
-                std::cout << log_evidence(engine, "adaptive", num_rungs) << std::endl;
-            */
         }
         catch (const std::exception &e)
         {

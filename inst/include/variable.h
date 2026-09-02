@@ -97,10 +97,10 @@ namespace housepi
         //////  FLAGS  //////
         /////////////////////
 
-        /// Wheter the variable is discrete.
-        bool is_discrete() const noexcept override final
+        /// Values the variable takes, in the absolute frame.
+        Codomain codomain() const noexcept override final
         {
-            return has_distr() ? pDistr_->is_discrete() : Attribute::is_discrete();
+            return has_distr() ? pDistr_->support() : Attribute::codomain();
         }
         /// Wheter the variable has a distribution associated.
         bool has_distr() const noexcept { return pDistr_ != nullptr; }
@@ -149,7 +149,7 @@ namespace housepi
         /// Returns -Inf when the value is not valid (used when move not granted valid).
         double guarded_log_pdf() const { return pDistr_->guarded_log_pdf(value_); }
         /// Log-ratio between new and old values.
-        /// It assumes the pdf arguemnts (included support) did not change.
+        /// It assumes the pdf arguments (domain included) did not change.
         double log_ratio() const { return pDistr_->log_ratio(old_, value_); }
         double proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
         /// Log-ratio of distributions, minus log-ratio of proposals for last move.
@@ -184,9 +184,6 @@ namespace housepi
         ///////////////////////
         //////  HELPERS  //////
         ///////////////////////
-
-        /// Assert that range of non-constant variable is not degenerate (non-zero).
-        void helper_assert_non_degenerate_range_();
 
         /// Initialize null proposal.
         void helper_init_null_proposal_();

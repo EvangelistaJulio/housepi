@@ -80,11 +80,11 @@ test_that("A func definition is deterministic", {
   # deterministic definitions reject model or proposal
   mk_latent$model |>
     add_latent(dummy = list(func = "log", func_args = c(x = 2),
-                               model = "normal", mean = 0, sd = 1)) |>
+                            model = "normal", mean = 0, sd = 1)) |>
     expect_error("only one.*func.*model")
   mk_latent$model |>
     add_latent(dummy = list(func = "log", func_args = c(x = 2),
-                               proposal = "rw")) |>
+                            proposal = "rw")) |>
     expect_error("[Dd]eterministic.*dummy.*cannot be sampled")
 })
 
@@ -227,7 +227,7 @@ test_that("Independence proposal reject if unsupported prior domain", {
     new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform") |>
     add_latent("z", model = "uniform", min = theta@P, max = 5,
-                  proposal = "gamma", proposal_shape = 2) |>
+               proposal = "gamma", proposal_shape = 2) |>
     evaluate_log_lik() |>
     expect_error("[Cc]annot cover")
 })
@@ -237,7 +237,7 @@ test_that("Independence proposal inherits the model location shift", {
                         status = 1, min = c(4, 8)) |>
     new_housepi_model("test") |>
     add_latent("test_date", model = "uniform", loc = min@D,
-                  proposal = "gamma", proposal_shape = 2)
+               proposal = "gamma", proposal_shape = 2)
 
   results <- hhmodel |>
     run_inference(steps = 20L, adapt = 0L, chains = 1L) |>
@@ -255,7 +255,7 @@ test_that("latent draws stay inside their live support", {
   results <- df |>
     new_housepi_model("test") |>
     add_latent(otacon = list(model = "uniform"),
-                  test_date = list(model = "uniform", loc = otacon@A)) |>
+               test_date = list(model = "uniform", loc = otacon@A)) |>
     run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressWarnings()
   d <- as.data.frame(get_latent_draws(results))
@@ -266,8 +266,8 @@ test_that("latent draws stay inside their live support", {
   results <- df |>
     new_housepi_model("test") |>
     add_latent(jaeger = list(model = "uniform"),
-                  gray_fox = jaeger,
-                  test_date = list(model = "uniform", loc = gray_fox@A)) |>
+               gray_fox = jaeger,
+               test_date = list(model = "uniform", loc = gray_fox@A)) |>
     run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressWarnings()
   draws <- as.data.frame(get_latent_draws(results))
@@ -290,8 +290,8 @@ test_that("latent draws stay inside their live support", {
 test_that("Latent function definition is correct", {
   base <- mk_latent$model |>
     add_latent(onset = list(model = "normal", mean = 0, sd = 1),
-                  incub = list(model = "gamma", shape = 2, scale = 1),
-                  infec = list(model = "normal", mean = 0, sd = 1))
+               incub = list(model = "gamma", shape = 2, scale = 1),
+               infec = list(model = "normal", mean = 0, sd = 1))
 
   # difference definition
   augm <- base |>
@@ -761,7 +761,7 @@ test_that("simulation override (value + model) rejects forward dependencies", {
   data.frame(house_id = "outer_heaven", status = 1) |>
     new_housepi_model("test") |>
     add_latent(liquid = list(model = "normal", value = solid@A),
-                  solid = list(model = "gamma", shape = 2, scale = 1)) |>
+               solid = list(model = "gamma", shape = 2, scale = 1)) |>
     expect_error("[Ss]imulation override.*latent")
 })
 
@@ -814,6 +814,70 @@ test_that("An undeclared producer defers the build to the wall", {
   expect_false(grepl("status-specific", sms))
 })
 
+test_that("A household observation with no datum yet reads as NA", {
+  # 'start_date' reduces over an observation the run has still to draw: there
+  # is nothing to reduce, so the data view reports NA rather than reading the
+  # empty reduction as a datum failing the discreteness 'case_ascertained' asks
+  hhmodel <- data.frame(
+    id = c("snake", "meryl", "campbell", "naomi"),
+    house_id = c("shadow", "shadow", "moses", "moses"),
+    status = NA, end_date = 21
+  ) |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    add_observation(
+      onset_date = list(model = "normal", discr = TRUE, mean = 3, sd = 1),
+      start_date = list(value = min(onset_date@D), level = "house")
+    )
+
+  df <- expect_silent(get_data_wide(hhmodel))
+  expect_true(all(is.na(df$start_date)))
+})
+
+test_that("A surrogate column proves the requirement its model asks", {
+  # a surrogate filling 'start_date' answers the discreteness 'case_ascertained'
+  # asks of the column, and answers for what it can return, not for the value it
+  # happens to settle on
+  # a household-level definition reduces over its members, so its root is the
+  # reduction; the member level takes the algebra directly
+  mk <- function(defin, level = "house") {
+    data.frame(
+      id = c("snake", "meryl", "campbell", "naomi"),
+      house_id = c("shadow", "shadow", "moses", "moses"),
+      status = c(1, 0, 1, 0), end_date = 16, half = 0.5
+    ) |>
+      new_housepi_model("case_ascertained", quiet = TRUE) |>
+      add_observation("start_date", value = !!defin, level = level) |>
+      get_data_wide()
+  }
+
+  # integer-valued cells fold to the integer lattice through the algebra
+  expect_silent(mk(quote(min(end_date@D))))
+  expect_silent(mk(quote(sum(end_date@D))))
+  expect_silent(mk(quote(end_date@D * 2 - 1), level = "member"))
+
+  # two halves sum to an integer, and are refused all the same: the column
+  # answers for what the definition can return, not for the value it settles on
+  mk(quote(sum(half@D))) |>
+    expect_error("not discrete-valued")
+  mk(quote(end_date@D / 4), level = "member") |>
+    expect_error("not discrete-valued")
+  mk(quote(sqrt(end_date@D)), level = "member") |>
+    expect_error("not discrete-valued")
+
+  # rounding restores the proof
+  expect_silent(mk(quote(round(end_date@D / 4)), level = "member"))
+  expect_silent(mk(quote(ceil(sqrt(end_date@D))), level = "member"))
+
+  # the refusal names the definition and the place it was built for
+  sms <- tryCatch(mk(quote(sum(half@D))), error = conditionMessage)
+  expect_match(sms, "[Hh]ousehold observation")
+  expect_match(sms, "shadow")
+  sms <- tryCatch(mk(quote(end_date@D / 4), level = "member"),
+                  error = conditionMessage)
+  expect_match(sms, "individual")
+  expect_match(sms, "snake")
+})
+
 test_that("A discrete model resolves 'uniform' to the discrete distribution", {
   outer_heaven <- data.frame(
     id = c("snake", "meryl", "otacon"), house_id = "shadow_moses",
@@ -827,10 +891,10 @@ test_that("A discrete model resolves 'uniform' to the discrete distribution", {
       add_infectivity_profile("uniform", max = 4) |>
       evaluate_log_lik()
   }
-  
+
   expect_silent(build(0))
-  
-  # the flat lattice law owns every whole value in the window, so a bound that
+
+  # the flat lattice law owns every integer value in the window, so a bound that
   # is not one has no reading, and the error names the latent that carries it
   sms <- tryCatch(build(0.5), error = conditionMessage)
   expect_match(sms, "min.*uniform.*discrete")
@@ -863,7 +927,7 @@ test_that("Latent aliasing works as expected", {
                           status = 1) |>
     new_housepi_model("test") |>
     add_latent(hour = list(model = "uniform", min = day, max = day + 1),
-                  day = list(model = "gamma", shape = 2, scale = 1)) |>
+               day = list(model = "gamma", shape = 2, scale = 1)) |>
     run_simulation()
   expect_true(all(
     simulated$day <= simulated$hour & simulated$hour <= simulated$day + 1
@@ -955,7 +1019,7 @@ test_that("Latent traces export only relevant variables", {
   )
 })
 
-test_that("Latent degenerate range warns and collapses", {
+test_that("A latent degenerate domain warns and collapses", {
   hhmodel <- new_housepi_model(model = "test") |>
     add_parameter("d_dog", prior = "uniform") |>
     add_latent("d_horse", model = "uniform", min = 5, max = 5)
@@ -964,7 +1028,7 @@ test_that("Latent degenerate range warns and collapses", {
       run_inference(hhmodel, steps = 10L, chains = 1L, adapt = 0L, thin = 1L),
       error = function(e) NULL
     ),
-    regexp = "[Dd]egenerate range|[Cc]ollapsed"
+    regexp = "[Dd]egenerate domain|[Cc]ollapsed"
   )
 })
 
@@ -972,9 +1036,9 @@ test_that("Nested definitions works as expected", {
   hhmodel <- new_housepi_model(model = "test") |>
     # define Box-Muller transformation
     add_latent(norm = list(model = "normal"),
-                  u1 = list(model = "uniform"),
-                  u2 = list(model = "uniform"),
-                  z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
+               u1 = list(model = "uniform"),
+               u2 = list(model = "uniform"),
+               z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
   expect_snapshot(print(hhmodel))
 
   results <- hhmodel |>
@@ -1010,9 +1074,9 @@ test_that("Nested latent definitions raise errors", {
 
   hhmodel |>
     add_latent(.layer = list(model = "uniform", status = 1),
-                  .layer = list(value = .dummy, status = c(2, 3, 4)),
-                  .dummy = list(model = "uniform"),
-                  z = .layer) |>
+               .layer = list(value = .dummy, status = c(2, 3, 4)),
+               .dummy = list(model = "uniform"),
+               z = .layer) |>
     evaluate_log_lik() |>
     expect_no_error()
 
@@ -1031,21 +1095,21 @@ test_that("Nested latent definitions raise errors", {
   # first generation of definitions
   hhmodel |>
     add_latent(.layer = list(model = "normal", status = 1),
-                  .layer = list(value = .dummy, status = 2),
-                  #> NO .layer provided for status 3 and 4
-                  .dummy = list(model = "lognormal", status = 2),
-                  z = .layer) |>
+               .layer = list(value = .dummy, status = 2),
+               #> NO .layer provided for status 3 and 4
+               .dummy = list(model = "lognormal", status = 2),
+               z = .layer) |>
     evaluate_log_lik() |>
     expect_error("[Nn]o.*definition.*status")
 
   # second generation of definitions
   hhmodel |>
     add_latent(.layer = list(model = "normal", status = 1),
-                  .layer = list(value = .dummy, status = c(2, 3, 4)),
-                  #> NO .dummy provided for status 3, 4
-                  .dummy = list(model = "lognormal", status = c(2, 3)),
-                  z = .layer,
-                  append = FALSE) |>
+               .layer = list(value = .dummy, status = c(2, 3, 4)),
+               #> NO .dummy provided for status 3, 4
+               .dummy = list(model = "lognormal", status = c(2, 3)),
+               z = .layer,
+               append = FALSE) |>
     evaluate_log_lik() |>
     expect_error("[Nn]o.*definition.*status")
 })
@@ -1064,9 +1128,9 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
     new_housepi_model("test") |>
     add_latent(z = list(status = 1, model = "uniform", min = 0, max = 1),
-                  z = list(status = 2, model = "uniform", min = 1, max = 2),
-                  z = list(status = 3, model = "uniform", min = 2, max = 3),
-                  z = list(status = 4, model = "uniform", min = 3, max = 4))
+               z = list(status = 2, model = "uniform", min = 1, max = 2),
+               z = list(status = 3, model = "uniform", min = 2, max = 3),
+               z = list(status = 4, model = "uniform", min = 3, max = 4))
 
   # simulation routes draws into per-status supports
   withr::with_seed(1, sim <- run_simulation(hhmodel, nrep = 50))
@@ -1088,6 +1152,21 @@ test_that("Status-specific latent variables draw from per-status ranges", {
     col <- draws[[as.character(s)]]
     expect_true(all(col >= s - 1 & col <= s))
   }
+})
+
+test_that("A latent bound to a distribution returns its density, not a draw", {
+  # a distribution called as a func gives back a mass: reading its support here
+  # would type the column integer and truncate every mass to zero
+  hhmodel <- data.frame(house_id = rep(seq(3), each = 2), id = seq(6),
+                        status = 1) |>
+    new_housepi_model("test") |>
+    add_latent(k = list(model = "uniform", min = 0, max = 5, discr = TRUE),
+               w = list(func = "poisson", func_args = c(x = k, lambda = 3)))
+
+  sim <- run_simulation(hhmodel, nrep = 1)
+  expect_type(sim$k, "integer")
+  expect_type(sim$w, "double")
+  expect_equal(sim$w, dpois(sim$k, 3))
 })
 
 test_that("export_augmented_data works after evaluate_log_lik", {
@@ -1196,7 +1275,7 @@ test_that("observation cyclic dependency are captured", {
   data.frame(house_id = "rex", status = c(1, 0)) |>
     new_housepi_model("test") |>
     add_latent(z = list(model = "lognormal"),
-                  y = list(model = "uniform", max = first@D)) |>
+               y = list(model = "uniform", max = first@D)) |>
     add_observation(t_obs = list(model = "normal", mean = z, sd = 1)) |>
     add_observation("first", value = min(t_obs@D), level = "house") |>
     run_simulation() |>

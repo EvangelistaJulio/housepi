@@ -149,7 +149,7 @@ test_that("Simulations behave as expected", {
     dplyr::mutate(status = NA, start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 0,
+    add_parameter(alpha = 1e-12, beta = 0,
                   gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -159,7 +159,9 @@ test_that("Simulations behave as expected", {
   # there are just introduction cases
   expect_identical(length(unique(simulated$house_id)),
                    sum(simulated$onset_time == 0, na.rm = TRUE))
+})
 
+test_that("Simulations behave as expected", {
   # simulate with saturated transmission risk
   simulated <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
@@ -167,18 +169,33 @@ test_that("Simulations behave as expected", {
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100,
+    add_parameter(alpha = 1e-12, beta = 100,
                   gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
+      infec_time = -incub_period,
+      onset_time = infec_time + incub_period
     ) |>
-    run_simulation(obs_process = obs_process)
+    # one definition set drives simulation too: no hand-written obs_process
+    add_observation("onset_date", model = "normal", mean = onset_time) |>
+    run_simulation()
+
   # all infected
   expect_true(all(simulated$status > 0))
   expect_false(any(is.na(simulated$infec_time)))
   expect_equal(simulated$infec_time,
                simulated$onset_time - simulated$incub_period)
+
+  # onset_date is generated for infected members and only those
+  expect_true("onset_date" %in% names(simulated))
+  expect_false(any(is.na(simulated$onset_date[simulated$status > 0])))
+  expect_true(all(is.na(simulated$onset_date[simulated$status == 0])))
+
+  # generated onset_date is a draw from normal(infec_time + incub_period, 1)
+  inf <- simulated[simulated$status > 0, ]
+  resid <- inf$onset_date - (inf$infec_time + inf$incub_period)
+  expect_lt(abs(mean(resid)), 0.2)
+  expect_lt(abs(sd(resid) - 1), 0.2)
 })
 
 test_that("Sentinel against no introduction throws error", {
@@ -476,8 +493,8 @@ test_that("Discretized observation node initializes finite", {
       infec_time = list(model = "uniform", min = -14, max = end_date@D)
     ) |>
     # discretized observation: the path that previously broke initialization
-    add_observation("onset_date", model = "normal", discr = TRUE,
-                    loc = infec_time + incub_period) |>
+    add_observation("onset_date", model = "normal", discr = TRUE, sd = 1,
+                    mean = infec_time + incub_period) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
   # initialization no longer returns infinity; the chain runs and the
@@ -488,34 +505,6 @@ test_that("Discretized observation node initializes finite", {
   expect_true(all(is.finite(get_log_lik_draws(results)$shadowmoses)))
 })
 
-test_that("Observation node generates the data column in simulation", {
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
-    dplyr::mutate(start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time   = -incub_period
-    ) |>
-    # one definition set drives simulation too: no hand-written obs_process
-    add_observation("onset_date", model = "normal",
-                    mean = infec_time + incub_period, sd = 1) |>
-    run_simulation()
-
-  # onset_date is generated for infected members and only those
-  expect_true("onset_date" %in% names(simulated))
-  expect_false(any(is.na(simulated$onset_date[simulated$status > 0])))
-  expect_true(all(is.na(simulated$onset_date[simulated$status == 0])))
-
-  # generated onset_date is a draw from normal(infec_time + incub_period, 1)
-  inf <- simulated[simulated$status > 0, ]
-  resid <- inf$onset_date - (inf$infec_time + inf$incub_period)
-  expect_lt(abs(mean(resid)), 0.2)
-  expect_lt(abs(sd(resid) - 1), 0.2)
-})
-
 test_that("Household observation derives from simulated observations", {
   # both the observation (test_date) and the surrogate column (start_date) are
   # produced internally: neither is provided in the input data
@@ -524,7 +513,8 @@ test_that("Household observation derives from simulated observations", {
     dplyr::select(-test_date, -start_date) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100,
+                  gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -557,7 +547,8 @@ test_that("Simulation leaves overwritten data columns pristine", {
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100,
+                  gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -587,7 +578,8 @@ test_that("Latent variable reads a static data-bound household observation", {
     dplyr::select(-start_date) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100,
+                  gamma = 1, hhsize_ref = 4) |>
     add_latent(
       infec_time = list(model = "uniform", min = start_date@D - 5,
                         max = start_date@D + 5)
@@ -608,7 +600,7 @@ test_that("Simulation rejects a latent variable reading a live household observa
     dplyr::select(-test_date, -start_date) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_latent(
       infec_time = list(model = "uniform", min = start_date@D - 5,
                         max = start_date@D + 5)
@@ -624,10 +616,11 @@ test_that("Deterministic observation node simulates, inference rejects it", {
     data |>
       new_housepi_model("case_ascertained") |>
       add_infectivity_profile(import = "template") |>
-      add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+      add_parameter(alpha = 1e-12, beta = 100,
+                    gamma = 1, hhsize_ref = 4) |>
       add_latent(
         incub_period = list(model = "gamma", shape = 2, scale = 1),
-        infec_time   = -incub_period
+        infec_time = -incub_period
       ) |>
       # bare expression (no 'model =' distribution): a deterministic observation
       add_observation(onset_date = floor(infec_time + incub_period))
@@ -667,7 +660,8 @@ test_that("Household observations aggregate a data column across members", {
   simulated <- dat |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100,
+                  gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -776,7 +770,8 @@ test_that("Status process generates a labelled status factor in simulation", {
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100,
+                  gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -800,14 +795,14 @@ test_that("Status process drives status-specific latent blocks", {
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
     # status-specific block: symptomatic incubation is longer (character status=)
     add_latent(status = "symptomatic",
-                  incub_period = list(model = "gamma", shape = 8, scale = 1)) |>
+               incub_period = list(model = "gamma", shape = 8, scale = 1)) |>
     add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
     run_simulation()
 
@@ -867,7 +862,8 @@ test_that("Character status round-trips with stable codes", {
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100,
+                  gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
@@ -897,7 +893,8 @@ test_that("escaped label is configurable", {
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case_ascertained", escaped = "healthy") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 0, beta = 0.001, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 0.001,
+                  gamma = 1, hhsize_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period

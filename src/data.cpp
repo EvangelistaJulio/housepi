@@ -198,6 +198,8 @@ namespace housepi
             IndivWide_ &idata = indiv_data_[i];
             idata.status = status;
             idata.vec.resize(khold_.size());
+            // per-column read-cell defaults to the imported raw data value
+            idata.readcell.resize(idata.vec.size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
             {
                 const std::string &dname = khold(d);
@@ -208,24 +210,26 @@ namespace housepi
                 x = na::DOUBLE;
 
                 if (input.count(dname))
-                {
                     x = str::tod(input.at(dname)[i], "data " + msg::arg(dname));
 
-                    if (is_required_discrete(d) && x != std::floor(x))
-                        msg::stop(
-                            "Data " + msg::arg(dname) + " for individual in row n." + std::to_string(i + 1) +
-                            " was expected to be discrete-valued, as requested by model.");
-                    if (is_required_positive(d) && !(x > 0.))
-                        msg::stop(
-                            "Data " + msg::arg(dname) + " for individual in row n." + std::to_string(i + 1) +
-                            " was expected to be greater than zero, as requested by model.");
+                idata.readcell[d].name(dname, ErrType::Data);
+                idata.readcell[d].init_numeric(x);
+
+                // a missing cell carries no verdict: absence is reported at
+                // the run wall, not as a violated requirement
+                if (na::is(x))
+                    continue;
+                try
+                {
+                    assert_requests(d, idata.readcell[d]);
+                }
+                catch (const std::exception &e)
+                {
+                    msg::stop(
+                        std::string(e.what()) + "\nCheck " + idata.readcell[d].str() +
+                        " for individual in row n." + std::to_string(i + 1) + ".");
                 }
             }
-
-            // per-column read-cell defaults to the imported raw data value
-            idata.readcell.resize(idata.vec.size());
-            for (size_t d = 0; d < idata.vec.size(); ++d)
-                idata.readcell[d].init_numeric(idata.vec[d]);
 
             // if household index doesn't exist, add new household
             if (!hhid_to_index_.count(house_id))
@@ -280,7 +284,10 @@ namespace housepi
             idata.vec.resize(total, na::DOUBLE);
             idata.readcell.resize(total);
             for (size_t d = 0; d < total; ++d)
+            {
+                idata.readcell[d].name(khold(d), ErrType::Data);
                 idata.readcell[d].init_numeric(idata.vec[d]);
+            }
         }
     }
 

@@ -188,7 +188,7 @@ namespace housepi
     {
         if (inv_temp < 0. || inv_temp > 1.)
             msg::stop(
-                "Inverse temperature " + std::to_string(inv_temp) + " was out of range [0, 1].");
+                "Inverse temperature " + std::to_string(inv_temp) + " was outside [0, 1].");
 
         // clip options mistakenly set to 0 has 1
         n_steps = std::max(1ul, n_steps);

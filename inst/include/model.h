@@ -165,8 +165,8 @@ namespace housepi
 		double group_risk(size_t g, const Individual &m) const { return mcmc_->group_risk.value(g, m); }
 
 		/// Names for error messages.
-		std::string err_name(const Individual &m) const { return mcmc_->data_wide().err_name(m); }
-		std::string err_name(const Household &h) const { return mcmc_->data_wide().err_name(h); }
+		std::string str(const Individual &m) const { return mcmc_->data_wide().str(m); }
+		std::string str(const Household &h) const { return mcmc_->data_wide().str(h); }
 
 		/// Get contact risk 'from' household member 'to' member.
 		double contact_risk(const Household &house, MemberIndex from, MemberIndex to) const { return mcmc_->contact_risk.value(house, from, to); }

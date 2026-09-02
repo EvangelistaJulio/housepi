@@ -39,5 +39,5 @@ browse_distributions()
 dst <- browse_distributions("weibull", shape = 2, scale = 1)
 dst$pdf(seq(0, 5))
 dst$cdf(seq(0, 5))
-dst$range
+dst$domain
 }

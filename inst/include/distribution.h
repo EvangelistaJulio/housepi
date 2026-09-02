@@ -76,13 +76,42 @@ namespace housepi
 			if (p < 0 || p > 1)
 				return na::DOUBLE;
 			if (p <= 0.)
-				return lower_.is_empty() ? -inf::DOUBLE : relocate_(lower_.value());
+				return domain_.min.is_empty() ? -inf::DOUBLE : relocate_(domain_.min.value());
 			if (p >= 1.)
-				return upper_.is_empty() ? inf::DOUBLE : relocate_(upper_.value());
+				return domain_.max.is_empty() ? inf::DOUBLE : relocate_(domain_.max.value());
 			return relocate_(cast_discr_(raw_quantile_(shift_() + p * trunc_())));
 		}
 
+		/// Values the distribution draws can take.
+		Codomain support() const noexcept { return domain_.relocated(lattice_()); }
+
+		/// Values returned by evaluate().
+		/// NOTE: pdf() and cdf() return zero off the domain.
+		/// NOTE: density is unbounded above, a mass and a cumulative are not.
+		Codomain codomain() const noexcept override
+		{
+			Codomain c;
+			c.inf = 0.;
+			c.below = Interval::Closed;
+			if (eval_mode_ == Mode::Evaluate::Probability && !is_discretized())
+				return c;
+			c.sup = 1.;
+			c.above = Interval::Closed;
+			return c;
+		}
+
 	protected:
+		/// Integer-value structure of the draws.
+		/// NOTE: location off the integers moves the support off as well.
+		Lattice lattice_() const noexcept
+		{
+			if (discr_mode_ == Mode::Discrete::None)
+				return Lattice::Doubles;
+			if (domain_.loc.is_empty() || domain_.loc.codomain().on_integers())
+				return Lattice::Integers;
+			return Lattice::Doubles;
+		}
+
 		/////////////////////////////////////////////////////////////////////////////////////////////
 		////////////////////////////  Distribution : virtual [protected] ////////////////////////////
 		/////////////////////////////////////////////////////////////////////////////////////////////
@@ -198,22 +227,22 @@ namespace housepi
 		/// Otherwise falls back to inverse sampling.
 		double truncated_rand_(rnd_gen &prng) const
 		{
-			const double cdf_lo = trunc_mode_ == Trunc::Max ? 0. : cdf_lower_();
-			const double cdf_hi = trunc_mode_ == Trunc::Min ? 1. : cdf_upper_();
-			const double window = cdf_hi - cdf_lo;
+			const double cdf_at_min = trunc_mode_ == Trunc::Max ? 0. : cdf_min_();
+			const double cdf_at_max = trunc_mode_ == Trunc::Min ? 1. : cdf_max_();
+			const double window = cdf_at_max - cdf_at_min;
 
 			if (window > MIN_REJECT_WINDOW)
 			{
-				const double lo = trunc_mode_ == Trunc::Max ? -inf::DOUBLE : lower_.value();
-				const double hi = trunc_mode_ == Trunc::Min ? inf::DOUBLE : upper_.value();
+				const double min_val = trunc_mode_ == Trunc::Max ? -inf::DOUBLE : domain_.min.value();
+				const double max_val = trunc_mode_ == Trunc::Min ? inf::DOUBLE : domain_.max.value();
 				for (int k = 0; k < MAX_REJECT_DRAWS; ++k)
 				{
 					const double x = cast_discr_(raw_rand_(prng));
-					if (x >= lo && x <= hi)
+					if (x >= min_val && x <= max_val)
 						return x;
 				}
 			}
-			return raw_quantile_(cdf_lo + standard_uniform(prng) * window);
+			return raw_quantile_(cdf_at_min + standard_uniform(prng) * window);
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////////////
@@ -228,11 +257,11 @@ namespace housepi
 			Both  /// Two-sided truncation
 		} trunc_mode_ = Trunc::None;
 
-		/// Select truncation mode from below_/above_mode_.
+		/// Select truncation mode.
 		void helper_init_distr_truncation_()
 		{
-			const bool has_min = below_mode_ != Mode::Interval::None;
-			const bool has_max = above_mode_ != Mode::Interval::None;
+			const bool has_min = domain_.below != Mode::Interval::Unbounded;
+			const bool has_max = domain_.above != Mode::Interval::Unbounded;
 
 			if (!has_min && !has_max)
 				trunc_mode_ = Trunc::None;
@@ -244,35 +273,35 @@ namespace housepi
 				trunc_mode_ = Trunc::Both;
 		}
 
-		/// CDF at the lower bound, with discretization correction.
-		double cdf_lower_() const
+		/// CDF at the minimum, with discretization correction.
+		double cdf_min_() const
 		{
 			switch (discr_mode_)
 			{
 			case Mode::Discrete::Defined:
-				return raw_cdf_(std::ceil(lower_.value()) - 1.);
+				return raw_cdf_(std::ceil(domain_.min.value()) - 1.);
 			case Mode::Discrete::Center:
-				return raw_cdf_(std::ceil(lower_.value()) - 0.5);
+				return raw_cdf_(std::ceil(domain_.min.value()) - 0.5);
 			case Mode::Discrete::Left:
-				return raw_cdf_(std::ceil(lower_.value()));
+				return raw_cdf_(std::ceil(domain_.min.value()));
 			default: // case Mode::Discrete::None:
-				return raw_cdf_(lower_.value());
+				return raw_cdf_(domain_.min.value());
 			}
 		}
 
-		/// CDF at the upper bound, with discretization correction.
-		double cdf_upper_() const
+		/// CDF at the maximum, with discretization correction.
+		double cdf_max_() const
 		{
 			switch (discr_mode_)
 			{
 			case Mode::Discrete::Defined:
-				return raw_cdf_(std::floor(upper_.value()));
+				return raw_cdf_(std::floor(domain_.max.value()));
 			case Mode::Discrete::Center:
-				return raw_cdf_(std::floor(upper_.value()) + 0.5);
+				return raw_cdf_(std::floor(domain_.max.value()) + 0.5);
 			case Mode::Discrete::Left:
-				return raw_cdf_(std::floor(upper_.value()) + 1.);
+				return raw_cdf_(std::floor(domain_.max.value()) + 1.);
 			default: // case Mode::Discrete::None:
-				return raw_cdf_(upper_.value());
+				return raw_cdf_(domain_.max.value());
 			}
 		}
 
@@ -282,11 +311,11 @@ namespace housepi
 			switch (trunc_mode_)
 			{
 			case Trunc::Min:
-				return 1. - cdf_lower_();
+				return 1. - cdf_min_();
 			case Trunc::Max:
-				return cdf_upper_();
+				return cdf_max_();
 			case Trunc::Both:
-				return cdf_upper_() - cdf_lower_();
+				return cdf_max_() - cdf_min_();
 			default: // case Trunc::None:
 				return 1.;
 			}
@@ -299,7 +328,7 @@ namespace housepi
 			{
 			case Trunc::Min:
 			case Trunc::Both:
-				return cdf_lower_();
+				return cdf_min_();
 			default: // cases Trunc::None, Trunc::Max
 				return 0.;
 			}

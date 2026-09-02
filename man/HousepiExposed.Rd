@@ -16,11 +16,22 @@ argument values it was built with, and the domain it is defined on.
 \item{\code{args}}{\code{numeric()}
 Named argument values the definition was built with.}
 
-\item{\code{range}}{\code{character(1)}
-Domain of the definition, in interval notation.}
+\item{\code{domain}}{\code{character(1)}
+Values to evaluated on in interval notation.}
 
 \item{\code{is_discrete}}{\code{logical(1)}
-Whether the definition is evaluated on a discrete domain.}
+Whether the values the definition takes lie on a lattice of
+integers. A distribution answers for the values it draws.}
+
+\item{\code{is_positive}}{\code{logical(1)}
+Whether the values the definition takes are known to be strictly
+positive. A distribution answers for the values it draws.
+Note that \code{FALSE} reads as "not known to be positive".}
+
+\item{\code{codomain}}{\code{character(1)}
+Values evaluating the definition returns, in interval notation.
+A distribution returns a density, a mass or a cumulative probability,
+never a draw: see \code{domain} for the values it is defined on.}
 }
 \if{html}{\out{</div>}}
 }

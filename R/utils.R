@@ -48,6 +48,9 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   if (!trusted) parts[] <- gsub("}", "}}", gsub("{", "{{", parts, fixed = TRUE),
                                 fixed = TRUE)
 
+  # capitalize the leading letter of each line
+  parts[] <- sub("^([a-z])", "\\U\\1", parts, perl = TRUE)
+
   # un-named continuation lines become info hints
   nms <- names(parts)
   nms[nms == ""] <- "i"

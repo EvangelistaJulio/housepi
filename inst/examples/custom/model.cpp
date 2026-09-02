@@ -14,7 +14,18 @@ public:
     HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Growth_)
     HOUSEPI_OVERRIDE_NAME_METHOD(growth)
 
-    void truncate() override final { helper_init_range_min_(0.); }
+    void truncate() override final { helper_init_domain_min_(0.); }
+
+    /// Values returned, as opposed to the domain set by truncate() above.
+    /// Declaring it lets the engine prove a model requirement this function
+    /// satisfies; leaving it out only means the engine assumes nothing.
+    Codomain codomain() const noexcept override final
+    {
+        Codomain c;
+        c.inf = 0.;
+        c.below = Interval::Open;
+        return c;
+    }
 
 protected:
     /// Internal method called when the function is evaluated.

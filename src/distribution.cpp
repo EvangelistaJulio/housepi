@@ -79,7 +79,7 @@ namespace housepi
                 case Kind::InfecProfile:
                     return static_cast<const RegDistributions &>(instance(kind));
                 default:
-                    msg::stop("Registry does not hold " + err_type_name(err_type) + " objects.");
+                    msg::stop("Registry does not hold " + str::format(err_type) + " objects.");
                 }
             }
         }
@@ -105,7 +105,7 @@ namespace housepi
             }
 
             msg::stop(
-                "Unknown " + err_type_name(err_type) + " " + msg::val(std::string(name)) + "." +
+                "Unknown " + str::format(err_type) + " " + msg::val(std::string(name)) + "." +
                 str::find_closest(name, options));
         }
     }
@@ -164,24 +164,24 @@ namespace
     }
 
 // Macro for left discretization when min = 0 (close).
-#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()       \
-    void discretize() override final           \
-    {                                          \
-        discr_mode_ = Mode::Discrete::Left;    \
-    }                                          \
-    void truncate() override final             \
-    {                                          \
-        if (helper_init_range_min_(0., false)) \
-            helper_init_distr_truncation_();   \
+#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()        \
+    void discretize() override final            \
+    {                                           \
+        discr_mode_ = Mode::Discrete::Left;     \
+    }                                           \
+    void truncate() override final              \
+    {                                           \
+        if (helper_init_domain_min_(0., false)) \
+            helper_init_distr_truncation_();    \
     }
 
 // Macro for discrete defined when min = 0 (close).
-#define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()    \
-    void discretize() override final {}        \
-    void truncate() override final             \
-    {                                          \
-        if (helper_init_range_min_(0., false)) \
-            helper_init_distr_truncation_();   \
+#define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()     \
+    void discretize() override final {}         \
+    void truncate() override final              \
+    {                                           \
+        if (helper_init_domain_min_(0., false)) \
+            helper_init_distr_truncation_();    \
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -197,18 +197,18 @@ namespace
         HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
     protected:
-        double n_() const { return upper_.value() - lower_.value(); }
+        double n_() const { return domain_.max.value() - domain_.min.value(); }
 
         double raw_pdf_(double) const override final { return 1. / n_(); }
-        double raw_cdf_(double x) const override final { return (x - lower_.value()) / n_(); }
+        double raw_cdf_(double x) const override final { return (x - domain_.min.value()) / n_(); }
         double raw_log_pdf_(double) const override final { return -std::log(n_()); }
         double raw_log_ratio_(double, double) const override final { return 0.; }
         double raw_rand_(rnd_gen &prng) const override final
         {
             const double r = standard_uniform(prng);
-            return lower_.value() * (1. - r) + upper_.value() * r;
+            return domain_.min.value() * (1. - r) + domain_.max.value() * r;
         }
-        double raw_quantile_(double p) const override final { return lower_.value() * (1. - p) + upper_.value() * p; }
+        double raw_quantile_(double p) const override final { return domain_.min.value() * (1. - p) + domain_.max.value() * p; }
     };
     HOUSEPI_REGISTER_FUNCTION(Uniform_, Continuous)
 
@@ -216,7 +216,7 @@ namespace
     ///////////////////////  *** Uniform Discrete Distribution : class ***  /////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Flat mass over the whole values in [min, max].
+    /// Flat mass over the integers in [min, max].
     class UniformDiscrete_ final : public Distribution
     {
     public:
@@ -228,19 +228,19 @@ namespace
         void discretize() override final {}
 
     protected:
-        std::vector<const Attribute *> discrete_args_() const override final { return {&lower_, &upper_}; }
+        std::vector<const Attribute *> discrete_args_() const override final { return {&domain_.min, &domain_.max}; }
 
-        double n_() const { return upper_.value() - lower_.value() + 1.; }
+        double n_() const { return domain_.max.value() - domain_.min.value() + 1.; }
 
         double raw_pdf_(double) const override final { return 1. / n_(); }
-        double raw_cdf_(double x) const override final { return (x - lower_.value() + 1.) / n_(); }
+        double raw_cdf_(double x) const override final { return (x - domain_.min.value() + 1.) / n_(); }
         double raw_log_pdf_(double) const override final { return -log(n_()); }
         double raw_log_ratio_(double, double) const override final { return 0.; }
-        double raw_quantile_(double p) const override final { return lower_.value() + std::ceil(p * n_()) - 1.; }
+        double raw_quantile_(double p) const override final { return domain_.min.value() + std::ceil(p * n_()) - 1.; }
         double raw_rand_(rnd_gen &prng) const override final
         {
             return std::uniform_int_distribution<long>(
-                static_cast<long>(lower_.value()), static_cast<long>(upper_.value()))(prng);
+                static_cast<long>(domain_.min.value()), static_cast<long>(domain_.max.value()))(prng);
         }
     };
     HOUSEPI_REGISTER_FUNCTION(UniformDiscrete_, Discrete)
@@ -259,12 +259,12 @@ namespace
 
         void discretize() override final
         {
-            discr_mode_ = lower_.is_empty() ? Mode::Discrete::Center
-                                            : Mode::Discrete::Left;
+            discr_mode_ = domain_.min.is_empty() ? Mode::Discrete::Center
+                                                 : Mode::Discrete::Left;
         }
         void truncate() override final
         {
-            helper_init_standard_range_();
+            helper_init_standard_domain_();
             helper_init_distr_truncation_();
         }
 
@@ -407,8 +407,8 @@ namespace
             : Distribution({{"shape1", na::DOUBLE}, {"shape2", na::DOUBLE}},
                            0., 1.)
         {
-            below_mode_ = Mode::Interval::Open;
-            above_mode_ = Mode::Interval::Open;
+            domain_.below = Mode::Interval::Open;
+            domain_.above = Mode::Interval::Open;
         }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Beta_)
         HOUSEPI_OVERRIDE_NAME_METHOD(beta)
@@ -416,21 +416,21 @@ namespace
         void discretize() override final
         {
             msg::stop(
-                "Invoked invalid option discrete for " + err_name() + ".");
+                "Invoked invalid option discrete for " + str() + ".");
         }
         void truncate() override final
         {
-            const double sx = lower_.value();
-            const double dx = upper_.value();
+            const double sx = domain_.min.value();
+            const double dx = domain_.max.value();
             if (sx < 0)
                 msg::stop(
-                    "Invoked invalid min value " + str::format(sx) + " for " + err_name() + ".");
+                    "Invoked invalid min value " + str::format(sx) + " for " + str() + ".");
             if (dx > 1)
                 msg::stop(
-                    "Invoked invalid max value " + str::format(dx) + " for " + err_name() + ".");
+                    "Invoked invalid max value " + str::format(dx) + " for " + str() + ".");
             if (sx > 0 || dx < 1)
             {
-                helper_init_standard_range_(sx == 0, dx == 1);
+                helper_init_standard_domain_(sx == 0, dx == 1);
                 helper_init_distr_truncation_();
             }
         }
@@ -768,9 +768,9 @@ namespace
             : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
         {
             discr_mode_ = Mode::Discrete::Defined;
-            upper_.init_pointer(arguments_(0).pointer());
-            below_mode_ = Mode::Interval::Closed;
-            above_mode_ = Mode::Interval::Closed;
+            domain_.max.init_pointer(arguments_(0).pointer());
+            domain_.below = Mode::Interval::Closed;
+            domain_.above = Mode::Interval::Closed;
         }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Binomial_)
         HOUSEPI_OVERRIDE_NAME_METHOD(binomial)
@@ -778,19 +778,19 @@ namespace
         void discretize() override final {}
         void truncate() override final
         {
-            const double sx = lower_.value();
+            const double sx = domain_.min.value();
             if (sx < 0.)
                 msg::stop(
                     "Invoked invalid min value " + str::format(sx) +
-                    " for " + err_name() + ".");
-            if (sx > 0. || arguments_(0).pointer() != upper().pointer())
+                    " for " + str() + ".");
+            if (sx > 0. || arguments_(0).pointer() != max().pointer())
             {
-                const double dx = lower_.value();
+                const double dx = domain_.min.value();
                 if (dx > arg(0))
                     msg::stop(
                         "Invoked invalid max value " + str::format(dx) +
-                        " for " + err_name() + " with size " + std::to_string(arg(0)) + ".");
-                helper_init_standard_range_();
+                        " for " + str() + " with size " + std::to_string(arg(0)) + ".");
+                helper_init_standard_domain_();
                 helper_init_distr_truncation_();
             }
         }
@@ -850,7 +850,7 @@ namespace
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
     protected:
-        /// 'size' counts successes: the binomial coefficient truncates it whole.
+        /// 'size' counts successes: the binomial coefficient truncates it to an integer.
         std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
 
         double raw_pdf_(double x) const override final
@@ -949,16 +949,16 @@ namespace
             const size_t cases = n_args();
             if (cases == 0)
                 msg::stop(
-                    "Invoked " + err_name() + " with no weights.\nProvide at least one weight.");
+                    "Invoked " + str() + " with no weights.\nProvide at least one weight.");
 
             if (weight_sum_() <= 0.)
                 msg::stop(
-                    "Invoked " + err_name() + " with weights summing to non-strictly positive value.");
+                    "Invoked " + str() + " with weights summing to non-strictly positive value.");
 
-            lower_.init_numeric(0.);
-            upper_.init_numeric(static_cast<double>(cases - 1));
-            below_mode_ = Mode::Interval::Closed;
-            above_mode_ = Mode::Interval::Closed;
+            domain_.min.init_numeric(0.);
+            domain_.max.init_numeric(static_cast<double>(cases - 1));
+            domain_.below = Mode::Interval::Closed;
+            domain_.above = Mode::Interval::Closed;
         }
 
     private:

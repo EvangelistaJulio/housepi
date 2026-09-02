@@ -26,41 +26,8 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
-namespace housepi
-{
-    std::string err_type_name(ErrType type) noexcept
-    {
-        switch (type)
-        {
-        case ErrType::Numeric:
-            return "numeric";
-        case ErrType::Pointer:
-            return "pointer";
-        case ErrType::Function:
-            return "function";
-        case ErrType::Parameter:
-            return "parameter";
-        case ErrType::Latent:
-            return "latent";
-        case ErrType::Observation:
-            return "observation";
-        case ErrType::HouseholdObservation:
-            return "household observation";
-        case ErrType::GroupRisk:
-            return "group risk";
-        case ErrType::Data:
-            return "data";
-        case ErrType::Distribution:
-            return "distribution";
-        case ErrType::InfecProfile:
-            return "infectivity profile";
-        case ErrType::Proposal:
-            return "proposal";
-        default: // case ErrType::Empty:
-            return "empty";
-        }
-    }
-}
+#include "function.h"
+#include "variable.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,7 +76,7 @@ namespace housepi
         index -= declared_.size();
         if (index < optional_.size())
             return optional_[index];
-        msg::stop("Registration failed: key index out of range.");
+        msg::stop("Registration failed: key index out of bounds.");
     }
     std::vector<std::string> KeyHolder::as_string(std::vector<size_t> indexes) const
     {
@@ -159,6 +126,19 @@ namespace housepi
     {
         return contains(posit_, p);
     }
+
+    template <class Def>
+    void KeyModuleWithRequests::assert_requests(size_t p, const Def &def) const
+    {
+        if (is_required_discrete(p) && !def.is_discrete())
+            msg::stop(def.str() +
+                      " was not discrete-valued, as requested by the model.");
+        if (is_required_positive(p) && !def.is_positive())
+            msg::stop(def.str() +
+                      " was not strictly positive, as requested by the model.");
+    }
+    template void KeyModuleWithRequests::assert_requests(size_t, const Attribute &) const;
+    template void KeyModuleWithRequests::assert_requests(size_t, const Variable &) const;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -265,7 +245,8 @@ namespace housepi::str
     }
 
     std::string format(const std::vector<std::string> &options,
-                       bool add_full_stop, size_t max_print)
+                       bool add_full_stop,
+                       size_t max_print)
     {
         if (options.empty())
             return "";
@@ -279,6 +260,39 @@ namespace housepi::str
         else if (add_full_stop)
             output += ".";
         return output;
+    }
+
+    std::string format(ErrType type) noexcept
+    {
+        switch (type)
+        {
+        case ErrType::Numeric:
+            return "numeric";
+        case ErrType::Pointer:
+            return "pointer";
+        case ErrType::Function:
+            return "function";
+        case ErrType::Parameter:
+            return "parameter";
+        case ErrType::Latent:
+            return "latent";
+        case ErrType::Observation:
+            return "observation";
+        case ErrType::HouseholdObservation:
+            return "household observation";
+        case ErrType::GroupRisk:
+            return "group risk";
+        case ErrType::Data:
+            return "data";
+        case ErrType::Distribution:
+            return "distribution";
+        case ErrType::InfecProfile:
+            return "infectivity profile";
+        case ErrType::Proposal:
+            return "proposal";
+        default: // case ErrType::Empty:
+            return "empty";
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -448,12 +462,12 @@ namespace housepi::dpdcy
     {
         if (!graph.count(entry))
             msg::stop(
-                "Could not find the " + err_type_name(err) +
+                "Could not find the " + str::format(err) +
                 " definition " + msg::val(entry) + ".");
 
         if (contains(recursion_stack, entry))
             msg::stop(
-                "Found inadmissible cyclic " + err_type_name(err) +
+                "Found inadmissible cyclic " + str::format(err) +
                 " definition " + msg::val(entry) + ".");
 
         if (contains(visited, entry))

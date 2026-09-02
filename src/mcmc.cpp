@@ -864,7 +864,7 @@ namespace housepi
         if (data_wide().transm_log_lik(house).is_inf())
             msg::stop(
                 "Initial transmission log-likelihood returned infinity for " +
-                data_wide().err_name(house) + ".");
+                data_wide().str(house) + ".");
 
         // --- Observation ---
         // resample each individual variable upon failure
@@ -896,7 +896,7 @@ namespace housepi
                 if (latent_log_lik_(indiv).is_inf())
                     msg::stop(
                         "Initial latent log-likelihood returned infinity for " +
-                        data_wide().err_name(indiv) + ".");
+                        data_wide().str(indiv) + ".");
             }
 
         return acc;
@@ -968,7 +968,7 @@ namespace housepi
         if (this_par.is_valid_move())
         {
             const bool with_latent_ll = augm.is_any_latent_model() &&
-                                      augm.param_produces_latent_log_lik(p);
+                                        augm.param_produces_latent_log_lik(p);
 
             /////////////////////////////
             ///  METROPOLIS-HASTINGS  ///
@@ -1058,8 +1058,8 @@ namespace housepi
 
     template <bool Adapt, bool Beta0>
     LogLikAccumulator MCMC::move_latent_single_variable_(const Household &house,
-                                                       const Individual &indiv,
-                                                       size_t a)
+                                                         const Individual &indiv,
+                                                         size_t a)
     {
         Variable &avar = get_latent_varia(a, indiv);
 
@@ -1088,8 +1088,8 @@ namespace housepi
             /////////////////////////////
 
             const double d_latent = has_consumers
-                                      ? augm.commit_latent_log_lik_ratio_with_consumers(indiv, a, cons_ll_old)
-                                      : commit_latent_log_lik_ratio(indiv, a);
+                                        ? augm.commit_latent_log_lik_ratio_with_consumers(indiv, a, cons_ll_old)
+                                        : commit_latent_log_lik_ratio(indiv, a);
 
             // NOTE: likelihood terms are tempered, the latent model is not.
             if constexpr (Beta0)

@@ -14,15 +14,6 @@
 
 namespace housepi
 {
-    /// Package-authored exception.
-    /// NOTE: must keep the name in sync with the R side.
-    struct CppError : std::exception
-    {
-        std::string m;
-        explicit CppError(std::string s) : m(std::move(s)) {}
-        const char *what() const noexcept override { return m.c_str(); }
-    };
-
     /// Finite set of entity type names displayed in errors.
     enum class ErrType : std::uint8_t
     {
@@ -41,8 +32,11 @@ namespace housepi
         Proposal
     };
 
-    /// Display word for an error type (e.g. "household observation").
-    std::string err_type_name(ErrType type) noexcept;
+    namespace str
+    {
+        /// Display word for an error type (e.g. "household observation").
+        std::string format(ErrType type) noexcept;
+    }
 }
 
 namespace housepi::msg

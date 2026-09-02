@@ -127,26 +127,26 @@ namespace housepi
         lookup_.clear();
         latent_definitions.clear();
 
-        // range minimum
+        // domain minimum
         generic->init_attr("min", translator.to_attribute(input.at("min")[0]));
 
-        // range maximum
+        // domain maximum
         if (input.count("max"))
             generic->init_attr("max", translator.to_attribute(input.at("max")[0]));
 
-        // discretization and range truncation
+        // discretization and domain truncation
         generic->reshape(is_discr);
 
-        // if discrete and generic, initializes lookup table
-        if (generic->is_discrete())
+        // if discretized and generic, initializes lookup table
+        if (generic->is_discretized())
         {
             mode_ = Mode::LookUp;
             size_t n = infprof::LOOKUP_SIZE;
-            if (generic->upper().is_callable())
+            if (generic->max().is_callable())
             {
                 // ensure enough space when 'max' is de-located
                 const double loc = generic->loc().is_callable() ? generic->loc().value() : 0.;
-                n = std::max(n, static_cast<size_t>(1. + generic->upper().value() + loc));
+                n = std::max(n, static_cast<size_t>(1. + generic->max().value() + loc));
             }
             lookup_.init(generic.get(), n);
         }
@@ -246,9 +246,13 @@ namespace housepi
             return ErrType::Latent;
         }
     }
-    std::string kind_to_err_name(Augmented::Kind kind)
+
+    namespace str
     {
-        return err_type_name(kind_to_err_type(kind));
+        std::string format(Augmented::Kind kind)
+        {
+            return format(kind_to_err_type(kind));
+        }
     }
 
     /// Map a definition's kind label to its typed Kind.
@@ -356,10 +360,6 @@ namespace housepi
         khold_.add(infprof::LATENT_FUNC);
         infec_profile.latent_key = khold(infprof::LATENT_FUNC);
         infec_profile.bind_augm(this); // for runtime per-member profile resolution
-
-        // append discrete infectivity profile definitions if any
-        if (infec_profile.is_required_discrete())
-            request_discrete({infec_profile.latent_key});
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -490,7 +490,7 @@ namespace housepi
             const std::string &sstr = deftable_.c_status[k];
             if (!na::is(sstr))
                 s = static_cast<StatusLevel>(
-                    str::toi(sstr, kind_to_err_name(deftable_.c_kind[k]) + " status"));
+                    str::toi(sstr, str::format(deftable_.c_kind[k]) + " status"));
             map_status_to_def_row_[s].push_back(k); // store status to definition row index
         }
     }
@@ -1093,7 +1093,7 @@ namespace housepi
             build_definition_variable_(hvar, surr.row, house.at(0), &house);
             if (for_evaluation)
             {
-                assert_surrogate_datum_requirements_(d, hvar.value(), name, house);
+                assert_surrogate_datum_requests_(d, hvar, data_wide.str(house));
                 hvar.finalize(); // enforce inference-finalization
             }
             for (const Individual &indiv : house)
@@ -1109,25 +1109,28 @@ namespace housepi
             build_definition_variable_(avar, surr.row, indiv, nullptr);
             if (for_evaluation)
             {
-                assert_surrogate_datum_requirements_(d, avar.value(), name, house);
+                assert_surrogate_datum_requests_(d, avar, data_wide.str(indiv));
                 avar.finalize(); // enforce inference-finalization
             }
             data_wide.wire_readcell(d, indiv, &avar);
         }
     }
 
-    void Augmented::assert_surrogate_datum_requirements_(
-        size_t d, double v, const std::string &name, const Household &house) const
+    void Augmented::assert_surrogate_datum_requests_(
+        size_t d, const Variable &var, const std::string &context) const
     {
-        const DataWide &data_wide = mcmc_->data_wide();
-        if (data_wide.is_required_discrete(d) && v != std::floor(v))
-            msg::stop(
-                "Observation " + msg::val(name) + " for " + data_wide.err_name(house) +
-                " was expected to be discrete-valued, as requested by model.");
-        if (data_wide.is_required_positive(d) && !(v > 0.))
-            msg::stop(
-                "Observation " + msg::val(name) + " for " + data_wide.err_name(house) +
-                " was expected to be greater than zero, as requested by model.");
+        // a column with nothing to derive from carries no verdict: absence is
+        // reported at the run wall, not as a violated requirement
+        if (na::is(var.value()))
+            return;
+        try
+        {
+            mcmc_->data_wide().assert_requests(d, var);
+        }
+        catch (const std::exception &e)
+        {
+            msg::stop(std::string(e.what()) + "\nCheck " + context + ".");
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1310,7 +1313,7 @@ namespace housepi
                 return;
             }
 
-            // range and reshaping
+            // domain and reshaping
             var.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &anchor));
             var.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &anchor));
             var.reshape_function(is_discr);
@@ -1319,8 +1322,8 @@ namespace housepi
         {
             const DataWide &data_wide = mcmc_->data_wide();
             msg::stop(
-                std::string(e.what()) + "\nCheck " + var.err_name() + " for " +
-                (house ? data_wide.err_name(*house) : data_wide.err_name(anchor)) + ".");
+                std::string(e.what()) + "\nCheck " + var.str() + " for " +
+                (house ? data_wide.str(*house) : data_wide.str(anchor)) + ".");
         }
     }
 
@@ -1427,7 +1430,7 @@ namespace housepi
                     continue;
                 msg::stop(
                     "Cannot infer from " +
-                    kind_to_err_name(deftable_.c_kind[surr.row]) + " " +
+                    str::format(deftable_.c_kind[surr.row]) + " " +
                     msg::val(astr) + ": it must resolve from data alone.\n"
                                      "A definition reading a latent variable or a parameter is only "
                                      "meaningful in simulation.");
@@ -1491,11 +1494,11 @@ namespace housepi
         if (indiv.is_infected_status())
             msg::stop(
                 "No latent definitions were found for " +
-                mcmc_->data_wide().err_name(indiv) + " with status " + std::to_string(s) + ".");
+                mcmc_->data_wide().str(indiv) + " with status " + std::to_string(s) + ".");
 
         msg::stop(
             "Generic latent definition for non-infectious " +
-            mcmc_->data_wide().err_name(indiv) + " was missing.");
+            mcmc_->data_wide().str(indiv) + " was missing.");
     }
 
     void Augmented::helper_init_attributes_(const Individual &indiv, size_t k, bool simulation)
@@ -1549,18 +1552,15 @@ namespace housepi
                 avar.init_proposal(prop.root.func, prop_args);
             }
 
-            // check if satisfies discrete requirement, if any
-            if (is_required_discrete(a) && !avar.is_discrete())
-                msg::stop(
-                    "Definition of " + avar.err_name() +
-                    " did not return a discrete object as requested by model.");
+            // check discreteness and positivity
+            assert_requests(a, avar);
         }
         catch (const std::exception &e)
         {
             msg::stop(
                 std::string(e.what()) +
                 "\nCheck latent " + msg::val(astr) + " for " +
-                mcmc_->data_wide().err_name(indiv) + " (status " + std::to_string(indiv.status()) + ").");
+                mcmc_->data_wide().str(indiv) + " (status " + std::to_string(indiv.status()) + ").");
         }
     }
 
@@ -1656,7 +1656,7 @@ namespace housepi
             if (latent_producers.size() > 0)
                 msg::stop(
                     "Exceeded attempts to initialize latent variables of " +
-                    mcmc_->data_wide().err_name(indiv) + " due to observations.\n" +
+                    mcmc_->data_wide().str(indiv) + " due to observations.\n" +
                     "Widen latent model of " + str::format(str::unique(latent_producers), false, 3) +
                     ", revise the observation domain of " + msg::val(deftable_.c_name[k]) +
                     ", or check the observed individual data.");
@@ -1665,13 +1665,13 @@ namespace housepi
             for (const std::string &pstr : str::unique(param_producers))
                 if (!mcmc_->param.at(mcmc_->param.khold(pstr)).is_constant())
                     msg::stop(
-                        "Failed to initialize due to observations of " + mcmc_->data_wide().err_name(indiv) + ".\n" +
+                        "Failed to initialize due to observations of " + mcmc_->data_wide().str(indiv) + ".\n" +
                         "Try to remove free parameter dependencies in observation domain of " + msg::val(deftable_.c_name[k]) + ".");
         }
 
         // otherwise observed data are just unreachable
         msg::stop(
-            "Failed to initialize due to observations of " + mcmc_->data_wide().err_name(indiv) + ".\n" +
+            "Failed to initialize due to observations of " + mcmc_->data_wide().str(indiv) + ".\n" +
             "The observed values lie outside of respective domain.\n" +
             "Check the individual data or revise the domain.");
     }
@@ -1729,8 +1729,8 @@ namespace housepi
     }
 
     double Augmented::commit_latent_log_lik_ratio_with_consumers(const Individual &indiv,
-                                                               size_t a,
-                                                               double L_old)
+                                                                 size_t a,
+                                                                 double L_old)
     {
         // 'a' has already been proposed: its model-consumers now read the moved parameter live.
         // Compare their guarded model sum against the pre-move snapshot L_old.

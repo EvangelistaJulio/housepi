@@ -21,11 +21,11 @@ rayleigh_p <- function(x, s) {
   y
 }
 
-# Interval notation, as the kernel reports it, into a support predicate.
-in_range <- function(range) {
-  ends <- as.numeric(strsplit(substr(range, 2, nchar(range) - 1), ", ")[[1]])
-  lo <- if (startsWith(range, "[")) `>=` else `>`
-  up <- if (endsWith(range, "]")) `<=` else `<`
+# Interval notation, as the kernel reports it, into a membership predicate.
+in_interval <- function(txt) {
+  ends <- as.numeric(strsplit(substr(txt, 2, nchar(txt) - 1), ", ")[[1]])
+  lo <- if (startsWith(txt, "[")) `>=` else `>`
+  up <- if (endsWith(txt, "]")) `<=` else `<`
   function(x) lo(x, ends[1]) & up(x, ends[2])
 }
 
@@ -34,10 +34,10 @@ in_range <- function(range) {
 expect_function_matches <- function(name, args,
                                     ref_f, ref_prim = NULL,
                                     ref_log = log,
-                                    range = "(-Inf, Inf)", discrete = FALSE,
+                                    domain = "(-Inf, Inf)", discrete = FALSE,
                                     x = seq(0.1, 10, 0.1), h = 0.1) {
   fn <- do.call(browse_functions, c(list(name), args))
-  expect_identical(fn$range, range)
+  expect_identical(fn$domain, domain)
   expect_identical(fn$is_discrete, discrete)
 
   expect_equal(fn$func(x), ref_f(x))
@@ -45,7 +45,7 @@ expect_function_matches <- function(name, args,
   if (is.null(ref_prim)) expect_error(fn$prim(x), "undefined method")
   else expect_equal(fn$prim(x), ref_prim(x))
 
-  keep <- in_range(range)(x)
+  keep <- in_interval(domain)(x)
   null_move <- fn$log_ratio(x, x)
   expect_equal(null_move[keep], rep(0, sum(keep)))
   if (is.null(ref_log)) {
@@ -61,10 +61,10 @@ expect_function_matches <- function(name, args,
 # The reported support gates the values the null move is defined on.
 expect_distribution_matches <- function(name, args,
                                         ref_d, ref_p,
-                                        range = "(-Inf, Inf)", discrete = FALSE,
+                                        domain = "(-Inf, Inf)", discrete = FALSE,
                                         x = seq(-20, 20, 1), h = pi) {
   distr <- do.call(browse_distributions, c(list(name), args))
-  expect_identical(distr$range, range)
+  expect_identical(distr$domain, domain)
   expect_identical(distr$is_discrete, discrete)
 
   expect_equal(distr$pdf(x), ref_d(x))
@@ -72,7 +72,7 @@ expect_distribution_matches <- function(name, args,
   expect_equal(distr$log_pdf(x), log(distr$pdf(x)))
   expect_equal(distr$log_ratio(x, x + h), log(distr$pdf(x + h) / distr$pdf(x)))
   expect_equal(distr$log_ratio(x + h, x), log(distr$pdf(x) / distr$pdf(x + h)))
-  keep <- in_range(range)(x)
+  keep <- in_interval(domain)(x)
   null_move <- distr$log_ratio(x, x)
   expect_equal(null_move[keep], rep(0, sum(keep)))
   expect_true(all(is.na(null_move[!keep])))
@@ -113,17 +113,19 @@ test_that("Expose function has no leaks", {
 
 test_that("Exposed fields are read only", {
   distr <- browse_distributions("normal", mean = 0, sd = 1)
-  expect_error(distr$range <- "[0, 1]", "read only")
+  expect_error(distr$domain <- "[0, 1]", "read only")
   expect_error(distr$args <- c(mean = 1), "read only")
   expect_error(distr$is_discrete <- TRUE, "read only")
+  expect_error(distr$is_positive <- TRUE, "read only")
+  expect_error(distr$codomain <- "[0, 1]", "read only")
 })
 
 test_that("Exposed methods carry R formals", {
   distr <- browse_distributions("lognormal", meanlog = 0, sdlog = 1)
   distr$pdf() |>
-    expect_error('argument "x" is missing')
+    expect_error("[Aa]rgument.*x.*missing")
   distr$log_ratio(1) |>
-    expect_error('argument "xn" is missing')
+    expect_error("[Aa]rgument.*xn.*missing")
   distr$snake() |>
     expect_error("attempt to apply non-function")
   # each family answers for its own methods only
@@ -134,13 +136,94 @@ test_that("Exposed methods carry R formals", {
 test_that("Truncation and location shift the reported support", {
   # bounds read in the same frame as the values compared against them
   ocelot <- browse_distributions("gamma", shape = 2, scale = 1, loc = 3)
-  expect_equal(ocelot$range, "[3, Inf)")
+  expect_equal(ocelot$domain, "[3, Inf)")
   snake <- browse_distributions("normal", mean = 0, sd = 1,
                                 min = -1, max = 2, loc = 10)
-  expect_equal(snake$range, "[9, 12]")
+  expect_equal(snake$domain, "[9, 12]")
   # arguments report the parametrization, location stays unreported
   distr <- browse_distributions("poisson", lambda = 3, loc = 1)
   expect_equal(distr$args, c(lambda = 3))
+
+  # an untruncated law reports the interval its own definition carries
+  expect_equal(browse_distributions("poisson", lambda = 5)$domain, "[0, Inf)")
+  # the upper bound tracks the 'size' argument it is aliased to
+  expect_equal(browse_distributions("binomial", size = 10, prob = 0.4)$domain,
+               "[0, 10]")
+})
+
+test_that("The codomain reports what a definition returns", {
+  # a function is bounded on the values it accepts and on the values it gives
+  # back, and the two are not the same interval
+  otacon <- browse_functions("log")
+  expect_equal(otacon$domain, "(0, Inf)")
+  expect_equal(otacon$codomain, "(-Inf, Inf)")
+  raiden <- browse_functions("exp")
+  expect_equal(raiden$domain, "(-Inf, Inf)")
+  expect_equal(raiden$codomain, "(0, Inf)")
+  # bounded whatever it reads
+  expect_equal(browse_functions("sin")$codomain, "[-1, 1]")
+  expect_equal(browse_functions("cos")$codomain, "[-1, 1]")
+
+  # a reduction folds its declared operands, skipping the unbound "x"
+  expect_equal(browse_functions("sum", x2 = 5)$codomain, "[5, 5]")
+  expect_equal(browse_functions("min", x2 = 5, x3 = -5)$codomain, "[-5, -5]")
+  expect_equal(browse_functions("max", x2 = 5, x3 = -5)$codomain, "[5, 5]")
+
+  # a distribution evaluates to a density, never to a draw: it answers here for
+  # the mass it gives back, and in `domain` for the values it is defined on
+  expect_equal(browse_distributions("gamma", shape = 2, scale = 1)$codomain,
+               "[0, Inf)")
+  # the location moves the values read in, never the density read out
+  expect_equal(browse_distributions("gamma", shape = 2, scale = 1,
+                                    loc = 3)$codomain, "[0, Inf)")
+  # a mass is bounded by one, a density is not
+  expect_equal(browse_distributions("poisson", lambda = 5)$codomain, "[0, 1]")
+  expect_equal(browse_distributions("binomial", size = 10, prob = 0.4)$codomain,
+               "[0, 1]")
+  expect_equal(browse_distributions("gamma", shape = 2, scale = 1,
+                                    discr = TRUE)$codomain, "[0, 1]")
+})
+
+test_that("Strict positivity follows the support", {
+  # a continuous support closing at zero puts no mass on the boundary
+  expect_true(browse_distributions("gamma", shape = 2, scale = 1)$is_positive)
+  expect_true(browse_distributions("lognormal", meanlog = 0,
+                                   sdlog = 1)$is_positive)
+  expect_true(browse_distributions("exponential", rate = 1)$is_positive)
+
+  # a discrete law owning the zero bin does not, discretization included
+  expect_false(browse_distributions("poisson", lambda = 5)$is_positive)
+  expect_false(browse_distributions("binomial", size = 10,
+                                    prob = 0.4)$is_positive)
+  expect_false(browse_distributions("gamma", shape = 2, scale = 1,
+                                    discr = TRUE)$is_positive)
+  expect_true(browse_distributions("uniform", min = 2, max = 6,
+                                   discr = TRUE)$is_positive)
+
+  # the floor is read in the absolute frame, after truncation and location
+  expect_false(browse_distributions("normal", mean = 0, sd = 1)$is_positive)
+  expect_true(browse_distributions("normal", mean = 0, sd = 1,
+                                   min = 0)$is_positive)
+  liquid <- browse_distributions("gamma", shape = 2, scale = 1, loc = -1)
+  expect_false(liquid$is_positive)
+
+  # a function answers for the value it returns: the exponential is positive
+  # whatever it reads, the others follow an "x" this surface leaves unbound
+  expect_true(browse_functions("exp")$is_positive)
+  expect_false(browse_functions("log")$is_positive)
+  expect_false(browse_functions("sqrt")$is_positive)
+  expect_false(browse_functions("div", x2 = 5)$is_positive)
+
+  # a reduction folds over its declared operands, skipping the unbound "x"
+  expect_true(browse_functions("sum", x2 = 5)$is_positive)
+  expect_false(browse_functions("sum", x2 = -5)$is_positive)
+  expect_true(browse_functions("prod", x2 = 5)$is_positive)
+  expect_false(browse_functions("prod", x2 = -5)$is_positive)
+  # the minimum needs every operand positive, the maximum just one
+  expect_false(browse_functions("min", x2 = 5, x3 = -5)$is_positive)
+  expect_true(browse_functions("max", x2 = 5, x3 = -5)$is_positive)
+  expect_true(browse_functions("min", x2 = 5, x3 = 1)$is_positive)
+  expect_false(browse_functions("max", x2 = -5, x3 = -1)$is_positive)
 })
 
 #################################
@@ -195,7 +278,7 @@ test_that("Transcendental functions match R reference", {
     "sqrt", list(),
     sqrt,
     function(x) x^1.5 / 1.5,
-    range = "[0, Inf)"
+    domain = "[0, Inf)"
   )
   expect_function_matches(
     "exp", list(),
@@ -207,7 +290,7 @@ test_that("Transcendental functions match R reference", {
     "log", list(),
     log,
     function(x) x * log(x) - x,
-    range = "(0, Inf)",
+    domain = "(0, Inf)",
     x = seq(1.1, 20, 0.1), h = pi
   )
   expect_function_matches(
@@ -315,8 +398,8 @@ test_that("Truncated binomial is correct", {
     expect_equal((stats::pbinom(x, args$size, args$prob) - shift) / (1 - shift))
 })
 
-test_that("Truncated discrete mass is normalised on the bins inside the range", {
-  # the window closes on the last bin inside the range, not one atom past it
+test_that("Truncated discrete mass is normalised on the bins inside the support", {
+  # the window closes on the last bin inside the support, not one atom past it
   k <- 2:6
   distr <- browse_distributions("poisson", lambda = 3, min = min(k), max = max(k))
   norm <- diff(stats::ppois(c(min(k) - 1, max(k)), 3))
@@ -324,7 +407,7 @@ test_that("Truncated discrete mass is normalised on the bins inside the range", 
   expect_equal(sum(distr$pdf(k)), 1)
   expect_equal(distr$cdf(max(k)), 1)
 
-  # left-discretized: bin i carries [i, i + 1), so the range holds 5 bins
+  # left-discretized: bin i carries [i, i + 1), so the support holds 5 bins
   i <- 1:5
   distr <- browse_distributions("gamma", shape = 2, scale = 1,
                                 min = min(i), max = max(i), discr = TRUE)
@@ -361,11 +444,11 @@ test_that("Truncated discrete rand() reaches every bin of the support", {
   expect_identical(max(distr$rand(2e4L)), max(i))
 })
 
-test_that("Discrete uniform spreads flat mass over the whole values", {
+test_that("Discrete uniform spreads flat mass over the integers", {
   k <- 0:10
   distr <- browse_distributions("uniform", min = min(k), max = max(k), discr = TRUE)
 
-  # every whole value in the range carries the same mass
+  # every integer value in the support carries the same mass
   expect_equal(distr$pdf(k), rep(1 / length(k), length(k)))
   expect_equal(sum(distr$pdf(k)), 1)
   expect_equal(distr$log_pdf(k), rep(-log(length(k)), length(k)))
@@ -382,7 +465,7 @@ test_that("Discrete uniform spreads flat mass over the whole values", {
   p <- c(0.01, 0.25, 0.5, 0.75, 0.99)
   expect_equal(distr$quantile(p), vapply(p, function(q) k[which(cumsum(distr$pdf(k)) >= q)[1]], 0))
 
-  # the default range is a coin flip
+  # the default support is a coin flip
   coin <- browse_distributions("uniform", discr = TRUE)
   expect_equal(coin$pdf(0:1), c(0.5, 0.5))
   expect_equal(coin$cdf(0:1), c(0.5, 1))
@@ -392,14 +475,14 @@ test_that("Discrete uniform spreads flat mass over the whole values", {
     expect_equal(distr$pdf(k))
 })
 
-test_that("An argument off the whole values is refused where one is required", {
-  # the flat lattice law owns every whole value in its range
+test_that("An argument off the integer values is refused where one is required", {
+  # the flat lattice law owns every integer value in its support
   browse_distributions("uniform", min = 0.5, max = 3.2, discr = TRUE) |>
     expect_error("min.*uniform.*discrete")
   browse_distributions("uniform", min = 0, max = 3.2, discr = TRUE) |>
     expect_error("max.*uniform.*discrete")
 
-  # a count of trials or successes is whole whatever the support looks like
+  # a count of trials or successes is an integer whatever the support looks like
   browse_distributions("binomial", size = 10.5, prob = 0.5) |>
     expect_error("size.*binomial.*discrete")
   browse_distributions("negative_binomial", size = 5.5, prob = 0.5) |>
@@ -416,68 +499,68 @@ test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
     "uniform", list(min = -1, max = 5),
     function(x) stats::dunif(x, -1, 5),
     function(x) stats::punif(x, -1, 5),
-    range = "[-1, 5]"
+    domain = "[-1, 5]"
   )
   expect_distribution_matches(
     "lognormal", list(meanlog = 1, sdlog = 0.5),
     function(x) stats::dlnorm(x, 1, 0.5),
     function(x) stats::plnorm(x, 1, 0.5),
-    range = "[0, Inf)"
+    domain = "[0, Inf)"
   )
   expect_distribution_matches(
     "beta", list(shape1 = 2, shape2 = 1.5),
     function(x) stats::dbeta(x, 2, 1.5),
     function(x) stats::pbeta(x, 2, 1.5),
-    range = "(0, 1)",
+    domain = "(0, 1)",
     x = seq(-10, 10, 0.1), h = 0.1
   )
   expect_distribution_matches(
     "gamma", list(shape = 2, scale = 1.2),
     function(x) stats::dgamma(x, shape = 2, scale = 1.2),
     function(x) stats::pgamma(x, shape = 2, scale = 1.2),
-    range = "[0, Inf)"
+    domain = "[0, Inf)"
   )
   expect_distribution_matches(
     "exponential", list(rate = 0.25),
     function(x) stats::dexp(x, 0.25),
     function(x) stats::pexp(x, 0.25),
-    range = "[0, Inf)"
+    domain = "[0, Inf)"
   )
   expect_distribution_matches(
     "poisson", list(lambda = 5),
     function(x) stats::dpois(x, 5),
     function(x) stats::ppois(x, 5),
-    range = "[0, Inf)", discrete = TRUE
+    domain = "[0, Inf)", discrete = TRUE
   )
   expect_distribution_matches(
     "binomial", list(size = 10, prob = 0.5),
     function(x) stats::dbinom(x, 10, 0.5),
     function(x) stats::pbinom(x, 10, 0.5),
-    range = "[0, 10]", discrete = TRUE
+    domain = "[0, 10]", discrete = TRUE
   )
   expect_distribution_matches(
     "negative_binomial", list(size = 10, prob = 0.5),
     function(x) stats::dnbinom(x, 10, 0.5),
     function(x) stats::pnbinom(x, 10, 0.5),
-    range = "[0, Inf)", discrete = TRUE
+    domain = "[0, Inf)", discrete = TRUE
   )
   expect_distribution_matches(
     "geometric", list(prob = 0.5),
     function(x) stats::dgeom(x, 0.5),
     function(x) stats::pgeom(x, 0.5),
-    range = "[0, Inf)", discrete = TRUE
+    domain = "[0, Inf)", discrete = TRUE
   )
   expect_distribution_matches(
     "weibull", list(shape = 2, scale = 1),
     function(x) stats::dweibull(x, 2, 1),
     function(x) stats::pweibull(x, 2, 1),
-    range = "[0, Inf)"
+    domain = "[0, Inf)"
   )
   expect_distribution_matches(
     "rayleigh", list(scale = 2),
     function(x) rayleigh_d(x, 2),
     function(x) rayleigh_p(x, 2),
-    range = "[0, Inf)",
+    domain = "[0, Inf)",
     x = seq(0, 10, 0.5)
   )
 })
@@ -1103,7 +1186,7 @@ test_that("Ferretti20 infectivity profile behave has expected", {
   profile <- browse_infectivity_profiles("ferretti20", incub_period = 5)
   expect_equal(trapezoid(x, profile$inst(x)), profile$cumul(x)[length(x)])
   expect_false(profile$is_discrete)
-  expect_equal(profile$range, "[0, Inf)")
+  expect_equal(profile$domain, "[0, Inf)")
 
   # left discretization works as expected
   x <- seq(1.0, 1.9, 0.1)
@@ -1111,7 +1194,7 @@ test_that("Ferretti20 infectivity profile behave has expected", {
                                          incub_period = 5, discr = TRUE)
   expect_true(all(profile$inst(x) == profile$cumul(1)))
   expect_true(profile$is_discrete)
-  expect_equal(profile$range, "[1, Inf)")
+  expect_equal(profile$domain, "[1, Inf)")
 })
 
 ####################################

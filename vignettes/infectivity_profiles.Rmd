@@ -136,7 +136,7 @@ defs
 ```
 
 A discrete time model discretizes the profile it is given, so the same definition serves both cases.
-Note the range minimum: a discrete time model reads the profile in whole days, and takes the first day of transmission as `min` unless another one is given.
+Note the domain minimum: a discrete time model reads the profile in whole days, and takes the first day of transmission as `min` unless another one is given.
 Below we display it as a discretized gamma with those parameters.
 
 ```{r}

@@ -128,7 +128,7 @@ namespace housepi
     }
 
     std::string Attribute::name() const { return name_pool_().at(name_id_); }
-    std::string Attribute::err_name() const { return err_type_name(err_type_) + " " + msg::val(name()); }
+    std::string Attribute::str() const { return str::format(err_type_) + " " + msg::val(name()); }
 
     std::string Attribute::str_val() const
     {
@@ -138,19 +138,31 @@ namespace housepi
                        str::format(na::DOUBLE))
     }
 
-    bool Attribute::is_constant() const noexcept
-    {
+    bool Attribute::is_constant() const noexcept {
         MAKE_ATTR_MODE(is_user_const_,
-                       pAttr_->is_constant(),
+                       pAttr_ -> is_constant(),
                        pFunc_->is_constant(),
-                       false)
-    }
-    bool Attribute::is_discrete() const noexcept
+                       false)}
+
+    /// A number is the interval that contains only itself.
+    Codomain numeric_codomain_(double v) noexcept
     {
-        MAKE_ATTR_MODE(value_ == std::floor(value_),
-                       pAttr_->is_discrete(),
-                       pFunc_->is_discrete(),
-                       false)
+        if (na::is(v))
+            return Codomain();
+
+        Codomain c;
+        c.inf = c.sup = v;
+        c.below = c.above = Interval::Closed;
+        c.lattice = v == std::floor(v) ? Lattice::Integers : Lattice::Doubles;
+        return c;
+    }
+
+    Codomain Attribute::codomain() const noexcept
+    {
+        MAKE_ATTR_MODE(numeric_codomain_(value_),
+                       pAttr_->codomain(),
+                       pFunc_->codomain(),
+                       Codomain())
     }
     bool Attribute::is_na() const noexcept
     {
@@ -196,8 +208,7 @@ namespace housepi
     void Attribute::init_pointer(const Attribute *y)
     {
         if (!y)
-            msg::stop(
-                "Tried to assign empty pointer to " + err_name() + ".");
+            msg::stop("Tried to assign empty pointer to " + str() + ".");
 
         if (err_type_ == ErrType::Empty)
             err_type_ = ErrType::Pointer;
@@ -213,11 +224,9 @@ namespace housepi
     {
         // check the function is different from the current one
         if (!f)
-            msg::stop(
-                "Tried to assign empty function to " + err_name() + ".");
+            msg::stop("Tried to assign empty function to " + str() + ".");
         if (f == pFunc_)
-            msg::stop(
-                "Tried to assign " + err_name() + " as its own argument.");
+            msg::stop("Tried to assign " + str() + " as its own argument.");
 
         if (err_type_ == ErrType::Empty)
             err_type_ = ErrType::Function;
@@ -259,7 +268,7 @@ namespace housepi
             init_numeric(value());
         else if (is_user_const_)
             msg::stop(
-                "Impossible to set " + err_name() + " as constant. Check its dependencies.");
+                "Impossible to set " + str() + " as constant. Check its dependencies.");
 
         // reduce function indirection
         if (is_pointer() && pointer()->is_function())
@@ -277,7 +286,7 @@ namespace housepi
             return;
         default:
             msg::stop(
-                "Attempted to initialize function attribute of " + err_name() + ".");
+                "Attempted to initialize function attribute of " + str() + ".");
         }
     }
 
@@ -285,9 +294,9 @@ namespace housepi
     {
         std::string sms = "Tried to change non numeric ";
         if (na::is(name()))
-            sms += "empty " + err_type_name(err_type_);
+            sms += "empty " + str::format(err_type_);
         else
-            sms += err_name();
+            sms += str();
         msg::stop(sms + ".");
     }
 
@@ -299,16 +308,16 @@ namespace housepi
 
     /// Initial defaults for function.
     /// NOTE: to access arguments by index, I must provide separate name/value.
-    /// UPDATE: at the moment only place where to set open ranges
+    /// UPDATE: at the moment only place where to set an open domain
     /// UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
     Function::Function(const std::vector<std::pair<std::string, double>> &args,
                        double domain_min, double domain_max)
     {
         // default arguments initialized as empty
         x_arg_.name("x");
-        loc_.name("loc");
-        lower_.name("min");
-        upper_.name("max");
+        domain_.loc.name("loc");
+        domain_.min.name("min");
+        domain_.max.name("max");
 
         // Fill canonical parametrization at construction
         register_alt_("canonical", args);
@@ -316,25 +325,25 @@ namespace housepi
         // assign domain if any, otherwise leave empty
         if (!na::is(domain_min))
         {
-            lower_.init_numeric(domain_min);
-            below_mode_ = Mode::Interval::Closed;
+            domain_.min.init_numeric(domain_min);
+            domain_.below = Mode::Interval::Closed;
         }
         if (!na::is(domain_max))
         {
-            upper_.init_numeric(domain_max);
-            above_mode_ = Mode::Interval::Closed;
+            domain_.max.init_numeric(domain_max);
+            domain_.above = Mode::Interval::Closed;
         }
     }
 
-    std::string Function::err_name() const
+    std::string Function::str() const
     {
-        return err_type_name(err_family_) + " " + msg::val(name());
+        return str::format(err_family_) + " " + msg::val(name());
     }
 
     [[noreturn]] void Function::raise_undefined_call_err_(const std::string &call_name) const
     {
         msg::stop(
-            "Called undefined method " + msg::val(call_name) + " of " + err_name() + ".");
+            "Called undefined method " + msg::val(call_name) + " of " + str() + ".");
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -346,11 +355,11 @@ namespace housepi
         if (key == "x")
             return x_arg_;
         if (key == "loc")
-            return loc_;
+            return domain_.loc;
         if (key == "min")
-            return lower_;
+            return domain_.min;
         if (key == "max")
-            return upper_;
+            return domain_.max;
 
         // search non standard arguments
         // NOTE: first hit picks/confirms the active alternative set
@@ -362,7 +371,7 @@ namespace housepi
                     if (is_user_alt_ && alt_idx_ != new_idx)
                         msg::stop(
                             "Attempt to mix parametrizations " +
-                            msg::val(alts_[alt_idx_].name) + " and " + msg::val(alts_[new_idx].name) + " in " + err_name() +
+                            msg::val(alts_[alt_idx_].name) + " and " + msg::val(alts_[new_idx].name) + " in " + str() +
                             " (argument " + msg::arg(std::string(key)) + ").");
                     alt_idx_ = new_idx;
                     is_user_alt_ = true;
@@ -372,7 +381,7 @@ namespace housepi
         // raise error for unnamed argument
         if (na::is(key))
             msg::stop(
-                "Unnamed argument passed to " + err_name() + ".");
+                "Unnamed argument passed to " + str() + ".");
 
         // keys a definition call can carry:
         std::vector<std::string> options;
@@ -383,7 +392,7 @@ namespace housepi
                     options.emplace_back(attr.name());
         options += {"loc", "min", "max", "x"};
         msg::stop(
-            "Unused argument " + msg::arg(std::string(key)) + " in " + err_name() + "." +
+            "Unused argument " + msg::arg(std::string(key)) + " in " + str() + "." +
             str::find_closest(key, options));
     }
 
@@ -392,11 +401,11 @@ namespace housepi
         if (key == "x")
             return x_arg_;
         if (key == "loc")
-            return loc_;
+            return domain_.loc;
         if (key == "min")
-            return lower_;
+            return domain_.min;
         if (key == "max")
-            return upper_;
+            return domain_.max;
 
         std::vector<Attribute> &args = arguments_();
         for (Attribute &attr : args)
@@ -409,7 +418,7 @@ namespace housepi
     }
 
     /// Wheter return value is always constant.
-    /// UPDATE: at the moment also a mutable range makes the function non constant.
+    /// UPDATE: at the moment also a mutable domain makes the function non constant.
     bool Function::is_constant() const noexcept
     {
         if (!x_arg_.is_constant())
@@ -420,10 +429,10 @@ namespace housepi
             if (!attr.is_constant())
                 return false;
 
-        // variable range
-        if (below_mode_ != Mode::Interval::None && !lower_.is_constant())
+        // variable domain
+        if (domain_.below != Mode::Interval::Unbounded && !domain_.min.is_constant())
             return false;
-        if (above_mode_ != Mode::Interval::None && !upper_.is_constant())
+        if (domain_.above != Mode::Interval::Unbounded && !domain_.max.is_constant())
             return false;
 
         // otherwise constant
@@ -457,26 +466,28 @@ namespace housepi
                 std::string("Missing non default argument") +
                 (undefined_args.size() > 1 ? "s " : " ") +
                 str::format(undefined_args, false) +
-                " for " + err_name() + ".");
+                " for " + str() + ".");
     }
 
-    /// Raise on an attribute that must hold a whole value but does not.
+    /// Raise on an attribute that must hold an integer value but does not.
     [[noreturn]] void raise_not_discrete_(const Attribute &attr, std::string sms)
     {
         if (attr.is_numeric())
             sms += "\nSet argument " + msg::arg(attr.name()) + " from " + attr.str_val() + " to integer.";
         else
-            sms += "\nChange " + attr.pointer()->err_name() + " to discrete " + msg::code("discr = TRUE") + ".";
+            sms += "\nChange " + attr.pointer()->str() + " to discrete " + msg::code("discr = TRUE") + ".";
         msg::stop(sms);
     }
 
     void Function::assert_location_matches_discrete() const
     {
-        if (!is_discrete() || loc_.is_empty() || loc_.is_discrete())
+        // a lattice survives an integer-valued shift and not a fractional one, so what
+        // is asked here is where the lattice lands, not whether there is one
+        if (!is_discretized() || domain_.loc.is_empty() || domain_.loc.is_discrete())
             return;
 
         raise_not_discrete_(
-            loc_, msg::arg("loc") + " definition is incompatible with discrete " + err_name() + ".");
+            domain_.loc, msg::arg("loc") + " definition is incompatible with discrete " + str() + ".");
     }
 
     void Function::assert_discrete_args() const
@@ -484,7 +495,7 @@ namespace housepi
         for (const Attribute *attr : discrete_args_())
             if (!attr->is_empty() && !attr->is_discrete())
                 raise_not_discrete_(
-                    *attr, msg::arg(attr->name()) + " of " + err_name() + " must be discrete.");
+                    *attr, msg::arg(attr->name()) + " of " + str() + " must be discrete.");
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -504,7 +515,7 @@ namespace housepi
         for (const AltArgSet &alt : alts_)
             if (alt.name == alt_name)
                 msg::stop(
-                    "Duplicate parametrization name " + msg::val(alt_name) + " in " + err_name() + ".");
+                    "Duplicate parametrization name " + msg::val(alt_name) + " in " + str() + ".");
 
         AltArgSet alt;
         alt.name = alt_name;
@@ -515,7 +526,7 @@ namespace housepi
                 if (n == key)
                     msg::stop(
                         "Argument name " + msg::arg(key) + " from parametrization " + msg::val(alt_name) +
-                        " collides with an existing argument in " + err_name() + ".");
+                        " collides with an existing argument in " + str() + ".");
             existing_names.emplace_back(key);
 
             if (na::is(val))
@@ -528,53 +539,63 @@ namespace housepi
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  Function : set range  //////////////////////////////////////
+    ///////////////////////////////////  Function : set domain  /////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    bool Function::helper_init_range_min_(double min_val, bool is_min_open)
+    bool Domain::init_min(double min_val, bool is_min_open, const std::string &owner)
     {
-        if (lower_.is_empty())
+        if (min.is_empty())
             msg::stop(
-                "Forbidden initialization of minimum value for " + err_name() + ".");
+                "Forbidden initialization of minimum value for " + owner + ".");
 
-        const double old = lower_.value();
+        const double old = min.value();
         if (old < min_val)
             msg::stop(
-                "Invoked invalid min value " + str::format(old) + " for " + err_name() + ".");
+                "Invoked invalid min value " + str::format(old) + " for " + owner + ".");
 
-        if (old == min_val && upper_.is_empty())
+        if (old == min_val && max.is_empty())
             return false;
 
-        helper_init_standard_range_(is_min_open ? old == min_val : false, false);
+        init_standard(is_min_open ? old == min_val : false, false, owner);
         return true;
     }
 
-    void Function::helper_init_standard_range_(bool is_min_open, bool is_max_open)
+    void Domain::init_standard(bool is_min_open, bool is_max_open, const std::string &owner)
     {
-        if (lower_.is_empty())
-            below_mode_ = Mode::Interval::None;
+        if (min.is_empty())
+            below = Interval::Unbounded;
         else if (is_min_open)
-            below_mode_ = Mode::Interval::Open;
+            below = Interval::Open;
         else
-            below_mode_ = Mode::Interval::Closed;
+            below = Interval::Closed;
 
-        if (upper_.is_empty())
-            above_mode_ = Mode::Interval::None;
+        if (max.is_empty())
+            above = Interval::Unbounded;
         else if (is_max_open)
-            above_mode_ = Mode::Interval::Open;
+            above = Interval::Open;
         else
-            above_mode_ = Mode::Interval::Closed;
+            above = Interval::Closed;
 
-        // check for consistency if both range limits are provided
-        if (!lower_.is_callable() || !upper_.is_callable())
-            return;
+        assert_consistent(owner);
+    }
 
-        bool is_wrong = lower_.value() > upper_.value();
-        if (below_mode_ == Mode::Interval::Open && below_mode_ == above_mode_)
-            is_wrong = is_wrong || lower_.value() == upper_.value();
-        if (is_wrong)
-            msg::stop(
-                "Generated an inconsistent range " + str_range() + " for " + err_name() + ".");
+    bool Domain::is_consistent() const
+    {
+        // an unread bound delimits nothing to contradict
+        if (!min.is_callable() || !max.is_callable())
+            return true;
+
+        if (min.value() > max.value())
+            return false;
+        // a collapsed interval excludes its point under any open bound
+        return min.value() < max.value() ||
+               (below != Interval::Open && above != Interval::Open);
+    }
+
+    void Domain::assert_consistent(const std::string &owner) const
+    {
+        if (!is_consistent())
+            msg::stop("Inconsistent domain " + str() + " for " + owner + ".");
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -583,42 +604,73 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /// Return formatted range.
-    std::string Function::str_range() const
+    Codomain Domain::relocated(Lattice lattice) const
     {
-        std::string str_min = lower_.str_val();
-        std::string str_max = upper_.str_val();
-        if (deloc_mode_ == Mode::Location::Active && loc_.is_callable())
-        {
-            if (lower_.is_callable())
-                str_min = str::format(relocate_(lower_.value()));
-            if (upper_.is_callable())
-                str_max = str::format(relocate_(upper_.value()));
-        }
+        Codomain c;
+        c.lattice = lattice;
+        const bool dense = lattice == Lattice::Doubles;
 
+        if (min.is_callable())
+        {
+            c.inf = relocate(min.value());
+            c.below = below == Interval::Open || dense ? Interval::Open : Interval::Closed;
+        }
+        if (max.is_callable())
+        {
+            c.sup = relocate(max.value());
+            c.above = above == Interval::Open || dense ? Interval::Open : Interval::Closed;
+        }
+        return c;
+    }
+
+    /// Interval notation around bounds already rendered by the caller.
+    std::string str_interval_(const std::string &str_min,
+                              const std::string &str_max,
+                              Interval below,
+                              Interval above)
+    {
         std::string output;
 
-        switch (below_mode_)
+        switch (below)
         {
-        case Mode::Interval::Open:
+        case Interval::Open:
             output = "(" + str_min;
             break;
-        case Mode::Interval::Closed:
+        case Interval::Closed:
             output = "[" + str_min;
             break;
-        default: // case Mode::Interval::None:
+        default: // case Interval::Unbounded
             output = "(-Inf";
             break;
         }
-        switch (above_mode_)
+        switch (above)
         {
-        case Mode::Interval::Open:
+        case Interval::Open:
             return output + ", " + str_max + ")";
-        case Mode::Interval::Closed:
+        case Interval::Closed:
             return output + ", " + str_max + "]";
-        default: // case Mode::Interval::None:
+        default: // case Interval::Unbounded
             return output + ", Inf)";
         }
+    }
+
+    std::string Domain::str() const
+    {
+        std::string str_min = min.str_val();
+        std::string str_max = max.str_val();
+        if (loc.is_callable())
+        {
+            if (min.is_callable())
+                str_min = str::format(relocate(min.value()));
+            if (max.is_callable())
+                str_max = str::format(relocate(max.value()));
+        }
+        return str_interval_(str_min, str_max, below, above);
+    }
+
+    std::string Codomain::str() const
+    {
+        return str_interval_(str::format(inf), str::format(sup), below, above);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -637,17 +689,13 @@ namespace housepi
         catch (const std::exception &e)
         {
             msg::stop(
-                "Impossible to associate " + attr.err_name() +
-                " as argument " + msg::arg(std::string(key)) + " of " + err_name() + ".\n" +
+                "Impossible to associate " + attr.str() +
+                " as argument " + msg::arg(std::string(key)) + " of " + str() + ".\n" +
                 std::string(e.what()));
         }
 
         // transfer attribute
         find_arg_(key).transfer(attr);
-
-        // apply location argument shift
-        if (key == "loc")
-            deloc_mode_ = Mode::Location::Active;
     }
 
     /// Assert that proposed function attribute is valid.
@@ -660,11 +708,11 @@ namespace housepi
                 msg::stop(
                     "Non default argument" + std::string(undefined_args.size() > 1 ? "s " : " ") +
                     str::format(undefined_args) +
-                    " of " + attr.err_name() + " cannot be missing.");
+                    " of " + attr.str() + " cannot be missing.");
 
             if (!attr.function()->is_callable_implicitly())
                 msg::stop(
-                    "Argument " + msg::arg("x") + " of " + attr.err_name() + " cannot be missing.");
+                    "Argument " + msg::arg("x") + " of " + attr.str() + " cannot be missing.");
         }
         else if (attr.is_constant())
         {
@@ -672,7 +720,7 @@ namespace housepi
             if (attr.is_na() || (key == "x" && !is_valid(x)))
                 msg::stop(
                     "Value " + str::format(x) + " for argument " + msg::arg(std::string(key)) +
-                    " is outside of range " + str_range() + ".");
+                    " is outside of domain " + str_domain() + ".");
         }
     }
 
@@ -681,9 +729,9 @@ namespace housepi
         for (Attribute &attr : arguments_())
             attr.finalize();
         x_arg_.finalize();
-        loc_.finalize();
-        lower_.finalize();
-        upper_.finalize();
+        domain_.loc.finalize();
+        domain_.min.finalize();
+        domain_.max.finalize();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -764,7 +812,7 @@ namespace housepi
                     return output;
 
             msg::stop(
-                "Unknown " + err_type_name(err_type) + " " + msg::val(std::string(name)) + "." +
+                "Unknown " + str::format(err_type) + " " + msg::val(std::string(name)) + "." +
                 str::find_closest(name, list_names(kinds)));
         }
     }
@@ -780,13 +828,128 @@ namespace
 {
     using namespace housepi;
 
+    /// A sum reaches its bound only where both operands reach theirs.
+    Interval both_(Interval a, Interval b) noexcept
+    {
+        if (a == Interval::Unbounded || b == Interval::Unbounded)
+            return Interval::Unbounded;
+        return a == Interval::Closed && b == Interval::Closed ? Interval::Closed : Interval::Open;
+    }
+
+    /// A minimum reaches a tied bound as soon as either operand reaches it.
+    Interval either_(Interval a, Interval b) noexcept
+    {
+        if (a == Interval::Unbounded || b == Interval::Unbounded)
+            return Interval::Unbounded;
+        return a == Interval::Closed || b == Interval::Closed ? Interval::Closed : Interval::Open;
+    }
+
+    Lattice both_integers_(Lattice a, Lattice b) noexcept
+    {
+        return a == Lattice::Integers && b == Lattice::Integers ? Lattice::Integers : Lattice::Doubles;
+    }
+
+    Codomain add_(const Codomain &a, const Codomain &b)
+    {
+        Codomain c;
+        c.lattice = both_integers_(a.lattice, b.lattice);
+        c.below = both_(a.below, b.below);
+        if (c.below != Interval::Unbounded)
+            c.inf = a.inf + b.inf;
+        c.above = both_(a.above, b.above);
+        if (c.above != Interval::Unbounded)
+            c.sup = a.sup + b.sup;
+        return c;
+    }
+
+    /// NOTE: endpoints compose only while neither operand reaches below zero;
+    /// a factor that changes sign needs the four products and a union.
+    Codomain mul_(const Codomain &a, const Codomain &b)
+    {
+        Codomain c;
+        c.lattice = both_integers_(a.lattice, b.lattice);
+        if (a.below == Interval::Unbounded || a.inf < 0. || b.below == Interval::Unbounded || b.inf < 0.)
+            return c;
+
+        c.below = both_(a.below, b.below);
+        c.inf = a.inf * b.inf;
+        c.above = both_(a.above, b.above);
+        if (c.above != Interval::Unbounded)
+            c.sup = a.sup * b.sup;
+        return c;
+    }
+
+    Codomain min_(const Codomain &a, const Codomain &b)
+    {
+        Codomain c;
+        c.lattice = both_integers_(a.lattice, b.lattice);
+
+        // the smaller infimum wins, a tie is reached as soon as either reaches it
+        if (a.below == Interval::Unbounded || b.below == Interval::Unbounded)
+            c.below = Interval::Unbounded;
+        else if (a.inf == b.inf)
+            c.inf = a.inf, c.below = either_(a.below, b.below);
+        else
+            c.inf = std::min(a.inf, b.inf), c.below = a.inf < b.inf ? a.below : b.below;
+
+        // the smaller supremum wins, an unbounded operand never provides it
+        if (a.above == Interval::Unbounded && b.above == Interval::Unbounded)
+            c.above = Interval::Unbounded;
+        else if (a.above == Interval::Unbounded)
+            c.sup = b.sup, c.above = b.above;
+        else if (b.above == Interval::Unbounded)
+            c.sup = a.sup, c.above = a.above;
+        else if (a.sup == b.sup)
+            c.sup = a.sup, c.above = either_(a.above, b.above);
+        else
+            c.sup = std::min(a.sup, b.sup), c.above = a.sup < b.sup ? a.above : b.above;
+        return c;
+    }
+
+    Codomain max_(const Codomain &a, const Codomain &b)
+    {
+        Codomain c;
+        c.lattice = both_integers_(a.lattice, b.lattice);
+
+        // the larger infimum wins, a tie is reached only where both reach it
+        if (a.below == Interval::Unbounded && b.below == Interval::Unbounded)
+            c.below = Interval::Unbounded;
+        else if (a.below == Interval::Unbounded)
+            c.inf = b.inf, c.below = b.below;
+        else if (b.below == Interval::Unbounded)
+            c.inf = a.inf, c.below = a.below;
+        else if (a.inf == b.inf)
+            c.inf = a.inf, c.below = both_(a.below, b.below);
+        else
+            c.inf = std::max(a.inf, b.inf), c.below = a.inf > b.inf ? a.below : b.below;
+
+        // the larger supremum wins, an unbounded operand carries the result
+        if (a.above == Interval::Unbounded || b.above == Interval::Unbounded)
+            c.above = Interval::Unbounded;
+        else if (a.sup == b.sup)
+            c.sup = a.sup, c.above = either_(a.above, b.above);
+        else
+            c.sup = std::max(a.sup, b.sup), c.above = a.sup > b.sup ? a.above : b.above;
+        return c;
+    }
+
 #define MAKE_REAL_TO_INTEGER_FUNCTION(Name, call)                                    \
     class Name final : public Function                                               \
     {                                                                                \
     public:                                                                          \
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Name)                                 \
         HOUSEPI_OVERRIDE_NAME_METHOD(call)                                           \
-        bool is_discrete() const noexcept override final { return true; }            \
+        Codomain codomain() const noexcept override final                            \
+        {                                                                            \
+            Codomain c = x_arg_.codomain();                                          \
+            c.lattice = Lattice::Integers;                                           \
+            /* monotone, and an integer value is always reached */                   \
+            if (c.below != Interval::Unbounded)                                      \
+                c.inf = std::call(c.inf), c.below = Interval::Closed;                \
+            if (c.above != Interval::Unbounded)                                      \
+                c.sup = std::call(c.sup), c.above = Interval::Closed;                \
+            return c;                                                                \
+        }                                                                            \
                                                                                      \
     protected:                                                                       \
         double raw_function_(double x) const override final { return std::call(x); } \
@@ -802,7 +965,17 @@ namespace
     public:
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Minus_)
         HOUSEPI_OVERRIDE_NAME_METHOD(minus)
-        bool is_discrete() const noexcept override final { return x_arg_.is_discrete(); }
+        Codomain codomain() const noexcept override final
+        {
+            const Codomain a = x_arg_.codomain();
+            Codomain c;
+            c.lattice = a.lattice;
+            if (a.above != Interval::Unbounded)
+                c.inf = -a.sup, c.below = a.above;
+            if (a.below != Interval::Unbounded)
+                c.sup = -a.inf, c.above = a.below;
+            return c;
+        }
 
     protected:
         double raw_function_(double x) const override final { return -x; }
@@ -815,7 +988,15 @@ namespace
         Subtraction_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Subtraction_)
         HOUSEPI_OVERRIDE_NAME_METHOD(sub)
-        bool is_discrete() const noexcept override final { return arguments_(0).is_discrete() && x_arg_.is_discrete(); }
+        Codomain codomain() const noexcept override final
+        {
+            Codomain b = arguments_(0).codomain();
+            // subtracting is adding the negation
+            std::swap(b.inf, b.sup);
+            std::swap(b.below, b.above);
+            b.inf = -b.inf, b.sup = -b.sup;
+            return add_(x_arg_.codomain(), b);
+        }
 
     protected:
         double raw_function_(double x) const override final { return x - arg(0); }
@@ -828,6 +1009,14 @@ namespace
         Division_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Division_)
         HOUSEPI_OVERRIDE_NAME_METHOD(div)
+        Codomain codomain() const noexcept override final
+        {
+            Codomain c;
+            // NOTE: a divisor spanning zero yields two rays, which is not an interval
+            if (x_arg_.codomain().is_positive() && arguments_(0).codomain().is_positive())
+                c.inf = 0., c.below = Interval::Open;
+            return c;
+        }
 
     protected:
         double raw_function_(double x) const override final { return x / arg(0); }
@@ -840,7 +1029,19 @@ namespace
         Power_() : Function({{"x2", na::DOUBLE}}) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Power_)
         HOUSEPI_OVERRIDE_NAME_METHOD(pow)
-        bool is_discrete() const noexcept override final { return Function::is_discrete() || (arguments_(0).is_discrete() && x_arg_.is_discrete()); }
+        Codomain codomain() const noexcept override final
+        {
+            const Codomain b = x_arg_.codomain();
+            const Codomain e = arguments_(0).codomain();
+            Codomain c;
+            // an integer base raised to an integer non-negative power stays an integer
+            if (b.on_integers() && e.on_integers() && e.below != Interval::Unbounded && e.inf >= 0.)
+                c.lattice = Lattice::Integers;
+            // NOTE: tightening the interval needs the exponent's sign and parity
+            if (b.is_positive())
+                c.inf = 0., c.below = Interval::Open;
+            return c;
+        }
 
     protected:
         double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
@@ -861,7 +1062,19 @@ namespace
         SquareRoot_() : Function({}, 0.) {}
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(SquareRoot_)
         HOUSEPI_OVERRIDE_NAME_METHOD(sqrt)
-        void truncate() override final { helper_init_range_min_(); }
+        Codomain codomain() const noexcept override final
+        {
+            const Codomain a = x_arg_.codomain();
+            Codomain c;
+            // the domain forbids a negative argument, so the root is never negative
+            c.inf = 0., c.below = Interval::Closed;
+            if (a.below != Interval::Unbounded && a.inf >= 0.)
+                c.inf = std::sqrt(a.inf), c.below = a.below;
+            if (a.above != Interval::Unbounded && a.sup >= 0.)
+                c.sup = std::sqrt(a.sup), c.above = a.above;
+            return c;
+        }
+        void truncate() override final { helper_init_domain_min_(); }
 
     protected:
         double raw_function_(double x) const override final { return std::sqrt(x); }
@@ -876,6 +1089,18 @@ namespace
     public:
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Exponential_)
         HOUSEPI_OVERRIDE_NAME_METHOD(exp)
+        Codomain codomain() const noexcept override final
+        {
+            const Codomain a = x_arg_.codomain();
+            Codomain c;
+            // the exponential approaches zero without ever reaching it
+            c.inf = 0., c.below = Interval::Open;
+            if (a.below != Interval::Unbounded)
+                c.inf = std::exp(a.inf), c.below = a.below;
+            if (a.above != Interval::Unbounded)
+                c.sup = std::exp(a.sup), c.above = a.above;
+            return c;
+        }
 
     protected:
         double raw_function_(double x) const override final { return std::exp(x); }
@@ -888,10 +1113,21 @@ namespace
     class Logarithm_ final : public Function
     {
     public:
-        Logarithm_() : Function({}, 0.) { below_mode_ = Mode::Interval::Open; }
+        Logarithm_() : Function({}, 0.) { domain_.below = Mode::Interval::Open; }
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Logarithm_)
         HOUSEPI_OVERRIDE_NAME_METHOD(log)
-        void truncate() override final { helper_init_range_min_(0., true); }
+        Codomain codomain() const noexcept override final
+        {
+            const Codomain a = x_arg_.codomain();
+            Codomain c;
+            // the logarithm falls away without bound as its argument approaches zero
+            if (a.below != Interval::Unbounded && a.inf > 0.)
+                c.inf = std::log(a.inf), c.below = a.below;
+            if (a.above != Interval::Unbounded && a.sup > 0.)
+                c.sup = std::log(a.sup), c.above = a.above;
+            return c;
+        }
+        void truncate() override final { helper_init_domain_min_(0., true); }
 
     protected:
         double raw_function_(double x) const override final { return std::log(x); }
@@ -906,6 +1142,13 @@ namespace
     public:
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Sine_)
         HOUSEPI_OVERRIDE_NAME_METHOD(sin)
+        Codomain codomain() const noexcept override final
+        {
+            Codomain c;
+            c.inf = -1., c.sup = 1.;
+            c.below = c.above = Interval::Closed;
+            return c;
+        }
 
     protected:
         double raw_function_(double x) const override final { return std::sin(x); }
@@ -920,6 +1163,13 @@ namespace
     public:
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Cosine_)
         HOUSEPI_OVERRIDE_NAME_METHOD(cos)
+        Codomain codomain() const noexcept override final
+        {
+            Codomain c;
+            c.inf = -1., c.sup = 1.;
+            c.below = c.above = Interval::Closed;
+            return c;
+        }
 
     protected:
         double raw_function_(double x) const override final { return std::cos(x); }
@@ -950,17 +1200,15 @@ namespace
     class ReductionFunction : public Function
     {
     public:
-        bool is_discrete() const noexcept override final
+    protected:
+        /// Wheter the fold always skips this operand: structurally absent, or a
+        /// literal NA. A pointer is never skipped, even while it reads NA before
+        /// initialization, as it answers for the definition it points at.
+        static bool is_skipped_(const Attribute &attr) noexcept
         {
-            if (!x_arg_.is_na() && !x_arg_.is_discrete())
-                return false;
-            for (const Attribute &attr : arguments_())
-                if (!attr.is_na() && !attr.is_discrete())
-                    return false;
-            return true;
+            return attr.is_empty() || (attr.is_numeric() && attr.is_na());
         }
 
-    protected:
         Attribute &find_arg_(std::string_view key) override final { return find_or_append_arg_(key); }
 
         /// NA-skipping fold over x and all arguments.
@@ -979,6 +1227,24 @@ namespace
                 has = true;
             }
             return has ? acc : na::DOUBLE;
+        }
+
+        /// NA-skipping fold of codomain() over x and all arguments.
+        /// Returns the unbounded codomain if no operand is folded, as the runtime
+        /// fold returns NA there.
+        template <class Op>
+        Codomain reduce_codomain_(Op op) const
+        {
+            bool has = !is_skipped_(x_arg_);
+            Codomain acc = has ? x_arg_.codomain() : Codomain();
+            for (const Attribute &attr : arguments_())
+            {
+                if (is_skipped_(attr))
+                    continue;
+                acc = has ? op(acc, attr.codomain()) : attr.codomain();
+                has = true;
+            }
+            return has ? acc : Codomain();
         }
 
         /// Reduce all single constant inside the first constant argument.
@@ -1012,13 +1278,18 @@ namespace
         }
     };
 
-#define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol)             \
+#define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol, fold_)      \
     class Class_ final : public ReductionFunction                  \
     {                                                              \
     public:                                                        \
         Class_() : ReductionFunction() {}                          \
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)             \
         HOUSEPI_OVERRIDE_NAME_METHOD(name_)                        \
+                                                                   \
+        Codomain codomain() const noexcept override final          \
+        {                                                          \
+            return reduce_codomain_(fold_);                        \
+        }                                                          \
                                                                    \
         void finalize() override                                   \
         {                                                          \
@@ -1034,18 +1305,23 @@ namespace
                 x, [](double a, double b) { return a symbol b; }); \
         }                                                          \
     };
-    MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +)
+    MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +, add_)
     HOUSEPI_REGISTER_FUNCTION(Summation_, Arithmetic)
-    MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *)
+    MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *, mul_)
     HOUSEPI_REGISTER_FUNCTION(Product_, Arithmetic)
 
-#define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol)                       \
+#define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol, fold_)                \
     class Class_ final : public ReductionFunction                          \
     {                                                                      \
     public:                                                                \
         Class_() : ReductionFunction() {}                                  \
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                     \
         HOUSEPI_OVERRIDE_NAME_METHOD(name_)                                \
+                                                                           \
+        Codomain codomain() const noexcept override final                  \
+        {                                                                  \
+            return reduce_codomain_(fold_);                                \
+        }                                                                  \
                                                                            \
         void finalize() override                                           \
         {                                                                  \
@@ -1061,9 +1337,9 @@ namespace
                 x, [](double a, double b) { return b symbol a ? b : a; }); \
         }                                                                  \
     };
-    MAKE_VARIADIC_MIN_MAX(Minimum_, min, <)
+    MAKE_VARIADIC_MIN_MAX(Minimum_, min, <, min_)
     HOUSEPI_REGISTER_FUNCTION(Minimum_, Arithmetic)
-    MAKE_VARIADIC_MIN_MAX(Maximum_, max, >)
+    MAKE_VARIADIC_MIN_MAX(Maximum_, max, >, max_)
     HOUSEPI_REGISTER_FUNCTION(Maximum_, Arithmetic)
 }
 

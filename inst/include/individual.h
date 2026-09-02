@@ -24,7 +24,7 @@ namespace housepi
 	/// NOTE: the user id lives in DataWide, keyed by the individual index (see Index::of).
 	/// NOTE: 'member' names the household-relative index (MemberIndex, Index::member,
 	/// Household::infected_members); the person itself is an Individual, named 'indiv'.
-	class alignas(8) Individual final
+	class Individual final
 	{
 		friend class Household; /// owns and mutates its members
 		friend struct Index;	/// reads the opaque storage indexes

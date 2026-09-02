@@ -76,10 +76,10 @@ test_that("Injected Date literals encode as numeric", {
 
   m_date <- new_housepi_model(model = "test") |>
     add_latent("gray_fox", model = "uniform",
-                  min = !!d_min, max = !!d_max)
+               min = !!d_min, max = !!d_max)
   m_num <- new_housepi_model(model = "test") |>
     add_latent("gray_fox", model = "uniform",
-                  min = !!as.numeric(d_min), max = !!as.numeric(d_max))
+               min = !!as.numeric(d_min), max = !!as.numeric(d_max))
 
   expect_identical(m_date$latent$min, m_num$latent$min)
   expect_identical(m_date$latent$max, m_num$latent$max)

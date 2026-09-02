@@ -59,9 +59,9 @@ new_housepi_model(model = "test") |>
 Here we associated definitions of parameters with default proposals and custom arguments.
 For certain distributions, default arguments are also available according to base R.
 
-# Provide a custom range
+# Provide a custom domain
 
-Here we test various examples to show how to select a custom range for the variables.
+Here we test various examples to show how to select a custom domain for the variables.
 This will automatically impose a truncation of the prior of the parameter.
 We do this with the arguments `min` (minimum) and `max` (maximum).
 

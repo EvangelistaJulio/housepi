@@ -51,10 +51,22 @@
 
 namespace housepi::msg
 {
+    namespace
+    {
+        /// Package-authored exception.
+        /// NOTE: must keep the name in sync with the R side.
+        struct CppError : std::exception
+        {
+            std::string m;
+            explicit CppError(std::string s) : m(std::move(s)) {}
+            const char *what() const noexcept override { return m.c_str(); }
+        };
+    }
+
     /// Throw an error message.
     [[noreturn]] void stop(const std::string &txt)
     {
-        throw housepi::CppError(txt);
+        throw housepi::msg::CppError(txt);
     }
 
     /// Print an information message to stdout.
@@ -184,9 +196,15 @@ namespace
         }
 
         /// Wheter the definition takes discrete values.
-        bool is_discrete() const { return ptr_->is_discrete(); }
-        /// Formatted range of valid values, in the absolute frame.
-        std::string range() const { return ptr_->str_range(); }
+        /// NOTE: a plain function takes the values it returns; a distribution
+        /// takes them on its support, so the families that draw override this.
+        virtual bool is_discrete() const { return ptr_->codomain().on_integers(); }
+        /// Wheter the definition is provably strictly positive.
+        virtual bool is_positive() const { return ptr_->is_positive(); }
+        /// Formatted values returned, in the absolute frame.
+        std::string codomain() const { return ptr_->codomain().str(); }
+        /// Formatted values it may be evaluated on, in the absolute frame.
+        std::string domain() const { return ptr_->str_domain(); }
         /// Location shift, NA when no location argument was given.
         double loc() const { return ptr_->loc().value(); }
 
@@ -222,7 +240,7 @@ namespace
                 if (xn.size() != n)
                     throw std::invalid_argument(
                         "Size of " + msg::arg("xo") + " must be identical to size of " + msg::arg("xn") +
-                        " for " + err_type_name(family_) + " " + msg::val(ptr_->name()) + ".");
+                        " for " + str::format(family_) + " " + msg::val(ptr_->name()) + ".");
                 Rcpp::NumericVector y(n);
                 for (R_xlen_t i = 0; i < n; ++i)
                     y[i] = fn(xo[i], xn[i]);
@@ -278,6 +296,9 @@ namespace
         ExposeDistribution(std::string name_, bool discr)
             : ExposeBase(name_, family(), reg_kinds(discr)) {}
 
+        bool is_discrete() const override final { return distr_()->support().on_integers(); }
+        bool is_positive() const override final { return distr_()->support().is_positive(); }
+
         MAKE_EXPOSE_METHOD_CALL(pdf, ptr_->pdf(v))
         MAKE_EXPOSE_METHOD_CALL(log_pdf, distr_()->guarded_log_pdf(v))
         MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, distr_()->guarded_log_ratio(vo, vn))
@@ -293,7 +314,7 @@ namespace
                 if (n < 0)
                     throw std::invalid_argument(
                         msg::arg("n") + " must be non-negative for " +
-                        err_type_name(family_) + " " + msg::val(ptr_->name()) + ".");
+                        str::format(family_) + " " + msg::val(ptr_->name()) + ".");
 
                 // generate seed from R
                 Rcpp::RNGScope scope;
@@ -304,7 +325,7 @@ namespace
                 Rcpp::NumericVector y(n);
                 for (int i = 0; i < n; ++i)
                     y[i] = distr_()->rand(prng);
-                return rcpp_typed_column(y, ptr_->is_discrete());
+                return rcpp_typed_column(y, distr_()->support().on_integers());
             }
             catch (const std::exception &e)
             {
@@ -335,6 +356,10 @@ namespace
             if (ptr_)
                 ptr_->set_err_family(ErrType::InfecProfile);
         }
+
+        /// A profile is evaluated, never drawn: what is discrete about it is the
+        /// lattice it is called on, which reshape() has already put on the integers.
+        bool is_discrete() const override final { return ptr_->is_discretized(); }
 
         MAKE_EXPOSE_METHOD_CALL(inst, ptr_->pdf(v))
         MAKE_EXPOSE_METHOD_CALL(cumul, ptr_->cdf(v))
@@ -1074,14 +1099,14 @@ namespace
             {
                 const Function *f =
                     is_latent ? mcmc_ptr->get_latent_varia(infec_profile.latent_key, house.at(i)).function()
-                            : infec_profile.generic.get();
+                              : infec_profile.generic.get();
                 if (!f)
                     continue;
                 infprof_name[i] = f->name();
-                infprof_discr[i] = f->is_discrete();
+                infprof_discr[i] = f->is_discretized();
                 infprof_args[i] = rcpp_export_args(f);
-                infprof_min[i] = hsp_to_rcpp(f->lower());
-                infprof_max[i] = hsp_to_rcpp(f->upper());
+                infprof_min[i] = hsp_to_rcpp(f->min());
+                infprof_max[i] = hsp_to_rcpp(f->max());
             }
 
         return Rcpp::List::create(
@@ -1241,8 +1266,8 @@ namespace
                             // observation nodes: generated for infected members, NA otherwise
                             for (size_t a : augm.list_obs_member)
                                 latent_cols[c++][row] = indiv.is_infected_status()
-                                                          ? hsp_to_rcpp(engine.get_latent_varia(a, indiv))
-                                                          : NA_REAL;
+                                                            ? hsp_to_rcpp(engine.get_latent_varia(a, indiv))
+                                                            : NA_REAL;
                             ++row;
                         }
 
@@ -1274,7 +1299,7 @@ namespace
                     {
                         throw std::runtime_error(
                             std::string(e.what()) +
-                            "\nFor " + data_wide.err_name(data_wide.at(H)) + ".");
+                            "\nFor " + data_wide.str(data_wide.at(H)) + ".");
                     }
                 });
         }
@@ -1671,8 +1696,10 @@ RCPP_MODULE(housepi)
 {
     Rcpp::class_<ExposeBase>("ExposeBase")
         .method("args", &ExposeBase::args)
-        .method("range", &ExposeBase::range)
+        .method("domain", &ExposeBase::domain)
         .method("is_discrete", &ExposeBase::is_discrete)
+        .method("is_positive", &ExposeBase::is_positive)
+        .method("codomain", &ExposeBase::codomain)
         .method("loc", &ExposeBase::loc);
 
     Rcpp::class_<ExposeFunction>("ExposeFunction")

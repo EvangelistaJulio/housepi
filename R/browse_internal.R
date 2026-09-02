@@ -76,18 +76,37 @@ HousepiExposed <- R6::R6Class(
       private$call_("args")
     },
 
-    #' @field range `character(1)`
-    #' Domain of the definition, in interval notation.
-    range = function(value) {
-      if (!missing(value)) stop_read_only("range")
-      private$call_("range")
+    #' @field domain `character(1)`
+    #' Values to evaluated on in interval notation.
+    domain = function(value) {
+      if (!missing(value)) stop_read_only("domain")
+      private$call_("domain")
     },
 
     #' @field is_discrete `logical(1)`
-    #' Whether the definition is evaluated on a discrete domain.
+    #' Whether the values the definition takes lie on a lattice of
+    #' integers. A distribution answers for the values it draws.
     is_discrete = function(value) {
       if (!missing(value)) stop_read_only("is_discrete")
       private$discr_
+    },
+
+    #' @field is_positive `logical(1)`
+    #' Whether the values the definition takes are known to be strictly
+    #' positive. A distribution answers for the values it draws.
+    #' Note that `FALSE` reads as "not known to be positive".
+    is_positive = function(value) {
+      if (!missing(value)) stop_read_only("is_positive")
+      private$call_("is_positive")
+    },
+
+    #' @field codomain `character(1)`
+    #' Values evaluating the definition returns, in interval notation.
+    #' A distribution returns a density, a mass or a cumulative probability,
+    #' never a draw: see `domain` for the values it is defined on.
+    codomain = function(value) {
+      if (!missing(value)) stop_read_only("codomain")
+      private$call_("codomain")
     }
   ),
 
@@ -119,7 +138,7 @@ HousepiExposed <- R6::R6Class(
         i = sprintf("Exposed %s {.val %s}.", private$family_, private$name_),
         items,
         sprintf("%s on %s.", ifelse(private$discr_, "Discrete", "Continuous"),
-                self$range)
+                self$domain)
       ))
       invisible(self)
     }
@@ -304,7 +323,7 @@ browse_functions <- function(name = NA_character_, ...,
 #' dst <- browse_distributions("weibull", shape = 2, scale = 1)
 #' dst$pdf(seq(0, 5))
 #' dst$cdf(seq(0, 5))
-#' dst$range
+#' dst$domain
 #' @export
 browse_distributions <- function(name = NA_character_, ...,
                                  min = NA_real_,

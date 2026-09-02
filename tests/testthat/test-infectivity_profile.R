@@ -104,7 +104,7 @@ test_that("spurious names are dropped", {
   expect_equal(nrow(unique(infec)), 1)
 })
 
-test_that("range minimum defaults to the first transmission day", {
+test_that("The domain minimum defaults to the first transmission day", {
   profile_min <- function(hhmodel, ...) {
     hhmodel |>
       add_infectivity_profile(...) |>

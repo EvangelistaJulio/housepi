@@ -111,8 +111,8 @@ namespace housepi
         /// Identifier of a household, as provided in data.
         const std::string &house_id(const Household &house) const noexcept { return house_ids_[Index::of(house)]; }
         /// Names for error messages.
-        std::string err_name(const Individual &indiv) const { return "individual " + msg::val(id(indiv)); }
-        std::string err_name(const Household &house) const { return "household " + msg::val(house_id(house)); }
+        std::string str(const Individual &indiv) const { return "individual " + msg::val(id(indiv)); }
+        std::string str(const Household &house) const { return "household " + msg::val(house_id(house)); }
 
         /// Column names known at import, without those produced by an observation.
         std::vector<std::string> imported_cols() const;

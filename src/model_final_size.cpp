@@ -37,6 +37,8 @@ public:
 	{
 		request_param_discrete(
 			{Param::hhsize_ref});
+		request_param_positive(
+			{Param::alpha, Param::hhsize_ref});
 		request_risk_identifiability(
 			Param::alpha, {GroupRisk::community});
 		request_risk_identifiability(

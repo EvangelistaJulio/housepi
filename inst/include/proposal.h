@@ -122,19 +122,19 @@ namespace housepi
             : pDistr_(registry::create_distribution(
                   distr_name,
                   ErrType::Proposal,
-                  registry::distr_kinds(prior && prior->is_discrete())))
+                  registry::distr_kinds(prior && prior->is_discretized())))
         {
             for (const auto &[key, attr] : args)
                 pDistr_->init_attr(key, attr);
 
             if (prior)
                 wire_to_prior_domain_(prior);
-            pDistr_->reshape(prior && prior->is_discrete());
+            pDistr_->reshape(prior && prior->is_discretized());
         }
         IndependenceProposal(const IndependenceProposal &other)
             : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-              intrinsic_lo_(other.intrinsic_lo_), intrinsic_hi_(other.intrinsic_hi_),
-              prior_has_lo_(other.prior_has_lo_), prior_has_hi_(other.prior_has_hi_) {}
+              intrinsic_min_(other.intrinsic_min_), intrinsic_max_(other.intrinsic_max_),
+              prior_has_min_(other.prior_has_min_), prior_has_max_(other.prior_has_max_) {}
         MAKE_PROPOSAL_CLONE_METHOD(IndependenceProposal)
 
         double propose(rnd_gen &prng, double /*xo*/) override final { return pDistr_->rand(prng); }
@@ -147,66 +147,72 @@ namespace housepi
                 return;
             pDistr_->finalize();
 
-            assert_covers_side_(prior_has_lo_, pDistr_->lower(), intrinsic_lo_, true);
-            assert_covers_side_(prior_has_hi_, pDistr_->upper(), intrinsic_hi_, false);
+            assert_covers_side_(prior_has_min_, pDistr_->min(), intrinsic_min_, true);
+            assert_covers_side_(prior_has_max_, pDistr_->max(), intrinsic_max_, false);
         }
 
     private:
         std::unique_ptr<Distribution> pDistr_; /// distribution drawn from independently
-        double intrinsic_lo_ = na::DOUBLE;     /// proposal family's own lower support (NA if unbounded)
-        double intrinsic_hi_ = na::DOUBLE;     /// proposal family's own upper support (NA if unbounded)
-        bool prior_has_lo_ = false;            /// prior is bounded below
-        bool prior_has_hi_ = false;            /// prior is bounded above
+        /// The proposal's own bounds, before it inherited the prior's.
+        /// NOTE: transfer_min/max overwrite them, but coverage check runs at finalize().
+        /// NOTE: user arguments land first, so a given 'min' is captured here too.
+        double intrinsic_min_ = na::DOUBLE;
+        double intrinsic_max_ = na::DOUBLE;
+        /// Which sides were inherited. Not recoverable afterwards: an untransferred
+        /// side leaves the proposal's own bound in place, which reads the same as a
+        /// prior that happened to declare it.
+        bool prior_has_min_ = false; /// prior is bounded below
+        bool prior_has_max_ = false; /// prior is bounded above
 
-        /// Snapshot the proposal family's intrinsic support, then point the proposal
+        /// Snapshot the proposal's own support, then point the proposal
         /// truncation at the prior's (possibly live/data-bound) domain. No static value is
         /// baked: transfer keeps pointer/function bounds live, so rand() re-truncates per move.
         void wire_to_prior_domain_(const Distribution *prior)
         {
-            intrinsic_lo_ = pDistr_->lower().is_callable() ? pDistr_->lower().value() : na::DOUBLE;
-            intrinsic_hi_ = pDistr_->upper().is_callable() ? pDistr_->upper().value() : na::DOUBLE;
+            intrinsic_min_ = pDistr_->min().is_callable() ? pDistr_->min().value() : na::DOUBLE;
+            intrinsic_max_ = pDistr_->max().is_callable() ? pDistr_->max().value() : na::DOUBLE;
 
             // inherit the prior's location shift so the proposal samples in the same
             // absolute frame; bounds below stay in the shared delocated frame
             if (!prior->loc().is_empty())
                 pDistr_->init_attr("loc", prior->loc());
 
-            const Attribute &lo = prior->lower();
-            const Attribute &hi = prior->upper();
-            prior_has_lo_ = !lo.is_empty();
-            prior_has_hi_ = !hi.is_empty();
-            if (prior_has_lo_)
-                pDistr_->transfer_lower(lo);
-            if (prior_has_hi_)
-                pDistr_->transfer_upper(hi);
+            const Attribute &min_val = prior->min();
+            const Attribute &max_val = prior->max();
+            prior_has_min_ = !min_val.is_empty();
+            prior_has_max_ = !max_val.is_empty();
+            if (prior_has_min_)
+                pDistr_->transfer_min(min_val);
+            if (prior_has_max_)
+                pDistr_->transfer_max(max_val);
         }
 
         void assert_covers_side_(bool prior_has, const Attribute &bound, double intrinsic, bool below) const
         {
-            const bool proposal_bounded = !na::is(intrinsic);
-            if (!prior_has) // prior unbounded here: an intrinsically bounded family leaves a gap
-            {
-                if (proposal_bounded)
-                    raise_uncovered_();
+            if (na::is(intrinsic)) // unbounded family: covers any domain on this side
                 return;
-            }
-            if (bound.is_constant()) // known value: verify coverage by value
-            {
-                if (proposal_bounded &&
-                    (below ? intrinsic > bound.value() : intrinsic < bound.value()))
-                    raise_uncovered_();
-                return;
-            }
-            if (proposal_bounded) // non-constant bound, bounded family: range not yet verifiable
+            // an intrinsically bounded family only covers a constant prior bound it reaches;
+            // an unbounded prior, or one not yet readable, leaves a gap
+            if (!prior_has || !bound.is_constant() ||
+                (below ? intrinsic > bound.value() : intrinsic < bound.value()))
                 raise_uncovered_();
         }
 
         [[noreturn]] void raise_uncovered_() const
         {
-            const std::string lo = na::is(intrinsic_lo_) ? "-Inf" : str::format(intrinsic_lo_);
-            const std::string hi = na::is(intrinsic_hi_) ? "Inf" : str::format(intrinsic_hi_);
-            msg::stop("Proposal " + msg::val(pDistr_->name()) + " has support [" + lo + ", " + hi +
-                      "] that cannot cover the variable's domain; use proposal = " + msg::val("forward") +
+            Domain support;
+            if (!na::is(intrinsic_min_))
+            {
+                support.min = Attribute(intrinsic_min_);
+                support.below = Interval::Closed;
+            }
+            if (!na::is(intrinsic_max_))
+            {
+                support.max = Attribute(intrinsic_max_);
+                support.above = Interval::Closed;
+            }
+            msg::stop("Proposal " + msg::val(pDistr_->name()) + " has support " + support.str() +
+                      " that cannot cover the variable's domain.\nUse proposal = " + msg::val("forward") +
                       ", a random walk, or a proposal unbounded on that side.");
         }
     };
@@ -233,7 +239,7 @@ namespace housepi
         {
             is_adaptive_ = na::is(scale);
             pDistr_->reshape(is_discr);
-            is_discrete_ = pDistr_->is_discrete();
+            is_discrete_ = pDistr_->is_discretized();
         }
 
         /// destructor
@@ -243,7 +249,7 @@ namespace housepi
         AdaptableProposal(const AdaptableProposal &other)
             : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
               is_adaptive_(other.is_adaptive_),
-              is_discrete_(pDistr_ && pDistr_->is_discrete()) {}
+              is_discrete_(pDistr_ && pDistr_->is_discretized()) {}
 
         //////////////////////////
         //////  ADAPTATION  //////
@@ -339,7 +345,7 @@ namespace housepi
     {
     public:
         RndWalkUnifProposal(double scale, const Distribution *prior)
-            : AdaptableProposal("uniform", scale, prior->is_discrete()) { init_scale_(scale); }
+            : AdaptableProposal("uniform", scale, prior->is_discretized()) { init_scale_(scale); }
         MAKE_PROPOSAL_CLONE_METHOD(RndWalkUnifProposal)
 
         double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
@@ -353,14 +359,14 @@ namespace housepi
                 return q75 - q25;
             return 1.;
         }
-        double get_scale_() const override final { return pDistr_->upper().value(); }
+        double get_scale_() const override final { return pDistr_->max().value(); }
         /// Adapt standard minimum and maximum.
         /// NOTE: scale cannot be smaller than 1 in the discrete case.
         void set_scale_(double scale) override final
         {
             const double s = is_discrete_ ? std::max(1., std::round(scale)) : scale;
-            pDistr_->set_lower(-s);
-            pDistr_->set_upper(s);
+            pDistr_->set_min(-s);
+            pDistr_->set_max(s);
         }
     };
 
@@ -372,7 +378,7 @@ namespace housepi
     {
     public:
         RndWalkProposal(double scale, const Distribution *prior)
-            : AdaptableProposal("normal", scale, prior->is_discrete()) { init_scale_(scale); }
+            : AdaptableProposal("normal", scale, prior->is_discretized()) { init_scale_(scale); }
         MAKE_PROPOSAL_CLONE_METHOD(RndWalkProposal)
 
         double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
@@ -399,16 +405,16 @@ namespace housepi
     {
     public:
         RndWalkLogProposal(double scale, const Distribution *prior)
-            : AdaptableProposal("lognormal", scale, prior->is_discrete())
+            : AdaptableProposal("lognormal", scale, prior->is_discretized())
         {
             // forbid the discrete case
-            if (prior->is_discrete())
+            if (prior->is_discretized())
                 msg::stop(
                     "Provided proposal " + msg::val("lognormal") + " for discrete.\nUse instead" +
                     msg::val("rw") + " or " + msg::val("rw_unif"));
 
-            // assert that value range is positive
-            if (prior->lower().is_empty() || prior->lower().value() < 0)
+            // assert that the value domain is positive
+            if (prior->min().is_empty() || prior->min().value() < 0)
                 msg::stop(
                     "Provided proposal " + msg::val("lognormal") + " for non-positive");
 
