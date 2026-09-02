@@ -18,6 +18,21 @@ mk_risk_model <- function(age = c("child", "child", "adult", "adult")) {
     new_housepi_model("final_size")
 }
 
+# a small "member"-stratified dataset standing in for flu_2014_matsumoto:
+# five households, "student" is the only role present in every household.
+flu_small <- data.frame(
+  house_id = c(1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5),
+  status = c(1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1),
+  member = c("student", "other", "student", "sibling",
+             "student", "mother", "father",
+             "student", "other",
+             "student", "mother", "father")
+)
+
+# shared base model for icofs-backed validation tests: add_group_risk()
+# copies before mutating, so reusing this fixture across tests is safe.
+icofs_model <- sarscov2_2021_icofs |> new_housepi_model("final_size")
+
 ####################################
 ## GROUP RISKS : HELPER FUNCTIONS ##
 ####################################
@@ -131,19 +146,19 @@ test_that("Group risks hold without data and re-derive on add_data_wide", {
   expect_false(any(grepl("^sus_member", metalgear$parameters$name)))
 
   # attaching data materialises the risk parameters and runs
-  diamond <- add_data_wide(metalgear, flu_2014_matsumoto)
+  diamond <- add_data_wide(metalgear, flu_small)
   full_params <- diamond$parameters$name
   expect_true(any(grepl("^sus_member", full_params)))
   expect_true(is.finite(evaluate_log_lik(diamond)))
 
   # replacing data re-derives: a single-level subset drops the stale risk params
-  student <- flu_2014_matsumoto[flu_2014_matsumoto$member == "student", ]
+  student <- flu_small[flu_small$member == "student", ]
   mother_base <- add_data_wide(diamond, student)
   expect_false(any(grepl("^sus_member", mother_base$parameters$name)))
   expect_true(is.finite(evaluate_log_lik(mother_base)))
 
   # re-attaching the full data restores the exact original parameter set
-  restored <- add_data_wide(mother_base, flu_2014_matsumoto)
+  restored <- add_data_wide(mother_base, flu_small)
   expect_setequal(restored$parameters$name, full_params)
 })
 
@@ -179,8 +194,7 @@ test_that("Group risks expand on their own covariates only", {
 })
 
 test_that("Group risks sentinels work correctly", {
-  hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("final_size")
+  hhmodel <- icofs_model
 
   # empty risk definition
   hhmodel |>
@@ -208,8 +222,7 @@ test_that("Group risks sentinels work correctly", {
 })
 
 test_that("Group risks reference support behaves as expected", {
-  hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("final_size")
+  hhmodel <- icofs_model
 
   # an untagged custom table is absolute
   strata <- data.frame(sex = c("F", "M"),
@@ -234,8 +247,7 @@ test_that("Group risks reference support behaves as expected", {
 })
 
 test_that("Custom strata carry at most one reference per rule group", {
-  hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("final_size")
+  hhmodel <- icofs_model
 
   # two references within the same rule group are two competing scales
   liquid <- data.frame(sex = c("F", "M"),
@@ -424,7 +436,7 @@ test_that("Absoluteness follows the reference across every definition mode", {
 
 test_that("An absolute risk collapses the baseline it scales", {
   # alpha is never declared: the community risk carries the whole rate
-  hhmodel <- flu_2014_matsumoto |>
+  hhmodel <- flu_small |>
     new_housepi_model("final_size") |>
     add_group_risk("community", by = "member") |>
     add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
@@ -444,7 +456,7 @@ test_that("An absolute risk collapses the baseline it scales", {
 })
 
 test_that("Two absolute risks on one baseline are not identifiable", {
-  flu_2014_matsumoto |>
+  flu_small |>
     new_housepi_model("final_size") |>
     add_group_risk("susceptibility", by = "member") |>
     add_group_risk("infectivity", by = "member") |>

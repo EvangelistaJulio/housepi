@@ -433,7 +433,7 @@ namespace housepi
                 catch (const std::exception &e)
                 {
                     throw std::runtime_error(
-                        "While simulating " + data_wide.err_name(house) + ":\n" + e.what());
+                        "While simulating " + data_wide.str(house) + ":\n" + e.what());
                 }
         }
 

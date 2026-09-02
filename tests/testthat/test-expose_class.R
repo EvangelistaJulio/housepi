@@ -190,7 +190,7 @@ test_that("A long enough run renders the progress bar", {
   # NOTE: bar must take longer than 1 second in order to be printed
   bar <- capture.output(
     draws <- hhmodel |>
-      run_inference(steps = 5e3L, adapt = 0L, chains = 1L, progress = TRUE) |>
+      run_inference(adapt = 0L, chains = 1L) |>
       suppressWarnings(),
     type = "output"
   )

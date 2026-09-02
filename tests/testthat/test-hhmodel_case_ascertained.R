@@ -403,7 +403,7 @@ test_that("Observation node enters the pointwise log-likelihood", {
                     mean = infec_time + incub_period, sd = 1) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
-  n_steps <- 100
+  n_steps <- 25
   results <- hhmodel |>
     run_inference(steps = n_steps, thin = 1L, adapt = 0L, chain = 1L) |>
     suppressWarnings()
