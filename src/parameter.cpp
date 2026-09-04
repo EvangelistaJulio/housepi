@@ -206,19 +206,13 @@ namespace housepi
             set(pDistr_->rand(prng));
     }
 
-    void Variable::draw_value(rnd_gen &prng)
-    {
-        if (has_distr())
-            set(pDistr_->rand(prng));
-    }
-
     void Variable::finalize()
     {
         Attribute::finalize();
         if (pDistr_)
             pDistr_->finalize();
         if (pProp_)
-            pProp_->finalize();
+            pProp_->finalize(str());
     }
 
     double Variable::operator()(double x) const
@@ -337,23 +331,27 @@ namespace housepi
         for (size_t p : list_sample)
             if (at(p).is_adaptive())
                 list_adaptive.push_back(p);
+
+        // reserve one slot per parameter
+        simulation_values.assign(khold_.size(), {});
     }
 
     void Parameter::build_for_predic(const dbl_table &input)
     {
         const std::vector<std::string> headers = read::extract_keys(input);
 
-        clear_lists_();
-        simulation_values.clear();
-        // update list of constant parameters to all parameters
-        list_const = khold(khold_.all());
-
-        // reset definition dictionary to all constants NAs.
+        // keep the list_const/list_func/list_sample classification from build()
+        // a parameter with no table column is drawn instead
+        simulation_values.assign(khold_.size(), {});
         for (const std::string &pstr : khold_.all())
+        {
             if (!contains(headers, pstr))
-                simulation_values.emplace_back();
-            else
-                simulation_values.emplace_back(input.at(pstr));
+                continue;
+
+            size_t p = khold(pstr);
+            switch_to_const_(p);
+            simulation_values[p] = input.at(pstr);
+        }
     }
 
     void Parameter::init_param_vec_()
@@ -472,19 +470,23 @@ namespace housepi
         risk_anchors_.push_back({p, std::move(risks), contacts});
     }
 
-    void Parameter::helper_pin_to_reference_(size_t p)
+    void Parameter::switch_to_const_(size_t p)
     {
-        Variable &xparam = at(p);
-        xparam.clear();
-        xparam.init_numeric(risks::VALUE_REFERENCE);
-
-        // update parameter sampling lists
         const std::vector<size_t> vec({p});
         list_sample = list_sample - vec;
         list_sample_standard = list_sample_standard - vec;
         list_sample_cached = list_sample_cached - vec;
         list_adaptive = list_adaptive - vec;
-        list_const.push_back(p);
+        if (!contains(list_const, p))
+            list_const.push_back(p);
+    }
+
+    void Parameter::helper_pin_to_reference_(size_t p)
+    {
+        Variable &xparam = at(p);
+        xparam.clear();
+        xparam.init_numeric(risks::VALUE_REFERENCE);
+        switch_to_const_(p);
     }
 
     void Parameter::assert_risk_identifiability(const GroupRisk &group_risk, const ContactRisk &contact_risk)
@@ -494,23 +496,25 @@ namespace housepi
             size_t n_scale_free = 0;
             std::vector<std::string> free_names = {};
 
-            if (anchor.contacts && contact_risk.n_scale_free() > 0)
+            const size_t n_contact = anchor.contacts ? contact_risk.n_scale_free(*this) : 0;
+            if (n_contact > 0)
             {
-                n_scale_free += contact_risk.n_scale_free();
+                n_scale_free += n_contact;
                 free_names.emplace_back("contact");
             }
 
             for (size_t g : anchor.risks)
             {
-                if (group_risk.n_scale_free(g) == 0)
+                const size_t n_group = group_risk.n_scale_free(g, *this);
+                if (n_group == 0)
                     continue;
 
-                n_scale_free += group_risk.n_scale_free(g);
+                n_scale_free += n_group;
                 free_names.emplace_back(group_risk.khold(g));
             }
 
             Variable &xparam = at(anchor.baseline);
-            if (n_scale_free == 1 && !at(anchor.baseline).is_constant())
+            if (n_scale_free == 1 && !is_pinned(anchor.baseline))
             {
                 // UPDATE: when baseline is a function, it's a user choice
                 // NOTE: at the moment is not even possible, but it might be in the future
@@ -573,26 +577,22 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    namespace
+    void ScaleAnchor::update(std::string_view pstr, const Parameter &param)
     {
-        /// Scale anchoring of a single group (joint/independent sub-groups).
-        struct ScaleAnchor_
-        {
-            bool anchored = false;   /// some sub-group has reference
-            bool free_param = false; /// some winning parameter can move
+        if (na::is(pstr) || pstr == risks::REFERENCE)
+            anchored = true;
+        else if (size_t p = param.khold(pstr); !contains(scaling_params, p))
+            scaling_params.push_back(p);
+    }
 
-            /// Register the parameter winning one cell. An empty name means no rule matched.
-            void update(std::string_view pstr, const Parameter &param)
-            {
-                if (na::is(pstr) || pstr == risks::REFERENCE)
-                    anchored = true;
-                else if (!param.at(param.khold(pstr)).is_constant())
-                    free_param = true;
-            }
-
-            /// Whether the overall scale of the rule group is left free.
-            bool is_free() const noexcept { return !anchored && free_param; }
-        };
+    bool ScaleAnchor::is_free(const Parameter &param) const
+    {
+        if (anchored || scaling_params.empty())
+            return false;
+        for (size_t p : scaling_params)
+            if (param.is_pinned(p))
+                return false;
+        return true;
     }
 
     void GroupRisk::build(DataWide &data_wide, const Parameter &param, const str_table &input)
@@ -601,7 +601,7 @@ namespace housepi
         khold_.clear_optional();
         unique_groups_.clear();
         group_index_.assign(data_wide.report_indiv.total, 0);
-        n_scale_free_.clear();
+        scale_anchors_.clear();
 
         // load required data headers or skip if no definitions provided
         std::vector<std::string> data_headers = {};
@@ -609,7 +609,7 @@ namespace housepi
             data_headers = helper_process_definitions_(data_wide, input);
         else if (khold_.empty())
             return;
-        n_scale_free_.assign(khold_.size(), 0);
+        scale_anchors_.assign(khold_.size(), {});
 
         // load column with group risk names, if any
         std::vector<std::string> g_input_vec = {};
@@ -643,9 +643,9 @@ namespace housepi
 
         // per-(risk_name, rule_group) scale anchoring, resolved member by member below
         using Key = std::pair<std::string, size_t>;
-        std::map<Key, ScaleAnchor_> anchors;
+        std::map<Key, ScaleAnchor> anchors;
         for (size_t r = 0; r < rules.n_rows; ++r)
-            anchors.emplace(Key{g_input_vec[r], rules.row_gid[r]}, ScaleAnchor_{});
+            anchors.emplace(Key{g_input_vec[r], rules.row_gid[r]}, ScaleAnchor{});
 
         // unique definition map
         std::map<str_table, size_t> unique_defin_map;
@@ -688,10 +688,17 @@ namespace housepi
                 group_index_[Index::of(indiv)] = it->second;
             }
 
-        // finalize the number of free scale parameters per group risk
+        // store the scale anchors of every rule group
         for (const auto &[key, anchor] : anchors)
-            if (anchor.is_free())
-                ++n_scale_free_[khold(key.first)];
+            scale_anchors_[khold(key.first)].push_back(anchor);
+    }
+
+    size_t GroupRisk::n_scale_free(size_t g, const Parameter &param) const
+    {
+        size_t n = 0;
+        for (const ScaleAnchor &anchor : scale_anchors_[g])
+            n += anchor.is_free(param);
+        return n;
     }
 
     void GroupRisk::finalize()
@@ -812,7 +819,7 @@ namespace housepi
                 const Parameter &param,
                 const Individual &indiv_from,
                 const Individual &indiv_to,
-                std::map<size_t, ScaleAnchor_> &anchors) const
+                std::map<size_t, ScaleAnchor> &anchors) const
             {
                 // per-group: keep the most-specific matching rule
                 const auto resolved = rules.resolve<size_t>(
@@ -826,7 +833,7 @@ namespace housepi
                                " to " + data_wide.str(indiv_to);
                     });
 
-                // across groups: multiply the winning params (skip reference)
+                // across groups: multiply the resolved risks (skip reference)
                 std::vector<const Attribute *> param_ptrs;
                 param_ptrs.reserve(resolved.size());
                 for (auto &[gid, r] : resolved)
@@ -904,7 +911,7 @@ namespace housepi
     {
         // reset storage
         house_contact_risks_.clear();
-        n_scale_free_ = 0;
+        scale_anchors_.clear();
         if (input.empty())
             return;
 
@@ -914,9 +921,9 @@ namespace housepi
         data_wide.set_eq_class_data_names(defs.data);
 
         // per-rule_group scale anchoring, resolved pair by pair below
-        std::map<size_t, ScaleAnchor_> anchors;
+        std::map<size_t, ScaleAnchor> anchors;
         for (size_t r = 0; r < defs.rules.n_rows; ++r)
-            anchors.emplace(defs.rules.row_gid[r], ScaleAnchor_{});
+            anchors.emplace(defs.rules.row_gid[r], ScaleAnchor{});
 
         // loop over all households
         // UPDATE: this should be just over eq_class_head households.
@@ -942,10 +949,17 @@ namespace housepi
                 }
         }
 
-        // finalize the number of free scale parameters per contact risk
+        // store the scale anchors of every rule group
         for (const auto &[gid, anchor] : anchors)
-            if (anchor.is_free())
-                ++n_scale_free_;
+            scale_anchors_.push_back(anchor);
+    }
+
+    size_t ContactRisk::n_scale_free(const Parameter &param) const
+    {
+        size_t n = 0;
+        for (const ScaleAnchor &anchor : scale_anchors_)
+            n += anchor.is_free(param);
+        return n;
     }
 
     void ContactRisk::finalize()

@@ -78,25 +78,24 @@ namespace housepi
         } mode_ = Mode::Interactive;
 
     public:
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
+        /////////////////////
+        ///  CONSTRUCTOR  ///
+        /////////////////////
 
         ProgressBar(
             unsigned barwidth = 33,
             bool is_interactive = true,
-            std::function<void()> interrupt_func = {})
-            : barwidth_(barwidth),
-              interrupt_func_(std::move(interrupt_func))
+            std::function<void()> interrupt_func = [] {})
+            : barwidth_(barwidth), interrupt_func_(std::move(interrupt_func))
         {
             if (!is_interactive)
                 mode_ = Mode::Static;
         };
         ~ProgressBar() = default;
 
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        ////////////////
+        ///  SETTER  ///
+        ////////////////
 
         /// Set description text of progress bar.
         void set_text(const std::string &text) { text_ = text; }
@@ -237,6 +236,9 @@ namespace housepi
             return oss.str();
         }
 
+        /// Check for user interrupt.
+        void check_user_interrupt_() const { interrupt_func_(); }
+
         /// Function to display the progress bar.
         void print_(const std::string &sms) const
         {
@@ -249,12 +251,6 @@ namespace housepi
                 msg::info("\r" + sms);
                 return;
             }
-        }
-
-        void check_user_interrupt_() const
-        {
-            if (interrupt_func_)
-                interrupt_func_();
         }
     };
 }

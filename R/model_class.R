@@ -333,7 +333,7 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Parameter definitions with `discr` resolved against the model on demand.
-    resolved_param_defs_ = function() {
+    resolved_param_ = function() {
       resolve_discr_flags_(private$param_$defs,
                            private$generator_$param_discr_required,
                            is_prior = TRUE)
@@ -341,7 +341,7 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Latent definitions with `discr` resolved against the model on demand.
-    resolved_latent_defs_ = function() {
+    resolved_latent_ = function() {
       resolve_discr_flags_(
         private$augm_$defs,
         private$generator_$latent_discr_required,
@@ -360,7 +360,7 @@ HousepiModel <- R6::R6Class(
     latent_declaration_complete_ = function(defs) {
       # the infectivity profile folds into the latent build
       need_latent <- c(private$augm_$latent_required,
-                     private$infec_profile_$latent_required)
+                       private$infec_profile_$latent_required)
       need_param <- c(private$augm_$param_required,
                       private$infec_profile_$param_required)
       all(need_latent %in% private$augm_$defs[["name"]]) &&
@@ -402,7 +402,7 @@ HousepiModel <- R6::R6Class(
 
       #> parameters (resolve unspecified discretization against the model)
       private$autofill_baseline_params_()
-      .engine$import_param(mcmc_ptr, private$resolved_param_defs_())
+      .engine$import_param(mcmc_ptr, private$resolved_param_())
 
       #> group risks
       .engine$import_group_risk(
@@ -428,8 +428,8 @@ HousepiModel <- R6::R6Class(
               "({.val {private$generator_$escaped}})."),
         "Rename the status or define a different {.code escaped =} label."
       )
-      latent_defs <- resolve_status_codes_(private$resolved_latent_defs_(),
-                                         status_dict)
+      latent_defs <- resolve_status_codes_(private$resolved_latent_(),
+                                           status_dict)
       # NOTE: unresolved definitions wait for completeness or for the wall
       if (wall || private$latent_declaration_complete_(latent_defs)) {
         .engine$import_latent(mcmc_ptr, latent_defs)
@@ -520,7 +520,7 @@ HousepiModel <- R6::R6Class(
                               nrow(private$param_$defs))
       n_param_cols <- 2L * n_params_defs
       n_latent_defs <- ifelse(is.null(private$augm_$defs), 0L,
-                            nrow(private$augm_$defs))
+                              nrow(private$augm_$defs))
       # structural upper bound: every named/default household counts as its
       # largest possible size (status filtering happens in the engine)
       house_id <- self$data_wide$house_id
@@ -621,9 +621,11 @@ HousepiModel <- R6::R6Class(
       if (nrow(self$parameters) == 0) return(nrep)
 
       if (is.null(param_table)) {
-        # replicates the single row nrep times
+        # replicates the single row nrep times; unpinned parameters (NA value)
+        # carry no column, so a prior-only parameter is sampled instead
+        pinned <- !is.na(self$parameters$value)
         param_table <- as.data.frame(stats::setNames(
-          as.list(self$parameters$value), self$parameters$name
+          as.list(self$parameters$value[pinned]), self$parameters$name[pinned]
         ))
         param_table <- param_table[rep(1L, nrep), , drop = FALSE]
         rownames(param_table) <- NULL
@@ -733,7 +735,7 @@ HousepiModel <- R6::R6Class(
     #' Parameter definitions.
     parameters = function(value) {
       if (!missing(value)) stop_read_only("parameters")
-      housepi_defin_showcaser(private$resolved_param_defs_())
+      housepi_defin_showcaser(private$resolved_param_())
     },
 
     #' @field group_risks `data.frame`
@@ -758,7 +760,7 @@ HousepiModel <- R6::R6Class(
     #' Latent definitions.
     latent = function(value) {
       if (!missing(value)) stop_read_only("latent")
-      defs <- private$augm_$defs_of_kind(private$resolved_latent_defs_(), "latent")
+      defs <- private$augm_$defs_of_kind(private$resolved_latent_(), "latent")
       housepi_defin_showcaser(defs)
     },
 
@@ -767,7 +769,7 @@ HousepiModel <- R6::R6Class(
     #' Column 'level' tells member ("member") from household ("house") entries.
     observations = function(value) {
       if (!missing(value)) stop_read_only("observations")
-      resolved <- private$resolved_latent_defs_()
+      resolved <- private$resolved_latent_()
       defs <- do.call(rbind, lapply(c("member", "house"), function(level) {
         out <- private$augm_$defs_of_kind(resolved, level)
         if (is.null(out)) return(NULL)

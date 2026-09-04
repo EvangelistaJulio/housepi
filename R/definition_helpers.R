@@ -124,8 +124,17 @@ helper_variable_core <- function(opts, family, value, func, func_args) {
   y <- housepi_combine_to_call(func_name = x,
                                func_args = func_args,
                                is_func = is.null(value))
-  if (housepi_is_sourced_value(y)) opts$value <- y
-  else opts$func <- y
+  # a value= given alongside a model/prior is a simulation-only override and
+  # always lands in opts$value, whatever its shape; otherwise (including the
+  # bulk `name = <expr>` shorthand, which is also passed in as `value`) the
+  # shape alone decides, as a bare name/leaf and a compound call are handled
+  # the same regardless of which argument carried it
+  has_law <- !is.na(opts[[family2model_col(family)]])
+  if ((!is.null(value) && has_law) || housepi_is_sourced_value(y)) {
+    opts$value <- y
+  } else {
+    opts$func <- y
+  }
 
   # note: a priori a function is not constant
   if (is.na(opts$const)) opts$const <- FALSE

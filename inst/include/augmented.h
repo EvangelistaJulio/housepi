@@ -132,22 +132,28 @@ namespace housepi
         /// rejected, or skipped when exporting the data view.
         void materialize_surrogate_columns(bool for_export = false);
 
-        /// Reset latent initial values for given individual.
+        /// Inference initialization of latent values for a given individual.
         void restart(const Individual &indiv, rnd_gen &prng)
         {
             for (size_t a : list_sample(indiv))
                 varia_of_(indiv).vec[a].restart(prng);
         }
-        /// Draw sampled latent from their model for generative simulation;
-        /// unlike restart it uses no proposal (simulation builds none).
+        /// Inference initialization of latent values for all individuals.
+        /// Automatically skipped if no latent to sample.
+        void restart(rnd_gen &prng);
+
+        /// Simulation initialization (unlike restart it uses no proposal).
+        /// Draw sampled latent from their model for a given individual.
         void draw_sample(const Individual &indiv, rnd_gen &prng)
         {
             for (size_t a : list_sample(indiv))
                 varia_of_(indiv).vec[a].draw_value(prng);
         }
-        /// Initialize latent initial values for all individuals.
-        /// NOTE: skips automatically if no latent to sample.
-        void restart(rnd_gen &prng);
+        /// Simulation initialization (unlike restart it uses no proposal).
+        /// Draw sampled latent from their model for all individuals.
+        /// Automatically skipped if no latent to sample.
+        void draw_sample(rnd_gen &prng);
+        
         /// Finalize all variables (see Variable::finalize).
         void finalize();
 

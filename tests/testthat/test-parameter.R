@@ -454,3 +454,42 @@ test_that("Strict positivity propagates through a parameter function", {
      alpha = min(raiden@P, otacon@P) * 1e-2) |>
     expect_error("not strictly positive")
 })
+
+test_that("An unpinned parameter is drawn from its prior in simulation", {
+  # the proposal is an independence sampler parked in a corner of the prior's
+  # domain: a generative draw reading it would pin every replicate there
+  hhmodel <- data.frame(id = seq_len(20), house_id = 1, status = 1) |>
+    new_housepi_model("test") |>
+    add_parameter(liquid = list(prior = "uniform", min = 0.1, max = 0.9,
+                                proposal = "normal",
+                                proposal_mean = 0.88, proposal_sd = 0.005)) |>
+    add_latent(mantis = list(func = "liquid@P"))
+
+  # a deterministic latent reading the parameter exports the value drawn
+  drawn <- run_simulation(hhmodel, nrep = 40) |>
+    vapply(function(x) x$mantis[1], numeric(1))
+
+  expect_true(all(drawn >= 0.1 & drawn <= 0.9))
+  expect_gt(stats::sd(drawn), 0.15) # uniform spread, not the proposal's 0.005
+  expect_lt(mean(drawn), 0.7)       # centred on the prior, not on 0.88
+})
+
+test_that("An unpinned parameter is drawn from its prior at evaluation", {
+  free <- flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(alpha = list(prior = "uniform", min = 0.1, max = 0.9,
+                               proposal = "normal",
+                               proposal_mean = 0.88, proposal_sd = 0.005),
+                  beta = 0.1, gamma = 1, hhsize_ref = 4)
+  lls <- replicate(20, evaluate_log_lik(free))
+
+  # what the whole prior domain is worth, to scale the spread against
+  pinned <- function(a) flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(alpha = !!a, beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+    evaluate_log_lik()
+  span <- abs(pinned(0.9) - pinned(0.1))
+
+  expect_true(all(is.finite(lls)))
+  expect_gt(stats::sd(lls), 0.05 * span)
+})

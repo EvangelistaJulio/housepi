@@ -13,6 +13,7 @@
 
 #include "tools/types.h"
 #include "function.h"
+#include "group_risk.h"
 #include "household.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,7 +41,7 @@ namespace housepi
         bool is_empty() const noexcept { return house_contact_risks_.empty(); }
 
         /// Rule groups whose overall scale is free (see Parameter::assert_risk_identifiability).
-        size_t n_scale_free() const noexcept { return n_scale_free_; }
+        size_t n_scale_free(const Parameter &param) const;
 
         /// Contact risk 'from' household member 'to' member. No self-contact (set 0 for safety).
         double value(const Household &house,
@@ -88,6 +89,6 @@ namespace housepi
             std::vector<std::vector<Attribute>> mtx = {}; /// contact risks
         };
         std::vector<IndivContact_> house_contact_risks_; /// Storage for household contact risks
-        size_t n_scale_free_ = 0;                        /// free-scale rule groups
+        std::vector<ScaleAnchor> scale_anchors_ = {};    /// rule groups scaling the contacts
     };
 }

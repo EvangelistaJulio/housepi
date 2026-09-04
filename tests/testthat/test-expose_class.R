@@ -188,15 +188,15 @@ test_that("A long enough run renders the progress bar", {
     add_parameter(import = "template")
 
   # NOTE: bar must take longer than 1 second in order to be printed
+  # UPDATE: this is time sensitive and regresses due to optimization
   bar <- capture.output(
     draws <- hhmodel |>
-      run_inference(adapt = 0L, chains = 1L) |>
+      run_inference(adapt = 0, chains = 2) |>
       suppressWarnings(),
     type = "output"
   )
   expect_s3_class(draws, "HousepiPosteriorDraws")
-  expect_true(any(grepl("%|sample", bar)),
-              info = paste(bar, collapse = " | "))
+  expect_true(any(grepl("%|sample", bar)))
 })
 
 test_that("Group risk wrappers", {

@@ -67,11 +67,13 @@ namespace housepi
         if (cold == cnew)
             return;
 
-        // segment boundaries [infected | escaped | missing]
-        size_t bounds[] = {0, ninf_, static_cast<size_t>(ninf_ + nsus_), hhsize_};
-        // extract old position given the old segment
-        size_t pos = std::find(&status_vec_[bounds[cold]], &status_vec_[bounds[cold + 1]], i) -
-                     &status_vec_[0];
+        // segment starts [infected | escaped | missing]
+        const size_t starts[] = {0, ninf_, static_cast<size_t>(ninf_ + nsus_)};
+        // find old position given the old segment
+        // NOTE: segments are small, raw scan profiled better
+        size_t pos = starts[cold];
+        while (status_vec_[pos] != i)
+            ++pos;
 
         // alias for swap between the status segments
         auto segment_swap = [&](size_t a, size_t b)

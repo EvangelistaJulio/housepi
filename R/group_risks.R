@@ -79,7 +79,7 @@ assert_valid_features <- function(features) {
 #' @keywords internal
 #' @noRd
 assert_data_features <- function(features, headers) {
-  # assert that features are present
+  # UPDATE: 'features' is not a useful terminology here
   missing <- setdiff(features, headers)
   if (length(missing) > 0) stop_h(
     sprintf("Unknown %s %s",
@@ -279,6 +279,18 @@ group_risk_logic_table <- function(data_wide, this_feat) {
   y
 }
 
+#' Collapse a named reference into a phrase of `name = value` pairs.
+#' @param reference `list()` Feature values, named after the features.
+#' @param strip `character(1)` Prefix removed from the names before printing.
+#' @return `character(1)`
+#' @noRd
+reference_to_phrase <- function(reference, strip = "^") {
+  character_to_phrase(
+    paste0("{.field ", sub(strip, "", names(reference)),
+           "} = {.val ", unlist(reference), "}")
+  )
+}
+
 #' Associate parameter name to group risk logic table.
 #' @param this_table
 #' Data.frame containing conditions for the group risk.
@@ -307,7 +319,11 @@ associate_group_param_names <- function(this_table, prefix, reference) {
       apply(this_table[colmask], 1,
             function(row) all(row == unlist(reference[colmask])))
     ))
-    if (length(idx_refer) != 1) stop_h("Provided reference group is not valid.")
+    if (length(idx_refer) != 1) stop_h(
+      "Provided reference group is not valid.",
+      `!` = sprintf("An individual with %s is never observed.",
+                    reference_to_phrase(reference))
+    )
   }
 
   # format prefix

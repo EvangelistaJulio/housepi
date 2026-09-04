@@ -18,13 +18,38 @@ STD_IN := -A latent.csv \
 SRC := ../../src
 EXCL_FILES := $(SRC)/RcppExports.cpp $(wildcard $(SRC)/model_*.cpp)
 SOURCES := standalone.cpp $(MODEL) $(filter-out $(EXCL_FILES), $(wildcard $(SRC)/*.cpp))
-
-# Object files to build (automatic)
-OBJECTS := $(SOURCES:.cpp=.o)
-
-# Executable name
 DIRMODEL := $(dir $(MODEL))
-EXECUTABLE := $(DIRMODEL)/model.exe
+
+# Build flavour, picked up by the flags below
+ifneq ($(filter debug,$(MAKECMDGOALS)),)
+  DEBUG := 1
+endif
+ifneq ($(filter profile,$(MAKECMDGOALS)),)
+  PROFILE := 1
+endif
+ifdef DEBUG
+  FLAVOUR := debug
+else ifdef PROFILE
+  FLAVOUR := profile
+else
+  FLAVOUR := release
+endif
+ifdef DISCRETE
+  FLAVOUR := $(FLAVOUR)-discrete
+endif
+
+# Objects and binary live under build/<flavour>, never in $(SRC): those object
+# files belong to R CMD INSTALL. Sharing them makes the two builds trade object
+# files -- the standalone link fails on R-only symbols (unif_rand, _main), and
+# R's install silently pulls in objects compiled with -D_STANDALONE. One
+# directory per flag set, so flavours never reuse each other's objects either.
+BUILD := build/$(FLAVOUR)
+OBJECTS := $(addprefix $(BUILD)/,$(notdir $(SOURCES:.cpp=.o)))
+DEPENDS := $(OBJECTS:.o=.d)
+EXECUTABLE := $(BUILD)/model.exe
+
+# sources are gathered from several directories, objects land in one
+vpath %.cpp . $(SRC) $(DIRMODEL)
 
 # Boost headers come from the BH package in the R build; locate them for standalone
 BH_INC := $(shell Rscript -e 'cat(system.file("include", package="BH"))')
@@ -34,15 +59,9 @@ CXX := g++
 CXXFLAGS := -std=c++17 -D_STANDALONE\
 -I./ -I../include/ -I$(BH_INC) \
 -Wall -Wextra -pedantic \
--Wno-unknown-pragmas
+-Wno-unknown-pragmas \
+-MMD -MP
 LDFLAGS :=
-
-ifneq ($(filter debug,$(MAKECMDGOALS)),)
-  DEBUG := 1
-endif
-ifneq ($(filter profile,$(MAKECMDGOALS)),)
-  PROFILE := 1
-endif
 
 ifdef DEBUG
 CXXFLAGS += -g3 -O0 \
@@ -85,25 +104,23 @@ all: $(EXECUTABLE)
 
 # For the executable
 $(EXECUTABLE): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS) -o $(EXECUTABLE)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS) -o $@
 
-# For the model object
-$(DIRMODEL)/model.o: $(MODEL)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# For the standalone object
-standalone.o: standalone.cpp
+# For the standalone object, the only one reading the model's header
+$(BUILD)/standalone.o: standalone.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -I$(DIRMODEL) -c $< -o $@
 
 # For all other objects
-%.o: %.cpp
+$(BUILD)/%.o: %.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD):
+	@mkdir -p $@
 
 # To clean objects
 clean:
-	$(RM) standalone.o
+	$(RM) -r build
 	$(RM) ../models/*/model.cpp
-	$(RM) {$(DIRMODEL),$(SRC),../models/*}/*.{o,tmp,exe,so,dll}
 
 # Run make in debugging mode
 debug: all
@@ -124,3 +141,6 @@ test-simulate: $(EXECUTABLE)
 	$(EXECUTABLE) $(STD_IN) --simulate -O out.csv
 
 .PHONY: all clean debug profile test-log-lik test-infer test-simulate
+
+# header dependencies recorded by -MMD, absent on the first build
+-include $(DEPENDS)

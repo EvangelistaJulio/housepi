@@ -236,29 +236,31 @@ namespace housepi
     using rnd_gen = XoShiRo128ss;
 #endif
 
-    ///////////////////////////////
-    //////  STANDARD SAMPLERS  //////
-    ///////////////////////////////
+    ///////////////////////////
+    ///  STANDARD SAMPLERS  ///
+    ///////////////////////////
 
-    /// Standard N(0,1) deviate. thread_local cache: race-free when a shared
-    /// Distribution is drawn from concurrently (parallel simulation over households).
+    /// UPDATE: these samplers can be improved.
+
+    /// Standard N(0,1) random variable.
+    /// NOTE: generator caches between calls: thread_local keeps it race-free.
     inline double standard_normal(rnd_gen &prng)
     {
         thread_local static std::normal_distribution<double> gen(0., 1.);
         return gen(prng);
     }
 
-    /// Uniform [0,1) deviate. Stateless distribution; consolidation only.
+    /// Uniform [0,1) random variable. Stateless.
     inline double standard_uniform(rnd_gen &prng)
     {
-        thread_local static std::uniform_real_distribution<double> gen(0., 1.);
+        std::uniform_real_distribution<double> gen(0., 1.);
         return gen(prng);
     }
 
-    /// Exponential deviate with rate 1. Stateless; consolidation only.
+    /// Exponential random variable with rate 1. Stateless.
     inline double standard_exponential(rnd_gen &prng)
     {
-        thread_local static std::exponential_distribution<double> gen(1.);
+        std::exponential_distribution<double> gen(1.);
         return gen(prng);
     }
 }

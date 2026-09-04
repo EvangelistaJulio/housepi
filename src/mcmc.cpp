@@ -659,8 +659,8 @@ namespace housepi
     {
         setup.n_chains = 0; // using '0 chains' as a state variable
         init_for_evaluation_();
-        param.restart(setup.prng());
-        augm.restart(setup.prng());
+        param.draw_sample(setup.prng());
+        augm.draw_sample(setup.prng());
 
         // evaluation at current state
         LogLikAccumulator acc;

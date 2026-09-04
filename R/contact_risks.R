@@ -63,10 +63,12 @@ contact_risk_logic_table <- function(data_wide, features) {
 #' @noRd
 associate_contact_param_names <- function(this_table, prefix, reference,
                                           symmetric = TRUE) {
+  tp <- "^to_"
+  fp <- "^from_"
   colmask <- assess_feature_values(this_table)
-  from_cols <- grep("^from_", colmask, value = TRUE)
-  to_cols <- grep("^to_", colmask, value = TRUE)
-  features <- sub("^from_", "", from_cols)
+  from_cols <- grep(fp, colmask, value = TRUE)
+  to_cols <- grep(tp, colmask, value = TRUE)
+  features <- sub(fp, "", from_cols)
 
   # find reference index
   idx_refer <- NULL
@@ -83,9 +85,9 @@ associate_contact_param_names <- function(this_table, prefix, reference,
       "Provided reference contact risk is not valid.",
       `!` = sprintf(
         "The pair %s %s %s is never observed.",
-        character_to_phrase(reference$from, quote = TRUE, and = FALSE),
+        reference_to_phrase(reference[grep(fp, names(reference))], fp),
         ifelse(symmetric, "<->", "-->"),
-        character_to_phrase(reference$to, quote = TRUE, and = FALSE)
+        reference_to_phrase(reference[grep(tp, names(reference))], tp)
       )
     )
   }

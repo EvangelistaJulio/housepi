@@ -29,9 +29,9 @@ namespace housepi
     /// Manages random number generation and progress tracking.
     struct Setup
     {
-        ///////////////////////////
-        //////  USER CONFIG  //////
-        ///////////////////////////
+        /////////////////////
+        ///  USER CONFIG  ///
+        /////////////////////
 
         /// Expected header keys for configuration input file.
         const std::vector<std::string> file_headers = {"steps", "burn", "thin",
@@ -53,25 +53,25 @@ namespace housepi
         std::vector<std::string> id_draws;    /// Individual IDs whose latent draws are traced.
         std::vector<std::string> house_draws; /// Household IDs whose infected members are traced.
 
-        ///////////////////////////////
-        //////  ADVANCED CONFIG  //////
-        ///////////////////////////////
+        /////////////////////////
+        ///  ADVANCED CONFIG  ///
+        /////////////////////////
 
         unsigned long n_adapt_window; /// Effective window for the smoothed accept-rate.
         double inv_temp;              /// Inverse temperature for power posterior (1.0 = posterior).
         double time_step;             /// Real-time integration step for simulation.
 
-        //////////////////////////////
-        //////  DERIVED CONFIG  //////
-        //////////////////////////////
+        ////////////////////////
+        ///  DERIVED CONFIG  ///
+        ////////////////////////
 
         unsigned long chain_id;      /// Current active MCMC chain (1-indexed).
         unsigned long rung_id;       /// Current active rung in power posterior analysis (0-indexed).
         unsigned long c_sample_size; /// Sample size for a single chain after thinning.
 
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
+        /////////////////////
+        ///  CONSTRUCTOR  ///
+        /////////////////////
 
         Setup();
         ~Setup();
@@ -81,9 +81,9 @@ namespace housepi
         void init_R_context(unsigned barwidth, bool is_interactive,
                             std::function<void()> interrupt_func);
 
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        ////////////////
+        ///  SETTER  ///
+        ////////////////
 
         /// Set the number of threads for parrell computations (default is 1).
         void set_n_threads();
@@ -94,18 +94,18 @@ namespace housepi
         /// Initialize MCMC configuration and assert consistency.
         void init_mcmc_configuration(bool is_adaptive);
 
-        /////////////////////
-        //////  FLAGS  //////
-        /////////////////////
+        ///////////////
+        ///  FLAGS  ///
+        ///////////////
 
         /// Check if running standard sample.
         bool is_mcmc_sample() const noexcept { return n_steps > 1; }
         /// Check if running power posterior analysis.
         bool is_power_post() const noexcept { return n_rungs > 0; }
 
-        //////////////////////
-        //////  RANDOM  //////
-        //////////////////////
+        ////////////////
+        ///  RANDOM  ///
+        ////////////////
 
         /// Initialize random number generator with configured seed.
         void set_prng_seed();
@@ -117,12 +117,18 @@ namespace housepi
         /// Sample an exponential-distributed variable with rate 1.
         double exponential() const { return housepi::standard_exponential(prng()); }
 
-        ////////////////////////////
-        //////  PROGRESS-BAR  //////
-        ////////////////////////////
+        //////////////////////
+        ///  PROGRESS-BAR  ///
+        //////////////////////
 
         /// Update progress bar display text.
         void prog_set_text(std::string text = "");
+        /// Increment progress bar by one iteration.
+        void prog_update();
+        /// Close and finalize progress bar display.
+        void prog_close();
+        /// Mark progress bar as crashed/interrupted.
+        [[noreturn]] void crash(const std::exception &e);
 
         /// Open progress bar for standard MCMC sample.
         void prog_open_for_mcmc_sample();
@@ -131,12 +137,6 @@ namespace housepi
         /// Open progress bar for simulation.
         void prog_open_for_simulation();
 
-        /// Increment progress bar by one iteration.
-        void prog_update();
-        /// Close and finalize progress bar display.
-        void prog_close();
-        /// Mark progress bar as crashed/interrupted.
-        [[noreturn]] void crash(const std::exception &e);
 
     private:
         mutable std::vector<housepi::rnd_gen> prng_parallel_ = {}; /// Thread-local PRNGs for parallel chains.

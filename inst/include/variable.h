@@ -84,9 +84,14 @@ namespace housepi
         void enforce_user_const() noexcept { is_user_const_ = true; }
         /// If applicable, initialize value from distribution.
         void restart(rnd_gen &prng);
-        /// Draw the value from the distribution (used to generate observation
-        /// nodes during simulation; unlike restart it ignores the constant flag).
-        void draw_value(rnd_gen &prng);
+        /// Draw the value from the distribution. Ignores the constant flag.
+        /// A variable pinned by the simulation-only override is skipped.
+        void draw_value(rnd_gen &prng)
+        {
+            // NOTE: distribution is dropped if pinned by the simulation
+            if (has_distr())
+                set(pDistr_->rand(prng));
+        }
         /// Finalize attribute (see Attribute::finalize) and
         /// distribution arguments (see Function::finalize).
         void finalize() override final;

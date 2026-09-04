@@ -49,24 +49,24 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace housepi
+{
+    /// Package-authored exception.
+    /// NOTE: must keep the qualified name in sync with the R side.
+    struct CppError : std::exception
+    {
+        std::string m;
+        explicit CppError(std::string s) : m(std::move(s)) {}
+        const char *what() const noexcept override { return m.c_str(); }
+    };
+}
+
 namespace housepi::msg
 {
-    namespace
-    {
-        /// Package-authored exception.
-        /// NOTE: must keep the name in sync with the R side.
-        struct CppError : std::exception
-        {
-            std::string m;
-            explicit CppError(std::string s) : m(std::move(s)) {}
-            const char *what() const noexcept override { return m.c_str(); }
-        };
-    }
-
     /// Throw an error message.
     [[noreturn]] void stop(const std::string &txt)
     {
-        throw housepi::msg::CppError(txt);
+        throw housepi::CppError(txt);
     }
 
     /// Print an information message to stdout.
@@ -1253,7 +1253,6 @@ namespace
                     try
                     {
                         Household &house = data_wide.at(H);
-
                         engine.model->simulate_single_house(house);
 
                         size_t row = row_offsets[H]; // thread-local: no shared counter
@@ -1341,6 +1340,7 @@ namespace
         {
             engine.model->init_model_for_simulation(); // model specific initialization
             engine.augm.init_house_for_simulation();   // build household-level observations
+            engine.param.assert_risk_identifiability(engine.group_risk, engine.contact_risk);
 
             // FIXME: latent variables are not built yet here
             // -> impossible to assert profile whe Mode::Latent
@@ -1399,6 +1399,7 @@ namespace
                 engine.augm.clear_all();
                 engine.data_wide().recover_all_status();
                 engine.param.load_sample_values(r);
+                engine.param.draw_sample(setup.prng()); // draw parameters with no pinned value
 
                 // run single repetition
                 simulate::single_repetition(

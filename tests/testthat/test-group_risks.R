@@ -33,6 +33,12 @@ flu_small <- data.frame(
 # copies before mutating, so reusing this fixture across tests is safe.
 icofs_model <- sarscov2_2021_icofs |> new_housepi_model("final_size")
 
+# a simulation table giving every parameter of the model a value
+pin_all_params <- function(hhmodel, value = 0.5) {
+  names <- get_parameters(hhmodel)$name
+  as.data.frame(stats::setNames(as.list(rep(value, length(names))), names))
+}
+
 ####################################
 ## GROUP RISKS : HELPER FUNCTIONS ##
 ####################################
@@ -463,6 +469,55 @@ test_that("Two absolute risks on one baseline are not identifiable", {
     add_parameter(alpha = 0.01, gamma = 1, hhsize_ref = 4) |>
     evaluate_log_lik() |>
     expect_error("non-identifiability.*susceptibility.*infectivity")
+})
+
+test_that("A simulation table pins the scales it provides", {
+  hhmodel <- flu_small |>
+    new_housepi_model("final_size") |>
+    add_group_risk("susceptibility", by = "member") |>
+    add_group_risk("infectivity", by = "member") |>
+    add_parameter(alpha = 0.01, gamma = 1, hhsize_ref = 4)
+
+  # every scale reads a value: no product of free scales is left to resolve
+  expect_silent(run_simulation(hhmodel, param_table = pin_all_params(hhmodel)))
+})
+
+test_that("A single fixed stratum anchors the scale of its group", {
+  hhmodel <- flu_small |>
+    new_housepi_model("final_size") |>
+    add_parameter(alpha = list(prior = "uniform", min = 0.2, max = 0.9),
+                  beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+    add_group_risk("community", by = "member")
+
+  # one stratum read from the table fixes the level of the whole group
+  expect_silent(
+    run_simulation(hhmodel, param_table = data.frame(com_member_mother = 0.5))
+  )
+  # the baseline keeps the prior it was given
+  params <- get_parameters(hhmodel)
+  expect_false(params$const[params$name == "alpha"])
+
+  # a stratum held constant anchors the same way
+  hhmodel |>
+    add_parameter(com_member_student = 1.7) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_silent()
+})
+
+test_that("A pinned baseline is not collapsed onto the reference", {
+  hhmodel <- flu_small |>
+    new_housepi_model("final_size") |>
+    add_parameter(alpha = list(prior = "uniform", min = 0, max = 1),
+                  beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+    add_group_risk("community", by = "member")
+
+  expect_silent(run_simulation(hhmodel, param_table = pin_all_params(hhmodel)))
+
+  # with nothing pinning them, the baseline still carries the whole rate
+  hhmodel |>
+    evaluate_log_lik() |>
+    expect_warning("[Bb]aseline.*constant reference")
 })
 
 #########################################

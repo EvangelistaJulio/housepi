@@ -66,7 +66,8 @@ namespace housepi
         virtual void rebind_prior(const Distribution * /*new_distr*/) {}
 
         /// Resolve the read-surface of an owned proposal distribution (evaluation-only).
-        virtual void finalize() {}
+        /// @param owner : name of the variable proposed, for the error it may raise.
+        virtual void finalize(const std::string & /*owner*/) {}
     };
 
 #define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
@@ -133,42 +134,44 @@ namespace housepi
         }
         IndependenceProposal(const IndependenceProposal &other)
             : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-              intrinsic_min_(other.intrinsic_min_), intrinsic_max_(other.intrinsic_max_),
-              prior_has_min_(other.prior_has_min_), prior_has_max_(other.prior_has_max_) {}
+              pPrior_(other.pPrior_),
+              intrinsic_min_(other.intrinsic_min_), intrinsic_max_(other.intrinsic_max_) {}
         MAKE_PROPOSAL_CLONE_METHOD(IndependenceProposal)
 
         double propose(rnd_gen &prng, double /*xo*/) override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
         bool is_independent() const noexcept override final { return true; }
 
-        void finalize() override final
+        void rebind_prior(const Distribution *new_distr) override final { pPrior_ = new_distr; }
+
+        void finalize(const std::string &owner) override final
         {
             if (!pDistr_)
                 return;
             pDistr_->finalize();
 
-            assert_covers_side_(prior_has_min_, pDistr_->min(), intrinsic_min_, true);
-            assert_covers_side_(prior_has_max_, pDistr_->max(), intrinsic_max_, false);
+            assert_covers_side_(intrinsic_min_, true, owner);
+            assert_covers_side_(intrinsic_max_, false, owner);
         }
 
     private:
         std::unique_ptr<Distribution> pDistr_; /// distribution drawn from independently
-        /// The proposal's own bounds, before it inherited the prior's.
-        /// NOTE: transfer_min/max overwrite them, but coverage check runs at finalize().
+        const Distribution *pPrior_ = nullptr; /// prior, read for the domain to cover
+
+        /// The proposal's own bounds, snapshot before it inherited the prior's.
+        /// The transfer belongs to construction, ahead of the reshape() that reads the
+        /// domain to settle the truncation mode; it overwrites these, so coverage is
+        /// checked against the snapshot once finalize() runs.
         /// NOTE: user arguments land first, so a given 'min' is captured here too.
         double intrinsic_min_ = na::DOUBLE;
         double intrinsic_max_ = na::DOUBLE;
-        /// Which sides were inherited. Not recoverable afterwards: an untransferred
-        /// side leaves the proposal's own bound in place, which reads the same as a
-        /// prior that happened to declare it.
-        bool prior_has_min_ = false; /// prior is bounded below
-        bool prior_has_max_ = false; /// prior is bounded above
 
         /// Snapshot the proposal's own support, then point the proposal
         /// truncation at the prior's (possibly live/data-bound) domain. No static value is
         /// baked: transfer keeps pointer/function bounds live, so rand() re-truncates per move.
         void wire_to_prior_domain_(const Distribution *prior)
         {
+            pPrior_ = prior;
             intrinsic_min_ = pDistr_->min().is_callable() ? pDistr_->min().value() : na::DOUBLE;
             intrinsic_max_ = pDistr_->max().is_callable() ? pDistr_->max().value() : na::DOUBLE;
 
@@ -179,26 +182,30 @@ namespace housepi
 
             const Attribute &min_val = prior->min();
             const Attribute &max_val = prior->max();
-            prior_has_min_ = !min_val.is_empty();
-            prior_has_max_ = !max_val.is_empty();
-            if (prior_has_min_)
+            if (!min_val.is_empty())
                 pDistr_->transfer_min(min_val);
-            if (prior_has_max_)
+            if (!max_val.is_empty())
                 pDistr_->transfer_max(max_val);
         }
 
-        void assert_covers_side_(bool prior_has, const Attribute &bound, double intrinsic, bool below) const
+        /// Assert proposal's own support covers prior's domain on given side.
+        /// UPDATE: this should be improved with interval arythmetic
+        void assert_covers_side_(double intrinsic, bool below, const std::string &owner) const
         {
             if (na::is(intrinsic)) // unbounded family: covers any domain on this side
                 return;
+            if (!pPrior_)
+                raise_uncovered_(owner);
+
             // an intrinsically bounded family only covers a constant prior bound it reaches;
             // an unbounded prior, or one not yet readable, leaves a gap
-            if (!prior_has || !bound.is_constant() ||
+            const Attribute &bound = below ? pPrior_->min() : pPrior_->max();
+            if (bound.is_empty() || !bound.is_constant() ||
                 (below ? intrinsic > bound.value() : intrinsic < bound.value()))
-                raise_uncovered_();
+                raise_uncovered_(owner);
         }
 
-        [[noreturn]] void raise_uncovered_() const
+        [[noreturn]] void raise_uncovered_(const std::string &owner) const
         {
             Domain support;
             if (!na::is(intrinsic_min_))
@@ -212,8 +219,9 @@ namespace housepi
                 support.above = Interval::Closed;
             }
             msg::stop("Proposal " + msg::val(pDistr_->name()) + " has support " + support.str() +
-                      " that cannot cover the variable's domain.\nUse proposal = " + msg::val("forward") +
-                      ", a random walk, or a proposal unbounded on that side.");
+                      " that cannot cover the domain " +
+                      (pPrior_ ? pPrior_->str_domain() : std::string("(-Inf, Inf)")) +
+                      " of " + owner + ".\nPlease correct the proposal rule.");
         }
     };
 
@@ -278,7 +286,7 @@ namespace housepi
         bool is_adaptive() const noexcept override final { return is_adaptive_; }
 
         /// Resolve the read-surface of the owned proposal distribution.
-        void finalize() override final
+        void finalize(const std::string & /*owner*/) override final
         {
             if (pDistr_)
                 pDistr_->finalize();

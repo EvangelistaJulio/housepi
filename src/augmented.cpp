@@ -1164,7 +1164,21 @@ namespace housepi
         {
             if (deftable_.c_kind[k] != Kind::Latent)
                 continue;
-            for (const DefTable_::col *col : deftable_.source_cols())
+
+            // a value= paired with a model= pins the latent to that value in
+            // simulation (see helper_init_attributes_) and skips the model
+            // entirely, so a min=/max=/model= that cycles back through a live
+            // observation is never evaluated and must not be flagged here.
+            // This function is only ever reached while simulating (single
+            // call site: init_house_for_simulation), so the override applies
+            // unconditionally; a shared/inference-reachable use would need an
+            // explicit simulation flag, as helper_init_attributes_ has.
+            const bool has_sim_override = !na::is(deftable_.c_value[k]) && !na::is(deftable_.c_model[k]);
+            const std::vector<const DefTable_::col *> cols = has_sim_override
+                ? std::vector<const DefTable_::col *>{&deftable_.c_value, &deftable_.c_func}
+                : deftable_.source_cols();
+
+            for (const DefTable_::col *col : cols)
                 for (const std::string &dstr : referred_data((*col)[k], live_names))
                     msg::stop(
                         "Found cyclic dependency in simulation.\nLatent " +
@@ -1623,6 +1637,16 @@ namespace housepi
         for (const Household &house : mcmc_->data_wide())
             for (const Individual &indiv : house.infected_indivs())
                 restart(indiv, prng);
+    }
+
+    void Augmented::draw_sample(rnd_gen &prng)
+    {
+        if (!is_any_sample())
+            return;
+
+        for (const Household &house : mcmc_->data_wide())
+            for (const Individual &indiv : house.infected_indivs())
+                draw_sample(indiv, prng);
     }
 
     [[noreturn]] void Augmented::throw_obs_init_error(const Individual &indiv) const

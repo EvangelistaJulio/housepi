@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "tools/keys.h"
@@ -25,6 +26,24 @@ namespace housepi
 {
     struct DataWide;
     struct Parameter;
+
+    /// Scale anchoring of a single rule group (see Parameter::assert_risk_identifiability).
+    /// Resolving the group against a member, or an ordered pair for contact risks, either
+    /// matches a rule, and reads the risk it names, or matches none, and reads the reference.
+    /// The risks read are kept rather than counted: whether they can move is answered
+    /// against the pinning of the run being asserted.
+    struct ScaleAnchor
+    {
+        bool anchored = false;                   /// some resolution reads the reference
+        std::vector<size_t> scaling_params = {}; /// distinct risks the group applies
+
+        /// Register the risk read by one resolution. An empty name means no rule matched.
+        void update(std::string_view pstr, const Parameter &param);
+        /// Whether the overall scale of the rule group is left free:
+        /// no resolution reads the reference and every risk applied can move.
+        /// A single fixed risk pins the level of the whole group.
+        bool is_free(const Parameter &param) const;
+    };
 
     struct GroupRisk : public KeyModule
     {
@@ -46,10 +65,10 @@ namespace housepi
         bool is_allocated() const noexcept { return !unique_groups_.empty(); }
 
         /// Rule groups of given key whose overall scale is free (see Parameter::assert_risk_identifiability).
-        size_t n_scale_free(size_t g) const noexcept { return n_scale_free_[g]; }
+        size_t n_scale_free(size_t g, const Parameter &param) const;
 
     private:
-        std::vector<size_t> n_scale_free_ = {}; /// free-scale rule groups per group risk
+        std::vector<std::vector<ScaleAnchor>> scale_anchors_ = {}; /// rule groups per group risk
         /// Individual group risks.
         struct IndivGroup_
         {

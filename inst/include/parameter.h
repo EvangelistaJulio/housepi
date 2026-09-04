@@ -46,9 +46,9 @@ namespace housepi
 
         std::vector<std::vector<double>> simulation_values = {}; /// simulation values
 
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        ////////////////
+        ///  SETTER  ///
+        ////////////////
 
         /// Request that a baseline parameter and the relative risks scaling it share one reference.
         void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts);
@@ -68,6 +68,13 @@ namespace housepi
 
         /// Randomly initialize values of the parameters to be inferred.
         void restart(rnd_gen &prng);
+        /// Simulation initialization (unlike restart it uses no proposal).
+        /// Draw sampled latent from their prior.
+        void draw_sample(rnd_gen &prng)
+        {
+            for (size_t p : list_sample)
+                at(p).draw_value(prng);
+        }
         /// Finalize all variables (see Variable::finalize).
         void finalize();
         /// Load parameters values of the n-th posterior sample.
@@ -81,9 +88,9 @@ namespace housepi
             bool contacts;             /// whether contact risks scale the same term
         };
 
-        //////////////////////
-        //////  GETTER  //////
-        //////////////////////
+        ////////////////
+        ///  GETTER  ///
+        ////////////////
 
         /// Baselines declared by the model, with the risks anchored to them.
         const std::vector<RiskAnchor> &risk_anchors() const noexcept { return risk_anchors_; }
@@ -95,6 +102,13 @@ namespace housepi
 
         /// Whether parameter storage was allocated.
         bool is_allocated() const noexcept { return !param_vec_.empty(); }
+
+        /// Whether the parameter is pinned andcannot move.
+        /// Constant by definition, or held by the simulation table of the current run.
+        bool is_pinned(size_t p) const noexcept
+        {
+            return at(p).is_constant() || !simulation_values[p].empty();
+        }
 
         /// Flag to check if there are parameters to sample.
         bool is_any_sample() const noexcept { return !list_sample.empty(); }
@@ -114,6 +128,8 @@ namespace housepi
 
         /// Initialize parameter vector.
         void init_param_vec_();
+        /// Drop a parameter from every sampling list and register it as constant.
+        void switch_to_const_(size_t p);
         /// Turn a parameter into the constant reference value, dropping it from the sample.
         void helper_pin_to_reference_(size_t p);
         /// Drop current lists of parameters.
