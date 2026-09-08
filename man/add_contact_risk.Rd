@@ -53,10 +53,15 @@ If \code{TRUE}, contact pairs infector-infectee are treated as equivalent
 Each row defines one stratum. If \code{NA}, then match any value.
 Use \code{.reference} in \code{param_name} to designate the reference group;
 omit it to leave the risk absolute.
+The reserved column \code{value} pins a stratum to that value in simulation,
+while it keeps its prior and is sampled in inference.
+The reserved column \code{const} fixes a pinned stratum in inference too,
+so that it carries no prior. The reference stratum takes neither.
 Mutually exclusive with \code{by}.}
 
 \item{params}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
 Overrides shared prior/args for parameters specified in the list.
+A stratum pinned through the \code{strata} table takes no entry here.
 Ignored if automatic definition.}
 
 \item{prior}{\code{character(1)} Prior distribution.}

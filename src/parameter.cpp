@@ -120,7 +120,8 @@ namespace housepi
     /////////////////////////////////  Variable : Setter (Proposal)  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Variable::init_proposal(const std::string &proposal, const dict<Attribute> &args)
+    void Variable::init_proposal(const std::string &proposal,
+                                 const dict<Attribute> &args)
     {
         if (mode_ != Mode::Empty && mode_ != Mode::Numeric)
             return;
@@ -162,8 +163,8 @@ namespace housepi
         valid_mode_ = Validity::Always;
     }
 
-    void Variable::helper_init_random_walk_proposal_(
-        const std::string &proposal, double scale)
+    void Variable::helper_init_random_walk_proposal_(const std::string &proposal,
+                                                     double scale)
     {
         const Distribution *prior = pDistr_.get();
 
@@ -375,7 +376,9 @@ namespace housepi
         simulation_values.clear();
     }
 
-    void Parameter::helper_build_constant_(const str_table &input, size_t k, const Translator &translator)
+    void Parameter::helper_build_constant_(const str_table &input,
+                                           size_t k,
+                                           const Translator &translator)
     {
         const std::string &pstr = input.at("name")[k]; // parameter name
 
@@ -387,7 +390,9 @@ namespace housepi
         list_const.push_back(p);
     }
 
-    void Parameter::helper_build_to_sample_(const str_table &input, size_t k, const Translator &translator)
+    void Parameter::helper_build_to_sample_(const str_table &input,
+                                            size_t k,
+                                            const Translator &translator)
     {
         const std::string &pstr = input.at("name")[k]; // parameter name
 
@@ -420,7 +425,9 @@ namespace housepi
         list_sample.push_back(p);
     }
 
-    void Parameter::helper_build_function_(const str_table &input, size_t k, const Translator &translator)
+    void Parameter::helper_build_function_(const str_table &input,
+                                           size_t k,
+                                           const Translator &translator)
     {
         const std::string &pstr = input.at("name")[k];
         size_t p = khold(pstr);
@@ -465,7 +472,9 @@ namespace housepi
     ////////////////////////////////  Parameter : risk identifiability  /////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Parameter::request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts)
+    void Parameter::request_risk_identifiability(size_t p,
+                                                 std::vector<size_t> risks,
+                                                 bool contacts)
     {
         risk_anchors_.push_back({p, std::move(risks), contacts});
     }
@@ -489,7 +498,8 @@ namespace housepi
         switch_to_const_(p);
     }
 
-    void Parameter::assert_risk_identifiability(const GroupRisk &group_risk, const ContactRisk &contact_risk)
+    void Parameter::assert_risk_identifiability(const GroupRisk &group_risk,
+                                                const ContactRisk &contact_risk)
     {
         for (const RiskAnchor &anchor : risk_anchors_)
         {
@@ -573,7 +583,7 @@ namespace housepi
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  *** GroupRisk : struct ***  ////////////////////////////////
+    /////////////////////////////  *** Risk : shared mechanisms ***  ////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -595,26 +605,159 @@ namespace housepi
         return true;
     }
 
-    void GroupRisk::build(DataWide &data_wide, const Parameter &param, const str_table &input)
+    void RiskStorage::finalize()
+    {
+        for (Attribute &risk : flat_)
+            risk.finalize();
+    }
+
+    void RiskStorage::reset_store_(size_t n_owners)
+    {
+        flat_.clear();
+        base_.assign(n_owners, 0);
+    }
+
+    size_t RiskStorage::count_scale_free_(const std::vector<ScaleAnchor> &anchors,
+                                          const Parameter &param)
+    {
+        size_t n = 0;
+        for (const ScaleAnchor &anchor : anchors)
+            n += anchor.is_free(param);
+        return n;
+    }
+
+    namespace
+    {
+        /// Register on every rule group the risk one resolution read,
+        /// 'resolved' holding the rule row each group matched, if any.
+        template <class Key>
+        void update_anchors_(std::map<Key, ScaleAnchor> &anchors,
+                             const std::map<Key, size_t> &resolved,
+                             const std::vector<std::string> &param_name,
+                             const Parameter &param)
+        {
+            for (auto &[key, anchor] : anchors)
+            {
+                // a group no rule of which matched reads the reference value
+                std::string_view pstr = {};
+                if (auto found = resolved.find(key); found != resolved.end())
+                    pstr = param_name[found->second];
+                anchor.update(pstr, param);
+            }
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////  *** GroupRisk : struct ***  ////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    namespace
+    {
+        using idx_vec = std::vector<size_t>;
+
+        /// A group risk rule is resolved per risk name and rule group.
+        using GroupKey_ = std::pair<std::string, size_t>;
+
+        /// Auxiliary helper to extract group risk definitions.
+        struct GroupDefinitions_
+        {
+        public:
+            std::vector<std::string> data; /// covariates held by the data
+            idx_vec keys;                  /// data-wide keys
+            RuleTable rules;               /// rule_group / specificity
+
+            /// Extract the definitions from input headers,
+            /// 'spec_headers' listing every feature a rule may key on.
+            GroupDefinitions_(const str_table &input,
+                              const DataWide &data_wide,
+                              const std::vector<std::string> &spec_headers,
+                              const StatusTable<StatusSlot> &slot_of)
+                : data(spec_headers - std::vector<std::string>({risks::STATUS_KEY})),
+                  keys(data_wide.khold(data)),
+                  rules(input, spec_headers),
+                  slot_of_(slot_of)
+            {
+                // the status is carried by the member, every other feature by the data
+                if (input.count(risks::STATUS_KEY))
+                    status_col_ = &input.at(risks::STATUS_KEY);
+            }
+
+            /// Associate the most-specific matching rule to each (risk name, rule group),
+            /// reading the member features at status slot 'slot'.
+            std::map<GroupKey_, size_t> resolve(const DataWide &data_wide,
+                                                const Individual &indiv,
+                                                StatusSlot slot) const
+            {
+                return rules.resolve<GroupKey_>(
+                    [&](size_t r)
+                    { return matches_(data_wide, r, indiv, slot); },
+                    [&](size_t r)
+                    { return GroupKey_{rules.input.at("group_risk")[r], rules.row_gid[r]}; },
+                    [&](const GroupKey_ &key)
+                    {
+                        return "group risk " + msg::val(key.first) + " for " +
+                               data_wide.str(indiv) + " (group " +
+                               std::to_string(key.second) + ")";
+                    });
+            }
+
+        private:
+            const std::vector<std::string> *status_col_ = nullptr; /// status the rules key on, none if absent
+            const StatusTable<StatusSlot> &slot_of_;               /// status level to the slot it reads
+
+            /// Whether the member matches the rule at row 'r', read at status slot 'slot'.
+            bool matches_(const DataWide &data_wide,
+                          size_t r,
+                          const Individual &indiv,
+                          StatusSlot slot) const
+            {
+                if (status_col_)
+                {
+                    const std::string &sval = (*status_col_)[r];
+                    if (!na::is(sval) && slot != slot_of_[str::toi(sval)])
+                        return false;
+                }
+                for (size_t i = 0; i < data.size(); ++i)
+                {
+                    const std::string &dval = rules.input.at(data[i])[r];
+                    if (!na::is(dval) && data_wide.data(keys[i], indiv) != str::tod(dval))
+                        return false;
+                }
+                return true;
+            }
+        };
+    }
+
+    void GroupRisk::build(DataWide &data_wide,
+                          const Parameter &param,
+                          const str_table &input)
     {
         // reset group risk storage and unbind individuals
         khold_.clear_optional();
-        unique_groups_.clear();
-        group_index_.assign(data_wide.report_indiv.total, 0);
+        reset_store_(data_wide.report_indiv.total);
         scale_anchors_.clear();
+        slot_base_.fill(0);
+        n_slots_ = 1;
 
-        // load required data headers or skip if no definitions provided
-        std::vector<std::string> data_headers = {};
+        // load required feature headers or skip if no definitions provided
+        std::vector<std::string> spec_headers = {};
         if (!input.empty())
-            data_headers = helper_process_definitions_(data_wide, input);
+            spec_headers = helper_process_definitions_(data_wide, input);
         else if (khold_.empty())
             return;
         scale_anchors_.assign(khold_.size(), {});
 
-        // load column with group risk names, if any
+        // load columns with group risk and parameter names, if any
         std::vector<std::string> g_input_vec = {};
+        std::vector<std::string> p_input_vec = {};
         if (input.count("group_risk"))
+        {
             g_input_vec = input.at("group_risk");
+            p_input_vec = input.at("param_name");
+        }
+        assert_status_stratified_(input, g_input_vec);
 
         // check for undefined group risks, assumed to be equal to reference
         str_table undefined_risks = {};
@@ -622,70 +765,53 @@ namespace housepi
             if (!contains(g_input_vec, gstr))
                 undefined_risks[gstr].push_back(risks::REFERENCE);
 
-        // precompute rule_group / specificity and resolve column indices once
-        const RuleTable rules(input, data_headers);
-        const auto data_ix = data_wide.khold(data_headers);
+        // give every status level a rule keys on a storage slot of its own
+        StatusTable<StatusSlot> slot_of = {};
+        if (input.count(risks::STATUS_KEY))
+            slot_of = helper_init_status_slots_(input.at(risks::STATUS_KEY));
 
-        // predicate: does rule row r match this member's feature vector?
-        auto matches_with = [&](const Individual &mb)
-        {
-            return [&, mb_ptr = &mb](size_t r)
-            {
-                for (size_t d = 0; d < data_headers.size(); ++d)
-                {
-                    const auto &fv = input.at(data_headers[d])[r];
-                    if (!na::is(fv) && data_wide.data(data_ix[d], *mb_ptr) != str::tod(fv))
-                        return false;
-                }
-                return true;
-            };
-        };
+        // precompute rule_group / specificity and resolve column indices once
+        const GroupDefinitions_ defs(input, data_wide, spec_headers, slot_of);
 
         // per-(risk_name, rule_group) scale anchoring, resolved member by member below
-        using Key = std::pair<std::string, size_t>;
-        std::map<Key, ScaleAnchor> anchors;
-        for (size_t r = 0; r < rules.n_rows; ++r)
-            anchors.emplace(Key{g_input_vec[r], rules.row_gid[r]}, ScaleAnchor{});
+        std::map<GroupKey_, ScaleAnchor> anchors;
+        for (size_t r = 0; r < defs.rules.n_rows; ++r)
+            anchors.emplace(GroupKey_{g_input_vec[r], defs.rules.row_gid[r]}, ScaleAnchor{});
 
-        // unique definition map
-        std::map<str_table, size_t> unique_defin_map;
+        // unique definition map, one resolution per status slot
+        std::map<std::vector<str_table>, RiskOffset> unique_defin_map;
         for (Household &house : data_wide)
             for (Individual &indiv : house)
             {
-                str_table these_risks = undefined_risks;
+                // a member whose status is still to be drawn may take any slot,
+                // one whose status is settled anchors on the slot it reads
+                StatusSlot own_slot = 0;
+                const bool any_slot = indiv.is_missing_status();
+                if (!any_slot)
+                    own_slot = slot_of[indiv.status()];
 
-                // per-(risk_name, rule_group): keep the most-specific matching rule
-                const auto resolved = rules.resolve<Key>(
-                    matches_with(indiv),
-                    [&](size_t r)
-                    { return Key{g_input_vec[r], rules.row_gid[r]}; },
-                    [&](const Key &key)
-                    {
-                        return "group risk " + msg::val(key.first) + " for " +
-                               data_wide.str(indiv) + " (group " +
-                               std::to_string(key.second) + ")";
-                    });
-
-                for (auto &[key, r] : resolved)
-                    these_risks[key.first].push_back(input.at("param_name")[r]);
-
-                // a member matching no rule of the group reads the reference value
-                for (auto &[key, anchor] : anchors)
+                std::vector<str_table> slot_risks(n_slots_, undefined_risks);
+                for (size_t s = 0; s < n_slots_; ++s)
                 {
-                    auto found = resolved.find(key);
-                    anchor.update(found == resolved.end()
-                                      ? std::string_view{}
-                                      : std::string_view(input.at("param_name")[found->second]),
-                                  param);
+                    const auto resolved =
+                        defs.resolve(data_wide, indiv, static_cast<StatusSlot>(s));
+
+                    for (auto &[key, r] : resolved)
+                        slot_risks[s][key.first].push_back(p_input_vec[r]);
+
+                    if (any_slot || s == own_slot)
+                        update_anchors_(anchors, resolved, p_input_vec, param);
                 }
 
-                auto it = unique_defin_map.find(these_risks);
+                auto it = unique_defin_map.find(slot_risks);
                 if (it == unique_defin_map.end())
                 {
-                    it = unique_defin_map.emplace(these_risks, unique_groups_.size()).first;
-                    helper_init_unique_risk_(data_wide, param, indiv, these_risks);
+                    it = unique_defin_map.emplace(
+                                             slot_risks, static_cast<RiskOffset>(flat_.size()))
+                             .first;
+                    helper_init_unique_risk_(param, slot_risks);
                 }
-                group_index_[Index::of(indiv)] = it->second;
+                base_[Index::of(indiv)] = it->second;
             }
 
         // store the scale anchors of every rule group
@@ -693,22 +819,8 @@ namespace housepi
             scale_anchors_[khold(key.first)].push_back(anchor);
     }
 
-    size_t GroupRisk::n_scale_free(size_t g, const Parameter &param) const
-    {
-        size_t n = 0;
-        for (const ScaleAnchor &anchor : scale_anchors_[g])
-            n += anchor.is_free(param);
-        return n;
-    }
-
-    void GroupRisk::finalize()
-    {
-        for (IndivGroup_ &group : unique_groups_)
-            for (Attribute &risk : group.vec)
-                risk.finalize();
-    }
-
-    std::vector<std::string> GroupRisk::helper_process_definitions_(DataWide &data_wide, const str_table &input)
+    std::vector<std::string> GroupRisk::helper_process_definitions_(DataWide &data_wide,
+                                                                    const str_table &input)
     {
         const std::vector<std::string> file_headers = {"group_risk", "param_name", "rule_group"};
 
@@ -732,42 +844,84 @@ namespace housepi
         size_t max_unique = 1;
         for (auto &[gstr, count] : definition_counts)
             max_unique *= count;
-        unique_groups_.reserve(max_unique);
+        flat_.reserve(max_unique * khold_.size());
 
-        data_wide.set_eq_class_data_names(data_headers);
+        // the status is carried by the member: it is no data key, and the
+        // equivalence-class hash already mixes it in
+        data_wide.set_eq_class_data_names(
+            data_headers - std::vector<std::string>({risks::STATUS_KEY}));
 
         return data_headers;
     }
 
-    void GroupRisk::helper_init_unique_risk_(const DataWide &data_wide, const Parameter &param, const Individual &indiv, const str_table &these_risks)
+    void GroupRisk::assert_status_stratified_(const str_table &input,
+                                              const std::vector<std::string> &g_input_vec) const
     {
-        unique_groups_.emplace_back();
-        IndivGroup_ &igr = unique_groups_.back();
-        igr.vec.reserve(khold_.size());
-        for (const std::string &gstr : khold_.all())
+        if (!input.count(risks::STATUS_KEY))
+            return;
+        const std::vector<std::string> &status_col = input.at(risks::STATUS_KEY);
+        for (size_t r = 0; r < status_col.size(); ++r)
         {
-            if (!these_risks.count(gstr))
-                msg::stop(
-                    "A group risk definition " + msg::val(gstr) +
-                    " was missing for " + data_wide.str(indiv) + ".");
-
-            igr.vec.emplace_back(risks::VALUE_REFERENCE);
-            igr.vec.back().name(gstr, ErrType::GroupRisk);
+            if (na::is(status_col[r]))
+                continue;
+            const size_t g = khold(g_input_vec[r]);
+            if (contains(status_stratified_, g))
+                continue;
+            msg::stop(
+                "Group risk " + msg::val(g_input_vec[r]) +
+                " cannot be stratified by the infected status.\n"
+                "It is read on members that carry no infected status yet.");
         }
+    }
+
+    StatusTable<StatusSlot> GroupRisk::helper_init_status_slots_(const std::vector<std::string> &status_col)
+    {
+        // levels are narrow enough for the table to be the set of the keyed ones
+        StatusTable<bool> is_keyed = {};
+        for (const std::string &sval : status_col)
+            if (!na::is(sval))
+                is_keyed[static_cast<StatusLvl>(str::toi(sval))] = true;
+
+        // one slot per status a rule keys on. Every level no rule distinguishes
+        // shares slot 0 with the escaped and the missing ones: they all resolve
+        // the wildcard rules alone, hence read the same risks.
+        StatusTable<StatusSlot> slot_of = {};
+        for (size_t level = 0; level < slot_of.size(); ++level)
+        {
+            if (is_keyed[level])
+                slot_of[level] = static_cast<StatusSlot>(n_slots_++);
+            slot_base_[level] =
+                static_cast<SlotOffset>(slot_of[level] * khold_.size());
+        }
+        return slot_of;
+    }
+
+    void GroupRisk::helper_init_unique_risk_(const Parameter &param, const std::vector<str_table> &slot_risks)
+    {
+        const size_t base = flat_.size();
+        // a risk the member resolved no rule for stays at the reference:
+        // status rules, in particular, never cover the escaped members
+        for (size_t s = 0; s < n_slots_; ++s)
+            for (const std::string &gstr : khold_.all())
+            {
+                flat_.emplace_back(risks::VALUE_REFERENCE);
+                flat_.back().name(gstr, ErrType::GroupRisk);
+            }
 
         // assign custom definitions
-        for (const auto &[gstr, pstr_vec] : these_risks)
-        {
-            // extract non-reference parameter pointers
-            std::vector<const Attribute *> param_pointers = {};
-            for (const std::string &pstr : pstr_vec)
-                if (pstr != risks::REFERENCE)
-                    param_pointers.emplace_back(
-                        param.at(param.khold(pstr)).pointer());
+        for (size_t s = 0; s < n_slots_; ++s)
+            for (const auto &[gstr, pstr_vec] : slot_risks[s])
+            {
+                // extract non-reference parameter pointers
+                std::vector<const Attribute *> param_pointers = {};
+                for (const std::string &pstr : pstr_vec)
+                    if (pstr != risks::REFERENCE)
+                        param_pointers.emplace_back(
+                            param.at(param.khold(pstr)).pointer());
 
-            if (!param_pointers.empty())
-                igr.vec[khold(gstr)].init_product(param_pointers);
-        }
+                if (!param_pointers.empty())
+                    flat_[base + s * khold_.size() + khold(gstr)].init_product(param_pointers);
+            }
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -778,20 +932,6 @@ namespace housepi
 
     namespace
     {
-        using idx_vec = std::vector<size_t>;
-
-        /// Concatenate 'from_X' and 'to_X' headers into the spec-column list.
-        std::vector<std::string> concat_(
-            const std::vector<std::string> &a,
-            const std::vector<std::string> &b)
-        {
-            std::vector<std::string> out;
-            out.reserve(a.size() + b.size());
-            out.insert(out.end(), a.begin(), a.end());
-            out.insert(out.end(), b.begin(), b.end());
-            return out;
-        }
-
         /// Auxiliary helper to extract contact risk definition.
         struct ContactDefinitions_
         {
@@ -804,14 +944,13 @@ namespace housepi
 
             /// Extract from/to definitions from input headers.
             // NOTE: 'from' and 'to' expected to have the same size
-            ContactDefinitions_(
-                const str_table &input,
-                const DataWide &data_wide)
+            ContactDefinitions_(const str_table &input,
+                                const DataWide &data_wide)
                 : from(extract_from_(input)),
                   to(extract_to_(input)),
                   data(strip_from_prefix_(from)),
                   keys(data_wide.khold(data)),
-                  rules(input, concat_(from, to)) {}
+                  rules(input, from + to) {}
 
             /// Associate parameter pointers to pair. Accumulate the scale anchoring of each group.
             std::vector<const Attribute *> associate_param_ptrs(
@@ -843,15 +982,7 @@ namespace housepi
                         param_ptrs.push_back(param.at(param.khold(pstr)).pointer());
                 }
 
-                // a pair matching no rule of the group reads the reference value
-                for (auto &[gid, anchor] : anchors)
-                {
-                    auto found = resolved.find(gid);
-                    anchor.update(found == resolved.end()
-                                      ? std::string_view{}
-                                      : std::string_view(rules.input.at("param_name")[found->second]),
-                                  param);
-                }
+                update_anchors_(anchors, resolved, rules.input.at("param_name"), param);
                 return param_ptrs;
             }
 
@@ -883,11 +1014,10 @@ namespace housepi
             }
 
             /// Whether the pair of members match the contact rule at row 'r'.
-            bool matches_(
-                const DataWide &data_wide,
-                size_t r,
-                const Individual &indiv_from,
-                const Individual &indiv_to) const
+            bool matches_(const DataWide &data_wide,
+                          size_t r,
+                          const Individual &indiv_from,
+                          const Individual &indiv_to) const
             {
                 for (size_t i = 0; i < from.size(); ++i)
                 {
@@ -902,15 +1032,67 @@ namespace housepi
                 return true;
             };
         };
+
+        /// Order covariate vectors of equal length.
+        struct CovariateLess_
+        {
+            bool operator()(const std::vector<double> &a,
+                            const std::vector<double> &b) const
+            {
+                for (size_t i = 0; i < a.size(); ++i)
+                {
+                    // a missing cell matches no rule value: it is a class of its own
+                    const bool na_a = na::is(a[i]), na_b = na::is(b[i]);
+                    if (na_a != na_b)
+                        return na_b;
+                    if (!na_a && a[i] != b[i])
+                        return a[i] < b[i];
+                }
+                return false;
+            }
+        };
+
+        /// A rule reads the covariates of the two members and nothing else (see
+        /// ContactDefinitions_::matches_), so every member carrying the same
+        /// covariates resolves the same way: class them, and a pair of classes
+        /// resolves once for all the households repeating it.
+        struct CovariateClasses_
+        {
+        public:
+            idx_vec of_indiv; /// class every member belongs to
+            size_t count = 0; /// distinct classes
+
+            CovariateClasses_(const DataWide &data_wide, const idx_vec &keys)
+                : of_indiv(data_wide.report_indiv.total, 0)
+            {
+                std::map<std::vector<double>, size_t, CovariateLess_> class_of;
+                std::vector<double> covariates(keys.size());
+                for (const Household &house : data_wide)
+                    for (const Individual &indiv : house)
+                    {
+                        for (size_t i = 0; i < keys.size(); ++i)
+                            covariates[i] = data_wide.data(keys[i], indiv);
+                        of_indiv[Index::of(indiv)] =
+                            class_of.emplace(covariates, class_of.size()).first->second;
+                    }
+                count = class_of.size();
+            }
+        };
+
+        /// Risks an ordered pair of covariate classes multiplies, resolved on first encounter.
+        struct PairRisk_
+        {
+            std::vector<const Attribute *> param_ptrs = {}; /// risks the pair applies
+            bool resolved = false;                          /// whether the pair was resolved
+        };
     }
 
-    void ContactRisk::build(
-        DataWide &data_wide,
-        const Parameter &param,
-        const str_table &input)
+    void ContactRisk::build(DataWide &data_wide,
+                            const Parameter &param,
+                            const str_table &input)
     {
         // reset storage
-        house_contact_risks_.clear();
+        reset_store_(data_wide.report_house.total);
         scale_anchors_.clear();
         if (input.empty())
             return;
@@ -925,48 +1107,49 @@ namespace housepi
         for (size_t r = 0; r < defs.rules.n_rows; ++r)
             anchors.emplace(defs.rules.row_gid[r], ScaleAnchor{});
 
+        // resolved pair by pair, on first encounter only: ScaleAnchor::update is
+        // idempotent, so the anchors accumulate exactly as one pass would leave them
+        const CovariateClasses_ classes(data_wide, defs.keys);
+        std::vector<PairRisk_> pair_risks(classes.count * classes.count);
+
+        // lay every household's matrix row-major into the one flat store
+        size_t n_cells = 0;
+        for (size_t H = 0; H < data_wide.report_house.total; ++H)
+        {
+            base_[H] = static_cast<RiskOffset>(n_cells);
+            const size_t house_size = data_wide.at(H).size();
+            n_cells += house_size * house_size;
+        }
+        flat_.assign(n_cells, risks::VALUE_REFERENCE);
+
         // loop over all households
-        // UPDATE: this should be just over eq_class_head households.
-        house_contact_risks_.resize(data_wide.report_house.total);
         for (size_t H = 0; H < data_wide.report_house.total; ++H)
         {
             Household &house = data_wide.at(H);
             size_t house_size = house.size();
 
-            house_contact_risks_[H].mtx.assign(
-                house_size, std::vector<Attribute>(house_size, risks::VALUE_REFERENCE));
-
             // NOTE: a priori contact risks are non-symmetric
             for (size_t from = 0; from < house_size; ++from)
                 for (size_t to = 0; to < house_size; ++to)
                 {
-                    std::vector<const Attribute *> param_ptrs =
-                        defs.associate_param_ptrs(data_wide, param, house.at(from),
-                                                  house.at(to), anchors);
+                    PairRisk_ &pair =
+                        pair_risks[classes.of_indiv[Index::of(house.at(from))] * classes.count +
+                                   classes.of_indiv[Index::of(house.at(to))]];
+                    if (!pair.resolved)
+                    {
+                        pair.param_ptrs =
+                            defs.associate_param_ptrs(data_wide, param, house.at(from),
+                                                      house.at(to), anchors);
+                        pair.resolved = true;
+                    }
 
-                    if (!param_ptrs.empty())
-                        house_contact_risks_[H].mtx[from][to].init_product(param_ptrs);
+                    if (!pair.param_ptrs.empty())
+                        flat_[base_[H] + from * house_size + to].init_product(pair.param_ptrs);
                 }
         }
 
         // store the scale anchors of every rule group
         for (const auto &[gid, anchor] : anchors)
             scale_anchors_.push_back(anchor);
-    }
-
-    size_t ContactRisk::n_scale_free(const Parameter &param) const
-    {
-        size_t n = 0;
-        for (const ScaleAnchor &anchor : scale_anchors_)
-            n += anchor.is_free(param);
-        return n;
-    }
-
-    void ContactRisk::finalize()
-    {
-        for (IndivContact_ &contact : house_contact_risks_)
-            for (std::vector<Attribute> &row : contact.mtx)
-                for (Attribute &risk : row)
-                    risk.finalize();
     }
 }

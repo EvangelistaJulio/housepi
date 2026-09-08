@@ -27,68 +27,64 @@ namespace housepi
     struct DataWide;
     struct Parameter;
 
-    struct ContactRisk
+    struct ContactRisk : public RiskStorage
     {
     public:
         /// Build symmetric contact risks from table definitions.
         void build(DataWide &data_wide,
                    const Parameter &param,
                    const str_table &input);
-        /// Finalize all variables (see Variable::finalize).
-        void finalize();
-
-        /// Whether no contact risk definitions were provided in the last build.
-        bool is_empty() const noexcept { return house_contact_risks_.empty(); }
-
-        /// Rule groups whose overall scale is free (see Parameter::assert_risk_identifiability).
-        size_t n_scale_free(const Parameter &param) const;
-
-        /// Contact risk 'from' household member 'to' member. No self-contact (set 0 for safety).
-        double value(const Household &house,
-                     MemberIndex from,
-                     MemberIndex to) const
-        {
-            if (from == to)
-                return 0.;
-            if (house_contact_risks_.empty())
-                return 1.;
-            return house_contact_risks_[Index::of(house)].mtx[from][to].value();
-        }
-
-        /// Contact risk intra member partition (self-contact).
-        double intra_value(const Household &house,
-                           MemberIndex i) const
-        {
-            if (house_contact_risks_.empty())
-                return 1.;
-            return house_contact_risks_[Index::of(house)].mtx[i][i].value();
-        }
 
         /// Whether household members i and j have matching contact risks across all members.
         bool same_contacts(const Household &house,
-                           MemberIndex i,
-                           MemberIndex j) const noexcept
+                           MemberIdx i,
+                           MemberIdx j) const noexcept
         {
-            if (house_contact_risks_.empty())
+            if (is_empty())
                 return true;
-            const auto &mtx = house_contact_risks_[Index::of(house)].mtx;
-            for (MemberIndex k = 0; k < house.size(); ++k)
+            for (MemberIdx k = 0; k < house.size(); ++k)
             {
                 if (k == j || k == i)
                     continue;
-                if (mtx[i][k] != mtx[j][k] || mtx[k][i] != mtx[k][j])
+                if (at(house, i, k) != at(house, j, k) ||
+                    at(house, k, i) != at(house, k, j))
                     return false;
             }
             return true;
         }
 
-    private:
-        /// Per-household contact risk matrix.
-        struct IndivContact_
+        /// Contact risk of an ordered pair, row-major within the household.
+        const Attribute &at(const Household &house,
+                            MemberIdx from,
+                            MemberIdx to) const noexcept
         {
-            std::vector<std::vector<Attribute>> mtx = {}; /// contact risks
-        };
-        std::vector<IndivContact_> house_contact_risks_; /// Storage for household contact risks
-        std::vector<ScaleAnchor> scale_anchors_ = {};    /// rule groups scaling the contacts
+            return cell_(Index::of(house),
+                         static_cast<size_t>(from) * house.size() +
+                             static_cast<size_t>(to));
+        }
+
+        /// Contact risk 'from' household member 'to' member.
+        /// NOTE: self-contacts are set to 0.
+        double value(const Household &house,
+                     MemberIdx from,
+                     MemberIdx to) const
+        {
+            return from == to ? 0. : (is_empty() ? 1. : at(house, from, to).value());
+        }
+
+        /// Contact risk intra member partition (self-contact).
+        double intra_value(const Household &house, MemberIdx i) const
+        {
+            return is_empty() ? 1. : at(house, i, i).value();
+        }
+
+        /// Rule groups whose overall scale is free (see Parameter::assert_risk_identifiability).
+        size_t n_scale_free(const Parameter &param) const
+        {
+            return count_scale_free_(scale_anchors_, param);
+        }
+
+    private:
+        std::vector<ScaleAnchor> scale_anchors_ = {}; /// rule groups scaling the contacts
     };
 }

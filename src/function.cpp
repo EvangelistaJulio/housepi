@@ -791,11 +791,7 @@ namespace housepi
         {
             std::vector<std::string> options = {};
             for (Kind kind : kinds)
-            {
-                const std::vector<std::string> y = instance(kind).names();
-                options.reserve(options.size() + y.size());
-                options.insert(options.end(), y.begin(), y.end());
-            }
+                options += instance(kind).names();
             return str::unique(options);
         }
 

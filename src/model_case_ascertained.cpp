@@ -45,6 +45,8 @@ public:
 			Param::alpha, {GroupRisk::community});
 		request_risk_identifiability(
 			Param::beta, {GroupRisk::susceptibility, GroupRisk::infectivity}, true);
+		request_risk_status_stratified(
+			{GroupRisk::infectivity});
 		request_latent_transmission(
 			{Latent::infec_time});
 #ifdef _HOUSEPI_DISCRETE_TIME
@@ -86,7 +88,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/// Transmission rate.
-	double transmission_rate(MemberIndex house_size) const
+	double transmission_rate(MemberIdx house_size) const
 	{
 		return par(Param::beta) *
 			   std::exp(par(Param::gamma) * std::log(par(Param::hhsize_ref) / house_size));
@@ -105,7 +107,7 @@ public:
 	/// Compute transmission log-likelihood within household.
 	double compute_house_transm_log_lik(const Household &house) override final
 	{
-		const MemberIndex i0 = cache_member(house, HHmember::intro_case);
+		const MemberIdx i0 = cache_member(house, HHmember::intro_case);
 		const Individual &indiv_0 = house.at(i0);
 		const double t_intro = aug(Latent::infec_time, indiv_0);
 
@@ -122,12 +124,12 @@ public:
 			output -= alpha * exposure * group_risk(GroupRisk::community, indiv_s);
 		}
 
-		for (MemberIndex i : house.infected_members())
+		for (MemberIdx i : house.infected_members())
 		{
 			const Individual &indiv_i = house.at(i);
 			const double mu_i = group_risk(GroupRisk::infectivity, indiv_i);
 
-			for (MemberIndex s : house.escaped_members())
+			for (MemberIdx s : house.escaped_members())
 				output -= mu_i * beta * cumul_mtx[i][s] *
 						  contact_risk(house, i, s) *
 						  group_risk(GroupRisk::susceptibility, house.at(s));
@@ -138,7 +140,7 @@ public:
 			// Risk of infection from other household members k
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
-			for (MemberIndex j : house.infected_members())
+			for (MemberIdx j : house.infected_members())
 			{
 				if (j == i)
 					continue;
@@ -185,8 +187,8 @@ public:
 		double t_infec_i,
 		double t_infec_j)
 	{
-		const MemberIndex i = Index::member(indiv_i);
-		const MemberIndex j = Index::member(indiv_j);
+		const MemberIdx i = Index::member(indiv_i);
+		const MemberIdx j = Index::member(indiv_j);
 		const double gentime = t_infec_j - t_infec_i;
 
 		// note: setting lut to 0 this is necessary because ROI is brute force
@@ -224,7 +226,7 @@ public:
 	}
 
 	/// Introduction rule: earliest infection, ties to smallest hosuehold index.
-	static void helper_commit_intro(MemberIndex &i0, double &t0, MemberIndex i, double t)
+	static void helper_commit_intro(MemberIdx &i0, double &t0, MemberIdx i, double t)
 	{
 		if (t < t0 || (t == t0 && i < i0))
 		{
@@ -240,15 +242,15 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtx::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtx::cumul);
-		MemberIndex &i0 = cache_member(house, HHmember::intro_case);
+		MemberIdx &i0 = cache_member(house, HHmember::intro_case);
 		double new_t0 = 100000;
 
-		const MemberIndex n_infec = house.n_infected_status();
+		const MemberIdx n_infec = house.n_infected_status();
 		const auto &infected_members = house.infected_members();
 
-		for (MemberIndex a = 0; a < n_infec; ++a)
+		for (MemberIdx a = 0; a < n_infec; ++a)
 		{
-			const MemberIndex i = infected_members[a];
+			const MemberIdx i = infected_members[a];
 			const Individual &indiv_i = house.at(i);
 			const double t_infec_i = aug(Latent::infec_time, indiv_i);
 
@@ -256,7 +258,7 @@ public:
 			//////  Escaped Members  //////
 			///////////////////////////////
 
-			for (MemberIndex s : house.escaped_members())
+			for (MemberIdx s : house.escaped_members())
 			{
 				const Individual &indiv_s = house.at(s);
 				const double exposure = follow_up_end(indiv_s) - t_infec_i;
@@ -268,9 +270,9 @@ public:
 			//////// Infectious Members ///////
 			///////////////////////////////////
 
-			for (MemberIndex b = a + 1; b < n_infec; ++b)
+			for (MemberIdx b = a + 1; b < n_infec; ++b)
 			{
-				const MemberIndex j = infected_members[b];
+				const MemberIdx j = infected_members[b];
 				const Individual &indiv_j = house.at(j);
 				const double t_infec_j = aug(Latent::infec_time, indiv_j);
 
@@ -290,16 +292,16 @@ public:
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtx::inst);
 		auto &cumul_mtx = cache_double_matrix(house, HHdoublemtx::cumul);
-		MemberIndex &i0 = cache_member(house, HHmember::intro_case);
+		MemberIdx &i0 = cache_member(house, HHmember::intro_case);
 
-		const MemberIndex i = Index::member(indiv_i);
+		const MemberIdx i = Index::member(indiv_i);
 		const double t_infec_i = aug(Latent::infec_time, indiv_i);
 
 		///////////////////////////////
 		//////  Escaped Members  //////
 		///////////////////////////////
 
-		for (MemberIndex s : house.escaped_members())
+		for (MemberIdx s : house.escaped_members())
 		{
 			const Individual &indiv_s = house.at(s);
 			double exposure = follow_up_end(indiv_s) - t_infec_i;
@@ -311,14 +313,11 @@ public:
 		//////// Infectious Members ///////
 		///////////////////////////////////
 
-		if (house.n_infected_status() < 2)
-			return;
-
 		// commit introduction to current member
 		i0 = i;
 		double new_t0 = t_infec_i;
 
-		for (MemberIndex j : house.infected_members())
+		for (MemberIdx j : house.infected_members())
 		{
 			if (j == i)
 				continue;
@@ -353,7 +352,7 @@ public:
 		/////////////  Generation 0 : by single introduction  ///////////
 		/////////////////////////////////////////////////////////////////
 
-		const MemberIndex i0 = helper_rand_intro(house);
+		const MemberIdx i0 = helper_rand_intro(house);
 		Individual &indiv_0 = house.at(i0);
 
 		/////////////////////////////////////////////////////////////////
@@ -388,9 +387,9 @@ public:
 	}
 
 	/// Draw introduction uniformly among all members.
-	MemberIndex helper_rand_intro(Household &house)
+	MemberIdx helper_rand_intro(Household &house)
 	{
-		const MemberIndex i0 = uniform() * house.size();
+		const MemberIdx i0 = uniform() * house.size();
 		Individual &indiv_0 = house.at(i0);
 		set_infected(house, indiv_0);
 		init_missing_latent(indiv_0);
@@ -411,11 +410,11 @@ public:
 		double alpha,
 		double beta) const
 	{
-		MemberIndex i = Index::member(indiv_i);
+		MemberIdx i = Index::member(indiv_i);
 		double roi = 0.; // instantaneous risk of infection
 
 		// j : infector, i : infectee
-		for (MemberIndex j : house.infected_members())
+		for (MemberIdx j : house.infected_members())
 		{
 			const Individual &indiv_j = house.at(j);
 			const double gentime = t_infec_i - aug(Latent::infec_time, indiv_j);

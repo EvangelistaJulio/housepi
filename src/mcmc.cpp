@@ -398,8 +398,8 @@ namespace housepi
     /// every contact-risk involving one matches the corresponding one involving the
     /// other, both outgoing and incoming, across all other members.
     bool MCMCBase::is_same_risk_partition(const Household &house,
-                                          MemberIndex i,
-                                          MemberIndex j) const
+                                          MemberIdx i,
+                                          MemberIdx j) const
     {
         if (i == j)
             return true;
@@ -516,7 +516,7 @@ namespace housepi
             for (const Household &house : data_wide())
                 for (const Individual &indiv : house.infected_indivs())
                     for (size_t a : augm.list_adaptive(indiv))
-                        get_latent_varia(a, indiv).init_proposal();
+                        augm.at(a, indiv).init_proposal();
     }
 
     void MCMCBase::recover_total_log_lik_(bool with_cache,
@@ -918,7 +918,7 @@ namespace housepi
                 for (const Household &house : data_wide())
                     for (const Individual &indiv : house.infected_indivs())
                         for (size_t a : augm.list_adaptive(indiv))
-                            get_latent_varia(a, indiv).adapt_proposal(ratio);
+                            augm.at(a, indiv).adapt_proposal(ratio);
         }
     }
 
@@ -1061,7 +1061,7 @@ namespace housepi
                                                          const Individual &indiv,
                                                          size_t a)
     {
-        Variable &avar = get_latent_varia(a, indiv);
+        Variable &avar = augm.at(a, indiv);
 
         // keep track of model-consumers
         // NOTE: if 'a' is producer of other latent models, their model-ratio may change

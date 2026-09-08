@@ -623,7 +623,7 @@ namespace
             {
                 size_t c = 0;
                 for (size_t a : augm.list_latent_export)
-                    latent_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->get_latent_varia(a, indiv));
+                    latent_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->augm.at(a, indiv));
                 ++row;
             }
 
@@ -1015,7 +1015,7 @@ namespace
         const GroupRisk &group_risk = mcmc_ptr->group_risk;
         const std::vector<std::string> &headers = group_risk.khold().all();
 
-        if (headers.empty() || !group_risk.is_allocated())
+        if (headers.empty() || group_risk.is_empty())
             return Rcpp::DataFrame::create();
 
         size_t n_rows = house.size();
@@ -1095,10 +1095,10 @@ namespace
 
         // a latent profile reads NA until its storage is allocated
         if (!is_latent || mcmc_ptr->augm.is_allocated())
-            for (MemberIndex i : house.infected_members())
+            for (MemberIdx i : house.infected_members())
             {
                 const Function *f =
-                    is_latent ? mcmc_ptr->get_latent_varia(infec_profile.latent_key, house.at(i)).function()
+                    is_latent ? mcmc_ptr->augm.at(infec_profile.latent_key, house.at(i)).function()
                               : infec_profile.generic.get();
                 if (!f)
                     continue;
@@ -1146,7 +1146,7 @@ namespace
 
             for (size_t c = 0; c < n_cols; ++c)
             {
-                const Variable &avar = mcmc_ptr->get_latent_varia(list[c], indiv_i);
+                const Variable &avar = mcmc_ptr->augm.at(list[c], indiv_i);
                 if (avar.has_distr())
                     df_double[c][i] = hsp_to_rcpp(avar.guarded_log_pdf());
             }
@@ -1184,7 +1184,7 @@ namespace
             id_col[i] = data_wide.id(indiv_i);
             size_t c = 0;
             for (size_t a : augm.list_latent_export)
-                df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->get_latent_varia(a, indiv_i));
+                df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->augm.at(a, indiv_i));
         }
 
         // NOTE: discrete_export_cols starts with list_latent_export.
@@ -1261,11 +1261,11 @@ namespace
                             status_col[row] = hsp_to_rcpp(indiv);
                             size_t c = 0;
                             for (size_t a : augm.list_latent_export)
-                                latent_cols[c++][row] = hsp_to_rcpp(engine.get_latent_varia(a, indiv));
+                                latent_cols[c++][row] = hsp_to_rcpp(engine.augm.at(a, indiv));
                             // observation nodes: generated for infected members, NA otherwise
                             for (size_t a : augm.list_obs_member)
                                 latent_cols[c++][row] = indiv.is_infected_status()
-                                                            ? hsp_to_rcpp(engine.get_latent_varia(a, indiv))
+                                                            ? hsp_to_rcpp(engine.augm.at(a, indiv))
                                                             : NA_REAL;
                             ++row;
                         }
@@ -1289,7 +1289,7 @@ namespace
                                 const size_t a = augm.khold(augm.surrogate_name(surr));
                                 size_t r = row_offsets[H];
                                 for (const Individual &indiv : house)
-                                    latent_cols[c][r++] = hsp_to_rcpp(engine.get_latent_varia(a, indiv));
+                                    latent_cols[c][r++] = hsp_to_rcpp(engine.augm.at(a, indiv));
                             }
                             ++c;
                         }

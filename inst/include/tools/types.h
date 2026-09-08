@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 #include <map>
@@ -19,8 +21,21 @@ namespace housepi
     using str_table = dict<std::vector<std::string>>;
     using dbl_table = dict<std::vector<double>>;
 
-    using IndivIndex = std::uint32_t;  /// global individual index
-    using HouseIndex = std::uint32_t;  /// global household index
-    using MemberIndex = std::uint8_t;  /// index of a member within household
-    using StatusLevel = std::uint8_t;  /// individual status level
+    /// Global individual index.
+    using IndivIdx = std::uint32_t;
+    /// Global household index.
+    using HouseIdx = std::uint32_t;
+    /// Relative member index within household.
+    using MemberIdx = std::uint8_t;
+    /// Individual status level.
+    using StatusLvl = std::uint8_t;
+    /// Storage slot a status level reads in a risk store.
+    using StatusSlot = std::uint8_t;
+    /// Offset of a status slot within one risk definition.
+    using SlotOffset = std::uint16_t;
+    /// Offset into a flat risk store.
+    using RiskOffset = std::uint32_t;
+    /// Fixed-size table addressed by a status level.
+    template <typename T>
+    using StatusTable = std::array<T, 1 + std::numeric_limits<StatusLvl>::max()>;
 }

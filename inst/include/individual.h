@@ -22,44 +22,48 @@ namespace housepi
 
 	/// Class for individual household member.
 	/// NOTE: the user id lives in DataWide, keyed by the individual index (see Index::of).
-	/// NOTE: 'member' names the household-relative index (MemberIndex, Index::member,
-	/// Household::infected_members); the person itself is an Individual, named 'indiv'.
 	class Individual final
 	{
-		friend class Household; /// owns and mutates its members
-		friend struct Index;	/// reads the opaque storage indexes
+		friend class Household; // owns and mutates its members
+		friend struct Index;	// reads the opaque storage indexes
 
 	public:
-		/////////////////////////
-		//////  OPERATORS  //////
-		/////////////////////////
+		///////////////////
+		///  OPERATORS  ///
+		///////////////////
 
 		/// Equal to operator.
-		bool operator==(const Individual &other) const noexcept { return indiv_index_ == other.indiv_index_; }
+		bool operator==(const Individual &other) const noexcept
+		{
+			return indiv_index_ == other.indiv_index_;
+		}
 		/// Not equal to operator.
-		bool operator!=(const Individual &other) const noexcept { return indiv_index_ != other.indiv_index_; }
+		bool operator!=(const Individual &other) const noexcept
+		{
+			return indiv_index_ != other.indiv_index_;
+		}
 
-		//////////////////////
-		//////  GETTER  //////
-		//////////////////////
+		////////////////
+		///  GETTER  ///
+		////////////////
 
 		/// Associated status.
-		StatusLevel status() const noexcept { return status_; }
+		StatusLvl status() const noexcept { return status_; }
 
-		/////////////////////
-		//////  FLAGS  //////
-		/////////////////////
-
+		/// Whether individual status is infected.
 		bool is_infected_status() const noexcept { return status::is_infected(status_); }
+		/// Whether individual status is escaped.
 		bool is_escaped_status() const noexcept { return status::is_escaped(status_); }
+		/// Whether individual status is missing.
 		bool is_missing_status() const noexcept { return status::is_missing(status_); }
 
 	private:
-		IndivIndex indiv_index_ = 0;   /// housepi internal individual index
-		MemberIndex member_index_ = 0; /// index within its own household
-
-		/// status of the individual
-		StatusLevel status_ = status::MISSING;
+		/// Global individual index.
+		IndivIdx indiv_index_ = 0;
+		/// Relative index within its household.
+		MemberIdx member_index_ = 0;
+		/// Status of the individual.
+		StatusLvl status_ = status::MISSING;
 	};
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -74,10 +78,10 @@ namespace housepi
 	struct Index
 	{
 		/// Index of an individual within its own household.
-		static MemberIndex member(const Individual &indiv) noexcept { return indiv.member_index_; }
+		static MemberIdx member(const Individual &indiv) noexcept { return indiv.member_index_; }
 		/// Global individual index.
-		static IndivIndex of(const Individual &indiv) noexcept { return indiv.indiv_index_; }
+		static IndivIdx of(const Individual &indiv) noexcept { return indiv.indiv_index_; }
 		/// Global household index.
-		static HouseIndex of(const Household &house) noexcept; /// see household.h
+		static HouseIdx of(const Household &house) noexcept; /// see household.h
 	};
 }

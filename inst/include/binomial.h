@@ -18,24 +18,24 @@ namespace housepi::chain_binom
     void clear_lookuptables();
 
     /// Ensure homogeneous generation tables are available up to n infected.
-    void ensure_homogeneous(MemberIndex n);
+    void ensure_homogeneous(MemberIdx n);
 
     /// Pre-build and store the partition tree for equivalence class idx.
     /// Only the first n_parts entries of part_counts are read.
-    void ensure_partitioned(HouseIndex idx,
-                            const std::vector<MemberIndex> &part_counts,
-                            MemberIndex n_parts);
+    void ensure_partitioned(HouseIdx idx,
+                            const std::vector<MemberIdx> &part_counts,
+                            MemberIdx n_parts);
 
     /// Chain binomial log-likelihood dispatcher.
     ///
     /// Routes to the cheapest algorithm consistent with the partition:
-    /// `n_parts == 1` with uniform rates → closed-form homogeneous;
+    /// `n_parts == 1` → homogeneous;
     /// `n_parts == n_infec` → bitmask DP heterogeneous;
-    /// otherwise → multitype partition tree (grouped), looked up by dp_idx.
-    double log_likelihood(HouseIndex dp_idx,
-                          MemberIndex n_infec,
-                          MemberIndex n_parts,
-                          const std::vector<MemberIndex> &part_indexes,
+    /// otherwise → multitype partition tree (grouped).
+    double log_likelihood(HouseIdx dp_idx,
+                          MemberIdx n_infec,
+                          MemberIdx n_parts,
+                          const std::vector<MemberIdx> &part_indexes,
                           const std::vector<double> &commu_infec_rate,
                           const std::vector<std::vector<double>> &p2p_infec_rate);
 

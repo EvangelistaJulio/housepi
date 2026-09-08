@@ -61,7 +61,8 @@ expect_function_matches <- function(name, args,
 # The reported support gates the values the null move is defined on.
 expect_distribution_matches <- function(name, args,
                                         ref_d, ref_p,
-                                        domain = "(-Inf, Inf)", discrete = FALSE,
+                                        domain = "(-Inf, Inf)",
+                                        discrete = FALSE,
                                         x = seq(-20, 20, 1), h = pi) {
   distr <- do.call(browse_distributions, c(list(name), args))
   expect_identical(distr$domain, domain)
@@ -446,7 +447,7 @@ test_that("Truncated discrete rand() reaches every bin of the support", {
 
 test_that("Discrete uniform spreads flat mass over the integers", {
   k <- 0:10
-  distr <- browse_distributions("uniform", min = min(k), max = max(k), discr = TRUE)
+  distr <- browse_distributions("uniform", min = 0, max = 10, discr = TRUE)
 
   # every integer value in the support carries the same mass
   expect_equal(distr$pdf(k), rep(1 / length(k), length(k)))

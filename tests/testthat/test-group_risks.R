@@ -224,7 +224,7 @@ test_that("Group risks sentinels work correctly", {
 
   hhmodel |>
     add_group_risk("susceptibility", by = "test_date") |>
-    expect_error("[Mm]ust be a scalar")
+    expect_error("[Mm]ust be a unidimensional type")
 })
 
 test_that("Group risks reference support behaves as expected", {
@@ -436,6 +436,261 @@ test_that("Absoluteness follows the reference across every definition mode", {
   expect_equal(risk_prior("susceptibility", strata = tagged), "lognormal")
 })
 
+###############################
+## GROUP RISKS : STRATA PINS ##
+###############################
+
+# Custom strata over `flu_small`, pinning one stratum and fixing another.
+pin_strata <- function(value = c(NA, 1.2, 0.5), const = c(NA, NA, TRUE)) {
+  data.frame(member = c("student", "mother", "father"),
+             param_name = c(".reference", "sus_mum", "sus_dad"),
+             value = value, const = const)
+}
+
+test_that("A strata value pins the stratum and keeps its prior", {
+  hhmodel <- flu_small |>
+    new_housepi_model("final_size") |>
+    add_group_risk("susceptibility", strata = pin_strata(),
+                   prior = "lognormal", sdlog = 3)
+
+  params <- get_parameters(hhmodel)
+  mum <- subset(params, name == "sus_mum")
+  expect_equal(mum$value, 1.2)
+  expect_false(mum$const)
+  expect_equal(mum$prior, "lognormal")
+
+  # a fixed stratum is a constant parameter: it carries no prior
+  dad <- subset(params, name == "sus_dad")
+  expect_equal(dad$value, 0.5)
+  expect_true(dad$const)
+  expect_true(is.na(dad$prior))
+})
+
+test_that("Pin columns surface on the read table only when a pin exists", {
+  hhmodel <- flu_small |>
+    new_housepi_model("final_size") |>
+    add_group_risk("susceptibility", strata = pin_strata(),
+                   prior = "lognormal", sdlog = 3)
+
+  tidy <- get_group_risks(hhmodel)
+  expect_true(all(c("value", "const") %in% colnames(tidy)))
+  # padding keeps the columns typed across sub-tables
+  expect_type(tidy$value, "double")
+  expect_type(tidy$const, "logical")
+  expect_equal(tidy$value[tidy$param_name == "sus_mum"], 1.2)
+  expect_true(is.na(tidy$value[tidy$param_name == ".reference"]))
+
+  # an unpinned risk keeps the table it had
+  flu_small |>
+    new_housepi_model("final_size") |>
+    add_group_risk("susceptibility", by = "member") |>
+    get_group_risks() |>
+    colnames() |>
+    intersect(c("value", "const")) |>
+    expect_length(0)
+})
+
+test_that("Invalid strata pins are rejected", {
+  mk <- function(strata) {
+    flu_small |>
+      new_housepi_model("final_size") |>
+      add_group_risk("susceptibility", strata = strata,
+                     prior = "lognormal", sdlog = 3)
+  }
+
+  # a fixed stratum needs the value it is fixed at
+  mk(pin_strata(value = c(NA, 1.2, NA), const = c(NA, NA, TRUE))) |>
+    expect_error("sus_dad")
+  # the reference is 1 by definition
+  mk(pin_strata(value = c(0.9, 1.2, 0.5))) |>
+    expect_error("[Rr]eference")
+  mk(pin_strata(const = c(TRUE, NA, TRUE))) |>
+    expect_error("[Rr]eference")
+  # the columns carry a fixed type
+  mk(transform(pin_strata(), value = as.character(value))) |>
+    expect_error("numeric")
+  mk(transform(pin_strata(), const = as.character(const))) |>
+    expect_error("logical")
+
+  # a stratum spread over two rules carries a single pin
+  data.frame(member = c("student", "mother", "mother"),
+             param_name = c(".reference", "sus_mum", "sus_mum"),
+             value = c(NA, 1.2, 0.4)) |>
+    mk() |>
+    get_parameters() |>
+    expect_error("[Cc]onflicting")
+})
+
+test_that("A pinned stratum takes no entry in params", {
+  flu_small |>
+    new_housepi_model("final_size") |>
+    add_group_risk("susceptibility", strata = pin_strata(),
+                   params = list(sus_mum = 2), prior = "lognormal",
+                   sdlog = 3) |>
+    expect_error("sus_mum")
+})
+
+#################################
+## GROUP RISKS : STATUS STRATA ##
+#################################
+
+# two observed infected statuses, plus a data column duplicating them on the
+# infected members only: the covariate a status stratification replaces.
+status <- c("escaped", "symptomatic", "asymptomatic", "symptomatic",
+            "escaped", "asymptomatic", "symptomatic", "escaped",
+            "asymptomatic", "symptomatic", "asymptomatic", "escaped")
+snake_data <- data.frame(
+  house_id = rep(1:4, each = 3),
+  status = status,
+  shadow = ifelse(status == "escaped", NA, status)
+)
+
+test_that("Status is accepted as a stratification axis", {
+  # both gates let 'status' through for a group risk
+  snake_model <- snake_data |> new_housepi_model("final_size")
+  snake_model |>
+    add_group_risk("infectivity", by = "status") |>
+    expect_silent()
+  snake_model |>
+    add_group_risk("infectivity",
+                   strata = data.frame(status = "symptomatic",
+                                       param_name = "inf_ocelot")) |>
+    expect_silent()
+
+  # ... and neither exposes it as a required data column
+  module <- snake_model |>
+    add_group_risk(infectivity = list(
+      by = "status", reference = list(status = "symptomatic")
+    )) |>
+    (\(m) m$.__enclos_env__$private$group_risks_)()
+  expect_false("status" %in% module$data_required)
+  expect_false("status" %in% module$feature_names)
+  expect_true(module$stratifies_on_status)
+
+  # one parameter per non-reference stratum, named after the label
+  expect_equal(unname(module$param_required), "inf_status_asymptomatic")
+})
+
+test_that("Only the risks the model declares may be status stratified", {
+  snake_model <- snake_data |> new_housepi_model("final_size")
+  # infectivity is read after the member's status is settled, the others are
+  # read on members that carry no infected status
+  snake_model |>
+    add_group_risk("susceptibility", by = "status") |>
+    expect_error("cannot be stratified by the infected status")
+  snake_model |>
+    add_group_risk("community", by = "status") |>
+    expect_error("cannot be stratified by the infected status")
+
+  # contact risks keep no status axis at all
+  snake_model |>
+    add_contact_risk(by = "status") |>
+    expect_error("reserved")
+
+  # a model that declares no status level cannot stratify on it. The risk
+  # waits for the declaration, so decorator order is free, and the wall reports
+  # that it never came
+  mk_risk_model() |>
+    add_group_risk("infectivity", by = "status") |>
+    expect_silent()
+  mk_risk_model() |>
+    add_group_risk("infectivity", by = "status") |>
+    add_parameter(alpha = 0.01, beta = 0.2, gamma = 1, hhsize_ref = 3) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_error("model declares no level")
+})
+
+test_that("Status strata are declared, not read off the data", {
+  # the observed labels are the model dictionary: a stratum outside it is
+  # unknown, warned about, and yields no parameter
+  liquid <- snake_data
+  liquid$status[liquid$status == "asymptomatic"] <- "escaped"
+  liquid |>
+    new_housepi_model("final_size") |>
+    add_group_risk(infectivity = list(
+      strata = data.frame(status = c("symptomatic", "asymptomatic"),
+                          param_name = c(".reference", "inf_liquid"))
+    )) |>
+    expect_warning("[Uu]nknown definition.*asymptomatic")
+
+  # with no status observed at all, no sample size can pick a reference
+  snake_data |>
+    dplyr::mutate(status = NA) |>
+    new_housepi_model("final_size") |>
+    add_latent(infec_time = list(model = "uniform", min = 0, max = 5)) |>
+    add_status(symptomatic = 0.3, asymptomatic = 0.7) |>
+    add_group_risk(infectivity = list(by = "status", reference = ".auto")) |>
+    expect_error("reference = list\\(status")
+})
+
+test_that("A status stratum reads as a covariate duplicating it", {
+  # the workaround a status axis replaces: a data column carrying the status
+  # of the infected members, NA elsewhere, so escapees match no rule either
+  pin <- function(hhmodel, name, value) {
+    hhmodel <- add_parameter(hhmodel, alpha = 0.01, beta = 0.2,
+                             gamma = 1, hhsize_ref = 3)
+    args <- list(hhmodel, 0.4)
+    names(args) <- c("", name)
+    suppressWarnings(do.call(add_parameter, args))
+  }
+  by_status <- snake_data |>
+    new_housepi_model("final_size") |>
+    add_group_risk(infectivity = list(
+      by = "status", reference = list(status = "symptomatic")
+    )) |>
+    pin("inf_status_asymptomatic")
+  by_shadow <- snake_data |>
+    new_housepi_model("final_size") |>
+    add_group_risk(infectivity = list(
+      by = "shadow", reference = list(shadow = "symptomatic")
+    )) |>
+    pin("inf_shadow_asymptomatic")
+
+  # every parameter is pinned, so the likelihood is a deterministic probe
+  expect_false(anyNA(get_parameters(by_status)$value))
+  expect_identical(evaluate_log_lik(by_status), evaluate_log_lik(by_shadow))
+})
+
+test_that("A status stratum drives simulated transmission", {
+  # the drawn status, not a frozen covariate, selects the infectivity: with the
+  # asymptomatic stratum near zero, a run that draws only asymptomatic cases
+  # must transmit far less than one that draws only symptomatic ones
+  outer_heaven <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% sample(unique(house_id), 150)) |>
+    dplyr::mutate(status = NA, start_date = 0, end_date = 21)
+
+  base <- outer_heaven |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    add_infectivity_profile(import = "template") |>
+    add_latent(
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    ) |>
+    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
+    add_group_risk(infectivity = list(
+      by = "status", reference = list(status = "symptomatic")
+    )) |>
+    add_parameter(alpha = 1e-12, beta = 20, gamma = 1, hhsize_ref = 4,
+                  inf_status_asymptomatic = 1e-3) |>
+    suppressWarnings()
+
+  # the status weights must reach the categorical as literals
+  mostly_sym <- base |>
+    add_status(symptomatic = 0.9, asymptomatic = 0.1) |>
+    suppressWarnings()
+  mostly_asy <- base |>
+    add_status(symptomatic = 0.1, asymptomatic = 0.9) |>
+    suppressWarnings()
+  attack_rate <- function(hhmodel) {
+    simulated <- suppressWarnings(run_simulation(hhmodel))
+    mean(as.character(simulated$status) != "escaped")
+  }
+
+  # alpha is negligible, so every case beyond the introductions is transmitted
+  expect_gt(attack_rate(mostly_sym), 1.5 * attack_rate(mostly_asy))
+})
+
 ##############################
 ## GROUP RISKS : END-TO-END ##
 ##############################
@@ -455,7 +710,7 @@ test_that("An absolute risk collapses the baseline it scales", {
   # the collapsed baseline is carried into the posterior
   draws <- hhmodel |>
     run_inference(steps = 5L, thin = 1L, adapt = 0L, chains = 1L) |>
-    suppressWarnings() |> 
+    suppressWarnings() |>
     summarise_draws()
   expect_false("alpha" %in% draws$variable)
   expect_true(any(grepl("^com_member", draws$variable)))
@@ -518,6 +773,91 @@ test_that("A pinned baseline is not collapsed onto the reference", {
   hhmodel |>
     evaluate_log_lik() |>
     expect_warning("[Bb]aseline.*constant reference")
+})
+
+test_that("A strata pin reaches simulation and stratifies on data only", {
+  hhmodel <- flu_small |>
+    new_housepi_model("final_size") |>
+    add_parameter(alpha = 0.01, beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+    add_group_risk("susceptibility", strata = pin_strata(),
+                   prior = "lognormal", sdlog = 3)
+
+  # every scale reads a value, and the pin columns are no stratification axis
+  expect_silent(run_simulation(hhmodel))
+})
+
+test_that("A fixed stratum holds across draws, a pinned one is resampled", {
+  mk <- function(strata) {
+    flu_small |>
+      new_housepi_model("final_size") |>
+      add_parameter(alpha = 0.01, beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+      add_group_risk("susceptibility", strata = strata,
+                     prior = "lognormal", sdlog = 3)
+  }
+  twice <- function(hhmodel) {
+    c(evaluate_log_lik(hhmodel), evaluate_log_lik(hhmodel))
+  }
+
+  # every stratum fixed: inference reads the values, nothing is drawn
+  fixed <- mk(pin_strata(value = c(NA, 1.2, 0.5), const = c(NA, TRUE, TRUE)))
+  expect_silent(out <- twice(fixed))
+  expect_equal(out[1], out[2])
+
+  # a value= pin is a simulation-only override: the prior still drives inference
+  drawn <- mk(pin_strata(value = c(NA, 1.2, 0.5), const = c(NA, NA, NA)))
+  expect_false(isTRUE(all.equal(twice(drawn)[1], twice(drawn)[2])))
+})
+
+test_that("A fixed stratum anchors the scale of its rule group", {
+  # the group is anchored by the constant, so no baseline is collapsed onto it
+  flu_small |>
+    new_housepi_model("final_size") |>
+    add_parameter(alpha = list(prior = "uniform", min = 0.2, max = 0.9),
+                  beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+    add_group_risk("community", strata = pin_strata(
+      value = c(NA, 1.2, 0.5), const = c(NA, TRUE, TRUE)
+    ), prior = "lognormal", sdlog = 3) |>
+    evaluate_log_lik() |>
+    expect_silent()
+})
+
+test_that("Strata counts come from the engine cross-tabulation", {
+  # a cell the data does not carry forms no stratum of its own, so the counts
+  # add up to the members that carry a value, not to every member
+  shadow_moses <- data.frame(
+    house_id = c("h1", "h1", "h2", "h2", "h3"),
+    status = c(1, 0, 1, 1, 0),
+    role = c("snake", "otacon", "snake", NA, "otacon"),
+    veteran = c(TRUE, FALSE, TRUE, FALSE, NA)
+  )
+  tbl <- shadow_moses |>
+    new_housepi_model("final_size", quiet = TRUE) |>
+    add_parameter(import = "template") |>
+    add_group_risk(susceptibility = list(by = "role", reference = ".auto")) |>
+    add_group_risk(infectivity = list(by = "veteran", reference = ".auto")) |>
+    get_group_risks()
+
+  role <- tbl[tbl$group_risk == "susceptibility", ]
+  expect_setequal(as.character(role$role), c("snake", "otacon"))
+  expect_equal(sum(role$n), 4L)
+
+  # a logical column keeps both of its levels, and drops the missing one
+  veteran <- tbl[tbl$group_risk == "infectivity", ]
+  expect_setequal(as.character(veteran$veteran), c("TRUE", "FALSE"))
+  expect_equal(sum(veteran$n), 4L)
+})
+
+test_that("Status strata count the infected members only", {
+  # the status is read off the member, not off a data column: escaped members
+  # carry no infected label, so they land in no stratum
+  tbl <- sarscov2_2021_icofs |>
+    new_housepi_model("final_size", quiet = TRUE) |>
+    add_parameter(import = "template") |>
+    add_group_risk(infectivity = list(by = "status", reference = ".auto")) |>
+    get_group_risks()
+
+  expect_equal(sum(tbl$n), sum(sarscov2_2021_icofs$status > 0))
+  expect_setequal(as.character(tbl$status), c("1", "2"))
 })
 
 #########################################

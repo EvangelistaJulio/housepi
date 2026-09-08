@@ -26,7 +26,7 @@
 namespace housepi::chain_binom
 {
     using std::vector;
-    using gentype = vector<MemberIndex>;
+    using gentype = vector<MemberIdx>;
 
     template <typename T>
     using matrix = vector<vector<T>>;
@@ -170,7 +170,7 @@ namespace housepi::chain_binom
     }
 
     /// Ensure count-compressed generations are available up to n infected.
-    void ensure_homogeneous(MemberIndex n)
+    void ensure_homogeneous(MemberIdx n)
     {
         if (n < lut.num_generations.size())
             return;
@@ -198,11 +198,11 @@ namespace housepi::chain_binom
 
             for (gentype g : recursive_span_generation_(k))
             {
-                std::map<MemberIndex, MemberIndex> freq_map = {};
+                std::map<MemberIdx, MemberIdx> freq_map = {};
                 gentype counts = {};
                 unsigned long multiplicities = factorial(k);
 
-                for (MemberIndex val : g)
+                for (MemberIdx val : g)
                     if (freq_map.count(val))
                         ++freq_map[val];
                     else
@@ -237,7 +237,7 @@ namespace housepi::chain_binom
 
     /// Homogeneous chain binomial log-likelihood.
     /// Based on @cite longini_household_1982
-    double log_lik_homogeneous_(MemberIndex n_infec,
+    double log_lik_homogeneous_(MemberIdx n_infec,
                                 double commu_infec_rate,
                                 double p2p_infec_rate)
     {
@@ -503,7 +503,7 @@ namespace housepi::chain_binom
 
     /// Heterogeneous final-size using subset bitmasks.
     /// Based on @cite addy_generalized_1991
-    double log_lik_heterogeneous_(MemberIndex n_infec,
+    double log_lik_heterogeneous_(MemberIdx n_infec,
                                   const std::vector<double> &commu_infec_rate,
                                   const std::vector<std::vector<double>> &p2p_infec_rate)
     {
@@ -557,11 +557,11 @@ namespace housepi::chain_binom
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Build the partition tree for the infected partition held in c_root[0, K).
-    PartitionTree build_partition_tree_(const MemberIndex *c_root,
-                                        MemberIndex K)
+    PartitionTree build_partition_tree_(const MemberIdx *c_root,
+                                        MemberIdx K)
     {
         size_t total = 1;
-        for (MemberIndex s = 0; s < K; ++s)
+        for (MemberIdx s = 0; s < K; ++s)
             total *= (c_root[s] + 1);
 
         // enumerate all v <= c_root via odometer increment
@@ -572,7 +572,7 @@ namespace housepi::chain_binom
             while (true)
             {
                 sub_vecs.push_back(cur);
-                MemberIndex s = 0;
+                MemberIdx s = 0;
                 while (s < K && cur[s] == c_root[s])
                     cur[s++] = 0;
                 if (s == K)
@@ -587,9 +587,9 @@ namespace housepi::chain_binom
                   [](const gentype &a, const gentype &b)
                   {
                       unsigned sa = 0, sb = 0;
-                      for (MemberIndex x : a)
+                      for (MemberIdx x : a)
                           sa += x;
-                      for (MemberIndex x : b)
+                      for (MemberIdx x : b)
                           sb += x;
                       return sa != sb ? sa < sb : a < b;
                   });
@@ -611,12 +611,12 @@ namespace housepi::chain_binom
                 if (w != t)
                 {
                     double log_C = 0.;
-                    for (MemberIndex s = 0; s < K; ++s)
+                    for (MemberIdx s = 0; s < K; ++s)
                         log_C += std::lgamma(t[s] + 1) - std::lgamma(w[s] + 1) -
                                  std::lgamma(t[s] - w[s] + 1);
                     dp.ancestors[ti].emplace_back(idx_of[w], log_C);
                 }
-                MemberIndex s = 0;
+                MemberIdx s = 0;
                 while (s < K && w[s] == t[s])
                     w[s++] = 0;
                 if (s == K)
@@ -628,9 +628,9 @@ namespace housepi::chain_binom
         return dp;
     }
 
-    void ensure_partitioned(HouseIndex idx,
-                            const std::vector<MemberIndex> &part_counts,
-                            MemberIndex n_parts)
+    void ensure_partitioned(HouseIdx idx,
+                            const std::vector<MemberIdx> &part_counts,
+                            MemberIdx n_parts)
     {
         if (lut.partition_trees.size() <= idx)
             lut.partition_trees.resize(idx + 1);
@@ -643,9 +643,9 @@ namespace housepi::chain_binom
                                     const vector<double> &log_commu_esc,
                                     const matrix<double> &log_p2p_esc)
     {
-        const MemberIndex K = dp.sub_vecs.empty()
+        const MemberIdx K = dp.sub_vecs.empty()
                                   ? 0
-                                  : static_cast<MemberIndex>(dp.sub_vecs.front().size());
+                                  : static_cast<MemberIdx>(dp.sub_vecs.front().size());
 
         thread_local vector<double> log_pi;
         log_pi.assign(dp.sub_vecs.size(), 0.); // log pi(0|0) = 0
@@ -662,12 +662,12 @@ namespace housepi::chain_binom
                 const auto &w = dp.sub_vecs[wi];
 
                 double expo = 0.;
-                for (MemberIndex s = 0; s < K; ++s)
+                for (MemberIdx s = 0; s < K; ++s)
                 {
                     if (t[s] == w[s])
                         continue;
                     double log_q_s = log_commu_esc[s];
-                    for (MemberIndex u = 0; u < K; ++u)
+                    for (MemberIdx u = 0; u < K; ++u)
                         log_q_s += w[u] * log_p2p_esc[u][s];
                     expo += (t[s] - w[s]) * log_q_s;
                 }
@@ -695,9 +695,9 @@ namespace housepi::chain_binom
     /// @param part_indexes indexes of household member representative of part
     /// @param commu_infec_rate per-individual community infection rates
     /// @param p2p_infec_rate per-individual p2p infection rates
-    double log_lik_partitioned_(HouseIndex dp_idx,
-                                MemberIndex n_parts,
-                                const std::vector<MemberIndex> &part_indexes,
+    double log_lik_partitioned_(HouseIdx dp_idx,
+                                MemberIdx n_parts,
+                                const std::vector<MemberIdx> &part_indexes,
                                 const std::vector<double> &commu_infec_rate,
                                 const std::vector<std::vector<double>> &p2p_infec_rate)
     {
@@ -707,10 +707,10 @@ namespace housepi::chain_binom
         thread_local matrix<double> log_p2p_esc;
         log_p2p_esc.assign(n_parts, vector<double>(n_parts, 0.));
 
-        for (MemberIndex t = 0; t < n_parts; ++t)
+        for (MemberIdx t = 0; t < n_parts; ++t)
         {
             log_commu_esc[t] = -commu_infec_rate[part_indexes[t]];
-            for (MemberIndex s = 0; s < n_parts; ++s)
+            for (MemberIdx s = 0; s < n_parts; ++s)
                 log_p2p_esc[t][s] = -p2p_infec_rate[part_indexes[t]][part_indexes[s]];
         }
 
@@ -722,9 +722,9 @@ namespace housepi::chain_binom
     //////////////////////////  Chain-Binomial Log-Likelihood (Dispatcher)  ///////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    double log_likelihood(HouseIndex dp_idx,
-                          MemberIndex n_infec, MemberIndex n_parts,
-                          const std::vector<MemberIndex> &part_indexes,
+    double log_likelihood(HouseIdx dp_idx,
+                          MemberIdx n_infec, MemberIdx n_parts,
+                          const std::vector<MemberIdx> &part_indexes,
                           const std::vector<double> &commu_infec_rate,
                           const std::vector<std::vector<double>> &p2p_infec_rate)
     {

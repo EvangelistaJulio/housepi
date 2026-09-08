@@ -153,7 +153,7 @@ namespace housepi
         /// Draw sampled latent from their model for all individuals.
         /// Automatically skipped if no latent to sample.
         void draw_sample(rnd_gen &prng);
-        
+
         /// Finalize all variables (see Variable::finalize).
         void finalize();
 
@@ -292,9 +292,9 @@ namespace housepi
         /// Model declared latent keys read by the transmission computation.
         std::vector<size_t> user_transm_vec_ = {};
         /// Status to definition row.
-        std::unordered_map<StatusLevel, std::vector<size_t>> map_status_to_def_row_ = {};
+        std::unordered_map<StatusLvl, std::vector<size_t>> map_status_to_def_row_ = {};
         /// Status to internal index.
-        std::unordered_map<StatusLevel, size_t> map_status_to_block_ = {};
+        std::unordered_map<StatusLvl, size_t> map_status_to_block_ = {};
 
         /// Parameter -> whether a latent model consumes it, so its moves shift the density.
         std::vector<bool> param_produces_latent_ll_ = {};
@@ -351,7 +351,7 @@ namespace housepi
         IndivBlock &varia_of_(const Individual &m) noexcept { return varia[Index::of(m)]; }
         const IndivBlock &varia_of_(const Individual &m) const noexcept { return varia[Index::of(m)]; }
         /// Status-specific block governing latent definitions of member.
-        StatusBlock_ &block_at_(StatusLevel s) { return status_blocks_[map_status_to_block_.at(s)]; }
+        StatusBlock_ &block_at_(StatusLvl s) { return status_blocks_[map_status_to_block_.at(s)]; }
         const StatusBlock_ &block_of_(const Individual &m) const { return status_blocks_[varia_of_(m).idx]; }
 
         // Restore internal list and flags definitions.
@@ -383,21 +383,21 @@ namespace housepi
         /// Reject a read of a latent name absent from the 'status' graph.
         /// Tell apart a name declared for other statuses,
         /// from an unsuffixed name is read as latent.
-        void assert_producers_declared_(const dpdcy::prod_graph &graph, StatusLevel s) const;
+        void assert_producers_declared_(const dpdcy::prod_graph &graph, StatusLvl s) const;
 
         /// Order the definitions of given status, producer before consumer.
         /// At the same time assert that definitions are complete and acyclic.
-        void set_definition_order_for_(StatusLevel s, StatusLevel err_status);
+        void set_definition_order_for_(StatusLvl s, StatusLvl err_status);
 
         /// Extract status-specific definitions row indexes.
-        std::vector<size_t> get_unsorted_definition_rows_(StatusLevel s) const;
+        std::vector<size_t> get_unsorted_definition_rows_(StatusLvl s) const;
         /// Set sample and draws list for given status.
-        void set_sample_list_(StatusLevel s);
+        void set_sample_list_(StatusLvl s);
         /// Set sample and draws list for given definition.
-        void set_sample_list_for_single_definition_(StatusLevel s, size_t k);
+        void set_sample_list_for_single_definition_(StatusLvl s, size_t k);
 
         /// Inspect if constant definition.
-        std::pair<bool, bool> set_sample_list_for_function_(StatusLevel s, size_t k);
+        std::pair<bool, bool> set_sample_list_for_function_(StatusLvl s, size_t k);
 
         /// Deal with the definition of latent variable with a model.
         /// Fills StatusBlock_::consumers, i.e. keyed by producer.
@@ -415,6 +415,8 @@ namespace housepi
         void init_transm_producers_();
 
         /// Assert status observation as correct dependency and output.
+        /// A status observation's weights must be constant data.
+        /// NOTE: coverage of the declared statuses is asserted R-side.
         void assert_status_obs_consistent_();
 
         /// Order and classify the surrogate columns of both levels into list_surrogate,
@@ -445,6 +447,7 @@ namespace housepi
         static bool entry_has_group_risk_(const parse::Entry &node);
 
         /// Reject a latent variable that reads a live data-bound household observation.
+        /// NOTE: This function is only ever reached while simulating.
         void assert_no_live_house_obs_cycle_() const;
         /// Reject a definition whose model reads an observation column.
         void assert_no_obs_entry_collision_() const;

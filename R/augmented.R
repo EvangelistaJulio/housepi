@@ -185,21 +185,28 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @description Whether every infected status lands on a definition block.
-    #' A generic (unstatused) definition covers them all, otherwise each
-    #' observed status needs one of its own; with no infected status observed
-    #' the generic one is the one required.
+    #' A generic (unstatused) definition covers them all, otherwise each status
+    #' the model can carry needs one of its own: every dictionary entry when a
+    #' status process draws them, the observed ones when data supplies them.
     #' @param defs `data.frame()`. Definitions with status codes resolved.
     #' @param status_set `integer()`. Infected statuses observed in data.
     #' @return `logical(1)`
     covers_statuses = function(defs, status_set) {
       if (is.null(defs) || !"kind" %in% names(defs)) return(TRUE)
+
       # household observations and the status process need no status block
       block <- defs[!defs[["kind"]] %in% c("house", "status"), , drop = FALSE]
       if (nrow(block) == 0) return(TRUE)
       declared <- unlist(block[["status"]], use.names = FALSE)
       if (anyNA(declared)) return(TRUE)
-      observed <- status_set[!is.na(status_set)]
-      length(observed) > 0 && all(observed %in% as.integer(declared))
+
+      # a drawn status is any dictionary code, whatever the data carries
+      required <- if (length(self$status_names) > 0) {
+        seq_along(self$status_dictionary)
+      } else {
+        status_set[!is.na(status_set)]
+      }
+      length(required) > 0 && all(required %in% as.integer(declared))
     },
 
     #' @inherit add_latent
@@ -241,10 +248,10 @@ HousepiAugmented <- R6::R6Class(
       proposal <- def_args$proposal
 
       # flatten function arguments if quosures
-      if (rlang::is_quosure(func_args)) {
-        func_args <- housepi_extractor(!!func_args)
+      func_args <- if (rlang::is_quosure(func_args)) {
+        housepi_extractor(!!func_args)
       } else {
-        func_args <- housepi_extractor(!!!func_args)
+        housepi_extractor(!!!func_args)
       }
 
       # a per-definition 'level' overrides the managed kind for this entry only

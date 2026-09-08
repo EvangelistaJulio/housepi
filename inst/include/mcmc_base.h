@@ -91,23 +91,17 @@ namespace housepi
 		/// NOTE: a status-specific profile is checked per member, with its variable.
 		void assert_valid_infectivity_profile() const;
 
-		////////////////////////////
-		//////  AUGMENTATION  //////
-		////////////////////////////
+		////////////////
+		///  GETTER  ///
+		////////////////
 
 		double aug(size_t a, const Individual &m) const { return augm.at(a, m).value(); }
 		double data(size_t d, const Individual &m) const noexcept { return data_wide().data(d, m); }
-		Variable &get_latent_varia(size_t a, const Individual &m) noexcept { return augm.at(a, m); }
-		const Variable &get_latent_varia(size_t a, const Individual &m) const noexcept { return augm.at(a, m); }
-
-		//////////////////////
-		//////  GETTER  //////
-		//////////////////////
 
 		/// Whether two household members belong to same partition according to risks.
 		bool is_same_risk_partition(const Household &house,
-									MemberIndex i,
-									MemberIndex j) const;
+									MemberIdx i,
+									MemberIdx j) const;
 
 		/// Column names of data shared across simulations.
 		std::vector<std::string> get_static_data_names() const;

@@ -187,11 +187,10 @@ test_that("A long enough run renders the progress bar", {
     new_housepi_model("final_size") |>
     add_parameter(import = "template")
 
-  # NOTE: bar must take longer than 1 second in order to be printed
-  # UPDATE: this is time sensitive and regresses due to optimization
+  # NOTE: time sensitive, run has to last well beyond two seconds
   bar <- capture.output(
     draws <- hhmodel |>
-      run_inference(adapt = 0, chains = 2) |>
+      run_inference(chains = 2) |>
       suppressWarnings(),
     type = "output"
   )

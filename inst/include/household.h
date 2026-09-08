@@ -33,26 +33,26 @@ namespace housepi
 		/// Auxiliary iterator for member indexes of members with same status.
 		struct MemberRange_
 		{
-			const MemberIndex *data_;
+			const MemberIdx *data_;
 			size_t size_;
-			const MemberIndex *begin() const noexcept { return data_; }
-			const MemberIndex *end() const noexcept { return data_ + size_; }
+			const MemberIdx *begin() const noexcept { return data_; }
+			const MemberIdx *end() const noexcept { return data_ + size_; }
 			size_t size() const noexcept { return size_; }
 			bool empty() const noexcept { return size_ == 0; }
-			const MemberIndex &operator[](size_t i) const noexcept { return data_[i]; }
-			const MemberIndex &front() const noexcept { return data_[0]; }
+			const MemberIdx &operator[](size_t i) const noexcept { return data_[i]; }
+			const MemberIdx &front() const noexcept { return data_[0]; }
 		};
 
 		/// Auxiliary iterator for individuals with same status.
 		struct ConstIndivRange_
 		{
 			const Household *house_;
-			const MemberIndex *data_;
+			const MemberIdx *data_;
 			size_t size_;
 			struct Iterator_
 			{
 				const Household *house_;
-				const MemberIndex *ptr_;
+				const MemberIdx *ptr_;
 				const Individual &operator*() const noexcept { return house_->indivs_[*ptr_]; }
 				Iterator_ &operator++() noexcept
 				{
@@ -74,15 +74,15 @@ namespace housepi
 		//////////////////////
 
 		/// Emplace a new individual in the household.
-		void add_indiv(IndivIndex index, StatusLevel status);
+		void add_indiv(IndivIdx index, StatusLvl status);
 
 		//////////////////////
 		//////  GETTER  //////
 		//////////////////////
 
 		/// Individual with member index i.
-		Individual &at(MemberIndex i) noexcept { return indivs_[i]; }
-		const Individual &at(MemberIndex i) const noexcept { return indivs_[i]; }
+		Individual &at(MemberIdx i) noexcept { return indivs_[i]; }
+		const Individual &at(MemberIdx i) const noexcept { return indivs_[i]; }
 
 		/// Iterator for member indexes of members with infected status.
 		MemberRange_ infected_members() const noexcept { return {status_vec_.data(), ninf_}; }
@@ -99,11 +99,11 @@ namespace housepi
 		ConstIndivRange_ missing_indivs() const noexcept { return {this, status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 
 		/// Number of members with infected status.
-		MemberIndex n_infected_status() const noexcept { return ninf_; }
+		MemberIdx n_infected_status() const noexcept { return ninf_; }
 		/// Number of members with escaped status.
-		MemberIndex n_escaped_status() const noexcept { return nsus_; }
+		MemberIdx n_escaped_status() const noexcept { return nsus_; }
 		/// Number of members with missing status.
-		MemberIndex n_missing_status() const noexcept { return hhsize_ - ninf_ - nsus_; }
+		MemberIdx n_missing_status() const noexcept { return hhsize_ - ninf_ - nsus_; }
 
 		/////////////////////////
 		//////  ITERATORS  //////
@@ -119,24 +119,24 @@ namespace housepi
 		////////////////////
 
 		/// Number of household members.
-		MemberIndex size() const noexcept { return hhsize_; }
+		MemberIdx size() const noexcept { return hhsize_; }
 		/// Index of equivalence class.
-		HouseIndex eq_class() const noexcept { return eq_class_; }
+		HouseIdx eq_class() const noexcept { return eq_class_; }
 
 	private:
-		HouseIndex house_index_ = 0;			   /// housepi internal household index
-		HouseIndex eq_class_ = na::UINDEX;		   /// equivalence class index
-		MemberIndex hhsize_ = 0;				   /// number of household members
-		MemberIndex ninf_ = 0;					   /// number of infected members
-		MemberIndex nsus_ = 0;					   /// number of escaped members
+		HouseIdx house_index_ = 0;			   /// housepi internal household index
+		HouseIdx eq_class_ = na::UINDEX;		   /// equivalence class index
+		MemberIdx hhsize_ = 0;				   /// number of household members
+		MemberIdx ninf_ = 0;					   /// number of infected members
+		MemberIdx nsus_ = 0;					   /// number of escaped members
 		std::vector<Individual> indivs_ = {};	   /// household members
-		std::vector<MemberIndex> status_vec_ = {}; /// partitioned: [infected | escaped | missing]
+		std::vector<MemberIdx> status_vec_ = {}; /// partitioned: [infected | escaped | missing]
 
 		/// Change status of individual i to new status.
 		/// NOTE: Using 'partition refinement' to track member statuses.
-		void set_new_status_(Individual &indiv, StatusLevel new_status);
+		void set_new_status_(Individual &indiv, StatusLvl new_status);
 	};
 
 	/// Index of Household (see individual.h).
-	inline HouseIndex Index::of(const Household &house) noexcept { return house.house_index_; }
+	inline HouseIdx Index::of(const Household &house) noexcept { return house.house_index_; }
 }

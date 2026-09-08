@@ -104,9 +104,6 @@ namespace housepi
         void open(unsigned long total, unsigned long thintime)
         {
             check_user_interrupt_();
-            if (total == 0)
-                msg::stop(
-                    "Progressbar total should be greater than 0.");
 
             // initialize internal fields
             total_ = total;
@@ -188,9 +185,6 @@ namespace housepi
             if (!has_bar_print_)
                 return;
             has_bar_print_ = false;
-
-            if (!verbose_)
-                return;
 
             const auto elapsed = duration_cast<seconds>(steady_clock::now() - start_);
             if (static_cast<unsigned long>(elapsed.count()) > thintime_)

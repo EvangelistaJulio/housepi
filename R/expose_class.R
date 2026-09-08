@@ -158,9 +158,14 @@ rd_risk_strata_ <-
 Each row defines one stratum. If `NA`, then match any value.
 Use `.reference` in `param_name` to designate the reference group;
 omit it to leave the risk absolute.
+The reserved column `value` pins a stratum to that value in simulation,
+while it keeps its prior and is sampled in inference.
+The reserved column `const` fixes a pinned stratum in inference too,
+so that it carries no prior. The reference stratum takes neither.
 Mutually exclusive with `by`."
 rd_risk_params_ <- "named `list` Per-parameter MCMC setups as in `param_name`.
 Overrides shared prior/args for parameters specified in the list.
+A stratum pinned through the `strata` table takes no entry here.
 Ignored if automatic definition."
 rd_risk_reference_ <- function(cell) {
   sprintf("named `list` Covariates associated to the reference %s,

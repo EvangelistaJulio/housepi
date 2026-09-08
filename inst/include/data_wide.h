@@ -28,6 +28,7 @@ namespace housepi
     namespace risks
     {
         constexpr const char *REFERENCE = ".reference"; /// Risk reference choice.
+        constexpr const char *STATUS_KEY = "status";    /// Rule column carrying the infected status.
         constexpr double VALUE_REFERENCE = 1.0;         /// Alias for reference value.
     }
 
@@ -160,9 +161,9 @@ namespace housepi
         void recover_member_old_cached(const Household &house, const Individual &indiv);
 
         /// Return cached member value.
-        MAKE_HOUSEPI_CACHE_ACCESSOR(MemberIndex, member)
+        MAKE_HOUSEPI_CACHE_ACCESSOR(MemberIdx, member)
         /// Return cached member vector.
-        MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<MemberIndex>, member_vector)
+        MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<MemberIdx>, member_vector)
         /// Return cached double vector.
         MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<double>, double_vector)
         /// Return cached double matrix.
@@ -191,7 +192,7 @@ namespace housepi
         /// Individual wide-format data.
         struct IndivWide_
         {
-            StatusLevel status = status::MISSING;
+            StatusLvl status = status::MISSING;
             std::vector<double> vec = {};         /// immutable imported-raw backing
             std::vector<Attribute> readcell = {}; /// per-column read-surface (raw or wired)
         };
@@ -228,8 +229,8 @@ namespace housepi
         {
             struct State_
             {
-                std::vector<MemberIndex> member = {};
-                std::vector<std::vector<MemberIndex>> member_vector = {};
+                std::vector<MemberIdx> member = {};
+                std::vector<std::vector<MemberIdx>> member_vector = {};
                 std::vector<std::vector<double>> double_vector = {};
                 std::vector<std::vector<std::vector<double>>> double_matrix = {};
             };

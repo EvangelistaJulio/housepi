@@ -24,9 +24,15 @@ namespace housepi
 	class Individual;
 	class Household;
 
-#define MAKE_HOUSEPI_CACHE_FORWARDER(NAME)                                                                              \
-	auto &cache_##NAME(const Household &house, size_t e) noexcept { return mcmc_->data_wide().cache_##NAME(house, e); } \
-	const auto &cache_##NAME(const Household &house, size_t e) const noexcept { return mcmc_->data_wide().cache_##NAME(house, e); }
+#define MAKE_HOUSEPI_CACHE_FORWARDER(NAME)                                    \
+	auto &cache_##NAME(const Household &house, size_t e) noexcept             \
+	{                                                                         \
+		return mcmc_->data_wide().cache_##NAME(house, e);                     \
+	}                                                                         \
+	const auto &cache_##NAME(const Household &house, size_t e) const noexcept \
+	{                                                                         \
+		return mcmc_->data_wide().cache_##NAME(house, e);                     \
+	}
 
 	class ModelBase
 	{
@@ -91,6 +97,13 @@ namespace housepi
 			mcmc_->param.request_risk_identifiability(p, std::move(risks), contacts);
 		}
 
+		/// Declare the group risks a rule may stratify by the infected status.
+		/// NOTE: risks read before the member's status is drawn in simulations cannot be listed.
+		void request_risk_status_stratified(std::vector<size_t> vec)
+		{
+			mcmc_->group_risk.request_status_stratified(std::move(vec));
+		}
+
 		/// Request discrete parameter definition.
 		void request_param_discrete(std::vector<size_t> vec) { mcmc_->param.request_discrete(vec); }
 		/// Request positive parameter definition.
@@ -131,7 +144,7 @@ namespace housepi
 		}
 
 		/// Set numeric value of latent variable. If not allowed, raise exception.
-		void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->get_latent_varia(a, m).set(x); }
+		void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->augm.at(a, m).set(x); }
 
 		/// Initialize all latent variables and observations.
 		/// If a variable has been set by the user, it's skipped.
@@ -169,20 +182,32 @@ namespace housepi
 		std::string str(const Household &h) const { return mcmc_->data_wide().str(h); }
 
 		/// Get contact risk 'from' household member 'to' member.
-		double contact_risk(const Household &house, MemberIndex from, MemberIndex to) const { return mcmc_->contact_risk.value(house, from, to); }
+		double contact_risk(const Household &house, MemberIdx from, MemberIdx to) const
+		{
+			return mcmc_->contact_risk.value(house, from, to);
+		}
 		/// Wheter hosuehold members i and j are equivalent in terms of risks.
-		bool is_same_risk_partition(const Household &house, MemberIndex i, MemberIndex j) const
+		bool is_same_risk_partition(const Household &house, MemberIdx i, MemberIdx j) const
 		{
 			return mcmc_->is_same_risk_partition(house, i, j);
 		}
 		/// Get contact risk intra member partition (self-contact).
-		double intra_partition_contact_risk(const Household &house, MemberIndex i) const { return mcmc_->contact_risk.intra_value(house, i); }
+		double intra_partition_contact_risk(const Household &house, MemberIdx i) const
+		{
+			return mcmc_->contact_risk.intra_value(house, i);
+		}
 
 		/// Return maximum number of observed infected household members.
 		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }
 
-		double infec_profile_inst(const Individual &m, double t) const { return mcmc_->infec_profile.inst(&m, t); }
-		double infec_profile_cumul(const Individual &m, double t) const { return mcmc_->infec_profile.cumul(&m, t); }
+		double infec_profile_inst(const Individual &m, double t) const
+		{
+			return mcmc_->infec_profile.inst(&m, t);
+		}
+		double infec_profile_cumul(const Individual &m, double t) const
+		{
+			return mcmc_->infec_profile.cumul(&m, t);
+		}
 
 		///////////////
 		///  CACHE  ///

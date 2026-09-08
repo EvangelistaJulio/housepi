@@ -10,13 +10,27 @@ risk_stop_hint <- paste("Choose {.arg by} for automatic definitions,",
 
 # Reserved column names (non-feature) in a logic table.
 data_reserved_cols <- c("id", "house_id", "status")
-risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group")
+# `value` pins a stratum during simulation, `const` fixes it in inference too.
+risk_pin_cols <- c("value", "const")
+risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group",
+                        risk_pin_cols)
+
+# Empty and typed prototype of every reserved column.
+risk_reserved_proto <- list(group_risk = character(), param_name = character(),
+                            n = integer(), rule_group = integer(),
+                            value = double(), const = logical())
 
 # Empty logic table with the reserved columns `cols`, in order.
 empty_risk_table <- function(cols) {
-  proto <- list(group_risk = character(), param_name = character(),
-                n = integer(), rule_group = integer())
-  as.data.frame(proto[cols], stringsAsFactors = FALSE)
+  as.data.frame(risk_reserved_proto[cols], stringsAsFactors = FALSE)
+}
+
+# Typed `NA` padding for each of `cols`. A feature column pads as character.
+risk_na_pad <- function(cols) {
+  lapply(stats::setNames(cols, cols), function(col) {
+    proto <- risk_reserved_proto[[col]]
+    if (is.null(proto)) NA_character_ else proto[NA_integer_]
+  })
 }
 
 # @description
@@ -50,9 +64,10 @@ stop_ambiguos_definition <- function() {
 
 #' Assert that features choice is valid.
 #' @param features Features as list of data column names.
+#' @param allow Reserved names the caller accepts as features.
 #' @keywords internal
 #' @noRd
-assert_valid_features <- function(features) {
+assert_valid_features <- function(features, allow = character()) {
   if (all(is.na(features))) return(invisible())
 
   if (isFALSE(is.character(features))) stop_h(
@@ -61,7 +76,7 @@ assert_valid_features <- function(features) {
   )
 
   # avoid group risks associated to reserved data/definition names
-  reserved_data <- c(data_reserved_cols, risk_reserved_cols)
+  reserved_data <- setdiff(c(data_reserved_cols, risk_reserved_cols), allow)
   forbidden <- reserved_data[reserved_data %in% features]
   if (length(forbidden) > 0) stop_h(
     sprintf("Impossible to associate risk to %s %s",
@@ -105,9 +120,10 @@ assess_feature_values <- function(this_table) {
 
 #' Assert that a user-provided logic table is valid.
 #' @param logic_table `data.frame` with a `param_name` column.
+#' @param allow Reserved names the caller accepts as features.
 #' @keywords internal
 #' @noRd
-assert_valid_logic_table <- function(logic_table) {
+assert_valid_logic_table <- function(logic_table, allow = character()) {
   if (!is.data.frame(logic_table)) stop_h(
     "Argument {.arg logic_table} must be a data.frame."
   )
@@ -119,7 +135,44 @@ assert_valid_logic_table <- function(logic_table) {
   )
   # validate feature column names
   feature_cols <- setdiff(colnames(logic_table), risk_reserved_cols)
-  assert_valid_features(feature_cols)
+  assert_valid_features(feature_cols, allow)
+  assert_valid_pins(logic_table)
+}
+
+#' Assert that the pin columns of a logic table are valid.
+#' @param tbl `data.frame` logic table with a `param_name` column.
+#' @return `data.frame` the input, invisibly.
+#' @keywords internal
+#' @noRd
+assert_valid_pins <- function(tbl) {
+  if (!any(risk_pin_cols %in% colnames(tbl))) return(invisible(tbl))
+  # an all-NA column pins nothing, whichever type it was written with
+  if (!all(is.na(tbl$value)) && !is.numeric(tbl$value)) stop_h(
+    "Column {.field value} of the strata table must be numeric.",
+    format_type_error(tbl$value)
+  )
+  if (!all(is.na(tbl$const)) && !is.logical(tbl$const)) stop_h(
+    "Column {.field const} of the strata table must be logical.",
+    format_type_error(tbl$const)
+  )
+  value <- if (is.null(tbl$value)) rep(NA_real_, nrow(tbl)) else tbl$value
+  const <- if (is.null(tbl$const)) rep(NA, nrow(tbl)) else tbl$const
+
+  bad <- tbl$param_name == ".reference" & (!is.na(value) | !is.na(const))
+  if (any(bad)) stop_h(
+    sprintf("The {.val .reference} is pinned at %s %s.",
+            as_plural("row", sum(bad)),
+            character_to_phrase(as.character(which(bad)))),
+    "The reference stratum is 1 by definition: it carries no pin."
+  )
+  bad <- const %in% TRUE & is.na(value)
+  if (any(bad)) stop_h(
+    sprintf("No {.field value} for fixed %s %s",
+            as_plural("strat", sum(bad), "a", "um"),
+            character_to_string_list(unique(tbl$param_name[bad]))),
+    "A {.code const = TRUE} stratum needs the value it is fixed at."
+  )
+  invisible(tbl)
 }
 
 #' @title Assign rule_group to each rule of logic table.
@@ -236,6 +289,60 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
   invisible(strata)
 }
 
+#' Pins carried by a logic table, keyed by `param_name`.
+#' A stratum spread over several rules resolves to a single pin.
+#' @param tbl `data.frame` logic table with a `param_name` column.
+#' @return `list` of `list(value = , const = )`, one per pinned stratum.
+#' @keywords internal
+#' @noRd
+collect_table_pins <- function(tbl) {
+  cols <- intersect(risk_pin_cols, colnames(tbl))
+  if (length(cols) == 0) return(list())
+  pins <- list()
+  for (par_id in setdiff(unique(tbl$param_name), ".reference")) {
+    rows <- unique(tbl[tbl$param_name %in% par_id, cols, drop = FALSE])
+    if (nrow(rows) > 1) stop_h(
+      "Conflicting {.field {cols}} entries for stratum {.val {par_id}}.",
+      "A stratum spread over several rules carries a single pin."
+    )
+    pin <- list(value = NA_real_, const = NA)
+    pin[cols] <- as.list(rows)
+    if (!is.na(pin$value) || !is.na(pin$const)) pins[[par_id]] <- pin
+  }
+  pins
+}
+
+#' Fold a stratum pin into its parameter definition.
+#' A fixed stratum is a constant parameter: it carries no prior.
+#' @param def `list` Shared MCMC setup of the risk.
+#' @param pin `list` or `NULL` Pin of the stratum.
+#' @return `list`
+#' @keywords internal
+#' @noRd
+helper_pin_param_def <- function(def, pin) {
+  if (is.null(pin)) return(def)
+  if (isTRUE(pin$const)) return(list(value = pin$value, const = TRUE))
+  c(def, list(value = pin$value))
+}
+
+#' Assert that no stratum is both pinned and overridden through `params`.
+#' @param strata `data.frame` logic table with a `param_name` column.
+#' @param params `list` Per-parameter MCMC-setup overrides.
+#' @return `list` the input `params`, invisibly.
+#' @keywords internal
+#' @noRd
+assert_no_pin_params_clash <- function(strata, params) {
+  clash <- intersect(names(params), names(collect_table_pins(strata)))
+  if (length(clash) > 0) stop_h(
+    sprintf("Pinned %s also set through {.arg params}: %s",
+            as_plural("strat", length(clash), "a", "um"),
+            character_to_string_list(clash)),
+    paste("A pinned stratum carries no MCMC setup:",
+          "drop it from {.arg params} or from the strata table.")
+  )
+  invisible(params)
+}
+
 #' Set ordering for risk logic-tables: `.reference` first, decreasing 'n'.
 #' @param tbl `data.frame` Logic table with `param_name`, `n`.
 #' @return `data.frame`
@@ -249,15 +356,39 @@ reorder_risks_logic_table <- function(tbl) {
   tbl[ord, , drop = FALSE]
 }
 
+#' Read the data status column as infected-status labels.
+#' Escaped and missing members carry `NA`: they match no status rule and read
+#' the reference risk.
+#' @param x Status column, integer codes or a factor of labels.
+#' @param status_codes `integer()` Engine status codes, named after the labels.
+#' @return `character()`
+#' @keywords internal
+#' @noRd
+status_as_labels <- function(x, status_codes) {
+  labels <- names(status_codes)
+  if (is.factor(x) || is.character(x)) {
+    x <- as.character(x)
+    return(ifelse(x %in% labels, x, NA_character_))
+  }
+  labels[match(suppressWarnings(as.integer(x)), status_codes)]
+}
+
 #' Return logic table of group risks
 #' @param data_wide Data from which to extract group risks
 #' @param this_feat Feature as list of data column names.
+#' @param status_levels `character()` Declared infected-status labels.
+#' @param status_observed `logical(1)` Whether the data carries any status.
 #' @return data.frame with logic table
 #' @keywords internal
 #' @noRd
-group_risk_logic_table <- function(data_wide, this_feat) {
+group_risk_logic_table <- function(data_wide, this_feat,
+                                   status_levels = character(),
+                                   status_observed = TRUE) {
   # extract unique features and sort by list length
-  uni_features <- lapply(this_feat, function(f) sort(unique(data_wide[[f]])))
+  # status strata are declared by the model, not read off the data
+  uni_features <- lapply(this_feat, function(f) {
+    if (identical(f, "status")) status_levels else sort(unique(data_wide[[f]]))
+  })
   sorted_indices <- order(sapply(uni_features, length), decreasing = TRUE)
   this_feat <- this_feat[sorted_indices]
   uni_features <- uni_features[sorted_indices]
@@ -266,10 +397,21 @@ group_risk_logic_table <- function(data_wide, this_feat) {
   # create a dataframe of all possible multi-features
   y <- expand.grid(uni_features)
 
-  # check that the multi-feature exists
-  multifeat_count <- apply(y, 1, function(row) {
-    sum(apply(data_wide[this_feat], 1, function(d_row) all(d_row == row)))
-  })
+  # count every combination in one pass. A cell the data does not carry
+  # matches no stratum, so those members are left out of the tally
+  strata_key <- function(x) do.call(paste, c(lapply(x[this_feat], as.character),
+                                             list(sep = "\x1F")))
+  carried <- data_wide[stats::complete.cases(data_wide[this_feat]), ,
+                       drop = FALSE]
+  tally <- table(strata_key(carried))
+  multifeat_count <- as.integer(tally[strata_key(y)])
+  multifeat_count[is.na(multifeat_count)] <- 0L
+
+  # no status is observed: every declared stratum stands, sample sizes unknown
+  if ("status" %in% this_feat && isFALSE(status_observed)) {
+    y$n <- NA_integer_
+    return(y)
+  }
 
   # create the final truth table and reverse it
   y <- y[multifeat_count > 0, , drop = FALSE]
@@ -311,6 +453,12 @@ associate_group_param_names <- function(this_table, prefix, reference) {
   # find reference index
   idx_refer <- NULL
   if (identical(reference, ".auto")) {
+    if (all(is.na(this_table$n))) stop_h(
+      "Impossible to pick an automatic reference.",
+      `!` = "Sample sizes are unknown while the data carries no status.",
+      paste("Name the reference stratum, as",
+            "{.code reference = list(status = \"<label>\")}.")
+    )
     idx_refer <- which.max(this_table$n)
 
   } else if (length(reference) > 0) {
@@ -361,7 +509,7 @@ tidyup_group_risk_tables <- function(all_tables) {
                            sort(unlist(lapply(this_table, names)))))
       sub_combined <- do.call(rbind, lapply(this_table, function(x) {
         miss <- setdiff(sub_cols, names(x))
-        x[miss] <- NA_character_
+        if (length(miss) > 0) x[miss] <- risk_na_pad(miss)
         x[sub_cols]
       }))
       sub_combined <- compute_rule_groups(sub_combined)
@@ -371,14 +519,15 @@ tidyup_group_risk_tables <- function(all_tables) {
     df_list <- c(df_list, df)
   }
 
-  # all unique column names reordered
-  all_cols <- unique(c(risk_reserved_cols,
-                       sort(unlist(lapply(df_list, names)))))
+  # all unique column names reordered, pin columns only when a pin exists
+  present <- unique(unlist(lapply(df_list, names)))
+  all_cols <- unique(c(setdiff(risk_reserved_cols, risk_pin_cols),
+                       intersect(risk_pin_cols, present), sort(present)))
 
   # Add missing columns with NA
   combined_df <- do.call(rbind, lapply(df_list, function(df) {
     missing_cols <- setdiff(all_cols, names(df))
-    df[missing_cols] <- NA_character_
+    if (length(missing_cols) > 0) df[missing_cols] <- risk_na_pad(missing_cols)
     df[all_cols]
   }))
   rownames(combined_df) <- NULL
@@ -456,7 +605,7 @@ HousepiGroupRisk <- R6::R6Class(
                                 reference = NULL,
                                 joint = FALSE,
                                 .warn_over = TRUE) {
-      assert_valid_features(by)
+      assert_valid_features(by, allow = "status")
       # remove previous definition if it exists
       rmv_name <- self$remove(name)
 
@@ -480,7 +629,7 @@ HousepiGroupRisk <- R6::R6Class(
                                   params = NULL,
                                   reference = NULL,
                                   .warn_over = TRUE) {
-      assert_valid_logic_table(strata)
+      assert_valid_logic_table(strata, allow = "status")
       if (length(reference) > 0) stop_h(
         paste("Argument {.arg reference} is not used",
               "with a custom {.arg strata} table."),
@@ -496,6 +645,7 @@ HousepiGroupRisk <- R6::R6Class(
                   as_plural("parameter", length(unknown)),
                   character_to_string_list(unknown))
         )
+        assert_no_pin_params_clash(strata, params)
       }
 
       # handle replace
@@ -513,15 +663,21 @@ HousepiGroupRisk <- R6::R6Class(
 
       # store a sentinel definition
       by <- setdiff(unique(unlist(lapply(self$logic_tables[[name]], colnames))),
-                    "param_name")
+                    risk_reserved_cols)
       self$defs[[name]] <- list(by = by, prefix = NA_character_,
                                 reference = NULL, joint = FALSE,
                                 mode = "custom")
       invisible(self)
     },
 
+    # Whether one risk stratifies on the infected status.
+    keys_on_status_ = function(risk_id) {
+      "status" %in% self$defs[[risk_id]][["by"]]
+    },
+
     # Implement through automatic mode.
-    helper_implement_auto_ = function(risk_id, data_wide, factor_info) {
+    helper_implement_auto_ = function(risk_id, data_wide,
+                                      status_levels, status_observed) {
       this_def <- self$defs[[risk_id]] # definition of the risk
       features <- as.list(this_def[["by"]]) # data features
 
@@ -531,7 +687,8 @@ HousepiGroupRisk <- R6::R6Class(
       }
 
       features <- sort(as.character(features[!is.na(features)]))
-      assert_data_features(features, colnames(data_wide))
+      # status is carried by the model, not required as a data column
+      assert_data_features(setdiff(features, "status"), colnames(data_wide))
 
       # cast to list if joint
       if (isTRUE(this_def[["joint"]])) features <- list(features)
@@ -543,27 +700,13 @@ HousepiGroupRisk <- R6::R6Class(
       new_logic_table <- list()
       for (this_feat in features) {
         # 1. create logic table with group risks
-        this_table <- group_risk_logic_table(data_wide, this_feat)
+        this_table <- group_risk_logic_table(data_wide, this_feat,
+                                             status_levels, status_observed)
         # associate names for parameters
         this_table <- associate_group_param_names(
           this_table, prefix, this_def$reference
         )
         new_logic_table[[length(new_logic_table) + 1]] <- this_table
-
-        # 2. create relative cpp script chunk
-        # factorize according to external factor information
-        for (col in intersect(names(factor_info), colnames(this_table))) {
-          lv <- factor_info[[col]]$levels
-          if (is.null(lv)) stop_h(
-            "Wrong group risk definition: {.field {col}} has no levels."
-          )
-          this_table[[col]] <- factor(this_table[[col]],
-                                      levels = lv,
-                                      labels = seq_along(lv))
-        }
-        # concatenate new lines to the script
-        # mask reference case
-        mask <- this_table$param_name == ".reference"
 
         # store the new risk logic table
         self$logic_tables[[risk_id]] <- new_logic_table
@@ -571,16 +714,19 @@ HousepiGroupRisk <- R6::R6Class(
     },
 
     # Validate custom mode logic table against data, then add counts.
-    helper_implement_custom_ = function(risk_id, data_wide) {
+    helper_implement_custom_ = function(risk_id, data_wide,
+                                        status_levels, status_observed) {
       for (ti in seq_along(self$logic_tables[[risk_id]])) {
         tbl <- self$logic_tables[[risk_id]][[ti]]
         feat_cols <- setdiff(colnames(tbl), risk_reserved_cols)
-        # validate that feature columns exist in data
-        assert_data_features(feat_cols, colnames(data_wide))
+        # status is carried by the model, not required as a data column
+        assert_data_features(setdiff(feat_cols, "status"), colnames(data_wide))
         # validate that feature values exist in data
         for (col in feat_cols) {
           vals <- tbl[[col]][!is.na(tbl[[col]])]
           data_vals <- unique(data_wide[[col]])
+          # status levels are declared by the model, not read off the data
+          if (identical(col, "status")) data_vals <- status_levels
           missing_vals <- setdiff(as.character(vals), as.character(data_vals))
           if (length(missing_vals) > 0) warn_h(
             sprintf("Unknown %s for risk {.val %s} in data {.field %s}: %s",
@@ -594,13 +740,20 @@ HousepiGroupRisk <- R6::R6Class(
           mask <- rep(TRUE, nrow(data_wide))
           for (col in feat_cols) {
             if (is.na(row[[col]])) next
-            mask <- mask & (as.character(data_wide[[col]]) ==
+            # `%in%`: an NA data cell matches no rule, it does not poison
+            # the count of every stratum
+            mask <- mask & (as.character(data_wide[[col]]) %in%
                               as.character(row[[col]]))
           }
           sum(mask)
         })
-        # skip entries with no matching data
-        tbl <- tbl[tbl$n > 0, , drop = FALSE]
+        # no status is observed: every declared stratum stands, sizes unknown
+        if ("status" %in% feat_cols && isFALSE(status_observed)) {
+          tbl$n <- NA_integer_
+        } else {
+          # skip entries with no matching data
+          tbl <- tbl[tbl$n > 0, , drop = FALSE]
+        }
         self$logic_tables[[risk_id]][[ti]] <- tbl
       }
       invisible(self)
@@ -619,12 +772,14 @@ HousepiGroupRisk <- R6::R6Class(
       for (risk_id in names(self$logic_tables)) {
         overrides <- self$param_overrides[[risk_id]]
         for (this_table in self$logic_tables[[risk_id]]) {
+          pins <- collect_table_pins(this_table)
           for (par_id in setdiff(this_table$param_name, c(".reference"))) {
-            if (!is.null(overrides) && !is.null(overrides[[par_id]])) {
-              new_params[[par_id]] <- overrides[[par_id]]
+            def <- if (!is.null(overrides) && !is.null(overrides[[par_id]])) {
+              overrides[[par_id]]
             } else {
-              new_params[[par_id]] <- self$raw_params[[risk_id]]
+              self$raw_params[[risk_id]]
             }
+            new_params[[par_id]] <- helper_pin_param_def(def, pins[[par_id]])
           }
         }
       }
@@ -634,17 +789,30 @@ HousepiGroupRisk <- R6::R6Class(
     #' @field data_required `character()`. Data required by group risks.
     data_required = function(value) {
       required <- unique(unlist(lapply(self$defs, `[[`, "by")))
-      required <- required[!is.na(required)]
+      required <- setdiff(required[!is.na(required)], "status")
       set_source_name_(required, self$family)
     },
 
     #' @field feature_names `character()`. Data columns the risks stratify on,
     #' declared through `by` or carried by a custom logic table.
     feature_names = function(value) {
+      setdiff(self$raw_feature_names, "status")
+    },
+
+    #' @field raw_feature_names `character()`. Stratification axes, `status`
+    #' included. `feature_names` drops it: it is an always-present model axis,
+    #' neither a required data column nor a name an observation can collide on.
+    raw_feature_names = function(value) {
       custom <- lapply(unlist(self$logic_tables, recursive = FALSE),
                        function(tbl) setdiff(colnames(tbl), risk_reserved_cols))
       feats <- as.character(unlist(c(lapply(self$defs, `[[`, "by"), custom)))
       unique(feats[!is.na(feats)])
+    },
+
+    #' @field stratifies_on_status `logical(1)`.
+    #' Whether a risk stratifies on the infected status.
+    stratifies_on_status = function(value) {
+      "status" %in% self$raw_feature_names
     },
 
     #' @field param_required `character()`. Parameters required by group risks.
@@ -813,20 +981,44 @@ HousepiGroupRisk <- R6::R6Class(
     #' Implement group risk definition according to data.
     #' @param data_wide
     #' A `data.frame` with the dataset to be considered.
-    #' @param factor_info
-    #' A `list` with the levels for each factorized feature.
-    implement = function(data_wide, factor_info) {
+    #' @param status_codes
+    #' `integer()` Engine status codes, named after the labels the risks may
+    #' stratify on.
+    #' @param wall `logical(1)`. Whether to raise error.
+    implement = function(data_wide, status_codes = integer(),
+                         wall = FALSE) {
       # preserve custom-mode entries and drop auto-mode entries
       mask_custom <- names(which(vapply(
         self$defs, function(d) d[["mode"]] == "custom", logical(1)
       )))
       self$logic_tables <- self$logic_tables[mask_custom]
 
+      # read the status through the dictionary: the exported column is a factor
+      # of labels once the levels are known, and integer codes before that
+      status_levels <- names(status_codes)
+      if ("status" %in% colnames(data_wide))
+        data_wide[["status"]] <- status_as_labels(data_wide[["status"]],
+                                                  status_codes)
+      status_observed <- any(!is.na(data_wide[["status"]]))
+
       for (risk_id in names(self$defs)) {
+        # a status-keyed risk waits for the statuses to be declared, so
+        # decorator order stays free; the wall reports one that never came
+        if (length(status_codes) == 0 && private$keys_on_status_(risk_id)) {
+          if (isTRUE(wall)) stop_h(
+            paste("A {self$family} is keyed on {.field status},",
+                  "for which the model declares no level."),
+            "Declare the infected statuses, or key the risk on a data column."
+          )
+          self$logic_tables[[risk_id]] <- list()
+          next
+        }
         if (self$defs[[risk_id]][["mode"]] == "auto") {
-          private$helper_implement_auto_(risk_id, data_wide, factor_info)
+          private$helper_implement_auto_(risk_id, data_wide,
+                                         status_levels, status_observed)
         } else {
-          private$helper_implement_custom_(risk_id, data_wide)
+          private$helper_implement_custom_(risk_id, data_wide,
+                                           status_levels, status_observed)
         }
       }
 
@@ -866,11 +1058,24 @@ HousepiGroupRisk <- R6::R6Class(
     #' Tidy table of group risks definition to be passed to Cpp.
     #' @param info
     #' `list` of `list`s. Info about class and levels of data columns.
-    expose_to_cpp = function(info) {
+    #' @param status_codes
+    #' `integer()` Engine status codes, named after the labels.
+    expose_to_cpp = function(info, status_codes) {
       defs <- self$tidy_table
-      defs$n <- NULL
+      defs[c("n", risk_pin_cols)] <- NULL
+      # status carries no entry in `info`: it is coded against the engine
+      # codes the individuals hold, not against a data column
+      if ("status" %in% colnames(defs)) {
+        defs[["status"]] <- unname(
+          status_codes[as.character(defs[["status"]])]
+        )
+      }
       for (k in intersect(colnames(defs), names(info))) {
-        defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
+        # `exclude = NULL`: an NA cell is a level the engine codes like any
+        # other, and dropping it here would shift every code by one
+        defs[[k]] <- as.integer(
+          factor(defs[[k]], levels = info[[k]]$levels, exclude = NULL)
+        )
       }
       defs
     }

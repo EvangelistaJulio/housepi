@@ -41,9 +41,9 @@ namespace housepi
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Household::add_indiv(IndivIndex index, StatusLevel status)
+    void Household::add_indiv(IndivIdx index, StatusLvl status)
     {
-        const MemberIndex m = hhsize_++;
+        const MemberIdx m = hhsize_++;
         indivs_.emplace_back();
 
         Individual &last = indivs_.back();
@@ -57,9 +57,9 @@ namespace housepi
             set_new_status_(last, status);
     }
 
-    void Household::set_new_status_(Individual &indiv, StatusLevel snew)
+    void Household::set_new_status_(Individual &indiv, StatusLvl snew)
     {
-        const MemberIndex i = indiv.member_index_;
+        const MemberIdx i = indiv.member_index_;
         size_t cold = status::category(indiv.status());
         size_t cnew = status::category(snew);
 
@@ -145,10 +145,10 @@ namespace housepi
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
         report_indiv.total = read::csv_n_rows(input);
-        if (report_indiv.total > std::numeric_limits<IndivIndex>::max())
+        if (report_indiv.total > std::numeric_limits<IndivIdx>::max())
             msg::stop(
                 "Data exceeded the maximum of " +
-                std::to_string(std::numeric_limits<IndivIndex>::max()) + " individuals.");
+                std::to_string(std::numeric_limits<IndivIdx>::max()) + " individuals.");
 
         // pre-allocate external data storage
         indiv_data_.resize(report_indiv.total);
@@ -159,7 +159,7 @@ namespace housepi
         {
             std::string id = std::to_string(i + 1);                          // default id
             std::string house_id = std::to_string(house_vector_.size() + 1); // default house_id
-            StatusLevel status = status::MISSING;
+            StatusLvl status = status::MISSING;
 
             if (input.count("id"))
             {
@@ -192,7 +192,7 @@ namespace housepi
                         msg::stop(
                             "Data exceeded the maximum of " +
                             std::to_string(status::MAX_INFECTED) + " infected statuses.");
-                    status = static_cast<StatusLevel>(s);
+                    status = static_cast<StatusLvl>(s);
                 }
             }
 
@@ -238,26 +238,26 @@ namespace housepi
             {
                 // map data index to household number
                 size_t H = house_vector_.size();
-                if (H > std::numeric_limits<HouseIndex>::max())
+                if (H > std::numeric_limits<HouseIdx>::max())
                     msg::stop(
                         "Data exceeded the maximum of " +
-                        std::to_string(std::numeric_limits<HouseIndex>::max()) + " households.");
+                        std::to_string(std::numeric_limits<HouseIdx>::max()) + " households.");
                 hhid_to_index_.emplace(house_id, H);
                 // create a new empty household
                 house_vector_.emplace_back();
-                house_vector_.back().house_index_ = static_cast<HouseIndex>(H);
+                house_vector_.back().house_index_ = static_cast<HouseIdx>(H);
                 house_ids_.emplace_back(house_id);
             }
             // extract the household reference
             Household &house = house_vector_.at(hhid_to_index_.at(house_id));
-            if (house.size() == std::numeric_limits<MemberIndex>::max())
+            if (house.size() == std::numeric_limits<MemberIdx>::max())
                 msg::stop(
                     "Household " + msg::val(house_id) + " exceeded the maximum of " +
-                    std::to_string(std::numeric_limits<MemberIndex>::max()) + " members.");
+                    std::to_string(std::numeric_limits<MemberIdx>::max()) + " members.");
 
             // assign the individual the respective household
             indiv_ids_[i] = id;
-            house.add_indiv(static_cast<IndivIndex>(i), idata.status);
+            house.add_indiv(static_cast<IndivIdx>(i), idata.status);
         }
 
         // columns known at import: model declared keys plus the user ones. Columns
@@ -418,7 +418,7 @@ namespace housepi
                     for (size_t i : order)
                     {
                         const Individual &indiv = house.at(i);
-                        hash_combine_(seed, std::hash<StatusLevel>{}(indiv.status()));
+                        hash_combine_(seed, std::hash<StatusLvl>{}(indiv.status()));
                         for (size_t d : data_list_)
                             hash_combine_(seed, std::hash<double>{}(data_wide_.data(d, indiv)));
                     }
@@ -493,7 +493,7 @@ namespace housepi
         {
             const size_t refer_restrict = eq_classes_.size();
             for (size_t H : group)
-                at(H).eq_class_ = static_cast<HouseIndex>(refer_restrict);
+                at(H).eq_class_ = static_cast<HouseIdx>(refer_restrict);
 
             eq_classes_.emplace_back(group);
         }
@@ -513,7 +513,7 @@ namespace housepi
         for (size_t H = 0; H < report_house.total; ++H)
         {
             eq_classes_[H].head_ = H;
-            at(H).eq_class_ = static_cast<HouseIndex>(H);
+            at(H).eq_class_ = static_cast<HouseIdx>(H);
         }
     }
 

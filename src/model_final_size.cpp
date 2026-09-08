@@ -43,6 +43,8 @@ public:
 			Param::alpha, {GroupRisk::community});
 		request_risk_identifiability(
 			Param::beta, {GroupRisk::susceptibility, GroupRisk::infectivity}, true);
+		request_risk_status_stratified(
+			{GroupRisk::infectivity});
 	}
 
 	/// Allow for contact risk definitions.
@@ -75,16 +77,16 @@ public:
 
 		// associate infected integer-partition, built in place in the cache:
 		// both vectors hold house.size() entries and K never exceeds n_infec
-		const MemberIndex n_infec = house.n_infected_status();
+		const MemberIdx n_infec = house.n_infected_status();
 		auto &part_counts = cache_member_vector(house, HHmembervec::part_counts);
 		auto &part_indexes = cache_member_vector(house, HHmembervec::part_indexes);
-		MemberIndex K = 0; // number of partitions
+		MemberIdx K = 0; // number of partitions
 
-		for (MemberIndex oi = 0; oi < n_infec; ++oi)
+		for (MemberIdx oi = 0; oi < n_infec; ++oi)
 		{
 			// search existing partitions for a match
-			MemberIndex p = K; // tentatively new
-			for (MemberIndex oj = 0; oj < K; ++oj)
+			MemberIdx p = K; // tentatively new
+			for (MemberIdx oj = 0; oj < K; ++oj)
 				if (is_same_risk_partition(house, order[part_indexes[oj]], order[oi]))
 					p = oj; // this acts as a break
 
@@ -125,7 +127,7 @@ public:
 	/// Risk of infection from the community.
 	double community_risk() const { return par(Param::alpha); }
 	/// Risk of infection from another household member.
-	double person_to_person_risk(MemberIndex house_size) const
+	double person_to_person_risk(MemberIdx house_size) const
 	{
 		return par(Param::beta) *
 			   std::exp(par(Param::gamma) * std::log(par(Param::hhsize_ref) / house_size));
@@ -136,7 +138,7 @@ public:
 	/// This requires to compute also escaped partitions.
 	void fill_house_escape_matrix(const Household &house)
 	{
-		const MemberIndex house_size = house.size();
+		const MemberIdx house_size = house.size();
 		const auto &order = cache_member_vector(house, HHmembervec::order);
 		const double commu_rate = community_risk();
 		const double p2p_rate = person_to_person_risk(house_size);
@@ -146,9 +148,9 @@ public:
 		auto &p2p_mtx = cache_double_matrix(house, HHdoublemtx::p2p_escape_rate);
 
 		// fill matrix according to order
-		for (MemberIndex oi = 0; oi < house_size; ++oi)
+		for (MemberIdx oi = 0; oi < house_size; ++oi)
 		{
-			MemberIndex i = order[oi]; // retrieve household member index (partition representative)
+			MemberIdx i = order[oi]; // retrieve household member index (partition representative)
 			const Individual &indiv_i = house.at(i);
 			const double inf_i_scl = group_risk(GroupRisk::infectivity, indiv_i) * p2p_rate;
 			const double sus_i = group_risk(GroupRisk::susceptibility, indiv_i);
@@ -158,9 +160,9 @@ public:
 			commu_mtx[oi] = commu_rate * group_risk(GroupRisk::community, indiv_i);
 
 			// person-to-person
-			for (MemberIndex oj = 0; oj < oi; ++oj)
+			for (MemberIdx oj = 0; oj < oi; ++oj)
 			{
-				MemberIndex j = order[oj];
+				MemberIdx j = order[oj];
 				const Individual &indiv_j = house.at(j);
 				// [i] : infector -> [k] : infectee
 				p2p_mtx[oi][oj] = inf_i_scl * contact_risk(house, i, j) *
@@ -208,7 +210,7 @@ public:
 		/////////////  Generation 0 : infection by community  ////////////
 		//////////////////////////////////////////////////////////////////
 
-		std::vector<MemberIndex> new_gen_set = {};
+		std::vector<MemberIdx> new_gen_set = {};
 
 		for (Individual &indiv : house)
 			if (exponential() > commu_rate * group_risk(GroupRisk::community, indiv))
@@ -223,14 +225,14 @@ public:
 		//////  Generation >=1 : infection by previous generation  ///////
 		//////////////////////////////////////////////////////////////////
 
-		std::vector<MemberIndex> old_gen_set = {};
+		std::vector<MemberIdx> old_gen_set = {};
 
 		while (house.n_escaped_status() > 0 && !new_gen_set.empty())
 		{
 			std::swap(old_gen_set, new_gen_set);
 			new_gen_set.clear();
 
-			for (MemberIndex i = 0; i < house.size(); ++i)
+			for (MemberIdx i = 0; i < house.size(); ++i)
 			{
 				Individual &indiv_i = house.at(i);
 
@@ -238,7 +240,7 @@ public:
 					continue;
 
 				double r = 0.;
-				for (MemberIndex j : old_gen_set)
+				for (MemberIdx j : old_gen_set)
 					r += group_risk(GroupRisk::infectivity, house.at(j)) *
 						 contact_risk(house, j, i);
 

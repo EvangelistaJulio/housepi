@@ -227,14 +227,14 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Helper to assert and re-build group and contact risks.
-    helper_build_risks_ = function(module) {
+    # `...` carries the stratification axes only the group risks know about.
+    helper_build_risks_ = function(module, ...) {
       # proceed only if definitions exist
       if (length(module$defs) == 0) return(invisible(self))
 
       private$assert_no_obs_risk_collision_(module)
 
-      # UPDATE: this "back & forth" of data_wide is sub-optimal...
-      module$implement(self$data_wide, private$generator_$info_data_wide)
+      module$implement(self$data_wide, ...)
 
       # append parameter if missing
       new_parameters <- module$parameters
@@ -251,9 +251,10 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Assert and pre-build group risks.
-    build_group_risks_ = function() {
+    build_group_risks_ = function(wall = FALSE) {
+      status_codes <- private$status_codes_()
       private$assert_group_risks_()
-      private$helper_build_risks_(private$group_risks_)
+      private$helper_build_risks_(private$group_risks_, status_codes, wall)
     },
 
     # @description
@@ -332,6 +333,17 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
+    # Engine infected-status codes, named after the labels a risk may key on.
+    # Labels win when the model knows any; a purely integer-coded status column
+    # is its own dictionary, and the codes stand for themselves.
+    status_codes_ = function() {
+      dict <- private$status_dictionary_()
+      if (length(dict) > 0) return(stats::setNames(seq_along(dict), dict))
+      codes <- as.integer(private$generator_$infec_status_set)
+      stats::setNames(codes, as.character(codes))
+    },
+
+    # @description
     # Parameter definitions with `discr` resolved against the model on demand.
     resolved_param_ = function() {
       resolve_discr_flags_(private$param_$defs,
@@ -384,9 +396,19 @@ HousepiModel <- R6::R6Class(
         return(invisible(self))
       }
 
+      # the status dictionary keys the risks that stratify on it, and the
+      # latent status codes below: it must be settled before either reads it
+      status_dict <- private$status_dictionary_()
+      if (private$generator_$escaped %in% status_dict) stop_h(
+        paste("Infected status {.val {private$generator_$escaped}} collides",
+              "with the escaped-status label",
+              "({.val {private$generator_$escaped}})."),
+        "Rename the status or define a different {.code escaped =} label."
+      )
+
       # risks derive from their own covariates (they append to param_$defs)
       if (length(private$group_risks_$defs) > 0) {
-        private$build_group_risks_()
+        private$build_group_risks_(wall)
       }
       if (length(private$contact_risks_$defs) > 0) {
         private$build_contact_risks_()
@@ -400,34 +422,26 @@ HousepiModel <- R6::R6Class(
       mcmc_ptr <- private$generator_$mcmc_ptr
       info_wide <- private$generator_$info_data_wide
 
-      #> parameters (resolve unspecified discretization against the model)
+      # parameters
       private$autofill_baseline_params_()
       .engine$import_param(mcmc_ptr, private$resolved_param_())
 
-      #> group risks
+      # group risks
       .engine$import_group_risk(
         mcmc_ptr,
-        private$group_risks_$expose_to_cpp(info_wide)
+        private$group_risks_$expose_to_cpp(info_wide, private$status_codes_())
       )
 
-      #> contact risks
+      # contact risks
       .engine$import_contact_risk(
         mcmc_ptr,
         private$contact_risks_$expose_to_cpp(info_wide)
       )
 
-      #> infectivity profile
+      # infectivity profile
       .engine$import_infec_profile(mcmc_ptr, private$infec_profile_$defs)
 
-      #> latent (resolve character status labels to integer codes for C++,
-      #> and unspecified discretization against the model and the data)
-      status_dict <- private$status_dictionary_()
-      if (private$generator_$escaped %in% status_dict) stop_h(
-        paste("Infected status {.val {private$generator_$escaped}} collides",
-              "with the escaped-status label",
-              "({.val {private$generator_$escaped}})."),
-        "Rename the status or define a different {.code escaped =} label."
-      )
+      # latent
       latent_defs <- resolve_status_codes_(private$resolved_latent_(),
                                            status_dict)
       # NOTE: unresolved definitions wait for completeness or for the wall
@@ -743,7 +757,7 @@ HousepiModel <- R6::R6Class(
     group_risks = function(value) {
       if (!missing(value)) stop_read_only("group_risks")
       helper_show_risk_table(private$group_risks_,
-                             risk_reserved_cols,
+                             setdiff(risk_reserved_cols, risk_pin_cols),
                              private$has_data_wide_())
     },
 
@@ -752,7 +766,8 @@ HousepiModel <- R6::R6Class(
     contact_risks = function(value) {
       if (!missing(value)) stop_read_only("contact_risks")
       helper_show_risk_table(private$contact_risks_,
-                             setdiff(risk_reserved_cols, "group_risk"),
+                             setdiff(risk_reserved_cols,
+                                     c("group_risk", risk_pin_cols)),
                              private$has_data_wide_())
     },
 
@@ -1033,6 +1048,7 @@ HousepiModel <- R6::R6Class(
 export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   stopifnothousepi(hhmodel)
   pvt <- hhmodel$.__enclos_env__$private
+  status_codes <- pvt$status_codes_()
   pvt$build_group_risks_()
   pvt$build_contact_risks_()
 
@@ -1050,7 +1066,7 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   utils::write.csv(.engine$export_data_long(gen$mcmc_ptr),
                    file.path(outpath, "data_long.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(pvt$group_risks_$expose_to_cpp(info_wide),
+  utils::write.csv(pvt$group_risks_$expose_to_cpp(info_wide, status_codes),
                    file.path(outpath, "group_risks.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(pvt$infec_profile_$defs,

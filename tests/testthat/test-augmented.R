@@ -540,8 +540,10 @@ test_that("Household observations reject a status", {
     get_observations()
   expect_identical(as.integer(bulk[["status"]]), 1L)
   imported <- hhmodel |>
-    add_observation(import = list(raiden = list(func = quote(min(test_date@D)))),
-                    status = 1) |>
+    add_observation(
+      import = list(raiden = list(func = quote(min(test_date@D)))),
+      status = 1
+    ) |>
     get_observations()
   expect_identical(as.integer(imported[["status"]]), 1L)
 })
@@ -1416,4 +1418,54 @@ test_that("Discretization is resolved every time the data changes", {
     expect_true()
   on_integer_lattice(run_simulation(hhmodel)$tsuchinoko) |>
     expect_true()
+})
+
+test_that("Status-specific blocks alone cover every drawn status", {
+  # simulation draws the status, so the data carries none: the blocks a drawn
+  # status can land on are the declared ones, never the observed ones
+  mk <- function(..., weights = c(0.5, 0.5)) {
+    data.frame(
+      id = c("snake", "miller", "huey", "quiet"),
+      house_id = c("mother", "mother", "base", "base"),
+      status = NA, start_date = 0, end_date = 21
+    ) |>
+      new_housepi_model("case_ascertained", quiet = TRUE) |>
+      add_parameter(import = "template") |>
+      add_infectivity_profile(import = "template") |>
+      add_status(symptomatic = weights[1], asymptomatic = weights[2]) |>
+      add_latent(...)
+  }
+
+  # every declared status carries its own block, so no generic one is needed
+  covered <- mk(
+    infec_time = list(value = 0, status = 1),
+    .incub = list(model = "gamma", mean = 2, sd = 1, max = 14, status = 1),
+    .onset = list(func = infec_time + .incub, status = 1),
+    infec_time = list(value = 0, status = 2),
+    .incub = list(model = "gamma", mean = 3, sd = 1, max = 14, status = 2),
+    .onset = list(func = infec_time + .incub, status = 2)
+  )
+  expect_s3_class(suppressWarnings(run_simulation(covered)), "data.frame")
+
+  # a status left without a block is named itself, not reported as a missing
+  # generic definition the model never had to declare. Every infected member
+  # draws that status, so the report does not depend on how the draw falls
+  uncovered <- mk(
+    infec_time = list(value = 0, status = 1),
+    .incub = list(model = "gamma", mean = 2, sd = 1, max = 14, status = 1),
+    .onset = list(func = infec_time + .incub, status = 1),
+    weights = c(0, 1)
+  )
+  sms <- tryCatch(suppressWarnings(run_simulation(uncovered)),
+                  error = conditionMessage)
+  expect_match(sms, "status 2")
+  expect_false(grepl("generic latent definition", sms))
+
+  # a generic block on its own still serves every drawn status
+  generic <- mk(
+    infec_time = 0,
+    .incub = list(model = "gamma", mean = 2, sd = 1, max = 14),
+    .onset = list(func = infec_time + .incub)
+  )
+  expect_s3_class(suppressWarnings(run_simulation(generic)), "data.frame")
 })

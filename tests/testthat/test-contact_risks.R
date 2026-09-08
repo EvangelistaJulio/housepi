@@ -39,6 +39,23 @@ test_that("Contact risks pair counts are computed correctly", {
   expect_equal(aa, integer(0))
 })
 
+test_that("Pair counts drop the member meeting itself", {
+  # two children in one household make two ordered child->child pairs, not
+  # four: a member never contacts itself
+  df_hh <- data.frame(
+    house_id = c("hh1", "hh1", "hh1", "hh2", "hh2"),
+    age = c("child", "child", "adult", "adult", "adult"),
+    stringsAsFactors = FALSE
+  )
+  tbl <- contact_risk_logic_table(df_hh, "age")
+  pick <- function(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
+
+  expect_equal(pick("child", "child"), 2L)
+  expect_equal(pick("adult", "adult"), 2L)
+  expect_equal(pick("child", "adult"), 2L)
+  expect_equal(pick("adult", "child"), 2L)
+})
+
 ######################################
 ## CONTACT RISKS : AUTO DEFINITIONS ##
 ######################################
@@ -174,6 +191,24 @@ test_that("Absoluteness follows the reference across every definition mode", {
   # custom mode: the tag alone decides
   expect_equal(risk_prior(strata = untagged), "uniform")
   expect_equal(risk_prior(strata = tagged), "lognormal")
+})
+
+test_that("Every rule group keeps its anchoring across repeated pairs", {
+  # not joint, so each feature owns a rule group. A pair resolving no rule of a
+  # group anchors that group, and pairs repeat across households: an anchoring
+  # dropped on a repeat would surface as a free scale and a uniform prior
+  hhmodel <- sarscov2_2021_icofs |>
+    new_housepi_model("final_size", quiet = TRUE) |>
+    add_parameter(import = "template") |>
+    add_contact_risk(by = c("age", "sex"),
+                     reference = c(from_age = "adult", to_age = "adult"))
+
+  expect_setequal(get_contact_risks(hhmodel)$rule_group, c(1L, 2L))
+
+  params <- get_parameters(hhmodel)
+  contact <- params[grepl("^(age|sex)_", params$name), ]
+  expect_true(nrow(contact) > 0)
+  expect_true(all(contact$prior == "lognormal"))
 })
 
 test_that("Spare prior arguments on a contact risk are reported", {
@@ -599,4 +634,83 @@ test_that("Contact risks raise an error for incompatible models", {
     new_housepi_model("test") |>
     add_contact_risk(by = "cohort") |>
     expect_error("[Nn]ot supported")
+})
+
+##################################
+## CONTACT RISKS : STRATA PINS ##
+##################################
+
+# One pinned pair over a house holding one of each member type.
+pin_ctr_strata <- function(value = c(0.4, NA), const = c(TRUE, NA)) {
+  data.frame(from_member = c("father", NA),
+             to_member = c("mother", NA),
+             param_name = c("ctr_fm", ".reference"),
+             value = value, const = const,
+             stringsAsFactors = FALSE)
+}
+
+mk_ctr_pin <- function(strata, ...) {
+  data.frame(
+    id = c("m1", "m2", "m3", "m4"),
+    house_id = "h1",
+    status = c(0L, 0L, 0L, 0L),
+    member = c("father", "mother", "student", "sibling"),
+    stringsAsFactors = FALSE
+  ) |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = "template") |>
+    add_contact_risk(strata = strata, prior = "lognormal", sdlog = 3, ...)
+}
+
+test_that("A contact strata value pins the stratum and keeps its prior", {
+  params <- mk_ctr_pin(pin_ctr_strata(const = c(NA, NA))) |> get_parameters()
+  pinned <- subset(params, name == "ctr_fm")
+  expect_equal(pinned$value, 0.4)
+  expect_false(pinned$const)
+  expect_equal(pinned$prior, "lognormal")
+
+  # a fixed stratum is a constant parameter: it carries no prior
+  params <- get_parameters(mk_ctr_pin(pin_ctr_strata()))
+  fixed <- subset(params, name == "ctr_fm")
+  expect_equal(fixed$value, 0.4)
+  expect_true(fixed$const)
+  expect_true(is.na(fixed$prior))
+
+  # the read table keeps the columns typed
+  tidy <- get_contact_risks(mk_ctr_pin(pin_ctr_strata()))
+  expect_type(tidy$value, "double")
+  expect_type(tidy$const, "logical")
+})
+
+test_that("Invalid contact strata pins are rejected", {
+  # a fixed stratum needs the value it is fixed at
+  mk_ctr_pin(pin_ctr_strata(value = rep(NA_real_, 2))) |>
+    expect_error("ctr_fm")
+  # an all-NA column pins nothing, whichever type it was written with
+  mk_ctr_pin(pin_ctr_strata(value = c(NA, NA), const = c(NA, NA))) |>
+    get_parameters() |>
+    expect_silent()
+  # the reference is 1 by definition
+  mk_ctr_pin(pin_ctr_strata(value = c(0.4, 0.9), const = c(NA, NA))) |>
+    expect_error("[Rr]eference")
+  # a pinned stratum takes no entry in params
+  mk_ctr_pin(pin_ctr_strata(), params = list(ctr_fm = 2)) |>
+    expect_error("ctr_fm")
+})
+
+test_that("A symmetric pin reaches the mirrored pair", {
+  snap <- mk_ctr_pin(pin_ctr_strata(), symmetric = TRUE) |>
+    (\(hhmodel) hhmodel$export_house_snapshot("h1"))()
+
+  # the mirrored row inherits both the parameter and its pin
+  expect_equal(ctr_cell_(snap, "father", "mother"), 0.4)
+  expect_equal(ctr_cell_(snap, "mother", "father"), 0.4)
+  # every other pair falls through to the reference
+  expect_equal(ctr_cell_(snap, "student", "sibling"), 1)
+
+  # symmetric = FALSE leaves the reverse direction at the reference
+  snap <- mk_ctr_pin(pin_ctr_strata(), symmetric = FALSE) |>
+    (\(hhmodel) hhmodel$export_house_snapshot("h1"))()
+  expect_equal(ctr_cell_(snap, "father", "mother"), 0.4)
+  expect_equal(ctr_cell_(snap, "mother", "father"), 1)
 })

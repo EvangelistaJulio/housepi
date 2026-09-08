@@ -486,10 +486,10 @@ namespace housepi
             }
 
             // check associated status
-            StatusLevel s = status::MISSING;
+            StatusLvl s = status::MISSING;
             const std::string &sstr = deftable_.c_status[k];
             if (!na::is(sstr))
-                s = static_cast<StatusLevel>(
+                s = static_cast<StatusLvl>(
                     str::toi(sstr, str::format(deftable_.c_kind[k]) + " status"));
             map_status_to_def_row_[s].push_back(k); // store status to definition row index
         }
@@ -501,7 +501,7 @@ namespace housepi
 
     void Augmented::build_set_allocation_order_()
     {
-        std::unordered_set<StatusLevel> all_infected_statuses = {};
+        std::unordered_set<StatusLvl> all_infected_statuses = {};
 
         // allocate storage
         varia.resize(mcmc_->data_wide().report_indiv.total);
@@ -510,13 +510,13 @@ namespace housepi
         for (const Household &house : mcmc_->data_wide())
             for (const Individual &indiv : house)
             {
-                IndivBlock &ilatent = varia_of_(indiv);
-                ilatent.vec.resize(n);
+                IndivBlock &block = varia_of_(indiv);
+                block.vec.resize(n);
                 for (size_t a = 0; a < n; ++a)
                     if (is_member_obs(khold(a)))
-                        ilatent.vec[a].name(khold(a), ErrType::Observation);
+                        block.vec[a].name(khold(a), ErrType::Observation);
                     else
-                        ilatent.vec[a].name(khold(a), ErrType::Latent);
+                        block.vec[a].name(khold(a), ErrType::Latent);
 
                 if (indiv.is_infected_status())
                     all_infected_statuses.emplace(indiv.status());
@@ -535,7 +535,7 @@ namespace housepi
 
         // associate observed status to corresponding status block
         // if not defined specifically, then associate to generic
-        for (StatusLevel s : all_infected_statuses)
+        for (StatusLvl s : all_infected_statuses)
             if (!map_status_to_block_.count(s))
             {
                 if (!map_status_to_block_.count(status::MISSING))
@@ -544,15 +544,22 @@ namespace housepi
             }
 
         // if no observed infected status or status-specific definitions
-        // then load generic definitition
+        // then load generic definition
         if (all_infected_statuses.empty() ||
             (map_status_to_def_row_.size() == 1 &&
              status::is_missing(map_status_to_def_row_.begin()->first)))
-            set_definition_order_for_(status::MISSING, status::MISSING);
+            // generic definition serves any status left without block
+            // load it when declared, otherwise the call reports it missing
+            // NOTE: unless a status is drawn and gap is reported at simulations
+            // (see helper_materialize_definition_order_)
+            if (map_status_to_def_row_.count(status::MISSING) ||
+                !is_any_status_obs() ||
+                map_status_to_block_.empty())
+                set_definition_order_for_(status::MISSING, status::MISSING);
     }
 
     /// Report the observed status left without definitions.
-    static std::string undeclared_status_message_(StatusLevel err_status)
+    static std::string undeclared_status_message_(StatusLvl err_status)
     {
         if (status::is_missing(err_status))
             return "No generic latent definition was declared.\n"
@@ -564,7 +571,7 @@ namespace housepi
                "In alternative, drop " + msg::arg("status") + " from existing definitions to make them generic.";
     }
 
-    void Augmented::set_definition_order_for_(StatusLevel s, StatusLevel err_status)
+    void Augmented::set_definition_order_for_(StatusLvl s, StatusLvl err_status)
     {
         // skip if already passed
         if (map_status_to_block_.count(s))
@@ -590,14 +597,15 @@ namespace housepi
 
             // ignore spurious hidden definition if no kept definition consumes it
             // NOTE: infectivity profile (hidden) can consume hidden
-            auto is_kept_consumer = [](const std::string &c)
+            auto keep_consumer = [](const std::string &c)
             { return !str::is_hidden(c) || c == infprof::LATENT_FUNC; };
 
             for (const std::string &astr : dpdcy::order_producers_first(pgraph, ErrType::Latent))
             {
                 const auto consumers = dpdcy::transitive_consumers(astr, pgraph, ErrType::Latent);
-                if (astr == infprof::LATENT_FUNC || !str::is_hidden(astr) ||
-                    std::any_of(consumers.begin(), consumers.end(), is_kept_consumer))
+                if (astr == infprof::LATENT_FUNC ||
+                    !str::is_hidden(astr) ||
+                    std::any_of(consumers.begin(), consumers.end(), keep_consumer))
                     status_blocks_.back().order.emplace_back(name_to_row[astr]);
             }
 
@@ -629,7 +637,7 @@ namespace housepi
     }
 
     void Augmented::assert_producers_declared_(const dpdcy::prod_graph &pgraph,
-                                               StatusLevel s) const
+                                               StatusLvl s) const
     {
         for (const auto &node : pgraph)
             for (const std::string &astr : node.second)
@@ -661,7 +669,7 @@ namespace housepi
             }
     }
 
-    std::vector<size_t> Augmented::get_unsorted_definition_rows_(StatusLevel s) const
+    std::vector<size_t> Augmented::get_unsorted_definition_rows_(StatusLvl s) const
     {
         // load the list of status-specific definition rows
         std::vector<size_t> allrows = map_status_to_def_row_.at(s);
@@ -685,7 +693,7 @@ namespace housepi
     /////////////////////////////////////  Augmented : sample lists  //////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Augmented::set_sample_list_(StatusLevel s)
+    void Augmented::set_sample_list_(StatusLvl s)
     {
         StatusBlock_ &block = block_at_(s);
         for (size_t k : block.order)
@@ -696,7 +704,7 @@ namespace housepi
         block.draws = khold(str::drop_hidden(khold(block.draws)));
     }
 
-    void Augmented::set_sample_list_for_single_definition_(StatusLevel s, size_t k)
+    void Augmented::set_sample_list_for_single_definition_(StatusLvl s, size_t k)
     {
         const std::string &astr = deftable_.c_name[k];
         size_t a = khold(astr);
@@ -766,7 +774,7 @@ namespace housepi
             block_at_(s).draws.emplace_back(a);
     }
 
-    std::pair<bool, bool> Augmented::set_sample_list_for_function_(StatusLevel s, size_t k)
+    std::pair<bool, bool> Augmented::set_sample_list_for_function_(StatusLvl s, size_t k)
     {
         bool is_to_export = true;
         bool is_to_draw = true;
@@ -1169,20 +1177,18 @@ namespace housepi
             // simulation (see helper_init_attributes_) and skips the model
             // entirely, so a min=/max=/model= that cycles back through a live
             // observation is never evaluated and must not be flagged here.
-            // This function is only ever reached while simulating (single
-            // call site: init_house_for_simulation), so the override applies
-            // unconditionally; a shared/inference-reachable use would need an
-            // explicit simulation flag, as helper_init_attributes_ has.
-            const bool has_sim_override = !na::is(deftable_.c_value[k]) && !na::is(deftable_.c_model[k]);
-            const std::vector<const DefTable_::col *> cols = has_sim_override
-                ? std::vector<const DefTable_::col *>{&deftable_.c_value, &deftable_.c_func}
-                : deftable_.source_cols();
+            std::vector<const DefTable_::col *> cols = {&deftable_.c_value,
+                                                        &deftable_.c_func};
+            if (na::is(deftable_.c_value[k]) ||
+                na::is(deftable_.c_model[k]))
+                cols = deftable_.source_cols();
 
             for (const DefTable_::col *col : cols)
                 for (const std::string &dstr : referred_data((*col)[k], live_names))
                     msg::stop(
                         "Found cyclic dependency in simulation.\nLatent " +
-                        msg::val(deftable_.c_name[k]) + " reads generated household observation " + msg::val(dstr) +
+                        msg::val(deftable_.c_name[k]) +
+                        " reads generated household observation " + msg::val(dstr) +
                         ".\nDefine " + msg::val(deftable_.c_name[k]) +
                         " without referencing " + msg::val(dstr) + ", or viceversa.");
         }
@@ -1216,10 +1222,13 @@ namespace housepi
             // Rule 1: a sampled quantity's model (distribution + support) must not read an
             // observation. Its producers may only be parameters and other latents.
             if (!na::is(deftable_.c_model[k]))
-                for (const std::string *col : {&deftable_.c_model[k], &deftable_.c_min[k], &deftable_.c_max[k]})
+                for (const std::string *col : {&deftable_.c_model[k],
+                                               &deftable_.c_min[k],
+                                               &deftable_.c_max[k]})
                     for (const std::string &dstr : referred_data(*col, obs_names))
                         msg::stop(
-                            "Definition collision: the model of " + msg::val(name) + " reads observation " + msg::val(dstr) +
+                            "Definition collision: the model of " + msg::val(name) +
+                            " reads observation " + msg::val(dstr) +
                             ".\nAn latent model cannot depend on an observed or generated value.");
 
             // Rule 2: a deterministic definition may read an observation (a downstream
@@ -1233,7 +1242,8 @@ namespace housepi
                     const auto consumers = dpdcy::transitive_consumers(name, pgraph, ErrType::Latent);
                     if (contains(consumers, dstr))
                         msg::stop(
-                            "Cyclic definition: " + msg::val(name) + " reads observation " + msg::val(dstr) +
+                            "Cyclic definition: " + msg::val(name) +
+                            " reads observation " + msg::val(dstr) +
                             ", but " + msg::val(dstr) + " depends on " + msg::val(name) +
                             ".\nBreak the loop by defining one of them independently of the other.");
                 }
@@ -1261,7 +1271,8 @@ namespace housepi
                     "before other latents are drawn; depend on data or parameters only.");
             for (const std::string &dstr : referred_data(deftable_.c_value[k], obs_names))
                 msg::stop(
-                    "Simulation override of " + msg::val(name) + " reads observation " + msg::val(dstr) +
+                    "Simulation override of " + msg::val(name) +
+                    " reads observation " + msg::val(dstr) +
                     ".\nA value paired with a model is applied during simulation, before " +
                     msg::val(dstr) + " is generated; depend on data or parameters only.");
         }
@@ -1404,17 +1415,10 @@ namespace housepi
         if (!is_any_status_obs())
             return;
 
-        const size_t k = status_obs_def_;
-        const std::string &astr = deftable_.c_name[k];
-
-        // a status observation's weights must be constant data: a status fixed in the
-        // data contributes a constant to the likelihood, dropped during inference.
-        // NOTE: outcome k resolves to infected status (INFECTED + k); the matching
-        // latent/observation block is selected at simulation (status-specific if
-        // declared, otherwise the generic one), so no block count is enforced here.
-        if (!def_is_pure_data_(k))
+        if (!def_is_pure_data_(status_obs_def_))
             msg::stop(
-                "Status observation " + msg::val(astr) + " must depend only on data or numeric constants.");
+                "Status observation " + msg::val(deftable_.c_name[status_obs_def_]) +
+                " must depend only on data or numeric constants.");
     }
 
     void Augmented::materialize_surrogate_columns(bool for_export)
@@ -1484,7 +1488,7 @@ namespace housepi
 
     std::vector<size_t> Augmented::helper_materialize_definition_order_(const Individual &indiv)
     {
-        StatusLevel s = indiv.status();
+        StatusLvl s = indiv.status();
 
         // if known status, then load its definition
         const auto it = map_status_to_block_.find(s);
@@ -1612,7 +1616,7 @@ namespace housepi
                                              Individual &indiv,
                                              rnd_gen &prng)
     {
-        StatusLevel s = status::INFECTED;
+        StatusLvl s = status::INFECTED;
 
         if (is_any_status_obs())
         {
@@ -1623,7 +1627,7 @@ namespace housepi
             svar.draw_value(prng);
 
             // NOTE: I am assuming value draws are integer in [0, max - 1]
-            s += static_cast<StatusLevel>(svar.value());
+            s += static_cast<StatusLvl>(svar.value());
         }
 
         house.set_new_status_(indiv, s);

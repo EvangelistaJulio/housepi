@@ -75,7 +75,7 @@ public:
     /// Latent variable initialization.
     void simulate_single_house(Household &house) override final
     {
-		for (MemberIndex i = 0; i < house.size(); ++i)
+		for (MemberIdx i = 0; i < house.size(); ++i)
 		{
 			Individual &indiv = house.at(i);
 			if (indiv.is_infected_status())

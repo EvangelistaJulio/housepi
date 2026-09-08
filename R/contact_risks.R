@@ -14,27 +14,21 @@
 contact_risk_logic_table <- function(data_wide, features) {
   # convention: no house_id implies households of size 1: no pairs possible
   if (!"house_id" %in% colnames(data_wide)) return(NULL)
-  # use existing "id" column or assign a row id
-  if (!"id" %in% colnames(data_wide)) data_wide$id <- seq_len(nrow(data_wide))
 
   # subset to needed column, and coerce features to character
   features <- as.character(unlist(features))
-  data_wide <- data_wide[, c("house_id", "id", features), drop = FALSE]
+  data_wide <- data_wide[, c("house_id", features), drop = FALSE]
   data_wide[] <- lapply(data_wide, as.character)
 
-  # vectorised self-join to retrieve every within-household ordered pair
-  pairs <- merge(data_wide, data_wide, by = "house_id",
-                 suffixes = c(".from", ".to"))
-  pairs <- pairs[pairs$id.from != pairs$id.to, , drop = FALSE]
-
-  # hash using unprintable separators '\x1E' and '\x1F'
+  # hash using unprintable separator '\x1F'
   make_key <- function(x, cols) do.call(paste, c(x[cols], list(sep = "\x1F")))
 
-  # hash-based counting of pair types
-  pair_key <- paste(make_key(pairs, paste0(features, ".from")),
-                    make_key(pairs, paste0(features, ".to")),
-                    sep = "\x1E")
-  cnt <- table(pair_key)
+  # within a household every 'from' meets every 'to', so the ordered pairs of
+  # two feature keys are the product of their per-household counts. Only the
+  # members meeting themselves have to come back off the diagonal
+  per_house <- table(data_wide$house_id, make_key(data_wide, features))
+  cnt <- crossprod(per_house)
+  diag(cnt) <- diag(cnt) - colSums(per_house)
 
   # build the full observed grid
   observed <- unique(data_wide[, features, drop = FALSE])
@@ -43,11 +37,9 @@ contact_risk_logic_table <- function(data_wide, features) {
   y <- merge(from_grid, to_grid, by = NULL)
   rownames(y) <- NULL
 
-  # look up counts by the same key
-  grid_key <- paste(make_key(y, names(from_grid)),
-                    make_key(y, names(to_grid)),
-                    sep = "\x1E")
-  y$n <- as.integer(cnt[grid_key])
+  # look up counts by the pair of feature keys
+  y$n <- as.integer(cnt[cbind(make_key(y, names(from_grid)),
+                              make_key(y, names(to_grid)))])
   y$n[is.na(y$n)] <- 0L
   y[y$n > 0, ]
 }
@@ -171,13 +163,14 @@ fill_symmetric_gaps <- function(tbl) {
 tidyup_contact_risk_tables <- function(tables) {
   if (length(tables) == 0) return(data.frame())
 
+  present <- unique(unlist(lapply(tables, names)))
   all_cols <- unique(c("param_name", "n",
-                       sort(unlist(lapply(tables, names)))))
+                       intersect(risk_pin_cols, present), sort(present)))
 
   combined <- do.call(rbind, lapply(seq_along(tables), function(i) {
     df <- tables[[i]]
     missing_cols <- setdiff(all_cols, names(df))
-    df[missing_cols] <- NA_character_
+    if (length(missing_cols) > 0) df[missing_cols] <- risk_na_pad(missing_cols)
     df[all_cols]
   }))
   rownames(combined) <- NULL
@@ -252,6 +245,7 @@ HousepiContactRisk <- R6::R6Class(
         "Tag one row's {.field param_name} as {.val .reference} instead."
       )
       assert_one_reference_per_group(strata, symmetric)
+      if (length(params) > 0) assert_no_pin_params_clash(strata, params)
       # cast feature columns to character (consistent with auto mode)
       feat_cols <- setdiff(colnames(strata), risk_reserved_cols)
       strata[feat_cols] <- lapply(strata[feat_cols], as.character)
@@ -303,12 +297,14 @@ HousepiContactRisk <- R6::R6Class(
     parameters = function(value) {
       new_params <- list()
       for (ptbl in self$logic_tables) {
+        pins <- collect_table_pins(ptbl)
         for (par_id in setdiff(ptbl$param_name, ".reference")) {
-          if (!is.null(self$param_overrides[[par_id]])) {
-            new_params[[par_id]] <- self$param_overrides[[par_id]]
+          def <- if (!is.null(self$param_overrides[[par_id]])) {
+            self$param_overrides[[par_id]]
           } else {
-            new_params[[par_id]] <- self$raw_params
+            self$raw_params
           }
+          new_params[[par_id]] <- helper_pin_param_def(def, pins[[par_id]])
         }
       }
       new_params
@@ -461,8 +457,7 @@ HousepiContactRisk <- R6::R6Class(
     #' @description
     #' Implement contact risk definition according to data.
     #' @param data_wide A data.frame with the dataset.
-    #' @param factor_info A list with factor levels.
-    implement = function(data_wide, factor_info) {
+    implement = function(data_wide) {
       symmetric <- isTRUE(self$defs[["symmetric"]])
 
       # custom mode
@@ -516,6 +511,7 @@ HousepiContactRisk <- R6::R6Class(
     expose_to_cpp = function(info) {
       defs <- self$tidy_table
       if (nrow(defs) == 0) return(defs)
+      defs[risk_pin_cols] <- NULL
 
       # encode from_X and to_X columns using factor info
       features <- self$defs[["by"]]
@@ -531,9 +527,10 @@ HousepiContactRisk <- R6::R6Class(
         lv <- info[[this_feat]]$levels
         for (prefix in c("from_", "to_")) {
           col <- paste0(prefix, this_feat)
-          if (col %in% colnames(defs)) {
-            defs[[col]] <- as.integer(factor(defs[[col]], levels = lv))
-          }
+          # it must exclude NULL (see HousepiGroupRisk$expose_to_cpp)
+          if (col %in% colnames(defs)) defs[[col]] <- as.integer(
+            factor(defs[[col]], levels = lv, exclude = NULL)
+          )
         }
       }
       defs
