@@ -181,8 +181,8 @@ Perform Chi-squared test and return list with results.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{lower_tail}}{\code{logical(1)}. Consider lower tail probabilities \code{P[X<=x]} (default).
-If \code{FALSE}, consider upper tail \code{P[X>x]}.}
+\item{\code{lower_tail}}{\code{logical(1)}. If \code{TRUE}, report the lower tail probability \code{P[X<=x]}
+instead of the upper tail \code{P[X>x]}.}
 }
 \if{html}{\out{</div>}}
 }

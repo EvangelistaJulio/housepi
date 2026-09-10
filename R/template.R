@@ -143,28 +143,21 @@ copy_template_to_path <- function(name, path) {
   # avoid current directory
   if (path == ".") {
     path <- name
-    warn_h(
-      "Using current directory is not allowed for copying a template.",
-      `!` = "Creating folder {.file {path}} instead."
-    )
+    warn_h("Using current directory is not allowed for copying a template.",
+           `!` = "Creating folder {.file {path}} instead.")
   }
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
-  if (dir.exists(path)) {
-    # source cpp and info are always present
-    required <- c("model.cpp", "info.Rd")
-    # definition templates are optional
-    optional <- unname(template_def_files)
-    for (f in c(required, optional)) {
-      from_file <- file.path(get_template_dir(name), f)
-      if (file.exists(from_file)) overwrite(from_file, file.path(path, f))
-      else if (f %in% required) stop_h(
-        "Template {.val {name}} is missing required file {.file {f}}."
-      )
-    }
-  } else {
-    stop_h(
-      "Failed to create directory {.file {path}}.",
-      "Check your user permissions."
+  if (!dir.exists(path)) raise_permissions_error()
+
+  # source cpp and info are always present
+  required <- c("model.cpp", "info.Rd")
+  # definition templates are optional
+  optional <- unname(template_def_files)
+  for (f in c(required, optional)) {
+    from_file <- file.path(get_template_dir(name), f)
+    if (file.exists(from_file)) overwrite(from_file, file.path(path, f))
+    else if (f %in% required) stop_h(
+      "Template {.val {name}} is missing required file {.file {f}}."
     )
   }
 }
@@ -200,9 +193,11 @@ open_model_helper_ <- function(path) {
 
   if (requireNamespace("rstudioapi", quietly = TRUE) &&
         rstudioapi::isAvailable()) {
+    # nocov start
     tmp <- tempfile(fileext = ".html")
     tools::Rd2HTML(rd, out = tmp, stages = stages)
     rstudioapi::viewer(tmp)
+    # nocov end
   } else if (interactive()) {
     cat(utils::capture.output(tools::Rd2txt(rd, stages = stages)), sep = "\n")
   } else {

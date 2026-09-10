@@ -1,6 +1,6 @@
 \docType{class}
-\title{Blank}
-\name{housepi template : Blank}
+\title{Test}
+\name{housepi template : Test}
 \description{
 A minimal placeholder model used to test the housepi infrastructure without committing to a specific transmission mechanism.
 The observation likelihood is constant for every household, and simulation only fills latent variables.

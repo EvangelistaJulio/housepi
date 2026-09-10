@@ -20,11 +20,11 @@
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
+#include "tools/vector.h"
 
 #include "function.h"
 #include "variable.h"
@@ -108,23 +108,23 @@ namespace housepi
 
     bool KeyHolder::count(std::string_view name) const
     {
-        return contains(declared_, name) || contains(optional_, name);
+        return vect::contains(declared_, name) || vect::contains(optional_, name);
     }
     void KeyModuleWithRequests::request_discrete(std::vector<size_t> vec)
     {
-        union_append(discr_, vec);
+        vect::append_unique(discr_, vec);
     }
     void KeyModuleWithRequests::request_positive(std::vector<size_t> vec)
     {
-        union_append(posit_, vec);
+        vect::append_unique(posit_, vec);
     }
     bool KeyModuleWithRequests::is_required_discrete(size_t p) const noexcept
     {
-        return contains(discr_, p);
+        return vect::contains(discr_, p);
     }
     bool KeyModuleWithRequests::is_required_positive(size_t p) const noexcept
     {
-        return contains(posit_, p);
+        return vect::contains(posit_, p);
     }
 
     template <class Def>
@@ -316,13 +316,6 @@ namespace housepi::str
         return out;
     }
 
-    std::vector<std::string> drop_hidden(std::vector<std::string> vec)
-    {
-        auto new_end = std::remove_if(vec.begin(), vec.end(), is_hidden);
-        vec.erase(new_end, vec.end());
-        return vec;
-    }
-
     /// Calcuate the Levenshtein distance.
     /// Distance is equal to seq_B length if seq_A is empty, and viceversa.
     /// Based on @cite wikipedia_levenshtein_2026
@@ -465,19 +458,21 @@ namespace housepi::dpdcy
                 "Could not find the " + str::format(err) +
                 " definition " + msg::val(entry) + ".");
 
-        if (contains(recursion_stack, entry))
+        if (vect::contains(recursion_stack, entry))
             msg::stop(
                 "Found inadmissible cyclic " + str::format(err) +
                 " definition " + msg::val(entry) + ".");
 
-        if (contains(visited, entry))
+        if (vect::contains(visited, entry))
             return;
 
         recursion_stack.push_back(entry);
         for (const std::string &next : graph.at(entry))
             walk_graph(next, graph, visited, recursion_stack, ordered, err);
 
-        recursion_stack = recursion_stack - std::vector<std::string>({entry});
+        // the cycle guard keeps 'entry' unique on the stack and the nested
+        // calls balance out, so 'entry' is the top on return
+        recursion_stack.pop_back();
         visited.push_back(entry);
         ordered.push_back(entry);
     }
@@ -486,7 +481,7 @@ namespace housepi::dpdcy
     {
         std::vector<std::string> visited, recursion_stack, ordered;
         for (const auto &[a, vec] : graph)
-            if (!contains(visited, a))
+            if (!vect::contains(visited, a))
                 walk_graph(a, graph, visited, recursion_stack, ordered, err);
         return ordered;
     }
@@ -524,7 +519,7 @@ namespace housepi::dpdcy
             walk_graph(cons, consumer_graph, visited, recursion_stack, ordered, err);
 
         std::reverse(ordered.begin(), ordered.end());
-        return std::vector<std::string>({start}) + ordered;
+        return vect::concatenate(std::vector<std::string>({start}), ordered);
     }
 }
 

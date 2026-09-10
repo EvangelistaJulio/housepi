@@ -47,18 +47,13 @@ wrap_cpp_member_ <- function(x, name) {
   wrap_cpp_member_(.subset2(x, "module"), name)
 }
 
-# nocov start'
+# nocov start
 .onLoad <- function(libname, pkgname) {
   pkgbuild::check_build_tools(quiet = TRUE)
   module <- Rcpp::Module(pkgname, PACKAGE = pkgname)
   .engine <<- structure(list(module = module), class = "housepi_engine")
   registerS3method("$", "housepi_engine", `$.housepi_engine`,
                    envir = asNamespace(pkgname))
-  # default label for the susceptible status (code 0) in character status output
-  op <- options()
-  if (is.null(op[["housepi.susceptible_label"]])) {
-    options(housepi.susceptible_label = "susceptible")
-  }
 }
 
 .onUnload <- function(libpath) {

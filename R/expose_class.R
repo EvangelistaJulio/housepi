@@ -9,6 +9,8 @@
 ############################# DOCUMENTATION ##############################
 ##########################################################################
 
+# nocov start
+
 ## Model surface ##
 
 rd_model_in_ <- "`HousepiModel` object."
@@ -55,8 +57,10 @@ rd_var_discr_ <- function(what, from) {
 }
 rd_obs_discr_from_ <- "the observed data column, or the model requirements"
 rd_var_prior_ <- "`character(1)` Prior distribution."
-rd_var_args_ <- function(what, proposal = FALSE) {
-  paste0(sprintf("named arguments for the %s distribution.", what),
+rd_var_args_ <- function(what, proposal = FALSE, func = FALSE) {
+  sink <- if (func) ", or for `func` when the definition is deterministic."
+  else "."
+  paste0(sprintf("named arguments for the %s distribution", what), sink,
          if (proposal) rd_proposal_opts_)
 }
 rd_var_min_ <- "`numeric(1)` Truncate to a minimum value.
@@ -66,7 +70,6 @@ Relative to the location argument `loc`, when one is given."
 rd_var_func_ <- "One between:
 - `character(1)` Name of latent function;
 - rlang expression."
-rd_var_funargs_ <- "named `list` Arguments of the latent function."
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
 Random walks changes current value:
 \\describe{
@@ -204,6 +207,8 @@ Expects processed `data_wide` and returns a `data_long` data.frame.
 When provided, each simulation returns `list(wide = ..., long = ...)`."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
 
+# nocov end
+
 ############################################################################
 ############################################################################
 ############################################################################
@@ -253,6 +258,8 @@ stopifnothousepi <- function(hhmodel) {
 #' @description
 #' Make an internal copy of the provided household data in wide format,
 #' (re)building any definitions that depend on it.
+#' An empty cell of a categorical column is missing data, not a category of
+#' its own: recode it to a label of your choice to stratify on it.
 #' @param hhmodel `r rd_model_in_`
 #' @param data `r rd_add_wide_`
 #' @return `r rd_model_out_`
@@ -496,11 +503,10 @@ add_template_defs_ <- function(pvt, family, append, key, dots) {
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_var_discr_("prior", "the model requirements")`
 #' @param prior `r rd_var_prior_`
-#' @param ... `r rd_var_args_("prior", proposal = TRUE)`
+#' @param ... `r rd_var_args_("prior", proposal = TRUE, func = TRUE)`
 #' In mode 'multiple', the `name = value` definitions.
 #' @param min `r rd_var_min_`
 #' @param func `r rd_var_func_`
-#' @param func_args `r rd_var_funargs_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
 #' @param import `r rd_tmpl_import_`
@@ -533,7 +539,7 @@ add_parameter <- function(hhmodel,
                           name = NULL, value = NULL, ...,
                           const = NA, discr = NA,
                           prior = NA_character_,
-                          func = NULL, func_args = NULL,
+                          func = NULL,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
                           import = NULL, append = TRUE) {
@@ -555,7 +561,7 @@ add_parameter <- function(hhmodel,
     name = name, value = rlang::enquo(value),
     const = const, discr = discr,
     prior = prior, rlang::enquos(...),
-    func = rlang::enquo(func), func_args = rlang::enquos(func_args),
+    func = rlang::enquo(func),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal,
     .assert = TRUE
@@ -588,9 +594,8 @@ add_parameter <- function(hhmodel,
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_var_discr_("model", "the model requirements")`
 #' @param func `r rd_var_func_`
-#' @param func_args `r rd_var_funargs_`
 #' @param model `character(1)` Latent model distribution.
-#' @param ... `r rd_var_args_("model", proposal = TRUE)`
+#' @param ... `r rd_var_args_("model", proposal = TRUE, func = TRUE)`
 #' In mode 'multiple', the `name = value` definitions.
 #' @param min `r rd_aug_min_`
 #' @param max `r rd_aug_max_`
@@ -606,13 +611,13 @@ add_parameter <- function(hhmodel,
 #'                 model = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
 add_latent <- function(hhmodel,
-                          name = NULL, value = NULL, ...,
-                          status = NA_integer_, const = NA, discr = NA,
-                          func = NULL, func_args = NULL,
-                          model = NA_character_,
-                          min = NULL, max = NULL,
-                          proposal = NA_character_,
-                          import = NULL, append = TRUE) {
+                       name = NULL, value = NULL, ...,
+                       status = NA_integer_, const = NA, discr = NA,
+                       func = NULL,
+                       model = NA_character_,
+                       min = NULL, max = NULL,
+                       proposal = NA_character_,
+                       import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -630,7 +635,7 @@ add_latent <- function(hhmodel,
   else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value),
     status = status, const = const, discr = discr,
-    func = rlang::enquo(func), func_args = rlang::enquos(func_args),
+    func = rlang::enquo(func),
     model = model, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal,
@@ -652,13 +657,17 @@ add_latent <- function(hhmodel,
 #' At member level, the observation is attached to every infected individual.
 #' If `model` is provided, adds to household likelihood during evaluations,
 #' and \eqn{x} is sampled from it during simulations.
+#' An individual whose datum is missing is left out of that likelihood, with a
+#' warning: there is nothing to condition on, and the observation constrains
+#' neither the individual latent variables nor the parameters. A column holding
+#' no value at all is an error.
 #'
 #' At household level, the observation is a reduction across all members,
 #' it's shared by the whole household, and must reduce to a constant value.
 #'
 #' An observation carrying no `model` produces its own data column, at either
-#' level: it is evaluated for every member, and eventually overwrites data
-#' column of the same name
+#' level: it is evaluated for every member, and overwrites any data column of
+#' the same name
 #' `r rd_add_modes_`
 #' @details
 #' `r rd_add_details_`
@@ -1008,7 +1017,7 @@ run_inference <- function(hhmodel,
                           progress = TRUE,
                           ...) {
   stopifnothousepi(hhmodel)
-  assert_advanced_setup_(list(...), c("inv_temp", "adapt_window"))
+  assert_advanced_setup_(c("inv_temp", "adapt_window"), ...)
   pvt <- hhmodel$.__enclos_env__$private
   id_draws <- pvt$resolve_id_draws_(id_draws)
   pvt$assert_posterior_memory_(
@@ -1055,7 +1064,7 @@ run_simulation <- function(hhmodel,
                            ...) {
   stopifnothousepi(hhmodel)
   # simulation specific build
-  assert_advanced_setup_(list(...), "time_step")
+  assert_advanced_setup_("time_step", ...)
   pvt <- hhmodel$.__enclos_env__$private
   nrep <- pvt$helper_simulation_build_(
     param_table = param_table, nrep = nrep, ...
@@ -1070,8 +1079,7 @@ run_simulation <- function(hhmodel,
     obs_process_long
   )
 
-  # drop empty wide/long
-  if (length(output$wide) == 0) output$wide <- NULL
+  # drop empty long
   if (length(output$long) == 0) output$long <- NULL
   if (length(output) == 1) {
     output <- output[[1]]

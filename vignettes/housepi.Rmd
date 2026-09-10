@@ -23,8 +23,7 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we will walk through the process of loading a housepi model template.
-Then we will explain how to associate necessary definitions in order to perform inference and simulations.
+Here we load a housepi model template, then associate the definitions needed to run inference and simulations.
 
 # Format of the data
 
@@ -77,7 +76,7 @@ This is used in advanced latent definitions, see [Data augmentation](data_augmen
 
 The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) `HousepiModel`.
 A dataset in wide format can be provided at model construction via the `data` argument of `new_housepi_model()`. 
-If omitted, it can be attached later with `add_data_wide()`".
+If omitted, it can be attached later with `add_data_wide()`.
 We show how to generate a new instance of such a class with a template model, the final-size:
 
 ```{r}
@@ -139,7 +138,6 @@ browse_templates("final_size")
 ```
 
 This command will open the relative documentation file in the Help window of your RStudio session.
-Our project aims at expanding the present collection of templates, in order to improve off-the-shelf analysis.
 
 # Associate parameters
 
@@ -149,7 +147,7 @@ We can call `add_parameter()` as follows:
 ```{r}
 #| label: add-parameters
 
-# single paramter definitions
+# single parameter definitions
 hhmodel <- hhmodel |>
   # baseline community transmission rate
   add_parameter(
@@ -175,7 +173,7 @@ hhmodel |>
 ```
 
 We can also turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE`. In such a case a `value` must be provided.
-At any moment we can read the definitions associted to the model object calling `get_parameters()`.
+At any moment we can read the definitions associated to the model object calling `get_parameters()`.
 
 For further information on the available options for priors and MCMC proposals definitions, see [Priors and proposals](priors_and_proposals.html).
 
@@ -251,14 +249,14 @@ hhsimul <- hhsimul |>
     # infection time of primary case
     infec_time = 0,
     # incubation period for each individual
-    .incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14),
+    incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14),
     # onset time is deterministic
-    .onset_time = infec_time + .incub_period
+    onset_time = infec_time + incub_period
   ) |>
   add_observation(
     # observation of onset date is noisy around the real onset time
-    onset_date = list(model = "normal", discr = TRUE, mean = .onset_time,
-                      sd = 1, min = floor(.onset_time)),
+    onset_date = list(model = "normal", discr = TRUE, mean = onset_time,
+                      sd = 1, min = floor(onset_time)),
     # household-level observation of start date is earliest onset date
     start_date = list(value = min(onset_date@D), level = "house")
   )
@@ -280,7 +278,7 @@ The infectivity profile, instead, is mandatory for this model: above we loaded t
 
 We run a simulation with the method `run_simulation`, using the same community structure from the survey.
 The index case is sampled randomly among all members for each household.
-Simulations will associates latent incubation periods, infection times and sampled onset dates to all infected individuals:
+Simulations associate latent incubation periods, infection times and sampled onset dates to all infected individuals:
 
 ```{r}
 #| label: run-simulation
@@ -291,17 +289,16 @@ simulated <- hhsimul |>
 head(simulated)
 ```
 
-An `obs_process` argument remains available for post-processing refinements.
+Pass `obs_process` a function to apply to the simulated `data.frame` before it is returned.
 
 # Validation
 
-It is important to validate our approach checking that inference is able to recover the parameters used for the simulation, with a so called simulation study.
+A simulation study checks that inference recovers the parameters used for the simulation.
 
 The pointwise `log_lik` is the per-household complete-data log-likelihood: for models with latent variables it includes latent models.
 
-Inference reuses the very same definition set as the simulation: the observed
-`onset_date` now enters as a proper observation likelihood (traced separately as
-`obs`), rather than being smuggled in as a prior on the latent.
+Inference reuses the definition set from the simulation.
+The observed `onset_date` enters as an observation likelihood, traced separately as `obs`.
 
 ```{r}
 #| label: inference-simulated
@@ -313,13 +310,13 @@ hhmodel <- simulated |>
     infec_time = list(
       model = "uniform", min = start_date@D - 14, max = end_date@D
     ),
-    .incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
-    .onset_time = infec_time + .incub_period
+    incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
+    onset_time = infec_time + incub_period
   ) |>
   add_observation(
     # observation is automatically discrete when datum is integer or Data
     onset_date = list(
-      model = "normal", mean = .onset_time, sd = 1, min = floor(.onset_time)
+      model = "normal", mean = onset_time, sd = 1, min = floor(onset_time)
     )
   )
 

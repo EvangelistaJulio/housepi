@@ -37,6 +37,7 @@ using discrete_up_policy = boost::math::policies::policy<
 
 #include "tools/messages.h"
 #include "tools/string.h"
+#include "tools/vector.h"
 
 #include "distribution.h"
 #include "registry.h"
@@ -99,9 +100,7 @@ namespace housepi
                 if (auto output = reg.create(name, is_cumul))
                     return std::unique_ptr<Distribution>(
                         static_cast<Distribution *>(output.release()));
-                const std::vector<std::string> y = reg.names();
-                options.reserve(options.size() + y.size());
-                options.insert(options.end(), y.begin(), y.end());
+                vect::append(options, reg.names());
             }
 
             msg::stop(

@@ -82,6 +82,12 @@ namespace housepi
             return r;
         }
 
+        /// Draw a standard N(0,1) deviate.
+        /// NOTE: deviates come in pairs, sampler holds a spare between calls.
+        double draw_normal() { return normal_dist_(*this); }
+        ///  Reset the normal distribution sampler (discard spare).
+        void reset() { normal_dist_.reset(); }
+
         //////////////////////
         //////  SETTER  //////
         //////////////////////
@@ -89,6 +95,8 @@ namespace housepi
         /// Seed with SplitMix64.
         void seed(result_type seed)
         {
+            reset();
+
             SplitMix64 sm(seed);
             for (result_type &x : s_)
                 x = sm();
@@ -97,6 +105,8 @@ namespace housepi
         /// Jump of 2^128 steps (for parallel stream splitting).
         void jump() noexcept
         {
+            reset();
+
             static constexpr result_type J[4] = {
                 0x180ec6d33cfd0abaULL,
                 0xd5a61266f0c9392cULL,
@@ -133,6 +143,7 @@ namespace housepi
 
     private:
         result_type s_[4]{};
+        std::normal_distribution<double> normal_dist_; /// Holds the spare of each normal pair.
 
         static result_type rotl_(result_type x, int k) noexcept { return (x << k) | (x >> (64 - k)); }
     };
@@ -174,13 +185,20 @@ namespace housepi
             return r;
         }
 
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        /// Draw a standard N(0,1) deviate.
+        /// NOTE: deviates come in pairs, sampler holds a spare between calls.
+        double draw_normal() { return normal_dist_(*this); }
+        ///  Reset the normal distribution sampler (discard spare).
+        void reset() { normal_dist_.reset(); }
+
+        ////////////////
+        ///  SETTER  ///
+        ////////////////
 
         /// Seed with SplitMix64.
         void seed(result_type seed)
         {
+            reset();
             SplitMix64 sm(seed);
             std::uint64_t z = sm();
             s_[0] = static_cast<std::uint32_t>(z);
@@ -193,6 +211,8 @@ namespace housepi
         /// Jump of 2^64 steps (for parallel stream splitting).
         void jump() noexcept
         {
+            reset();
+
             static constexpr result_type J[4] = {
                 0x8764000bu,
                 0xf542d2d3u,
@@ -220,15 +240,17 @@ namespace housepi
             s_[3] = s3;
         }
 
-        //////////////////////
-        //////  GETTER  //////
-        //////////////////////
+        ////////////////
+        ///  GETTER  ///
+        ////////////////
 
         static constexpr result_type min() noexcept { return std::numeric_limits<result_type>::min(); }
         static constexpr result_type max() noexcept { return std::numeric_limits<result_type>::max(); }
 
     private:
         result_type s_[4]{};
+        /// Holds the spare of each normal pair.
+        std::normal_distribution<double> normal_dist_;
 
         static result_type rotl_(result_type x, int k) noexcept { return (x << k) | (x >> (32 - k)); }
     };
@@ -243,12 +265,8 @@ namespace housepi
     /// UPDATE: these samplers can be improved.
 
     /// Standard N(0,1) random variable.
-    /// NOTE: generator caches between calls: thread_local keeps it race-free.
-    inline double standard_normal(rnd_gen &prng)
-    {
-        thread_local static std::normal_distribution<double> gen(0., 1.);
-        return gen(prng);
-    }
+    /// NOTE: sampler lives on the generator in order to allow for reset.
+    inline double standard_normal(rnd_gen &prng) { return prng.draw_normal(); }
 
     /// Uniform [0,1) random variable. Stateless.
     inline double standard_uniform(rnd_gen &prng)

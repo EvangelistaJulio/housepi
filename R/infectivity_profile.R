@@ -127,7 +127,7 @@ HousepiInfecProfile <- R6::R6Class(
       )
       assert_valid_status(status)
 
-      # drop previous definition eventually
+      # drop any previous definition
       rmv_name <- self$remove(status)
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)

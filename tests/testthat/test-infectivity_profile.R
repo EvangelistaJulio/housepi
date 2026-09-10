@@ -234,7 +234,7 @@ test_that("non-zero profile for day-0 is always refused in discrete time", {
 
 test_that("shifting a profile with 'loc' matches the explicit bounds", {
   # the support is loc + [min, max]: both spellings place it on
-  # [.incub_period, .incub_period + 2]. The follow-up stops at day 6, so a
+  # [incub_period, incub_period + 2]. The follow-up stops at day 6, so a
   # profile reaching past it loses the mass it puts outside
   outer_heaven <- data.frame(
     id = c("venom", "kaz", "ocelot"), house_id = "outer_heaven",
@@ -243,22 +243,58 @@ test_that("shifting a profile with 'loc' matches the explicit bounds", {
     new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>
     # deterministic, so the likelihood is reproducible across builds
-    add_latent(infec_time = start_date@D, .incub_period = 3)
+    add_latent(infec_time = start_date@D, incub_period = 3)
 
   shifted <- outer_heaven |>
-    add_infectivity_profile("uniform", loc = .incub_period, max = 2) |>
+    add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
     evaluate_log_lik()
   explicit <- outer_heaven |>
-    add_infectivity_profile("uniform", min = .incub_period,
-                            max = .incub_period + 2) |>
+    add_infectivity_profile("uniform", min = incub_period,
+                            max = incub_period + 2) |>
     evaluate_log_lik()
   expect_equal(shifted, explicit)
 
   # and 'max' still widens the support it is handed
   wider <- outer_heaven |>
-    add_infectivity_profile("uniform", loc = .incub_period, max = 4) |>
+    add_infectivity_profile("uniform", loc = incub_period, max = 4) |>
     evaluate_log_lik()
   expect_false(isTRUE(all.equal(shifted, wider)))
+})
+
+test_that("a profile shifted by a sampled latent is judged on its support", {
+  outer_heaven <- data.frame(
+    id = c("venom", "kaz", "ocelot"), house_id = "outer_heaven",
+    status = c(1, 1, 0), start_date = 0, end_date = 6
+  ) |>
+    new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
+    add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>
+    add_latent(infec_time = start_date@D)
+
+  # the incubation is drawn, so the shift holds no value while the guard runs:
+  # the support it places starts at day 1 and clears the day of infection
+  kept_away <- outer_heaven |>
+    add_latent(
+      "incub_period", model = "gamma", discr = TRUE, min = 1, mean = 3, sd = 2
+    )
+  kept_away |>
+    add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
+    evaluate_log_lik() |>
+    expect_silent()
+  # the explicit spelling of the same support agrees
+  kept_away |>
+    add_infectivity_profile("uniform", min = incub_period,
+                            max = incub_period + 2) |>
+    evaluate_log_lik() |>
+    expect_silent()
+
+  # dropping the incubation's own minimum makes day 0 attainable
+  outer_heaven |>
+    add_latent(
+      "incub_period", model = "gamma", discr = TRUE, mean = 3, sd = 2
+    ) |>
+    add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
+    evaluate_log_lik() |>
+    expect_error("not kept away from generation day 0")
 })
 
 test_that("a latent parameterizing the profile drives transmission", {
@@ -269,18 +305,18 @@ test_that("a latent parameterizing the profile drives transmission", {
     new_housepi_model("case_ascertained") |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>
     add_latent(
-      infec_time = list(model = "uniform", min = start_date@D, max = end_date@D)
+      "infec_time", model = "uniform", min = start_date@D, max = end_date@D
     )
 
   # the profile is resolved per member, so the latent reaches the household
   # cache without ever passing through 'infec_time'
   short <- shadow_moses |>
-    add_latent(.incub_period = 3) |>
-    add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
+    add_latent(incub_period = 3) |>
+    add_infectivity_profile("ferretti20", incub_period = incub_period) |>
     evaluate_log_lik()
   long <- shadow_moses |>
-    add_latent(.incub_period = 8) |>
-    add_infectivity_profile("ferretti20", incub_period = .incub_period) |>
+    add_latent(incub_period = 8) |>
+    add_infectivity_profile("ferretti20", incub_period = incub_period) |>
     evaluate_log_lik()
   expect_false(identical(short, long))
 })
@@ -316,8 +352,8 @@ test_that("the household snapshot reports the profile of each member", {
 
   # a latent profile is resolved per member: same house, two incubations
   latent <- zanzibar |>
-    add_latent(infec_time = start_date@D, .incub_period = latency@D) |>
-    add_infectivity_profile("ferretti20", incub_period = .incub_period)
+    add_latent(infec_time = start_date@D, incub_period = latency@D) |>
+    add_infectivity_profile("ferretti20", incub_period = incub_period)
 
   # the latent storage is not allocated until the model is evaluated
   latent$export_house_snapshot("zanzibar")$infectivity_profiles$func |>

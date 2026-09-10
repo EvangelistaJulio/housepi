@@ -38,9 +38,13 @@ test_that("Assert valid definition name rejects invalid names", {
   # reserved name pi
   assert_valid_definition_name("pi", "parameter") |>
     expect_error("reserved")
-  # a leading dot marks a hidden definition, forbidden by default
+  # a leading dot is reserved to what housepi generates itself
   assert_valid_definition_name(".ration", "observation") |>
     expect_error("cannot start with a dot")
+  assert_valid_definition_name(".ration", "latent") |>
+    expect_error("cannot start with a dot")
+  expect_no_error(assert_valid_definition_name(".ration", "status observation",
+                                               allow_reserved = TRUE))
   # valid names pass
   expect_no_error(assert_valid_definition_name("alpha", "parameter"))
   expect_no_error(assert_valid_definition_name("beta_1", "parameter"))
@@ -62,4 +66,24 @@ test_that("Assert valid status rejects non-positive integers", {
   expect_no_error(assert_valid_status(254))
   assert_valid_status(c(1, 255)) |>
     expect_error("maximum of 254")
+})
+
+test_that("Assert valid data columns holds the definition alphabet", {
+  # a column is a key a definition sources with `@D`: same alphabet as a name
+  expect_no_error(
+    assert_valid_data_columns(c("id", "3", "if", "dose.2", "vacc_status"))
+  )
+  assert_valid_data_columns(c("id", "sniper wolf")) |>
+    expect_error("sniper wolf")
+  assert_valid_data_columns("liquid-snake") |>
+    expect_error("Only letters, numbers")
+  # the grammar delimiter never reaches the engine as a key
+  assert_valid_data_columns("big|boss") |>
+    expect_error("big\\|boss")
+
+  # every offender is named at once, and the argument is the caller's
+  assert_valid_data_columns(c("mei ling", "grey.fox", "raven!"), "data_long") |>
+    expect_error("mei ling")
+  assert_valid_data_columns(c("mei ling", "grey.fox", "raven!"), "data_long") |>
+    expect_error("data_long")
 })

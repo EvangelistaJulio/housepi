@@ -114,3 +114,12 @@ test_that("Rlang nested expression", {
   expect_equal(housepi_extractor(log(a * 3 * b)),
                "log|x|[prod|x:x2:x3|[a|A]:[3|N]:[b|A]]")
 })
+
+test_that("Rlang sourced unary drops the quoting backticks", {
+  # backticks are R syntax for a name it cannot spell bare, not part of the key
+  expect_equal(housepi_extractor(`3`@D), housepi_extractor(3@D))
+  expect_equal(housepi_extractor(`3`@D), "3|D")
+  expect_equal(housepi_extractor(`if`@D), "if|D")
+  # an unquoted source is untouched
+  expect_equal(housepi_extractor(revolver_ocelot@D), "revolver_ocelot|D")
+})

@@ -178,25 +178,40 @@ test_that("Advanced setup options route through `...`", {
   expect_equal(hhmodel$setup$adapt_window, 2)
 })
 
-############################################################################
-## Wrappers with data
-############################################################################
+test_that("Progress bar renders correctly renders", {
+  hhmodel <- new_housepi_model(model = "test") |>
+    add_parameter("alpha", prior = "uniform")
 
-test_that("A long enough run renders the progress bar", {
-  hhmodel <- flu_1918_baltimore |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-
+  # test a progress bar that closes
   # NOTE: time sensitive, run has to last well beyond two seconds
-  bar <- capture.output(
-    draws <- hhmodel |>
-      run_inference(chains = 2) |>
-      suppressWarnings(),
-    type = "output"
+  bar <- capture.output(type = "output",
+    draws <- run_inference(hhmodel, steps = 2e6) |>
+      suppressWarnings()
   )
   expect_s3_class(draws, "HousepiPosteriorDraws")
   expect_true(any(grepl("%|sample", bar)))
+
+  # the run outlives the time limit and is interrupted at the engine check
+  on.exit(setTimeLimit())
+  bar <- capture.output(type = "output",
+    notice <- capture.output(type = "message", {   # R time-limit notice
+      outcome <- tryCatch({
+        setTimeLimit(elapsed = 4, transient = TRUE)
+        run_inference(hhmodel, steps = 1e10, thin = 1e3)
+      }, interrupt = function(e) e)
+    })
+  )
+  expect_s3_class(outcome, "interrupt")
+
+  # refreshes come one per second, the last reporting the time left, "4s<6h17m"
+  secs <- as.integer(sub(".*% ([0-9]+)s<.*", "\\1", bar))
+  expect_identical(secs, seq_along(secs))
+  expect_match(bar[length(bar)], "[0-9]+s<[0-9]+[dhms]")
 })
+
+############################################################################
+## Wrappers with data
+############################################################################
 
 test_that("Group risk wrappers", {
   small_gr <- data.frame(
@@ -228,7 +243,7 @@ test_that("Group risk wrappers", {
     )
   expect_equal(subset(hhmodel$parameters, name == "sus_student")$value, 1.23)
 
-  # check for non-existing custom features
+  # check for non-existing custom covariates
   hhmodel |>
     add_group_risk(
       "susceptibility",

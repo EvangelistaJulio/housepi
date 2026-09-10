@@ -5,7 +5,7 @@ dummy_df <- data.frame(house_id = 1,
                        age = c(rep("child", 2L), rep("adult", 2L)),
                        sex = c("M", "F", "M", "M"))
 
-# model over the dummy features
+# model over the dummy covariates
 mk_risk <- local({
   hhmodel <- data.frame(
     house_id = 1L, status = 0L,
@@ -67,7 +67,7 @@ test_that("Auto mode imposes symmetric contacts by default", {
                      prior = "lognormal", sdlog = 1.) |>
     get_contact_risks()
 
-  # two-level feature: child, adult -> 4 pairs
+  # two-level covariate: child, adult -> 4 pairs
   expect_equal(nrow(ltab), 4L)
 
   # only 1 reference
@@ -123,8 +123,8 @@ test_that("Auto mode symmetric = FALSE gives distinct parameters", {
   expect_true(ac_row$param_name != ca_row$param_name)
 })
 
-test_that("Non-joint produces independent per-feature tables", {
-  # 2 features, non-joint -> 2 rule groups
+test_that("Non-joint produces independent per-covariate tables", {
+  # 2 covariates, non-joint -> 2 rule groups
   tidy <- mk_risk$model |>
     add_contact_risk(by = c("age", "sex"), joint = FALSE,
                      reference = c(age = "adult", sex = "M"),
@@ -151,7 +151,7 @@ test_that("Non-joint produces independent per-feature tables", {
   expect_equal(nrow(tidy), 7L)
 })
 
-test_that("Auto mode with two features behaves correctly", {
+test_that("Auto mode with two covariates behaves correctly", {
   ltab <- mk_risk$model |>
     add_contact_risk(by = c("age", "sex"), joint = TRUE,
                      reference = c(from_age = "adult", from_sex = "M",
@@ -194,8 +194,8 @@ test_that("Absoluteness follows the reference across every definition mode", {
 })
 
 test_that("Every rule group keeps its anchoring across repeated pairs", {
-  # not joint, so each feature owns a rule group. A pair resolving no rule of a
-  # group anchors that group, and pairs repeat across households: an anchoring
+  # not joint, so each covariate owns a rule group. A pair resolving no rule
+  # of a group anchors it, and pairs repeat across households: an anchoring
   # dropped on a repeat would surface as a free scale and a uniform prior
   hhmodel <- sarscov2_2021_icofs |>
     new_housepi_model("final_size", quiet = TRUE) |>
@@ -436,7 +436,7 @@ ctr_cell_ <- function(hhsnapshot, from, to, key = "member") {
   hhsnapshot$contact_risks[match(from, ids), match(to, ids)]
 }
 
-test_that("Most-specific rule wins over reference (single feature)", {
+test_that("Most-specific rule wins over reference (single covariate)", {
   # one specific pair gets a non-reference param; everything else falls
   # through to .reference (specificity 0, hits update_best_match's empty
   # branch then never gets beaten).
@@ -472,8 +472,41 @@ test_that("Most-specific rule wins over reference (single feature)", {
     expect_equal(rep(0., nrow(snap$contact_risks)))
 })
 
+test_that("A wildcard rule survives a missing cell in its covariate column", {
+  # the catch-all row keys on nothing, so it must reach every pair, including
+  # the ones whose covariate cell carries a value
+  strata <- data.frame(
+    from_member = c("father", NA),
+    to_member = c("mother", NA),
+    param_name = c("ctr_fm", "ctr_any"),
+    stringsAsFactors = FALSE
+  )
+
+  # one member carries no role at all
+  hhmodel <- data.frame(
+    id = c("m1", "m2", "m3", "m4"),
+    house_id = "h1",
+    status = 0L,
+    member = c("father", "mother", "student", NA),
+    stringsAsFactors = FALSE
+  ) |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = "template") |>
+    add_contact_risk(strata = strata, symmetric = FALSE,
+                     params = list(ctr_fm = 2, ctr_any = 3))
+  snap <- hhmodel$export_house_snapshot("h1")
+
+  # the specific pair still wins on specificity
+  expect_equal(ctr_cell_(snap, "m1", "m2", key = "id"), 2)
+  # the catch-all reaches a pair of members that both carry a role
+  expect_equal(ctr_cell_(snap, "m3", "m1", key = "id"), 3)
+  # and the member with no role reads it too
+  expect_equal(ctr_cell_(snap, "m4", "m1", key = "id"), 3)
+  expect_equal(ctr_cell_(snap, "m1", "m4", key = "id"), 3)
+})
+
 test_that("Distinct rule_groups multiply at the cell", {
-  # two-feature household so 'compute_rule_groups' yields TWO maximal
+  # two-covariate household so 'compute_rule_groups' yields TWO maximal
   # patterns ({from_age,to_age}, {from_class,to_class}) and the per-group
   # winners get init_product'd into one Attribute.
   hh <- data.frame(
@@ -594,7 +627,7 @@ test_that("Contact risks expand on their own covariates only", {
     dplyr::select(-age) |>
     new_housepi_model("case_ascertained") |>
     add_contact_risk(by = "age") |>
-    expect_error("[Uu]nknown feature.*age")
+    expect_error("[Uu]nknown covariate.*age")
 
   # without data the read surface warns and keeps the table shape
   expect_warning(

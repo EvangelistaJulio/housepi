@@ -19,12 +19,12 @@
 #include "tools/logproba.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/random.h"
 #include "tools/read.h"
 #include "tools/string.h"
 #include "tools/types.h"
+#include "tools/vector.h"
 
 #include "augmented.h"
 #include "mcmc_base.h"
@@ -219,7 +219,7 @@ namespace housepi
         : mcmc_(mcmc) {}
     Augmented::~Augmented() = default;
 
-    void Augmented::request_transmission(std::vector<size_t> vec) { union_append(user_transm_vec_, vec); }
+    void Augmented::request_transmission(std::vector<size_t> vec) { vect::append_unique(user_transm_vec_, vec); }
 
     /// Kinds searched when composing a latent / household-observation
     /// reduction function (shared by per-member and per-household builders).
@@ -228,7 +228,7 @@ namespace housepi
         std::vector<registry::Kind> out = {registry::Kind::Custom,
                                            registry::Kind::Transcendental,
                                            registry::Kind::Arithmetic};
-        out += registry::distr_kinds(discr);
+        vect::append(out, registry::distr_kinds(discr));
         out.push_back(registry::Kind::InfecProfile);
         return out;
     }
@@ -279,39 +279,41 @@ namespace housepi
 
     void Augmented::DefTable_::append(const str_table &input)
     {
-        c_name += input.at("name");
-        c_status += input.at("status");
-        c_func += input.at("func");
-        c_fcumul += input.at("fcumul");
-        c_value += input.at("value");
-        c_const += input.at("const");
-        c_discr += input.at("discr");
-        c_model += input.at("model");
-        c_min += input.at("min");
-        c_max += input.at("max");
-        c_proposal += input.at("proposal");
+        vect::append(c_name, input.at("name"));
+        vect::append(c_status, input.at("status"));
+        vect::append(c_func, input.at("func"));
+        vect::append(c_fcumul, input.at("fcumul"));
+        vect::append(c_value, input.at("value"));
+        vect::append(c_const, input.at("const"));
+        vect::append(c_discr, input.at("discr"));
+        vect::append(c_model, input.at("model"));
+        vect::append(c_min, input.at("min"));
+        vect::append(c_max, input.at("max"));
+        vect::append(c_proposal, input.at("proposal"));
         for (const std::string &kstr : input.at("kind"))
             c_kind.push_back(string_to_kind(kstr));
     }
 
     void Augmented::build(InfecProfile &infec_profile, const str_table &input)
     {
-        build_restore_internal_();            // reset internal state
-        build_assert_input_(input);           // check entries
+        build_restore_internal_(); // reset internal state
+        if (!input.empty())        // DefTable_::append indexes its columns
+            deftable_.append(input);
         build_append_profile_(infec_profile); // add infectivity profile
 
         // skip if no latent definitions
         if (deftable_.empty())
             return;
 
-        build_definition_by_status_();         // process definition by status
-        build_set_allocation_order_();         // allocation and order
-        init_surrogate_list_();                // surrogate columns
-        init_observation_list_();              // observation nodes
-        init_transm_producers_();              // keys reaching the transmission side
-        assert_status_obs_consistent_();       // assert status observation
-        assert_no_obs_entry_collision_();      // no definition reads an obs entry column
-        assert_no_sim_override_latent_read_(); // simulation override reads data/params only
+        build_definition_by_status_(); // process definition by status
+        build_set_allocation_order_(); // allocation and order
+        n_status_base_ = status_blocks_.size();
+        init_surrogate_list_();             // surrogate columns
+        init_observation_list_();           // observation nodes
+        init_transm_producers_();           // keys reaching the transmission side
+        assert_status_obs_consistent_();    // assert status observation
+        assert_no_obs_entry_collision_();   // no definition reads an obs entry column
+        assert_no_sim_override_obs_read_(); // simulation override reads no observation
     }
 
     void Augmented::build_restore_internal_()
@@ -327,6 +329,7 @@ namespace housepi
         map_status_to_def_row_.clear();
         map_status_to_block_.clear();
         status_blocks_.clear();
+        n_status_base_ = 0;
         list_latent_export.clear();
         list_obs_member.clear();
         list_obs_house.clear();
@@ -335,20 +338,6 @@ namespace housepi
         house_varia.clear();
         status_obs_def_ = na::INDEX;
         status_obs_key_ = na::INDEX;
-    }
-
-    void Augmented::build_assert_input_(const str_table &input)
-    {
-        if (input.empty())
-            return;
-
-        for (const std::string &astr : input.at("name"))
-            if (astr == infprof::LATENT_FUNC)
-                msg::stop(
-                    "Tried to use the reserved latent name " +
-                    msg::val(astr) + ".\nPlease, choose a different one.");
-
-        deftable_.append(input);
     }
 
     void Augmented::build_append_profile_(InfecProfile &infec_profile)
@@ -423,7 +412,7 @@ namespace housepi
         std::vector<bool> out;
         out.reserve(n_export_cols());
 
-        for (size_t a : list_latent_export + list_obs_member)
+        for (size_t a : vect::concatenate(list_latent_export, list_obs_member))
             out.push_back(is_member_col_discrete_(a) &&
                           !has_continuous_declaration_(khold(a)));
 
@@ -571,6 +560,18 @@ namespace housepi
                "In alternative, drop " + msg::arg("status") + " from existing definitions to make them generic.";
     }
 
+    /// Whether the run reads 'astr', directly or through the definitions consuming it.
+    /// NOTE: transitive_consumers returns 'start' first, so a sink reaches itself.
+    static bool reaches_sink_(const std::string &astr,
+                              const dpdcy::prod_graph &pgraph,
+                              const std::vector<std::string> &sinks)
+    {
+        for (const std::string &cstr : dpdcy::transitive_consumers(astr, pgraph, ErrType::Latent))
+            if (vect::contains(sinks, cstr))
+                return true;
+        return false;
+    }
+
     void Augmented::set_definition_order_for_(StatusLvl s, StatusLvl err_status)
     {
         // skip if already passed
@@ -595,19 +596,8 @@ namespace housepi
             map_status_to_block_.emplace(s, status_blocks_.size());
             status_blocks_.emplace_back();
 
-            // ignore spurious hidden definition if no kept definition consumes it
-            // NOTE: infectivity profile (hidden) can consume hidden
-            auto keep_consumer = [](const std::string &c)
-            { return !str::is_hidden(c) || c == infprof::LATENT_FUNC; };
-
             for (const std::string &astr : dpdcy::order_producers_first(pgraph, ErrType::Latent))
-            {
-                const auto consumers = dpdcy::transitive_consumers(astr, pgraph, ErrType::Latent);
-                if (astr == infprof::LATENT_FUNC ||
-                    !str::is_hidden(astr) ||
-                    std::any_of(consumers.begin(), consumers.end(), keep_consumer))
-                    status_blocks_.back().order.emplace_back(name_to_row[astr]);
-            }
+                status_blocks_.back().order.emplace_back(name_to_row[astr]);
 
             // define usage lists respecting definition order
             set_sample_list_(s);
@@ -646,7 +636,7 @@ namespace housepi
                     continue;
 
                 // declared for another status and report accordingly
-                if (contains(deftable_.c_name, astr))
+                if (vect::contains(deftable_.c_name, astr))
                 {
                     if (status::is_missing(s))
                         msg::stop("No generic latent definition was found for " + msg::val(astr) + ".");
@@ -683,7 +673,7 @@ namespace housepi
         // skip generic if a status-specific already exist
         if (status::is_infected(s) && map_status_to_def_row_.count(status::MISSING))
             for (size_t k : map_status_to_def_row_.at(status::MISSING))
-                if (!contains(name_to_status, deftable_.c_name[k]))
+                if (!vect::contains(name_to_status, deftable_.c_name[k]))
                     allrows.push_back(k);
 
         return allrows;
@@ -695,13 +685,8 @@ namespace housepi
 
     void Augmented::set_sample_list_(StatusLvl s)
     {
-        StatusBlock_ &block = block_at_(s);
-        for (size_t k : block.order)
+        for (size_t k : block_at_(s).order)
             set_sample_list_for_single_definition_(s, k);
-
-        // NOTE: to construct draws list, I drop hidden at the end
-        list_latent_export = khold(str::drop_hidden(khold(list_latent_export)));
-        block.draws = khold(str::drop_hidden(khold(block.draws)));
     }
 
     void Augmented::set_sample_list_for_single_definition_(StatusLvl s, size_t k)
@@ -760,14 +745,15 @@ namespace housepi
         }
 
         // NOTE: observation exports are listed separately
-        if (deftable_.c_kind[k] == Kind::Member)
+        // the profile latent is an engine artefact, reported through the profile itself
+        if (deftable_.c_kind[k] == Kind::Member || astr == infprof::LATENT_FUNC)
             is_to_export = false;
 
         // nothing to do if not to export
         if (!is_to_export)
             return;
 
-        if (!contains(list_latent_export, a))
+        if (!vect::contains(list_latent_export, a))
             list_latent_export.emplace_back(a);
 
         if (is_to_draw)
@@ -801,7 +787,7 @@ namespace housepi
         // inspect status specific latent definitions and check if to draw (i. e. not const)
         // NOTE: taking advatange of the order!
         for (const std::string &bstr : parser.list_latent_producers())
-            if (contains(block_at_(s).draws, khold(bstr)))
+            if (vect::contains(block_at_(s).draws, khold(bstr)))
                 all_consts = false;
 
         // to draw if not all constant dependencies
@@ -827,6 +813,9 @@ namespace housepi
             for (const Individual &indiv : house.infected_indivs())
                 for (size_t k : helper_materialize_definition_order_(indiv))
                     helper_init_attributes_(indiv, k);
+
+        // observations the data provide a value for, and what still reaches a sink
+        init_live_blocks_();
 
         // parameters that may move latent/observation models
         set_param_producer_lists_();
@@ -905,10 +894,11 @@ namespace housepi
         // NOTE: an unshifted consumer cancels in the ratio, a missing one does not
         str_table model_consumers;
         for (const auto &[key, producers] : pgraph)
-            if (!contains(without_model, key))
-                model_consumers.emplace(key,
-                                        dpdcy::transitive_consumers(key, pgraph, ErrType::Latent) -
-                                            without_model);
+            if (!vect::contains(without_model, key))
+                model_consumers.emplace(
+                    key,
+                    vect::difference(dpdcy::transitive_consumers(key, pgraph, ErrType::Latent),
+                                     without_model));
 
         return model_consumers;
     }
@@ -941,7 +931,7 @@ namespace housepi
                 const size_t obs_key = khold(deftable_.c_name[k]);
 
                 // unique observation keys to return as simulated columns
-                if (!contains(list_obs_member, obs_key))
+                if (!vect::contains(list_obs_member, obs_key))
                     list_obs_member.push_back(obs_key);
 
                 // a deterministic observation node carries no distribution
@@ -957,6 +947,130 @@ namespace housepi
                     if (astr != deftable_.c_name[k]) // transitive_producers returns 'start' last
                         block.obs_consumers[khold(astr)].push_back(obs_key);
             }
+        }
+    }
+
+    void Augmented::init_live_blocks_()
+    {
+        // a previous run left its variants behind, and the definition-order pass has
+        // just pointed every individual back at the base block of its status
+        status_blocks_.resize(n_status_base_);
+
+        // per observation key: members declaring it, and those without a datum
+        std::vector<size_t> declared(khold_.size(), 0), missing(khold_.size(), 0);
+        // base block and observations left out -> the variant standing for them
+        std::vector<std::pair<std::vector<size_t>, size_t>> variants;
+
+        for (const Household &house : mcmc_->data_wide())
+            for (const Individual &indiv : house.infected_indivs())
+            {
+                std::vector<size_t> absent;
+                for (size_t a : block_of_(indiv).obs_models)
+                {
+                    ++declared[a];
+                    if (na::is(varia_of_(indiv).vec[a].value()))
+                        ++missing[a], absent.push_back(a);
+                }
+                const std::vector<size_t> key =
+                    vect::concatenate(std::vector<size_t>({varia_of_(indiv).idx}), absent);
+                const auto it = std::find_if(variants.begin(), variants.end(),
+                                             [&key](const auto &v)
+                                             { return v.first == key; });
+                varia_of_(indiv).idx =
+                    it != variants.end()
+                        ? it->second
+                        : variants.emplace_back(key, make_block_variant_(key.front(), absent)).second;
+            }
+
+        report_missing_obs_(declared, missing);
+    }
+
+    std::vector<std::string> Augmented::sink_names_(const StatusBlock_ &block,
+                                                    const std::vector<size_t> &absent) const
+    {
+        // the transmission side and the profile read no datum: sinks unconditionally
+        std::vector<std::string> sinks = khold(user_transm_vec_);
+        sinks.push_back(infprof::LATENT_FUNC);
+
+        // observations of the block, minus the ones this member has no datum for
+        for (size_t k : block.order)
+            if (deftable_.c_kind[k] != Kind::Latent &&
+                !vect::contains(absent, khold(deftable_.c_name[k])))
+                sinks.push_back(deftable_.c_name[k]);
+
+        // a household observation sits in no status block, so it closes no edge of the
+        // block graph: what it reduces over is read all the same
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+            if (deftable_.c_kind[k] == Kind::House)
+                for (const DefTable_::col *col : deftable_.source_cols())
+                    for (const std::string &astr : parse::Definition((*col)[k]).list_latent_producers())
+                        sinks.push_back(astr);
+
+        return sinks;
+    }
+
+    std::vector<size_t> Augmented::dead_keys_(const StatusBlock_ &block,
+                                              const std::vector<size_t> &absent) const
+    {
+        const dpdcy::prod_graph pgraph = build_producer_graph_(block.order);
+        const std::vector<std::string> sinks = sink_names_(block, absent);
+
+        std::vector<size_t> dead;
+        for (size_t k : block.order)
+            if (deftable_.c_kind[k] == Kind::Latent &&
+                !reaches_sink_(deftable_.c_name[k], pgraph, sinks))
+                dead.push_back(khold(deftable_.c_name[k]));
+        return dead;
+    }
+
+    size_t Augmented::make_block_variant_(size_t base, const std::vector<size_t> &absent)
+    {
+        StatusBlock_ block = status_blocks_[base]; // copy: the store reallocates below
+        const std::vector<size_t> dead = dead_keys_(block, absent);
+
+        vect::remove(block.obs_models, absent);
+        vect::remove(block.draws, dead);
+        vect::remove(block.sample, dead);
+        vect::remove(block.adaptive, dead);
+        vect::remove(block.latent_models, dead);
+
+        std::vector<size_t> order;
+        for (size_t k : block.order)
+            if (!vect::contains(dead, khold(deftable_.c_name[k])))
+                order.push_back(k);
+        block.order = std::move(order);
+
+        // a dead key shifts no density and an absent observation reads none
+        for (std::vector<size_t> &vec : block.consumers)
+            vect::remove(vec, dead);
+        for (std::vector<size_t> &vec : block.obs_consumers)
+            vect::remove(vec, absent);
+        for (size_t a : dead)
+            block.consumers[a].clear(), block.obs_consumers[a].clear();
+
+        status_blocks_.push_back(std::move(block));
+        return status_blocks_.size() - 1;
+    }
+
+    void Augmented::report_missing_obs_(const std::vector<size_t> &declared,
+                                        const std::vector<size_t> &missing) const
+    {
+        for (size_t a = 0; a < missing.size(); ++a)
+        {
+            if (missing[a] == 0)
+                continue;
+
+            if (missing[a] == declared[a])
+                msg::stop(
+                    "Observation " + msg::val(khold(a)) +
+                    " is missing for every infected individual.\n"
+                    "An observation model needs at least one observed value: check the data column.");
+
+            msg::warn(
+                "Observation " + msg::val(khold(a)) + " is missing for " +
+                std::to_string(missing[a]) + " of " + std::to_string(declared[a]) +
+                " infected individuals.\n"
+                "A missing observation does not contribute to the likelihood.");
         }
     }
 
@@ -1154,7 +1268,7 @@ namespace housepi
         if (def.is_na())
             return output;
         for (const std::string &dstr : def.list_data_wide_producers())
-            if (contains(names, dstr))
+            if (vect::contains(names, dstr))
                 output.push_back(dstr);
         return output;
     }
@@ -1240,7 +1354,7 @@ namespace housepi
                         continue; // observation node reading its own entry column
                     // loop iff the observation 'd' is a (transitive) consumer of 'name'
                     const auto consumers = dpdcy::transitive_consumers(name, pgraph, ErrType::Latent);
-                    if (contains(consumers, dstr))
+                    if (vect::contains(consumers, dstr))
                         msg::stop(
                             "Cyclic definition: " + msg::val(name) +
                             " reads observation " + msg::val(dstr) +
@@ -1250,31 +1364,57 @@ namespace housepi
         }
     }
 
-    void Augmented::assert_no_sim_override_latent_read_() const
+    const std::string &Augmented::sim_source_col_(size_t k) const
+    {
+        return na::is(deftable_.c_value[k]) ? deftable_.c_func[k] : deftable_.c_value[k];
+    }
+
+    void Augmented::assert_no_sim_override_obs_read_() const
     {
         // a simulation-only override (a value paired with a model) is applied when the
-        // variable is first drawn in simulation, before any other latent, so it may depend
-        // on data columns and parameters only -- never on latent variables or observations
-        // (which are not yet available at that point). Unlike the obs-entry collision check,
-        // this must run even when no observation is defined.
+        // variable is first drawn, and sample_obs runs after draw_sample: an observation
+        // reached from the override is read while its variable is still undrawn, which
+        // reads zero and leaves no trace. Deterministic definitions resolve through, so
+        // the chain is walked rather than the override's own column; it stops at a
+        // sampled latent, whose read yields its own draw.
         const std::vector<std::string> obs_names = khold(list_obs_member);
+        if (obs_names.empty())
+            return;
+
+        // producer graph over the column each definition resolves through in simulation
+        dpdcy::prod_graph pgraph;
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+            if (deftable_.c_kind[k] == Kind::Latent)
+            {
+                auto &producers = pgraph[deftable_.c_name[k]];
+                for (const std::string &astr :
+                     parse::Definition(sim_source_col_(k)).list_latent_producers())
+                    producers.insert(astr);
+            }
+
         for (size_t k = 0; k < deftable_.c_name.size(); ++k)
         {
             if (deftable_.c_kind[k] != Kind::Latent ||
                 na::is(deftable_.c_model[k]) || na::is(deftable_.c_value[k]))
                 continue;
             const std::string &name = deftable_.c_name[k];
-            if (parse::Definition(deftable_.c_value[k]).consumes_latent())
-                msg::stop(
-                    "Simulation override of " + msg::val(name) +
-                    " reads a latent variable.\nA value paired with a model is applied "
-                    "before other latents are drawn; depend on data or parameters only.");
-            for (const std::string &dstr : referred_data(deftable_.c_value[k], obs_names))
-                msg::stop(
-                    "Simulation override of " + msg::val(name) +
-                    " reads observation " + msg::val(dstr) +
-                    ".\nA value paired with a model is applied during simulation, before " +
-                    msg::val(dstr) + " is generated; depend on data or parameters only.");
+
+            for (const std::string &pstr :
+                 dpdcy::transitive_producers(name, pgraph, ErrType::Latent))
+                // a name spans several rows when statuses declare it apart
+                for (size_t r = 0; r < deftable_.c_name.size(); ++r)
+                {
+                    if (deftable_.c_kind[r] != Kind::Latent || deftable_.c_name[r] != pstr)
+                        continue;
+                    for (const std::string &dstr : referred_data(sim_source_col_(r), obs_names))
+                        msg::stop(
+                            "Simulation override of " + msg::val(name) +
+                            " reads observation " + msg::val(dstr) +
+                            (pstr == name ? "" : " through " + msg::val(pstr)) +
+                            ".\nA value paired with a model is applied during simulation, before " +
+                            msg::val(dstr) + " is generated; depend on data, parameters, or " +
+                            "latents that do not read it.");
+                }
         }
     }
 
@@ -1540,14 +1680,14 @@ namespace housepi
                 avar.enforce_user_const(); // enforce user constant choice
             }
             // simulation-only override: a sampled latent (model present) carrying a value is
-            // pinned to that data-bound value in generative simulation (the inference model is a
-            // nuisance law, unfit to generate). to_numeric evaluates the constant value eagerly --
-            // the index reads its infection time before any lazy pass, so a live function would
-            // still read 0 -- and the early return skips the model so restart leaves it untouched.
+            // pinned to that value in generative simulation (the inference model is a nuisance
+            // law, unfit to generate). to_attribute binds the pin lazily, so it resolves data
+            // columns, parameters and the latents ordered before it at read time, while a
+            // constant collapses back to a numeric. No domain is attached, and the early return
+            // skips the model: with no distribution the pin survives every later draw.
             else if (simulation && !na::is(deftable_.c_value[k]) && !na::is(deftable_.c_model[k]))
             {
-                avar.init_numeric(
-                    mcmc_->translator.to_numeric(deftable_.c_value[k], &indiv).value());
+                avar.transfer(mcmc_->translator.to_attribute(deftable_.c_value[k], &indiv));
                 return;
             }
             else
@@ -1662,7 +1802,11 @@ namespace housepi
             if (deftable_.c_kind[k] != Kind::Member)
                 continue;
 
-            const Variable &ovar = varia_of_(indiv).vec[khold(deftable_.c_name[k])];
+            const size_t a = khold(deftable_.c_name[k]);
+            if (!vect::contains(list_obs_models(indiv), a))
+                continue;
+
+            const Variable &ovar = varia_of_(indiv).vec[a];
             if (std::isfinite(ovar.guarded_log_pdf()))
                 continue;
 
@@ -1677,8 +1821,8 @@ namespace housepi
             for (const std::string &col : {deftable_.c_min[k], deftable_.c_max[k]})
             {
                 parse::Definition def(col);
-                latent_producers += def.list_latent_producers();
-                param_producers += def.list_parameter_producers();
+                vect::append(latent_producers, def.list_latent_producers());
+                vect::append(param_producers, def.list_parameter_producers());
             }
 
             if (latent_producers.size() > 0)
@@ -1846,18 +1990,18 @@ namespace housepi
                     continue;
                 }
 
-                if (contains(house_draws, mcmc_->data_wide().house_id(house)))
+                if (vect::contains(house_draws, mcmc_->data_wide().house_id(house)))
                     for (const Individual &indiv : house.infected_indivs())
                         seen.store(mcmc_->data_wide(), house, indiv);
                 else
                     for (const Individual &indiv : house.infected_indivs())
-                        if (contains(id_draws, mcmc_->data_wide().id(indiv)))
+                        if (vect::contains(id_draws, mcmc_->data_wide().id(indiv)))
                             seen.store(mcmc_->data_wide(), house, indiv);
             }
 
         // raise warnings for draws not found in the data
-        std::vector<std::string> missed_id = id_draws - seen.ids;
-        std::vector<std::string> missed_house = house_draws - seen.house_ids;
+        std::vector<std::string> missed_id = vect::difference(id_draws, seen.ids);
+        std::vector<std::string> missed_house = vect::difference(house_draws, seen.house_ids);
         if (!missed_id.empty())
             msg::warn(
                 "Ignored draws of non infected " + msg::qty(missed_id) +

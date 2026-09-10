@@ -21,11 +21,11 @@
 #include "tools/logproba.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/operators.h"
 #include "tools/read.h"
 #include "tools/status.h"
 #include "tools/string.h"
 #include "tools/types.h"
+#include "tools/vector.h"
 
 #include "data_long.h"
 #include "data_wide.h"
@@ -326,16 +326,16 @@ namespace housepi
         std::vector<std::string> headers = read::extract_keys(input);
 
         // assess the presence of house IDs
-        if (!contains(headers, "house_id"))
+        if (!vect::contains(headers, "house_id"))
             msg::warn("Ignored household structure.\nMissing data column " + msg::field("house_id") + ".");
 
         // assess individual IDs are unique
-        if (contains(headers, "id") &&
+        if (vect::contains(headers, "id") &&
             input.at("id").size() != str::unique(input.at("id")).size())
             msg::stop("Provided individual IDs are not unique.");
 
         // remove standard headers
-        headers = headers - std::vector<std::string>({"id", "house_id", "status"});
+        vect::remove(headers, {"id", "house_id", "status"});
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
@@ -435,13 +435,21 @@ namespace housepi
             const DataWide &data_wide_;
 
             /// Comparison functor: sort members by (status, data[0], data[1], ...)
+            /// NOTE: a missing cell is a class of its own, ordered last, so the
+            /// equivalence it induces stays transitive (see CovariateLess_).
             bool indiv_less_(const Individual &a, const Individual &b) const
             {
                 if (a.status() != b.status())
                     return a.status() < b.status();
                 for (size_t d : data_list_)
-                    if (data_wide_.data(d, a) != data_wide_.data(d, b))
-                        return data_wide_.data(d, a) < data_wide_.data(d, b);
+                {
+                    const double x = data_wide_.data(d, a), y = data_wide_.data(d, b);
+                    const bool na_x = na::is(x), na_y = na::is(y);
+                    if (na_x != na_y)
+                        return na_y;
+                    if (!na_x && x != y)
+                        return x < y;
+                }
                 return false;
             }
 
@@ -708,11 +716,11 @@ namespace housepi
 
         headers = read::extract_keys(input);
         // check for individual IDs
-        if (!contains(headers, "id"))
+        if (!vect::contains(headers, "id"))
             msg::stop(
                 "Individual identifier column " + msg::arg("id") + " was missing.");
         // remove 'id'
-        headers = headers - std::vector<std::string>({"id"});
+        vect::remove(headers, {"id"});
 
         // add optional keys to registry
         for (const std::string &datastring : headers)

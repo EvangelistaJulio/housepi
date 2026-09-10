@@ -26,13 +26,13 @@ set.seed(42)
 ```
 
 Time dependent transmission models require a choice for the infectivity profile $f$, defined as the instantaneous risk of secondary infection associated to a reference infector.
-An infectivity profile is thus a function of the time from infection $t_{i}$ to transmission at time $t$, the "generation time" $t - t_{i}$. Eventually, the profile could depend on other infector covariates.
+An infectivity profile is thus a function of the time from infection $t_{i}$ to transmission at time $t$, the "generation time" $t - t_{i}$. The profile can also depend on other infector covariates.
 
 In certain applications a profile has to be expressed as a function of the time from symptoms onset $t_{i}^\mathrm{ons}$ to transmission.
 In such cases, the profile will be a function of the generation time and of the incubation period $\tau_{i}^\mathrm{inc}$ of the infector, remembering that $t_{i} + \tau_{i}^\mathrm{inc} = t_{i}^\mathrm{ons}$.
 
 Note that for technical reasons, infectivity profiles in housepi can only depend on covariates of the infector, and not of the infectee.
-This prevents from using directly quantities as the "serial time" (the time between symptom onsets of infector and infectee) and workarounds need to be implemented manually.
+This prevents you from directly using quantities such as the "serial time" (the time between symptom onsets of infector and infectee) and workarounds need to be implemented manually.
 
 In short, assuming $i$ the infector and $k$ the infectee, the time intervals supported by the infectivity profiles in housepi are
 
@@ -53,12 +53,12 @@ According to this scheme, infectivity profile definitions can be of two kinds:
 * **Generic**: if all individuals in the study share the same profile;
 * **Latent**: if profile depends on individual covariates.
 
-A model whose transmission is driven by a profile requires one to be defined: none is assumed on your behalf, and the model refuses to run until you provide it.
+A model whose transmission is driven by a profile refuses to run until you define one.
 Models shipping a suggested profile expose it through `import = "template"`.
 
 Whatever the profile, it must give no infectivity at generation time 0: nobody transmits at the instant of being infected.
 A profile that does is refused, and the error points at the two ways of excluding the origin — truncating the profile with `min`, or shifting it with `loc`.
-Distributions such as `exponential` or `uniform` carry no opinion about the origin and need one of the two; profiles written as such, like `ferretti20`, are taken as authored.
+Distributions such as `exponential` or `uniform` carry no opinion about the origin and need one of the two; distributions authored as infectivity profiles, like `ferretti20`, are taken as they are written.
 
 For example, consider the model "case-ascertained" introduced in [Get started](housepi.html).
 Its template is a generic profile in continuous time, a gamma distribution parametrized with `mean` and `sd`:

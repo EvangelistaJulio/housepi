@@ -79,11 +79,11 @@ test_that("A func definition is deterministic", {
 
   # deterministic definitions reject model or proposal
   mk_latent$model |>
-    add_latent(dummy = list(func = "log", func_args = c(x = 2),
+    add_latent(dummy = list(func = "log", x = 2,
                             model = "normal", mean = 0, sd = 1)) |>
     expect_error("only one.*func.*model")
   mk_latent$model |>
-    add_latent(dummy = list(func = "log", func_args = c(x = 2),
+    add_latent(dummy = list(func = "log", x = 2,
                             proposal = "rw")) |>
     expect_error("[Dd]eterministic.*dummy.*cannot be sampled")
 })
@@ -234,10 +234,11 @@ test_that("Independence proposal reject if unsupported prior domain", {
 
 test_that("Independence proposal inherits the model location shift", {
   hhmodel <- data.frame(id = c("tommy", "gina"), house_id = "house",
-                        status = 1, min = c(4, 8)) |>
+                        status = 1, min = c(4, 8), obs = 0) |>
     new_housepi_model("test") |>
     add_latent("test_date", model = "uniform", loc = min@D,
-               proposal = "gamma", proposal_shape = 2)
+               proposal = "gamma", proposal_shape = 2) |>
+    helper_flat_sink(loc = test_date@A)
 
   results <- hhmodel |>
     run_inference(steps = 20L, adapt = 0L, chains = 1L) |>
@@ -249,13 +250,14 @@ test_that("Independence proposal inherits the model location shift", {
 })
 
 test_that("latent draws stay inside their live support", {
-  df <- data.frame(id = seq(2), house_id = "shadow_moses", status = 1)
+  df <- data.frame(id = seq(2), house_id = "shadow_moses", status = 1, obs = 0)
 
   # other latent variable
   results <- df |>
     new_housepi_model("test") |>
     add_latent(otacon = list(model = "uniform"),
                test_date = list(model = "uniform", loc = otacon@A)) |>
+    helper_flat_sink(loc = test_date@A) |>
     run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressWarnings()
   d <- as.data.frame(get_latent_draws(results))
@@ -268,6 +270,7 @@ test_that("latent draws stay inside their live support", {
     add_latent(jaeger = list(model = "uniform"),
                gray_fox = jaeger,
                test_date = list(model = "uniform", loc = gray_fox@A)) |>
+    helper_flat_sink(loc = test_date@A) |>
     run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressWarnings()
   draws <- as.data.frame(get_latent_draws(results))
@@ -279,6 +282,7 @@ test_that("latent draws stay inside their live support", {
     new_housepi_model("test") |>
     add_parameter("meryl", prior = "uniform") |>
     add_latent("eva", model = "uniform", min = meryl@P, max = 5) |>
+    helper_flat_sink(loc = eva@A) |>
     run_inference(steps = 400L, adapt = 0L, thin = 1L, chains = 1L) |>
     suppressWarnings()
 
@@ -305,7 +309,7 @@ test_that("Latent function definition is correct", {
   # overwriting warnings
   base |>
     add_latent("dummy", func = onset - incub) |>
-    add_latent("dummy", func = "log", func_args = c(x = infec@A)) |>
+    add_latent("dummy", func = "log", x = infec@A) |>
     expect_warning("[Oo]verwriting")
   base |>
     add_latent("dummy", func = onset - incub) |>
@@ -320,9 +324,14 @@ test_that("Latent load enable special definitions", {
 
   # alternative function call definitions
   augm <- base |>
-    add_latent("dummy", func = "log", func_args = c(x = infec@A))
+    add_latent("dummy", func = "log", x = infec@A)
   tmp <- base |> add_latent(dummy = log(infec@A))
   expect_equal(get_latent(tmp), get_latent(augm))
+
+  # an expression carries its own arguments: spare ones have no reading
+  base |>
+    add_latent("dummy", func = log(infec@A), x = infec@A) |>
+    expect_error("The .func. expression already carries its arguments.")
 
   expect_warning(
     overwritten <- add_latent(tmp, name = "dummy", func = log(infec@A)),
@@ -580,11 +589,10 @@ test_that("A name is declared under a single kind", {
     add_observation(ocelot = min(test_date@D), level = "house") |>
     expect_error(err)
 
-  # the reserved status node is a declaration like any other
+  # the reserved status node is named by add_status, never by the user
   hhmodel |>
     add_latent(.status = list(value = 1, const = TRUE)) |>
-    add_status(a = 1) |>
-    expect_error(err)
+    expect_error("cannot start with a dot")
 
   # siblings of one kind stay legal: statuses of the same name, and overwrites
   hhmodel |>
@@ -731,6 +739,129 @@ test_that("Observation-aware initialization", {
     expect_error("[Oo]utside of respective domain")
 })
 
+test_that("A missing observation leaves the likelihood", {
+  # an observation value is a datum: where the cell is empty there is nothing
+  # to condition on, so the term drops out instead of entering as NA
+  mk <- function(x) {
+    data.frame(id = c("snake", "meryl"), house_id = "shadow_moses",
+               status = 1, x = x) |>
+      new_housepi_model("test") |>
+      add_latent("z", value = 0.5) |>
+      add_observation("x", model = "uniform", loc = z@A, min = -0.4, max = 0.4)
+  }
+
+  # both members observed: two terms of a uniform over a window of 0.8
+  expect_equal(evaluate_log_lik(mk(c(0.5, 0.5))), 2 * log(1 / 0.8))
+
+  # one datum absent: one term left, and the run says which column and how many
+  expect_warning(ll <- evaluate_log_lik(mk(c(0.5, NA))),
+                 "[Mm]issing for 1 of 2 infected individuals")
+  expect_equal(ll, log(1 / 0.8))
+
+  # the domain still binds where the datum is there
+  expect_equal(evaluate_log_lik(mk(c(0.5, 9))), -Inf)
+
+  # no datum anywhere: the model declares a density nothing feeds
+  mk(c(NA_real_, NA_real_)) |>
+    evaluate_log_lik() |>
+    expect_error("missing for every infected individual")
+
+  # a categorical column reaches the engine as integer codes: its empty cell
+  # must code to no level, or the density would read the code of a non-value
+  hit <- function(x) {
+    data.frame(id = c("snake", "meryl"), house_id = "shadow_moses",
+               status = 1, hit = x) |>
+      new_housepi_model("test") |>
+      add_observation("hit", model = "uniform", min = 0, max = 3)
+  }
+  expect_warning(ll <- evaluate_log_lik(hit(c(TRUE, NA))),
+                 "[Mm]issing for 1 of 2 infected individuals")
+  expect_equal(ll, log(1 / 3))
+  hit(c(NA, NA)) |>
+    evaluate_log_lik() |>
+    expect_error("missing for every infected individual")
+
+  # an observation is judged over the members carrying it: the status-1 member
+  # never declares a status-2 observation, so its empty cell is not missing
+  data.frame(id = c("snake", "meryl"), house_id = "shadow_moses",
+             status = c(1, 2), x = c(NA, 0.5)) |>
+    new_housepi_model("test") |>
+    add_latent("z", value = 0.5) |>
+    add_observation(x = list(model = "uniform", loc = z@A,
+                             min = -0.4, max = 0.4, status = 2)) |>
+    evaluate_log_lik() |>
+    expect_silent() |>
+    expect_equal(log(1 / 0.8))
+})
+
+test_that("Members missing different observations still initialize", {
+  # tommy carries an onset and no test, gina the reverse, otacon neither: the
+  # ordinary censoring pattern must reach the sampler, not the domain-feasibility
+  # wall of the observation-aware restart
+  data.frame(
+    id = c("tommy", "gina", "otacon"), house_id = "jovi", status = 1,
+    onset = c(0.5, NA, NA), test = c(NA, 0.5, NA)
+  ) |>
+    new_housepi_model("test") |>
+    add_latent("z", model = "uniform") |>
+    add_observation(
+      onset = list(model = "uniform", loc = z, min = -0.1, max = 0.1),
+      test = list(model = "uniform", loc = z, min = -0.1, max = 0.1)
+    ) |>
+    run_inference(steps = 10L, adapt = 0L, chains = 2L) |>
+    suppressWarnings() |>
+    expect_no_error()
+})
+
+test_that("A latent goes with the observation that reads it", {
+  # a latent nothing else reads is an unused parameter once its observation has
+  # left the likelihood: marginalizing it integrates its model to one, so its
+  # density goes with the datum. A flat model keeps the total free of the draw.
+  mk <- function(x, y = NULL, hop = FALSE) {
+    frame <- data.frame(id = c("snake", "meryl"), house_id = "shadow_moses",
+                        status = 1, x = x)
+    if (!is.null(y)) frame$y <- y
+    model <- frame |>
+      new_housepi_model("test") |>
+      add_latent(z = list(model = "uniform", min = 0, max = 2))
+    model <- if (hop) {
+      model |>
+        add_latent(readout = z@A) |>
+        add_observation("x", model = "uniform", loc = readout@A,
+                        min = -5, max = 5)
+    } else {
+      add_observation(model, "x", model = "uniform", loc = z@A,
+                      min = -5, max = 5)
+    }
+    if (is.null(y)) model
+    else add_observation(model, "y", model = "uniform", loc = z@A,
+                         min = -5, max = 5)
+  }
+
+  # both observed: two flat latent densities and two observation terms
+  expect_equal(evaluate_log_lik(mk(c(0.5, 0.5))), 2 * log(1 / 2) + 2 * log(1 / 10))
+
+  # meryl carries no datum: her observation and the latent feeding it both drop
+  expect_warning(ll <- evaluate_log_lik(mk(c(0.5, NA))), "[Mm]issing for 1 of 2")
+  expect_equal(ll, log(1 / 2) + log(1 / 10))
+
+  # the same one hop away, through a deterministic readout
+  expect_warning(ll <- evaluate_log_lik(mk(c(0.5, NA), hop = TRUE)),
+                 "[Mm]issing for 1 of 2")
+  expect_equal(ll, log(1 / 2) + log(1 / 10))
+
+  # a second observation still reads it, so meryl keeps her draw
+  expect_warning(ll <- evaluate_log_lik(mk(c(0.5, NA), y = c(0.5, 0.5))),
+                 "[Mm]issing for 1 of 2")
+  expect_equal(ll, 2 * log(1 / 2) + 3 * log(1 / 10))
+
+  # simulations generate every observation, so they prune nothing
+  simulated <- mk(c(0.5, 0.5)) |>
+    run_simulation() |>
+    expect_silent()
+  expect_false(anyNA(simulated$x))
+})
+
 test_that("Reading an observation in models and loops are rejected", {
 
   # a latent model must not read an observation (illegal in both
@@ -750,8 +881,8 @@ test_that("Reading an observation in models and loops are rejected", {
     expect_error("[Cc]yclic")
 })
 
-test_that("simulation override (value + model) rejects forward dependencies", {
-  # reads an observation
+test_that("simulation override (value + model) rejects observation reads", {
+  # the override is applied before the observation is generated
   data.frame(house_id = "shadow_moses", status = 1, onset = 0.5) |>
     new_housepi_model("test") |>
     add_observation("onset", model = "uniform", min = 0, max = 1) |>
@@ -759,12 +890,21 @@ test_that("simulation override (value + model) rejects forward dependencies", {
     add_latent("liquid", model = "normal", value = onset@D) |>
     expect_error("[Ss]imulation override.*observation")
 
-  # reads another latent (no observation present: guard still fires)
+  # a deterministic readout does not make the observation available any earlier,
+  # so the same read one hop away is rejected too
+  data.frame(house_id = "shadow_moses", status = 1, onset = 0.5) |>
+    new_housepi_model("test") |>
+    add_observation("onset", model = "uniform", min = 0, max = 1) |>
+    add_latent(readout = onset@D,
+               liquid = list(model = "normal", value = readout@A)) |>
+    expect_error("[Ss]imulation override.*onset.*through.*readout")
+
+  # a latent read is legal, so a downstream one closes an ordinary loop
   data.frame(house_id = "outer_heaven", status = 1) |>
     new_housepi_model("test") |>
     add_latent(liquid = list(model = "normal", value = solid@A),
-               solid = list(model = "gamma", shape = 2, scale = 1)) |>
-    expect_error("[Ss]imulation override.*latent")
+               solid = list(model = "normal", mean = liquid@A, sd = 1)) |>
+    expect_error("[Cc]ycl")
 })
 
 test_that("degenerate reduction at member-level is cast to house-level", {
@@ -938,9 +1078,10 @@ test_that("Latent aliasing works as expected", {
 
 test_that("value paired with model overrides the draw in simulations only", {
   hhmodel <- data.frame(id = seq_len(100), house_id = 1,
-                        status = 1, anchor = 7) |>
+                        status = 1, anchor = 7, obs = 0) |>
     new_housepi_model("test") |>
-    add_latent("eli", model = "uniform", max = 100, value = anchor@D)
+    add_latent("eli", model = "uniform", max = 100, value = anchor@D) |>
+    helper_flat_sink(loc = eli@A)
 
   # simulation: pins the sampled variable to user value
   expect_true(all(run_simulation(hhmodel)$eli == 7))
@@ -951,6 +1092,18 @@ test_that("value paired with model overrides the draw in simulations only", {
     get_latent_draws() |>
     suppressWarnings()
   expect_false(all(draws[["1_eli"]] == 7))
+
+  # a pin composed on another latent binds live: the relation holds member by
+  # member, and follows the draw rather than collapsing to a single value
+  simulated <- data.frame(id = seq_len(100), house_id = 1,
+                          status = 1, anchor = 7) |>
+    new_housepi_model("test") |>
+    add_latent(otacon = list(model = "gamma", shape = 2, scale = 1),
+               snake = list(model = "uniform", max = 100,
+                            value = anchor@D - otacon@A)) |>
+    run_simulation()
+  expect_equal(simulated$snake, 7 - simulated$otacon)
+  expect_gt(length(unique(simulated$otacon)), 1)
 })
 
 test_that("load latent list works fine for external lists", {
@@ -987,16 +1140,20 @@ test_that("latent template import loads", {
 })
 
 test_that("Latent traces export only relevant variables", {
-  hhmodel <- new_housepi_model(model = "test") |>
+  # a constant carries no draw, an implicit function cannot be called on a value,
+  # and what no sink reads is not sampled at all
+  hhmodel <- data.frame(id = c("snake", "meryl"), house_id = "shadow_moses",
+                        status = 1, x = 1) |>
+    new_housepi_model(model = "test") |>
     add_parameter(alpha = 1, beta = list(prior = "uniform")) |>
     add_latent(
       # constants
       blocked = 42,
-      # private variables
-      .hidden = list(model = "uniform"),
-      .secret = list(model = "normal"),
+      # sampled variables
+      hidden = list(model = "uniform"),
+      secret = list(model = "normal"),
       # public non constant function
-      layer = .secret - .hidden,
+      layer = secret - hidden,
       # equal to parameters
       alpha = alpha@P,
       alpha_beta = alpha@P + beta@P,
@@ -1004,30 +1161,41 @@ test_that("Latent traces export only relevant variables", {
       dummy = blocked,
       alias = layer,
       # implicit function
-      impl = list(func = "gamma", func_args = c(shape = 3)),
+      impl = list(func = "gamma", shape = 3),
       # constant function
-      invar = list(func = "gamma", func_args = c(x = dummy, shape = 3)),
+      invar = list(func = "gamma", x = dummy, shape = 3),
       # function
-      expl = list(func = "gamma", func_args = c(x = alias, shape = 3))
+      expl = list(func = "gamma", x = alias, shape = 3)
     )
-  infec_df <- subset(hhmodel$data_wide, status > 0)
-  result <- suppressWarnings(run_inference(hhmodel,
+  observed <- add_observation(hhmodel, "x", model = "normal",
+                              mean = expl@A + alpha_beta@A, sd = 1)
+
+  infec_df <- subset(observed$data_wide, status > 0)
+  traced <- function(model) suppressWarnings(run_inference(model,
     steps = 200L, burn = 0L, thin = 1L, adapt = 0L, chains = 1L,
     id_draws = infec_df$id
-  ))
-  expect_equal(
-    posterior::variables(result$latent_draws),
-    paste(infec_df$id, c("layer", "alias", "alpha_beta", "expl"), sep = "_")
+  )) |> get_latent_draws() |> posterior::variables()
+
+  # the observation reads expl and alpha_beta, so their producers are drawn too
+  expect_setequal(
+    traced(observed),
+    paste(rep(infec_df$id, each = 6),
+          c("hidden", "secret", "layer", "alpha_beta", "alias", "expl"),
+          sep = "_")
   )
+
+  # with no observation nothing reads any of them: the model has no sink
+  expect_length(suppressWarnings(traced(hhmodel)), 0)
 })
 
 test_that("A latent degenerate domain warns and collapses", {
   hhmodel <- new_housepi_model(model = "test") |>
     add_parameter("d_dog", prior = "uniform") |>
     add_latent("d_horse", model = "uniform", min = 5, max = 5)
+  # steps meet the diagnostic threshold, so the collapse warning stands alone
   expect_warning(
     tryCatch(
-      run_inference(hhmodel, steps = 10L, chains = 1L, adapt = 0L, thin = 1L),
+      run_inference(hhmodel, steps = 400L, chains = 1L, adapt = 0L, thin = 1L),
       error = function(e) NULL
     ),
     regexp = "[Dd]egenerate domain|[Cc]ollapsed"
@@ -1043,7 +1211,11 @@ test_that("Nested definitions works as expected", {
                z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
   expect_snapshot(print(hhmodel))
 
+  # a flat observation on each chain leaves both posteriors equal to the model
   results <- hhmodel |>
+    add_data_wide(transform(hhmodel$data_wide, obs = 0, obs_norm = 0)) |>
+    helper_flat_sink(loc = z0@A) |>
+    helper_flat_sink(loc = norm@A, column = "obs_norm") |>
     run_inference(steps = 1e5L, chains = 1L, adapt = 0L, thin = 1L)
   # no parameters nor priors, only latent
   expect_equal(posterior::nvariables(results$parameter_draws), 0L)
@@ -1075,42 +1247,42 @@ test_that("Nested latent definitions raise errors", {
     new_housepi_model("test")
 
   hhmodel |>
-    add_latent(.layer = list(model = "uniform", status = 1),
-               .layer = list(value = .dummy, status = c(2, 3, 4)),
-               .dummy = list(model = "uniform"),
-               z = .layer) |>
+    add_latent(layer = list(model = "uniform", status = 1),
+               layer = list(value = dummy, status = c(2, 3, 4)),
+               dummy = list(model = "uniform"),
+               z = layer) |>
     evaluate_log_lik() |>
     expect_no_error()
 
   # simple nest
   hhmodel |>
-    add_latent(.dummy = z, z = .dummy) |>
+    add_latent(dummy = z, z = dummy) |>
     evaluate_log_lik() |>
     expect_error("[Cc]yclic latent definition")
 
   # triangular nest
   hhmodel |>
-    add_latent(z = .layer, .layer = .dummy, .dummy = z) |>
+    add_latent(z = layer, layer = dummy, dummy = z) |>
     evaluate_log_lik() |>
     expect_error("[Cc]yclic latent definition")
 
   # first generation of definitions
   hhmodel |>
-    add_latent(.layer = list(model = "normal", status = 1),
-               .layer = list(value = .dummy, status = 2),
-               #> NO .layer provided for status 3 and 4
-               .dummy = list(model = "lognormal", status = 2),
-               z = .layer) |>
+    add_latent(layer = list(model = "normal", status = 1),
+               layer = list(value = dummy, status = 2),
+               #> NO layer provided for status 3 and 4
+               dummy = list(model = "lognormal", status = 2),
+               z = layer) |>
     evaluate_log_lik() |>
     expect_error("[Nn]o.*definition.*status")
 
   # second generation of definitions
   hhmodel |>
-    add_latent(.layer = list(model = "normal", status = 1),
-               .layer = list(value = .dummy, status = c(2, 3, 4)),
-               #> NO .dummy provided for status 3, 4
-               .dummy = list(model = "lognormal", status = c(2, 3)),
-               z = .layer,
+    add_latent(layer = list(model = "normal", status = 1),
+               layer = list(value = dummy, status = c(2, 3, 4)),
+               #> NO dummy provided for status 3, 4
+               dummy = list(model = "lognormal", status = c(2, 3)),
+               z = layer,
                append = FALSE) |>
     evaluate_log_lik() |>
     expect_error("[Nn]o.*definition.*status")
@@ -1127,12 +1299,13 @@ test_that("Missing latent function arguments raise errors", {
 })
 
 test_that("Status-specific latent variables draw from per-status ranges", {
-  hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4)) |>
+  hhmodel <- data.frame(house_id = 1, id = seq(4), status = seq(4), obs = 0) |>
     new_housepi_model("test") |>
     add_latent(z = list(status = 1, model = "uniform", min = 0, max = 1),
                z = list(status = 2, model = "uniform", min = 1, max = 2),
                z = list(status = 3, model = "uniform", min = 2, max = 3),
-               z = list(status = 4, model = "uniform", min = 3, max = 4))
+               z = list(status = 4, model = "uniform", min = 3, max = 4)) |>
+    helper_flat_sink(loc = z@A)
 
   # simulation routes draws into per-status supports
   withr::with_seed(1, sim <- run_simulation(hhmodel, nrep = 50))
@@ -1163,7 +1336,7 @@ test_that("A latent bound to a distribution returns its density, not a draw", {
                         status = 1) |>
     new_housepi_model("test") |>
     add_latent(k = list(model = "uniform", min = 0, max = 5, discr = TRUE),
-               w = list(func = "poisson", func_args = c(x = k, lambda = 3)))
+               w = list(func = "poisson", x = k, lambda = 3))
 
   sim <- run_simulation(hhmodel, nrep = 1)
   expect_type(sim$k, "integer")
@@ -1199,14 +1372,14 @@ test_that("Incubation augmentation recast runs on the test model", {
     add_parameter(mean = list(prior = "uniform", min = 0.1, max = 5),
                   sd = list(prior = "uniform", min = 0.1, max = 5)) |>
     add_latent(
-      .infec_time = list(model = "uniform", max = exposure_max@D + 0.99),
+      infec_time = list(model = "uniform", max = exposure_max@D + 0.99),
       incub_period = list(
         model = "gamma", mean = mean@P, sd = sd@P, min = 0.5, max = 14
       ),
-      .onset_time = .infec_time + incub_period
+      onset_time = infec_time + incub_period
     ) |>
     add_observation("onset_mid", model = "normal",
-                    mean = .onset_time, sd = 0.3) |>
+                    mean = onset_time, sd = 0.3) |>
     run_inference(steps = 20L, adapt = 0L, chains = 1L) |>
     suppressWarnings()
 
@@ -1439,11 +1612,11 @@ test_that("Status-specific blocks alone cover every drawn status", {
   # every declared status carries its own block, so no generic one is needed
   covered <- mk(
     infec_time = list(value = 0, status = 1),
-    .incub = list(model = "gamma", mean = 2, sd = 1, max = 14, status = 1),
-    .onset = list(func = infec_time + .incub, status = 1),
+    incub = list(model = "gamma", mean = 2, sd = 1, max = 14, status = 1),
+    onset = list(func = infec_time + incub, status = 1),
     infec_time = list(value = 0, status = 2),
-    .incub = list(model = "gamma", mean = 3, sd = 1, max = 14, status = 2),
-    .onset = list(func = infec_time + .incub, status = 2)
+    incub = list(model = "gamma", mean = 3, sd = 1, max = 14, status = 2),
+    onset = list(func = infec_time + incub, status = 2)
   )
   expect_s3_class(suppressWarnings(run_simulation(covered)), "data.frame")
 
@@ -1452,8 +1625,8 @@ test_that("Status-specific blocks alone cover every drawn status", {
   # draws that status, so the report does not depend on how the draw falls
   uncovered <- mk(
     infec_time = list(value = 0, status = 1),
-    .incub = list(model = "gamma", mean = 2, sd = 1, max = 14, status = 1),
-    .onset = list(func = infec_time + .incub, status = 1),
+    incub = list(model = "gamma", mean = 2, sd = 1, max = 14, status = 1),
+    onset = list(func = infec_time + incub, status = 1),
     weights = c(0, 1)
   )
   sms <- tryCatch(suppressWarnings(run_simulation(uncovered)),
@@ -1464,8 +1637,8 @@ test_that("Status-specific blocks alone cover every drawn status", {
   # a generic block on its own still serves every drawn status
   generic <- mk(
     infec_time = 0,
-    .incub = list(model = "gamma", mean = 2, sd = 1, max = 14),
-    .onset = list(func = infec_time + .incub)
+    incub = list(model = "gamma", mean = 2, sd = 1, max = 14),
+    onset = list(func = infec_time + incub)
   )
   expect_s3_class(suppressWarnings(run_simulation(generic)), "data.frame")
 })

@@ -22,10 +22,10 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parallel.h"
-#include "tools/operators.h"
-#include "tools/string.h"
 #include "tools/read.h"
+#include "tools/string.h"
 #include "tools/types.h"
+#include "tools/vector.h"
 
 #include "mcmc.h"
 #include "measures.h"
@@ -133,6 +133,19 @@ namespace
                 out[i] = static_cast<int>(input[i]);
         }
         return out;
+    }
+
+    /// Stamp a list of equally-sized columns as an R data.frame.
+    /// Column names cross verbatim: they are data keys and definition names,
+    /// which the Rcpp data.frame conversion would sanitise into other names.
+    Rcpp::DataFrame rcpp_data_frame(Rcpp::List output)
+    {
+        R_xlen_t n_rows = output.size() ? Rf_xlength(output[0]) : 0;
+        // compact row names, the form R stores for the 1..n sequence
+        output.attr("row.names") = Rcpp::IntegerVector::create(
+            NA_INTEGER, -static_cast<int>(n_rows));
+        output.attr("class") = "data.frame";
+        return output;
     }
 
     /// Base class to wrap internal hosuepi functions.
@@ -344,7 +357,7 @@ namespace
         static std::vector<registry::Kind> reg_kinds(bool discr = false)
         {
             std::vector<registry::Kind> out = {registry::Kind::InfecProfile};
-            out += registry::distr_kinds(discr);
+            vect::append(out, registry::distr_kinds(discr));
             return out;
         }
 
@@ -598,7 +611,7 @@ namespace
         }
 
         const DataWide &data_wide = engine.data_wide();
-        return Rcpp::DataFrame(helper_export_data_wide(data_wide, data_wide.imported_cols(), true));
+        return rcpp_data_frame(helper_export_data_wide(data_wide, data_wide.imported_cols(), true));
     }
 
     /// Export to R all latent variables at the current state.
@@ -614,8 +627,8 @@ namespace
         for (size_t i = 0; i < n_cols; ++i)
             latent_cols[i] = Rcpp::NumericVector(n_rows);
 
-        const std::vector<std::string> data_names = data_wide.khold().all() -
-                                                    augm.khold(augm.list_latent_export);
+        const std::vector<std::string> data_names =
+            vect::difference(data_wide.khold().all(), augm.khold(augm.list_latent_export));
 
         size_t row = 0;
         for (const Household &house : data_wide)
@@ -637,7 +650,7 @@ namespace
             output.push_back(rcpp_typed_column(latent_cols[i], discr_cols[i]), augm.khold(a));
             ++i;
         }
-        return Rcpp::DataFrame(output);
+        return rcpp_data_frame(output);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -687,7 +700,7 @@ namespace
         for (size_t d = 0; d < datalist_dbl.size(); ++d)
             output.push_back(datalist_dbl[d], data_long.khold(d));
 
-        return Rcpp::DataFrame(output);
+        return rcpp_data_frame(output);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -701,8 +714,9 @@ namespace
         const ReportIndividual &report_indiv = data_wide.report_indiv;
         const ReportHousehold &report_house = data_wide.report_house;
 
-        Rcpp::CharacterVector level = Rcpp::wrap(std::vector<std::string>(4, "individual") +
-                                                 std::vector<std::string>(5, "household"));
+        Rcpp::CharacterVector level = Rcpp::wrap(
+            vect::concatenate(std::vector<std::string>(4, "individual"),
+                              std::vector<std::string>(5, "household")));
         Rcpp::CharacterVector metric = {"total", "missing", "not infected", "infected",
                                         "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
         Rcpp::IntegerVector count(level.size());
@@ -952,14 +966,14 @@ namespace
                 df_double[d][i] = hsp_to_rcpp(data_wide.data(d, indiv));
         }
 
-        auto output = Rcpp::DataFrame::create(
-            Rcpp::_["id"] = std::move(id_col),
-            Rcpp::_["house_id"] = std::move(house_id_col),
-            Rcpp::_["status"] = std::move(status_col));
+        Rcpp::List output;
+        output["id"] = std::move(id_col);
+        output["house_id"] = std::move(house_id_col);
+        output["status"] = std::move(status_col);
         for (size_t d = 0; d < headers.size(); ++d)
             output.push_back(df_double[d], headers[d]);
 
-        return output;
+        return rcpp_data_frame(output);
     }
 
     /// Export to R a snapshot of current state of house data-long.
@@ -1004,7 +1018,7 @@ namespace
         for (size_t d = 0; d < df_double.size(); ++d)
             output[data_long.khold(d)] = df_double[d];
 
-        return Rcpp::DataFrame(output);
+        return rcpp_data_frame(output);
     }
 
     /// Export to R a snapshot of current state of house latent variables.
@@ -1039,7 +1053,7 @@ namespace
         for (size_t c = 0; c < headers.size(); ++c)
             output.push_back(df_double[c], headers[c]);
 
-        return Rcpp::DataFrame(output);
+        return rcpp_data_frame(output);
     }
 
     /// Export to R a snapshot of current contact risk attribute values
@@ -1157,7 +1171,7 @@ namespace
         for (size_t c = 0; c < n_cols; ++c)
             output.push_back(df_double[c], augm.khold(list[c]));
 
-        return Rcpp::DataFrame(output);
+        return rcpp_data_frame(output);
     }
 
     /// Export to R a snapshot of current state of house latent variables.
@@ -1199,7 +1213,7 @@ namespace
             ++i;
         }
 
-        return Rcpp::DataFrame(output);
+        return rcpp_data_frame(output);
     }
 
     /// Export a list containing all relevant information for a debug.
@@ -1321,7 +1335,7 @@ namespace
                 sim_list[n_shared + 1 + static_cast<int>(c)] =
                     rcpp_typed_column(latent_cols[c], discr_cols[c]);
             sim_list.attr("names") = sim_names;
-            return Rcpp::DataFrame(sim_list);
+            return rcpp_data_frame(sim_list);
         }
     }
 
@@ -1470,10 +1484,8 @@ namespace
                 draws[r] = col;
                 col_names[r] = "log_lik[" + std::to_string(r + 1) + "]";
             }
-            // set names via attribute so the non-syntactic `log_lik[r]` survives
-            // the data.frame conversion (which would otherwise sanitise them)
-            Rcpp::DataFrame draws_df(draws);
-            draws_df.attr("names") = col_names;
+            draws.attr("names") = col_names;
+            Rcpp::DataFrame draws_df = rcpp_data_frame(draws);
 
             return Rcpp::List::create(
                 Rcpp::_["scheme"] = ladder.scheme,
@@ -1602,11 +1614,11 @@ namespace
         Rcpp::CharacterVector col_names = data_wide.names();
 
         std::vector<std::string> house_id = {};
-        if (contains(col_names, "house_id"))
+        if (vect::contains(col_names, "house_id"))
             house_id = Rcpp::as<std::vector<std::string>>(data_wide["house_id"]);
 
         std::vector<int> status = {};
-        if (contains(col_names, "status"))
+        if (vect::contains(col_names, "status"))
             status = Rcpp::as<std::vector<int>>(data_wide["status"]);
 
         return measure::summarise_houses(house_id, status);

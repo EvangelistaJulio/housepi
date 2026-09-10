@@ -243,7 +243,7 @@ run_power_posteriors <- function(hhmodel,
                                  ...) {
   stopifnothousepi(hhmodel)
   warn_logevidence_experimental_()
-  assert_advanced_setup_(list(...), "adapt_window")
+  assert_advanced_setup_("adapt_window", ...)
   scheme <- match.arg(scheme)
   pvt <- hhmodel$.__enclos_env__$private
   # internal build function

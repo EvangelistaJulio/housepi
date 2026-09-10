@@ -27,12 +27,9 @@ flatten_cli_parts_ <- function(dots) {
 }
 
 #' Emit a harmonized cli error or warning condition.
-#'
-#' The first element becomes the header (styled `x` for errors, unnamed for
-#' warnings so it sits on the `Warning:` line); every other element without an
-#' explicit bullet name (`x`, `i`, `!`, `v`) becomes an `i` hint. Our
-#' conditions carry a `housepi_stop` /
-#' `housepi_warn` class so `with_cpp_conditions()` passes them through.
+#' @description
+#' First element becomes the header (`x` for errors, unnamed for warnings).
+#' Every other element without an explicit bullet name becomes a hint.
 #' @param parts `character()` Message lines, optionally named with bullet keys.
 #' @param level `character(1)` Either `"stop"` or `"warn"`.
 #' @param trusted `logical(1)` When `FALSE`, braces are escaped so foreign text
@@ -57,12 +54,10 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   if (length(nms) > 0) nms[[1]] <- ifelse(level == "stop", "x", "")
   bullets <- stats::setNames(parts, nms)
 
-  if (level == "stop") cli::cli_abort(
-    bullets, call = NULL, class = "housepi_stop", .envir = .envir
-  )
+  if (level == "stop") cli::cli_abort(bullets, call = NULL, .envir = .envir)
   # display at emission time, so warning are not deferred past the errors
   else withr::with_options(list(warn = 1), cli::cli_warn(
-    bullets, call = NULL, class = "housepi_warn", .envir = .envir
+    bullets, call = NULL, .envir = .envir
   ))
 }
 
@@ -83,12 +78,10 @@ warn_h <- function(...) {
 }
 
 #' Restyle any condition raised beneath `expr` through the cli emitter.
-#'
-#' Errors and warnings authored by housepi (whether raised in R via `stop_h()` /
-#' `warn_h()` or in C++ via the `msg` facade) are split on newlines into a
-#' header plus `i` hints. C++-authored conditions are recognised by class
-#' (`housepi::CppError` errors, `housepi_cpp_warning` warnings) and rendered as
-#' cli markup; foreign conditions are shown literally.
+#' @description
+#' Condition raised are split on newlines into a header plus hints.
+#' C++ conditions are recognised by class and rendered as cli markup.
+#' Foreign conditions are shown literally.
 #' @param expr Expression to evaluate.
 #' @noRd
 with_cpp_conditions <- function(expr) {
@@ -98,11 +91,9 @@ with_cpp_conditions <- function(expr) {
   }
   withCallingHandlers(
     tryCatch(expr, error = function(e) {
-      if (inherits(e, "housepi_stop")) stop(e)
       reemit(e, "stop", inherits(e, "housepi::CppError"))
     }),
     warning = function(w) {
-      if (inherits(w, "housepi_warn")) return(invisible())
       reemit(w, "warn", inherits(w, "housepi_cpp_warning"))
       invokeRestart("muffleWarning")
     }
@@ -162,7 +153,7 @@ format_there_were_was <- function(len_list, max_print = 4) {
 character_to_phrase <- function(mylist, quote = FALSE, and = TRUE,
                                 style = "val") {
   if (length(mylist) == 0) return(NULL)
-  # eventually wrap in cli markup (styled downstream at emit time)
+  # wrap in cli markup on request (styled downstream at emit time)
   if (isTRUE(quote)) mylist <- paste0("{.", style, " ", mylist, "}")
   # let cli collapse; " and " before the last item, or plain comma without it
   cli::ansi_collapse(mylist, sep = ", ",
@@ -280,12 +271,13 @@ helper_clone <- function(x) {
 ############################################################################
 
 #' Assert undocumented advanced setup overrides from `...`.
-#' @param dots `list` Captured `...` from a run method.
 #' @param allowed `character()` accepted argument names.
+#' @param ... `r rd_dots_config_`
 #' @return `list` Non-null overrides keyed by engine setup key.
 #' @keywords internal
 #' @noRd
-assert_advanced_setup_ <- function(dots, allowed) {
+assert_advanced_setup_ <- function(allowed, ...) {
+  dots <- list(...)
   for (nm in names(dots)) {
     if (!(nm %in% allowed)) stop_h(
       "Unexpected argument {.arg {nm}} passed through {.code ...}.",
@@ -327,13 +319,15 @@ setup_sample_size_ <- function(steps, burn, thin, chains) {
 }
 
 #' Format elements of data (wide or long) to pass to import Rcpp method.
+#' Column names cross verbatim: they are the keys the engine registers, and
+#' the definitions that source them are written against the user's spelling.
 #' @param df `data.frame` Definition table or list.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
 char_data_input_ <- function(df) {
   if (is.null(df)) NULL
-  else data.frame(lapply(df, as.character))
+  else data.frame(lapply(df, as.character), check.names = FALSE)
 }
 
 #' Resolve character `status =` labels in a latent defs frame to integer
@@ -457,7 +451,9 @@ cpp_data_factorize <- function(df, escaped = "escaped") {
     } else if (is.character(x) || is.factor(x) || is.logical(x)) {
       cls <- ifelse(is.character(x), "character",
                     ifelse(is.logical(x), "logical", "factor"))
-      y <- factor(x, levels = unique(x), exclude = NULL)
+      # a missing cell is missing data, not a category: it carries no level
+      # and codes to NA, which the engine reads as an empty cell
+      y <- factor(x, levels = unique(x))
       info[[col]] <- list(class = cls, levels = levels(y))
       df[[col]] <- as.integer(y)
     }

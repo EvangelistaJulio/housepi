@@ -152,6 +152,36 @@ test_that("cpp data refactor restores original types", {
   expect_equal(colnames(restored)[seq_along(factored$cols)], factored$cols)
 })
 
+test_that("cpp data factorization leaves a missing cell missing", {
+  df <- data.frame(id = c("p1", "p2", "p3"),
+                   house_id = "shadow_moses",
+                   status = c(1, 0, 1),
+                   codename = c("snake", NA, "otacon"),
+                   veteran = c(TRUE, NA, FALSE),
+                   silent = NA_character_,
+                   stringsAsFactors = FALSE)
+  factored <- cpp_data_factorize(df)
+
+  # an empty cell is no category of its own: it carries no level, and it codes
+  # to NA so the engine reads it as an empty cell
+  expect_equal(factored$info$codename$levels, c("snake", "otacon"))
+  expect_equal(factored$info$veteran$levels, c("TRUE", "FALSE"))
+  expect_equal(factored$data$codename, c("1", NA, "2"))
+  expect_equal(factored$data$veteran, c("1", NA, "2"))
+
+  # a column carrying nothing holds no level at all
+  expect_equal(factored$info$silent$levels, character(0))
+  expect_true(all(is.na(factored$data$silent)))
+
+  # and the empty cell survives the round-trip
+  cpp_data <- suppressWarnings(data.frame(lapply(factored$data, as.numeric)))
+  colnames(cpp_data) <- colnames(factored$data)
+  restored <- cpp_data_refactor(cpp_data, factored$info, factored$cols)
+  expect_equal(restored$codename, df$codename)
+  expect_equal(restored$veteran, df$veteran)
+  expect_true(all(is.na(restored$silent)))
+})
+
 test_that("Char setup input formats setup options correctly", {
   # id_draws with multiple values
   setup <- list(steps = 100, burnin = 10, thin = 1,
@@ -176,6 +206,36 @@ test_that("Char data input handles NULL and data.frame", {
   result <- char_data_input_(df)
   expect_true(is.data.frame(result))
   expect_true(all(sapply(result, is.character)))
+
+  # column names are engine keys: they cross verbatim, never through make.names
+  exotic <- data.frame(a = 1, check.names = FALSE)
+  exotic[["3"]] <- 2
+  exotic[["if"]] <- 3
+  exotic[["dose.2"]] <- 4
+  expect_equal(names(char_data_input_(exotic)), names(exotic))
+})
+
+test_that("A data column R can only spell quoted survives the round trip", {
+  data <- dummy_household
+  data[["3"]] <- c(42L, 7L)
+  data[["if"]] <- c(1L, 2L)
+
+  hhmodel <- new_housepi_model(data, "test")
+  # the engine reports the column under the user's own spelling
+  expect_equal(colnames(hhmodel$data_wide), colnames(data))
+  expect_equal(hhmodel$data_wide[["3"]], data[["3"]])
+  expect_equal(names(hhmodel$export_house_snapshot("house")$data_wide),
+               colnames(data))
+
+  # a definition sources it, quoted or bare, and finds the datum
+  add_latent(hhmodel, otacon = 3@D) |> expect_no_error()
+  add_latent(hhmodel, otacon = `3`@D) |> expect_no_error()
+
+  # data-long keys cross the same way
+  long <- data.frame(id = data$id, check.names = FALSE)
+  long[["3"]] <- c(1.5, 2.5)
+  out <- add_data_long(hhmodel, long) |> get_data_long()
+  expect_equal(out[["3"]], long[["3"]])
 })
 
 test_that("housepi_theme_set is called without errors", {

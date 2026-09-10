@@ -8,7 +8,7 @@
 risk_stop_hint <- paste("Choose {.arg by} for automatic definitions,",
                         "{.arg strata} for custom.")
 
-# Reserved column names (non-feature) in a logic table.
+# Reserved column names (non-covariate) in a logic table.
 data_reserved_cols <- c("id", "house_id", "status")
 # `value` pins a stratum during simulation, `const` fixes it in inference too.
 risk_pin_cols <- c("value", "const")
@@ -25,7 +25,7 @@ empty_risk_table <- function(cols) {
   as.data.frame(risk_reserved_proto[cols], stringsAsFactors = FALSE)
 }
 
-# Typed `NA` padding for each of `cols`. A feature column pads as character.
+# Typed `NA` padding for each of `cols`. A covariate column pads as character.
 risk_na_pad <- function(cols) {
   lapply(stats::setNames(cols, cols), function(col) {
     proto <- risk_reserved_proto[[col]]
@@ -62,65 +62,64 @@ stop_ambiguos_definition <- function() {
   )
 }
 
-#' Assert that features choice is valid.
-#' @param features Features as list of data column names.
-#' @param allow Reserved names the caller accepts as features.
+#' Assert that covariates choice is valid.
+#' @param covariates Covariates as list of data column names.
+#' @param allow Reserved names the caller accepts as covariates.
 #' @keywords internal
 #' @noRd
-assert_valid_features <- function(features, allow = character()) {
-  if (all(is.na(features))) return(invisible())
+assert_valid_covariates <- function(covariates, allow = character()) {
+  if (all(is.na(covariates))) return(invisible())
 
-  if (isFALSE(is.character(features))) stop_h(
+  if (isFALSE(is.character(covariates))) stop_h(
     "Argument {.arg by} must be of type character.",
-    format_type_error(features)
+    format_type_error(covariates)
   )
 
   # avoid group risks associated to reserved data/definition names
   reserved_data <- setdiff(c(data_reserved_cols, risk_reserved_cols), allow)
-  forbidden <- reserved_data[reserved_data %in% features]
+  forbidden <- reserved_data[reserved_data %in% covariates]
   if (length(forbidden) > 0) stop_h(
     sprintf("Impossible to associate risk to %s %s",
-            as_plural("feature", length(forbidden), "s:"),
+            as_plural("covariate", length(forbidden), "s:"),
             character_to_string_list(forbidden)),
     `!` = "These names are reserved.",
-    paste("Please, change {as_plural('feature', length(forbidden))} and/or",
+    paste("Please, change {as_plural('covariate', length(forbidden))} and/or",
           "corresponding data {as_plural('column', length(forbidden))}.")
   )
 }
 
-#' Assert that features are present in data.
-#' @param features Features as list of data column names.
+#' Assert that covariates are present in data.
+#' @param covariates Covariates as list of data column names.
 #' @param headers All column names of the data.
 #' @keywords internal
 #' @noRd
-assert_data_features <- function(features, headers) {
-  # UPDATE: 'features' is not a useful terminology here
-  missing <- setdiff(features, headers)
+assert_data_covariates <- function(covariates, headers) {
+  missing <- setdiff(covariates, headers)
   if (length(missing) > 0) stop_h(
     sprintf("Unknown %s %s",
-            as_plural("feature", length(missing), "s:"),
+            as_plural("covariate", length(missing), "s:"),
             character_to_string_list(missing)),
     "Please check your data headers."
   )
 }
 
-#' Assert that feature values in data are safe.
-#' @param table Features as list of data column names.
+#' Assert that covariate values in data are safe.
+#' @param this_table Logic table whose covariate columns are checked.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-assess_feature_values <- function(this_table) {
+assess_covariate_values <- function(this_table) {
   # column names to consider
   colmask <- setdiff(names(this_table), risk_reserved_cols)
   for (col in colmask) {
-    sapply(this_table[[col]], function(x) assert_valid_feature(x, col))
+    sapply(this_table[[col]], function(x) assert_valid_covariate(x, col))
   }
   colmask
 }
 
 #' Assert that a user-provided logic table is valid.
 #' @param logic_table `data.frame` with a `param_name` column.
-#' @param allow Reserved names the caller accepts as features.
+#' @param allow Reserved names the caller accepts as covariates.
 #' @keywords internal
 #' @noRd
 assert_valid_logic_table <- function(logic_table, allow = character()) {
@@ -133,9 +132,9 @@ assert_valid_logic_table <- function(logic_table, allow = character()) {
   if (nrow(logic_table) == 0) stop_h(
     "Logic table must contain at least one row."
   )
-  # validate feature column names
-  feature_cols <- setdiff(colnames(logic_table), risk_reserved_cols)
-  assert_valid_features(feature_cols, allow)
+  # validate covariate column names
+  covariate_cols <- setdiff(colnames(logic_table), risk_reserved_cols)
+  assert_valid_covariates(covariate_cols, allow)
   assert_valid_pins(logic_table)
 }
 
@@ -189,11 +188,11 @@ compute_rule_groups <- function(tbl) {
     tbl$rule_group <- integer(0)
     return(tbl)
   }
-  feat_cols <- setdiff(colnames(tbl), risk_reserved_cols)
+  cov_cols <- setdiff(colnames(tbl), risk_reserved_cols)
 
-  # pattern of each row: names of non-NA feature columns
+  # pattern of each row: names of non-NA covariate columns
   patterns <- lapply(seq_len(nrow(tbl)), function(i) {
-    sort(feat_cols[!is.na(unlist(tbl[i, feat_cols, drop = FALSE]))])
+    sort(cov_cols[!is.na(unlist(tbl[i, cov_cols, drop = FALSE]))])
   })
 
   # unique patterns for maximality check
@@ -260,16 +259,17 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
   if (length(idx_refer) < 2) return(invisible(strata))
 
   tbl <- compute_rule_groups(strata)[idx_refer, , drop = FALSE]
-  feat_cols <- setdiff(colnames(tbl), risk_reserved_cols)
-  features <- sub("^from_", "", grep("^from_", feat_cols, value = TRUE))
-  pair_wise <- isTRUE(symmetric) && length(features) > 0
+  cov_cols <- setdiff(colnames(tbl), risk_reserved_cols)
+  covariates <- sub("^from_", "", grep("^from_", cov_cols, value = TRUE))
+  pair_wise <- isTRUE(symmetric) && length(covariates) > 0
 
   # cell identity: the rule itself, or the unordered pair when symmetric
   cell_key <- function(i) {
-    row <- vapply(tbl[i, feat_cols, drop = FALSE], as.character, character(1))
-    if (!pair_wise) return(paste(feat_cols, row, sep = "_", collapse = "\x1F"))
+    row <- vapply(tbl[i, cov_cols, drop = FALSE], as.character, character(1))
+    if (!pair_wise) return(paste(cov_cols, row, sep = "_", collapse = "\x1F"))
     ends <- lapply(c("from_", "to_"), function(side) {
-      paste(features, row[paste0(side, features)], sep = "_", collapse = "\x1F")
+      paste(covariates, row[paste0(side, covariates)],
+            sep = "_", collapse = "\x1F")
     })
     paste(sort(unlist(ends)), collapse = "\x1E")
   }
@@ -375,54 +375,55 @@ status_as_labels <- function(x, status_codes) {
 
 #' Return logic table of group risks
 #' @param data_wide Data from which to extract group risks
-#' @param this_feat Feature as list of data column names.
+#' @param this_cov Covariate as list of data column names.
 #' @param status_levels `character()` Declared infected-status labels.
 #' @param status_observed `logical(1)` Whether the data carries any status.
 #' @return data.frame with logic table
 #' @keywords internal
 #' @noRd
-group_risk_logic_table <- function(data_wide, this_feat,
+group_risk_logic_table <- function(data_wide, this_cov,
                                    status_levels = character(),
                                    status_observed = TRUE) {
-  # extract unique features and sort by list length
+  # extract unique covariates and sort by list length
   # status strata are declared by the model, not read off the data
-  uni_features <- lapply(this_feat, function(f) {
+  uni_covariates <- lapply(this_cov, function(f) {
     if (identical(f, "status")) status_levels else sort(unique(data_wide[[f]]))
   })
-  sorted_indices <- order(sapply(uni_features, length), decreasing = TRUE)
-  this_feat <- this_feat[sorted_indices]
-  uni_features <- uni_features[sorted_indices]
-  names(uni_features) <- this_feat
+  sorted_indices <- order(sapply(uni_covariates, length), decreasing = TRUE)
+  this_cov <- this_cov[sorted_indices]
+  uni_covariates <- uni_covariates[sorted_indices]
+  names(uni_covariates) <- this_cov
 
-  # create a dataframe of all possible multi-features
-  y <- expand.grid(uni_features)
+  # create a dataframe of all possible multi-covariates
+  y <- expand.grid(uni_covariates)
 
   # count every combination in one pass. A cell the data does not carry
   # matches no stratum, so those members are left out of the tally
-  strata_key <- function(x) do.call(paste, c(lapply(x[this_feat], as.character),
-                                             list(sep = "\x1F")))
-  carried <- data_wide[stats::complete.cases(data_wide[this_feat]), ,
+  strata_key <- function(x) {
+    do.call(paste, c(lapply(x[this_cov], as.character), list(sep = "\x1F")))
+  }
+  carried <- data_wide[stats::complete.cases(data_wide[this_cov]), ,
                        drop = FALSE]
   tally <- table(strata_key(carried))
-  multifeat_count <- as.integer(tally[strata_key(y)])
-  multifeat_count[is.na(multifeat_count)] <- 0L
+  multicov_count <- as.integer(tally[strata_key(y)])
+  multicov_count[is.na(multicov_count)] <- 0L
 
   # no status is observed: every declared stratum stands, sample sizes unknown
-  if ("status" %in% this_feat && isFALSE(status_observed)) {
+  if ("status" %in% this_cov && isFALSE(status_observed)) {
     y$n <- NA_integer_
     return(y)
   }
 
   # create the final truth table and reverse it
-  y <- y[multifeat_count > 0, , drop = FALSE]
+  y <- y[multicov_count > 0, , drop = FALSE]
   # add counts
-  y$n <- multifeat_count[multifeat_count > 0]
+  y$n <- multicov_count[multicov_count > 0]
 
   y
 }
 
 #' Collapse a named reference into a phrase of `name = value` pairs.
-#' @param reference `list()` Feature values, named after the features.
+#' @param reference `list()` Covariate values, named after the covariates.
 #' @param strip `character(1)` Prefix removed from the names before printing.
 #' @return `character(1)`
 #' @noRd
@@ -439,7 +440,7 @@ reference_to_phrase <- function(reference, strip = "^") {
 #' @param prefix
 #' Prefix to parameter names associated to the group risk.
 #' @param reference
-#' Choose reference providing corresponding features.
+#' Choose reference providing corresponding covariates.
 #' `".auto"` picks the group with the largest sample size.
 #' Empty leaves the risk without a reference.
 #' @return
@@ -448,7 +449,7 @@ reference_to_phrase <- function(reference, strip = "^") {
 #' @noRd
 associate_group_param_names <- function(this_table, prefix, reference) {
   # column names to consider
-  colmask <- assess_feature_values(this_table)
+  colmask <- assess_covariate_values(this_table)
 
   # find reference index
   idx_refer <- NULL
@@ -605,7 +606,7 @@ HousepiGroupRisk <- R6::R6Class(
                                 reference = NULL,
                                 joint = FALSE,
                                 .warn_over = TRUE) {
-      assert_valid_features(by, allow = "status")
+      assert_valid_covariates(by, allow = "status")
       # remove previous definition if it exists
       rmv_name <- self$remove(name)
 
@@ -679,28 +680,28 @@ HousepiGroupRisk <- R6::R6Class(
     helper_implement_auto_ = function(risk_id, data_wide,
                                       status_levels, status_observed) {
       this_def <- self$defs[[risk_id]] # definition of the risk
-      features <- as.list(this_def[["by"]]) # data features
+      covariates <- as.list(this_def[["by"]]) # data covariates
 
-      if (all(is.na(features))) {
+      if (all(is.na(covariates))) {
         self$logic_tables[[risk_id]] <- list()
         return(invisible(self))
       }
 
-      features <- sort(as.character(features[!is.na(features)]))
+      covariates <- sort(as.character(covariates[!is.na(covariates)]))
       # status is carried by the model, not required as a data column
-      assert_data_features(setdiff(features, "status"), colnames(data_wide))
+      assert_data_covariates(setdiff(covariates, "status"), colnames(data_wide))
 
       # cast to list if joint
-      if (isTRUE(this_def[["joint"]])) features <- list(features)
+      if (isTRUE(this_def[["joint"]])) covariates <- list(covariates)
 
       # default prefix
       prefix <- as.character(this_def[["prefix"]])
       if (is.na(prefix)) prefix <- substring(tolower(risk_id), 1, 3)
 
       new_logic_table <- list()
-      for (this_feat in features) {
+      for (this_cov in covariates) {
         # 1. create logic table with group risks
-        this_table <- group_risk_logic_table(data_wide, this_feat,
+        this_table <- group_risk_logic_table(data_wide, this_cov,
                                              status_levels, status_observed)
         # associate names for parameters
         this_table <- associate_group_param_names(
@@ -718,11 +719,11 @@ HousepiGroupRisk <- R6::R6Class(
                                         status_levels, status_observed) {
       for (ti in seq_along(self$logic_tables[[risk_id]])) {
         tbl <- self$logic_tables[[risk_id]][[ti]]
-        feat_cols <- setdiff(colnames(tbl), risk_reserved_cols)
+        cov_cols <- setdiff(colnames(tbl), risk_reserved_cols)
         # status is carried by the model, not required as a data column
-        assert_data_features(setdiff(feat_cols, "status"), colnames(data_wide))
-        # validate that feature values exist in data
-        for (col in feat_cols) {
+        assert_data_covariates(setdiff(cov_cols, "status"), colnames(data_wide))
+        # validate that covariate values exist in data
+        for (col in cov_cols) {
           vals <- tbl[[col]][!is.na(tbl[[col]])]
           data_vals <- unique(data_wide[[col]])
           # status levels are declared by the model, not read off the data
@@ -736,9 +737,9 @@ HousepiGroupRisk <- R6::R6Class(
           )
         }
         # add counts
-        tbl$n <- apply(tbl[feat_cols], 1, function(row) {
+        tbl$n <- apply(tbl[cov_cols], 1, function(row) {
           mask <- rep(TRUE, nrow(data_wide))
-          for (col in feat_cols) {
+          for (col in cov_cols) {
             if (is.na(row[[col]])) next
             # `%in%`: an NA data cell matches no rule, it does not poison
             # the count of every stratum
@@ -748,7 +749,7 @@ HousepiGroupRisk <- R6::R6Class(
           sum(mask)
         })
         # no status is observed: every declared stratum stands, sizes unknown
-        if ("status" %in% feat_cols && isFALSE(status_observed)) {
+        if ("status" %in% cov_cols && isFALSE(status_observed)) {
           tbl$n <- NA_integer_
         } else {
           # skip entries with no matching data
@@ -793,26 +794,26 @@ HousepiGroupRisk <- R6::R6Class(
       set_source_name_(required, self$family)
     },
 
-    #' @field feature_names `character()`. Data columns the risks stratify on,
+    #' @field covariate_names `character()`. Data columns the risks stratify on,
     #' declared through `by` or carried by a custom logic table.
-    feature_names = function(value) {
-      setdiff(self$raw_feature_names, "status")
+    covariate_names = function(value) {
+      setdiff(self$raw_covariate_names, "status")
     },
 
-    #' @field raw_feature_names `character()`. Stratification axes, `status`
-    #' included. `feature_names` drops it: it is an always-present model axis,
+    #' @field raw_covariate_names `character()`. Stratification axes, `status`
+    #' included. `covariate_names` drops it: it is an always-present model axis,
     #' neither a required data column nor a name an observation can collide on.
-    raw_feature_names = function(value) {
+    raw_covariate_names = function(value) {
       custom <- lapply(unlist(self$logic_tables, recursive = FALSE),
                        function(tbl) setdiff(colnames(tbl), risk_reserved_cols))
-      feats <- as.character(unlist(c(lapply(self$defs, `[[`, "by"), custom)))
-      unique(feats[!is.na(feats)])
+      covs <- as.character(unlist(c(lapply(self$defs, `[[`, "by"), custom)))
+      unique(covs[!is.na(covs)])
     },
 
     #' @field stratifies_on_status `logical(1)`.
     #' Whether a risk stratifies on the infected status.
     stratifies_on_status = function(value) {
-      "status" %in% self$raw_feature_names
+      "status" %in% self$raw_covariate_names
     },
 
     #' @field param_required `character()`. Parameters required by group risks.
@@ -952,7 +953,7 @@ HousepiGroupRisk <- R6::R6Class(
       )
       else stop_empty_definition()
 
-      # store shared MCMC setup (eventually overwrite)
+      # store shared MCMC setup (overwriting any existing)
       self$raw_params[[name]] <- set_group_risks_mcmc_setup(
         name = name, prior = prior, args = args,
         min = min, max = max, proposal = proposal,
@@ -1071,11 +1072,9 @@ HousepiGroupRisk <- R6::R6Class(
         )
       }
       for (k in intersect(colnames(defs), names(info))) {
-        # `exclude = NULL`: an NA cell is a level the engine codes like any
-        # other, and dropping it here would shift every code by one
-        defs[[k]] <- as.integer(
-          factor(defs[[k]], levels = info[[k]]$levels, exclude = NULL)
-        )
+        # an NA rule cell is the wildcard: it codes to NA so the engine skips
+        # that covariate, and it counts for no specificity
+        defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
       }
       defs
     }

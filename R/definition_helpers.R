@@ -105,12 +105,12 @@ assert_no_sibling_dist_arg <- function(args, family, name = NULL) {
 
 # @description
 # Parse implicit function/value.
-helper_variable_core <- function(opts, family, value, func, func_args) {
+helper_variable_core <- function(opts, family, value, func) {
   if (is.null(value) && is.null(func)) return(opts)
 
   # NOTE: ensured just one between the 2 is not NULL
   x <- if (is.null(value)) func else value
-  if (length(func_args) == 0 && is.numeric(showcaser_extract_numeric(x))) {
+  if (is.numeric(showcaser_extract_numeric(x))) {
     # implicit numeric definition, whichever argument carried it
     opts$value <- x
     if (is.na(opts$const)) {
@@ -122,7 +122,7 @@ helper_variable_core <- function(opts, family, value, func, func_args) {
 
   # distinguish purely implicit function from plain name
   y <- housepi_combine_to_call(func_name = x,
-                               func_args = func_args,
+                               func_args = character(),
                                is_func = is.null(value))
   # a value= given alongside a model/prior is a simulation-only override and
   # always lands in opts$value, whatever its shape; otherwise (including the
@@ -142,16 +142,21 @@ helper_variable_core <- function(opts, family, value, func, func_args) {
 }
 
 # @description
-# process model arguments
-helper_variable_model <- function(opts, family, args) {
-  if (is.null(args)) return(opts)
+# Attach the spare arguments to the object that takes them: the distribution
+# sampling the variable, or the function computing it.
+helper_variable_args <- function(opts, family, args) {
+  if (length(args) == 0) return(opts)
   dcol <- family2model_col(family)
-  if (is.na(opts[[dcol]])) {
-    sms <- "Spare arguments for {family} {.val {opts$name}}."
-    if (!is.na(opts$func)) sms <- c(sms, "Did you mean {.arg func_args}?")
-    stop_h(sms)
-  }
-  opts[[dcol]] <- housepi_combine_to_call(opts[[dcol]], args)
+  col <- if (!is.na(opts[[dcol]])) dcol else if (!is.na(opts$func)) "func"
+  if (is.null(col)) stop_h(
+    "Spare arguments for {family} {.val {opts$name}}.",
+    "Provide the {.arg {dcol}} or the {.arg func} they belong to."
+  )
+  if (housepi_is_call(opts[[col]])) stop_h(
+    "Spare arguments for {family} {.val {opts$name}}.",
+    "The {.arg {col}} expression already carries its arguments."
+  )
+  opts[[col]] <- housepi_combine_to_call(opts[[col]], args)
   opts
 }
 

@@ -734,8 +734,8 @@ HousepiPPC <- R6::R6Class(
 
     #' @description Perform Chi-squared test and return list with results.
     #' @param lower_tail
-    #' `logical(1)`. Consider lower tail probabilities `P[X<=x]` (default).
-    #' If `FALSE`, consider upper tail `P[X>x]`.
+    #' `logical(1)`. If `TRUE`, report the lower tail probability `P[X<=x]`
+    #' instead of the upper tail `P[X>x]`.
     #' @return `list`
     chisq_test = function(lower_tail = FALSE) {
       cases <- helper_filter_tables(self$cases_count,

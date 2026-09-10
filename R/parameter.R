@@ -70,7 +70,7 @@ HousepiParameter <- R6::R6Class(
     add_quo = function(name, ...,
                        value = NULL, const = NA, discr = NA,
                        prior = NA_character_,
-                       func = NULL, func_args = NULL,
+                       func = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
                        .warn_over = TRUE,
@@ -96,13 +96,6 @@ HousepiParameter <- R6::R6Class(
       def_args <- helper_definition_args(proposal, dots)
       args <- def_args$args
       proposal <- def_args$proposal
-
-      # flatten function arguments if quosures
-      if (rlang::is_quosure(func_args)) {
-        func_args <- housepi_extractor(!!func_args)
-      } else {
-        func_args <- housepi_extractor(!!!func_args)
-      }
 
       # control valid name
       assert_valid_definition_name(name, self$family)
@@ -130,13 +123,13 @@ HousepiParameter <- R6::R6Class(
                    max = NA_real_,
                    proposal = proposal)
 
-      # drop previous definition eventually
+      # drop any previous definition
       rmv_name <- self$remove(opts$name)
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      opts <- helper_variable_core(opts, self$family, value, func, func_args)
-      opts <- helper_variable_model(opts, self$family, args)
+      opts <- helper_variable_core(opts, self$family, value, func)
+      opts <- helper_variable_args(opts, self$family, args)
       opts <- helper_variable_move(opts, self$family)
 
       if (!isTRUE(const)) {

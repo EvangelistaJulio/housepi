@@ -13,7 +13,6 @@ add_parameter(
   discr = NA,
   prior = NA_character_,
   func = NULL,
-  func_args = NULL,
   min = NULL,
   max = NULL,
   proposal = NA_character_,
@@ -29,7 +28,7 @@ add_parameter(
 \item{value}{\code{numeric(1)} Initial value.
 Required only if constant or random initialization has been disabled.}
 
-\item{...}{named arguments for the prior distribution.
+\item{...}{named arguments for the prior distribution, or for \code{func} when the definition is deterministic.
 Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
 \code{proposal_}. For a random walk, \code{proposal_scale} sets the step scale: if
 omitted it is adapted during inference when \code{adapt > 0}; if a positive numeric
@@ -51,8 +50,6 @@ Inferred from the model requirements if \code{NA} (default).}
 \item \code{character(1)} Name of latent function;
 \item rlang expression.
 }}
-
-\item{func_args}{named \code{list} Arguments of the latent function.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 Relative to the location argument \code{loc}, when one is given.}

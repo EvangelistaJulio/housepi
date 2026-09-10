@@ -96,7 +96,7 @@ We can perform a Chi-Squared test on the shown distribution as follows:
 ppc$chisq_test()
 ```
 
-The $p$-value tells us that there is no significant difference between the distributions ($p > 0.05$), thus we can trust our inference process.
+A large $p$-value gives no evidence that the observed and predicted distributions differ.
 
 # Secondary attack rate
 
@@ -135,10 +135,10 @@ ggplot(ppc$formatted_sec_attack_rate,
 
 # Other posterior measures
 
-The `run_custom_predictive_check()` function provides a flexible way to compute any custom measure on simulated data and compare it against the observed values. 
-It accepts one or more named measure functions as arguments, where each function takes a `data_wide` data.frame and returns a summary as a data.frame, a numeric vector or other.
+`run_custom_predictive_check()` computes any custom measure on simulated data and compares it against the observed values. 
+It accepts one or more named measure functions as arguments.
 
-You can also pass multiple custom measures at once, eventually alongside the built-in measure functions otherwise embedded in `run_epi_predictive_check`. 
+You can also pass multiple custom measures at once, optionally alongside the built-in measure functions otherwise embedded in `run_epi_predictive_check`. 
 Current built-in measures are stratified by household size:
 
 - `measure_ar_by_hhsize`: attack rate;

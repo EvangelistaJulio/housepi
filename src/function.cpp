@@ -14,10 +14,10 @@
 
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/string.h"
 #include "tools/types.h"
+#include "tools/vector.h"
 
 #include "function.h"
 #include "registry.h"
@@ -59,6 +59,169 @@ namespace housepi
             static NamePool_ pool;
             return pool;
         }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////  *** Interval Arithmetics ***  ///////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    namespace
+    {
+        /// A sum reaches its bound only where both operands reach theirs.
+        Interval both_(Interval a, Interval b) noexcept
+        {
+            if (a == Interval::Unbounded || b == Interval::Unbounded)
+                return Interval::Unbounded;
+            return a == Interval::Closed && b == Interval::Closed ? Interval::Closed : Interval::Open;
+        }
+
+        /// A minimum reaches a tied bound as soon as either operand reaches it.
+        Interval either_(Interval a, Interval b) noexcept
+        {
+            if (a == Interval::Unbounded || b == Interval::Unbounded)
+                return Interval::Unbounded;
+            return a == Interval::Closed || b == Interval::Closed ? Interval::Closed : Interval::Open;
+        }
+
+        Lattice both_integers_(Lattice a, Lattice b) noexcept
+        {
+            return a == Lattice::Integers && b == Lattice::Integers ? Lattice::Integers : Lattice::Doubles;
+        }
+
+        Codomain add_(const Codomain &a, const Codomain &b)
+        {
+            Codomain c;
+            c.lattice = both_integers_(a.lattice, b.lattice);
+            c.below = both_(a.below, b.below);
+            if (c.below != Interval::Unbounded)
+                c.inf = a.inf + b.inf;
+            c.above = both_(a.above, b.above);
+            if (c.above != Interval::Unbounded)
+                c.sup = a.sup + b.sup;
+            return c;
+        }
+
+        /// NOTE: endpoints compose only while neither operand reaches below zero;
+        /// a factor that changes sign needs the four products and a union.
+        Codomain mul_(const Codomain &a, const Codomain &b)
+        {
+            Codomain c;
+            c.lattice = both_integers_(a.lattice, b.lattice);
+            if (a.below == Interval::Unbounded || a.inf < 0. || b.below == Interval::Unbounded || b.inf < 0.)
+                return c;
+
+            c.below = both_(a.below, b.below);
+            c.inf = a.inf * b.inf;
+            c.above = both_(a.above, b.above);
+            if (c.above != Interval::Unbounded)
+                c.sup = a.sup * b.sup;
+            return c;
+        }
+
+        Codomain min_(const Codomain &a, const Codomain &b)
+        {
+            Codomain c;
+            c.lattice = both_integers_(a.lattice, b.lattice);
+
+            // the smaller infimum wins, a tie is reached as soon as either reaches it
+            if (a.below == Interval::Unbounded || b.below == Interval::Unbounded)
+                c.below = Interval::Unbounded;
+            else if (a.inf == b.inf)
+                c.inf = a.inf, c.below = either_(a.below, b.below);
+            else
+                c.inf = std::min(a.inf, b.inf), c.below = a.inf < b.inf ? a.below : b.below;
+
+            // the smaller supremum wins, an unbounded operand never provides it
+            if (a.above == Interval::Unbounded && b.above == Interval::Unbounded)
+                c.above = Interval::Unbounded;
+            else if (a.above == Interval::Unbounded)
+                c.sup = b.sup, c.above = b.above;
+            else if (b.above == Interval::Unbounded)
+                c.sup = a.sup, c.above = a.above;
+            else if (a.sup == b.sup)
+                c.sup = a.sup, c.above = either_(a.above, b.above);
+            else
+                c.sup = std::min(a.sup, b.sup), c.above = a.sup < b.sup ? a.above : b.above;
+            return c;
+        }
+
+        Codomain max_(const Codomain &a, const Codomain &b)
+        {
+            Codomain c;
+            c.lattice = both_integers_(a.lattice, b.lattice);
+
+            // the larger infimum wins, a tie is reached only where both reach it
+            if (a.below == Interval::Unbounded && b.below == Interval::Unbounded)
+                c.below = Interval::Unbounded;
+            else if (a.below == Interval::Unbounded)
+                c.inf = b.inf, c.below = b.below;
+            else if (b.below == Interval::Unbounded)
+                c.inf = a.inf, c.below = a.below;
+            else if (a.inf == b.inf)
+                c.inf = a.inf, c.below = both_(a.below, b.below);
+            else
+                c.inf = std::max(a.inf, b.inf), c.below = a.inf > b.inf ? a.below : b.below;
+
+            // the larger supremum wins, an unbounded operand carries the result
+            if (a.above == Interval::Unbounded || b.above == Interval::Unbounded)
+                c.above = Interval::Unbounded;
+            else if (a.sup == b.sup)
+                c.sup = a.sup, c.above = either_(a.above, b.above);
+            else
+                c.sup = std::max(a.sup, b.sup), c.above = a.sup > b.sup ? a.above : b.above;
+            return c;
+        }
+
+        /// Interval notation around bounds already rendered by the caller.
+        std::string str_interval_(const std::string &str_min,
+                                  const std::string &str_max,
+                                  Interval below,
+                                  Interval above)
+        {
+            std::string output;
+
+            switch (below)
+            {
+            case Interval::Open:
+                output = "(" + str_min;
+                break;
+            case Interval::Closed:
+                output = "[" + str_min;
+                break;
+            default: // case Interval::Unbounded
+                output = "(-Inf";
+                break;
+            }
+            switch (above)
+            {
+            case Interval::Open:
+                return output + ", " + str_max + ")";
+            case Interval::Closed:
+                return output + ", " + str_max + "]";
+            default: // case Interval::Unbounded
+                return output + ", Inf)";
+            }
+        }
+
+        /// A number is the interval that contains only itself.
+        Codomain numeric_codomain_(double v) noexcept
+        {
+            if (na::is(v))
+                return Codomain();
+
+            Codomain c;
+            c.inf = c.sup = v;
+            c.below = c.above = Interval::Closed;
+            c.lattice = v == std::floor(v) ? Lattice::Integers : Lattice::Doubles;
+            return c;
+        }
+    }
+
+    std::string Codomain::str() const
+    {
+        return str_interval_(str::format(inf), str::format(sup), below, above);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,24 +301,12 @@ namespace housepi
                        str::format(na::DOUBLE))
     }
 
+    // UPDATE: why this is not well formatted?
     bool Attribute::is_constant() const noexcept {
         MAKE_ATTR_MODE(is_user_const_,
                        pAttr_ -> is_constant(),
                        pFunc_->is_constant(),
                        false)}
-
-    /// A number is the interval that contains only itself.
-    Codomain numeric_codomain_(double v) noexcept
-    {
-        if (na::is(v))
-            return Codomain();
-
-        Codomain c;
-        c.inf = c.sup = v;
-        c.below = c.above = Interval::Closed;
-        c.lattice = v == std::floor(v) ? Lattice::Integers : Lattice::Doubles;
-        return c;
-    }
 
     Codomain Attribute::codomain() const noexcept
     {
@@ -390,7 +541,7 @@ namespace housepi
             if (!is_user_alt_ || i == static_cast<size_t>(alt_idx_))
                 for (const Attribute &attr : alts_[i].args)
                     options.emplace_back(attr.name());
-        options += {"loc", "min", "max", "x"};
+        vect::append(options, {"loc", "min", "max", "x"});
         msg::stop(
             "Unused argument " + msg::arg(std::string(key)) + " in " + str() + "." +
             str::find_closest(key, options));
@@ -604,54 +755,37 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    Codomain Domain::relocated(Lattice lattice) const
+    Codomain Domain::relocated() const
     {
         Codomain c;
-        c.lattice = lattice;
-        const bool dense = lattice == Lattice::Doubles;
 
-        if (min.is_callable())
-        {
-            c.inf = relocate(min.value());
-            c.below = below == Interval::Open || dense ? Interval::Open : Interval::Closed;
-        }
-        if (max.is_callable())
-        {
-            c.sup = relocate(max.value());
-            c.above = above == Interval::Open || dense ? Interval::Open : Interval::Closed;
-        }
-        return c;
+        // a side is bounded only where the domain and its bound both bound it
+        const Codomain c_min = min.codomain();
+        c.below = both_(below, c_min.below);
+        if (c.below != Interval::Unbounded)
+            c.inf = c_min.inf;
+
+        const Codomain c_max = max.codomain();
+        c.above = both_(above, c_max.above);
+        if (c.above != Interval::Unbounded)
+            c.sup = c_max.sup;
+
+        return loc.is_empty() ? c : add_(c, loc.codomain());
     }
 
-    /// Interval notation around bounds already rendered by the caller.
-    std::string str_interval_(const std::string &str_min,
-                              const std::string &str_max,
-                              Interval below,
-                              Interval above)
+    Codomain Domain::relocated(Lattice lattice) const
     {
-        std::string output;
+        Codomain c = relocated();
+        c.lattice = lattice;
 
-        switch (below)
+        if (lattice == Lattice::Doubles)
         {
-        case Interval::Open:
-            output = "(" + str_min;
-            break;
-        case Interval::Closed:
-            output = "[" + str_min;
-            break;
-        default: // case Interval::Unbounded
-            output = "(-Inf";
-            break;
+            if (c.below == Interval::Closed)
+                c.below = Interval::Open;
+            if (c.above == Interval::Closed)
+                c.above = Interval::Open;
         }
-        switch (above)
-        {
-        case Interval::Open:
-            return output + ", " + str_max + ")";
-        case Interval::Closed:
-            return output + ", " + str_max + "]";
-        default: // case Interval::Unbounded
-            return output + ", Inf)";
-        }
+        return c;
     }
 
     std::string Domain::str() const
@@ -666,11 +800,6 @@ namespace housepi
                 str_max = str::format(relocate(max.value()));
         }
         return str_interval_(str_min, str_max, below, above);
-    }
-
-    std::string Codomain::str() const
-    {
-        return str_interval_(str::format(inf), str::format(sup), below, above);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -791,7 +920,7 @@ namespace housepi
         {
             std::vector<std::string> options = {};
             for (Kind kind : kinds)
-                options += instance(kind).names();
+                vect::append(options, instance(kind).names());
             return str::unique(options);
         }
 
@@ -823,111 +952,6 @@ namespace housepi
 namespace
 {
     using namespace housepi;
-
-    /// A sum reaches its bound only where both operands reach theirs.
-    Interval both_(Interval a, Interval b) noexcept
-    {
-        if (a == Interval::Unbounded || b == Interval::Unbounded)
-            return Interval::Unbounded;
-        return a == Interval::Closed && b == Interval::Closed ? Interval::Closed : Interval::Open;
-    }
-
-    /// A minimum reaches a tied bound as soon as either operand reaches it.
-    Interval either_(Interval a, Interval b) noexcept
-    {
-        if (a == Interval::Unbounded || b == Interval::Unbounded)
-            return Interval::Unbounded;
-        return a == Interval::Closed || b == Interval::Closed ? Interval::Closed : Interval::Open;
-    }
-
-    Lattice both_integers_(Lattice a, Lattice b) noexcept
-    {
-        return a == Lattice::Integers && b == Lattice::Integers ? Lattice::Integers : Lattice::Doubles;
-    }
-
-    Codomain add_(const Codomain &a, const Codomain &b)
-    {
-        Codomain c;
-        c.lattice = both_integers_(a.lattice, b.lattice);
-        c.below = both_(a.below, b.below);
-        if (c.below != Interval::Unbounded)
-            c.inf = a.inf + b.inf;
-        c.above = both_(a.above, b.above);
-        if (c.above != Interval::Unbounded)
-            c.sup = a.sup + b.sup;
-        return c;
-    }
-
-    /// NOTE: endpoints compose only while neither operand reaches below zero;
-    /// a factor that changes sign needs the four products and a union.
-    Codomain mul_(const Codomain &a, const Codomain &b)
-    {
-        Codomain c;
-        c.lattice = both_integers_(a.lattice, b.lattice);
-        if (a.below == Interval::Unbounded || a.inf < 0. || b.below == Interval::Unbounded || b.inf < 0.)
-            return c;
-
-        c.below = both_(a.below, b.below);
-        c.inf = a.inf * b.inf;
-        c.above = both_(a.above, b.above);
-        if (c.above != Interval::Unbounded)
-            c.sup = a.sup * b.sup;
-        return c;
-    }
-
-    Codomain min_(const Codomain &a, const Codomain &b)
-    {
-        Codomain c;
-        c.lattice = both_integers_(a.lattice, b.lattice);
-
-        // the smaller infimum wins, a tie is reached as soon as either reaches it
-        if (a.below == Interval::Unbounded || b.below == Interval::Unbounded)
-            c.below = Interval::Unbounded;
-        else if (a.inf == b.inf)
-            c.inf = a.inf, c.below = either_(a.below, b.below);
-        else
-            c.inf = std::min(a.inf, b.inf), c.below = a.inf < b.inf ? a.below : b.below;
-
-        // the smaller supremum wins, an unbounded operand never provides it
-        if (a.above == Interval::Unbounded && b.above == Interval::Unbounded)
-            c.above = Interval::Unbounded;
-        else if (a.above == Interval::Unbounded)
-            c.sup = b.sup, c.above = b.above;
-        else if (b.above == Interval::Unbounded)
-            c.sup = a.sup, c.above = a.above;
-        else if (a.sup == b.sup)
-            c.sup = a.sup, c.above = either_(a.above, b.above);
-        else
-            c.sup = std::min(a.sup, b.sup), c.above = a.sup < b.sup ? a.above : b.above;
-        return c;
-    }
-
-    Codomain max_(const Codomain &a, const Codomain &b)
-    {
-        Codomain c;
-        c.lattice = both_integers_(a.lattice, b.lattice);
-
-        // the larger infimum wins, a tie is reached only where both reach it
-        if (a.below == Interval::Unbounded && b.below == Interval::Unbounded)
-            c.below = Interval::Unbounded;
-        else if (a.below == Interval::Unbounded)
-            c.inf = b.inf, c.below = b.below;
-        else if (b.below == Interval::Unbounded)
-            c.inf = a.inf, c.below = a.below;
-        else if (a.inf == b.inf)
-            c.inf = a.inf, c.below = both_(a.below, b.below);
-        else
-            c.inf = std::max(a.inf, b.inf), c.below = a.inf > b.inf ? a.below : b.below;
-
-        // the larger supremum wins, an unbounded operand carries the result
-        if (a.above == Interval::Unbounded || b.above == Interval::Unbounded)
-            c.above = Interval::Unbounded;
-        else if (a.sup == b.sup)
-            c.sup = a.sup, c.above = either_(a.above, b.above);
-        else
-            c.sup = std::max(a.sup, b.sup), c.above = a.sup > b.sup ? a.above : b.above;
-        return c;
-    }
 
 #define MAKE_REAL_TO_INTEGER_FUNCTION(Name, call)                                    \
     class Name final : public Function                                               \

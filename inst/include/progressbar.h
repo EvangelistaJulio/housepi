@@ -194,8 +194,10 @@ namespace housepi
                     << bar_(1)
                     << format_time_(elapsed)
                     << std::string(25, ' ');
+                // # nocov start
                 if (mode_ == Mode::Interactive)
                     oss << "\n";
+                // # nocov end
                 print_(oss.str());
             }
         }
@@ -220,12 +222,16 @@ namespace housepi
             const unsigned where = progress * barwidth_;
             std::ostringstream oss;
             oss << " |";
+            // # nocov start
             if (mode_ == Mode::Interactive)
                 oss << ansi::green;
+            // # nocov end
             for (unsigned u = 0; u < where; ++u)
                 oss << symbol_;
+            // # nocov start
             if (mode_ == Mode::Interactive)
                 oss << ansi::reset;
+            // # nocov end
             oss << std::string(barwidth_ - where, ' ') << "| ";
             return oss.str();
         }
@@ -242,8 +248,10 @@ namespace housepi
                 msg::info(sms + "\n");
                 return;
             default: // case Mode::Interactive:
+            // # nocov start
                 msg::info("\r" + sms);
                 return;
+            // # nocov end
             }
         }
     };

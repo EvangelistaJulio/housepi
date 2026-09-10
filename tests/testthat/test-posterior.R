@@ -146,9 +146,10 @@ test_that("Multi-chain inference produces correct chain structure", {
 test_that("Latent draws are not empty when id_draws is specified", {
   hhmodel <- data.frame(house_id = 1,
                         id = c("a", "b"),
-                        status = c(1, 0)) |>
+                        status = c(1, 0), obs = 0) |>
     new_housepi_model("test")
-  hhmodel <- add_latent(hhmodel, name = "proba", model = "uniform")
+  hhmodel <- add_latent(hhmodel, name = "proba", model = "uniform") |>
+    helper_flat_sink(loc = proba@A)
   results <- hhmodel |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = "a") |>
@@ -156,6 +157,37 @@ test_that("Latent draws are not empty when id_draws is specified", {
   ad <- results$latent_draws
   expect_true(posterior::is_draws(ad))
   expect_true(posterior::nvariables(ad) > 0)
+})
+
+test_that("Draws accessors subset the variables they return", {
+  results <- data.frame(house_id = 1, id = c("a", "b"),
+                        status = c(1, 0), obs = 0) |>
+    new_housepi_model("test") |>
+    add_parameter(alpha = list(prior = "uniform"),
+                  beta = list(prior = "uniform")) |>
+    add_latent(proba = list(model = "uniform")) |>
+    helper_flat_sink(loc = proba@A) |>
+    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
+                  id_draws = "a") |>
+    suppressWarnings()
+
+  # asking for nothing returns everything
+  expect_setequal(posterior::variables(get_parameter_draws(results)),
+                  c("alpha", "beta"))
+  expect_equal(posterior::variables(get_parameter_draws(results, "beta")),
+               "beta")
+
+  # a latent trace is named after the individual carrying it, so one latent
+  # across the stored members is a regular expression
+  expect_equal(posterior::variables(get_latent_draws(results)), "a_proba")
+  expect_equal(
+    posterior::variables(get_latent_draws(results, "_proba$", regex = TRUE)),
+    "a_proba"
+  )
+
+  # the subset stays a housepi draws object, so summarise_draws still dispatches
+  expect_s3_class(get_parameter_draws(results, "alpha"), "housepi_draws")
+  expect_s3_class(get_complete_draws(results, "lprior"), "housepi_draws")
 })
 
 test_that("Diagnostic warning fires on short runs", {

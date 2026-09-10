@@ -68,9 +68,35 @@ test_that("A func definition is deterministic", {
   # a deterministic definition accepts no proposal
   mk_param$model |>
     add_parameter(
-      dummy = list(func = "log", func_args = c(x = 2), proposal = "rw")
+      dummy = list(func = "log", x = 2, proposal = "rw")
     ) |>
     expect_error("[Dd]eterministic parameter.*dummy.*cannot be sampled")
+
+  # the spare arguments reach the function, whichever spelling declares it
+  base <- mk_param$model |> add_parameter("solid", value = 2)
+  by_args <- base |> add_parameter("dummy", func = "log", x = solid@P)
+  by_expr <- base |> add_parameter(dummy = log(solid@P))
+  expect_equal(get_parameters(by_args), get_parameters(by_expr))
+  expect_equal(get_parameters(by_args)$func_args[[2]], c(x = "solid|P"))
+})
+
+test_that("Spare arguments reach the function they belong to", {
+  # neither a prior nor a func takes them
+  mk_param$model |>
+    add_parameter("liquid", value = 3, mean = 1) |>
+    expect_error("[Ss]pare arguments for parameter .liquid.")
+  mk_param$model |>
+    add_parameter("liquid", value = 3, mean = 1) |>
+    expect_error("Provide the .prior. or the .func. they belong to.")
+
+  # a parameter function is checked against the registry at declaration
+  mk_param$model |>
+    add_parameter("delay", func = "log", base = 2) |>
+    expect_error("Unused argument .base.")
+  # a distribution is not a parameter function
+  mk_param$model |>
+    add_parameter("delay", func = "gamma", shape = 2, scale = 1) |>
+    expect_error("Unknown function .gamma.")
 })
 
 test_that("Proposal families route correctly", {
@@ -455,6 +481,38 @@ test_that("Strict positivity propagates through a parameter function", {
     expect_error("not strictly positive")
 })
 
+test_that("Strict positivity propagates through a shifted prior", {
+  # the support a prior places is loc + [min, max], and it is that composed
+  # interval the positivity request reads
+  liquid <- flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = "template")
+
+  # the shift carries an interval spanning both signs past zero
+  liquid |>
+    add_parameter(alpha = list(prior = "uniform", min = -1e-4, max = 1e-4,
+                               loc = 1e-3)) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_no_error()
+
+  # the same interval, unshifted, keeps no proof
+  liquid |>
+    add_parameter(alpha = list(prior = "uniform", min = -1e-4, max = 1e-4)) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_error("not strictly positive")
+
+  # a prior hyperparameter is a constant: it cannot read another parameter
+  liquid |>
+    add_parameter(solidus = list(prior = "uniform", min = 1e-3, max = 2e-3),
+                  alpha = list(prior = "uniform", min = -1e-4, max = 1e-4,
+                               loc = solidus@P)) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_error("could not be interpreted as a numeric constant")
+})
+
 test_that("An unpinned parameter is drawn from its prior in simulation", {
   # the proposal is an independence sampler parked in a corner of the prior's
   # domain: a generative draw reading it would pin every replicate there
@@ -492,4 +550,22 @@ test_that("An unpinned parameter is drawn from its prior at evaluation", {
 
   expect_true(all(is.finite(lls)))
   expect_gt(stats::sd(lls), 0.05 * span)
+})
+
+test_that("A fixed seed reproduces parameter draws on a single thread", {
+  # the normal prior and the default "rw" proposal both draw standard_normal:
+  # sampler state surviving a re-seed desynchronises one run from the next
+  draws_at <- function(seed) {
+    set.seed(seed)
+    new_housepi_model(model = "test") |>
+      add_parameter("raiden", prior = "normal", mean = 2, sd = 1) |>
+      run_inference(steps = 50L, chains = 1L, adapt = 0L, thin = 1L) |>
+      suppressWarnings() |>
+      get_parameter_draws()
+  }
+  patriots <- draws_at(1105L)
+
+  expect_identical(patriots, draws_at(1105L))
+  # a seed that moves the draws, so the equality above is not vacuous
+  expect_false(identical(patriots, draws_at(2705L)))
 })

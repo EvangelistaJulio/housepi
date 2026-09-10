@@ -30,6 +30,7 @@ family2model_col <- function(family) {
 family2function_col <- function(family) {
   if (is_latent_family(family)) c("model", "func")
   else if (family == "infectivity profile") "func"
+  else if (family == "parameter") c("prior", "func")
   else "prior"
 }
 
@@ -66,19 +67,20 @@ raise_def_error <- function(func_name, arg_names, def_name,
   arg_names <- arg_names[arg_names != "x"]
   func_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
 
-  is_infec_prof <- family == "infectivity profile"
-  is_latent_func <- is_latent_family(family) && model_col == "func"
+  # registries the engine itself queries for this column and family
+  probed <- if (!identical(model_col, "func")) "dist"
+  else if (family == "infectivity profile") "infec"
+  else if (is_latent_family(family)) c("func", "dist", "infec")
+  else "func"
 
+  exposers <- c(func = "expose_function", dist = "expose_distribution",
+                infec = "expose_infec_profile")
   err <- list()
-  if (is_latent_func)
-    err$func <- probe_exposer_("expose_function", func_name, func_args)
-  if (!is_infec_prof)
-    err$dist <- probe_exposer_("expose_distribution", func_name, func_args)
-  if (is_latent_func || is_infec_prof)
-    err$infec <- probe_exposer_("expose_infec_profile", func_name, func_args)
+  for (k in probed) err[[k]] <- probe_exposer_(exposers[[k]], func_name,
+                                               func_args)
 
-  if ((is_latent_func && length(err) == 3) ||
-        (!is_latent_func && length(err) == 1)) stop_h(
+  # every registry refused the name: the definition has no reading
+  if (length(err) == length(probed)) stop_h(
     sprintf("Wrong definition found for %s.",
             ifelse(is.na(def_name), family, sprintf("{.val %s}", def_name))),
     helper_format_error(err)
@@ -135,43 +137,38 @@ assert_valid_character <- function(x, family, arg_name) {
   }
 }
 
-# Assert that x can be treated as a feature value.
-assert_valid_feature <- function(x, family, arg_name = "Feature value") {
+# Assert that x can be treated as a covariate value.
+assert_valid_covariate <- function(x, family) {
+  arg_name <- "Covariate value"
   if (length(x) != 1 || is.na(x)) {
     stop_h("{arg_name} of {family} must be a scalar.")
-  } else if (!any(c(is.factor(x), is.logical(x),
-                    is.numeric(x), is.character(x)))) {
-    # UPDATE: is there something more robust than checking types?
-    stop_h(
-      "{arg_name} of {family} must be a unidimensional type.",
-      format_type_error(x)
-    )
   } else if (is.factor(x) || is.character(x)) {
     assert_valid_character(as.character(x), family, arg_name)
+  } else if (!is.logical(x) && !is.numeric(x)) {
+    stop_h("{arg_name} of {family} must be a unidimensional type.",
+           format_type_error(x))
   }
 }
 
 # Assert that given definition name is valid.
-# A leading dot marks a hidden definition, not allowed by default.
-assert_valid_definition_name <- function(x, family, allow_hidden = FALSE) {
+# A leading dot is reserved to the definitions the engine generates itself.
+assert_valid_definition_name <- function(x, family, allow_reserved = FALSE) {
   if (length(x) != 1 || is.na(x) || !is.character(x)) {
-    stop_h(
-      "Name of {family} must be a non-empty string.",
-      format_type_error(x)
-    )
+    stop_h("Name of {family} must be a non-empty string.",
+           format_type_error(x))
   } else {
     assert_valid_character(x, family, "Name")
     if (x %in% .reserved_math_consts) stop_h(
       "Name {.val {x}} for {family} is reserved for constants."
     )
-    if (!allow_hidden && startsWith(x, ".")) stop_h(
+    if (startsWith(x, ".") && !allow_reserved) stop_h(
       "Name {.val {x}} of {family} cannot start with a dot.",
-      "A leading dot marks a hidden definition (see {.fn add_latent})."
+      "A leading dot is reserved to the definitions housepi generates itself."
     )
   }
 }
 
-# Assert that no data column claims the hidden-definition prefix.
+# Assert that no data column claims the reserved prefix.
 assert_no_private_columns <- function(cols, arg = "data") {
   forbidden <- cols[startsWith(cols, ".")]
   if (length(forbidden) == 0) return(invisible())
@@ -179,7 +176,22 @@ assert_no_private_columns <- function(cols, arg = "data") {
     paste("Argument {.arg {arg}} carried {cli::qty(forbidden)}column{?s}",
           "starting with a dot:",
           character_to_string_list(forbidden, style = "field")),
-    `!` = "A leading dot is reserved to private definitions."
+    `!` = "A leading dot is reserved to the definitions housepi generates itself."
+  )
+}
+
+# Assert that data column names can be sourced by a definition.
+# A column is a key the engine registers and a definition names with `@D`,
+# so it lives in the same alphabet as a definition name.
+assert_valid_data_columns <- function(cols, arg = "data") {
+  forbidden <- cols[!grepl("^[A-Za-z0-9_.]+$", cols)]
+  if (length(forbidden) == 0) return(invisible())
+  stop_h(
+    paste("Argument {.arg {arg}} carried {cli::qty(forbidden)}column{?s}",
+          "with characters no definition can source:",
+          character_to_string_list(forbidden, style = "field")),
+    `!` = paste("Only letters, numbers, underscores {.code _}",
+                "and dots {.code .} are allowed.")
   )
 }
 

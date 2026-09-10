@@ -8,7 +8,7 @@ dummy_df <- data.frame(house_id = 1,
 dummy_strata <- data.frame(isolation = c(FALSE, TRUE),
                            param_name = c(".reference", "inf_isol"))
 
-# Model over the dummy features. Feature columns stay character on purpose:
+# Model over the dummy covariates. Covariate columns stay character on purpose:
 # levels follow order of first appearance, which fixes the reference stratum.
 mk_risk_model <- function(age = c("child", "child", "adult", "adult")) {
   data.frame(house_id = 1, status = 0,
@@ -84,7 +84,7 @@ test_that("Custom strata logic table is validated", {
     add_group_risk("susceptibility",
                    strata = data.frame(param_name = character(0))) |>
     expect_error("at least one row")
-  # reserved feature column names rejected
+  # reserved covariate column names rejected
   mk_risk_model() |>
     add_group_risk("susceptibility",
                    strata = data.frame(param_name = "a", id = 1)) |>
@@ -103,7 +103,7 @@ test_that("Group risks integrate with data", {
   tidy <- get_group_risks(hhmodel)
   expect_true(is.data.frame(tidy))
   expect_true(all(tidy$group_risk == "community"))
-  # joint expansion: one rule group over both features
+  # joint expansion: one rule group over both covariates
   expect_equal(length(unique(tidy$rule_group)), 1L)
   expect_true(all(c("age", "sex") %in% colnames(tidy)))
   # absolute by default: no reference stratum
@@ -186,7 +186,7 @@ test_that("Group risks expand on their own covariates only", {
     dplyr::select(-age) |>
     new_housepi_model("case_ascertained") |>
     add_group_risk("susceptibility", by = "age") |>
-    expect_error("[Uu]nknown feature.*age")
+    expect_error("[Uu]nknown covariate.*age")
 
   # without data the read surface warns and keeps the table shape
   expect_warning(
@@ -328,7 +328,7 @@ test_that("Group risks deal with custom logic table correctly", {
   tidy <- get_group_risks(hhmodel)
   expect_true(is.data.frame(tidy))
   expect_true(all(tidy$group_risk == "infectivity"))
-  # the custom strata drives the feature column and the rows
+  # the custom strata drives the covariate column and the rows
   expect_true("isolation" %in% colnames(tidy))
   expect_setequal(tidy$param_name, c(".reference", "inf_isol"))
 
@@ -407,11 +407,11 @@ test_that("Group risk mixed auto and custom modes", {
   expect_true("inf_isol" %in% param_names)
   expect_true(any(grepl("^com_", param_names)))
 
-  # a feature the data does not carry fails as soon as data is attached
+  # a covariate the data does not carry fails as soon as data is attached
   data.frame(house_id = 1, status = 0, age = c("child", "adult")) |>
     new_housepi_model("final_size") |>
     add_group_risk(name = "infectivity", strata = dummy_strata) |>
-    expect_error("[Uu]nknown feature.*isolation")
+    expect_error("[Uu]nknown covariate.*isolation")
 })
 
 test_that("Absoluteness follows the reference across every definition mode", {
@@ -564,7 +564,7 @@ test_that("Status is accepted as a stratification axis", {
     )) |>
     (\(m) m$.__enclos_env__$private$group_risks_)()
   expect_false("status" %in% module$data_required)
-  expect_false("status" %in% module$feature_names)
+  expect_false("status" %in% module$covariate_names)
   expect_true(module$stratifies_on_status)
 
   # one parameter per non-reference stratum, named after the label
@@ -847,6 +847,31 @@ test_that("Strata counts come from the engine cross-tabulation", {
   expect_equal(sum(veteran$n), 4L)
 })
 
+test_that("A wildcard stratum survives a missing covariate cell", {
+  # NA reads as missing in a data cell and as the wildcard in a rule cell: a
+  # column that happens to carry an empty cell must not collapse the two
+  shadow_moses <- data.frame(
+    id = c("snake", "otacon", "meryl"), house_id = "h1",
+    status = c(1, 0, 0), role = c("spy", "engineer", NA)
+  )
+  strata <- data.frame(role = c("spy", NA),
+                       param_name = c(".reference", "sus_rest"))
+  snap <- shadow_moses |>
+    new_housepi_model("final_size", quiet = TRUE) |>
+    add_parameter(import = "template") |>
+    add_group_risk("susceptibility", strata = strata,
+                   params = list(sus_rest = 3)) |>
+    (\(x) x$export_house_snapshot("h1"))()
+  risk <- stats::setNames(snap$group_risks$susceptibility, snap$group_risks$id)
+
+  # the specific stratum sets the unit scale
+  expect_equal(unname(risk["snake"]), 1)
+  # the wildcard covers every other member, the ones carrying a value...
+  expect_equal(unname(risk["otacon"]), 3)
+  # ...and the ones that do not
+  expect_equal(unname(risk["meryl"]), 3)
+})
+
 test_that("Status strata count the infected members only", {
   # the status is read off the member, not off a data column: escaped members
   # carry no infected label, so they land in no stratum
@@ -864,7 +889,7 @@ test_that("Status strata count the infected members only", {
 ## GROUP RISKS : OBSERVATION COLLISION ##
 #########################################
 
-# Data carrying a numeric feature a risk can stratify on.
+# Data carrying a numeric covariate a risk can stratify on.
 mk_obs_risk_data <- function() {
   data.frame(house_id = c(1, 1), status = c(1, 0),
              severity = c(2, 3), test_date = c(2, 6))

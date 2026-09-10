@@ -19,4 +19,6 @@ Optional at construction; if omitted, attach it later with
 \description{
 Make an internal copy of the provided household data in wide format,
 (re)building any definitions that depend on it.
+An empty cell of a categorical column is missing data, not a category of
+its own: recode it to a label of your choice to stratify on it.
 }

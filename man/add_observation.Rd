@@ -92,13 +92,17 @@ Add observation associated to data \eqn{x}, at the level set by \code{level}.
 At member level, the observation is attached to every infected individual.
 If \code{model} is provided, adds to household likelihood during evaluations,
 and \eqn{x} is sampled from it during simulations.
+An individual whose datum is missing is left out of that likelihood, with a
+warning: there is nothing to condition on, and the observation constrains
+neither the individual latent variables nor the parameters. A column holding
+no value at all is an error.
 
 At household level, the observation is a reduction across all members,
 it's shared by the whole household, and must reduce to a constant value.
 
 An observation carrying no \code{model} produces its own data column, at either
-level: it is evaluated for every member, and eventually overwrites data
-column of the same name
+level: it is evaluated for every member, and overwrites any data column of
+the same name
 There are three mutually exclusive definition modes:
 \describe{
 \item{single}{

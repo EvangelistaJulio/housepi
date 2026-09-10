@@ -214,7 +214,7 @@ HousepiAugmented <- R6::R6Class(
                        value = NULL, status = NA_integer_,
                        const = NA, discr = NA,
                        model = NA_character_,
-                       func = NULL, func_args = NULL,
+                       func = NULL,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
                        level = NULL,
@@ -246,13 +246,6 @@ HousepiAugmented <- R6::R6Class(
       def_args <- helper_definition_args(proposal, dots)
       args <- def_args$args
       proposal <- def_args$proposal
-
-      # flatten function arguments if quosures
-      func_args <- if (rlang::is_quosure(func_args)) {
-        housepi_extractor(!!func_args)
-      } else {
-        housepi_extractor(!!!func_args)
-      }
 
       # a per-definition 'level' overrides the managed kind for this entry only
       if (!is.null(level) && !all(is.na(level))) {
@@ -296,9 +289,9 @@ HousepiAugmented <- R6::R6Class(
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- .kind
 
-      # only latent and status (see add_status) can be hidden
+      # add_status names its node itself, no user name may claim the prefix
       assert_valid_definition_name(
-        name, self$family, allow_hidden = .kind %in% c("latent", "status")
+        name, self$family, allow_reserved = identical(.kind, "status")
       )
       # control valid status
       assert_valid_status(status)
@@ -334,13 +327,13 @@ HousepiAugmented <- R6::R6Class(
       # a name stands for one quantity of the model, whatever kind declares it
       assert_no_kind_clash(self$defs, opts$name, .kind)
 
-      # drop previous definition eventually
+      # drop any previous definition
       rmv_name <- self$remove(opts$name, opts$status)
       if (.warn_over) template_overwrite_warn(rmv_name, self$family)
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
-      opts <- helper_variable_core(opts, self$family, value, func, func_args)
-      opts <- helper_variable_model(opts, self$family, args)
+      opts <- helper_variable_core(opts, self$family, value, func)
+      opts <- helper_variable_args(opts, self$family, args)
       opts <- helper_variable_move(opts, self$family)
       opts <- helper_variable_level(opts, self$defs)
 

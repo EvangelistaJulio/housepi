@@ -15,13 +15,13 @@
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/operators.h"
 #include "tools/parser.h"
 #include "tools/random.h"
 #include "tools/read.h"
 #include "tools/rule_table.h"
 #include "tools/string.h"
 #include "tools/types.h"
+#include "tools/vector.h"
 
 #include "contact_risk.h"
 #include "data_wide.h"
@@ -346,7 +346,7 @@ namespace housepi
         simulation_values.assign(khold_.size(), {});
         for (const std::string &pstr : khold_.all())
         {
-            if (!contains(headers, pstr))
+            if (!vect::contains(headers, pstr))
                 continue;
 
             size_t p = khold(pstr);
@@ -481,12 +481,11 @@ namespace housepi
 
     void Parameter::switch_to_const_(size_t p)
     {
-        const std::vector<size_t> vec({p});
-        list_sample = list_sample - vec;
-        list_sample_standard = list_sample_standard - vec;
-        list_sample_cached = list_sample_cached - vec;
-        list_adaptive = list_adaptive - vec;
-        if (!contains(list_const, p))
+        vect::remove(list_sample, {p});
+        vect::remove(list_sample_standard, {p});
+        vect::remove(list_sample_cached, {p});
+        vect::remove(list_adaptive, {p});
+        if (!vect::contains(list_const, p))
             list_const.push_back(p);
     }
 
@@ -548,13 +547,13 @@ namespace housepi
     void Parameter::mark_produces_transm_cache(size_t p)
     {
         // add the parameter as cache if not already present
-        if (!contains(list_sample_cached, p))
+        if (!vect::contains(list_sample_cached, p))
             list_sample_cached.push_back(p);
 
         // if a parameter was originally defined as standard, remove it
-        if (!contains(list_sample_standard, p))
+        if (!vect::contains(list_sample_standard, p))
             return;
-        list_sample_standard = list_sample_standard - std::vector<size_t>({p});
+        vect::remove(list_sample_standard, {p});
     }
 
     void Parameter::restart(rnd_gen &prng)
@@ -591,7 +590,7 @@ namespace housepi
     {
         if (na::is(pstr) || pstr == risks::REFERENCE)
             anchored = true;
-        else if (size_t p = param.khold(pstr); !contains(scaling_params, p))
+        else if (size_t p = param.khold(pstr); !vect::contains(scaling_params, p))
             scaling_params.push_back(p);
     }
 
@@ -669,23 +668,23 @@ namespace housepi
             RuleTable rules;               /// rule_group / specificity
 
             /// Extract the definitions from input headers,
-            /// 'spec_headers' listing every feature a rule may key on.
+            /// 'spec_headers' listing every covariate a rule may key on.
             GroupDefinitions_(const str_table &input,
                               const DataWide &data_wide,
                               const std::vector<std::string> &spec_headers,
                               const StatusTable<StatusSlot> &slot_of)
-                : data(spec_headers - std::vector<std::string>({risks::STATUS_KEY})),
+                : data(vect::difference(spec_headers, {risks::STATUS_KEY})),
                   keys(data_wide.khold(data)),
                   rules(input, spec_headers),
                   slot_of_(slot_of)
             {
-                // the status is carried by the member, every other feature by the data
+                // the status is carried by the member, every other covariate by the data
                 if (input.count(risks::STATUS_KEY))
                     status_col_ = &input.at(risks::STATUS_KEY);
             }
 
             /// Associate the most-specific matching rule to each (risk name, rule group),
-            /// reading the member features at status slot 'slot'.
+            /// reading the member covariates at status slot 'slot'.
             std::map<GroupKey_, size_t> resolve(const DataWide &data_wide,
                                                 const Individual &indiv,
                                                 StatusSlot slot) const
@@ -741,7 +740,7 @@ namespace housepi
         slot_base_.fill(0);
         n_slots_ = 1;
 
-        // load required feature headers or skip if no definitions provided
+        // load required covariate headers or skip if no definitions provided
         std::vector<std::string> spec_headers = {};
         if (!input.empty())
             spec_headers = helper_process_definitions_(data_wide, input);
@@ -762,7 +761,7 @@ namespace housepi
         // check for undefined group risks, assumed to be equal to reference
         str_table undefined_risks = {};
         for (const std::string &gstr : khold_.all())
-            if (!contains(g_input_vec, gstr))
+            if (!vect::contains(g_input_vec, gstr))
                 undefined_risks[gstr].push_back(risks::REFERENCE);
 
         // give every status level a rule keys on a storage slot of its own
@@ -827,7 +826,7 @@ namespace housepi
         // check that tempalte headers are present
         std::vector<std::string> data_headers = read::extract_keys(input);
         // remove template headers to keep only data
-        data_headers = data_headers - file_headers;
+        vect::remove(data_headers, file_headers);
 
         // assert the group risk names are allowed
         dict<size_t> definition_counts = {};
@@ -849,7 +848,7 @@ namespace housepi
         // the status is carried by the member: it is no data key, and the
         // equivalence-class hash already mixes it in
         data_wide.set_eq_class_data_names(
-            data_headers - std::vector<std::string>({risks::STATUS_KEY}));
+            vect::difference(data_headers, {risks::STATUS_KEY}));
 
         return data_headers;
     }
@@ -865,7 +864,7 @@ namespace housepi
             if (na::is(status_col[r]))
                 continue;
             const size_t g = khold(g_input_vec[r]);
-            if (contains(status_stratified_, g))
+            if (vect::contains(status_stratified_, g))
                 continue;
             msg::stop(
                 "Group risk " + msg::val(g_input_vec[r]) +
@@ -950,7 +949,7 @@ namespace housepi
                   to(extract_to_(input)),
                   data(strip_from_prefix_(from)),
                   keys(data_wide.khold(data)),
-                  rules(input, from + to) {}
+                  rules(input, vect::concatenate(from, to)) {}
 
             /// Associate parameter pointers to pair. Accumulate the scale anchoring of each group.
             std::vector<const Attribute *> associate_param_ptrs(

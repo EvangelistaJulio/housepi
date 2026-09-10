@@ -377,3 +377,14 @@ test_that("Chain binomial returns infinite if extreme values are provided", {
       evaluate_log_lik()
   ))
 })
+
+test_that("Chain binomial raises if the log-likelihood is not a number", {
+  # a null person-to-person risk against an overflowing household-size scaling
+  # leaves the escape rate undefined, and the log-likelihood with it
+  data.frame(id = c(1, 2), house_id = "shadow_moses", status = c(1, 1)) |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = list(alpha = 0.1, beta = 0,
+                                gamma = 1e10, hhsize_ref = 4)) |>
+    evaluate_log_lik() |>
+    expect_error("returned NaN")
+})

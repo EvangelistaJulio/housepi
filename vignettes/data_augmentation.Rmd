@@ -25,9 +25,7 @@ housepi_theme_set()
 set.seed(42)
 ```
 
-Let's briefly recall the concept of Bayesian data augmentation for the case of epidemiological outbreaks.
-
-Bayesian data augmentation is a computational strategy that expands the parameter space by introducing latent variables (also referred to as hidden or augmented variables) to facilitate sampling from the posterior.
+Bayesian data augmentation is a computational strategy that expands the parameter space by introducing latent variables (also referred to as hidden or augmented variables) to make sampling from the posterior easier.
 
 For example, consider a single infectious individual $i$.
 Imagine that someone reported the date of symptom onset $T^\mathrm{ons}_{i}$.
@@ -46,12 +44,10 @@ where the reported `log_lik` gathers the transmission term $p^\mathrm{transm}$, 
 
 We here explain how to associate individual latent variables in housepi for minimal examples.
 
-# Build latent variables
+# Link arguments to source
 
 Similarly to parameters, latent variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
 In many applications, latent variable definitions can also depend on the dataset or on model parameters to be inferred.
-
-# Link arguments to source
 
 We can declare the source of any argument value according to the convention using the \@ symbol
 $$
@@ -89,7 +85,7 @@ This is the case for example of infection times for symptomatic and asymptomatic
 We can address this issue in housepi using status specific definitions, as opposed to generic definitions valid for all positive status individuals.
 Let's consider the case of a survey that reported symptoms within a follow-up period and tested every household member only when a first individual showed symptoms and after 10 days.
 Let's use `status = 1` to tag symptomatic individuals and `status = 2` to tag asymptomatic.
-We decide to augment infection times of symptomatic members as shown in [Get Started](housepi.html), i.e. informed by reported onset date.
+We augment infection times of symptomatic members as shown in [Get Started](housepi.html), informed by the reported onset date.
 For asymptomatic members we draw the infection time uniformly within the period of the follow-up.
 
 ```{r}
@@ -167,11 +163,11 @@ Following the decomposition introduced above, the incubation period enters the *
 
 We rely on the "test" model, which carries no transmission dynamics ($p^\mathrm{transm} = 1$), and build the whole augmentation from definitions:
 
-- the infection time `.infec_time` is drawn uniformly within the reported exposure window;
+- the infection time `infec_time` is drawn uniformly within the reported exposure window;
 - the incubation period `incub_period` is the quantity we model, gamma distributed with the inferred `mean` and `sd` and bounded to a plausible range;
-- the onset time `.onset_time` follows deterministically as their sum.
+- the onset time `onset_time` follows deterministically as their sum.
 
-Finally, an observation node ties the latent onset time to the data: we model the reported onset day `onset_mid` as a noisy measurement of the true onset time, normally distributed around `.onset_time`.
+Finally, an observation node ties the latent onset time to the data: we model the reported onset day `onset_mid` as a noisy measurement of the true onset time, normally distributed around `onset_time`.
 
 ```{r}
 #| label: incubation-example-setup
@@ -191,15 +187,15 @@ hhmodel <- dataset |>
   add_latent(
     # infection time uniform within the reported exposure window
     # min = 0 by default for uniform; + 0.99 spans the whole reported day
-    .infec_time = list(model = "uniform", max = exposure_max@D + 0.99),
+    infec_time = list(model = "uniform", max = exposure_max@D + 0.99),
     # incubation period gamma by mean/std. deviation, bounded to a plausible range
     incub_period = list(model = "gamma", mean = mean@P, sd = sd@P,
                         min = 0.1, max = 14),
     # onset time follows deterministically as their sum
-    .onset_time = .infec_time + incub_period
+    onset_time = infec_time + incub_period
   ) |>
   # observation model for the observed mid-point
-  add_observation("onset_mid", model = "normal", mean = .onset_time, sd = 0.3)
+  add_observation("onset_mid", model = "normal", mean = onset_time, sd = 0.3)
 ```
 
 ```{r}
@@ -227,12 +223,16 @@ bayesplot::mcmc_trace(get_parameter_draws(results)) +
 #| fig-alt: >
 #|  Trace plots for individual latent variables across three MCMC chains.
 #|  Incubation period for two subjects (IDs 7 and 13).
-# plot traces of latent draws that are not marked as hidden
-bayesplot::mcmc_trace(get_latent_draws(results))
+# plot the traces of the incubation period alone
+bayesplot::mcmc_trace(get_latent_draws(results, "_incub_period$", regex = TRUE))
 ```
 
-In this example we had to introduce auxiliary latent variables `.onset_time` and `.infec_time`.
-The prefix `.` we added to the names is a convention to ensure that housepi will not store the associated draws, so that they will stay hidden.
+In this example we had to introduce the auxiliary latent variables `onset_time` and `infec_time`.
+housepi samples every latent variable the likelihood reads, these two included, and stores a trace for each of them.
+Pass `variable` to `get_latent_draws()` to pick out the ones you want to look at.
+
+A latent variable that no observation and no transmission term ever reads is a different case.
+There is nothing to learn about it, so housepi does not sample it and it carries no trace.
 
 # More about models and proposals
 
@@ -242,15 +242,21 @@ The prefix `.` we added to the names is a convention to ensure that housepi will
 bayesplot::color_scheme_set(scheme = "orange")
 ```
 
-When it comes to data augmentation, we might need to explore different options for the Monte Carlo moves.
-As shown in [Priors and proposals](priors_and_proposals.html), we can do the testing with the "test" template:
+For data augmentation we might need to explore different options for the Monte Carlo moves.
+As shown in [Priors and proposals](priors_and_proposals.html), we can do the testing with the "test" template.
+
+A latent variable is sampled only where something reads it, so a playground needs an observation reading `z`.
+A uniform observation over a window the variable can never leave contributes the same constant at every draw, which leaves the sampling to follow the model alone:
 
 ```{r}
 #| label: latent inspection
 #| warning: false
 
-results <- new_housepi_model(model = "test") |>
+results <- data.frame(house_id = 1, id = 1:2, status = 1, readout = 0) |>
+  new_housepi_model(model = "test") |>
   add_latent("z", model = "normal", mean = 14) |>
+  add_observation("readout", model = "uniform", loc = z@A,
+                  min = -1e6, max = 1e6) |>
   run_inference()
 ```
 

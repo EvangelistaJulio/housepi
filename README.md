@@ -9,20 +9,18 @@
 [![docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://mmmi-pasteur.pages.pasteur.fr/housepi)
 <!-- badges: end -->
 
-We introduce "housepi", an open source R package for the statistical analysis
+housepi is an open source R package for the statistical analysis
 and modelling of epidemiological data from household outbreaks.
-Mathematical modelling has proven to be a valuable tool for estimating
-key epidemiological parameters from household transmission surveys.
+Household transmission surveys are a standard route to estimating
+key epidemiological parameters.
 The relative ease of sampling household data makes it a readily available
 source of information during the early phases of an epidemic
 (e. g. longitudinal studies).
 Additionally, retrospective serological surveys can provide critical insights
 into the history of transmission within a population (final size studies).
-The package aims to combine ease of use with flexibility, supporting both
-straightforward analyses and advanced epidemiological investigations.
 
 > [!IMPORTANT]
-> The package is still under development and certain options might need further testing.
+> The package has not been released yet. Certain options are still under development.
 
 ## Installation
 
@@ -34,10 +32,6 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
 pkgbuild::has_build_tools(debug = TRUE)
 ```
 
-> [!NOTE]
-> The package is currently under development as a private repository on GitLab.
-> You need access permissions and a valid GitLab token to install it.
-
 Download the source code on [GitLab](https://gitlab.pasteur.fr/mmmi-pasteur/housepi), set the main folder as your working directory and run
 ```r
 devtools::install()
@@ -48,6 +42,3 @@ devtools::install()
 GPLv3 © Institut Pasteur, Paris (France).
 Distributed under the terms of the GNU General Public License, Version 3.
 For details, see [LICENSE](LICENSE.md).
-
-> [!CAUTION]
-> The package has not been released. Sharing the package or parts of its code without consent of the authors is strictly forbidden.

@@ -291,6 +291,10 @@ namespace housepi
 
         /// Wheter x falls inside.
         bool is_valid(double x) const { return !is_below(x) && !is_above(x); }
+        /// The interval the bounds delimit, in the absolute frame.
+        /// NOTE: composed from the codomains of the bounds, so an undrawn
+        /// bound still places the interval it can reach.
+        Codomain relocated() const;
         /// Snapshot into the absolute frame, for the support of a distribution.
         /// NOTE: a dense support puts no mass on its floor, so a closed bound
         /// reads open there - that is where boundary attainability is decided.

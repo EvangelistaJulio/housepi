@@ -258,8 +258,11 @@ housepi_extractor <- function(...) {
       # unary
       housepi_format_sources(c(x = eval(x_expr)))
     } else if (rlang::is_call(x_expr, "@")) {
-      # sourced unary
-      housepi_format_sources(c(x = rlang::expr_text(x_expr)))
+      # sourced unary: a name R can only spell quoted (`3`@D) deparses with its
+      # backticks, which are R syntax and never part of the key
+      housepi_format_sources(
+        c(x = gsub("`", "", rlang::expr_text(x_expr), fixed = TRUE))
+      )
     } else if (rlang::is_call(x_expr)) {
       # a self-contained constant call (e.g. as.Date()) folds to its numeric
       # value; a call over housepi nodes fails to evaluate and stays symbolic

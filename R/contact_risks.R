@@ -7,37 +7,37 @@
 
 #' Return logic table of contact risks (from/to paired columns).
 #' @param data_wide Data from which to extract contact risks.
-#' @param features Features as list of data column names.
+#' @param covariates Covariates as list of data column names.
 #' @return data.frame with from_X, to_X columns and count n.
 #' @keywords internal
 #' @noRd
-contact_risk_logic_table <- function(data_wide, features) {
+contact_risk_logic_table <- function(data_wide, covariates) {
   # convention: no house_id implies households of size 1: no pairs possible
   if (!"house_id" %in% colnames(data_wide)) return(NULL)
 
-  # subset to needed column, and coerce features to character
-  features <- as.character(unlist(features))
-  data_wide <- data_wide[, c("house_id", features), drop = FALSE]
+  # subset to needed column, and coerce covariates to character
+  covariates <- as.character(unlist(covariates))
+  data_wide <- data_wide[, c("house_id", covariates), drop = FALSE]
   data_wide[] <- lapply(data_wide, as.character)
 
   # hash using unprintable separator '\x1F'
   make_key <- function(x, cols) do.call(paste, c(x[cols], list(sep = "\x1F")))
 
   # within a household every 'from' meets every 'to', so the ordered pairs of
-  # two feature keys are the product of their per-household counts. Only the
+  # two covariate keys are the product of their per-household counts. Only the
   # members meeting themselves have to come back off the diagonal
-  per_house <- table(data_wide$house_id, make_key(data_wide, features))
+  per_house <- table(data_wide$house_id, make_key(data_wide, covariates))
   cnt <- crossprod(per_house)
   diag(cnt) <- diag(cnt) - colSums(per_house)
 
   # build the full observed grid
-  observed <- unique(data_wide[, features, drop = FALSE])
-  from_grid <- stats::setNames(observed, paste0("from_", features))
-  to_grid <- stats::setNames(observed, paste0("to_", features))
+  observed <- unique(data_wide[, covariates, drop = FALSE])
+  from_grid <- stats::setNames(observed, paste0("from_", covariates))
+  to_grid <- stats::setNames(observed, paste0("to_", covariates))
   y <- merge(from_grid, to_grid, by = NULL)
   rownames(y) <- NULL
 
-  # look up counts by the pair of feature keys
+  # look up counts by the pair of covariate keys
   y$n <- as.integer(cnt[cbind(make_key(y, names(from_grid)),
                               make_key(y, names(to_grid)))])
   y$n[is.na(y$n)] <- 0L
@@ -57,10 +57,10 @@ associate_contact_param_names <- function(this_table, prefix, reference,
                                           symmetric = TRUE) {
   tp <- "^to_"
   fp <- "^from_"
-  colmask <- assess_feature_values(this_table)
+  colmask <- assess_covariate_values(this_table)
   from_cols <- grep(fp, colmask, value = TRUE)
   to_cols <- grep(tp, colmask, value = TRUE)
-  features <- sub(fp, "", from_cols)
+  covariates <- sub(fp, "", from_cols)
 
   # find reference index
   idx_refer <- NULL
@@ -91,8 +91,8 @@ associate_contact_param_names <- function(this_table, prefix, reference,
   # associate param names with one "from" and one "to" token
   this_table$param_name <- apply(
     this_table[colmask], 1, function(row) {
-      from_part <- paste(features, row[from_cols], sep = "_", collapse = "_")
-      to_part <- paste(features, row[to_cols], sep = "_", collapse = "_")
+      from_part <- paste(covariates, row[from_cols], sep = "_", collapse = "_")
+      to_part <- paste(covariates, row[to_cols], sep = "_", collapse = "_")
       if (isTRUE(symmetric) && from_part > to_part) {
         # order convention: smaller key is always "from"
         tmp <- from_part
@@ -122,20 +122,20 @@ associate_contact_param_names <- function(this_table, prefix, reference,
 #' @keywords internal
 #' @noRd
 fill_symmetric_gaps <- function(tbl) {
-  feat_cols <- setdiff(colnames(tbl), risk_reserved_cols)
-  from_cols <- grep("^from_", feat_cols, value = TRUE)
-  features <- sub("^from_", "", from_cols)
+  cov_cols <- setdiff(colnames(tbl), risk_reserved_cols)
+  from_cols <- grep("^from_", cov_cols, value = TRUE)
+  covariates <- sub("^from_", "", from_cols)
 
   new_rows <- list()
   for (i in seq_len(nrow(tbl))) {
     rev_row <- tbl[i, , drop = FALSE]
-    for (f in features) {
+    for (f in covariates) {
       rev_row[[paste0("from_", f)]] <- tbl[i, paste0("to_", f)]
       rev_row[[paste0("to_", f)]] <- tbl[i, paste0("from_", f)]
     }
 
-    def_exists <- any(apply(tbl[feat_cols], 1, function(row) {
-      rv <- unlist(rev_row[feat_cols])
+    def_exists <- any(apply(tbl[cov_cols], 1, function(row) {
+      rv <- unlist(rev_row[cov_cols])
       all(mapply(function(a, b) (is.na(a) && is.na(b)) || isTRUE(a == b),
                  row, rv))
     }))
@@ -219,8 +219,8 @@ HousepiContactRisk <- R6::R6Class(
 
     # Add risk definition in automatic mode.
     helper_auto_add_ = function(by, reference, prefix, joint, symmetric) {
-      # validate features
-      assert_valid_features(by)
+      # validate covariates
+      assert_valid_covariates(by)
 
       # load reference and validate reference names
       if (length(reference) > 0) {
@@ -246,9 +246,9 @@ HousepiContactRisk <- R6::R6Class(
       )
       assert_one_reference_per_group(strata, symmetric)
       if (length(params) > 0) assert_no_pin_params_clash(strata, params)
-      # cast feature columns to character (consistent with auto mode)
-      feat_cols <- setdiff(colnames(strata), risk_reserved_cols)
-      strata[feat_cols] <- lapply(strata[feat_cols], as.character)
+      # cast covariate columns to character (consistent with auto mode)
+      cov_cols <- setdiff(colnames(strata), risk_reserved_cols)
+      strata[cov_cols] <- lapply(strata[cov_cols], as.character)
       # store sentinel definition
       self$defs <- list(by = NA_character_, prefix = NA_character_,
                         reference = NULL, joint = TRUE,
@@ -265,10 +265,10 @@ HousepiContactRisk <- R6::R6Class(
         # optionally fill symmetric gaps
         this_table <- self$logic_tables[[i]]
         # retrieve covariates
-        this_feat <- sub("^from_", "",
-                         grep("^from_", names(this_table), value = TRUE))
-        # validate that feature columns exist in data
-        assert_data_features(this_feat, colnames(data_wide))
+        this_cov <- sub("^from_", "",
+                        grep("^from_", names(this_table), value = TRUE))
+        # validate that covariate columns exist in data
+        assert_data_covariates(this_cov, colnames(data_wide))
 
         if (symmetric) this_table <- fill_symmetric_gaps(this_table)
         # FIXME: this is a manual fix, I can't find the source of extra 'n'
@@ -276,7 +276,7 @@ HousepiContactRisk <- R6::R6Class(
         # FIXME: this is not counting the wildcars...
         this_table <- merge(
           this_table,
-          contact_risk_logic_table(data_wide, this_feat),
+          contact_risk_logic_table(data_wide, this_cov),
           by = setdiff(names(this_table), risk_reserved_cols),
           all.x = TRUE
         )
@@ -319,14 +319,14 @@ HousepiContactRisk <- R6::R6Class(
       set_source_name_(required, self$family)
     },
 
-    #' @field feature_names `character()`. Data columns the risks stratify on,
+    #' @field covariate_names `character()`. Data columns the risks stratify on,
     #' declared through `by` or carried by a custom logic table.
-    feature_names = function(value) {
+    covariate_names = function(value) {
       custom <- lapply(self$logic_tables, function(tbl) {
         sub("^from_", "", grep("^from_", names(tbl), value = TRUE))
       })
-      feats <- as.character(unlist(c(self$defs[["by"]], custom)))
-      unique(feats[!is.na(feats)])
+      covs <- as.character(unlist(c(self$defs[["by"]], custom)))
+      unique(covs[!is.na(covs)])
     },
 
     #' @field param_required `character()`.
@@ -470,23 +470,23 @@ HousepiContactRisk <- R6::R6Class(
 
       by <- self$defs[["by"]]
       if (is.null(by) || all(is.na(by))) return(invisible(self))
-      assert_data_features(by, colnames(data_wide))
+      assert_data_covariates(by, colnames(data_wide))
 
-      # cast features: joint wraps all together
-      features <- as.list(by)
-      if (isTRUE(self$defs[["joint"]])) features <- list(features)
+      # cast covariates: joint wraps all together
+      covariates <- as.list(by)
+      if (isTRUE(self$defs[["joint"]])) covariates <- list(covariates)
 
       # default prefix
       prefix <- as.character(self$defs[["prefix"]])
       if (is.na(prefix)) prefix <- ""
 
       new_tables <- list()
-      for (this_feat in features) {
-        this_table <- contact_risk_logic_table(data_wide, this_feat)
+      for (this_cov in covariates) {
+        this_table <- contact_risk_logic_table(data_wide, this_cov)
         # extract reference entries for this sub-table, propagating .auto
         relevant_ref <- self$defs$reference
         if (!identical(relevant_ref, ".auto")) {
-          ref_cols <- c(paste0("from_", this_feat), paste0("to_", this_feat))
+          ref_cols <- c(paste0("from_", this_cov), paste0("to_", this_cov))
           relevant_ref <- relevant_ref[names(relevant_ref) %in% ref_cols]
         }
         this_table <- associate_contact_param_names(
@@ -514,22 +514,22 @@ HousepiContactRisk <- R6::R6Class(
       defs[risk_pin_cols] <- NULL
 
       # encode from_X and to_X columns using factor info
-      features <- self$defs[["by"]]
-      # for custom mode (by is NA), infer features from column names
-      if (is.null(features) || all(is.na(features))) {
+      covariates <- self$defs[["by"]]
+      # for custom mode (by is NA), infer covariates from column names
+      if (is.null(covariates) || all(is.na(covariates))) {
         from_cols <- grep("^from_", colnames(defs), value = TRUE)
-        features <- sub("^from_", "", from_cols)
+        covariates <- sub("^from_", "", from_cols)
       }
-      if (is.null(features) || length(features) == 0) return(defs)
+      if (is.null(covariates) || length(covariates) == 0) return(defs)
 
-      for (this_feat in features[!is.na(features)]) {
-        if (is.null(info[[this_feat]])) next
-        lv <- info[[this_feat]]$levels
+      for (this_cov in covariates[!is.na(covariates)]) {
+        if (is.null(info[[this_cov]])) next
+        lv <- info[[this_cov]]$levels
         for (prefix in c("from_", "to_")) {
-          col <- paste0(prefix, this_feat)
-          # it must exclude NULL (see HousepiGroupRisk$expose_to_cpp)
+          col <- paste0(prefix, this_cov)
+          # an NA rule cell is the wildcard (see HousepiGroupRisk$expose_to_cpp)
           if (col %in% colnames(defs)) defs[[col]] <- as.integer(
-            factor(defs[[col]], levels = lv, exclude = NULL)
+            factor(defs[[col]], levels = lv)
           )
         }
       }

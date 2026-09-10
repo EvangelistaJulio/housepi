@@ -40,6 +40,7 @@ assert_household_data <- function(data, model) {
   }
   if (nrow(data) == 0) stop_h("Provided {.arg data} is empty.")
   assert_no_private_columns(colnames(data))
+  assert_valid_data_columns(colnames(data))
   data
 }
 
@@ -715,6 +716,7 @@ HousepiGenerator <- R6::R6Class(
         format_type_error(data_long)
       )
       assert_no_private_columns(colnames(data_long), "data_long")
+      assert_valid_data_columns(colnames(data_long), "data_long")
 
       embed <- cpp_data_factorize(data_long, private$escaped_)
       private$info_data_long_ <- embed$info

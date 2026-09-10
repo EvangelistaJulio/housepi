@@ -13,7 +13,6 @@ add_latent(
   const = NA,
   discr = NA,
   func = NULL,
-  func_args = NULL,
   model = NA_character_,
   min = NULL,
   max = NULL,
@@ -38,7 +37,7 @@ or an arithmetic expression. Sources are:
 \item{\verb{@P}}{parameter.}
 }}
 
-\item{...}{named arguments for the model distribution.
+\item{...}{named arguments for the model distribution, or for \code{func} when the definition is deterministic.
 Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
 \code{proposal_}. For a random walk, \code{proposal_scale} sets the step scale: if
 omitted it is adapted during inference when \code{adapt > 0}; if a positive numeric
@@ -62,8 +61,6 @@ Inferred from the model requirements if \code{NA} (default).}
 \item \code{character(1)} Name of latent function;
 \item rlang expression.
 }}
-
-\item{func_args}{named \code{list} Arguments of the latent function.}
 
 \item{model}{\code{character(1)} Latent model distribution.}
 

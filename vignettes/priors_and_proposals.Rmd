@@ -57,7 +57,8 @@ new_housepi_model(model = "test") |>
 ```
 
 Here we associated definitions of parameters with default proposals and custom arguments.
-For certain distributions, default arguments are also available according to base R.
+Argument defaults match the base R sampling functions: `normal` starts from `mean = 0` and `sd = 1` as in `rnorm()`, `exponential` from `rate = 1` as in `rexp()`.
+Arguments carrying no default in base R, such as the gamma `shape`, stay required here too.
 
 # Provide a custom domain
 
@@ -226,7 +227,7 @@ They come in two families.
   nor discrete values);
 * **rw_unif**: uniform (bounded) increments inside a window.
 
-Only the random walks are adaptable:
+Only the random walks are adaptable.
 By default, housepi tunes the scale on the fly to target an acceptance rate of 44% [@roberts_weak_1997].
 This is enabled by supplying `adapt = N` to `run_inference()`.
 Here `N` is the number of adaptation iterations run before the MCMC `steps`.

@@ -52,8 +52,7 @@ namespace housepi
             Status
         };
 
-        /// Latents selected for export.
-        /// Hidden ones are not included (see str::is_hidden).
+        /// Latent variables to be exported.
         std::vector<size_t> list_latent_export = {};
         /// Every drawn member-level observation.
         std::vector<size_t> list_obs_member = {};
@@ -76,10 +75,14 @@ namespace housepi
         /// Auxiliary block for individual latent objects.
         struct IndivBlock
         {
-            size_t idx = 0;                 /// index of status-specific definition
-            std::vector<Variable> vec = {}; /// associated variables
-            LogProba latent_log_lik;        /// latent model log-likelihood
-            LogProba obs_log_lik;           /// observation model log-likelihood
+            /// Index of StatusBlock_ containing status-specific definitions.
+            size_t idx = 0;
+            /// Individual augmeted variables (latent and observations).
+            std::vector<Variable> vec = {};
+            /// Log-likelihood of latent model.
+            LogProba latent_log_lik;
+            /// Log-likelihood of observation model.
+            LogProba obs_log_lik;
         };
         std::vector<IndivBlock> varia;
 
@@ -176,6 +179,8 @@ namespace housepi
         const std::vector<size_t> &list_adaptive(const Individual &m) const { return block_of_(m).adaptive; }
         const std::vector<size_t> &list_draws(const Individual &m) const { return block_of_(m).draws; }
         const std::vector<size_t> &list_latent_models(const Individual &m) const { return block_of_(m).latent_models; }
+        /// Observations that contribute to individual observation likelihood. 
+        /// NOTE: likelihood is marginalized on missing data (see init_live_blocks_).
         const std::vector<size_t> &list_obs_models(const Individual &m) const { return block_of_(m).obs_models; }
 
         /// Declare a read-cell for every column a definition produces, so a name
@@ -346,6 +351,10 @@ namespace housepi
             std::vector<bool> produces_transm = {};
         };
         std::vector<StatusBlock_> status_blocks_;
+        /// Number of per-status blocks, before the missing-observation variants
+        /// appended on top of them (see init_live_blocks_).
+        /// FIXME: this field seems dead
+        size_t n_status_base_ = 0; 
 
         /// Access IndivBlock for an individual.
         IndivBlock &varia_of_(const Individual &m) noexcept { return varia[Index::of(m)]; }
@@ -356,8 +365,6 @@ namespace housepi
 
         // Restore internal list and flags definitions.
         void build_restore_internal_();
-        /// Check latent names and assert no reserved names are used.
-        void build_assert_input_(const str_table &input);
         /// Eventually append infectivity profile definitions.
         void build_append_profile_(InfecProfile &infec_profile);
 
@@ -410,6 +417,29 @@ namespace housepi
         /// Fills StatusBlock_::obs_consumers, i.e. keyed by producer.
         void init_observation_list_();
 
+        /// Point every individual at a status block holding what its own run reads:
+        /// the observations whose datum is there, and the definitions still reaching a
+        /// sink. An observation value is a datum, so what is absent at build stays
+        /// absent for the run and the likelihood never reads it.
+        /// NOTE: evaluation-only, a simulation reads every definition it produces.
+        void init_live_blocks_();
+        /// Names a run reads: the observations of the block carrying a datum, the
+        /// latents the transmission side consumes, and those a household observation
+        /// reduces over (household rows sit in no status block, so they close no edge).
+        std::vector<std::string> sink_names_(const StatusBlock_ &block,
+                                             const std::vector<size_t> &absent) const;
+        /// Keys of a block no sink reaches. Such a latent is an unused parameter:
+        /// marginalizing it integrates its model to one, so its draw and its density
+        /// both go, and with them its trace.
+        std::vector<size_t> dead_keys_(const StatusBlock_ &block,
+                                       const std::vector<size_t> &absent) const;
+        /// Append the block of 'base' with 'absent' left out, and return its index.
+        size_t make_block_variant_(size_t base, const std::vector<size_t> &absent);
+        /// Report the observations left out, per key: a warning where some members
+        /// carry the datum, an error where none does.
+        void report_missing_obs_(const std::vector<size_t> &declared,
+                                 const std::vector<size_t> &missing) const;
+
         /// Mark the latent keys the transmission side consumes, per status.
         /// NOTE: follows model request.
         void init_transm_producers_();
@@ -451,9 +481,13 @@ namespace housepi
         void assert_no_live_house_obs_cycle_() const;
         /// Reject a definition whose model reads an observation column.
         void assert_no_obs_entry_collision_() const;
-        /// Reject a simulation override (value + model) that reads a latent variable
-        /// or observation: it must resolve from data or parameters at draw time.
-        void assert_no_sim_override_latent_read_() const;
+        /// The column a definition resolves through in simulation: its value when it
+        /// carries one, an override included, its function otherwise.
+        const std::string &sim_source_col_(size_t k) const;
+        /// Reject a simulation override (value + model) that reads an observation,
+        /// directly or through deterministic definitions: it is applied before that
+        /// observation is generated.
+        void assert_no_sim_override_obs_read_() const;
 
         /// Get the definition order for current member according to its status.
         /// NOTE: if status hasn't been observed in data, build on demand.

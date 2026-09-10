@@ -25,10 +25,9 @@ set.seed(42)
 ```
 
 Sometimes your case study requires a function, distribution or infectivity profile not immediately available in housepi.
-Here we describe an advanced developer-level extension to add them.
-Custom function classes can be registered and made available to models and R.
-It is intended for users who are comfortable reading and editing C++ code, and working with custom housepi models.
-However, if appropriate, authors will evaluate requests to add missing functions to the official package.
+Custom function classes can be registered in C++ and made available to models and to R.
+This route is for users comfortable reading and editing C++ code and working with custom housepi models.
+The authors will also consider requests to add missing functions to the package.
 
 We illustrate this with a concrete example from `inst/examples/custom/model.cpp`, which ships with the package.
 
@@ -72,8 +71,6 @@ cat("HOUSEPI_CLOSE_MODULE_NAMESPACE()", sep = "\n")
 cat("```\n")
 ```
 
-Let's walk through each component.
-
 # Custom user functions
 
 User functions are added in the C++ source code by inheriting from the base class `Function`
@@ -104,7 +101,7 @@ Here is what each part does:
 
 3. **Truncation**: `truncate()` is overridden to bound the support below at 0.
 
-4. **Core computation**: `raw_function_()` implements the actual function. Arguments are accessed by position with `arg(0)`, `arg(1)`, etc. (note that `x` is reserved as the function input).
+4. **Core computation**: `raw_function_()` implements the function. Arguments are accessed by position with `arg(0)`, `arg(1)`, etc. (note that `x` is reserved as the function input).
 
 5. **Registration**: `HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)` registers the function under the `Custom` category, making `"growth"` available to the framework and callable from R.
 
