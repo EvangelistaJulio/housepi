@@ -245,6 +245,13 @@ namespace housepi::chain_binom
         const double log_commu_infec_proba = std::log1p(-std::exp(log_commu_esc_proba));
         const double log_p2p_esc_proba = -p2p_infec_rate;
 
+        // log-probability of being infected by a generation of n_prev infectors,
+        // for every generation size a composition of n_infec can hold
+        thread_local vector<double> log_p2p_infec_proba;
+        log_p2p_infec_proba.assign(n_infec + 1, 0.);
+        for (unsigned n_prev = 1; n_prev <= n_infec; ++n_prev)
+            log_p2p_infec_proba[n_prev] = std::log1p(-std::exp(n_prev * log_p2p_esc_proba));
+
         ///////////////////////////////////////////////////
         /////////  (+) Sero-Positive Contribution  ////////
         ///////////////////////////////////////////////////
@@ -262,14 +269,16 @@ namespace housepi::chain_binom
             tmp += (n_infec - gen_counts[0]) * log_commu_esc_proba;
 
             // generation (i) : within house, i > 0
+            unsigned long n_earlier = 0; // members of generations 0 <= g < i - 1
             for (size_t i = 1; i < gen_counts.size(); ++i)
             {
                 // generation (i) : infected by previous generation i - 1
-                tmp += gen_counts[i] * std::log1p(-std::exp(gen_counts[i - 1] * log_p2p_esc_proba));
+                tmp += gen_counts[i] * log_p2p_infec_proba[gen_counts[i - 1]];
 
                 // generation (i) : escaped from other generations g, i. e. 0 <= g < i - 1
-                for (size_t j = 0; j < i - 1; ++j)
-                    tmp += gen_counts[i] * gen_counts[j] * log_p2p_esc_proba;
+                tmp += gen_counts[i] * n_earlier * log_p2p_esc_proba;
+
+                n_earlier += gen_counts[i - 1];
             }
 
             // times n. of equivalent configurations returning the same kind of generation

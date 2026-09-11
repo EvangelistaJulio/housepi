@@ -36,12 +36,18 @@ namespace housepi
                    const str_table &input);
 
         /// Whether household members i and j have matching contact risks across all members.
+        /// Self-contacts are included: all contacts i<->j must also be equal.
         bool same_contacts(const Household &house,
                            MemberIdx i,
                            MemberIdx j) const noexcept
         {
             if (is_empty())
                 return true;
+            const Attribute &intra = at(house, i, i);
+            if (intra != at(house, j, j) ||
+                intra != at(house, i, j) ||
+                intra != at(house, j, i))
+                return false;
             for (MemberIdx k = 0; k < house.size(); ++k)
             {
                 if (k == j || k == i)
