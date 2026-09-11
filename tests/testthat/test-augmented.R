@@ -88,29 +88,55 @@ test_that("A func definition is deterministic", {
     expect_error("[Dd]eterministic.*dummy.*cannot be sampled")
 })
 
-test_that("Dependency errors name the family and the intended source", {
+test_that("A name carrying no source sigil is resolved, not guessed", {
   # definitions are left unresolved until a wall
   mk_latent$model |>
     add_observation(start_date = min(test_date)) |>
     expect_silent()
 
-  # an unsuffixed name is read as latent: the error says so and points at
-  # the data column / parameter of the same name the user meant
-  mk_latent$model |>
+  # a bare name reaches the data column declaring it
+  obs <- mk_latent$model |>
     add_observation(start_date = min(test_date)) |>
-    evaluate_log_lik() |>
-    expect_error("latent.*definition.*test_date.")
-  mk_latent$model |>
-    add_observation(start_date = min(test_date)) |>
-    evaluate_log_lik() |>
-    expect_error("[Dd]id you mean.*test_date@D")
-  mk_latent$model |>
-    add_parameter(ddog = list(prior = "gamma", shape = 2, scale = 1)) |>
-    add_observation(onset_date = list(model = "normal", mean = ddog)) |>
-    evaluate_log_lik() |>
-    expect_error("[Dd]id you mean.*ddog@P")
+    get_observations()
+  expect_equal(obs[["func_args"]][[1]], c(x = "test_date|D"))
 
-  # nothing of that name anywhere
+  # and a bare name reaches the parameter declaring it
+  obs <- mk_latent$model |>
+    add_parameter(ddog = list(prior = "gamma", shape = 2, scale = 1)) |>
+    add_observation(onset_date = list(model = "normal", mean = ddog, sd = 1)) |>
+    get_observations()
+  expect_equal(obs[["args"]][[1]], c(mean = "ddog|P", sd = "1"))
+
+  # a name two holders answer to is settled by the sigil, never by the engine
+  both <- mk_latent$model |>
+    add_parameter(expo = list(prior = "gamma", shape = 2, scale = 1))
+  both |>
+    add_observation(onset_date = list(model = "normal", mean = expo, sd = 1)) |>
+    evaluate_log_lik() |>
+    expect_error("[Cc]ould not resolve the source of .expo.")
+  both |>
+    add_observation(onset_date = list(model = "normal", mean = expo, sd = 1)) |>
+    evaluate_log_lik() |>
+    expect_error("[Tt]ag it .expo@D. or .expo@P.")
+  both |>
+    add_observation(onset_date = list(model = "normal",
+                                      mean = expo@P, sd = 1)) |>
+    evaluate_log_lik() |>
+    expect_no_error()
+
+  # nothing of that name anywhere: the defect is named, with the near miss
+  mk_latent$model |>
+    add_observation(onset_date = list(model = "normal",
+                                      mean = test_dates, sd = 1)) |>
+    evaluate_log_lik() |>
+    expect_error("[Cc]ould not resolve the source of .test_dates.")
+  mk_latent$model |>
+    add_observation(onset_date = list(model = "normal",
+                                      mean = test_dates, sd = 1)) |>
+    evaluate_log_lik() |>
+    expect_error("[Dd]id you mean .test_date.")
+
+  # an explicitly mis-tagged sigil still reaches the engine hint
   mk_latent$model |>
     add_observation(onset_date = list(model = "normal", mean = liquid@A)) |>
     evaluate_log_lik() |>
@@ -123,6 +149,20 @@ test_that("Dependency errors name the family and the intended source", {
     ) |>
     evaluate_log_lik() |>
     expect_error(".*incub.*status 1")
+})
+
+test_that("A forward reference waits for the decorator declaring it", {
+  # the reference is encoded before the parameter exists, and settles once the
+  # declaration lands: the soft rebuild defers rather than guessing
+  mk_latent$model |>
+    add_observation(onset_date = list(model = "normal", mean = ddog, sd = 1)) |>
+    expect_silent()
+
+  obs <- mk_latent$model |>
+    add_observation(onset_date = list(model = "normal", mean = ddog, sd = 1)) |>
+    add_parameter(ddog = list(prior = "gamma", shape = 2, scale = 1)) |>
+    get_observations()
+  expect_equal(obs[["args"]][[1]], c(mean = "ddog|P", sd = "1"))
 })
 
 test_that("A status left without definitions names the status", {
@@ -1520,6 +1560,24 @@ test_that("An observation infers discretization from the column it reads", {
     getElement("derived") |>
     on_integer_lattice() |>
     expect_false()
+})
+
+test_that("A bare column read inherits the discretization of its column", {
+  # sources resolve before `discr` does, so a read carrying no sigil reaches
+  # the column and inherits its storage type, exactly as an `@D` read does
+  hhmodel <- data.frame(house_id = rep(c("shadow", "moses"), each = 2),
+                        date_col = as.Date("2005-02-28") + rep(0:1, 2),
+                        dbl_col = rep(c(3.5, 5.5), 2),
+                        status = 1) |>
+    new_housepi_model("test") |>
+    add_latent(bare = list(model = "normal", value = date_col),
+               sigilled = list(model = "normal", value = date_col@D),
+               double = list(model = "normal", value = dbl_col))
+
+  augm <- get_latent(hhmodel)
+  expect_equal(augm$value, c("date_col|D", "date_col|D", "dbl_col|D"))
+  # the date column is discrete, the double one is not
+  expect_equal(augm$discr, c(TRUE, TRUE, FALSE))
 })
 
 test_that("Simulated columns carry the discretization of their definition", {

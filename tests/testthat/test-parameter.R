@@ -196,10 +196,14 @@ test_that("Unsupported parameter definitions throw errors", {
   hhmodel |>
     add_parameter("a", prior = "uniform", min = min_val@D) |>
     expect_error("[Nn]ot supported")
-  # hint is thrown
+  # a bare name nothing declares carries no source yet: it waits for the wall
   hhmodel |>
     add_parameter("b", prior = "uniform", min = min_val) |>
-    expect_error("[Rr]lang injection")
+    expect_silent()
+  hhmodel |>
+    add_parameter("b", prior = "uniform", min = min_val) |>
+    evaluate_log_lik() |>
+    expect_error("[Cc]ould not resolve the source of .min_val.")
 })
 
 test_that("A degenerate domain raises an error for parameters", {
@@ -339,6 +343,22 @@ test_that("Parameter defined as a function tracks its dependencies", {
   expect_equal(df$beta, 4^(-df$gamma))
 })
 
+test_that("A bare reference in a parameter resolves to a parameter", {
+  sigilled <- flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
+                  gamma = list(prior = "uniform"), hhsize_ref = 4)
+  # the two spellings encode the same definition: no sigil is needed to reach
+  # a parameter no other holder claims
+  bare <- flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(alpha = 1e-4, beta = hhsize_ref^-gamma,
+                  gamma = list(prior = "uniform"), hhsize_ref = 4)
+  expect_equal(get_parameters(bare), get_parameters(sigilled))
+  expect_equal(get_parameters(bare)$func_args[[2]],
+               c(x = "hhsize_ref|P", x2 = "minus|x|[gamma|P]"))
+})
+
 test_that("Parameter function rejects non-parameter dependencies", {
   hhmodel <- new_housepi_model(model = "test")
 
@@ -348,9 +368,10 @@ test_that("Parameter function rejects non-parameter dependencies", {
     add_parameter("kaz", prior = "normal", mean = cigar + 1) |>
     expect_error("[Ii]ndividual.*specific")
 
-  # bare names default to latent source! here @P is missing
+  # a bare name declared as a latent resolves there, and is refused as such
   hhmodel |>
-    add_parameter(beta = hhsize_ref^-gamma) |>
+    add_latent("cigar", model = "normal") |>
+    add_parameter(beta = cigar^-2) |>
     expect_error("beta.*cannot.*depend.*latent")
 
   # explicit reference to a data column is also rejected

@@ -75,6 +75,29 @@ housepi_walk_definition <- function(input, type) {
   output
 }
 
+#' Resolve unsettled source sigils in encoded definition strings.
+#' A `name|?` terminal takes the letter the dictionary holds for that name;
+#' a name the dictionary does not settle keeps the sentinel, for the assertion
+#' to report.
+#' @param input `character()`. Encoded definition strings.
+#' @param dict named `character()`. Declared name to source letter.
+#' @return `character()`
+#' @keywords internal
+#' @noRd
+housepi_resolve_definition <- function(input, dict) {
+  hit <- !is.na(input) & grepl("|?", input, fixed = TRUE)
+  if (!any(hit)) return(input)
+  input[hit] <- stringr::str_replace_all(
+    input[hit], "[A-Za-z0-9_.]+\\|\\?",
+    function(terminal) {
+      nm <- sub("\\|\\?$", "", terminal)
+      src <- unname(dict[nm])
+      ifelse(is.na(src) | !nzchar(src), terminal, paste0(nm, "|", src))
+    }
+  )
+  input
+}
+
 # @description
 # Definitions required by definitions according to the "source"
 find_required_definitions <- function(defs, src, col_with_sources, family) {

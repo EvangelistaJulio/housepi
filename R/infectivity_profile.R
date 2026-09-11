@@ -25,45 +25,7 @@ HousepiInfecProfile <- R6::R6Class(
   ############################################################################
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
-
-    # Definitions required by infectivity profile definitions
-    # according to the "type" of the definition
-    find_required_def_ = function(type) {
-      find_required_definitions(
-        self$defs, type, c("func", "min", "max"), self$family
-      )
-    }
-  ),
-
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
-
-  active = list(
-    #' @field latent_required `character()`.
-    #' Latent variables required by infectivity profile definition.
-    latent_required = function(value) {
-      private$find_required_def_("A")
-    },
-
-    #' @field data_required `character()`.
-    #' Dataset entries required by infectivity profile definition.
-    data_required = function(value) {
-      private$find_required_def_("D")
-    },
-
-    #' @field group_risks_required `character()`.
-    #' Find group risks required by infectivity profile definition.
-    group_risks_required = function(value) {
-      private$find_required_def_("G")
-    },
-
-    #' @field param_required `character()`.
-    #' Parameters required by infectivity profile definition.
-    param_required = function(value) {
-      private$find_required_def_("P")
-    }
+    deep_clone = function(name, value) helper_clone(value)
   ),
 
   ############################################################################
@@ -167,9 +129,11 @@ HousepiInfecProfile <- R6::R6Class(
 
     #' @description
     #' Returns a readable definition object.
-    showcase = function() {
-      if (length(self$defs) > 0) {
-        output <- housepi_defin_showcaser(self$defs)
+    #' @param defs `data.frame()`. Definitions to read, the stored ones by
+    #' default. The model passes the table with its sources resolved.
+    showcase = function(defs = self$defs) {
+      if (length(defs) > 0) {
+        output <- housepi_defin_showcaser(defs)
 
         # append func_args if not present
         i <- which(names(output) == "func")

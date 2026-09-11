@@ -43,40 +43,52 @@ HousepiModel <- R6::R6Class(
     ############################################################################
 
     # @description
+    # Names of one source the latent declaration reads: latent, observation
+    # and infectivity profile definitions. Read from the resolved tables, so a
+    # reference carrying no sigil counts under the kind it resolves to.
+    # @param type `character(1)`. Source letter.
+    required_of_declaration_ = function(type) {
+      c(find_required_definitions(private$resolved_latent_(), type,
+                                  c("value", "func", "model", "min", "max"),
+                                  private$augm_$family),
+        find_required_definitions(private$resolved_profile_(), type,
+                                  c("func", "min", "max"),
+                                  private$infec_profile_$family))
+    },
+
+    # @description
     # Latent variables required by implementation file and other definitions.
     get_all_required_latent_ = function() {
-      c(private$generator_$latent_required,     # by the model
-        private$augm_$latent_required,          # by latent/observation
-        private$infec_profile_$latent_required) # by infectivity profile
+      c(private$generator_$latent_required,      # by the model
+        private$required_of_declaration_("A"))   # by the latent declaration
     },
 
     # @description
     # Dataset headers required by implementation file and other definitions.
     get_all_required_data_wide_ = function() {
-      c(private$generator_$data_required,     # by the model
-        private$group_risks_$data_required,   # by group risks
-        private$contact_risks_$data_required, # by contact risks
-        private$augm_$data_required,          # by latent/observation
-        private$infec_profile_$data_required) # by infectivity profile
+      c(private$generator_$data_required,        # by the model
+        private$group_risks_$data_required,      # by group risks
+        private$contact_risks_$data_required,    # by contact risks
+        private$required_of_declaration_("D"))   # by the latent declaration
     },
 
     # @description
     # Group risks required by implementation file and other definitions.
     get_all_required_group_risks_ = function() {
-      c(private$generator_$group_risks_required,     # by the model
-        private$augm_$group_risks_required,          # by latent/observation
-        private$infec_profile_$group_risks_required) # by infectivity profile
+      c(private$generator_$group_risks_required, # by the model
+        private$required_of_declaration_("G"))   # by the latent declaration
     },
 
     # @description
     # Parameters required by implementation file and other definitions.
     get_all_required_param_ = function() {
-      c(private$generator_$param_required,     # by the model
-        private$param_$param_required,         # by parameter functions
-        private$group_risks_$param_required,   # by group risks
-        private$contact_risks_$param_required, # by contact risks
-        private$augm_$param_required,          # by latent/observation
-        private$infec_profile_$param_required) # by infectivity profile
+      c(private$generator_$param_required,       # by the model
+        find_required_definitions(private$resolved_param_(), "P",
+                                  c("value", "func", "min", "max"),
+                                  private$param_$family), # by param functions
+        private$group_risks_$param_required,     # by group risks
+        private$contact_risks_$param_required,   # by contact risks
+        private$required_of_declaration_("P"))   # by the latent declaration
     },
 
     ############################################################################
@@ -176,6 +188,50 @@ HousepiModel <- R6::R6Class(
         wall = wall,
         warn_unused = warn_unused && !private$generator_$is_test_model()
       )
+    },
+
+    # @description
+    # Assert every reference carrying no source sigil names one declared
+    # definition. Scans the resolved tables for terminals the dictionary left
+    # unsettled: a name two holders claim, or a name nothing declares.
+    # @param wall `logical(1)` to raise error.
+    assert_sources_ = function(wall = TRUE) {
+      # the full source-bearing column set, not the narrower requirement one:
+      # a distribution or proposal argument carries references too
+      cols <- c("value", "func", "prior", "model", "min", "max", "proposal")
+      scan <- function(defs) {
+        find_required_definitions(defs, "?", cols, NA_character_)
+      }
+      unresolved <- unique(c(scan(private$resolved_latent_()),
+                             scan(private$resolved_profile_()),
+                             scan(private$resolved_param_())))
+      if (length(unresolved) == 0) return(character())
+
+      sets <- private$source_sets_()
+      declared <- unique(unlist(sets, use.names = FALSE))
+      labels <- unname(source_labels_[c("A", "D", "P", "G")])
+      nothing <- sprintf("No %s or %s is declared under this name.",
+                         paste(labels[-length(labels)], collapse = ", "),
+                         labels[[length(labels)]])
+
+      sms <- character()
+      for (nm in unresolved) {
+        claims <- names(sets)[vapply(sets, function(x) nm %in% x, logical(1))]
+        sms <- c(sms, sprintf("Could not resolve the source of {.val %s}.", nm))
+        if (length(claims) > 1) {
+          # two holders answer to the name: only a sigil tells them apart
+          sms <- c(sms, sprintf(
+            "Declared both as %s.",
+            character_to_phrase(unname(source_labels_[claims]))
+          ), sprintf("Tag it %s.", paste(
+            sprintf("{.code %s@%s}", nm, claims), collapse = " or "
+          )))
+        } else {
+          sms <- c(sms, nothing,
+                   find_closest_match(nm, declared, max_print = 0))
+        }
+      }
+      if (isTRUE(wall)) stop_h(sms) else sms
     },
 
     ############################################################################
@@ -344,22 +400,85 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Parameter definitions with `discr` resolved against the model on demand.
+    # Names declared under each source, keyed by its sigil letter.
+    source_sets_ = function() {
+      gen <- private$generator_
+      live <- !is.null(gen) && !is.null(gen$mcmc_ptr)
+      # what the transmission model declares it needs, whether or not the
+      # matching column or parameter has landed yet
+      needs <- function(field) if (live) unname(gen[[field]]) else character()
+
+      defs <- private$augm_$defs
+      latent <- character()
+      house_obs <- character()
+      if (length(defs) > 0 && "kind" %in% names(defs)) {
+        kind <- defs[["kind"]]
+        latent <- defs[["name"]][kind != "house"]
+        house_obs <- defs[["name"]][kind == "house"]
+      }
+      cols <- character()
+      if (live) cols <- setdiff(gen$cols_data_wide, data_reserved_cols)
+
+      sets <- list(
+        # a household-level observation has no latent key: house rows are
+        # skipped, so it is only ever a produced column
+        D = c(cols, needs("data_required"), house_obs),
+        G = c(names(private$group_risks_$defs), needs("group_risks_required")),
+        P = c(private$param_$defs[["name"]], needs("param_required")),
+        A = c(latent, needs("latent_required"))
+      )
+      # a member-level observation shadows the like-named column: its read-cell
+      # is wired to the producer, so the producer is not an ambiguity
+      sets$D <- setdiff(sets$D, sets$A)
+      lapply(sets, function(nms) {
+        nms <- unique(nms)
+        nms[!is.na(nms) & nzchar(nms)]
+      })
+    },
+
+    # @description
+    # Source letter a reference carrying no sigil resolves to, for every name
+    # the model declares. A name two holders claim maps to `""`: only a sigil
+    # settles it.
+    source_dictionary_ = function() {
+      sets <- private$source_sets_()
+      dict <- character()
+      for (src in names(sets)) {
+        nms <- sets[[src]]
+        dict[intersect(nms, names(dict))] <- ""
+        dict[setdiff(nms, names(dict))] <- src
+      }
+      dict
+    },
+
+    # @description
+    # Parameter definitions with sources and `discr` resolved on demand.
     resolved_param_ = function() {
-      resolve_discr_flags_(private$param_$defs,
+      resolve_discr_flags_(resolve_source_types_(private$param_$defs,
+                                                 private$source_dictionary_()),
                            private$generator_$param_discr_required,
                            is_prior = TRUE)
     },
 
     # @description
-    # Latent definitions with `discr` resolved against the model on demand.
+    # Latent definitions with sources and `discr` resolved on demand.
+    # Sources come first: a bare read of a data column inherits its
+    # discreteness only once it carries the `D` letter.
     resolved_latent_ = function() {
       resolve_discr_flags_(
-        private$augm_$defs,
+        resolve_source_types_(private$augm_$defs,
+                              private$source_dictionary_()),
         private$generator_$latent_discr_required,
         discr_col_types = private$generator_$discr_data_wide,
         discr_req_cols = private$generator_$data_wide_discr_required
       )
+    },
+
+    # @description
+    # Infectivity profile definitions with sources resolved on demand.
+    resolved_profile_ = function() {
+      resolve_source_types_(private$infec_profile_$defs,
+                            private$source_dictionary_())
     },
 
     # @description
@@ -371,10 +490,8 @@ HousepiModel <- R6::R6Class(
     # @param defs `data.frame()`. Declarations with status codes resolved.
     latent_declaration_complete_ = function(defs) {
       # the infectivity profile folds into the latent build
-      need_latent <- c(private$augm_$latent_required,
-                       private$infec_profile_$latent_required)
-      need_param <- c(private$augm_$param_required,
-                      private$infec_profile_$param_required)
+      need_latent <- private$required_of_declaration_("A")
+      need_param <- private$required_of_declaration_("P")
       all(need_latent %in% private$augm_$defs[["name"]]) &&
         all(need_param %in% private$param_$defs[["name"]]) &&
         private$augm_$covers_statuses(defs,
@@ -418,6 +535,11 @@ HousepiModel <- R6::R6Class(
       if (length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0) {
         return(invisible(self))
       }
+      # a forward reference waits for the decorator that declares it, rather
+      # than pushing an unsettled source into the engine
+      if (!wall && length(private$assert_sources_(FALSE)) > 0) {
+        return(invisible(self))
+      }
 
       mcmc_ptr <- private$generator_$mcmc_ptr
       info_wide <- private$generator_$info_data_wide
@@ -439,7 +561,7 @@ HousepiModel <- R6::R6Class(
       )
 
       # infectivity profile
-      .engine$import_infec_profile(mcmc_ptr, private$infec_profile_$defs)
+      .engine$import_infec_profile(mcmc_ptr, private$resolved_profile_())
 
       # latent
       latent_defs <- resolve_status_codes_(private$resolved_latent_(),
@@ -514,6 +636,8 @@ HousepiModel <- R6::R6Class(
       )
       # hard validation before MCMC
       private$assert_data_wide_(wall = TRUE, simulating = simulating)
+      # a column not yet attached is the likeliest cause of an unsettled source
+      private$assert_sources_(wall = TRUE)
       private$assert_param_(wall = TRUE)
       private$assert_group_risks_(wall = TRUE)
       private$assert_infec_profile_(wall = TRUE)
@@ -808,7 +932,7 @@ HousepiModel <- R6::R6Class(
     #' Infectivity profile definitions.
     infectivity_profiles = function(value) {
       if (!missing(value)) stop_read_only("infectivity_profiles")
-      private$infec_profile_$showcase()
+      private$infec_profile_$showcase(private$resolved_profile_())
     }
   ),
 
@@ -922,6 +1046,11 @@ HousepiModel <- R6::R6Class(
       # latent
       if (length(private$get_all_required_latent_()) > 0) blocks <- c(blocks,
         list(fmt_assert_cli("Latent", private$assert_latent_(FALSE)))
+      )
+      # sources (reported only when one fails to resolve)
+      unresolved <- private$assert_sources_(FALSE)
+      if (length(unresolved) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli("Sources", unresolved))
       )
 
       # inform about optional risks if dataset is suitable

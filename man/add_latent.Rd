@@ -26,11 +26,12 @@ add_latent(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value. Either a plain value, a single external source
-following the convention \code{argument@source} ("argument at source"),
-or an arithmetic expression. Sources are:
+\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value. Either a plain value, the name of another definition,
+or an arithmetic expression combining them. A name is looked up among the
+definitions the model carries; when two of them share it, the convention
+\code{argument@source} ("argument at source") says which one is meant:
 \describe{
-\item{\verb{@A}}{latent variable (assumed for a bare name);}
+\item{\verb{@A}}{latent variable;}
 \item{\verb{@D}}{data column;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
@@ -65,11 +66,12 @@ Inferred from the model requirements if \code{NA} (default).}
 \item{model}{\code{character(1)} Latent model distribution.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
-Relative to the location argument \code{loc}, when one is given. Either a plain value, a single external source
-following the convention \code{argument@source} ("argument at source"),
-or an arithmetic expression. Sources are:
+Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
+or an arithmetic expression combining them. A name is looked up among the
+definitions the model carries; when two of them share it, the convention
+\code{argument@source} ("argument at source") says which one is meant:
 \describe{
-\item{\verb{@A}}{latent variable (assumed for a bare name);}
+\item{\verb{@A}}{latent variable;}
 \item{\verb{@D}}{data column;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
@@ -77,11 +79,12 @@ or an arithmetic expression. Sources are:
 }}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
-Relative to the location argument \code{loc}, when one is given. Either a plain value, a single external source
-following the convention \code{argument@source} ("argument at source"),
-or an arithmetic expression. Sources are:
+Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
+or an arithmetic expression combining them. A name is looked up among the
+definitions the model carries; when two of them share it, the convention
+\code{argument@source} ("argument at source") says which one is meant:
 \describe{
-\item{\verb{@A}}{latent variable (assumed for a bare name);}
+\item{\verb{@A}}{latent variable;}
 \item{\verb{@D}}{data column;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}

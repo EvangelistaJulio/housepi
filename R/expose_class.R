@@ -94,11 +94,12 @@ omitted it is adapted during inference when `adapt > 0`; if a positive numeric
 it is fixed and never adapted. For independence sampling from a named
 distribution, the distribution parameters are supplied the same way (e.g.
 `proposal_mean`, `proposal_sd`)."
-rd_sources_ <- "Either a plain value, a single external source
-following the convention `argument@source` (\"argument at source\"),
-or an arithmetic expression. Sources are:
+rd_sources_ <- "Either a plain value, the name of another definition,
+or an arithmetic expression combining them. A name is looked up among the
+definitions the model carries; when two of them share it, the convention
+`argument@source` (\"argument at source\") says which one is meant:
 \\describe{
-  \\item{`@A`}{latent variable (assumed for a bare name);}
+  \\item{`@A`}{latent variable;}
   \\item{`@D`}{data column;}
   \\item{`@G`}{group risk;}
   \\item{`@N`}{numeric value (assumed for a number);}

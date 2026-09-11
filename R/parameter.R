@@ -15,22 +15,7 @@ HousepiParameter <- R6::R6Class(
   cloneable = TRUE,
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
-    # Definitions required by parameter definitions
-    # according to the "type" of the definition.
-    find_required_def_ = function(type) {
-      find_required_definitions(
-        self$defs, type, c("value", "func", "min", "max"), self$family
-      )
-    }
-  ),
-
-  active = list(
-    #' @field param_required `character()`.
-    #' Find parameters required by parameter function definitions.
-    param_required = function(value) {
-      private$find_required_def_("P")
-    }
+    deep_clone = function(name, value) helper_clone(value)
   ),
 
   ############################################################################

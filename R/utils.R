@@ -363,6 +363,25 @@ resolve_status_codes_ <- function(defs, dictionary) {
   defs
 }
 
+#' Resolve unsettled source sigils against the model's own declarations.
+#' The distribution and proposal columns carry encoded arguments too, so they
+#' are rewritten alongside the value-bearing ones.
+#' @param defs `data.frame` Definitions table.
+#' @param dict named `character()` Declared name to source letter.
+#' @return `data.frame`
+#' @keywords internal
+#' @noRd
+resolve_source_types_ <- function(defs, dict) {
+  if (is.null(defs) || length(defs) == 0) return(defs)
+  cols <- c("value", "func", "prior", "model", "min", "max", "proposal")
+  for (col in intersect(names(defs), cols)) {
+    if (is.character(defs[[col]])) {
+      defs[[col]] <- housepi_resolve_definition(defs[[col]], dict)
+    }
+  }
+  defs
+}
+
 #' Resolve unspecified `discr` declarations against model and data.
 #' A definition without model/prior keeps discr = FALSE.
 #' @param defs `data.frame` Definitions table.

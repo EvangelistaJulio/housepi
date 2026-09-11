@@ -24,13 +24,16 @@ try_fold_const_ <- function(expr, env) {
   if (is.numeric(val) && length(val) == 1L && !is.na(val)) val else NULL
 }
 
+# Plain name of every definition source, keyed by its sigil letter. The
+# unresolved sentinel is deliberately absent: it names no source.
+source_labels_ <- c(A = "latent variable",
+                    D = "data column",
+                    G = "group risk",
+                    N = "numeric",
+                    P = "parameter")
+
 # Helper to check type definitions and set defaults.
 helper_default_source <- function(types, values) {
-  valid_sources_lst <- list("A" = "latent",
-                            "D" = "data",
-                            "G" = "group risk",
-                            "N" = "numeric",
-                            "P" = "parameter")
 
   for (i in seq_along(types)) {
     types[i] <- toupper(types[i])
@@ -48,12 +51,13 @@ helper_default_source <- function(types, values) {
       )
       else if (!is.na(suppressWarnings(as.numeric(y)))) types[i] <- "N"
       else if (y %in% .reserved_math_consts) types[i] <- "N"
-      else types[i] <- "A"
+      # a bare name is left unresolved: only the model knows what declares it
+      else types[i] <- "?"
 
-    } else if (!(k %in% names(valid_sources_lst))) {
+    } else if (!(k %in% names(source_labels_))) {
       stop_h(paste0("Invalid type {.val ", k, "} for value {.val ", y, "}."),
-             paste(sprintf("{.val %s}", names(valid_sources_lst)),
-                   sprintf("(%s)", unlist(valid_sources_lst)),
+             paste(sprintf("{.val %s}", names(source_labels_)),
+                   sprintf("(%s)", unname(source_labels_)),
                    collapse = ", "))
     }
 
@@ -187,7 +191,7 @@ housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
   if (housepi_is_call(func_name) && length(func_args) > 0) {
     stop_h("Impossible to associate arguments to a function which is a call.")
   } else if (housepi_is_sourced_value(func_name) && isTRUE(is_func)) {
-    func_name <- showcaser_extract(func_name, "A")
+    func_name <- showcaser_extract(func_name, "?")
   }
   if (length(func_args) == 0) return(func_name)
 

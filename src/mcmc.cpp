@@ -97,7 +97,7 @@ namespace housepi
             {
                 std::string sms = "Individual specific definitions as " + node.err_str() +
                                   " are not supported here.";
-                // add tip if latent (which does not require '@')
+                // add tip if the reference resolved to a latent variable
                 if (parse::is_latent(node.type) && node.is_terminal())
                     sms += "\nDid you forget rlang injection operator " + msg::code("!!" + node.value) + "?";
                 msg::stop(sms);

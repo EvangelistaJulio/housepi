@@ -49,29 +49,31 @@ We here explain how to associate individual latent variables in housepi for mini
 Similarly to parameters, latent variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
 In many applications, latent variable definitions can also depend on the dataset or on model parameters to be inferred.
 
-We can declare the source of any argument value according to the convention using the \@ symbol
+An argument value may name another definition of the model: a latent variable, a data column, a group risk or a parameter.
+The name alone is enough, as long as one definition answers to it: housepi looks it up among the definitions the model carries.
+When two of them share a name, the convention using the \@ symbol says which one is meant
 $$
 \mathrm{argument@source}
 $$
 which reads "argument at source".
-E.g. "visit_day\@D" will source the value from individual data "visit_day", "beta\@P" from the current value for the parameter "beta", etc.
+E.g. "visit_day\@D" sources the value from individual data "visit_day", "beta\@P" from the current value for the parameter "beta".
 
 
 <div style="display: flex; justify-content: center;">
 <div>
 
-| Source     | Symbol | Examples          |
-|------------|:------:|:-----------------:|
-| Latent     | A      | infection_time    |
-| Data       | D      | visit_day\@D      |
-| Group Risk | G      | susceptibility\@G |
-| Numeric    | N      | 14                |
-| Parameter  | P      | beta\@P           |
+| Source     | Symbol | Examples                          |
+|------------|:------:|:---------------------------------:|
+| Latent     | A      | infection_time, infection_time\@A |
+| Data       | D      | visit_day, visit_day\@D           |
+| Group Risk | G      | susceptibility, susceptibility\@G |
+| Numeric    | N      | 14                                |
+| Parameter  | P      | beta, beta\@P                     |
 
 </div>
 </div>
 
-Notice that a variable name without explicit source will automatically be assumed to be a latent variable^[However sometimes it could be necessary to disambiguate, which can be done with the source \@A.].
+Notice that the symbol is only ever needed to break a tie: a name no other definition claims is resolved on its own^[A name nothing declares is an error, reported when the model is run, and so is a name two definitions claim without a symbol to tell them apart.].
 Similarly, there's no need to specify the source of a numeric value.
 
 More in general, the convention applies to every definition argument: not only `value`, `min` and `max`, but also the arguments of the model distribution, as in `model = "gamma", mean = mean@P, sd = sd@P`.

@@ -248,6 +248,70 @@ test_that("Print behavior works as expected", {
 })
 
 ##################################
+## MODEL CLASS : SOURCE LOOKUP  ##
+##################################
+
+# the dictionary and its assertion are private: reach them through the object
+dig_ <- function(hhmodel, what, ...) {
+  hhmodel$.__enclos_env__$private[[what]](...)
+}
+
+mk_sources <- local({
+  hhmodel <- data.frame(house_id = "h", status = 1, expo = 1,
+                        onset_date = 3, test_date = 2) |>
+    new_housepi_model("test")
+  list(model = hhmodel)
+})
+
+test_that("Every declared name maps to the source declaring it", {
+  # the reserved columns are not addressable as data, the others are
+  expect_equal(dig_(mk_sources$model, "source_dictionary_"),
+               c(expo = "D", onset_date = "D", test_date = "D"))
+
+  dict <- mk_sources$model |>
+    add_parameter("alpha", prior = "gamma", shape = 2, scale = 1) |>
+    add_latent("incub", model = "gamma", shape = 2, scale = 1) |>
+    dig_("source_dictionary_")
+  expect_equal(unname(dict[c("alpha", "incub")]), c("P", "A"))
+
+  # a member-level observation shadows the like-named column: the read-cell is
+  # wired to the producer, so the producer is not an ambiguity
+  dict <- mk_sources$model |>
+    add_latent("incub", model = "gamma", shape = 2, scale = 1) |>
+    add_observation("test_date", model = "normal", mean = incub@A, sd = 1) |>
+    dig_("source_dictionary_")
+  expect_equal(unname(dict["test_date"]), "A")
+
+  # a household-level observation has no latent key: it is only ever a column
+  dict <- mk_sources$model |>
+    add_observation("first_test", level = "house",
+                    value = min(test_date@D)) |>
+    dig_("source_dictionary_")
+  expect_equal(unname(dict["first_test"]), "D")
+
+  # two holders under one name: the marker says no sigil-free read settles it
+  dict <- mk_sources$model |>
+    add_parameter("expo", prior = "gamma", shape = 2, scale = 1) |>
+    dig_("source_dictionary_")
+  expect_equal(unname(dict["expo"]), "")
+})
+
+test_that("An unresolved source is reported softly and at the wall", {
+  # nothing unresolved: both modes stay quiet
+  expect_length(dig_(mk_sources$model, "assert_sources_", wall = FALSE), 0)
+  expect_silent(dig_(mk_sources$model, "assert_sources_", wall = TRUE))
+
+  unknown <- mk_sources$model |>
+    add_observation(onset_date = list(model = "normal", mean = nope, sd = 1))
+  # soft: the messages are returned, and the model summary carries them
+  expect_gt(length(dig_(unknown, "assert_sources_", wall = FALSE)), 0)
+  expect_output(print(unknown), "Sources")
+  # wall: the same messages are raised
+  dig_(unknown, "assert_sources_", wall = TRUE) |>
+    expect_error("[Cc]ould not resolve the source of .nope.")
+})
+
+##################################
 ## MODEL CLASS : DATA SUMMARIES ##
 ##################################
 

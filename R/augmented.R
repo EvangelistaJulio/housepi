@@ -27,15 +27,7 @@ HousepiAugmented <- R6::R6Class(
     # "member": member-level observation;
     # "house": household-level observations;
     # "status": individual status observation (resolves status in simulation).
-    kind_ = "latent",
-
-    # Definitions required by latent definitions
-    # according to the "type" of the definition.
-    find_required_def_ = function(type) {
-      find_required_definitions(
-        self$defs, type, c("value", "func", "model", "min", "max"), self$family
-      )
-    }
+    kind_ = "latent"
   ),
 
   ############################################################################
@@ -45,30 +37,6 @@ HousepiAugmented <- R6::R6Class(
   active = list(
     #' @field family `character(1)`. Holder family currently being managed.
     family = function(value) kind2family(private$kind_),
-
-    #' @field latent_required `character()`.
-    #' Find latent required by latent variable definitions.
-    latent_required = function(value) {
-      private$find_required_def_("A")
-    },
-
-    #' @field data_required `character()`.
-    #' Find data required by latent variable definitions.
-    data_required = function(value) {
-      private$find_required_def_("D")
-    },
-
-    #' @field group_risks_required `character()`.
-    #' Find group risks required by latent variable definitions.
-    group_risks_required = function(value) {
-      private$find_required_def_("G")
-    },
-
-    #' @field param_required `character()`.
-    #' Find parameters required by latent variable definitions.
-    param_required = function(value) {
-      private$find_required_def_("P")
-    },
 
     #' @field observation_names `character()`.
     #' Names of member-level observations.
