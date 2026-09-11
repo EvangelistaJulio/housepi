@@ -28,8 +28,18 @@ One between `\"mean\"` and `\"median\"`."
 #' @importFrom rlang .data
 NULL
 
-helper_process_data <- function(data_wide) {
+helper_process_data <- function(data_wide, escaped = "escaped") {
   df <- as.data.frame(data_wide)
+  # an empty call returns the empty shape of the measure
+  if (ncol(df) == 0) return(df)
+  for (col in c("house_id", "status")) if (!col %in% colnames(df)) stop_h(
+    "Column {.field {col}} is missing from the data.",
+    paste("Measures by household size need one row per individual, with a",
+          "household identifier and a follow-up outcome.")
+  )
+  if (is.character(df$status) || is.factor(df$status)) {
+    df$status <- status_to_codes_(df$status, escaped)$codes
+  }
   df$status <- as.integer(df$status)
   df$house_id <- as.character(df$house_id)
   df
@@ -39,6 +49,7 @@ helper_process_data <- function(data_wide) {
 #' @description
 #' Retrieve attack rates from household data.
 #' @param data_wide `r rd_add_wide_`
+#' @param escaped `r rd_mdl_escaped_`
 #' @return `data.frame`
 #' @details
 #' The attack rate is computed for all households
@@ -47,14 +58,18 @@ helper_process_data <- function(data_wide) {
 #' @examples
 #' measure_ar_by_hhsize(flu_1918_frederick)
 #' @export
-measure_ar_by_hhsize <- function(data_wide) {
-  .engine$measure_ar_by_hhsize(helper_process_data(data_wide))
+measure_ar_by_hhsize <- function(data_wide, escaped = "escaped") {
+  # normalise eagerly: a lazy argument would raise inside the engine wrapper,
+  # which restyles the condition as if the engine had authored it
+  df <- helper_process_data(data_wide, escaped)
+  .engine$measure_ar_by_hhsize(df)
 }
 
 #' @title Compute observed secondary attack rate by household size
 #' @description
 #' Retrieve secondary attack rates (SAR) from household data.
 #' @param data_wide `r rd_add_wide_`
+#' @param escaped `r rd_mdl_escaped_`
 #' @return `data.frame`
 #' @details
 #' The secondary attack rate is computed for all households
@@ -63,20 +78,23 @@ measure_ar_by_hhsize <- function(data_wide) {
 #' @examples
 #' measure_sar_by_hhsize(flu_1918_frederick)
 #' @export
-measure_sar_by_hhsize <- function(data_wide) {
-  .engine$measure_sar_by_hhsize(helper_process_data(data_wide))
+measure_sar_by_hhsize <- function(data_wide, escaped = "escaped") {
+  df <- helper_process_data(data_wide, escaped)
+  .engine$measure_sar_by_hhsize(df)
 }
 
 #' @title Tabulate observed household cases by household size
 #' @description
 #' Retrieve cases by household size from household data.
 #' @param data_wide `r rd_add_wide_`
+#' @param escaped `r rd_mdl_escaped_`
 #' @return `data.frame`
 #' @examples
 #' measure_cases_by_hhsize(flu_1918_frederick)
 #' @export
-measure_cases_by_hhsize <- function(data_wide) {
-  .engine$measure_cases_by_hhsize(helper_process_data(data_wide))
+measure_cases_by_hhsize <- function(data_wide, escaped = "escaped") {
+  df <- helper_process_data(data_wide, escaped)
+  .engine$measure_cases_by_hhsize(df)
 }
 
 ############################################################################
@@ -242,6 +260,9 @@ HousepiCustomPPC <- R6::R6Class(
     model_name_ = NA_character_,
     measure_names_ = character(0),
     measures_ = list(),
+    # whether the simulated frames reach the measures with their labels
+    # restored; user-supplied measures always do
+    labelled_ = TRUE,
 
     # Compare observed values against the credible interval of each measure.
     # Collapses all mismatches into a single warning: one finding line per
@@ -396,7 +417,8 @@ HousepiCustomPPC <- R6::R6Class(
         thin_ess = thin_ess,
         max_nrep = max_nrep,
         threads = threads,
-        progress = progress
+        progress = progress,
+        labelled = private$labelled_
       )
 
       # parse results
@@ -481,8 +503,9 @@ HousepiCustomPPC <- R6::R6Class(
 # Total households and households with at least one case, per household size.
 #
 # @return `data.frame`
-helper_house_counts <- function(data_wide) {
-  .engine$count_houses_by_hhsize(helper_process_data(data_wide))
+helper_house_counts <- function(data_wide, escaped = "escaped") {
+  df <- helper_process_data(data_wide, escaped)
+  .engine$count_houses_by_hhsize(df)
 }
 
 # @description
@@ -686,18 +709,24 @@ HousepiPPC <- R6::R6Class(
                           point_estimate = "median",
                           threads = 1L,
                           progress = TRUE) {
+      # the built-in measures read only house_id and status, so without an
+      # observation process the simulated frames stay engine-coded: the
+      # relabelling round trip is skipped once per replicate
+      esc <- hhmodel$escaped
+      private$labelled_ <- !is.null(obs_process)
+
       # ininitialize parent class HousepiCustomPPC
       super$initialize(
         hhmodel = hhmodel, param_table = param_table,
-        attack_rate = measure_ar_by_hhsize,
-        sec_attack_rate = measure_sar_by_hhsize,
-        cases_count = measure_cases_by_hhsize,
+        attack_rate = function(x) measure_ar_by_hhsize(x, esc),
+        sec_attack_rate = function(x) measure_sar_by_hhsize(x, esc),
+        cases_count = function(x) measure_cases_by_hhsize(x, esc),
         obs_process = obs_process,
         thin_ess = thin_ess, max_nrep = max_nrep,
         point_estimate = point_estimate,
         threads = threads, progress = progress
       )
-      private$house_counts_ <- helper_house_counts(hhmodel$data_wide)
+      private$house_counts_ <- helper_house_counts(hhmodel$data_wide, esc)
       self$set_min_hhsize(min_hhsize)
       self$set_max_hhsize(max_hhsize)
 

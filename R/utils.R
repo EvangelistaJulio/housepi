@@ -405,6 +405,36 @@ resolve_discr_flags_ <- function(defs, discr_req_defs,
   defs
 }
 
+#' Code a character/factor status column into engine status codes.
+#'
+#' The escaped label maps to `0` and every other label to `1..K` in
+#' level/appearance order, so a simulated factor round-trips to the same codes.
+#' An unmatched escaped label leaves every individual counted as infected.
+#' @param x `character()` | `factor()` Status column.
+#' @param escaped `character(1)` Label for status code 0.
+#' @return `list` with `codes` (`integer()`) and `labels` (`character()`).
+#' @keywords internal
+#' @noRd
+status_to_codes_ <- function(x, escaped = "escaped") {
+  lv <- if (is.factor(x)) levels(x) else unique(as.character(x))
+  lv <- lv[!is.na(lv)]
+  # an all-missing column carries no outcome at all, so it stays silent
+  if (length(lv) > 0 && !escaped %in% lv) {
+    guess <- lv[tolower(lv) %in% c("susceptible", "negative", "control",
+                                   "no", "false", "uninfected", "healthy", "0")]
+    warn_h(
+      "No {.field status} value matches the escaped label {.val {escaped}}.",
+      "Every individual counts as infected. Values found: {.val {lv}}.",
+      if (length(guess) == 1) "Did you mean {.code escaped = \"{guess}\"}?"
+      else paste("Name the value carried by individuals who were not infected",
+                 "with {.code escaped =}.")
+    )
+  }
+  labels <- as.character(setdiff(lv, escaped))
+  code <- stats::setNames(c(0L, seq_along(labels)), c(escaped, labels))
+  list(codes = unname(code[as.character(x)]), labels = labels)
+}
+
 #' Factorize dates and non-numerical quantities from data to pass to C++.
 #' @param df `data.frame` Dataset.
 #' @param escaped `character(1)` Label for status code 0 in character/factor
@@ -417,20 +447,13 @@ cpp_data_factorize <- function(df, escaped = "escaped") {
   cols <- colnames(df)
   info <- list()
 
-  # character/factor status: factorize to integer codes (escaped label -> 0,
-  # infected labels -> 1..K in level/appearance order, NA -> missing). Codes
-  # follow factor levels so a simulated factor round-trips to the same codes.
+  # character/factor status: factorize to integer codes (NA -> missing)
   status_labels <- character()
   if ("status" %in% cols && (is.character(df[["status"]]) ||
                                is.factor(df[["status"]]))) {
-    x <- df[["status"]]
-    sus <- escaped
-    lv <- if (is.factor(x)) levels(x) else unique(as.character(x))
-    lv <- lv[!is.na(lv)]
-    status_labels <- as.character(setdiff(lv, sus))
-    code <- stats::setNames(c(0L, seq_along(status_labels)),
-                            c(sus, status_labels))
-    df[["status"]] <- unname(code[as.character(x)])
+    coded <- status_to_codes_(df[["status"]], escaped)
+    df[["status"]] <- coded$codes
+    status_labels <- coded$labels
   }
 
   # extract all infectious status codes (now integer-coded)

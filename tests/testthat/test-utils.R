@@ -117,6 +117,51 @@ test_that("cpp data factorization handles default types", {
   expect_equal(result$cols, colnames(df))
 })
 
+test_that("cpp data factorization codes a labelled status column", {
+  df <- data.frame(id = paste0("m", 1:4),
+                   house_id = rep(c("shadowmoses", "outerheaven"), each = 2),
+                   status = c("positive", "negative", "negative", "negative"),
+                   stringsAsFactors = FALSE)
+
+  # the negative level is unnamed: every individual reads as a case
+  expect_warning(cpp_data_factorize(df), "escaped label")
+  expect_warning(cpp_data_factorize(df), 'escaped = "negative"')
+
+  # naming it silences the guard and recovers the intended coding
+  result <- expect_silent(cpp_data_factorize(df, escaped = "negative"))
+  expect_equal(as.integer(result$data$status), c(1L, 0L, 0L, 0L))
+  expect_equal(result$status, 1L)
+  expect_equal(result$status_labels, "positive")
+
+  # a round-tripped factor declares the escaped level even with no escaped row
+  round_trip <- df
+  round_trip$status <- factor(c("symptomatic", "symptomatic",
+                                "asymptomatic", "symptomatic"),
+                              levels = c("escaped", "symptomatic",
+                                         "asymptomatic"))
+  result <- expect_silent(cpp_data_factorize(round_trip))
+  expect_equal(as.integer(result$data$status), c(1L, 1L, 2L, 1L))
+
+  # no recognised negative label: the hint falls back to the generic line
+  unknown <- df
+  unknown$status <- c("liquid", "solid", "solid", "solid")
+  cpp_data_factorize(unknown) |>
+    expect_warning("Name the value carried by individuals")
+
+  # integer statuses follow the documented convention and are left untouched
+  coded <- df
+  coded$status <- c(1L, 2L, 2L, 2L)
+  result <- expect_silent(cpp_data_factorize(coded))
+  expect_equal(result$status, c(1L, 2L))
+  expect_equal(result$status_labels, character())
+
+  # an all-missing column carries no outcome, so it says nothing
+  missing <- df
+  missing$status <- NA_character_
+  result <- expect_silent(cpp_data_factorize(missing))
+  expect_true(all(is.na(result$data$status)))
+})
+
 test_that("cpp data factorization flags discrete-valued columns", {
   df <- data.frame(id = c("p1", "p2"),
                    house_id = c("h1", "h1"),

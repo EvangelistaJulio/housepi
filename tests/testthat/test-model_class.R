@@ -8,8 +8,16 @@ test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
     helper_test_read_only(
       "data_wide", "data_long", "parameters", "latent", "observations",
-      "infectivity_profiles", "group_risks", "contact_risks", "name", "setup"
+      "infectivity_profiles", "group_risks", "contact_risks", "name", "setup",
+      "escaped"
     )
+})
+
+test_that("Escaped label is readable back from the model", {
+  new_housepi_model(model = "test")$escaped |>
+    expect_identical("escaped")
+  new_housepi_model(model = "test", escaped = "healthy")$escaped |>
+    expect_identical("healthy")
 })
 
 test_that("Model class inconsistent IDs throw errors", {

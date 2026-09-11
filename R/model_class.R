@@ -653,9 +653,12 @@ HousepiModel <- R6::R6Class(
     # Helper with observation process import.
     # Combine observation process to measures and refactor.
     # UPDATE: I shall drop necessity for refactoring with variant data.
-    helper_obs_process_ = function(obs_process) {
+    # `labelled = FALSE` hands the simulated frames over engine-coded, which
+    # only suits consumers reading `house_id` and `status`.
+    helper_obs_process_ = function(obs_process, labelled = TRUE) {
       gen <- private$generator_
       if (is.null(obs_process)) {
+        if (!labelled) return(NULL)
         function(x) gen$refactor_data_wide(x)
       } else if (is.function(obs_process)) {
         function(x) obs_process(gen$refactor_data_wide(x))
@@ -678,7 +681,8 @@ HousepiModel <- R6::R6Class(
                             thin_ess = TRUE,
                             max_nrep = NA_integer_,
                             threads = 1L,
-                            progress = TRUE) {
+                            progress = TRUE,
+                            labelled = TRUE) {
       param_table <- private$helper_read_param_table_(param_table,
                                                       thin_ess = thin_ess)
       param_table <- helper_thin_table_(param_table, max_nrep)
@@ -695,7 +699,7 @@ HousepiModel <- R6::R6Class(
         "{.arg obs_process_long} must be a function."
       )
 
-      obs_func <- private$helper_obs_process_(obs_proc_wide)
+      obs_func <- private$helper_obs_process_(obs_proc_wide, labelled)
       .engine$run_simulation(
         private$generator_$mcmc_ptr,
         obs_func, apply_wide,
@@ -715,6 +719,13 @@ HousepiModel <- R6::R6Class(
     name = function(value) {
       if (!missing(value)) stop_read_only("name")
       private$generator_$name
+    },
+
+    #' @field escaped `character(1)`
+    #' Label for status code `0` in a character or factor `status` column.
+    escaped = function(value) {
+      if (!missing(value)) stop_read_only("escaped")
+      private$generator_$escaped
     },
 
     #' @field setup `list`

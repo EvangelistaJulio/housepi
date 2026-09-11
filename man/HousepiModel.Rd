@@ -14,6 +14,9 @@ definitions, run inference and simulations from a single class.
 \item{\code{name}}{\code{character(1)}
 Model name.}
 
+\item{\code{escaped}}{\code{character(1)}
+Label for status code \code{0} in a character or factor \code{status} column.}
+
 \item{\code{setup}}{\code{list}
 Last setup used by the build process.}
 

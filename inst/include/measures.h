@@ -61,21 +61,6 @@ namespace housepi::measure
         std::vector<unsigned> count;  /// N. of contributing households per size.
     };
 
-    inline cases::Report helper_summarise_single_individuals_(
-        const std::vector<int> &status)
-    {
-        cases::Report output;
-        output.houses.reserve(status.size());
-
-        for (int s : status)
-            output.houses.push_back({1u, status::is_infected(s)});
-
-        output.min_size = 1;
-        output.max_size = 1;
-
-        return output;
-    }
-
     /// Aggregate individual statuses by house_id, tracking the size range in the same pass.
     /// `status` values as read from an R column: NA = missing, 0 = escaped, >=1 = infected.
     inline cases::Report summarise_houses(
@@ -86,9 +71,6 @@ namespace housepi::measure
 
         if (n_indiv == 0)
             return cases::Report();
-
-        if (house_id.size() == 0)
-            return helper_summarise_single_individuals_(status);
 
         cases::Report output;
         output.houses.reserve(n_indiv);

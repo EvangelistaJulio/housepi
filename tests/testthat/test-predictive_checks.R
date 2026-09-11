@@ -32,10 +32,60 @@ test_that("measure-sar-by-hhsize computes SAR correctly", {
   expect_equal(result[result$hhsize == 2, "sar"], 0.5)
   # size 3: SAR = (1-1)/(3-1) = 0
   expect_equal(result[result$hhsize == 3, "sar"], 0)
+})
 
-  # FIXME: what should be the behavior here?
-  #data_wide$house_id <- NA
-  #result <- measure_sar_by_hhsize(data_wide)
+test_that("measures decode a labelled status column", {
+  coded <- data.frame(
+    id = paste0("m", 1:7),
+    house_id = c(rep("shadowmoses", 2), rep("outerheaven", 3),
+                 rep("bigshell", 2)),
+    status = c(1, 1, 1, 0, 0, 1, 0)
+  )
+  ref_sar <- measure_sar_by_hhsize(coded)
+  ref_ar <- measure_ar_by_hhsize(coded)
+
+  # a factor status is decoded through its levels, not through level indices
+  as_factor <- coded
+  as_factor$status <- factor(ifelse(coded$status == 1, "symptomatic",
+                                    "escaped"),
+                             levels = c("escaped", "symptomatic"))
+  expect_equal(measure_sar_by_hhsize(as_factor), ref_sar)
+  expect_equal(measure_ar_by_hhsize(as_factor), ref_ar)
+
+  # a character status is decoded, not coerced to NA
+  as_char <- coded
+  as_char$status <- as.character(as_factor$status)
+  expect_equal(expect_silent(measure_sar_by_hhsize(as_char)), ref_sar)
+  expect_equal(measure_ar_by_hhsize(as_char), ref_ar)
+
+  # an unnamed negative level warns, and still returns the (all-case) measure
+  unnamed <- coded
+  unnamed$status <- ifelse(coded$status == 1, "positive", "negative")
+  all_cases <- expect_warning(measure_ar_by_hhsize(unnamed), "escaped label")
+  expect_true(all(all_cases$ar == 1))
+
+  # naming it recovers the coded result
+  expect_equal(
+    expect_silent(measure_ar_by_hhsize(unnamed, escaped = "negative")),
+    ref_ar
+  )
+})
+
+test_that("measures require the columns they aggregate over", {
+  data_wide <- data.frame(
+    id = paste0("m", 1:4),
+    house_id = rep(c("shadowmoses", "outerheaven"), each = 2),
+    status = c(1, 0, 1, 1)
+  )
+
+  data_wide[setdiff(colnames(data_wide), "status")] |>
+    measure_sar_by_hhsize() |>
+    expect_error("status")
+
+  # without a household identifier every row used to count as its own household
+  data_wide[setdiff(colnames(data_wide), "house_id")] |>
+    measure_sar_by_hhsize() |>
+    expect_error("house_id")
 })
 
 test_that("measure_ar_by_hhsize computes attack rate correctly", {
@@ -221,7 +271,8 @@ test_that("Helper to count houses by household size behaves correctly", {
   df$id <- paste(df$house_id, seq_len(dim(df)[2]), sep = "_")
   result <- helper_house_counts(df)
   expect_true(is.data.frame(result))
-  expect_true(all(c("hhsize", "total", "at_least_1_case") %in% colnames(result)))
+  all(c("hhsize", "total", "at_least_1_case") %in% colnames(result)) |>
+    expect_true()
   # size 2: hh1 (2 cases), hh3 (1 case), hh4 (0 cases) -> 3 total, 2 affected
   expect_equal(result$total[result$hhsize == 2], 3)
   expect_equal(result$at_least_1_case[result$hhsize == 2], 2)
@@ -380,6 +431,25 @@ test_that("run_epi_predictive_check honours min/max_hhsize arguments", {
   expect_true(all(ppc$formatted_attack_rate$hhsize <= 3))
   expect_true(all(ppc$formatted_sec_attack_rate$hhsize >= 2))
   expect_true(all(ppc$formatted_sec_attack_rate$hhsize <= 3))
+})
+
+test_that("Epi PPC lands observed and simulated on the same status codes", {
+  hhmodel <- mk_ppc$hhmodel
+  results <- mk_ppc$results
+  observed <- measure_ar_by_hhsize(hhmodel$data_wide, hhmodel$escaped)
+
+  # without an observation process the replicates stay engine-coded
+  ppc <- hhmodel |>
+    run_epi_predictive_check(results, thin_ess = FALSE, max_nrep = 5) |>
+    suppressWarnings()
+  expect_equal(ppc$formatted_attack_rate$observed, observed$ar)
+
+  # with one, they are relabelled before the measure sees them
+  ppc <- hhmodel |>
+    run_epi_predictive_check(results, obs_process = function(x) x,
+                             thin_ess = FALSE, max_nrep = 5) |>
+    suppressWarnings()
+  expect_equal(ppc$formatted_attack_rate$observed, observed$ar)
 })
 
 test_that("PPC does not pollute the engine's data_wide between calls", {

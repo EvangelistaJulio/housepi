@@ -4,12 +4,16 @@
 \alias{measure_sar_by_hhsize}
 \title{Compute observed secondary attack rate by household size}
 \usage{
-measure_sar_by_hhsize(data_wide)
+measure_sar_by_hhsize(data_wide, escaped = "escaped")
 }
 \arguments{
 \item{data_wide}{\code{data.frame} Household data used for analysis (wide format).
 Optional at construction; if omitted, attach it later with
 \link[=add_data_wide]{add_data_wide()}.}
+
+\item{escaped}{\code{character(1)} Label for status code \code{0} (individuals not
+among the declared infected statuses) when the \code{status} column is
+character/factor.}
 }
 \value{
 \code{data.frame}
