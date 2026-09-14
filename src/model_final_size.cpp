@@ -35,8 +35,6 @@ public:
 	/// General advanced inscrition for the setup.
 	void init_model_requirements() override final
 	{
-		request_param_discrete(
-			{Param::hhsize_ref});
 		request_param_positive(
 			{Param::alpha, Param::hhsize_ref});
 		request_risk_identifiability(

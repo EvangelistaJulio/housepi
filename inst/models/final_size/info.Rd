@@ -17,8 +17,14 @@ Finally, the likelihood of an observed household outbreak is the sum of the prob
 \item \code{alpha} \eqn{\alpha}{alpha} : community transmission rate
 \item \code{beta} \eqn{\beta}{beta} : person to person transmission rate
 \item \code{gamma} \eqn{\gamma} : parameter to model dilution of contacts
-\item \code{hhsize_ref} \eqn{n_{\ast}} : size of reference household (required constant)
+\item \code{hhsize_ref} \eqn{n_{\ast}} : size of reference household
 }
+In a household of size \eqn{n} the person-to-person rate is \eqn{\beta (n_{\ast}/n)^{\gamma}},
+so \eqn{\beta} is the rate in a household of size \eqn{n_{\ast}}.
+The choice of \eqn{n_{\ast}} leaves the likelihood unchanged, but not the sampling:
+far from the household sizes that carry most of the information, \eqn{\beta} and \eqn{\gamma} become strongly correlated and chains mix slowly.
+A value near the geometric mean of household sizes, each household weighted by its number of member pairs \eqn{n(n-1)}, keeps them nearly uncorrelated.
+A prior on \eqn{\beta} refers to size \eqn{n_{\ast}}, so changing \eqn{n_{\ast}} also changes the prior.
 \if{html}{\out{<hr>}}
 }
 \section{Transmission}{

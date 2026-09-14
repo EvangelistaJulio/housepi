@@ -145,6 +145,8 @@ Current built-in measures are stratified by household size:
 - `measure_sar_by_hhsize`: secondary attack rate;
 - `measure_cases_by_hhsize`: counts of cases.
 
+`measure_geom_mean_hhsize` returns a single number instead: the geometric mean of household size weighted by secondary cases, a data-driven choice for `hhsize_ref`.
+
 A custom measure function should accept a `data_wide` data.frame and return a `data.frame`, a `list`, or a `numeric` vector:
   
 ```{r}

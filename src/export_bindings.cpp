@@ -1608,14 +1608,15 @@ namespace
         }
     }
 
-    /// Aggregate individuals by house_id. A missing status reads NA (NA_INTEGER is INT_MIN).
-    measure::cases::Report summarise_houses_from_df(Rcpp::DataFrame data_wide)
+    /// Aggregate individuals by house_id, given as 1-based codes of the distinct ids.
+    /// A missing status reads NA (NA_INTEGER is INT_MIN).
+    measure::cases::Table summarise_houses_from_df(Rcpp::DataFrame data_wide)
     {
         Rcpp::CharacterVector col_names = data_wide.names();
 
-        std::vector<std::string> house_id = {};
+        std::vector<int> house_id = {};
         if (vect::contains(col_names, "house_id"))
-            house_id = Rcpp::as<std::vector<std::string>>(data_wide["house_id"]);
+            house_id = Rcpp::as<std::vector<int>>(data_wide["house_id"]);
 
         std::vector<int> status = {};
         if (vect::contains(col_names, "status"))
@@ -1646,7 +1647,7 @@ namespace
 
     Rcpp::DataFrame measure_ar_by_hhsize(Rcpp::DataFrame data_wide)
     {
-        measure::AttackRates res = measure::attack_rate_by_hhsize(summarise_houses_from_df(data_wide));
+        measure::cases::AttackRates res = measure::attack_rate_by_hhsize(summarise_houses_from_df(data_wide));
         unsigned grid_len = static_cast<unsigned>(res.ar_mean.size());
 
         Rcpp::IntegerVector out_size(grid_len);
@@ -1663,7 +1664,7 @@ namespace
 
     Rcpp::DataFrame measure_sar_by_hhsize(Rcpp::DataFrame data_wide)
     {
-        measure::SecAttackRates res = measure::sar_by_hhsize(summarise_houses_from_df(data_wide));
+        measure::cases::SecAttackRates res = measure::sar_by_hhsize(summarise_houses_from_df(data_wide));
         unsigned grid_len = static_cast<unsigned>(res.sar_mean.size());
 
         Rcpp::IntegerVector out_size(grid_len);
@@ -1680,7 +1681,7 @@ namespace
 
     Rcpp::DataFrame measure_cases_by_hhsize(Rcpp::DataFrame data_wide)
     {
-        measure::cases::Table res = measure::cases_by_hhsize(summarise_houses_from_df(data_wide));
+        measure::cases::Table res = summarise_houses_from_df(data_wide);
         unsigned n_rows = static_cast<unsigned>(res.counts.size());
 
         Rcpp::IntegerVector out_size(n_rows);
@@ -1702,6 +1703,12 @@ namespace
         Rcpp::DataFrame df(result);
         df.attr("names") = result.names();
         return df;
+    }
+
+    double measure_geom_mean_hhsize(Rcpp::DataFrame data_wide)
+    {
+        measure::cases::Table table = summarise_houses_from_df(data_wide);
+        return table.max_cases > 1 ? measure::geom_mean_hhsize(table) : NA_REAL;
     }
 }
 
@@ -1757,6 +1764,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
     Rcpp::function("measure_ar_by_hhsize", &measure_ar_by_hhsize);
     Rcpp::function("measure_cases_by_hhsize", &measure_cases_by_hhsize);
+    Rcpp::function("measure_geom_mean_hhsize", &measure_geom_mean_hhsize);
     Rcpp::function("count_houses_by_hhsize", &count_houses_by_hhsize);
 
     Rcpp::function("aux_chain_binomial_debugger", &housepi::chain_binom::aux_debugger);

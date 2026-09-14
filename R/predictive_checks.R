@@ -41,7 +41,7 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
     df$status <- status_to_codes_(df$status, escaped)$codes
   }
   df$status <- as.integer(df$status)
-  df$house_id <- as.character(df$house_id)
+  df$house_id <- match(df$house_id, unique(df$house_id))
   df
 }
 
@@ -95,6 +95,28 @@ measure_sar_by_hhsize <- function(data_wide, escaped = "escaped") {
 measure_cases_by_hhsize <- function(data_wide, escaped = "escaped") {
   df <- helper_process_data(data_wide, escaped)
   .engine$measure_cases_by_hhsize(df)
+}
+
+#' @title Compute the case-weighted geometric mean of household size
+#' @description
+#' Retrieve the geometric mean of household size from household data,
+#' weighted by the number of secondary cases in each household.
+#' It is a data-driven choice for the reference household size `hhsize_ref`
+#' of the built-in models.
+#' @param data_wide `r rd_add_wide_`
+#' @param escaped `r rd_mdl_escaped_`
+#' @return `numeric(1)`, `NA` if no household has more than one case.
+#' @details
+#' For households \eqn{h} of size \eqn{n_h} with \eqn{n_h^{+}} cases,
+#' the measure is
+#' \eqn{\exp\left(\frac{\sum_h w_h \log n_h}{\sum_h w_h}\right)}
+#' with weights \eqn{w_h = \max(n_h^{+} - 1, 0)}.
+#' @examples
+#' measure_geom_mean_hhsize(flu_1918_frederick)
+#' @export
+measure_geom_mean_hhsize <- function(data_wide, escaped = "escaped") {
+  df <- helper_process_data(data_wide, escaped)
+  .engine$measure_geom_mean_hhsize(df)
 }
 
 ############################################################################
