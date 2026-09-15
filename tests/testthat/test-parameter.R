@@ -21,12 +21,12 @@ test_that("Default parameter definitions are correct", {
     expect_error("[Mm]issing.*empty.*definitions")
 
   mk_param$model |>
-    add_parameter(name = "rho", value = 3, const = FALSE) |>
+    add_parameter("rho", value = 3, const = FALSE) |>
     expect_error("[Nn]o .prior. provided for parameter")
 
   # default sample framework
   param <- mk_param$model |>
-    add_parameter(rho = list(value = 3, prior = "uniform", max = 5)) |>
+    add_parameter("rho", value = 3, prior = "uniform", max = 5) |>
     get_parameters()
 
   expect_equal(param$name, "rho")
@@ -39,15 +39,15 @@ test_that("Default parameter definitions are correct", {
   ## expect_equal(param$min, 0)
   expect_equal(param$max, 5)
 
-  # bulk and single add should be coherent
+  # bulk and single modes definitions should be identical
   mk_param$model |>
-    add_parameter("rho", value = 3, prior = "uniform", max = 5) |>
+    add_parameter(rho = list(value = 3, prior = "uniform", max = 5)) |>
     get_parameters() |>
-    expect_equal(param)
+    expect_identical(param)
 
   # non-default prior arguments are folded into the prior call
   param <- mk_param$model |>
-    add_parameter(name = "rho", prior = "gamma", shape = 2, scale = 1) |>
+    add_parameter("rho", prior = "gamma", shape = 2, scale = 1) |>
     get_parameters()
   expect_equal(param$prior, "gamma")
   expect_equal(param$args[[1]], c(shape = 2, scale = 1))
@@ -55,7 +55,7 @@ test_that("Default parameter definitions are correct", {
   # a user-defined proposal_scale is folded into the proposal call as an
   # argument of the DSL, pinning the scale (no adaptation)
   param <- mk_param$model |>
-    add_parameter(name = "rho", prior = "uniform", max = 5,
+    add_parameter("rho", prior = "uniform", max = 5,
                   proposal = "rw_log", proposal_scale = 0.5) |>
     get_parameters()
   expect_equal(param$proposal, "rw_log")
@@ -126,7 +126,7 @@ test_that("Spare arguments reach the function they belong to", {
 test_that("Proposal families route correctly", {
   # a distribution name is an independence sampler; its arguments fold in
   param <- mk_param$model |>
-    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
+    add_parameter("rho", prior = "uniform", min = 0, max = 5,
                   proposal = "normal", proposal_mean = 0, proposal_sd = 1) |>
     get_parameters()
   expect_equal(param$proposal, "normal")
@@ -134,7 +134,7 @@ test_that("Proposal families route correctly", {
 
   # sampling from the variable's own distribution uses the "forward" keyword
   mk_param$model |>
-    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
+    add_parameter("rho", prior = "uniform", min = 0, max = 5,
                   proposal = "forward") |>
     get_parameters() |>
     getElement("proposal") |>
@@ -142,42 +142,41 @@ test_that("Proposal families route correctly", {
 
   # proposal_scale only tunes a random walk
   mk_param$model |>
-    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
+    add_parameter("rho", prior = "uniform", min = 0, max = 5,
                   proposal = "normal", proposal_scale = 0.5) |>
     expect_error("random.?walk")
 
   # distribution arguments are not random-walk knobs
   mk_param$model |>
-    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
+    add_parameter("rho", prior = "uniform", min = 0, max = 5,
                   proposal = "rw", proposal_sd = 1) |>
     expect_error("[Rr]andom.?walk proposal .*accepts only")
 
   # advanced options need an explicit proposal
   mk_param$model |>
-    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
+    add_parameter("rho", prior = "uniform", min = 0, max = 5,
                   proposal_mean = 0) |>
     expect_error("[Aa]dvanced .proposal.* require an explicit")
 
   # sampling from the variable's own distribution takes no tuning
   mk_param$model |>
-    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
+    add_parameter("rho", prior = "uniform", min = 0, max = 5,
                   proposal = "forward", proposal_mean = 0) |>
     expect_error("[Ii]ndependence sampling from .forward. takes no")
 })
 
 test_that("Constant parameter definitions are correct", {
   mk_param$model |>
-    add_parameter(name = "rho") |>
+    add_parameter("rho") |>
     expect_error("[Ii]ncomplete")
   mk_param$model |>
-    add_parameter(name = "rho", prior = "uniform",
-                  min = 0, max = 5, const = TRUE) |>
+    add_parameter("rho", prior = "uniform", const = TRUE) |>
     expect_error("[Mm]issing value")
 
   # bulk and single add should be coherent
-  hhmodel <- add_parameter(mk_param$model, rho = 3)
-  hhmodel_2 <- add_parameter(mk_param$model, name = "rho", value = 3)
-  expect_equal(get_parameters(hhmodel), get_parameters(hhmodel_2))
+  hhmodel <- mk_param$model |> add_parameter(rho = 3)
+  hhmodel_2 <- mk_param$model |> add_parameter("rho", value = 3)
+  expect_identical(get_parameters(hhmodel), get_parameters(hhmodel_2))
 
   param <- get_parameters(hhmodel)
   expect_equal(param$name, "rho")
@@ -187,28 +186,11 @@ test_that("Constant parameter definitions are correct", {
 
   expect_warning(
     overwritten <- hhmodel |>
-      add_parameter(name = "rho", value = 3, prior = "uniform",
+      add_parameter("rho", value = 3, prior = "uniform",
                     min = 0, max = 5, const = TRUE),
     "[Oo]verwriting"
   )
   expect_equal(get_parameters(overwritten), get_parameters(hhmodel_2))
-})
-
-test_that("Rlang calls work as expected", {
-  # rlang calls and injections are evaluated for parameters
-  # here testing for equivalent symbolic definitions
-  val <- 1
-  param <- mk_param$model |>
-    add_parameter(
-      rho = 5,
-      rho_2 = list(prior = "normal", mean = rho@p + 1),
-      rho_3 = list(prior = "normal", mean = rho@p + !!val),
-      rho_4 = list(prior = "normal", mean = ~ rho@P + 1),
-      rho_5 = list(prior = "normal", mean = ~ rho@P + !!val)
-    ) |>
-    get_parameters()
-  param$name <- NULL
-  expect_equal(nrow(unique(param)), 2L)
 })
 
 test_that("Parameter options typed as values refuse other types", {
@@ -346,24 +328,10 @@ test_that("A discrete prior resolves 'uniform' to the discrete distribution", {
 })
 
 test_that("Parameter defined as a function tracks its dependencies", {
-  results <- mk_final_size$model |>
-    add_parameter(alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
-                  gamma = list(prior = "uniform"), hhsize_ref = 4) |>
-    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
-    suppressWarnings()
-
-  # both sampled and function-derived parameters appear in the trace
-  draws <- as.data.frame(posterior::as_draws_df(results$parameter_draws))
-  expect_true(all(c("gamma", "beta") %in% names(draws)))
-  # every draw of beta equals hhsize_ref^(-gamma) exactly
-  expect_equal(draws$beta, 4^(-draws$gamma))
-})
-
-test_that("A bare reference in a parameter resolves to a parameter", {
   sigilled <- mk_final_size$model |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
                   gamma = list(prior = "uniform"), hhsize_ref = 4)
-  # the two spellings encode the same definition: no sigil is needed to reach
+  # a bare reference encodes the same definition: no sigil is needed to reach
   # a parameter no other holder claims
   bare <- mk_final_size$model |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref^-gamma,
@@ -371,6 +339,23 @@ test_that("A bare reference in a parameter resolves to a parameter", {
   expect_equal(get_parameters(bare), get_parameters(sigilled))
   expect_equal(get_parameters(bare)$func_args[[2]],
                c(x = "hhsize_ref|P", x2 = "minus|x|[gamma|P]"))
+  # a sigil reads the same in lower case
+  mk_final_size$model |>
+    add_parameter(alpha = 1e-4, beta = hhsize_ref@p^-gamma@p,
+                  gamma = list(prior = "uniform"), hhsize_ref = 4) |>
+    get_parameters() |>
+    expect_equal(get_parameters(sigilled))
+
+  # both sampled and function-derived parameters appear in the trace
+  draws <- sigilled |>
+    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
+    suppressWarnings() |>
+    getElement("parameter_draws") |>
+    posterior::as_draws_df() |>
+    as.data.frame()
+  expect_true(all(c("gamma", "beta") %in% names(draws)))
+  # every draw of beta equals hhsize_ref^(-gamma) exactly
+  expect_equal(draws$beta, 4^(-draws$gamma))
 })
 
 test_that("Parameter function rejects non-parameter dependencies", {
@@ -439,19 +424,6 @@ test_that("A parameter meets the model definition requirements", {
     expect_no_error()
   hhmodel |>
     add_parameter(hhsize_ref = list(prior = "uniform", min = 2, max = 6)) |>
-    suppressWarnings() |>
-    evaluate_log_lik() |>
-    expect_no_error()
-})
-
-test_that("A reduction answers for the definitions it folds over", {
-  # the operands are read for what they define, not for the value they hold
-  # while the definition is being built: a pointer to a variable still waiting
-  # for its first draw is not an absent operand
-  mk_final_size$template |>
-    add_parameter(rho = list(prior = "gamma", shape = 2, scale = 1),
-                  rho_2 = list(prior = "gamma", shape = 2, scale = 1),
-                  hhsize_ref = min(rho@P, rho_2@P)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_no_error()

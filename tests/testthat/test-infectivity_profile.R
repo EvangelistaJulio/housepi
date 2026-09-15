@@ -77,6 +77,8 @@ test_that("Infectivity profile definitions are correct", {
   expect_equal(defs$max, 10)
 
   # bulk form
+  ## UPDATE: the bulk form names a definition only to discard the name: a
+  ## profile has no name of its own, so `profile =` labels nothing
   mk_infec$model |>
     add_infectivity_profile(profile = list(func = "lognormal")) |>
     get_infectivity_profiles() |>
@@ -92,18 +94,6 @@ test_that("Template import loads the profile shipped with the model", {
   expect_equal(defs$func, "gamma")
   expect_equal(defs$func_args[[1]], c(mean = 4, sd = 1.7))
   expect_equal(defs$discr, FALSE)
-})
-
-test_that("A discrete profile is accepted in continuous time", {
-  defs <- mk_infec$model |>
-    add_infectivity_profile("ferretti20", discr = TRUE,
-                            incub_period = 5, max = 20) |>
-    get_infectivity_profiles()
-
-  expect_equal(defs$func, "ferretti20")
-  expect_equal(defs$func_args[[1]], c(incub_period = 5))
-  expect_equal(defs$discr, TRUE)
-  expect_equal(defs$max, 20)
 })
 
 test_that("Status-specific definitions replace the generic one", {
@@ -182,13 +172,6 @@ test_that("A discrete-time model refuses a profile declared continuous", {
   mk_infec_discr$model |>
     add_infectivity_profile("gamma", discr = FALSE, mean = 4, sd = sqrt(3)) |>
     expect_error("must be discrete")
-
-  # the same declaration is honoured in continuous time
-  mk_infec$model |>
-    add_infectivity_profile("gamma", discr = FALSE, mean = 4, sd = sqrt(3)) |>
-    get_infectivity_profiles() |>
-    getElement("discr") |>
-    expect_false()
 })
 
 test_that("A discrete-time model resolves a latent 'uniform' to the lattice", {

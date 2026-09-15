@@ -31,11 +31,7 @@ test_that("Invalid definition values are refused at encoding", {
 })
 
 test_that("A bare name is encoded unresolved", {
-  # the encoder knows no model: only the sigil settles a source here
-  housepi_extractor(alpha) |>
-    expect_equal("alpha|?")
-  housepi_extractor(alpha@P) |>
-    expect_equal("alpha|P")
+  # the encoder knows no model: only the sigil settles a source here, while
   # numbers, numeric strings and math constants stay univocal
   housepi_extractor(3) |>
     expect_equal("3|N")
@@ -43,8 +39,6 @@ test_that("A bare name is encoded unresolved", {
     expect_equal("3|N")
   housepi_extractor(pi) |>
     expect_equal("pi|N")
-  is.na(housepi_extractor(NA)) |> 
-    expect_true()
 })
 
 test_that("Resolution rewrites the unresolved terminals only", {

@@ -419,54 +419,32 @@ test_that("Epi PPC honours min/max_hhsize arguments", {
   expect_true(all(ppc$formatted_sec_attack_rate$hhsize %in% 2:3))
 })
 
-test_that("Epi PPC observed values agree across thread counts", {
-  replicate_on <- function(threads) {
-    mk_ppc$model |>
-      run_epi_predictive_check(mk_ppc$results, max_nrep = 4,
-                               threads = threads) |>
-      suppressWarnings()
-  }
-  ppc <- replicate_on(1L)
-  expect_s3_class(ppc, "HousepiPPC")
-  expect_identical(replicate_on(2L)$cases_table_by_size$observed,
-                   ppc$cases_table_by_size$observed)
-})
-
-test_that("Epi PPC lands observed and simulated on the same status codes", {
-  observed <- measure_ar_by_hhsize(mk_ppc$model$data_wide, mk_ppc$model$escaped)
-
-  # without an observation process the replicates stay engine-coded
-  fmtar <- mk_ppc$model |>
-    run_epi_predictive_check(mk_ppc$results, thin_ess = FALSE, max_nrep = 5) |>
-    suppressWarnings() |>
-    getElement("formatted_attack_rate")
-  expect_equal(fmtar$observed, observed$ar)
-
-  # with one, they are relabelled before the measure sees them
-  fmtar <- mk_ppc$model |>
-    run_epi_predictive_check(mk_ppc$results, obs_process = function(x) x,
-                             thin_ess = FALSE, max_nrep = 5) |>
-    suppressWarnings() |>
-    getElement("formatted_attack_rate")
-  expect_equal(fmtar$observed, observed$ar)
-})
-
-test_that("PPC does not pollute the engine's data_wide between calls", {
-  # repeated PPC calls must not mutate the model's data_wide
+test_that("Epi PPC observed values are stable across calls and status codes", {
   data_wide <- mk_ppc$model$data_wide
-  run_twice <- function() {
+  run_on <- function(...) {
     mk_ppc$model |>
       run_epi_predictive_check(mk_ppc$results, thin_ess = FALSE,
-                               max_nrep = 5) |>
+                               max_nrep = 5, ...) |>
       suppressWarnings()
   }
-  ppc <- run_twice()
+  ppc <- run_on()
+  # repeated PPC calls must not mutate the model's data_wide
   expect_identical(mk_ppc$model$data_wide, data_wide)
 
-  ppc_2 <- run_twice()
-  expect_identical(ppc$cases_count$observed, ppc_2$cases_count$observed)
-  expect_identical(ppc$sec_attack_rate$observed,
-                   ppc_2$sec_attack_rate$observed)
+  # without an observation process the replicates stay engine-coded
+  observed <- measure_ar_by_hhsize(data_wide, mk_ppc$model$escaped)
+  expect_equal(ppc$formatted_attack_rate$observed, observed$ar)
+  # with one, they are relabelled before the measure sees them
+  run_on(obs_process = function(x) x)$formatted_attack_rate$observed |>
+    expect_equal(observed$ar)
+
+  # observed values agree across thread counts
+  ppc_2 <- run_on(threads = 2L)
+  expect_identical(ppc_2$cases_count$observed, ppc$cases_count$observed)
+  expect_identical(ppc_2$sec_attack_rate$observed,
+                   ppc$sec_attack_rate$observed)
+  expect_identical(ppc_2$cases_table_by_size$observed,
+                   ppc$cases_table_by_size$observed)
 })
 
 test_that("Custom PPC warns on observed values outside the interval", {

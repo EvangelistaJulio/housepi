@@ -4,16 +4,7 @@ library(testthat)
 # compile the infectivity-profile tests then find cached.
 
 # household of three cases and four escapees, the introduction at day 0
-mk_house <- local({
-  house <- data.frame(id = sprintf("m%s", seq(7)), house_id = "h1",
-                      status = c(1, 1, 1, 0, 0, 0, 0),
-                      infec_time = c(0, 3, 4, NA, NA, NA, NA),
-                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
-                      start_date = 0, end_date = 21)
-  param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                hhsize_ref = 4, shape = 2, scale = 1.1)
-  list(data = house, param = param)
-})
+mk_house <- helper_onset_house
 
 # simulation over real households, the transmission risk left to each test
 mk_simulation <- local({
@@ -214,10 +205,12 @@ test_that("Latent moves preserve log-likelihood", {
     add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_latent(
-      infec_time = onset_time - incub_period,
-      onset_time = list(model = "normal", mean = onset_date@D),
+      infec_time = list(model = "uniform", min = -14, max = end_date@D),
       incub_period = list(model = "weibull", shape = 2, scale = 1)
     ) |>
+    # read by the incubation only: a move of the infection time skips it
+    add_observation("onset_date", model = "normal",
+                    mean = incub_period, sd = 1) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
   # the latent moves are reduced over two threads
@@ -227,8 +220,8 @@ test_that("Latent moves preserve log-likelihood", {
                   threads = 2L, id_draws = house$id[house$status > 0]) |>
     suppressWarnings()
 
-  # the pointwise log-lik folds transmission and the latent model; with no
-  # obs node it is the full complete-data density (parameter prior aside)
+  # the pointwise log-lik folds transmission, the latent model and the
+  # observation node: the complete-data density, parameter prior aside
   log_lik <- unname(get_log_lik_draws(results)$h1)
   param_draws <- get_parameter_draws(results) |>
     posterior::as_draws_matrix() |>
@@ -257,8 +250,9 @@ test_that("Latent moves preserve log-likelihood", {
     par <- c(param_draws[i, , drop = FALSE], consts)
     infected <- hhdata[hhdata$status > 0, ]
     latent_infec_obs_log_lik(hhdata, par) +
-      sum(dnorm(infected$onset_time - infected$onset_date, log = TRUE)) +
-      sum(dweibull(infected$incub_period, shape = 2, scale = 1, log = TRUE))
+      sum(dnorm(infected$onset_date, infected$incub_period, log = TRUE)) +
+      sum(dweibull(infected$incub_period, shape = 2, scale = 1, log = TRUE)) +
+      sum(dunif(infected$infec_time, -14, 21, log = TRUE))
   }, numeric(1))
   expect_equal(log_lik, expected)
 
@@ -266,12 +260,13 @@ test_that("Latent moves preserve log-likelihood", {
   state_at(n_steps) |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_latent(
-      infec_time = onset_time - incub_period,
-      onset_time = list(value = onset_time@D, const = TRUE,
-                        model = "normal", mean = onset_date@D),
+      infec_time = list(value = infec_time@D, const = TRUE,
+                        model = "uniform", min = -14, max = end_date@D),
       incub_period = list(value = incub_period@D, const = TRUE,
                           model = "weibull", shape = 2, scale = 1)
     ) |>
+    add_observation("onset_date", model = "normal",
+                    mean = incub_period, sd = 1) |>
     add_parameter(import = c(param_draws[n_steps, , drop = FALSE], consts)) |>
     add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
     evaluate_log_lik() |>

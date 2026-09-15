@@ -228,8 +228,7 @@ test_that("Group risk wrapper input branches", {
         params = list(sus_student = 1.23)
       )
     )
-  expect_equal(subset(get_parameters(hhmodel), name == "sus_student")$value,
-               1.23)
+  expect_equal(get_parameters(hhmodel, "sus_student")$value, 1.23)
 
   # check for non-existing custom covariates
   hhmodel |>

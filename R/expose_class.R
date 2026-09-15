@@ -347,6 +347,20 @@ summarize_house_sizes <- summarise_house_sizes
 ############################################################################
 ############################################################################
 
+# Keep the definitions whose column `col` matches one of `name`.
+# All of them when `name` is `NA`.
+subset_definitions_ <- function(defs, name, col = "name") {
+  if (length(name) == 1L && is.na(name)) return(defs)
+  stopifnot(is.character(name), !any(is.na(name)))
+  unmatched <- setdiff(name, defs[[col]])
+  if (length(unmatched) > 0L) stop_h(
+    "No definition{?s} named {.val {unmatched}}."
+  )
+  out <- defs[defs[[col]] %in% name, , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
 #' @title Retrieve currently loaded data and definitions from a housepi model
 #' @description
 #' Return the definitions currently stored in the housepi model.
@@ -358,6 +372,9 @@ summarize_house_sizes <- summarise_house_sizes
 #' imported one. A column an observation produces without standing in for data
 #' is not part of the dataset, and is reported by [get_observations()].
 #' @param hhmodel `r rd_model_in_`
+#' @param name `character()`. Names of the definitions to return.
+#' `get_group_risks()` matches the name of the group risk.
+#' All of them when `NA` (default).
 #' @return `data.frame`
 #' @examples
 #' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
@@ -365,6 +382,7 @@ summarize_house_sizes <- summarise_house_sizes
 #' get_data_wide(hhmodel) |>
 #'   head()
 #' get_parameters(hhmodel)
+#' get_parameters(hhmodel, name = c("alpha", "beta"))
 #' @rdname get_definitions
 #' @export
 get_data_wide <- function(hhmodel) {
@@ -382,31 +400,31 @@ get_data_long <- function(hhmodel) {
 
 #' @rdname get_definitions
 #' @export
-get_parameters <- function(hhmodel) {
+get_parameters <- function(hhmodel, name = NA) {
   stopifnothousepi(hhmodel)
-  hhmodel$parameters
+  subset_definitions_(hhmodel$parameters, name)
 }
 
 #' @rdname get_definitions
 #' @export
-get_latent <- function(hhmodel) {
+get_latent <- function(hhmodel, name = NA) {
   stopifnothousepi(hhmodel)
-  hhmodel$latent
+  subset_definitions_(hhmodel$latent, name)
 }
 
 #' @rdname get_definitions
 #' @export
-get_observations <- function(hhmodel) {
+get_observations <- function(hhmodel, name = NA) {
   stopifnothousepi(hhmodel)
-  hhmodel$observations
+  subset_definitions_(hhmodel$observations, name)
 }
 
 #' @rdname get_definitions
 #' @export
-get_group_risks <- function(hhmodel) {
+get_group_risks <- function(hhmodel, name = NA) {
   stopifnothousepi(hhmodel)
   # NOTE: internal build requires deep clone to avoid in-place
-  hhmodel$copy()$group_risks
+  subset_definitions_(hhmodel$copy()$group_risks, name, "group_risk")
 }
 
 #' @rdname get_definitions

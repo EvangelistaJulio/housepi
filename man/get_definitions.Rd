@@ -15,13 +15,13 @@ get_data_wide(hhmodel)
 
 get_data_long(hhmodel)
 
-get_parameters(hhmodel)
+get_parameters(hhmodel, name = NA)
 
-get_latent(hhmodel)
+get_latent(hhmodel, name = NA)
 
-get_observations(hhmodel)
+get_observations(hhmodel, name = NA)
 
-get_group_risks(hhmodel)
+get_group_risks(hhmodel, name = NA)
 
 get_contact_risks(hhmodel)
 
@@ -29,6 +29,9 @@ get_infectivity_profiles(hhmodel)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
+
+\item{name}{\code{character()}. Names of the definitions to return, all of them
+when \code{NA}. \code{get_group_risks()} matches the group risk name.}
 }
 \value{
 \code{data.frame}
@@ -50,4 +53,5 @@ hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
 get_data_wide(hhmodel) |>
   head()
 get_parameters(hhmodel)
+get_parameters(hhmodel, name = c("alpha", "beta"))
 }

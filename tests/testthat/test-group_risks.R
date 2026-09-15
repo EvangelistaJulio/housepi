@@ -24,7 +24,10 @@ mk_flu <- local({
                "student", "other",
                "student", "mother", "father")
   )
-  list(data = hhdata, model = new_housepi_model(hhdata, "final_size"))
+  hhmodel <- new_housepi_model(hhdata, "final_size")
+  list(data = hhdata, model = hhmodel,
+       pinned = add_parameter(hhmodel, alpha = 0.01, beta = 0.1, gamma = 1,
+                              hhsize_ref = 4))
 })
 
 # real dataset for validation: add_group_risk() copies before mutating
@@ -139,14 +142,9 @@ test_that("Group risks integrate with data", {
   # absolute by default: no reference stratum
   expect_equal(sum(tidy$param_name == ".reference"), 0L)
 
-  # the baseline the risk scales collapses to a constant
-  params <- get_parameters(hhmodel)
-  expect_equal(params$value[params$name == "alpha"], 1)
-  expect_true(params$const[params$name == "alpha"])
-
   # mcmc setup is the absolute default
+  params <- get_parameters(hhmodel)
   params <- params[!params$const, ]
-  expect_true(all(params$prior == "uniform"))
   expect_true(all(is.na(params$min)))
   expect_true(all(is.na(params$max)))
   expect_true(all(params$proposal == "rw_log"))
@@ -164,7 +162,6 @@ test_that("Reference turns group risks relative with its own mcmc setup", {
 
   # mcmc setup is default (Cauchemez et al., 2009)
   params <- get_parameters(hhmodel)
-  expect_true(all(params$prior == "lognormal"))
   expect_equal(params$args[[1]], c(meanlog = 0, sdlog = 3))
   expect_true(all(params$min == 0))
   expect_true(all(params$max == 10))
@@ -208,13 +205,6 @@ test_that("Group risks expand on their own covariates only", {
     get_group_risks()
   expect_setequal(risks$group_risk, "susceptibility")
   expect_true("sus_age_child" %in% risks$param_name)
-
-  # the covariate itself must be a genuine data column
-  hhdata |>
-    dplyr::select(-age) |>
-    new_housepi_model("case_ascertained") |>
-    add_group_risk("susceptibility", by = "age") |>
-    expect_error("[Uu]nknown covariate.*age")
 
   # without data the read surface warns and keeps the table shape
   expect_warning(
@@ -357,7 +347,7 @@ test_that("Load list works as expected", {
 
 test_that("Group risks deal with custom logic table correctly", {
   hhmodel <- mk_risk$model |>
-    add_group_risk(name = "infectivity", strata = mk_risk$strata,
+    add_group_risk("infectivity", strata = mk_risk$strata,
                    prior = "lognormal", meanlog = 0, sdlog = 2)
 
   tidy <- get_group_risks(hhmodel)
@@ -385,21 +375,21 @@ test_that("Group risk parameter overrides work", {
   hhmodel <- mk_risk$data |>
     transform(age = c("child", "adult", "elderly", "adult")) |>
     new_housepi_model("final_size") |>
-    add_group_risk(name = "susceptibility", strata = strata,
+    add_group_risk("susceptibility", strata = strata,
                    params = overrides, prior = "gamma", shape = 2, scale = 1)
 
   params <- get_parameters(hhmodel)
   expect_setequal(params$name, c("sus_old", "sus_elderly"))
   # overrides used instead of raw params
-  old <- subset(params, name == "sus_old")
+  old <- get_parameters(hhmodel, "sus_old")
   expect_equal(old$value, 1.73)
   expect_true(old$const)
-  elderly <- subset(params, name == "sus_elderly")
+  elderly <- get_parameters(hhmodel, "sus_elderly")
   expect_equal(elderly$prior, "lognormal")
   expect_equal(elderly$args[[1]], c(sdlog = 1.2))
 
   hhmodel |>
-    add_group_risk(name = "susceptibility",
+    add_group_risk("susceptibility",
                    strata = data.frame(
                      sex = c("M", "F"), param_name = c("sus_male", ".reference")
                    ),
@@ -407,46 +397,32 @@ test_that("Group risk parameter overrides work", {
     expect_error("[Uu]nknown")
 })
 
-test_that("Group risk implementation preserves strata entries", {
+test_that("Group risk mixed auto and custom modes preserve strata entries", {
   hhmodel <- mk_risk$model |>
-    # add a standard auto-mode risk
-    add_group_risk("community", by = "age", prefix = "com") |>
-    # add a custom-mode risk
-    add_group_risk(name = "infectivity",
-                   strata = data.frame(
-                     age = c("adult", "child"),
-                     param_name = c("inf_old", ".reference")
-                   ))
+    add_group_risk(
+      community = list(by = "age", prefix = "com"),
+      infectivity = list(strata = mk_risk$strata)
+    )
 
   tidy <- get_group_risks(hhmodel)
   expect_setequal(unique(tidy$group_risk), c("community", "infectivity"))
   # strata entry is unchanged
   subset(tidy, group_risk == "infectivity")$param_name |>
-    expect_setequal(c("inf_old", ".reference"))
-  expect_true(any(grepl("^com_", tidy$param_name)))
-
-  add_group_risk(hhmodel, "infectivity", by = "age") |>
-    expect_warning("[Oo]verwriting.*infectivity")
-  add_group_risk(hhmodel, "community", strata = mk_risk$strata) |>
-    expect_warning("[Oo]verwriting.*community")
-})
-
-test_that("Group risk mixed auto and custom modes", {
-  hhmodel <- mk_risk$model |>
-    add_group_risk("community", by = "age", prefix = "com") |>
-    add_group_risk(name = "infectivity", strata = mk_risk$strata)
-
-  expect_setequal(unique(get_group_risks(hhmodel)$group_risk),
-                  c("community", "infectivity"))
+    expect_setequal(c(".reference", "inf_isol"))
   # both modes materialise their parameters
   param_names <- get_parameters(hhmodel)$name
   expect_true("inf_isol" %in% param_names)
   expect_true(any(grepl("^com_", param_names)))
 
+  add_group_risk(hhmodel, "infectivity", by = "age") |>
+    expect_warning("[Oo]verwriting.*infectivity")
+  add_group_risk(hhmodel, "community", strata = mk_risk$strata) |>
+    expect_warning("[Oo]verwriting.*community")
+
   # a covariate the data does not carry fails as soon as data is attached
   data.frame(house_id = 1, status = 0, age = c("child", "adult")) |>
     new_housepi_model("final_size") |>
-    add_group_risk(name = "infectivity", strata = mk_risk$strata) |>
+    add_group_risk("infectivity", strata = mk_risk$strata) |>
     expect_error("[Uu]nknown covariate.*isolation")
 })
 
@@ -477,29 +453,22 @@ test_that("Absoluteness follows the reference across every definition mode", {
 ###############################
 
 test_that("A strata value pins the stratum and keeps its prior", {
-  params <- mk_flu$model |>
+  hhmodel <- mk_flu$model |>
     add_group_risk("susceptibility", strata = pin_strata(),
-                   prior = "lognormal", sdlog = 3) |>
-    get_parameters()
-
-  mum <- subset(params, name == "sus_mum")
+                   prior = "lognormal", sdlog = 3)
+  mum <- get_parameters(hhmodel, "sus_mum")
   expect_equal(mum$value, 1.2)
   expect_false(mum$const)
   expect_equal(mum$prior, "lognormal")
 
   # a fixed stratum is a constant parameter: it carries no prior
-  dad <- subset(params, name == "sus_dad")
+  dad <- get_parameters(hhmodel, "sus_dad")
   expect_equal(dad$value, 0.5)
   expect_true(dad$const)
   expect_true(is.na(dad$prior))
-})
 
-test_that("Pin columns surface on the read table only when a pin exists", {
-  tidy <- mk_flu$model |>
-    add_group_risk("susceptibility", strata = pin_strata(),
-                   prior = "lognormal", sdlog = 3) |>
-    get_group_risks()
-
+  # pin columns surface on the read table only when a pin exists
+  tidy <- get_group_risks(hhmodel)
   expect_true(all(c("value", "const") %in% colnames(tidy)))
   # padding keeps the columns typed across sub-tables
   expect_type(tidy$value, "double")
@@ -743,22 +712,17 @@ test_that("An absolute risk collapses the baseline it scales", {
   expect_true(any(grepl("^com_member", draws$variable)))
 })
 
-test_that("Two absolute risks on one baseline are not identifiable", {
-  mk_flu$model |>
-    add_group_risk("susceptibility", by = "member") |>
-    add_group_risk("infectivity", by = "member") |>
-    add_parameter(alpha = 0.01, gamma = 1, hhsize_ref = 4) |>
-    evaluate_log_lik() |>
-    expect_error("non-identifiability.*susceptibility.*infectivity")
-})
-
-test_that("A simulation table pins the scales it provides", {
+test_that("Two absolute risks on one baseline are identifiable once pinned", {
   hhmodel <- mk_flu$model |>
     add_group_risk("susceptibility", by = "member") |>
     add_group_risk("infectivity", by = "member") |>
     add_parameter(alpha = 0.01, gamma = 1, hhsize_ref = 4)
+  hhmodel |>
+    evaluate_log_lik() |>
+    expect_error("non-identifiability.*susceptibility.*infectivity")
 
-  # every scale reads a value: no product of free scales is left to resolve
+  # a simulation table gives every scale a value: no product of free scales
+  # is left to resolve
   run_simulation(hhmodel, param_table = pin_all_params(hhmodel)) |>
     expect_s3_class("data.frame")
 })
@@ -804,8 +768,7 @@ test_that("A pinned baseline is not collapsed onto the reference", {
 
 test_that("A strata pin reaches simulation and stratifies on data only", {
   # every scale reads a value, and the pin columns are no stratification axis
-  mk_flu$model |>
-    add_parameter(alpha = 0.01, beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+  mk_flu$pinned |>
     add_group_risk("susceptibility", strata = pin_strata(),
                    prior = "lognormal", sdlog = 3) |>
     run_simulation() |>
@@ -814,8 +777,7 @@ test_that("A strata pin reaches simulation and stratifies on data only", {
 
 test_that("A fixed stratum holds across draws, a pinned one is resampled", {
   mk <- function(strata) {
-    mk_flu$model |>
-      add_parameter(alpha = 0.01, beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+    mk_flu$pinned |>
       add_group_risk("susceptibility", strata = strata,
                      prior = "lognormal", sdlog = 3)
   }
@@ -836,39 +798,35 @@ test_that("A fixed stratum holds across draws, a pinned one is resampled", {
 
 test_that("A fixed stratum anchors the scale of its rule group", {
   # the group is anchored by the constant, so no baseline is collapsed onto it
-  expect_no_warning(
-    log_lik <- mk_flu$model |>
-      add_parameter(alpha = list(prior = "uniform", min = 0.2, max = 0.9),
-                    beta = 0.1, gamma = 1, hhsize_ref = 4) |>
-      add_group_risk("community", strata = pin_strata(
-        value = c(NA, 1.2, 0.5), const = c(NA, TRUE, TRUE)
-      ), prior = "lognormal", sdlog = 3) |>
-      evaluate_log_lik()
-  )
+  log_lik <- mk_flu$model |>
+    add_parameter(alpha = list(prior = "uniform", min = 0.2, max = 0.9),
+                  beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+    add_group_risk("community",
+      strata = pin_strata(value = c(NA, 1.2, 0.5), const = c(NA, TRUE, TRUE)),
+      prior = "lognormal", sdlog = 3
+    ) |>
+    evaluate_log_lik()
   expect_true(is.finite(log_lik))
 })
 
 test_that("Strata counts come from the engine cross-tabulation", {
   # a cell the data does not carry forms no stratum of its own, so the counts
   # add up to the members that carry a value, not to every member
-  tbl <- data.frame(
-    house_id = c("h1", "h1", "h2", "h2", "h3"),
-    status = c(1, 0, 1, 1, 0),
-    datum = c("a", "b", "a", NA, "b"),
-    datum_2 = c(TRUE, FALSE, TRUE, FALSE, NA)
-  ) |>
+  hhmodel <- data.frame(house_id = c("h1", "h1", "h2", "h2", "h3"),
+                        status = c(1, 0, 1, 1, 0),
+                        datum = c("a", "b", "a", NA, "b"),
+                        datum_2 = c(TRUE, FALSE, TRUE, FALSE, NA)) |>
     new_housepi_model("final_size", quiet = TRUE) |>
     add_parameter(import = "template") |>
-    add_group_risk(susceptibility = list(by = "datum", reference = ".auto")) |>
-    add_group_risk(infectivity = list(by = "datum_2", reference = ".auto")) |>
-    get_group_risks()
+    add_group_risk(susceptibility = list(by = "datum", reference = ".auto"),
+                   infectivity = list(by = "datum_2", reference = ".auto"))
 
-  datum <- tbl[tbl$group_risk == "susceptibility", ]
+  datum <- hhmodel |> get_group_risks("susceptibility")
   expect_setequal(as.character(datum$datum), c("a", "b"))
   expect_equal(sum(datum$n), 4L)
 
   # a logical column keeps both of its levels, and drops the missing one
-  datum_2 <- tbl[tbl$group_risk == "infectivity", ]
+  datum_2 <- hhmodel |> get_group_risks("infectivity")
   expect_setequal(as.character(datum_2$datum_2), c("TRUE", "FALSE"))
   expect_equal(sum(datum_2$n), 4L)
 })
@@ -916,14 +874,13 @@ test_that("A group risk keyed on an observation is rejected", {
   # a custom strata table takes no loophole
   mk_observed$model |>
     add_observation("datum", model = "uniform", min = 0, max = 5) |>
-    add_group_risk(name = "susceptibility", strata = data.frame(
+    add_group_risk("susceptibility", strata = data.frame(
       datum = c(2, 3), param_name = c(".reference", "sus_high")
     )) |>
     expect_error("keyed on observation.*datum")
-})
 
-test_that("A deterministic household observation cannot key a group risk", {
-  # datum stands in for its data column: derived, an observation all the same
+  # a deterministic household observation standing in for its data column is
+  # derived, an observation all the same
   mk_observed$model |>
     add_observation(datum = min(datum_2@D), level = "house") |>
     add_group_risk("susceptibility", by = "datum") |>

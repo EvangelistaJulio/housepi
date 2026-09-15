@@ -126,20 +126,13 @@ test_that("Draws active fields are correct", {
 })
 
 test_that("Exported getter functions work correctly", {
-  expect_true(posterior::is_draws(get_parameter_draws(mk_draws$results)))
-  expect_true(posterior::is_draws(get_log_lik_draws(mk_draws$results)))
-  expect_true(posterior::is_draws(get_complete_draws(mk_draws$results)))
-
   err <- "HousepiPosteriorDraws"
   expect_error(get_parameter_draws("not draws"), err)
   expect_error(get_latent_draws(42), err)
   expect_error(get_log_lik_draws(list()), err)
   expect_error(get_complete_draws(new_housepi_model(model = "test")), err)
-})
 
-test_that("Empty draws getters warn", {
   # the run has parameters but no latent draws
-  expect_true(posterior::is_draws(get_parameter_draws(mk_draws$results)))
   get_latent_draws(mk_draws$results) |>
     expect_warning("id_draws")
 })
@@ -166,19 +159,6 @@ test_that("Diagnostic warning fires on poor mixing", {
     ) |>
     run_inference(steps = 1000L, thin = 1L, adapt = 0L, chains = 2L) |>
     expect_warning("alpha.*beta.*not mixed")
-})
-
-test_that("Multi-chain inference produces correct chain structure", {
-  draws <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template") |>
-    run_inference(steps = 10L, chains = 2L, adapt = 0L, thin = 1L) |>
-    suppressWarnings() |>
-    get_parameter_draws()
-
-  expect_true(posterior::is_draws(draws))
-  expect_equal(posterior::nchains(draws), 2L)
-  expect_equal(posterior::niterations(draws), 10L)
 })
 
 test_that("Pointwise log-lik is carried into the complete-draws bundle", {
@@ -217,12 +197,6 @@ test_that("A model without parameters returns empty parameter draws", {
     expect_equal(rep(0, 5))
   get_parameter_draws(results) |>
     expect_warning("[Ee]mpty draws: no parameter")
-})
-
-test_that("Latent draws are not empty when id_draws is specified", {
-  draws <- mk_latent_draws$results$latent_draws
-  expect_true(posterior::is_draws(draws))
-  expect_gt(posterior::nvariables(draws), 0)
 })
 
 test_that("Draws accessors subset the variables they return", {

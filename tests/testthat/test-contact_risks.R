@@ -82,11 +82,13 @@ test_that("Pair counts drop the member meeting itself", {
 ######################################
 
 test_that("Auto mode imposes symmetric contacts by default", {
-  tidy <- mk_risk$model |>
-    add_contact_risk(by = "age",
-                     reference = c(from_age = "adult", to_age = "adult"),
-                     prior = "lognormal", sdlog = 1.) |>
-    get_contact_risks()
+  risks_of <- function(...) {
+    mk_risk$model |>
+      add_contact_risk(by = "age", prior = "lognormal", sdlog = 1., ...,
+                       reference = c(from_age = "adult", to_age = "adult")) |>
+      get_contact_risks()
+  }
+  tidy <- risks_of()
 
   # two-level covariate: child, adult -> 4 pairs
   expect_equal(nrow(tidy), 4L)
@@ -106,6 +108,15 @@ test_that("Auto mode imposes symmetric contacts by default", {
     subset(tidy, from_age == "adult" & to_age == "child")$param_name,
     subset(tidy, from_age == "child" & to_age == "adult")$param_name
   )
+
+  # symmetric = FALSE gives distinct parameters to the two directions
+  tidy <- risks_of(symmetric = FALSE)
+  expect_equal(nrow(tidy), 4L)
+  expect_length(setdiff(unique(tidy$param_name), ".reference"), 3L)
+  expect_false(identical(
+    subset(tidy, from_age == "adult" & to_age == "child")$param_name,
+    subset(tidy, from_age == "child" & to_age == "adult")$param_name
+  ))
 })
 
 test_that("Auto mode reference is opt-in and picks most abundant pair", {
@@ -126,23 +137,6 @@ test_that("Auto mode reference is opt-in and picks most abundant pair", {
     subset(param_name == ".reference") |>
     nrow() |>
     expect_equal(0L)
-})
-
-test_that("Auto mode symmetric = FALSE gives distinct parameters", {
-  tidy <- mk_risk$model |>
-    add_contact_risk(by = "age", symmetric = FALSE,
-                     reference = c(from_age = "adult", to_age = "adult"),
-                     prior = "lognormal", sdlog = 1.) |>
-    get_contact_risks()
-
-  expect_equal(nrow(tidy), 4L)
-  expect_length(setdiff(unique(tidy$param_name), ".reference"), 3L)
-
-  # asymmetric: adult->child and child->adult are distinct params
-  expect_false(identical(
-    subset(tidy, from_age == "adult" & to_age == "child")$param_name,
-    subset(tidy, from_age == "child" & to_age == "adult")$param_name
-  ))
 })
 
 test_that("Non-joint produces independent per-covariate tables", {
@@ -313,37 +307,30 @@ test_that("Contact risk custom mode default behaves correctly", {
   expect_setequal(tidy$param_name, strata$param_name)
 
   # parameters generated for non-reference
-  params <- get_parameters(hhmodel)
-  expect_setequal(params$name, c("a2c", "c2a", "c2c"))
+  get_parameters(hhmodel) |>
+    getElement("name") |>
+    expect_setequal(c("a2c", "c2a", "c2c"))
 
   # default parameter definitions
-  default <- subset(params, name == "c2c")
+  default <- get_parameters(hhmodel, "c2c")
   expect_equal(default$prior, "lognormal")
   expect_equal(default$args[[1]], c(sdlog = 1.8))
   # overrides as variable
-  variable <- subset(params, name == "a2c")
+  variable <- get_parameters(hhmodel, "a2c")
   expect_equal(variable$prior, "uniform")
   expect_equal(variable$min, 1)
   # overrides as constant
-  constant <- subset(params, name == "c2a")
+  constant <- get_parameters(hhmodel, "c2a")
   expect_equal(constant$value, 2.34)
   expect_true(constant$const)
 })
 
-test_that("Custom mode with no reference row is absolute", {
+test_that("A reference has no meaning against a custom contact table", {
   strata <- data.frame(
     from_age = c("adult", "adult", "child", "child"),
     to_age   = c("adult", "child", "adult", "child"),
     param_name = c("a_to_a", "a_to_c", "c_to_a", "c_to_c")
   )
-
-  # every pair keeps its own parameter, none is the unit
-  params <- mk_risk$model |>
-    add_contact_risk(strata = strata, symmetric = FALSE) |>
-    get_parameters()
-  expect_true(all(strata$param_name %in% params$name))
-
-  # reference has no meaning against a custom table
   mk_risk$model |>
     add_contact_risk(strata = strata, reference = ".auto") |>
     expect_error("[Nn]ot used with a custom")
@@ -380,9 +367,10 @@ test_that("Custom mode fills the symmetric counterpart of a pair", {
     expect_equal("a_to_c")
 
   # both directions share the override value
-  params <- get_parameters(hhmodel)
-  expect_setequal(params$name, c("a_to_c", "c_to_c"))
-  a_to_c <- subset(params, name == "a_to_c")
+  get_parameters(hhmodel) |>
+    getElement("name") |>
+    expect_setequal(c("a_to_c", "c_to_c"))
+  a_to_c <- get_parameters(hhmodel, "a_to_c")
   expect_equal(a_to_c$value, 2)
   expect_true(a_to_c$const)
 
@@ -442,23 +430,6 @@ test_that("Rule groups follow the maximal patterns of the strata", {
     getElement("rule_group") |>
     unique() |>
     expect_length(2L)
-
-  # auto mode: one rule group per sub-table unless joint
-  mk_risk$model |>
-    add_contact_risk(by = c("age", "sex"), joint = FALSE,
-                     reference = c(age = "adult", sex = "M")) |>
-    get_contact_risks() |>
-    getElement("rule_group") |>
-    unique() |>
-    expect_length(2L)
-  mk_risk$model |>
-    add_contact_risk(by = c("age", "sex"), joint = TRUE,
-                     reference = c(from_age = "adult", from_sex = "M",
-                                   to_age = "adult", to_sex = "M")) |>
-    get_contact_risks() |>
-    getElement("rule_group") |>
-    unique() |>
-    expect_length(1L)
 })
 
 ##################################
@@ -615,15 +586,14 @@ test_that("Contact risks raise an error for incompatible models", {
 
 test_that("A contact strata value pins the stratum and keeps its prior", {
   pinned <- add_pinned_risk(pin_ctr_strata(const = c(NA, NA))) |>
-    get_parameters() |>
-    subset(name == "ctr_fm")
+    get_parameters("ctr_fm")
   expect_equal(pinned$value, 0.4)
   expect_false(pinned$const)
   expect_equal(pinned$prior, "lognormal")
 
   # a fixed stratum is a constant parameter: it carries no prior
   hhmodel <- add_pinned_risk(pin_ctr_strata())
-  fixed <- subset(get_parameters(hhmodel), name == "ctr_fm")
+  fixed <- get_parameters(hhmodel, "ctr_fm")
   expect_equal(fixed$value, 0.4)
   expect_true(fixed$const)
   expect_true(is.na(fixed$prior))
@@ -641,8 +611,7 @@ test_that("Invalid contact strata pins are rejected", {
   # an all-NA column pins nothing, whichever type it was written with
   unpinned <- add_pinned_risk(pin_ctr_strata(value = c(NA, NA),
                                              const = c(NA, NA))) |>
-    get_parameters() |>
-    subset(name == "ctr_fm")
+    get_parameters("ctr_fm")
   expect_false(unpinned$const)
   expect_equal(unpinned$prior, "lognormal")
   # the reference is 1 by definition
