@@ -173,33 +173,26 @@ test_that("Advanced setup options route through `...`", {
 })
 
 test_that("Progress bar renders, refreshes and closes", {
-  # Over budget: the bar prints only on a run lasting beyond two seconds
-  hhmodel <- add_parameter(mk_wrapper$model, "rho", prior = "uniform")
-
-  # a progress bar that closes
-  # NOTE: time sensitive, run has to last well beyond two seconds
-  bar <- capture.output(type = "output",
-    results <- run_inference(hhmodel, steps = 2e6) |>
-      suppressWarnings()
-  )
-  expect_s3_class(results, "HousepiPosteriorDraws")
-  expect_true(any(grepl("%|sample", bar)))
-
-  # the run outlives the time limit and is interrupted at the engine check
+  # progressbar is time sensitive, run has to last well beyond 2 secs
+  # I cannot run a long test in the CI, so I set a time limit and check that
   on.exit(setTimeLimit())
   bar <- capture.output(type = "output",
-    notice <- capture.output(type = "message", {   # R time-limit notice
+    notice <- capture.output(type = "message", { # R time-limit notice
       outcome <- tryCatch({
-        setTimeLimit(elapsed = 4, transient = TRUE)
-        run_inference(hhmodel, steps = 1e10, thin = 1e3)
+        setTimeLimit(elapsed = 3.5, transient = TRUE)
+        hhmodel <- mk_wrapper$model |>
+          add_parameter("rho", prior = "uniform") |>
+          run_inference(steps = 1e10, thin = 1e4, progress = 3)
       }, interrupt = function(e) e)
     })
   )
   expect_s3_class(outcome, "interrupt")
 
-  # refreshes come one per second, the last reporting the time left, "4s<6h17m"
+  # an opening "0s<?s" line, then refreshes every `progress` seconds,
+  # the last reporting the time left, "3s<6h17m"
   secs <- as.integer(sub(".*% ([0-9]+)s<.*", "\\1", bar))
-  expect_identical(secs, seq_along(secs))
+  expect_identical(secs, c(0L, 3L))
+  expect_match(bar[1], "0s<\\?s")
   expect_match(bar[length(bar)], "[0-9]+s<[0-9]+[dhms]")
 })
 
@@ -276,7 +269,7 @@ test_that("Contact risk wrapper input branches", {
   expect_true("ctr_student" %in% get_parameters(hhmodel)$name)
 
   # second call warns about overwrite
-  add_contact_risk(hhmodel, strata = strata,
-                   params = list(ctr_student = 1.21)) |>
+  hhmodel |>
+    add_contact_risk(strata = strata, params = list(ctr_student = 1.21)) |>
     expect_warning("[Oo]verwriting")
 })

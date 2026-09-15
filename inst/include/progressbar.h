@@ -139,11 +139,8 @@ namespace housepi
                 oss << text_
                     << bar_(progress)
                     << std::fixed << std::setprecision(0) << 100. * progress << "% "
-                    << format_time_(elapsed) << "<";
-                if (elapsed.count() > 2)
-                    oss << format_time_(missing);
-                else
-                    oss << "?s";
+                    << format_time_(elapsed) << "<"
+                    << ((elapsed.count() > 2) ? format_time_(missing) : "?s");
                 oss << std::string(10, ' ');
                 print_(oss.str());
 
@@ -171,7 +168,6 @@ namespace housepi
         /// End the progress bar because of a crash.
         void crash() const
         {
-            check_user_interrupt_();
             if (has_bar_print_)
                 msg::info("\n");
         }
@@ -179,8 +175,6 @@ namespace housepi
         /// Close the progress bar.
         void close()
         {
-            check_user_interrupt_();
-
             // close only if it was opened
             if (!has_bar_print_)
                 return;
@@ -200,6 +194,8 @@ namespace housepi
                 // # nocov end
                 print_(oss.str());
             }
+
+            check_user_interrupt_();
         }
 
     private:
@@ -247,11 +243,11 @@ namespace housepi
             case Mode::Static:
                 msg::info(sms + "\n");
                 return;
-            default: // case Mode::Interactive:
-            // # nocov start
+            default:
+                // # nocov start
                 msg::info("\r" + sms);
                 return;
-            // # nocov end
+                // # nocov end
             }
         }
     };
