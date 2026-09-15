@@ -193,7 +193,7 @@ HousepiAugmented <- R6::R6Class(
       .kind <- match.arg(.kind, c("latent", "member", "house", "status"))
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
-      level <- housepi_smart_unwrap(level, "level")
+      level <- housepi_smart_unwrap(level, "level", null_ok = TRUE)
       status <- housepi_smart_unwrap(status, "status")
       const <- housepi_smart_unwrap(const, "const")
       discr <- housepi_smart_unwrap(discr, "discr")
@@ -230,25 +230,33 @@ HousepiAugmented <- R6::R6Class(
         "Drop {.arg status} or declare {.val {name}} at member level."
       )
 
-      if (!identical(.kind, "latent") && !is.na(model)) {
+      if (!identical(.kind, "latent")) {
         # a household observation cannot be sampled
-        if (identical(.kind, "house")) stop_h(
+        if (identical(.kind, "house") && !is.na(model)) stop_h(
           "Household observation {.val {name}} cannot be sampled.",
           "Provide {.arg value} instead of {.arg model}."
         )
-        # NOTE: observations cannot be sampled
-        if (!is.na(proposal)) warn_h(
+        # an observation is evaluated at its datum, never sampled:
+        # sampling options are dropped, those landing in the dots included
+        in_dots <- intersect(c("const", "proposal"), names(args))
+        if (length(in_dots) > 0) args <- args[!names(args) %in% in_dots]
+        ignored <- c("const", "proposal")[!is.na(c(const, proposal))]
+        ignored <- union(ignored, in_dots)
+        if (length(ignored) > 0) warn_h(
           "Observation {.val {name}} cannot be sampled.",
-          `!` = "Ignored {.arg proposal} definition."
+          `!` = "Ignored {.arg {ignored}} definition."
         )
+        const <- NA
         proposal <- NA_character_
 
-        if (is.na(const)) const <- TRUE
-        # observation reads its datum from a like-named column
-        # status observation requires no data column
-        if (is.null(value)) {
-          value <- if (identical(.kind, "status")) "0|N"
-          else paste0(name, "|D")
+        if (!is.na(model)) {
+          const <- TRUE
+          # observation reads its datum from a like-named column
+          # status observation requires no data column
+          if (is.null(value)) {
+            value <- if (identical(.kind, "status")) "0|N"
+            else paste0(name, "|D")
+          }
         }
       }
 
@@ -301,7 +309,7 @@ HousepiAugmented <- R6::R6Class(
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       opts <- helper_variable_core(opts, self$family, value, func)
-      opts <- helper_variable_args(opts, self$family, args)
+      opts <- helper_variable_args(opts, self$family, args, func)
       opts <- helper_variable_move(opts, self$family)
       opts <- helper_variable_level(opts, self$defs)
 
@@ -327,9 +335,6 @@ HousepiAugmented <- R6::R6Class(
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- managed
 
-      # guard before the per-kind reset so an empty call does not silently
-      # drop the rows it manages
-      assert_nonempty_defin_quos(xquos, self$family)
       if (isFALSE(append)) {
         # NOTE: kinds share one store, but are treated as independent;
         # observations are a single family, so both levels reset together

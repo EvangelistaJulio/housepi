@@ -1,8 +1,19 @@
 library(testthat)
 
-################################################################################
-###################################  HELPERS  ##################################
-################################################################################
+# Tempered-indicator regime: a hard, parameter-dependent observation support.
+#   rho ~ Uniform(0, 1);  record ~ Uniform(rho - c, rho + c), observed 0.5.
+# The likelihood is a pure indicator, so log Z = 0 for a window inside [0, 1].
+# At inverse temperature 0 the tempered likelihood is 0 even where it is -Inf:
+# the chain must sample the whole prior, not stay confined to [0.05, 0.95].
+mk_indicator <- local({
+  hhmodel <- data.frame(house_id = "h1", status = 1, record = 0.5) |>
+    new_housepi_model("test") |>
+    add_parameter("rho", prior = "uniform", min = 0, max = 1) |>
+    add_observation(
+      "record", model = "uniform", loc = rho@P, min = - 0.45, max = 0.45
+    )
+  list(model = hhmodel)
+})
 
 # analytical log-likelihood under power-posterior
 expec_loglik_powerpost <- function(x, beta, a, b) {
@@ -28,46 +39,32 @@ expec_loglik_powerpost <- function(x, beta, a, b) {
   digamma(beta + 1) - const * bracket / Q
 }
 
-# Tempered-indicator regime: a hard, parameter-dependent observation support.
-#   theta ~ Uniform(0, 1);  y ~ Uniform(theta - c, theta + c), observed y0.
-# The likelihood is a pure indicator, so log Z = 0 for a window inside [0, 1].
-# At inverse temperature 0 the tempered likelihood is 0 even where it is -Inf:
-# the chain must sample the whole prior, not stay confined to [y0 - c, y0 + c].
-mk_indicator_model_ <- function() {
-  data.frame(house_id = "a", status = 1, y = 0.5) |>
-    new_housepi_model("test") |>
-    add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
-    add_observation(
-      "y", model = "uniform", loc = theta@P, min = - 0.45, max = 0.45
-    )
-}
-
-# retry seeds until a ladder starts (a random prior init may land inadmissible)
-start_ladder_ <- function(make_model, ...) {
-  for (s in 1:50) {
-    set.seed(s)
-    res <- try(suppressWarnings(
-      run_power_posteriors(make_model(), progress = FALSE, ...)
-    ), silent = TRUE)
-    if (!inherits(res, "try-error")) return(res)
+# retry until a run starts (a random prior init may land inadmissible)
+retry_start <- function(run, hhmodel, ...) {
+  for (attempt in 1:50) {
+    results <- try(suppressWarnings(run(hhmodel, ...)), silent = TRUE)
+    if (!inherits(results, "try-error")) return(results)
   }
   NULL
 }
+start_ladder <- function(hhmodel, ...) {
+  retry_start(run_power_posteriors, hhmodel, ...)
+}
 
-################################################################################
-####################################  TESTS  ###################################
-################################################################################
+###########################
+## EVIDENCE : END-TO-END ##
+###########################
 
-test_that("inverse temperature 0 samples the full prior also with indicator", {
+test_that("Inverse temperature 0 samples the full prior with an indicator", {
   # FIXME: time sensitive test
-  fit <- mk_indicator_model_() |>
-    run_inference(inv_temp = 0, chains = 1L) |>
-    suppressWarnings()
-  theta <- posterior::extract_variable(get_parameter_draws(fit), "theta")
+  rho <- mk_indicator$model |>
+    retry_start(run = run_inference, inv_temp = 0, chains = 1L) |>
+    get_parameter_draws() |>
+    posterior::extract_variable("rho")
   # chain must escape the observation window [0.05, 0.95]
-  expect_gt(max(theta), 0.95)
-  expect_lt(min(theta), 0.05)
-  expect_gt(mean(abs(theta - 0.5) >= 0.45), 0.05)
+  expect_gt(max(rho), 0.95)
+  expect_lt(min(rho), 0.05)
+  expect_gt(mean(abs(rho - 0.5) >= 0.45), 0.05)
 })
 
 test_that("Power-posterior log-evidence matches a closed-form marginal", {
@@ -76,34 +73,30 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
   b <- 3
   # analytical value
   evidence <- log((x + b) / (x + a)) / (b - a) - x / (b + x) / (a + x)
-  log_evidence <- log(evidence)
 
-  hhmodel <- data.frame(house_id = "h", status = 1, x = x) |>
+  hhmodel <- data.frame(house_id = "h1", status = 1, record = x) |>
     new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform", min = !!a, max = !!b) |>
     add_latent("z", model = "exponential", rate = theta@P) |>
-    add_observation("x", model = "exponential", rate = z)
+    add_observation("record", model = "exponential", rate = z)
 
   result <- hhmodel |>
-    run_power_posteriors(steps = 4e3L, progress = FALSE) |>
+    run_power_posteriors(steps = 4e3L) |>
     suppressWarnings() # once per session temporary warning
 
-  result |>
-    expect_s3_class("HousepiPowerPosteriors")
+  expect_s3_class(result, "HousepiPowerPosteriors")
   expect_snapshot(print(result))
-  result$detail |>
-    expect_named(c("inv_temp", "mean_log_lik", "var_log_lik"))
+  expect_named(result$detail, c("inv_temp", "mean_log_lik", "var_log_lik"))
 
   # raw per-rung draws are 'posterior' draws
   expect_true(posterior::is_draws(result$draws))
-  posterior::nvariables(result$draws) |>
-    expect_equal(nrow(result$detail))
+  expect_equal(posterior::nvariables(result$draws), nrow(result$detail))
   expect_error(result$draws <- 0, "read only")
 
   # stable estimate for chosen values
-  exp_log_lik <- sapply(
+  exp_log_lik <- vapply(
     result$detail$inv_temp,
-    function(beta) expec_loglik_powerpost(x, beta, a, b)
+    function(beta) expec_loglik_powerpost(x, beta, a, b), numeric(1)
   )
   # NOTE: 10% should be large enough to counter test stochasticity
   expect_true(all(
@@ -124,46 +117,48 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
 })
 
 test_that("Ladder sets its own inverse temperature, so it takes none", {
-  mk_indicator_model_() |>
+  mk_indicator$model |>
     run_power_posteriors(inv_temp = 0.5) |>
     expect_error("inv_temp")
+  # a ladder holds at least two rungs
+  mk_indicator$model |>
+    run_power_posteriors(rungs = 1L) |>
+    suppressWarnings() |>
+    expect_error("[Rr]ungs was not greater than 1")
 })
 
-test_that("stepping-stone is unbiased and thermodynamic refuses a -Inf ladder", {
-  res <- start_ladder_(function() mk_indicator_model_(),
-                       chains = 1L, rungs = 12L)
+test_that("Stepping-stone is unbiased, thermodynamic refuses a -Inf ladder", {
+  results <- start_ladder(mk_indicator$model, chains = 1L, rungs = 12L)
 
-  # the true log-evidence is 0; the old confinement bug returned +0.105
-  evaluate_log_evidence(res, "stepping-stone")[["estimate"]] |>
+  # the true log-evidence is 0
+  evaluate_log_evidence(results, "stepping-stone")[["estimate"]] |>
     abs() |>
     expect_lt(0.08)
 
   # the beta = 0 rung legitimately records -Inf draws
   expect_true(any(is.infinite(
-    posterior::extract_variable(res$draws, "log_lik[1]")
+    posterior::extract_variable(results$draws, "log_lik[1]")
   )))
   # thermodynamic integration is invalid there: error pointing at stepping-stone
-  evaluate_log_evidence(res, "thermodynamic") |>
+  evaluate_log_evidence(results, "thermodynamic") |>
     expect_error("stepping-stone")
 })
 
-test_that("tempered indicator with a latent variable runs at beta=0 without NaN", {
-  x0 <- 0.5
-  cc <- 0.4
-  res <- start_ladder_(function() {
-    data.frame(house_id = "liquid", status = 1, x = x0) |>
-      new_housepi_model("test") |>
-      add_parameter("theta", prior = "uniform", min = 0, max = 1) |>
-      add_latent("z", model = "uniform", min = 0, max = 1) |>
-      add_observation("x", model = "uniform", min = z - !!cc, max = z + !!cc)
-  }, chains = 1L, rungs = 8L)
-  expect_false(is.null(res))
+test_that("A tempered indicator with a latent runs at beta = 0 without NaN", {
+  results <- data.frame(house_id = "h1", status = 1, record = 0.5) |>
+    new_housepi_model("test") |>
+    add_parameter("rho", prior = "uniform", min = 0, max = 1) |>
+    add_latent("hidden", model = "uniform", min = 0, max = 1) |>
+    add_observation("record", model = "uniform",
+                    min = hidden - 0.4, max = hidden + 0.4) |>
+    start_ladder(chains = 1L, rungs = 8L)
+  expect_false(is.null(results))
 
   # incremental totals are bypassed at beta = 0, so -Inf states do not throw
   expect_true(any(is.infinite(
-    posterior::extract_variable(res$draws, "log_lik[1]")
+    posterior::extract_variable(results$draws, "log_lik[1]")
   )))
-  evaluate_log_evidence(res, "stepping-stone")[["estimate"]] |>
+  evaluate_log_evidence(results, "stepping-stone")[["estimate"]] |>
     is.finite() |>
     expect_true()
 })

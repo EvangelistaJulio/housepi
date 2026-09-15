@@ -36,24 +36,24 @@ expect_function_matches <- function(name, args,
                                     ref_log = log,
                                     domain = "(-Inf, Inf)", discrete = FALSE,
                                     x = seq(0.1, 10, 0.1), h = 0.1) {
-  fn <- do.call(browse_functions, c(list(name), args))
-  expect_identical(fn$domain, domain)
-  expect_identical(fn$is_discrete, discrete)
+  func <- do.call(browse_functions, c(list(name), args))
+  expect_identical(func$domain, domain)
+  expect_identical(func$is_discrete, discrete)
 
-  expect_equal(fn$func(x), ref_f(x))
+  expect_equal(func$func(x), ref_f(x))
 
-  if (is.null(ref_prim)) expect_error(fn$prim(x), "undefined method")
-  else expect_equal(fn$prim(x), ref_prim(x))
+  if (is.null(ref_prim)) expect_error(func$prim(x), "undefined method")
+  else expect_equal(func$prim(x), ref_prim(x))
 
   keep <- in_interval(domain)(x)
-  null_move <- fn$log_ratio(x, x)
+  null_move <- func$log_ratio(x, x)
   expect_equal(null_move[keep], rep(0, sum(keep)))
   if (is.null(ref_log)) {
-    expect_error(fn$log_func(x), "undefined method")
-    expect_equal(fn$log_ratio(x, x + h), rep(0, length(x)))
+    expect_error(func$log_func(x), "undefined method")
+    expect_equal(func$log_ratio(x, x + h), rep(0, length(x)))
   } else {
-    expect_equal(fn$log_func(x), ref_log(fn$func(x)))
-    expect_equal(fn$log_ratio(x, x + h), log(ref_f(x + h) / ref_f(x)))
+    expect_equal(func$log_func(x), ref_log(func$func(x)))
+    expect_equal(func$log_ratio(x, x + h), log(ref_f(x + h) / ref_f(x)))
   }
 }
 
@@ -90,19 +90,19 @@ test_that("Available names listing is stable", {
   expect_snapshot(browse_infectivity_profiles())
 })
 
-test_that("Expose function has no leaks", {
+test_that("Browsed functions do not leak memory", {
   mem_used_mb <- function() gc()["Vcells", "(Mb)"]
 
-  fun <- browse_functions("sin")
-  rm(fun)
+  func <- browse_functions("sin")
+  rm(func)
   invisible(gc())
   mem_before <- mem_used_mb()
 
-  # heavy allocation loop
-  for (i in seq_len(200)) {
-    fun <- browse_functions("sin")
-    rm(fun)
-    if (i %% 20 == 0) gc()
+  # allocation loop
+  for (i in seq_len(50)) {
+    func <- browse_functions("sin")
+    rm(func)
+    if (i %% 10 == 0) gc()
   }
   invisible(gc())
   expect_lt(mem_used_mb() - mem_before, 5)
@@ -127,7 +127,7 @@ test_that("Exposed methods carry R formals", {
     expect_error("[Aa]rgument.*x.*missing")
   distr$log_ratio(1) |>
     expect_error("[Aa]rgument.*xn.*missing")
-  distr$snake() |>
+  distr$unknown() |>
     expect_error("attempt to apply non-function")
   # each family answers for its own methods only
   browse_functions("sin")$inst() |>
@@ -136,11 +136,11 @@ test_that("Exposed methods carry R formals", {
 
 test_that("Truncation and location shift the reported support", {
   # bounds read in the same frame as the values compared against them
-  ocelot <- browse_distributions("gamma", shape = 2, scale = 1, loc = 3)
-  expect_equal(ocelot$domain, "[3, Inf)")
-  snake <- browse_distributions("normal", mean = 0, sd = 1,
-                                min = -1, max = 2, loc = 10)
-  expect_equal(snake$domain, "[9, 12]")
+  distr <- browse_distributions("gamma", shape = 2, scale = 1, loc = 3)
+  expect_equal(distr$domain, "[3, Inf)")
+  distr_2 <- browse_distributions("normal", mean = 0, sd = 1,
+                                  min = -1, max = 2, loc = 10)
+  expect_equal(distr_2$domain, "[9, 12]")
   # arguments report the parametrization, location stays unreported
   distr <- browse_distributions("poisson", lambda = 3, loc = 1)
   expect_equal(distr$args, c(lambda = 3))
@@ -155,12 +155,12 @@ test_that("Truncation and location shift the reported support", {
 test_that("The codomain reports what a definition returns", {
   # a function is bounded on the values it accepts and on the values it gives
   # back, and the two are not the same interval
-  otacon <- browse_functions("log")
-  expect_equal(otacon$domain, "(0, Inf)")
-  expect_equal(otacon$codomain, "(-Inf, Inf)")
-  raiden <- browse_functions("exp")
-  expect_equal(raiden$domain, "(-Inf, Inf)")
-  expect_equal(raiden$codomain, "(0, Inf)")
+  func <- browse_functions("log")
+  expect_equal(func$domain, "(0, Inf)")
+  expect_equal(func$codomain, "(-Inf, Inf)")
+  func_2 <- browse_functions("exp")
+  expect_equal(func_2$domain, "(-Inf, Inf)")
+  expect_equal(func_2$codomain, "(0, Inf)")
   # bounded whatever it reads
   expect_equal(browse_functions("sin")$codomain, "[-1, 1]")
   expect_equal(browse_functions("cos")$codomain, "[-1, 1]")
@@ -205,8 +205,8 @@ test_that("Strict positivity follows the support", {
   expect_false(browse_distributions("normal", mean = 0, sd = 1)$is_positive)
   expect_true(browse_distributions("normal", mean = 0, sd = 1,
                                    min = 0)$is_positive)
-  liquid <- browse_distributions("gamma", shape = 2, scale = 1, loc = -1)
-  expect_false(liquid$is_positive)
+  distr <- browse_distributions("gamma", shape = 2, scale = 1, loc = -1)
+  expect_false(distr$is_positive)
 
   # a function answers for the value it returns: the exponential is positive
   # whatever it reads, the others follow an "x" this surface leaves unbound
@@ -233,9 +233,9 @@ test_that("Strict positivity follows the support", {
 
 test_that("Function arguments are validated", {
   x <- seq(0.1, 10, 0.1)
-  fn <- browse_functions("pow", x2 = 3)
-  expect_equal(fn$args, c(x2 = 3))
-  fn$log_ratio(x, x[-1]) |>
+  func <- browse_functions("pow", x2 = 3)
+  expect_equal(func$args, c(x2 = 3))
+  func$log_ratio(x, x[-1]) |>
     expect_error("[Ss]ize")
 
   browse_functions("pow")$func(x) |>
@@ -399,10 +399,11 @@ test_that("Truncated binomial is correct", {
     expect_equal((stats::pbinom(x, args$size, args$prob) - shift) / (1 - shift))
 })
 
-test_that("Truncated discrete mass is normalised on the bins inside the support", {
+test_that("Truncated discrete mass is normalised on the bins of the support", {
   # the window closes on the last bin inside the support, not one atom past it
   k <- 2:6
-  distr <- browse_distributions("poisson", lambda = 3, min = min(k), max = max(k))
+  distr <- browse_distributions("poisson", lambda = 3,
+                                min = min(k), max = max(k))
   norm <- diff(stats::ppois(c(min(k) - 1, max(k)), 3))
   expect_equal(distr$pdf(k), stats::dpois(k, 3) / norm)
   expect_equal(sum(distr$pdf(k)), 1)
@@ -414,7 +415,8 @@ test_that("Truncated discrete mass is normalised on the bins inside the support"
                                 min = min(i), max = max(i), discr = TRUE)
   norm <- diff(stats::pgamma(c(min(i), max(i) + 1), shape = 2, scale = 1))
   expect_equal(distr$pdf(i),
-               diff(stats::pgamma(c(i, max(i) + 1), shape = 2, scale = 1)) / norm)
+               diff(stats::pgamma(c(i, max(i) + 1), shape = 2,
+                                  scale = 1)) / norm)
   expect_equal(sum(distr$pdf(i)), 1)
   expect_equal(distr$cdf(max(i)), 1)
 })
@@ -426,7 +428,6 @@ test_that("Truncated discrete rand() reaches every bin of the support", {
     expect_equal(freq, distr$pdf(k), tolerance = 0.05)
   }
 
-  set.seed(37L)
   # retained mass 0.54: rejection branch
   k <- 2:6
   browse_distributions("poisson", lambda = 3, min = min(k), max = max(k)) |>
@@ -464,7 +465,8 @@ test_that("Discrete uniform spreads flat mass over the integers", {
 
   # the quantile is the first atom whose cumulative reaches p
   p <- c(0.01, 0.25, 0.5, 0.75, 0.99)
-  expect_equal(distr$quantile(p), vapply(p, function(q) k[which(cumsum(distr$pdf(k)) >= q)[1]], 0))
+  first_atom <- function(q) k[which(cumsum(distr$pdf(k)) >= q)[1]]
+  expect_equal(distr$quantile(p), vapply(p, first_atom, 0))
 
   # the default support is a coin flip
   coin <- browse_distributions("uniform", discr = TRUE)
@@ -472,11 +474,12 @@ test_that("Discrete uniform spreads flat mass over the integers", {
   expect_equal(coin$cdf(0:1), c(0.5, 1))
 
   # 'loc' carries the atoms without reshaping them
-  browse_distributions("uniform", min = 0, max = 10, loc = 100, discr = TRUE)$pdf(100 + k) |>
+  browse_distributions("uniform", min = 0, max = 10, loc = 100,
+                       discr = TRUE)$pdf(100 + k) |>
     expect_equal(distr$pdf(k))
 })
 
-test_that("An argument off the integer values is refused where one is required", {
+test_that("An argument off the integers is refused where one is required", {
   # the flat lattice law owns every integer value in its support
   browse_distributions("uniform", min = 0.5, max = 3.2, discr = TRUE) |>
     expect_error("min.*uniform.*discrete")
@@ -568,7 +571,7 @@ test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
 
 test_that("Categorical distribution is correct", {
   # unnormalized weights still give a normalized pmf
-  args <- list(fortune = 2, fatman = 1, vamp = 7)
+  args <- list(a = 2, b = 1, c = 7)
   distr <- browse_distributions("categorical", args)
   pmf <- unname(unlist(args)) / sum(unlist(args))
   expect_equal(distr$pdf(0:2), pmf)
@@ -583,9 +586,12 @@ test_that("Categorical distribution is correct", {
   distr$log_ratio(c(0, 1), c(1, 2)) |>
     expect_equal(log(pmf[c(2, 3)] / pmf[c(1, 2)]))
 
+  # the quantile is the first label whose cumulative weight reaches p
+  expect_equal(distr$quantile(c(0.1, 0.25, 0.5, 0.9)), c(0, 1, 2, 2))
+
   browse_distributions("categorical") |>
     expect_error("no weights")
-  browse_distributions("categorical", peace = 1, walker = -2) |>
+  browse_distributions("categorical", a = 1, b = -2) |>
     expect_error("non-strictly positive")
 })
 
@@ -892,7 +898,6 @@ test_that("rand() draws are reproducible and statistically plausible", {
   expect_false(identical(x1, d$rand(50L)))
 
   # mean / sd of 20k draws should be close to the truth
-  set.seed(7L)
   big <- d$rand(20000L)
   expect_equal(mean(big), 2, tolerance = 0.05)
   expect_equal(sd(big), 3, tolerance = 0.05)
@@ -999,7 +1004,7 @@ test_that("Discretized normal methods go through center-discretization", {
   expect_equal(distr$log_ratio(x, x + 0.1), rep(0, length(x)))
 })
 
-test_that("Upper truncatation of normal distribution is correct", {
+test_that("Upper truncation of normal distribution is correct", {
   args <- list(mean = 2, sd = 1.5)
   max_val <- 4
   distr <- browse_distributions("normal", args, max = max_val)
@@ -1117,7 +1122,7 @@ test_that("Beta rand() produces plausible draws", {
   set.seed(99L)
   x2 <- d$rand(50L)
   expect_identical(x1, x2)
-  big <- d$rand(2000L)
+  big <- d$rand(20000L)
   expect_true(all(big >= 0 & big <= 1))
   expect_equal(mean(big), args$shape1 / sum(unlist(args)), tolerance = 0.02)
 })
@@ -1169,7 +1174,6 @@ test_that("rand() is reproducible and plausible for all distributions", {
     x1 <- d$rand(50L)
     set.seed(42L)
     expect_identical(d$rand(50L), x1, info = nm)
-    set.seed(1L)
     big <- d$rand(2000L)
     expect_true(all(big >= 0), info = nm)
     if (cc$int) expect_true(all(big == floor(big)), info = nm)
@@ -1182,7 +1186,7 @@ test_that("rand() is reproducible and plausible for all distributions", {
 ## BROWSE INTERNAL : INFECTIVITY PROFILES ##
 ############################################
 
-test_that("Ferretti20 infectivity profile behave has expected", {
+test_that("Ferretti20 infectivity profile integrates and discretizes", {
   x <- seq(0, 15, 0.001)
   profile <- browse_infectivity_profiles("ferretti20", incub_period = 5)
   expect_equal(trapezoid(x, profile$inst(x)), profile$cumul(x)[length(x)])

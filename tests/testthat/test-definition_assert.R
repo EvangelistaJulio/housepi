@@ -73,17 +73,17 @@ test_that("Assert valid data columns holds the definition alphabet", {
   expect_no_error(
     assert_valid_data_columns(c("id", "3", "if", "dose.2", "vacc_status"))
   )
-  assert_valid_data_columns(c("id", "sniper wolf")) |>
-    expect_error("sniper wolf")
-  assert_valid_data_columns("liquid-snake") |>
+  assert_valid_data_columns(c("id", "bad name")) |>
+    expect_error("bad name")
+  assert_valid_data_columns("bad-name") |>
     expect_error("Only letters, numbers")
   # the grammar delimiter never reaches the engine as a key
-  assert_valid_data_columns("big|boss") |>
-    expect_error("big\\|boss")
+  assert_valid_data_columns("bad|name") |>
+    expect_error("bad\\|name")
 
   # every offender is named at once, and the argument is the caller's
-  assert_valid_data_columns(c("mei ling", "grey.fox", "raven!"), "data_long") |>
-    expect_error("mei ling")
-  assert_valid_data_columns(c("mei ling", "grey.fox", "raven!"), "data_long") |>
+  assert_valid_data_columns(c("bad name", "ok.name", "bad!"), "data_long") |>
+    expect_error("bad name")
+  assert_valid_data_columns(c("bad name", "ok.name", "bad!"), "data_long") |>
     expect_error("data_long")
 })

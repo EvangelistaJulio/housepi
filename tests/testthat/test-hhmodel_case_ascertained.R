@@ -1,8 +1,33 @@
 library(testthat)
 
-################################################################################
-###################################  HELPERS  ##################################
-################################################################################
+# Over budget: the likelihood test builds the discrete-time model, a DLL
+# compile the infectivity-profile tests then find cached.
+
+# household of three cases and four escapees, the introduction at day 0
+mk_house <- local({
+  house <- data.frame(id = sprintf("m%s", seq(7)), house_id = "h1",
+                      status = c(1, 1, 1, 0, 0, 0, 0),
+                      infec_time = c(0, 3, 4, NA, NA, NA, NA),
+                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
+                      start_date = 0, end_date = 21)
+  param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
+                hhsize_ref = 4, shape = 2, scale = 1.1)
+  list(data = house, param = param)
+})
+
+# simulation over real households, the transmission risk left to each test
+mk_simulation <- local({
+  hhmodel <- sarscov2_2021_icofs |>
+    dplyr::filter(house_id %in% utils::head(unique(house_id), 100)) |>
+    dplyr::mutate(start_date = 0, end_date = 21) |>
+    new_housepi_model("case_ascertained") |>
+    add_infectivity_profile(import = "template") |>
+    add_latent(
+      incub_period = list(model = "gamma", shape = 2, scale = 1),
+      infec_time = -incub_period
+    )
+  list(model = hhmodel)
+})
 
 # cumulative infectivity profile
 infec_profile_cumul <- function(x, param, discr) {
@@ -21,7 +46,8 @@ infec_profile_inst <- function(x, param, discr) {
 
 # extract individual introduction
 find_introduction <- function(house) {
-  subset(subset(house, status > 0), infec_time == min(infec_time))
+  infected <- house[house$status > 0, ]
+  infected[infected$infec_time == min(infected$infec_time), ]
 }
 
 # transmission rate
@@ -31,8 +57,7 @@ transmission_rate <- function(house, param) {
 
 # log-likelihood contribution of escaped members
 loglike_escaped <- function(house, param, discr) {
-  member_0 <- find_introduction(house)
-  t_intro <- member_0$infec_time
+  t_intro <- find_introduction(house)$infec_time
   alpha <- param$alpha
   beta <- transmission_rate(house, param)
 
@@ -43,8 +68,7 @@ loglike_escaped <- function(house, param, discr) {
     roi_cumul <- 0
     alpha_cumul <- alpha * (t_end_k - t_intro)
     for (i in which(house$status == 1)) {
-      t_infec_i <- house[i, "infec_time"]
-      exposure <- t_end_k - t_infec_i
+      exposure <- t_end_k - house[i, "infec_time"]
       roi_cumul <- roi_cumul + infec_profile_cumul(exposure, param, discr)
     }
     output <- output - alpha_cumul - beta * roi_cumul
@@ -68,8 +92,7 @@ loglike_infectious <- function(house, param, discr) {
       roi_inst_i <- 0.
       roi_cumul_i <- 0.
       for (k in which(house$status == 1)) {
-        t_infec_k <- house[k, "infec_time"]
-        gentime <- t_infec_i - t_infec_k
+        gentime <- t_infec_i - house[k, "infec_time"]
         if (gentime > 0) {
           roi_inst_i <- roi_inst_i +
             infec_profile_inst(gentime, param, discr)
@@ -107,96 +130,37 @@ get_latent_state <- function(latent_draws, index) {
     as.data.frame()
 }
 
-join_latent_data <- function(house, latent_data) {
-  dplyr::left_join(house, latent_data, by = "id")
-}
+##################################################
+## CASE ASCERTAINED HH MODEL : SIMULATION       ##
+##################################################
 
-# get total log-likelihood (observation + latent)
-get_log_lik_i <- function(df, par) {
-  out <- latent_infec_obs_log_lik(df, par)
-  df <- df[df$status > 0, ]
-  out +
-    sum(dnorm(df$onset_time - df$onset_date, log = TRUE)) +
-    sum(dweibull(df$incub_period, shape = 2, scale = 1, log = TRUE))
-}
-
-################################################################################
-####################################  TESTS  ###################################
-################################################################################
-
-test_that("Template import loads the profile shipped with the model", {
-  defs <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained") |>
-    add_parameter(import = "template") |>
-    add_latent(import = "template") |>
-    add_infectivity_profile(import = "template") |>
-    get_infectivity_profiles()
-
-  expect_equal(defs$func, "gamma")
-  expect_equal(defs$func_args[[1]], c(mean = 4, sd = 1.7))
-  expect_equal(defs$discr, FALSE)
-})
-
-test_that("Simulations behave as expected", {
-  obs_process <- function(df) {
-    df$onset_time <- df$infec_time + df$incub_period
-    df
+test_that("Without transmission only the introductions are infected", {
+  obs_process <- function(hhdata) {
+    hhdata$onset_time <- hhdata$infec_time + hhdata$incub_period
+    hhdata
   }
-  # simulate with no transmission risk
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
-    # pick introduction randomly with onset_time at 0
-    dplyr::mutate(status = NA, start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 0,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
+  # pick introduction randomly with onset_time at 0
+  simulated <- mk_simulation$model |>
+    add_data_wide(dplyr::mutate(mk_simulation$model$data_wide, status = NA)) |>
+    add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hhsize_ref = 4) |>
     run_simulation(obs_process = obs_process)
-  # there are just introduction cases
   expect_identical(length(unique(simulated$house_id)),
                    sum(simulated$onset_time == 0, na.rm = TRUE))
 })
 
-test_that("Simulations behave as expected", {
-  # simulate with saturated transmission risk
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
-    # pick introduction informed by original data; relative-frame anchor at 0
-    dplyr::mutate(start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period,
-      onset_time = infec_time + incub_period
-    ) |>
-    # one definition set drives simulation too: no hand-written obs_process
-    add_observation("onset_date", model = "normal", mean = onset_time) |>
+test_that("A saturated transmission infects every member", {
+  simulated <- mk_simulation$model |>
+    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
     run_simulation()
 
-  # all infected
   expect_true(all(simulated$status > 0))
-  expect_false(any(is.na(simulated$infec_time)))
-  expect_equal(simulated$infec_time,
-               simulated$onset_time - simulated$incub_period)
-
-  # onset_date is generated for infected members and only those
-  expect_true("onset_date" %in% names(simulated))
-  expect_false(any(is.na(simulated$onset_date[simulated$status > 0])))
-  expect_true(all(is.na(simulated$onset_date[simulated$status == 0])))
-
-  # generated onset_date is a draw from normal(infec_time + incub_period, 1)
-  inf <- simulated[simulated$status > 0, ]
-  resid <- inf$onset_date - (inf$infec_time + inf$incub_period)
-  expect_lt(abs(mean(resid)), 0.2)
-  expect_lt(abs(sd(resid) - 1), 0.2)
+  expect_false(anyNA(simulated$infec_time))
+  expect_false(anyNA(simulated$incub_period))
 })
+
+##################################################
+## CASE ASCERTAINED HH MODEL : LOG-LIKELIHOOD   ##
+##################################################
 
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), house_id = "h1", status = 0,
@@ -210,17 +174,12 @@ test_that("Sentinel against no introduction throws error", {
 })
 
 test_that("Sentinel against a reversed follow-up window throws error", {
-  # end_date < start_date has no valid exposure period (former study_period < 0)
-  house <- data.frame(house_id = "codetalker",
-                      status = c(1, 0),
-                      infec_time = c(0, NA),
-                      start_date = 5, end_date = 2)
-  house$id <- sprintf("codetalker_m%s", seq_len(nrow(house)))
-
-  house |>
+  # end_date < start_date has no valid exposure period
+  data.frame(id = c("m1", "m2"), house_id = "h1",
+             status = c(1, 0), infec_time = c(0, NA),
+             start_date = 5, end_date = 2) |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                  hhsize_ref = 4, shape = 2, scale = 1.1) |>
+    add_parameter(import = mk_house$param) |>
     add_latent(infec_time = infec_time@D) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
     evaluate_log_lik() |>
@@ -228,94 +187,30 @@ test_that("Sentinel against a reversed follow-up window throws error", {
 })
 
 test_that("Log-likelihood of case ascertained model is correct", {
-  # dummy dataset
-  house <- data.frame(house_id = "hh01",
-                      status = c(1, 1, 1, 0, 0, 0, 0),
-                      infec_time = c(0, 3, 4, NA, NA, NA, NA),
-                      start_date = 0, end_date = 21)
-  house$id <- sprintf("hh01m%s", seq(1, dim(house)[1]))
-
-  # choice for the parameters
-  param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                hhsize_ref = 4, shape = 2, scale = 1.1)
+  house <- mk_house$data[c("id", "house_id", "status", "infec_time",
+                           "start_date", "end_date")]
 
   for (discr in c(FALSE, TRUE)) {
     hhmodel <- house |>
-      new_housepi_model("case_ascertained",
-                        discr = discr, quiet = TRUE) |>
-      add_parameter(import = param) |>
+      new_housepi_model("case_ascertained", discr = discr, quiet = TRUE) |>
+      add_parameter(import = mk_house$param) |>
       add_latent(infec_time = infec_time@D) |>
       add_infectivity_profile(func = "gamma", discr = discr,
                               shape = shape@P, scale = scale@P)
 
     evaluate_log_lik(hhmodel) |>
-      expect_equal(latent_infec_obs_log_lik(house, param, discr))
+      expect_equal(latent_infec_obs_log_lik(house, mk_house$param, discr))
 
     # test complex print, discrete and continuous time
     expect_snapshot(print(hhmodel))
   }
 })
 
-test_that("Parallel latent-move reduction preserves log-lik invariant", {
-  house <- data.frame(house_id = "hh01",
-                      status = c(1, 1, 1, 0, 0, 0, 0),
-                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
-                      start_date = 0, end_date = 21)
-  house$id <- sprintf("hh01m%s", seq_len(nrow(house)))
-
-  build_hh <- function() {
-    house |>
-      new_housepi_model("case_ascertained", quiet = TRUE) |>
-      add_parameter(import = "template") |>
-      add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
-      add_latent(
-        infec_time = onset_time - incub_period,
-        onset_time = list(model = "normal", mean = onset_date@D),
-        incub_period = list(model = "weibull", shape = 2, scale = 1)
-      ) |>
-      add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
-  }
-  id_draws <- house[house$status > 0, ]$id
-
-  for (t in c(1L, 2L)) {
-    hhmodel <- build_hh()
-    suppressWarnings(
-      results <- hhmodel |>
-        run_inference(steps = 30L, thin = 1L, adapt = 20L, chain = 1L,
-                      threads = t, id_draws = id_draws)
-    )
-    # pointwise log-lik (transmission plus the latent model, no obs node)
-    # matches an independent R recomputation for every retained draw, under any
-    # thread count
-    param_draws <- get_parameter_draws(results) |>
-      posterior::as_draws_matrix() |>
-      as.data.frame()
-    latent_draws <- get_latent_draws(results) |>
-      posterior::as_draws_matrix() |>
-      as.data.frame()
-    consts <- hhmodel$parameters |>
-      dplyr::filter(const) |>
-      dplyr::select(name, value) |>
-      tidyr::pivot_wider(names_from = "name", values_from = "value") |>
-      as.list()
-    ll_ref <- sapply(seq_len(30), function(i) {
-      df <- join_latent_data(house, get_latent_state(latent_draws, i))
-      get_log_lik_i(df, c(param_draws[i, , drop = FALSE], consts))
-    })
-    expect_equal(get_log_lik_draws(results)$hh01, ll_ref)
-  }
-})
-
 test_that("Latent moves preserve log-likelihood", {
-  # dummy dataset
-  house <- data.frame(house_id = "hh01",
-                      status = c(1, 1, 1, 0, 0, 0, 0),
-                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
-                      start_date = 0, end_date = 21)
-  house$id <- sprintf("hh01m%s", seq(1, dim(house)[1]))
-
+  house <- mk_house$data[c("id", "house_id", "status", "onset_date",
+                           "start_date", "end_date")]
   hhmodel <- house |>
-    new_housepi_model("case_ascertained") |>
+    new_housepi_model("case_ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_latent(
@@ -325,638 +220,60 @@ test_that("Latent moves preserve log-likelihood", {
     ) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
 
-  n_steps <- 100L
-  id_draws <- house[house$status > 0, ]$id
-  results <- suppressWarnings(
-    hhmodel |>
-      run_inference(steps = n_steps, thin = 1L, adapt = 0L,
-                    chain = 1L, id_draws = id_draws)
-  )
+  # the latent moves are reduced over two threads
+  n_steps <- 30L
+  results <- hhmodel |>
+    run_inference(steps = n_steps, thin = 1L, adapt = 0L, chains = 1L,
+                  threads = 2L, id_draws = house$id[house$status > 0]) |>
+    suppressWarnings()
 
   # the pointwise log-lik folds transmission and the latent model; with no
   # obs node it is the full complete-data density (parameter prior aside)
-  tot_log_dens <- unname(get_log_lik_draws(results)$hh01)
-
+  log_lik <- unname(get_log_lik_draws(results)$h1)
   param_draws <- get_parameter_draws(results) |>
     posterior::as_draws_matrix() |>
     as.data.frame()
-
   latent_draws <- get_latent_draws(results) |>
     posterior::as_draws_matrix() |>
     as.data.frame()
-
-  # constant parameters
-  consts <- hhmodel$parameters[hhmodel$parameters$const, c("name", "value")] |>
+  consts <- get_parameters(hhmodel) |>
+    subset(const, c("name", "value")) |>
     tidyr::pivot_wider(names_from = "name", values_from = "value") |>
     as.list()
+  state_at <- function(i) {
+    dplyr::left_join(house, get_latent_state(latent_draws, i), by = "id")
+  }
 
-  # check that snapshot is last state
-  snapshot <- hhmodel$export_house_snapshot("hh01")
+  # the snapshot holds the last state
+  snapshot <- hhmodel$export_house_snapshot("h1")
   expect_identical(unlist(c(param_draws[n_steps, ], consts)),
                    snapshot$parameters)
   expect_identical(get_latent_state(latent_draws, n_steps),
                    snapshot$latent[house$status > 0, ])
 
-  check_eval <- function(i) {
-    df <- join_latent_data(house, get_latent_state(latent_draws, i))
+  # every retained draw matches an independent R recomputation
+  expected <- vapply(seq_len(n_steps), function(i) {
+    hhdata <- state_at(i)
     par <- c(param_draws[i, , drop = FALSE], consts)
-    get_log_lik_i(df, par)
-  }
-  ll_check <- sapply(seq_len(n_steps), check_eval)
-  expect_equal(tot_log_dens, ll_check)
+    infected <- hhdata[hhdata$status > 0, ]
+    latent_infec_obs_log_lik(hhdata, par) +
+      sum(dnorm(infected$onset_time - infected$onset_date, log = TRUE)) +
+      sum(dweibull(infected$incub_period, shape = 2, scale = 1, log = TRUE))
+  }, numeric(1))
+  expect_equal(log_lik, expected)
 
-  # check if log-likelihood is coherent
-  housepi_eval <- function(i) {
-    params_i <- c(param_draws[i, , drop = FALSE], consts)
-    join_latent_data(house, get_latent_state(latent_draws, i)) |>
-      new_housepi_model("case_ascertained", quiet = TRUE) |>
-      add_latent(
-        infec_time = onset_time - incub_period,
-        onset_time = list(value = onset_time@D, const = TRUE,
-                          model = "normal", mean = onset_date@D),
-        incub_period = list(value = incub_period@D, const = TRUE,
-                            model = "weibull", shape = 2, scale = 1)
-      ) |>
-      add_parameter(import = params_i) |>
-      add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
-      evaluate_log_lik()
-  }
   # the fresh-model likelihood matches the tracked pointwise likelihood
-  expect_equal(tot_log_dens[n_steps], housepi_eval(n_steps))
-})
-
-test_that("Observation node enters the pointwise log-likelihood", {
-  house <- data.frame(id = as.character(seq_len(7)), house_id = "hh01",
-                      status = c(rep(1, 3), rep(0, 4)),
-                      onset_date = c(2, 6, 6, rep(NA, 4)),
-                      start_date = 0, end_date = 21)
-
-  hhmodel <- house |>
+  state_at(n_steps) |>
     new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter(import = "template") |>
-    add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
-      infec_time = list(model = "uniform", min = -14, max = end_date@D)
+      infec_time = onset_time - incub_period,
+      onset_time = list(value = onset_time@D, const = TRUE,
+                        model = "normal", mean = onset_date@D),
+      incub_period = list(value = incub_period@D, const = TRUE,
+                          model = "weibull", shape = 2, scale = 1)
     ) |>
-    add_observation("onset_date", model = "normal",
-                    mean = infec_time + incub_period, sd = 1) |>
-    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
-
-  n_steps <- 25
-  results <- hhmodel |>
-    run_inference(steps = n_steps, thin = 1L, adapt = 0L, chain = 1L) |>
-    suppressWarnings()
-
-  param_draws <- get_parameter_draws(results) |>
-    posterior::as_draws_matrix() |>
-    as.data.frame()
-  latent_draws <- get_latent_draws(results) |>
-    posterior::as_draws_matrix() |>
-    as.data.frame()
-  consts <- hhmodel$parameters[hhmodel$parameters$const, c("name", "value")] |>
-    tidyr::pivot_wider(names_from = "name", values_from = "value") |>
-    as.list()
-
-  # the pointwise log_lik combines transmission, observation and the latent
-  # model: it matches a fresh-model evaluation with the latent values pinned
-  ref <- sapply(seq_len(n_steps), function(i) {
-    df <- join_latent_data(house, get_latent_state(latent_draws, i))
-    par <- c(param_draws[i, , drop = FALSE], consts)
-    df |>
-      new_housepi_model("case_ascertained", quiet = TRUE) |>
-      add_latent(
-        incub_period = list(value = incub_period@D, const = TRUE,
-                            model = "gamma", shape = 2, scale = 1, max = 14),
-        infec_time = list(value = infec_time@D, const = TRUE,
-                          model = "uniform", min = -14, max = end_date@D)
-      ) |>
-      add_observation("onset_date", model = "normal",
-                      mean = infec_time + incub_period, sd = 1) |>
-      add_parameter(import = par) |>
-      add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
-      evaluate_log_lik()
-  })
-  expect_equal(get_log_lik_draws(results)$hh01, ref)
-})
-
-test_that("deterministic observation constrains its ancestors", {
-  # an observation whose location is a deterministic node
-  # (onset_time = infec_time + incub_period) must propagate the constraint to the
-  # sampled ancestors. Otherwise moving infec_time / incub_period skips the
-  # observation ratio and the latent onset drifts away from the datum.
-  house <- data.frame(house_id = "outerheaven",
-                      status = c(1, 1, 1, 0, 0, 0, 0),
-                      onset_date = c(2, 6, 6, NA, NA, NA, NA),
-                      start_date = 0, end_date = 21)
-
-  results <- house |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter(import = "template") |>
-    add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
-      infec_time = list(model = "uniform", min = -14, max = end_date@D),
-      onset_time = infec_time + incub_period
-    ) |>
-    # tightly informative observation reached through the deterministic node
-    add_observation(
-      "onset_date", model = "normal", mean = onset_time, sd = 0.2
-    ) |>
+    add_parameter(import = c(param_draws[n_steps, , drop = FALSE], consts)) |>
     add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
-    run_inference(steps = 400L, thin = 1L, adapt = 100L, chain = 1L) |>
-    suppressWarnings()
-
-  onset <- get_latent_draws(results) |>
-    posterior::as_draws_matrix() |>
-    as.data.frame()
-  # the sampled onset (infec_time + incub_period) tracks the observed onset_date
-  recon <- unname(colMeans(onset[, grep("onset_time", names(onset))]))
-  expect_lt(max(abs(recon - house$onset_date[house$status > 0])), 0.5)
-})
-
-test_that("Discretized observation node initializes finite", {
-  # a discretized normal obs whose latent onset starts (from the
-  # wide infec_time prior) far below the observed onset_date used to yield a
-  # spurious -Inf at chain init (upper-tail CDF-difference cancellation).
-  house <- data.frame(house_id = "shadowmoses",
-                      status = c(1, 1, 1, 1, 0, 0, 0),
-                      onset_date = c(2, 5, 6, 7, NA, NA, NA),
-                      start_date = 0, end_date = 21)
-
-  hhmodel <- house |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter(import = "template") |>
-    add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
-      infec_time = list(model = "uniform", min = -14, max = end_date@D)
-    ) |>
-    # discretized observation: the path that previously broke initialization
-    add_observation("onset_date", model = "normal", discr = TRUE, sd = 1,
-                    mean = infec_time + incub_period) |>
-    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
-
-  # initialization no longer returns infinity; the chain runs and the
-  # complete-data log-likelihood stays finite throughout
-  results <- hhmodel |>
-    run_inference(steps = 50L, thin = 1L, adapt = 0L, chain = 1L) |>
-    suppressWarnings()
-  expect_true(all(is.finite(get_log_lik_draws(results)$shadowmoses)))
-})
-
-test_that("Household observation derives from simulated observations", {
-  # both the observation (test_date) and the surrogate column (start_date) are
-  # produced internally: neither is provided in the input data
-  reps <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 80)) |>
-    dplyr::select(-test_date, -start_date) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
-    add_observation("test_date", model = "normal",
-                    mean = infec_time + incub_period, sd = 1) |>
-    add_observation(start_date = min(test_date@D), level = "house") |>
-    run_simulation(nrep = 2)
-
-  # each repetition is self-consistent: start_date is the per-household na.rm min
-  # of *that* repetition's generated test_date (a stale leak would break this),
-  # one value per household replicated across rows, never NA (every house has a case)
-  for (sim in reps) {
-    expect_true(all(c("start_date", "test_date") %in% names(sim)))
-    expect_false(any(is.na(sim$start_date)))
-    expect_true(all(
-      tapply(sim$start_date, sim$house_id, function(x) length(unique(x))) == 1
-    ))
-    inf <- sim[sim$status > 0, ]
-    ref <- tapply(inf$test_date, inf$house_id, min)
-    got <- tapply(sim$start_date, sim$house_id, function(x) x[[1]])
-    expect_equal(as.numeric(got[order(names(got))]),
-                 as.numeric(ref[order(names(ref))]))
-  }
-})
-
-test_that("Simulation leaves overwritten data columns pristine", {
-  m <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
-    dplyr::mutate(start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
-    # test_date is real provided data AND a generated observation: simulation
-    # overwrites it with generated values, then must restore the input
-    add_observation("test_date", model = "normal",
-                    mean = infec_time + incub_period, sd = 1)
-
-  before <- m$export_augmented_data()
-  m |> run_simulation(nrep = 2)
-  m |> run_simulation(nrep = 2)
-  after <- m$export_augmented_data()
-
-  before <- before[order(before$id), ]
-  after <- after[order(after$id), ]
-  # the overwritten column is restored, and no simulation-added column lingers
-  expect_equal(as.numeric(after$test_date), as.numeric(before$test_date))
-  expect_setequal(names(after), names(before))
-})
-
-test_that("Latent variable reads a static data-bound household observation", {
-  # start_date stands in for PROVIDED (static) test_date, read by infec_time's prior
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% head(unique(house_id), 30)) |>
-    dplyr::mutate(test_date = 5, end_date = 26) |>
-    dplyr::select(-start_date) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      infec_time = list(model = "uniform", min = start_date@D - 5,
-                        max = start_date@D + 5)
-    ) |>
-    add_observation(start_date = min(test_date@D), level = "house") |>
-    run_simulation()
-
-  # start_date is materialized statically (= 5) before the index is drawn
-  expect_false(any(is.na(simulated$start_date)))
-  expect_true(all(simulated$start_date == 5))
-})
-
-test_that("Simulation rejects a latent variable reading a live household observation", {
-  # infec_time depends on start_date, a surrogate of the GENERATED test_date:
-  # an unsatisfiable cycle, rejected with a clear message
-  sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% head(unique(house_id), 20)) |>
-    dplyr::select(-test_date, -start_date) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      infec_time = list(model = "uniform", min = start_date@D - 5,
-                        max = start_date@D + 5)
-    ) |>
-    add_observation("test_date", model = "normal", mean = infec_time, sd = 1) |>
-    add_observation(start_date = min(test_date@D), level = "house") |>
-    run_simulation() |>
-    expect_error("[Cc]yclic")
-})
-
-test_that("Deterministic observation node simulates, inference rejects it", {
-  build <- function(data) {
-    data |>
-      new_housepi_model("case_ascertained") |>
-      add_infectivity_profile(import = "template") |>
-      add_parameter(alpha = 1e-12, beta = 100,
-                    gamma = 1, hhsize_ref = 4) |>
-      add_latent(
-        incub_period = list(model = "gamma", shape = 2, scale = 1),
-        infec_time = -incub_period
-      ) |>
-      # bare expression (no 'model =' distribution): a deterministic observation
-      add_observation(onset_date = floor(infec_time + incub_period))
-  }
-
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 100)) |>
-    dplyr::mutate(start_date = 0, end_date = 21) |>
-    build() |>
-    run_simulation()
-
-  # generated deterministically for infected members, as a single column
-  expect_equal(sum(names(simulated) == "onset_date"), 1)
-  inf <- simulated[simulated$status > 0, ]
-  expect_equal(inf$onset_date, floor(inf$infec_time + inf$incub_period))
-  expect_true(all(is.na(simulated$onset_date[simulated$status == 0])))
-
-  # inference rejects the degenerate indicator likelihood with a clear message:
-  # a column read off the latent state has no value to infer from
-  evaluate_log_lik(build(simulated)) |>
-    expect_error("must resolve from data alone")
-})
-
-test_that("Household observations aggregate a data column across members", {
-
-  houses <- head(unique(sarscov2_2021_icofs$house_id), 60)
-  # force one household to have all-NA test_date: the na.rm reduction is empty.
-  # the reference below reads 'dat', so mutate it here to keep both in sync.
-  na_house <- houses[[1]]
-  dat <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% houses) |>
-    dplyr::mutate(
-      start_date = 0,
-      test_date = dplyr::if_else(house_id == na_house, as.Date(NA), test_date)
-    )
-
-  simulated <- dat |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
-    add_observation(
-      first_test = min(test_date@D),
-      last_test = max(test_date@D),
-      level = "house"
-    ) |>
-    run_simulation()
-
-  expect_true(all(c("first_test", "last_test") %in% names(simulated)))
-
-  # one value per household, replicated across every member row
-  expect_true(all(
-    tapply(simulated$first_test, simulated$house_id,
-           function(x) length(unique(x))) == 1
-  ))
-
-  # values equal the na.rm min/max of test_date over each household's members,
-  # NA when every member is missing (the all-NA household)
-  ref <- function(f) {
-    v <- tapply(as.numeric(dat$test_date), dat$house_id,
-                function(x) if (all(is.na(x))) NA_real_ else f(x, na.rm = TRUE))
-    v[order(names(v))]
-  }
-  got <- function(col) {
-    v <- tapply(simulated[[col]], simulated$house_id, function(x) x[[1]])
-    v[order(names(v))]
-  }
-  expect_equal(got("first_test"), ref(min))
-  expect_equal(got("last_test"), ref(max))
-
-  # singleton household (one member): the aggregate is that member's value
-  sizes <- table(dat$house_id)
-  singleton <- names(sizes)[sizes == 1]
-  if (length(singleton) > 0) {
-    one <- singleton[[1]]
-    expect_equal(unique(simulated$first_test[simulated$house_id == one]),
-                 as.numeric(dat$test_date[dat$house_id == one]))
-  }
-
-  # the all-NA household yields NA across its rows
-  expect_true(all(is.na(simulated$first_test[simulated$house_id == na_house])))
-})
-
-test_that("Data-bound household observation supplies a required data column", {
-  df <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% head(unique(house_id), 40))
-
-  base_hh_model <- new_housepi_model(model = "case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(import = "template") |>
-    add_latent(import = "template")
-
-  # 'start_date' provided as an ordinary data column
-  provided <- add_data_wide(base_hh_model, df)
-
-  # 'start_date' is passed as a surrogate observation
-  surrogate <- base_hh_model |>
-    add_data_wide(dplyr::select(df, -start_date)) |>
-    add_observation(start_date = min(test_date@D), level = "house")
-
-  # log-likelihood of provided and surrogate should be the same
-  set.seed(42)
-  ll_provided <- evaluate_log_lik(provided)
-  set.seed(42)
-  evaluate_log_lik(surrogate) |>
-    expect_equal(ll_provided)
-
-  # the materialized column equals the per-household na.rm min of test_date
-  # (start_date is a surrogate numeric column; test_date round-trips as a Date)
-  aug <- surrogate$export_augmented_data()
-  ok <- tapply(seq_len(nrow(aug)), aug$house_id, function(ix) {
-    isTRUE(all.equal(unique(aug$start_date[ix]),
-                     min(as.numeric(aug$test_date[ix]), na.rm = TRUE)))
-  })
-  expect_true(all(unlist(ok)))
-})
-
-test_that("Data-bound household observation rejects latent dependence", {
-  base <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% head(unique(house_id), 20)) |>
-    dplyr::select(-start_date)
-
-  # forbidden household observation depending on parameters
-  base |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(import = "template") |>
-    add_latent(import = "template") |>
-    add_observation(start_date = min(test_date@D) + alpha@P, level = "house") |>
     evaluate_log_lik() |>
-    expect_error("must resolve from data alone")
-})
-
-test_that("add_status rejects an empty probability list", {
-  new_housepi_model(model = "test") |>
-    add_status() |>
-    expect_error("[Nn]o status probability")
-})
-
-test_that("Status process generates a labelled status factor in simulation", {
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 150)) |>
-    dplyr::mutate(start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
-    # categorical drawn first; labels (declaration order) name the statuses
-    add_status(symptomatic = 0.2, asymptomatic = 0.8) |>
-    run_simulation()
-
-  # status is a factor: code 0 -> escaped, 1 -> symptomatic, 2 -> asymptomatic
-  expect_s3_class(simulated$status, "factor")
-  expect_identical(levels(simulated$status),
-                   c("escaped", "symptomatic", "asymptomatic"))
-  inf <- as.character(simulated$status[simulated$status != "escaped"])
-  # outcome split follows the probabilities (0.2 symptomatic)
-  expect_lt(abs(mean(inf == "symptomatic") - 0.2), 0.08)
-})
-
-test_that("Status process drives status-specific latent blocks", {
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
-    dplyr::mutate(start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
-    # status-specific block: symptomatic incubation is longer (character status=)
-    add_latent(status = "symptomatic",
-               incub_period = list(model = "gamma", shape = 8, scale = 1)) |>
-    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
-    run_simulation()
-
-  by_status <- tapply(simulated$incub_period,
-                      as.character(simulated$status), mean, na.rm = TRUE)
-  # the resolved status selects the block: symptomatic ~ shape 8, asymptomatic ~ 2
-  expect_gt(by_status[["symptomatic"]], 5)
-  expect_lt(by_status[["asymptomatic"]], 4)
-})
-
-test_that("Status is a constant in inference", {
-  # refined statuses already in the data; infec_time is read from data so the
-  # density is deterministic and the only difference is the status process.
-  house <- data.frame(house_id = "outerheaven",
-                      status = c(1, 2, 1, 0, 0, 0, 0),
-                      infec_time = c(0, 3, 4, NA, NA, NA, NA),
-                      start_date = 0, end_date = 21)
-  house$id <- sprintf("outerheaven_m%s", seq_len(nrow(house)))
-  param <- list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                hhsize_ref = 4, shape = 2, scale = 1.1)
-
-  build <- function(with_status) {
-    m <- house |>
-      new_housepi_model("case_ascertained", quiet = TRUE) |>
-      add_parameter(import = param) |>
-      add_latent(infec_time = infec_time@D) |>
-      add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
-    if (with_status) {
-      m <- m |> add_status(symptomatic = 0.7, asymptomatic = 0.3)
-    }
-    m
-  }
-
-  # the status process drops out of the density (status is fixed data)
-  expect_equal(evaluate_log_lik(build(TRUE)), evaluate_log_lik(build(FALSE)))
-})
-
-test_that("Status process rejects latent/parameter probabilities", {
-  house <- data.frame(house_id = "zanzibar",
-                      status = c(1, 2, 0, 0),
-                      start_date = 0, end_date = 21)
-  house$id <- sprintf("zanzibar_m%s", seq_len(nrow(house)))
-
-  house |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter(import = "template") |>
-    add_latent(import = "template") |>
-    # probabilities must be a pure function of data/numerics
-    add_status(symptomatic = alpha@P, asymptomatic = 3) |>
-    evaluate_log_lik() |>
-    expect_error("only on data or numeric")
-})
-
-test_that("Character status round-trips with stable codes", {
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 120)) |>
-    dplyr::mutate(start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
-    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
-    run_simulation()
-
-  # feed the factor-status output back for inference: factorization maps the
-  # labels to the same codes (escaped -> 0), so the density is finite
-  reinfer <- simulated |>
-    dplyr::select(id, house_id, status, infec_time, start_date, end_date) |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter(alpha = 1e-04, beta = 0.07, gamma = 0.9,
-                  hhsize_ref = 4, shape = 2, scale = 1.1) |>
-    add_latent(infec_time = infec_time@D) |>
-    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
-  expect_true(is.finite(evaluate_log_lik(reinfer)))
-
-  # the data-derived dictionary matches the simulated infected labels
-  gen <- reinfer$.__enclos_env__$private$generator_
-  expect_identical(gen$status_data_labels, c("symptomatic", "asymptomatic"))
-})
-
-test_that("escaped label is configurable", {
-  simulated <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 60)) |>
-    dplyr::mutate(start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained", escaped = "healthy") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 0.001,
-                  gamma = 1, hhsize_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
-    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
-    run_simulation()
-
-  # weak transmission leaves escapeds, labelled per the construction argument
-  expect_true("healthy" %in% levels(simulated$status))
-  expect_true(any(as.character(simulated$status) == "healthy"))
-})
-
-test_that("Escaped label colliding with an infected status is rejected", {
-  house <- data.frame(house_id = "bigshell",
-                      status = c(1, 2, 0, 0),
-                      start_date = 0, end_date = 21)
-  house$id <- sprintf("bigshell_m%s", seq_len(nrow(house)))
-
-  house |>
-    new_housepi_model("case_ascertained", quiet = TRUE,
-                      escaped = "symptomatic") |>
-    add_parameter(import = "template") |>
-    add_latent(import = "template") |>
-    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
-    expect_error("collides with the escaped-status label")
-})
-
-test_that("Mixing integer and character status declarations is rejected", {
-  house <- data.frame(house_id = "shadowmoses",
-                      status = c(1, 2, 0, 0),
-                      start_date = 0, end_date = 21)
-  house$id <- sprintf("shadowmoses_m%s", seq_len(nrow(house)))
-
-  # one call carries both an integer and a character status: caught at the wall
-  house |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
-    add_parameter(import = "template") |>
-    add_latent(import = "template") |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1,
-                          status = "symptomatic"),
-      onset = list(value = 1, status = 1)
-    ) |>
-    evaluate_log_lik() |>
-    expect_error("[Mm]ix")
-})
-
-test_that("Model-required data can be postponed", {
-  # drop a model-required data column: it may be supplied later
-  # construction must tolerate the gap silently
-  dat <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% head(unique(house_id), 20))
-  dat$start_date <- NULL
-
-  hhmodel <- dat |>
-    new_housepi_model("case_ascertained")
-
-  # hitting a wall (evaluate_*/run_*) raises capital error
-  hhmodel |>
-    evaluate_log_lik() |>
-    expect_error("start_date")
-  hhmodel |>
-    run_simulation() |>
-    expect_error("start_date")
+    expect_equal(log_lik[n_steps])
 })

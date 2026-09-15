@@ -810,12 +810,6 @@ HousepiGroupRisk <- R6::R6Class(
       unique(covs[!is.na(covs)])
     },
 
-    #' @field stratifies_on_status `logical(1)`.
-    #' Whether a risk stratifies on the infected status.
-    stratifies_on_status = function(value) {
-      "status" %in% self$raw_covariate_names
-    },
-
     #' @field param_required `character()`. Parameters required by group risks.
     param_required = function(value) {
       required <- c()
@@ -918,12 +912,12 @@ HousepiGroupRisk <- R6::R6Class(
 
       # automatic definition
       prefix <- housepi_smart_unwrap(prefix, "prefix")
-      reference <- housepi_smart_unwrap(reference, "reference")
+      reference <- housepi_smart_unwrap(reference, "reference", null_ok = TRUE)
       joint <- isTRUE(housepi_smart_unwrap(joint, "joint"))
 
       # custom definition
-      strata <- housepi_smart_unwrap(strata, "strata")
-      params <- housepi_smart_unwrap(params, "params")
+      strata <- housepi_smart_unwrap(strata, "strata", null_ok = TRUE)
+      params <- housepi_smart_unwrap(params, "params", null_ok = TRUE)
 
       # raw parameter definition
       prior <- housepi_smart_unwrap(prior, "prior")

@@ -443,7 +443,7 @@ template_helper_ <- paste(
 # Guard the inline (`...`) bulk form.
 assert_bulk_defs_ <- function(family, dots, has_template = FALSE) {
   if (length(dots) > 0L) return(dots)
-  sms <- c("No {family} definitions provided.", definition_helper_)
+  sms <- c("Missing or empty {family} definitions.", definition_helper_)
   if (isTRUE(has_template)) sms <- c(sms, template_helper_)
   stop_h(sms)
 }
@@ -553,7 +553,7 @@ add_parameter <- function(hhmodel,
     pvt, "parameter", append, name, rlang::enquos(...)
   )
   #> import mode
-  else if (!is.null(import)) pvt$param_$add_quo_list(
+  else if (length(import) > 0L) pvt$param_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append
   )
@@ -628,7 +628,7 @@ add_latent <- function(hhmodel,
     pvt, "latent", append, name, rlang::enquos(...)
   )
   #> import mode
-  else if (!is.null(import)) pvt$augm_$add_quo_list(
+  else if (length(import) > 0L) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append, status = status
   )
@@ -683,6 +683,7 @@ add_latent <- function(hhmodel,
 #' `"house"`, one value per household reduced over all its members.
 #' In mode 'multiple', applies to every entry not setting its own.
 #' @param value `r rd_aug_val_`
+#' @param func `r rd_var_func_`
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_var_discr_("model", rd_obs_discr_from_)`
 #' @param min `r rd_aug_min_`
@@ -694,7 +695,7 @@ add_latent <- function(hhmodel,
 add_observation <- function(hhmodel, name = NULL,
                             model = NA_character_, ...,
                             level = c("member", "house"), value = NULL,
-                            status = NA_integer_, discr = NA,
+                            func = NULL, status = NA_integer_, discr = NA,
                             min = NULL, max = NULL,
                             import = NULL, append = TRUE) {
   stopifnothousepi(hhmodel)
@@ -704,14 +705,14 @@ add_observation <- function(hhmodel, name = NULL,
   pvt <- new_obj$.__enclos_env__$private
 
   #> import mode
-  if (!is.null(import)) pvt$augm_$add_quo_list(
+  if (length(import) > 0L) pvt$augm_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append, status = status, .kind = level
   )
   #> single mode
   else if (!is.null(name)) pvt$augm_$add_quo(
     name = name, value = rlang::enquo(value), status = status,
-    const = NA, discr = discr,
+    const = NA, discr = discr, func = rlang::enquo(func),
     model = model, rlang::enquos(...),
     min = rlang::enquo(min), max = rlang::enquo(max),
     .assert = TRUE, .kind = level
@@ -808,7 +809,7 @@ add_group_risk <-  function(hhmodel,
   if (is.null(name) && isFALSE(append)) pvt$drop_group_risks_()
 
   #> import mode
-  if (!is.null(import)) pvt$group_risks_$add_quo_list(
+  if (length(import) > 0L) pvt$group_risks_$add_quo_list(
     defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
     append = append
   )
@@ -876,7 +877,7 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 
   # contact risk holds a single definition:
   # import a named arg list, or the explicit arguments
-  if (is.null(import)) import <- list(
+  if (length(import) == 0L) import <- list(
     by = by, reference = reference, joint = joint,
     symmetric = symmetric, strata = strata, params = params,
     prior = prior, rlang::enquos(...),
@@ -933,7 +934,7 @@ add_infectivity_profile <- function(hhmodel,
     pvt, "infectivity profile", append, func, rlang::enquos(...)
   )
   #> import mode
-  else if (!is.null(import)) pvt$infec_profile_$add_quo_list(
+  else if (length(import) > 0L) pvt$infec_profile_$add_quo_list(
     defs_to_quos_(import, func, rlang::enquos(...), rlang::caller_env()),
     append = append
   )

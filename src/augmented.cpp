@@ -1969,7 +1969,7 @@ namespace housepi
         {
             if (!id_draws.empty() || !house_draws.empty())
                 msg::warn(
-                    "Ignored" + msg::arg("id_draws") +
+                    "Ignored " + msg::arg("id_draws") +
                     ": no latent variables to sample were defined.");
             return {};
         }

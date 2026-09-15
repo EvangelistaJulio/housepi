@@ -217,31 +217,15 @@ helper_case_container <- function(x_quos) {
   x_quos
 }
 
-# Deal with arguments not expected to be quosure.
-housepi_smart_unwrap <- function(x, arg_name = NULL) {
-  # If not a quosure, return as-is
-  if (!rlang::is_quosure(x) && !rlang::is_quosures(x)) return(x)
-
-  # evaluate the quosure
-  result <- coerce_date_(rlang::eval_tidy(x))
-
-  # check if is one of the allowed types
-  if (is.character(result) || is.numeric(result) ||
-        is.logical(result) || is.list(result)) return(result)
-
-  if (length(result) == 0) return(NULL)
-
-  tryCatch({
-    lapply(result, rlang::quo_get_expr)
-  },
-  error = function(e) {
-    stop_h(
-      sprintf("%s must be character, numeric, or logical.",
-              ifelse(is.null(arg_name), "Defused arguments",
-                     sprintf("Argument {.arg %s}", arg_name))),
-      format_type_error(result)
-    )
-  })
+# Unwrap a definition argument, evaluating it when defused.
+housepi_smart_unwrap <- function(x, arg_name, null_ok = FALSE) {
+  if (rlang::is_quosure(x) || rlang::is_quosures(x)) x <- rlang::eval_tidy(x)
+  x <- coerce_date_(x)
+  if (is.null(x) && isTRUE(null_ok)) return(NULL)
+  if (is.character(x) || is.numeric(x) || is.logical(x) || is.list(x)) return(x)
+  stop_h(sprintf("Argument {.arg %s} must be character, numeric, or logical.",
+                 arg_name),
+         format_type_error(x))
 }
 
 # Deal with housepi quosures.
@@ -290,21 +274,12 @@ housepi_extractor <- function(...) {
   else unname(output)
 }
 
-# Stop if no definition was supplied to the list.
-assert_nonempty_defin_quos <- function(xquos, family) {
-  if (length(xquos) == 0L) stop_h(
-    "No {family} definition provided.",
-    "Provide at least one definition."
-  )
-}
-
 # Load a named list of quosures for definitions.
 # Resets the store first unless 'append' is TRUE.
 # 'defaults' supplies named arguments applied to every definition that does not
 # set them itself (e.g. a bulk-level 'status =' shared by all entries).
 housepi_load_defin_quos <- function(self, implicit_name, xquos,
                                     append = FALSE, defaults = list()) {
-  assert_nonempty_defin_quos(xquos, self$family)
   if (isFALSE(append)) self$initialize()
   self$store_warn_over <- character()
 

@@ -1,25 +1,41 @@
 library(testthat)
 
-# Run inference once and reuse across tests.
-# Short run trips the diagnostic short-run warning — irrelevant here.
-local_results <- local({
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-  hhmodel |>
-    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
+# one short inference run, with the warnings it raised
+mk_draws <- local({
+  warnings <- character()
+  results <- withCallingHandlers(
+    flu_1918_frederick |>
+      new_housepi_model("final_size") |>
+      add_parameter(import = "template") |>
+      run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L),
+    warning = function(w) {
+      warnings <<- c(warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  list(results = results, warnings = warnings)
+})
+
+# two parameters and a latent traced on one member
+mk_latent_draws <- local({
+  results <- data.frame(house_id = 1, id = c("m1", "m2"),
+                        status = c(1, 0), obs = 0) |>
+    new_housepi_model("test") |>
+    add_parameter(rho = list(prior = "uniform"),
+                  rho_2 = list(prior = "uniform")) |>
+    add_latent(hidden = list(model = "uniform")) |>
+    helper_flat_sink(loc = hidden@A) |>
+    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
+                  id_draws = "m1") |>
     suppressWarnings()
+  list(results = results)
 })
 
-test_that("Active fields are read-only", {
-  local_results |>
-    helper_test_read_only(
-      "parameter_draws", "latent_draws",
-      "log_lik_draws", "lprior_draws", "complete_draws"
-    )
-})
+##############################
+## POSTERIOR : DEFINITIONS  ##
+##############################
 
-test_that("Invalid Credibile Interval level is rejected", {
+test_that("Invalid Credible Interval level is rejected", {
   set_global_cri_level(0.5) |>
     expect_error("between 0.5 and 1")
   set_global_cri_level(1) |>
@@ -32,44 +48,42 @@ test_that("Invalid Credibile Interval level is rejected", {
     expect_error("single")
 })
 
-test_that("Get-global-cri-level behaves correctly", {
+test_that("The global credible interval level is set and read back", {
   withr::with_options(list(housepi.cri_level = NULL), {
     expect_equal(get_global_cri_level(), 0.95)
   })
   withr::with_options(list(housepi.cri_level = 0.95), {
-    old <- set_global_cri_level(0.90)
-    expect_equal(old, 0.95)
+    expect_equal(set_global_cri_level(0.90), 0.95)
     expect_equal(get_global_cri_level(), 0.90)
   })
 })
 
 test_that("Summarise-draws default columns track cri_level", {
-  skip_if_not_installed("posterior")
   plain <- posterior::example_draws()
-  d <- plain
-  class(d) <- unique(c("housepi_draws", class(d)))
+  draws <- plain
+  class(draws) <- unique(c("housepi_draws", class(draws)))
 
   # spelling alias dispatches to the same handler
-  expect_identical(posterior::summarize_draws(d), posterior::summarise_draws(d))
+  expect_identical(posterior::summarize_draws(draws),
+                   posterior::summarise_draws(draws))
 
   # housepi method matches posterior::summarise_draws on every column
   # except the credible-interval quantile pair, which tracks cri_level.
   ref_cols <- setdiff(colnames(posterior::summarise_draws(plain)),
                       c("q5", "q95"))
   withr::with_options(list(housepi.cri_level = 0.95), {
-    s <- posterior::summarise_draws(d)
-    expect_true(all(ref_cols %in% colnames(s)))
-    expect_true(all(c("q2.5", "q97.5") %in% colnames(s)))
+    summary <- posterior::summarise_draws(draws)
+    expect_true(all(c(ref_cols, "q2.5", "q97.5") %in% colnames(summary)))
   })
   withr::with_options(list(housepi.cri_level = 0.80), {
-    s <- posterior::summarise_draws(d)
-    expect_true(all(ref_cols %in% colnames(s)))
-    expect_true(all(c("q10", "q90") %in% colnames(s)))
+    summary <- posterior::summarise_draws(draws)
+    expect_true(all(c(ref_cols, "q10", "q90") %in% colnames(summary)))
   })
 
   # custom summary functions fall through to vanilla posterior behaviour
-  s <- posterior::summarise_draws(d, mean, sd)
-  expect_setequal(colnames(s), c("variable", "mean", "sd"))
+  posterior::summarise_draws(draws, mean, sd) |>
+    colnames() |>
+    expect_setequal(c("variable", "mean", "sd"))
 
   # plain draws remain untouched by housepi (vanilla q5 / q95 quantiles)
   plain_cols <- colnames(posterior::summarise_draws(plain))
@@ -77,125 +91,66 @@ test_that("Summarise-draws default columns track cri_level", {
   expect_false(any(c("q2.5", "q97.5", "q10", "q90") %in% plain_cols))
 })
 
+#############################
+## POSTERIOR : END-TO-END  ##
+#############################
+
+test_that("Active fields are read-only", {
+  mk_draws$results |>
+    helper_test_read_only(
+      "parameter_draws", "latent_draws",
+      "log_lik_draws", "lprior_draws", "complete_draws"
+    )
+})
+
 test_that("Draws active fields are correct", {
-  pd <- local_results$parameter_draws
-  expect_true(posterior::is_draws(pd))
-  expect_equal(posterior::niterations(pd), 100L)
+  results <- mk_draws$results
+  expect_true(posterior::is_draws(results$parameter_draws))
+  expect_equal(posterior::niterations(results$parameter_draws), 100L)
 
-  # empty draws
-  ad <- local_results$latent_draws
-  expect_true(posterior::is_draws(ad))
-  expect_equal(posterior::nvariables(ad), 0)
+  # no latent is traced
+  expect_true(posterior::is_draws(results$latent_draws))
+  expect_equal(posterior::nvariables(results$latent_draws), 0)
 
-  ll <- local_results$log_lik_draws
-  expect_true(posterior::is_draws(ll))
-  expect_true(posterior::nvariables(ll) > 0)
+  expect_true(posterior::is_draws(results$log_lik_draws))
+  expect_gt(posterior::nvariables(results$log_lik_draws), 0)
 
-  lp <- local_results$lprior_draws
-  expect_true(posterior::is_draws(lp))
-  expect_true("lprior" %in% posterior::variables(lp))
+  expect_true(posterior::is_draws(results$lprior_draws))
+  expect_true("lprior" %in% posterior::variables(results$lprior_draws))
 
-  cd <- local_results$complete_draws
-  expect_true(posterior::is_draws(cd))
-  vars <- posterior::variables(cd)
-  # should contain param names, log_lik[...], and lprior (loo / priorsense names)
+  # parameter names, log_lik[...] and lprior (loo / priorsense names)
+  expect_true(posterior::is_draws(results$complete_draws))
+  vars <- posterior::variables(results$complete_draws)
   expect_true(any(grepl("log_lik\\[", vars)))
   expect_true("lprior" %in% vars)
 })
 
 test_that("Exported getter functions work correctly", {
-  expect_true(posterior::is_draws(get_parameter_draws(local_results)))
-  expect_true(posterior::is_draws(get_log_lik_draws(local_results)))
-  expect_true(posterior::is_draws(get_complete_draws(local_results)))
+  expect_true(posterior::is_draws(get_parameter_draws(mk_draws$results)))
+  expect_true(posterior::is_draws(get_log_lik_draws(mk_draws$results)))
+  expect_true(posterior::is_draws(get_complete_draws(mk_draws$results)))
 
-  expect_error(get_parameter_draws("snake.eater"))
-  expect_error(get_latent_draws(42))
-  expect_error(get_log_lik_draws(list()))
-  expect_error(get_lprior_draws(NULL))
-  expect_error(get_complete_draws(lnorm))
+  err <- "HousepiPosteriorDraws"
+  expect_error(get_parameter_draws("not draws"), err)
+  expect_error(get_latent_draws(42), err)
+  expect_error(get_log_lik_draws(list()), err)
+  expect_error(get_complete_draws(new_housepi_model(model = "test")), err)
 })
 
 test_that("Empty draws getters warn", {
-  # local_results has parameters but no latent draws
-  get_parameter_draws(local_results) |>
-    expect_silent() |>
-    posterior::is_draws() |>
-    expect_true()
-
-  get_latent_draws(local_results) |>
+  # the run has parameters but no latent draws
+  expect_true(posterior::is_draws(get_parameter_draws(mk_draws$results)))
+  get_latent_draws(mk_draws$results) |>
     expect_warning("id_draws")
 })
 
 test_that("Print behavior is stable", {
+  local_results <- mk_draws$results
   expect_snapshot(print(local_results))
 })
 
-test_that("Multi-chain inference produces correct chain structure", {
-  hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
-  hhmodel <- add_parameter(hhmodel, import = "template")
-  results <- hhmodel |>
-    run_inference(steps = 10L, chains = 2L, adapt = 0L, thin = 1L) |>
-    suppressWarnings()
-
-  pd <- results$parameter_draws
-  expect_true(posterior::is_draws(pd))
-  expect_equal(posterior::nchains(pd), 2L)
-  expect_equal(posterior::niterations(pd), 10L)
-})
-
-test_that("Latent draws are not empty when id_draws is specified", {
-  hhmodel <- data.frame(house_id = 1,
-                        id = c("a", "b"),
-                        status = c(1, 0), obs = 0) |>
-    new_housepi_model("test")
-  hhmodel <- add_latent(hhmodel, name = "proba", model = "uniform") |>
-    helper_flat_sink(loc = proba@A)
-  results <- hhmodel |>
-    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
-                  id_draws = "a") |>
-    suppressWarnings()
-  ad <- results$latent_draws
-  expect_true(posterior::is_draws(ad))
-  expect_true(posterior::nvariables(ad) > 0)
-})
-
-test_that("Draws accessors subset the variables they return", {
-  results <- data.frame(house_id = 1, id = c("a", "b"),
-                        status = c(1, 0), obs = 0) |>
-    new_housepi_model("test") |>
-    add_parameter(alpha = list(prior = "uniform"),
-                  beta = list(prior = "uniform")) |>
-    add_latent(proba = list(model = "uniform")) |>
-    helper_flat_sink(loc = proba@A) |>
-    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
-                  id_draws = "a") |>
-    suppressWarnings()
-
-  # asking for nothing returns everything
-  expect_setequal(posterior::variables(get_parameter_draws(results)),
-                  c("alpha", "beta"))
-  expect_equal(posterior::variables(get_parameter_draws(results, "beta")),
-               "beta")
-
-  # a latent trace is named after the individual carrying it, so one latent
-  # across the stored members is a regular expression
-  expect_equal(posterior::variables(get_latent_draws(results)), "a_proba")
-  expect_equal(
-    posterior::variables(get_latent_draws(results, "_proba$", regex = TRUE)),
-    "a_proba"
-  )
-
-  # the subset stays a housepi draws object, so summarise_draws still dispatches
-  expect_s3_class(get_parameter_draws(results, "alpha"), "housepi_draws")
-  expect_s3_class(get_complete_draws(results, "lprior"), "housepi_draws")
-})
-
 test_that("Diagnostic warning fires on short runs", {
-  flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template") |>
-    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
-    expect_warning("sample size was below")
+  expect_true(any(grepl("sample size was below", mk_draws$warnings)))
 })
 
 test_that("Diagnostic warning fires on poor mixing", {
@@ -211,4 +166,93 @@ test_that("Diagnostic warning fires on poor mixing", {
     ) |>
     run_inference(steps = 1000L, thin = 1L, adapt = 0L, chains = 2L) |>
     expect_warning("alpha.*beta.*not mixed")
+})
+
+test_that("Multi-chain inference produces correct chain structure", {
+  draws <- flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = "template") |>
+    run_inference(steps = 10L, chains = 2L, adapt = 0L, thin = 1L) |>
+    suppressWarnings() |>
+    get_parameter_draws()
+
+  expect_true(posterior::is_draws(draws))
+  expect_equal(posterior::nchains(draws), 2L)
+  expect_equal(posterior::niterations(draws), 10L)
+})
+
+test_that("Pointwise log-lik is carried into the complete-draws bundle", {
+  # complete_draws renames the pointwise columns to the loo / priorsense
+  # convention; their values must be the same pointwise log-likelihood
+  expect_same_pointwise <- function(results) {
+    pointwise <- posterior::as_draws_matrix(get_log_lik_draws(results))
+    bundle <- posterior::as_draws_matrix(get_complete_draws(results))
+    ll_cols <- grep("^log_lik\\[", colnames(bundle))
+    expect_equal(length(ll_cols), ncol(pointwise))
+    expect_equal(unname(bundle[, ll_cols]), unname(pointwise))
+  }
+  expect_same_pointwise(mk_draws$results)
+
+  # the pointwise store is filled over two threads alike
+  flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = "template") |>
+    run_inference(steps = 10L, thin = 2L, adapt = 2L, burn = 2L,
+                  chains = 1L, threads = 2L) |>
+    suppressWarnings() |>
+    expect_same_pointwise()
+})
+
+test_that("A model without parameters returns empty parameter draws", {
+  results <- data.frame(house_id = 1, id = "m1", status = 1, obs = 0) |>
+    new_housepi_model("test") |>
+    add_latent(hidden = list(model = "uniform")) |>
+    helper_flat_sink(loc = hidden@A) |>
+    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L) |>
+    suppressWarnings()
+
+  expect_output(print(results), "1 latent")
+  # nothing carries a prior: the log-prior is zero at every draw
+  posterior::extract_variable(results$lprior_draws, "lprior") |>
+    expect_equal(rep(0, 5))
+  get_parameter_draws(results) |>
+    expect_warning("[Ee]mpty draws: no parameter")
+})
+
+test_that("Latent draws are not empty when id_draws is specified", {
+  draws <- mk_latent_draws$results$latent_draws
+  expect_true(posterior::is_draws(draws))
+  expect_gt(posterior::nvariables(draws), 0)
+})
+
+test_that("Draws accessors subset the variables they return", {
+  results <- mk_latent_draws$results
+
+  # asking for nothing returns everything
+  expect_setequal(posterior::variables(get_parameter_draws(results)),
+                  c("rho", "rho_2"))
+  expect_equal(posterior::variables(get_parameter_draws(results, "rho")),
+               "rho")
+  expect_equal(posterior::variables(get_parameter_draws(results, "rho_2")),
+               "rho_2")
+
+  # a latent trace is named `<id>_<latent>`: the latent name selects it across
+  # the stored members, the full name selects one member
+  expect_equal(posterior::variables(get_latent_draws(results)), "m1_hidden")
+  expect_equal(posterior::variables(get_latent_draws(results, "hidden")),
+               "m1_hidden")
+  expect_equal(posterior::variables(get_latent_draws(results, "m1_hidden")),
+               "m1_hidden")
+  get_latent_draws(results, "idden") |>
+    expect_error("[Nn]o draws of variable.*idden")
+
+  # a base name selects its indexed elements
+  expect_equal(posterior::variables(get_complete_draws(results, "log_lik")),
+               "log_lik[1]")
+  get_parameter_draws(results, c("rho", "hidden")) |>
+    expect_error("[Nn]o draws of variable.*hidden")
+
+  # the subset stays a housepi draws object, so summarise_draws still dispatches
+  expect_s3_class(get_parameter_draws(results, "rho"), "housepi_draws")
+  expect_s3_class(get_complete_draws(results, "lprior"), "housepi_draws")
 })

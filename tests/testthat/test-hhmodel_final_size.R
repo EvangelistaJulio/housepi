@@ -1,76 +1,100 @@
 library(testthat)
 
-# definitions: `_1` : single infected group
-#              `_3` : 3 infected groups
-# group risk definitions
-groups <- list(community = list("class", reference = "a"),
-               susceptibility = list("class", reference = "a"),
-               infectivity = list("class", reference = "a"))
-# fixed group risks
-# `a` is the reference class
-grisks_1 <- list(a = list(com = 1., sus = 1., inf = 1.),
-                 b = list(com = 2., sus = 3., inf = 0.2))
-grisks_3 <- c(grisks_1,
-              list(c = list(com = 0.5, sus = 0.8, inf = 1.5)))
+# Two houses over three risk classes, with group and contact risks fixed at
+# values the R reference below reads back: `_1` holds a single infected member,
+# `_3` three of them. Class `a` is the reference class.
+mk_house <- local({
+  groups <- list(community = list("class", reference = "a"),
+                 susceptibility = list("class", reference = "a"),
+                 infectivity = list("class", reference = "a"))
+  contacts <- list(by = "class", symmetric = FALSE,
+                   reference = c(from_class = "a", to_class = "b"))
 
-# members sorted infected, escaped
-house_3 <- data.frame(
-  id = sprintf("hh_01_%s", seq(1, 4)),
-  house_id = "hh_01",
-  status = c(rep(1, 3), 0),
-  age = rep(c("adult", "child"), 2),
-  active = c(TRUE, TRUE, FALSE, FALSE),
-  class = c("a", "b", rep("c", 2)),
-  community = c(1, grisks_3$b$com, rep(grisks_3$c$com, 2)),
-  susceptibility = c(1, grisks_3$b$sus, rep(grisks_3$c$sus, 2)),
-  infectivity = c(1, grisks_3$b$inf, rep(grisks_3$c$inf, 2))
-)
-house_1 <- house_3[1:2, ]
-house_1$status <- c(1, 0)
+  grisks <- list(a = list(com = 1., sus = 1., inf = 1.),
+                 b = list(com = 2., sus = 3., inf = 0.2),
+                 c = list(com = 0.5, sus = 0.8, inf = 1.5))
+  crisks_1 <- list(class_b_to_class_a = 2.3)
+  crisks_3 <- c(crisks_1,
+                list(class_a_to_class_c = 0.7,
+                     class_c_to_class_a = 0.6,
+                     class_b_to_class_c = 1.1,
+                     class_c_to_class_b = 0.9,
+                     class_c_to_class_c = 1.2))
 
-# contact risk definitions
-contacts <- list(by = "class", symmetric = FALSE,
-                 reference = c(from_class = "a", to_class = "b"))
-# fixed contact risks
-crisks_1 <- list(class_b_to_class_a = 2.3)
-crisks_3 <- list(class_a_to_class_c = 0.7,
-                 class_c_to_class_a = 0.6,
-                 class_b_to_class_c = 1.1,
-                 class_c_to_class_b = 0.9,
-                 class_c_to_class_c = 1.2)
+  # members sorted infected, escaped
+  house_3 <- data.frame(
+    id = sprintf("m%s", seq(1, 4)),
+    house_id = "h1",
+    status = c(rep(1, 3), 0),
+    class = c("a", "b", rep("c", 2)),
+    community = c(1, grisks$b$com, rep(grisks$c$com, 2)),
+    susceptibility = c(1, grisks$b$sus, rep(grisks$c$sus, 2)),
+    infectivity = c(1, grisks$b$inf, rep(grisks$c$inf, 2))
+  )
+  house_1 <- house_3[1:2, ]
+  house_1$status <- c(1, 0)
 
-# parameters matching automatic names
-par_0 <- list(alpha = 0.15, beta = 0.22, gamma = 1, hhsize_ref = 4)
-par_1 <- c(par_0, crisks_1,
-           list(com_class_b = grisks_1$b$com,
-                sus_class_b = grisks_1$b$sus,
-                inf_class_b = grisks_1$b$inf))
-par_3 <- c(par_1, crisks_3,
-           list(com_class_c = grisks_3$c$com,
-                sus_class_c = grisks_3$c$sus,
-                inf_class_c = grisks_3$c$inf))
-crisks_3 <- c(crisks_1, crisks_3)
+  # parameters matching automatic names
+  par_1 <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hhsize_ref = 4),
+             crisks_1,
+             list(com_class_b = grisks$b$com,
+                  sus_class_b = grisks$b$sus,
+                  inf_class_b = grisks$b$inf))
+  par_3 <- c(par_1, crisks_3[-1],
+             list(com_class_c = grisks$c$com,
+                  sus_class_c = grisks$c$sus,
+                  inf_class_c = grisks$c$inf))
 
-# helper building the symmetric contact risk matrix for a given house
-make_ctr_mtx <- function(house, crisks, prefix = "") {
+  list(groups = groups, contacts = contacts,
+       house_1 = house_1, house_3 = house_3,
+       crisks_1 = crisks_1, crisks_3 = crisks_3,
+       par_1 = par_1, par_3 = par_3)
+})
+
+# contact risk matrix of a house, the reference reading 1
+make_ctr_mtx <- function(house, crisks) {
   n <- nrow(house)
-  output <- matrix(0., nrow = n, ncol = n)
+  output <- matrix(1., nrow = n, ncol = n)
   for (i in seq_len(n)) {
     for (j in seq_len(n)) {
-      if (i == j) next
-      pair <- c(house$class[i], house$class[j])
-      key <- paste0(prefix, "class_", pair[1], "_to_class_", pair[2])
-      if (key %in% names(crisks)) output[i, j] <- crisks[[key]]
-      # NOTE: it must reference otherwise, errors are dealt elsewhere
-      else output[i, j] <- 1
+      key <- paste0("class_", house$class[i], "_to_class_", house$class[j])
+      if (i == j) output[i, j] <- 0
+      else if (key %in% names(crisks)) output[i, j] <- crisks[[key]]
     }
   }
   output
 }
 
-##############################################
-## FINAL SIZE HH MODEL : STANDARD CALLS ##
-##############################################
+# model over a house carrying the fixed risks and parameters
+build_house_model <- function(house, par) {
+  new_housepi_model(house, "final_size") |>
+    add_group_risk(import = mk_house$groups) |>
+    add_contact_risk(import = mk_house$contacts) |>
+    # FIXME: this overwrites group risk parameters, opaque to user and risky
+    add_parameter(import = par, append = FALSE)
+}
+
+# log-likelihood of a house through the chain binomial debugger
+chain_binomial_log_lik <- function(house, par, crisks) {
+  n_full <- nrow(house)
+  n_infec <- sum(house$status > 0L)
+  commu_infec_rate <- par$alpha * house$community
+  p2p_infec_rate <- par$beta * (par$hhsize_ref / n_full) ^ par$gamma *
+    house$infectivity %o% house$susceptibility * make_ctr_mtx(house, crisks)
+  if (n_infec == 0) return(-sum(commu_infec_rate))
+
+  infec <- seq_len(n_infec)
+  escaped <- (n_infec + 1):n_full
+  # escape probabilities restricted to the infected members
+  B <- exp(-commu_infec_rate[infec])
+  Q <- exp(-p2p_infec_rate[infec, infec, drop = FALSE])
+  -sum(commu_infec_rate[escaped]) - sum(p2p_infec_rate[infec, escaped]) +
+    log(eval_chain_binomial_debugger_(B, Q))
+}
+
+######################################
+## FINAL SIZE HH MODEL : GUARDS     ##
+######################################
 
 test_that("Chain binomial guards against misusage", {
   # not discretizable
@@ -79,8 +103,7 @@ test_that("Chain binomial guards against misusage", {
     expect_error("No visible discrete time option")
 
   # no support for missing status
-  data.frame(id = c("m1", "m2"), house_id = "h1",
-             status = c(1, NA)) |>
+  data.frame(id = c("m1", "m2"), house_id = "h1", status = c(1, NA)) |>
     new_housepi_model("final_size") |>
     add_parameter(import = "template") |>
     run_inference() |>
@@ -93,260 +116,58 @@ test_that("Chain binomial guards against misusage", {
     expect_error("not supported.*dropped")
 })
 
-test_that("Deep clone works as expected", {
-  house <- data.frame(
-    house_id = c(1, 1, 2, 2, 2),
-    status = c(1, 0, 1, 0, 0),
-    member = c("student", "other", "student", "mother", "father")
-  )
-  hhmodel <- house |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-  out <- hhmodel |>
-    run_inference(steps = 2L, chains = 1L, adapt = 0L, thin = 1L) |>
-    suppressWarnings()
-
-  # deep clone
-  hhclone <- hhmodel$copy()
-
-  # data
-  expect_equal(hhmodel$data_wide, hhclone$data_wide)
-  expect_equal(hhmodel$data_long, hhclone$data_long)
-
-  # clone setup starts from default configuration
-  expect_equal(hhclone$setup, new_housepi_model(house, "final_size")$setup)
-
-  # definitions
-  expect_equal(hhmodel$parameters, hhclone$parameters)
-  expect_equal(hhmodel$latent, hhclone$latent)
-  expect_equal(hhmodel$group_risks, hhclone$group_risks)
-
-  # check no backward changes
-  hhmodel <- add_group_risk(hhmodel, "susceptibility", by = "member")
-  hhclone <- house |>
-    dplyr::mutate(status = NA) |>
-    new_housepi_model("final_size")
-  expect_failure(expect_equal(hhmodel$group_risks, hhclone$group_risks))
-  expect_failure(expect_equal(hhmodel$data_wide, hhclone$data_wide))
-})
-
-test_that("Pointwise log-lik is carried into the complete-draws bundle", {
-  for (t in c(1L, 2L)) {
-    suppressWarnings(
-      results <- flu_1918_frederick |>
-        new_housepi_model("final_size") |>
-        add_parameter(import = "template") |>
-        run_inference(steps = 10L, thin = 2L, adapt = 2L,
-                      burn = 2L, chains = 1L, threads = t)
-    )
-
-    pointwise <- results |>
-      get_log_lik_draws() |>
-      posterior::as_draws_matrix()
-    # complete_draws renames the pointwise columns to the loo / priorsense
-    # convention; their values must be the same pointwise log-likelihood
-    bundle <- results |>
-      get_complete_draws() |>
-      posterior::as_draws_matrix()
-    ll_cols <- grep("^log_lik\\[", colnames(bundle))
-    expect_equal(length(ll_cols), ncol(pointwise))
-    expect_equal(unname(bundle[, ll_cols]), unname(pointwise))
-  }
-})
-
-test_that("Simulation with observation process is correct", {
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-  rand_observ <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
-  withr::with_seed(
-    1, result1 <- run_simulation(hhmodel, obs_process = rand_observ)
-  )
-  # ensure simulation is correct
-  expect_true("flag" %in% colnames(result1))
-  withr::with_seed(
-    1, result1encore <- run_simulation(hhmodel, obs_process = rand_observ)
-  )
-  expect_identical(result1, result1encore)
-})
-
-test_that("Run simulation with nrep > 1 returns list of dataframes", {
-  nrep <- 3
-  result <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template") |>
-    run_simulation(nrep = nrep)
-  expect_true(is.list(result))
-  expect_length(result, nrep)
-  expect_true(is.data.frame(result[[1]]))
-})
-
-test_that("run_inference rejects invalid setup arguments", {
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-  hhmodel |>
-    run_inference(steps = 5L, burn = 10L) |>
-    expect_error("[Bb]urn")
-  hhmodel |>
-    run_inference(steps = 5L, thin = 10L) |>
-    expect_error("[Tt]hin")
-  # threads-clamp warning and short-run diagnostic both fire here
-  expect_warning(
-    expect_warning(
-      run_inference(hhmodel, steps = 5L, chains = 1L, adapt = 0L,
-                    thin = 1L, threads = 1000L),
-      regex = "[Tt]hreads.*available"
-    ),
-    regex = "sample size was below"
-  )
-})
-
-test_that("run_epi_predictive_check exercises parallel for_each", {
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-  results <- hhmodel |>
-    run_inference(steps = 50L, chains = 1L, adapt = 0L, thin = 1L) |>
-    suppressWarnings()
-  outs <- list()
-  for (t in c(1L, 2L)) {
-    suppressWarnings(
-      outs[[as.character(t)]] <- run_epi_predictive_check(
-        hhmodel, results, max_nrep = 4, threads = t
-      )
-    )
-    expect_s3_class(outs[[as.character(t)]], "HousepiPPC")
-  }
-  expect_identical(outs[["1"]]$cases_table_by_size$observed,
-                   outs[["2"]]$cases_table_by_size$observed)
-})
-
-test_that("Run simulation thins param_table down to nrep when smaller", {
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-  pt <- as.data.frame(stats::setNames(
-    as.list(hhmodel$parameters$value), hhmodel$parameters$name
-  ))
-  pt <- pt[rep(1L, 10L), , drop = FALSE]
-  rownames(pt) <- NULL
-  result <- run_simulation(hhmodel, param_table = pt, nrep = 4)
-  expect_length(result, 4L)
-})
-
-####################################################
-## FINAL SIZE HH MODEL : SIMPLE CASE LOG-LIKE ##
-####################################################
-
 test_that("Debugger cannot be called on large numbers of infections", {
   n_infec <- 10L
-  B <- runif(n_infec)
-  Q <- matrix(runif(n_infec * n_infec), ncol = n_infec)
-  eval_chain_binomial_debugger_(B, Q) |>
+  eval_chain_binomial_debugger_(
+    runif(n_infec), matrix(runif(n_infec * n_infec), ncol = n_infec)
+  ) |>
     expect_error("Maximum number")
 })
 
+##############################################
+## FINAL SIZE HH MODEL : LOG-LIKELIHOOD     ##
+##############################################
+
 test_that("Single infected member log-likelihood is correct", {
-  par <- par_1
-  house <- house_1
-  n_full <- nrow(house)
-  n_infec <- sum(house$status > 0L)
-  # fill house escape rate matrices
-  commu_infec_rate <- par$alpha * house$community
-  p2p_infec_rate <- par$beta * (par$hhsize_ref / n_full) ^ par$gamma *
-    house$infectivity %o% house$susceptibility *
-    make_ctr_mtx(house, crisks_1)
-
-  # escape probabilities restricted to seropositives
-  B <- exp(-commu_infec_rate[seq_len(n_infec)])
-  Q <- exp(-p2p_infec_rate[seq_len(n_infec), seq_len(n_infec), drop = FALSE])
-  # negative (seronegative) contribution
-  neg_log <- -sum(commu_infec_rate[(n_infec + 1):n_full]) -
-    sum(p2p_infec_rate[seq_len(n_infec), (n_infec + 1):n_full])
-  # positive (seropositive) contribution from the debugger
-  pos <- housepi:::eval_chain_binomial_debugger_(B, Q)
-  log_lik <- neg_log + log(pos)
-
-  new_housepi_model(house, "final_size") |>
-    add_group_risk(import = groups) |>
-    add_contact_risk(import = contacts) |>
-    # FIXME: this overwrites group risk parameters, opaque to user and risky
-    add_parameter(import = par, append = FALSE) |>
+  build_house_model(mk_house$house_1, mk_house$par_1) |>
     evaluate_log_lik() |>
-    expect_equal(log_lik)
+    expect_equal(chain_binomial_log_lik(mk_house$house_1, mk_house$par_1,
+                                        mk_house$crisks_1))
 })
-
-#####################################################
-## FINAL SIZE HH MODEL : COMPLEX CASE LOG-LIKE ##
-#####################################################
 
 test_that("Three infected members likelihood is correct", {
-  par <- par_3
-  house <- house_3
-  n_full <- nrow(house)
-  # fill escape rate matrices
-  commu_infec_rate <- par$alpha * house$community
-  p2p_infec_rate <- par$beta * (par$hhsize_ref / n_full) ^ par$gamma *
-    house$infectivity %o% house$susceptibility *
-    make_ctr_mtx(house, crisks_3)
+  # no infected
+  house <- dplyr::mutate(mk_house$house_3, status = 0)
+  build_house_model(house, mk_house$par_3) |>
+    evaluate_log_lik() |>
+    expect_equal(chain_binomial_log_lik(house, mk_house$par_3,
+                                        mk_house$crisks_3))
 
-  # CASE 1: no infected
-  hhmodel <- house |>
-    dplyr::mutate(status = 0) |>
-    new_housepi_model("final_size") |>
-    add_group_risk(import = groups) |>
-    add_contact_risk(import = contacts) |>
-    add_parameter(import = par, append = FALSE)
-  log_lik <- -sum(commu_infec_rate)
-  expect_equal(evaluate_log_lik(hhmodel), log_lik)
-
-  # CASE 2: mixed infected and escaped
-  n_infec <- sum(house$status > 0)
-  hhmodel <- house |>
-    new_housepi_model("final_size") |>
-    add_group_risk(import = groups) |>
-    add_contact_risk(import = contacts) |>
-    add_parameter(import = par, append = FALSE)
-
-  # escape probabilities restricted to seropositives
-  B <- exp(-commu_infec_rate[seq_len(n_infec)])
-  Q <- exp(-p2p_infec_rate[seq_len(n_infec), seq_len(n_infec), drop = FALSE])
-  # negative (seronegative) contribution
-  neg_log <- -sum(commu_infec_rate[(n_infec + 1):n_full]) -
-    sum(p2p_infec_rate[seq_len(n_infec), (n_infec + 1):n_full])
-  # positive (seropositive) contribution from the debugger
-  pos <- housepi:::eval_chain_binomial_debugger_(B, Q)
-  log_lik <- neg_log + log(pos)
-
-  expect_equal(evaluate_log_lik(hhmodel), log_lik)
+  # mixed infected and escaped
+  build_house_model(mk_house$house_3, mk_house$par_3) |>
+    evaluate_log_lik() |>
+    expect_equal(chain_binomial_log_lik(mk_house$house_3, mk_house$par_3,
+                                        mk_house$crisks_3))
 })
 
-####################################################
-## FINAL SIZE HH MODEL : REAL CASE LOG-LIKELIHOOD ##
-####################################################
-
-test_that("Chain binomial runs ok on real case with partitions", {
+test_that("A free baseline under an absolute risk is pinned on real data", {
+  # households carrying a sibling, so every member level of the strata is seen
   hhmodel <- flu_2014_matsumoto |>
+    dplyr::filter(house_id %in% utils::head(
+      unique(house_id[member == "sibling"]), 500
+    )) |>
     new_housepi_model("final_size") |>
     add_parameter(import = "template") |>
     add_group_risk("community", by = "member") |>
     add_contact_risk(
       strata = data.frame(
-        from_member = c("student", "student", "sibling",
-                        "mother", "mother",
-                        "father",
-                        "other",
-                        NA),
-        to_member = c("student", "sibling", "sibling",
-                      "student", "sibling",
-                      "mother",
-                      "other",
-                      NA),
+        from_member = c("student", "student", "sibling", "mother", "mother",
+                        "father", "other", NA),
+        to_member = c("student", "sibling", "sibling", "student", "sibling",
+                      "mother", "other", NA),
         param_name = c("ctr_child_child", "ctr_child_child", "ctr_child_child",
                        "ctr_mother_child", "ctr_mother_child",
-                       ".reference",
-                       "ctr_other_other",
+                       ".reference", "ctr_other_other",
                        "ctr_cross_generational")
       )
     )
@@ -359,32 +180,28 @@ test_that("Chain binomial runs ok on real case with partitions", {
 })
 
 test_that("Chain binomial returns infinite if extreme values are provided", {
-  extreme_params <- list(alpha = 1e-20, beta = 1e-20,
-                         gamma = 1, hhsize_ref = 4)
-  # heterogeneous_house
-  hhmodel <- data.frame(id = c(1, 2), house_id = "hh1",
+  hhmodel <- data.frame(id = c(1, 2), house_id = "h1",
                         status = c(1, 1), age = c("child", "adult")) |>
     new_housepi_model("final_size") |>
-    add_parameter(import = extreme_params)
+    add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hhsize_ref = 4)
 
   # homogeneous branch
   expect_false(is.finite(evaluate_log_lik(hhmodel)))
 
   # heterogeneous branch
-  expect_false(is.finite(
-    hhmodel |>
-      add_group_risk("susceptibility", by = "age") |>
-      evaluate_log_lik()
-  ))
+  hhmodel |>
+    add_group_risk("susceptibility", by = "age") |>
+    evaluate_log_lik() |>
+    is.finite() |>
+    expect_false()
 })
 
 test_that("Chain binomial raises if the log-likelihood is not a number", {
   # a null person-to-person risk against an overflowing household-size scaling
   # leaves the escape rate undefined, and the log-likelihood with it
-  data.frame(id = c(1, 2), house_id = "shadow_moses", status = c(1, 1)) |>
+  data.frame(id = c(1, 2), house_id = "h1", status = c(1, 1)) |>
     new_housepi_model("final_size") |>
-    add_parameter(import = list(alpha = 0.1, beta = 0,
-                                gamma = 1e10, hhsize_ref = 4)) |>
+    add_parameter(alpha = 0.1, beta = 0, gamma = 1e10, hhsize_ref = 4) |>
     evaluate_log_lik() |>
     expect_error("returned NaN")
 })

@@ -1,8 +1,14 @@
 library(testthat)
 
-# model carrying no parameter of its own.
+# model carrying no parameter of its own
 mk_param <- local({
   list(model = new_housepi_model(model = "test"))
+})
+
+# transmission model reading its parameters, bare and with its template
+mk_final_size <- local({
+  hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
+  list(model = hhmodel, template = add_parameter(hhmodel, import = "template"))
 })
 
 ##############################
@@ -12,18 +18,18 @@ mk_param <- local({
 test_that("Default parameter definitions are correct", {
   mk_param$model |>
     add_parameter() |>
-    expect_error("[Nn]o.*definitions.*provided")
+    expect_error("[Mm]issing.*empty.*definitions")
 
   mk_param$model |>
-    add_parameter(name = "dummy", value = 3, const = FALSE) |>
+    add_parameter(name = "rho", value = 3, const = FALSE) |>
     expect_error("[Nn]o .prior. provided for parameter")
 
   # default sample framework
   param <- mk_param$model |>
-    add_parameter(dummy = list(value = 3, prior = "uniform", max = 5)) |>
+    add_parameter(rho = list(value = 3, prior = "uniform", max = 5)) |>
     get_parameters()
 
-  expect_equal(param$name, "dummy")
+  expect_equal(param$name, "rho")
   expect_equal(param$value, 3)
   expect_equal(param$const, FALSE)
   expect_equal(param$discr, FALSE)
@@ -34,15 +40,22 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$max, 5)
 
   # bulk and single add should be coherent
-  tmp <- mk_param$model |>
-    add_parameter("dummy", value = 3, prior = "uniform", max = 5) |>
+  mk_param$model |>
+    add_parameter("rho", value = 3, prior = "uniform", max = 5) |>
+    get_parameters() |>
+    expect_equal(param)
+
+  # non-default prior arguments are folded into the prior call
+  param <- mk_param$model |>
+    add_parameter(name = "rho", prior = "gamma", shape = 2, scale = 1) |>
     get_parameters()
-  expect_equal(param, tmp)
+  expect_equal(param$prior, "gamma")
+  expect_equal(param$args[[1]], c(shape = 2, scale = 1))
 
   # a user-defined proposal_scale is folded into the proposal call as an
   # argument of the DSL, pinning the scale (no adaptation)
   param <- mk_param$model |>
-    add_parameter(name = "dummy", prior = "uniform", max = 5,
+    add_parameter(name = "rho", prior = "uniform", max = 5,
                   proposal = "rw_log", proposal_scale = 0.5) |>
     get_parameters()
   expect_equal(param$proposal, "rw_log")
@@ -52,137 +65,162 @@ test_that("Default parameter definitions are correct", {
 test_that("The defining distribution of the sibling family is named as spare", {
   # `model` keys latent and observations, `prior` keys parameters
   mk_param$model |>
-    add_parameter(dummy = list(model = "uniform", min = 0, max = 5)) |>
-    expect_error("[Ss]pare argument .model. for parameter .dummy.")
+    add_parameter(rho = list(model = "uniform", min = 0, max = 5)) |>
+    expect_error("[Ss]pare argument .model. for parameter .rho.")
   mk_param$model |>
-    add_parameter(dummy = list(model = "uniform", min = 0, max = 5)) |>
-    expect_error("Did you mean .prior. instead of .model..")
+    add_parameter(rho = list(model = "uniform", min = 0, max = 5)) |>
+    expect_error("[Dd]id you mean .prior. instead of .model.")
 })
 
 test_that("A func definition is deterministic", {
   # a plain number is a constant value, whichever argument carried it
-  by_func <- mk_param$model |> add_parameter(dummy = list(func = 21))
-  by_value <- mk_param$model |> add_parameter(dummy = list(value = 21))
+  by_func <- mk_param$model |> add_parameter(rho = list(func = 21))
+  by_value <- mk_param$model |> add_parameter(rho = list(value = 21))
   expect_equal(get_parameters(by_func), get_parameters(by_value))
 
   # a deterministic definition accepts no proposal
   mk_param$model |>
-    add_parameter(
-      dummy = list(func = "log", x = 2, proposal = "rw")
-    ) |>
-    expect_error("[Dd]eterministic parameter.*dummy.*cannot be sampled")
+    add_parameter(rho = list(func = "log", x = 2, proposal = "rw")) |>
+    expect_error("[Dd]eterministic parameter.*rho.*cannot be sampled")
 
   # the spare arguments reach the function, whichever spelling declares it
-  base <- mk_param$model |> add_parameter("solid", value = 2)
-  by_args <- base |> add_parameter("dummy", func = "log", x = solid@P)
-  by_expr <- base |> add_parameter(dummy = log(solid@P))
+  hhmodel <- mk_param$model |> add_parameter("rho_2", value = 2)
+  by_args <- hhmodel |> add_parameter("rho", func = "log", x = rho_2@P)
+  by_expr <- hhmodel |> add_parameter(rho = log(rho_2@P))
   expect_equal(get_parameters(by_args), get_parameters(by_expr))
-  expect_equal(get_parameters(by_args)$func_args[[2]], c(x = "solid|P"))
+  expect_equal(get_parameters(by_args)$func_args[[2]], c(x = "rho_2|P"))
+})
+
+test_that("A parameter takes a single defining argument", {
+  mk_param$model |>
+    add_parameter("rho", func = "log", x = 2, prior = "uniform") |>
+    expect_error("[Oo]nly one between .func. and .prior.")
+  mk_param$model |>
+    add_parameter("rho", value = 2, func = "log", x = 1) |>
+    expect_error("[Oo]nly one between .value. and .func.")
 })
 
 test_that("Spare arguments reach the function they belong to", {
   # neither a prior nor a func takes them
   mk_param$model |>
-    add_parameter("liquid", value = 3, mean = 1) |>
-    expect_error("[Ss]pare arguments for parameter .liquid.")
+    add_parameter("rho", value = 3, mean = 1, sd = 2) |>
+    expect_error("2 spare arguments for parameter .rho.: .mean. and .sd.")
   mk_param$model |>
-    add_parameter("liquid", value = 3, mean = 1) |>
-    expect_error("Provide the .prior. or the .func. they belong to.")
+    add_parameter("rho", value = 3, mean = 1) |>
+    expect_error("[Pp]rovide the .prior. or the .func. they belong to")
+  # a func folded into a constant takes none either
+  mk_param$model |>
+    add_parameter("rho", func = log(3), mean = 1) |>
+    expect_error("[Ee]xpression already carries its arguments")
 
   # a parameter function is checked against the registry at declaration
   mk_param$model |>
-    add_parameter("delay", func = "log", base = 2) |>
+    add_parameter("rho", func = "log", base = 2) |>
     expect_error("Unused argument .base.")
   # a distribution is not a parameter function
   mk_param$model |>
-    add_parameter("delay", func = "gamma", shape = 2, scale = 1) |>
+    add_parameter("rho", func = "gamma", shape = 2, scale = 1) |>
     expect_error("Unknown function .gamma.")
 })
 
 test_that("Proposal families route correctly", {
   # a distribution name is an independence sampler; its arguments fold in
   param <- mk_param$model |>
-    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
                   proposal = "normal", proposal_mean = 0, proposal_sd = 1) |>
     get_parameters()
   expect_equal(param$proposal, "normal")
   expect_equal(param$proposal_args[[1]], c(mean = 0, sd = 1))
 
   # sampling from the variable's own distribution uses the "forward" keyword
-  param <- mk_param$model |>
-    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+  mk_param$model |>
+    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
                   proposal = "forward") |>
-    get_parameters()
-  expect_equal(param$proposal, "forward")
+    get_parameters() |>
+    getElement("proposal") |>
+    expect_equal("forward")
 
   # proposal_scale only tunes a random walk
   mk_param$model |>
-    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
                   proposal = "normal", proposal_scale = 0.5) |>
     expect_error("random.?walk")
 
   # distribution arguments are not random-walk knobs
   mk_param$model |>
-    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
                   proposal = "rw", proposal_sd = 1) |>
     expect_error("[Rr]andom.?walk proposal .*accepts only")
 
   # advanced options need an explicit proposal
   mk_param$model |>
-    add_parameter(name = "otacon", prior = "uniform", min = 0, max = 5,
+    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
                   proposal_mean = 0) |>
     expect_error("[Aa]dvanced .proposal.* require an explicit")
+
+  # sampling from the variable's own distribution takes no tuning
+  mk_param$model |>
+    add_parameter(name = "rho", prior = "uniform", min = 0, max = 5,
+                  proposal = "forward", proposal_mean = 0) |>
+    expect_error("[Ii]ndependence sampling from .forward. takes no")
 })
 
 test_that("Constant parameter definitions are correct", {
   mk_param$model |>
-    add_parameter(name = "dummy") |>
+    add_parameter(name = "rho") |>
     expect_error("[Ii]ncomplete")
   mk_param$model |>
-    add_parameter(name = "dummy", prior = "uniform",
+    add_parameter(name = "rho", prior = "uniform",
                   min = 0, max = 5, const = TRUE) |>
     expect_error("[Mm]issing value")
 
   # bulk and single add should be coherent
-  hhmodel <- add_parameter(mk_param$model, dummy = 3)
-  tmp <- add_parameter(mk_param$model, name = "dummy", value = 3)
-  expect_equal(get_parameters(hhmodel), get_parameters(tmp))
+  hhmodel <- add_parameter(mk_param$model, rho = 3)
+  hhmodel_2 <- add_parameter(mk_param$model, name = "rho", value = 3)
+  expect_equal(get_parameters(hhmodel), get_parameters(hhmodel_2))
 
   param <- get_parameters(hhmodel)
-  expect_equal(param$name, "dummy")
+  expect_equal(param$name, "rho")
   expect_equal(param$value, 3)
   expect_equal(param$const, TRUE)
   expect_equal(param$proposal, NA_real_)
 
   expect_warning(
     overwritten <- hhmodel |>
-      add_parameter(name = "dummy", value = 3, prior = "uniform",
+      add_parameter(name = "rho", value = 3, prior = "uniform",
                     min = 0, max = 5, const = TRUE),
     "[Oo]verwriting"
   )
-  expect_equal(get_parameters(overwritten), get_parameters(tmp))
+  expect_equal(get_parameters(overwritten), get_parameters(hhmodel_2))
 })
 
-test_that("Non default arguments are loaded correctly", {
-  # simple add
-  param <- mk_param$model |>
-    add_parameter(name = "dummy", prior = "gamma", shape = 2, scale = 1) |>
-    get_parameters()
-  expect_equal(param$prior, "gamma")
-  expect_equal(param$args[[1]], c(shape = 2, scale = 1))
-})
-
-test_that("Variadic labels are not swallowed by formal matching", {
+test_that("Rlang calls work as expected", {
+  # rlang calls and injections are evaluated for parameters
+  # here testing for equivalent symbolic definitions
+  val <- 1
   param <- mk_param$model |>
     add_parameter(
-      vulcan = list(prior = "categorical", a = 0.2, b = 0.1, c = 0.7),
-      raven = list(prior = "categorical", d = 0.4, p = 0.6)
+      rho = 5,
+      rho_2 = list(prior = "normal", mean = rho@p + 1),
+      rho_3 = list(prior = "normal", mean = rho@p + !!val),
+      rho_4 = list(prior = "normal", mean = ~ rho@P + 1),
+      rho_5 = list(prior = "normal", mean = ~ rho@P + !!val)
     ) |>
     get_parameters()
-  expect_equal(param$name, c("vulcan", "raven"))
-  expect_equal(param$prior, c("categorical", "categorical"))
-  expect_equal(param$args[[1]], c(a = 0.2, b = 0.1, c = 0.7))
-  expect_equal(param$args[[2]], c(d = 0.4, p = 0.6))
+  param$name <- NULL
+  expect_equal(nrow(unique(param)), 2L)
+})
+
+test_that("Parameter options typed as values refuse other types", {
+  mk_param$model |>
+    add_parameter("rho", prior = sum) |>
+    expect_error("[Aa]rgument .prior. must be character, numeric, or logical")
+  mk_param$model |>
+    add_parameter("rho", value = 1, const = NULL) |>
+    expect_error("[Aa]rgument .const. must be character, numeric, or logical")
+  mk_param$model |>
+    add_parameter(rho = list(prior = sum)) |>
+    expect_error("[Aa]rgument .prior. must be character, numeric, or logical")
 })
 
 ############################
@@ -190,108 +228,91 @@ test_that("Variadic labels are not swallowed by formal matching", {
 ############################
 
 test_that("Unsupported parameter definitions throw errors", {
-  hhmodel <- new_housepi_model(model = "test")
-
   # eager rebuild: errors surface at definition, not at run_inference
-  hhmodel |>
-    add_parameter("a", prior = "uniform", min = min_val@D) |>
+  mk_param$model |>
+    add_parameter("rho", prior = "uniform", min = datum@D) |>
     expect_error("[Nn]ot supported")
   # a bare name nothing declares carries no source yet: it waits for the wall
+  expect_no_error(
+    hhmodel <- add_parameter(mk_param$model, "rho", prior = "uniform",
+                             min = datum)
+  )
   hhmodel |>
-    add_parameter("b", prior = "uniform", min = min_val) |>
-    expect_silent()
-  hhmodel |>
-    add_parameter("b", prior = "uniform", min = min_val) |>
     evaluate_log_lik() |>
-    expect_error("[Cc]ould not resolve the source of .min_val.")
+    expect_error("[Cc]ould not resolve the source of .datum.")
+
+  # a constant argument outside the function domain
+  mk_param$model |>
+    add_parameter(rho = list(func = "log", x = -1)) |>
+    evaluate_log_lik() |>
+    expect_error("[Vv]alue -1 for argument .x. is outside of domain")
 })
 
 test_that("A degenerate domain raises an error for parameters", {
-  new_housepi_model(model = "test") |>
-    add_parameter("venom", prior = "uniform", min = 3, max = 3) |>
+  mk_param$model |>
+    add_parameter("rho", prior = "uniform", min = 3, max = 3) |>
     expect_error("[Dd]egenerate domain")
 })
 
 test_that("Invalid proposal name is rejected", {
-  new_housepi_model(model = "test") |>
-    add_parameter("snake", prior = "uniform", proposal = "venom") |>
+  mk_param$model |>
+    add_parameter("rho", prior = "uniform", proposal = "unknown") |>
     run_inference(steps = 1L, chains = 1L) |>
-    expect_error("[Uu]nknown proposal.*venom")
+    expect_error("[Uu]nknown proposal.*unknown")
 })
 
 test_that("Lognormal proposal rejects unsupported domains", {
   # prior with unbounded lower bound
-  new_housepi_model(model = "test") |>
-    add_parameter("huey", prior = "normal", proposal = "rw_log") |>
-    expect_error("non.?positive.*huey")
+  mk_param$model |>
+    add_parameter("rho", prior = "normal", proposal = "rw_log") |>
+    expect_error("non.?positive.*rho")
 
   # prior with negative lower bound
-  new_housepi_model(model = "test") |>
-    add_parameter("miller", prior = "uniform",
-                  min = -1, proposal = "rw_log") |>
+  mk_param$model |>
+    add_parameter("rho", prior = "uniform", min = -1, proposal = "rw_log") |>
     expect_error("non.?positive")
 
   # discrete lognormal proposal is forbidden
-  new_housepi_model(model = "test") |>
-    add_parameter("ocelot", prior = "gamma", shape = 2, scale = 1,
+  mk_param$model |>
+    add_parameter("rho", prior = "gamma", shape = 2, scale = 1,
                   discr = TRUE, proposal = "rw_log") |>
-    expect_error("lognormal.*discrete.*ocelot")
+    expect_error("lognormal.*discrete.*rho")
 
   # location parameter
-  suppressWarnings(
-    param_draws <- new_housepi_model(model = "test") |>
-      add_parameter("amanda", prior = "gamma", shape = 2,
-                    max = 5, loc = -1, proposal = "rw_log") |>
-      run_inference(steps = 20L, chains = 1L, adapt = 0L, thin = 1L) |>
-      get_parameter_draws()
-  )
-  expect_true(all(param_draws[["amanda"]] > -1))
-  expect_true(all(param_draws[["amanda"]] < 4))
-})
-
-test_that("Rlang calls work as expected", {
-  # rlang calls and injections are evaluated for parameters
-  # here testing for equivalent symbolic definitions
-  val <- 1
-  hhmodel <- new_housepi_model(model = "test") |>
-    add_parameter(
-      param_shape = 5,
-      var1 = list(prior = "normal", mean = param_shape@p + 1),
-      var2 = list(prior = "normal", mean = param_shape@p + !!val),
-      var3 = list(prior = "normal", mean = ~ param_shape@P + 1),
-      var4 = list(prior = "normal", mean = ~ param_shape@P + !!val)
-    )
-  aux <- hhmodel$parameters
-  aux$name <- NULL
-  expect_equal(nrow(unique(aux)), 2L)
+  draws <- mk_param$model |>
+    add_parameter("rho", prior = "gamma", shape = 2,
+                  max = 5, loc = -1, proposal = "rw_log") |>
+    run_inference(steps = 20L, chains = 1L, adapt = 0L, thin = 1L) |>
+    suppressWarnings() |>
+    get_parameter_draws()
+  expect_true(all(draws[["rho"]] > -1))
+  expect_true(all(draws[["rho"]] < 4))
 })
 
 test_that("Discretization is enabled as expected", {
-  discr <- TRUE
   val <- list(min = 1, max = 5)
-  hhmodel <- new_housepi_model(model = "test")
-  hhmodel <- hhmodel |>
+  # one parameter per proposal: forward, lattice uniform, lattice normal walk
+  draws <- mk_param$model |>
     add_parameter(
-      sample = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                    proposal = "forward", min = !!val$min, max = !!val$max),
-      uniform = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                     proposal = "rw_unif", min = !!val$min, max = !!val$max),
-      normal = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                    proposal = "rw", min = !!val$min, max = !!val$max)
-    )
-
-  results <- hhmodel |>
+      rho = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                 proposal = "forward", min = !!val$min, max = !!val$max),
+      rho_2 = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                   proposal = "rw_unif", min = !!val$min, max = !!val$max),
+      rho_3 = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
+                   proposal = "rw", min = !!val$min, max = !!val$max)
+    ) |>
     run_inference(steps = 50L, thin = 1L, adapt = 50L, chains = 1L) |>
-    suppressWarnings()
-  y <- posterior::as_draws_matrix(get_parameter_draws(results))
-  expect_true(all(y == floor(y)))
-  expect_true(all(y >= val$min))
-  expect_true(all(y <= val$max))
+    suppressWarnings() |>
+    get_parameter_draws() |>
+    posterior::as_draws_matrix()
+  expect_true(all(draws == floor(draws)))
+  expect_true(all(draws >= val$min))
+  expect_true(all(draws <= val$max))
 
   # a lattice kernel tuned narrower than one integer value stays pinned to its
   # starting point, every step proposing the value it already holds
-  expect_gt(length(unique(y[, "uniform"])), 1L)
-  expect_gt(length(unique(y[, "normal"])), 1L)
+  expect_gt(length(unique(draws[, "rho_2"])), 1L)
+  expect_gt(length(unique(draws[, "rho_3"])), 1L)
 })
 
 test_that("Lattice random walks sample their target", {
@@ -301,14 +322,14 @@ test_that("Lattice random walks sample their target", {
   exact <- dbinom(0:6, size = 6, prob = 0.4)
 
   for (kernel in c("rw", "rw_unif")) {
-    draws <- new_housepi_model(model = "test") |>
-      add_parameter(revolver = list(prior = "binomial", size = 6, prob = 0.4,
-                                    proposal = !!kernel)) |>
+    draws <- mk_param$model |>
+      add_parameter(rho = list(prior = "binomial", size = 6, prob = 0.4,
+                               proposal = !!kernel)) |>
       run_inference(steps = 1e4L, thin = 1L, adapt = 500L, chains = 1L) |>
       suppressWarnings() |>
       get_parameter_draws()
 
-    empirical <- as.numeric(table(factor(draws[["revolver"]], levels = 0:6)))
+    empirical <- as.numeric(table(factor(draws[["rho"]], levels = 0:6)))
     empirical <- empirical / sum(empirical)
     # total variation distance, well within the spread of a correct kernel
     expect_lt(0.5 * sum(abs(empirical - exact)), 0.06)
@@ -316,42 +337,35 @@ test_that("Lattice random walks sample their target", {
 })
 
 test_that("A discrete prior resolves 'uniform' to the discrete distribution", {
-  hhmodel <- new_housepi_model(model = "test")
-
   # the flat lattice law owns every integer value in the support, so a bound off
   # the lattice has no reading
-  hhmodel |>
-    add_parameter(theta = list(prior = "uniform", min = 0.5, discr = TRUE)) |>
+  mk_param$model |>
+    add_parameter(rho = list(prior = "uniform", min = 0.5, discr = TRUE)) |>
     evaluate_log_lik() |>
     expect_error("min.*uniform.*discrete")
 })
 
 test_that("Parameter defined as a function tracks its dependencies", {
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+  results <- mk_final_size$model |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
-                  gamma = list(prior = "uniform"), hhsize_ref = 4)
-  res <- hhmodel |>
+                  gamma = list(prior = "uniform"), hhsize_ref = 4) |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings()
-  vars <- posterior::variables(res$parameter_draws)
-  # both sampled and function-derived parameters appear in the trace
-  expect_true(all(c("gamma", "beta") %in% vars))
 
-  df <- as.data.frame(posterior::as_draws_df(res$parameter_draws))
+  # both sampled and function-derived parameters appear in the trace
+  draws <- as.data.frame(posterior::as_draws_df(results$parameter_draws))
+  expect_true(all(c("gamma", "beta") %in% names(draws)))
   # every draw of beta equals hhsize_ref^(-gamma) exactly
-  expect_equal(df$beta, 4^(-df$gamma))
+  expect_equal(draws$beta, 4^(-draws$gamma))
 })
 
 test_that("A bare reference in a parameter resolves to a parameter", {
-  sigilled <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+  sigilled <- mk_final_size$model |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
                   gamma = list(prior = "uniform"), hhsize_ref = 4)
   # the two spellings encode the same definition: no sigil is needed to reach
   # a parameter no other holder claims
-  bare <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+  bare <- mk_final_size$model |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref^-gamma,
                   gamma = list(prior = "uniform"), hhsize_ref = 4)
   expect_equal(get_parameters(bare), get_parameters(sigilled))
@@ -360,48 +374,40 @@ test_that("A bare reference in a parameter resolves to a parameter", {
 })
 
 test_that("Parameter function rejects non-parameter dependencies", {
-  hhmodel <- new_housepi_model(model = "test")
+  hhmodel <- add_latent(mk_param$model, "hidden", model = "normal")
 
   # parameters do not accept individual-specifc definitons
   hhmodel |>
-    add_latent("cigar", model = "normal") |>
-    add_parameter("kaz", prior = "normal", mean = cigar + 1) |>
+    add_parameter("rho", prior = "normal", mean = hidden + 1) |>
     expect_error("[Ii]ndividual.*specific")
 
   # a bare name declared as a latent resolves there, and is refused as such
   hhmodel |>
-    add_latent("cigar", model = "normal") |>
-    add_parameter(beta = cigar^-2) |>
-    expect_error("beta.*cannot.*depend.*latent")
+    add_parameter(rho = hidden^-2) |>
+    expect_error("rho.*cannot.*depend.*latent")
 
   # explicit reference to a data column is also rejected
-  hhmodel |>
-    add_data_wide(dplyr::mutate(dummy_household, hush_puppy = 1)) |>
-    add_parameter(beta = hush_puppy@D + 1) |>
-    expect_error("beta.*cannot.*depend.*data")
+  mk_param$model |>
+    add_data_wide(dplyr::mutate(dummy_household, datum = 1)) |>
+    add_parameter(rho = datum@D + 1) |>
+    expect_error("rho.*cannot.*depend.*data")
 })
 
 test_that("Parameter template import loads the shipped definitions", {
-  hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
-
-  defs <- get_parameters(hhmodel)
-  expect_setequal(defs$name, c("alpha", "beta", "gamma", "hhsize_ref"))
+  get_parameters(mk_final_size$template)$name |>
+    expect_setequal(c("alpha", "beta", "gamma", "hhsize_ref"))
 
   # a model shipping no template definition file says so
-  flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+  mk_final_size$model |>
     add_latent(import = "template") |>
     expect_error("file.*not found")
 
   # the test model carries no template at all: warn and add nothing
-  hhmodel <- new_housepi_model(model = "test")
   expect_warning(
-    result <- add_parameter(hhmodel, import = "template"),
+    hhmodel <- add_parameter(mk_param$model, import = "template"),
     regexp = "test model"
   )
-  expect_identical(nrow(get_parameters(result)), 0L)
+  expect_identical(nrow(get_parameters(hhmodel)), 0L)
 })
 
 test_that("A parameter meets the model definition requirements", {
@@ -411,32 +417,26 @@ test_that("A parameter meets the model definition requirements", {
     add_infectivity_profile(import = "template") |>
     add_latent(import = "template")
 
-  # the model declares the household size reference discrete
-  hhmodel$.__enclos_env__$private$generator_$param_discr_required |>
-    expect_equal("hhsize_ref")
-
-  hhmodel |>
-    add_parameter(hhsize_ref = 3.3) |>
-    suppressWarnings() |>
-    evaluate_log_lik() |>
-    expect_error("not discrete-valued")
-
-  # the same reference is required strictly positive: an integer value clears the
-  # discretization check and is caught by the second requirement
+  # the household size reference is required strictly positive
   hhmodel |>
     add_parameter(hhsize_ref = 0) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_error("not strictly positive")
 
-  # a discrete prior clears the discretization check but owns the zero bin
+  # a discrete prior owns the zero bin
   hhmodel |>
     add_parameter(hhsize_ref = list(prior = "poisson", lambda = 4)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_error("not strictly positive")
 
-  # a sampled reference satisfies both without being declared discrete
+  # a non-integer reference is accepted, constant or sampled
+  hhmodel |>
+    add_parameter(hhsize_ref = 3.3) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_no_error()
   hhmodel |>
     add_parameter(hhsize_ref = list(prior = "uniform", min = 2, max = 6)) |>
     suppressWarnings() |>
@@ -448,69 +448,52 @@ test_that("A reduction answers for the definitions it folds over", {
   # the operands are read for what they define, not for the value they hold
   # while the definition is being built: a pointer to a variable still waiting
   # for its first draw is not an absent operand
-  flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template") |>
-    add_parameter(raiden = list(prior = "gamma", shape = 2, scale = 1),
-                  otacon = list(prior = "gamma", shape = 2, scale = 1),
-                  hhsize_ref = min(raiden@P, otacon@P)) |>
+  mk_final_size$template |>
+    add_parameter(rho = list(prior = "gamma", shape = 2, scale = 1),
+                  rho_2 = list(prior = "gamma", shape = 2, scale = 1),
+                  hhsize_ref = min(rho@P, rho_2@P)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
-    expect_error("not discrete-valued")
+    expect_no_error()
 })
 
 test_that("Strict positivity propagates through a parameter function", {
   # the community risk is required strictly positive and carries no
   # discretization requirement, so it reads a function definition directly
   mk <- function(...) {
-    flu_1918_frederick |>
-      new_housepi_model("final_size") |>
-      add_parameter(import = "template") |>
-      add_parameter(...) |>
+    mk_final_size$template |>
+      add_parameter(rho = list(prior = "gamma", shape = 2, scale = 1), ...) |>
       suppressWarnings() |>
       evaluate_log_lik()
   }
 
   # positivity follows the operands, one node at a time
-  expect_no_error(mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-                     alpha = exp(-raiden@P)))
-  expect_no_error(mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-                     alpha = sqrt(raiden@P) / 10))
-  expect_no_error(mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-                     alpha = raiden@P^2 * 1e-2))
-  expect_no_error(mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-                     otacon = list(prior = "gamma", shape = 2, scale = 1),
-                     alpha = min(raiden@P, otacon@P) * 1e-2))
-  expect_no_error(mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-                     otacon = list(prior = "normal"),
-                     alpha = max(raiden@P, otacon@P) * 1e-2))
-  expect_no_error(mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-                     otacon = list(prior = "gamma", shape = 2, scale = 1),
-                     alpha = (raiden@P + otacon@P) * 1e-2))
+  expect_no_error(mk(alpha = exp(-rho@P)))
+  expect_no_error(mk(alpha = sqrt(rho@P) / 10))
+  expect_no_error(mk(alpha = rho@P^2 * 1e-2))
+  expect_no_error(mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
+                     alpha = min(rho@P, rho_2@P) * 1e-2))
+  expect_no_error(mk(rho_2 = list(prior = "normal"),
+                     alpha = max(rho@P, rho_2@P) * 1e-2))
+  expect_no_error(mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
+                     alpha = (rho@P + rho_2@P) * 1e-2))
 
   # a sign-indefinite node is not provably positive, whatever it evaluates to
-  mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-     alpha = log(raiden@P)) |>
+  mk(alpha = log(rho@P)) |>
     expect_error("not strictly positive")
-  mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-     alpha = -raiden@P) |>
+  mk(alpha = -rho@P) |>
     expect_error("not strictly positive")
   # min over a sign-indefinite operand loses the proof, max keeps it
-  mk(raiden = list(prior = "gamma", shape = 2, scale = 1),
-     otacon = list(prior = "normal"),
-     alpha = min(raiden@P, otacon@P) * 1e-2) |>
+  mk(rho_2 = list(prior = "normal"), alpha = min(rho@P, rho_2@P) * 1e-2) |>
     expect_error("not strictly positive")
 })
 
 test_that("Strict positivity propagates through a shifted prior", {
   # the support a prior places is loc + [min, max], and it is that composed
   # interval the positivity request reads
-  liquid <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(import = "template")
 
   # the shift carries an interval spanning both signs past zero
-  liquid |>
+  mk_final_size$template |>
     add_parameter(alpha = list(prior = "uniform", min = -1e-4, max = 1e-4,
                                loc = 1e-3)) |>
     suppressWarnings() |>
@@ -518,20 +501,56 @@ test_that("Strict positivity propagates through a shifted prior", {
     expect_no_error()
 
   # the same interval, unshifted, keeps no proof
-  liquid |>
+  mk_final_size$template |>
     add_parameter(alpha = list(prior = "uniform", min = -1e-4, max = 1e-4)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_error("not strictly positive")
 
   # a prior hyperparameter is a constant: it cannot read another parameter
-  liquid |>
-    add_parameter(solidus = list(prior = "uniform", min = 1e-3, max = 2e-3),
+  mk_final_size$template |>
+    add_parameter(rho = list(prior = "uniform", min = 1e-3, max = 2e-3),
                   alpha = list(prior = "uniform", min = -1e-4, max = 1e-4,
-                               loc = solidus@P)) |>
+                               loc = rho@P)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_error("could not be interpreted as a numeric constant")
+  # and the refusal quotes the whole expression it could not fold
+  mk_final_size$template |>
+    add_parameter(rho = list(prior = "uniform", min = 1e-3, max = 2e-3),
+                  alpha = list(prior = "uniform", min = -1e-4, max = 1e-4,
+                               loc = rho@P * 2)) |>
+    suppressWarnings() |>
+    evaluate_log_lik() |>
+    expect_error("[Ee]xpression .prod.*could not be interpreted")
+})
+
+test_that("Every prior and function is copied into each chain", {
+  # chains sample copies of the definitions, one per prior family
+  draws <- mk_param$model |>
+    add_parameter(
+      rho = list(prior = "beta", shape1 = 2, shape2 = 2),
+      rho_2 = list(prior = "rayleigh", scale = 1),
+      rho_3 = list(prior = "weibull", shape = 2, scale = 1),
+      rho_4 = list(prior = "exponential", rate = 1,
+                   proposal = "gamma", proposal_shape = 2),
+      rho_5 = list(prior = "poisson", lambda = 3),
+      rho_6 = list(prior = "binomial", size = 5, prob = 0.3),
+      rho_7 = list(prior = "negative_binomial", size = 5, prob = 0.3),
+      rho_8 = list(prior = "geometric", prob = 0.3),
+      rho_9 = sin(rho@P), rho_10 = tan(rho@P), rho_11 = exp(rho@P)
+    ) |>
+    run_inference(steps = 5L, chains = 2L, adapt = 0L, thin = 1L) |>
+    suppressWarnings() |>
+    get_parameter_draws()
+
+  expect_equal(posterior::nchains(draws), 2L)
+  expect_setequal(posterior::variables(draws),
+                  c("rho", paste0("rho_", 2:11)))
+  # the functions track their operand within every chain
+  draws <- as.data.frame(posterior::as_draws_df(draws))
+  expect_equal(draws$rho_9, sin(draws$rho))
+  expect_equal(draws$rho_11, exp(draws$rho))
 })
 
 test_that("An unpinned parameter is drawn from its prior in simulation", {
@@ -539,14 +558,14 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
   # domain: a generative draw reading it would pin every replicate there
   hhmodel <- data.frame(id = seq_len(20), house_id = 1, status = 1) |>
     new_housepi_model("test") |>
-    add_parameter(liquid = list(prior = "uniform", min = 0.1, max = 0.9,
-                                proposal = "normal",
-                                proposal_mean = 0.88, proposal_sd = 0.005)) |>
-    add_latent(mantis = list(func = "liquid@P"))
+    add_parameter(rho = list(prior = "uniform", min = 0.1, max = 0.9,
+                             proposal = "normal",
+                             proposal_mean = 0.88, proposal_sd = 0.005)) |>
+    add_latent(hidden = list(func = "rho@P"))
 
   # a deterministic latent reading the parameter exports the value drawn
   drawn <- run_simulation(hhmodel, nrep = 40) |>
-    vapply(function(x) x$mantis[1], numeric(1))
+    vapply(function(x) x$hidden[1], numeric(1))
 
   expect_true(all(drawn >= 0.1 & drawn <= 0.9))
   expect_gt(stats::sd(drawn), 0.15) # uniform spread, not the proposal's 0.005
@@ -554,23 +573,20 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
 })
 
 test_that("An unpinned parameter is drawn from its prior at evaluation", {
-  free <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+  hhmodel <- mk_final_size$model |>
+    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
+  log_lik <- hhmodel |>
     add_parameter(alpha = list(prior = "uniform", min = 0.1, max = 0.9,
                                proposal = "normal",
-                               proposal_mean = 0.88, proposal_sd = 0.005),
-                  beta = 0.1, gamma = 1, hhsize_ref = 4)
-  lls <- replicate(20, evaluate_log_lik(free))
+                               proposal_mean = 0.88, proposal_sd = 0.005)) |>
+    (\(x) replicate(20, evaluate_log_lik(x)))()
 
   # what the whole prior domain is worth, to scale the spread against
-  pinned <- function(a) flu_1918_frederick |>
-    new_housepi_model("final_size") |>
-    add_parameter(alpha = !!a, beta = 0.1, gamma = 1, hhsize_ref = 4) |>
-    evaluate_log_lik()
+  pinned <- function(a) evaluate_log_lik(add_parameter(hhmodel, alpha = !!a))
   span <- abs(pinned(0.9) - pinned(0.1))
 
-  expect_true(all(is.finite(lls)))
-  expect_gt(stats::sd(lls), 0.05 * span)
+  expect_true(all(is.finite(log_lik)))
+  expect_gt(stats::sd(log_lik), 0.05 * span)
 })
 
 test_that("A fixed seed reproduces parameter draws on a single thread", {
@@ -578,15 +594,15 @@ test_that("A fixed seed reproduces parameter draws on a single thread", {
   # sampler state surviving a re-seed desynchronises one run from the next
   draws_at <- function(seed) {
     set.seed(seed)
-    new_housepi_model(model = "test") |>
-      add_parameter("raiden", prior = "normal", mean = 2, sd = 1) |>
+    mk_param$model |>
+      add_parameter("rho", prior = "normal", mean = 2, sd = 1) |>
       run_inference(steps = 50L, chains = 1L, adapt = 0L, thin = 1L) |>
       suppressWarnings() |>
       get_parameter_draws()
   }
-  patriots <- draws_at(1105L)
+  draws <- draws_at(1105L)
 
-  expect_identical(patriots, draws_at(1105L))
+  expect_identical(draws, draws_at(1105L))
   # a seed that moves the draws, so the equality above is not vacuous
-  expect_false(identical(patriots, draws_at(2705L)))
+  expect_false(identical(draws, draws_at(2705L)))
 })

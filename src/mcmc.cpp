@@ -60,9 +60,12 @@ namespace housepi
         std::unique_ptr<ModelBase> RegModels::create(std::string_view name) const
         {
             auto it = factory_map_.find(name);
+            // # nocov start
             if (it == factory_map_.end())
                 msg::stop(
-                    "Model registration failed: unknown model " + msg::val(std::string(name)) + ".\n");
+                    "Model registration failed: unknown model " +
+                    msg::val(std::string(name)) + ".\n");
+            // # nocov end
             return it->second();
         }
     }

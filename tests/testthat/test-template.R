@@ -1,5 +1,9 @@
 library(testthat)
 
+################################
+###  TEMPLATE : DEFINITIONS  ###
+################################
+
 test_that("set_source_name_ assigns names to vector", {
   result <- set_source_name_(c("a", "b"), "param")
   expect_equal(names(result), c("param", "param"))
@@ -16,37 +20,45 @@ test_that("set_source_name_ assigns names to vector", {
     expect_null()
 })
 
-test_that("Missing template mechanism work as expected", {
+test_that("Missing template definitions are found and reported", {
   required <- c(A = "a", B = "b", C = "c")
   defined <- c("a", "b")
 
   # partial overlap
-  expect_equal(template_missing_find(required, defined), "c")
+  template_missing_find(required, defined) |>
+    expect_equal("c")
   # all defined
-  expect_identical(template_missing_find(defined, defined), character(0))
+  template_missing_find(defined, defined) |>
+    expect_identical(character(0))
   # no required
-  expect_null(template_missing_find(character(0), c("a")))
+  template_missing_find(character(0), c("a")) |>
+    expect_null()
   # no defined: returns all required sorted
-  expect_equal(template_missing_find(rev(defined), character(0)), defined)
+  template_missing_find(rev(defined), character(0)) |>
+    expect_equal(defined)
 
-  result <- template_missing_stop(required, defined, "parameter")
-  expect_true(length(result) > 0)
-  expect_true(any(grepl("missing", result)))
+  results <- template_missing_stop(required, defined, "parameter")
+  expect_true(any(grepl(pattern = "missing", results)))
 
   # no missing: empty output
   template_missing_stop(c("a"), c("a"), "parameter") |>
-    expect_equal(c())
+    expect_null()
 })
 
-test_that("Not Used Template mechanisms work as expected", {
+test_that("Unused template definitions are found and warned about", {
   required <- c(A = "a")
   defined <- c("a", "b", "c")
-  # partial overlap
-  template_not_used_find(required, defined) |>
-    expect_equal(c("b", "c"))
+  
   # all used: returns empty (character(0))
   template_not_used_find(defined, defined) |>
     expect_length(0L)
+  # all used: no warning
+  template_not_used_warn(defined, defined, "parameter") |>
+    expect_no_warning()
+  
+  # partial overlap
+  template_not_used_find(required, defined) |>
+    expect_equal(c("b", "c"))
   # no required: returns all defined sorted
   template_not_used_find(character(0), rev(defined)) |>
     expect_equal(defined)
@@ -55,14 +67,11 @@ test_that("Not Used Template mechanisms work as expected", {
     expect_null()
 
   # warning for unused
-  template_not_used_warn(c("a"), defined, "venom") |>
+  template_not_used_warn(c("a"), defined, "parameter") |>
     expect_warning("unused")
-  # all used: no warning
-  template_not_used_warn(defined, defined, "gekko") |>
-    expect_no_warning()
 })
 
-test_that("template_overwrite_warn emits warning for overwrites", {
+test_that("Overwritten template definitions are warned about", {
   # empty: no warning
   template_overwrite_warn(character(0), "parameter") |>
     expect_no_warning()
@@ -71,7 +80,7 @@ test_that("template_overwrite_warn emits warning for overwrites", {
     expect_warning("Overwriting")
 
   # warn handles many elements
-  template_overwrite_warn(letters[1:10], "Miller", max_print = 3) |>
+  template_overwrite_warn(letters[1:10], "parameter", max_print = 3) |>
     expect_warning("more than 3")
 })
 
@@ -80,18 +89,31 @@ test_that("fmt_assert_cli formats messages correctly", {
   result <- fmt_assert_cli(
     "Parameters", c("There were 2 missing parameter definitions: 'a', 'b'.")
   )
-  expect_true(length(result) > 0)
   expect_true(any(grepl("Parameters", result)))
   expect_true(any(grepl("are", result)))
 
   # minor mode: rewrites "Required by" to "Can be specified for"
   result <- fmt_assert_cli(
-    "Parameters",
-    c("There was 1 definition.", "Required by latent definitions."),
+    "Parameters", c("There was 1 definition.", "Required by ..."),
     minor = TRUE
   )
-  expect_true(any(grepl("Can be specified", result)))
+  expect_true(any(grepl(pattern = "Can be specified", result)))
 })
+
+test_that("Template name normalization", {
+  for (f in c("Final-Size", "final_size", " final siZe ", "FINAL SIZE")) {
+    expect_equal(spaced_template_choice(f), "final size")
+  }
+
+  result <- find_closest_template_name("final siz")
+  expect_true(any(grepl(pattern = "Did you mean", result)))
+  result <- find_closest_template_name("")
+  expect_true(any(grepl(pattern = "browse_template", result)))
+})
+
+#############################
+###  TEMPLATE : BROWSING  ###
+#############################
 
 test_that("browse_templates branches inform correctly", {
   # print existing templates
@@ -100,7 +122,7 @@ test_that("browse_templates branches inform correctly", {
   browse_templates(42) |>
     expect_error("not a character")
   # unknown name: error mentions "not a known template" and a hint
-  browse_templates("foxhound") |>
+  browse_templates("unknown") |>
     expect_error("not a known template")
   # unknown name close to a real one: hint should suggest "Did you mean"
   browse_templates("final siz") |>
@@ -115,16 +137,13 @@ test_that("browse_templates triggers help preview when path is NA", {
       called_with <<- path
       invisible()
     },
-    code = {
-      browse_templates("final_size")
-    }
+    code = browse_templates("final-size")
   )
-  expect_true(!is.null(called_with))
-  expect_true(grepl("final_size$", called_with))
+  expect_match(called_with, "final_size$")
 })
 
 test_that("open_model_helper_ errors when info.Rd is missing", {
-  empty_dir <- tempfile("ocelot_")
+  empty_dir <- tempfile("empty_")
   dir.create(empty_dir)
   on.exit(unlink(empty_dir, recursive = TRUE), add = TRUE)
   open_model_helper_(empty_dir) |>
@@ -132,38 +151,32 @@ test_that("open_model_helper_ errors when info.Rd is missing", {
 })
 
 test_that("browse_templates copies template to a new path", {
-  dest <- tempfile("solid_snake_")
+  dest <- tempfile("template_")
   on.exit(unlink(dest, recursive = TRUE), add = TRUE)
+  model_cpp <- file.path(dest, "model.cpp")
 
-  # first copy: creates the model.cpp
+  # first copy: creates the model sources
   browse_templates("final_size", path = dest)
-  initial_mtime <- file.info(file.path(dest, "model.cpp"))$mtime
-
-  expect_true(dir.exists(dest))
-  expect_true(file.exists(file.path(dest, "model.cpp")))
+  expect_true(file.exists(model_cpp))
   expect_true(file.exists(file.path(dest, "param.R")))
   expect_true(file.exists(file.path(dest, "info.Rd")))
   # final_size has no latent file: nothing should be copied
   expect_false(file.exists(file.path(dest, "latent.R")))
+  shipped <- readLines(model_cpp)
 
-  # second copy without replace: warns and does NOT overwrite
+  # second copy without replace: warns and does not overwrite
+  writeLines("edited", model_cpp)
   browse_templates("final_size", path = dest) |>
     expect_warning("already exists")
-  expect_equal(file.info(file.path(dest, "model.cpp"))$mtime, initial_mtime)
+  expect_identical(readLines(model_cpp), "edited")
 
   # with replace = TRUE: overwrites silently
-  Sys.sleep(1.1)  # ensure mtime resolution captures the rewrite
-  expect_no_warning(
-    browse_templates("final_size", path = dest, replace = TRUE)
-  )
-  expect_gt(
-    as.numeric(file.info(file.path(dest, "model.cpp"))$mtime),
-    as.numeric(initial_mtime)
-  )
+  browse_templates("final_size", path = dest, replace = TRUE)
+  expect_identical(readLines(model_cpp), shipped)
 })
 
 test_that("browse_templates rejects '.' as destination path", {
-  sandbox <- tempfile("mantis_")
+  sandbox <- tempfile("sandbox_")
   dir.create(sandbox)
   on.exit(unlink(sandbox, recursive = TRUE), add = TRUE)
   withr::with_dir(sandbox, {
@@ -172,22 +185,4 @@ test_that("browse_templates rejects '.' as destination path", {
     # helper redirects "." to a folder named after the template
     expect_true(dir.exists("final_size"))
   })
-})
-
-test_that("Template name normalization", {
-  model_name <- "final size"
-  spaced_template_choice("Final-Size") |>
-    expect_equal(model_name)
-  spaced_template_choice("final_size") |>
-    expect_equal(model_name)
-  spaced_template_choice(" final siZe ") |>
-    expect_equal(model_name)
-  spaced_template_choice("FINAL SIZE") |>
-    expect_equal(model_name)
-
-  result <- find_closest_template_name("final siz")
-  expect_true(any(grepl("Did you mean", result)))
-
-  result2 <- find_closest_template_name("")
-  expect_true(any(grepl("browse_templates", result2)))
 })

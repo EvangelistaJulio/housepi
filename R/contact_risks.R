@@ -402,13 +402,13 @@ HousepiContactRisk <- R6::R6Class(
       # automatic definition
       by <- housepi_smart_unwrap(by, "by")
       prefix <- housepi_smart_unwrap(prefix, "prefix")
-      reference <- housepi_smart_unwrap(reference, "reference")
+      reference <- housepi_smart_unwrap(reference, "reference", null_ok = TRUE)
       joint <- isTRUE(housepi_smart_unwrap(joint, "joint"))
       symmetric <- isTRUE(housepi_smart_unwrap(symmetric, "symmetric"))
 
       # custom definition
-      strata <- housepi_smart_unwrap(strata, "strata")
-      params <- housepi_smart_unwrap(params, "params")
+      strata <- housepi_smart_unwrap(strata, "strata", null_ok = TRUE)
+      params <- housepi_smart_unwrap(params, "params", null_ok = TRUE)
 
       # raw parameter definition
       prior <- housepi_smart_unwrap(prior, "prior")

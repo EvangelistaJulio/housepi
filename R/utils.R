@@ -222,7 +222,9 @@ raise_permissions_error <- function() {
 overwrite <- function(from, to, ...) {
   if (from == to) return(invisible())
   # user permission error (tipically)
-  if (!file.copy(from, to, overwrite = TRUE, ...)) raise_permissions_error()
+  if (!suppressWarnings(file.copy(from, to, overwrite = TRUE, ...))) {
+    raise_permissions_error()
+  }
 }
 
 ############################################################################

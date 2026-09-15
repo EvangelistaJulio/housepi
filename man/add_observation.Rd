@@ -11,6 +11,7 @@ add_observation(
   ...,
   level = c("member", "house"),
   value = NULL,
+  func = NULL,
   status = NA_integer_,
   discr = NA,
   min = NULL,
@@ -45,6 +46,12 @@ definitions the model carries; when two of them share it, the convention
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
 \item{\verb{@P}}{parameter.}
+}}
+
+\item{func}{One between:
+\itemize{
+\item \code{character(1)} Name of latent function;
+\item rlang expression.
 }}
 
 \item{status}{\code{integer(1)} Individual positive status.

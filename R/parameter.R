@@ -114,7 +114,7 @@ HousepiParameter <- R6::R6Class(
       else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 
       opts <- helper_variable_core(opts, self$family, value, func)
-      opts <- helper_variable_args(opts, self$family, args)
+      opts <- helper_variable_args(opts, self$family, args, func)
       opts <- helper_variable_move(opts, self$family)
 
       if (!isTRUE(const)) {

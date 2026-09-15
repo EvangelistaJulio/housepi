@@ -167,17 +167,22 @@ helper_variable_core <- function(opts, family, value, func) {
 # @description
 # Attach the spare arguments to the object that takes them: the distribution
 # sampling the variable, or the function computing it.
-helper_variable_args <- function(opts, family, args) {
+helper_variable_args <- function(opts, family, args, func) {
   if (length(args) == 0) return(opts)
   dcol <- family2model_col(family)
   col <- if (!is.na(opts[[dcol]])) dcol else if (!is.na(opts$func)) "func"
-  if (is.null(col)) stop_h(
-    "Spare arguments for {family} {.val {opts$name}}.",
-    "Provide the {.arg {dcol}} or the {.arg func} they belong to."
+  n_args <- length(args)
+  headline <- sprintf("%s spare %s for {family} {.val {opts$name}}: %s",
+                      format_there_were_was(n_args),
+                      as_plural("argument", n_args),
+                      character_to_string_list(names(args), style = "arg"))
+  if (is.null(col) && is.null(func)) stop_h(
+    headline, "Provide the {.arg {dcol}} or the {.arg func} they belong to."
   )
-  if (housepi_is_call(opts[[col]])) stop_h(
-    "Spare arguments for {family} {.val {opts$name}}.",
-    "The {.arg {col}} expression already carries its arguments."
+  # a func folded into a constant carries no call to attach them to
+  if (is.null(col)) col <- "func"
+  if (is.na(opts[[col]]) || housepi_is_call(opts[[col]])) stop_h(
+    headline, "The {.arg {col}} expression already carries its arguments."
   )
   opts[[col]] <- housepi_combine_to_call(opts[[col]], args)
   opts

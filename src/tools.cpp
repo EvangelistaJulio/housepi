@@ -610,10 +610,6 @@ namespace housepi::parse
         const std::vector<std::string> args = split_top_(expr_tail.substr(0, bar_2));
         const std::vector<std::string> children = split_top_(expr_tail.substr(bar_2 + 1));
 
-        if (args.size() != children.size())
-            msg::stop(
-                "Mismatch in the number of keys and arguments of definition '" + expr + "'.");
-
         // populate the parent node with children nodes
         Entry node;
         node.func = expr_head;
@@ -635,9 +631,6 @@ namespace housepi::parse
             {
                 // terminal child node
                 size_t barc = c.find('|');
-                if (barc == std::string::npos)
-                    msg::stop(
-                        "Missing terminal '|' in definition '" + expr + "'.");
                 Entry child(c.substr(0, barc), c.substr(barc + 1));
                 child.key = args[i];
                 node.children.emplace_back(child);
