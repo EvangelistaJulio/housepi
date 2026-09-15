@@ -26,7 +26,7 @@ Relative to the location argument \code{loc}, when one is given.}
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }
 \value{
-\code{NULL} if the available names were printed. Otherwise \link[=HousepiExposedDistribution]{HousepiExposedDistribution} object.
+\code{NULL} if the available names were printed. Otherwise \link{HousepiExposedDistribution} object.
 }
 \description{
 Print the list of available distributions,

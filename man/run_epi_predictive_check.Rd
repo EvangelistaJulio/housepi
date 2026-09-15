@@ -24,7 +24,7 @@ run_epi_predictive_check(
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
-\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
+\item \link{HousepiPosteriorDraws}.
 }}
 
 \item{obs_process}{\code{function} Observation process.

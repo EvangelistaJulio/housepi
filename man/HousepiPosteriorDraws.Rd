@@ -28,15 +28,15 @@ observation node the remaining terms vanish and \code{log_lik} contracts to
 transmission alone.
 }
 \section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{parameter_draws}}{\code{posterior::draws_df}.
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{parameter_draws}}{\code{posterior::draws_df}.
 Draws of parameters.}
 
-\item{\code{latent_draws}}{\code{posterior::draws_df}.
+    \item{\code{latent_draws}}{\code{posterior::draws_df}.
 Draws of the selected individuals' latent variables.}
 
-\item{\code{log_lik_draws}}{\code{posterior::draws_df}.
+    \item{\code{log_lik_draws}}{\code{posterior::draws_df}.
 Pointwise per-household log-likelihood
 \eqn{
   \log p^\mathrm{obs}(y \mid z, \theta) +
@@ -46,71 +46,76 @@ Pointwise per-household log-likelihood
 the observation, transmission, and latent model contributions.
 Logarithms are natural (base \eqn{e}).}
 
-\item{\code{lprior_draws}}{\code{posterior::draws_df}.
+    \item{\code{lprior_draws}}{\code{posterior::draws_df}.
 Single column \code{lprior}: the parameter log-prior \eqn{\log p(\theta)}. The
 latent-variable log-density enters the \code{log_lik} bundle, not \code{lprior}.
 Logarithms are natural (base \eqn{e}).}
 
-\item{\code{complete_draws}}{\code{posterior::draws_df}.
+    \item{\code{complete_draws}}{\code{posterior::draws_df}.
 Parameters, pointwise \code{log_lik} and the joint \code{lprior}.
 Note \code{log_lik}/\code{lprior} are evaluated over the joint (latent,
 parameter) posterior (see \code{log_lik_draws} and \code{lprior_draws}).
 Logarithms are natural (base \eqn{e}).}
-}
-\if{html}{\out{</div>}}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-HousepiPosteriorDraws-new}{\code{HousepiPosteriorDraws$new()}}
-\item \href{#method-HousepiPosteriorDraws-print}{\code{HousepiPosteriorDraws$print()}}
-\item \href{#method-HousepiPosteriorDraws-clone}{\code{HousepiPosteriorDraws$clone()}}
-}
+  \itemize{
+    \item \href{#method-HousepiPosteriorDraws-initialize}{\code{HousepiPosteriorDraws$new()}}
+    \item \href{#method-HousepiPosteriorDraws-print}{\code{HousepiPosteriorDraws$print()}}
+    \item \href{#method-HousepiPosteriorDraws-clone}{\code{HousepiPosteriorDraws$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiPosteriorDraws-new"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-new}{}}}
-\subsection{Method \code{new()}}{
-Store posterior::draws_df internally.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorDraws$new(name, ptr)}\if{html}{\out{</div>}}
+\if{html}{\out{<a id="method-HousepiPosteriorDraws-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-initialize}{}}}
+\subsection{\code{HousepiPosteriorDraws$new()}}{
+  Store posterior::draws_df internally.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiPosteriorDraws$new(name, ptr)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{name}}{\code{character(1)}. Model name.}
+      \item{\code{ptr}}{\verb{Rcpp::XPtr<MCMC>}}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{name}}{\code{character(1)}. Model name.}
-
-\item{\code{ptr}}{\verb{Rcpp::XPtr<MCMC>}}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiPosteriorDraws-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-print}{}}}
-\subsection{Method \code{print()}}{
-Override the default printing behavior.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorDraws$print()}\if{html}{\out{</div>}}
+\subsection{\code{HousepiPosteriorDraws$print()}}{
+  Override the default printing behavior.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiPosteriorDraws$print()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiPosteriorDraws-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPosteriorDraws$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{HousepiPosteriorDraws$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiPosteriorDraws$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

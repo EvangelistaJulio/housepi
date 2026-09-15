@@ -11,64 +11,67 @@ It carries one definition built by the C++ kernel, reports the user
 argument values it was built with, and the domain it is defined on.
 }
 \section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{args}}{\code{numeric()}
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{args}}{\code{numeric()}
 Named argument values the definition was built with.}
 
-\item{\code{domain}}{\code{character(1)}
+    \item{\code{domain}}{\code{character(1)}
 Values to evaluated on in interval notation.}
 
-\item{\code{is_discrete}}{\code{logical(1)}
+    \item{\code{is_discrete}}{\code{logical(1)}
 Whether the values the definition takes lie on a lattice of
 integers. A distribution answers for the values it draws.}
 
-\item{\code{is_positive}}{\code{logical(1)}
+    \item{\code{is_positive}}{\code{logical(1)}
 Whether the values the definition takes are known to be strictly
 positive. A distribution answers for the values it draws.
 Note that \code{FALSE} reads as "not known to be positive".}
 
-\item{\code{codomain}}{\code{character(1)}
+    \item{\code{codomain}}{\code{character(1)}
 Values evaluating the definition returns, in interval notation.
 A distribution returns a density, a mass or a cumulative probability,
 never a draw: see \code{domain} for the values it is defined on.}
-}
-\if{html}{\out{</div>}}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-HousepiExposed-new}{\code{HousepiExposed$new()}}
-\item \href{#method-HousepiExposed-print}{\code{HousepiExposed$print()}}
-}
+  \itemize{
+    \item \href{#method-HousepiExposed-initialize}{\code{HousepiExposed$new()}}
+    \item \href{#method-HousepiExposed-print}{\code{HousepiExposed$print()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiExposed-new"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiExposed-new}{}}}
-\subsection{Method \code{new()}}{
-New object of class \link[=HousepiExposed]{HousepiExposed}.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposed$new(obj, name)}\if{html}{\out{</div>}}
+\if{html}{\out{<a id="method-HousepiExposed-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiExposed-initialize}{}}}
+\subsection{\code{HousepiExposed$new()}}{
+  New object of class \link{HousepiExposed}.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiExposed$new(obj, name)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{obj}}{Definition built by the C++ kernel.}
+      \item{\code{name}}{\code{character(1)} Registered name of the definition.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{obj}}{Definition built by the C++ kernel.}
-
-\item{\code{name}}{\code{character(1)} Registered name of the definition.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiExposed-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposed-print}{}}}
-\subsection{Method \code{print()}}{
-Override the default printing behavior.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposed$print()}\if{html}{\out{</div>}}
+\subsection{\code{HousepiExposed$print()}}{
+  Override the default printing behavior.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiExposed$print()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 }

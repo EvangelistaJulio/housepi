@@ -30,8 +30,9 @@ get_infectivity_profiles(hhmodel)
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{name}{\code{character()}. Names of the definitions to return, all of them
-when \code{NA}. \code{get_group_risks()} matches the group risk name.}
+\item{name}{\code{character()}. Names of the definitions to return.
+\code{get_group_risks()} matches the name of the group risk.
+All of them when \code{NA} (default).}
 }
 \value{
 \code{data.frame}

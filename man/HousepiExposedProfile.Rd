@@ -8,61 +8,63 @@
 A housepi infectivity profile, its instantaneous and cumulative profile.
 }
 \section{Super class}{
-\code{\link[housepi:HousepiExposed]{housepi::HousepiExposed}} -> \code{HousepiExposedProfile}
+\code{\link[housepi:HousepiExposed]{HousepiExposed}} -> \code{HousepiExposedProfile}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-HousepiExposedProfile-inst}{\code{HousepiExposedProfile$inst()}}
-\item \href{#method-HousepiExposedProfile-cumul}{\code{HousepiExposedProfile$cumul()}}
+  \itemize{
+    \item \href{#method-HousepiExposedProfile-inst}{\code{HousepiExposedProfile$inst()}}
+    \item \href{#method-HousepiExposedProfile-cumul}{\code{HousepiExposedProfile$cumul()}}
+  }
 }
-}
-\if{html}{\out{
-<details open><summary>Inherited methods</summary>
+\if{html}{\out{<details open><summary>Inherited methods</summary>
 <ul>
-<li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiExposed" data-id="initialize"><a href='../../housepi/html/HousepiExposed.html#method-HousepiExposed-initialize'><code>housepi::HousepiExposed$initialize()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiExposed" data-id="print"><a href='../../housepi/html/HousepiExposed.html#method-HousepiExposed-print'><code>housepi::HousepiExposed$print()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiExposed" data-id="initialize"><a href='../../housepi/html/HousepiExposed.html#method-HousepiExposed-initialize'><code>HousepiExposed$initialize()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiExposed" data-id="print"><a href='../../housepi/html/HousepiExposed.html#method-HousepiExposed-print'><code>HousepiExposed$print()</code></a></span></li>
 </ul>
-</details>
-}}
+</details>}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiExposedProfile-inst"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposedProfile-inst}{}}}
-\subsection{Method \code{inst()}}{
-Evaluate the instantaneous infectivity profile.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedProfile$inst(x)}\if{html}{\out{</div>}}
+\subsection{\code{HousepiExposedProfile$inst()}}{
+  Evaluate the instantaneous infectivity profile.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiExposedProfile$inst(x)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{x}}{\code{numeric()} Points of evaluation.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{numeric()}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{x}}{\code{numeric()} Points of evaluation.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{numeric()}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiExposedProfile-cumul"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposedProfile-cumul}{}}}
-\subsection{Method \code{cumul()}}{
-Evaluate the cumulative infectivity profile.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedProfile$cumul(x)}\if{html}{\out{</div>}}
+\subsection{\code{HousepiExposedProfile$cumul()}}{
+  Evaluate the cumulative infectivity profile.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiExposedProfile$cumul(x)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{x}}{\code{numeric()} Points of evaluation.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{numeric()}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{x}}{\code{numeric()} Points of evaluation.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{numeric()}
-}
-}
 }

@@ -12,6 +12,6 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{posterior}{\code{\link[posterior:draws_summary]{summarise_draws}}, \code{\link[posterior:draws_summary]{summarize_draws}}}
+  \item{posterior}{\code{\link[posterior:summarise_draws]{summarise_draws()}}, \code{\link[posterior:summarize_draws]{summarize_draws()}}}
 }}
 

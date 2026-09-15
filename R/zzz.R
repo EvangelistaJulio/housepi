@@ -42,6 +42,7 @@ wrap_cpp_member_ <- function(x, name) {
   function(...) with_cpp_conditions(fn(...))
 }
 #' Define the wrapper for to the .engine Rcpp class.
+#' @exportS3Method "$" housepi_engine
 #' @noRd
 `$.housepi_engine` <- function(x, name) {
   wrap_cpp_member_(.subset2(x, "module"), name)
@@ -52,8 +53,6 @@ wrap_cpp_member_ <- function(x, name) {
   pkgbuild::check_build_tools(quiet = TRUE)
   module <- Rcpp::Module(pkgname, PACKAGE = pkgname)
   .engine <<- structure(list(module = module), class = "housepi_engine")
-  registerS3method("$", "housepi_engine", `$.housepi_engine`,
-                   envir = asNamespace(pkgname))
 }
 
 .onUnload <- function(libpath) {

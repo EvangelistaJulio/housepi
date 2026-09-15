@@ -42,18 +42,18 @@
 \arguments{
 \item{.x}{A housepi-tagged draws object, or a \code{\link{HousepiPosteriorDraws}}.}
 
-\item{...}{Summary functions, as in \code{\link[posterior:draws_summary]{posterior::summarise_draws()}}.}
+\item{...}{Summary functions, as in \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}}.}
 
-\item{.args, .num_args, .cores}{Forwarded to \code{\link[posterior:draws_summary]{posterior::summarise_draws()}}.}
+\item{.args, .num_args, .cores}{Forwarded to \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}}.}
 }
 \value{
 A \code{draws_summary} \code{data.frame}.
 }
 \description{
-S3 method on \code{\link[posterior:draws_summary]{posterior::summarise_draws()}} for objects tagged
+S3 method on \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}} for objects tagged
 \code{"housepi_draws"} (returned by housepi getters and active fields on
 \code{\link{HousepiPosteriorDraws}}). When no summary functions are passed via
 \code{...}, the housepi defaults are used and the quantile pair tracks
 \code{\link[=set_global_cri_level]{set_global_cri_level()}}. Otherwise dispatch falls through to standard
-\code{\link[posterior:draws_summary]{posterior::summarise_draws()}} behaviour.
+\code{\link[posterior:summarise_draws]{posterior::summarise_draws()}} behaviour.
 }

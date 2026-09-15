@@ -28,7 +28,7 @@ When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
-\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
+\item \link{HousepiPosteriorDraws}.
 }}
 
 \item{nrep}{\code{integer(1)} Number of replicates to generate.

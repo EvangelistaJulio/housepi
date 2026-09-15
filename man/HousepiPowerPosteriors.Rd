@@ -15,16 +15,16 @@ Estimate the log-evidence from it with \code{\link[=evaluate_log_evidence]{evalu
 \insertRef{xie_improving_2011}{housepi}
 }
 \section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{scheme}}{\code{character(1)}
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{scheme}}{\code{character(1)}
 Power-posterior scheme used to sample the ladder.}
 
-\item{\code{draws}}{\code{posterior::draws_df}
+    \item{\code{draws}}{\code{posterior::draws_df}
 Draws log-likelihood draws under corresponding power-posterior.
 Logarithms are natural (base \eqn{e}).}
 
-\item{\code{detail}}{\code{data.frame}
+    \item{\code{detail}}{\code{data.frame}
 Detail of the thermodynamic ladder
 \describe{
 \item{inv_temp}{Inverse temperature}
@@ -33,98 +33,104 @@ Detail of the thermodynamic ladder
 }
 Mean log-likelihood can legitimately be \code{-Inf} at inverse temperature 0.
 Logarithms are natural (base \eqn{e}).}
-}
-\if{html}{\out{</div>}}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-HousepiPowerPosteriors-new}{\code{HousepiPowerPosteriors$new()}}
-\item \href{#method-HousepiPowerPosteriors-evaluate_log_evidence}{\code{HousepiPowerPosteriors$evaluate_log_evidence()}}
-\item \href{#method-HousepiPowerPosteriors-print}{\code{HousepiPowerPosteriors$print()}}
-\item \href{#method-HousepiPowerPosteriors-clone}{\code{HousepiPowerPosteriors$clone()}}
-}
+  \itemize{
+    \item \href{#method-HousepiPowerPosteriors-initialize}{\code{HousepiPowerPosteriors$new()}}
+    \item \href{#method-HousepiPowerPosteriors-evaluate_log_evidence}{\code{HousepiPowerPosteriors$evaluate_log_evidence()}}
+    \item \href{#method-HousepiPowerPosteriors-print}{\code{HousepiPowerPosteriors$print()}}
+    \item \href{#method-HousepiPowerPosteriors-clone}{\code{HousepiPowerPosteriors$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiPowerPosteriors-new"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiPowerPosteriors-new}{}}}
-\subsection{Method \code{new()}}{
-Sample the power-posterior ladder and store the draws.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$new(generator, scheme = "adaptive", rungs = 30L)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{generator}}{\code{HousepiGenerator} Helper class for model generation.}
-
-\item{\code{scheme}}{\code{character(1)} Scheme used for evidence estimation.
+\if{html}{\out{<a id="method-HousepiPowerPosteriors-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiPowerPosteriors-initialize}{}}}
+\subsection{\code{HousepiPowerPosteriors$new()}}{
+  Sample the power-posterior ladder and store the draws.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiPowerPosteriors$new(generator, scheme = "adaptive", rungs = 30L)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{generator}}{\code{HousepiGenerator} Helper class for model generation.}
+      \item{\code{scheme}}{\code{character(1)} Scheme used for evidence estimation.
 One between
 \describe{
 \item{\code{"adaptive"}}{uses adaptive thermodynamic ladder (default).}
 \item{\code{"power-fractions"}}{uses inverse temperatures \eqn{\frac{r^5}{{n_\mathrm{rungs}}^5}}{r^5 / n_rungs^5}.}
 }}
+      \item{\code{rungs}}{\code{integer(1)} Number of rungs in thermodynamic ladder.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
 
-\item{\code{rungs}}{\code{integer(1)} Number of rungs in thermodynamic ladder.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiPowerPosteriors-evaluate_log_evidence"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPowerPosteriors-evaluate_log_evidence}{}}}
-\subsection{Method \code{evaluate_log_evidence()}}{
-Estimate the log-evidence from the stored ladder.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$evaluate_log_evidence(
+\subsection{\code{HousepiPowerPosteriors$evaluate_log_evidence()}}{
+  Estimate the log-evidence from the stored ladder.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiPowerPosteriors$evaluate_log_evidence(
   method = c("stepping-stone", "thermodynamic")
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{method}}{\code{character(1)} Estimator computed from the sampled ladder.
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{method}}{\code{character(1)} Estimator computed from the sampled ladder.
 One between
 \describe{
 \item{\code{"stepping-stone"}}{stepping-stone sampling (default).}
 \item{\code{"thermodynamic"}}{thermodynamic integration.}
 }}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-named \code{numeric(2)} (\code{estimate}, \code{sd})
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    named \code{numeric(2)} (\code{estimate}, \code{sd})
 \code{sd} is \code{NA} if method provides no standard-error estimate.
 Logarithms are natural (base \eqn{e}).
+  }
 }
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiPowerPosteriors-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPowerPosteriors-print}{}}}
-\subsection{Method \code{print()}}{
-Override the default printing behavior.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$print()}\if{html}{\out{</div>}}
+\subsection{\code{HousepiPowerPosteriors$print()}}{
+  Override the default printing behavior.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiPowerPosteriors$print()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiPowerPosteriors-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPowerPosteriors-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiPowerPosteriors$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{HousepiPowerPosteriors$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiPowerPosteriors$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

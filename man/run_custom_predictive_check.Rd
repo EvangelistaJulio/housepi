@@ -24,7 +24,7 @@ run_custom_predictive_check(
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
-\item \link[=HousepiPosteriorDraws]{HousepiPosteriorDraws}.
+\item \link{HousepiPosteriorDraws}.
 }}
 
 \item{...}{Named arguments. \code{function}s to compute measures from data.

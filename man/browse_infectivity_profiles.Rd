@@ -26,7 +26,7 @@ Relative to the location argument \code{loc}, when one is given.}
 \item{discr}{\code{logical(1)} Treat definition as discrete.}
 }
 \value{
-\code{NULL} if the available names were printed. Otherwise \link[=HousepiExposedProfile]{HousepiExposedProfile} object.
+\code{NULL} if the available names were printed. Otherwise \link{HousepiExposedProfile} object.
 }
 \description{
 Print the list of available infectivity profiles,

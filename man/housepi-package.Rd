@@ -6,6 +6,8 @@
 \alias{housepi-package}
 \title{housepi: Household Epidemiological Modelling and Analysis}
 \description{
+\if{html}{\figure{logo.svg}{options: style='float: right' alt='logo' width='120'}}
+
 Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to data with Bayesian MCMC. It enables data augmentation, infectivity profiles, individual group and contact risks. Validation is supported through posterior predictive checks and parameter recovery checks.
 }
 \details{
@@ -36,6 +38,7 @@ Useful links:
 
 Authors:
 \itemize{
+  \item Francesco Camaglia \email{francesco.camaglia@pasteur.fr} (\href{https://orcid.org/0000-0003-4810-2631}{ORCID})
   \item Simon Cauchemez (\href{https://orcid.org/0000-0001-9186-4549}{ORCID})
 }
 

@@ -9,64 +9,65 @@ Compile the household transmission model, manage your data, associate
 definitions, run inference and simulations from a single class.
 }
 \section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{name}}{\code{character(1)}
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{name}}{\code{character(1)}
 Model name.}
 
-\item{\code{escaped}}{\code{character(1)}
+    \item{\code{escaped}}{\code{character(1)}
 Label for status code \code{0} in a character or factor \code{status} column.}
 
-\item{\code{setup}}{\code{list}
+    \item{\code{setup}}{\code{list}
 Last setup used by the build process.}
 
-\item{\code{data_wide}}{\code{data.frame}
+    \item{\code{data_wide}}{\code{data.frame}
 Individual level data.
 One row per individual index by corresponding ID.}
 
-\item{\code{data_long}}{\code{data.frame}
+    \item{\code{data_long}}{\code{data.frame}
 Additional data rows indexed by individual (long format).}
 
-\item{\code{parameters}}{\code{data.frame}
+    \item{\code{parameters}}{\code{data.frame}
 Parameter definitions.}
 
-\item{\code{group_risks}}{\code{data.frame}
+    \item{\code{group_risks}}{\code{data.frame}
 Group risk definitions.}
 
-\item{\code{contact_risks}}{\code{data.frame}
+    \item{\code{contact_risks}}{\code{data.frame}
 Contact risk definitions.}
 
-\item{\code{latent}}{\code{data.frame}
+    \item{\code{latent}}{\code{data.frame}
 Latent definitions.}
 
-\item{\code{observations}}{\code{data.frame}
+    \item{\code{observations}}{\code{data.frame}
 Observation definitions.
 Column 'level' tells member ("member") from household ("house") entries.}
 
-\item{\code{infectivity_profiles}}{\code{data.frame}
+    \item{\code{infectivity_profiles}}{\code{data.frame}
 Infectivity profile definitions.}
-}
-\if{html}{\out{</div>}}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-HousepiModel-new}{\code{HousepiModel$new()}}
-\item \href{#method-HousepiModel-copy}{\code{HousepiModel$copy()}}
-\item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
-\item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
-\item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
-\item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
-}
+  \itemize{
+    \item \href{#method-HousepiModel-initialize}{\code{HousepiModel$new()}}
+    \item \href{#method-HousepiModel-copy}{\code{HousepiModel$copy()}}
+    \item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
+    \item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
+    \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
+    \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-new"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-new}{}}}
-\subsection{Method \code{new()}}{
-Create a new object of class 'HousepiModel'
+\if{html}{\out{<a id="method-HousepiModel-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiModel-initialize}{}}}
+\subsection{\code{HousepiModel$new()}}{
+  Create a new object of class 'HousepiModel'
 used to run inference and simulation routines.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$new(
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiModel$new(
   data = NULL,
   model = NA_character_,
   as_template = FALSE,
@@ -74,17 +75,16 @@ used to run inference and simulation routines.
   quiet = FALSE,
   escaped = "escaped",
   ...
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{data}}{\code{data.frame} Household data used for analysis (wide format).
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{data}}{\code{data.frame} Household data used for analysis (wide format).
 Optional at construction; if omitted, attach it later with
 \link[=add_data_wide]{add_data_wide()}.}
-
-\item{\code{model}}{\code{character(1)} Choice for the model.
+      \item{\code{model}}{\code{character(1)} Choice for the model.
 One between:
 \describe{
 \item{\verb{<template>}}{a built-in template name;}
@@ -93,96 +93,102 @@ One between:
 \item{\code{"test"}}{template name for test model;}
 \item{\code{NA}}{fall back to \code{"test"} (default).}
 }}
-
-\item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.
+      \item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.
 If \code{FALSE} recompile the model at every new session (default).}
-
-\item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.}
-
-\item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
-
-\item{\code{escaped}}{\code{character(1)} Label for status code \code{0} (individuals not
+      \item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.}
+      \item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
+      \item{\code{escaped}}{\code{character(1)} Label for status code \code{0} (individuals not
 among the declared infected statuses) when the \code{status} column is
 character/factor.}
-
-\item{\code{...}}{Named arguments. Additional compilation options:
+      \item{\code{...}}{Named arguments. Additional compilation options:
 \describe{
 \item{\code{discr}}{\code{logical(1)} If \code{TRUE} compile to discrete time.}
 \item{\code{flags}}{\code{character()} Compilation flags.}
 \item{\code{libs}}{\code{character()} Links to libraries.}
 \item{\code{paths}}{\code{character()} Include paths.}
 }}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
-\if{html}{\out{</div>}}
-}
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-copy"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-copy}{}}}
-\subsection{Method \code{copy()}}{
-Deep copy this object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$copy()}\if{html}{\out{</div>}}
+\subsection{\code{HousepiModel$copy()}}{
+  Deep copy this object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiModel$copy()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A new independent object.
+  }
 }
 
-\subsection{Returns}{
-A new independent object.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-print}{}}}
-\subsection{Method \code{print()}}{
-Override the default printing behavior.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$print()}\if{html}{\out{</div>}}
+\subsection{\code{HousepiModel$print()}}{
+  Override the default printing behavior.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiModel$print()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-help"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-help}{}}}
-\subsection{Method \code{help()}}{
-Show model description in RStudio Help window.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$help()}\if{html}{\out{</div>}}
+\subsection{\code{HousepiModel$help()}}{
+  Show model description in RStudio Help window.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiModel$help()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-export_augmented_data"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-export_augmented_data}{}}}
-\subsection{Method \code{export_augmented_data()}}{
-Dataset with associated latent variables for last state.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_augmented_data()}\if{html}{\out{</div>}}
+\subsection{\code{HousepiModel$export_augmented_data()}}{
+  Dataset with associated latent variables for last state.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiModel$export_augmented_data()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{data.frame}
+  }
 }
 
-\subsection{Returns}{
-\code{data.frame}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiModel-export_house_snapshot"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-export_house_snapshot}{}}}
-\subsection{Method \code{export_house_snapshot()}}{
-All variables associated to given household for last state.
+\subsection{\code{HousepiModel$export_house_snapshot()}}{
+  All variables associated to given household for last state.
 Entries are named after the homonymous active fields, followed by the
 latent, observation and transmission log-likelihood contributions.
 An empty definition is dropped unless the model requires it.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiModel$export_house_snapshot(house_id)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiModel$export_house_snapshot(house_id)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{house_id}}{\code{character(1)} ID of the household of interest.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{list}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{house_id}}{\code{character(1)} ID of the household of interest.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{list}
-}
-}
 }

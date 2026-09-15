@@ -8,106 +8,111 @@
 A housepi function and its primitive on user-supplied points.
 }
 \section{Super class}{
-\code{\link[housepi:HousepiExposed]{housepi::HousepiExposed}} -> \code{HousepiExposedFunction}
+\code{\link[housepi:HousepiExposed]{HousepiExposed}} -> \code{HousepiExposedFunction}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-HousepiExposedFunction-func}{\code{HousepiExposedFunction$func()}}
-\item \href{#method-HousepiExposedFunction-log_func}{\code{HousepiExposedFunction$log_func()}}
-\item \href{#method-HousepiExposedFunction-log_ratio}{\code{HousepiExposedFunction$log_ratio()}}
-\item \href{#method-HousepiExposedFunction-prim}{\code{HousepiExposedFunction$prim()}}
+  \itemize{
+    \item \href{#method-HousepiExposedFunction-func}{\code{HousepiExposedFunction$func()}}
+    \item \href{#method-HousepiExposedFunction-log_func}{\code{HousepiExposedFunction$log_func()}}
+    \item \href{#method-HousepiExposedFunction-log_ratio}{\code{HousepiExposedFunction$log_ratio()}}
+    \item \href{#method-HousepiExposedFunction-prim}{\code{HousepiExposedFunction$prim()}}
+  }
 }
-}
-\if{html}{\out{
-<details open><summary>Inherited methods</summary>
+\if{html}{\out{<details open><summary>Inherited methods</summary>
 <ul>
-<li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiExposed" data-id="initialize"><a href='../../housepi/html/HousepiExposed.html#method-HousepiExposed-initialize'><code>housepi::HousepiExposed$initialize()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiExposed" data-id="print"><a href='../../housepi/html/HousepiExposed.html#method-HousepiExposed-print'><code>housepi::HousepiExposed$print()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiExposed" data-id="initialize"><a href='../../housepi/html/HousepiExposed.html#method-HousepiExposed-initialize'><code>HousepiExposed$initialize()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="housepi" data-topic="HousepiExposed" data-id="print"><a href='../../housepi/html/HousepiExposed.html#method-HousepiExposed-print'><code>HousepiExposed$print()</code></a></span></li>
 </ul>
-</details>
-}}
+</details>}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiExposedFunction-func"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposedFunction-func}{}}}
-\subsection{Method \code{func()}}{
-Evaluate the function.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedFunction$func(x)}\if{html}{\out{</div>}}
+\subsection{\code{HousepiExposedFunction$func()}}{
+  Evaluate the function.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiExposedFunction$func(x)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{x}}{\code{numeric()} Points of evaluation.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{numeric()}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{x}}{\code{numeric()} Points of evaluation.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{numeric()}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiExposedFunction-log_func"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposedFunction-log_func}{}}}
-\subsection{Method \code{log_func()}}{
-Evaluate the natural logarithm of the function.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedFunction$log_func(x)}\if{html}{\out{</div>}}
+\subsection{\code{HousepiExposedFunction$log_func()}}{
+  Evaluate the natural logarithm of the function.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiExposedFunction$log_func(x)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{x}}{\code{numeric()} Points of evaluation.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{numeric()}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{x}}{\code{numeric()} Points of evaluation.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{numeric()}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiExposedFunction-log_ratio"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposedFunction-log_ratio}{}}}
-\subsection{Method \code{log_ratio()}}{
-Evaluate the natural logarithm of the ratio between the function at two
+\subsection{\code{HousepiExposedFunction$log_ratio()}}{
+  Evaluate the natural logarithm of the ratio between the function at two
 points.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedFunction$log_ratio(xo, xn)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiExposedFunction$log_ratio(xo, xn)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{xo}}{\code{numeric()} Points the ratio is taken from.}
+      \item{\code{xn}}{\code{numeric()} Points the ratio is taken to.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{numeric()}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{xo}}{\code{numeric()} Points the ratio is taken from.}
-
-\item{\code{xn}}{\code{numeric()} Points the ratio is taken to.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{numeric()}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-HousepiExposedFunction-prim"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposedFunction-prim}{}}}
-\subsection{Method \code{prim()}}{
-Evaluate the primitive of the function.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{HousepiExposedFunction$prim(x)}\if{html}{\out{</div>}}
+\subsection{\code{HousepiExposedFunction$prim()}}{
+  Evaluate the primitive of the function.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiExposedFunction$prim(x)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{x}}{\code{numeric()} Points of evaluation.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{numeric()}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{x}}{\code{numeric()} Points of evaluation.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-\code{numeric()}
-}
-}
 }
