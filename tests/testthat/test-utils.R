@@ -230,7 +230,7 @@ test_that("A data column R can only spell quoted, survives the round trip", {
   # the engine reports the column under the user's own spelling
   expect_equal(colnames(hhmodel$data_wide), colnames(hhdata))
   expect_equal(hhmodel$data_wide[["3"]], hhdata[["3"]])
-  expect_equal(names(hhmodel$export_house_snapshot("house")$data_wide),
+  expect_equal(names(inspect_house_state(hhmodel, "house")$data_wide),
                colnames(hhdata))
 
   # a definition sources it, quoted or bare, and finds the datum

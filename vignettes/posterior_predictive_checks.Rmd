@@ -32,7 +32,7 @@ Here we show how to compute common household measures according to the model pos
 # repeat inference as in 'Get Started'
 set.seed(42)
 hhmodel <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template")
 
 # store posterior draws

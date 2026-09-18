@@ -5,7 +5,7 @@ mk_draws <- local({
   warnings <- character()
   results <- withCallingHandlers(
     flu_1918_frederick |>
-      new_housepi_model("final_size") |>
+      new_housepi_model("final-size") |>
       add_parameter(import = "template") |>
       run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L),
     warning = function(w) {
@@ -148,7 +148,7 @@ test_that("Diagnostic warning fires on short runs", {
 
 test_that("Diagnostic warning fires on poor mixing", {
   flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(
       # explicitly define micro-steps
       alpha = list(prior = "uniform", proposal = "rw_log",
@@ -175,7 +175,7 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
 
   # the pointwise store is filled over two threads alike
   flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference(steps = 10L, thin = 2L, adapt = 2L, burn = 2L,
                   chains = 1L, threads = 2L) |>

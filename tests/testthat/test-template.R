@@ -156,7 +156,7 @@ test_that("browse_templates copies template to a new path", {
   model_cpp <- file.path(dest, "model.cpp")
 
   # first copy: creates the model sources
-  browse_templates("final_size", path = dest)
+  browse_templates("final-size", path = dest)
   expect_true(file.exists(model_cpp))
   expect_true(file.exists(file.path(dest, "param.R")))
   expect_true(file.exists(file.path(dest, "info.Rd")))
@@ -166,12 +166,12 @@ test_that("browse_templates copies template to a new path", {
 
   # second copy without replace: warns and does not overwrite
   writeLines("edited", model_cpp)
-  browse_templates("final_size", path = dest) |>
+  browse_templates("final-size", path = dest) |>
     expect_warning("already exists")
   expect_identical(readLines(model_cpp), "edited")
 
   # with replace = TRUE: overwrites silently
-  browse_templates("final_size", path = dest, replace = TRUE)
+  browse_templates("final-size", path = dest, replace = TRUE)
   expect_identical(readLines(model_cpp), shipped)
 })
 
@@ -180,9 +180,9 @@ test_that("browse_templates rejects '.' as destination path", {
   dir.create(sandbox)
   on.exit(unlink(sandbox, recursive = TRUE), add = TRUE)
   withr::with_dir(sandbox, {
-    browse_templates("final_size", path = ".") |>
+    browse_templates("final-size", path = ".") |>
       expect_warning("current directory")
     # helper redirects "." to a folder named after the template
-    expect_true(dir.exists("final_size"))
+    expect_true(dir.exists("final-size"))
   })
 })

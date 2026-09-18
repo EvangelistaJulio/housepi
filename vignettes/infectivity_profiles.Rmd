@@ -66,7 +66,7 @@ Its template is a generic profile in continuous time, a gamma distribution param
 ```{r}
 #| label: load-continuous-profile
 hhcontinuous <- sarscov2_2021_icofs |>
-  new_housepi_model("case ascertained") |>
+  new_housepi_model("case-ascertained") |>
   add_infectivity_profile(import = "template")
 # extract current loaded profile definitions
 defs <- get_infectivity_profiles(hhcontinuous)
@@ -128,7 +128,7 @@ This model requires compilation as for all custom models.
 ```{r}
 #| label: load-discrete-model
 hhdiscrete <- sarscov2_2021_icofs |>
-  new_housepi_model("case ascertained",
+  new_housepi_model("case-ascertained",
                     discr = TRUE, quiet = TRUE) |>
   add_infectivity_profile(import = "template")
 defs <- get_infectivity_profiles(hhdiscrete)

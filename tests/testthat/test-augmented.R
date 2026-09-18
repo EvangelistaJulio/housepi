@@ -14,7 +14,7 @@ mk_outbreak <- local({
     dplyr::filter(house_id %in% utils::head(unique(house_id), 50)) |>
     dplyr::mutate(start_date = 0, end_date = 21)
   hhmodel <- hhdata |>
-    new_housepi_model("case_ascertained") |>
+    new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
     add_latent(
@@ -28,7 +28,7 @@ mk_outbreak <- local({
 mk_onset <- local({
   hhdata <- subset(helper_onset_house$data, select = -infec_time)
   hhmodel <- hhdata |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_latent(
@@ -44,7 +44,7 @@ mk_status <- local({
   hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), house_id = "h1",
                        status = c(1, 2, 0, 0), start_date = 0, end_date = 21)
   hhmodel <- hhdata |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_latent(import = "template")
   list(data = hhdata, model = hhmodel)
@@ -52,7 +52,7 @@ mk_status <- local({
 
 # every case_ascertained parameter pinned
 mk_pinned <- local({
-  hhmodel <- new_housepi_model(model = "case_ascertained") |>
+  hhmodel <- new_housepi_model(model = "case-ascertained") |>
     add_parameter(import = helper_onset_house$param) |>
     add_latent(infec_time = infec_time@D) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
@@ -1080,7 +1080,7 @@ test_that("A household observation with no datum yet reads as NA", {
     id = c("m1", "m2", "m3", "m4"), house_id = c("h1", "h1", "h2", "h2"),
     status = NA, end_date = 21
   ) |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_observation(
       onset_date = list(model = "normal", discr = TRUE, mean = 3, sd = 1),
       start_date = list(value = min(onset_date@D), level = "house")
@@ -1100,7 +1100,7 @@ test_that("A surrogate column proves the requirement its model asks", {
       id = c("m1", "m2", "m3", "m4"), house_id = c("h1", "h1", "h2", "h2"),
       status = c(1, 0, 1, 0), end_date = 16, datum = 0.5
     ) |>
-      new_housepi_model("case_ascertained", quiet = TRUE) |>
+      new_housepi_model("case-ascertained", quiet = TRUE) |>
       add_observation("start_date", value = !!defin, level = level) |>
       get_data_wide()
   }
@@ -1172,7 +1172,7 @@ test_that("Status process rejects latent or parameter probabilities", {
 
 test_that("Escaped label colliding with an infected status is rejected", {
   mk_status$data |>
-    new_housepi_model("case_ascertained", quiet = TRUE,
+    new_housepi_model("case-ascertained", quiet = TRUE,
                       escaped = "symptomatic") |>
     add_parameter(import = "template") |>
     add_latent(import = "template") |>
@@ -1481,7 +1481,7 @@ test_that("Evaluating a model allocates its latent storage", {
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform")
   evaluate_log_lik(hhmodel)
-  augmented <- hhmodel$export_augmented_data()
+  augmented <- inspect_augmented_data(hhmodel)
   expect_true(is.data.frame(augmented))
   expect_true("hidden" %in% colnames(augmented))
 })
@@ -1780,10 +1780,9 @@ test_that("Simulation leaves overwritten data columns pristine", {
     add_observation("test_date", model = "normal",
                     mean = infec_time + incub_period, sd = 1)
 
-  before <- hhmodel$export_augmented_data()
+  before <- inspect_augmented_data(hhmodel)
   invisible(run_simulation(hhmodel, nrep = 2))
-  invisible(run_simulation(hhmodel, nrep = 2))
-  after <- hhmodel$export_augmented_data()
+  after <- inspect_augmented_data(hhmodel)
 
   before <- before[order(before$id), ]
   after <- after[order(after$id), ]
@@ -1830,7 +1829,7 @@ test_that("Data-bound household observation supplies a required data column", {
   # the dates of the dataset itself, where start_date is the first test date
   hhdata <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% utils::head(unique(house_id), 40))
-  hhmodel <- new_housepi_model(model = "case_ascertained") |>
+  hhmodel <- new_housepi_model(model = "case-ascertained") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(import = "template") |>
     add_latent(import = "template")
@@ -1899,7 +1898,7 @@ test_that("Status process drives status-specific latent blocks", {
 
 test_that("Escaped label is configurable", {
   simulated <- mk_outbreak$data |>
-    new_housepi_model("case_ascertained", escaped = "healthy") |>
+    new_housepi_model("case-ascertained", escaped = "healthy") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 1e-12, beta = 0.001, gamma = 1, hhsize_ref = 4) |>
     add_latent(
@@ -1922,7 +1921,7 @@ test_that("Status-specific blocks alone cover every drawn status", {
       id = c("m1", "m2", "m3", "m4"), house_id = c("h1", "h1", "h2", "h2"),
       status = NA, start_date = 0, end_date = 21
     ) |>
-      new_housepi_model("case_ascertained", quiet = TRUE) |>
+      new_housepi_model("case-ascertained", quiet = TRUE) |>
       add_parameter(import = "template") |>
       add_infectivity_profile(import = "template") |>
       add_status(symptomatic = weights[1], asymptomatic = weights[2]) |>

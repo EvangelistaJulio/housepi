@@ -36,6 +36,7 @@ reference:
     - new_housepi_model
     - HousepiModel
     - evaluate_log_lik
+    - starts_with("inspect_")
     - run_inference
     - run_simulation
 

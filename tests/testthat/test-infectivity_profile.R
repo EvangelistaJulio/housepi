@@ -3,7 +3,7 @@ library(testthat)
 # model carrying no infectivity profile of its own
 mk_infec <- local({
   hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained") |>
+    new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
     add_latent(import = "template")
   list(model = hhmodel)
@@ -12,7 +12,7 @@ mk_infec <- local({
 # same model, but in discrete-time
 mk_infec_discr <- local({
   hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
+    new_housepi_model("case-ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_latent(import = "template")
   list(model = hhmodel)
@@ -24,7 +24,7 @@ mk_house <- local({
     id = c("m1", "m2", "m3"), house_id = "h1",
     status = c(1, 1, 0), start_date = 0, end_date = 20, datum = c(2, 9, 4)
   ) |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4)
   list(model = hhmodel)
 })
@@ -35,7 +35,7 @@ mk_house_discr <- local({
     id = c("m1", "m2", "m3"), house_id = "h1",
     status = c(1, 1, 0), start_date = 0, end_date = 6
   ) |>
-    new_housepi_model("case_ascertained", discr = TRUE, quiet = TRUE) |>
+    new_housepi_model("case-ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4)
   list(model = hhmodel)
 })
@@ -208,7 +208,7 @@ test_that("Declaration order does not matter", {
   # the profile folds into the latent build, so it reads parameters that
   # only reach the engine on their own decorator
   before <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_infectivity_profile(import = "template") |>
     add_latent(import = "template") |>
     add_parameter(import = "template")
@@ -349,7 +349,7 @@ test_that("A latent parameterizing the profile drives transmission", {
 test_that("The household snapshot reports the profile of each member", {
   hhmodel <- mk_house$model
   profiles_of <- function(hhmodel) {
-    hhmodel$export_house_snapshot("h1")$infectivity_profiles
+    inspect_house_state(hhmodel, "h1")$infectivity_profiles
   }
 
   # the model requires a profile, so the entry is kept but reads empty

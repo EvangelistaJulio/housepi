@@ -2,7 +2,7 @@ library(testthat)
 
 # transmission model over real data, bare and with its template parameters
 mk_frederick <- local({
-  hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
+  hhmodel <- new_housepi_model(flu_1918_frederick, "final-size")
   list(model = hhmodel, template = add_parameter(hhmodel, import = "template"))
 })
 
@@ -89,7 +89,7 @@ test_that("A missing datum is not a requirement violation", {
     id = c("m1", "m2", "m3"), house_id = "h1", status = c(1, 1, 0),
     start_date = c(1, NA, 1), end_date = c(21, 21, NA)
   ) |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     get_data_wide()
 
   expect_equal(hhdata$start_date, c(1, NA, 1))
@@ -100,7 +100,7 @@ test_that("A datum violating a model requirement is refused at import", {
   mk <- function(...) {
     data.frame(id = c("m1", "m2", "m3"), house_id = "h1",
                status = c(1, 1, 0), ...) |>
-      new_housepi_model("case_ascertained", quiet = TRUE)
+      new_housepi_model("case-ascertained", quiet = TRUE)
   }
 
   # 'case_ascertained' requires start_date and end_date discrete, and the
@@ -124,7 +124,7 @@ test_that("Model-required data can be postponed to the run wall", {
   hhmodel <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% utils::head(unique(house_id), 20)) |>
     dplyr::select(-start_date) |>
-    new_housepi_model("case_ascertained")
+    new_housepi_model("case-ascertained")
 
   hhmodel |>
     evaluate_log_lik() |>
@@ -151,7 +151,7 @@ test_that("Data columns cannot claim the hidden-definition prefix", {
 
 test_that("Wide data can be deferred and attached with add_data_wide", {
   # construct without data: no data exposed
-  hhmodel <- new_housepi_model(model = "final_size") |>
+  hhmodel <- new_housepi_model(model = "final-size") |>
     add_parameter(import = "template")
   expect_null(hhmodel$data_wide)
 
@@ -218,8 +218,8 @@ test_that("Model class 'test' calls", {
 test_that("Household snapshot reads before any definition is pushed", {
   # entries required by the model are kept even when still empty
   snapshot <- dummy_household |>
-    new_housepi_model("final_size") |>
-    (\(x) x$export_house_snapshot("house"))()
+    new_housepi_model("final-size") |>
+    inspect_house_state("house")
 
   field_names <- c(
     "data_wide", "parameters", "group_risks", "contact_risks", "latent",
@@ -255,7 +255,7 @@ test_that("Data long format is correctly handled", {
     add_data_long(data.frame(measure = 1)) |>
     expect_error("[Ii]dentifier column .id. was missing")
   # long data hangs off the wide data
-  new_housepi_model(model = "final_size") |>
+  new_housepi_model(model = "final-size") |>
     add_data_long(data.frame(id = "m1", measure = 1)) |>
     expect_error("before wide format")
 
@@ -265,8 +265,8 @@ test_that("Data long format is correctly handled", {
   hhmodel <- add_data_long(hhmodel, hhdata)
   expect_equal(get_data_long(hhmodel), hhdata)
 
-  # export_house_snapshot returns refactored data_long when present
-  hhmodel$export_house_snapshot(hhmodel$data_wide$house_id[1])$data_long |>
+  # inspect_house_state returns refactored data_long when present
+  inspect_house_state(hhmodel, hhmodel$data_wide$house_id[1])$data_long |>
     expect_s3_class("data.frame")
 })
 
@@ -276,11 +276,11 @@ test_that("Print behavior works as expected", {
     expect_snapshot()
 
   # without data
-  print(new_housepi_model(model = "final_size")) |>
+  print(new_housepi_model(model = "final-size")) |>
     expect_snapshot()
 
   # without parameters
-  print(new_housepi_model(flu_1918_frederick, "final_size")) |>
+  print(new_housepi_model(flu_1918_frederick, "final-size")) |>
     expect_snapshot()
 
   # with data and parameters
@@ -299,7 +299,7 @@ test_that("A copy is deep", {
     member = c("student", "other", "student", "mother", "father")
   )
   hhmodel <- house |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(import = "template")
   invisible(suppressWarnings(
     run_inference(hhmodel, steps = 2L, chains = 1L, adapt = 0L, thin = 1L)
@@ -311,7 +311,7 @@ test_that("A copy is deep", {
   expect_equal(hhmodel$data_long, hhmodel_2$data_long)
 
   # a copy's setup starts from the default configuration
-  expect_equal(hhmodel_2$setup, new_housepi_model(house, "final_size")$setup)
+  expect_equal(hhmodel_2$setup, new_housepi_model(house, "final-size")$setup)
 
   # definitions
   expect_equal(hhmodel$parameters, hhmodel_2$parameters)
@@ -379,7 +379,7 @@ test_that("An unresolved source is reported softly and at the wall", {
 ##################################
 
 test_that("Flu 2014 Matsumoto is correctly pre-processed", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "final_size")
+  hhmodel <- new_housepi_model(flu_2014_matsumoto, "final-size")
 
   hhmodel |>
     summarise_house_sizes() |>
@@ -417,7 +417,7 @@ test_that("Model class inconsistent inference throw errors", {
 
   # missing status: all
   data.frame(id = "m1", house_id = "h1", status = NA) |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference() |>
     expect_error("missing status")
@@ -425,7 +425,7 @@ test_that("Model class inconsistent inference throw errors", {
 
 test_that("Posterior memory budget is asserted", {
   data.frame(house_id = 1, id = "m1", status = 0) |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference(steps = 1e20, chains = 1e3) |>
     expect_error("memory budget")

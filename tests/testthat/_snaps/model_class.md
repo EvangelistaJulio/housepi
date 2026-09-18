@@ -8,7 +8,7 @@
 ---
 
     Code
-      print(new_housepi_model(model = "final_size"))
+      print(new_housepi_model(model = "final-size"))
     Output
       i Household transmission model "final size" (`template`).
       x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
@@ -18,7 +18,7 @@
 ---
 
     Code
-      print(new_housepi_model(flu_1918_frederick, "final_size"))
+      print(new_housepi_model(flu_1918_frederick, "final-size"))
     Output
       i Household transmission model "final size" (`template`).
       x Parameters: there are 4 missing parameter definitions: "alpha", "beta",

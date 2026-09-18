@@ -11,7 +11,7 @@ mk_simulation <- local({
   hhmodel <- sarscov2_2021_icofs |>
     dplyr::filter(house_id %in% utils::head(unique(house_id), 100)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
+    new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -156,7 +156,7 @@ test_that("A saturated transmission infects every member", {
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), house_id = "h1", status = 0,
              start_date = 0, end_date = 21) |>
-    new_housepi_model("case_ascertained") |>
+    new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(import = "template") |>
     add_latent(import = "template") |>
@@ -169,7 +169,7 @@ test_that("Sentinel against a reversed follow-up window throws error", {
   data.frame(id = c("m1", "m2"), house_id = "h1",
              status = c(1, 0), infec_time = c(0, NA),
              start_date = 5, end_date = 2) |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = mk_house$param) |>
     add_latent(infec_time = infec_time@D) |>
     add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
@@ -183,7 +183,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
 
   for (discr in c(FALSE, TRUE)) {
     hhmodel <- house |>
-      new_housepi_model("case_ascertained", discr = discr, quiet = TRUE) |>
+      new_housepi_model("case-ascertained", discr = discr, quiet = TRUE) |>
       add_parameter(import = mk_house$param) |>
       add_latent(infec_time = infec_time@D) |>
       add_infectivity_profile(func = "gamma", discr = discr,
@@ -201,7 +201,7 @@ test_that("Latent moves preserve log-likelihood", {
   house <- mk_house$data[c("id", "house_id", "status", "onset_date",
                            "start_date", "end_date")]
   hhmodel <- house |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_latent(
@@ -238,7 +238,7 @@ test_that("Latent moves preserve log-likelihood", {
   }
 
   # the snapshot holds the last state
-  snapshot <- hhmodel$export_house_snapshot("h1")
+  snapshot <- inspect_house_state(hhmodel, "h1")
   expect_identical(unlist(c(param_draws[n_steps, ], consts)),
                    snapshot$parameters)
   expect_identical(get_latent_state(latent_draws, n_steps),
@@ -258,7 +258,7 @@ test_that("Latent moves preserve log-likelihood", {
 
   # the fresh-model likelihood matches the tracked pointwise likelihood
   state_at(n_steps) |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_latent(
       infec_time = list(value = infec_time@D, const = TRUE,
                         model = "uniform", min = -14, max = end_date@D),

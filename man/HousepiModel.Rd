@@ -55,8 +55,6 @@ Infectivity profile definitions.}
     \item \href{#method-HousepiModel-copy}{\code{HousepiModel$copy()}}
     \item \href{#method-HousepiModel-print}{\code{HousepiModel$print()}}
     \item \href{#method-HousepiModel-help}{\code{HousepiModel$help()}}
-    \item \href{#method-HousepiModel-export_augmented_data}{\code{HousepiModel$export_augmented_data()}}
-    \item \href{#method-HousepiModel-export_house_snapshot}{\code{HousepiModel$export_house_snapshot()}}
   }
 }
 \if{html}{\out{<hr>}}
@@ -148,46 +146,6 @@ character/factor.}
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiModel$help()}
     \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-export_augmented_data"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-export_augmented_data}{}}}
-\subsection{\code{HousepiModel$export_augmented_data()}}{
-  Dataset with associated latent variables for last state.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiModel$export_augmented_data()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    \code{data.frame}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiModel-export_house_snapshot"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiModel-export_house_snapshot}{}}}
-\subsection{\code{HousepiModel$export_house_snapshot()}}{
-  All variables associated to given household for last state.
-Entries are named after the homonymous active fields, followed by the
-latent, observation and transmission log-likelihood contributions.
-An empty definition is dropped unless the model requires it.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiModel$export_house_snapshot(house_id)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{house_id}}{\code{character(1)} ID of the household of interest.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    \code{list}
   }
 }
 

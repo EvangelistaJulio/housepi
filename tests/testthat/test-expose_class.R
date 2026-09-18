@@ -12,7 +12,7 @@ mk_member <- local({
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
   ) |>
-    new_housepi_model("final_size")
+    new_housepi_model("final-size")
   list(model = hhmodel)
 })
 

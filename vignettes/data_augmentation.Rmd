@@ -102,7 +102,7 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
                       end_date = onset_tommy + 10,
                       status = c(1, 2),
                       onset_date = c(onset_tommy, NA)) |>
-  new_housepi_model("case_ascertained") |>
+  new_housepi_model("case-ascertained") |>
   add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4) |>
   add_infectivity_profile(import = "template") |>
 

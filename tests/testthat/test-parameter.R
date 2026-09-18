@@ -7,8 +7,8 @@ mk_param <- local({
 
 # transmission model reading its parameters, bare and with its template
 mk_final_size <- local({
-  hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
-  list(model = hhmodel, template = add_parameter(hhmodel, import = "template"))
+  model <- flu_1918_frederick |> new_housepi_model("final-size")
+  list(model = model, template = model |> add_parameter(import = "template"))
 })
 
 ##############################
@@ -397,7 +397,7 @@ test_that("Parameter template import loads the shipped definitions", {
 
 test_that("A parameter meets the model definition requirements", {
   hhmodel <- sarscov2_2021_icofs |>
-    new_housepi_model("case_ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_infectivity_profile(import = "template") |>
     add_latent(import = "template")

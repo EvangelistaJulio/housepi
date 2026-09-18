@@ -44,6 +44,22 @@ contact_risk_logic_table <- function(data_wide, covariates) {
   y[y$n > 0, ]
 }
 
+#' Count the observed pairs every contact rule matches.
+#' @param tbl `data.frame` logic table with from_X and to_X columns.
+#' @param data_wide Data the pairs are counted over.
+#' @param covariates `character()` Covariates the rules key on.
+#' @return `integer()` One count per row of `tbl`.
+#' @keywords internal
+#' @noRd
+count_contact_rule_pairs <- function(tbl, data_wide, covariates) {
+  pairs <- contact_risk_logic_table(data_wide, covariates)
+  # no household structure, no pair to count
+  if (is.null(pairs) || nrow(pairs) == 0) return(rep(0L, nrow(tbl)))
+
+  cols <- c(paste0("from_", covariates), paste0("to_", covariates))
+  count_resolved_rules(tbl, pairs[cols], pairs$n)
+}
+
 #' Associate parameter names to contact risk logic table.
 #' @param this_table `data.frame` with from_X and to_X columns.
 #' @param prefix Prefix for parameter names.
@@ -270,19 +286,28 @@ HousepiContactRisk <- R6::R6Class(
         # validate that covariate columns exist in data
         assert_data_covariates(this_cov, colnames(data_wide))
 
-        if (symmetric) this_table <- fill_symmetric_gaps(this_table)
-        # FIXME: this is a manual fix, I can't find the source of extra 'n'
-        this_table$n <- NULL
-        # FIXME: this is not counting the wildcars...
-        this_table <- merge(
+        # rules naming unobserved levels are dropped before symmetrization
+        # so a dead rule leaves no counterpart behind
+        this_table <- drop_unknown_strata_rows(
           this_table,
-          contact_risk_logic_table(data_wide, this_cov),
-          by = setdiff(names(this_table), risk_reserved_cols),
-          all.x = TRUE
+          known = lapply(stats::setNames(nm = this_cov),
+                         function(cov) unique(data_wide[[cov]])),
+          label = self$family,
+          # both sides of a pair read the same data column
+          cols = stats::setNames(rep(this_cov, 2L),
+                                 c(paste0("from_", this_cov),
+                                   paste0("to_", this_cov)))
         )
-        this_table$n[is.na(this_table$n)] <- 0
+
+        if (symmetric) this_table <- fill_symmetric_gaps(this_table)
+        this_table$n <- count_contact_rule_pairs(this_table, data_wide,
+                                                 this_cov)
         self$logic_tables[[i]] <- this_table
       }
+      # a table whose every rule was dropped stratifies nothing:
+      # it leaves definition behind, so every pair reads the reference
+      self$logic_tables <- Filter(function(tbl) nrow(tbl) > 0,
+                                  self$logic_tables)
       invisible(self)
     }
   ),

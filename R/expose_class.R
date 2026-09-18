@@ -1001,6 +1001,67 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
   .engine$evaluate_log_lik(pvt$generator_$mcmc_ptr, house_id)
 }
 
+#' @title Inspect the current state of a housepi model
+#' @description
+#' Read the values held by a `HousepiModel` at its last state,
+#' as left by `evaluate_log_lik()`, `run_inference()` or `run_simulation()`.
+#' @param hhmodel `r rd_model_in_`
+#' @param house_id `r rd_house_id_`
+#' @return
+#' `inspect_augmented_data()`: `data.frame`, the dataset with its latent variables.
+#'
+#' `inspect_house_state()`: `list`, all variables of the household.
+#' Entries are named after the homonymous active fields, followed by the
+#' latent, observation and transmission log-likelihood contributions.
+#' An empty definition is dropped unless the model requires it.
+#' @examples
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template")
+#' evaluate_log_lik(hhmodel)
+#' inspect_augmented_data(hhmodel) |>
+#'   head()
+#' inspect_house_state(hhmodel, "1")
+#' @rdname inspect_state
+#' @export
+inspect_augmented_data <- function(hhmodel) {
+  stopifnothousepi(hhmodel)
+  gen <- hhmodel$.__enclos_env__$private$generator_
+  gen$refactor_data_wide(.engine$export_augmented_data_wide(gen$mcmc_ptr))
+}
+
+#' @rdname inspect_state
+#' @export
+inspect_house_state <- function(hhmodel, house_id) {
+  stopifnothousepi(hhmodel)
+  gen <- hhmodel$.__enclos_env__$private$generator_
+  out <- .engine$export_house_snapshot(gen$mcmc_ptr, as.character(house_id))
+  out$data_wide <- gen$refactor_data_wide(out$data_wide)
+  ## data long
+  if (all(dim(out$data_long) == 0)) out$data_long <- NULL
+  else out$data_long <- gen$refactor_data_long(out$data_long)
+  ## parameters
+  if (length(gen$param_required) == 0 &&
+        all(dim(out$parameters) == 0)) out$parameters <- NULL
+  ## group risks
+  if (length(gen$group_risks_required) == 0 &&
+        all(dim(out$group_risks) == 0)) out$group_risks <- NULL
+  ## contact risks
+  if (!gen$has_contact_risk &&
+        all(dim(out$contact_risks) == 0)) out$contact_risks <- NULL
+  ## infectivity profiles
+  if (!gen$has_infec_profile && length(out$infectivity_profiles) == 0) {
+    out$infectivity_profiles <- NULL
+  } else {
+    lst <- out$infectivity_profiles
+    df <- data.frame(id = lst$id, discr = lst$discr, func = lst$func,
+                     min = lst$min, max = lst$max)
+    df$func_args <- lst$func_args
+    out$infectivity_profiles <- df
+  }
+  out
+}
+
 #' @title Run Bayesian MCMC inference on a housepi model
 #' @description
 #' Run inference with Bayesian Markov Chain Monte Carlo.

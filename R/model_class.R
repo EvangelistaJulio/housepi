@@ -1117,59 +1117,6 @@ HousepiModel <- R6::R6Class(
     help = function() {
       open_model_helper_(private$generator_$source_dir)
       invisible(self)
-    },
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    #' @description
-    #' Dataset with associated latent variables for last state.
-    #' @return `data.frame`
-    export_augmented_data = function() {
-      private$generator_$refactor_data_wide(
-        .engine$export_augmented_data_wide(private$generator_$mcmc_ptr)
-      )
-    },
-
-    #' @description
-    #' All variables associated to given household for last state.
-    #' Entries are named after the homonymous active fields, followed by the
-    #' latent, observation and transmission log-likelihood contributions.
-    #' An empty definition is dropped unless the model requires it.
-    #' @param house_id `r rd_house_id_`
-    #' @return `list`
-    export_house_snapshot = function(house_id) {
-      house_id <- as.character(house_id)
-      # export household snapshot
-      out <- .engine$export_house_snapshot(
-        private$generator_$mcmc_ptr, house_id
-      )
-      out$data_wide <- private$generator_$refactor_data_wide(out$data_wide)
-      ## data long
-      if (all(dim(out$data_long) == 0)) out$data_long <- NULL
-      else out$data_long <- private$generator_$refactor_data_long(out$data_long)
-      ## parameters
-      if (length(private$generator_$param_required) == 0 &&
-            all(dim(out$parameters) == 0)) out$parameters <- NULL
-      ## group risks
-      if (length(private$generator_$group_risks_required) == 0 &&
-            all(dim(out$group_risks) == 0)) out$group_risks <- NULL
-      ## conctact risks
-      if (!private$generator_$has_contact_risk &&
-            all(dim(out$contact_risks) == 0)) out$contact_risks <- NULL
-      ## infectivity profiles
-      if (!private$generator_$has_infec_profile &&
-            length(out$infectivity_profiles) == 0) {
-        out$infectivity_profiles <- NULL
-      } else {
-        lst <- out$infectivity_profiles
-        df <- data.frame(id = lst$id, discr = lst$discr, func = lst$func,
-                         min = lst$min, max = lst$max)
-        df$func_args <- lst$func_args
-        out$infectivity_profiles <- df
-      }
-      out
     }
   )
 )

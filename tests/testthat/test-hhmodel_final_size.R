@@ -67,7 +67,7 @@ make_ctr_mtx <- function(house, crisks) {
 
 # model over a house carrying the fixed risks and parameters
 build_house_model <- function(house, par) {
-  new_housepi_model(house, "final_size") |>
+  new_housepi_model(house, "final-size") |>
     add_group_risk(import = mk_house$groups) |>
     add_contact_risk(import = mk_house$contacts) |>
     # FIXME: this overwrites group risk parameters, opaque to user and risky
@@ -99,19 +99,19 @@ chain_binomial_log_lik <- function(house, par, crisks) {
 test_that("Chain binomial guards against misusage", {
   # not discretizable
   dummy_household |>
-    new_housepi_model("final_size", discr = TRUE) |>
+    new_housepi_model("final-size", discr = TRUE) |>
     expect_error("No visible discrete time option")
 
   # no support for missing status
   data.frame(id = c("m1", "m2"), house_id = "h1", status = c(1, NA)) |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference() |>
     expect_error("missing status.*incompatible")
 
   # no infectivity profile
   flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_infectivity_profile(import = "template") |>
     expect_error("not supported.*dropped")
 })
@@ -156,7 +156,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
     dplyr::filter(house_id %in% utils::head(
       unique(house_id[member == "sibling"]), 500
     )) |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     add_group_risk("community", by = "member") |>
     add_contact_risk(
@@ -182,7 +182,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
 test_that("Chain binomial returns infinite if extreme values are provided", {
   hhmodel <- data.frame(id = c(1, 2), house_id = "h1",
                         status = c(1, 1), age = c("child", "adult")) |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hhsize_ref = 4)
 
   # homogeneous branch
@@ -200,7 +200,7 @@ test_that("Chain binomial raises if the log-likelihood is not a number", {
   # a null person-to-person risk against an overflowing household-size scaling
   # leaves the escape rate undefined, and the log-likelihood with it
   data.frame(id = c(1, 2), house_id = "h1", status = c(1, 1)) |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(alpha = 0.1, beta = 0, gamma = 1e10, hhsize_ref = 4) |>
     evaluate_log_lik() |>
     expect_error("returned NaN")

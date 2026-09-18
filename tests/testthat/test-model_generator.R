@@ -32,7 +32,7 @@ test_that("Model generator inconsistent calls are caught", {
     expect_error("you mean.*case ascertained")
 
   # model name imposed redundancy
-  c("case ascertained", "case_ascertained", "case-ascertained") |>
+  c("case ascertained", "case-ascertained", "case-ascertained") |>
     vapply(function(x) new_housepi_model(model = x)$name, character(1)) |>
     unique() |>
     expect_equal("case ascertained")
@@ -51,7 +51,7 @@ test_that("Model choice helper handles malformed input", {
     expect_error("non-empty")
 
   # length != 1 character input is rejected
-  new_housepi_model(model = c("test", "final_size")) |>
+  new_housepi_model(model = c("test", "final-size")) |>
     expect_error("non-empty")
 
   # '.' as a model choice is rejected with a clear message
@@ -158,7 +158,7 @@ test_that("Required keys reflect the underlying template", {
 })
 
 test_that("Risk anchors reflect the baselines the model declares", {
-  anchors <- HousepiGenerator$new("final_size")$risk_anchors
+  anchors <- HousepiGenerator$new("final-size")$risk_anchors
   expect_setequal(names(anchors), c("alpha", "beta"))
 
   # the community risk scales alpha alone, no contact involved
@@ -224,7 +224,7 @@ test_that("Model has no leaks", {
 test_that("A session template compiles user flags and warns when they change", {
   path <- file.path(tempdir(), "session_template")
   on.exit(unlink(path, recursive = TRUE), add = TRUE)
-  browse_templates("case_ascertained", path, replace = TRUE)
+  browse_templates("case-ascertained", path, replace = TRUE)
 
   # build + load a discrete template: user paths, flags and libs reach the
   # compile command, and the flags are recorded in a sidecar

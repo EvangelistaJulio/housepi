@@ -117,6 +117,41 @@ assess_covariate_values <- function(this_table) {
   colmask
 }
 
+#' Drop the rules naming a value the data never carries.
+#' A cell encodes against the observed levels, so a value absent from them
+#' would read as `NA`, the wildcard: the rule would widen instead of dropping.
+#' @param tbl `data.frame` logic table with a `param_name` column.
+#' @param known `list` Values the data carries, named after its columns.
+#' @param cols `character()` Data column every column of `tbl` reads, named
+#' after the columns of `tbl`. Defaults to the columns of `known` themselves.
+#' @param label `character(1)` The risk, as it appears in the warning.
+#' @return `data.frame` the input without the dropped rules.
+#' @keywords internal
+#' @noRd
+drop_unknown_strata_rows <- function(tbl, known, label, cols = NULL) {
+  if (is.null(cols)) cols <- stats::setNames(nm = names(known))
+  keep <- rep(TRUE, nrow(tbl))
+  # the two sides of a contact pair read one data column: report it once
+  missing_vals <- list()
+  for (col in intersect(names(cols), colnames(tbl))) {
+    field <- cols[[col]]
+    # a wildcard cell keys on nothing: it names no value to be unknown
+    vals <- as.character(tbl[[col]])
+    unknown <- !is.na(vals) & !vals %in% as.character(known[[field]])
+    if (!any(unknown)) next
+    missing_vals[[field]] <- union(missing_vals[[field]],
+                                   unique(vals[unknown]))
+    keep <- keep & !unknown
+  }
+  for (field in names(missing_vals)) warn_h(
+    sprintf("Unknown %s for %s in data {.field %s}: %s",
+            as_plural("definition", length(missing_vals[[field]]), "s"),
+            label, field, character_to_string_list(missing_vals[[field]])),
+    `!` = "Associated entries will be skipped."
+  )
+  tbl[keep, , drop = FALSE]
+}
+
 #' Assert that a user-provided logic table is valid.
 #' @param logic_table `data.frame` with a `param_name` column.
 #' @param allow Reserved names the caller accepts as covariates.
@@ -170,6 +205,20 @@ assert_valid_pins <- function(tbl) {
             as_plural("strat", sum(bad), "a", "um"),
             character_to_string_list(unique(tbl$param_name[bad]))),
     "A {.code const = TRUE} stratum needs the value it is fixed at."
+  )
+  # a stratum spread over several rules carries a single pin, whichever of
+  # its rules the data keeps
+  pins <- data.frame(value, const)
+  rows <- Filter(function(i) nrow(unique(pins[i, ])) > 1,
+                 split(seq_len(nrow(tbl)), tbl$param_name))
+  if (length(rows) > 0) stop_h(
+    sprintf("Conflicting {.field value} for %s %s.",
+            as_plural("strat", length(rows), "a", "um"),
+            character_to_phrase(sprintf(
+              "{.val %s} (rows %s)", names(rows),
+              vapply(lapply(rows, as.character), character_to_phrase, "")
+            ))),
+    "A stratum spread over several rules carries a single {.field value}."
   )
   invisible(tbl)
 }
@@ -244,6 +293,36 @@ compute_rule_groups <- function(tbl) {
   tbl
 }
 
+#' Count the units every rule of a logic table is resolved to.
+#' @description Within each rule group, a cell goes to the most specific rule
+#' it matches, as in the engine. Rules tied at that specificity share the cell.
+#' @param tbl `data.frame` logic table.
+#' @param cells `data.frame` observed cells, columns named as the rule columns.
+#' @param weight `integer()` units each cell holds.
+#' @return `integer()` One count per row of `tbl`.
+#' @keywords internal
+#' @noRd
+count_resolved_rules <- function(tbl, cells, weight = 1L) {
+  # a wildcard rule cell constrains nothing; a missing data cell matches
+  # nothing but a wildcard
+  hit <- Reduce(`&`, lapply(names(cells), function(col) {
+    outer(as.character(cells[[col]]), as.character(tbl[[col]]),
+          function(d, r) is.na(r) | (!is.na(d) & d == r))
+  }))
+  # 0 scores no match, otherwise one plus the rule specificity
+  spec <- rowSums(!is.na(tbl[names(cells)]))
+  score <- hit * rep(spec + 1L, each = nrow(cells))
+  gid <- compute_rule_groups(tbl)$rule_group
+  win <- hit
+  for (g in unique(gid)) {
+    in_g <- gid == g
+    sub <- score[, in_g, drop = FALSE]
+    top <- sub[cbind(seq_len(nrow(sub)), max.col(sub, ties.method = "first"))]
+    win[, in_g] <- sub == top & top > 0
+  }
+  as.integer(colSums(win * weight))
+}
+
 #' @title Assert that each rule group designates at most one reference cell.
 #' @description A reference sets the unit scale of its rule group,
 #' so two distinct cells of one group cannot both carry the tag.
@@ -290,7 +369,7 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
 }
 
 #' Pins carried by a logic table, keyed by `param_name`.
-#' A stratum spread over several rules resolves to a single pin.
+#' A stratum spread over several rules carries a single pin, read off its first.
 #' @param tbl `data.frame` logic table with a `param_name` column.
 #' @return `list` of `list(value = , const = )`, one per pinned stratum.
 #' @keywords internal
@@ -300,13 +379,9 @@ collect_table_pins <- function(tbl) {
   if (length(cols) == 0) return(list())
   pins <- list()
   for (par_id in setdiff(unique(tbl$param_name), ".reference")) {
-    rows <- unique(tbl[tbl$param_name %in% par_id, cols, drop = FALSE])
-    if (nrow(rows) > 1) stop_h(
-      "Conflicting {.field {cols}} entries for stratum {.val {par_id}}.",
-      "A stratum spread over several rules carries a single pin."
-    )
     pin <- list(value = NA_real_, const = NA)
-    pin[cols] <- as.list(rows)
+    first <- match(par_id, tbl$param_name)
+    pin[cols] <- as.list(tbl[first, cols, drop = FALSE])
     if (!is.na(pin$value) || !is.na(pin$const)) pins[[par_id]] <- pin
   }
   pins
@@ -723,31 +798,18 @@ HousepiGroupRisk <- R6::R6Class(
         # status is carried by the model, not required as a data column
         assert_data_covariates(setdiff(cov_cols, "status"), colnames(data_wide))
         # validate that covariate values exist in data
-        for (col in cov_cols) {
-          vals <- tbl[[col]][!is.na(tbl[[col]])]
-          data_vals <- unique(data_wide[[col]])
-          # status levels are declared by the model, not read off the data
-          if (identical(col, "status")) data_vals <- status_levels
-          missing_vals <- setdiff(as.character(vals), as.character(data_vals))
-          if (length(missing_vals) > 0) warn_h(
-            sprintf("Unknown %s for risk {.val %s} in data {.field %s}: %s",
-                    as_plural("definition", length(missing_vals), "s"),
-                    risk_id, col, character_to_string_list(missing_vals)),
-            `!` = "Associated entries will be skipped."
-          )
-        }
-        # add counts
-        tbl$n <- apply(tbl[cov_cols], 1, function(row) {
-          mask <- rep(TRUE, nrow(data_wide))
-          for (col in cov_cols) {
-            if (is.na(row[[col]])) next
-            # `%in%`: an NA data cell matches no rule, it does not poison
-            # the count of every stratum
-            mask <- mask & (as.character(data_wide[[col]]) %in%
-                              as.character(row[[col]]))
-          }
-          sum(mask)
-        })
+        tbl <- drop_unknown_strata_rows(
+          tbl,
+          known = lapply(stats::setNames(nm = cov_cols), function(col) {
+            # status levels are declared by the model, not read off the data
+            if (identical(col, "status")) status_levels
+            else unique(data_wide[[col]])
+          }),
+          label = sprintf("risk {.val %s}", risk_id)
+        )
+        # add counts: an emptied table keeps the column, typed
+        tbl$n <- if (nrow(tbl) == 0) integer(0) else
+          count_resolved_rules(tbl, data_wide[cov_cols])
         # no status is observed: every declared stratum stands, sizes unknown
         if ("status" %in% cov_cols && isFALSE(status_observed)) {
           tbl$n <- NA_integer_
@@ -757,6 +819,11 @@ HousepiGroupRisk <- R6::R6Class(
         }
         self$logic_tables[[risk_id]][[ti]] <- tbl
       }
+      # a table whose every stratum was dropped stratifies nothing:
+      # it leaves no definition behind, so every member reads the reference
+      self$logic_tables[[risk_id]] <- Filter(
+        function(tbl) nrow(tbl) > 0, self$logic_tables[[risk_id]]
+      )
       invisible(self)
     }
   ),

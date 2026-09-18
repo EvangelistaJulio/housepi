@@ -89,7 +89,7 @@ set.seed(42)
 housepi_theme_set()
 
 # generate an instance of the final-size model with data
-hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
+hhmodel <- new_housepi_model(flu_1918_frederick, "final-size")
 ```
 
 We can retrieve the template model description by using the method `$help()`.
@@ -226,7 +226,7 @@ community_structure <- sarscov2_2021_icofs |>
   dplyr::mutate(status = NA, end_date = 21)
 
 hhsimul <- community_structure |>
-  new_housepi_model("case_ascertained") |>
+  new_housepi_model("case-ascertained") |>
   add_parameter(import = "template") |>
   add_infectivity_profile(import = "template")
 
@@ -303,7 +303,7 @@ The observed `onset_date` enters as an observation likelihood, traced separately
 ```{r}
 #| label: inference-simulated
 hhmodel <- simulated |>
-  new_housepi_model("case_ascertained") |>
+  new_housepi_model("case-ascertained") |>
   add_parameter(import = "template") |>
   add_infectivity_profile(import = "template") |>
   add_latent(

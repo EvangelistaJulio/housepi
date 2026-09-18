@@ -45,7 +45,7 @@ We start by creating categorical groupings to stratify individuals based on thei
 # define a model object with a subset of the ICoFs dataset
 hhmodel <- sarscov2_2021_icofs |>
   dplyr::filter(house_id %in% sample(unique(house_id), 200)) |>
-  new_housepi_model("case_ascertained")
+  new_housepi_model("case-ascertained")
 ```
 
 The current loaded model allows for a number of group risks, among which the individual `"susceptibility"` (use `$help()` method to learn more).
