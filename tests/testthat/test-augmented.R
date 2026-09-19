@@ -1237,6 +1237,38 @@ test_that("Independence proposal inherits the model location shift", {
   expect_true(all(draws$m2_hidden >= 8 & draws$m2_hidden <= 9))
 })
 
+test_that("Truncated latent models keep their normalizer in the log-likelihood trace", {
+  # bounds read data, constants and a sampled parameter
+  hhdata <- data.frame(id = c("m1", "m2"), house_id = c("h1", "h2"),
+                       status = 1, datum = c(3, 6), obs = 0)
+  results <- hhdata |>
+    new_housepi_model("test") |>
+    add_parameter(rho = list(prior = "uniform", min = 1, max = 3)) |>
+    add_latent(layer_1 = list(model = "gamma", shape = 2, scale = 1.5, max = datum@D),
+               hidden = list(model = "gamma", shape = rho@P, scale = 1, min = 0.5, max = 8),
+               hidden_2 = list(model = "gamma", shape = 1.7, scale = 1, max = 5)) |>
+    helper_flat_sink(loc = layer_1@A + hidden@A + hidden_2@A) |>
+    run_inference(steps = 50L, adapt = 0L, thin = 1L, chains = 1L,
+                  id_draws = c("m1", "m2")) |>
+    suppressWarnings()
+
+  draws <- latent_frame(results)
+  rho <- as.data.frame(posterior::as_draws_matrix(get_parameter_draws(results)))$rho
+  log_lik <- as.data.frame(posterior::as_draws_matrix(get_log_lik_draws(results)))
+  log_dtrunc <- function(x, shape, scale, min, max) {
+    dgamma(x, shape, scale = scale, log = TRUE) -
+      log(pgamma(max, shape, scale = scale) - pgamma(min, shape, scale = scale))
+  }
+  # one member per household, the flat sink adds log(1 / 2e6)
+  for (k in seq(2)) {
+    col <- function(name) draws[[sprintf("m%d_%s", k, name)]]
+    expected <- log_dtrunc(col("layer_1"), 2, 1.5, 0, hhdata$datum[k]) +
+      log_dtrunc(col("hidden"), rho, 1, 0.5, 8) +
+      log_dtrunc(col("hidden_2"), 1.7, 1, 0, 5) - log(2e6)
+    expect_equal(log_lik[[sprintf("h%d", k)]], expected, tolerance = 1e-8)
+  }
+})
+
 test_that("Latent draws stay inside their live support", {
   hhdata <- data.frame(id = seq(2), house_id = "h1", status = 1, obs = 0)
   run_short <- function(hhmodel) {

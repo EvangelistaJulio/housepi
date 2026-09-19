@@ -34,9 +34,9 @@ namespace housepi
 	class Distribution : public Function
 	{
 	public:
-		///////////////////////////
-		//////  CONSTRUCTOR  //////
-		///////////////////////////
+		/////////////////////
+		///  CONSTRUCTOR  ///
+		/////////////////////
 
 		Distribution(const std::vector<std::pair<std::string, double>> &args = {},
 					 double domain_min = na::DOUBLE,
@@ -51,9 +51,21 @@ namespace housepi
 		virtual std::unique_ptr<Distribution> clone_distrib() const = 0;
 		std::unique_ptr<Function> clone() const override final { return clone_distrib(); };
 
-		//////////////////////
-		//////  GETTER  //////
-		//////////////////////
+		/// Finalize, then store the truncation normalizer when nothing it reads can move.
+		void finalize() override
+		{
+			Function::finalize();
+			if (trunc_mode_ == Trunc::None)
+				logtrunc_mode_ = LogTrunc::None;
+			else if (has_constant_args_())
+				logtrunc_mode_ = LogTrunc::LookUp, lookup_log_trunc_ = std::log(trunc_());
+			else
+				logtrunc_mode_ = LogTrunc::Compute;
+		}
+
+		////////////////
+		///  GETTER  ///
+		////////////////
 
 		double rand(rnd_gen &prng) const
 		{
@@ -93,7 +105,7 @@ namespace housepi
 			Codomain c;
 			c.inf = 0.;
 			c.below = Interval::Closed;
-			if (eval_mode_ == Mode::Evaluate::Probability && !is_discretized())
+			if (eval_mode_ == Evaluate::Probability && !is_discretized())
 				return c;
 			c.sup = 1.;
 			c.above = Interval::Closed;
@@ -101,20 +113,9 @@ namespace housepi
 		}
 
 	protected:
-		/// Integer-value structure of the draws.
-		/// NOTE: location off the integers moves the support off as well.
-		Lattice lattice_() const noexcept
-		{
-			if (discr_mode_ == Mode::Discrete::None)
-				return Lattice::Doubles;
-			if (domain_.loc.is_empty() || domain_.loc.codomain().on_integers())
-				return Lattice::Integers;
-			return Lattice::Doubles;
-		}
-
-		/////////////////////////////////////////////////////////////////////////////////////////////
-		////////////////////////////  Distribution : virtual [protected] ////////////////////////////
-		/////////////////////////////////////////////////////////////////////////////////////////////
+		/////////////////
+		///  VIRTUAL  ///
+		/////////////////
 
 		/// Raw random sampling method of the distribution.
 		/// @param prng : pseudo-random number generator.
@@ -142,16 +143,16 @@ namespace housepi
 			double y;
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::None:
+			case Discrete::None:
 				y = raw_pdf_(x);
 				break;
-			case Mode::Discrete::Center:
+			case Discrete::Center:
 				y = discr_dist_center_(x);
 				break;
-			case Mode::Discrete::Left:
+			case Discrete::Left:
 				y = discr_dist_left_(x);
 				break;
-			default: // Mode::Discrete::Defined:
+			default: // Discrete::Defined:
 				y = raw_pdf_(std::floor(x));
 				break;
 			}
@@ -164,16 +165,16 @@ namespace housepi
 			double y;
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::None:
+			case Discrete::None:
 				y = raw_log_pdf_(x);
 				break;
-			case Mode::Discrete::Center:
+			case Discrete::Center:
 				y = std::log(discr_dist_center_(x));
 				break;
-			case Mode::Discrete::Left:
+			case Discrete::Left:
 				y = std::log(discr_dist_left_(x));
 				break;
-			default: // Mode::Discrete::Defined:
+			default: // Discrete::Defined:
 				y = raw_log_pdf_(std::floor(x));
 				break;
 			}
@@ -188,30 +189,41 @@ namespace housepi
 		{
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::None:
+			case Discrete::None:
 				return raw_log_ratio_(xo, xn);
-			case Mode::Discrete::Center:
+			case Discrete::Center:
 				return std::log(discr_dist_center_(xn)) - std::log(discr_dist_center_(xo));
-			case Mode::Discrete::Left:
+			case Discrete::Left:
 				return std::log(discr_dist_left_(xn)) - std::log(discr_dist_left_(xo));
-			default: // Mode::Discrete::Defined:
+			default: // Discrete::Defined:
 				return raw_log_ratio_(std::floor(xo), std::floor(xn));
 			}
 		}
 
-		/////////////////////////////////////////////////////////////////////////////////////////////
-		////////////////////////////  Distribution : getter [protected] /////////////////////////////
-		/////////////////////////////////////////////////////////////////////////////////////////////
+		////////////////
+		///  GETTER  ///
+		////////////////
+
+		/// Integer-value structure of the draws.
+		/// NOTE: location off the integers moves the support off as well.
+		Lattice lattice_() const noexcept
+		{
+			if (discr_mode_ == Discrete::None)
+				return Lattice::Doubles;
+			if (domain_.loc.is_empty() || domain_.loc.codomain().on_integers())
+				return Lattice::Integers;
+			return Lattice::Doubles;
+		}
 
 		double cast_discr_(double x) const
 		{
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::Center:
+			case Discrete::Center:
 				return static_cast<double>(std::lround(x));
-			case Mode::Discrete::Left:
+			case Discrete::Left:
 				return std::floor(x);
-			default: // cases Mode::Discrete::Defined, Mode::Discrete::None
+			default: // cases Discrete::Defined, Discrete::None
 				return x;
 			}
 		}
@@ -245,9 +257,9 @@ namespace housepi
 			return raw_quantile_(cdf_at_min + standard_uniform(prng) * window);
 		}
 
-		/////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////  Distribution : functional truncation [private] //////////////////////
-		/////////////////////////////////////////////////////////////////////////////////////////////
+		////////////////////
+		///  TRUNCATION  ///
+		////////////////////
 
 		enum class Trunc : std::uint8_t
 		{
@@ -256,12 +268,20 @@ namespace housepi
 			Max,  /// Upper-bound truncation
 			Both  /// Two-sided truncation
 		} trunc_mode_ = Trunc::None;
+		enum class LogTrunc : std::uint8_t
+		{
+			None,	/// No truncation, null log-normalizer
+			LookUp, /// Constant log-normalizer, stored by finalize()
+			Compute /// Log-normalizer computed per evaluation
+		} logtrunc_mode_ = LogTrunc::Compute;
+		/// Log-normalizer read in LogTrunc::LookUp mode.
+		double lookup_log_trunc_ = na::DOUBLE;
 
 		/// Select truncation mode.
 		void helper_init_distr_truncation_()
 		{
-			const bool has_min = domain_.below != Mode::Interval::Unbounded;
-			const bool has_max = domain_.above != Mode::Interval::Unbounded;
+			const bool has_min = domain_.below != Interval::Unbounded;
+			const bool has_max = domain_.above != Interval::Unbounded;
 
 			if (!has_min && !has_max)
 				trunc_mode_ = Trunc::None;
@@ -278,13 +298,13 @@ namespace housepi
 		{
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::Defined:
+			case Discrete::Defined:
 				return raw_cdf_(std::ceil(domain_.min.value()) - 1.);
-			case Mode::Discrete::Center:
+			case Discrete::Center:
 				return raw_cdf_(std::ceil(domain_.min.value()) - 0.5);
-			case Mode::Discrete::Left:
+			case Discrete::Left:
 				return raw_cdf_(std::ceil(domain_.min.value()));
-			default: // case Mode::Discrete::None:
+			default: // case Discrete::None:
 				return raw_cdf_(domain_.min.value());
 			}
 		}
@@ -294,13 +314,13 @@ namespace housepi
 		{
 			switch (discr_mode_)
 			{
-			case Mode::Discrete::Defined:
+			case Discrete::Defined:
 				return raw_cdf_(std::floor(domain_.max.value()));
-			case Mode::Discrete::Center:
+			case Discrete::Center:
 				return raw_cdf_(std::floor(domain_.max.value()) + 0.5);
-			case Mode::Discrete::Left:
+			case Discrete::Left:
 				return raw_cdf_(std::floor(domain_.max.value()) + 1.);
-			default: // case Mode::Discrete::None:
+			default: // case Discrete::None:
 				return raw_cdf_(domain_.max.value());
 			}
 		}
@@ -336,16 +356,22 @@ namespace housepi
 
 		double logtrunc_() const
 		{
-			switch (trunc_mode_)
+			switch (logtrunc_mode_)
 			{
-			case Trunc::None:
+			case LogTrunc::None:
 				return 0.;
-			default:
+			case LogTrunc::LookUp:
+				return lookup_log_trunc_;
+			default: // case LogTrunc::Compute:
 				return std::log(trunc_());
 			}
 		}
 
 	private:
+		////////////////////////
+		///  DISCRETIZATION  ///
+		////////////////////////
+
 		/// Helper for Center discretization.
 		double discr_dist_center_(double x) const
 		{

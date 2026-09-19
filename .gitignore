@@ -78,8 +78,8 @@ CLAUDE.md
 /inst/models/*/model.exe
 /inst/standalone/build/
 /inst/standalone/profile/
-/man/template_case_ascertained.R
-/man/template_final_size.R
-/man/template_test.R
+/man/template_case_ascertained.Rd
+/man/template_final_size.Rd
+/man/template_test.Rd
 *.csv
 *.txt

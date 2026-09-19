@@ -477,12 +477,12 @@ namespace housepi
         if (!na::is(domain_min))
         {
             domain_.min.init_numeric(domain_min);
-            domain_.below = Mode::Interval::Closed;
+            domain_.below = Interval::Closed;
         }
         if (!na::is(domain_max))
         {
             domain_.max.init_numeric(domain_max);
-            domain_.above = Mode::Interval::Closed;
+            domain_.above = Interval::Closed;
         }
     }
 
@@ -568,22 +568,17 @@ namespace housepi
         return args.back();
     }
 
-    /// Wheter return value is always constant.
-    /// UPDATE: at the moment also a mutable domain makes the function non constant.
-    bool Function::is_constant() const noexcept
+    bool Function::has_constant_args_() const noexcept
     {
-        if (!x_arg_.is_constant())
-            return false;
-
         // variable arguments (only the active parametrization matters)
         for (const Attribute &attr : arguments_())
             if (!attr.is_constant())
                 return false;
 
         // variable domain
-        if (domain_.below != Mode::Interval::Unbounded && !domain_.min.is_constant())
+        if (domain_.below != Interval::Unbounded && !domain_.min.is_constant())
             return false;
-        if (domain_.above != Mode::Interval::Unbounded && !domain_.max.is_constant())
+        if (domain_.above != Interval::Unbounded && !domain_.max.is_constant())
             return false;
 
         // otherwise constant
@@ -1133,7 +1128,7 @@ namespace
     class Logarithm_ final : public Function
     {
     public:
-        Logarithm_() : Function({}, 0.) { domain_.below = Mode::Interval::Open; }
+        Logarithm_() : Function({}, 0.) { domain_.below = Interval::Open; }
         HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Logarithm_)
         HOUSEPI_OVERRIDE_NAME_METHOD(log)
         Codomain codomain() const noexcept override final

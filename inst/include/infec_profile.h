@@ -182,9 +182,9 @@ namespace housepi
     private:
         enum class Mode : std::uint8_t
         {
-            Latent, /// latent infectivity profile
-            Generic,   /// generic infectivity profile
-            LookUp     /// generic infectivity profile
+            Latent,  /// profile read from a latent
+            Generic, /// profile evaluated per call
+            LookUp   /// discrete-time table stored by update_cache()
         } mode_ = Mode::Generic;
 
         bool is_required_discrete_ = false; /// wheter is requested as discrete

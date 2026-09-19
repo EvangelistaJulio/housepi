@@ -429,7 +429,7 @@ namespace housepi
             // associate location parameter from prior
             if (prior->loc().is_callable())
                 pAttr_loc_ = prior->loc().pointer();
-            mode_ = pAttr_loc_ ? Location::Active : Location::None;
+            loc_mode_ = pAttr_loc_ ? Location::Active : Location::None;
 
             init_scale_(scale);
         }
@@ -437,7 +437,7 @@ namespace housepi
 
         double propose(rnd_gen &prng, double xo) override final
         {
-            switch (mode_)
+            switch (loc_mode_)
             {
             case Location::None:
                 return xo * pDistr_->rand(prng);
@@ -448,7 +448,7 @@ namespace housepi
         }
         double log_ratio(double xo, double xn) const override final
         {
-            switch (mode_)
+            switch (loc_mode_)
             {
             case Location::None:
                 return std::log(xo / xn);
@@ -463,7 +463,7 @@ namespace housepi
         {
             None,
             Active
-        } mode_ = Location::None;
+        } loc_mode_ = Location::None;
         const Attribute *pAttr_loc_ = nullptr;
 
         double get_default_scale_(const Distribution *prior) override final

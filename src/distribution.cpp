@@ -166,7 +166,7 @@ namespace
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()        \
     void discretize() override final            \
     {                                           \
-        discr_mode_ = Mode::Discrete::Left;     \
+        discr_mode_ = Discrete::Left;           \
     }                                           \
     void truncate() override final              \
     {                                           \
@@ -220,7 +220,7 @@ namespace
     {
     public:
         UniformDiscrete_()
-            : Distribution({}, 0., 1.) { discr_mode_ = Mode::Discrete::Defined; }
+            : Distribution({}, 0., 1.) { discr_mode_ = Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(UniformDiscrete_)
         HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
@@ -258,8 +258,8 @@ namespace
 
         void discretize() override final
         {
-            discr_mode_ = domain_.min.is_empty() ? Mode::Discrete::Center
-                                                 : Mode::Discrete::Left;
+            discr_mode_ = domain_.min.is_empty() ? Discrete::Center
+                                                 : Discrete::Left;
         }
         void truncate() override final
         {
@@ -406,8 +406,8 @@ namespace
             : Distribution({{"shape1", na::DOUBLE}, {"shape2", na::DOUBLE}},
                            0., 1.)
         {
-            domain_.below = Mode::Interval::Open;
-            domain_.above = Mode::Interval::Open;
+            domain_.below = Interval::Open;
+            domain_.above = Interval::Open;
         }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Beta_)
         HOUSEPI_OVERRIDE_NAME_METHOD(beta)
@@ -720,7 +720,7 @@ namespace
     {
     public:
         Poisson_()
-            : Distribution({{"lambda", na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
+            : Distribution({{"lambda", na::DOUBLE}}, 0.) { discr_mode_ = Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Poisson_)
         HOUSEPI_OVERRIDE_NAME_METHOD(poisson)
 
@@ -766,10 +766,10 @@ namespace
         Binomial_()
             : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
         {
-            discr_mode_ = Mode::Discrete::Defined;
+            discr_mode_ = Discrete::Defined;
             domain_.max.init_pointer(arguments_(0).pointer());
-            domain_.below = Mode::Interval::Closed;
-            domain_.above = Mode::Interval::Closed;
+            domain_.below = Interval::Closed;
+            domain_.above = Interval::Closed;
         }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Binomial_)
         HOUSEPI_OVERRIDE_NAME_METHOD(binomial)
@@ -842,7 +842,7 @@ namespace
     {
     public:
         NegativeBinomial_()
-            : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
+            : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.) { discr_mode_ = Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(NegativeBinomial_)
         HOUSEPI_OVERRIDE_NAME_METHOD(negative_binomial)
 
@@ -894,7 +894,7 @@ namespace
     {
     public:
         Geometric_()
-            : Distribution({{"prob", na::DOUBLE}}, 0.) { discr_mode_ = Mode::Discrete::Defined; }
+            : Distribution({{"prob", na::DOUBLE}}, 0.) { discr_mode_ = Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Geometric_)
         HOUSEPI_OVERRIDE_NAME_METHOD(geometric)
 
@@ -938,7 +938,7 @@ namespace
     class Categorical_ final : public Distribution
     {
     public:
-        Categorical_() : Distribution() { discr_mode_ = Mode::Discrete::Defined; }
+        Categorical_() : Distribution() { discr_mode_ = Discrete::Defined; }
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Categorical_)
         HOUSEPI_OVERRIDE_NAME_METHOD(categorical)
 
@@ -956,8 +956,8 @@ namespace
 
             domain_.min.init_numeric(0.);
             domain_.max.init_numeric(static_cast<double>(cases - 1));
-            domain_.below = Mode::Interval::Closed;
-            domain_.above = Mode::Interval::Closed;
+            domain_.below = Interval::Closed;
+            domain_.above = Interval::Closed;
         }
 
     private:

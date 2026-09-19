@@ -305,7 +305,7 @@ namespace housepi
         void init_standard(bool is_min_open, bool is_max_open, const std::string &owner);
         /// Lower the minimum onto 'min_val'. Returns whether truncation is needed.
         bool init_min(double min_val, bool is_min_open, const std::string &owner);
-        
+
         /// UPDATE: consistency check now are anaware of codomains/constantness of attributes.
         /// Wheter both bounds read and delimit a non-empty interval.
         bool is_consistent() const;
@@ -330,49 +330,43 @@ namespace housepi
     class Function
     {
     protected:
-        struct Mode
+        enum class Evaluate : std::uint8_t
         {
-            enum class Discrete : std::uint8_t
-            {
-                None,
-                Center,
-                Left,
-                Defined
-            };
-            using Interval = housepi::Interval;
-            enum class Evaluate : std::uint8_t
-            {
-                Function,
-                Primitive,
-                Probability,
-                Cumulative
-            };
-        };
-        Mode::Evaluate eval_mode_ = Mode::Evaluate::Function;
-        Mode::Discrete discr_mode_ = Mode::Discrete::None;
+            Function,
+            Primitive,
+            Probability,
+            Cumulative
+        } eval_mode_ = Evaluate::Function;
+        enum class Discrete : std::uint8_t
+        {
+            None,
+            Center,
+            Left,
+            Defined
+        } discr_mode_ = Discrete::None;
 
     public:
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
+        /////////////////////
+        ///  CONSTRUCTOR  ///
+        /////////////////////
 
         Function(const std::vector<std::pair<std::string, double>> &args = {},
                  double domain_min = na::DOUBLE,
                  double domain_max = na::DOUBLE);
         virtual ~Function() = default;
 
-        /////////////////////////
-        //////  OPERATORS  //////
-        /////////////////////////
+        ///////////////////
+        ///  OPERATORS  ///
+        ///////////////////
 
         /// Sugar operator to call evaluate.
         double operator()(double x) const { return evaluate(x); }
 
         virtual std::unique_ptr<Function> clone() const = 0;
 
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        ////////////////
+        ///  SETTER  ///
+        ////////////////
 
         /// UPDATE: these two methods can turn into protected probably.
         /// Virtual function to initialize discretization.
@@ -395,11 +389,11 @@ namespace housepi
         }
 
         /// Select primitive method for implicit evaluate.
-        void set_eval_as_prim() noexcept { eval_mode_ = Mode::Evaluate::Primitive; }
+        void set_eval_as_prim() noexcept { eval_mode_ = Evaluate::Primitive; }
         /// Select pdf as implicit evaluate (default for distributions).
-        void set_eval_as_pdf() noexcept { eval_mode_ = Mode::Evaluate::Probability; }
+        void set_eval_as_pdf() noexcept { eval_mode_ = Evaluate::Probability; }
         /// Select cdf as implicit evaluate.
-        void set_eval_as_cdf() noexcept { eval_mode_ = Mode::Evaluate::Cumulative; }
+        void set_eval_as_cdf() noexcept { eval_mode_ = Evaluate::Cumulative; }
 
         /// Set argument value.
         /// UPDATE: just required by AdaptableProposal.
@@ -422,9 +416,9 @@ namespace housepi
         /// Finalize by pruning indirections and setting constants to numeric.
         virtual void finalize();
 
-        //////////////////////
-        //////  GETTER  //////
-        //////////////////////
+        ////////////////
+        ///  GETTER  ///
+        ////////////////
 
         /// Values returned, composed from the operands.
         /// NOTE: computed live, never stored - the algebraic nodes read their
@@ -451,13 +445,13 @@ namespace housepi
         {
             switch (eval_mode_)
             {
-            case Mode::Evaluate::Primitive:
+            case Evaluate::Primitive:
                 return primitive_(delocate_(x));
-            case Mode::Evaluate::Probability:
+            case Evaluate::Probability:
                 return pdf(x);
-            case Mode::Evaluate::Cumulative:
+            case Evaluate::Cumulative:
                 return cdf(x);
-            default: // case  Mode::Evaluate::Function:
+            default: // case  Evaluate::Function:
                 return function_(delocate_(x));
             }
         }
@@ -500,17 +494,22 @@ namespace housepi
             return na::DOUBLE;
         }
 
-        /////////////////////
-        //////  FLAGS  //////
-        /////////////////////
+        ///////////////
+        ///  FLAGS  ///
+        ///////////////
 
         /// Wheter return value is always constant.
-        bool is_constant() const noexcept;
+        /// NOTE: at the moment also a mutable domain makes the function non constant.
+        bool is_constant() const noexcept
+        {
+            return x_arg_.is_constant() && has_constant_args_();
+        }
+
         /// Wheter discretize() has put the value on a unit lattice, of unspecified
         /// offset. This is the machinery: a location off the integers carries the
         /// lattice with it, so a discretized definition need not return integer values.
         /// NOTE: for "the values are integers" ask codomain().on_integers() instead.
-        bool is_discretized() const noexcept { return discr_mode_ != Mode::Discrete::None; }
+        bool is_discretized() const noexcept { return discr_mode_ != Discrete::None; }
         /// Wheter return value is always strictly positive.
         bool is_positive() const noexcept { return codomain().is_positive(); }
         /// Wheter all arguments are not empty.
@@ -534,9 +533,9 @@ namespace housepi
         /// Returns TRUE if value x is inside the domain.
         bool is_valid(double x) const { return domain_.is_valid(x); }
 
-        ////////////////////
-        //////  SHOW  //////
-        ////////////////////
+        //////////////
+        ///  SHOW  ///
+        //////////////
 
         /// Get function name.
         virtual std::string name() const noexcept = 0;
@@ -548,9 +547,9 @@ namespace housepi
         void set_err_family(ErrType family) noexcept { err_family_ = family; }
 
     protected:
-        //////////////////////
-        //////  DOMAIN  //////
-        //////////////////////
+        ////////////////
+        ///  DOMAIN  ///
+        ////////////////
 
         Domain domain_ = Domain(); /// values 'x' may take, and the frame they live in
 
@@ -558,6 +557,9 @@ namespace housepi
         double delocate_(double x) const { return domain_.delocate(x); }
         /// Cast back into the absolute frame.
         double relocate_(double x) const { return domain_.relocate(x); }
+
+        /// Whether the active arguments and the bounded sides of the domain are constant.
+        bool has_constant_args_() const noexcept;
 
         /// Set the domain of validity of the value, and the corresponding validation function.
         /// UPDATE: passing str() forces to compute it at runtime...
@@ -571,9 +573,9 @@ namespace housepi
             return domain_.init_min(min_val, is_min_open, str());
         }
 
-        /////////////////////////
-        //////  ARGUMENTS  //////
-        /////////////////////////
+        ///////////////////
+        ///  ARGUMENTS  ///
+        ///////////////////
 
         Attribute x_arg_ = Attribute(); /// 'x' argument
 
@@ -608,9 +610,9 @@ namespace housepi
         /// If attribute is absent at initialization, create it.
         Attribute &find_or_append_arg_(std::string_view key);
 
-        ///////////////////////
-        //////  VIRTUAL  //////
-        ///////////////////////
+        /////////////////
+        ///  VIRTUAL  ///
+        /////////////////
 
         /// Helper to raise call if undefined virtual methods are called.
         [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
@@ -635,13 +637,13 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::None:
+            case Discrete::None:
                 return raw_function_(x);
-            case Mode::Discrete::Center:
+            case Discrete::Center:
                 return discr_func_center_(x);
-            case Mode::Discrete::Left:
+            case Discrete::Left:
                 return discr_func_left_(x);
-            default: // Mode::Discrete::Defined:
+            default: // Discrete::Defined:
                 return raw_function_(std::floor(x));
             }
         }
@@ -651,13 +653,13 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::None:
+            case Discrete::None:
                 return raw_log_func_(x);
-            case Mode::Discrete::Center:
+            case Discrete::Center:
                 return std::log(discr_func_center_(x));
-            case Mode::Discrete::Left:
+            case Discrete::Left:
                 return std::log(discr_func_left_(x));
-            default: // Mode::Discrete::Defined:
+            default: // Discrete::Defined:
                 return raw_log_func_(std::floor(x));
             }
         }
@@ -670,31 +672,31 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::None:
+            case Discrete::None:
                 return raw_log_ratio_(xo, xn);
-            case Mode::Discrete::Center:
+            case Discrete::Center:
                 return std::log(discr_func_center_(xn)) - std::log(discr_func_center_(xo));
-            case Mode::Discrete::Left:
+            case Discrete::Left:
                 return std::log(discr_func_left_(xn)) - std::log(discr_func_left_(xo));
-            default: // Mode::Discrete::Defined:
+            default: // Discrete::Defined:
                 return raw_log_ratio_(std::floor(xo), std::floor(xn));
             }
         }
 
-        //////////////////////////////
-        //////  DISCRETIZATION  //////
-        //////////////////////////////
+        ////////////////////////
+        ///  DISCRETIZATION  ///
+        ////////////////////////
 
         /// Helper for the primitive method.
         double primitive_x_helper_(double x) const
         {
             switch (discr_mode_)
             {
-            case Mode::Discrete::Defined:
+            case Discrete::Defined:
                 return std::floor(x);
-            case Mode::Discrete::Center:
+            case Discrete::Center:
                 return std::round(x) + 0.5;
-            case Mode::Discrete::Left:
+            case Discrete::Left:
                 return std::floor(x) + 1.;
             default:
                 return x;
