@@ -9,7 +9,7 @@ mk_house <- helper_onset_house
 # simulation over real households, the transmission risk left to each test
 mk_simulation <- local({
   hhmodel <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% utils::head(unique(house_id), 100)) |>
+    dplyr::filter(hhid %in% utils::head(unique(hhid), 100)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
@@ -135,7 +135,7 @@ test_that("Without transmission only the introductions are infected", {
     add_data_wide(dplyr::mutate(mk_simulation$model$data_wide, status = NA)) |>
     add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hhsize_ref = 4) |>
     run_simulation(obs_process = obs_process)
-  expect_identical(length(unique(simulated$house_id)),
+  expect_identical(length(unique(simulated$hhid)),
                    sum(simulated$onset_time == 0, na.rm = TRUE))
 })
 
@@ -154,7 +154,7 @@ test_that("A saturated transmission infects every member", {
 ##################################################
 
 test_that("Sentinel against no introduction throws error", {
-  data.frame(id = seq(2), house_id = "h1", status = 0,
+  data.frame(id = seq(2), hhid = "h1", status = 0,
              start_date = 0, end_date = 21) |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
@@ -166,7 +166,7 @@ test_that("Sentinel against no introduction throws error", {
 
 test_that("Sentinel against a reversed follow-up window throws error", {
   # end_date < start_date has no valid exposure period
-  data.frame(id = c("m1", "m2"), house_id = "h1",
+  data.frame(id = c("m1", "m2"), hhid = "h1",
              status = c(1, 0), infec_time = c(0, NA),
              start_date = 5, end_date = 2) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
@@ -178,7 +178,7 @@ test_that("Sentinel against a reversed follow-up window throws error", {
 })
 
 test_that("Log-likelihood of case ascertained model is correct", {
-  house <- mk_house$data[c("id", "house_id", "status", "infec_time",
+  house <- mk_house$data[c("id", "hhid", "status", "infec_time",
                            "start_date", "end_date")]
 
   for (discr in c(FALSE, TRUE)) {
@@ -198,7 +198,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
 })
 
 test_that("Latent moves preserve log-likelihood", {
-  house <- mk_house$data[c("id", "house_id", "status", "onset_date",
+  house <- mk_house$data[c("id", "hhid", "status", "onset_date",
                            "start_date", "end_date")]
   hhmodel <- house |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>

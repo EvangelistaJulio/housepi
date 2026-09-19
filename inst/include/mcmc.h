@@ -74,7 +74,7 @@ namespace housepi
 
 		/// Initialize model and evaluate the scalar complete-data household
 		/// log-likelihood (observation + transmission), joint over latent variables.
-		double evaluate_log_lik(std::string_view house_id);
+		double evaluate_log_lik(std::string_view hhid);
 
 	private:
 		/// Assert setup definitions, then proceed with initialization for evaluation.

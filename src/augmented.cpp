@@ -1942,13 +1942,13 @@ namespace housepi
         struct LatentDraws_
         {
             std::vector<std::string> ids;
-            std::vector<std::string> house_ids;
+            std::vector<std::string> hhids;
             std::vector<const Individual *> ptrs;
 
             void store(const DataWide &data_wide, const Household &house, const Individual &indiv)
             {
                 ids.emplace_back(data_wide.id(indiv));
-                house_ids.emplace_back(data_wide.house_id(house));
+                hhids.emplace_back(data_wide.hhid(house));
                 ptrs.emplace_back(&indiv);
             }
         };
@@ -1987,7 +1987,7 @@ namespace housepi
                     continue;
                 }
 
-                if (vect::contains(house_draws, mcmc_->data_wide().house_id(house)))
+                if (vect::contains(house_draws, mcmc_->data_wide().hhid(house)))
                     for (const Individual &indiv : house.infected_indivs())
                         seen.store(mcmc_->data_wide(), house, indiv);
                 else
@@ -1998,7 +1998,7 @@ namespace housepi
 
         // raise warnings for draws not found in the data
         std::vector<std::string> missed_id = vect::difference(id_draws, seen.ids);
-        std::vector<std::string> missed_house = vect::difference(house_draws, seen.house_ids);
+        std::vector<std::string> missed_house = vect::difference(house_draws, seen.hhids);
         if (!missed_id.empty())
             msg::warn(
                 "Ignored draws of non infected " + msg::qty(missed_id) +

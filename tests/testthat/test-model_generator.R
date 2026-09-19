@@ -184,7 +184,7 @@ test_that("Wide data is factorized and refactored by the generator", {
   # round-trip refactor keeps the original character columns intact
   refactored <- generator$refactor_data_wide(dummy_household)
   expect_equal(refactored$id, dummy_household$id)
-  expect_equal(refactored$house_id, dummy_household$house_id)
+  expect_equal(refactored$hhid, dummy_household$hhid)
 
   # data long format
   generator$import_data_long(list(a = 1)) |>

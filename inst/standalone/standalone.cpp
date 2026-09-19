@@ -348,7 +348,7 @@ namespace housepi
 
         ofs << "rep"
             << read::DELIMITER << "id"
-            << read::DELIMITER << "house_id"
+            << read::DELIMITER << "hhid"
             << read::DELIMITER << "status";
         for (const std::string &datastr : data_headers)
             ofs << read::DELIMITER << datastr;
@@ -374,7 +374,7 @@ namespace housepi
         {
             ofs << rep
                 << read::DELIMITER << data_wide.id(indiv)
-                << read::DELIMITER << data_wide.house_id(house)
+                << read::DELIMITER << data_wide.hhid(house)
                 << read::DELIMITER;
             // StatusLevel is a byte: stream it as a number, not as a character
             if (indiv.is_missing_status())

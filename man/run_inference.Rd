@@ -38,7 +38,7 @@ If no proposals are adaptable and \code{burn = 0}, repurposed as burn-in instead
 \item{id_draws}{Infected members whose public latent draws are stored.
 Either a \code{character()} of individual identifiers,
 or a \code{list} with entries \code{id} (individual identifiers)
-and/or \code{house_id} (whole household infected members are stored).
+and/or \code{hhid} (whole household infected members are stored).
 If \code{NA}, one random eligible household is followed (default).
 Pass \code{".none"} to store nothing.}
 

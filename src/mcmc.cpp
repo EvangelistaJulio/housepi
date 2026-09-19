@@ -229,7 +229,7 @@ namespace housepi
             size_t n_houses = data_wide.report_house.total;
             post->house_names.reserve(n_houses);
             for (const Household &house : data_wide)
-                post->house_names.push_back(data_wide.house_id(house));
+                post->house_names.push_back(data_wide.hhid(house));
         }
 
         // Help initializing latent draws,
@@ -614,7 +614,7 @@ namespace housepi
 
     std::vector<std::string> MCMCBase::get_col_names() const
     {
-        std::vector<std::string> output = {"id", "house_id"};
+        std::vector<std::string> output = {"id", "hhid"};
         vect::append(output, get_static_data_names());
         vect::append(output, {"status"});
 
@@ -677,7 +677,7 @@ namespace housepi
     //////  EVALUATION  //////
     //////////////////////////
 
-    double MCMC::evaluate_log_lik(std::string_view house_id)
+    double MCMC::evaluate_log_lik(std::string_view hhid)
     {
         setup.n_chains = 0; // using '0 chains' as a state variable
         init_for_evaluation_();
@@ -686,7 +686,7 @@ namespace housepi
 
         // evaluation at current state
         LogLikAccumulator acc;
-        if (na::is(house_id))
+        if (na::is(hhid))
         {
             // evaluation across all households
             commit_total_log_posterior_(true);
@@ -699,7 +699,7 @@ namespace housepi
             // single household evaluation
             infec_profile.update_cache();
             acc = commit_house_log_posterior_(
-                data_wide().at(house_id),
+                data_wide().at(hhid),
                 true, augm.is_any_latent_model(), augm.is_any_obs_model());
         }
 

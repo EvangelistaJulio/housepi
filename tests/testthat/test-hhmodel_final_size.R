@@ -24,7 +24,7 @@ mk_house <- local({
   # members sorted infected, escaped
   house_3 <- data.frame(
     id = sprintf("m%s", seq(1, 4)),
-    house_id = "h1",
+    hhid = "h1",
     status = c(rep(1, 3), 0),
     class = c("a", "b", rep("c", 2)),
     community = c(1, grisks$b$com, rep(grisks$c$com, 2)),
@@ -103,7 +103,7 @@ test_that("Chain binomial guards against misusage", {
     expect_error("No visible discrete time option")
 
   # no support for missing status
-  data.frame(id = c("m1", "m2"), house_id = "h1", status = c(1, NA)) |>
+  data.frame(id = c("m1", "m2"), hhid = "h1", status = c(1, NA)) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference() |>
@@ -153,8 +153,8 @@ test_that("Three infected members likelihood is correct", {
 test_that("A free baseline under an absolute risk is pinned on real data", {
   # households carrying a sibling, so every member level of the strata is seen
   hhmodel <- flu_2014_matsumoto |>
-    dplyr::filter(house_id %in% utils::head(
-      unique(house_id[member == "sibling"]), 500
+    dplyr::filter(hhid %in% utils::head(
+      unique(hhid[member == "sibling"]), 500
     )) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
@@ -180,7 +180,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
 })
 
 test_that("Chain binomial returns infinite if extreme values are provided", {
-  hhmodel <- data.frame(id = c(1, 2), house_id = "h1",
+  hhmodel <- data.frame(id = c(1, 2), hhid = "h1",
                         status = c(1, 1), age = c("child", "adult")) |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hhsize_ref = 4)
@@ -199,7 +199,7 @@ test_that("Chain binomial returns infinite if extreme values are provided", {
 test_that("Chain binomial raises if the log-likelihood is not a number", {
   # a null person-to-person risk against an overflowing household-size scaling
   # leaves the escape rate undefined, and the log-likelihood with it
-  data.frame(id = c(1, 2), house_id = "h1", status = c(1, 1)) |>
+  data.frame(id = c(1, 2), hhid = "h1", status = c(1, 1)) |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = 0.1, beta = 0, gamma = 1e10, hhsize_ref = 4) |>
     evaluate_log_lik() |>

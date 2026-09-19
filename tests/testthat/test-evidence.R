@@ -6,7 +6,7 @@ library(testthat)
 # At inverse temperature 0 the tempered likelihood is 0 even where it is -Inf:
 # the chain must sample the whole prior, not stay confined to [0.05, 0.95].
 mk_indicator <- local({
-  hhmodel <- data.frame(house_id = "h1", status = 1, record = 0.5) |>
+  hhmodel <- data.frame(hhid = "h1", status = 1, record = 0.5) |>
     new_housepi_model("test") |>
     add_parameter("rho", prior = "uniform", min = 0, max = 1) |>
     add_observation(
@@ -74,7 +74,7 @@ test_that("Power-posterior log-evidence matches a closed-form marginal", {
   # analytical value
   evidence <- log((x + b) / (x + a)) / (b - a) - x / (b + x) / (a + x)
 
-  hhmodel <- data.frame(house_id = "h1", status = 1, record = x) |>
+  hhmodel <- data.frame(hhid = "h1", status = 1, record = x) |>
     new_housepi_model("test") |>
     add_parameter("theta", prior = "uniform", min = !!a, max = !!b) |>
     add_latent("z", model = "exponential", rate = theta@P) |>
@@ -145,7 +145,7 @@ test_that("Stepping-stone is unbiased, thermodynamic refuses a -Inf ladder", {
 })
 
 test_that("A tempered indicator with a latent runs at beta = 0 without NaN", {
-  results <- data.frame(house_id = "h1", status = 1, record = 0.5) |>
+  results <- data.frame(hhid = "h1", status = 1, record = 0.5) |>
     new_housepi_model("test") |>
     add_parameter("rho", prior = "uniform", min = 0, max = 1) |>
     add_latent("hidden", model = "uniform", min = 0, max = 1) |>

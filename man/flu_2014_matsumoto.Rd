@@ -20,7 +20,7 @@ Original observational study from Uchida et al. (2017).
 }
 \details{
 \describe{
-\item{house_id}{Household identifier}
+\item{hhid}{Household identifier}
 \item{member}{Family member}
 \item{status}{Symptoms reported}
 }

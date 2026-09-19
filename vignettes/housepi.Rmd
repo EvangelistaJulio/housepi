@@ -49,7 +49,7 @@ The housepi package comes with a few public datasets to be used for testing.
 
 A column `"id"` with individual identifiers is provided to keep track of changes and make errors more readable; otherwise housepi will automatically tag individuals with row numbers.
 
-To group individuals in households, a column `"house_id"` with the respective household tag needs to be present.
+To group individuals in households, a column `"hhid"` with the respective household tag needs to be present.
 Individuals with the same household id will then be considered to belong to the same household.
 No household id implies that all individuals in the data are living separately.
 
@@ -223,7 +223,7 @@ We load the parameter definitions directly from the model template.
 #| label: load-latent-model
 # load a dataset for the data structure (used later for the simulation)
 community_structure <- sarscov2_2021_icofs |>
-  dplyr::select(id, house_id) |>
+  dplyr::select(id, hhid) |>
   dplyr::mutate(status = NA, end_date = 21)
 
 hhmodel <- community_structure |>

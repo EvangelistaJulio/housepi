@@ -18,7 +18,7 @@ mk_draws <- local({
 
 # two parameters and a latent traced on one member
 mk_latent_draws <- local({
-  results <- data.frame(house_id = 1, id = c("m1", "m2"),
+  results <- data.frame(hhid = 1, id = c("m1", "m2"),
                         status = c(1, 0), obs = 0) |>
     new_housepi_model("test") |>
     add_parameter(rho = list(prior = "uniform"),
@@ -184,7 +184,7 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
 })
 
 test_that("A model without parameters returns empty parameter draws", {
-  results <- data.frame(house_id = 1, id = "m1", status = 1, obs = 0) |>
+  results <- data.frame(hhid = 1, id = "m1", status = 1, obs = 0) |>
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform")) |>
     helper_flat_sink(loc = hidden@A) |>

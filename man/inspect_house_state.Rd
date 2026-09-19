@@ -4,12 +4,12 @@
 \alias{inspect_house_state}
 \title{Inspect the state of a household in a housepi model}
 \usage{
-inspect_house_state(hhmodel, house_id)
+inspect_house_state(hhmodel, hhid)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
 
-\item{house_id}{\code{character(1)} ID of the household of interest.}
+\item{hhid}{\code{character(1)} ID of the household of interest.}
 }
 \value{
 \code{list}, all variables of the household.

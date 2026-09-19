@@ -579,7 +579,7 @@ namespace
     {
         size_t n_rows = data_wide.report_indiv.total;
         Rcpp::CharacterVector id_col = Rcpp::CharacterVector(n_rows);
-        Rcpp::CharacterVector house_id_col = Rcpp::CharacterVector(n_rows);
+        Rcpp::CharacterVector hhid_col = Rcpp::CharacterVector(n_rows);
         Rcpp::IntegerVector status_col = Rcpp::IntegerVector(n_rows);
 
         // other non standard data columns
@@ -593,7 +593,7 @@ namespace
             for (const Individual &indiv : house)
             {
                 id_col[row] = data_wide.id(indiv);
-                house_id_col[row] = data_wide.house_id(house);
+                hhid_col[row] = data_wide.hhid(house);
                 status_col[row] = hsp_to_rcpp(indiv);
 
                 for (size_t d = 0; d < columns.size(); ++d)
@@ -603,7 +603,7 @@ namespace
 
         Rcpp::List output;
         output["id"] = id_col;
-        output["house_id"] = house_id_col;
+        output["hhid"] = hhid_col;
         if (is_status)
             output["status"] = status_col;
         for (size_t d = 0; d < columns.size(); ++d)
@@ -974,7 +974,7 @@ namespace
 
         size_t n_rows = house.size();
         Rcpp::CharacterVector id_col(n_rows);
-        Rcpp::CharacterVector house_id_col(n_rows);
+        Rcpp::CharacterVector hhid_col(n_rows);
         Rcpp::IntegerVector status_col(n_rows);
 
         std::vector<Rcpp::NumericVector> df_double(headers.size());
@@ -985,7 +985,7 @@ namespace
         {
             size_t i = Index::member(indiv);
             id_col[i] = data_wide.id(indiv);
-            house_id_col[i] = data_wide.house_id(house);
+            hhid_col[i] = data_wide.hhid(house);
             status_col[i] = hsp_to_rcpp(indiv);
 
             for (size_t d = 0; d < headers.size(); ++d)
@@ -994,7 +994,7 @@ namespace
 
         Rcpp::List output;
         output["id"] = std::move(id_col);
-        output["house_id"] = std::move(house_id_col);
+        output["hhid"] = std::move(hhid_col);
         output["status"] = std::move(status_col);
         for (size_t d = 0; d < headers.size(); ++d)
             output.push_back(df_double[d], headers[d]);
@@ -1243,14 +1243,14 @@ namespace
     }
 
     /// Export a list containing all relevant information for a debug.
-    Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &house_id)
+    Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &hhid)
     {
         try
         {
             if (mcmc_ptr->data_wide().is_empty())
                 return Rcpp::List::create();
 
-            const Household &house = mcmc_ptr->data_wide().at(house_id);
+            const Household &house = mcmc_ptr->data_wide().at(hhid);
             const Augmented &augm = mcmc_ptr->augm;
 
             return Rcpp::List::create(
@@ -1267,7 +1267,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string(e.what()) + "\nFor household " + msg::val(house_id) + ".");
+            msg::stop(std::string(e.what()) + "\nFor household " + msg::val(hhid) + ".");
         }
     }
 
@@ -1611,11 +1611,11 @@ namespace
         return mcmc_ptr->model->has_infec_profile();
     }
 
-    double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string house_id)
+    double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string hhid)
     {
         try
         {
-            return mcmc_ptr->evaluate_log_lik(house_id);
+            return mcmc_ptr->evaluate_log_lik(hhid);
         }
         catch (const std::exception &e)
         {
@@ -1634,21 +1634,21 @@ namespace
         }
     }
 
-    /// Aggregate individuals by house_id, given as 1-based codes of the distinct ids.
+    /// Aggregate individuals by hhid, given as 1-based codes of the distinct ids.
     /// A missing status reads NA (NA_INTEGER is INT_MIN).
     measure::cases::Table summarise_houses_from_df(Rcpp::DataFrame data_wide)
     {
         Rcpp::CharacterVector col_names = data_wide.names();
 
-        std::vector<int> house_id = {};
-        if (vect::contains(col_names, "house_id"))
-            house_id = Rcpp::as<std::vector<int>>(data_wide["house_id"]);
+        std::vector<int> hhid = {};
+        if (vect::contains(col_names, "hhid"))
+            hhid = Rcpp::as<std::vector<int>>(data_wide["hhid"]);
 
         std::vector<int> status = {};
         if (vect::contains(col_names, "status"))
             status = Rcpp::as<std::vector<int>>(data_wide["status"]);
 
-        return measure::summarise_houses(house_id, status);
+        return measure::summarise_houses(hhid, status);
     }
 
     Rcpp::DataFrame count_houses_by_hhsize(Rcpp::DataFrame data_wide)

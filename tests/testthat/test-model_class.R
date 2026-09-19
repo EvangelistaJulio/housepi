@@ -8,7 +8,7 @@ mk_frederick <- local({
 
 # model carrying the data columns the source lookup refers to
 mk_sources <- local({
-  hhmodel <- data.frame(house_id = "h1", status = 1, datum = 1,
+  hhmodel <- data.frame(hhid = "h1", status = 1, datum = 1,
                         record = 3, datum_2 = 2) |>
     new_housepi_model("test")
   list(model = hhmodel)
@@ -41,34 +41,34 @@ test_that("Escaped label is readable back from the model", {
 
 test_that("Model class inconsistent IDs throw errors", {
   # missing individual ID
-  data.frame(id = NA, house_id = "h1") |>
+  data.frame(id = NA, hhid = "h1") |>
     new_housepi_model("test") |>
     expect_error("missing.*id")
 
   # missing house ID
-  data.frame(id = "m1", house_id = NA) |>
+  data.frame(id = "m1", hhid = NA) |>
     new_housepi_model("test") |>
-    expect_error("missing.*house_id")
+    expect_error("missing.*hhid")
 
   # not unique individual IDs
-  data.frame(id = c("m1", "m1"), house_id = "h1") |>
+  data.frame(id = c("m1", "m1"), hhid = "h1") |>
     new_housepi_model("test") |>
     expect_error("not unique")
 })
 
 test_that("Data status is capped by the engine status storage", {
   # above the highest storable infected status
-  data.frame(house_id = "h1", status = 255) |>
+  data.frame(hhid = "h1", status = 255) |>
     new_housepi_model("test") |>
     expect_error("maximum of 254")
 
   # a negative status has no meaning: NA declares a missing status
-  data.frame(house_id = "h1", status = -200) |>
+  data.frame(hhid = "h1", status = -200) |>
     new_housepi_model("test") |>
     expect_error("negative status")
 
   # a missing status round trips as NA, the top level is never exported
-  data.frame(house_id = "h1", status = c(NA, 254)) |>
+  data.frame(hhid = "h1", status = c(NA, 254)) |>
     new_housepi_model("test") |>
     get_data_wide() |>
     getElement("status") |>
@@ -76,7 +76,7 @@ test_that("Data status is capped by the engine status storage", {
 })
 
 test_that("Household size is capped by the engine member storage", {
-  data.frame(house_id = "h1", status = 0, id = seq(256)) |>
+  data.frame(hhid = "h1", status = 0, id = seq(256)) |>
     new_housepi_model("test") |>
     expect_error("[Ee]xceeded the maximum of 255 members")
 })
@@ -86,7 +86,7 @@ test_that("A missing datum is not a requirement violation", {
   # cell carries no verdict, so it imports and reads back as NA -- the
   # requirement itself is asserted at the run wall
   hhdata <- data.frame(
-    id = c("m1", "m2", "m3"), house_id = "h1", status = c(1, 1, 0),
+    id = c("m1", "m2", "m3"), hhid = "h1", status = c(1, 1, 0),
     start_date = c(1, NA, 1), end_date = c(21, 21, NA)
   ) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
@@ -98,7 +98,7 @@ test_that("A missing datum is not a requirement violation", {
 
 test_that("A datum violating a model requirement is refused at import", {
   mk <- function(...) {
-    data.frame(id = c("m1", "m2", "m3"), house_id = "h1",
+    data.frame(id = c("m1", "m2", "m3"), hhid = "h1",
                status = c(1, 1, 0), ...) |>
       new_housepi_model("case-ascertained", quiet = TRUE)
   }
@@ -122,7 +122,7 @@ test_that("Model-required data can be postponed to the run wall", {
   # a model-required data column may be supplied later: construction
   # tolerates the gap, the wall (evaluate_*/run_*) names it
   hhmodel <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% utils::head(unique(house_id), 20)) |>
+    dplyr::filter(hhid %in% utils::head(unique(hhid), 20)) |>
     dplyr::select(-start_date) |>
     new_housepi_model("case-ascertained")
 
@@ -175,7 +175,7 @@ test_that("Wide data can be deferred and attached with add_data_wide", {
   expect_true(is.finite(evaluate_log_lik(hhmodel)))
 })
 
-test_that("Data without house_id warns on every attach", {
+test_that("Data without hhid warns on every attach", {
   # no household structure: every row becomes a household of its own
   hhdata <- data.frame(id = c("m1", "m2", "m3"), status = c(1, 0, 1))
 
@@ -266,7 +266,7 @@ test_that("Data long format is correctly handled", {
   expect_equal(get_data_long(hhmodel), hhdata)
 
   # inspect_house_state returns refactored data_long when present
-  inspect_house_state(hhmodel, hhmodel$data_wide$house_id[1])$data_long |>
+  inspect_house_state(hhmodel, hhmodel$data_wide$hhid[1])$data_long |>
     expect_s3_class("data.frame")
 })
 
@@ -294,7 +294,7 @@ test_that("Print behavior works as expected", {
 
 test_that("A copy is deep", {
   house <- data.frame(
-    house_id = c(1, 1, 2, 2, 2),
+    hhid = c(1, 1, 2, 2, 2),
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
   )
@@ -416,7 +416,7 @@ test_that("Model class inconsistent inference throw errors", {
     expect_error("[Nn]othing to sample")
 
   # missing status: all
-  data.frame(id = "m1", house_id = "h1", status = NA) |>
+  data.frame(id = "m1", hhid = "h1", status = NA) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference() |>
@@ -424,7 +424,7 @@ test_that("Model class inconsistent inference throw errors", {
 })
 
 test_that("Posterior memory budget is asserted", {
-  data.frame(house_id = 1, id = "m1", status = 0) |>
+  data.frame(hhid = 1, id = "m1", status = 0) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference(steps = 1e20, chains = 1e3) |>
@@ -460,7 +460,7 @@ test_that("A run with nothing to adapt keeps its sample size", {
 })
 
 test_that("id_draws selections are resolved before the run", {
-  hhmodel <- data.frame(id = c("m1", "m2"), house_id = "h1",
+  hhmodel <- data.frame(id = c("m1", "m2"), hhid = "h1",
                         status = 1, obs = 0) |>
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform") |>
@@ -481,14 +481,14 @@ test_that("id_draws selections are resolved before the run", {
 })
 
 test_that("A followed household without infected members warns", {
-  hhmodel <- data.frame(id = c("m1", "m2"), house_id = c("h1", "h2"),
+  hhmodel <- data.frame(id = c("m1", "m2"), hhid = c("h1", "h2"),
                         status = c(1, 0)) |>
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform")
 
   hhmodel |>
     run_inference(steps = 20L, adapt = 0L, chains = 1L,
-                  id_draws = list(house_id = "h2")) |>
+                  id_draws = list(hhid = "h2")) |>
     expect_warning("no infected members") |>
     suppressWarnings()
 })
@@ -524,7 +524,7 @@ test_that("Param table with degenerate columns raises an ESS error", {
 })
 
 test_that("Thinning to ESS keeps between one draw per chain and all draws", {
-  hhmodel <- data.frame(house_id = "h1", id = c("m1", "m2"), status = 0) |>
+  hhmodel <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 0) |>
     new_housepi_model("test")
   # two disjoint trending chains of 20 iterations: ESS below the chain count
   trend <- posterior::as_draws_df(data.frame(
@@ -554,7 +554,7 @@ test_that("Simulation reads undeclared parameters from param_table", {
     run_simulation(param_table = param_table) |>
     expect_length(2L)
   # the model holds the parameters of the last replicate
-  state <- hhmodel |> inspect_house_state(hhmodel$data_wide$house_id[1])
+  state <- hhmodel |> inspect_house_state(hhmodel$data_wide$hhid[1])
   unlist(state$parameters[names(param_table)]) |>
     expect_equal(unlist(param_table[2, ]), ignore_attr = TRUE)
   # the table is not declared on the model

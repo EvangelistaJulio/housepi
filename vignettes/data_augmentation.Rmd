@@ -97,7 +97,7 @@ library(ggplot2)
 
 onset_tommy <- 5
 hhmodel <- data.frame(id = c("tommy", "gina"),
-                      house_id = "house_1",
+                      hhid = "house_1",
                       start_date = onset_tommy,
                       end_date = onset_tommy + 10,
                       status = c(1, 2),
@@ -160,7 +160,7 @@ Observations with no `model` produce the reported columns: the last day of expos
 true_mean <- 2.2
 true_sd <- 1.2
 n_cases <- 223
-dataset <- data.frame(id = seq_len(n_cases), house_id = seq_len(n_cases),
+dataset <- data.frame(id = seq_len(n_cases), hhid = seq_len(n_cases),
                       status = 1) |>
   new_housepi_model("test") |>
   add_parameter(mean = !!true_mean, sd = !!true_sd) |>
@@ -180,7 +180,7 @@ dataset <- data.frame(id = seq_len(n_cases), house_id = seq_len(n_cases),
   ) |>
   run_simulation() |>
   # keep the reported columns only
-  dplyr::select(id, house_id, status, exposure_max, onset_min, onset_max)
+  dplyr::select(id, hhid, status, exposure_max, onset_min, onset_max)
 head(dataset)
 ```
 Note that here the data has no demographic structure: we are implicitly assuming that all individuals live in distinct households.
@@ -279,7 +279,7 @@ A uniform observation over a window the variable can never leave contributes the
 #| label: latent inspection
 #| warning: false
 
-results <- data.frame(house_id = 1, id = 1:2, status = 1, readout = 0) |>
+results <- data.frame(hhid = 1, id = 1:2, status = 1, readout = 0) |>
   new_housepi_model(model = "test") |>
   add_latent("z", model = "normal", mean = 14) |>
   add_observation("readout", model = "uniform", loc = z@A,

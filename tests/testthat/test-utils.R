@@ -3,7 +3,7 @@ library(testthat)
 # data frame carrying one column of each storage type the engine encodes
 mk_types <- local({
   hhdata <- data.frame(id = c("m1", "m2"),
-                       house_id = c("h1", "h1"),
+                       hhid = c("h1", "h1"),
                        status = c(1, 0),
                        date_col = as.Date(c("2024-01-01", "2024-01-02")),
                        char_col = c("male", "female"),
@@ -129,8 +129,8 @@ test_that("Data factorization handles default types", {
   # logical encoded
   expect_equal(result$info$logic_col$class, "logical")
 
-  # numeric column untouched, and id, house_id, status skipped (no info entry)
-  any(c("num_col", "id", "house_id", "status") %in% names(result$info)) |>
+  # numeric column untouched, and id, hhid, status skipped (no info entry)
+  any(c("num_col", "id", "hhid", "status") %in% names(result$info)) |>
     expect_false()
 
   # status extraction
@@ -153,7 +153,7 @@ test_that("Data refactor restores original types", {
 
 test_that("Data factorization codes a labelled status column", {
   hhdata <- data.frame(id = paste0("m", 1:4),
-                       house_id = rep(c("h1", "h2"), each = 2),
+                       hhid = rep(c("h1", "h2"), each = 2),
                        status = c("positive", rep("negative", 3)),
                        stringsAsFactors = FALSE)
 

@@ -12,18 +12,18 @@
 #' @keywords internal
 #' @noRd
 contact_risk_logic_table <- function(data_wide, covariates) {
-  # convention: no house_id implies households of size 1: no pairs possible
-  if (!"house_id" %in% colnames(data_wide)) return(NULL)
+  # convention: no hhid implies households of size 1: no pairs possible
+  if (!"hhid" %in% colnames(data_wide)) return(NULL)
 
   # subset to needed column, and coerce covariates to character
   covariates <- as.character(unlist(covariates))
-  data_wide <- data_wide[, c("house_id", covariates), drop = FALSE]
+  data_wide <- data_wide[, c("hhid", covariates), drop = FALSE]
   data_wide[] <- lapply(data_wide, as.character)
 
   # within a household every 'from' meets every 'to', so the ordered pairs of
   # two covariate keys are the product of their per-household counts. Only the
   # members meeting themselves have to come back off the diagonal
-  per_house <- table(data_wide$house_id, row_keys_(data_wide, covariates))
+  per_house <- table(data_wide$hhid, row_keys_(data_wide, covariates))
   cnt <- crossprod(per_house)
   diag(cnt) <- diag(cnt) - colSums(per_house)
 

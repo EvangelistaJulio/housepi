@@ -60,10 +60,10 @@ namespace housepi::measure
         };
     }
 
-    /// Tabulate households by size and number of cases, aggregating individuals by house_id.
-    /// `house_id` holds 1-based codes 1..n_houses, each code used at least once.
+    /// Tabulate households by size and number of cases, aggregating individuals by hhid.
+    /// `hhid` holds 1-based codes 1..n_houses, each code used at least once.
     /// `status` values as read from an R column: NA = missing, 0 = escaped, >=1 = infected.
-    inline cases::Table summarise_houses(const std::vector<int> &house_id,
+    inline cases::Table summarise_houses(const std::vector<int> &hhid,
                                          const std::vector<int> &status)
     {
         const size_t n_indiv = status.size();
@@ -75,10 +75,10 @@ namespace housepi::measure
             unsigned hhsize = 0;
             unsigned cases = 0;
         };
-        std::vector<House> houses(*std::max_element(house_id.begin(), house_id.end()));
+        std::vector<House> houses(*std::max_element(hhid.begin(), hhid.end()));
         for (size_t i = 0; i < n_indiv; ++i)
         {
-            House &h = houses[house_id[i] - 1];
+            House &h = houses[hhid[i] - 1];
             ++h.hhsize;
             h.cases += status::is_infected(status[i]);
         }

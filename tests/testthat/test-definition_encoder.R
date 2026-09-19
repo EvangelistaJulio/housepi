@@ -16,8 +16,8 @@ test_that("Invalid definition values are refused at encoding", {
   # the reserved columns are no data source
   housepi_extractor(id@D) |>
     expect_error("[Cc]annot.*id.*as data.*reserved")
-  housepi_extractor(house_id@D) |>
-    expect_error("[Cc]annot.*house_id.*as data.*reserved")
+  housepi_extractor(hhid@D) |>
+    expect_error("[Cc]annot.*hhid.*as data.*reserved")
   housepi_extractor(status@D) |>
     expect_error("[Cc]annot.*status.*as data.*reserved")
   # a vector is no single source

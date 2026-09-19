@@ -15,7 +15,7 @@ mk_ppc <- local({
 mk_houses <- local({
   hhdata <- data.frame(
     id = paste0("m", 1:7),
-    house_id = c(rep("h1", 2), rep("h2", 3), rep("h3", 2)),
+    hhid = c(rep("h1", 2), rep("h2", 3), rep("h3", 2)),
     status = c(1, 1, 1, 0, 0, 1, 0)
   )
   list(data = hhdata)
@@ -26,14 +26,14 @@ mk_houses <- local({
 ######################################
 
 test_that("Measures require the columns they aggregate over", {
-  mk_houses$data[c("id", "house_id")] |>
+  mk_houses$data[c("id", "hhid")] |>
     measure_sar_by_hhsize() |>
     expect_error("status")
   
   # without a household identifier every row would count as its own household
   mk_houses$data[c("id", "status")] |>
     measure_sar_by_hhsize() |>
-    expect_error("house_id")
+    expect_error("hhid")
 })
 
 test_that("Attack rate is averaged per household size", {
@@ -76,7 +76,7 @@ test_that("Cases are tabulated on the complete household size grid", {
 })
 
 test_that("Measures keep households that all share one size", {
-  hhdata <- data.frame(id = paste0("m", 1:3), house_id = "h1",
+  hhdata <- data.frame(id = paste0("m", 1:3), hhid = "h1",
                        status = c(1, 1, 0))
   # AR = 2/3, SAR = (2-1)/(3-1)
   measure_ar_by_hhsize(hhdata) |>
@@ -98,7 +98,7 @@ test_that("Household size geometric mean is weighted by secondary cases", {
   # h4 (size 4, 3 cases) weighs 2: exp((log 2 + 2 log 4) / 3) = 2^(5/3)
  mk_houses$data |> 
    rbind(data.frame(
-     id = paste0("m", 8:11), house_id = "h4", status = c(1, 1, 1, 0)
+     id = paste0("m", 8:11), hhid = "h4", status = c(1, 1, 1, 0)
      )) |>
    measure_geom_mean_hhsize() |>
     expect_equal(2^(5 / 3))
@@ -257,7 +257,7 @@ test_that("Predicted results carry the point estimate and its interval", {
 
 test_that("Houses are counted by household size", {
   hhdata <- data.frame(
-    house_id = c(rep("h1", 2), rep("h2", 3), rep("h3", 2), rep("h4", 2)),
+    hhid = c(rep("h1", 2), rep("h2", 3), rep("h3", 2), rep("h4", 2)),
     status = c(1, 1, 1, 0, 0, 1, 0, 0, 0)
   )
   hhdata$id <- paste0("m", seq_len(nrow(hhdata)))

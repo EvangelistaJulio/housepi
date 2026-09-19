@@ -528,7 +528,7 @@ test_that("Every prior and function is copied into each chain", {
 test_that("An unpinned parameter is drawn from its prior in simulation", {
   # the proposal is an independence sampler parked in a corner of the prior's
   # domain: a generative draw reading it would pin every replicate there
-  hhmodel <- data.frame(id = seq_len(20), house_id = 1, status = 1) |>
+  hhmodel <- data.frame(id = seq_len(20), hhid = 1, status = 1) |>
     new_housepi_model("test") |>
     add_parameter(rho = list(prior = "uniform", min = 0.1, max = 0.9,
                              proposal = "normal",

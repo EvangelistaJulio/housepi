@@ -11,7 +11,7 @@
 #'
 #' \describe{
 #'   \item{id}{Individual identifier}
-#'   \item{house_id}{Household identifier}
+#'   \item{hhid}{Household identifier}
 #'   \item{status}{Serological test result}
 #' }
 #'
@@ -30,7 +30,7 @@ NULL
 #' Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 #'
 #' \describe{
-#'   \item{house_id}{Household identifier}
+#'   \item{hhid}{Household identifier}
 #'   \item{status}{Reported case}
 #' }
 #'
@@ -55,7 +55,7 @@ NULL
 #' Reported cases of "Spanish" flu in Baltimore (USA), in 1918.
 #'
 #' \describe{
-#'   \item{house_id}{Household identifier}
+#'   \item{hhid}{Household identifier}
 #'   \item{status}{Reported case}
 #' }
 #'
@@ -83,7 +83,7 @@ NULL
 #'
 #' \describe{
 #'   \item{id}{Individual identifier}
-#'   \item{house_id}{Household identifier}
+#'   \item{hhid}{Household identifier}
 #'   \item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic}
 #'   \item{age}{Age class, adult or child}
 #'   \item{sex}{Sex}
@@ -128,7 +128,7 @@ NULL
 #' Original observational study from Uchida et al. (2017).
 #'
 #' \describe{
-#'   \item{house_id}{Household identifier}
+#'   \item{hhid}{Household identifier}
 #'   \item{member}{Family member}
 #'   \item{status}{Symptoms reported}
 #' }

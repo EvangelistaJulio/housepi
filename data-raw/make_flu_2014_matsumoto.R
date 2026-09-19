@@ -4,7 +4,7 @@ url <- "https://raw.githubusercontent.com/akira-endo/HHstudy_FluMatsumoto2014-15
 
 flu_2014_matsumoto <- read.csv(url) |>
   tidyr::uncount(Frequency) |>
-  dplyr::mutate(house_id = seq_len(dplyr::n())) |>
+  dplyr::mutate(hhid = seq_len(dplyr::n())) |>
   tidyr::pivot_longer(cols = matches("\\.(num|inf)$"),
                       names_to = c("member", ".value"),
                       names_sep = "\\.") |>
@@ -16,7 +16,7 @@ flu_2014_matsumoto <- read.csv(url) |>
                 }),
                 member = stringr::str_to_lower(member)) |>
   tidyr::unnest(status) |>
-  dplyr::select(house_id, status, member) |>
+  dplyr::select(hhid, status, member) |>
   as.data.frame()
 
 usethis::use_data(flu_2014_matsumoto, overwrite = TRUE)

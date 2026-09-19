@@ -21,7 +21,7 @@ mk_infec_discr <- local({
 # three-member household with fixed transmission, followed until day 20
 mk_house <- local({
   hhmodel <- data.frame(
-    id = c("m1", "m2", "m3"), house_id = "h1",
+    id = c("m1", "m2", "m3"), hhid = "h1",
     status = c(1, 1, 0), start_date = 0, end_date = 20, datum = c(2, 9, 4)
   ) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
@@ -32,7 +32,7 @@ mk_house <- local({
 # same household in discrete time, followed until day 6
 mk_house_discr <- local({
   hhmodel <- data.frame(
-    id = c("m1", "m2", "m3"), house_id = "h1",
+    id = c("m1", "m2", "m3"), hhid = "h1",
     status = c(1, 1, 0), start_date = 0, end_date = 6
   ) |>
     new_housepi_model("case-ascertained", discr = TRUE, quiet = TRUE) |>

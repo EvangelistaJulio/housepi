@@ -2,7 +2,7 @@ library(testthat)
 
 # model over two covariates
 mk_risk <- local({
-  hhmodel <- data.frame(house_id = 1L, status = 0L,
+  hhmodel <- data.frame(hhid = 1L, status = 0L,
                         age = c(rep("child", 2), rep("adult", 2)),
                         sex = c("M", "F", "M", "M")) |>
     new_housepi_model("final-size")
@@ -12,7 +12,7 @@ mk_risk <- local({
 # house holding one of each member type, with template parameters
 mk_house <- local({
   model <- data.frame(id = c("m1", "m2", "m3", "m4"),
-                      house_id = "h1", status = 0L,
+                      hhid = "h1", status = 0L,
                       member = c("father", "mother", "student", "sibling")) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
@@ -40,7 +40,7 @@ pin_ctr_strata <- function(value = c(0.4, NA), const = c(TRUE, NA), ...) {
 #################################
 
 test_that("Contact risks pair counts are computed correctly", {
-  tbl <- data.frame(house_id = c(rep("h1", 2L), rep("h2", 2L)),
+  tbl <- data.frame(hhid = c(rep("h1", 2L), rep("h2", 2L)),
                     age = rep(c("child", "adult"), 2L)) |>
     contact_risk_logic_table("age")
   count <- function(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
@@ -58,7 +58,7 @@ test_that("Contact risks pair counts are computed correctly", {
 
 test_that("Pair counts drop the member meeting itself", {
   # 2 children in one household imply 2 ordered child->child pairs, not 4
-  tbl <- data.frame(house_id = c(rep("h1", 3), rep("h2", 2)),
+  tbl <- data.frame(hhid = c(rep("h1", 3), rep("h2", 2)),
                     age = c(rep("child", 2), rep("adult", 3))) |>
     contact_risk_logic_table("age")
   count <- function(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
@@ -215,7 +215,7 @@ test_that("Absoluteness follows the reference across every definition mode", {
 test_that("Every rule group keeps its anchoring in auto", {
   risk_refer <- function(...) {
     sarscov2_2021_icofs |>
-      dplyr::filter(house_id %in% utils::head(unique(house_id), 50)) |>
+      dplyr::filter(hhid %in% utils::head(unique(hhid), 50)) |>
       new_housepi_model("final-size") |>
       add_contact_risk(by = c("age", "sex"), ...)
   }
@@ -256,7 +256,7 @@ test_that("An invalid contact reference is rejected", {
 test_that("Contact risks expand on their own covariates only", {
   hhdata <- sarscov2_2021_icofs |>
     dplyr::select(-start_date) |>
-    dplyr::filter(house_id %in% utils::head(unique(house_id), 50))
+    dplyr::filter(hhid %in% utils::head(unique(hhid), 50))
 
   # the covariate itself must be a genuine data column
   hhdata |>
@@ -468,7 +468,7 @@ test_that("Custom mode absorbs all-NA default into single group", {
     param_name = c("ctr_child_child", "ctr_mother_child",
                    ".reference", "ctr_cross_gen")
   )
-  data.frame(house_id = 1, status = 0,
+  data.frame(hhid = 1, status = 0,
              member = c("student", "mother", "father", "student")) |>
     new_housepi_model("final-size") |>
     add_contact_risk(strata = strata, symmetric = FALSE) |>
@@ -561,7 +561,7 @@ test_that("Distinct rule_groups multiply at the cell", {
   # make two rule groups whose winners multiply into one cell. The table tags
   # no .reference, and unmatched cells read the reference value 1
   snapshot <- data.frame(
-    id = c("m1", "m2", "m3", "m4"), house_id = "h1", status = 0L,
+    id = c("m1", "m2", "m3", "m4"), hhid = "h1", status = 0L,
     age = c("adult", "adult", "child", "adult"),
     class = c("a", "a", "b", "b")
   ) |>
@@ -589,7 +589,7 @@ test_that("Distinct rule_groups multiply at the cell", {
 
 test_that("Contact risk definition work as expected", {
   hhmodel <- data.frame(
-    house_id = c(rep("h1", 3), rep("h2", 6)),
+    hhid = c(rep("h1", 3), rep("h2", 6)),
     status = c(1, 0, 0, 1, 0, 0, 0, 0, 0),
     member = c("student", "other", "other",
                "student", "sibling", "mother", "father", "other", "student")
@@ -631,7 +631,7 @@ test_that("Contact risk definition work as expected", {
 
 test_that("A contact risk keyed on an observation is rejected", {
   # the risk feeds the transmission model the observation is generated from
-  hhmodel <- data.frame(house_id = c(1, 1), status = c(1, 0),
+  hhmodel <- data.frame(hhid = c(1, 1), status = c(1, 0),
                         datum = c(2, 3), datum_2 = c(2, 6)) |>
     new_housepi_model("final-size")
 
@@ -649,7 +649,7 @@ test_that("A contact risk keyed on an observation is rejected", {
 
 test_that("Contact risks raise an error for incompatible models", {
   data.frame(
-    house_id = 1, id = seq(4), status = seq(4),
+    hhid = 1, id = seq(4), status = seq(4),
     datum = c("a", "a", "b", "b")
   ) |>
     new_housepi_model("test") |>

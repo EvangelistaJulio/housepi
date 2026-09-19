@@ -158,7 +158,7 @@ namespace housepi
         for (size_t i = 0; i < report_indiv.total; ++i)
         {
             std::string id = std::to_string(i + 1);                          // default id
-            std::string house_id = std::to_string(house_vector_.size() + 1); // default house_id
+            std::string hhid = std::to_string(house_vector_.size() + 1); // default hhid
             StatusLvl status = status::MISSING;
 
             if (input.count("id"))
@@ -169,13 +169,13 @@ namespace housepi
                         "Individual in row n." + std::to_string(i + 1) +
                         " had missing " + msg::field("id") + ".");
             }
-            if (input.count("house_id"))
+            if (input.count("hhid"))
             {
-                house_id = input.at("house_id")[i]; // user house_id
-                if (na::is(house_id))
+                hhid = input.at("hhid")[i]; // user hhid
+                if (na::is(hhid))
                     msg::stop(
                         "Individual in row n." + std::to_string(i + 1) +
-                        " had missing " + msg::field("house_id") + ".");
+                        " had missing " + msg::field("hhid") + ".");
             }
             if (input.count("status"))
             {
@@ -234,7 +234,7 @@ namespace housepi
             }
 
             // if household index doesn't exist, add new household
-            if (!hhid_to_index_.count(house_id))
+            if (!hhid_to_index_.count(hhid))
             {
                 // map data index to household number
                 size_t H = house_vector_.size();
@@ -242,17 +242,17 @@ namespace housepi
                     msg::stop(
                         "Data exceeded the maximum of " +
                         std::to_string(std::numeric_limits<HouseIdx>::max()) + " households.");
-                hhid_to_index_.emplace(house_id, H);
+                hhid_to_index_.emplace(hhid, H);
                 // create a new empty household
                 house_vector_.emplace_back();
                 house_vector_.back().house_index_ = static_cast<HouseIdx>(H);
-                house_ids_.emplace_back(house_id);
+                hhids_.emplace_back(hhid);
             }
             // extract the household reference
-            Household &house = house_vector_.at(hhid_to_index_.at(house_id));
+            Household &house = house_vector_.at(hhid_to_index_.at(hhid));
             if (house.size() == std::numeric_limits<MemberIdx>::max())
                 msg::stop(
-                    "Household " + msg::val(house_id) + " exceeded the maximum of " +
+                    "Household " + msg::val(hhid) + " exceeded the maximum of " +
                     std::to_string(std::numeric_limits<MemberIdx>::max()) + " members.");
 
             // assign the individual the respective household
@@ -300,12 +300,12 @@ namespace housepi
                 attr.finalize();
     }
 
-    size_t DataWide::house_id_to_index_(std::string_view house_id) const
+    size_t DataWide::index_of_(std::string_view hhid) const
     {
-        auto it = hhid_to_index_.find(house_id);
+        auto it = hhid_to_index_.find(hhid);
         if (it == hhid_to_index_.end())
             msg::stop(
-                "Index " + msg::val(std::string(house_id)) + " did not match any household in the data.");
+                "Index " + msg::val(std::string(hhid)) + " did not match any household in the data.");
         return it->second;
     }
 
@@ -315,7 +315,7 @@ namespace housepi
         hhid_to_index_.clear();
         indiv_data_.clear();
         indiv_ids_.clear();
-        house_ids_.clear();
+        hhids_.clear();
         report_indiv = ReportIndividual();
         report_house = ReportHousehold();
         report_hh_size = ReportHouseSizes();
@@ -326,8 +326,8 @@ namespace housepi
         std::vector<std::string> headers = read::extract_keys(input);
 
         // assess the presence of house IDs
-        if (!vect::contains(headers, "house_id"))
-            msg::warn("Ignored household structure.\nMissing data column " + msg::field("house_id") + ".");
+        if (!vect::contains(headers, "hhid"))
+            msg::warn("Ignored household structure.\nMissing data column " + msg::field("hhid") + ".");
 
         // assess individual IDs are unique
         if (vect::contains(headers, "id") &&
@@ -335,7 +335,7 @@ namespace housepi
             msg::stop("Provided individual IDs are not unique.");
 
         // remove standard headers
-        vect::remove(headers, {"id", "house_id", "status"});
+        vect::remove(headers, {"id", "hhid", "status"});
 
         // add optional keys to registry
         for (const std::string &datastring : headers)

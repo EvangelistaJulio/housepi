@@ -9,7 +9,7 @@ risk_stop_hint <- paste("Choose {.arg by} for automatic definitions,",
                         "{.arg strata} for custom.")
 
 # Reserved column names (non-covariate) in a logic table.
-data_reserved_cols <- c("id", "house_id", "status")
+data_reserved_cols <- c("id", "hhid", "status")
 # `value` pins a stratum during simulation, `const` fixes it in inference too.
 risk_pin_cols <- c("value", "const")
 risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group",

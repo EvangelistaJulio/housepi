@@ -8,7 +8,7 @@ mk_wrapper <- local({
 # households over a member covariate the risk wrappers stratify on
 mk_member <- local({
   hhmodel <- data.frame(
-    house_id = c(1, 1, 2, 2, 2),
+    hhid = c(1, 1, 2, 2, 2),
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
   ) |>
@@ -45,12 +45,12 @@ test_that("Wrappers reject objects that are not a housepi model", {
 
 test_that("Data provided at construction is exposed via get_data_wide", {
   hhdata <- get_data_wide(new_housepi_model(flu_1918_baltimore, "test"))
-  expect_true(all(c("house_id", "status") %in% colnames(hhdata)))
+  expect_true(all(c("hhid", "status") %in% colnames(hhdata)))
 
   # id automatically added
   expect_identical(hhdata$id, as.character(seq_len(nrow(hhdata))))
-  # house_id cast to character
-  expect_identical(hhdata$house_id, as.character(flu_1918_baltimore$house_id))
+  # hhid cast to character
+  expect_identical(hhdata$hhid, as.character(flu_1918_baltimore$hhid))
   # statuses are integer
   expect_identical(hhdata$status, flu_1918_baltimore$status)
 })
@@ -123,7 +123,7 @@ test_that("Bulk import resolves symbols in the calling frame", {
 })
 
 test_that("add_observation routes every input branch on `level`", {
-  hhmodel <- data.frame(house_id = "h1", status = 1, record = 3, datum = 2) |>
+  hhmodel <- data.frame(hhid = "h1", status = 1, record = 3, datum = 2) |>
     new_housepi_model("test")
 
   # default level is member

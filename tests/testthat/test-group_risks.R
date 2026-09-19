@@ -3,7 +3,7 @@ library(testthat)
 # Model over two covariates. Covariate columns stay character on purpose:
 # levels follow order of first appearance, which fixes the reference stratum.
 mk_risk <- local({
-  hhdata <- data.frame(house_id = 1, status = 0,
+  hhdata <- data.frame(hhid = 1, status = 0,
                        age = c("child", "child", "adult", "adult"),
                        sex = c("M", "F", "M", "M"),
                        isolation = c(FALSE, FALSE, TRUE, TRUE))
@@ -17,7 +17,7 @@ mk_risk <- local({
 # present in every household
 mk_flu <- local({
   hhdata <- data.frame(
-    house_id = c(1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5),
+    hhid = c(1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5),
     status = c(1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1),
     member = c("student", "other", "student", "sibling",
                "student", "mother", "father",
@@ -41,14 +41,14 @@ mk_status <- local({
   status <- c("escaped", "symptomatic", "asymptomatic", "symptomatic",
               "escaped", "asymptomatic", "symptomatic", "escaped",
               "asymptomatic", "symptomatic", "asymptomatic", "escaped")
-  hhdata <- data.frame(house_id = rep(1:4, each = 3), status = status,
+  hhdata <- data.frame(hhid = rep(1:4, each = 3), status = status,
                        datum = ifelse(status == "escaped", NA, status))
   list(data = hhdata, model = new_housepi_model(hhdata, "final-size"))
 })
 
 # numeric covariates a risk can stratify on, and an observation can read
 mk_observed <- local({
-  hhmodel <- data.frame(house_id = c(1, 1), status = c(1, 0),
+  hhmodel <- data.frame(hhid = c(1, 1), status = c(1, 0),
                         datum = c(2, 3), datum_2 = c(2, 6)) |>
     new_housepi_model("final-size")
   list(model = hhmodel)
@@ -196,7 +196,7 @@ test_that("Group risks hold without data and re-derive on add_data_wide", {
 test_that("Group risks expand on their own covariates only", {
   hhdata <- sarscov2_2021_icofs |>
     dplyr::select(-start_date) |>
-    dplyr::filter(house_id %in% utils::head(unique(house_id), 50))
+    dplyr::filter(hhid %in% utils::head(unique(hhid), 50))
 
   # a data column the risk does not read leaves the expansion untouched
   risks <- hhdata |>
@@ -453,7 +453,7 @@ test_that("Group risk mixed auto and custom modes preserve strata entries", {
     expect_warning("[Oo]verwriting.*community")
 
   # a covariate the data does not carry fails as soon as data is attached
-  data.frame(house_id = 1, status = 0, age = c("child", "adult")) |>
+  data.frame(hhid = 1, status = 0, age = c("child", "adult")) |>
     new_housepi_model("final-size") |>
     add_group_risk("infectivity", strata = mk_risk$strata) |>
     expect_error("[Uu]nknown covariate.*isolation")
@@ -679,7 +679,7 @@ test_that("A status stratum drives simulated transmission", {
   # asymptomatic stratum near zero, a run that draws only asymptomatic cases
   # must transmit far less than one that draws only symptomatic ones
   hhmodel <- sarscov2_2021_icofs |>
-    dplyr::filter(house_id %in% sample(unique(house_id), 150)) |>
+    dplyr::filter(hhid %in% sample(unique(hhid), 150)) |>
     dplyr::mutate(status = NA, start_date = 0, end_date = 21) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_infectivity_profile(import = "template") |>
@@ -867,7 +867,7 @@ test_that("A fixed stratum anchors the scale of its rule group", {
 test_that("Strata counts come from the engine cross-tabulation", {
   # a cell the data does not carry forms no stratum of its own, so the counts
   # add up to the members that carry a value, not to every member
-  hhmodel <- data.frame(house_id = c("h1", "h1", "h2", "h2", "h3"),
+  hhmodel <- data.frame(hhid = c("h1", "h1", "h2", "h2", "h3"),
                         status = c(1, 0, 1, 1, 0),
                         datum = c("a", "b", "a", NA, "b"),
                         datum_2 = c(TRUE, FALSE, TRUE, FALSE, NA)) |>
@@ -891,7 +891,7 @@ test_that("A wildcard stratum survives a missing covariate cell", {
   # column that happens to carry an empty cell must not collapse the two
   strata <- data.frame(datum = c("a", NA),
                        param_name = c(".reference", "sus_rest"))
-  snapshot <- data.frame(id = c("m1", "m2", "m3"), house_id = "h1",
+  snapshot <- data.frame(id = c("m1", "m2", "m3"), hhid = "h1",
                          status = c(1, 0, 0), datum = c("a", "b", NA)) |>
     new_housepi_model("final-size", quiet = TRUE) |>
     add_parameter(import = "template") |>
@@ -913,7 +913,7 @@ test_that("A wildcard stratum counts the members it resolves to", {
   # the specific stratum takes `m1` off the wildcard
   strata <- data.frame(datum = c("a", NA),
                        param_name = c(".reference", "sus_rest"))
-  hhmodel <- data.frame(id = c("m1", "m2", "m3"), house_id = "h1",
+  hhmodel <- data.frame(id = c("m1", "m2", "m3"), hhid = "h1",
                         status = c(1, 0, 0), datum = c("a", "b", NA)) |>
     new_housepi_model("final-size", quiet = TRUE) |>
     add_parameter(import = "template") |>

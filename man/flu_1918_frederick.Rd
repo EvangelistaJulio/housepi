@@ -15,7 +15,7 @@ Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 }
 \details{
 \describe{
-\item{house_id}{Household identifier}
+\item{hhid}{Household identifier}
 \item{status}{Reported case}
 }
 

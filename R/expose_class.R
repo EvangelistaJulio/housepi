@@ -21,7 +21,7 @@ rd_model_out_ <- paste(
 rd_add_wide_ <- "`data.frame` Household data used for analysis (wide format).
 Optional at construction; if omitted, attach it later with
 [add_data_wide()][housepi::add_data_wide]."
-rd_house_id_ <- "`character(1)` ID of the household of interest."
+rd_hhid_ <- "`character(1)` ID of the household of interest."
 rd_mdl_choice_ <- "`character(1)` Choice for the model.
 One between:
 \\describe{
@@ -1055,7 +1055,7 @@ add_infectivity_profile <- function(hhmodel,
 #' For models with latent variables
 #' this is conditioned on current latent values.
 #' @param hhmodel `r rd_model_in_`
-#' @param house_id `r rd_house_id_`
+#' @param hhid `r rd_hhid_`
 #' If `NA` (default) it computes for the whole data.
 #' @return `numeric(1)`. The complete-data log-likelihood.
 #' `r rd_natural_log_`
@@ -1065,11 +1065,11 @@ add_infectivity_profile <- function(hhmodel,
 #'   add_parameter(import = "template") |>
 #'   evaluate_log_lik()
 #' @export
-evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
+evaluate_log_lik <- function(hhmodel, hhid = NA_character_) {
   stopifnothousepi(hhmodel)
   pvt <- hhmodel$.__enclos_env__$private
   pvt$build_full_()
-  .engine$evaluate_log_lik(pvt$generator_$mcmc_ptr, house_id)
+  .engine$evaluate_log_lik(pvt$generator_$mcmc_ptr, hhid)
 }
 
 #' @title Inspect the augmented data of a housepi model
@@ -1098,7 +1098,7 @@ inspect_augmented_data <- function(hhmodel) {
 #' Read all the variables a `HousepiModel` holds for one household.
 #' `r rd_inspect_state_`
 #' @param hhmodel `r rd_model_in_`
-#' @param house_id `r rd_house_id_`
+#' @param hhid `r rd_hhid_`
 #' @return `list`, all variables of the household.
 #' Entries are named after the homonymous active fields, followed by the
 #' latent, observation and transmission log-likelihood contributions.
@@ -1111,10 +1111,10 @@ inspect_augmented_data <- function(hhmodel) {
 #' evaluate_log_lik(hhmodel)
 #' inspect_house_state(hhmodel, "1")
 #' @export
-inspect_house_state <- function(hhmodel, house_id) {
+inspect_house_state <- function(hhmodel, hhid) {
   stopifnothousepi(hhmodel)
   gen <- hhmodel$.__enclos_env__$private$generator_
-  out <- .engine$export_house_snapshot(gen$mcmc_ptr, as.character(house_id))
+  out <- .engine$export_house_snapshot(gen$mcmc_ptr, as.character(hhid))
   out$data_wide <- gen$refactor_data_wide(out$data_wide)
   ## data long
   if (all(dim(out$data_long) == 0)) out$data_long <- NULL
@@ -1154,7 +1154,7 @@ inspect_house_state <- function(hhmodel, house_id) {
 #' @param id_draws Infected members whose public latent draws are stored.
 #' Either a `character()` of individual identifiers,
 #' or a `list` with entries `id` (individual identifiers)
-#' and/or `house_id` (whole household infected members are stored).
+#' and/or `hhid` (whole household infected members are stored).
 #' If `NA`, one random eligible household is followed (default).
 #' Pass `".none"` to store nothing.
 #' @param progress `r rd_progress_`

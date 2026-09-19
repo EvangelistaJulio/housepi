@@ -596,7 +596,7 @@ HousepiModel <- R6::R6Class(
                            simulating = FALSE, ...) {
       # only run_inference resolves a selection; other builds store nothing
       if (!is.list(id_draws))
-        id_draws <- list(id = character(), house_id = character())
+        id_draws <- list(id = character(), hhid = character())
       .engine$import_setup(
         private$generator_$mcmc_ptr,
         char_setup_input_(c(list(
@@ -607,7 +607,7 @@ HousepiModel <- R6::R6Class(
           chains = chains,
           threads = threads,
           id_draws = id_draws$id,
-          house_draws = id_draws$house_id,
+          house_draws = id_draws$hhid,
           # generate a seed for Cpp random number generator
           seed = sample.int(.Machine$integer.max, 1L),
           progress = progress
@@ -640,13 +640,13 @@ HousepiModel <- R6::R6Class(
                               nrow(private$augm_$defs))
       # structural upper bound: every named/default household counts as its
       # largest possible size (status filtering happens in the engine)
-      house_id <- self$data_wide$house_id
-      max_hhsize <- if (length(house_id) == 0) 1L else max(table(house_id))
+      hhid <- self$data_wide$hhid
+      max_hhsize <- if (length(hhid) == 0) 1L else max(table(hhid))
 
-      n_house_pick <- length(unique(id_draws$house_id))
+      n_house_pick <- length(unique(id_draws$hhid))
       n_members_upper <- length(unique(id_draws$id)) + n_house_pick * max_hhsize
       n_latent_cols <- n_members_upper * n_latent_defs
-      n_house_total <- length(unique(house_id))
+      n_house_total <- length(unique(hhid))
       # total count of columns
       total_cols <- n_param_cols + n_latent_cols + n_house_total + 1L
       # the column-by-sample product exceeds the 32-bit range on large runs
@@ -728,7 +728,7 @@ HousepiModel <- R6::R6Class(
     # Combine observation process to measures and refactor.
     # UPDATE: I shall drop necessity for refactoring with variant data.
     # `labelled = FALSE` hands the simulated frames over engine-coded, which
-    # only suits consumers reading `house_id` and `status`.
+    # only suits consumers reading `hhid` and `status`.
     helper_obs_process_ = function(obs_process, labelled = TRUE) {
       gen <- private$generator_
       if (is.null(obs_process)) {

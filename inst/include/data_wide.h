@@ -90,11 +90,11 @@ namespace housepi
         //////  GETTER  //////
         //////////////////////
 
-        /// Get reference of household by internal absolute indexing position H or by house_id.
+        /// Get reference of household by internal absolute indexing position H or by hhid.
         Household &at(size_t H) noexcept { return house_vector_[H]; }
         const Household &at(size_t H) const noexcept { return house_vector_[H]; }
-        Household &at(std::string_view house_id) { return at(house_id_to_index_(house_id)); }
-        const Household &at(std::string_view house_id) const { return at(house_id_to_index_(house_id)); }
+        Household &at(std::string_view hhid) { return at(index_of_(hhid)); }
+        const Household &at(std::string_view hhid) const { return at(index_of_(hhid)); }
 
         /// Access wide-format data of given column for an individual.
         /// NOTE: resolves through the per-member read-surface (raw or a wired Variable).
@@ -110,10 +110,10 @@ namespace housepi
         /// Unique identifier of an individual, as provided in data.
         const std::string &id(const Individual &indiv) const noexcept { return indiv_ids_[Index::of(indiv)]; }
         /// Identifier of a household, as provided in data.
-        const std::string &house_id(const Household &house) const noexcept { return house_ids_[Index::of(house)]; }
+        const std::string &hhid(const Household &house) const noexcept { return hhids_[Index::of(house)]; }
         /// Names for error messages.
         std::string str(const Individual &indiv) const { return "individual " + msg::val(id(indiv)); }
-        std::string str(const Household &house) const { return "household " + msg::val(house_id(house)); }
+        std::string str(const Household &house) const { return "household " + msg::val(hhid(house)); }
 
         /// Column names known at import, without those produced by an observation.
         std::vector<std::string> imported_cols() const;
@@ -200,7 +200,7 @@ namespace housepi
         dict<size_t> hhid_to_index_ = {};         /// Map house-id to internal index
         std::vector<IndivWide_> indiv_data_;      /// External storage for individual data
         std::vector<std::string> indiv_ids_ = {}; /// User individual ids, by individual index
-        std::vector<std::string> house_ids_ = {}; /// User house ids, by household index
+        std::vector<std::string> hhids_ = {};     /// User house ids, by household index
         size_t n_imported_ = 0;                   /// Number of columns known at import
 
         std::vector<Household> house_vector_ = {};   /// All households in data
@@ -244,8 +244,8 @@ namespace housepi
         //////  HELPERS  //////
         ///////////////////////
 
-        /// Get housepi household index from house_id.
-        size_t house_id_to_index_(std::string_view house_id) const;
+        /// Get housepi household index from the user hhid.
+        size_t index_of_(std::string_view hhid) const;
         /// Clear previous data report.
         void helper_build_clear_data_();
         /// Assert that data headers are correct.

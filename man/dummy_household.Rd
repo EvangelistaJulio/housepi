@@ -16,7 +16,7 @@ Household data with a single household of 2 individuals.
 \details{
 \describe{
 \item{id}{Individual identifier}
-\item{house_id}{Household identifier}
+\item{hhid}{Household identifier}
 \item{status}{Serological test result}
 }
 }

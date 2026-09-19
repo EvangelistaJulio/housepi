@@ -29,7 +29,7 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
   df <- as.data.frame(data_wide)
   # an empty call returns the empty shape of the measure
   if (ncol(df) == 0) return(df)
-  for (col in c("house_id", "status")) if (!col %in% colnames(df)) stop_h(
+  for (col in c("hhid", "status")) if (!col %in% colnames(df)) stop_h(
     "Column {.field {col}} is missing from the data.",
     paste("Measures by household size need one row per individual, with a",
           "household identifier and a follow-up outcome.")
@@ -38,7 +38,7 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
     df$status <- status_to_codes_(df$status, escaped)$codes
   }
   df$status <- as.integer(df$status)
-  df$house_id <- match(df$house_id, unique(df$house_id))
+  df$hhid <- match(df$hhid, unique(df$hhid))
   df
 }
 
@@ -750,7 +750,7 @@ HousepiPPC <- R6::R6Class(
                           point_estimate = "median",
                           threads = 1L,
                           progress = TRUE) {
-      # the built-in measures read only house_id and status, so without an
+      # the built-in measures read only hhid and status, so without an
       # observation process the simulated frames stay engine-coded: the
       # relabelling round trip is skipped once per replicate
       esc <- hhmodel$escaped

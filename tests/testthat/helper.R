@@ -18,7 +18,7 @@ helper_flat_sink <- function(hhmodel, ..., column = "obs") {
 # days, the introduction at day 0, and the transmission parameters it is
 # evaluated at.
 helper_onset_house <- list(
-  data = data.frame(id = sprintf("m%s", seq(7)), house_id = "h1",
+  data = data.frame(id = sprintf("m%s", seq(7)), hhid = "h1",
                     status = c(rep(1, 3), rep(0, 4)),
                     infec_time = c(0, 3, 4, rep(NA, 4)),
                     onset_date = c(2, 6, 6, rep(NA, 4)),

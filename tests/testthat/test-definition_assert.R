@@ -97,7 +97,7 @@ test_that("Definitions carry the defaults the user left out", {
   expect_equal(param$min, c(0, 0, 0, NA))
   expect_equal(param$max, c(1, 1, 3, NA))
 
-  hhdata <- data.frame(house_id = c("h1", "h1"), status = c(1, 0),
+  hhdata <- data.frame(hhid = c("h1", "h1"), status = c(1, 0),
                        record = c(3L, 1L), record_2 = c(0.5, 2.1))
   hhmodel <- hhdata |>
     new_housepi_model("final_size") |>

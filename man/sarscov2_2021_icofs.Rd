@@ -21,7 +21,7 @@ Contacts averaged 3 tests during follow-up.
 \details{
 \describe{
 \item{id}{Individual identifier}
-\item{house_id}{Household identifier}
+\item{hhid}{Household identifier}
 \item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic}
 \item{age}{Age class, adult or child}
 \item{sex}{Sex}

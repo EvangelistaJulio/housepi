@@ -12,7 +12,7 @@ format_flu_1918 <- function(location) {
     dplyr::select(-case_type) |>
     tidyr::uncount(n) |>
     dplyr::mutate(
-      house_id = seq_len(dplyr::n()),
+      hhid = seq_len(dplyr::n()),
       status = lapply(seq_len(dplyr::n()), function(i) {
       c(rep(1L, inf[i]), rep(0L, size[i] - inf[i]))
     })) |>
