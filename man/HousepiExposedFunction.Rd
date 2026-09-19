@@ -7,6 +7,11 @@
 \description{
 A housepi function and its primitive on user-supplied points.
 }
+\examples{
+fnc <- browse_functions("pow", x2 = 3)
+fnc$func(seq(0, 5))
+fnc$prim(seq(0, 5))
+}
 \section{Super class}{
 \code{\link[housepi:HousepiExposed]{HousepiExposed}} -> \code{HousepiExposedFunction}
 }

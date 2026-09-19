@@ -393,14 +393,14 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
   # house_size vs status equivalence groups correspond to measure non-zeros
   cases <- measure_cases_by_hhsize(flu_2014_matsumoto)
   cases$hhsize <- NULL
-  subset(case_summary, level == "household" & metric == "distinct")$count |>
+  subset(case_summary, level == "household" & metric == "classes")$count |>
     expect_equal(sum(cases[!is.na(cases)] > 0))
 
   # fix expected equivalence classes by member composition
   hhmodel |>
     add_group_risk("community", by = "member") |>
     summarise_house_cases() |>
-    subset(level == "household" & metric == "distinct") |>
+    subset(level == "household" & metric == "classes") |>
     getElement("count") |>
     expect_equal(454L)
 })
@@ -521,6 +521,25 @@ test_that("Param table with degenerate columns raises an ESS error", {
       data.frame(rho = rep(1, 100))
     )) |>
     expect_error("ESS")
+})
+
+test_that("Thinning to ESS keeps between one draw per chain and all draws", {
+  hhmodel <- data.frame(house_id = "h1", id = c("m1", "m2"), status = 0) |>
+    new_housepi_model("test")
+  # two disjoint trending chains of 20 iterations: ESS below the chain count
+  trend <- posterior::as_draws_df(data.frame(
+    rho = rep(c(10, 20), each = 20) + rep(seq_len(20), 2) / 20,
+    .chain = rep(1:2, each = 20), .iteration = rep(seq_len(20), 2)
+  ))
+  run_simulation(hhmodel, param_table = trend) |>
+    expect_length(2)
+  # one shuffled chain of 20 iterations: ESS 23.4, above the draw count and
+  # below the 26 at which posterior caps it
+  shuffle <- posterior::as_draws_df(data.frame(rho = c(
+    10, 2, 19, 12, 6, 14, 20, 9, 7, 3, 5, 1, 13, 16, 4, 8, 15, 11, 18, 17
+  )))
+  run_simulation(hhmodel, param_table = shuffle) |>
+    expect_length(20)
 })
 
 test_that("Simulation auto-imports parameters from param_table", {

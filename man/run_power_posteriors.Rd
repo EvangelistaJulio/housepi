@@ -62,6 +62,13 @@ An object of class \code{HousepiPowerPosteriors}.
 Sample the power-posterior ladder used to estimate the log-evidence.
 See \code{\link[=evaluate_log_evidence]{evaluate_log_evidence()}} to estimate the log-evidence.
 }
+\examples{
+ladder <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template") |>
+  run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
+evaluate_log_evidence(ladder)
+}
 \references{
 \insertRef{friel_improving_2014}{housepi}
 }

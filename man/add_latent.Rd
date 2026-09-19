@@ -26,7 +26,9 @@ add_latent(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value. Either a plain value, the name of another definition,
+\item{value}{\code{numeric(1)} | \code{character(1)}. Value the definition is pinned to in simulations. In inference, it
+pins a constant or deterministic definition, and is ignored when a
+\code{model} is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
 definitions the model carries; when two of them share it, the convention
 \code{argument@source} ("argument at source") says which one is meant:

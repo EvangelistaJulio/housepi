@@ -13,6 +13,9 @@ housepi_theme_set(base_size = 11, base_family = "", transparent = FALSE)
 
 \item{transparent}{\code{logical(1)} Leave the plot background transparent.}
 }
+\value{
+Invisibly returns \code{NULL}; called for setting the themes.
+}
 \description{
 If suggested packages are installed, sets corresponding \code{ggplot2},
 \code{bayesplot} and \code{flextable} themes as used in housepi vignettes.

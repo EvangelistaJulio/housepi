@@ -40,6 +40,14 @@ warn_logevidence_experimental_ <- function() {
 #' @description
 #' Container for the power-posterior ladder sampled by [run_power_posteriors()].
 #' Estimate the log-evidence from it with [evaluate_log_evidence()].
+#' @references
+#' \insertRef{friel_improving_2014}{housepi}
+#' @examples
+#' ladder <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template") |>
+#'   run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
+#' ladder
 #' @docType class
 HousepiPowerPosteriors <- R6::R6Class(
   classname = "HousepiPowerPosteriors",
@@ -156,12 +164,12 @@ HousepiPowerPosteriors <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @description Sample the power-posterior ladder and store the draws.
-    #' @param generator `HousepiGenerator` Helper class for model generation.
+    #' @description
+    #' Internal: [run_power_posteriors()] builds this object, don't call
+    #' `$new()` directly.
+    #' @param generator Internal model compiler.
     #' @param scheme `r rd_evi_scheme_`
     #' @param rungs `r rd_evi_rungs_`
-    #' @references
-    #' \insertRef{friel_improving_2014}{housepi}
     initialize = function(generator, scheme = "adaptive", rungs = 30L) {
       ptr <- generator$mcmc_ptr
       output <- .engine$run_power_posteriors(ptr, as.character(scheme),
@@ -232,6 +240,12 @@ HousepiPowerPosteriors <- R6::R6Class(
 #' @return An object of class `HousepiPowerPosteriors`.
 #' @references
 #' \insertRef{friel_improving_2014}{housepi}
+#' @examples
+#' ladder <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template") |>
+#'   run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
+#' evaluate_log_evidence(ladder)
 #' @export
 run_power_posteriors <- function(hhmodel,
                                  scheme = c("adaptive", "power-fractions"),
@@ -259,7 +273,7 @@ run_power_posteriors <- function(hhmodel,
 #' @description
 #' Estimate the logarithm of the evidence (aka marginal likelihood) from a
 #' power-posteriors ladder sampled with [run_power_posteriors()].
-#' @param x A `HousepiPowerPosteriors` object.
+#' @param hhdraws A `HousepiPowerPosteriors` object.
 #' @param method `r rd_evi_method_`
 #' @return named `numeric(2)` (`estimate`, `sd`)
 #' `sd` is `NA` if method provides no standard-error estimate.
@@ -267,16 +281,27 @@ run_power_posteriors <- function(hhmodel,
 #' @references
 #' \insertRef{friel_improving_2014}{housepi}
 #' \insertRef{xie_improving_2011}{housepi}
+#' @examples
+#' ladder <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template") |>
+#'   run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
+#' evaluate_log_evidence(ladder)
+#' evaluate_log_evidence(ladder, method = "thermodynamic")
 #' @export
 evaluate_log_evidence <- function(
-    x, method = c("stepping-stone", "thermodynamic")) {
-  if (inherits(x, "HousepiModel")) {
+  hhdraws, method = c("stepping-stone", "thermodynamic")
+) {
+  if (inherits(hhdraws, "HousepiModel")) {
     stop_h(
       "Impossible to evaluate log-evidence on {.cls HousepiModel} directly.",
       paste("Sample a ladder first with {.fn run_power_posteriors},",
             "then pass it to {.fn evaluate_log_evidence}.")
     )
   }
-  stopifnot(inherits(x, "HousepiPowerPosteriors"))
-  x$evaluate_log_evidence(method = method)
+  if (!inherits(hhdraws, "HousepiPowerPosteriors")) stop_h(
+    "{.arg hhdraws} must be of class {.cls HousepiPowerPosteriors}.",
+    "Create one with {.fn run_power_posteriors}."
+  )
+  hhdraws$evaluate_log_evidence(method = method)
 }

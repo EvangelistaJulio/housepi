@@ -36,7 +36,15 @@ One between \code{"member"}, one value per positive status individual, and
 \code{"house"}, one value per household reduced over all its members.
 In mode 'multiple', applies to every entry not setting its own.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}. Initial value. Either a plain value, the name of another definition,
+\item{value}{\code{numeric(1)} | \code{character(1)}. Definition of the
+observation, depending on \code{level}:
+\describe{
+\item{\code{"member"}}{without a \code{model}, the value computed for every member;
+with a \code{model}, the datum the model is evaluated at, the like-named data
+column when omitted;}
+\item{\code{"house"}}{a reduction over the household's members, one of
+\code{min()}, \code{max()}, \code{sum()} or \code{prod()}, e.g. \code{min(onset_date@D)}.}
+} Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
 definitions the model carries; when two of them share it, the convention
 \code{argument@source} ("argument at source") says which one is meant:
@@ -130,4 +138,22 @@ Pass a pre-built named list of definitions through \code{import}.
 A definition name colliding with reserved argument
 is deprecated.
 It can be supplied only via single mode definition.
+}
+\examples{
+hhmodel <- sarscov2_2021_icofs |>
+  new_housepi_model("case_ascertained") |>
+  add_parameter(import = "template") |>
+  add_infectivity_profile(import = "template") |>
+  add_latent(
+    infec_time = list(model = "uniform",
+                      min = start_date@D - 10, max = end_date@D),
+    incub_period = list(model = "gamma", mean = 3, sd = 1.4),
+    onset_time = infec_time + incub_period
+  ) |>
+  # member level: the test date is noisy around the onset time
+  add_observation("test_date", model = "normal",
+                  mean = onset_time, sd = 1, min = floor(onset_time)) |>
+  # house level: the earliest positive test among members
+  add_observation("first_test", value = min(test_date@D), level = "house")
+get_observations(hhmodel)
 }

@@ -25,8 +25,9 @@ add_parameter(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} Initial value.
-Required only if constant or random initialization has been disabled.}
+\item{value}{\code{numeric(1)} Value the definition is pinned to in simulations. In inference, it
+pins a constant or deterministic definition, and is ignored when a
+\code{prior} is given.}
 
 \item{...}{named arguments for the prior distribution, or for \code{func} when the definition is deterministic.
 Advanced Monte Carlo options may also be passed through \code{...}, each prefixed

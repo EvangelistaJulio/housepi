@@ -57,6 +57,11 @@ rd_var_discr_ <- function(what, from) {
 }
 rd_obs_discr_from_ <- "the observed data column, or the model requirements"
 rd_var_prior_ <- "`character(1)` Prior distribution."
+rd_var_val_ <- function(what) {
+  sprintf("Value the definition is pinned to in simulations. In inference, it
+          pins a constant or deterministic definition, and is ignored when a
+          `%s` is given.", what)
+}
 rd_var_args_ <- function(what, proposal = FALSE, func = FALSE) {
   sink <- if (func) ", or for `func` when the definition is deterministic."
   else "."
@@ -108,8 +113,17 @@ definitions the model carries; when two of them share it, the convention
 rd_aug_status_ <- "`integer(1)` Individual positive status.
 Used to specify status-specific definitions.
 If `NA`, associate definition to all infectious individuals (default)."
-rd_aug_val_ <- paste("`numeric(1)` | `character(1)`. Initial value.",
+rd_aug_val_ <- paste("`numeric(1)` | `character(1)`.", rd_var_val_("model"),
                      rd_sources_)
+rd_obs_val_ <- paste("`numeric(1)` | `character(1)`. Definition of the
+observation, depending on `level`:
+\\describe{
+  \\item{`\"member\"`}{without a `model`, the value computed for every member;
+  with a `model`, the datum the model is evaluated at, the like-named data
+  column when omitted;}
+  \\item{`\"house\"`}{a reduction over the household's members, one of
+  `min()`, `max()`, `sum()` or `prod()`, e.g. `min(onset_date@D)`.}
+}", rd_sources_)
 rd_aug_min_ <- paste(rd_var_min_, rd_sources_)
 rd_aug_max_ <- paste(rd_var_max_, rd_sources_)
 
@@ -208,6 +222,18 @@ Expects processed `data_wide` and returns a `data_long` data.frame.
 When provided, each simulation returns `list(wide = ..., long = ...)`."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
 
+## State inspection ##
+
+rd_inspect_state_ <- "The values a `HousepiModel` holds are left by the last
+call that ran it:
+\\describe{
+  \\item{[evaluate_log_lik()]}{the evaluated parameters and latent variables,
+  with their log-likelihood contributions.}
+  \\item{[run_inference()]}{the final iteration of the last chain.}
+  \\item{[run_simulation()]}{the observed data, the parameters of the last
+  replicate.}
+}"
+
 # nocov end
 
 ############################################################################
@@ -247,7 +273,7 @@ new_housepi_model <- function(data = NULL, model = NA_character_,
 ############################################################################
 ############################################################################
 
-# Check hosuepi model.
+# Ensure object of class HousepiModel.
 stopifnothousepi <- function(hhmodel) {
   if (!inherits(hhmodel, "HousepiModel")) stop_h(
     "{.arg hhmodel} must be of class {.cls HousepiModel}.",
@@ -264,6 +290,11 @@ stopifnothousepi <- function(hhmodel) {
 #' @param hhmodel `r rd_model_in_`
 #' @param data `r rd_add_wide_`
 #' @return `r rd_model_out_`
+#' @examples
+#' # construct the model first, attach the data afterwards
+#' hhmodel <- new_housepi_model(model = "final_size") |>
+#'   add_data_wide(flu_1918_frederick)
+#' summarise_house_sizes(hhmodel)
 #' @export
 add_data_wide <- function(hhmodel, data) {
   stopifnothousepi(hhmodel)
@@ -283,6 +314,14 @@ add_data_wide <- function(hhmodel, data) {
 #' @param hhmodel `r rd_model_in_`
 #' @param data_long `data.frame` Additional individual long format data.
 #' @return `r rd_model_out_`
+#' @examples
+#' # repeated measures of one individual, matched on `id`
+#' measures <- data.frame(id = "hh001m02", day = 1:3,
+#'                        viral_load = c(5.2, 6.8, 4.1))
+#' hhmodel <- sarscov2_2021_icofs |>
+#'   new_housepi_model("case_ascertained") |>
+#'   add_data_long(measures)
+#' get_data_long(hhmodel)
 #' @export
 add_data_long <- function(hhmodel, data_long) {
   stopifnothousepi(hhmodel)
@@ -296,13 +335,15 @@ add_data_long <- function(hhmodel, data_long) {
 #' @title Summarise observed cases in the loaded household data
 #' @description
 #' Summarise cases as given from the statuses in the loaded household data.
+#' The row `classes`, counts the equivalence classes:
+#' households indistinguishable by the model (same size, statuses, risk, etc.).
 #' @param hhmodel `r rd_model_in_`
 #' @return `data.frame`, one row per metric:
 #' \describe{
 #'   \item{level}{`individual` or `household`}
 #'   \item{metric}{quantity counted in the row}
 #'   \item{count}{absolute count}
-#'   \item{percent}{percentage of the relevant total}
+#'   \item{percent}{percentage of the relevant total, `NA` for `classes`}
 #' }
 #' @examples
 #' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
@@ -517,8 +558,7 @@ add_template_defs_ <- function(pvt, family, append, key, dots) {
 #' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
-#' @param value `numeric(1)` Initial value.
-#' Required only if constant or random initialization has been disabled.
+#' @param value `numeric(1)` `r rd_var_val_("prior")`
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_var_discr_("prior", "the model requirements")`
 #' @param prior `r rd_var_prior_`
@@ -700,7 +740,7 @@ add_latent <- function(hhmodel,
 #' One between `"member"`, one value per positive status individual, and
 #' `"house"`, one value per household reduced over all its members.
 #' In mode 'multiple', applies to every entry not setting its own.
-#' @param value `r rd_aug_val_`
+#' @param value `r rd_obs_val_`
 #' @param func `r rd_var_func_`
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_var_discr_("model", rd_obs_discr_from_)`
@@ -709,6 +749,23 @@ add_latent <- function(hhmodel,
 #' @param import `r rd_import_`
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
+#' @examples
+#' hhmodel <- sarscov2_2021_icofs |>
+#'   new_housepi_model("case_ascertained") |>
+#'   add_parameter(import = "template") |>
+#'   add_infectivity_profile(import = "template") |>
+#'   add_latent(
+#'     infec_time = list(model = "uniform",
+#'                       min = start_date@D - 10, max = end_date@D),
+#'     incub_period = list(model = "gamma", mean = 3, sd = 1.4),
+#'     onset_time = infec_time + incub_period
+#'   ) |>
+#'   # member level: the test date is noisy around the onset time
+#'   add_observation("test_date", model = "normal",
+#'                   mean = onset_time, sd = 1, min = floor(onset_time)) |>
+#'   # house level: the earliest positive test among members
+#'   add_observation("first_test", value = min(test_date@D), level = "house")
+#' get_observations(hhmodel)
 #' @export
 add_observation <- function(hhmodel, name = NULL,
                             model = NA_character_, ...,
@@ -757,6 +814,14 @@ add_observation <- function(hhmodel, name = NULL,
 #' names label the corresponding statuses.
 #' @param model `character(1)`. Discrete distribution generating the status.
 #' @return `r rd_model_out_`
+#' @examples
+#' # simulate infected members as symptomatic (70%) or asymptomatic (30%)
+#' simulated <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template") |>
+#'   add_status(symptomatic = 0.7, asymptomatic = 0.3) |>
+#'   run_simulation()
+#' table(simulated$status)
 #' @export
 add_status <- function(hhmodel, ..., model = "categorical") {
   stopifnothousepi(hhmodel)
@@ -808,6 +873,21 @@ add_status <- function(hhmodel, ..., model = "categorical") {
 #' @references
 #' \insertRef{cauchemez_household_2009}{housepi}
 #' @return `r rd_model_out_`
+#' @examples
+#' hhmodel <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
+#'
+#' # single: one susceptibility parameter per age class
+#' hhmodel |>
+#'   add_group_risk("susceptibility", by = "age") |>
+#'   get_group_risks()
+#'
+#' # inline bulk: relative risks, against a chosen or the most frequent group
+#' hhmodel |>
+#'   add_group_risk(
+#'     infectivity = list(by = "isolated", reference = ".auto"),
+#'     susceptibility = list(by = "vacc_status", reference = "unvaccinated")
+#'   ) |>
+#'   get_parameters()
 #' @export
 add_group_risk <-  function(hhmodel,
                             name = NULL, by = NA_character_, ...,
@@ -876,6 +956,18 @@ add_group_risk <-  function(hhmodel,
 #' @param import Named `list` of pre-built definition to import.
 #' Cannot be combined with the single definition.
 #' @return `r rd_model_out_`
+#' @examples
+#' hhmodel <- new_housepi_model(flu_2014_matsumoto, "final_size")
+#'
+#' # one parameter per pair of family roles, relative to the most frequent pair
+#' hhmodel |>
+#'   add_contact_risk("member", reference = ".auto") |>
+#'   get_contact_risks()
+#'
+#' # asymmetric: infector-infectee and infectee-infector pairs differ
+#' hhmodel |>
+#'   add_contact_risk("member", symmetric = FALSE) |>
+#'   get_contact_risks()
 #' @export
 add_contact_risk <- function(hhmodel, by = NA_character_, ...,
                              reference = NULL,
@@ -1001,19 +1093,13 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
   .engine$evaluate_log_lik(pvt$generator_$mcmc_ptr, house_id)
 }
 
-#' @title Inspect the current state of a housepi model
+#' @title Inspect the augmented data of a housepi model
 #' @description
-#' Read the values held by a `HousepiModel` at its last state,
-#' as left by `evaluate_log_lik()`, `run_inference()` or `run_simulation()`.
+#' Read the dataset of a `HousepiModel` with its latent variables.
+#' `r rd_inspect_state_`
 #' @param hhmodel `r rd_model_in_`
-#' @param house_id `r rd_house_id_`
-#' @return
-#' `inspect_augmented_data()`: `data.frame`, the dataset with its latent variables.
-#'
-#' `inspect_house_state()`: `list`, all variables of the household.
-#' Entries are named after the homonymous active fields, followed by the
-#' latent, observation and transmission log-likelihood contributions.
-#' An empty definition is dropped unless the model requires it.
+#' @return `data.frame`, the dataset with its latent variables.
+#' @seealso [inspect_house_state()]
 #' @examples
 #' hhmodel <- flu_1918_frederick |>
 #'   new_housepi_model("final_size") |>
@@ -1021,8 +1107,6 @@ evaluate_log_lik <- function(hhmodel, house_id = NA_character_) {
 #' evaluate_log_lik(hhmodel)
 #' inspect_augmented_data(hhmodel) |>
 #'   head()
-#' inspect_house_state(hhmodel, "1")
-#' @rdname inspect_state
 #' @export
 inspect_augmented_data <- function(hhmodel) {
   stopifnothousepi(hhmodel)
@@ -1030,7 +1114,23 @@ inspect_augmented_data <- function(hhmodel) {
   gen$refactor_data_wide(.engine$export_augmented_data_wide(gen$mcmc_ptr))
 }
 
-#' @rdname inspect_state
+#' @title Inspect the state of a household in a housepi model
+#' @description
+#' Read all the variables a `HousepiModel` holds for one household.
+#' `r rd_inspect_state_`
+#' @param hhmodel `r rd_model_in_`
+#' @param house_id `r rd_house_id_`
+#' @return `list`, all variables of the household.
+#' Entries are named after the homonymous active fields, followed by the
+#' latent, observation and transmission log-likelihood contributions.
+#' An empty definition is dropped unless the model requires it.
+#' @seealso [inspect_augmented_data()]
+#' @examples
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template")
+#' evaluate_log_lik(hhmodel)
+#' inspect_house_state(hhmodel, "1")
 #' @export
 inspect_house_state <- function(hhmodel, house_id) {
   stopifnothousepi(hhmodel)

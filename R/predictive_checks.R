@@ -262,6 +262,19 @@ ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
 #' @title Posterior predictive check container for user-defined measures
 #' @description
 #' Class to extract posterior predictive checks over measures on simulations.
+#' @examples
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template")
+#' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+#'
+#' # a user-defined measure: the overall attack rate
+#' overall_ar <- function(data_wide) mean(data_wide$status > 0)
+#' ppc <- run_custom_predictive_check(hhmodel, results,
+#'                                    sar = measure_sar_by_hhsize,
+#'                                    overall = overall_ar,
+#'                                    max_nrep = 50, progress = FALSE)
+#' ppc$overall
 #' @docType class
 HousepiCustomPPC <- R6::R6Class(
   classname = "HousepiCustomPPC",
@@ -608,6 +621,15 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 #' Posterior predictive check on the standard epidemiological measures by
 #' household size: cases, attack rate and secondary attack rate, comparing
 #' observed and predicted values.
+#' @examples
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template")
+#' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+#'
+#' ppc <- run_epi_predictive_check(hhmodel, results,
+#'                                 max_nrep = 50, progress = FALSE)
+#' ppc$formatted_attack_rate
 #' @docType class
 HousepiPPC <- R6::R6Class(
   classname = "HousepiPPC",
@@ -815,6 +837,20 @@ HousepiPPC <- R6::R6Class(
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return An object of class [HousepiCustomPPC].
+#' @examples
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template")
+#' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+#'
+#' # a user-defined measure: the overall attack rate
+#' overall_ar <- function(data_wide) mean(data_wide$status > 0)
+#' ppc <- run_custom_predictive_check(hhmodel, results,
+#'                                    sar = measure_sar_by_hhsize,
+#'                                    overall = overall_ar,
+#'                                    max_nrep = 50, progress = FALSE)
+#' ppc
+#' ppc$sar$observed
 #' @export
 run_custom_predictive_check <- function(hhmodel,
                                         param_table,
@@ -857,6 +893,15 @@ run_custom_predictive_check <- function(hhmodel,
 #' @return
 #' An object of class [HousepiPPC]
 #' containing methods to compare observed and predicted cases.
+#' @examples
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template")
+#' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+#'
+#' ppc <- run_epi_predictive_check(hhmodel, results,
+#'                                 max_nrep = 50, progress = FALSE)
+#' ppc
 #' @export
 run_epi_predictive_check <- function(hhmodel,
                                      param_table,

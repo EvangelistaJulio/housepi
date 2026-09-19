@@ -57,3 +57,14 @@ S3 method on \code{\link[posterior:summarise_draws]{posterior::summarise_draws()
 \code{\link[=set_global_cri_level]{set_global_cri_level()}}. Otherwise dispatch falls through to standard
 \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}} behaviour.
 }
+\examples{
+results <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template") |>
+  run_inference(chains = 2, progress = FALSE)
+
+# all parameters and stored latent variables
+summarise_draws(results)
+# a subset of the draws
+summarise_draws(get_parameter_draws(results, "alpha"))
+}

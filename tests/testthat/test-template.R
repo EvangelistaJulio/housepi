@@ -186,3 +186,23 @@ test_that("browse_templates rejects '.' as destination path", {
     expect_true(dir.exists("final-size"))
   })
 })
+
+test_that("Model help pages name the keys the engine registers", {
+  kinds <- c(Data = "Data", Param = "Parameters", Latent = "Latent", GroupRisk = "Group Risks")
+  for (name in c("final_size", "case_ascertained")) {
+    cpp <- system.file("models", name, "model.cpp", package = "housepi") |>
+      readLines() |> paste(collapse = "\n")
+    rd <- system.file("models", name, "info.Rd", package = "housepi") |>
+      readLines() |> paste(collapse = "\n")
+    for (kind in names(kinds)) {
+      # EMPTY_KEYS declarations match nothing and register no key
+      decl <- regmatches(cpp, regexpr(sprintf("(?<=REGISTER_KEYS\\(%s,)[^)]*", kind), cpp, perl = TRUE))
+      keys <- trimws(unlist(strsplit(decl, ",")))
+      # section body up to the next section: its \code{} items are the keys
+      section <- sub(sprintf("^.*\\\\section\\{%s\\}\\{(.*?)\\\\section.*$", kinds[[kind]]), "\\1", rd)
+      if (identical(section, rd)) section <- ""
+      listed <- regmatches(section, gregexpr("(?<=\\\\item \\\\code\\{)[^}]+", section, perl = TRUE))[[1]]
+      expect_setequal(listed, keys)
+    }
+  }
+})

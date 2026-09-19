@@ -194,17 +194,21 @@ namespace housepi::registry
     };
 }
 
+/// Namespace of a module model: prefixed so any folder name yields an identifier.
+#define HOUSEPI_MODEL_NAMESPACE(module) model_##module
+
 /// Register a module model under the module name, at load time.
-#define HOUSEPI_REGISTER_MODEL(module)                                  \
-    namespace                                                           \
-    {                                                                   \
-        struct module##_ModelAutoRegister                               \
-        {                                                               \
-            module##_ModelAutoRegister()                                \
-            {                                                           \
-                housepi::registry::RegModels::instance()                \
-                    .register_factory<housepi::module::Model>(#module); \
-            }                                                           \
-        };                                                              \
-        static module##_ModelAutoRegister module##_model_auto_register; \
+#define HOUSEPI_REGISTER_MODEL(module)                                                  \
+    namespace                                                                           \
+    {                                                                                   \
+        struct model_##module##_AutoRegister                                            \
+        {                                                                               \
+            model_##module##_AutoRegister()                                             \
+            {                                                                           \
+                housepi::registry::RegModels::instance()                                \
+                    .register_factory<housepi::HOUSEPI_MODEL_NAMESPACE(module)::Model>( \
+                        #module);                                                       \
+            }                                                                           \
+        };                                                                              \
+        static model_##module##_AutoRegister model_##module##_auto_register;            \
     }

@@ -73,7 +73,7 @@ HousepiParameter <- R6::R6Class(
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
 
-      # load dots # UPDATE: not super elegant...
+      # load dots
       dots <- list(...)
       # flatten if single quosures list (from enquos)
       if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]

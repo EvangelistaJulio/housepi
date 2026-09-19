@@ -28,6 +28,9 @@ Original observational study from Uchida et al. (2017).
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_flu_2014_matsumoto.R", package = "housepi")}
 }
+\examples{
+table(flu_2014_matsumoto$member, flu_2014_matsumoto$status)
+}
 \references{
 \insertRef{uchida_effectiveness_2017}{housepi}
 

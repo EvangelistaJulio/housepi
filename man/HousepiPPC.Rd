@@ -9,6 +9,16 @@ Posterior predictive check on the standard epidemiological measures by
 household size: cases, attack rate and secondary attack rate, comparing
 observed and predicted values.
 }
+\examples{
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template")
+results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+
+ppc <- run_epi_predictive_check(hhmodel, results,
+                                max_nrep = 50, progress = FALSE)
+ppc$formatted_attack_rate
+}
 \section{Super class}{
 \code{\link[housepi:HousepiCustomPPC]{HousepiCustomPPC}} -> \code{HousepiPPC}
 }

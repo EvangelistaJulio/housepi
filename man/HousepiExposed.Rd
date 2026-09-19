@@ -10,6 +10,11 @@ Base of the objects returned by \code{\link[=browse_functions]{browse_functions(
 It carries one definition built by the C++ kernel, reports the user
 argument values it was built with, and the domain it is defined on.
 }
+\examples{
+dst <- browse_distributions("gamma", shape = 2, scale = 1)
+dst$args
+dst$domain
+}
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
@@ -46,7 +51,8 @@ never a draw: see \code{domain} for the values it is defined on.}
 \if{html}{\out{<a id="method-HousepiExposed-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposed-initialize}{}}}
 \subsection{\code{HousepiExposed$new()}}{
-  New object of class \link{HousepiExposed}.
+  Internal: the \verb{browse_*()} functions build this object,
+don't call \verb{$new()} directly.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiExposed$new(obj, name)}
@@ -55,8 +61,8 @@ never a draw: see \code{domain} for the values it is defined on.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{obj}}{Definition built by the C++ kernel.}
-      \item{\code{name}}{\code{character(1)} Registered name of the definition.}
+      \item{\code{obj}}{Internal engine handle.}
+      \item{\code{name}}{Registered name of the definition.}
     }
     \if{html}{\out{</div>}}
   }

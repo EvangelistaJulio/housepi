@@ -17,9 +17,9 @@ dll_flags_file <- function(dll) {
   paste0(dll, ".housepi.flags")
 }
 
-# Templated name convention (remove punctuation).
+# Templated name convention (non-identifier characters become underscores).
 template_name <- function(path) {
-  gsub("[[:punct:] ]", "_", basename(path))
+  gsub("[^A-Za-z0-9_]", "_", basename(path))
 }
 
 # Add random string to templated name
@@ -207,10 +207,8 @@ open_model_helper_ <- function(path) {
 }
 
 #' @title Navigate through household model templates
-#' @description
-#' Print the list of available templates,
+#' @description Print the list of available templates,
 #' get their descriptions or copy source code to custom path.
-#'
 #' @param name
 #' A `character(1)` with the name of template model.
 #' If `NA` print the list of available templates (default).
@@ -219,7 +217,8 @@ open_model_helper_ <- function(path) {
 #' If `NA` and name is not, print template description in RStudio Help window.
 #' @param replace
 #' `logical(1)` to replace previous content of the path.
-#'
+#' @return Invisibly returns `NULL`; called for printing the templates,
+#' showing a description or copying the template files.
 #' @examples
 #' # list all available templates
 #' browse_templates()
@@ -242,6 +241,7 @@ browse_templates <- function(name = NA_character_,
   )
   # asking for copying template to empty folder
   else copy_template_to_path(name, path)
+  invisible()
 }
 
 ############################################################################

@@ -8,6 +8,14 @@
 Compile the household transmission model, manage your data, associate
 definitions, run inference and simulations from a single class.
 }
+\examples{
+# created and modified through new_housepi_model() and the add_*() verbs
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template")
+hhmodel
+hhmodel$parameters
+}
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{

@@ -20,6 +20,13 @@
 #' @description
 #' Compile the household transmission model, manage your data, associate
 #' definitions, run inference and simulations from a single class.
+#' @examples
+#' # created and modified through new_housepi_model() and the add_*() verbs
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final_size") |>
+#'   add_parameter(import = "template")
+#' hhmodel
+#' hhmodel$parameters
 #' @docType class
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
@@ -706,9 +713,9 @@ HousepiModel <- R6::R6Class(
             "ESS values return NA.",
             "Check your draws for degenerate parameters."
           )
-          # suppress posterior message
-          target_ndraws <- min(ess_bulk)
-          thin <- floor(posterior::ndraws(ptab) / target_ndraws)
+          # keep at least one draw per chain, at most all of them
+          thin <- floor(posterior::ndraws(ptab) / min(ess_bulk))
+          thin <- min(max(thin, 1L), posterior::niterations(ptab))
           ptab <- posterior::thin_draws(ptab, thin = thin)
         }
       }

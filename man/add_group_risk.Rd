@@ -123,6 +123,22 @@ A definition name colliding with reserved argument
 is deprecated.
 It can be supplied only via single mode definition.
 }
+\examples{
+hhmodel <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
+
+# single: one susceptibility parameter per age class
+hhmodel |>
+  add_group_risk("susceptibility", by = "age") |>
+  get_group_risks()
+
+# inline bulk: relative risks, against a chosen or the most frequent group
+hhmodel |>
+  add_group_risk(
+    infectivity = list(by = "isolated", reference = ".auto"),
+    susceptibility = list(by = "vacc_status", reference = "unvaccinated")
+  ) |>
+  get_parameters()
+}
 \references{
 \insertRef{cauchemez_household_2009}{housepi}
 }

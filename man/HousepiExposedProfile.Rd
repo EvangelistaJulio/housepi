@@ -7,6 +7,11 @@
 \description{
 A housepi infectivity profile, its instantaneous and cumulative profile.
 }
+\examples{
+ipf <- browse_infectivity_profiles("gamma", mean = 4, sd = 1.6)
+ipf$inst(seq(0, 10))
+ipf$cumul(seq(0, 10))
+}
 \section{Super class}{
 \code{\link[housepi:HousepiExposed]{HousepiExposed}} -> \code{HousepiExposedProfile}
 }

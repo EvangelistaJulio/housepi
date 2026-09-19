@@ -144,17 +144,43 @@ We see that since we assumed the infection of the asymptomatic member to happen 
 # Example: estimate incubation period distribution
 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
-Instead we consider a simulated report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
+Instead we consider a synthetic report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
+We simulate it with the "test" model, which carries no transmission dynamics, by chaining latent variables for each individual:
+
+- the exposure window lasts 1 to 4 days, drawn from a categorical distribution (the draw is 0-based, so `exposure_days` counts the days after the first);
+- the infection time `infec_time` is uniform within the exposure window;
+- the incubation period `incub_period` is gamma distributed with the `mean` and `sd` we want to recover later;
+- the onset time `onset_time` is their sum;
+- `report_shift` marks a reporting error, which widens the onset interval by one day, earlier or later.
+
+Observations with no `model` produce the reported columns: the last day of exposure and the first and last day of the reported onset interval.
 
 ```{r}
 #| label: generate-delays-data
-# use an example script for generate delays
-source("helpers/generate_delays.R")
-# generate delays according to a gamma distribution
 true_mean <- 2.2
-true_sd <- sqrt(1.4)
-dataset <- generate_delays_report(223, mean = true_mean, sd = true_sd,
-                                  report_error = 0.73)
+true_sd <- 1.2
+n_cases <- 223
+dataset <- data.frame(id = seq_len(n_cases), house_id = seq_len(n_cases),
+                      status = 1) |>
+  new_housepi_model("test") |>
+  add_parameter(mean = !!true_mean, sd = !!true_sd) |>
+  add_latent(
+    exposure_days = list(model = "categorical",
+                         d1 = 0.28, d2 = 0.34, d3 = 0.26, d4 = 0.12),
+    infec_time = list(model = "uniform", max = exposure_days + 1),
+    incub_period = list(model = "gamma", mean = mean@P, sd = sd@P),
+    onset_time = infec_time + incub_period,
+    report_shift = list(model = "categorical",
+                        early = 0.135, exact = 0.73, late = 0.135)
+  ) |>
+  add_observation(
+    exposure_max = exposure_days,
+    onset_min = floor(onset_time) - max(1 - report_shift, 0),
+    onset_max = floor(onset_time) + max(report_shift - 1, 0)
+  ) |>
+  run_simulation() |>
+  # keep the reported columns only
+  dplyr::select(id, house_id, status, exposure_max, onset_min, onset_max)
 head(dataset)
 ```
 Note that here the data has no demographic structure: we are implicitly assuming that all individuals live in distinct households.
@@ -162,7 +188,7 @@ Note that here the data has no demographic structure: we are implicitly assuming
 Assuming the incubation period to be described by a gamma distribution, we want to estimate its `mean` and `sd` by augmenting the infection and onset times.
 Following the decomposition introduced above, the incubation period enters the *latent model* $p^\mathrm{lat}(z \mid \theta)$, while the reported onset day enters the *observation* term $p^\mathrm{obs}(x \mid \theta, z)$; both are reported in the pointwise `log_lik`.
 
-We rely on the "test" model, which carries no transmission dynamics ($p^\mathrm{transm} = 1$), and build the whole augmentation from definitions:
+For inference we keep the "test" model ($p^\mathrm{transm} = 1$) and build the whole augmentation from definitions:
 
 - the infection time `infec_time` is drawn uniformly within the reported exposure window;
 - the incubation period `incub_period` is the quantity we model, gamma distributed with the inferred `mean` and `sd` and bounded to a plausible range;

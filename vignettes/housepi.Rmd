@@ -102,12 +102,18 @@ here manipulated with [flextable](https://CRAN.R-project.org/package=flextable):
 # show a summary of cases as a `flextable`
 summarise_house_cases(hhmodel) |>
   flextable::flextable() |>
-  flextable::set_formatter(percent = function(x) round(x, 1)) |>
+  flextable::set_formatter(
+    percent = function(x) ifelse(is.na(x), "", round(x, 1))
+  ) |>
   flextable::merge_v(j = ~ level) |>
   flextable::bold(j = ~ level + metric, bold = TRUE) |>
   flextable::labelizor(labels = c(level = "", metric = "", percent = "[%]")) |>
   flextable::autofit()
 ```
+
+The last row is the count of the equivalence classes, i.e. households that are indistinguishable by the
+model (same size, statuses, risks, etc).
+The likelihood is then evaluated just once per class, and multiplied by the number of class members.
 
 At any moment we can re-export the full data by calling `$data_wide`.
 
@@ -149,27 +155,24 @@ We can call `add_parameter()` as follows:
 
 # single parameter definitions
 hhmodel <- hhmodel |>
-  # baseline community transmission rate
+  # baseline community transmission risk
   add_parameter(
-    "alpha",            # name matching the model requirement
+    name = "alpha",     # name matching the model requirement
     prior = "uniform",  # uniform prior
     proposal = "rw_log" # random walk lognormal proposal
   ) |>
-  # within-household baseline person-to-person transmission rate
+  # within-household baseline person-to-person transmission risk
   add_parameter("beta", prior = "uniform", proposal = "rw_log")
 
 # complete parameter definitions using multiple definitions
 hhmodel <- hhmodel |>
   add_parameter(
-    # constant definition for reference household size
-    hhsize_ref = 4L, 
-    # mixing parameter
-    gamma = list(prior = "uniform", max = 3)
+    hhsize_ref = 6L,                # constant reference household size
+    gamma = list(prior = "uniform") # size-scaling of person-to-person risk
   )
 
-# inspect current definitions
-hhmodel |> 
-  get_parameters()
+# inspect parameter definitions
+hhmodel |> get_parameters()
 ```
 
 We can also turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE`. In such a case a `value` must be provided.
@@ -182,7 +185,6 @@ For further information on the available options for priors and MCMC proposals d
 After having provided all necessary definitions, we can perform inference calling `run_inference()`.
 With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm.
 Standard options for the MCMC can be provided at this stage, including controls on the number of `threads`.
-This will return an object which collects all the relevant MCMC draws.
 The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
 
 ```{r}
@@ -196,8 +198,7 @@ results <- hhmodel |>
                 threads = 1)  # parallel threads
 
 # summarise posterior draws of parameters
-results |>
-  summarise_draws()
+results |> summarise_draws()
 ```
 
 We can extract the parameters draws by calling `get_parameter_draws` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot)
@@ -225,13 +226,14 @@ community_structure <- sarscov2_2021_icofs |>
   dplyr::select(id, house_id) |>
   dplyr::mutate(status = NA, end_date = 21)
 
-hhsimul <- community_structure |>
+hhmodel <- community_structure |>
   new_housepi_model("case-ascertained") |>
   add_parameter(import = "template") |>
   add_infectivity_profile(import = "template")
 
-# inspect parameter definitions
-get_parameters(hhsimul)
+# inspect current definitions
+hhmodel |> get_parameters()
+hhmodel |> get_infectivity_profiles()
 ```
 
 In this example we passed `import = "template"` to load the parameter definitions shipped with the transmission model.
@@ -244,10 +246,13 @@ We do so with `add_observation()`.
 
 ```{r}
 #| label: load-latent-definitions
-hhsimul <- hhsimul |>
+hhmodel <- hhmodel |>
   add_latent(
     # infection time of primary case
-    infec_time = 0,
+    infec_time = list(
+      value = 0, 
+      model = "uniform", min = start_date@D - 14, max = end_date@D
+    ),
     # incubation period for each individual
     incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14),
     # onset time is deterministic
@@ -255,8 +260,10 @@ hhsimul <- hhsimul |>
   ) |>
   add_observation(
     # observation of onset date is noisy around the real onset time
-    onset_date = list(model = "normal", discr = TRUE, mean = onset_time,
-                      sd = 1, min = floor(onset_time)),
+    onset_date = list(
+      discr = TRUE, model = "normal",
+      mean = onset_time, sd = 1, min = floor(onset_time)
+    ),
     # household-level observation of start date is earliest onset date
     start_date = list(value = min(onset_date@D), level = "house")
   )
@@ -268,7 +275,7 @@ We can inspect the state of the current loaded model definitions just by printin
 ```{r}
 #| label: print-model-state
 # print current state of definitions
-hhsimul
+hhmodel
 ```
 
 By default, if no group risk definition is provided all values are set to 1 (reference value).
@@ -283,8 +290,7 @@ Simulations associate latent incubation periods, infection times and sampled ons
 ```{r}
 #| label: run-simulation
 # the onset_date observation is sampled automatically
-simulated <- hhsimul |>
-  run_simulation()
+simulated <- hhmodel |> run_simulation()
 
 head(simulated)
 ```
@@ -298,31 +304,17 @@ A simulation study checks that inference recovers the parameters used for the si
 The pointwise `log_lik` is the per-household complete-data log-likelihood: for models with latent variables it includes latent models.
 
 Inference reuses the definition set from the simulation.
-The observed `onset_date` enters as an observation likelihood, traced separately as `obs`.
+The observed `onset_date` enters as an observation likelihood.
 
 ```{r}
 #| label: inference-simulated
-hhmodel <- simulated |>
-  new_housepi_model("case-ascertained") |>
-  add_parameter(import = "template") |>
-  add_infectivity_profile(import = "template") |>
-  add_latent(
-    infec_time = list(
-      model = "uniform", min = start_date@D - 14, max = end_date@D
-    ),
-    incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
-    onset_time = infec_time + incub_period
-  ) |>
-  add_observation(
-    # observation is automatically discrete when datum is integer or Data
-    onset_date = list(
-      model = "normal", mean = onset_time, sd = 1, min = floor(onset_time)
-    )
-  )
 
-results <- hhmodel |>
-  # update progress bar every 3 seconds
-  run_inference(progress = 3)
+# associated the simulated data to the model
+hhmodel <- hhmodel |>
+  add_data_wide(simulated)
+
+# run inference, updating progress bar every 3 seconds
+results <- hhmodel |> run_inference(progress = 3)
 ```
 We can visualize traces vs expected values as follows
 
@@ -339,7 +331,8 @@ library(ggplot2)
 param_draws <- get_parameter_draws(results)
 
 # select original parameters used for the simulation
-simul_parameters <- get_parameters(hhsimul) |>
+simul_parameters <- hhmodel |>
+  get_parameters() |>
   dplyr::select(name, value) |>
   dplyr::filter(name %in% posterior::variables(param_draws)) |>
   dplyr::rename(parameter = name, simulated = value)

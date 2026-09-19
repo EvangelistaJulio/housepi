@@ -2,52 +2,61 @@
 \title{Final Size}
 \name{housepi template : Final Size}
 \description{
-The final size model assumes transmission occurs at discrete generation time units.
-The homogeneous model assumes risk of transmission to be equal for all individuals.
-The index cases are not known a priori and represent the initial generation.
-Infections in this generation are modelled with the community transmission probability.
-Transmission does not account for community exposure after the initial generation.
-The person-to-person transmission probability in the successive generation depends only on the infectious individuals of the previous generation.
-Given a final size of positive cases within household, all possible chains of transmission are then considered.
-Finally, the likelihood of an observed household outbreak is the sum of the probability of each chain.
+The final-size model is a Reed-Frost chain binomial: transmission proceeds in discrete generations,
+and each generation's new infections are independent binomial draws among the remaining susceptibles.
+The index cases are not known a priori: the first generation is infected from the community.
+Each later generation is infected only by the members infected in the previous one.
+The likelihood of a household sums over every transmission chain that ends in the observed final size.
 \if{html}{\out{<hr>}}
 }
 \section{Parameters}{
 \itemize{
-\item \code{alpha} \eqn{\alpha}{alpha} : community transmission rate
-\item \code{beta} \eqn{\beta}{beta} : person to person transmission rate
-\item \code{gamma} \eqn{\gamma} : parameter to model dilution of contacts
-\item \code{hhsize_ref} \eqn{n_{\ast}} : size of reference household
+\item \code{alpha} \eqn{\alpha}{alpha} : baseline community transmission risk
+\item \code{beta} \eqn{\beta}{beta} : baseline person-to-person transmission risk
+\item \code{gamma} \eqn{\gamma}{gamma} : household-size scaling of person-to-person risk
+\item \code{hhsize_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
 }
-In a household of size \eqn{n} the person-to-person rate is \eqn{\beta (n_{\ast}/n)^{\gamma}},
-so \eqn{\beta} is the rate in a household of size \eqn{n_{\ast}}.
-The choice of \eqn{n_{\ast}} leaves the likelihood unchanged, but not the sampling:
-far from the household sizes that carry most of the information, \eqn{\beta} and \eqn{\gamma} become strongly correlated and chains mix slowly.
-A value near the geometric mean of household sizes, each household weighted by its number of member pairs \eqn{n(n-1)}, keeps them nearly uncorrelated.
-A prior on \eqn{\beta} refers to size \eqn{n_{\ast}}, so changing \eqn{n_{\ast}} also changes the prior.
+\if{html}{\out{<hr>}}
+}
+\section{Group Risks}{
+\itemize{
+\item \code{community} \eqn{\mu^\mathrm{com}}{mu^com} : predisposition to infection from community relative to reference
+\item \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus} : predisposition to infection relative to reference
+\item \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf} : predisposition to transmission relative to reference
+}
 \if{html}{\out{<hr>}}
 }
 \section{Transmission}{
-\deqn{p^\mathrm{transm} = p_\mathrm{I}(n_\mathrm{I}) \, p_\mathrm{S}(n, n_\mathrm{I})}
-for a household of size \eqn{n} with
+
+\deqn{p^\mathrm{transm} = p^\mathrm{esc} \, p^\mathrm{inf}}{p^transm = p^esc p^inf}
+
+for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_i = 1} if infected, \eqn{s_i = 0}{s_i = 0} if escaped,
+and \eqn{n^{+}}{n^+} members are infected.
+
 \itemize{
-\item Number of sero-positive household members : \eqn{n_\mathrm{I}}
-\item Sero-positive contribution :
-\eqn{p_\mathrm{I}(n_\mathrm{I})
-=
-1 - \sum_{k=0}^{n_\mathrm{I} - 1} \binom{n_\mathrm{I}}{k}
-    p_\mathrm{I}(k) \, p_\mathrm{S}(n_\mathrm{I}, k)}
-\item Sero-negative contribution :
-\eqn{p_\mathrm{S}(n, n_\mathrm{I})
-= \left(q^\mathrm{com} \, (q^\mathrm{p2p})^{n_\mathrm{I}}\right)^{n - n_\mathrm{I}}}
+\item Escaped contribution :
+\eqn{p^\mathrm{esc} = \prod_{i:\,s_i = 0} q^\mathrm{com}_{i} \prod_{j:\,s_j = 1} q^\mathrm{pp}_{ji}}{p^esc = prod_{i: s_i = 0} q^com_i prod_{j: s_j = 1} q^pp_ji}
+\item Infected contribution :
+\eqn{p^\mathrm{inf} = 1 - \sum_{m=0}^{n^{+}-1} P_m}{p^inf = 1 - sum_{m = 0}^{n^+ - 1} P_m}
+\item Chains of smaller final size :
+\eqn{P_m = \sum_{k=1}^{\binom{n^{+}}{m}} p^\mathrm{transm}\left(s^{(m,k)}\right)}{P_m = sum_{k = 1}^{choose(n^+, m)} p^transm(s^(m,k))},
+where \eqn{s^{(m,k)}}{s^(m,k)} keeps the \eqn{k}-th choice of \eqn{m} infected among the \eqn{n^{+}}{n^+} and sets the others to escaped
 }
-where
+with escape probabilities
 \itemize{
-\item Community escape probability :
-\eqn{q^\mathrm{com} = \exp(-\alpha)}
-\item Person-to-person escape probability :
-\eqn{q^\mathrm{p2p} = \exp(-\beta)}
+\item from the community :
+\eqn{q^\mathrm{com}_{i} = \exp\left(-\alpha \, \mu^\mathrm{com}_{i}\right)}{q^com_i = exp(-alpha mu^com_i)}
+\item from member \eqn{j} to member \eqn{i} :
+\eqn{q^\mathrm{pp}_{ji} = \exp\left(-\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}\right)}{q^pp_ji = exp(-beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i)}
+\item \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji} : contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by \code{add_contact_risk()}
 }
+\if{html}{\out{<hr>}}
+}
+\section{Notes}{
+In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma},
+so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
+The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
+Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hhsize]{measure_geom_mean_hhsize()}} to keep them nearly uncorrelated.
 \if{html}{\out{<hr>}}
 }
 \section{References}{

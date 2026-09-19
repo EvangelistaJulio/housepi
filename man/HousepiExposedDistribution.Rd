@@ -8,6 +8,12 @@
 A housepi distribution, its density/mass, cumulative, quantiles,
 and random generation.
 }
+\examples{
+dst <- browse_distributions("gamma", shape = 2, scale = 1, max = 10)
+dst$pdf(seq(0, 5))
+dst$quantile(c(0.05, 0.5, 0.95))
+dst$rand(5)
+}
 \section{Super class}{
 \code{\link[housepi:HousepiExposed]{HousepiExposed}} -> \code{HousepiExposedDistribution}
 }

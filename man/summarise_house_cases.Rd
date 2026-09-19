@@ -18,11 +18,13 @@ summarize_house_cases(hhmodel)
 \item{level}{\code{individual} or \code{household}}
 \item{metric}{quantity counted in the row}
 \item{count}{absolute count}
-\item{percent}{percentage of the relevant total}
+\item{percent}{percentage of the relevant total, \code{NA} for \code{classes}}
 }
 }
 \description{
 Summarise cases as given from the statuses in the loaded household data.
+The row \code{classes}, counts the equivalence classes:
+households indistinguishable by the model (same size, statuses, risk, etc.).
 }
 \examples{
 hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")

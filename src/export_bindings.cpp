@@ -718,7 +718,7 @@ namespace
             vect::concatenate(std::vector<std::string>(4, "individual"),
                               std::vector<std::string>(5, "household")));
         Rcpp::CharacterVector metric = {"total", "missing", "not infected", "infected",
-                                        "total", "distinct", "no cases", "at least 1 case", "at least 2 cases"};
+                                        "total", "no cases", "at least 1 case", "at least 2 cases", "classes"};
         Rcpp::IntegerVector count(level.size());
         Rcpp::NumericVector percent(level.size());
 
@@ -737,18 +737,18 @@ namespace
         // household total
         count[4] = report_house.total;
         percent[4] = 100.;
-        // household equivalence classes
-        count[5] = report_house.distinct;
-        percent[5] = 100.;
         // household no cases
-        count[6] = report_house.no_cases;
-        percent[6] = format_percentage(report_house.no_cases, report_house.total);
+        count[5] = report_house.no_cases;
+        percent[5] = format_percentage(report_house.no_cases, report_house.total);
         // household at least 1 case
-        count[7] = report_house.at_least_1_case;
-        percent[7] = format_percentage(report_house.at_least_1_case, report_house.total);
+        count[6] = report_house.at_least_1_case;
+        percent[6] = format_percentage(report_house.at_least_1_case, report_house.total);
         // household at least 2 cases
-        count[8] = report_house.at_least_2_cases;
-        percent[8] = format_percentage(report_house.at_least_2_cases, report_house.total);
+        count[7] = report_house.at_least_2_cases;
+        percent[7] = format_percentage(report_house.at_least_2_cases, report_house.total);
+        // household equivalence classes
+        count[8] = report_house.distinct;
+        percent[8] = NA_REAL;
 
         return Rcpp::DataFrame::create(
             Rcpp::_["level"] = std::move(level),

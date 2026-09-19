@@ -1880,12 +1880,9 @@ namespace housepi
 
     double Augmented::commit_latent_log_lik_ratio(const Individual &indiv, size_t a)
     {
-        const StatusBlock_ &block = block_of_(indiv);
-        if (block.consumers[a].empty())
-            return 0.;
         double delta_ll = 0;
         // NOTE: consumers[a] includes 'a' itself, so model of 'a' is counted
-        for (size_t b : block.consumers[a])
+        for (size_t b : block_of_(indiv).consumers[a])
             delta_ll += varia_of_(indiv).vec[b].log_ratio();
         varia_of_(indiv).latent_log_lik.increment(delta_ll);
         return delta_ll;

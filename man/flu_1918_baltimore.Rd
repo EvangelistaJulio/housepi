@@ -22,6 +22,9 @@ Reported cases of "Spanish" flu in Baltimore (USA), in 1918.
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_flu_1918_baltimore_frederick.R", package = "housepi")}
 }
+\examples{
+measure_ar_by_hhsize(flu_1918_baltimore)
+}
 \references{
 \insertRef{fraser_influenza_2011}{housepi}
 }

@@ -15,6 +15,10 @@ If \code{NA} and name is not, print template description in RStudio Help window.
 
 \item{replace}{\code{logical(1)} to replace previous content of the path.}
 }
+\value{
+Invisibly returns \code{NULL}; called for printing the templates,
+showing a description or copying the template files.
+}
 \description{
 Print the list of available templates,
 get their descriptions or copy source code to custom path.

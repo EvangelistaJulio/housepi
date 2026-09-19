@@ -21,7 +21,7 @@ home:
   desc: >
     A library of models and tools for epidemiological modeling and analysis of household epidemiological data.
 
-# References
+## References ##
 reference:
 - title: "Overview"
   desc: >
@@ -98,9 +98,9 @@ reference:
   - HousepiPowerPosteriors
   - evaluate_log_evidence
 
-# Articles 
+## Articles ##
 articles:
-  - title: ""
+  - title: "Articles"
     navbar: ~
     contents:
       - priors_and_proposals
@@ -111,7 +111,7 @@ articles:
       - posterior_predictive_checks
       - user_functions
 
-# Navigation Bar
+## Navigation Bar ##
 navbar:
   structure:
     left:

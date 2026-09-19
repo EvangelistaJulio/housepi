@@ -8,6 +8,13 @@
 Container for the power-posterior ladder sampled by \code{\link[=run_power_posteriors]{run_power_posteriors()}}.
 Estimate the log-evidence from it with \code{\link[=evaluate_log_evidence]{evaluate_log_evidence()}}.
 }
+\examples{
+ladder <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template") |>
+  run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
+ladder
+}
 \references{
 \insertRef{friel_improving_2014}{housepi}
 
@@ -49,7 +56,8 @@ Logarithms are natural (base \eqn{e}).}
 \if{html}{\out{<a id="method-HousepiPowerPosteriors-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPowerPosteriors-initialize}{}}}
 \subsection{\code{HousepiPowerPosteriors$new()}}{
-  Sample the power-posterior ladder and store the draws.
+  Internal: \code{\link[=run_power_posteriors]{run_power_posteriors()}} builds this object, don't call
+\verb{$new()} directly.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPowerPosteriors$new(generator, scheme = "adaptive", rungs = 30L)}
@@ -58,7 +66,7 @@ Logarithms are natural (base \eqn{e}).}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{generator}}{\code{HousepiGenerator} Helper class for model generation.}
+      \item{\code{generator}}{Internal model compiler.}
       \item{\code{scheme}}{\code{character(1)} Scheme used for evidence estimation.
 One between
 \describe{

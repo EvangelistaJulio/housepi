@@ -43,6 +43,11 @@ at the start of the follow-up, assuming a 7-day delay for effectiveness.
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}
 }
+\examples{
+head(sarscov2_2021_icofs)
+hhmodel <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
+summarise_house_cases(hhmodel)
+}
 \references{
 \insertRef{cortier_factors_2025}{housepi}
 }

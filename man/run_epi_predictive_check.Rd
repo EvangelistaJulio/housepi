@@ -71,3 +71,13 @@ by household size. It compares observed and predicted values of
 \item{\code{"cases_count"}}{see \link{measure_cases_by_hhsize}.}
 }
 }
+\examples{
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template")
+results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+
+ppc <- run_epi_predictive_check(hhmodel, results,
+                                max_nrep = 50, progress = FALSE)
+ppc
+}

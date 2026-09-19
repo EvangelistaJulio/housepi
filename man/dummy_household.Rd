@@ -20,4 +20,8 @@ Household data with a single household of 2 individuals.
 \item{status}{Serological test result}
 }
 }
+\examples{
+dummy_household
+new_housepi_model(dummy_household, "test")
+}
 \keyword{datasets}

@@ -7,6 +7,20 @@
 \description{
 Class to extract posterior predictive checks over measures on simulations.
 }
+\examples{
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template")
+results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+
+# a user-defined measure: the overall attack rate
+overall_ar <- function(data_wide) mean(data_wide$status > 0)
+ppc <- run_custom_predictive_check(hhmodel, results,
+                                   sar = measure_sar_by_hhsize,
+                                   overall = overall_ar,
+                                   max_nrep = 50, progress = FALSE)
+ppc$overall
+}
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{

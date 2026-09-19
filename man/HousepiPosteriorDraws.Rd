@@ -5,7 +5,7 @@
 \alias{HousepiPosteriorDraws}
 \title{Posterior draws from housepi model inference}
 \description{
-Posterior draws as a result of housepi inference on a household model.
+Posterior draws returned by \code{\link[=run_inference]{run_inference()}} on a household model.
 This class stores posterior draws of model parameters, the joint log-prior
 (\code{lprior}) and the pointwise per-household log-likelihood (\code{log_lik}).
 If requested during inference, it also stores latent variables.
@@ -26,6 +26,14 @@ and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
 the contract of the per-household \code{log_lik}: with no latent variable or
 observation node the remaining terms vanish and \code{log_lik} contracts to
 transmission alone.
+}
+\examples{
+results <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template") |>
+  run_inference(chains = 2, progress = FALSE)
+results
+results$parameter_draws
 }
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
@@ -71,7 +79,8 @@ Logarithms are natural (base \eqn{e}).}
 \if{html}{\out{<a id="method-HousepiPosteriorDraws-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-initialize}{}}}
 \subsection{\code{HousepiPosteriorDraws$new()}}{
-  Store posterior::draws_df internally.
+  Internal: \code{\link[=run_inference]{run_inference()}} builds this object,
+don't call \verb{$new()} directly.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPosteriorDraws$new(name, ptr)}
@@ -80,8 +89,8 @@ Logarithms are natural (base \eqn{e}).}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{name}}{\code{character(1)}. Model name.}
-      \item{\code{ptr}}{\verb{Rcpp::XPtr<MCMC>}}
+      \item{\code{name}}{Model name.}
+      \item{\code{ptr}}{Internal engine handle.}
     }
     \if{html}{\out{</div>}}
   }

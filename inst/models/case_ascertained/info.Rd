@@ -2,84 +2,80 @@
 \title{Case Ascertained}
 \name{housepi template : Case Ascertained}
 \description{
-This model assumed that each household member \eqn{i} is suject to a force of infection \eqn{{\lambda}_{i}(t)}{lambda_i(t)},
+The case-ascertained model assumes that each household member \eqn{i} is subject to a force of infection \eqn{{\lambda}_{i}(t)}{lambda_i(t)},
 where time \eqn{t} can take continuous or discrete values.
-A susceptible member can get infected at time/day \eqn{t_{i}} according to a inhomogeneous Poisson process of rate equal to the force infection.
+A susceptible member can get infected at time/day \eqn{t_{i}}{t_i} according to an inhomogeneous Poisson process of rate equal to the force of infection.
+The household is followed from its first infection, the primary case, which enters the likelihood only as the start of exposure.
 \if{html}{\out{<hr>}}
 }
 \section{Data}{
 \itemize{
-\item \code{end_followup} \eqn{t_\mathrm{end}} : end date of followup study
+\item \code{start_date} : first day of follow-up of the member
+\item \code{end_date} \eqn{t_\mathrm{end}}{t_end} : last day of follow-up of the member, included
 }
 \if{html}{\out{<hr>}}
 }
 \section{Parameters}{
 \itemize{
-\item \code{alpha} \eqn{\alpha} : community transmission rate
-\item \code{beta} \eqn{\beta} : person to person transmission rate
-\item \code{gamma} \eqn{\gamma} : parameter to model dilution of contacts
-\item \code{hhsize_ref} \eqn{n_{\ast}} : size of reference household
+\item \code{alpha} \eqn{\alpha}{alpha} : baseline community instantaneous transmission risk
+\item \code{beta} \eqn{\beta}{beta} : baseline person-to-person instantaneous transmission rate
+\item \code{gamma} \eqn{\gamma}{gamma} : household-size scaling of person-to-person risk
+\item \code{hhsize_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
 }
-In a household of size \eqn{n} the person-to-person rate is \eqn{\beta (n_{\ast}/n)^{\gamma}},
-so \eqn{\beta} is the rate in a household of size \eqn{n_{\ast}}.
-The choice of \eqn{n_{\ast}} leaves the likelihood unchanged, but not the sampling:
-far from the household sizes that carry most of the information, \eqn{\beta} and \eqn{\gamma} become strongly correlated and chains mix slowly.
-A value near the geometric mean of household sizes, each household weighted by its number of contacts of the index case \eqn{n-1}, keeps them nearly uncorrelated.
-A prior on \eqn{\beta} refers to size \eqn{n_{\ast}}, so changing \eqn{n_{\ast}} also changes the prior.
 \if{html}{\out{<hr>}}
 }
 \section{Latent}{
 \itemize{
-\item \code{infec_time} \eqn{t_{i}} : time of infection of infectious member
+\item \code{infec_time} \eqn{t_{i}}{t_i} : time of infection of infectious member
 }
 \if{html}{\out{<hr>}}
 }
 \section{Group Risks}{
 \itemize{
-\item \code{community} \eqn{\mu^\mathrm{com}} : predisposition to infection from community relative to reference
-\item \code{susceptibility} \eqn{\mu^\mathrm{sus}}: predisposition to infection relative to reference
-\item \code{infectivity} \eqn{\mu^\mathrm{inf}} : predisposition to transmission relative to reference
+\item \code{community} \eqn{\mu^\mathrm{com}}{mu^com} : predisposition to infection from community relative to reference
+\item \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus} : predisposition to infection relative to reference
+\item \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf} : predisposition to transmission relative to reference
 }
 \if{html}{\out{<hr>}}
 }
 \section{Transmission}{
 
-\deqn{p^\mathrm{transm} = p_\mathrm{I} \cdot p_\mathrm{S}}
+\deqn{p^\mathrm{transm} = p^\mathrm{esc} \, p^\mathrm{inf}}{p^transm = p^esc p^inf}
 
-If \eqn{s_i} is the status of household member \eqn{i}, and
+for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_i = 1} if infected, \eqn{s_i = 0}{s_i = 0} if escaped.
 
 \itemize{
-\item Force of infection for a household of size \eqn{n} : \deqn{
-{\lambda}_{i}(t) = \mu^\mathrm{com}_{i} {\alpha} + \mu^\mathrm{sus}_{i} {\beta} \left(\tfrac{n_{\ast}}{n}\right)^{\gamma} \sum_{j\,:\,t_{j}<t_{i}} \mu^\mathrm{inf}_{j} f_{j}(t)
-}
-\item \code{infectivity profile} \eqn{f_{i}} : can be specified
-\item \eqn{t_{0}} : introduction time (earliest infection time in the household)
+\item Force of infection :
+\deqn{\lambda_{i}(t) = \alpha \, \mu^\mathrm{com}_{i} + \beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{sus}_{i} \sum_{j:\,t_{j} < t} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, f_{j}(t - t_{j})}{lambda_i(t) = alpha mu^com_i + beta (n_ref / n)^gamma mu^sus_i sum_{j: t_j < t} mu^inf_j mu^ctc_ji f_j(t - t_j)}
+\item \eqn{f_{j}}{f_j} : infectivity profile of member \eqn{j} as a function of time since its infection, set by \code{add_infectivity_profile()}
+\item \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji} : contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by \code{add_contact_risk()}
+\item \eqn{t_{0}}{t_0} : introduction time, earliest infection time in the household
+\item \eqn{i_{0}}{i_0} : primary case, infected at \eqn{t_{0}}{t_0} (on ties, the first in household order)
 }
 
 \subsection{Real time}{
 \itemize{
-\item Infectious contribution :
-\eqn{
-p_\mathrm{I} =\prod_{{i}:s_{i}>0} \lambda_{i}(t_{i})\exp{-\int_{t_{0}}^{t_{i}}\lambda_{i}(t)\mathrm{d}t}
-}
-\item Susceptible contribution :
-\eqn{
-p_\mathrm{S} = \prod_{{i}:s_{i}<0} \exp{-\int_{t_{0}}^{t_\mathrm{end}}\lambda_{i}(t)\mathrm{d}t}
-}
+\item Infected contribution :
+\eqn{p^\mathrm{inf} = \prod_{i:\,s_{i} = 1,\, i \neq i_{0}} \lambda_{i}(t_{i}) \exp\left(-\int_{t_{0}}^{t_{i}} \lambda_{i}(t) \, \mathrm{d}t\right)}{p^inf = prod_{i: s_i = 1, i != i_0} lambda_i(t_i) exp(-integral_{t_0}^{t_i} lambda_i(t) dt)}
+\item Escaped contribution :
+\eqn{p^\mathrm{esc} = \prod_{i:\,s_{i} = 0} \exp\left(-\int_{t_{0}}^{t_\mathrm{end} + 1} \lambda_{i}(t) \, \mathrm{d}t\right)}{p^esc = prod_{i: s_i = 0} exp(-integral_{t_0}^{t_end + 1} lambda_i(t) dt)}
 }
 }
 \subsection{Discrete time}{
 \itemize{
-\item Infectious contribution :
-\eqn{
-p_\mathrm{I} = \prod_{{i}:s_{i}>0}\left(1-\exp{-\lambda_{i}(t_{i})}\right)\exp{-\sum_{t={t}_{0}}^{t_{i}-1} \lambda_{i}(t)}
-}
-\item Susceptible contribution :
-\eqn{
-p_\mathrm{S} =\prod_{{i}:s_{i}<0}\exp{-\sum_{t={t}_{0}}^{t_\mathrm{end}}\lambda_{i}(t)}
+\item Infected contribution :
+\eqn{p^\mathrm{inf} = \prod_{i:\,s_{i} = 1,\, i \neq i_{0}} \left(1 - \exp\left(-\lambda_{i}(t_{i})\right)\right) \exp\left(-\sum_{t = t_{0} + 1}^{t_{i} - 1} \lambda_{i}(t)\right)}{p^inf = prod_{i: s_i = 1, i != i_0} (1 - exp(-lambda_i(t_i))) exp(-sum_{t = t_0 + 1}^{t_i - 1} lambda_i(t))}
+\item Escaped contribution :
+\eqn{p^\mathrm{esc} = \prod_{i:\,s_{i} = 0} \exp\left(-\sum_{t = t_{0} + 1}^{t_\mathrm{end}} \lambda_{i}(t)\right)}{p^esc = prod_{i: s_i = 0} exp(-sum_{t = t_0 + 1}^{t_end} lambda_i(t))}
 }
 }
+\if{html}{\out{<hr>}}
 }
+\section{Notes}{
+In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma},
+so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
+The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
+Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hhsize]{measure_geom_mean_hhsize()}} to keep them nearly uncorrelated.
 \if{html}{\out{<hr>}}
 }
 \section{References}{

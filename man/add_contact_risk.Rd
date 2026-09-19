@@ -106,3 +106,16 @@ If no MCMC options are provided, absolute risks are assumed
 \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
 Bypass automatic generation by providing a custom pre-built logic table.
 }
+\examples{
+hhmodel <- new_housepi_model(flu_2014_matsumoto, "final_size")
+
+# one parameter per pair of family roles, relative to the most frequent pair
+hhmodel |>
+  add_contact_risk("member", reference = ".auto") |>
+  get_contact_risks()
+
+# asymmetric: infector-infectee and infectee-infector pairs differ
+hhmodel |>
+  add_contact_risk("member", symmetric = FALSE) |>
+  get_contact_risks()
+}

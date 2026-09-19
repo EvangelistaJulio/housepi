@@ -40,6 +40,10 @@ show_registered_ <- function(names, family) {
 #' [browse_distributions()] and [browse_infectivity_profiles()].
 #' It carries one definition built by the C++ kernel, reports the user
 #' argument values it was built with, and the domain it is defined on.
+#' @examples
+#' dst <- browse_distributions("gamma", shape = 2, scale = 1)
+#' dst$args
+#' dst$domain
 #' @docType class
 HousepiExposed <- R6::R6Class(
   classname = "HousepiExposed",
@@ -116,9 +120,10 @@ HousepiExposed <- R6::R6Class(
 
   public = list(
     #' @description
-    #' New object of class [HousepiExposed][housepi::HousepiExposed].
-    #' @param obj Definition built by the C++ kernel.
-    #' @param name `character(1)` Registered name of the definition.
+    #' Internal: the `browse_*()` functions build this object,
+    #' don't call `$new()` directly.
+    #' @param obj Internal engine handle.
+    #' @param name Registered name of the definition.
     initialize = function(obj, name) {
       private$obj_ <- obj
       private$name_ <- name
@@ -154,6 +159,10 @@ HousepiExposed <- R6::R6Class(
 #' @title Exposed housepi function
 #' @description
 #' A housepi function and its primitive on user-supplied points.
+#' @examples
+#' fnc <- browse_functions("pow", x2 = 3)
+#' fnc$func(seq(0, 5))
+#' fnc$prim(seq(0, 5))
 #' @docType class
 HousepiExposedFunction <- R6::R6Class(
   classname = "HousepiExposedFunction",
@@ -198,6 +207,11 @@ HousepiExposedFunction <- R6::R6Class(
 #' @description
 #' A housepi distribution, its density/mass, cumulative, quantiles,
 #' and random generation.
+#' @examples
+#' dst <- browse_distributions("gamma", shape = 2, scale = 1, max = 10)
+#' dst$pdf(seq(0, 5))
+#' dst$quantile(c(0.05, 0.5, 0.95))
+#' dst$rand(5)
 #' @docType class
 HousepiExposedDistribution <- R6::R6Class(
   classname = "HousepiExposedDistribution",
@@ -252,6 +266,10 @@ HousepiExposedDistribution <- R6::R6Class(
 #' @title Exposed housepi infectivity profile
 #' @description
 #' A housepi infectivity profile, its instantaneous and cumulative profile.
+#' @examples
+#' ipf <- browse_infectivity_profiles("gamma", mean = 4, sd = 1.6)
+#' ipf$inst(seq(0, 10))
+#' ipf$cumul(seq(0, 10))
 #' @docType class
 HousepiExposedProfile <- R6::R6Class(
   classname = "HousepiExposedProfile",
