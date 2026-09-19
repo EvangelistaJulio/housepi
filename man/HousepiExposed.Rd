@@ -21,8 +21,10 @@ dst$domain
     \item{\code{args}}{\code{numeric()}
 Named argument values the definition was built with.}
 
-    \item{\code{domain}}{\code{character(1)}
-Values to evaluated on in interval notation.}
+    \item{\code{domain}}{\code{list()}
+Values the definition is evaluated on: bounds \code{min} and \code{max}, and
+\code{closed}, whether each bound belongs to the interval. The bounds are
+read before the location shift \code{loc}.}
 
     \item{\code{is_discrete}}{\code{logical(1)}
 Whether the values the definition takes lie on a lattice of
@@ -33,8 +35,8 @@ Whether the values the definition takes are known to be strictly
 positive. A distribution answers for the values it draws.
 Note that \code{FALSE} reads as "not known to be positive".}
 
-    \item{\code{codomain}}{\code{character(1)}
-Values evaluating the definition returns, in interval notation.
+    \item{\code{codomain}}{\code{list()}
+Values evaluating the definition returns, in the same form as \code{domain}.
 A distribution returns a density, a mass or a cumulative probability,
 never a draw: see \code{domain} for the values it is defined on.}
   }

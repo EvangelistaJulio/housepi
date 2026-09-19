@@ -23,6 +23,16 @@ show_registered_ <- function(names, family) {
   invisible()
 }
 
+# Interval notation of a `min`, `max`, `closed` list shifted by `loc`,
+# e.g. "[0, Inf)".
+format_interval_ <- function(x, loc = 0) {
+  sprintf("%s%s, %s%s",
+          ifelse(x$closed[["min"]], "[", "("),
+          format(x$min + loc),
+          format(x$max + loc),
+          ifelse(x$closed[["max"]], "]", ")"))
+}
+
 ############################################################################
 ############################################################################
 ############################# Housepi Exposed ##############################
@@ -80,8 +90,10 @@ HousepiExposed <- R6::R6Class(
       private$call_("args")
     },
 
-    #' @field domain `character(1)`
-    #' Values to evaluated on in interval notation.
+    #' @field domain `list()`
+    #' Values the definition is evaluated on: bounds `min` and `max`, and
+    #' `closed`, whether each bound belongs to the interval. The bounds are
+    #' read before the location shift `loc`.
     domain = function(value) {
       if (!missing(value)) stop_read_only("domain")
       private$call_("domain")
@@ -104,8 +116,8 @@ HousepiExposed <- R6::R6Class(
       private$call_("is_positive")
     },
 
-    #' @field codomain `character(1)`
-    #' Values evaluating the definition returns, in interval notation.
+    #' @field codomain `list()`
+    #' Values evaluating the definition returns, in the same form as `domain`.
     #' A distribution returns a density, a mass or a cumulative probability,
     #' never a draw: see `domain` for the values it is defined on.
     codomain = function(value) {
@@ -139,11 +151,12 @@ HousepiExposed <- R6::R6Class(
         sprintf("{.arg %s} = %s", names(args), format(unname(args)))
       if (!is.na(private$loc_))
         items <- c(items, sprintf("{.arg loc} = %s", format(private$loc_)))
+      loc <- if (is.na(private$loc_)) 0 else private$loc_
       print_bullets(c(
         i = sprintf("Exposed %s {.val %s}.", private$family_, private$name_),
         items,
         sprintf("%s on %s.", ifelse(private$discr_, "Discrete", "Continuous"),
-                self$domain)
+                format_interval_(self$domain, loc))
       ))
       invisible(self)
     }

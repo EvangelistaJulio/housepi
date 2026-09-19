@@ -110,12 +110,13 @@ HousepiInfecProfile <- R6::R6Class(
       if (is.null(max)) max <- NA_character_
 
       # append new definition
-      self$defs <- rbind(self$defs, data.frame(list(
+      new_defs <- data.frame(list(
         func = housepi_combine_to_call(func, func_args),
         status = as.integer(status), discr = discr, min = min, max = max
-      )))
-      # assert last definition is correct
-      if (isTRUE(.assert)) housepi_assert_args(self, last = TRUE)
+      ))
+      self$defs <- rbind(self$defs, new_defs)
+      # assert appended definitions are correct
+      if (isTRUE(.assert)) housepi_assert_args(self, last = nrow(new_defs))
 
       invisible(self)
     },

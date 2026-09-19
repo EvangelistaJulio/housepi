@@ -135,6 +135,17 @@ namespace
         return out;
     }
 
+    /// Interval as an R list; an unbounded side reads -Inf/Inf.
+    Rcpp::List rcpp_interval(double min, double max, Interval below, Interval above)
+    {
+        return Rcpp::List::create(
+            Rcpp::_["min"] = below == Interval::Unbounded ? -inf::DOUBLE : hsp_to_rcpp(min),
+            Rcpp::_["max"] = above == Interval::Unbounded ? inf::DOUBLE : hsp_to_rcpp(max),
+            Rcpp::_["closed"] = Rcpp::LogicalVector::create(
+                Rcpp::_["min"] = below == Interval::Closed,
+                Rcpp::_["max"] = above == Interval::Closed));
+    }
+
     /// Stamp a list of equally-sized columns as an R data.frame.
     /// Column names cross verbatim: they are data keys and definition names,
     /// which the Rcpp data.frame conversion would sanitise into other names.
@@ -214,10 +225,25 @@ namespace
         virtual bool is_discrete() const { return ptr_->codomain().on_integers(); }
         /// Wheter the definition is provably strictly positive.
         virtual bool is_positive() const { return ptr_->is_positive(); }
-        /// Formatted values returned, in the absolute frame.
-        std::string codomain() const { return ptr_->codomain().str(); }
-        /// Formatted values it may be evaluated on, in the absolute frame.
-        std::string domain() const { return ptr_->str_domain(); }
+        /// Values returned.
+        Rcpp::List codomain() const
+        {
+            const Codomain c = ptr_->codomain();
+            return rcpp_interval(c.inf, c.sup, c.below, c.above);
+        }
+        /// Values it may be evaluated on, in the frame relative to the location.
+        Rcpp::List domain() const
+        {
+            const Domain &d = ptr_->domain();
+            return rcpp_interval(d.min.value(), d.max.value(), d.below, d.above);
+        }
+        /// Wheter each bound reads an argument rather than holding its own value.
+        Rcpp::LogicalVector bound_aliases() const
+        {
+            return Rcpp::LogicalVector::create(
+                Rcpp::_["min"] = ptr_->min().is_pointer(),
+                Rcpp::_["max"] = ptr_->max().is_pointer());
+        }
         /// Location shift, NA when no location argument was given.
         double loc() const { return ptr_->loc().value(); }
 
@@ -1717,6 +1743,7 @@ RCPP_MODULE(housepi)
     Rcpp::class_<ExposeBase>("ExposeBase")
         .method("args", &ExposeBase::args)
         .method("domain", &ExposeBase::domain)
+        .method("bound_aliases", &ExposeBase::bound_aliases)
         .method("is_discrete", &ExposeBase::is_discrete)
         .method("is_positive", &ExposeBase::is_positive)
         .method("codomain", &ExposeBase::codomain)

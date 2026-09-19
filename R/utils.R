@@ -306,7 +306,7 @@ char_setup_input_ <- function(defs) {
   # correct id / house trace vectors
   for (key in intersect(c("id_draws", "house_draws"), names(defs))) {
     y <- unlist(defs[[key]])
-    if (length(y) == 0) defs[[key]] <- NA_character_
+    if (length(y) == 0) defs[[key]] <- ""
     else defs[[key]] <- paste0(unique(y), collapse = ":")
   }
   data.frame(lapply(defs, as.character))

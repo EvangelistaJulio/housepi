@@ -50,24 +50,22 @@ helper_format_error <- function(err) {
 # Probe a C++ exposer through the raw Rcpp module, bypassing the `.engine`
 # re-styling proxy. A failure then yields the plain C++ text (glue markup, but
 # no cli bullets) that `helper_format_error` classifies on; success returns
-# NULL. Assigning NULL to a list slot leaves it absent, so `err` below holds
-# only the failed probes.
+# the exposer.
 probe_exposer_ <- function(fn, name, args) {
   member <- cpp_member_(.subset2(.engine, "module"), fn)
-  tryCatch({
-    member(name, unlist(args), NA_real_, NA_real_, FALSE)
-    NULL
-  }, error = function(e) conditionMessage(e))
+  tryCatch(member(name, unlist(args), NA_real_, NA_real_, FALSE),
+           error = function(e) conditionMessage(e))
 }
 
-# Trigger C++ errors
-raise_def_error <- function(func_name, arg_names, def_name,
-                            family, model_col) {
+# Build the definition in every registry the engine queries for this column
+# and family, and raise the C++ error when none accepts it. Return the exposer
+# when a single registry accepts it, NULL otherwise.
+probe_definition_ <- function(func_name, arg_names, def_name,
+                              family, model_col) {
   # WARNING: I am assuming `1` is a safe argument value...
   arg_names <- arg_names[arg_names != "x"]
   func_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
 
-  # registries the engine itself queries for this column and family
   probed <- if (!identical(model_col, "func")) "dist"
   else if (family == "infectivity profile") "infec"
   else if (is_latent_family(family)) c("func", "dist", "infec")
@@ -75,9 +73,9 @@ raise_def_error <- function(func_name, arg_names, def_name,
 
   exposers <- c(func = "expose_function", dist = "expose_distribution",
                 infec = "expose_infec_profile")
-  err <- list()
-  for (k in probed) err[[k]] <- probe_exposer_(exposers[[k]], func_name,
-                                               func_args)
+  out <- lapply(stats::setNames(nm = probed), function(k)
+    probe_exposer_(exposers[[k]], func_name, func_args))
+  err <- Filter(is.character, out)
 
   # every registry refused the name: the definition has no reading
   if (length(err) == length(probed)) stop_h(
@@ -85,29 +83,65 @@ raise_def_error <- function(func_name, arg_names, def_name,
             ifelse(is.na(def_name), family, sprintf("{.val %s}", def_name))),
     helper_format_error(err)
   )
+  if (length(probed) - length(err) == 1) Filter(Negate(is.character), out)[[1]]
 }
 
-# Assert that arguments provided to model are legitimate.
+# Append named numeric arguments to an encoded call: "f" or "f|a|[..]".
+append_call_args_ <- function(call, args) {
+  vals <- stats::setNames(sprintf("%s|N", as.character(args)), names(args))
+  if (!housepi_is_call(call)) return(housepi_combine_to_call(call, vals))
+  parts <- regmatches(call, regexec("^([^|]*)\\|([^|]*)\\|(.*)$", call))[[1]]
+  sprintf("%s|%s:%s|%s:%s", parts[2], parts[3],
+          paste(names(args), collapse = ":"), parts[4],
+          paste(sprintf("[%s]", vals), collapse = ":"))
+}
+
+# Write into row `r` of the definitions the defaults the user left out: the
+# arguments of the parametrization in use, and the bounds that hold a value of
+# their own. A bound reading an argument is left out, as passing it would
+# detach the bound from that argument.
+fill_defaults_ <- function(gear, r, col, obj, user_args) {
+  args <- cpp_member_(obj, "args")()
+  args <- args[!is.na(args) & !names(args) %in% user_args]
+  if (length(args) > 0)
+    gear$defs[r, col] <- append_call_args_(gear$defs[r, col], args)
+
+  domain <- cpp_member_(obj, "domain")()
+  aliases <- cpp_member_(obj, "bound_aliases")()
+  for (key in intersect(c("min", "max"), colnames(gear$defs))) {
+    bound <- domain[[key]]
+    if (is.na(gear$defs[r, key]) && is.finite(bound) && !aliases[[key]])
+      gear$defs[r, key] <- sprintf("%s|N", as.character(bound))
+  }
+}
+
+# Assert that arguments provided to model are legitimate, and write the
+# defaults the user left out into the definitions. `last` restricts both to
+# that many trailing rows, all rows when NA.
 # UPDATE: at the moment latent functions are not testable
 # because my registries are exposed separately
-housepi_assert_args <- function(gear, last = FALSE) {
-  defs <- gear$defs
-  if (isTRUE(last)) defs <- utils::tail(defs, 1)
+housepi_assert_args <- function(gear, last = NA_integer_) {
+  rows <- seq_len(NROW(gear$defs))
+  if (!is.na(last)) rows <- utils::tail(rows, last)
   family <- gear$family
 
   # load requested faimily definitions
   for (col in family2function_col(family)) {
     col_args <- ifelse(col == "func", "func_args", "args")
 
-    readable_defs <- housepi_defin_showcaser(defs)
+    readable_defs <- housepi_defin_showcaser(gear$defs[rows, , drop = FALSE])
     func_names <- readable_defs[[col]]
 
-    for (r in which(!is.na(func_names))) raise_def_error(
-      func_names[[r]],
-      names(readable_defs[r, col_args][[1]]),
-      if ("name" %in% colnames(defs)) defs[r, "name"] else NA,
-      family, col
-    )
+    for (i in which(!is.na(func_names))) {
+      r <- rows[[i]]
+      user_args <- names(readable_defs[i, col_args][[1]])
+      obj <- probe_definition_(
+        func_names[[i]], user_args,
+        if ("name" %in% colnames(gear$defs)) gear$defs[r, "name"] else NA,
+        family, col
+      )
+      if (!is.null(obj)) fill_defaults_(gear, r, col, obj, user_args)
+    }
   }
 }
 

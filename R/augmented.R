@@ -318,9 +318,10 @@ HousepiAugmented <- R6::R6Class(
       if (!is.null(max)) opts$max <- max
 
       # append definition(s)
-      self$defs <- rbind(self$defs, data.frame(opts))
-      # assert last definition is correct
-      if (isTRUE(.assert)) housepi_assert_args(self, last = TRUE)
+      new_defs <- data.frame(opts)
+      self$defs <- rbind(self$defs, new_defs)
+      # assert appended definitions are correct
+      if (isTRUE(.assert)) housepi_assert_args(self, last = nrow(new_defs))
 
       invisible(self)
     },

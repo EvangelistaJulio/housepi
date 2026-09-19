@@ -87,3 +87,41 @@ test_that("Assert valid data columns holds the definition alphabet", {
   assert_valid_data_columns(c("bad name", "ok.name", "bad!"), "data_long") |>
     expect_error("data_long")
 })
+
+test_that("Definitions carry the defaults the user left out", {
+  # a bare uniform prior reports its unit interval, a given bound is kept
+  param <- flu_1918_frederick |>
+    new_housepi_model("final_size") |>
+    add_parameter(import = "template") |>
+    get_parameters()
+  expect_equal(param$min, c(0, 0, 0, NA))
+  expect_equal(param$max, c(1, 1, 3, NA))
+
+  hhdata <- data.frame(house_id = c("h1", "h1"), status = c(1, 0),
+                       record = c(3L, 1L), record_2 = c(0.5, 2.1))
+  hhmodel <- hhdata |>
+    new_housepi_model("final_size") |>
+    add_parameter(
+      rho = list(value = 0.3, prior = "gamma", shape = 2),
+      rho_2 = list(value = 0.3, prior = "gamma", mean = 2, sd = 1),
+      rho_3 = list(value = 0, prior = "normal", sd = 2, min = -1),
+      rho_4 = list(func = "log", x = rho@P)
+    ) |>
+    add_observation(
+      record = list(model = "binomial", size = 5, prob = rho@P),
+      record_2 = list(model = "gamma", shape = 2, scale = 3)
+    )
+  param <- get_parameters(hhmodel, name = c("rho", "rho_2", "rho_3", "rho_4"))
+  # the parametrization in use lends its defaults, the other one has none
+  expect_equal(param$args[[1]], c(shape = 2, scale = 1))
+  expect_equal(param$args[[2]], c(mean = 2, sd = 1))
+  expect_equal(param$args[[3]], c(sd = 2, mean = 0))
+  # the open bound of `log` at 0 is passed back as it is declared
+  expect_equal(param$min, c(0, 0, -1, 0))
+
+  obs <- get_observations(hhmodel)
+  expect_equal(obs$args[[2]], c(shape = 2, scale = 3))
+  # the binomial upper bound reads `size`, so it is left to track it
+  expect_equal(obs$min, c(0, 0))
+  expect_equal(obs$max, c(NA_real_, NA_real_))
+})

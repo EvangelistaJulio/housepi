@@ -220,7 +220,7 @@ namespace housepi
             }
             msg::stop("Proposal " + msg::val(pDistr_->name()) + " has support " + support.str() +
                       " that cannot cover the domain " +
-                      (pPrior_ ? pPrior_->str_domain() : std::string("(-Inf, Inf)")) +
+                      (pPrior_ ? pPrior_->domain().str() : std::string("(-Inf, Inf)")) +
                       " of " + owner + ".\nPlease correct the proposal rule.");
         }
     };

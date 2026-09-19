@@ -111,8 +111,16 @@ test_that("Status-specific definitions replace the generic one", {
     get_infectivity_profiles()
 
   expect_equal(defs$func, c("lognormal", "ferretti20", "uniform"))
-  expect_equal(defs$func_args[[2]], c(incub_period = 5))
+  expect_equal(defs$func_args[[2]],
+               c(incub_period = 5, shape = 5.85, scale = 1.85,
+                 c_loc = -4, mean_incub = 5.42))
   expect_equal(defs$status, c(1, 2, NA_real_))
+
+  # one call over several statuses fills the defaults of every row it appends
+  defs <- mk_infec$model |>
+    add_infectivity_profile("gamma", shape = 2, status = c(1, 2)) |>
+    get_infectivity_profiles()
+  expect_equal(defs$func_args, rep(list(c(shape = 2, scale = 1)), 2))
 })
 
 test_that("Spurious names of imported definitions are dropped", {

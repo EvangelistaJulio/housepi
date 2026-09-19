@@ -547,9 +547,6 @@ namespace housepi
         /// Set the family word shown in errors (see str()).
         void set_err_family(ErrType family) noexcept { err_family_ = family; }
 
-        /// Return formatted domain.
-        std::string str_domain() const { return domain_.str(); }
-
     protected:
         //////////////////////
         //////  DOMAIN  //////

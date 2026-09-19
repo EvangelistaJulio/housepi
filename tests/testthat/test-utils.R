@@ -96,8 +96,7 @@ test_that("Setup options are formatted as character", {
   # id_draws are dropped if NULL
   char_setup_input_(list(steps = 100L, id_draws = NULL)) |>
     getElement("id_draws") |>
-    is.na() |>
-    expect_true()
+    expect_identical("")
 })
 
 test_that("Char data input handles NULL and data.frame", {

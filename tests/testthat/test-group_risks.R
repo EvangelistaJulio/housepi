@@ -145,8 +145,8 @@ test_that("Group risks integrate with data", {
   # mcmc setup is the absolute default
   params <- get_parameters(hhmodel)
   params <- params[!params$const, ]
-  expect_true(all(is.na(params$min)))
-  expect_true(all(is.na(params$max)))
+  expect_true(all(params$min == 0))
+  expect_true(all(params$max == 1))
   expect_true(all(params$proposal == "rw_log"))
 })
 
@@ -321,7 +321,7 @@ test_that("Parameter options work correctly", {
     sampled_params()
   expect_true(all(params$prior == "gamma"))
   expect_equal(params$args[[1]], c(shape = 2, scale = 1))
-  expect_true(all(is.na(params$min)))
+  expect_true(all(params$min == 0))
   expect_true(all(is.na(params$max)))
   expect_true(all(params$proposal == "rw"))
 })
@@ -419,7 +419,7 @@ test_that("Group risk parameter overrides work", {
   expect_true(old$const)
   elderly <- get_parameters(hhmodel, "sus_elderly")
   expect_equal(elderly$prior, "lognormal")
-  expect_equal(elderly$args[[1]], c(sdlog = 1.2))
+  expect_equal(elderly$args[[1]], c(sdlog = 1.2, meanlog = 0))
 
   hhmodel |>
     add_group_risk("susceptibility",

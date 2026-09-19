@@ -309,7 +309,7 @@ test_that("Contact risk custom mode default behaves correctly", {
   # default parameter definitions
   default <- get_parameters(hhmodel, "c2c")
   default$prior |> expect_equal("lognormal")
-  default$args[[1]] |> expect_equal(c(sdlog = 1.8))
+  default$args[[1]] |> expect_equal(c(sdlog = 1.8, meanlog = 0))
   # overrides as variable
   variable <- get_parameters(hhmodel, "a2c")
   variable$prior |> expect_equal("uniform")

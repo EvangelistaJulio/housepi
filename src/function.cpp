@@ -849,7 +849,7 @@ namespace housepi
             if (attr.is_na() || (key == "x" && !is_valid(x)))
                 msg::stop(
                     "Value " + str::format(x) + " for argument " + msg::arg(std::string(key)) +
-                    " is outside of domain " + str_domain() + ".");
+                    " is outside of domain " + domain_.str() + ".");
         }
     }
 

@@ -120,11 +120,11 @@ namespace housepi
             n_burn = str::toul(input.at("burn")[0], "burn");
 
         // Individual ID for Latent Trace
-        if (input.count("id_draws") && !na::is(input.at("id_draws")[0]))
+        if (input.count("id_draws") && !input.at("id_draws")[0].empty())
             id_draws = str::unique(read::parse_list(input.at("id_draws")[0]));
 
         // Household ID for Latent Trace
-        if (input.count("house_draws") && !na::is(input.at("house_draws")[0]))
+        if (input.count("house_draws") && !input.at("house_draws")[0].empty())
             house_draws = str::unique(read::parse_list(input.at("house_draws")[0]));
 
         // Inverse temperature for a tempered (power-posterior) sample
