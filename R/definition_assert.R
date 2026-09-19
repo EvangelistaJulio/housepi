@@ -5,11 +5,8 @@
 ## See the LICENSE file for details.
 ##
 
-# Augmented stores four display families.
-is_latent_family <- function(family) {
-  family %in% c("latent", "observation", "household observation",
-                "status observation")
-}
+# Kinds of definition the augmented store holds.
+definition_kinds_ <- c("latent", "member", "house", "status")
 
 # Display family of a definition kind.
 kind2family <- function(kind) {
@@ -19,6 +16,11 @@ kind2family <- function(kind) {
     "status" = "status observation",
     "latent"
   )
+}
+
+# Augmented stores one display family per kind.
+is_latent_family <- function(family) {
+  family %in% vapply(definition_kinds_, kind2family, character(1))
 }
 
 # Column carrying the defining distribution of the holder family.

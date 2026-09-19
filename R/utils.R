@@ -107,6 +107,25 @@ stop_read_only <- function(active) {
   stop_h("Active field {.field {active}} is read only.")
 }
 
+# Unprintable separator hashing several values into one key.
+key_sep_ <- "\x1F"
+
+#' Hash the `cols` of each row of `x` into one key.
+#' @param x `data.frame`.
+#' @param cols `character()` Columns to hash.
+#' @noRd
+row_keys_ <- function(x, cols) {
+  do.call(paste, c(lapply(x[cols], as.character), list(sep = key_sep_)))
+}
+
+#' Stop on a non-empty message when `wall` is set, else return it.
+#' @param sms `character()` Message lines.
+#' @param wall `logical(1)` Raise the error.
+#' @noRd
+wall_or_return_ <- function(sms, wall) {
+  if (isTRUE(wall) && length(sms) > 0) stop_h(sms) else sms
+}
+
 #' Subsample a data.frame to ~n evenly spaced rows.
 #' Returns the input unchanged when n is NA or n >= nrow(df).
 #' @param df `data.frame` input table.
@@ -115,6 +134,74 @@ stop_read_only <- function(active) {
 helper_thin_table_ <- function(df, n) {
   if (is.null(df) || is.na(n) || nrow(df) <= n) return(df)
   df[round(seq.int(1L, nrow(df), length.out = n)), , drop = FALSE]
+}
+
+#' Read a parameter table from draws or a data.frame, thinned to the ESS.
+#' @param ptab Table with parameter values.
+#' @param thin_ess `logical(1)`
+#' @noRd
+helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
+  # extract parameter draws from table
+  if (inherits(ptab, "HousepiPosteriorDraws")) ptab <- ptab$parameter_draws
+
+  if (posterior::is_draws(ptab)) {
+    ptab <- posterior::as_draws_matrix(ptab)
+    # reduce sample to effective sample size (ESS)
+    if (isTRUE(thin_ess)) {
+      # an ESS above the draw count keeps every draw, capped or not
+      # degenerate draws give NA, asserted below
+      ess_bulk <- suppressWarnings(
+        sapply(posterior::variables(ptab),
+               function(v) posterior::ess_bulk(ptab[, v]))
+      )
+      # check no NA values in ESS
+      if (any(is.na(ess_bulk))) stop_h(
+        "ESS values return NA.",
+        "Check your draws for degenerate parameters."
+      )
+      # keep at most ESS draws, and at least one per chain
+      thin <- ceiling(posterior::ndraws(ptab) / min(ess_bulk))
+      thin <- min(thin, posterior::niterations(ptab))
+      ptab <- posterior::thin_draws(ptab, thin = thin)
+    }
+  }
+
+  tryCatch({
+    return(as.data.frame(ptab))
+  }, error = function(e) stop_h("Type of {.arg param_table} not supported.")
+  )
+}
+
+#' Normalise the `id_draws` selection into individual and household
+#' identifiers plus the default-follow signal. Status filtering and the
+#' default household pick are left to the engine.
+#' @param id_draws Selection given to [run_inference()].
+#' @noRd
+resolve_id_draws_ <- function(id_draws) {
+  out <- list(id = character(), house_id = character())
+  # unspecified: let the engine follow one random household
+  if (is.null(id_draws) || length(id_draws) == 0L) {
+    return(out)
+  }
+  # explicit opt-out: forward the sentinel so the engine stores nothing
+  if (identical(as.character(id_draws), ".none")) {
+    out$id <- ".none"
+    return(out)
+  }
+  # named list: split individual and household identifiers
+  if (is.list(id_draws)) {
+    extra <- setdiff(names(id_draws), c("id", "house_id"))
+    if (length(extra) > 0) stop_h(
+      "Unknown {.arg id_draws} name{?s}: {.val {extra}}."
+    )
+    if (!is.null(id_draws$id)) out$id <- as.character(id_draws$id)
+    if (!is.null(id_draws$house_id))
+      out$house_id <- as.character(id_draws$house_id)
+    return(out)
+  }
+  # bare vector: individual identifiers
+  out$id <- as.character(id_draws)
+  out
 }
 
 #' Return 's' if length of input is larger than 1.

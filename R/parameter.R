@@ -73,12 +73,8 @@ HousepiParameter <- R6::R6Class(
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
 
-      # load dots
-      dots <- list(...)
-      # flatten if single quosures list (from enquos)
-      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      # extract args and proposal
-      def_args <- helper_definition_args(proposal, dots)
+      # extract args and proposal from the dots
+      def_args <- helper_definition_args(proposal, list(...))
       args <- def_args$args
       proposal <- def_args$proposal
 
@@ -110,8 +106,7 @@ HousepiParameter <- R6::R6Class(
 
       # drop any previous definition
       rmv_name <- self$remove(opts$name)
-      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
-      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+      warn_or_store_overwrite_(self, rmv_name, .warn_over)
 
       opts <- helper_variable_core(opts, self$family, value, func)
       opts <- helper_variable_args(opts, self$family, args, func)
@@ -151,8 +146,7 @@ HousepiParameter <- R6::R6Class(
       }
       # stop if parameters are missing
       sms <- template_missing_stop(required, defined, self$family)
-      if (isTRUE(wall) && length(sms) > 0) stop_h(sms)
-      else sms
+      wall_or_return_(sms, wall)
     }
   )
 )

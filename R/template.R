@@ -324,6 +324,17 @@ template_overwrite_warn <- function(all_rmv, holder, max_print = 4) {
   ))
 }
 
+#' Warn about overwritten definitions now, or cache them on the holder.
+#' @param self Definition holder with `family` and `store_warn_over`.
+#' @param rmv_name `character()` Removed definitions.
+#' @param warn `logical(1)` Warn now instead of caching.
+#' @keywords internal
+#' @noRd
+warn_or_store_overwrite_ <- function(self, rmv_name, warn) {
+  if (warn) template_overwrite_warn(rmv_name, self$family)
+  else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+}
+
 ############################################################################
 ############################################################################
 ############################################################################

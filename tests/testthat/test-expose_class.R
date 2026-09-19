@@ -111,6 +111,17 @@ test_that("Bulk import mirrors inline name = value pairs", {
     expect_error("[Uu]nknown import source")
 })
 
+test_that("Bulk import resolves symbols in the calling frame", {
+  # `datum_local` exists only inside the caller
+  param <- local({
+    datum_local <- 3
+    mk_wrapper$model |>
+      add_parameter(import = list(rho = quote(datum_local * 2))) |>
+      get_parameters()
+  })
+  expect_equal(param$value, 6)
+})
+
 test_that("add_observation routes every input branch on `level`", {
   hhmodel <- data.frame(house_id = "h1", status = 1, record = 3, datum = 2) |>
     new_housepi_model("test")

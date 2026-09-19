@@ -36,6 +36,60 @@ warn_logevidence_experimental_ <- function() {
   )
 }
 
+# Log-likelihood trace at rung k of the ladder draws.
+ll_at_ <- function(draws, k) {
+  posterior::extract_variable(draws, sprintf("log_lik[%d]", k))
+}
+
+# Stepping-stone estimator over the ladder.
+# Tempered increments max-stabilised via log-mean-exp.
+# @references
+# \insertRef{xie_improving_2011}{housepi}
+stepping_stone_ <- function(inv_temp, draws) {
+  db <- diff(inv_temp, lag = 1L)
+  rss_k <- vapply(seq_along(db), function(k) {
+    ll <- ll_at_(draws, k)
+    ll_peak <- max(ll)
+    w <- exp(db[k] * (ll - ll_peak))
+    db[k] * ll_peak + log(mean(w))
+  }, numeric(1L))
+  sum(rss_k)
+}
+
+# Variance of the stepping-stone estimator.
+# Delta-method approximation with max-stabilisation.
+# @references
+# \insertRef{xie_improving_2011}{housepi}
+stepping_stone_var_ <- function(inv_temp, draws) {
+  db <- diff(inv_temp, lag = 1L)
+  var_rss_k <- vapply(seq_along(db), function(k) {
+    ll <- ll_at_(draws, k)
+    ll_peak <- max(ll)
+    w <- exp(db[k] * (ll - ll_peak))
+    v <- var(w)
+    v / (posterior::ess_mean(w) * mean(w)^2)
+  }, numeric(1L))
+  sum(var_rss_k)
+}
+
+# Thermodynamic integration over the ladder.
+# Using trapezoidal rule with variance-based correction.
+# @references
+# \insertRef{friel_improving_2014}{housepi}
+thermodynamic_ <- function(inv_temp, draws, avg, var) {
+  if (any(!is.finite(posterior::as_draws_matrix(draws)))) {
+    stop_h(
+      paste("Thermodynamic integration is not applicable:",
+            "ladder holds non-finite log-likelihood draws."),
+      "Try to use {.code method = \"stepping-stone\"} instead."
+    )
+  }
+  db <- diff(inv_temp, lag = 1L)
+  k <- seq_along(db)
+  sum((avg[k + 1L] + avg[k]) * db / 2 +
+        (var[k] - var[k + 1L]) * db^2 / 12)
+}
+
 #' @title Power-posterior ladder of a housepi model
 #' @description
 #' Container for the power-posterior ladder sampled by [run_power_posteriors()].
@@ -62,63 +116,7 @@ HousepiPowerPosteriors <- R6::R6Class(
     inv_temp_ = NULL,
     mean_log_lik_ = NULL,
     var_log_lik_ = NULL,
-    draws_ = NULL,
-
-    # Extract log-likelihood trace at rung k.
-    ll_at_ = function(k) {
-      posterior::extract_variable(private$draws_, sprintf("log_lik[%d]", k))
-    },
-
-    # Stepping-stone estimator over the ladder.
-    # Tempered increments max-stabilised via log-mean-exp.
-    # @references
-    # \insertRef{xie_improving_2011}{housepi}
-    stepping_stone_ = function() {
-      db <- diff(private$inv_temp_, lag = 1L)
-      rss_k <- vapply(seq_along(db), function(k) {
-        ll <- private$ll_at_(k)
-        ll_peak <- max(ll)
-        w <- exp(db[k] * (ll - ll_peak))
-        db[k] * ll_peak + log(mean(w))
-      }, numeric(1L))
-      sum(rss_k)
-    },
-
-    # Variance of the stepping-stone estimator.
-    # Delta-method approximation with max-stabilisation.
-    # @references
-    # \insertRef{xie_improving_2011}{housepi}
-    stepping_stone_var_ = function() {
-      db <- diff(private$inv_temp_, lag = 1L)
-      var_rss_k <- vapply(seq_along(db), function(k) {
-        ll <- private$ll_at_(k)
-        ll_peak <- max(ll)
-        w <- exp(db[k] * (ll - ll_peak))
-        v <- var(w)
-        v / (posterior::ess_mean(w) * mean(w)^2)
-      }, numeric(1L))
-      sum(var_rss_k)
-    },
-
-    # Thermodynamic integration over the ladder.
-    # Using trapezoidal rule with variance-based correction.
-    # @references
-    # \insertRef{friel_improving_2014}{housepi}
-    thermodynamic_ = function() {
-      if (any(!is.finite(posterior::as_draws_matrix(private$draws_)))) {
-        stop_h(
-          paste("Thermodynamic integration is not applicable:",
-                "ladder holds non-finite log-likelihood draws."),
-          "Try to use {.code method = \"stepping-stone\"} instead."
-        )
-      }
-      avg <- private$mean_log_lik_
-      var <- private$var_log_lik_
-      db <- diff(private$inv_temp_, lag = 1L)
-      k <- seq_along(db)
-      sum((avg[k + 1L] + avg[k]) * db / 2 +
-            (var[k] - var[k + 1L]) * db^2 / 12)
-    }
+    draws_ = NULL
   ),
 
   ############################################################################
@@ -199,11 +197,13 @@ HousepiPowerPosteriors <- R6::R6Class(
     ) {
       switch(match.arg(method),
         "stepping-stone" = c(
-          estimate = private$stepping_stone_(),
-          sd = sqrt(private$stepping_stone_var_())
+          estimate = stepping_stone_(private$inv_temp_, private$draws_),
+          sd = sqrt(stepping_stone_var_(private$inv_temp_, private$draws_))
         ),
         "thermodynamic" = c(
-          estimate = private$thermodynamic_(),
+          estimate = thermodynamic_(private$inv_temp_, private$draws_,
+                                    private$mean_log_lik_,
+                                    private$var_log_lik_),
           sd = NA_real_
         )
       )

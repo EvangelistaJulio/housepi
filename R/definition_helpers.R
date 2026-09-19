@@ -193,13 +193,18 @@ helper_variable_args <- function(opts, family, args, func) {
 # distribution, a distribution name draws from that distribution.
 .random_walk_proposals <- c("rw", "rw_log", "rw_unif")
 
+# Flatten dots holding a single quosures list (from `enquos()`).
+flatten_definition_dots <- function(dots) {
+  if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots[[1]] else dots
+}
+
 # @description
 # Extract arguments carried by the dots.
 # Fold any advanced `proposal_*` option into the proposal call, routing
 # `proposal_scale` to random walks and distribution arguments to independence
 # samplers.
 helper_definition_args <- function(proposal, dots) {
-  args <- housepi_extractor(!!!dots)
+  args <- housepi_extractor(!!!flatten_definition_dots(dots))
   nms <- names(args)
   # skip if empty
   if (length(nms) == 0) return(list(args = args, proposal = proposal))

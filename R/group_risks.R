@@ -33,6 +33,46 @@ risk_na_pad <- function(cols) {
   })
 }
 
+# Parameter definitions of one logic table. A named parameter takes its
+# override when given, else the shared `fallback`; the table pins its values.
+risk_table_params_ <- function(tbl, overrides, fallback) {
+  pins <- collect_table_pins(tbl)
+  out <- list()
+  for (par_id in setdiff(tbl$param_name, ".reference")) {
+    def <- if (!is.null(overrides[[par_id]])) overrides[[par_id]] else fallback
+    out[[par_id]] <- helper_pin_param_def(def, pins[[par_id]])
+  }
+  out
+}
+
+# Code rule columns as integers over the factor levels held in `info`.
+# `key` maps a column to its `info` entry; columns without one stay as they
+# are. An NA rule cell is the wildcard: it codes to NA, so the engine skips
+# that covariate and it counts for no specificity.
+encode_risk_levels_ <- function(defs, info, key = identity,
+                                cols = colnames(defs)) {
+  for (col in cols) {
+    lv <- info[[key(col)]]$levels
+    if (!is.null(lv)) {
+      defs[[col]] <- as.integer(factor(defs[[col]], levels = lv))
+    }
+  }
+  defs
+}
+
+# Reorder `df` to `cols`, padding the missing ones with typed `NA`.
+pad_risk_cols_ <- function(df, cols) {
+  miss <- setdiff(cols, names(df))
+  if (length(miss) > 0) df[miss] <- risk_na_pad(miss)
+  df[cols]
+}
+
+# Parameter-name prefix: empty, or the given prefix closed by an underscore.
+format_risk_prefix_ <- function(prefix) {
+  if (identical(prefix, "") || !is.character(prefix)) ""
+  else paste0(prefix, "_")
+}
+
 # @description
 # Tidy risk table for the read surface. Definitions expand from data.
 # If none is attached the table is an empty shell with columns `cols`.
@@ -259,7 +299,7 @@ compute_rule_groups <- function(tbl) {
 
   # deterministic ordering: by serialized column set
   ord <- order(vapply(
-    max_patterns, function(p) paste(p, collapse = "\x1F"), character(1)
+    max_patterns, function(p) paste(p, collapse = key_sep_), character(1)
   ))
   max_patterns <- max_patterns[ord]
 
@@ -345,10 +385,10 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
   # cell identity: the rule itself, or the unordered pair when symmetric
   cell_key <- function(i) {
     row <- vapply(tbl[i, cov_cols, drop = FALSE], as.character, character(1))
-    if (!pair_wise) return(paste(cov_cols, row, sep = "_", collapse = "\x1F"))
+    if (!pair_wise) return(paste(cov_cols, row, sep = "_", collapse = key_sep_))
     ends <- lapply(c("from_", "to_"), function(side) {
       paste(covariates, row[paste0(side, covariates)],
-            sep = "_", collapse = "\x1F")
+            sep = "_", collapse = key_sep_)
     })
     paste(sort(unlist(ends)), collapse = "\x1E")
   }
@@ -474,13 +514,10 @@ group_risk_logic_table <- function(data_wide, this_cov,
 
   # count every combination in one pass. A cell the data does not carry
   # matches no stratum, so those members are left out of the tally
-  strata_key <- function(x) {
-    do.call(paste, c(lapply(x[this_cov], as.character), list(sep = "\x1F")))
-  }
   carried <- data_wide[stats::complete.cases(data_wide[this_cov]), ,
                        drop = FALSE]
-  tally <- table(strata_key(carried))
-  multicov_count <- as.integer(tally[strata_key(y)])
+  tally <- table(row_keys_(carried, this_cov))
+  multicov_count <- as.integer(tally[row_keys_(y, this_cov)])
   multicov_count[is.na(multicov_count)] <- 0L
 
   # no status is observed: every declared stratum stands, sample sizes unknown
@@ -550,9 +587,7 @@ associate_group_param_names <- function(this_table, prefix, reference) {
     )
   }
 
-  # format prefix
-  prefix <- ifelse(prefix == "" || !is.character(prefix),
-                   "", paste0(prefix, "_"))
+  prefix <- format_risk_prefix_(prefix)
 
   # associate parameter names
   this_table$param_name <- apply(
@@ -583,11 +618,8 @@ tidyup_group_risk_tables <- function(all_tables) {
       # concat this risk's sub-tables, then compute rule_groups within risk
       sub_cols <- unique(c("param_name", "n",
                            sort(unlist(lapply(this_table, names)))))
-      sub_combined <- do.call(rbind, lapply(this_table, function(x) {
-        miss <- setdiff(sub_cols, names(x))
-        if (length(miss) > 0) x[miss] <- risk_na_pad(miss)
-        x[sub_cols]
-      }))
+      sub_combined <- do.call(rbind, lapply(this_table, pad_risk_cols_,
+                                            cols = sub_cols))
       sub_combined <- compute_rule_groups(sub_combined)
       sub_combined <- reorder_risks_logic_table(sub_combined)
       df <- list(cbind_risk(sub_combined, risk))
@@ -601,11 +633,8 @@ tidyup_group_risk_tables <- function(all_tables) {
                        intersect(risk_pin_cols, present), sort(present)))
 
   # Add missing columns with NA
-  combined_df <- do.call(rbind, lapply(df_list, function(df) {
-    missing_cols <- setdiff(all_cols, names(df))
-    if (length(missing_cols) > 0) df[missing_cols] <- risk_na_pad(missing_cols)
-    df[all_cols]
-  }))
+  combined_df <- do.call(rbind, lapply(df_list, pad_risk_cols_,
+                                       cols = all_cols))
   rownames(combined_df) <- NULL
 
   combined_df
@@ -639,6 +668,20 @@ set_group_risks_mcmc_setup <- function(name, prior, args, min, max, proposal,
   }
 }
 
+# Validate and shape the automatic reference of group risks.
+auto_group_reference_ <- function(by, reference) {
+  if (identical(reference, ".auto")) return(".auto")
+
+  if (length(by) != length(reference)) stop_h(
+    "Arguments {.arg {c('by', 'reference')}} should have equal dimensions."
+  )
+  else if (length(setdiff(names(reference), by)) != 0) stop_h(
+    "Unrecognized names in reference list."
+  )
+  reference <- as.list(reference)
+  stats::setNames(reference, by)
+}
+
 ############################################################################
 ############################################################################
 ############################# Housepi Group Risk ###########################
@@ -661,20 +704,6 @@ HousepiGroupRisk <- R6::R6Class(
   private = list(
     deep_clone = function(name, value) helper_clone(value),
 
-    # Help defining the automatic reference.
-    helper_auto_reference_ = function(by, reference) {
-      if (identical(reference, ".auto")) return(".auto")
-
-      if (length(by) != length(reference)) stop_h(
-        "Arguments {.arg {c('by', 'reference')}} should have equal dimensions."
-      )
-      else if (length(setdiff(names(reference), by)) != 0) stop_h(
-        "Unrecognized names in reference list."
-      )
-      reference <- as.list(reference)
-      stats::setNames(reference, by)
-    },
-
     # Add risk definition in automatic mode.
     helper_auto_add_ = function(name, by,
                                 prefix = NA_character_,
@@ -685,12 +714,11 @@ HousepiGroupRisk <- R6::R6Class(
       # remove previous definition if it exists
       rmv_name <- self$remove(name)
 
-      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
-      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+      warn_or_store_overwrite_(self, rmv_name, .warn_over)
 
       # load reference and validate reference names
       if (length(reference) > 0) {
-        reference <- private$helper_auto_reference_(by, reference)
+        reference <- auto_group_reference_(by, reference)
       }
 
       # add new definition
@@ -731,8 +759,7 @@ HousepiGroupRisk <- R6::R6Class(
         self$logic_tables[[name]] <- NULL
         self$param_overrides[[name]] <- NULL
         rmv_name <- self$remove(name)
-        if (.warn_over) template_overwrite_warn(rmv_name, self$family)
-        else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+        warn_or_store_overwrite_(self, rmv_name, .warn_over)
       }
       self$logic_tables[[name]] <- list(strata)
       self$param_overrides[[name]] <- params
@@ -838,17 +865,11 @@ HousepiGroupRisk <- R6::R6Class(
     parameters = function(value) {
       new_params <- list()
       for (risk_id in names(self$logic_tables)) {
-        overrides <- self$param_overrides[[risk_id]]
         for (this_table in self$logic_tables[[risk_id]]) {
-          pins <- collect_table_pins(this_table)
-          for (par_id in setdiff(this_table$param_name, c(".reference"))) {
-            def <- if (!is.null(overrides) && !is.null(overrides[[par_id]])) {
-              overrides[[par_id]]
-            } else {
-              self$raw_params[[risk_id]]
-            }
-            new_params[[par_id]] <- helper_pin_param_def(def, pins[[par_id]])
-          }
+          par <- risk_table_params_(this_table,
+                                    self$param_overrides[[risk_id]],
+                                    self$raw_params[[risk_id]])
+          new_params[names(par)] <- par
         }
       }
       new_params
@@ -991,10 +1012,8 @@ HousepiGroupRisk <- R6::R6Class(
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       min <- housepi_smart_unwrap(min, "min")
       max <- housepi_smart_unwrap(max, "max")
-      dots <- list(...)
-      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      # extract args and proposal
-      def_args <- helper_definition_args(proposal, dots)
+      # extract args and proposal from the dots
+      def_args <- helper_definition_args(proposal, list(...))
       args <- def_args$args
       proposal <- def_args$proposal
       assert_no_sibling_dist_arg(args, self$family, name)
@@ -1132,12 +1151,7 @@ HousepiGroupRisk <- R6::R6Class(
           status_codes[as.character(defs[["status"]])]
         )
       }
-      for (k in intersect(colnames(defs), names(info))) {
-        # an NA rule cell is the wildcard: it codes to NA so the engine skips
-        # that covariate, and it counts for no specificity
-        defs[[k]] <- as.integer(factor(defs[[k]], levels = info[[k]]$levels))
-      }
-      defs
+      encode_risk_levels_(defs, info)
     }
   )
 )

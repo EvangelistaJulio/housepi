@@ -75,11 +75,8 @@ HousepiInfecProfile <- R6::R6Class(
       # load quosures
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
-      # load dots # UPDATE: not super elegant...
-      dots <- list(...)
-      # flatten if single quosures list (from enquos)
-      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      func_args <- housepi_extractor(!!!dots)
+      # load dots
+      func_args <- housepi_extractor(!!!flatten_definition_dots(list(...)))
       # ensure the argument name doesn't mistakenly be interpreted as argument
       func_args <- func_args[names(func_args) != "name"]
 
@@ -91,8 +88,7 @@ HousepiInfecProfile <- R6::R6Class(
 
       # drop any previous definition
       rmv_name <- self$remove(status)
-      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
-      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+      warn_or_store_overwrite_(self, rmv_name, .warn_over)
 
       # a discrete-time model requires a discrete profile
       if (isFALSE(discr) && self$discr_model) stop_h(

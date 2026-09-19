@@ -5,39 +5,38 @@
 ## See the LICENSE file for details.
 ##
 
+# Map `fn(fields, element)` over encoded definitions, `fields` being the
+# '|'-separated parts of a character element. `na` (a value or a function of
+# the element) answers NA elements; other non-character elements pass through.
+showcase_map_ <- function(x, fn, na = NA_character_) {
+  sapply(x, function(element) {
+    if (is.na(element)) return(if (is.function(na)) na(element) else na)
+    if (!is.character(element)) return(element)
+    fn(strsplit(element, "\\|")[[1]], element)
+  }, USE.NAMES = FALSE)
+}
+
 # Helper to extract sourced value from a definition.
 showcaser_extract <- function(x, src) {
-  sapply(x, function(element) {
-    if (is.na(element)) return(NA_character_)
-    if (!is.character(element)) return(element)
-    z <- strsplit(element, "\\|")[[1]]
-    if (length(z) != 2 || z[2] != src) return(element)
-    as.character(z[1])
-  }, USE.NAMES = FALSE)
+  showcase_map_(x, function(z, element) {
+    if (length(z) != 2 || z[2] != src) element else as.character(z[1])
+  })
 }
 
 # helper to extract numeric values from a definition
 showcaser_extract_numeric <- function(x) {
-  sapply(x, function(element) {
-    if (is.na(element)) return(if (is.logical(element)) element else NA_real_)
-    if (!is.character(element)) return(element)
-    z <- strsplit(element, "\\|")[[1]]
+  showcase_map_(x, function(z, element) {
     if (length(z) != 2 || z[2] != "N") return(element)
-
     if (z[1] %in% .reserved_math_consts) return(get(z[1]))
     as.numeric(z[1])
-  }, USE.NAMES = FALSE)
+  }, na = function(e) if (is.logical(e)) e else NA_real_)
 }
 
 # helper to extract function name from a definition
 showcaser_extract_func <- function(x) {
-  sapply(x, function(element) {
-    if (is.na(element)) return(NA_real_)
-    if (!is.character(element)) return(element)
-    z <- strsplit(element, "\\|")[[1]]
-    if (length(z) <= 2) return(element)
-    z[1]
-  }, USE.NAMES = FALSE)
+  showcase_map_(x, function(z, element) {
+    if (length(z) <= 2) element else z[1]
+  }, na = NA_real_)
 }
 
 # helper to split most external semicolon separator

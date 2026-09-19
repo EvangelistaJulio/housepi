@@ -142,8 +142,7 @@ HousepiModel <- R6::R6Class(
 
       sms <- template_missing_stop(required, cols, "data",
                                    noun = "column", style = "field")
-      if (isTRUE(wall) && length(sms) > 0) stop_h(sms)
-      else sms
+      wall_or_return_(sms, wall)
     },
 
     # @description
@@ -155,12 +154,13 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Assert contact risk definitions are compatible with the model.
-    assert_contact_risks_supported_ = function() {
-      if (private$generator_$has_contact_risk)
-        return(invisible(self))
+    # Assert the model supports a feature; definitions of it would be dropped.
+    # @param supported `logical(1)` whether the model supports it.
+    # @param label `character(1)` plural feature name.
+    assert_feature_supported_ = function(supported, label) {
+      if (supported) return(invisible(self))
       stop_h(
-        "Contact risks are not supported for model {.val {self$name}}.",
+        "{label} are not supported for model {.val {self$name}}.",
         `!` = "Definitions will be dropped."
       )
     },
@@ -250,22 +250,12 @@ HousepiModel <- R6::R6Class(
                    find_closest_match(nm, declared, max_print = 0))
         }
       }
-      if (isTRUE(wall)) stop_h(sms) else sms
+      wall_or_return_(sms, wall)
     },
 
     ############################################################################
     ############################################################################
     ############################################################################
-
-    # @description
-    # Assert infectivity profile definitions are compatible with the model.
-    assert_infec_profile_supported_ = function() {
-      if (private$generator_$has_infec_profile) return(invisible(self))
-      stop_h(
-        "Infectivity profiles are not supported for model {.val {self$name}}.",
-        `!` = "Definitions will be dropped."
-      )
-    },
 
     # @description
     # Assert an infectivity profile is defined when the model needs one.
@@ -275,7 +265,7 @@ HousepiModel <- R6::R6Class(
             length(private$infec_profile_$defs) > 0) return(character())
       sms <- c("Missing infectivity profile definition.",
                "Define it with {.fn add_infectivity_profile}.")
-      if (isTRUE(wall)) stop_h(sms) else sms
+      wall_or_return_(sms, wall)
     },
 
     ############################################################################
@@ -598,37 +588,6 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Normalise the `id_draws` selection into individual and household
-    # identifiers plus the default-follow signal. Status filtering and the
-    # default household pick are left to the engine.
-    resolve_id_draws_ = function(id_draws) {
-      out <- list(id = character(), house_id = character())
-      # unspecified: let the engine follow one random household
-      if (is.null(id_draws) || length(id_draws) == 0L) {
-        return(out)
-      }
-      # explicit opt-out: forward the sentinel so the engine stores nothing
-      if (identical(as.character(id_draws), ".none")) {
-        out$id <- ".none"
-        return(out)
-      }
-      # named list: split individual and household identifiers
-      if (is.list(id_draws)) {
-        extra <- setdiff(names(id_draws), c("id", "house_id"))
-        if (length(extra) > 0) stop_h(
-          "Unknown {.arg id_draws} name{?s}: {.val {extra}}."
-        )
-        if (!is.null(id_draws$id)) out$id <- as.character(id_draws$id)
-        if (!is.null(id_draws$house_id))
-          out$house_id <- as.character(id_draws$house_id)
-        return(out)
-      }
-      # bare vector: individual identifiers
-      out$id <- as.character(id_draws)
-      out
-    },
-
-    # @description
     # Full model build. Refresh runtime setup, enforce hard validation,
     # then push the final state to the engine.
     build_full_ = function(steps = 0L, adapt = 0L, burn = 0L,
@@ -708,41 +667,6 @@ HousepiModel <- R6::R6Class(
       ))
     },
 
-    # Helper with parameter table import.
-    # @param ptab Table with parameter values
-    # param thin_ess `logical(1)`
-    helper_read_param_table_ = function(ptab, thin_ess = TRUE) {
-      # extract parameter draws from table
-      if (inherits(ptab, "HousepiPosteriorDraws")) ptab <- ptab$parameter_draws
-
-      if (posterior::is_draws(ptab)) {
-        ptab <- posterior::as_draws_matrix(ptab)
-        # reduce sample to effective sample size (ESS)
-        if (isTRUE(thin_ess)) {
-          # an ESS above the draw count keeps every draw, capped or not
-          # degenerate draws give NA, asserted below
-          ess_bulk <- suppressWarnings(
-            sapply(posterior::variables(ptab),
-                   function(v) posterior::ess_bulk(ptab[, v]))
-          )
-          # check no NA values in ESS
-          if (any(is.na(ess_bulk))) stop_h(
-            "ESS values return NA.",
-            "Check your draws for degenerate parameters."
-          )
-          # keep at most ESS draws, and at least one per chain
-          thin <- ceiling(posterior::ndraws(ptab) / min(ess_bulk))
-          thin <- min(thin, posterior::niterations(ptab))
-          ptab <- posterior::thin_draws(ptab, thin = thin)
-        }
-      }
-
-      tryCatch({
-        return(as.data.frame(ptab))
-      }, error = function(e) stop_h("Type of {.arg param_table} not supported.")
-      )
-    },
-
     # Helper with simulation build.
     # FIXME: If there's a param table, build should change
     helper_simulation_build_ = function(param_table = NULL,
@@ -758,7 +682,7 @@ HousepiModel <- R6::R6Class(
       if (is.null(param_table)) {
         if (is.na(nrep)) nrep <- 1L
       } else {
-        param_table <- private$helper_read_param_table_(
+        param_table <- helper_read_param_table_(
           param_table, thin_ess = thin_ess
         )
         if (!is.na(nrep)) param_table <- helper_thin_table_(param_table, nrep)
@@ -833,7 +757,7 @@ HousepiModel <- R6::R6Class(
                             threads = 1L,
                             progress = TRUE,
                             labelled = TRUE) {
-      param_table <- private$helper_read_param_table_(param_table,
+      param_table <- helper_read_param_table_(param_table,
                                                       thin_ess = thin_ess)
       param_table <- helper_thin_table_(param_table, max_nrep)
       nsim <- nrow(param_table)

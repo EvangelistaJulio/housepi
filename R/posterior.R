@@ -175,6 +175,62 @@ summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 ############################################################################
 ############################################################################
 
+# Emits at most one warning per draws_kind combination.
+check_diagnostics_one_ <- function(d, draws_kind) {
+  if (is.null(d) || posterior::nvariables(d) == 0L) return(invisible())
+
+  rhat_max <- diagnostic_[["rhat_max"]]
+  neff_min <- diagnostic_[["neff_min"]]
+  ss <- posterior::niterations(d) * posterior::nchains(d)
+  sm <- posterior::summarise_draws(d)
+
+  # Round R-hat to 2 dp so the check matches the 3-sig-fig value shown by
+  # summarise_draws() (e.g. 1.0512 prints as 1.05 and must not be flagged).
+  bad_rhat <- which(!is.na(sm$rhat) & round(sm$rhat, 2) > rhat_max)
+  bad_bulk <- which(!is.na(sm$ess_bulk) & sm$ess_bulk / ss < neff_min)
+  both <- intersect(bad_rhat, bad_bulk)
+  only_rhat <- setdiff(bad_rhat, both)
+  only_bulk <- setdiff(bad_bulk, both)
+
+  findings <- c()
+  if (length(both) > 0L) findings <- c(findings,
+    sprintf("%s %s with R-hat > %.2f and Bulk ESS < %.0f%%: %s",
+            format_there_were_was(length(both)),
+            as_plural(draws_kind, length(both)),
+            rhat_max, 100. * neff_min,
+            character_to_string_list(sm$variable[both]))
+  )
+  if (length(only_rhat) > 0L) findings <- c(findings,
+    sprintf("%s %s with R-hat > %.2f: %s",
+            format_there_were_was(length(only_rhat)),
+            as_plural(draws_kind, length(only_rhat)),
+            rhat_max,
+            character_to_string_list(sm$variable[only_rhat]))
+  )
+  if (length(only_bulk) > 0L) findings <- c(findings,
+    sprintf("%s %s with Bulk Effective Sample Size (ESS) < %.0f%%: %s",
+            format_there_were_was(length(only_bulk)),
+            as_plural(draws_kind, length(only_bulk)),
+            100. * neff_min,
+            character_to_string_list(sm$variable[only_bulk]))
+  )
+  if (length(findings) == 0L) return(invisible())
+  names(findings) <- rep("!", length(findings))
+
+  # One hint assembled from the failure modes present: a high R-hat means
+  # chains may not have mixed, a low ESS means the sampler mixes slowly.
+  hint <- paste(c(
+    if (length(bad_rhat) > 0L) "chains may have not mixed",
+    if (length(bad_bulk) > 0L) "the sampler explores the posterior slowly"
+  ), collapse = "; ")
+  substr(hint, 1L, 1L) <- toupper(substr(hint, 1L, 1L))
+  warn_h(c(
+    "Convergence diagnostics flagged the following:",
+    findings, paste0(hint, ".")
+  ))
+  invisible()
+}
+
 #' @title Posterior draws from housepi model inference
 #' @description
 #' Posterior draws returned by [run_inference()] on a household model.
@@ -220,24 +276,10 @@ HousepiPosteriorDraws <- R6::R6Class(
     param_prior_draws_ = NULL,
     latent_draws_ = NULL,
     point_log_lik_draws_ = NULL,
-    draws_index_ = NULL,
 
     ############################################################################
     ############################################################################
     ############################################################################
-
-    # Store the per-draw chain/iteration index from the inference setup.
-    pre_process_setup_ = function(setup) {
-      private$draws_index_ <- draws_index_(setup)
-      invisible(self)
-    },
-
-    # @description Convert draws from housepi Rcpp to `posterior.`
-    # @param df `data.frame`. Draws exported from Rcpp core.
-    # @return `posterior::draws_df`
-    to_posterior_draws_ = function(df) {
-      tag_rcpp_draws_(df, private$draws_index_)
-    },
 
     # Stan-style post-inference diagnostics.
     # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
@@ -254,64 +296,8 @@ HousepiPosteriorDraws <- R6::R6Class(
         return(invisible())
       }
 
-      private$check_diagnostics_one_(private$param_draws_, "parameter")
-      private$check_diagnostics_one_(private$latent_draws_, "latent variable")
-      invisible()
-    },
-
-    # Emits at most one warning per draws_kind combination.
-    check_diagnostics_one_ = function(d, draws_kind) {
-      if (is.null(d) || posterior::nvariables(d) == 0L) return(invisible())
-
-      rhat_max <- diagnostic_[["rhat_max"]]
-      neff_min <- diagnostic_[["neff_min"]]
-      ss <- posterior::niterations(d) * posterior::nchains(d)
-      sm <- posterior::summarise_draws(d)
-
-      # Round R-hat to 2 dp so the check matches the 3-sig-fig value shown by
-      # summarise_draws() (e.g. 1.0512 prints as 1.05 and must not be flagged).
-      bad_rhat <- which(!is.na(sm$rhat) & round(sm$rhat, 2) > rhat_max)
-      bad_bulk <- which(!is.na(sm$ess_bulk) & sm$ess_bulk / ss < neff_min)
-      both <- intersect(bad_rhat, bad_bulk)
-      only_rhat <- setdiff(bad_rhat, both)
-      only_bulk <- setdiff(bad_bulk, both)
-
-      findings <- c()
-      if (length(both) > 0L) findings <- c(findings,
-        sprintf("%s %s with R-hat > %.2f and Bulk ESS < %.0f%%: %s",
-                format_there_were_was(length(both)),
-                as_plural(draws_kind, length(both)),
-                rhat_max, 100. * neff_min,
-                character_to_string_list(sm$variable[both]))
-      )
-      if (length(only_rhat) > 0L) findings <- c(findings,
-        sprintf("%s %s with R-hat > %.2f: %s",
-                format_there_were_was(length(only_rhat)),
-                as_plural(draws_kind, length(only_rhat)),
-                rhat_max,
-                character_to_string_list(sm$variable[only_rhat]))
-      )
-      if (length(only_bulk) > 0L) findings <- c(findings,
-        sprintf("%s %s with Bulk Effective Sample Size (ESS) < %.0f%%: %s",
-                format_there_were_was(length(only_bulk)),
-                as_plural(draws_kind, length(only_bulk)),
-                100. * neff_min,
-                character_to_string_list(sm$variable[only_bulk]))
-      )
-      if (length(findings) == 0L) return(invisible())
-      names(findings) <- rep("!", length(findings))
-
-      # One hint assembled from the failure modes present: a high R-hat means
-      # chains may not have mixed, a low ESS means the sampler mixes slowly.
-      hint <- paste(c(
-        if (length(bad_rhat) > 0L) "chains may have not mixed",
-        if (length(bad_bulk) > 0L) "the sampler explores the posterior slowly"
-      ), collapse = "; ")
-      substr(hint, 1L, 1L) <- toupper(substr(hint, 1L, 1L))
-      warn_h(c(
-        "Convergence diagnostics flagged the following:",
-        findings, paste0(hint, ".")
-      ))
+      check_diagnostics_one_(private$param_draws_, "parameter")
+      check_diagnostics_one_(private$latent_draws_, "latent variable")
       invisible()
     }
   ),
@@ -407,28 +393,17 @@ HousepiPosteriorDraws <- R6::R6Class(
     initialize = function(name, ptr) {
       # inherit model name
       private$name_ <- as.character(name)
-      # process inference setup
-      private$pre_process_setup_(.engine$export_setup(ptr))
+      # per-draw chain/iteration index from the inference setup
+      idx <- draws_index_(.engine$export_setup(ptr))
 
       # store cpp draws converted to posterior
-      private$param_draws_ <- private$to_posterior_draws_(
-        .engine$flush_param_draws(ptr)
-      )
+      private$param_draws_ <- tag_rcpp_draws_(.engine$flush_param_draws(ptr), idx)
       # per-parameter prior values kept internal: feed `lprior`, not a field
-      private$param_prior_draws_ <- private$to_posterior_draws_(
-        .engine$flush_param_log_prior_draws(ptr)
-      )
-      private$latent_draws_ <- private$to_posterior_draws_(
-        .engine$flush_latent_draws(ptr)
-      )
+      private$param_prior_draws_ <- tag_rcpp_draws_(.engine$flush_param_log_prior_draws(ptr), idx)
+      private$latent_draws_ <- tag_rcpp_draws_(.engine$flush_latent_draws(ptr), idx)
       # pointwise per-household log-likelihood = transmission (+ observation)
       # (+ latent model, when latents are defined)
-      private$point_log_lik_draws_ <- private$to_posterior_draws_(
-        .engine$flush_house_log_lik_draws(ptr)
-      )
-
-      # free auxiliary memory
-      private$draws_index_ <- NULL
+      private$point_log_lik_draws_ <- tag_rcpp_draws_(.engine$flush_house_log_lik_draws(ptr), idx)
 
       # Stan-style automatic diagnostics
       private$check_diagnostics_()

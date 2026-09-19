@@ -171,19 +171,17 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
   else housepi_format_call(func_name, func_args)
 }
 
-# Flag to tell if object is a call or a value.
-# NOTE: default function are 0 '|'
-housepi_is_sourced_value <- function(x) {
-  if (is.null(x)) FALSE
-  else isTRUE(stringr::str_count(x, "\\|") == 1)
+# Number of '|' separators in an encoded definition.
+housepi_bar_count <- function(x) {
+  if (is.null(x)) 0L else stringr::str_count(x, "\\|")
 }
 
-# Flag to tell if object is a call or a value.
-# NOTE: default function are 0 '|'
-housepi_is_call <- function(x) {
-  if (is.null(x)) FALSE
-  else isTRUE(stringr::str_count(x, "\\|") > 1)
-}
+# Flag to tell if object is a sourced value (one '|').
+housepi_is_sourced_value <- function(x) isTRUE(housepi_bar_count(x) == 1)
+
+# Flag to tell if object is a call: default functions carry 0 '|', a call
+# more than one.
+housepi_is_call <- function(x) isTRUE(housepi_bar_count(x) > 1)
 
 # Combione function name and arguments.
 housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {

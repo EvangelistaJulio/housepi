@@ -20,13 +20,10 @@ contact_risk_logic_table <- function(data_wide, covariates) {
   data_wide <- data_wide[, c("house_id", covariates), drop = FALSE]
   data_wide[] <- lapply(data_wide, as.character)
 
-  # hash using unprintable separator '\x1F'
-  make_key <- function(x, cols) do.call(paste, c(x[cols], list(sep = "\x1F")))
-
   # within a household every 'from' meets every 'to', so the ordered pairs of
   # two covariate keys are the product of their per-household counts. Only the
   # members meeting themselves have to come back off the diagonal
-  per_house <- table(data_wide$house_id, make_key(data_wide, covariates))
+  per_house <- table(data_wide$house_id, row_keys_(data_wide, covariates))
   cnt <- crossprod(per_house)
   diag(cnt) <- diag(cnt) - colSums(per_house)
 
@@ -38,8 +35,8 @@ contact_risk_logic_table <- function(data_wide, covariates) {
   rownames(y) <- NULL
 
   # look up counts by the pair of covariate keys
-  y$n <- as.integer(cnt[cbind(make_key(y, names(from_grid)),
-                              make_key(y, names(to_grid)))])
+  y$n <- as.integer(cnt[cbind(row_keys_(y, names(from_grid)),
+                              row_keys_(y, names(to_grid)))])
   y$n[is.na(y$n)] <- 0L
   y[y$n > 0, ]
 }
@@ -100,9 +97,7 @@ associate_contact_param_names <- function(this_table, prefix, reference,
     )
   }
 
-  # format prefix
-  prefix <- ifelse(prefix == "" || !is.character(prefix),
-                   "", paste0(prefix, "_"))
+  prefix <- format_risk_prefix_(prefix)
 
   # associate param names with one "from" and one "to" token
   this_table$param_name <- apply(
@@ -165,12 +160,6 @@ fill_symmetric_gaps <- function(tbl) {
   tbl
 }
 
-############################################################################
-############################################################################
-########################### Housepi Contact Risk ###########################
-############################################################################
-############################################################################
-
 #' Combine list of contact risk sub-tables into a single data.frame.
 #' @param tables `list` of `data.frame`s.
 #' @return `data.frame` with columns unified across sub-tables.
@@ -183,18 +172,40 @@ tidyup_contact_risk_tables <- function(tables) {
   all_cols <- unique(c("param_name", "n",
                        intersect(risk_pin_cols, present), sort(present)))
 
-  combined <- do.call(rbind, lapply(seq_along(tables), function(i) {
-    df <- tables[[i]]
-    missing_cols <- setdiff(all_cols, names(df))
-    if (length(missing_cols) > 0) df[missing_cols] <- risk_na_pad(missing_cols)
-    df[all_cols]
-  }))
+  combined <- do.call(rbind, lapply(tables, pad_risk_cols_, cols = all_cols))
   rownames(combined) <- NULL
   combined <- compute_rule_groups(combined)
   combined <- reorder_risks_logic_table(combined)
   rownames(combined) <- NULL
   combined
 }
+
+# Validate and shape the automatic reference of contact risks.
+auto_contact_reference_ <- function(by, reference) {
+  if (identical(reference, ".auto")) return(".auto")
+
+  valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
+  # convenience: allow un-prefixed names
+  if (length(reference) == length(by) && all(names(reference) %in% by)) {
+    reference <- c(stats::setNames(reference[by], paste0("from_", by)),
+                   stats::setNames(reference[by], paste0("to_", by)))
+  }
+  wrong_entries <- setdiff(names(reference), valid_names)
+  if (length(wrong_entries) != 0) stop_h(
+    sprintf("Unrecognized %s for reference: %s",
+            as_plural("choice", length(wrong_entries)),
+            character_to_string_list(wrong_entries)),
+    paste("Reference should match {.arg by}",
+          "and use {.code from_}\\{.code to_} prefixes.")
+  )
+  as.list(reference)
+}
+
+############################################################################
+############################################################################
+########################### Housepi Contact Risk ###########################
+############################################################################
+############################################################################
 
 #' @title Internal R6 holder for housepi contact-risk definitions
 #' @description
@@ -212,27 +223,6 @@ HousepiContactRisk <- R6::R6Class(
   private = list(
     deep_clone = function(name, value) helper_clone(value),
 
-    # Help defining the automatic reference.
-    helper_auto_reference_ = function(by, reference) {
-      if (identical(reference, ".auto")) return(".auto")
-
-      valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
-      # convenience: allow un-prefixed names
-      if (length(reference) == length(by) && all(names(reference) %in% by)) {
-        reference <- c(stats::setNames(reference[by], paste0("from_", by)),
-                       stats::setNames(reference[by], paste0("to_", by)))
-      }
-      wrong_entries <- setdiff(names(reference), valid_names)
-      if (length(wrong_entries) != 0) stop_h(
-        sprintf("Unrecognized %s for reference: %s",
-                as_plural("choice", length(wrong_entries)),
-                character_to_string_list(wrong_entries)),
-        paste("Reference should match {.arg by}",
-              "and use {.code from_}\\{.code to_} prefixes.")
-      )
-      as.list(reference)
-    },
-
     # Add risk definition in automatic mode.
     helper_auto_add_ = function(by, reference, prefix, joint, symmetric) {
       # validate covariates
@@ -240,7 +230,7 @@ HousepiContactRisk <- R6::R6Class(
 
       # load reference and validate reference names
       if (length(reference) > 0) {
-        reference <- private$helper_auto_reference_(by, reference)
+        reference <- auto_contact_reference_(by, reference)
       }
 
       # store definition
@@ -322,15 +312,8 @@ HousepiContactRisk <- R6::R6Class(
     parameters = function(value) {
       new_params <- list()
       for (ptbl in self$logic_tables) {
-        pins <- collect_table_pins(ptbl)
-        for (par_id in setdiff(ptbl$param_name, ".reference")) {
-          def <- if (!is.null(self$param_overrides[[par_id]])) {
-            self$param_overrides[[par_id]]
-          } else {
-            self$raw_params
-          }
-          new_params[[par_id]] <- helper_pin_param_def(def, pins[[par_id]])
-        }
+        par <- risk_table_params_(ptbl, self$param_overrides, self$raw_params)
+        new_params[names(par)] <- par
       }
       new_params
     },
@@ -440,10 +423,8 @@ HousepiContactRisk <- R6::R6Class(
       proposal <- housepi_smart_unwrap(proposal, "proposal")
       min <- housepi_smart_unwrap(min, "min")
       max <- housepi_smart_unwrap(max, "max")
-      dots <- list(...)
-      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      # extract args and proposal
-      def_args <- helper_definition_args(proposal, dots)
+      # extract args and proposal from the dots
+      def_args <- helper_definition_args(proposal, list(...))
       args <- def_args$args
       proposal <- def_args$proposal
       assert_no_sibling_dist_arg(args, self$family)
@@ -547,18 +528,11 @@ HousepiContactRisk <- R6::R6Class(
       }
       if (is.null(covariates) || length(covariates) == 0) return(defs)
 
-      for (this_cov in covariates[!is.na(covariates)]) {
-        if (is.null(info[[this_cov]])) next
-        lv <- info[[this_cov]]$levels
-        for (prefix in c("from_", "to_")) {
-          col <- paste0(prefix, this_cov)
-          # an NA rule cell is the wildcard (see HousepiGroupRisk$expose_to_cpp)
-          if (col %in% colnames(defs)) defs[[col]] <- as.integer(
-            factor(defs[[col]], levels = lv)
-          )
-        }
-      }
-      defs
+      cols <- paste0(rep(c("from_", "to_"), each = length(covariates)),
+                     covariates)
+      encode_risk_levels_(defs, info,
+                          key = function(col) sub("^(from|to)_", "", col),
+                          cols = intersect(cols, colnames(defs)))
     }
   )
 )

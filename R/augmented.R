@@ -142,8 +142,7 @@ HousepiAugmented <- R6::R6Class(
     #' @param kind `character(1)` One of "latent", "member", "house", "status".
     #' @details Used to read a resolved copy of the declarations.
     #' @return `data.frame()` or `NULL` when no definition of that kind exists.
-    defs_of_kind = function(defs,
-                            kind = c("latent", "member", "house", "status")) {
+    defs_of_kind = function(defs, kind = definition_kinds_) {
       kind <- match.arg(kind)
       if (is.null(defs) || !"kind" %in% names(defs)) return(NULL)
       out <- defs[defs[["kind"]] == kind, , drop = FALSE]
@@ -190,7 +189,7 @@ HousepiAugmented <- R6::R6Class(
                        .assert = FALSE,
                        .kind = private$kind_) {
       # kind defaults to managed (see private$kind_, public$add_quo_list)
-      .kind <- match.arg(.kind, c("latent", "member", "house", "status"))
+      .kind <- match.arg(.kind, definition_kinds_)
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
       level <- housepi_smart_unwrap(level, "level", null_ok = TRUE)
@@ -206,12 +205,8 @@ HousepiAugmented <- R6::R6Class(
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
 
-      # load dots
-      dots <- list(...)
-      # flatten dots if single quosures list (from enquos)
-      if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots <- dots[[1]]
-      # extract args and proposal
-      def_args <- helper_definition_args(proposal, dots)
+      # extract args and proposal from the dots
+      def_args <- helper_definition_args(proposal, list(...))
       args <- def_args$args
       proposal <- def_args$proposal
 
@@ -305,8 +300,7 @@ HousepiAugmented <- R6::R6Class(
 
       # drop any previous definition
       rmv_name <- self$remove(opts$name, opts$status)
-      if (.warn_over) template_overwrite_warn(rmv_name, self$family)
-      else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+      warn_or_store_overwrite_(self, rmv_name, .warn_over)
 
       opts <- helper_variable_core(opts, self$family, value, func)
       opts <- helper_variable_args(opts, self$family, args, func)
@@ -328,7 +322,7 @@ HousepiAugmented <- R6::R6Class(
 
     #' @inherit add_latent
     add_quo_list = function(xquos, append = FALSE, status = NA_integer_,
-                            .kind = c("latent", "member", "house", "status")) {
+                            .kind = definition_kinds_) {
       managed <- match.arg(.kind)
 
       # NOTE: single source of truth for currently managed kind
@@ -369,8 +363,7 @@ HousepiAugmented <- R6::R6Class(
       }
       # stop if latent variables are missing
       sms <- template_missing_stop(required, defined, self$family)
-      if (isTRUE(wall) && length(sms) > 0) stop_h(sms)
-      else sms
+      wall_or_return_(sms, wall)
     }
   )
 )

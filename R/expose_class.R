@@ -398,7 +398,8 @@ subset_definitions_ <- function(defs, name, col = "name") {
   stopifnot(is.character(name), !any(is.na(name)))
   unmatched <- setdiff(name, defs[[col]])
   if (length(unmatched) > 0L) stop_h(
-    "No definition{?s} named {.val {unmatched}}."
+    "No definition{?s} named {.val {unmatched}}.",
+    find_closest_match(unmatched, defs[[col]])
   )
   out <- defs[defs[[col]] %in% name, , drop = FALSE]
   rownames(out) <- NULL
@@ -537,20 +538,35 @@ is_template_import_ <- function(import) {
 
 # Load default templated definitions shipped with the package.
 # Reject the sentinel combined with single-mode or inline `...` pairs.
-add_template_defs_ <- function(pvt, family, append, key, dots) {
+add_template_defs_ <- function(holder, generator, family, append, key, dots) {
   assert_no_def_mixing_(key, dots)
-  holder <- switch(family,
-                   parameter = pvt$param_,
-                   latent = pvt$augm_,
-                   `infectivity profile` = pvt$infec_profile_)
-  if (pvt$generator_$is_test_model()) {
+  if (generator$is_test_model()) {
     warn_h("No template {family} definitions available for test model.")
   } else {
-    defs <- get_template_def_list(pvt$generator_$source_dir, family)
+    defs <- get_template_def_list(generator$source_dir, family)
     holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
   }
 }
 
+# Add the definitions of the list-like `add_*` modes: `import = "template"`,
+# an `import` list, or the inline `...` pairs of the multiple mode.
+# Returns `FALSE` in single mode (`key` given), left to the caller as it
+# captures its own arguments; `...` goes to `$add_quo_list()`.
+add_listed_defs_ <- function(holder, generator, family, key, import, append,
+                             dots, env, has_template = FALSE, ...) {
+  if (has_template && is_template_import_(import)) {
+    add_template_defs_(holder, generator, family, append, key, dots)
+  } else if (length(import) > 0L) {
+    holder$add_quo_list(defs_to_quos_(import, key, dots, env),
+                        append = append, ...)
+  } else if (is.null(key)) {
+    holder$add_quo_list(assert_bulk_defs_(family, dots, has_template),
+                        append = append, ...)
+  } else {
+    return(FALSE)
+  }
+  TRUE
+}
 
 #' @title Add or overwrite parameter definitions
 #' @description
@@ -609,30 +625,20 @@ add_parameter <- function(hhmodel,
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
 
-  #> template mode
-  if (is_template_import_(import)) add_template_defs_(
-    pvt, "parameter", append, name, rlang::enquos(...)
-  )
-  #> import mode
-  else if (length(import) > 0L) pvt$param_$add_quo_list(
-    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append
-  )
-  #> single mode
-  else if (!is.null(name)) pvt$param_$add_quo(
-    name = name, value = rlang::enquo(value),
-    const = const, discr = discr,
-    prior = prior, rlang::enquos(...),
-    func = rlang::enquo(func),
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal,
-    .assert = TRUE
-  )
-  #> multiple mode
-  else pvt$param_$add_quo_list(
-    assert_bulk_defs_(pvt$param_$family, rlang::enquos(...), TRUE),
-    append = append
-  )
+  #> template, import and multiple modes
+  if (!add_listed_defs_(pvt$param_, pvt$generator_, "parameter", name, import,
+                        append, rlang::enquos(...), rlang::caller_env(),
+                        has_template = TRUE))
+    #> single mode
+    pvt$param_$add_quo(
+      name = name, value = rlang::enquo(value),
+      const = const, discr = discr,
+      prior = prior, rlang::enquos(...),
+      func = rlang::enquo(func),
+      min = rlang::enquo(min), max = rlang::enquo(max),
+      proposal = proposal,
+      .assert = TRUE
+    )
   pvt$rebuild_()
   new_obj
 }
@@ -684,30 +690,20 @@ add_latent <- function(hhmodel,
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
 
-  #> template mode
-  if (is_template_import_(import)) add_template_defs_(
-    pvt, "latent", append, name, rlang::enquos(...)
-  )
-  #> import mode
-  else if (length(import) > 0L) pvt$augm_$add_quo_list(
-    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append, status = status
-  )
-  #> single mode
-  else if (!is.null(name)) pvt$augm_$add_quo(
-    name = name, value = rlang::enquo(value),
-    status = status, const = const, discr = discr,
-    func = rlang::enquo(func),
-    model = model, rlang::enquos(...),
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal,
-    .assert = TRUE
-  )
-  #> multiple mode
-  else pvt$augm_$add_quo_list(
-    assert_bulk_defs_(pvt$augm_$family, rlang::enquos(...), TRUE),
-    append = append, status = status
-  )
+  #> template, import and multiple modes
+  if (!add_listed_defs_(pvt$augm_, pvt$generator_, "latent", name, import,
+                        append, rlang::enquos(...), rlang::caller_env(),
+                        has_template = TRUE, status = status))
+    #> single mode
+    pvt$augm_$add_quo(
+      name = name, value = rlang::enquo(value),
+      status = status, const = const, discr = discr,
+      func = rlang::enquo(func),
+      model = model, rlang::enquos(...),
+      min = rlang::enquo(min), max = rlang::enquo(max),
+      proposal = proposal,
+      .assert = TRUE
+    )
   pvt$rebuild_()
   new_obj
 }
@@ -782,24 +778,18 @@ add_observation <- function(hhmodel, name = NULL,
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
 
-  #> import mode
-  if (length(import) > 0L) pvt$augm_$add_quo_list(
-    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append, status = status, .kind = level
-  )
-  #> single mode
-  else if (!is.null(name)) pvt$augm_$add_quo(
-    name = name, value = rlang::enquo(value), status = status,
-    const = NA, discr = discr, func = rlang::enquo(func),
-    model = model, rlang::enquos(...),
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    .assert = TRUE, .kind = level
-  )
-  #> multiple mode
-  else pvt$augm_$add_quo_list(
-    assert_bulk_defs_(kind2family(level), rlang::enquos(...)),
-    append = append, status = status, .kind = level
-  )
+  #> import and multiple modes
+  if (!add_listed_defs_(pvt$augm_, pvt$generator_, kind2family(level), name,
+                        import, append, rlang::enquos(...),
+                        rlang::caller_env(), status = status, .kind = level))
+    #> single mode
+    pvt$augm_$add_quo(
+      name = name, value = rlang::enquo(value), status = status,
+      const = NA, discr = discr, func = rlang::enquo(func),
+      model = model, rlang::enquos(...),
+      min = rlang::enquo(min), max = rlang::enquo(max),
+      .assert = TRUE, .kind = level
+    )
   pvt$rebuild_()
   new_obj
 }
@@ -909,25 +899,19 @@ add_group_risk <-  function(hhmodel,
   pvt$drop_stale_risk_params_()
   if (is.null(name) && isFALSE(append)) pvt$drop_group_risks_()
 
-  #> import mode
-  if (length(import) > 0L) pvt$group_risks_$add_quo_list(
-    defs_to_quos_(import, name, rlang::enquos(...), rlang::caller_env()),
-    append = append
-  )
-  #> single mode
-  else if (!is.null(name)) pvt$group_risks_$add_quo(
-    name = name, by = by,
-    reference = reference, joint = joint,
-    strata = strata, params = params,
-    prior = prior, rlang::enquos(...),
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    proposal = proposal, prefix = prefix
-  )
-  #> multiple mode
-  else pvt$group_risks_$add_quo_list(
-    assert_bulk_defs_(pvt$group_risks_$family, rlang::enquos(...)),
-    append = append
-  )
+  #> import and multiple modes
+  if (!add_listed_defs_(pvt$group_risks_, pvt$generator_,
+                        pvt$group_risks_$family, name, import, append,
+                        rlang::enquos(...), rlang::caller_env()))
+    #> single mode
+    pvt$group_risks_$add_quo(
+      name = name, by = by,
+      reference = reference, joint = joint,
+      strata = strata, params = params,
+      prior = prior, rlang::enquos(...),
+      min = rlang::enquo(min), max = rlang::enquo(max),
+      proposal = proposal, prefix = prefix
+    )
   pvt$rebuild_()
   new_obj
 }
@@ -984,7 +968,8 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$assert_contact_risks_supported_()
+  pvt$assert_feature_supported_(pvt$generator_$has_contact_risk,
+                                "Contact risks")
   # the definition is replaced: its parameters are re-derived by `rebuild_()`
   pvt$drop_stale_risk_params_()
 
@@ -1038,32 +1023,23 @@ add_infectivity_profile <- function(hhmodel,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$assert_infec_profile_supported_()
+  pvt$assert_feature_supported_(pvt$generator_$has_infec_profile,
+                                "Infectivity profiles")
   # impose discrete-time if it's a model choice
   pvt$infec_profile_$discr_model <- pvt$generator_$is_discrete_time
 
-  #> template mode
-  if (is_template_import_(import)) add_template_defs_(
-    pvt, "infectivity profile", append, func, rlang::enquos(...)
-  )
-  #> import mode
-  else if (length(import) > 0L) pvt$infec_profile_$add_quo_list(
-    defs_to_quos_(import, func, rlang::enquos(...), rlang::caller_env()),
-    append = append
-  )
-  #> single mode
-  else if (!is.null(func)) pvt$infec_profile_$add_quo(
-    func = func, status = status, discr = discr,
-    rlang::enquos(...),
-    min = rlang::enquo(min), max = rlang::enquo(max),
-    .assert = TRUE
-  )
-  #> multiple mode
-  else pvt$infec_profile_$add_quo_list(
-    assert_bulk_defs_(pvt$infec_profile_$family, rlang::enquos(...),
-                      has_template = TRUE),
-    append = append
-  )
+  #> template, import and multiple modes
+  if (!add_listed_defs_(pvt$infec_profile_, pvt$generator_,
+                        "infectivity profile", func, import, append,
+                        rlang::enquos(...), rlang::caller_env(),
+                        has_template = TRUE))
+    #> single mode
+    pvt$infec_profile_$add_quo(
+      func = func, status = status, discr = discr,
+      rlang::enquos(...),
+      min = rlang::enquo(min), max = rlang::enquo(max),
+      .assert = TRUE
+    )
   pvt$rebuild_()
   new_obj
 }
@@ -1203,7 +1179,7 @@ run_inference <- function(hhmodel,
   stopifnothousepi(hhmodel)
   assert_advanced_setup_(c("inv_temp", "adapt_window"), ...)
   pvt <- hhmodel$.__enclos_env__$private
-  id_draws <- pvt$resolve_id_draws_(id_draws)
+  id_draws <- resolve_id_draws_(id_draws)
   pvt$assert_posterior_memory_(
     steps = steps, burn = burn, thin = thin,
     chains = chains, id_draws = id_draws
