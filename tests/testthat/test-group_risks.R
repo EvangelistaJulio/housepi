@@ -67,9 +67,9 @@ pin_strata <- function(value = c(NA, 1.2, 0.5), const = c(NA, NA, TRUE)) {
              value = value, const = const)
 }
 
-####################################
-## GROUP RISKS : HELPER FUNCTIONS ##
-####################################
+########################################
+###  GROUP RISKS : HELPER FUNCTIONS  ###
+########################################
 
 test_that("Group risks logic table computes combinations and counts", {
   tbl <- group_risk_logic_table(mk_risk$data, c("age", "sex"))
@@ -126,9 +126,9 @@ test_that("Custom strata logic table is validated", {
     expect_error("[Rr]eserved")
 })
 
-##################################
-## GROUP RISKS : STANDARD CALLS ##
-##################################
+######################################
+###  GROUP RISKS : STANDARD CALLS  ###
+######################################
 
 test_that("Group risks integrate with data", {
   hhmodel <- mk_risk$model |>
@@ -341,9 +341,9 @@ test_that("Load list works as expected", {
   expect_true(any(grepl("^sus_", tidy$param_name)))
 })
 
-#############################################
-## GROUP RISKS : CUSTOM STRATA DEFINITIONS ##
-#############################################
+#################################################
+###  GROUP RISKS : CUSTOM STRATA DEFINITIONS  ###
+#################################################
 
 test_that("Group risks deal with custom logic table correctly", {
   hhmodel <- mk_risk$model |>
@@ -481,9 +481,9 @@ test_that("Absoluteness follows the reference across every definition mode", {
   expect_equal(risk_prior("susceptibility", strata = tagged), "lognormal")
 })
 
-###############################
-## GROUP RISKS : STRATA PINS ##
-###############################
+###################################
+###  GROUP RISKS : STRATA PINS  ###
+###################################
 
 test_that("A strata value pins the stratum and keeps its prior", {
   hhmodel <- mk_flu$model |>
@@ -555,9 +555,9 @@ test_that("A pinned stratum takes no entry in params", {
     expect_error("sus_mum")
 })
 
-#################################
-## GROUP RISKS : STATUS STRATA ##
-#################################
+#####################################
+###  GROUP RISKS : STATUS STRATA  ###
+#####################################
 
 test_that("Status is accepted as a stratification axis", {
   # both gates let 'status' through for a group risk
@@ -745,6 +745,29 @@ test_that("An absolute risk collapses the baseline it scales", {
   expect_true(any(grepl("^com_member", draws$variable)))
 })
 
+test_that("A baseline pinned by an absolute risk follows its redeclaration", {
+  hhmodel <- mk_flu$model |>
+    add_group_risk("community", by = "member", reference = "student") |>
+    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
+  # the same risk declared absolute first, then relative
+  hhmodel_2 <- mk_flu$model |>
+    add_group_risk("community", by = "member") |>
+    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
+  expect_warning(
+    hhmodel_2 <- hhmodel_2 |>
+      add_group_risk("community", by = "member", reference = "student"),
+    "[Oo]verwriting.*community"
+  )
+
+  by_name <- function(x) x[order(x$name), , drop = FALSE]
+  by_name(get_parameters(hhmodel_2)) |>
+    expect_equal(by_name(get_parameters(hhmodel)), ignore_attr = TRUE)
+  expect_false("alpha" %in% get_parameters(hhmodel_2)$name)
+  hhmodel_2 |>
+    evaluate_log_lik() |>
+    expect_error("[Mm]issing parameter definition.*alpha")
+})
+
 test_that("Two absolute risks on one baseline are identifiable once pinned", {
   hhmodel <- mk_flu$model |>
     add_group_risk("susceptibility", by = "member") |>
@@ -752,7 +775,7 @@ test_that("Two absolute risks on one baseline are identifiable once pinned", {
     add_parameter(alpha = 0.01, gamma = 1, hhsize_ref = 4)
   hhmodel |>
     evaluate_log_lik() |>
-    expect_error("non-identifiability.*susceptibility.*infectivity")
+    expect_error("[Nn]on-identifiability.*susceptibility.*infectivity")
 
   # a simulation table gives every scale a value: no product of free scales
   # is left to resolve
@@ -775,13 +798,12 @@ test_that("A single fixed stratum anchors the scale of its group", {
   expect_false(params$const[params$name == "alpha"])
 
   # a stratum held constant anchors the same way
-  expect_no_warning(
-    log_lik <- hhmodel |>
-      add_parameter(com_member_student = 1.7) |>
-      suppressWarnings() |>
-      evaluate_log_lik()
-  )
-  expect_true(is.finite(log_lik))
+  hhmodel |>
+    add_parameter(com_member_student = 1.7) |>
+    suppressWarnings() |> # suppress overwrite warning
+    evaluate_log_lik() |>
+    is.finite() |>
+    expect_true()
 })
 
 test_that("A pinned baseline is not collapsed onto the reference", {
@@ -821,7 +843,7 @@ test_that("A fixed stratum holds across draws, a pinned one is resampled", {
   # every stratum fixed: inference reads the values, nothing is drawn
   log_lik <- twice(mk(pin_strata(value = c(NA, 1.2, 0.5),
                                  const = c(NA, TRUE, TRUE))))
-  expect_equal(log_lik[1], log_lik[2])
+  log_lik[1] |> expect_equal(log_lik[2])
 
   # a value= pin is a simulation-only override: the prior still drives inference
   log_lik <- twice(mk(pin_strata(value = c(NA, 1.2, 0.5),
@@ -856,12 +878,12 @@ test_that("Strata counts come from the engine cross-tabulation", {
 
   datum <- hhmodel |> get_group_risks("susceptibility")
   expect_setequal(as.character(datum$datum), c("a", "b"))
-  expect_equal(sum(datum$n), 4L)
+  sum(datum$n) |> expect_equal(4L)
 
   # a logical column keeps both of its levels, and drops the missing one
   datum_2 <- hhmodel |> get_group_risks("infectivity")
   expect_setequal(as.character(datum_2$datum_2), c("TRUE", "FALSE"))
-  expect_equal(sum(datum_2$n), 4L)
+  sum(datum_2$n) |> expect_equal(4L)
 })
 
 test_that("A wildcard stratum survives a missing covariate cell", {

@@ -9,6 +9,7 @@ run_simulation(
   obs_process = NULL,
   obs_process_long = NULL,
   param_table = NULL,
+  thin_ess = TRUE,
   nrep = NA_integer_,
   ...
 )
@@ -31,10 +32,15 @@ When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 \item \link{HousepiPosteriorDraws}.
 }}
 
+\item{thin_ess}{\code{logical(1)} Whether to thin \code{param_table} to its
+bulk effective sample size (ESS).
+Ignored if \code{param_table} has no posterior draws.}
+
 \item{nrep}{\code{integer(1)} Number of replicates to generate.
 If \code{param_table} is \code{NULL}, all replicates share the same parameters.
-Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows,
-the table is sub-sampled to \code{nrep} evenly-spaced rows.
+Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows
+(optionally ESS-thinned), the table is sub-sampled to \code{nrep}
+evenly-spaced rows.
 If \code{NA} produces a single repetition (default).}
 
 \item{...}{Advanced configuration.}

@@ -528,43 +528,57 @@ test_that("Thinning to ESS keeps between one draw per chain and all draws", {
     new_housepi_model("test")
   # two disjoint trending chains of 20 iterations: ESS below the chain count
   trend <- posterior::as_draws_df(data.frame(
-    rho = rep(c(10, 20), each = 20) + rep(seq_len(20), 2) / 20,
-    .chain = rep(1:2, each = 20), .iteration = rep(seq_len(20), 2)
+    rho = rep(c(10, 20), each = 20) + rep(seq_len(20L), 2) / 20,
+    .chain = rep(1:2, each = 20), .iteration = rep(seq_len(20L), 2)
   ))
-  run_simulation(hhmodel, param_table = trend) |>
-    expect_length(2)
-  # one shuffled chain of 20 iterations: ESS 23.4, above the draw count and
-  # below the 26 at which posterior caps it
-  shuffle <- posterior::as_draws_df(data.frame(rho = c(
-    10, 2, 19, 12, 6, 14, 20, 9, 7, 3, 5, 1, 13, 16, 4, 8, 15, 11, 18, 17
-  )))
-  run_simulation(hhmodel, param_table = shuffle) |>
-    expect_length(20)
+  hhmodel |>
+    run_simulation(param_table = trend) |>
+    expect_length(2L)
+  # without thinning, every draw is simulated
+  hhmodel |>
+    run_simulation(param_table = trend, thin_ess = FALSE) |>
+    expect_length(40L)
+  # one chain of 20 iterations alternating low and high draws:
+  # its ESS lies above the draw count, where `posterior` caps it
+  alternate <- data.frame(rho = c(rbind(1:10, 20:11)))
+  hhmodel |>
+    run_simulation(param_table = posterior::as_draws_df(alternate)) |>
+    expect_length(20L)
 })
 
-test_that("Simulation auto-imports parameters from param_table", {
-  hhmodel <- data.frame(house_id = 1, id = c("m1", "m2", "m3"), status = 0) |>
-    new_housepi_model("test")
-  expect_equal(nrow(hhmodel$parameters), 0)
-  invisible(run_simulation(hhmodel, param_table = data.frame(rho = 1:3 / 10)))
-  expect_true("rho" %in% hhmodel$parameters$name)
+test_that("Simulation reads undeclared parameters from param_table", {
+  hhmodel <- mk_frederick$model$copy()
+  param_table <- data.frame(alpha = c(0.3, 0.1), beta = c(0.2, 0.4),
+                            gamma = 1, hhsize_ref = 4)
+  hhmodel |>
+    run_simulation(param_table = param_table) |>
+    expect_length(2L)
+  # the model holds the parameters of the last replicate
+  state <- hhmodel |> inspect_house_state(hhmodel$data_wide$house_id[1])
+  unlist(state$parameters[names(param_table)]) |>
+    expect_equal(unlist(param_table[2, ]), ignore_attr = TRUE)
+  # the table is not declared on the model
+  nrow(get_parameters(hhmodel)) |>
+    expect_equal(0L)
+  hhmodel |>
+    evaluate_log_lik() |>
+    expect_error("[Mm]issing parameter definition")
 })
 
 test_that("Simulation returns combined wide/long output", {
   # supplying obs_process_long forces the long branch into a non-empty list
   obs_long <- function(x) data.frame(id = "m1", measure = 1.0)
   simulated <- mk_frederick$template |>
-    run_simulation(obs_process = function(x) x, obs_process_long = obs_long)
-  expect_named(simulated, c("wide", "long"))
-  expect_s3_class(simulated$wide, "data.frame")
-  expect_s3_class(simulated$long, "data.frame")
+    run_simulation(obs_process_long = obs_long)
+  simulated |> expect_named(c("wide", "long"))
+  simulated$wide |> expect_s3_class("data.frame")
+  simulated$long |> expect_s3_class("data.frame")
 
   # multiple repetitions
   simulated <- mk_frederick$template |>
-    run_simulation(obs_process = function(x) x, obs_process_long = obs_long,
-                   nrep = 2)
-  expect_s3_class(simulated$wide[[1]], "data.frame")
-  expect_s3_class(simulated$long[[2]], "data.frame")
+    run_simulation(obs_process_long = obs_long, nrep = 2)
+  simulated$wide[[1]] |> expect_s3_class("data.frame")
+  simulated$long[[2]] |> expect_s3_class("data.frame")
 })
 
 test_that("Simulation replicates are a list of data frames", {

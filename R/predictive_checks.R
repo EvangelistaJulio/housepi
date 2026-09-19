@@ -5,9 +5,6 @@
 ## See the LICENSE file for details.
 ##
 
-rd_thin_ess_ <- "`logical(1)` Whether to thin `param_table` to its
-bulk effective sample size (ESS).
-Ignored if `param_table` has no posterior draws."
 rd_max_nrep_ <- "`integer(1)` Larger number of replicates.
 The parameter table (optionally ESS-thinned) is thinned to `max_nrep` rows."
 rd_min_hhsize_ <- "`integer(1)` Minimum household size retained in the outputs.

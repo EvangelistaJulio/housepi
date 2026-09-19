@@ -166,22 +166,35 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Pin to 1 the baselines whose anchored risks all carry absolute values.
-    # An absolute risk leaves no scale for its baseline to take.
-    autofill_baseline_params_ = function() {
+    # Undeclared baselines an absolute risk anchors: pinned to 1, since an
+    # absolute risk leaves no scale for its baseline to take.
+    # @return `character()`
+    baseline_pins_ = function() {
+      if (is.null(private$generator_$mcmc_ptr)) return(character())
       anchors <- private$generator_$risk_anchors
-      for (name in names(anchors)) {
-        if (name %in% private$param_$defs[["name"]]) next
+      pins <- character()
+      for (name in setdiff(names(anchors), private$param_$defs[["name"]])) {
         absolute <- vapply(anchors[[name]]$risks,
                            private$group_risks_$is_absolute, logical(1))
         if (isTRUE(anchors[[name]]$contacts)) {
           absolute <- c(absolute, private$contact_risks_$is_absolute())
         }
-        if (any(absolute)) private$param_$add_quo(
-          name, value = 1, const = TRUE, .warn_over = FALSE
-        )
+        if (any(absolute)) pins <- c(pins, name)
       }
-      invisible(self)
+      pins
+    },
+
+    # @description
+    # Declared parameters plus the baselines the risks pin.
+    # @return `HousepiParameter`
+    effective_param_ = function() {
+      pins <- private$baseline_pins_()
+      if (length(pins) == 0) return(private$param_)
+      param <- private$param_$clone(deep = TRUE)
+      for (name in pins) param$add_quo(
+        name, value = 1, const = TRUE, .warn_over = FALSE
+      )
+      param
     },
 
     # @description
@@ -189,8 +202,7 @@ HousepiModel <- R6::R6Class(
     # @param wall `logical(1)` to raise error.
     # @param warn_unused `logical(1)` warn if unused.
     assert_param_ = function(wall = TRUE, warn_unused = TRUE) {
-      private$autofill_baseline_params_()
-      private$param_$assert(
+      private$effective_param_()$assert(
         private$get_all_required_param_(),
         wall = wall,
         warn_unused = warn_unused && !private$generator_$is_test_model()
@@ -461,10 +473,12 @@ HousepiModel <- R6::R6Class(
     # @description
     # Parameter definitions with sources and `discr` resolved on demand.
     resolved_param_ = function() {
-      resolve_discr_flags_(resolve_source_types_(private$param_$defs,
-                                                 private$source_dictionary_()),
-                           private$generator_$param_discr_required,
-                           is_prior = TRUE)
+      resolve_discr_flags_(
+        resolve_source_types_(private$effective_param_()$defs,
+                              private$source_dictionary_()),
+        private$generator_$param_discr_required,
+        is_prior = TRUE
+      )
     },
 
     # @description
@@ -500,7 +514,7 @@ HousepiModel <- R6::R6Class(
       need_latent <- private$required_of_declaration_("A")
       need_param <- private$required_of_declaration_("P")
       all(need_latent %in% private$augm_$defs[["name"]]) &&
-        all(need_param %in% private$param_$defs[["name"]]) &&
+        all(need_param %in% private$effective_param_()$defs[["name"]]) &&
         private$augm_$covers_statuses(defs,
                                       private$generator_$infec_status_set)
     },
@@ -552,7 +566,6 @@ HousepiModel <- R6::R6Class(
       info_wide <- private$generator_$info_data_wide
 
       # parameters
-      private$autofill_baseline_params_()
       .engine$import_param(mcmc_ptr, private$resolved_param_())
 
       # group risks
@@ -706,20 +719,23 @@ HousepiModel <- R6::R6Class(
         ptab <- posterior::as_draws_matrix(ptab)
         # reduce sample to effective sample size (ESS)
         if (isTRUE(thin_ess)) {
-          ess_bulk <- sapply(posterior::variables(ptab),
-                             function(v) posterior::ess_bulk(ptab[, v]))
+          # an ESS above the draw count keeps every draw, capped or not
+          # degenerate draws give NA, asserted below
+          ess_bulk <- suppressWarnings(
+            sapply(posterior::variables(ptab),
+                   function(v) posterior::ess_bulk(ptab[, v]))
+          )
           # check no NA values in ESS
           if (any(is.na(ess_bulk))) stop_h(
             "ESS values return NA.",
             "Check your draws for degenerate parameters."
           )
-          # keep at least one draw per chain, at most all of them
-          thin <- floor(posterior::ndraws(ptab) / min(ess_bulk))
-          thin <- min(max(thin, 1L), posterior::niterations(ptab))
+          # keep at most ESS draws, and at least one per chain
+          thin <- ceiling(posterior::ndraws(ptab) / min(ess_bulk))
+          thin <- min(thin, posterior::niterations(ptab))
           ptab <- posterior::thin_draws(ptab, thin = thin)
         }
       }
-      # UPDATE:  warn if sample is too small!
 
       tryCatch({
         return(as.data.frame(ptab))
@@ -740,15 +756,18 @@ HousepiModel <- R6::R6Class(
 
       # read param table
       if (is.null(param_table)) {
-        if (is.na(nrep)) nrep <- 1
+        if (is.na(nrep)) nrep <- 1L
       } else {
         param_table <- private$helper_read_param_table_(
           param_table, thin_ess = thin_ess
         )
         if (!is.na(nrep)) param_table <- helper_thin_table_(param_table, nrep)
         nrep <- nrow(param_table)
-        # don't overwrite
-        if (nrow(self$parameters) == 0) {
+        # an undeclared model builds on the table's first row: the engine
+        # keeps it for the run, the caller's definitions stay as declared
+        if (nrow(self$parameters) == 0L) {
+          declared <- private$param_$clone(deep = TRUE)
+          on.exit(private$param_ <- declared, add = TRUE)
           param_dummy_list <- as.list(utils::head(param_table, 1))
           private$param_$add_quo_list(
             convert_list_to_quosures(param_dummy_list), append = TRUE
@@ -763,7 +782,7 @@ HousepiModel <- R6::R6Class(
       )
 
       # NOTE: there might be not parameters at all
-      if (nrow(self$parameters) == 0) return(nrep)
+      if (nrow(self$parameters) == 0L) return(nrep)
 
       if (is.null(param_table)) {
         # replicates the single row nrep times; unpinned parameters (NA value)
@@ -1166,7 +1185,7 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   utils::write.csv(pvt$infec_profile_$defs,
                    file.path(outpath, "infec.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(pvt$param_$defs,
+  utils::write.csv(pvt$effective_param_()$defs,
                    file.path(outpath, "param.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(char_setup_input_(hhmodel$setup),
