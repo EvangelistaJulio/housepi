@@ -48,7 +48,7 @@ namespace housepi
 
     void Setup::reset_defaults()
     {
-        // standard configuration
+        // user configuration
         seed = 1;
         n_threads = 1;
         n_steps = 1;
@@ -65,6 +65,7 @@ namespace housepi
         inv_temp = 1.;
         time_step = 0.05;
         // derived configuration
+        budget = {};
         rung_id = 0;
         c_sample_size = 0;
     }
@@ -147,7 +148,7 @@ namespace housepi
 #ifdef _STANDALONE
         if (n_threads != 1)
             msg::warn(
-                "Multi-threading was disabled.\nRcppParallel is not available in standalone mode.");
+                "Multi-threading is disabled.\nRcppParallel is not available in standalone mode.");
         n_threads = 1;
 
 #else
@@ -161,6 +162,8 @@ namespace housepi
         }
         housepi::parallel::set_num_threads(n_threads);
 #endif
+        // one dispatch level: every thread goes to the households of a single chain
+        budget = {1, n_threads};
     }
 
     /// Assign seed for random generators.

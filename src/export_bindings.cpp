@@ -1340,7 +1340,8 @@ namespace
                             std::string(e.what()) +
                             "\nFor " + data_wide.str(data_wide.at(H)) + ".");
                     }
-                });
+                },
+                engine.setup.budget.inner);
         }
 
         // pre-compute per-household row offsets (fixes OpenMP race on row counter)

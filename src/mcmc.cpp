@@ -757,7 +757,8 @@ namespace housepi
                     data_wide.eq_class_head(R),
                     with_cache, do_latent, do_obs);
                 return {w * a.obs_ll, w * a.transm_ll, w * a.latent_ll};
-            });
+            },
+            setup.budget.inner);
 
         tot_transm_log_lik.set(acc.transm_ll);
         if (do_obs)
@@ -801,7 +802,8 @@ namespace housepi
                 for (const Individual &indiv : house.infected_indivs())
                     amodel += augm.commit_latent_log_lik(indiv);
                 return data_wide().eq_class_weight(R) * amodel;
-            });
+            },
+            setup.budget.inner);
         tot_latent_log_lik.set(acc);
         return tot_latent_log_lik.ratio();
     }
@@ -1053,7 +1055,8 @@ namespace housepi
         LogLikAccumulator acc = parallel::for_reduce<LogLikAccumulator>(
             data_wide().report_house.total,
             [&](size_t H) -> LogLikAccumulator
-            { return move_latent_single_house_<Adapt, Beta0>(H); });
+            { return move_latent_single_house_<Adapt, Beta0>(H); },
+            setup.budget.inner);
         // at inverse temperature 0 the likelihood totals are not tracked
         // they are refreshed from scratch before each stored draw
         if constexpr (!Beta0)

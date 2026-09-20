@@ -33,14 +33,6 @@ namespace housepi
         ///  USER CONFIG  ///
         /////////////////////
 
-        /// Expected header keys for configuration input file.
-        const std::vector<std::string> file_headers = {"steps", "burn", "thin",
-                                                       "adapt", "adapt_window",
-                                                       "chains", "threads",
-                                                       "id_draws", "house_draws",
-                                                       "seed", "progress",
-                                                       "inv_temp", "time_step"};
-
         std::int32_t seed;                    /// Seed for pseudo-random number generator initialization.
         unsigned n_threads;                   /// Number of OpenMP threads for parallelization.
         unsigned long n_steps;                /// Total number of MCMC iterations per chain.
@@ -65,6 +57,7 @@ namespace housepi
         ///  DERIVED CONFIG  ///
         ////////////////////////
 
+        Budget budget;               /// Workers allotted to the chain and the per-chain dispatch level.
         unsigned long rung_id;       /// Current active rung in power posterior analysis (0-indexed).
         unsigned long c_sample_size; /// Sample size for a single chain after thinning.
 

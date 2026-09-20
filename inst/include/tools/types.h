@@ -8,6 +8,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -38,4 +39,11 @@ namespace housepi
     /// Fixed-size table addressed by a status level.
     template <typename T>
     using StatusTable = std::array<T, 1 + std::numeric_limits<StatusLvl>::max()>;
+
+    /// Worker counts for the two levels of parallel dispatch.
+    struct Budget
+    {
+        std::size_t outer = 1; /// Workers spread across chains.
+        std::size_t inner = 1; /// Workers spread within one chain.
+    };
 }
