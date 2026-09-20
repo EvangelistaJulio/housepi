@@ -151,8 +151,9 @@ namespace housepi
 		template <bool Beta0>
 		void run_mc_finite_adaptation_();
 		// Run MC chain posterior sampling iterations, with optional burn-in.
+		// Draws are stored in the column block of chain `chain_id`.
 		template <bool Beta0>
-		void run_mc_posterior_sampling_();
+		void run_mc_posterior_sampling_(unsigned long chain_id);
 
 		/// Move all model parameters and latent variables.
 		/// Adapt: moves are credited to the proposals, which only adaptation reads.

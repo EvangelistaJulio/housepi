@@ -264,7 +264,6 @@ namespace housepi
 
     void Posterior::init(MCMCBase &mcmc)
     {
-        count_ = 0;
         is_power_post_ = false;
         tot_log_lik.clear();
         param_values.clear();
@@ -278,7 +277,7 @@ namespace housepi
         house_names.clear();
 
         const Setup &setup = mcmc.setup;
-        unsigned long sample_size = setup.c_sample_size * setup.n_chains;
+        sample_size_ = setup.c_sample_size * setup.n_chains;
         is_power_post_ = setup.is_power_post();
 
         // power posteriors only track the joint log-likelihood total for the
@@ -287,17 +286,19 @@ namespace housepi
         if (is_power_post_)
         {
             tot_log_lik.reserve(1);
-            tot_log_lik.emplace_back(sample_size, na::DOUBLE);
+            tot_log_lik.emplace_back(sample_size_, na::DOUBLE);
             return;
         }
 
-        helper_init_param_draws(this, mcmc.param, sample_size);
-        helper_init_house_draws(this, mcmc.data_wide(), sample_size);
-        helper_init_latent_draws(this, mcmc.augm, mcmc.data_wide(), setup, sample_size);
+        helper_init_param_draws(this, mcmc.param, sample_size_);
+        helper_init_house_draws(this, mcmc.data_wide(), sample_size_);
+        helper_init_latent_draws(this, mcmc.augm, mcmc.data_wide(), setup, sample_size_);
     }
 
-    void Posterior::store(MCMCBase &mcmc)
+    void Posterior::store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local)
     {
+        const size_t col = chain_id * mcmc.setup.c_sample_size + local;
+
         // power posteriors store only the joint (tempered) log-likelihood that
         // feeds the thermodynamic ladder: transmission plus observation
         if (is_power_post_)
@@ -305,7 +306,7 @@ namespace housepi
             double value = mcmc.tot_transm_log_lik.value();
             if (mcmc.augm.is_any_obs_model())
                 value += mcmc.tot_obs_log_lik.value();
-            tot_log_lik[0][count_++] = value;
+            tot_log_lik[0][col] = value;
             return;
         }
 
@@ -315,12 +316,12 @@ namespace housepi
         for (size_t p : param.list_sample)
         {
             const Variable &var = param.at(p);
-            param_values[i][count_] = var.value();
-            param_priors[i++][count_] = var.log_pdf();
+            param_values[i][col] = var.value();
+            param_priors[i++][col] = var.log_pdf();
         }
         // function-derived parameters: store value, no prior
         for (size_t p : param.list_func)
-            param_values[i++][count_] = param.at(p).value();
+            param_values[i++][col] = param.at(p).value();
 
         // pointwise per-household log-likelihood:
         // transmission + observation + latent
@@ -336,7 +337,7 @@ namespace housepi
                 value += mcmc.house_obs_log_lik(head);
             if (with_model)
                 value += mcmc.house_latent_log_lik(head);
-            house_log_lik[R][count_] = value;
+            house_log_lik[R][col] = value;
         }
 
         // latent variable draws
@@ -347,11 +348,8 @@ namespace housepi
             auto &indiv_matrix = latent_values[j];
             size_t c = 0;
             for (size_t a : augm.list_draws(indiv))
-                indiv_matrix[c++][count_] = mcmc.aug(a, indiv);
+                indiv_matrix[c++][col] = mcmc.aug(a, indiv);
         }
-
-        // update sample count
-        ++count_;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -838,19 +836,19 @@ namespace housepi
         posterior.init(*this); // initialize posterior sample
 
         // run multiple MCMC chains
-        for (setup.chain_id = 0; setup.chain_id < setup.n_chains; ++setup.chain_id)
+        for (unsigned long chain_id = 0; chain_id < setup.n_chains; ++chain_id)
         {
             init_monte_carlo_chain_();
             init_guarded_commit_total_();
             if (setup.inv_temp == 0.0)
             {
                 run_mc_finite_adaptation_<true>();
-                run_mc_posterior_sampling_<true>();
+                run_mc_posterior_sampling_<true>(chain_id);
             }
             else
             {
                 run_mc_finite_adaptation_<false>();
-                run_mc_posterior_sampling_<false>();
+                run_mc_posterior_sampling_<false>(chain_id);
             }
         }
     }
@@ -945,11 +943,12 @@ namespace housepi
     }
 
     template <bool Beta0>
-    void MCMC::run_mc_posterior_sampling_()
+    void MCMC::run_mc_posterior_sampling_(unsigned long chain_id)
     {
         for (unsigned long i = 0; i < setup.n_burn; ++i)
             move_all_<false, Beta0>();
 
+        unsigned long local = 0;
         for (unsigned long i = setup.n_burn; i < setup.n_steps; i += setup.n_thin)
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
@@ -957,7 +956,7 @@ namespace housepi
             // NOTE: recomputing likelihood, not tracked at inverse temperature 0
             if constexpr (Beta0)
                 commit_total_log_posterior_(true, false, augm.is_any_obs_model());
-            posterior.store(*this);
+            posterior.store(*this, chain_id, local++);
         }
     }
 

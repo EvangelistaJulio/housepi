@@ -65,7 +65,6 @@ namespace housepi
         inv_temp = 1.;
         time_step = 0.05;
         // derived configuration
-        chain_id = 1;
         rung_id = 0;
         c_sample_size = 0;
     }
@@ -227,8 +226,6 @@ namespace housepi
             ;
         else if (is_power_post())
             text = "power post " + std::to_string(rung_id) + "/" + std::to_string(n_rungs);
-        else if (n_chains > 1)
-            text = "sample " + std::to_string(chain_id + 1) + "/" + std::to_string(n_chains);
         else
             text = "sample";
         progressbar_->set_text(text);

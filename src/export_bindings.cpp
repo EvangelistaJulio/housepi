@@ -871,7 +871,7 @@ namespace
     {
         Posterior &post = mcmc_ptr->posterior;
         return flush_2d_draws_to_df(post.param_values, post.param_names,
-                                    post.count(), "parameter");
+                                    post.sample_size(), "parameter");
     }
 
     /// Rcpp wrapper: parameter log-prior draws as a data.frame.
@@ -879,7 +879,7 @@ namespace
     {
         Posterior &post = mcmc_ptr->posterior;
         return flush_2d_draws_to_df(post.param_priors, post.param_prior_names,
-                                    post.count(), "parameter log-prior");
+                                    post.sample_size(), "parameter log-prior");
     }
 
     /// Rcpp wrapper: latent variable draws as a data.frame.
@@ -903,7 +903,7 @@ namespace
         std::vector<std::vector<std::vector<double>>>().swap(post.latent_values);
 
         cols.attr("names") = Rcpp::wrap(post.latent_col_names);
-        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
+        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.sample_size()));
         return cols;
     }
 
@@ -935,7 +935,7 @@ namespace
             cols[H] = class_cols[data_wide.get_eq_class(H)];
 
         cols.attr("names") = Rcpp::wrap(post.house_names);
-        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.count()));
+        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.sample_size()));
         return cols;
     }
 

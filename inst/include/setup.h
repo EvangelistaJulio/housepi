@@ -65,7 +65,6 @@ namespace housepi
         ///  DERIVED CONFIG  ///
         ////////////////////////
 
-        unsigned long chain_id;      /// Current active MCMC chain (1-indexed).
         unsigned long rung_id;       /// Current active rung in power posterior analysis (0-indexed).
         unsigned long c_sample_size; /// Sample size for a single chain after thinning.
 

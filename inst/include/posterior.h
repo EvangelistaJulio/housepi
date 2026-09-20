@@ -42,13 +42,15 @@ namespace housepi
         /// Initialize posterior sample.
         void init(MCMCBase &mcmc);
         /// Update posterior sample storing current values.
-        void store(MCMCBase &mcmc);
+        /// Chain `chain_id` writes its own column block, `local` being the
+        /// index of the draw within that chain.
+        void store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local);
 
-        /// Return sample counter.
-        unsigned long count() const noexcept { return count_; }
+        /// Return the number of draws of the whole sample, over all chains.
+        unsigned long sample_size() const noexcept { return sample_size_; }
 
     private:
-        unsigned long count_ = 0;    /// Internal count
-        bool is_power_post_ = false; /// Wheter using power posteriors
+        unsigned long sample_size_ = 0; /// Draws of the whole sample
+        bool is_power_post_ = false;    /// Wheter using power posteriors
     };
 }
