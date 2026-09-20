@@ -140,7 +140,7 @@ To know more about each model, choose a name from the previous list and run, e.g
 #| label: model-help
 #| eval: false
 # show model description in RStudio help window
-browse_templates("final_size")
+browse_templates("final-size")
 ```
 
 This command will open the relative documentation file in the Help window of your RStudio session.

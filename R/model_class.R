@@ -23,7 +23,7 @@
 #' @examples
 #' # created and modified through new_housepi_model() and the add_*() verbs
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' hhmodel
 #' hhmodel$parameters
@@ -873,7 +873,7 @@ HousepiModel <- R6::R6Class(
       defs <- do.call(rbind, lapply(c("member", "house"), function(level) {
         out <- private$augm_$defs_of_kind(resolved, level)
         if (is.null(out)) return(NULL)
-        cbind(out, level = level, stringsAsFactors = FALSE)
+        cbind(out, level = level)
       }))
       housepi_defin_showcaser(defs)
     },

@@ -28,7 +28,7 @@ constant and the probabilities must be data or numeric constants.
 \examples{
 # simulate infected members as symptomatic (70\%) or asymptomatic (30\%)
 simulated <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   add_status(symptomatic = 0.7, asymptomatic = 0.3) |>
   run_simulation()

@@ -12,7 +12,6 @@ run_epi_predictive_check(
   max_nrep = 200L,
   min_hhsize = NA_integer_,
   max_hhsize = NA_integer_,
-  point_estimate = "median",
   threads = 1L,
   progress = TRUE
 )
@@ -44,10 +43,6 @@ If \code{NA}, no lower bound is applied.}
 \item{max_hhsize}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA}, no upper bound is applied.}
 
-\item{point_estimate}{\code{character(1)} Summary statistic used as the predicted
-point estimate across simulations.
-One between \code{"mean"} and \code{"median"}.}
-
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
 \item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
@@ -71,9 +66,14 @@ by household size. It compares observed and predicted values of
 \item{\code{"cases_count"}}{see \link{measure_cases_by_hhsize}.}
 }
 }
+\details{
+Results are summarised at the point estimate and the
+credible level held by the global options;
+see \code{\link[=set_global_posterior_summary]{set_global_posterior_summary()}}.
+}
 \examples{
 hhmodel <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template")
 results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 

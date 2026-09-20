@@ -38,7 +38,7 @@ draws object when no such draws were stored.
 }
 \examples{
 results <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_inference(chains = 2, progress = FALSE)
 get_parameter_draws(results, c("alpha", "beta"))

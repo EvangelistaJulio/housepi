@@ -27,7 +27,7 @@ power-posteriors ladder sampled with \code{\link[=run_power_posteriors]{run_powe
 }
 \examples{
 ladder <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
 evaluate_log_evidence(ladder)

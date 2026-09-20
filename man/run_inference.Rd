@@ -60,7 +60,7 @@ Run inference with Bayesian Markov Chain Monte Carlo.
 }
 \examples{
 flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_inference(steps = 50, burn = 10, thin = 2,
                 chains = 2, progress = FALSE) |>

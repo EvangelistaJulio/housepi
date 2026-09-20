@@ -22,7 +22,7 @@ risk_reserved_proto <- list(group_risk = character(), param_name = character(),
 
 # Empty logic table with the reserved columns `cols`, in order.
 empty_risk_table <- function(cols) {
-  as.data.frame(risk_reserved_proto[cols], stringsAsFactors = FALSE)
+  as.data.frame(risk_reserved_proto[cols])
 }
 
 # Typed `NA` padding for each of `cols`. A covariate column pads as character.

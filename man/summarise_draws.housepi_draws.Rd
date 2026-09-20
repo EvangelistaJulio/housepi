@@ -54,12 +54,12 @@ S3 method on \code{\link[posterior:summarise_draws]{posterior::summarise_draws()
 \code{"housepi_draws"} (returned by housepi getters and active fields on
 \code{\link{HousepiPosteriorDraws}}). When no summary functions are passed via
 \code{...}, the housepi defaults are used and the quantile pair tracks
-\code{\link[=set_global_cri_level]{set_global_cri_level()}}. Otherwise dispatch falls through to standard
+\code{\link[=set_global_posterior_summary]{set_global_posterior_summary()}}. Otherwise dispatch falls through to
 \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}} behaviour.
 }
 \examples{
 results <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_inference(chains = 2, progress = FALSE)
 

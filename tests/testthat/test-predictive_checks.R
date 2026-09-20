@@ -3,7 +3,7 @@ library(testthat)
 # templated chain-binomial model and one short inference run on it
 mk_ppc <- local({
   hhmodel <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(import = "template")
   results <- hhmodel |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
@@ -187,7 +187,7 @@ test_that("Replicate summaries handle mean, median, NA and non-numeric", {
 
   # invalid summary stat
   ppc_frame_apply_summary(list(frame_1, frame_2), "mode") |>
-    expect_error()
+    expect_error("one between")
 })
 
 test_that("Replicate credible intervals bound each other", {
@@ -354,6 +354,18 @@ test_that("HousepiCustomPPC active fields are read-only", {
   expect_identical(ppc$nrep, 10L)
   expect_identical(ppc$point_estimate, "median")
   expect_identical(ppc$cri_level, 0.95)
+  # the summary settings are read off the global options at construction
+  withr::with_options(list(housepi.point_estimate = "mean",
+                           housepi.cri_level = 0.8), {
+    averaged <- mk_ppc$model |>
+      run_custom_predictive_check(
+        mk_ppc$results, sar = measure_sar_by_hhsize,
+        thin_ess = FALSE, max_nrep = 2
+      ) |>
+      suppressWarnings()
+    expect_identical(averaged$point_estimate, "mean")
+    expect_identical(averaged$cri_level, 0.8)
+  })
   expect_false(ppc$thin_ess)
   expect_true(ppc$is_posterior)
   expect_identical(ppc$model_name, "final size")

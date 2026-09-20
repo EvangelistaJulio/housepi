@@ -90,7 +90,7 @@ It can be supplied only via single mode definition.
 \examples{
 # `"template"` loads the profile shipped with the model
 hhmodel <- sarscov2_2021_icofs |>
-  new_housepi_model("case_ascertained") |>
+  new_housepi_model("case-ascertained") |>
   add_infectivity_profile(import = "template")
 get_infectivity_profiles(hhmodel)
 }

@@ -22,7 +22,7 @@ Make an internal copy of the provided data in long format.
 measures <- data.frame(id = "hh001m02", day = 1:3,
                        viral_load = c(5.2, 6.8, 4.1))
 hhmodel <- sarscov2_2021_icofs |>
-  new_housepi_model("case_ascertained") |>
+  new_housepi_model("case-ascertained") |>
   add_data_long(measures)
 get_data_long(hhmodel)
 }

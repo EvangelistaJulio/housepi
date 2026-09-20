@@ -9,7 +9,7 @@ Class to extract posterior predictive checks over measures on simulations.
 }
 \examples{
 hhmodel <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template")
 results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 
@@ -65,8 +65,7 @@ performs simulation and compute predicted values of a set of measures.
   thin_ess = TRUE,
   max_nrep = 200L,
   threads = 1L,
-  progress = TRUE,
-  point_estimate = "median"
+  progress = TRUE
 )}
     \if{html}{\out{</div>}}
   }
@@ -103,9 +102,6 @@ One between:
 \item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
-      \item{\code{point_estimate}}{\code{character(1)} Summary statistic used as the predicted
-point estimate across simulations.
-One between \code{"mean"} and \code{"median"}.}
     }
     \if{html}{\out{</div>}}
   }

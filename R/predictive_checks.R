@@ -13,9 +13,6 @@ rd_max_hhsize_ <- "`integer(1)` Maximum household size retained in the outputs.
 If `NA`, no upper bound is applied."
 rd_measure_dots_ <- "Named arguments. `function`s to compute measures from data.
 Each function should return one between `numeric()`, `list` or `data.frame`."
-rd_point_estimate_ <- "`character(1)` Summary statistic used as the predicted
-point estimate across simulations.
-One between `\"mean\"` and `\"median\"`."
 
 ############################################################################
 ############################################################################
@@ -122,11 +119,6 @@ measure_geom_mean_hhsize <- function(data_wide, escaped = "escaped") {
 ############################################################################
 ############################################################################
 
-# Validate summary statistic choice.
-ppc_set_point_estimate <- function(value) {
-  match.arg(value, c("mean", "median"))
-}
-
 #' Apply function `func` to corresponding elements
 #' across a list of data.frame that share the same dimensions.
 #' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
@@ -207,7 +199,7 @@ ppc_frame_apply_stat <- function(frame_list, stat_fn, label,
 ppc_frame_apply_summary <- function(frame_list,
                                     point_estimate = "median",
                                     name = NA_character_) {
-  point_estimate <- ppc_set_point_estimate(point_estimate)
+  point_estimate <- validate_point_estimate(point_estimate)
   fn <- switch(point_estimate,
                mean = function(x) mean(x, na.rm = TRUE),
                median = function(x) stats::median(x, na.rm = TRUE))
@@ -261,7 +253,7 @@ ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
 #' Class to extract posterior predictive checks over measures on simulations.
 #' @examples
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 #'
@@ -285,7 +277,7 @@ HousepiCustomPPC <- R6::R6Class(
   private = list(
     deep_clone = function(name, value) helper_clone(value),
     cri_level_ = 0.95,
-    point_estimate_ = "mean",
+    point_estimate_ = "median",
     nrep_ = NA_integer_,
     thin_ess_ = TRUE,
     is_posterior_ = FALSE,
@@ -381,7 +373,6 @@ HousepiCustomPPC <- R6::R6Class(
     #' Applied to `data_long` (derived via `obs_process_long`).
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
-    #' @param point_estimate `r rd_point_estimate_`
     initialize = function(hhmodel,
                           param_table,
                           obs_process = NULL,
@@ -391,13 +382,12 @@ HousepiCustomPPC <- R6::R6Class(
                           thin_ess = TRUE,
                           max_nrep = 200L,
                           threads = 1L,
-                          progress = TRUE,
-                          point_estimate = "median") {
+                          progress = TRUE) {
       if (!is.na(max_nrep) && (!is.numeric(max_nrep) || max_nrep < 1)) stop_h(
         "{.arg max_nrep} must be a positive integer or NA."
       )
       # associate summary statistic and credible interval
-      private$point_estimate_ <- ppc_set_point_estimate(point_estimate)
+      private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
 
       # load and classify measure functions (wide vs long)
@@ -620,7 +610,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 #' observed and predicted values.
 #' @examples
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 #'
@@ -737,7 +727,6 @@ HousepiPPC <- R6::R6Class(
     #' @param max_nrep `r rd_max_nrep_`
     #' @param min_hhsize `r rd_min_hhsize_`
     #' @param max_hhsize `r rd_max_hhsize_`
-    #' @param point_estimate `r rd_point_estimate_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hhmodel,
@@ -747,7 +736,6 @@ HousepiPPC <- R6::R6Class(
                           max_nrep = 200L,
                           min_hhsize = NA_integer_,
                           max_hhsize = NA_integer_,
-                          point_estimate = "median",
                           threads = 1L,
                           progress = TRUE) {
       # the built-in measures read only hhid and status, so without an
@@ -764,7 +752,6 @@ HousepiPPC <- R6::R6Class(
         cases_count = function(x) measure_cases_by_hhsize(x, esc),
         obs_process = obs_process,
         thin_ess = thin_ess, max_nrep = max_nrep,
-        point_estimate = point_estimate,
         threads = threads, progress = progress
       )
       private$house_counts_ <- helper_house_counts(hhmodel$data_wide, esc)
@@ -830,13 +817,14 @@ HousepiPPC <- R6::R6Class(
 #' @param obs_process_long `r rd_simul_obs_long_`
 #' @param thin_ess `r rd_thin_ess_`
 #' @param max_nrep `r rd_max_nrep_`
-#' @param point_estimate `r rd_point_estimate_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return An object of class [HousepiCustomPPC].
+#' @details
+#' `r rd_global_summary_`
 #' @examples
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 #'
@@ -856,7 +844,6 @@ run_custom_predictive_check <- function(hhmodel,
                                         obs_process_long = NULL,
                                         thin_ess = TRUE,
                                         max_nrep = 200L,
-                                        point_estimate = "median",
                                         threads = 1L,
                                         progress = TRUE) {
   stopifnothousepi(hhmodel)
@@ -864,7 +851,7 @@ run_custom_predictive_check <- function(hhmodel,
     hhmodel$copy(), param_table, ...,
     thin_ess = thin_ess, max_nrep = max_nrep,
     obs_process = obs_process, obs_process_long = obs_process_long,
-    point_estimate = point_estimate, threads = threads, progress = progress
+    threads = threads, progress = progress
   )
 }
 
@@ -884,15 +871,16 @@ run_custom_predictive_check <- function(hhmodel,
 #' @param max_nrep `r rd_max_nrep_`
 #' @param min_hhsize `r rd_min_hhsize_`
 #' @param max_hhsize `r rd_max_hhsize_`
-#' @param point_estimate `r rd_point_estimate_`
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return
 #' An object of class [HousepiPPC]
 #' containing methods to compare observed and predicted cases.
+#' @details
+#' `r rd_global_summary_`
 #' @examples
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 #'
@@ -907,7 +895,6 @@ run_epi_predictive_check <- function(hhmodel,
                                      max_nrep = 200L,
                                      min_hhsize = NA_integer_,
                                      max_hhsize = NA_integer_,
-                                     point_estimate = "median",
                                      threads = 1L,
                                      progress = TRUE) {
   stopifnothousepi(hhmodel)
@@ -915,7 +902,6 @@ run_epi_predictive_check <- function(hhmodel,
     hhmodel$copy(), param_table,
     obs_process = obs_process, thin_ess = thin_ess,
     max_nrep = max_nrep, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
-    point_estimate = point_estimate,
     threads = threads, progress = progress
   )
 }

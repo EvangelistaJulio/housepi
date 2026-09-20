@@ -12,7 +12,6 @@ run_custom_predictive_check(
   obs_process_long = NULL,
   thin_ess = TRUE,
   max_nrep = 200L,
-  point_estimate = "median",
   threads = 1L,
   progress = TRUE
 )
@@ -45,10 +44,6 @@ Ignored if \code{param_table} has no posterior draws.}
 \item{max_nrep}{\code{integer(1)} Larger number of replicates.
 The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.}
 
-\item{point_estimate}{\code{character(1)} Summary statistic used as the predicted
-point estimate across simulations.
-One between \code{"mean"} and \code{"median"}.}
-
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
 \item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
@@ -66,9 +61,14 @@ An object of class \link{HousepiCustomPPC}.
 Posterior predictive check on user-supplied measures, comparing observed
 and predicted values according to a given table of parameters.
 }
+\details{
+Results are summarised at the point estimate and the
+credible level held by the global options;
+see \code{\link[=set_global_posterior_summary]{set_global_posterior_summary()}}.
+}
 \examples{
 hhmodel <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template")
 results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 

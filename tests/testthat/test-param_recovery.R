@@ -1,0 +1,197 @@
+library(testthat)
+
+######################################
+###  PARAM RECOVERY : DEFINITIONS  ###
+######################################
+
+# households of two sizes, the covariate constant within each one
+mk_recov_data <- local({
+  hhdata <- data.frame(hhid = c("h1", rep("h2", 3)),
+                       id = paste0("m", seq(4)),
+                       datum = c("a", rep("b", 3)))
+  list(hhdata = hhdata)
+})
+
+# one replicate of two parameters at two household counts
+# NOTE: values chosen so every statistic is readable by hand
+mk_recov_frame <- local({
+  estimates <- data.frame(
+    houses = rep(c(10L, 20L), each = 2L), rep = 1L,
+    variable = rep(c("rho", "rho_2"), 2L),
+    truth = c(1, 0, 1, 0),
+    estimate = c(2, 1, 0, 3),
+    cri_lower = c(0, 2, -1, 1), cri_upper = c(4, 3, 1, 5),
+    rhat = 1, ess_bulk = c(100, 200, 300, 400),
+    converged = c(TRUE, FALSE, TRUE, TRUE)
+  )
+  list(estimates = estimates)
+})
+
+test_that("Default household resampling behaves as expected", {
+  sample_house_structure(data.frame(datum = 1)) |>
+    expect_error("[Cc]olumn.*hhid.*is missing")
+  sample_house_structure(mk_recov_data$hhdata, houses = 0) |>
+    expect_error("[Nn]umber of households")
+  # the sampler draws one structure, so a sweep of counts is refused here
+  sample_house_structure(mk_recov_data$hhdata, houses = c(2, 3)) |>
+    expect_error("[Nn]umber of households")
+
+  # default sampling targets the observed household count
+  struct <- sample_house_structure(mk_recov_data$hhdata)
+  length(unique(struct$hhid)) |> expect_equal(2L)
+})
+
+test_that("Households are resampled whole", {
+  struct <- sample_house_structure(mk_recov_data$hhdata, houses = 6)
+  # every household is renumbered
+  sort(unique(struct$hhid)) |> expect_equal(1:6)
+  # an identifier carried by the input is regenerated
+  struct$id |> expect_equal(seq_len(nrow(struct)))
+  # household sizes are only the observed ones
+  sizes <- as.integer(table(struct$hhid))
+  expect_true(all(sizes %in% c(1L, 3L)))
+  # covariate datum is still unique per household and not mixed
+  levels <- tapply(struct$datum, struct$hhid, function(x) length(unique(x)))
+  expect_true(all(levels == 1L))
+})
+
+test_that("Recovery statistics summarise the replicates", {
+  summary <- recovery_summary_(mk_recov_frame$estimates)
+  summary$houses |> expect_equal(c(10L, 10L, 20L, 20L))
+  summary$variable |> expect_equal(c("rho", "rho_2", "rho", "rho_2"))
+  summary$bias |> expect_equal(c(1, 1, -1, 3))
+  summary$rmse |> expect_equal(c(1, 1, 1, 3))
+  # relative bias is undefined against a zero truth
+  summary$rel_bias |> expect_equal(c(1, NA, -1, NA))
+  # the interval misses the truth of `rho_2` at either count
+  summary$coverage |> expect_equal(c(1, 0, 1, 0))
+  summary$cri_width |> expect_equal(c(4, 1, 2, 4))
+  summary$n_flagged |> expect_equal(c(0L, 1L, 0L, 0L))
+})
+
+test_that("Sweep cost is averaged over the replicates", {
+  replicates <- data.frame(
+    houses = c(10L, 10L, 20L), rep = c(1L, 2L, 1L),
+    inference_seconds = c(1, 3, NA),
+    converged = c(TRUE, FALSE, NA), error = c(NA, NA, "failed")
+  )
+  overview <- recovery_overview_(replicates)
+  overview$nrep |> expect_equal(c(2L, 1L))
+  overview$n_failed |> expect_equal(c(0L, 1L))
+  overview$n_flagged |> expect_equal(c(1L, 0L))
+  # a failed replicate carries no cost to average
+  overview$mean_inference_seconds |> expect_equal(c(2, NaN))
+})
+
+test_that("A table of values collapses to its point estimate", {
+  truth <- data.frame(rho = c(1, 2, 6), rho_2 = c(0, 0, 3))
+  recovery_collapse_truth_(truth, "median") |>
+    expect_equal(c(rho = 2, rho_2 = 0))
+  recovery_collapse_truth_(truth, "mean") |>
+    expect_equal(c(rho = 3, rho_2 = 1))
+})
+
+#####################################
+###  PARAM RECOVERY : END-TO-END  ###
+#####################################
+
+# a sweep short enough for the suite: every fit is too short to diagnose,
+# so the whole run is flagged and its one aggregated warning is asserted below
+mk_recov <- local({
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template")
+  results <- hhmodel |>
+    run_parameter_recovery_check(nrep = 2, houses = c(20, 40),
+                                 steps = 50, chains = 1, progress = FALSE) |>
+    suppressWarnings()
+  list(model = hhmodel, results = results)
+})
+
+test_that("Recovery results are read only", {
+  mk_recov$results |>
+    helper_test_read_only("estimates", "replicates", "summary", "overview",
+                          "truth", "houses", "nrep", "point_estimate",
+                          "cri_level", "model_name", "warnings")
+})
+
+test_that("Recovery sweeps every household count", {
+  results <- mk_recov$results
+  results$houses |> expect_equal(c(20L, 40L))
+  results$truth |> expect_equal(c(alpha = 0.15, beta = 0.20, gamma = 1))
+  # two counts, two replicates, three estimated parameters
+  nrow(results$estimates) |> expect_equal(12L)
+  sort(unique(results$estimates$variable)) |>
+    expect_equal(c("alpha", "beta", "gamma"))
+  nrow(results$replicates) |> expect_equal(4L)
+  nrow(results$summary) |> expect_equal(6L)
+  results$overview$houses |> expect_equal(c(20L, 40L))
+  results$overview$n_failed |> expect_equal(c(0L, 0L))
+  results$nrep |> expect_equal(2L)
+  results$point_estimate |> expect_equal("median")
+  results$cri_level |> expect_equal(0.95)
+})
+
+test_that("Each replicate reports its cost and its survey", {
+  replicates <- mk_recov$results$replicates
+  expect_true(all(replicates$inference_seconds > 0))
+  expect_true(all(is.na(replicates$error)))
+  estimates <- mk_recov$results$estimates
+  expect_true(all(mk_recov$results$summary$coverage %in% c(0, 0.5, 1)))
+})
+
+test_that("A run too short to diagnose is flagged whole", {
+  expect_warning(
+    results <- run_parameter_recovery_check(
+      mk_recov$model, nrep = 2, houses = 20, steps = 50, chains = 1,
+      progress = FALSE
+    ),
+    "raised 1 distinct warning"
+  )
+  results$warnings$message |> expect_match("[Tt]otal sample size")
+  results$warnings$count |> expect_equal(2L)
+  expect_false(any(results$estimates$converged))
+  results$overview$n_flagged |> expect_equal(2L)
+})
+
+test_that("Recovery leaves the model it was given untouched", {
+  hhmodel <- mk_recov$model
+  params <- get_parameters(hhmodel)
+  stats::setNames(params$value, params$name)[c("alpha", "beta")] |>
+    expect_equal(c(alpha = 0.15, beta = 0.20))
+  nrow(hhmodel$data_wide) |> expect_equal(nrow(flu_1918_frederick))
+})
+
+test_that("Every estimated parameter needs a simulation value", {
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(alpha = list(value = 0.15, prior = "uniform"),
+                  beta = list(prior = "uniform"),
+                  gamma = list(value = 1, prior = "uniform", max = 3),
+                  hhsize_ref = 4)
+
+  run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE) |>
+    expect_error("[Nn]o simulation value.*beta")
+  # a value given for a parameter the model does not carry is reported
+  expect_warning(
+    run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE,
+                                 truth = data.frame(beta = 0.2, rho = 1)),
+    "[Nn]o parameter named"
+  )
+})
+
+test_that("Recovery needs a parameter to recover", {
+  hhmodel <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(alpha = list(value = 0.15, const = TRUE),
+                  beta = list(value = 0.20, const = TRUE),
+                  gamma = list(value = 1, const = TRUE), hhsize_ref = 4)
+
+  run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE) |>
+    expect_error("[Nn]o parameter to recover")
+})
+
+test_that("Recovery refuses a tempered fit", {
+  run_parameter_recovery_check(mk_recov$model, inv_temp = 0.5) |>
+    expect_error("[Uu]nexpected argument")
+})

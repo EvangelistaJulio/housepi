@@ -224,6 +224,9 @@ rd_simul_obs_long_ <- "`function` Optional function.
 Expects processed `data_wide` and returns a `data_long` data.frame.
 When provided, each simulation returns `list(wide = ..., long = ...)`."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
+rd_global_summary_ <- "Results are summarised at the point estimate and the
+credible level held by the global options;
+see [set_global_posterior_summary()]."
 
 ## State inspection ##
 
@@ -322,7 +325,7 @@ add_data_wide <- function(hhmodel, data) {
 #' measures <- data.frame(id = "hh001m02", day = 1:3,
 #'                        viral_load = c(5.2, 6.8, 4.1))
 #' hhmodel <- sarscov2_2021_icofs |>
-#'   new_housepi_model("case_ascertained") |>
+#'   new_housepi_model("case-ascertained") |>
 #'   add_data_long(measures)
 #' get_data_long(hhmodel)
 #' @export
@@ -593,7 +596,7 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 #' @examples
 #' # the single, inline-bulk and list-bulk forms compose freely in a pipe
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   # single: alpha, with a uniform prior and a lognormal random-walk proposal
 #'   add_parameter("alpha", prior = "uniform", proposal = "rw_log") |>
 #'   # single: beta, fixed to a constant
@@ -604,12 +607,12 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 #' # list bulk: load a pre-built named list of definitions through `import`
 #' my_import <- list(gamma = 1, hhsize_ref = 4)
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = my_import)
 #'
 #' # `"template"` loads the definitions shipped with the model
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' get_parameters(hhmodel)
 #' @export
@@ -750,7 +753,7 @@ add_latent <- function(hhmodel,
 #' @return `r rd_model_out_`
 #' @examples
 #' hhmodel <- sarscov2_2021_icofs |>
-#'   new_housepi_model("case_ascertained") |>
+#'   new_housepi_model("case-ascertained") |>
 #'   add_parameter(import = "template") |>
 #'   add_infectivity_profile(import = "template") |>
 #'   add_latent(
@@ -810,7 +813,7 @@ add_observation <- function(hhmodel, name = NULL,
 #' @examples
 #' # simulate infected members as symptomatic (70%) or asymptomatic (30%)
 #' simulated <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   add_status(symptomatic = 0.7, asymptomatic = 0.3) |>
 #'   run_simulation()
@@ -1011,7 +1014,7 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 #' @examples
 #' # `"template"` loads the profile shipped with the model
 #' hhmodel <- sarscov2_2021_icofs |>
-#'   new_housepi_model("case_ascertained") |>
+#'   new_housepi_model("case-ascertained") |>
 #'   add_infectivity_profile(import = "template")
 #' get_infectivity_profiles(hhmodel)
 #' @export
@@ -1061,7 +1064,7 @@ add_infectivity_profile <- function(hhmodel,
 #' `r rd_natural_log_`
 #' @examples
 #' flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   evaluate_log_lik()
 #' @export
@@ -1081,7 +1084,7 @@ evaluate_log_lik <- function(hhmodel, hhid = NA_character_) {
 #' @seealso [inspect_house_state()]
 #' @examples
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' evaluate_log_lik(hhmodel)
 #' inspect_augmented_data(hhmodel) |>
@@ -1106,7 +1109,7 @@ inspect_augmented_data <- function(hhmodel) {
 #' @seealso [inspect_augmented_data()]
 #' @examples
 #' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' evaluate_log_lik(hhmodel)
 #' inspect_house_state(hhmodel, "1")
@@ -1162,7 +1165,7 @@ inspect_house_state <- function(hhmodel, hhid) {
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @examples
 #' flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_inference(steps = 50, burn = 10, thin = 2,
 #'                 chains = 2, progress = FALSE) |>
@@ -1213,7 +1216,7 @@ run_inference <- function(hhmodel,
 #' @return `data.frame` or `list` (when `obs_process_long` is provided)
 #' @examples
 #' flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_simulation() |>
 #'   head()

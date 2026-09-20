@@ -11,7 +11,7 @@ observed and predicted values.
 }
 \examples{
 hhmodel <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template")
 results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 
@@ -70,7 +70,6 @@ Sizes outside the set household size bounds are not returned.}
   max_nrep = 200L,
   min_hhsize = NA_integer_,
   max_hhsize = NA_integer_,
-  point_estimate = "median",
   threads = 1L,
   progress = TRUE
 )}
@@ -98,9 +97,6 @@ The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.
 If \code{NA}, no lower bound is applied.}
       \item{\code{max_hhsize}}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA}, no upper bound is applied.}
-      \item{\code{point_estimate}}{\code{character(1)} Summary statistic used as the predicted
-point estimate across simulations.
-One between \code{"mean"} and \code{"median"}.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
       \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
 One between:

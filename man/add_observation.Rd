@@ -141,7 +141,7 @@ It can be supplied only via single mode definition.
 }
 \examples{
 hhmodel <- sarscov2_2021_icofs |>
-  new_housepi_model("case_ascertained") |>
+  new_housepi_model("case-ascertained") |>
   add_parameter(import = "template") |>
   add_infectivity_profile(import = "template") |>
   add_latent(

@@ -98,7 +98,7 @@ thermodynamic_ <- function(inv_temp, draws, avg, var) {
 #' \insertRef{friel_improving_2014}{housepi}
 #' @examples
 #' ladder <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
 #' ladder
@@ -242,7 +242,7 @@ HousepiPowerPosteriors <- R6::R6Class(
 #' \insertRef{friel_improving_2014}{housepi}
 #' @examples
 #' ladder <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
 #' evaluate_log_evidence(ladder)
@@ -283,7 +283,7 @@ run_power_posteriors <- function(hhmodel,
 #' \insertRef{xie_improving_2011}{housepi}
 #' @examples
 #' ladder <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_power_posteriors(rungs = 10, steps = 200, chains = 2, progress = FALSE)
 #' evaluate_log_evidence(ladder)

@@ -91,7 +91,7 @@ test_that("Assert valid data columns holds the definition alphabet", {
 test_that("Definitions carry the defaults the user left out", {
   # a bare uniform prior reports its unit interval, a given bound is kept
   param <- flu_1918_frederick |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     get_parameters()
   expect_equal(param$min, c(0, 0, 0, NA))
@@ -100,7 +100,7 @@ test_that("Definitions carry the defaults the user left out", {
   hhdata <- data.frame(hhid = c("h1", "h1"), status = c(1, 0),
                        record = c(3L, 1L), record_2 = c(0.5, 2.1))
   hhmodel <- hhdata |>
-    new_housepi_model("final_size") |>
+    new_housepi_model("final-size") |>
     add_parameter(
       rho = list(value = 0.3, prior = "gamma", shape = 2),
       rho_2 = list(value = 0.3, prior = "gamma", mean = 2, sd = 1),

@@ -54,7 +54,7 @@ It assumes the same community structure of the loaded data.
 }
 \examples{
 flu_1918_frederick |>
-  new_housepi_model("final_size") |>
+  new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_simulation() |>
   head()

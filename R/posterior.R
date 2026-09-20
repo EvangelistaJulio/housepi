@@ -36,22 +36,6 @@ validate_cri_level <- function(value) {
   value
 }
 
-#' @title Set global credible interval level
-#' @description
-#' Set credible interval level used by housepi objects.
-#' @param value `numeric(1)` Must lie in `(0.5, 1)`. Default is `0.95`.
-#' @return Invisibly returns the previous value.
-#' @examples
-#' old <- set_global_cri_level(0.90)
-#' set_global_cri_level(old)
-#' @export
-set_global_cri_level <- function(value) {
-  value <- validate_cri_level(value)
-  old <- getOption("housepi.cri_level", 0.95)
-  options(housepi.cri_level = value)
-  invisible(old)
-}
-
 # Return the global credible interval level (option "housepi.cri_level").
 # Not exported: housepi internals must always pull through this helper.
 get_global_cri_level <- function() {
@@ -60,8 +44,54 @@ get_global_cri_level <- function() {
 
 # Lower/upper quantile probabilities corresponding to a credible interval level.
 cri_level_probs <- function(cri_level) {
-  half_tail <- 0.5 * (1 - cri_level)
-  c(lower = half_tail, upper = 1. - half_tail)
+  0.5 * c(lower = 1. - cri_level, upper = 1. + cri_level)
+}
+
+# Validate a posterior point estimate choice.
+validate_point_estimate <- function(value) {
+  if (length(value) != 1 || !is.character(value) || is.na(value)) stop_h(
+    "Point estimate must be a single non-NA character value."
+  )
+  if (!value %in% c("mean", "median")) stop_h(
+    "Point estimate must be one between {.val mean} and {.val median}."
+  )
+  value
+}
+
+# Return the global point estimate (option "housepi.point_estimate").
+# Not exported: housepi internals must always pull through this helper.
+get_global_point_estimate <- function() {
+  validate_point_estimate(getOption("housepi.point_estimate", "median"))
+}
+
+#' @title Set the global posterior summary
+#' @description
+#' Set the point estimate and the credible level housepi objects report.
+#' An argument left out keeps the value in place.
+#' @param point_estimate `character(1)` One between `"mean"` and `"median"`.
+#' Default is `"median"`.
+#' @param cri_level `numeric(1)` Must lie in `(0.5, 1)`. Default is `0.95`.
+#' @return Invisibly returns the previous values, as a `list` the function
+#' takes back to restore them.
+#' @details
+#' A rejected value leaves both settings as they were.
+#' @examples
+#' old <- set_global_posterior_summary(point_estimate = "mean")
+#' do.call(set_global_posterior_summary, old)
+#' @export
+set_global_posterior_summary <- function(point_estimate = NULL,
+                                         cri_level = NULL) {
+  old <- list(point_estimate = get_global_point_estimate(),
+              cri_level = get_global_cri_level())
+  # both values are validated before either is written
+  new <- c(
+    if (!is.null(point_estimate))
+      list(housepi.point_estimate = validate_point_estimate(point_estimate)),
+    if (!is.null(cri_level))
+      list(housepi.cri_level = validate_cri_level(cri_level))
+  )
+  if (length(new) > 0L) options(new)
+  invisible(old)
 }
 
 # Prepend "housepi_draws" class tag for summarise_draws S3 method dispatch.
@@ -103,7 +133,7 @@ tag_rcpp_draws_ <- function(df, index) {
 #' `"housepi_draws"` (returned by housepi getters and active fields on
 #' [`HousepiPosteriorDraws`]). When no summary functions are passed via
 #' `...`, the housepi defaults are used and the quantile pair tracks
-#' [set_global_cri_level()]. Otherwise dispatch falls through to standard
+#' [set_global_posterior_summary()]. Otherwise dispatch falls through to
 #' [posterior::summarise_draws()] behaviour.
 #' @param .x A housepi-tagged draws object, or a [`HousepiPosteriorDraws`].
 #' @param ... Summary functions, as in [posterior::summarise_draws()].
@@ -111,7 +141,7 @@ tag_rcpp_draws_ <- function(df, index) {
 #' @return A `draws_summary` `data.frame`.
 #' @examples
 #' results <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_inference(chains = 2, progress = FALSE)
 #'
@@ -231,6 +261,26 @@ check_diagnostics_one_ <- function(d, draws_kind) {
   invisible()
 }
 
+# Stan-style post-inference diagnostics.
+# See https://mc-stan.org/learn-stan/diagnostics-warnings.html
+check_diagnostics_ <- function(draws) {
+  niter <- posterior::niterations(draws$point_log_lik)
+  nchains <- posterior::nchains(draws$point_log_lik)
+  ss <- niter * nchains
+  if (ss < diagnostic_[["ss_min"]]) {
+    warn_h(
+      "Total sample size was below {diagnostic_[['ss_min']]}.",
+      `!` = "Convergence diagnostics were skipped.",
+      "Estimates may be unreliable."
+    )
+    return(invisible())
+  }
+
+  check_diagnostics_one_(draws$param, "parameter")
+  check_diagnostics_one_(draws$latent, "latent variable")
+  invisible()
+}
+
 #' @title Posterior draws from housepi model inference
 #' @description
 #' Posterior draws returned by [run_inference()] on a household model.
@@ -256,7 +306,7 @@ check_diagnostics_one_ <- function(d, draws_kind) {
 #' transmission alone.
 #' @examples
 #' results <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_inference(chains = 2, progress = FALSE)
 #' results
@@ -272,34 +322,7 @@ HousepiPosteriorDraws <- R6::R6Class(
   private = list(
     # @field
     name_ = NA_character_,
-    param_draws_ = NULL,
-    param_prior_draws_ = NULL,
-    latent_draws_ = NULL,
-    point_log_lik_draws_ = NULL,
-
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # Stan-style post-inference diagnostics.
-    # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
-    check_diagnostics_ = function() {
-      niter <- posterior::niterations(private$point_log_lik_draws_)
-      nchains <- posterior::nchains(private$point_log_lik_draws_)
-      ss <- niter * nchains
-      if (ss < diagnostic_[["ss_min"]]) {
-        warn_h(
-          "Total sample size was below {diagnostic_[['ss_min']]}.",
-          `!` = "Convergence diagnostics were skipped.",
-          "Estimates may be unreliable."
-        )
-        return(invisible())
-      }
-
-      check_diagnostics_one_(private$param_draws_, "parameter")
-      check_diagnostics_one_(private$latent_draws_, "latent variable")
-      invisible()
-    }
+    draws_ = list()
   ),
 
   ############################################################################
@@ -311,16 +334,16 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' Draws of parameters.
     parameter_draws = function(value) {
       if (!missing(value)) stop_read_only("param_draws")
-      if (is.null(private$param_draws_)) return(empty_draws_())
-      private$param_draws_
+      if (is.null(private$draws_$param)) return(empty_draws_())
+      private$draws_$param
     },
 
     #' @field latent_draws `posterior::draws_df`.
     #' Draws of the selected individuals' latent variables.
     latent_draws = function(value) {
       if (!missing(value)) stop_read_only("latent_draws")
-      if (is.null(private$latent_draws_)) return(empty_draws_())
-      private$latent_draws_
+      if (is.null(private$draws_$latent)) return(empty_draws_())
+      private$draws_$latent
     },
 
     #' @field log_lik_draws `posterior::draws_df`.
@@ -334,7 +357,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' `r rd_natural_log_`
     log_lik_draws = function(value) {
       if (!missing(value)) stop_read_only("log_lik_draws")
-      private$point_log_lik_draws_
+      private$draws_$point_log_lik
     },
 
     #' @field lprior_draws `posterior::draws_df`.
@@ -343,17 +366,17 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' `r rd_natural_log_`
     lprior_draws = function(value) {
       if (!missing(value)) stop_read_only("lprior_draws")
-      has_param <- !is.null(private$param_prior_draws_) &&
-        posterior::nvariables(private$param_prior_draws_) > 0
+      has_param <- !is.null(private$draws_$param_prior) &&
+        posterior::nvariables(private$draws_$param_prior) > 0
       # with no parameter prior the parameter log-prior is an empty product,
       # log p(theta) = 0; keep a proper zero column over the pointwise draws
-      template <- if (has_param) private$param_prior_draws_
-      else private$point_log_lik_draws_
+      template <- if (has_param) private$draws_$param_prior
+      else private$draws_$point_log_lik
       if (is.null(template) || posterior::ndraws(template) == 0) {
         return(empty_draws_())
       }
       lp <- if (has_param) {
-        rowSums(posterior::as_draws_matrix(private$param_prior_draws_))
+        rowSums(posterior::as_draws_matrix(private$draws_$param_prior))
       } else {
         rep(0, posterior::ndraws(template))
       }
@@ -369,13 +392,13 @@ HousepiPosteriorDraws <- R6::R6Class(
     complete_draws = function(value) {
       if (!missing(value)) stop_read_only("complete_draws")
       # rename pointwise log-likelihood standard convention
-      aux <- private$point_log_lik_draws_
+      aux <- private$draws_$point_log_lik
       n_vars <- posterior::nvariables(aux)
       names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
       # bind parameters, pointwise log_lik and the parameter-only lprior
       # NOTE: bind_draws strips the tag, so re-stamp
       tag_as_housepi_draws(
-        posterior::bind_draws(private$param_draws_, aux, self$lprior_draws)
+        posterior::bind_draws(private$draws_$param, aux, self$lprior_draws)
       )
     }
   ),
@@ -397,30 +420,30 @@ HousepiPosteriorDraws <- R6::R6Class(
       idx <- draws_index_(.engine$export_setup(ptr))
 
       # store cpp draws converted to posterior
-      private$param_draws_ <- tag_rcpp_draws_(.engine$flush_param_draws(ptr), idx)
-      # per-parameter prior values kept internal: feed `lprior`, not a field
-      private$param_prior_draws_ <- tag_rcpp_draws_(.engine$flush_param_log_prior_draws(ptr), idx)
-      private$latent_draws_ <- tag_rcpp_draws_(.engine$flush_latent_draws(ptr), idx)
-      # pointwise per-household log-likelihood = transmission (+ observation)
-      # (+ latent model, when latents are defined)
-      private$point_log_lik_draws_ <- tag_rcpp_draws_(.engine$flush_house_log_lik_draws(ptr), idx)
+      tag <- function(df) tag_rcpp_draws_(df, idx)
+      private$draws_ <- list(
+        param = tag(.engine$flush_param_draws(ptr)),
+        param_prior = tag(.engine$flush_param_log_prior_draws(ptr)),
+        latent = tag(.engine$flush_latent_draws(ptr)),
+        point_log_lik = tag(.engine$flush_house_log_lik_draws(ptr))
+      )
 
       # Stan-style automatic diagnostics
-      private$check_diagnostics_()
+      check_diagnostics_(private$draws_)
 
       invisible()
     },
 
     #' @description Override the default printing behavior.
     print = function() {
-      niter <- posterior::niterations(private$point_log_lik_draws_)
-      nchains <- posterior::nchains(private$point_log_lik_draws_)
+      niter <- posterior::niterations(private$draws_$point_log_lik)
+      nchains <- posterior::nchains(private$draws_$point_log_lik)
 
-      if (is.null(private$param_draws_)) nparams <- 0
-      else nparams <- posterior::nvariables(private$param_draws_)
+      if (is.null(private$draws_$param)) nparams <- 0
+      else nparams <- posterior::nvariables(private$draws_$param)
 
-      if (is.null(private$latent_draws_)) nlatent <- 0
-      else nlatent <- posterior::nvariables(private$latent_draws_)
+      if (is.null(private$draws_$latent)) nlatent <- 0
+      else nlatent <- posterior::nvariables(private$draws_$latent)
 
       model <- spaced_template_choice(private$name_)
       print_bullets(c(
@@ -483,7 +506,7 @@ stopifnotdraws <- function(hhdraws) {
 #' For `log_lik`/`lprior` columns: `r rd_natural_log_`
 #' @examples
 #' results <- flu_1918_frederick |>
-#'   new_housepi_model("final_size") |>
+#'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_inference(chains = 2, progress = FALSE)
 #' get_parameter_draws(results, c("alpha", "beta"))

@@ -35,26 +35,59 @@ mk_latent_draws <- local({
 ## POSTERIOR : DEFINITIONS  ##
 ##############################
 
-test_that("Invalid Credible Interval level is rejected", {
-  set_global_cri_level(0.5) |>
+test_that("Invalid posterior summary settings are rejected", {
+  set_global_posterior_summary(cri_level = 0.5) |>
     expect_error("between 0.5 and 1")
-  set_global_cri_level(1) |>
+  set_global_posterior_summary(cri_level = 1) |>
     expect_error("between 0.5 and 1")
-  set_global_cri_level(NA_real_) |>
+  set_global_posterior_summary(cri_level = NA_real_) |>
     expect_error("non-NA")
-  set_global_cri_level("0.9") |>
+  set_global_posterior_summary(cri_level = "0.9") |>
     expect_error("numeric")
-  set_global_cri_level(c(0.9, 0.95)) |>
+  set_global_posterior_summary(cri_level = c(0.9, 0.95)) |>
+    expect_error("single")
+
+  set_global_posterior_summary(point_estimate = "mode") |>
+    expect_error("one between")
+  # an abbreviation is not a choice
+  set_global_posterior_summary(point_estimate = "med") |>
+    expect_error("one between")
+  set_global_posterior_summary(point_estimate = NA_character_) |>
+    expect_error("non-NA")
+  set_global_posterior_summary(point_estimate = 0.5) |>
+    expect_error("character")
+  set_global_posterior_summary(point_estimate = c("mean", "median")) |>
     expect_error("single")
 })
 
-test_that("The global credible interval level is set and read back", {
-  withr::with_options(list(housepi.cri_level = NULL), {
+test_that("A rejected setting leaves both values in place", {
+  withr::with_options(list(housepi.point_estimate = "median",
+                           housepi.cri_level = 0.95), {
+    # the point estimate is valid, the credible level is not
+    set_global_posterior_summary(point_estimate = "mean", cri_level = 2) |>
+      expect_error("between 0.5 and 1")
+    expect_equal(get_global_point_estimate(), "median")
     expect_equal(get_global_cri_level(), 0.95)
   })
-  withr::with_options(list(housepi.cri_level = 0.95), {
-    expect_equal(set_global_cri_level(0.90), 0.95)
+})
+
+test_that("The global posterior summary is set and read back", {
+  withr::with_options(list(housepi.point_estimate = NULL,
+                           housepi.cri_level = NULL), {
+    expect_equal(get_global_point_estimate(), "median")
+    expect_equal(get_global_cri_level(), 0.95)
+  })
+  withr::with_options(list(housepi.point_estimate = "median",
+                           housepi.cri_level = 0.95), {
+    # an argument left out keeps its value
+    old <- set_global_posterior_summary(cri_level = 0.90)
+    expect_equal(old, list(point_estimate = "median", cri_level = 0.95))
     expect_equal(get_global_cri_level(), 0.90)
+    expect_equal(get_global_point_estimate(), "median")
+
+    # the returned values restore what was there
+    do.call(set_global_posterior_summary, old)
+    expect_equal(get_global_cri_level(), 0.95)
   })
 })
 

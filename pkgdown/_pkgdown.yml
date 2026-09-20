@@ -63,6 +63,14 @@ reference:
   - ends_with("_predictive_check")
   - ends_with("PPC")
 
+- title: "Parameter recovery"
+  desc: >
+    Simulate surveys at known parameter values and fit them back.
+  contents:
+  - run_parameter_recovery_check
+  - HousepiParameterRecovery
+  - sample_house_structure
+
 - title: "Auxiliary tools"
   desc: >
     Miscellaneous functions for general purpose tasks.
@@ -71,7 +79,7 @@ reference:
     - starts_with("summarize_")
     - -ends_with("_draws")
     - format_credible_interval
-    - set_global_cri_level
+    - set_global_posterior_summary
     - housepi_theme_set
 
 - title: "Browse available definitions"

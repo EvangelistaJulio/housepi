@@ -1,16 +1,13 @@
 library(testthat)
 
-# Over budget: two DLL compiles, one of a session template carrying user
-# paths, flags and libs, one of the custom example model.
-
 # generator of the 'test' model, whose engine surface no model wraps
 mk_generator <- local({
   list(generator = HousepiGenerator$new("test"))
 })
 
-######################################
-## MODEL GENERATOR : CONSTRUCTION   ##
-######################################
+########################################
+###  MODEL GENERATOR : CONSTRUCTION  ###
+########################################
 
 test_that("assert_household_data validates inputs", {
   assert_household_data("not a frame", NA_character_) |>
