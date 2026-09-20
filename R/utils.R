@@ -26,6 +26,22 @@ flatten_cli_parts_ <- function(dots) {
   stats::setNames(out, out_nms)
 }
 
+# Housepi warnings are held back while the switch is on.
+quiet_warnings_ <- new.env(parent = emptyenv())
+quiet_warnings_$on <- FALSE
+
+#' Hold back housepi warnings for the rest of the calling frame.
+#' @param quiet `logical(1)` Whether to hold the switch; `FALSE` does nothing.
+#' @param .envir `environment` Frame the switch is released at the end of.
+#' @noRd
+local_quiet_warnings_ <- function(quiet, .envir = parent.frame()) {
+  if (!isTRUE(quiet)) return(invisible())
+  held <- quiet_warnings_$on
+  quiet_warnings_$on <- TRUE
+  withr::defer(quiet_warnings_$on <- held, envir = .envir)
+  invisible()
+}
+
 #' Emit a harmonized cli error or warning condition.
 #' @description
 #' First element becomes the header (`x` for errors, unnamed for warnings).
@@ -55,6 +71,8 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   bullets <- stats::setNames(parts, nms)
 
   if (level == "stop") cli::cli_abort(bullets, call = NULL, .envir = .envir)
+  # skip warnings if disabled
+  else if (quiet_warnings_$on) invisible()
   # display at emission time, so warning are not deferred past the errors
   else withr::with_options(list(warn = 1), cli::cli_warn(
     bullets, call = NULL, .envir = .envir

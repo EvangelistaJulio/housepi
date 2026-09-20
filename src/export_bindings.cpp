@@ -1623,11 +1623,11 @@ namespace
             mcmc_ptr->setup.crash(e);
         }
     }
-    void run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
+    double run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         try
         {
-            mcmc_ptr->run_inference();
+            return mcmc_ptr->run_inference();
         }
         catch (std::exception &e)
         {

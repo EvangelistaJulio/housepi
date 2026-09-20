@@ -136,7 +136,8 @@ namespace housepi
 		///////////////////////////////////
 
 		/// Performs the inference using Metropolis-Hastings algorithm.
-		void run_inference();
+		/// Returns the seconds spent sampling.
+		double run_inference();
 
 		/// Run power-posterior thermodynamic ladder.
 		/// Based on @cite friel_improving_2014

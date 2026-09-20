@@ -196,11 +196,16 @@ recovery_progress_bar_ <- function(progress, total) {
 }
 
 #' Distinct warning messages raised over a sweep, with their counts.
-#' @param counts `environment` Message keys holding their tally.
+#' @param raised `list` Per-fit warnings, as a fit's `warnings` field holds.
 #' @noRd
-recovery_warning_tally_ <- function(counts) {
-  messages <- ls(counts, all.names = TRUE)
-  data.frame(message = messages, count = as.integer(mget(messages, counts)))
+recovery_warning_counts_ <- function(raised) {
+  held <- do.call(rbind, raised)
+  if (is.null(held) || nrow(held) == 0L) {
+    return(data.frame(message = character(), count = integer()))
+  }
+  counts <- tapply(held[["count"]], held[["message"]], sum)
+  data.frame(message = names(counts), count = as.integer(counts),
+             row.names = NULL, stringsAsFactors = FALSE)
 }
 
 #' @title Resample the household structure of a survey
@@ -272,42 +277,33 @@ HousepiParameterRecovery <- R6::R6Class(
     # from the one that simulated, which holds the truth of the last
     # replicate.
     sweep_ = function(hhmodel, structure, sampler, progress) {
-      estimates <- replicates <- list()
-      counts <- new.env(parent = emptyenv())
+      estimates <- replicates <- raised <- list()
       bar <- recovery_progress_bar_(progress,
                                     length(private$houses_) * private$nrep_)
-      withCallingHandlers(
-        for (houses in private$houses_) {
-          struct <- structure
-          if (!is.null(sampler)) struct <- sampler(structure, houses)
-          surveys <- recovery_run_(run_simulation, hhmodel, struct,
-                                   private$sim_args_)
-          if (is.data.frame(surveys)) surveys <- list(surveys)
-          cell <- lapply(seq_len(private$nrep_), function(rep) {
-            one <- private$one_replicate_(hhmodel, surveys[[rep]], houses, rep)
-            if (!is.null(bar)) cli::cli_progress_update(id = bar)
-            one
-          })
-          rm(surveys)
-          done <- Filter(Negate(is.null), lapply(cell, `[[`, "estimates"))
-          # an engine message carries no markup: interpolate, never inline
-          reason <- cell[[1L]]$replicate[["error"]]
-          if (length(done) == 0L) stop_h(
-            "Every replicate failed at {.val {houses}} households.", "{reason}"
-          )
-          estimates <- c(estimates, done)
-          replicates <- c(replicates, lapply(cell, `[[`, "replicate"))
-        },
-        warning = function(w) {
-          # the header states the defect; its hints are noise in a tally
-          key <- strsplit(conditionMessage(w), "\n", fixed = TRUE)[[1L]][[1L]]
-          held <- counts[[key]]
-          counts[[key]] <- if (is.null(held)) 1L else held + 1L
-          invokeRestart("muffleWarning")
-        }
-      )
+      for (houses in private$houses_) {
+        struct <- structure
+        if (!is.null(sampler)) struct <- sampler(structure, houses)
+        surveys <- recovery_run_(run_simulation, hhmodel, struct,
+                                 private$sim_args_)
+        if (is.data.frame(surveys)) surveys <- list(surveys)
+        cell <- lapply(seq_len(private$nrep_), function(rep) {
+          one <- private$one_replicate_(hhmodel, surveys[[rep]], houses, rep)
+          if (!is.null(bar)) cli::cli_progress_update(id = bar)
+          one
+        })
+        rm(surveys)
+        done <- Filter(Negate(is.null), lapply(cell, `[[`, "estimates"))
+        # an engine message carries no markup: interpolate, never inline
+        reason <- cell[[1L]]$replicate[["error"]]
+        if (length(done) == 0L) stop_h(
+          "Every replicate failed at {.val {houses}} households.", "{reason}"
+        )
+        estimates <- c(estimates, done)
+        replicates <- c(replicates, lapply(cell, `[[`, "replicate"))
+        raised <- c(raised, lapply(cell, `[[`, "warnings"))
+      }
       list(estimates = estimates, replicates = replicates,
-           warnings = recovery_warning_tally_(counts))
+           warnings = recovery_warning_counts_(raised))
     },
 
     # One replicate: the survey's secondary attack rate, then the fit.
@@ -323,6 +319,7 @@ HousepiParameterRecovery <- R6::R6Class(
       )
       list(
         estimates = fit$estimates,
+        warnings = fit$warnings,
         replicate = data.frame(
           houses = houses, rep = rep,
           inference_seconds = if (is.null(fit)) NA_real_ else fit$seconds,
@@ -337,13 +334,12 @@ HousepiParameterRecovery <- R6::R6Class(
     fit_one_ = function(hhmodel, simulated, houses, rep) {
       latent <- intersect(hhmodel$latent[["name"]], names(simulated))
       hhdata <- simulated[setdiff(names(simulated), latent)]
-      start <- proc.time()[["elapsed"]]
       draws <- recovery_run_(run_inference, hhmodel, hhdata,
                              private$fit_args_)
-      seconds <- proc.time()[["elapsed"]] - start
       list(estimates = cbind(houses = houses, rep = rep,
                              private$summarise_draws_(draws)),
-           seconds = seconds)
+           warnings = draws$warnings,
+           seconds = draws$inference_seconds)
     },
 
     # Point estimate, credible interval and sampler cost per parameter.
@@ -407,7 +403,7 @@ HousepiParameterRecovery <- R6::R6Class(
     #' @field replicates `data.frame`
     #' One row per household count and replicate
     #' \describe{
-    #'   \item{inference_seconds}{Wall-clock of the fit}
+    #'   \item{inference_seconds}{Wall-clock of the sampling loop}
     #'   \item{converged}{Whether every parameter passed both diagnostics}
     #'   \item{error}{Message of a replicate that failed, else `NA`}
     #' }
@@ -434,7 +430,7 @@ HousepiParameterRecovery <- R6::R6Class(
     #' Sweep cost per household count, averaged over the replicates
     #' \describe{
     #'   \item{nrep, n_failed, n_flagged}{Replicates run, failed and flagged}
-    #'   \item{mean_inference_seconds}{Mean wall-clock of a fit}
+    #'   \item{mean_inference_seconds}{Mean wall-clock of a sampling loop}
     #' }
     overview = function(value) {
       if (!missing(value)) stop_read_only("overview")
@@ -542,7 +538,8 @@ HousepiParameterRecovery <- R6::R6Class(
       )
       private$fit_args_ <- c(
         list(steps = steps, burn = burn, thin = thin, adapt = adapt,
-             chains = chains, threads = threads, progress = FALSE),
+             chains = chains, threads = threads, progress = FALSE,
+             warn = FALSE),
         dots[names(dots) == "adapt_window"]
       )
       swept <- private$sweep_(hhmodel, structure, structure_sampler, progress)

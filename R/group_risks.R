@@ -513,11 +513,11 @@ group_risk_logic_table <- function(data_wide, this_cov,
   y <- expand.grid(uni_covariates)
 
   # count every combination in one pass. A cell the data does not carry
-  # matches no stratum, so those members are left out of the tally
+  # matches no stratum, so those members are left out of the count
   carried <- data_wide[stats::complete.cases(data_wide[this_cov]), ,
                        drop = FALSE]
-  tally <- table(row_keys_(carried, this_cov))
-  multicov_count <- as.integer(tally[row_keys_(y, this_cov)])
+  counted <- table(row_keys_(carried, this_cov))
+  multicov_count <- as.integer(counted[row_keys_(y, this_cov)])
   multicov_count[is.na(multicov_count)] <- 0L
 
   # no status is observed: every declared stratum stands, sample sizes unknown

@@ -205,9 +205,9 @@ summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 ############################################################################
 ############################################################################
 
-# Emits at most one warning per draws_kind combination.
+# Builds at most one message block per draws_kind combination.
 check_diagnostics_one_ <- function(d, draws_kind) {
-  if (is.null(d) || posterior::nvariables(d) == 0L) return(invisible())
+  if (is.null(d) || posterior::nvariables(d) == 0L) return(NULL)
 
   rhat_max <- diagnostic_[["rhat_max"]]
   neff_min <- diagnostic_[["neff_min"]]
@@ -244,7 +244,7 @@ check_diagnostics_one_ <- function(d, draws_kind) {
             100. * neff_min,
             character_to_string_list(sm$variable[only_bulk]))
   )
-  if (length(findings) == 0L) return(invisible())
+  if (length(findings) == 0L) return(NULL)
   names(findings) <- rep("!", length(findings))
 
   # One hint assembled from the failure modes present: a high R-hat means
@@ -254,31 +254,36 @@ check_diagnostics_one_ <- function(d, draws_kind) {
     if (length(bad_bulk) > 0L) "the sampler explores the posterior slowly"
   ), collapse = "; ")
   substr(hint, 1L, 1L) <- toupper(substr(hint, 1L, 1L))
-  warn_h(c(
-    "Convergence diagnostics flagged the following:",
-    findings, paste0(hint, ".")
-  ))
-  invisible()
+  c("Convergence diagnostics flagged the following:",
+    findings, paste0(hint, "."))
 }
 
-# Stan-style post-inference diagnostics.
+# Stan-style post-inference diagnostics, as message blocks to report.
 # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
 check_diagnostics_ <- function(draws) {
   niter <- posterior::niterations(draws$point_log_lik)
   nchains <- posterior::nchains(draws$point_log_lik)
   ss <- niter * nchains
-  if (ss < diagnostic_[["ss_min"]]) {
-    warn_h(
-      "Total sample size was below {diagnostic_[['ss_min']]}.",
-      `!` = "Convergence diagnostics were skipped.",
-      "Estimates may be unreliable."
-    )
-    return(invisible())
-  }
+  # the header is interpolated here, so it is recorded as literal text
+  if (ss < diagnostic_[["ss_min"]]) return(list(c(
+    sprintf("Total sample size was below %d.", diagnostic_[["ss_min"]]),
+    `!` = "Convergence diagnostics were skipped.",
+    "Estimates may be unreliable."
+  )))
 
-  check_diagnostics_one_(draws$param, "parameter")
-  check_diagnostics_one_(draws$latent, "latent variable")
-  invisible()
+  Filter(Negate(is.null), list(
+    check_diagnostics_one_(draws$param, "parameter"),
+    check_diagnostics_one_(draws$latent, "latent variable")
+  ))
+}
+
+# Distinct headers of a list of message blocks, with their counts.
+# The header states the defect; its bullets are detail.
+count_diagnostics_ <- function(blocks) {
+  headers <- vapply(blocks, `[[`, character(1L), 1L)
+  counts <- table(headers)
+  data.frame(message = names(counts), count = as.integer(counts),
+             row.names = NULL, stringsAsFactors = FALSE)
 }
 
 #' @title Posterior draws from housepi model inference
@@ -322,7 +327,9 @@ HousepiPosteriorDraws <- R6::R6Class(
   private = list(
     # @field
     name_ = NA_character_,
-    draws_ = list()
+    draws_ = list(),
+    seconds_ = NA_real_,
+    warnings_ = NULL
   ),
 
   ############################################################################
@@ -400,6 +407,27 @@ HousepiPosteriorDraws <- R6::R6Class(
       tag_as_housepi_draws(
         posterior::bind_draws(private$draws_$param, aux, self$lprior_draws)
       )
+    },
+
+    #' @field warnings `data.frame`
+    #' Convergence diagnostics the run flagged
+    #' \describe{
+    #'   \item{message}{Line stating what was flagged}
+    #'   \item{count}{Times it was raised}
+    #' }
+    #' Recorded whether or not the run reported them. Per-variable R-hat and
+    #' Bulk ESS behind a flag are read from [summarise_draws()].
+    warnings = function(value) {
+      if (!missing(value)) stop_read_only("warnings")
+      private$warnings_
+    },
+
+    #' @field inference_seconds `numeric(1)`
+    #' Wall-clock of the sampling loop, leaving out the model build and the
+    #' conversion of the draws.
+    inference_seconds = function(value) {
+      if (!missing(value)) stop_read_only("inference_seconds")
+      private$seconds_
     }
   ),
 
@@ -413,9 +441,11 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' don't call `$new()` directly.
     #' @param name Model name.
     #' @param ptr Internal engine handle.
-    initialize = function(name, ptr) {
+    #' @param seconds Wall-clock the engine timed the sampling loop at.
+    initialize = function(name, ptr, seconds = NA_real_) {
       # inherit model name
       private$name_ <- as.character(name)
+      private$seconds_ <- as.numeric(seconds)
       # per-draw chain/iteration index from the inference setup
       idx <- draws_index_(.engine$export_setup(ptr))
 
@@ -428,8 +458,11 @@ HousepiPosteriorDraws <- R6::R6Class(
         point_log_lik = tag(.engine$flush_house_log_lik_draws(ptr))
       )
 
-      # Stan-style automatic diagnostics
-      check_diagnostics_(private$draws_)
+      # Stan-style automatic diagnostics, recorded and reported alike:
+      # a quiet run holds the warnings back, the record stands either way
+      blocks <- check_diagnostics_(private$draws_)
+      private$warnings_ <- count_diagnostics_(blocks)
+      for (block in blocks) warn_h(block)
 
       invisible()
     },

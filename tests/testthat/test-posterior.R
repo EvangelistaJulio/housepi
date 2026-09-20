@@ -1,19 +1,13 @@
 library(testthat)
 
-# one short inference run, with the warnings it raised
+# one short inference run, quiet, holding the warnings it raised
 mk_draws <- local({
-  warnings <- character()
-  results <- withCallingHandlers(
-    flu_1918_frederick |>
-      new_housepi_model("final-size") |>
-      add_parameter(import = "template") |>
-      run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L),
-    warning = function(w) {
-      warnings <<- c(warnings, conditionMessage(w))
-      invokeRestart("muffleWarning")
-    }
-  )
-  list(results = results, warnings = warnings)
+  results <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template") |>
+    run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L,
+                  warn = FALSE)
+  list(results = results)
 })
 
 # two parameters and a latent traced on one member
@@ -132,7 +126,8 @@ test_that("Active fields are read-only", {
   mk_draws$results |>
     helper_test_read_only(
       "parameter_draws", "latent_draws",
-      "log_lik_draws", "lprior_draws", "complete_draws"
+      "log_lik_draws", "lprior_draws", "complete_draws",
+      "warnings", "inference_seconds"
     )
 })
 
@@ -175,8 +170,51 @@ test_that("Print behavior is stable", {
   expect_snapshot(print(local_results))
 })
 
-test_that("Diagnostic warning fires on short runs", {
-  expect_true(any(grepl("sample size was below", mk_draws$warnings)))
+test_that("A short run records the diagnostic it skipped", {
+  flagged <- mk_draws$results$warnings
+  expect_equal(nrow(flagged), 1L)
+  expect_match(flagged$message, "[Ss]ample size was below")
+  expect_equal(flagged$count, 1L)
+})
+
+test_that("A quiet run holds back the warnings it records", {
+  run <- function(warn) {
+    flu_1918_frederick |>
+      new_housepi_model("final-size") |>
+      add_parameter(import = "template") |>
+      run_inference(steps = 20L, chains = 1L, adapt = 0L, thin = 1L,
+                    warn = warn)
+  }
+  # the same run is silent or not, and records the same warnings either way
+  expect_no_warning(quiet <- run(FALSE))
+  expect_warning(loud <- run(TRUE), "[Ss]ample size was below")
+  expect_equal(quiet$warnings, loud$warnings)
+})
+
+test_that("A quiet run holds back its build warnings too", {
+  # more threads than the machine has, which the engine reduces and reports
+  threads <- RcppParallel::defaultNumThreads() + 4L
+  run <- function(warn) {
+    flu_1918_frederick |>
+      new_housepi_model("final-size") |>
+      add_parameter(import = "template") |>
+      run_inference(steps = 20L, chains = 1L, adapt = 0L, thin = 1L,
+                    threads = threads, warn = warn)
+  }
+  # the run is too short to diagnose, so it warns twice
+  expect_warning(
+    expect_warning(run(TRUE), "[Rr]educing .threads."),
+    "[Ss]ample size was below"
+  )
+  expect_no_warning(results <- run(FALSE))
+  # a build warning is held back but never recorded: only diagnostics are
+  expect_false(any(grepl("threads", results$warnings$message)))
+})
+
+test_that("The sampling loop reports its own cost", {
+  seconds <- mk_draws$results$inference_seconds
+  expect_length(seconds, 1L)
+  expect_true(is.finite(seconds) && seconds > 0)
 })
 
 test_that("Diagnostic warning fires on poor mixing", {

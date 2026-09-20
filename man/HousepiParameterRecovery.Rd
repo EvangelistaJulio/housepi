@@ -33,7 +33,7 @@ One row per household count, replicate and parameter
     \item{\code{replicates}}{\code{data.frame}
 One row per household count and replicate
 \describe{
-\item{inference_seconds}{Wall-clock of the fit}
+\item{inference_seconds}{Wall-clock of the sampling loop}
 \item{converged}{Whether every parameter passed both diagnostics}
 \item{error}{Message of a replicate that failed, else \code{NA}}
 }}
@@ -52,7 +52,7 @@ Recovery statistics per household count and parameter
 Sweep cost per household count, averaged over the replicates
 \describe{
 \item{nrep, n_failed, n_flagged}{Replicates run, failed and flagged}
-\item{mean_inference_seconds}{Mean wall-clock of a fit}
+\item{mean_inference_seconds}{Mean wall-clock of a sampling loop}
 }}
 
     \item{\code{truth}}{named \code{numeric()}

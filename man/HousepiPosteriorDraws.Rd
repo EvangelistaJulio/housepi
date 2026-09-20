@@ -64,6 +64,19 @@ Parameters, pointwise \code{log_lik} and the joint \code{lprior}.
 Note \code{log_lik}/\code{lprior} are evaluated over the joint (latent,
 parameter) posterior (see \code{log_lik_draws} and \code{lprior_draws}).
 Logarithms are natural (base \eqn{e}).}
+
+    \item{\code{warnings}}{\code{data.frame}
+Convergence diagnostics the run flagged
+\describe{
+\item{message}{Line stating what was flagged}
+\item{count}{Times it was raised}
+}
+Recorded whether or not the run reported them. Per-variable R-hat and
+Bulk ESS behind a flag are read from \code{\link[=summarise_draws]{summarise_draws()}}.}
+
+    \item{\code{inference_seconds}}{\code{numeric(1)}
+Wall-clock of the sampling loop, leaving out the model build and the
+conversion of the draws.}
   }
   \if{html}{\out{</div>}}
 }
@@ -83,7 +96,7 @@ Logarithms are natural (base \eqn{e}).}
 don't call \verb{$new()} directly.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiPosteriorDraws$new(name, ptr)}
+    \preformatted{HousepiPosteriorDraws$new(name, ptr, seconds = NA_real_)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -91,6 +104,7 @@ don't call \verb{$new()} directly.
     \describe{
       \item{\code{name}}{Model name.}
       \item{\code{ptr}}{Internal engine handle.}
+      \item{\code{seconds}}{Wall-clock the engine timed the sampling loop at.}
     }
     \if{html}{\out{</div>}}
   }

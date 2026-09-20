@@ -823,13 +823,13 @@ namespace housepi
     ///  METROPOLIS-HASTINGS  ///
     /////////////////////////////
 
-    void MCMC::run_inference()
+    double MCMC::run_inference()
     {
         init_monte_carlo_();
         init_for_evaluation_();
         setup.prog_open_for_mcmc_sample();
         run_monte_carlo_();
-        setup.prog_close();
+        return setup.prog_close();
     }
 
     void MCMC::run_monte_carlo_()

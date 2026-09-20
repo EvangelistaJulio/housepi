@@ -14,6 +14,7 @@ run_inference(
   threads = 1L,
   id_draws = NULL,
   progress = TRUE,
+  warn = TRUE,
   ...
 )
 }
@@ -49,6 +50,10 @@ One between:
 \item If \code{TRUE} prints progress every second (default);
 \item If \code{FALSE} or \code{0}, suppresses progress display.
 }}
+
+\item{warn}{\code{logical(1)} Whether to report the warnings the run raises.
+A quiet run still records the convergence diagnostics it flagged, read back
+from the \code{warnings} field of the returned object.}
 
 \item{...}{Advanced configuration.}
 }

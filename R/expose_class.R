@@ -1161,6 +1161,9 @@ inspect_house_state <- function(hhmodel, hhid) {
 #' If `NA`, one random eligible household is followed (default).
 #' Pass `".none"` to store nothing.
 #' @param progress `r rd_progress_`
+#' @param warn `logical(1)` Whether to report the warnings the run raises.
+#' A quiet run still records the convergence diagnostics it flagged, read back
+#' from the `warnings` field of the returned object.
 #' @param ... `r rd_dots_config_`
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @examples
@@ -1178,8 +1181,11 @@ run_inference <- function(hhmodel,
                           chains = 4L, threads = 1L,
                           id_draws = NULL,
                           progress = TRUE,
+                          warn = TRUE,
                           ...) {
   stopifnothousepi(hhmodel)
+  # the whole run is quiet, its build included
+  local_quiet_warnings_(!warn)
   assert_advanced_setup_(c("inv_temp", "adapt_window"), ...)
   pvt <- hhmodel$.__enclos_env__$private
   id_draws <- resolve_id_draws_(id_draws)
@@ -1192,9 +1198,9 @@ run_inference <- function(hhmodel,
     chains = chains, threads = threads, id_draws = id_draws,
     progress = progress, ...
   )
-  .engine$run_inference(pvt$generator_$mcmc_ptr)
+  seconds <- .engine$run_inference(pvt$generator_$mcmc_ptr)
   HousepiPosteriorDraws$new(pvt$generator_$raw_name,
-                            pvt$generator_$mcmc_ptr)
+                            pvt$generator_$mcmc_ptr, seconds)
 }
 
 #' @title Simulate a household survey from a housepi model

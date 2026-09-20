@@ -117,8 +117,8 @@ namespace housepi
         void prog_set_text(std::string text = "");
         /// Increment progress bar by one iteration.
         void prog_update();
-        /// Close and finalize progress bar display.
-        void prog_close();
+        /// Close the progress bar, returning the seconds it timed.
+        double prog_close();
         /// Mark progress bar as crashed/interrupted.
         [[noreturn]] void crash(const std::exception &e);
 

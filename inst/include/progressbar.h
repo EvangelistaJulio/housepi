@@ -172,15 +172,18 @@ namespace housepi
                 msg::info("\n");
         }
 
-        /// Close the progress bar.
-        void close()
+        /// Close the progress bar, returning the seconds since `open()`.
+        double close()
         {
+            const auto now = steady_clock::now();
+            const double spent = duration<double>(now - start_).count();
+
             // close only if it was opened
             if (!has_bar_print_)
-                return;
+                return spent;
             has_bar_print_ = false;
 
-            const auto elapsed = duration_cast<seconds>(steady_clock::now() - start_);
+            const auto elapsed = duration_cast<seconds>(now - start_);
             if (static_cast<unsigned long>(elapsed.count()) > thintime_)
             {
                 std::ostringstream oss;
@@ -196,6 +199,7 @@ namespace housepi
             }
 
             check_user_interrupt_();
+            return spent;
         }
 
     private:
