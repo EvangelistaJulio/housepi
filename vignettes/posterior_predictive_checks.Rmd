@@ -17,12 +17,10 @@ editor_options:
 ```
 
 ```{r}
-#| label: library
+#| label: options
 #| include: false
 options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
-library(housepi)
-housepi_theme_set()
 ```
 
 Here we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC). We use the same final-size example presented in [Get started](housepi.html):
@@ -30,7 +28,10 @@ Here we show how to compute common household measures according to the model pos
 ```{r}
 #| label: inference-setup
 # repeat inference as in 'Get Started'
+library(housepi)
+housepi_theme_set()
 set.seed(42)
+
 hhmodel <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
@@ -87,16 +88,6 @@ flextable::flextable(combined) |>
                                   cases = "Number of Cases")) |>
   flextable::autofit()
 ```
-
-We can perform a Chi-Squared test on the shown distribution as follows:
-
-```{r}
-#| label: chisq-test
-# perform a Chi-Squared test
-ppc$chisq_test()
-```
-
-A large $p$-value gives no evidence that the observed and predicted distributions differ.
 
 # Secondary attack rate
 

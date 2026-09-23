@@ -110,9 +110,9 @@ mk_recov <- local({
 
 test_that("Recovery results are read only", {
   mk_recov$results |>
-    helper_test_read_only("estimates", "replicates", "summary", "overview",
-                          "truth", "houses", "nrep", "point_estimate",
-                          "cri_level", "model_name", "warnings")
+    helper_test_read_only("estimates", "replicates", "summary",
+                          "overview", "truth", "houses", "nrep",
+                          "point_estimate", "cri_level", "warnings")
 })
 
 test_that("Recovery sweeps every household count", {
@@ -178,6 +178,25 @@ test_that("Every estimated parameter needs a simulation value", {
                                  truth = data.frame(beta = 0.2, rho = 1)),
     "[Nn]o parameter named"
   )
+})
+
+test_that("A collapsed baseline takes no simulation value", {
+  # `community` names no reference, so `alpha` is the scale of its own group
+  expect_warning(
+    hhmodel <- data.frame(
+      hhid = rep(1:4, each = 3),
+      status = c(1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1),
+      member = rep(c("child", "adult", "adult"), 4)
+    ) |>
+      new_housepi_model("final-size") |>
+      add_parameter(import = "template") |>
+      add_group_risk("community", by = "member"),
+    "alpha.*constant reference"
+  )
+
+  run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE,
+                               truth = data.frame(alpha = 0.3)) |>
+    expect_error("[Tt]ruth.*alpha.*other than 1")
 })
 
 test_that("Recovery needs a parameter to recover", {

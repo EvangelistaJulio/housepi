@@ -221,16 +221,16 @@ assert_valid_logic_table <- function(logic_table, allow = character()) {
 assert_valid_pins <- function(tbl) {
   if (!any(risk_pin_cols %in% colnames(tbl))) return(invisible(tbl))
   # an all-NA column pins nothing, whichever type it was written with
-  if (!all(is.na(tbl$value)) && !is.numeric(tbl$value)) stop_h(
+  if (!all(is.na(tbl[["value"]])) && !is.numeric(tbl[["value"]])) stop_h(
     "Column {.field value} of the strata table must be numeric.",
-    format_type_error(tbl$value)
+    format_type_error(tbl[["value"]])
   )
-  if (!all(is.na(tbl$const)) && !is.logical(tbl$const)) stop_h(
+  if (!all(is.na(tbl[["const"]])) && !is.logical(tbl[["const"]])) stop_h(
     "Column {.field const} of the strata table must be logical.",
-    format_type_error(tbl$const)
+    format_type_error(tbl[["const"]])
   )
-  value <- if (is.null(tbl$value)) rep(NA_real_, nrow(tbl)) else tbl$value
-  const <- if (is.null(tbl$const)) rep(NA, nrow(tbl)) else tbl$const
+  value <- if (is.null(tbl[["value"]])) rep(NA_real_, nrow(tbl)) else tbl[["value"]]
+  const <- if (is.null(tbl[["const"]])) rep(NA, nrow(tbl)) else tbl[["const"]]
 
   bad <- tbl$param_name == ".reference" & (!is.na(value) | !is.na(const))
   if (any(bad)) stop_h(
@@ -314,16 +314,15 @@ compute_rule_groups <- function(tbl) {
     } else if (length(candidates) == 0) {
       stop_h("Rule grouping failed: no maximal pattern contains row's columns.")
     } else {
-      fmt <- function(x) {
-        ifelse(length(x) == 0, "{{}}",
-               paste0("{{", paste(x, collapse = ", "), "}}"))
-      }
+      field_list <- function(x) character_to_phrase(x, quote = TRUE, style = "field")
+      own <- if (length(p) == 0) "names no covariates"
+             else sprintf("names only %s", field_list(p))
       stop_h(
         sprintf(
-          "Ambiguous rule %d: pattern %s is subset of %d maximal patterns: %s.",
-          i, fmt(p), length(candidates),
-          paste(vapply(max_patterns[candidates], fmt, character(1)),
-                collapse = " and ")
+          "Ambiguous rule %d ({.val %s}) %s, fitting %d equally specific groups: %s.",
+          i, tbl$param_name[i], own, length(candidates),
+          character_to_phrase(vapply(max_patterns[candidates], function(m)
+            paste0("[", field_list(m), "]"), character(1)))
         ),
         "Add a disambiguating column to the rule."
       )
@@ -438,6 +437,50 @@ helper_pin_param_def <- function(def, pin) {
   if (is.null(pin)) return(def)
   if (isTRUE(pin$const)) return(list(value = pin$value, const = TRUE))
   c(def, list(value = pin$value))
+}
+
+#' Whether a set of logic tables leaves the scale of its risk free.
+#' A table the data left empty carries no rule, hence no scale.
+#' @param tables `list` of logic tables with a `param_name` column.
+#' @return `logical(1)`
+#' @keywords internal
+#' @noRd
+lacks_reference_ <- function(tables) {
+  length(tables) > 0 &&
+    !any(vapply(tables, function(tbl) ".reference" %in% tbl$param_name,
+                logical(1)))
+}
+
+#' Assert every `params` entry names a parameter the strata table declares.
+#' @param strata `data.frame` logic table with a `param_name` column.
+#' @param params `list` Per-parameter MCMC-setup overrides.
+#' @return `list` the input `params`, invisibly.
+#' @keywords internal
+#' @noRd
+assert_known_params_names <- function(strata, params) {
+  unknown <- setdiff(names(params), setdiff(strata$param_name, ".reference"))
+  if (length(unknown) > 0) stop_h(
+    sprintf("Unknown %s in {.arg params}: %s",
+            as_plural("parameter", length(unknown)),
+            character_to_string_list(unknown))
+  )
+  invisible(params)
+}
+
+#' Warn that `params` is dropped: an automatic definition derives its own
+#' parameters, so the list has nothing to override.
+#' @param params `list` Per-parameter MCMC-setup overrides.
+#' @return `list` the input `params`, invisibly.
+#' @keywords internal
+#' @noRd
+warn_unused_auto_params <- function(params) {
+  if (length(params) == 0) return(invisible(params))
+  warn_h(
+    "{.arg params} is not used with {.arg by}.",
+    paste("Give {.val {names(params)}} a value with {.fn add_parameter},",
+          "or name the parameters in a {.arg strata} table.")
+  )
+  invisible(params)
 }
 
 #' Assert that no stratum is both pinned and overridden through `params`.
@@ -637,7 +680,7 @@ tidyup_group_risk_tables <- function(all_tables) {
                                        cols = all_cols))
   rownames(combined_df) <- NULL
 
-  combined_df
+  as.data.frame(combined_df)
 }
 
 #' Return list with default MCMC setup if user choice is missing.
@@ -742,13 +785,7 @@ HousepiGroupRisk <- R6::R6Class(
       assert_one_reference_per_group(strata)
       # validate params keys against logic table param_names
       if (length(params) > 0) {
-        valid_names <- setdiff(strata$param_name, ".reference")
-        unknown <- setdiff(names(params), valid_names)
-        if (length(unknown) > 0) stop_h(
-          sprintf("Unknown %s in {.arg params}: %s",
-                  as_plural("parameter", length(unknown)),
-                  character_to_string_list(unknown))
-        )
+        assert_known_params_names(strata, params)
         assert_no_pin_params_clash(strata, params)
       }
 
@@ -981,8 +1018,7 @@ HousepiGroupRisk <- R6::R6Class(
       def <- self$defs[[name]]
       if (is.null(def)) return(FALSE)
       if (identical(def$mode, "auto")) return(is.null(def$reference))
-      !any(vapply(self$logic_tables[[name]],
-                  function(tbl) ".reference" %in% tbl$param_name, logical(1)))
+      lacks_reference_(self$logic_tables[[name]])
     },
 
     #' @inherit add_group_risk
@@ -1022,16 +1058,21 @@ HousepiGroupRisk <- R6::R6Class(
       is_auto <- !all(is.na(by))
       is_custom <- !is.null(strata)
 
-      if (is_auto && is_custom) stop_ambiguos_definition()
-      else if (is_auto) private$helper_auto_add_(
-        name = name, by = by, reference = reference, prefix = prefix,
-        joint = joint, .warn_over = .warn_over
-      )
-      else if (is_custom) private$helper_custom_add_(
-        name = name, strata = strata, params = params,
-        reference = reference, .warn_over = .warn_over
-      )
-      else stop_empty_definition()
+      if (is_auto) {
+        if (is_custom) stop_ambiguos_definition()
+        warn_unused_auto_params(params)
+        private$helper_auto_add_(
+          name = name, by = by, reference = reference, prefix = prefix,
+          joint = joint, .warn_over = .warn_over
+        )
+      } else if (is_custom) {
+        private$helper_custom_add_(
+          name = name, strata = strata, params = params,
+          reference = reference, .warn_over = .warn_over
+        )
+      } else {
+        stop_empty_definition()
+      }
 
       # store shared MCMC setup (overwriting any existing)
       self$raw_params[[name]] <- set_group_risks_mcmc_setup(

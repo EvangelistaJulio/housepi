@@ -489,14 +489,6 @@ namespace housepi
             list_const.push_back(p);
     }
 
-    void Parameter::helper_pin_to_reference_(size_t p)
-    {
-        Variable &xparam = at(p);
-        xparam.clear();
-        xparam.init_numeric(risks::VALUE_REFERENCE);
-        switch_to_const_(p);
-    }
-
     void Parameter::assert_risk_identifiability(const GroupRisk &group_risk,
                                                 const ContactRisk &contact_risk)
     {
@@ -522,21 +514,8 @@ namespace housepi
                 free_names.emplace_back(group_risk.khold(g));
             }
 
-            Variable &xparam = at(anchor.baseline);
-            if (n_scale_free == 1 && !is_pinned(anchor.baseline))
-            {
-                // UPDATE: when baseline is a function, it's a user choice
-                // NOTE: at the moment is not even possible, but it might be in the future
-                if (xparam.is_function())
-                    continue;
-
-                // if both baseline and group risk are free, pins the baseline
-                msg::warn(
-                    "No reference provided for " + msg::qty(free_names) + " risk{?s:} " + str::format(free_names) +
-                    "\nBaseline " + xparam.str() + " was turned into constant reference.");
-                helper_pin_to_reference_(anchor.baseline);
-            }
-            else if (n_scale_free > 1)
+            // R front end already holds baselines at reference for absolute risks
+            if (n_scale_free > 1)
                 msg::stop(
                     "The product of " + msg::qty(free_names) + " risk{?s} introduces non-identifiability: " + str::format(free_names) +
                     "\nRisks are absolute unless a " + msg::code("reference") + " is given: make all but one relative," +

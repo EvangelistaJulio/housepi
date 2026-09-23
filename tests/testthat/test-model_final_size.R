@@ -219,7 +219,7 @@ test_that("Three infected members likelihood is correct", {
     ))
 })
 
-test_that("Likelihood is correct when infected members fall into risk partitions", {
+test_that("Likelihood is correct when using risk partitions", {
   # two of the three infected members are risk-equivalent, so the house
   # is neither homogeneous nor fully split, taking the partitioned branch
   build_house_model(mk_part$house, mk_part$par,
@@ -248,9 +248,11 @@ test_that("A contact-risk mismatch keeps risk-equivalent members apart", {
 
   # the pair's own contact breaks the match directly: m2 -> m3 stands out
   # against the class-`c` reference, so same_contacts fails at the first check
-  strata_direct <- data.frame(from_member = c("m2", NA),
-                              to_member = c("m3", NA),
-                              param_name = c("ctr_m2_m3", ".reference"))
+  strata_direct <- tibble::tribble(
+    ~from_member, ~to_member, ~param_name,
+    "m2",         "m3",       "ctr_m2_m3",
+    NA,           NA,         ".reference"
+  )
   ctr_direct <- mk_ctr_mtx(house, list())
   ctr_direct[2, 3] <- 2
   build_break(strata_direct, list(ctr_m2_m3 = 2)) |>
@@ -259,8 +261,11 @@ test_that("A contact-risk mismatch keeps risk-equivalent members apart", {
 
   # the pair itself still matches: only m2's contact toward the escaped
   # member (m4) differs from m3's, caught while scanning the other members
-  strata_third <- data.frame(from_member = c("m2", NA), to_member = c("m4", NA),
-                             param_name = c("ctr_m2_m4", ".reference"))
+  strata_third <- tibble::tribble(
+    ~from_member, ~to_member, ~param_name,
+    "m2",         "m4",       "ctr_m2_m4",
+    NA,           NA,         ".reference"
+  )
   ctr_third <- mk_ctr_mtx(house, list())
   ctr_third[2, 4] <- 2
   build_break(strata_third, list(ctr_m2_m4 = 2)) |>
@@ -288,19 +293,19 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
   expect_equal(params$value[params$name == "alpha"], 1)
 
   # the contact table names a reference, so `beta` keeps its scale
+  strata <- tibble::tribble(
+    ~from_member, ~to_member, ~param_name,
+    "student",    "student",  "ctr_child_child",
+    "student",    "sibling",  "ctr_child_child",
+    "sibling",    "sibling",  "ctr_child_child",
+    "mother",     "student",  "ctr_mother_child",
+    "mother",     "sibling",  "ctr_mother_child",
+    "father",     "mother",   ".reference",
+    "other",      "other",    "ctr_other_other",
+    NA,           NA,         "ctr_cross_generational"
+  )
   hhmodel |>
-    add_contact_risk(
-      strata = data.frame(
-        from_member = c("student", "student", "sibling", "mother", "mother",
-                        "father", "other", NA),
-        to_member = c("student", "sibling", "sibling", "student", "sibling",
-                      "mother", "other", NA),
-        param_name = c("ctr_child_child", "ctr_child_child", "ctr_child_child",
-                       "ctr_mother_child", "ctr_mother_child",
-                       ".reference", "ctr_other_other",
-                       "ctr_cross_generational")
-      )
-    ) |>
+    add_contact_risk(strata = strata) |>
     get_parameters() |>
     subset(name == "beta", "const") |>
     unlist() |>

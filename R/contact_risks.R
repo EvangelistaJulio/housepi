@@ -141,8 +141,8 @@ fill_symmetric_gaps <- function(tbl) {
   for (i in seq_len(nrow(tbl))) {
     rev_row <- tbl[i, , drop = FALSE]
     for (f in covariates) {
-      rev_row[[paste0("from_", f)]] <- tbl[i, paste0("to_", f)]
-      rev_row[[paste0("to_", f)]] <- tbl[i, paste0("from_", f)]
+      rev_row[[paste0("from_", f)]] <- tbl[[paste0("to_", f)]][i]
+      rev_row[[paste0("to_", f)]] <- tbl[[paste0("from_", f)]][i]
     }
 
     def_exists <- any(apply(tbl[cov_cols], 1, function(row) {
@@ -168,16 +168,19 @@ fill_symmetric_gaps <- function(tbl) {
 tidyup_contact_risk_tables <- function(tables) {
   if (length(tables) == 0) return(data.frame())
 
+  # covariates lead, the rule outcome (parameter, count, pins) closes the row
   present <- unique(unlist(lapply(tables, names)))
-  all_cols <- unique(c("param_name", "n",
-                       intersect(risk_pin_cols, present), sort(present)))
+  tail_cols <- c("param_name", "n", "rule_group",
+                 intersect(risk_pin_cols, present))
+  all_cols <- c(sort(setdiff(present, risk_reserved_cols)),
+                setdiff(tail_cols, "rule_group"))
 
   combined <- do.call(rbind, lapply(tables, pad_risk_cols_, cols = all_cols))
   rownames(combined) <- NULL
   combined <- compute_rule_groups(combined)
   combined <- reorder_risks_logic_table(combined)
   rownames(combined) <- NULL
-  combined
+  as.data.frame(combined[c(setdiff(names(combined), tail_cols), tail_cols)])
 }
 
 # Validate and shape the automatic reference of contact risks.
@@ -185,6 +188,26 @@ auto_contact_reference_ <- function(by, reference) {
   if (identical(reference, ".auto")) return(".auto")
 
   valid_names <- c(paste0("from_", sort(by)), paste0("to_", sort(by)))
+  # an unnamed reference has no way to match a covariate: names(NULL) %in% by
+  # is vacuously TRUE, so this must be checked before the convenience branch
+  has_names <- !is.null(names(reference)) && all(nzchar(names(reference)))
+  # a single covariate needs no name to disambiguate which one it labels
+  if (!has_names && length(by) == 1 && length(reference) == 1) {
+    names(reference) <- by
+    has_names <- TRUE
+  }
+  if (!has_names) {
+    example_values <- if (length(reference) == length(by)) as.character(reference)
+    else rep("value", length(by))
+    stop_h(
+      "Provided reference contact risk is not valid.",
+      `!` = sprintf(
+        "{.arg reference} must be named using %s: {.code reference = c(%s)}.",
+        as_plural("covariate", length(by)),
+        paste(sprintf('%s = "%s"', by, example_values), collapse = ", ")
+      )
+    )
+  }
   # convenience: allow un-prefixed names
   if (length(reference) == length(by) && all(names(reference) %in% by)) {
     reference <- c(stats::setNames(reference[by], paste0("from_", by)),
@@ -251,7 +274,10 @@ HousepiContactRisk <- R6::R6Class(
         "Tag one row's {.field param_name} as {.val .reference} instead."
       )
       assert_one_reference_per_group(strata, symmetric)
-      if (length(params) > 0) assert_no_pin_params_clash(strata, params)
+      if (length(params) > 0) {
+        assert_known_params_names(strata, params)
+        assert_no_pin_params_clash(strata, params)
+      }
       # cast covariate columns to character (consistent with auto mode)
       cov_cols <- setdiff(colnames(strata), risk_reserved_cols)
       strata[cov_cols] <- lapply(strata[cov_cols], as.character)
@@ -393,8 +419,7 @@ HousepiContactRisk <- R6::R6Class(
       if (length(self$defs) == 0) return(FALSE)
       if (identical(self$defs$mode, "auto"))
         return(is.null(self$defs$reference))
-      !any(vapply(self$logic_tables,
-                  function(tbl) ".reference" %in% tbl$param_name, logical(1)))
+      lacks_reference_(self$logic_tables)
     },
 
     #' @inherit add_contact_risk
@@ -433,6 +458,7 @@ HousepiContactRisk <- R6::R6Class(
       is_auto <- !all(is.na(by))
       is_custom <- !is.null(strata)
       if (is_auto && is_custom) stop_ambiguos_definition()
+      if (is_auto) warn_unused_auto_params(params)
 
       # warn overwrite
       if (.warn_over && length(self$defs) > 0) warn_h(

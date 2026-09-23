@@ -20,8 +20,6 @@ editor_options:
 #| label: library
 #| include: false
 knitr::opts_chunk$set(fig.width = 5, fig.height = 3)
-library(housepi)
-set.seed(42)
 ```
 
 Sometimes your case study requires a function, distribution or infectivity profile not immediately available in housepi.
@@ -132,6 +130,9 @@ Once the custom model has been compiled, the registered function is visible from
 
 ```{r}
 #| label: test-user-function
+library(housepi)
+set.seed(42)
+
 # compile the custom model to wire its custom functions to registry
 new_housepi_model(model = custom_model)
 

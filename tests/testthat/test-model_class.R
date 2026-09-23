@@ -319,7 +319,8 @@ test_that("A copy is deep", {
   expect_equal(hhmodel$group_risks, hhmodel_2$group_risks)
 
   # changes on the original do not reach the copy
-  hhmodel <- add_group_risk(hhmodel, "susceptibility", by = "member")
+  hhmodel <- add_group_risk(hhmodel, "susceptibility", by = "member") |>
+    suppressWarnings() # suppress baseline collapse warning
   expect_false(isTRUE(all.equal(hhmodel$group_risks, hhmodel_2$group_risks)))
 })
 

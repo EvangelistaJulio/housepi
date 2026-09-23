@@ -17,12 +17,9 @@ editor_options:
 ```
 
 ```{r}
-#| label: library
+#| label: options
 #| include: false
 options(housepi.footer.sample = TRUE)
-library(housepi)
-housepi_theme_set()
-set.seed(42)
 ```
 
 Bayesian data augmentation is a computational strategy that expands the parameter space by introducing latent variables (also referred to as hidden or augmented variables) to make sampling from the posterior easier.
@@ -94,6 +91,9 @@ For asymptomatic members we draw the infection time uniformly within the period 
 #| label: status-specific-latent
 #| warning: false
 library(ggplot2)
+library(housepi)
+housepi_theme_set()
+set.seed(42)
 
 onset_tommy <- 5
 hhmodel <- data.frame(id = c("tommy", "gina"),

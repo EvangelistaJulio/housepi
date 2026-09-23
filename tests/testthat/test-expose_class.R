@@ -207,9 +207,9 @@ test_that("Progress bar renders, refreshes and closes", {
   expect_match(bar[length(bar)], "[0-9]+s<[0-9]+[dhms]")
 })
 
-###################################
-## EXPOSE CLASS : RISK WRAPPERS  ##
-###################################
+######################################
+###  EXPOSE CLASS : RISK WRAPPERS  ###
+######################################
 
 test_that("Group risk wrapper input branches", {
   hhmodel <- add_group_risk(mk_member$model, "community", by = "member")
@@ -224,24 +224,21 @@ test_that("Group risk wrapper input branches", {
   expect_identical(get_group_risks(hhmodel_2), groups)
 
   # load custom definitions
+  strata <- tibble::tribble(~member,   ~param_name,
+                            "student", "sus_student",
+                            NA,        ".reference")
   hhmodel <- hhmodel |>
     add_group_risk(
-      susceptibility = list(
-        strata = data.frame(member = c("student", NA),
-                            param_name = c("sus_student", ".reference")),
-        params = list(sus_student = 1.23)
-      )
+      susceptibility = list(strata = strata, params = list(sus_student = 1.23))
     )
-  expect_equal(get_parameters(hhmodel, "sus_student")$value, 1.23)
+  get_parameters(hhmodel, "sus_student")$value |> expect_equal(1.23)
 
   # check for non-existing custom covariates
+  strata <- tibble::tribble(~member,   ~param_name,
+                            "unknown", "sus_student",
+                            NA,        ".reference")
   hhmodel |>
-    add_group_risk(
-      "susceptibility",
-      strata = data.frame(member = c("unknown", NA),
-                          param_name = c("sus_student", ".reference")),
-      append = FALSE
-    ) |>
+    add_group_risk("susceptibility", strata = strata, append = FALSE) |>
     expect_warning("[Uu]nknown.*member.*unknown")
 
   # append = FALSE drops the existing group risks
@@ -254,10 +251,10 @@ test_that("Group risk wrapper input branches", {
 })
 
 test_that("Contact risk wrapper input branches", {
-  strata <- data.frame(
-    from_member = c("student", NA),
-    to_member = c("student", NA),
-    param_name = c("ctr_student", ".reference")
+  strata <- tibble::tribble(
+    ~from_member, ~to_member, ~param_name,
+    "student",    "student",  "ctr_student",
+    NA,           NA,         ".reference"
   )
 
   # 'by' and 'strata' together is ambiguous

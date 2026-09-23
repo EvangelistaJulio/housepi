@@ -333,7 +333,7 @@ add_data_long <- function(hhmodel, data_long) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$generator_$import_data_long(data_long)
+  pvt$gen_$import_data_long(data_long)
   pvt$rebuild_()
   new_obj
 }
@@ -358,7 +358,7 @@ add_data_long <- function(hhmodel, data_long) {
 summarise_house_cases <- function(hhmodel) {
   stopifnothousepi(hhmodel)
   pvt <- hhmodel$.__enclos_env__$private
-  .engine$summarise_house_cases(pvt$generator_$mcmc_ptr)
+  .engine$summarise_house_cases(pvt$gen_$mcmc_ptr)
 }
 
 #' @rdname summarise_house_cases
@@ -383,7 +383,7 @@ summarize_house_cases <- summarise_house_cases
 summarise_house_sizes <- function(hhmodel) {
   stopifnothousepi(hhmodel)
   pvt <- hhmodel$.__enclos_env__$private
-  .engine$summarise_house_sizes(pvt$generator_$mcmc_ptr)
+  .engine$summarise_house_sizes(pvt$gen_$mcmc_ptr)
 }
 
 #' @rdname summarise_house_sizes
@@ -629,7 +629,7 @@ add_parameter <- function(hhmodel,
   pvt <- new_obj$.__enclos_env__$private
 
   #> template, import and multiple modes
-  if (!add_listed_defs_(pvt$param_, pvt$generator_, "parameter", name, import,
+  if (!add_listed_defs_(pvt$param_, pvt$gen_, "parameter", name, import,
                         append, rlang::enquos(...), rlang::caller_env(),
                         has_template = TRUE))
     #> single mode
@@ -694,7 +694,7 @@ add_latent <- function(hhmodel,
   pvt <- new_obj$.__enclos_env__$private
 
   #> template, import and multiple modes
-  if (!add_listed_defs_(pvt$augm_, pvt$generator_, "latent", name, import,
+  if (!add_listed_defs_(pvt$augm_, pvt$gen_, "latent", name, import,
                         append, rlang::enquos(...), rlang::caller_env(),
                         has_template = TRUE, status = status))
     #> single mode
@@ -782,7 +782,7 @@ add_observation <- function(hhmodel, name = NULL,
   pvt <- new_obj$.__enclos_env__$private
 
   #> import and multiple modes
-  if (!add_listed_defs_(pvt$augm_, pvt$generator_, kind2family(level), name,
+  if (!add_listed_defs_(pvt$augm_, pvt$gen_, kind2family(level), name,
                         import, append, rlang::enquos(...),
                         rlang::caller_env(), status = status, .kind = level))
     #> single mode
@@ -903,7 +903,7 @@ add_group_risk <-  function(hhmodel,
   if (is.null(name) && isFALSE(append)) pvt$drop_group_risks_()
 
   #> import and multiple modes
-  if (!add_listed_defs_(pvt$group_risks_, pvt$generator_,
+  if (!add_listed_defs_(pvt$group_risks_, pvt$gen_,
                         pvt$group_risks_$family, name, import, append,
                         rlang::enquos(...), rlang::caller_env()))
     #> single mode
@@ -971,7 +971,7 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$assert_feature_supported_(pvt$generator_$has_contact_risk,
+  pvt$assert_feature_supported_(pvt$gen_$has_contact_risk,
                                 "Contact risks")
   # the definition is replaced: its parameters are re-derived by `rebuild_()`
   pvt$drop_stale_risk_params_()
@@ -1026,13 +1026,13 @@ add_infectivity_profile <- function(hhmodel,
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$assert_feature_supported_(pvt$generator_$has_infec_profile,
+  pvt$assert_feature_supported_(pvt$gen_$has_infec_profile,
                                 "Infectivity profiles")
   # impose discrete-time if it's a model choice
-  pvt$infec_profile_$discr_model <- pvt$generator_$is_discrete_time
+  pvt$infec_profile_$discr_model <- pvt$gen_$is_discrete_time
 
   #> template, import and multiple modes
-  if (!add_listed_defs_(pvt$infec_profile_, pvt$generator_,
+  if (!add_listed_defs_(pvt$infec_profile_, pvt$gen_,
                         "infectivity profile", func, import, append,
                         rlang::enquos(...), rlang::caller_env(),
                         has_template = TRUE))
@@ -1072,7 +1072,7 @@ evaluate_log_lik <- function(hhmodel, hhid = NA_character_) {
   stopifnothousepi(hhmodel)
   pvt <- hhmodel$.__enclos_env__$private
   pvt$build_full_()
-  .engine$evaluate_log_lik(pvt$generator_$mcmc_ptr, hhid)
+  .engine$evaluate_log_lik(pvt$gen_$mcmc_ptr, hhid)
 }
 
 #' @title Inspect the augmented data of a housepi model
@@ -1092,7 +1092,7 @@ evaluate_log_lik <- function(hhmodel, hhid = NA_character_) {
 #' @export
 inspect_augmented_data <- function(hhmodel) {
   stopifnothousepi(hhmodel)
-  gen <- hhmodel$.__enclos_env__$private$generator_
+  gen <- hhmodel$.__enclos_env__$private$gen_
   gen$refactor_data_wide(.engine$export_augmented_data_wide(gen$mcmc_ptr))
 }
 
@@ -1116,7 +1116,7 @@ inspect_augmented_data <- function(hhmodel) {
 #' @export
 inspect_house_state <- function(hhmodel, hhid) {
   stopifnothousepi(hhmodel)
-  gen <- hhmodel$.__enclos_env__$private$generator_
+  gen <- hhmodel$.__enclos_env__$private$gen_
   out <- .engine$export_house_snapshot(gen$mcmc_ptr, as.character(hhid))
   out$data_wide <- gen$refactor_data_wide(out$data_wide)
   ## data long
@@ -1198,9 +1198,9 @@ run_inference <- function(hhmodel,
     chains = chains, threads = threads, id_draws = id_draws,
     progress = progress, ...
   )
-  seconds <- .engine$run_inference(pvt$generator_$mcmc_ptr)
-  HousepiPosteriorDraws$new(pvt$generator_$raw_name,
-                            pvt$generator_$mcmc_ptr, seconds)
+  seconds <- .engine$run_inference(pvt$gen_$mcmc_ptr)
+  HousepiPosteriorDraws$new(pvt$gen_$raw_name,
+                            pvt$gen_$mcmc_ptr, seconds)
 }
 
 #' @title Simulate a household survey from a housepi model
@@ -1246,7 +1246,7 @@ run_simulation <- function(hhmodel,
   obs_func <- pvt$helper_obs_process_(obs_process)
   # run simulations
   output <- .engine$run_simulation(
-    pvt$generator_$mcmc_ptr,
+    pvt$gen_$mcmc_ptr,
     obs_func, NULL,
     obs_process_long
   )

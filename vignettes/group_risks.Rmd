@@ -19,13 +19,10 @@ editor_options:
 ```
 
 ```{r}
-#| label: library
+#| label: options
 #| include: false
 options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
-library(housepi)
-housepi_theme_set()
-set.seed(42)
 ```
 
 Some models let you define custom group risks.
@@ -41,6 +38,9 @@ We start by creating categorical groupings to stratify individuals based on thei
 
 ```{r}
 #| label: format-age-data
+library(housepi)
+housepi_theme_set()
+set.seed(42)
 
 # define a model object with a subset of the ICoFs dataset
 hhmodel <- sarscov2_2021_icofs |>

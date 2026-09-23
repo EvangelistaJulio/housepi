@@ -266,7 +266,7 @@ run_power_posteriors <- function(hhmodel,
                   chains = chains, threads = threads,
                   progress = progress, ...)
   # sample the ladder from the internal Rcpp object
-  HousepiPowerPosteriors$new(pvt$generator_, scheme = scheme, rungs = rungs)
+  HousepiPowerPosteriors$new(pvt$gen_, scheme = scheme, rungs = rungs)
 }
 
 #' @title Estimate the log-evidence

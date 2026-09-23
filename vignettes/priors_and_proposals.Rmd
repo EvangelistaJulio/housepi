@@ -17,12 +17,9 @@ editor_options:
 ```
 
 ```{r}
-#| label: library
+#| label: options
 #| include: false
 options(housepi.footer.sample = TRUE)
-library(housepi)
-housepi_theme_set()
-set.seed(42)
 ```
 
 Here we present all available options for the choice of the prior and Monte Carlo proposal in housepi.
@@ -37,6 +34,10 @@ Here's the full list of available continuous distributions present in housepi:
 #| fig-alt: >
 #|  Density plots for prior distributions available in housepi for Bayesian inference: uniform, normal, lognormal, gamma, Weibull, Rayleigh, beta and exponential.
 #|  Each panel displays the estimated probability density function in blue obtained from MCMC sampling.
+library(housepi)
+housepi_theme_set()
+set.seed(42)
+
 # create an instance of the model 'test'
 new_housepi_model(model = "test") |>
   # continuous distributions in housepi

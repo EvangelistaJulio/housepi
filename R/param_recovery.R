@@ -54,6 +54,7 @@ recovery_param_table_ <- function(hhmodel, truth, point_estimate) {
   pins <- stats::setNames(defs[["value"]], defs[["name"]])
   if (!is.null(truth)) {
     given <- recovery_collapse_truth_(truth, point_estimate)
+    hhmodel$.__enclos_env__$private$assert_no_baseline_value_(given, "truth")
     known <- intersect(names(given), names(pins))
     pins[known] <- given[known]
     unknown <- setdiff(names(given), names(pins))
@@ -472,13 +473,6 @@ HousepiParameterRecovery <- R6::R6Class(
       private$cri_level_
     },
 
-    #' @field model_name `character(1)`
-    #' Name of the model the check ran on.
-    model_name = function(value) {
-      if (!missing(value)) stop_read_only("model_name")
-      private$name_
-    },
-
     #' @field warnings `data.frame`
     #' Distinct warnings raised over the sweep, with their counts.
     warnings = function(value) {
@@ -521,7 +515,7 @@ HousepiParameterRecovery <- R6::R6Class(
       private$nrep_ <- as.integer(nrep)
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
-      private$name_ <- hhmodel$.__enclos_env__$private$generator_$raw_name
+      private$name_ <- hhmodel$.__enclos_env__$private$gen_$raw_name
 
       pins <- recovery_param_table_(hhmodel, truth, private$point_estimate_)
       private$truth_ <- recovery_truth_(hhmodel, pins)

@@ -130,8 +130,6 @@ namespace housepi
         void init_param_vec_();
         /// Drop a parameter from every sampling list and register it as constant.
         void switch_to_const_(size_t p);
-        /// Turn a parameter into the constant reference value, dropping it from the sample.
-        void helper_pin_to_reference_(size_t p);
         /// Drop current lists of parameters.
         void clear_lists_();
         /// Helper to build constant parameter.

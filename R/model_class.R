@@ -38,12 +38,13 @@ HousepiModel <- R6::R6Class(
   ############################################################################
 
   private = list(
-    generator_ = NULL,
+    gen_ = NULL,
     param_ = NULL,
     augm_ = NULL,
     group_risks_ = NULL,
     contact_risks_ = NULL,
     infec_profile_ = NULL,
+    collapse_seen_ = character(),
 
     ############################################################################
     ############################################################################
@@ -65,15 +66,15 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Latent variables required by implementation file and other definitions.
-    get_all_required_latent_ = function() {
-      c(private$generator_$latent_required,      # by the model
+    get_required_latent_ = function() {
+      c(private$gen_$latent_required,      # by the model
         private$required_of_declaration_("A"))   # by the latent declaration
     },
 
     # @description
     # Dataset headers required by implementation file and other definitions.
-    get_all_required_data_wide_ = function() {
-      c(private$generator_$data_required,        # by the model
+    get_required_data_wide_ = function() {
+      c(private$gen_$data_required,        # by the model
         private$group_risks_$data_required,      # by group risks
         private$contact_risks_$data_required,    # by contact risks
         private$required_of_declaration_("D"))   # by the latent declaration
@@ -81,15 +82,15 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Group risks required by implementation file and other definitions.
-    get_all_required_group_risks_ = function() {
-      c(private$generator_$group_risks_required, # by the model
+    get_required_group_risks_ = function() {
+      c(private$gen_$group_risks_required, # by the model
         private$required_of_declaration_("G"))   # by the latent declaration
     },
 
     # @description
     # Parameters required by implementation file and other definitions.
-    get_all_required_param_ = function() {
-      c(private$generator_$param_required,       # by the model
+    get_required_parameters_ = function() {
+      c(private$gen_$param_required,       # by the model
         find_required_definitions(private$resolved_param_(), "P",
                                   c("value", "func", "min", "max"),
                                   private$param_$family), # by param functions
@@ -105,7 +106,7 @@ HousepiModel <- R6::R6Class(
     # @description
     # Whether household data is attached.
     has_data_wide_ = function() {
-      length(private$generator_$cols_data_wide) > 0
+      length(private$gen_$cols_data_wide) > 0
     },
 
     # @description
@@ -113,9 +114,9 @@ HousepiModel <- R6::R6Class(
     # @param wall `logical(1)` to raise error.
     assert_latent_ = function(wall = TRUE, warn_unused = TRUE) {
       private$augm_$assert(
-        private$get_all_required_latent_(),
+        private$get_required_latent_(),
         wall = wall,
-        warn_unused = warn_unused && !private$generator_$is_test_model()
+        warn_unused = warn_unused && !private$gen_$is_test_model()
       )
     },
 
@@ -128,7 +129,7 @@ HousepiModel <- R6::R6Class(
         "No household data attached.",
         "Attach it with {.fn add_data_wide}."
       )
-      required <- private$get_all_required_data_wide_()
+      required <- private$get_required_data_wide_()
 
       # observations are generated during simulation: not required
       if (isTRUE(simulating)) {
@@ -136,7 +137,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # a deterministic observation produces a surrogate data column
-      cols <- private$generator_$cols_data_wide
+      cols <- private$gen_$cols_data_wide
       surrogate <- private$augm_$surrogate_names
       cols <- c(cols, intersect(surrogate, required))
 
@@ -149,8 +150,7 @@ HousepiModel <- R6::R6Class(
     # Assert group risk definitions from the model implementation script.
     # @param wall `logical(1)` to raise error.
     assert_group_risks_ = function(wall = TRUE) {
-      private$group_risks_$assert(private$get_all_required_group_risks_(),
-                                  wall = wall)
+      private$group_risks_$assert(private$get_required_group_risks_(), wall)
     },
 
     # @description
@@ -166,35 +166,121 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Undeclared baselines an absolute risk anchors: pinned to 1, since an
-    # absolute risk leaves no scale for its baseline to take.
-    # @return `character()`
+    # Baselines an absolute risk anchors, keyed by parameter name: an absolute
+    # risk leaves no scale for its baseline, which is held at the reference
+    # value whether or not the parameter was declared. Each entry names the
+    # risks that absorbed it.
+    # @return `list` of `character()`
     baseline_pins_ = function() {
-      if (is.null(private$generator_$mcmc_ptr)) return(character())
-      anchors <- private$generator_$risk_anchors
-      pins <- character()
-      for (name in setdiff(names(anchors), private$param_$defs[["name"]])) {
-        absolute <- vapply(anchors[[name]]$risks,
-                           private$group_risks_$is_absolute, logical(1))
-        if (isTRUE(anchors[[name]]$contacts)) {
-          absolute <- c(absolute, private$contact_risks_$is_absolute())
+      if (is.null(private$gen_$mcmc_ptr)) return(list())
+      anchors <- private$gen_$risk_anchors
+      defs <- private$param_$defs
+      pins <- list()
+      for (name in names(anchors)) {
+        # a baseline defined as a function carries the user's own scale
+        row <- match(name, defs[["name"]])
+        if (!is.na(row) && !is.na(defs[["func"]][row])) next
+        risks <- anchors[[name]]$risks
+        absolute <- risks[vapply(risks, private$group_risks_$is_absolute,
+                                 logical(1))]
+        if (isTRUE(anchors[[name]]$contacts) &&
+              private$contact_risks_$is_absolute()) {
+          absolute <- c(absolute, "contact")
         }
-        if (any(absolute)) pins <- c(pins, name)
+        if (length(absolute) > 0) pins[[name]] <- absolute
       }
       pins
     },
 
     # @description
-    # Declared parameters plus the baselines the risks pin.
+    # Declared parameters, with every baseline an absolute risk anchors held
+    # at the reference value.
     # @return `HousepiParameter`
     effective_param_ = function() {
-      pins <- private$baseline_pins_()
+      pins <- names(private$baseline_pins_())
       if (length(pins) == 0) return(private$param_)
       param <- private$param_$clone(deep = TRUE)
       for (name in pins) param$add_quo(
         name, value = 1, const = TRUE, .warn_over = FALSE
       )
+      # a pin reads nothing, so leading keeps it ahead of whatever reads it
+      is_pin <- param$defs[["name"]] %in% pins
+      param$defs <- param$defs[order(!is_pin), , drop = FALSE]
+      rownames(param$defs) <- NULL
       param
+    },
+
+    # @description
+    # What a baseline was declared as, `NA` when it was not declared or
+    # already is the reference value.
+    # @param name `character(1)`. Baseline parameter name.
+    # @return `character(1)` fingerprint of the whole definition row.
+    declared_scale_ = function(name) {
+      defs <- private$param_$defs
+      row <- match(name, defs[["name"]])
+      if (is.na(row)) return(NA_character_)
+      is_reference <- is.na(defs[["prior"]][row]) &&
+        is.na(defs[["func"]][row]) &&
+        isTRUE(showcaser_extract_numeric(defs[["value"]][row]) == 1)
+      if (is_reference) NA_character_
+      else paste(unlist(defs[row, ]), collapse = "|")
+    },
+
+    # @description
+    # Warn once per declaration for each baseline an absolute risk absorbed,
+    # discarding what its declaration asked for. `collapse_seen_` holds what
+    # was last reported: a baseline released by its risks is forgotten.
+    warn_baseline_collapse_ = function() {
+      pins <- private$baseline_pins_()
+      defs <- private$param_$defs
+      declared <- vapply(names(pins), private$declared_scale_, character(1))
+      for (name in names(pins)) {
+        if (is.na(declared[[name]]) ||
+              identical(unname(private$collapse_seen_[name]),
+                        declared[[name]])) next
+        risks <- pins[[name]]
+        value <- showcaser_extract_numeric(
+          defs[["value"]][match(name, defs[["name"]])]
+        )
+        warn_h(
+          paste("Absolute {cli::qty(risks)} risk{?s} {.val {risks}}",
+                "{?has/have} no reference."),
+          "Baseline {.val {name}} was turned into constant reference."
+        )
+      }
+      private$collapse_seen_ <- declared
+      invisible(self)
+    },
+
+    # @description
+    # Read a table of parameter values a run supplies, refusing a value for a
+    # baseline an absolute risk holds at the reference.
+    # @param table `data.frame` or path. Values keyed by parameter name.
+    # @param thin_ess `logical(1)`. Thin by effective sample size.
+    # @param arg `character(1)`. Argument the table came from.
+    read_param_table_ = function(table, thin_ess = TRUE, arg = "param_table") {
+      table <- helper_read_param_table_(table, thin_ess = thin_ess)
+      private$assert_no_baseline_value_(table, arg)
+      table
+    },
+
+    # @description
+    # Refuse a value a run supplies for a baseline an absolute risk holds at
+    # the reference. `NA` cells pass: they supply nothing.
+    # @param given `list` or `data.frame`. Values keyed by parameter name.
+    # @param arg `character(1)`. Argument the values came from.
+    assert_no_baseline_value_ = function(given, arg) {
+      named <- intersect(names(given), names(private$baseline_pins_()))
+      held <- named[!vapply(given[named], function(v) {
+        all(v[!is.na(v)] == 1)
+      }, logical(1))]
+      if (length(held) == 0) return(invisible(self))
+      stop_h(
+        "{.arg {arg}} sets {.val {held}} to a value other than 1.",
+        paste("An absolute risk leaves no scale for",
+              "{cli::qty(held)}{?it/them}: fold the factor into the risk",
+              "values, or name a {.code reference} group.")
+      )
     },
 
     # @description
@@ -203,9 +289,9 @@ HousepiModel <- R6::R6Class(
     # @param warn_unused `logical(1)` warn if unused.
     assert_param_ = function(wall = TRUE, warn_unused = TRUE) {
       private$effective_param_()$assert(
-        private$get_all_required_param_(),
+        private$get_required_parameters_(),
         wall = wall,
-        warn_unused = warn_unused && !private$generator_$is_test_model()
+        warn_unused = warn_unused && !private$gen_$is_test_model()
       )
     },
 
@@ -261,7 +347,7 @@ HousepiModel <- R6::R6Class(
     # Assert an infectivity profile is defined when the model needs one.
     # @param wall `logical(1)` to raise error.
     assert_infec_profile_ = function(wall = TRUE) {
-      if (!private$generator_$has_infec_profile ||
+      if (!private$gen_$has_infec_profile ||
             length(private$infec_profile_$defs) > 0) return(character())
       sms <- c("Missing infectivity profile definition.",
                "Define it with {.fn add_infectivity_profile}.")
@@ -333,11 +419,11 @@ HousepiModel <- R6::R6Class(
     # Data is assumed validated (non-null data.frame).
     # Definitions are (re)built by the caller via `rebuild_()`.
     set_data_wide_ = function(data) {
-      data_factorized <- private$generator_$factorize_data_wide(data)
+      data_factorized <- private$gen_$factorize_data_wide(data)
       # soft check: data may be intentionally incomplete
       # hard check at the wall
       private$assert_data_wide_(wall = FALSE)
-      .engine$import_data_wide(private$generator_$mcmc_ptr, data_factorized)
+      .engine$import_data_wide(private$gen_$mcmc_ptr, data_factorized)
       invisible(self)
     },
 
@@ -360,6 +446,7 @@ HousepiModel <- R6::R6Class(
       private$group_risks_ <- HousepiGroupRisk$new()
       private$contact_risks_ <- HousepiContactRisk$new()
       private$infec_profile_ <- HousepiInfecProfile$new()
+      private$collapse_seen_ <- character()
       invisible(self)
     },
 
@@ -392,7 +479,7 @@ HousepiModel <- R6::R6Class(
     # (the data is already coded), else the status process order, else literal
     # character labels declared on latent definitions.
     status_dictionary_ = function() {
-      data_lab <- private$generator_$status_data_labels
+      data_lab <- private$gen_$status_data_labels
       if (length(data_lab) > 0) return(data_lab)
       private$augm_$status_dictionary
     },
@@ -404,14 +491,14 @@ HousepiModel <- R6::R6Class(
     status_codes_ = function() {
       dict <- private$status_dictionary_()
       if (length(dict) > 0) return(stats::setNames(seq_along(dict), dict))
-      codes <- as.integer(private$generator_$infec_status_set)
+      codes <- as.integer(private$gen_$infec_status_set)
       stats::setNames(codes, as.character(codes))
     },
 
     # @description
     # Names declared under each source, keyed by its sigil letter.
     source_sets_ = function() {
-      gen <- private$generator_
+      gen <- private$gen_
       live <- !is.null(gen) && !is.null(gen$mcmc_ptr)
       # what the transmission model declares it needs, whether or not the
       # matching column or parameter has landed yet
@@ -466,7 +553,7 @@ HousepiModel <- R6::R6Class(
       resolve_discr_flags_(
         resolve_source_types_(private$effective_param_()$defs,
                               private$source_dictionary_()),
-        private$generator_$param_discr_required,
+        private$gen_$param_discr_required,
         is_prior = TRUE
       )
     },
@@ -479,9 +566,9 @@ HousepiModel <- R6::R6Class(
       resolve_discr_flags_(
         resolve_source_types_(private$augm_$defs,
                               private$source_dictionary_()),
-        private$generator_$latent_discr_required,
-        discr_col_types = private$generator_$discr_data_wide,
-        discr_req_cols = private$generator_$data_wide_discr_required
+        private$gen_$latent_discr_required,
+        discr_col_types = private$gen_$discr_data_wide,
+        discr_req_cols = private$gen_$data_wide_discr_required
       )
     },
 
@@ -505,32 +592,42 @@ HousepiModel <- R6::R6Class(
       need_param <- private$required_of_declaration_("P")
       all(need_latent %in% private$augm_$defs[["name"]]) &&
         all(need_param %in% private$effective_param_()$defs[["name"]]) &&
-        private$augm_$covers_statuses(defs,
-                                      private$generator_$infec_status_set)
+        private$augm_$covers_statuses(defs, private$gen_$infec_status_set)
     },
 
     # @description
-    # Soft re-push of R-side definitions to the C++ engine.
+    # Soft re-push of R-side definitions to the C++ engine, then report the
+    # baselines the risks absorbed.
     # NOTE: Hard validation lives in `build_full_`.
     # @param wall `logical(1)` Whether to raise error.
     rebuild_ = function(wall = FALSE) {
+      private$push_definitions_(wall)
+      private$warn_baseline_collapse_()
+      invisible(self)
+    },
+
+    # @description
+    # Derive the risks from the data and push every definition the engine can
+    # already take.
+    # @param wall `logical(1)` Whether to raise error.
+    push_definitions_ = function(wall = FALSE) {
       # guard: pre-init (before generator is created)
-      if (is.null(private$generator_) ||
-            is.null(private$generator_$mcmc_ptr)) {
+      if (is.null(private$gen_) ||
+            is.null(private$gen_$mcmc_ptr)) {
         return(invisible(self))
       }
       # risks stratify on data: nothing to derive while none is attached
-      if (length(private$generator_$cols_data_wide) == 0) {
+      if (length(private$gen_$cols_data_wide) == 0) {
         return(invisible(self))
       }
 
       # the status dictionary keys the risks that stratify on it, and the
       # latent status codes below: it must be settled before either reads it
       status_dict <- private$status_dictionary_()
-      if (private$generator_$escaped %in% status_dict) stop_h(
-        paste("Infected status {.val {private$generator_$escaped}} collides",
+      if (private$gen_$escaped %in% status_dict) stop_h(
+        paste("Infected status {.val {private$gen_$escaped}} collides",
               "with the escaped-status label",
-              "({.val {private$generator_$escaped}})."),
+              "({.val {private$gen_$escaped}})."),
         "Rename the status or define a different {.code escaped =} label."
       )
 
@@ -552,8 +649,8 @@ HousepiModel <- R6::R6Class(
         return(invisible(self))
       }
 
-      mcmc_ptr <- private$generator_$mcmc_ptr
-      info_wide <- private$generator_$info_data_wide
+      mcmc_ptr <- private$gen_$mcmc_ptr
+      info_wide <- private$gen_$info_data_wide
 
       # parameters
       .engine$import_param(mcmc_ptr, private$resolved_param_())
@@ -582,7 +679,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # status dictionary drives the factor refactoring of the status column
-      private$generator_$set_status_levels(status_dict)
+      private$gen_$set_status_levels(status_dict)
 
       invisible(self)
     },
@@ -598,7 +695,7 @@ HousepiModel <- R6::R6Class(
       if (!is.list(id_draws))
         id_draws <- list(id = character(), hhid = character())
       .engine$import_setup(
-        private$generator_$mcmc_ptr,
+        private$gen_$mcmc_ptr,
         char_setup_input_(c(list(
           steps = steps,
           adapt = adapt,
@@ -682,9 +779,7 @@ HousepiModel <- R6::R6Class(
       if (is.null(param_table)) {
         if (is.na(nrep)) nrep <- 1L
       } else {
-        param_table <- helper_read_param_table_(
-          param_table, thin_ess = thin_ess
-        )
+        param_table <- private$read_param_table_(param_table, thin_ess)
         if (!is.na(nrep)) param_table <- helper_thin_table_(param_table, nrep)
         nrep <- nrow(param_table)
         # an undeclared model builds on the table's first row: the engine
@@ -719,7 +814,7 @@ HousepiModel <- R6::R6Class(
         rownames(param_table) <- NULL
       }
       # attach table with parameters
-      .engine$import_param_table(private$generator_$mcmc_ptr, param_table)
+      .engine$import_param_table(private$gen_$mcmc_ptr, param_table)
 
       nrep
     },
@@ -730,7 +825,7 @@ HousepiModel <- R6::R6Class(
     # `labelled = FALSE` hands the simulated frames over engine-coded, which
     # only suits consumers reading `hhid` and `status`.
     helper_obs_process_ = function(obs_process, labelled = TRUE) {
-      gen <- private$generator_
+      gen <- private$gen_
       if (is.null(obs_process)) {
         if (!labelled) return(NULL)
         function(x) gen$refactor_data_wide(x)
@@ -757,8 +852,7 @@ HousepiModel <- R6::R6Class(
                             threads = 1L,
                             progress = TRUE,
                             labelled = TRUE) {
-      param_table <- helper_read_param_table_(param_table,
-                                                      thin_ess = thin_ess)
+      param_table <- private$read_param_table_(param_table, thin_ess)
       param_table <- helper_thin_table_(param_table, max_nrep)
       nsim <- nrow(param_table)
 
@@ -766,7 +860,7 @@ HousepiModel <- R6::R6Class(
       private$build_full_(steps = nsim, threads = threads, progress = progress)
 
       # attach param_table
-      .engine$import_param_table(private$generator_$mcmc_ptr, param_table)
+      .engine$import_param_table(private$gen_$mcmc_ptr, param_table)
 
       if (!is.null(apply_long) &&
             (is.null(obs_proc_long) || !is.function(obs_proc_long))) stop_h(
@@ -775,7 +869,7 @@ HousepiModel <- R6::R6Class(
 
       obs_func <- private$helper_obs_process_(obs_proc_wide, labelled)
       .engine$run_simulation(
-        private$generator_$mcmc_ptr,
+        private$gen_$mcmc_ptr,
         obs_func, apply_wide,
         if (is.null(apply_long)) NULL
         else function(x) apply_long(obs_proc_long(x))
@@ -792,21 +886,21 @@ HousepiModel <- R6::R6Class(
     #'  Model name.
     name = function(value) {
       if (!missing(value)) stop_read_only("name")
-      private$generator_$name
+      private$gen_$name
     },
 
     #' @field escaped `character(1)`
     #' Label for status code `0` in a character or factor `status` column.
     escaped = function(value) {
       if (!missing(value)) stop_read_only("escaped")
-      private$generator_$escaped
+      private$gen_$escaped
     },
 
     #' @field setup `list`
     #' Last setup used by the build process.
     setup = function(value) {
       if (!missing(value)) stop_read_only("setup")
-      .engine$export_setup(private$generator_$mcmc_ptr)
+      .engine$export_setup(private$gen_$mcmc_ptr)
     },
 
     #' @field data_wide `data.frame`
@@ -815,9 +909,9 @@ HousepiModel <- R6::R6Class(
     data_wide = function(value) {
       if (!missing(value)) stop_read_only("data_wide")
       # no data attached yet (deferred until add_data_wide() or the wall)
-      if (length(private$generator_$cols_data_wide) == 0) return(NULL)
-      private$generator_$refactor_data_wide(
-        .engine$export_data_wide(private$generator_$mcmc_ptr)
+      if (length(private$gen_$cols_data_wide) == 0) return(NULL)
+      private$gen_$refactor_data_wide(
+        .engine$export_data_wide(private$gen_$mcmc_ptr)
       )
     },
 
@@ -825,8 +919,8 @@ HousepiModel <- R6::R6Class(
     #' Additional data rows indexed by individual (long format).
     data_long = function(value) {
       if (!missing(value)) stop_read_only("data_long")
-      private$generator_$refactor_data_long(
-        .engine$export_data_long(private$generator_$mcmc_ptr)
+      private$gen_$refactor_data_long(
+        .engine$export_data_long(private$gen_$mcmc_ptr)
       )
     },
 
@@ -851,8 +945,7 @@ HousepiModel <- R6::R6Class(
     contact_risks = function(value) {
       if (!missing(value)) stop_read_only("contact_risks")
       helper_show_risk_table(private$contact_risks_,
-                             setdiff(risk_reserved_cols,
-                                     c("group_risk", risk_pin_cols)),
+                             c("param_name", "n", "rule_group"),
                              private$has_data_wide_())
     },
 
@@ -915,7 +1008,7 @@ HousepiModel <- R6::R6Class(
       # initialize internal fields
       private$reset_definitions_()
       # generate model wrapper
-      private$generator_ <- HousepiGenerator$new(
+      private$gen_ <- HousepiGenerator$new(
         model = model, as_template = as_template,
         force = force, quiet = quiet, escaped = escaped, ...
       )
@@ -935,7 +1028,7 @@ HousepiModel <- R6::R6Class(
 
       # clone definition fields
       for (field in c("param_", "augm_", "group_risks_",
-                      "contact_risks_", "infec_profile_")) {
+                      "contact_risks_", "infec_profile_", "collapse_seen_")) {
         obj_priv[[field]] <- helper_clone(private[[field]])
       }
 
@@ -943,7 +1036,7 @@ HousepiModel <- R6::R6Class(
       # then, re-init pointers
       new_gen <- HousepiGenerator$new()
       new_gen_priv <- new_gen$.__enclos_env__$private
-      src_gen_priv <- private$generator_$.__enclos_env__$private
+      src_gen_priv <- private$gen_$.__enclos_env__$private
       for (field in names(new_gen_priv)) {
         val <- src_gen_priv[[field]]
         if (field != "mcmc_ptr_" && !is.function(val)) {
@@ -951,12 +1044,12 @@ HousepiModel <- R6::R6Class(
         }
       }
       new_gen$init_pointers()
-      obj_priv$generator_ <- new_gen
+      obj_priv$gen_ <- new_gen
 
       # NOTE: setup is run-scoped, fully resupplied by build_full_ at every
       # run/evaluate, so it is intentionally not carried across a copy.
       # share data store (just copy-on-write)
-      .engine$share_data_store(new_gen$mcmc_ptr, private$generator_$mcmc_ptr)
+      .engine$share_data_store(new_gen$mcmc_ptr, private$gen_$mcmc_ptr)
 
       # fresh pointer needs definitions pushed to the engine
       obj_priv$rebuild_()
@@ -970,7 +1063,7 @@ HousepiModel <- R6::R6Class(
       header <- "Household transmission model {.val {self$name}}"
 
       # append link to template documentation if any
-      if (!is.na(get_template_dir(private$generator_$raw_name))) {
+      if (!is.na(get_template_dir(private$gen_$raw_name))) {
         header <- paste(header,
           sprintf("({.run [template](housepi::browse_templates(\"%s\"))})",
                   self$name)
@@ -979,22 +1072,22 @@ HousepiModel <- R6::R6Class(
       header <- c(i = paste0(header, "."))
 
       # UPDATE: to be rationalize in the future if more options are included
-      if (private$generator_$is_discrete_time) {
+      if (private$gen_$is_discrete_time) {
         header <- c(header, "Model is set to {.emph discrete time} mode.")
       }
 
       # each section is a self-contained cli_bullets block (headline + subs)
       blocks <- list()
       # data
-      if (length(private$get_all_required_data_wide_()) > 0) blocks <- c(blocks,
+      if (length(private$get_required_data_wide_()) > 0) blocks <- c(blocks,
         list(fmt_assert_cli("Data", private$assert_data_wide_(FALSE)))
       )
       # parameters
-      if (length(private$get_all_required_param_()) > 0) blocks <- c(blocks,
+      if (length(private$get_required_parameters_()) > 0) blocks <- c(blocks,
         list(fmt_assert_cli("Parameters", private$assert_param_(FALSE)))
       )
       # latent
-      if (length(private$get_all_required_latent_()) > 0) blocks <- c(blocks,
+      if (length(private$get_required_latent_()) > 0) blocks <- c(blocks,
         list(fmt_assert_cli("Latent", private$assert_latent_(FALSE)))
       )
       # sources (reported only when one fails to resolve)
@@ -1004,11 +1097,11 @@ HousepiModel <- R6::R6Class(
       )
 
       # inform about optional risks if dataset is suitable
-      cols_extra <- setdiff(private$generator_$cols_data_wide,
+      cols_extra <- setdiff(private$gen_$cols_data_wide,
                             data_reserved_cols)
       if (length(cols_extra) > 0) {
         # group risks (optional: default when definitions are absent)
-        risks <- private$get_all_required_group_risks_()
+        risks <- private$get_required_group_risks_()
         if (length(risks) > 0) {
           is_default <- length(template_missing_find(
             risks, names(private$group_risks_$defs)
@@ -1023,7 +1116,7 @@ HousepiModel <- R6::R6Class(
           )))
         }
         # contact risks (optional)
-        if (private$generator_$has_contact_risk) {
+        if (private$gen_$has_contact_risk) {
           blocks <- c(blocks, list(fmt_assert_cli(
             "Contact risks",
             if (!private$contact_risks_$assert()) "Using default contact risks."
@@ -1034,7 +1127,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # infectivity profile (required by the model, or defined anyway)
-      if (private$generator_$has_infec_profile ||
+      if (private$gen_$has_infec_profile ||
             length(private$infec_profile_$defs) > 0) blocks <- c(blocks,
         list(fmt_assert_cli("Infectivity profile",
                             private$assert_infec_profile_(FALSE)))
@@ -1065,7 +1158,7 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Show model description in RStudio Help window.
     help = function() {
-      open_model_helper_(private$generator_$source_dir)
+      open_model_helper_(private$gen_$source_dir)
       invisible(self)
     }
   )
@@ -1089,7 +1182,7 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   pvt$build_group_risks_()
   pvt$build_contact_risks_()
 
-  gen <- pvt$generator_
+  gen <- pvt$gen_
   info_wide <- gen$info_data_wide
   utils::write.csv(pvt$augm_$defs,
                    file.path(outpath, "latent.csv"),

@@ -70,9 +70,6 @@ Summary statistic taken as the posterior point estimate.}
     \item{\code{cri_level}}{\code{numeric(1)}
 Credible level the intervals and the coverage are computed at.}
 
-    \item{\code{model_name}}{\code{character(1)}
-Name of the model the check ran on.}
-
     \item{\code{warnings}}{\code{data.frame}
 Distinct warnings raised over the sweep, with their counts.}
   }
