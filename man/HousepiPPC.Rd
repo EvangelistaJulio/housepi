@@ -47,7 +47,6 @@ Sizes outside the set household size bounds are not returned.}
     \item \href{#method-HousepiPPC-drop_min_hhsize}{\code{HousepiPPC$drop_min_hhsize()}}
     \item \href{#method-HousepiPPC-set_max_hhsize}{\code{HousepiPPC$set_max_hhsize()}}
     \item \href{#method-HousepiPPC-drop_max_hhsize}{\code{HousepiPPC$drop_max_hhsize()}}
-    \item \href{#method-HousepiPPC-chisq_test}{\code{HousepiPPC$chisq_test()}}
     \item \href{#method-HousepiPPC-clone}{\code{HousepiPPC$clone()}}
   }
 }
@@ -171,29 +170,6 @@ If \code{NA}, restore observed maximum.}
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPPC$drop_max_hhsize()}
     \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiPPC-chisq_test"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiPPC-chisq_test}{}}}
-\subsection{\code{HousepiPPC$chisq_test()}}{
-  Perform Chi-squared test and return list with results.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiPPC$chisq_test(lower_tail = FALSE)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{lower_tail}}{\code{logical(1)}. If \code{TRUE}, report the lower tail probability \code{P[X<=x]}
-instead of the upper tail \code{P[X>x]}.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    \code{list}
   }
 }
 

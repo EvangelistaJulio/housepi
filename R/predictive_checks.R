@@ -786,21 +786,6 @@ HousepiPPC <- R6::R6Class(
     drop_max_hhsize = function() {
       self$set_max_hhsize(NA_integer_)
       invisible(self)
-    },
-
-    #' @description Perform Chi-squared test and return list with results.
-    #' @param lower_tail
-    #' `logical(1)`. If `TRUE`, report the lower tail probability `P[X<=x]`
-    #' instead of the upper tail `P[X>x]`.
-    #' @return `list`
-    chisq_test = function(lower_tail = FALSE) {
-      cases <- helper_filter_tables(self$cases_count,
-                                    private$min_hhsize_, private$max_hhsize_)
-      res <- (cases$observed - cases$predicted)^2 / cases$predicted
-      x_val <- sum(res, na.rm = TRUE)
-      ddof <- prod(dim(res)) - nrow(res) - sum(is.na(res))
-      list(chisq_value = x_val, ddof = ddof,
-           p_value = stats::pchisq(x_val, df = ddof, lower.tail = lower_tail))
     }
   )
 )

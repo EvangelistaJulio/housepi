@@ -416,10 +416,6 @@ test_that("Predicted cases by house size works as expected", {
   expect_true(all(ppc$formatted_sec_attack_rate$hhsize >= 3))
   expect_true(all(ppc$formatted_attack_rate$hhsize >= 3))
   ppc$drop_min_hhsize()
-
-  # chisq_test
-  expect_true(all(c("chisq_value", "ddof", "p_value") %in%
-                    names(ppc$chisq_test())))
 })
 
 test_that("Epi PPC honours min/max_hhsize arguments", {
