@@ -31,7 +31,7 @@ To simplify this walkthrough, we regroup members as follows:
 
 ```{r}
 library(housepi)
-housepi_theme_set()
+set_housepi_theme()
 set.seed(42)
 
 #| label: recall-original-data

@@ -172,11 +172,9 @@ helper_variable_args <- function(opts, family, args, func) {
   if (length(args) == 0) return(opts)
   dcol <- family2model_col(family)
   col <- if (!is.na(opts[[dcol]])) dcol else if (!is.na(opts$func)) "func"
-  n_args <- length(args)
-  headline <- sprintf("%s spare %s for {family} {.val {opts$name}}: %s",
-                      format_there_were_was(n_args),
-                      as_plural("argument", n_args),
-                      character_to_string_list(names(args), style = "arg"))
+  headline <- paste("{cli::qty(args)}There {?was/were} {length(args)} spare",
+                    "argument{?s} for {family} {.val {opts$name}}:",
+                    "{.arg {names(args)}}.")
   if (is.null(col) && is.null(func)) stop_h(
     headline, "Provide the {.arg {dcol}} or the {.arg func} they belong to."
   )

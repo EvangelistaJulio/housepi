@@ -10,8 +10,12 @@ print_bullets <- function(x, .envir = parent.frame()) {
   cat(cli::cli_fmt(cli::cli_bullets(x, .envir = .envir)), sep = "\n")
 }
 
+# Unprintable tag leading a C++ message line, followed by its bullet name.
+bullet_tag_ <- "\x1F"
+
 # Flatten `...`/vectors into one line per element, splitting on newlines.
-# Names are preserved; segments produced by a split inherit an empty name.
+# Names are preserved; segments produced by a split inherit an empty name,
+# unless they open with `bullet_tag_`, whose following character names them.
 flatten_cli_parts_ <- function(dots) {
   parts <- unlist(dots, use.names = TRUE)
   nms <- names(parts)
@@ -20,8 +24,12 @@ flatten_cli_parts_ <- function(dots) {
   out_nms <- character()
   for (k in seq_along(parts)) {
     segs <- strsplit(parts[[k]], "\n", fixed = TRUE)[[1]]
+    seg_nms <- c(nms[[k]], rep("", max(0, length(segs) - 1)))[seq_along(segs)]
+    tagged <- startsWith(segs, bullet_tag_)
+    seg_nms[tagged] <- substr(segs[tagged], 2, 2)
+    segs[tagged] <- substring(segs[tagged], 3)
     out <- c(out, segs)
-    out_nms <- c(out_nms, nms[[k]], rep("", max(0, length(segs) - 1)))
+    out_nms <- c(out_nms, seg_nms)
   }
   stats::setNames(out, out_nms)
 }
@@ -58,8 +66,7 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   level <- match.arg(level)
 
   # foreign text carries no markup: doubling renders its braces literally
-  if (!trusted) parts[] <- gsub("}", "}}", gsub("{", "{{", parts, fixed = TRUE),
-                                fixed = TRUE)
+  if (!trusted) parts[] <- escape_cli_(parts)
 
   # capitalize the leading letter of each line
   parts[] <- sub("^([a-z])", "\\U\\1", parts, perl = TRUE)
@@ -222,63 +229,22 @@ resolve_id_draws_ <- function(id_draws) {
   out
 }
 
-#' Return 's' if length of input is larger than 1.
-#'
-#' Thin wrapper over cli pluralization: the marker `{?false/true}` selects
-#' `false` for a singular quantity and `true` for a plural one. cli treats a
-#' quantity of 0 as plural (unlike the old `len > 1` test), but every call site
-#' guards on a non-empty list, so only the 1-vs-many split is ever exercised.
-#' @param txt `character(1)` Leading text.
-#' @param len_list `vector(1)` Reference list length.
-#' @param true `character(1)` What to print if length > 1.
-#' @param false `character(1)` What to print otherwise.
+#' Double the braces of plain text, so a cli pass prints it verbatim.
+#' @param x `character()` Text carrying no markup.
+#' @return `character()`
 #' @noRd
-as_plural <- function(txt, len_list, true = "s", false = "") {
-  form <- paste0("{cli::qty(", len_list, ")}{?", false, "/", true, "}")
-  paste0(txt, vapply(form, cli::pluralize, character(1), USE.NAMES = FALSE))
+escape_cli_ <- function(x) {
+  gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
 }
 
-#' Helper for "there were/was  `1`/`n`/`more than n1`" sentence.
-#' @param len_list `vector(1)` Reference list length.
-#' @param max_print `integer(1)` Maximum number of elements to print.
-#' @noRd
-format_there_were_was <- function(len_list, max_print = 4) {
-  paste0(as_plural("There ", len_list, "were ", "was "),
-         ifelse(len_list > max_print,
-                paste0("more than ", max_print), len_list))
-}
-
-#' Collapse a character vector into a phrase.
-#' @param mylist `character()` Vector to print.
-#' @param quote `logical(1)` Whether to add quotes.
-#' @param and `logical(1)` Whether to include a 'and'.
-#' @param style `character(1)` cli markup class wrapping each item.
+#' Render cli markup now, into text that shows verbatim when emitted later.
+#' Values are interpolated from `.envir` as data, never parsed as markup.
+#' @param ... Message text, pasted together.
+#' @param .envir `environment` Frame used to resolve `{ }` interpolations.
 #' @return `character(1)`
 #' @noRd
-character_to_phrase <- function(mylist, quote = FALSE, and = TRUE,
-                                style = "val") {
-  if (length(mylist) == 0) return(NULL)
-  # wrap in cli markup on request (styled downstream at emit time)
-  if (isTRUE(quote)) mylist <- paste0("{.", style, " ", mylist, "}")
-  # let cli collapse; " and " before the last item, or plain comma without it
-  cli::ansi_collapse(mylist, sep = ", ",
-                     last = if (isTRUE(and)) " and " else ", ", trunc = Inf)
-}
-
-#' Collapse a character vector into a leading-spaced string of quoted words.
-#' The leading space separates the list from the text that introduces it.
-#' @param mylist `character()` List to be printed.
-#' @param max_print `integer(1)` Maximum number of elements to print.
-#' @param style `character(1)` cli markup class wrapping each item.
-#' @return `character(1)`
-#' @noRd
-character_to_string_list <- function(mylist, max_print = 4, style = "val") {
-  len_list <- length(mylist)
-  max_print <- min(max_print, len_list, na.rm = TRUE)
-  overflow <- len_list > max_print
-  sms <- character_to_phrase(mylist[seq_len(max_print)],
-                             quote = TRUE, and = !overflow, style = style)
-  paste0(sms, ifelse(overflow, ", ...", "."))
+inline_cli_ <- function(..., .envir = parent.frame()) {
+  escape_cli_(cli::format_inline(..., .envir = .envir))
 }
 
 #' Find closest match across list of options.
@@ -286,11 +252,12 @@ character_to_string_list <- function(mylist, max_print = 4, style = "val") {
 #' @param input `character(1)` String to be inspected.
 #' @param options `character()` Options.
 #' @param min_dist `integer(1)` Threshold for minimal distance.
-#' @param max_print `integer(1)` Maximum number of elements to print.
+#' @param list_options `logical(1)` List the options when none is close.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-find_closest_match <- function(input, options, min_dist = 3, max_print = 4) {
+find_closest_match <- function(input, options, min_dist = 3,
+                               list_options = TRUE) {
   output <- c()
 
   len_opts <- length(options)
@@ -300,22 +267,21 @@ find_closest_match <- function(input, options, min_dist = 3, max_print = 4) {
 
     if (any(idxs)) {
       closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
-      output <- sprintf("Did you mean {.val %s}?", closest)
+      output <- vapply(closest, function(x) {
+        inline_cli_("Did you mean {.val {x}}?")
+      }, character(1), USE.NAMES = FALSE)
     }
 
-    if (!all(idxs) && max_print > 0L) output <- c(output,
-      sprintf("Available %s %s",
-              as_plural("option", len_opts, "s are:", " is"),
-              character_to_string_list(options, max_print = max_print))
-    )
+    if (!all(idxs) && isTRUE(list_options)) output <- c(output, inline_cli_(
+      "Available option{?s} {?is/are}: {.val {options}}."
+    ))
   }
   output
 }
 
 # Helper to format invalid type errors.
 format_type_error <- function(x) {
-  sprintf("Got an object of class {.cls %s} instead.",
-          paste(rev(class(x)), collapse = "/"))
+  inline_cli_("Got an object of class {.cls {rev(class(x))}} instead.")
 }
 
 raise_permissions_error <- function() {
@@ -389,7 +355,8 @@ assert_advanced_setup_ <- function(allowed, ...) {
     if (!(nm %in% allowed)) stop_h(
       "Unexpected argument {.arg {nm}} passed through {.code ...}.",
       # NOTE: do not print all advanced options, just suggest
-      find_closest_match(nm, setdiff(allowed, names(dots)), max_print = 0)
+      find_closest_match(nm, setdiff(allowed, names(dots)),
+                         list_options = FALSE)
     )
   }
   invisible()
@@ -550,7 +517,7 @@ status_to_codes_ <- function(x, escaped = "escaped") {
                                    "no", "false", "uninfected", "healthy", "0")]
     warn_h(
       "No {.field status} value matches the escaped label {.val {escaped}}.",
-      "Every individual counts as infected. Values found: {.val {lv}}.",
+      `!` = "Every individual counts as infected. Values found: {.val {lv}}.",
       if (length(guess) == 1) "Did you mean {.code escaped = \"{guess}\"}?"
       else paste("Name the value carried by individuals who were not infected",
                  "with {.code escaped =}.")
@@ -694,9 +661,9 @@ eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {
 #' @return Invisibly returns `NULL`; called for setting the themes.
 #' @examples
 #' # apply housepi defaults to ggplot2, bayesplot and flextable
-#' housepi_theme_set()
+#' set_housepi_theme()
 #' @export
-housepi_theme_set <- function(base_size = 11,
+set_housepi_theme <- function(base_size = 11,
                               base_family = "",
                               transparent = FALSE) {
   # ggplot theme

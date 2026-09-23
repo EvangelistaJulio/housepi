@@ -92,7 +92,7 @@ For asymptomatic members we draw the infection time uniformly within the period 
 #| warning: false
 library(ggplot2)
 library(housepi)
-housepi_theme_set()
+set_housepi_theme()
 set.seed(42)
 
 onset_tommy <- 5

@@ -43,7 +43,7 @@ helper_format_error <- function(err) {
   if (length(err) == 1) return(err[[1]])
   last <- vapply(err, function(x) utils::tail(strsplit(x, "\n")[[1]], 1),
                  character(1))
-  unused <- grepl("^(Unused|Missing)", last)
+  unused <- grepl(paste0("^(", bullet_tag_, ".)?(Unused|Missing)"), last)
   if (any(unused)) err[[which(unused)[[1]]]]
   else if ("func" %in% err) err["func"]
   else err[[1]]
@@ -73,16 +73,19 @@ probe_definition_ <- function(func_name, arg_names, def_name,
   else if (is_latent_family(family)) c("func", "dist", "infec")
   else "func"
 
-  exposers <- c(func = "expose_function", dist = "expose_distribution",
+  exposers <- c(func = "expose_function",
+                dist = "expose_distribution",
                 infec = "expose_infec_profile")
-  out <- lapply(stats::setNames(nm = probed), function(k)
-    probe_exposer_(exposers[[k]], func_name, func_args))
+  out <- lapply(
+    stats::setNames(nm = probed),
+    function(k) probe_exposer_(exposers[[k]], func_name, func_args)
+  )
   err <- Filter(is.character, out)
 
   # every registry refused the name: the definition has no reading
   if (length(err) == length(probed)) stop_h(
-    sprintf("Wrong definition found for %s.",
-            ifelse(is.na(def_name), family, sprintf("{.val %s}", def_name))),
+    if (is.na(def_name)) "Wrong definition found for {family}."
+    else "Wrong definition found for {.val {def_name}}.",
     helper_format_error(err)
   )
   if (length(probed) - length(err) == 1) Filter(Negate(is.character), out)[[1]]
@@ -147,8 +150,8 @@ housepi_assert_args <- function(gear, last = NA_integer_) {
   }
 }
 
-# Assert a name carries no declaration of another kind: latent variables,
-# observations of either level and the status process share one definition store,
+# Assert a name carries no declaration of another kind:
+# latent variables, observations and status process share one definition store,
 # and each name stands for a single quantity of the model.
 assert_no_kind_clash <- function(defs, name, kind) {
   if (is.null(defs) || !"kind" %in% names(defs)) return(invisible())
@@ -204,30 +207,13 @@ assert_valid_definition_name <- function(x, family, allow_reserved = FALSE) {
   }
 }
 
-# Assert that no data column claims the reserved prefix.
-assert_no_private_columns <- function(cols, arg = "data") {
-  forbidden <- cols[startsWith(cols, ".")]
-  if (length(forbidden) == 0) return(invisible())
-  stop_h(
-    paste("Argument {.arg {arg}} carried {cli::qty(forbidden)}column{?s}",
-          "starting with a dot:",
-          character_to_string_list(forbidden, style = "field")),
-    `!` = "A leading dot is reserved to the definitions housepi generates itself."
-  )
-}
-
-# Assert that data column names can be sourced by a definition.
-# A column is a key the engine registers and a definition names with `@D`,
-# so it lives in the same alphabet as a definition name.
-assert_valid_data_columns <- function(cols, arg = "data") {
+# Assert data columns have valid names and can be sourced by definitions.
+assert_valid_data_columns <- function(cols) {
   forbidden <- cols[!grepl("^[A-Za-z0-9_.]+$", cols)]
   if (length(forbidden) == 0) return(invisible())
   stop_h(
-    paste("Argument {.arg {arg}} carried {cli::qty(forbidden)}column{?s}",
-          "with characters no definition can source:",
-          character_to_string_list(forbidden, style = "field")),
-    `!` = paste("Only letters, numbers, underscores {.code _}",
-                "and dots {.code .} are allowed.")
+    "Column {cli::qty(forbidden)}name{?s} are forbidden: {.field {forbidden}}.",
+    "Use only letters, digits and/or underscores {.code _}."
   )
 }
 

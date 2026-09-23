@@ -458,8 +458,8 @@ namespace housepi
                 // the origin reads an undrawn value the bounds do not keep away from it
                 sms += " is not kept away from generation " +
                        std::string(is_discr_requested ? "day" : "time") + " 0.\n" +
-                       "Its support is " + reach.str() + ", so it can put infectivity on the " +
-                       (is_discr_requested ? "day" : "instant") + " of infection.";
+                       msg::alert("Its support is " + reach.str() + ", so it can put infectivity on the " +
+                                  (is_discr_requested ? "day" : "instant") + " of infection.");
             }
             else
             {
@@ -1236,8 +1236,8 @@ namespace housepi
         if (scheme == "adaptive" && !std::isfinite(ladder.mean_log_lik.front()))
         {
             msg::warn(
-                "Adaptive scheme is undefined at inverse temperature 0 with -Inf log-likelihood.\n"
-                "Falling back to the power-fractions scheme.");
+                "Adaptive scheme is undefined at inverse temperature 0 with -Inf log-likelihood.\n" +
+                msg::alert("Falling back to the power-fractions scheme."));
             ladder.scheme = "power-fractions";
         }
 

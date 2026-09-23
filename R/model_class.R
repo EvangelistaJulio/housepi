@@ -245,7 +245,7 @@ HousepiModel <- R6::R6Class(
         warn_h(
           paste("Absolute {cli::qty(risks)} risk{?s} {.val {risks}}",
                 "{?has/have} no reference."),
-          "Baseline {.val {name}} was turned into constant reference."
+          `!` = "Baseline {.val {name}} was turned into constant reference."
         )
       }
       private$collapse_seen_ <- declared
@@ -315,25 +315,22 @@ HousepiModel <- R6::R6Class(
       sets <- private$source_sets_()
       declared <- unique(unlist(sets, use.names = FALSE))
       labels <- unname(source_labels_[c("A", "D", "P", "G")])
-      nothing <- sprintf("No %s or %s is declared under this name.",
-                         paste(labels[-length(labels)], collapse = ", "),
-                         labels[[length(labels)]])
+      nothing <- inline_cli_("No {.or {labels}} is declared under this name.")
 
       sms <- character()
       for (nm in unresolved) {
         claims <- names(sets)[vapply(sets, function(x) nm %in% x, logical(1))]
-        sms <- c(sms, sprintf("Could not resolve the source of {.val %s}.", nm))
+        sms <- c(sms,
+                 inline_cli_("Could not resolve the source of {.val {nm}}."))
         if (length(claims) > 1) {
           # two holders answer to the name: only a sigil tells them apart
-          sms <- c(sms, sprintf(
-            "Declared both as %s.",
-            character_to_phrase(unname(source_labels_[claims]))
-          ), sprintf("Tag it %s.", paste(
-            sprintf("{.code %s@%s}", nm, claims), collapse = " or "
-          )))
+          tags <- paste0(nm, "@", claims)
+          sms <- c(sms,
+                   inline_cli_("Declared both as {source_labels_[claims]}."),
+                   inline_cli_("Tag it {.or {.code {tags}}}."))
         } else {
           sms <- c(sms, nothing,
-                   find_closest_match(nm, declared, max_print = 0))
+                   find_closest_match(nm, declared, list_options = FALSE))
         }
       }
       wall_or_return_(sms, wall)
@@ -1065,8 +1062,7 @@ HousepiModel <- R6::R6Class(
       # append link to template documentation if any
       if (!is.na(get_template_dir(private$gen_$raw_name))) {
         header <- paste(header,
-          sprintf("({.run [template](housepi::browse_templates(\"%s\"))})",
-                  self$name)
+          "({.run [template](housepi::browse_templates(\"{self$name}\"))})"
         )
       }
       header <- c(i = paste0(header, "."))
@@ -1110,7 +1106,7 @@ HousepiModel <- R6::R6Class(
             "Group risks",
             if (is_default) c(
               "Using default group risks.",
-              paste("Available:", character_to_string_list(risks))
+              inline_cli_("Available: {.val {risks}}.")
             ) else NULL,
             minor = TRUE
           )))

@@ -252,7 +252,7 @@ test_that("An automatic reference names an observed stratum of its axes", {
   mk_risk$model |>
     add_group_risk("susceptibility", by = "age",
                    reference = list(age = "elderly")) |>
-    expect_error("individual with age = .elderly. is never observed")
+    expect_error("[Ii]ndividual.*age = .elderly.*observed")
   mk_risk$model |>
     add_group_risk("susceptibility", by = c("age", "sex"),
                    reference = list(age = "adult")) |>

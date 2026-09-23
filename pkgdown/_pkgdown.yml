@@ -80,7 +80,7 @@ reference:
     - -ends_with("_draws")
     - format_credible_interval
     - set_global_posterior_summary
-    - housepi_theme_set
+    - set_housepi_theme
 
 - title: "Browse available definitions"
   desc: >

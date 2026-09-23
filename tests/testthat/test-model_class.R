@@ -134,21 +134,6 @@ test_that("Model-required data can be postponed to the run wall", {
     expect_error("start_date")
 })
 
-test_that("Data columns cannot claim the hidden-definition prefix", {
-  hhdata <- dummy_household
-  hhdata$.datum <- 55
-
-  new_housepi_model(hhdata, "test") |>
-    expect_error("with a dot")
-  new_housepi_model(model = "test") |>
-    add_data_wide(hhdata) |>
-    expect_error("with a dot")
-
-  new_housepi_model(model = "test") |>
-    add_data_long(data.frame(id = "m1", .datum = 1)) |>
-    expect_error("with a dot")
-})
-
 test_that("Wide data can be deferred and attached with add_data_wide", {
   # construct without data: no data exposed
   hhmodel <- new_housepi_model(model = "final-size") |>

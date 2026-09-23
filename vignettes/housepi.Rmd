@@ -86,7 +86,7 @@ library(housepi)
 # set general seed
 set.seed(42)
 # set the theme for visualizations
-housepi_theme_set()
+set_housepi_theme()
 
 # generate an instance of the final-size model with data
 hhmodel <- new_housepi_model(flu_1918_frederick, "final-size")

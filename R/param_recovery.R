@@ -60,7 +60,7 @@ recovery_param_table_ <- function(hhmodel, truth, point_estimate) {
     unknown <- setdiff(names(given), names(pins))
     if (length(unknown)) warn_h(
       "No parameter named {.val {unknown}} in the model.",
-      "Its {.arg truth} value is ignored."
+      `!` = "Its {.arg truth} value is ignored."
     )
   }
   pins <- pins[!is.na(pins)]
@@ -297,7 +297,8 @@ HousepiParameterRecovery <- R6::R6Class(
         # an engine message carries no markup: interpolate, never inline
         reason <- cell[[1L]]$replicate[["error"]]
         if (length(done) == 0L) stop_h(
-          "Every replicate failed at {.val {houses}} households.", "{reason}"
+          "Every replicate failed at {.val {houses}} households.",
+          `!` = "{reason}"
         )
         estimates <- c(estimates, done)
         replicates <- c(replicates, lapply(cell, `[[`, "replicate"))
@@ -369,16 +370,15 @@ HousepiParameterRecovery <- R6::R6Class(
     # raised it. Foreign text carries no markup.
     report_warnings_ = function() {
       if (is.null(private$warnings_) || nrow(private$warnings_) == 0L) return()
-      counts <- private$warnings_[["count"]]
-      lines <- sprintf("%d %s: %s", counts, as_plural("replicate", counts),
-                       private$warnings_[["message"]])
-      header <- sprintf(
-        "Parameter recovery raised %d distinct %s.", nrow(private$warnings_),
-        as_plural("warning", nrow(private$warnings_))
+      n_warn <- nrow(private$warnings_)
+      lines <- mapply(function(n, msg) inline_cli_("{n} replicate{?s}: {msg}"),
+                      private$warnings_[["count"]],
+                      private$warnings_[["message"]])
+      header <- inline_cli_(
+        "Parameter recovery raised {n_warn} distinct warning{?s}."
       )
       bullets <- stats::setNames(lines, rep("!", length(lines)))
-      emit_cli_condition(c(list(header), as.list(bullets)),
-                         "warn", trusted = FALSE)
+      emit_cli_condition(c(list(header), as.list(bullets)), "warn")
     }
   ),
 

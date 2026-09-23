@@ -114,15 +114,13 @@ find_closest_template_name <- function(x) {
 #' @noRd
 show_model_names <- function() {
   model_names <- list.files(template_models_dir())
-  formatted_names <- tolower(gsub("-| |_", "_", model_names))
-  sms <- c(i = "Available template models:")
-  for (m in formatted_names) {
-    link <- sprintf(
-      "{.run [%s](housepi::browse_templates(\"%s\"))}", m, m
-    )
-    sms <- c(sms, paste0(cli::symbol$bullet, " ", link))
-  }
-  cli::cli_inform(sms)
+  links <- vapply(
+    tolower(gsub("-| |_", "_", model_names)),
+    function(m) inline_cli_("{.run [{m}](housepi::browse_templates(\"{m}\"))}"),
+    character(1), USE.NAMES = FALSE
+  )
+  cli::cli_inform(c(i = "Available template models:",
+                    paste(cli::symbol$bullet, links)))
 }
 
 #' @title
@@ -250,18 +248,10 @@ browse_templates <- function(name = NA_character_,
 
 # Associate same name to all elements of a vector
 set_source_name_ <- function(x, name = NA_character_) {
-  if (!is.na(name) &&
-        is.character(name) &&
-        nchar(name) > 0 &&
-        !is.null(x)) names(x) <- rep(name, length(x))
+  if (isTRUE(nzchar(name, keepNA = TRUE)) && length(x)) {
+    names(x) <- rep(name, length(x))
+  }
   x
-}
-
-# Collapse definition sources into a phrase.
-format_sources_phrase_ <- function(sources) {
-  if (length(sources) == 0) return(NULL)
-  character_to_phrase(ifelse(sources == "model", "transmission model",
-                             paste(sources, "definitions")))
 }
 
 #' Compare required definitions to current definitions and find missing ones.
@@ -280,47 +270,35 @@ template_missing_find <- function(required, defined) {
 #' @param required `character()` Required definitions.
 #' @param defined `character()` Current definitions.
 #' @param holder `character(1)` Name of the definition holder.
-#' @param max_print `integer(1)` Maximum number of elements to print.
 #' @param noun `character(1)` Word naming the missing entries.
 #' @param style `character(1)` cli markup class wrapping each entry.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-template_missing_stop <- function(required, defined, holder, max_print = 4,
+template_missing_stop <- function(required, defined, holder,
                                   noun = "definition", style = "val") {
   miss <- template_missing_find(required, defined)
+  if (length(miss) == 0) return(NULL)
   # find sources of missing definitions
   sources <- unique(names(required[required %in% miss]))
-  # show error message
-  output <- c()
-  len_miss <- length(miss)
-  if (len_miss > 0) output <- c(
-    sprintf("%s missing %s %s %s",
-            format_there_were_was(len_miss, max_print = max_print),
-            holder,
-            as_plural(noun, len_miss, "s:"),
-            character_to_string_list(miss, max_print = max_print,
-                                     style = style)),
-    sprintf("Required by %s.", format_sources_phrase_(sources))
-  )
-  output
+  sources <- ifelse(sources == "model", "transmission model",
+                    paste(sources, "definitions"))
+  c(inline_cli_("{cli::qty(miss)}There {?was/were} {length(miss)} missing ",
+                "{holder} {noun}{cli::qty(miss)}{?s}: {.", style,
+                " {miss}}."),
+    inline_cli_("Required by {sources}."))
 }
 
 #' Warn about overwritten definitions if missing definitions are found.
 #' @param all_rmv `character()` Removed definitions.
 #' @param holder `character(1)` Name of the definition holder.
-#' @param max_print `integer(1)` Maximum number of elements to print.
 #' @keywords internal
 #' @noRd
-template_overwrite_warn <- function(all_rmv, holder, max_print = 4) {
+template_overwrite_warn <- function(all_rmv, holder) {
   len_rmv <- length(all_rmv)
-  if (len_rmv > 0) warn_h(sprintf(
-    "Overwriting %s %s %s %s",
-    ifelse(len_rmv > max_print,
-           paste0("more than ", max_print), len_rmv),
-    holder,
-    as_plural("definition", len_rmv, "s for:", " for"),
-    character_to_string_list(all_rmv, max_print)
+  if (len_rmv > 0) warn_h(paste(
+    "Overwriting {len_rmv} {holder} definition{cli::qty(len_rmv)}{?s}",
+    "for: {.val {all_rmv}}."
   ))
 }
 
@@ -355,20 +333,16 @@ template_not_used_find <- function(required, defined) {
 #' @param required `character()` Required definitions.
 #' @param defined `character()` Current definitions.
 #' @param holder `character(1)` Name of the definition holder.
-#' @param max_print `integer(1)` Maximum number of elements to print.
 #' @return `character()`
 #' @keywords internal
 #' @noRd
-template_not_used_warn <- function(required, defined, holder, max_print = 4) {
+template_not_used_warn <- function(required, defined, holder) {
   notused <- template_not_used_find(required, defined)
   len_unused <- length(notused)
-  if (len_unused > 0) warn_h(
-    sprintf("%s unused %s %s %s",
-            format_there_were_was(len_unused, max_print),
-            holder,
-            as_plural("definition", len_unused, "s:"),
-            character_to_string_list(notused, max_print))
-  )
+  if (len_unused > 0) warn_h(paste(
+    "{cli::qty(len_unused)}There {?was/were} {len_unused} unused {holder}",
+    "definition{cli::qty(len_unused)}{?s}: {.val {notused}}."
+  ))
   invisible()
 }
 

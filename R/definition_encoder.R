@@ -55,15 +55,15 @@ helper_default_source <- function(types, values) {
       else types[i] <- "?"
 
     } else if (!(k %in% names(source_labels_))) {
-      stop_h(paste0("Invalid type {.val ", k, "} for value {.val ", y, "}."),
-             paste(sprintf("{.val %s}", names(source_labels_)),
-                   sprintf("(%s)", unname(source_labels_)),
-                   collapse = ", "))
+      stop_h("Invalid type {.val {k}} for value {.val {y}}.",
+             paste(mapply(function(tag, label) {
+               inline_cli_("{.val {tag}} ({label})")
+             }, names(source_labels_), source_labels_), collapse = ", "))
     }
 
     if (identical(types[i], "D") && y %in% data_reserved_cols) stop_h(
       "Cannot source column {.field {y}} as data with {.code @D}.",
-      `!` = "Columns {.field {data_reserved_cols}} are reserved."
+      "Columns {.field {data_reserved_cols}} are reserved."
     )
   }
   types
@@ -221,8 +221,7 @@ housepi_smart_unwrap <- function(x, arg_name, null_ok = FALSE) {
   x <- coerce_date_(x)
   if (is.null(x) && isTRUE(null_ok)) return(NULL)
   if (is.character(x) || is.numeric(x) || is.logical(x) || is.list(x)) return(x)
-  stop_h(sprintf("Argument {.arg %s} must be character, numeric, or logical.",
-                 arg_name),
+  stop_h("Argument {.arg {arg_name}} must be character, numeric, or logical.",
          format_type_error(x))
 }
 
@@ -339,7 +338,7 @@ get_template_def_list <- function(path, family) {
   # check if template file exists
   if (!file.exists(templ_file)) stop_h(
     "Impossible to use templated {family} definitions.",
-    "A file with template definitions was not found."
+    `!` = "A file with template definitions was not found."
   )
   # get template definition list and convert to quosures
   dget(templ_file)

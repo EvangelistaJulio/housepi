@@ -88,11 +88,12 @@ associate_contact_param_names <- function(this_table, prefix, reference,
     idx_refer <- unname(which(refer_mask))
     if (length(idx_refer) != 1) stop_h(
       "Provided reference contact risk is not valid.",
-      `!` = sprintf(
-        "The pair %s %s %s is never observed.",
-        reference_to_phrase(reference[grep(fp, names(reference))], fp),
-        ifelse(symmetric, "<->", "-->"),
-        reference_to_phrase(reference[grep(tp, names(reference))], tp)
+      `!` = paste(
+        "The pair",
+        "{reference_to_phrase(reference[grep(fp, names(reference))], fp)}",
+        "{ifelse(symmetric, '<->', '-->')}",
+        "{reference_to_phrase(reference[grep(tp, names(reference))], tp)}",
+        "is never observed."
       )
     )
   }
@@ -197,15 +198,15 @@ auto_contact_reference_ <- function(by, reference) {
     has_names <- TRUE
   }
   if (!has_names) {
-    example_values <- if (length(reference) == length(by)) as.character(reference)
-    else rep("value", length(by))
+    if (length(reference) == length(by)) eg_values <- as.character(reference)
+    else eg_values <- rep("value", length(by))
+    # nolint next: object_usage_linter. read by the cli glue below
+    pairs <- paste0(by, ' = "', eg_values, '"', collapse = ", ")
     stop_h(
       "Provided reference contact risk is not valid.",
-      `!` = sprintf(
-        "{.arg reference} must be named using %s: {.code reference = c(%s)}.",
-        as_plural("covariate", length(by)),
-        paste(sprintf('%s = "%s"', by, example_values), collapse = ", ")
-      )
+      paste("{.arg reference} must be named using",
+            "{cli::qty(by)}covariate{?s}:",
+            "{.code reference = c({pairs})}.")
     )
   }
   # convenience: allow un-prefixed names
@@ -215,9 +216,7 @@ auto_contact_reference_ <- function(by, reference) {
   }
   wrong_entries <- setdiff(names(reference), valid_names)
   if (length(wrong_entries) != 0) stop_h(
-    sprintf("Unrecognized %s for reference: %s",
-            as_plural("choice", length(wrong_entries)),
-            character_to_string_list(wrong_entries)),
+    "Unrecognized choice{?s} for reference: {.val {wrong_entries}}.",
     paste("Reference should match {.arg by}",
           "and use {.code from_}\\{.code to_} prefixes.")
   )

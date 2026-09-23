@@ -13,13 +13,14 @@ rd_test_return_ <- paste("`NULL` if the available names were printed.",
                          "Otherwise [%1$s][housepi::%1$s] object.")
 rd_test_x_ <- "`numeric()` Points of evaluation."
 
-# Show the registered names of a family, as `show_model_names()` does for
-# templates. No `{.run}` links: there is no per-name description to open.
+# Show registered names of family, as `show_model_names()` does for templates.
+# No `{.run}` links: there is no per-name description to open.
 show_registered_ <- function(names, family) {
-  cli::cli_inform(c(
-    stats::setNames(sprintf("Available %ss:", family), "i"),
-    paste0(cli::symbol$bullet, " ", sprintf("{.val %s}", sort(names)))
-  ))
+  fmt_names <- vapply(sort(names),
+                      function(nm) inline_cli_("{.val {nm}}"),
+                      character(1), USE.NAMES = FALSE)
+  cli::cli_inform(c(i = "Available {family}s:",
+                    paste(cli::symbol$bullet, fmt_names)))
   invisible()
 }
 
@@ -147,16 +148,18 @@ HousepiExposed <- R6::R6Class(
     #' @description Override the default printing behavior.
     print = function() {
       args <- self$args
-      items <- if (length(args) == 0) character() else
-        sprintf("{.arg %s} = %s", names(args), format(unname(args)))
-      if (!is.na(private$loc_))
-        items <- c(items, sprintf("{.arg loc} = %s", format(private$loc_)))
+      items <- vapply(names(args),
+                      function(arg) inline_cli_("{.arg {arg}} = {args[[arg]]}"),
+                      character(1), USE.NAMES = FALSE)
+      if (!is.na(private$loc_)) {
+        items <- c(items, "{.arg loc} = {format(private$loc_)}")
+      }
       loc <- if (is.na(private$loc_)) 0 else private$loc_
       print_bullets(c(
-        i = sprintf("Exposed %s {.val %s}.", private$family_, private$name_),
+        i = "Exposed {private$family_} {.val {private$name_}}.",
         items,
-        sprintf("%s on %s.", ifelse(private$discr_, "Discrete", "Continuous"),
-                format_interval_(self$domain, loc))
+        paste(if (private$discr_) "Discrete" else "Continuous",
+              "on {format_interval_(self$domain, loc)}.")
       ))
       invisible(self)
     }

@@ -34,12 +34,11 @@ assert_household_data <- function(data, model) {
     sms <- c("Data should be an object of class {.cls data.frame}.",
              `!` = format_type_error(data))
     if (is.character(data) && length(data) == 1) sms <- c(sms,
-      sprintf("Did you mean {.code new_housepi_model(model = \"%s\")}?", data)
+      "Did you mean {.code new_housepi_model(model = \"{data}\")}?"
     )
     stop_h(sms)
   }
   if (nrow(data) == 0) stop_h("Provided {.arg data} is empty.")
-  assert_no_private_columns(colnames(data))
   assert_valid_data_columns(colnames(data))
   data
 }
@@ -275,8 +274,9 @@ HousepiGenerator <- R6::R6Class(
             private$needs_compile_ <- FALSE
             warn_h(
               "Impossible to replace existing template in current session.",
-              "Start a new R session to re-compile your model as a template.",
-              "Warning raised because model changed or {.code force = TRUE}."
+              `!` = paste("Warning raised because model changed",
+                          "or {.code force = TRUE}."),
+              "Start a new R session to re-compile your model as a template."
             )
           }
         }
@@ -637,8 +637,8 @@ HousepiGenerator <- R6::R6Class(
         if (isTRUE(as_template)) warn_h(
           "Cannot store template {.val {self$name}} as a new template.",
           "Copy it to a writable folder first, and then load it:",
-          "#> {.code browse_templates(\"{self$name}\", \"your/dir\")}",
-          "#> {.code new_housepi_model(data = ..., model = \"your/dir\")}"
+          ` ` = "#> {.code browse_templates(\"{self$name}\", \"your/dir\")}",
+          ` ` = "#> {.code new_housepi_model(data = ..., model = \"your/dir\")}"
         )
         private$init_template_model_(choice, force)
       } else {
@@ -715,8 +715,7 @@ HousepiGenerator <- R6::R6Class(
         "Data-long should be an object of class {.cls data.frame}.",
         format_type_error(data_long)
       )
-      assert_no_private_columns(colnames(data_long), "data_long")
-      assert_valid_data_columns(colnames(data_long), "data_long")
+      assert_valid_data_columns(colnames(data_long))
 
       embed <- cpp_data_factorize(data_long, private$escaped_)
       private$info_data_long_ <- embed$info

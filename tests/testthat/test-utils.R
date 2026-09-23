@@ -42,11 +42,13 @@ test_that("Overwrite is a no-op on the same path and raises on failure", {
     expect_error("user permissions")
 })
 
-test_that("Character to phrase produce phrases as expected", {
-  expect_null(character_to_phrase(character(0)))
-  expect_equal(character_to_phrase("alpha"), "alpha")
-  expect_equal(character_to_phrase(c("alpha", "beta")), "alpha and beta")
-  expect_equal(character_to_phrase(c("a", "b", "c")), "a, b and c")
+test_that("Rendered text keeps data braces literal through a later cli pass", {
+  datum <- c("a{b}", "{c}")
+  txt <- inline_cli_("Got {datum}.")
+  expect_equal(cli::format_inline(txt), "Got a{b} and {c}.")
+  # the error names the brace-carrying option verbatim
+  stop_h("Unknown entry.", find_closest_match("unrelated", datum)) |>
+    expect_error("Available options.*a\\{b\\}")
 })
 
 test_that("Find closest match suggests close options", {
@@ -246,5 +248,5 @@ test_that("A data column R can only spell quoted, survives the round trip", {
 })
 
 test_that("The housepi ggplot theme is set without errors", {
-  expect_no_error(housepi_theme_set())
+  expect_no_error(set_housepi_theme())
 })

@@ -48,14 +48,14 @@ test_that("Missing template definitions are found and reported", {
 test_that("Unused template definitions are found and warned about", {
   required <- c(A = "a")
   defined <- c("a", "b", "c")
-  
+
   # all used: returns empty (character(0))
   template_not_used_find(defined, defined) |>
     expect_length(0L)
   # all used: no warning
   template_not_used_warn(defined, defined, "parameter") |>
     expect_no_warning()
-  
+
   # partial overlap
   template_not_used_find(required, defined) |>
     expect_equal(c("b", "c"))
@@ -80,8 +80,8 @@ test_that("Overwritten template definitions are warned about", {
     expect_warning("Overwriting")
 
   # warn handles many elements
-  template_overwrite_warn(letters[1:10], "parameter", max_print = 3) |>
-    expect_warning("more than 3")
+  template_overwrite_warn(letters[1:10], "parameter") |>
+    expect_warning("Overwriting 10 parameter definitions.*j")
 })
 
 test_that("fmt_assert_cli formats messages correctly", {
@@ -188,21 +188,28 @@ test_that("browse_templates rejects '.' as destination path", {
 })
 
 test_that("Model help pages name the keys the engine registers", {
-  kinds <- c(Data = "Data", Param = "Parameters", Latent = "Latent", GroupRisk = "Group Risks")
+  modules <- c(Data = "Data", Param = "Parameters",
+               Latent = "Latent", GroupRisk = "Group Risks")
   for (name in c("final_size", "case_ascertained")) {
     cpp <- system.file("models", name, "model.cpp", package = "housepi") |>
-      readLines() |> paste(collapse = "\n")
+      readLines() |>
+      paste(collapse = "\n")
     rd <- system.file("models", name, "info.Rd", package = "housepi") |>
-      readLines() |> paste(collapse = "\n")
-    for (kind in names(kinds)) {
+      readLines() |>
+      paste(collapse = "\n")
+    # loop over all modules
+    for (k in names(modules)) {
       # EMPTY_KEYS declarations match nothing and register no key
-      decl <- regmatches(cpp, regexpr(sprintf("(?<=REGISTER_KEYS\\(%s,)[^)]*", kind), cpp, perl = TRUE))
+      fmt <- "(?<=REGISTER_KEYS\\(%s,)[^)]*"
+      decl <- regmatches(cpp, regexpr(sprintf(fmt, k), cpp, perl = TRUE))
       keys <- trimws(unlist(strsplit(decl, ",")))
       # section body up to the next section: its \code{} items are the keys
-      section <- sub(sprintf("^.*\\\\section\\{%s\\}\\{(.*?)\\\\section.*$", kinds[[kind]]), "\\1", rd)
+      fmt <- "^.*\\\\section\\{%s\\}\\{(.*?)\\\\section.*$"
+      section <- sub(sprintf(fmt, modules[[k]]), "\\1", rd)
       if (identical(section, rd)) section <- ""
-      listed <- regmatches(section, gregexpr("(?<=\\\\item \\\\code\\{)[^}]+", section, perl = TRUE))[[1]]
-      expect_setequal(listed, keys)
+      pattern <- "(?<=\\\\item \\\\code\\{)[^}]+"
+      listed <- regmatches(section, gregexpr(pattern, section, perl = TRUE))
+      expect_setequal(listed[[1]], keys)
     }
   }
 })

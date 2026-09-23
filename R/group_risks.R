@@ -119,12 +119,10 @@ assert_valid_covariates <- function(covariates, allow = character()) {
   reserved_data <- setdiff(c(data_reserved_cols, risk_reserved_cols), allow)
   forbidden <- reserved_data[reserved_data %in% covariates]
   if (length(forbidden) > 0) stop_h(
-    sprintf("Impossible to associate risk to %s %s",
-            as_plural("covariate", length(forbidden), "s:"),
-            character_to_string_list(forbidden)),
-    `!` = "These names are reserved.",
-    paste("Please, change {as_plural('covariate', length(forbidden))} and/or",
-          "corresponding data {as_plural('column', length(forbidden))}.")
+    "Impossible to associate risk to covariate{?s}: {.field {forbidden}}.",
+    "These names are reserved.",
+    paste("Change {cli::qty(forbidden)}covariate{?s} and/or",
+          "corresponding data column{?s}.")
   )
 }
 
@@ -136,10 +134,8 @@ assert_valid_covariates <- function(covariates, allow = character()) {
 assert_data_covariates <- function(covariates, headers) {
   missing <- setdiff(covariates, headers)
   if (length(missing) > 0) stop_h(
-    sprintf("Unknown %s %s",
-            as_plural("covariate", length(missing), "s:"),
-            character_to_string_list(missing)),
-    "Please check your data headers."
+    "Unknown covariate{?s}: {.field {missing}}.",
+    "Check your data headers."
   )
 }
 
@@ -184,9 +180,9 @@ drop_unknown_strata_rows <- function(tbl, known, label, cols = NULL) {
     keep <- keep & !unknown
   }
   for (field in names(missing_vals)) warn_h(
-    sprintf("Unknown %s for %s in data {.field %s}: %s",
-            as_plural("definition", length(missing_vals[[field]]), "s"),
-            label, field, character_to_string_list(missing_vals[[field]])),
+    paste("Unknown {cli::qty(missing_vals[[field]])}definition{?s}",
+          "for {label} in data {.field {field}}:",
+          "{.val {missing_vals[[field]]}}."),
     `!` = "Associated entries will be skipped."
   )
   tbl[keep, , drop = FALSE]
@@ -229,21 +225,22 @@ assert_valid_pins <- function(tbl) {
     "Column {.field const} of the strata table must be logical.",
     format_type_error(tbl[["const"]])
   )
-  value <- if (is.null(tbl[["value"]])) rep(NA_real_, nrow(tbl)) else tbl[["value"]]
-  const <- if (is.null(tbl[["const"]])) rep(NA, nrow(tbl)) else tbl[["const"]]
+  # value
+  value <- tbl[["value"]]
+  if (is.null(value)) value <- rep(NA_real_, nrow(tbl))
+  const <- tbl[["const"]]
+  if (is.null(const)) const <- rep(NA, nrow(tbl))
 
   bad <- tbl$param_name == ".reference" & (!is.na(value) | !is.na(const))
   if (any(bad)) stop_h(
-    sprintf("The {.val .reference} is pinned at %s %s.",
-            as_plural("row", sum(bad)),
-            character_to_phrase(as.character(which(bad)))),
+    paste("The {.val .reference} is pinned at",
+          "{cli::qty(sum(bad))}row{?s} {which(bad)}."),
     "The reference stratum is 1 by definition: it carries no pin."
   )
   bad <- const %in% TRUE & is.na(value)
   if (any(bad)) stop_h(
-    sprintf("No {.field value} for fixed %s %s",
-            as_plural("strat", sum(bad), "a", "um"),
-            character_to_string_list(unique(tbl$param_name[bad]))),
+    paste("No {.field value} for fixed",
+          "strat{?um/a} {.val {unique(tbl$param_name[bad])}}."),
     "A {.code const = TRUE} stratum needs the value it is fixed at."
   )
   # a stratum spread over several rules carries a single pin, whichever of
@@ -251,13 +248,11 @@ assert_valid_pins <- function(tbl) {
   pins <- data.frame(value, const)
   rows <- Filter(function(i) nrow(unique(pins[i, ])) > 1,
                  split(seq_len(nrow(tbl)), tbl$param_name))
-  if (length(rows) > 0) stop_h(
-    sprintf("Conflicting {.field value} for %s %s.",
-            as_plural("strat", length(rows), "a", "um"),
-            character_to_phrase(sprintf(
-              "{.val %s} (rows %s)", names(rows),
-              vapply(lapply(rows, as.character), character_to_phrase, "")
-            ))),
+  conflicts <- vapply(names(rows), function(nm) {
+    cli::format_inline("{.val {nm}} (rows {rows[[nm]]})")
+  }, character(1))
+  if (length(conflicts) > 0) stop_h(
+    "Conflicting {.field value} for {cli::qty(rows)}strat{?um/a} {conflicts}.",
     "A stratum spread over several rules carries a single {.field value}."
   )
   invisible(tbl)
@@ -314,16 +309,16 @@ compute_rule_groups <- function(tbl) {
     } else if (length(candidates) == 0) {
       stop_h("Rule grouping failed: no maximal pattern contains row's columns.")
     } else {
-      field_list <- function(x) character_to_phrase(x, quote = TRUE, style = "field")
-      own <- if (length(p) == 0) "names no covariates"
-             else sprintf("names only %s", field_list(p))
+      # nolint next: object_usage_linter. read by the cli glue below
+      groups <- vapply(max_patterns[candidates], function(m) {
+        cli::format_inline("[{.field {m}}]")
+      }, character(1))
       stop_h(
-        sprintf(
-          "Ambiguous rule %d ({.val %s}) %s, fitting %d equally specific groups: %s.",
-          i, tbl$param_name[i], own, length(candidates),
-          character_to_phrase(vapply(max_patterns[candidates], function(m)
-            paste0("[", field_list(m), "]"), character(1)))
-        ),
+        paste0("Ambiguous rule {i} ({.val {tbl$param_name[i]}}) ",
+               if (length(p) == 0) "names no covariates"
+               else "names only {.field {p}}",
+               ", fitting {length(candidates)} equally specific groups: ",
+               "{groups}."),
         "Add a disambiguating column to the rule."
       )
     }
@@ -399,9 +394,8 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
     function(k) if (length(unique(keys[k])) > 1) idx_refer[k]
   ))
   if (length(clash) > 0) stop_h(
-    sprintf("%s %s of one rule group are tagged {.val .reference}.",
-            as_plural("Row", length(clash)),
-            character_to_phrase(sort(clash))),
+    paste("{cli::qty(length(clash))}Row{?s} {sort(clash)} of one rule group",
+          "are tagged {.val .reference}."),
     "A rule group has a single reference, setting its unit scale."
   )
   invisible(strata)
@@ -460,9 +454,7 @@ lacks_reference_ <- function(tables) {
 assert_known_params_names <- function(strata, params) {
   unknown <- setdiff(names(params), setdiff(strata$param_name, ".reference"))
   if (length(unknown) > 0) stop_h(
-    sprintf("Unknown %s in {.arg params}: %s",
-            as_plural("parameter", length(unknown)),
-            character_to_string_list(unknown))
+    "Unknown parameter{?s} in {.arg params}: {.val {unknown}}."
   )
   invisible(params)
 }
@@ -492,9 +484,8 @@ warn_unused_auto_params <- function(params) {
 assert_no_pin_params_clash <- function(strata, params) {
   clash <- intersect(names(params), names(collect_table_pins(strata)))
   if (length(clash) > 0) stop_h(
-    sprintf("Pinned %s also set through {.arg params}: %s",
-            as_plural("strat", length(clash), "a", "um"),
-            character_to_string_list(clash)),
+    paste("Pinned {cli::qty(clash)}strat{?um/a} also set through",
+          "{.arg params}: {.val {clash}}."),
     paste("A pinned stratum carries no MCMC setup:",
           "drop it from {.arg params} or from the strata table.")
   )
@@ -577,16 +568,15 @@ group_risk_logic_table <- function(data_wide, this_cov,
   y
 }
 
-#' Collapse a named reference into a phrase of `name = value` pairs.
+#' Collapse a named reference into a rendered phrase of `name = value` pairs.
 #' @param reference `list()` Covariate values, named after the covariates.
 #' @param strip `character(1)` Prefix removed from the names before printing.
-#' @return `character(1)`
+#' @return `character(1)` Plain text, to be interpolated as a value.
 #' @noRd
 reference_to_phrase <- function(reference, strip = "^") {
-  character_to_phrase(
-    paste0("{.field ", sub(strip, "", names(reference)),
-           "} = {.val ", unlist(reference), "}")
-  )
+  cli::ansi_collapse(mapply(function(nm, val) {
+    cli::format_inline("{.field {nm}} = {.val {val}}")
+  }, sub(strip, "", names(reference)), unlist(reference)))
 }
 
 #' Associate parameter name to group risk logic table.
@@ -625,8 +615,8 @@ associate_group_param_names <- function(this_table, prefix, reference) {
     ))
     if (length(idx_refer) != 1) stop_h(
       "Provided reference group is not valid.",
-      `!` = sprintf("An individual with %s is never observed.",
-                    reference_to_phrase(reference))
+      `!` = paste("Individuals with {reference_to_phrase(reference)}",
+                  "are never observed.")
     )
   }
 
@@ -869,7 +859,7 @@ HousepiGroupRisk <- R6::R6Class(
             if (identical(col, "status")) status_levels
             else unique(data_wide[[col]])
           }),
-          label = sprintf("risk {.val %s}", risk_id)
+          label = cli::format_inline("risk {.val {risk_id}}")
         )
         # add counts: an emptied table keeps the column, typed
         tbl$n <- if (nrow(tbl) == 0) integer(0) else
@@ -1160,12 +1150,8 @@ HousepiGroupRisk <- R6::R6Class(
       notused <- template_not_used_find(required, defined)
       # drop unused group risks
       if (length(notused) > 0) {
-        sms <- c(
-          sprintf("Dropped unused group %s %s",
-                  as_plural("risk", length(notused), "s:"),
-                  character_to_string_list(notused)),
-          find_closest_match(notused, required)
-        )
+        sms <- c("Dropped unused group risk{?s}: {.val {notused}}.",
+                 find_closest_match(notused, required))
         if (isTRUE(wall)) {
           for (which in notused) self$remove(which)
           stop_h(sms)

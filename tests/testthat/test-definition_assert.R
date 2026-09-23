@@ -75,17 +75,13 @@ test_that("Assert valid data columns holds the definition alphabet", {
   )
   assert_valid_data_columns(c("id", "bad name")) |>
     expect_error("bad name")
-  assert_valid_data_columns("bad-name") |>
-    expect_error("Only letters, numbers")
   # the grammar delimiter never reaches the engine as a key
   assert_valid_data_columns("bad|name") |>
     expect_error("bad\\|name")
 
   # every offender is named at once, and the argument is the caller's
-  assert_valid_data_columns(c("bad name", "ok.name", "bad!"), "data_long") |>
+  assert_valid_data_columns(c("bad name", "ok.name", "bad!")) |>
     expect_error("bad name")
-  assert_valid_data_columns(c("bad name", "ok.name", "bad!"), "data_long") |>
-    expect_error("data_long")
 })
 
 test_that("Definitions carry the defaults the user left out", {

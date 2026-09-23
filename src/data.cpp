@@ -157,7 +157,7 @@ namespace housepi
         // store households
         for (size_t i = 0; i < report_indiv.total; ++i)
         {
-            std::string id = std::to_string(i + 1);                          // default id
+            std::string id = std::to_string(i + 1);                      // default id
             std::string hhid = std::to_string(house_vector_.size() + 1); // default hhid
             StatusLvl status = status::MISSING;
 
@@ -327,7 +327,8 @@ namespace housepi
 
         // assess the presence of house IDs
         if (!vect::contains(headers, "hhid"))
-            msg::warn("Ignored household structure.\nMissing data column " + msg::field("hhid") + ".");
+            msg::warn("Ignored household structure.\n" +
+                      msg::alert("Missing data column " + msg::field("hhid") + "."));
 
         // assess individual IDs are unique
         if (vect::contains(headers, "id") &&

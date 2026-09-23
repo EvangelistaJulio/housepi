@@ -221,7 +221,7 @@ namespace housepi
             msg::stop("Proposal " + msg::val(pDistr_->name()) + " has support " + support.str() +
                       " that cannot cover the domain " +
                       (pPrior_ ? pPrior_->domain().str() : std::string("(-Inf, Inf)")) +
-                      " of " + owner + ".\nPlease correct the proposal rule.");
+                      " of " + owner + ".\nCorrect the proposal rule.");
         }
     };
 
@@ -418,8 +418,8 @@ namespace housepi
             // forbid the discrete case
             if (prior->is_discretized())
                 msg::stop(
-                    "Provided proposal " + msg::val("lognormal") + " for discrete.\nUse instead" +
-                    msg::val("rw") + " or " + msg::val("rw_unif"));
+                    "Provided proposal " + msg::val("lognormal") + " for discrete." +
+                    "\nUse " + msg::val("rw") + " or " + msg::val("rw_unif") + " instead.");
 
             // assert that the value domain is positive
             if (prior->min().is_empty() || prior->min().value() < 0)

@@ -12,7 +12,7 @@
     Output
       i Household transmission model "final size" (`template`).
       x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
-        "gamma" and "hhsize_ref".
+        "gamma", and "hhsize_ref".
         Required by transmission model.
 
 ---
@@ -22,7 +22,7 @@
     Output
       i Household transmission model "final size" (`template`).
       x Parameters: there are 4 missing parameter definitions: "alpha", "beta",
-        "gamma" and "hhsize_ref".
+        "gamma", and "hhsize_ref".
         Required by transmission model.
 
 ---

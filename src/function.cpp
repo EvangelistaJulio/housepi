@@ -815,7 +815,7 @@ namespace housepi
             msg::stop(
                 "Impossible to associate " + attr.str() +
                 " as argument " + msg::arg(std::string(key)) + " of " + str() + ".\n" +
-                std::string(e.what()));
+                msg::alert(e.what()));
         }
 
         // transfer attribute

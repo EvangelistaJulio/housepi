@@ -222,27 +222,19 @@ check_diagnostics_one_ <- function(d, draws_kind) {
   only_rhat <- setdiff(bad_rhat, both)
   only_bulk <- setdiff(bad_bulk, both)
 
-  findings <- c()
-  if (length(both) > 0L) findings <- c(findings,
-    sprintf("%s %s with R-hat > %.2f and Bulk ESS < %.0f%%: %s",
-            format_there_were_was(length(both)),
-            as_plural(draws_kind, length(both)),
-            rhat_max, 100. * neff_min,
-            character_to_string_list(sm$variable[both]))
-  )
-  if (length(only_rhat) > 0L) findings <- c(findings,
-    sprintf("%s %s with R-hat > %.2f: %s",
-            format_there_were_was(length(only_rhat)),
-            as_plural(draws_kind, length(only_rhat)),
-            rhat_max,
-            character_to_string_list(sm$variable[only_rhat]))
-  )
-  if (length(only_bulk) > 0L) findings <- c(findings,
-    sprintf("%s %s with Bulk Effective Sample Size (ESS) < %.0f%%: %s",
-            format_there_were_was(length(only_bulk)),
-            as_plural(draws_kind, length(only_bulk)),
-            100. * neff_min,
-            character_to_string_list(sm$variable[only_bulk]))
+  finding <- function(idx, test) {
+    n <- length(idx)
+    if (n > 0L) inline_cli_(
+      "{cli::qty(n)}There {?was/were} {n} {draws_kind}{cli::qty(n)}{?s}",
+      " with {test}: {.val {sm$variable[idx]}}."
+    )
+  }
+  findings <- c(
+    finding(both, sprintf("R-hat > %.2f and Bulk ESS < %.0f%%",
+                          rhat_max, 100. * neff_min)),
+    finding(only_rhat, sprintf("R-hat > %.2f", rhat_max)),
+    finding(only_bulk, sprintf("Bulk Effective Sample Size (ESS) < %.0f%%",
+                               100. * neff_min))
   )
   if (length(findings) == 0L) return(NULL)
   names(findings) <- rep("!", length(findings))

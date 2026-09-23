@@ -298,10 +298,9 @@ HousepiCustomPPC <- R6::R6Class(
       for (m in private$measure_names_) {
         mismatch <- ppc_observed_outside_cri(self[[m]])
         len_bad <- sum(unlist(mismatch))
-        if (len_bad > 0L) findings <- c(findings, sprintf(
-          "%s observed %s outside of %d%% CrI for measure {.field %s}.",
-          format_there_were_was(len_bad), as_plural("value", len_bad),
-          cri_pct, m
+        if (len_bad > 0L) findings <- c(findings, inline_cli_(
+          "{cli::qty(len_bad)}There {?was/were} {len_bad} observed value{?s}",
+          " outside of {cri_pct}% CrI for measure {.field {m}}."
         ))
       }
       if (length(findings) > 0L) {
@@ -947,10 +946,9 @@ format_credible_interval <- function(point_estimate, cri_lower, cri_upper,
     .fmt_num <- function(pe, low, up) {
       if (is.na(pe)) return(NA_character_)
       if (pe == low && pe == up) return(sprintf(fmt, pe, pe, pe))
-      if (isTRUE(pe < low) || isTRUE(pe > up)) warn_h(sprintf(
-        "Found an inconsistent credible interval: %g, CrI = [%g, %g].",
-        pe, low, up
-      ))
+      if (isTRUE(pe < low) || isTRUE(pe > up)) warn_h(
+        "Found an inconsistent credible interval: {pe}, CrI = [{low}, {up}]."
+      )
 
       if (isTRUE(as_integer)) digits <- 0
       else if (pe == 0) digits <- max(0, ceiling(-log10(abs(low))) + 1)

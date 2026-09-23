@@ -1069,8 +1069,8 @@ namespace housepi
             msg::warn(
                 "Observation " + msg::val(khold(a)) + " is missing for " +
                 std::to_string(missing[a]) + " of " + std::to_string(declared[a]) +
-                " infected individuals.\n"
-                "A missing observation does not contribute to the likelihood.");
+                " infected individuals.\n" +
+                msg::alert("A missing observation does not contribute to the likelihood."));
         }
     }
 
@@ -1300,10 +1300,10 @@ namespace housepi
             for (const DefTable_::col *col : cols)
                 for (const std::string &dstr : referred_data((*col)[k], live_names))
                     msg::stop(
-                        "Found cyclic dependency in simulation.\nLatent " +
-                        msg::val(deftable_.c_name[k]) +
-                        " reads generated household observation " + msg::val(dstr) +
-                        ".\nDefine " + msg::val(deftable_.c_name[k]) +
+                        "Found cyclic dependency in simulation.\n" +
+                        msg::alert("Latent " + msg::val(deftable_.c_name[k]) +
+                                   " reads generated household observation " + msg::val(dstr) + ".") +
+                        "\nDefine " + msg::val(deftable_.c_name[k]) +
                         " without referencing " + msg::val(dstr) + ", or viceversa.");
         }
     }
@@ -1844,8 +1844,8 @@ namespace housepi
         // otherwise observed data are just unreachable
         msg::stop(
             "Failed to initialize due to observations of " + mcmc_->data_wide().str(indiv) + ".\n" +
-            "The observed values lie outside of respective domain.\n" +
-            "Check the individual data or revise the domain.");
+            msg::alert("The observed values lie outside of respective domain.") +
+            "\nCheck the individual data or revise the domain.");
     }
 
     void Augmented::finalize()

@@ -29,7 +29,7 @@ Here we show how to compute common household measures according to the model pos
 #| label: inference-setup
 # repeat inference as in 'Get Started'
 library(housepi)
-housepi_theme_set()
+set_housepi_theme()
 set.seed(42)
 
 hhmodel <- flu_1918_frederick |>

@@ -101,7 +101,8 @@ namespace housepi
             msg::stop(sms + " for " + str() + ".");
 
         // latent
-        msg::warn("Collapsed (at least) one " + str() + " to constant.\n" + sms + ".");
+        msg::warn("Collapsed (at least) one " + str() + " to constant.\n" +
+                  msg::alert(sms + "."));
         init_numeric(domain.min.value());
         helper_init_null_proposal_();
     }

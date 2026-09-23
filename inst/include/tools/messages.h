@@ -54,6 +54,8 @@ namespace housepi::msg
     inline std::string val(const std::string &x) { return "{.val " + x + "}"; }
     inline std::string field(const std::string &x) { return "{.field " + x + "}"; }
     inline std::string code(const std::string &x) { return "{.code " + x + "}"; }
+    /// Tag a message line as an alert bullet (`!`) instead of the default hint.
+    inline std::string alert(const std::string &x) { return "\x1F!" + x; }
     /// cli pluralization quantity: sets the count for a following `{?singular/plural}`.
     template <class T>
     inline std::string qty(const T &v) { return "{cli::qty(" + std::to_string(v.size()) + ")}"; }
