@@ -39,21 +39,6 @@ namespace housepi
 	/// Max resamples per member.
 	static constexpr size_t N_INIT_ATTEMPTS_ = 100;
 
-	/// Output of a power-posterior ladder run.
-	struct PowerLadder
-	{
-		std::vector<double> inv_temp;			/// inverse-temperature ladder
-		std::vector<double> mean_log_lik;		/// per-rung mean log-likelihood
-		std::vector<double> var_log_lik;		/// per-rung variance log-likelihood
-		std::vector<std::vector<double>> draws; /// total log-likelihood draw
-		std::string scheme;						/// scheme actually used to sample
-
-		PowerLadder(size_t n_rungs); /// reserve all vectors
-
-		void push(double inv_t, std::vector<double> row); /// compute stats + append
-		void insert(size_t i, double inv_t, std::vector<double> row);
-	};
-
 	class MCMC : public MCMCBase
 	{
 	public:
@@ -91,10 +76,6 @@ namespace housepi
 													  bool with_cache,
 													  bool with_latent_ll,
 													  bool with_obs_ll);
-		/// Recompute and store the total latent log-likelihood across all households.
-		double commit_total_latent_log_lik_ratio_();
-		/// Recover the total latent log-likelihood after a refused prior-only move.
-		void recover_total_latent_log_lik_();
 
 		/// Guarded total log-posterior computation for initialization.
 		/// Assert for finite initial value and mechanisms to recover in place.
@@ -139,49 +120,36 @@ namespace housepi
 		/// Returns the seconds spent sampling.
 		double run_inference();
 
-		/// Run power-posterior thermodynamic ladder.
-		/// Based on @cite friel_improving_2014
-		PowerLadder run_power_posteriors(std::string_view scheme, unsigned long N);
-
 	private:
-		/// Markov chain core, used for inference and power posteriors.
+		/// Markov chain core.
 		/// NOTE: sweep is the number of previously completed thin sweeps.
 		void run_monte_carlo_();
 		/// Finite adaptative iterations.
-		/// Beta0: chain at inverse temperature 0 (likelihood untempered, prior-only target).
-		template <bool Beta0>
 		void run_mc_finite_adaptation_();
 		// Run MC chain posterior sampling iterations, with optional burn-in.
 		// Draws are stored in the column block of chain `chain_id`.
-		template <bool Beta0>
 		void run_mc_posterior_sampling_(unsigned long chain_id);
 
 		/// Move all model parameters and latent variables.
 		/// Adapt: moves are credited to the proposals, which only adaptation reads.
-		template <bool Adapt, bool Beta0>
+		template <bool Adapt>
 		void move_all_();
 		/// Attempt to move a single parameter.
-		template <bool Adapt, bool Beta0>
+		template <bool Adapt>
 		void move_single_parameter_(size_t p, bool with_cache);
 		/// Move latent variables of all infected individuals.
-		template <bool Adapt, bool Beta0>
+		template <bool Adapt>
 		void move_all_latent_();
 		/// Move latent variables of infectious members inside household.
 		/// The move is performed one member at a time, one latent variable at a time.
 		/// Returns the accepted transmission log-likelihood and latent log-model deltas.
-		template <bool Adapt, bool Beta0>
+		template <bool Adapt>
 		LogLikAccumulator move_latent_single_house_(size_t H);
 		/// Move a single latent variable.
 		/// Returns the accepted transmission log-likelihood and latent log-model deltas.
-		template <bool Adapt, bool Beta0>
+		template <bool Adapt>
 		LogLikAccumulator move_latent_single_variable_(const Household &house,
 													 const Individual &indiv,
 													 size_t a);
-
-		/// Power posteriors at 0 inverse temperature.
-		void power_post_zero_(PowerLadder &ladder);
-		/// Power posteriors with power fractions scheme for the thermodynamic ladder.
-		void power_post_fractions_(PowerLadder &ladder);
-		void power_post_adaptive_(PowerLadder &ladder);
 	};
 }

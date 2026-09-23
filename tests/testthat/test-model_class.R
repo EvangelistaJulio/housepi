@@ -425,8 +425,8 @@ test_that("Inference rejects invalid setup arguments", {
     run_inference(steps = 5L, thin = 10L) |>
     expect_error("[Tt]hin")
   mk_frederick$template |>
-    run_inference(steps = 5L, inv_temp = 2) |>
-    expect_error("[Ii]nverse temperature .* was outside \\[0, 1\\]")
+    run_inference(steps = 5L, adapt_windows = 10L) |>
+    expect_error("[Uu]nexpected argument.*adapt_windows")
   mk_frederick$template |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   threads = 1000L) |>

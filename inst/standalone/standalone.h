@@ -20,7 +20,6 @@ namespace housepi
         bool is_log_lik = false;     // loglikelihood option
         bool is_infer = false;       // inference option
         bool is_simulate = false;    // simulation option
-        unsigned long num_rungs = 0; // n. rungs power posteriors
 
         struct PathToFiles
         {
@@ -46,7 +45,6 @@ namespace housepi
         void read_contact_risk(MCMCBase &engine);
         void read_latent(MCMCBase &engine);
 
-        bool is_log_evidence() const noexcept { return num_rungs > 0; }
         void assert();
     };
 
@@ -66,18 +64,6 @@ namespace housepi
 
     /// Print the simulated data to the provided file.
     void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile);
-
-    /* --FUTURE-LOG-EVIDENCE--
-    /// Estimate log_evidence according to a given scheme and number of rungs.
-    /// Uses trapezoidal rule to estimate logarithm of marginal likelihood (evidence).
-    ///
-    /// Ref.
-    /// -----
-    /// Ref: Friel, N., Hurn, M. & Wyse, J.
-    /// Improving power posterior estimation of statistical evidence.
-    /// Stat Comput 24, 709–723 (2014).
-    double log_evidence(MCMC &engine, std::string_view scheme, unsigned long n_rungs);
-    */
 
     /// Main function for the standalone version of 'housepi'.
     int standalone(std::string_view model_name, int argc, char *argv[]);

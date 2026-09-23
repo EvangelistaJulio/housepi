@@ -41,7 +41,6 @@ namespace housepi
         unsigned long n_adapt;                /// Number of adaptive MCMC steps (0 = no adaptation).
         unsigned long n_chains;               /// Number of independent MCMC chains to run in parallel.
         unsigned long progress;               /// Progress bar update interval in seconds.
-        unsigned long n_rungs;                /// Number of rungs for power posterior analysis (0 = standard MCMC).
         std::vector<std::string> id_draws;    /// Individual IDs whose latent draws are traced.
         std::vector<std::string> house_draws; /// Household IDs whose infected members are traced.
 
@@ -50,7 +49,6 @@ namespace housepi
         /////////////////////////
 
         unsigned long n_adapt_window; /// Effective window for the smoothed accept-rate.
-        double inv_temp;              /// Inverse temperature for power posterior (1.0 = posterior).
         double time_step;             /// Real-time integration step for simulation.
 
         ////////////////////////
@@ -58,7 +56,6 @@ namespace housepi
         ////////////////////////
 
         Budget budget;               /// Workers allotted to the chain and the per-chain dispatch level.
-        unsigned long rung_id;       /// Current active rung in power posterior analysis (0-indexed).
         unsigned long c_sample_size; /// Sample size for a single chain after thinning.
 
         /////////////////////
@@ -92,8 +89,6 @@ namespace housepi
 
         /// Check if running standard sample.
         bool is_mcmc_sample() const noexcept { return n_steps > 1; }
-        /// Check if running power posterior analysis.
-        bool is_power_post() const noexcept { return n_rungs > 0; }
 
         ////////////////
         ///  RANDOM  ///
@@ -124,8 +119,6 @@ namespace housepi
 
         /// Open progress bar for standard MCMC sample.
         void prog_open_for_mcmc_sample();
-        /// Open progress bar for power posterior analysis.
-        void prog_open_for_power_post();
         /// Open progress bar for simulation.
         void prog_open_for_simulation();
 

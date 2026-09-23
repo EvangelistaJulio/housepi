@@ -1186,7 +1186,7 @@ run_inference <- function(hhmodel,
   stopifnothousepi(hhmodel)
   # the whole run is quiet, its build included
   local_quiet_warnings_(!warn)
-  assert_advanced_setup_(c("inv_temp", "adapt_window"), ...)
+  assert_advanced_setup_("adapt_window", ...)
   pvt <- hhmodel$.__enclos_env__$private
   id_draws <- resolve_id_draws_(id_draws)
   pvt$assert_posterior_memory_(

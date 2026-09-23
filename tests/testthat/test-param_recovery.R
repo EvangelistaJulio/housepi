@@ -209,8 +209,3 @@ test_that("Recovery needs a parameter to recover", {
   run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o parameter to recover")
 })
-
-test_that("Recovery refuses a tempered fit", {
-  run_parameter_recovery_check(mk_recov$model, inv_temp = 0.5) |>
-    expect_error("[Uu]nexpected argument")
-})

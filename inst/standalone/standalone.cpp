@@ -479,11 +479,6 @@ namespace housepi
             else if (tolow(carg) == "--simulate")
                 is_simulate = true;
 
-            /*  --FUTURE-LOG-EVIDENCE--
-            else if (tolow(carg) == "--log-evidence")
-                num_rungs = str::toul(argv[++carg_i], "number of rungs");
-            */
-
             else if (toup(carg) == "-A" || tolow(carg) == "--latent")
                 file.latent = argv[++carg_i];
 
@@ -522,13 +517,13 @@ namespace housepi
     void Options::assert()
     {
         // check for single option
-        int aux = is_log_lik + is_infer + is_simulate + is_log_evidence();
+        int aux = is_log_lik + is_infer + is_simulate;
 
         if (aux == 0)
             is_log_lik = true; // default
         if (aux > 1)
             msg::stop(
-                "Incompatible commands: choose one between --log-lik, --infer, --simulate or --log-evidence.");
+                "Incompatible commands: choose one between --log-lik, --infer or --simulate.");
 
         // simulation without an output file runs but does not serialize
         if (!na::is(file.output) || is_simulate)

@@ -565,7 +565,6 @@ namespace
             Rcpp::_["id_draws"] = Rcpp::CharacterVector(Rcpp::wrap(setup.id_draws)),
             Rcpp::_["seed"] = setup.seed,
             Rcpp::_["progress"] = setup.progress,
-            Rcpp::_["inv_temp"] = setup.inv_temp,
             Rcpp::_["time_step"] = setup.time_step);
     }
 
@@ -1486,48 +1485,6 @@ namespace
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////  MCMC : log-evidence /////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// Return power-posterior thermodynamic ladder.
-    /// Based on @cite friel_improving_2014
-    Rcpp::List run_power_posteriors(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &scheme, unsigned long n_rungs)
-    {
-        MCMC &engine = *mcmc_ptr;
-
-        try
-        {
-            const PowerLadder ladder = engine.run_power_posteriors(scheme, n_rungs);
-
-            const size_t n_rung = ladder.draws.size();
-            const size_t n_draw = n_rung ? ladder.draws[0].size() : 0;
-            Rcpp::List draws(n_rung);
-            Rcpp::CharacterVector col_names(n_rung);
-            for (size_t r = 0; r < n_rung; ++r)
-            {
-                Rcpp::NumericVector col(n_draw);
-                for (size_t c = 0; c < n_draw; ++c)
-                    col[c] = ladder.draws[r][c];
-                draws[r] = col;
-                col_names[r] = "log_lik[" + std::to_string(r + 1) + "]";
-            }
-            draws.attr("names") = col_names;
-            Rcpp::DataFrame draws_df = rcpp_data_frame(draws);
-
-            return Rcpp::List::create(
-                Rcpp::_["scheme"] = ladder.scheme,
-                Rcpp::_["inv_temp"] = Rcpp::wrap(ladder.inv_temp),
-                Rcpp::_["mean_log_lik"] = Rcpp::wrap(ladder.mean_log_lik),
-                Rcpp::_["var_log_lik"] = Rcpp::wrap(ladder.var_log_lik),
-                Rcpp::_["log_lik_draws"] = draws_df);
-        }
-        catch (std::exception &e)
-        {
-            engine.setup.crash(e);
-        }
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////  *** Rcpp exports ***  ////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1800,7 +1757,6 @@ RCPP_MODULE(housepi)
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference", &run_inference);
     Rcpp::function("run_simulation", &run_simulation);
-    Rcpp::function("run_power_posteriors", &run_power_posteriors);
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);

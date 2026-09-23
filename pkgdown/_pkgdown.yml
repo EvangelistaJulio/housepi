@@ -98,14 +98,6 @@ reference:
   - sarscov2_2021_icofs
   - dummy_household
 
-- title: "Under development"
-  desc: >
-    These functions are currently under development and are still experimental.
-  contents:
-  - run_power_posteriors
-  - HousepiPowerPosteriors
-  - evaluate_log_evidence
-
 ## Articles ##
 articles:
   - title: "Articles"

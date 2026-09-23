@@ -264,8 +264,6 @@ namespace housepi
 
     void Posterior::init(MCMCBase &mcmc)
     {
-        is_power_post_ = false;
-        tot_log_lik.clear();
         param_values.clear();
         param_priors.clear();
         house_log_lik.clear();
@@ -278,17 +276,6 @@ namespace housepi
 
         const Setup &setup = mcmc.setup;
         sample_size_ = setup.c_sample_size * setup.n_chains;
-        is_power_post_ = setup.is_power_post();
-
-        // power posteriors only track the joint log-likelihood total for the
-        // thermodynamic ladder; ordinary inference never reads it, so it is the
-        // single quantity stored in that mode (no pointwise / parameter draws).
-        if (is_power_post_)
-        {
-            tot_log_lik.reserve(1);
-            tot_log_lik.emplace_back(sample_size_, na::DOUBLE);
-            return;
-        }
 
         helper_init_param_draws(this, mcmc.param, sample_size_);
         helper_init_house_draws(this, mcmc.data_wide(), sample_size_);
@@ -298,17 +285,6 @@ namespace housepi
     void Posterior::store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local)
     {
         const size_t col = chain_id * mcmc.setup.c_sample_size + local;
-
-        // power posteriors store only the joint (tempered) log-likelihood that
-        // feeds the thermodynamic ladder: transmission plus observation
-        if (is_power_post_)
-        {
-            double value = mcmc.tot_transm_log_lik.value();
-            if (mcmc.augm.is_any_obs_model())
-                value += mcmc.tot_obs_log_lik.value();
-            tot_log_lik[0][col] = value;
-            return;
-        }
 
         // parameter values and priors
         const Parameter &param = mcmc.param;
@@ -791,34 +767,6 @@ namespace housepi
         return acc;
     }
 
-    double MCMC::commit_total_latent_log_lik_ratio_()
-    {
-        double acc = parallel::for_reduce<double>(
-            data_wide().eq_class_size(),
-            [&](size_t R) -> double
-            {
-                const Household &house = data_wide().eq_class_head(R);
-                double amodel = 0.;
-                for (const Individual &indiv : house.infected_indivs())
-                    amodel += augm.commit_latent_log_lik(indiv);
-                return data_wide().eq_class_weight(R) * amodel;
-            },
-            setup.budget.inner);
-        tot_latent_log_lik.set(acc);
-        return tot_latent_log_lik.ratio();
-    }
-
-    void MCMC::recover_total_latent_log_lik_()
-    {
-        tot_latent_log_lik.recover();
-        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
-        {
-            const Household &house = data_wide().eq_class_head(R);
-            for (const Individual &indiv : house.infected_indivs())
-                recover_latent_log_lik_(indiv);
-        }
-    }
-
     /////////////////////////////
     ///  METROPOLIS-HASTINGS  ///
     /////////////////////////////
@@ -842,16 +790,8 @@ namespace housepi
         {
             init_monte_carlo_chain_();
             init_guarded_commit_total_();
-            if (setup.inv_temp == 0.0)
-            {
-                run_mc_finite_adaptation_<true>();
-                run_mc_posterior_sampling_<true>(chain_id);
-            }
-            else
-            {
-                run_mc_finite_adaptation_<false>();
-                run_mc_posterior_sampling_<false>(chain_id);
-            }
+            run_mc_finite_adaptation_();
+            run_mc_posterior_sampling_(chain_id);
         }
     }
 
@@ -924,12 +864,11 @@ namespace housepi
         return acc;
     }
 
-    template <bool Beta0>
     void MCMC::run_mc_finite_adaptation_()
     {
         for (unsigned long i = 0; i < setup.n_adapt; ++i)
         {
-            move_all_<true, Beta0>();
+            move_all_<true>();
 
             // vanishing ratio of the adaptation budget already spent
             const double ratio = static_cast<double>(i) / setup.n_adapt;
@@ -944,42 +883,38 @@ namespace housepi
         }
     }
 
-    template <bool Beta0>
     void MCMC::run_mc_posterior_sampling_(unsigned long chain_id)
     {
         for (unsigned long i = 0; i < setup.n_burn; ++i)
-            move_all_<false, Beta0>();
+            move_all_<false>();
 
         unsigned long local = 0;
         for (unsigned long i = setup.n_burn; i < setup.n_steps; i += setup.n_thin)
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
-                move_all_<false, Beta0>();
-            // NOTE: recomputing likelihood, not tracked at inverse temperature 0
-            if constexpr (Beta0)
-                commit_total_log_posterior_(true, false, augm.is_any_obs_model());
+                move_all_<false>();
             posterior.store(*this, chain_id, local++);
         }
     }
 
-    template <bool Adapt, bool Beta0>
+    template <bool Adapt>
     void MCMC::move_all_()
     {
         // move latent variables to sample, if any
-        move_all_latent_<Adapt, Beta0>();
+        move_all_latent_<Adapt>();
 
         // move standard model parameters
         for (size_t p : param.list_sample_standard)
-            move_single_parameter_<Adapt, Beta0>(p, false);
+            move_single_parameter_<Adapt>(p, false);
         // move parameters with cached dependencies
         for (size_t p : param.list_sample_cached)
-            move_single_parameter_<Adapt, Beta0>(p, true);
+            move_single_parameter_<Adapt>(p, true);
 
         // update progress bar
         setup.prog_update();
     }
 
-    template <bool Adapt, bool Beta0>
+    template <bool Adapt>
     void MCMC::move_single_parameter_(size_t p, bool with_cache)
     {
         Variable &this_par = param.at(p);
@@ -997,55 +932,35 @@ namespace housepi
             ///  METROPOLIS-HASTINGS  ///
             /////////////////////////////
 
-            if constexpr (Beta0)
+            const bool with_obs_ll = augm.is_any_obs_model() &&
+                                     augm.param_produces_obs_log_lik(p);
+
+            commit_total_log_posterior_(with_cache, with_latent_ll, with_obs_ll);
+
+            // Metropolis-Hastings acceptance log-ratio
+            double r = tot_transm_log_lik.ratio();
+            if (with_obs_ll)
+                r += tot_obs_log_lik.ratio();
+            if (with_latent_ll)
+                r += tot_latent_log_lik.ratio();
+            r += this_par.get_move_log_ratio();
+
+            if (setup.exponential() > -r)
             {
-                // at inverse temperature 0 the likelihood totals are not tracked
-                // they are refreshed from scratch before each stored draw
-                double r = this_par.get_move_log_ratio();
-                if (with_latent_ll)
-                    r += commit_total_latent_log_lik_ratio_();
-                if (setup.exponential() > -r)
-                {
-                    if constexpr (Adapt)
-                        this_par.commit_proposal_move();
-                    return;
-                }
-                if (with_latent_ll)
-                    recover_total_latent_log_lik_();
+                if constexpr (Adapt)
+                    this_par.commit_proposal_move();
+                return;
             }
-            else
-            {
-                const bool with_obs_ll = augm.is_any_obs_model() &&
-                                         augm.param_produces_obs_log_lik(p);
 
-                commit_total_log_posterior_(with_cache, with_latent_ll, with_obs_ll);
-
-                // (tempered) Metropolis-Hastings acceptance log-ratio
-                double r = tot_transm_log_lik.ratio();
-                if (with_obs_ll)
-                    r += tot_obs_log_lik.ratio();
-                r *= setup.inv_temp;
-                if (with_latent_ll)
-                    r += tot_latent_log_lik.ratio();
-                r += this_par.get_move_log_ratio();
-
-                if (setup.exponential() > -r)
-                {
-                    if constexpr (Adapt)
-                        this_par.commit_proposal_move();
-                    return;
-                }
-
-                // else move is refused and log-likelihood recovered
-                recover_total_log_lik_(with_cache, with_latent_ll, with_obs_ll);
-            }
+            // else move is refused and log-likelihood recovered
+            recover_total_log_lik_(with_cache, with_latent_ll, with_obs_ll);
         }
         this_par.restore();
         if constexpr (Adapt)
             this_par.refuse_proposal_move();
     }
 
-    template <bool Adapt, bool Beta0>
+    template <bool Adapt>
     void MCMC::move_all_latent_()
     {
         if (!augm.is_any_sample())
@@ -1055,20 +970,15 @@ namespace housepi
         LogLikAccumulator acc = parallel::for_reduce<LogLikAccumulator>(
             data_wide().report_house.total,
             [&](size_t H) -> LogLikAccumulator
-            { return move_latent_single_house_<Adapt, Beta0>(H); },
+            { return move_latent_single_house_<Adapt>(H); },
             setup.budget.inner);
-        // at inverse temperature 0 the likelihood totals are not tracked
-        // they are refreshed from scratch before each stored draw
-        if constexpr (!Beta0)
-        {
-            if (augm.is_any_obs_model())
-                tot_obs_log_lik.increment(acc.obs_ll);
-            tot_transm_log_lik.increment(acc.transm_ll);
-        }
+        if (augm.is_any_obs_model())
+            tot_obs_log_lik.increment(acc.obs_ll);
+        tot_transm_log_lik.increment(acc.transm_ll);
         tot_latent_log_lik.increment(acc.latent_ll);
     }
 
-    template <bool Adapt, bool Beta0>
+    template <bool Adapt>
     LogLikAccumulator MCMC::move_latent_single_house_(size_t H)
     {
         const Household &house = data_wide().at(H);
@@ -1076,11 +986,11 @@ namespace housepi
         LogLikAccumulator acc;
         for (const Individual &indiv : house.infected_indivs())
             for (size_t a : augm.list_sample(indiv))
-                acc += move_latent_single_variable_<Adapt, Beta0>(house, indiv, a);
+                acc += move_latent_single_variable_<Adapt>(house, indiv, a);
         return acc;
     }
 
-    template <bool Adapt, bool Beta0>
+    template <bool Adapt>
     LogLikAccumulator MCMC::move_latent_single_variable_(const Household &house,
                                                          const Individual &indiv,
                                                          size_t a)
@@ -1115,36 +1025,21 @@ namespace housepi
                                         ? augm.commit_latent_log_lik_ratio_with_consumers(indiv, a, cons_ll_old)
                                         : commit_latent_log_lik_ratio(indiv, a);
 
-            // NOTE: likelihood terms are tempered, the latent model is not.
-            if constexpr (Beta0)
-            {
-                // at inverse temperature 0 the likelihood totals are not tracked
-                // they are refreshed from scratch before each stored draw
-                if (setup.exponential() > avar.proposal_log_ratio() - d_latent)
-                {
-                    if constexpr (Adapt)
-                        avar.commit_proposal_move();
-                    return {0., 0., d_latent};
-                }
-            }
-            else
-            {
-                const double d_obs = commit_obs_log_lik_ratio(indiv, a);
-                const double d_transm = produces_transm ? commit_transm_log_lik_ratio_(house) : 0.;
+            const double d_obs = commit_obs_log_lik_ratio(indiv, a);
+            const double d_transm = produces_transm ? commit_transm_log_lik_ratio_(house) : 0.;
 
-                const double r = setup.inv_temp * (d_obs + d_transm) + d_latent - avar.proposal_log_ratio();
-                if (setup.exponential() > -r)
-                {
-                    if constexpr (Adapt)
-                        avar.commit_proposal_move();
-                    return {d_obs, d_transm, d_latent};
-                }
-
-                if (augm.produces_obs(indiv, a))
-                    recover_obs_log_lik_(indiv);
-                if (produces_transm)
-                    recover_transm_log_lik_(house);
+            const double r = d_obs + d_transm + d_latent - avar.proposal_log_ratio();
+            if (setup.exponential() > -r)
+            {
+                if constexpr (Adapt)
+                    avar.commit_proposal_move();
+                return {d_obs, d_transm, d_latent};
             }
+
+            if (augm.produces_obs(indiv, a))
+                recover_obs_log_lik_(indiv);
+            if (produces_transm)
+                recover_transm_log_lik_(house);
             recover_latent_log_lik_(indiv);
 
             if (produces_transm)
@@ -1155,178 +1050,5 @@ namespace housepi
             avar.refuse_proposal_move();
 
         return {0., 0., 0.};
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  MCMC : estimate log_evidence  ////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    namespace
-    {
-        /// Welford online's algorithm for mean and variance.
-        /// Based on @cite welford_note_1962
-        /// A single non-finite draw makes the mean infinite and variance undefined.
-        std::pair<double, double> compute_stats(const std::vector<double> &data)
-        {
-            size_t n = 0;
-            double avg = 0., sqr_diff = 0.;
-            for (double v : data)
-            {
-                if (!std::isfinite(v))
-                    return {-inf::DOUBLE, na::DOUBLE};
-
-                const double delta = v - avg;
-                avg += delta / ++n;
-                sqr_diff += delta * (v - avg);
-            }
-
-            return {avg, n > 1 ? sqr_diff / static_cast<double>(n - 1) : 0.};
-        }
-    }
-
-    PowerLadder::PowerLadder(size_t n_rungs)
-    {
-        size_t n = n_rungs + 1;
-        inv_temp.reserve(n);
-        mean_log_lik.reserve(n);
-        var_log_lik.reserve(n);
-        draws.reserve(n);
-    }
-
-    void PowerLadder::push(double inv_t, std::vector<double> row)
-    {
-        const auto [avg, var] = compute_stats(row);
-        inv_temp.push_back(inv_t);
-        mean_log_lik.push_back(avg);
-        var_log_lik.push_back(var);
-        draws.push_back(std::move(row));
-    }
-
-    void PowerLadder::insert(size_t i, double inv_t, std::vector<double> row)
-    {
-        const auto [avg, var] = compute_stats(row);
-        inv_temp.insert(inv_temp.begin() + i, inv_t);
-        mean_log_lik.insert(mean_log_lik.begin() + i, avg);
-        var_log_lik.insert(var_log_lik.begin() + i, var);
-        draws.insert(draws.begin() + i, std::move(row));
-    }
-
-    PowerLadder MCMC::run_power_posteriors(std::string_view scheme, unsigned long n_rungs)
-    {
-        // check number of rungs for the thermodynamic ladder
-        if (n_rungs < 2)
-            msg::stop(
-                "N. of rungs was not greater than 1.");
-
-        setup.n_rungs = n_rungs;          // NOTE: set before progress bar
-        init_monte_carlo_();              // initialize mcmc sampling
-        init_for_evaluation_();           // initialize for evaluation
-        setup.prog_open_for_power_post(); // print progress bar
-        // UPDATE: always under estimate progress-bar time if starting from itm = 0
-
-        //////////////////////////
-        ///  POWER-POSTERIORS  ///
-        //////////////////////////
-
-        PowerLadder ladder(n_rungs);
-        power_post_zero_(ladder);
-
-        // NOTE: adaptive is undefined if -Int at inverse-temperature = 0, fall back
-        ladder.scheme = scheme;
-        if (scheme == "adaptive" && !std::isfinite(ladder.mean_log_lik.front()))
-        {
-            msg::warn(
-                "Adaptive scheme is undefined at inverse temperature 0 with -Inf log-likelihood.\n" +
-                msg::alert("Falling back to the power-fractions scheme."));
-            ladder.scheme = "power-fractions";
-        }
-
-        if (ladder.scheme == "adaptive")
-            power_post_adaptive_(ladder);
-        else
-            power_post_fractions_(ladder);
-
-        setup.prog_close(); // close progress bar
-
-        // restore setup state variables
-        setup.inv_temp = 1.0;
-        setup.rung_id = 0;
-        setup.n_rungs = 0;
-
-        return ladder;
-    }
-
-    void MCMC::power_post_zero_(PowerLadder &ladder)
-    {
-        setup.rung_id = 0;
-        setup.inv_temp = 0.0;
-        run_monte_carlo_();
-        ladder.push(setup.inv_temp, posterior.tot_log_lik[0]);
-    }
-
-    void MCMC::power_post_adaptive_(PowerLadder &ladder)
-    {
-        // inverse temperature 1
-        setup.rung_id = 1;
-        setup.inv_temp = 1.0;
-        run_monte_carlo_();
-        ladder.push(setup.inv_temp, posterior.tot_log_lik[0]);
-
-        // symmetrized sum_i DKL between powerpost[i] and [i+1]
-        // equals to sum_i Delta_inv_temp_i * (mean_log_lik[i+1] - mean_log_lik[i])
-        // subdivide interval with the 'worst' contribution
-        while (setup.rung_id < setup.n_rungs)
-        {
-            ++setup.rung_id;
-
-            const auto &itm = ladder.inv_temp;
-            const auto &avg = ladder.mean_log_lik;
-            const auto &var = ladder.var_log_lik;
-
-            size_t k = 0;
-            double worst = -1.;
-            for (size_t i = 0; i + 1 < itm.size(); ++i)
-            {
-                const double s = std::fabs((itm[i + 1] - itm[i]) * (avg[i + 1] - avg[i]));
-                if (s > worst)
-                {
-                    worst = s;
-                    k = i;
-                }
-            }
-
-            // place new inverse temperature within [itm[k], itm[k + 1]]
-            double new_t;
-            if (!std::isfinite(avg[k]) || !std::isfinite(avg[k + 1]) ||
-                !std::isfinite(var[k]) || !std::isfinite(var[k + 1]) ||
-                avg[k + 1] <= avg[k])
-                // midpoint if non-monotone (Monte Carlo error)
-                // or non-finite statistic (e.g. itm = 0)
-                // tangent formula is undefined
-                new_t = 0.5 * (itm[k] + itm[k + 1]);
-            else
-            {
-                // intersection of tangents at interval ends
-                new_t = (avg[k + 1] - itm[k + 1] * var[k + 1] - avg[k] + itm[k] * var[k]) / (var[k] - var[k + 1]);
-                // variance-weighted average if intersection falls outside interval
-                if (new_t <= itm[k] || new_t >= itm[k + 1])
-                    new_t = itm[k] + var[k + 1] * (itm[k + 1] - itm[k]) / (var[k] + var[k + 1]);
-            }
-
-            // power posterior sampling
-            setup.inv_temp = new_t;
-            run_monte_carlo_();
-            ladder.insert(k + 1, setup.inv_temp, posterior.tot_log_lik[0]);
-        }
-    }
-
-    void MCMC::power_post_fractions_(PowerLadder &ladder)
-    {
-        for (setup.rung_id = 1; setup.rung_id <= setup.n_rungs; ++setup.rung_id)
-        {
-            setup.inv_temp = std::pow(static_cast<double>(setup.rung_id) / static_cast<double>(setup.n_rungs), 5.);
-            run_monte_carlo_();
-            ladder.push(setup.inv_temp, posterior.tot_log_lik[0]);
-        }
     }
 }

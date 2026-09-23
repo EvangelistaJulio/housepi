@@ -21,11 +21,7 @@ namespace housepi
     struct Posterior
     {
         using matrix = std::vector<std::vector<double>>;
-        /// NOTE: for simplicity tot_* are matrices of 1 column
-        /// NOTE: tot_log_lik is filled only under power posteriors as the tempered
-        /// transmission + observation; ordinary inference stores the pointwise
         /// house_log_lik = transmission + observation + latent model
-        matrix tot_log_lik;                              // joint tempered log-likelihood
         matrix house_log_lik;                            // pointwise log-likelihood
         matrix param_values;                             // parameter values
         matrix param_priors;                             // single parameter priors
@@ -51,6 +47,5 @@ namespace housepi
 
     private:
         unsigned long sample_size_ = 0; /// Draws of the whole sample
-        bool is_power_post_ = false;    /// Wheter using power posteriors
     };
 }

@@ -56,17 +56,14 @@ namespace housepi
         n_thin = 1;
         n_adapt = 0;
         n_chains = 1;
-        n_rungs = 0;
         progress = 1;
         id_draws.clear();
         house_draws.clear();
         // advanced configuration
         n_adapt_window = 50;
-        inv_temp = 1.;
         time_step = 0.05;
         // derived configuration
         budget = {};
-        rung_id = 0;
         c_sample_size = 0;
     }
 
@@ -127,10 +124,6 @@ namespace housepi
         if (input.count("house_draws") && !input.at("house_draws")[0].empty())
             house_draws = str::unique(read::parse_list(input.at("house_draws")[0]));
 
-        // Inverse temperature for a tempered (power-posterior) sample
-        if (input.count("inv_temp") && !na::is(input.at("inv_temp")[0]))
-            inv_temp = str::tod(input.at("inv_temp")[0], "inv_temp");
-
         // Real-time integration step for simulation
         if (input.count("time_step") && !na::is(input.at("time_step")[0]))
         {
@@ -188,10 +181,6 @@ namespace housepi
 
     void Setup::init_mcmc_configuration(bool is_adaptive)
     {
-        if (inv_temp < 0. || inv_temp > 1.)
-            msg::stop(
-                "Inverse temperature " + std::to_string(inv_temp) + " was outside [0, 1].");
-
         // clip options mistakenly set to 0 has 1
         n_steps = std::max(1ul, n_steps);
         n_chains = std::max(1ul, n_chains);
@@ -225,11 +214,7 @@ namespace housepi
 
     void Setup::prog_set_text(std::string text)
     {
-        if (!na::is(text))
-            ;
-        else if (is_power_post())
-            text = "power post " + std::to_string(rung_id) + "/" + std::to_string(n_rungs);
-        else
+        if (na::is(text))
             text = "sample";
         progressbar_->set_text(text);
     }
@@ -237,11 +222,6 @@ namespace housepi
     {
         prog_set_text();
         progressbar_->open((n_adapt + n_steps) * n_chains, progress);
-    }
-    void Setup::prog_open_for_power_post()
-    {
-        prog_set_text();
-        progressbar_->open((n_adapt + n_steps) * n_chains * (n_rungs + 1), progress);
     }
     void Setup::prog_open_for_simulation()
     {
