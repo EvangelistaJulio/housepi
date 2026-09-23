@@ -43,7 +43,7 @@ helper_format_error <- function(err) {
   if (length(err) == 1) return(err[[1]])
   last <- vapply(err, function(x) utils::tail(strsplit(x, "\n")[[1]], 1),
                  character(1))
-  unused <- stringr::str_starts(last, "Unused|Missing")
+  unused <- grepl("^(Unused|Missing)", last)
   if (any(unused)) err[[which(unused)[[1]]]]
   else if ("func" %in% err) err["func"]
   else err[[1]]

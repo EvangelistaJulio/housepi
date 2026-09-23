@@ -89,7 +89,7 @@ housepi_defin_showcaser <- function(defs) {
   output <- as.data.frame(lapply(defs, showcaser_extract_numeric))
   for (col in colnames(defs)) {
     # find function definition
-    if (isTRUE(any(stringr::str_count(output[[col]], "\\|") > 1))) {
+    if (isTRUE(any(housepi_bar_count(output[[col]]) > 1))) {
       pos <- match(col, names(output))
       # format column with arguments
       # UPDATE: this is not clean at all.

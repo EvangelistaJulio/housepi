@@ -76,7 +76,7 @@ housepi_format_sources <- function(func_args) {
 
   splitted <- strsplit(as.character(func_args), "\\@")
   sapply(splitted, function(x) {
-    ifelse(stringr::str_count(x[1], "\\|"), x[1],
+    ifelse(housepi_bar_count(x[1]), x[1],
            sprintf("%s|%s", x[1], helper_default_source(x[2], x[1])))
   }, USE.NAMES = FALSE)
 }
@@ -173,7 +173,7 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
 
 # Number of '|' separators in an encoded definition.
 housepi_bar_count <- function(x) {
-  if (is.null(x)) 0L else stringr::str_count(x, "\\|")
+  if (is.null(x)) 0L else nchar(x) - nchar(gsub("|", "", x, fixed = TRUE))
 }
 
 # Flag to tell if object is a sourced value (one '|').

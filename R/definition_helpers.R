@@ -87,8 +87,9 @@ housepi_walk_definition <- function(input, type) {
 housepi_resolve_definition <- function(input, dict) {
   hit <- !is.na(input) & grepl("|?", input, fixed = TRUE)
   if (!any(hit)) return(input)
-  input[hit] <- stringr::str_replace_all(
-    input[hit], "[A-Za-z0-9_.]+\\|\\?",
+  terms <- gregexpr("[A-Za-z0-9_.]+\\|\\?", input[hit])
+  regmatches(input[hit], terms) <- lapply(
+    regmatches(input[hit], terms),
     function(terminal) {
       nm <- sub("\\|\\?$", "", terminal)
       src <- unname(dict[nm])
@@ -212,7 +213,7 @@ helper_definition_args <- function(proposal, dots) {
   # find proposal advanced definitions
   mask_prop <- startsWith(nms, "proposal_")
   prop_args <- args[mask_prop]
-  names(prop_args) <- stringr::str_remove(names(prop_args), "^proposal_")
+  names(prop_args) <- sub("^proposal_", "", names(prop_args))
 
   # validate proposal arguments against the chosen family
   if (length(prop_args) > 0) {

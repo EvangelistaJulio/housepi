@@ -1464,7 +1464,7 @@ test_that("Nested definitions works as expected", {
 
   # the S3 method of summarise_draws dispatches on the results
   out_vars <- posterior::summarise_draws(results)[["variable"]]
-  expect_true(all(stringr::str_starts(out_vars, "tommy")))
+  expect_true(all(startsWith(out_vars, "tommy")))
 
   # empirical tests for goodness of Gaussian distribution
   probs <- c(0.025, 0.5, 0.975)

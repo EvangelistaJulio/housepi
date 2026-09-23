@@ -210,14 +210,13 @@ ylabel <- if (nrow(tmp) == 0) risk_id else
 # compare inferred susceptibility group risks
 results |>
   summarise_draws() |>
-  dplyr::filter(stringr::str_starts(variable, prefix)) |>
+  dplyr::filter(startsWith(variable, prefix)) |>
   dplyr::left_join(get_group_risks(hhmodel) |>
                      dplyr::select(param_name, n) |>
                      dplyr::rename(variable = param_name),
                    by = "variable") |>
   dplyr::mutate(
-    variable = stringr::str_remove(variable, "sus_vacc_status") |> 
-      stringr::str_replace_all("_", " ")
+    variable = gsub("_", " ", sub("sus_vacc_status", "", variable))
     ) |> 
   ggplot(aes(x = variable, y = median, label = sprintf("[%s]", n))) +
   geom_hline(yintercept = 1, color = "black") +

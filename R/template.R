@@ -101,7 +101,7 @@ find_closest_template_name <- function(x) {
   flat_options <- spaced_template_choice(options)
   # NOTE: avoid to attempt a suggestion for silly mistakes
   sms <- find_closest_match(flat_choice, flat_options)
-  if (stringr::str_ends(sms, "\\?") && nchar(flat_choice) > 3) return(sms)
+  if (endsWith(sms, "?") && nchar(flat_choice) > 3) return(sms)
   c("Show available templates calling {.fn browse_templates}.")
 }
 
