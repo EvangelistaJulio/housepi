@@ -48,6 +48,14 @@ reference:
   - starts_with("get_")
   - -ends_with("_draws")
 
+- title: "Model templates"
+  desc: >
+    Documentation of built-in models.
+  contents:
+  - template_final_size
+  - template_case_ascertained
+  - template_test
+
 - title: "Inference results"
   desc: >
     Collect and manipulate posterior draws from inference results.
@@ -122,7 +130,6 @@ navbar:
       - intro
       - reference
       - articles
-      - templates
     right:
       - search
       - gitlab
@@ -131,17 +138,6 @@ navbar:
     intro:
       text: "Get started"
       href: articles/housepi.html
-
-    templates:
-      text: "Templates"
-      href: ~
-      menu:
-        - text: "Test"
-          href: reference/template_test.html
-        - text: "Final Size"
-          href: reference/template_final_size.html
-        - text: "Case Ascertained"
-          href: reference/template_case_ascertained.html
 
     gitlab:
       icon: fab fa-gitlab

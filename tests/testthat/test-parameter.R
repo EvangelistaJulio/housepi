@@ -35,8 +35,7 @@ test_that("Default parameter definitions are correct", {
   expect_equal(param$discr, FALSE)
   expect_equal(param$proposal, "rw")
   expect_equal(param$prior, "uniform")
-  ## UPDATE: the default min is not returned, but it happears as NA
-  ## expect_equal(param$min, 0)
+  expect_equal(param$min, 0)
   expect_equal(param$max, 5)
 
   # bulk and single modes definitions should be identical
@@ -286,7 +285,7 @@ test_that("Discretization is enabled as expected", {
     run_inference(steps = 50L, thin = 1L, adapt = 50L, chains = 1L) |>
     suppressWarnings() |>
     get_parameter_draws() |>
-    posterior::as_draws_matrix()
+    draws_to_frame()
   expect_true(all(draws == floor(draws)))
   expect_true(all(draws >= val$min))
   expect_true(all(draws <= val$max))
@@ -489,12 +488,13 @@ test_that("Strict positivity propagates through a shifted prior", {
     expect_error("could not be interpreted as a numeric constant")
   # and the refusal quotes the whole expression it could not fold
   mk_final_size$template |>
-    add_parameter(rho = list(prior = "uniform", min = 1e-3, max = 2e-3),
-                  alpha = list(prior = "uniform", min = -1e-4, max = 1e-4,
-                               loc = rho@P * 2)) |>
+    add_parameter(
+      rho = list(prior = "uniform", min = 1e-3, max = 2e-3),
+      alpha = list(prior = "uniform", min = -1e-4, max = 1e-4, loc = rho@P * 2)
+    ) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
-    expect_error("[Ee]xpression .prod.*could not be interpreted")
+    expect_error("[Ee]xpression .*rho.*could not be interpreted")
 })
 
 test_that("Every prior and function is copied into each chain", {

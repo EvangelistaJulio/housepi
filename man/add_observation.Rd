@@ -42,15 +42,19 @@ observation, depending on \code{level}:
 \item{\code{"member"}}{without a \code{model}, the value computed for every member;
 with a \code{model}, the datum the model is evaluated at, the like-named data
 column when omitted;}
-\item{\code{"house"}}{a reduction over the household's members, one of
-\code{min()}, \code{max()}, \code{sum()} or \code{prod()}, e.g. \code{min(onset_date@D)}.}
+\item{\code{"house"}}{one value for the whole household. The reductions
+\code{min()}, \code{max()}, \code{sum()} and \code{prod()} fold a per-member column over the
+members: their argument is computed for each member, and members with no
+value are left out, e.g. \code{min(onset_date@D) + 21} or
+\code{max(test_date@D - onset_date@D)}. A per-member column read outside a
+reduction is an error.}
 } Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
 definitions the model carries; when two of them share it, the convention
 \code{argument@source} ("argument at source") says which one is meant:
 \describe{
 \item{\verb{@A}}{latent variable;}
-\item{\verb{@D}}{data column;}
+\item{\verb{@D}}{data column or observation;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
 \item{\verb{@P}}{parameter.}
@@ -76,7 +80,7 @@ definitions the model carries; when two of them share it, the convention
 \code{argument@source} ("argument at source") says which one is meant:
 \describe{
 \item{\verb{@A}}{latent variable;}
-\item{\verb{@D}}{data column;}
+\item{\verb{@D}}{data column or observation;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
 \item{\verb{@P}}{parameter.}
@@ -89,7 +93,7 @@ definitions the model carries; when two of them share it, the convention
 \code{argument@source} ("argument at source") says which one is meant:
 \describe{
 \item{\verb{@A}}{latent variable;}
-\item{\verb{@D}}{data column;}
+\item{\verb{@D}}{data column or observation;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
 \item{\verb{@P}}{parameter.}
@@ -120,7 +124,8 @@ it's shared by the whole household, and must reduce to a constant value.
 
 An observation carrying no \code{model} produces its own data column, at either
 level: it is evaluated for every member, and overwrites any data column of
-the same name
+the same name.
+
 There are three mutually exclusive definition modes:
 \describe{
 \item{single}{

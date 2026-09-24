@@ -341,3 +341,36 @@ helper_variable_level <- function(opts, defs) {
   opts$kind <- "house"
   opts
 }
+
+# @description
+# Cast to the household level a deterministic member-level observation that
+# reads household values only: parameters and household observations give
+# every member the same value, one per household. A constant stays put.
+# @param defs `data.frame()`. Definitions with sources resolved.
+# @return `data.frame()`
+helper_cast_house_level <- function(defs) {
+  if (is.null(defs) || !"kind" %in% names(defs)) return(defs)
+  reads <- function(r, src) {
+    unlist(lapply(c("value", "func", "min", "max"), function(col) {
+      housepi_walk_definition(defs[[col]][[r]], src)
+    }))
+  }
+  is_candidate <- function(r) {
+    identical(defs[["kind"]][r], "member") && is.na(defs[["model"]][r]) &&
+      all(is.na(unlist(defs[["status"]][r]))) &&
+      sum(defs[["name"]] == defs[["name"]][r]) == 1 &&
+      length(c(reads(r, "A"), reads(r, "G"), reads(r, "?"))) == 0 &&
+      length(c(reads(r, "D"), reads(r, "P"))) > 0
+  }
+  candidates <- Filter(is_candidate, seq_len(nrow(defs)))
+
+  # a cast row is a household value to the rows reading it
+  repeat {
+    house <- defs[["name"]][defs[["kind"]] == "house"]
+    cast <- Filter(function(r) {
+      defs[["kind"]][r] == "member" && all(reads(r, "D") %in% house)
+    }, candidates)
+    if (length(cast) == 0) return(defs)
+    defs[["kind"]][cast] <- "house"
+  }
+}

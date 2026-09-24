@@ -339,6 +339,14 @@ test_that("Arithmetic kernels have no log surface", {
   arith("max", list(fold), \(x) pmax(x, max(fold)))
 })
 
+test_that("Variadic kernels return NA on an NA operand", {
+  # as in R without na.rm: sum(NA, 3) is NA
+  for (name in c("sum", "prod", "min", "max")) {
+    func <- browse_functions(name, x2 = 3)
+    expect_equal(func$func(c(NA, 2)), c(NA, get(name)(2, 3)))
+  }
+})
+
 #####################################
 ## BROWSE INTERNAL : DISTRIBUTIONS ##
 #####################################

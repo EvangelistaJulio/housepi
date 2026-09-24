@@ -105,7 +105,7 @@ definitions the model carries; when two of them share it, the convention
 `argument@source` (\"argument at source\") says which one is meant:
 \\describe{
   \\item{`@A`}{latent variable;}
-  \\item{`@D`}{data column;}
+  \\item{`@D`}{data column or observation;}
   \\item{`@G`}{group risk;}
   \\item{`@N`}{numeric value (assumed for a number);}
   \\item{`@P`}{parameter.}
@@ -121,8 +121,12 @@ observation, depending on `level`:
   \\item{`\"member\"`}{without a `model`, the value computed for every member;
   with a `model`, the datum the model is evaluated at, the like-named data
   column when omitted;}
-  \\item{`\"house\"`}{a reduction over the household's members, one of
-  `min()`, `max()`, `sum()` or `prod()`, e.g. `min(onset_date@D)`.}
+  \\item{`\"house\"`}{one value for the whole household. The reductions
+  `min()`, `max()`, `sum()` and `prod()` fold a per-member column over the
+  members: their argument is computed for each member, and members with no
+  value are left out, e.g. `min(onset_date@D) + 21` or
+  `max(test_date@D - onset_date@D)`. A per-member column read outside a
+  reduction is an error.}
 }", rd_sources_)
 rd_aug_min_ <- paste(rd_var_min_, rd_sources_)
 rd_aug_max_ <- paste(rd_var_max_, rd_sources_)
@@ -726,9 +730,9 @@ add_latent <- function(hhmodel,
 #' At household level, the observation is a reduction across all members,
 #' it's shared by the whole household, and must reduce to a constant value.
 #'
-#' An observation carrying no `model` produces its own data column, at either
-#' level: it is evaluated for every member, and overwrites any data column of
-#' the same name
+#' An observation carrying no `model` produces its own data column:
+#' it is evaluated for every member, and overwrites data of the same name.
+#'
 #' `r rd_add_modes_`
 #' @details
 #' `r rd_add_details_`

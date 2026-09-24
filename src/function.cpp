@@ -927,6 +927,12 @@ namespace housepi
             if (na::is(name))
                 return nullptr;
 
+            // an operator builds the function it spells
+            if (name == "+")
+                name = "sum";
+            if (name == "*")
+                name = "prod";
+
             for (Kind kind : kinds)
                 if (auto output = instance(kind).create(name, is_prim))
                     return output;
@@ -1226,6 +1232,29 @@ namespace
 
         Attribute &find_arg_(std::string_view key) override final { return find_or_append_arg_(key); }
 
+        /// Fold over x and all arguments: NA-skipping in fold mode, else any NA
+        /// operand makes it NA.
+        template <class Op>
+        double reduce_(double x, Op op) const
+        {
+            switch (eval_mode_)
+            {
+            case Evaluate::Fold:
+                return reduce_na_rm_(x, op);
+            default:
+                if (na::is(x))
+                    return na::DOUBLE;
+                for (const Attribute &attr : arguments_())
+                {
+                    const double v = attr.value();
+                    if (na::is(v))
+                        return na::DOUBLE;
+                    x = op(x, v);
+                }
+                return x;
+            }
+        }
+
         /// NA-skipping fold over x and all arguments.
         /// Returns NA if no non-NA operand is found.
         template <class Op>
@@ -1263,10 +1292,17 @@ namespace
         }
 
         /// Reduce all single constant inside the first constant argument.
-        /// Constant NA arguments are skipped.
+        /// A constant NA argument is skipped in fold mode, else it leaves the call
+        /// unfolded, to return NA.
         template <class Op>
-        void reduce_const_na_rm_(Op op)
+        void reduce_const_(Op op)
         {
+            const auto is_na_const = [](const Attribute &attr)
+            { return attr.is_constant() && attr.is_na(); };
+            if (eval_mode_ != Evaluate::Fold &&
+                (is_na_const(x_arg_) || std::any_of(arguments_().begin(), arguments_().end(), is_na_const)))
+                return;
+
             Attribute *first_const = nullptr;
             if (x_arg_.is_constant() && !x_arg_.is_na())
                 first_const = &x_arg_;
@@ -1309,14 +1345,14 @@ namespace
         void finalize() override                                   \
         {                                                          \
             Function::finalize();                                  \
-            reduce_const_na_rm_(                                   \
+            reduce_const_(                                         \
                 [](double a, double b) { return a symbol b; });    \
         }                                                          \
                                                                    \
     protected:                                                     \
         double raw_function_(double x) const override final        \
         {                                                          \
-            return reduce_na_rm_(                                  \
+            return reduce_(                                        \
                 x, [](double a, double b) { return a symbol b; }); \
         }                                                          \
     };
@@ -1341,14 +1377,14 @@ namespace
         void finalize() override                                           \
         {                                                                  \
             Function::finalize();                                          \
-            reduce_const_na_rm_(                                           \
+            reduce_const_(                                                 \
                 [](double a, double b) { return b symbol a ? b : a; });    \
         }                                                                  \
                                                                            \
     protected:                                                             \
         double raw_function_(double x) const override final                \
         {                                                                  \
-            return reduce_na_rm_(                                          \
+            return reduce_(                                                \
                 x, [](double a, double b) { return b symbol a ? b : a; }); \
         }                                                                  \
     };

@@ -493,7 +493,7 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Names declared under each source, keyed by its sigil letter.
+    # Declared names under each source, keyed by its sigil letter.
     source_sets_ = function() {
       gen <- private$gen_
       live <- !is.null(gen) && !is.null(gen$mcmc_ptr)
@@ -503,25 +503,25 @@ HousepiModel <- R6::R6Class(
 
       defs <- private$augm_$defs
       latent <- character()
-      house_obs <- character()
+      obs <- character()
       if (length(defs) > 0 && "kind" %in% names(defs)) {
         kind <- defs[["kind"]]
-        latent <- defs[["name"]][kind != "house"]
-        house_obs <- defs[["name"]][kind == "house"]
+        latent <- defs[["name"]][kind %in% c("latent", "status")]
+        obs <- defs[["name"]][kind %in% c("member", "house")]
       }
       cols <- character()
       if (live) cols <- setdiff(gen$cols_data_wide, data_reserved_cols)
 
       sets <- list(
-        # a household-level observation has no latent key: house rows are
-        # skipped, so it is only ever a produced column
-        D = c(cols, needs("data_required"), house_obs),
+        # an observation stands for a column, at either level:
+        # datum in inference, generated value in simulation
+        D = c(cols, needs("data_required"), obs),
         G = c(names(private$group_risks_$defs), needs("group_risks_required")),
         P = c(private$param_$defs[["name"]], needs("param_required")),
         A = c(latent, needs("latent_required"))
       )
-      # a member-level observation shadows the like-named column: its read-cell
-      # is wired to the producer, so the producer is not an ambiguity
+      # a latent shadows the like-named column, as a simulated output fed
+      # back as data: the latent is not an ambiguity
       sets$D <- setdiff(sets$D, sets$A)
       lapply(sets, function(nms) {
         nms <- unique(nms)
@@ -558,11 +558,14 @@ HousepiModel <- R6::R6Class(
     # @description
     # Latent definitions with sources and `discr` resolved on demand.
     # Sources come first: a bare read of a data column inherits its
-    # discreteness only once it carries the `D` letter.
+    # discreteness only once it carries the `D` letter, and a member-level
+    # observation reads household values only once its sources are known.
     resolved_latent_ = function() {
       resolve_discr_flags_(
-        resolve_source_types_(private$augm_$defs,
-                              private$source_dictionary_()),
+        helper_cast_house_level(
+          resolve_source_types_(private$augm_$defs,
+                                private$source_dictionary_())
+        ),
         private$gen_$latent_discr_required,
         discr_col_types = private$gen_$discr_data_wide,
         discr_req_cols = private$gen_$data_wide_discr_required
@@ -1184,7 +1187,10 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
 
   gen <- pvt$gen_
   info_wide <- gen$info_data_wide
-  utils::write.csv(pvt$augm_$defs,
+  # the definitions as the engine imports them, with their sources resolved
+  latent_defs <- resolve_status_codes_(pvt$resolved_latent_(),
+                                       pvt$status_dictionary_())
+  utils::write.csv(latent_defs,
                    file.path(outpath, "latent.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(pvt$contact_risks_$expose_to_cpp(info_wide),
@@ -1199,10 +1205,10 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   utils::write.csv(pvt$group_risks_$expose_to_cpp(info_wide, status_codes),
                    file.path(outpath, "group_risks.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(pvt$infec_profile_$defs,
+  utils::write.csv(pvt$resolved_profile_(),
                    file.path(outpath, "infec.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(pvt$effective_param_()$defs,
+  utils::write.csv(pvt$resolved_param_(),
                    file.path(outpath, "param.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(char_setup_input_(hhmodel$setup),

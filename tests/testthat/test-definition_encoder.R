@@ -88,32 +88,37 @@ test_that("Rlang basic identity assignments work as expected", {
 
 test_that("Rlang arithmetic operations work as expected", {
   housepi_extractor(alpha + beta) |>
-    expect_equal("sum|x:x2|[alpha|?]:[beta|?]")
+    expect_equal("+|x:x2|[alpha|?]:[beta|?]")
   housepi_extractor(alpha@P + beta) |>
-    expect_equal("sum|x:x2|[alpha|P]:[beta|?]")
+    expect_equal("+|x:x2|[alpha|P]:[beta|?]")
   housepi_extractor(alpha + beta@P) |>
-    expect_equal("sum|x:x2|[alpha|?]:[beta|P]")
+    expect_equal("+|x:x2|[alpha|?]:[beta|P]")
   housepi_extractor(alpha@P + beta@P) |>
-    expect_equal("sum|x:x2|[alpha|P]:[beta|P]")
+    expect_equal("+|x:x2|[alpha|P]:[beta|P]")
   housepi_extractor((alpha) - (beta)) |>
-    expect_equal("sub|x:x2|[alpha|?]:[beta|?]")
+    expect_equal("+|x:x2|[alpha|?]:[minus|x|[beta|?]]")
   housepi_extractor(alpha * (beta)) |>
-    expect_equal("prod|x:x2|[alpha|?]:[beta|?]")
+    expect_equal("*|x:x2|[alpha|?]:[beta|?]")
   housepi_extractor(alpha * (beta@P)) |>
-    expect_equal("prod|x:x2|[alpha|?]:[beta|P]")
+    expect_equal("*|x:x2|[alpha|?]:[beta|P]")
   housepi_extractor(alpha@P * beta@P) |>
-    expect_equal("prod|x:x2|[alpha|P]:[beta|P]")
+    expect_equal("*|x:x2|[alpha|P]:[beta|P]")
 })
 
-test_that("Variadic sum and prod are flattened", {
+test_that("Operator chains are flattened, explicit reductions are not", {
   housepi_extractor(2 * rho * rho_2 * rho_3) |>
-    expect_equal("prod|x:x2:x3:x4|[2|N]:[rho|?]:[rho_2|?]:[rho_3|?]")
+    expect_equal("*|x:x2:x3:x4|[2|N]:[rho|?]:[rho_2|?]:[rho_3|?]")
   housepi_extractor(a + b + c) |>
-    expect_equal("sum|x:x2:x3|[a|?]:[b|?]:[c|?]")
+    expect_equal("+|x:x2:x3|[a|?]:[b|?]:[c|?]")
   housepi_extractor(a + b + c + d) |>
-    expect_equal("sum|x:x2:x3:x4|[a|?]:[b|?]:[c|?]:[d|?]")
+    expect_equal("+|x:x2:x3:x4|[a|?]:[b|?]:[c|?]:[d|?]")
   housepi_extractor(a + 3 * b * c) |>
-    expect_equal("sum|x:x2|[a|?]:[prod|x:x2:x3|[3|N]:[b|?]:[c|?]]")
+    expect_equal("+|x:x2|[a|?]:[*|x:x2:x3|[3|N]:[b|?]:[c|?]]")
+  # an explicit reduction keeps its arguments as written
+  housepi_extractor(sum(a + b)) |>
+    expect_equal("sum|x|[+|x:x2|[a|?]:[b|?]]")
+  housepi_extractor(prod(a, b * c)) |>
+    expect_equal("prod|x:x2|[a|?]:[*|x:x2|[b|?]:[c|?]]")
 })
 
 test_that("Injected Date literals encode as numeric", {
@@ -128,8 +133,8 @@ test_that("Injected Date literals encode as numeric", {
     expect_equal("27|N")
   # a Date folds to numeric
   housepi_extractor(alpha + !!d_min) |>
-    expect_equal("sum|x:x2|[alpha|?]:[32|N]")
-  
+    expect_equal("+|x:x2|[alpha|?]:[32|N]")
+
   m_date <- new_housepi_model(model = "test") |>
     add_latent("hidden", model = "uniform", min = !!d_min, max = !!d_max)
   m_num <- new_housepi_model(model = "test") |>
@@ -150,7 +155,7 @@ test_that("Unquoted constant calls fold to their numeric value", {
 
   # constant leaves fold even nested inside a symbolic housepi call
   housepi_extractor(rho + as.integer(5.3)) |>
-    expect_equal("sum|x:x2|[rho|?]:[5|N]")
+    expect_equal("+|x:x2|[rho|?]:[5|N]")
 
   # a call over housepi nodes is not evaluable and stays symbolic
   housepi_extractor(floor(rho)) |>
@@ -159,16 +164,15 @@ test_that("Unquoted constant calls fold to their numeric value", {
 
 test_that("Rlang nested expression", {
   housepi_extractor(a + 3 * b) |>
-    expect_equal("sum|x:x2|[a|?]:[prod|x:x2|[3|N]:[b|?]]")
+    expect_equal("+|x:x2|[a|?]:[*|x:x2|[3|N]:[b|?]]")
   housepi_extractor(a + b - c) |>
-    expect_equal("sub|x:x2|[sum|x:x2|[a|?]:[b|?]]:[c|?]")
-  # UPDATE: I still don't know how to flatten differences
+    expect_equal("+|x:x2:x3|[a|?]:[b|?]:[minus|x|[c|?]]")
   housepi_extractor(a - b - c) |>
-    expect_equal("sub|x:x2|[sub|x:x2|[a|?]:[b|?]]:[c|?]")
+    expect_equal("+|x:x2:x3|[a|?]:[minus|x|[b|?]]:[minus|x|[c|?]]")
   housepi_extractor(log(+ alpha@P)) |>
     expect_equal("log|x|[alpha|P]")
   housepi_extractor(log(a * 3 * b)) |>
-    expect_equal("log|x|[prod|x:x2:x3|[a|?]:[3|N]:[b|?]]")
+    expect_equal("log|x|[*|x:x2:x3|[a|?]:[3|N]:[b|?]]")
 })
 
 test_that("Rlang sourced unary drops the quoting backticks", {

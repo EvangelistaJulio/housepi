@@ -224,11 +224,9 @@ test_that("Latent moves preserve log-likelihood", {
   # observation node: the complete-data density, parameter prior aside
   log_lik <- unname(get_log_lik_draws(results)$h1)
   param_draws <- get_parameter_draws(results) |>
-    posterior::as_draws_matrix() |>
-    as.data.frame()
+    draws_to_frame()
   latent_draws <- get_latent_draws(results) |>
-    posterior::as_draws_matrix() |>
-    as.data.frame()
+    draws_to_frame()
   consts <- get_parameters(hhmodel) |>
     subset(const, c("name", "value")) |>
     tidyr::pivot_wider(names_from = "name", values_from = "value") |>

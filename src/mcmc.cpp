@@ -5,6 +5,7 @@
  * See the LICENSE file for details.
  */
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
@@ -76,15 +77,15 @@ namespace housepi
     /////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    const Attribute &Translator::to_attribute(
-        const parse::Entry &node,
-        const Individual *indiv_ptr) const
+    const Attribute &Translator::to_attribute(const parse::Entry &node,
+                                              const Individual *indiv_ptr,
+                                              const Household *house_ptr) const
     {
         storage_ = Attribute(); // reset auxiliary storage to default empty
 
         if (!node.is_terminal())
         {
-            helper_store_read_function_(node, indiv_ptr);
+            helper_store_read_function_(node, indiv_ptr, house_ptr);
         }
         else if (parse::is_numeric(node.type))
         {
@@ -96,6 +97,17 @@ namespace housepi
         }
         else if (!node.is_empty())
         {
+            // a household value reads what holds one value for the whole house
+            if (!indiv_ptr && house_ptr)
+            {
+                if (reads_member_cell_(node))
+                    msg::stop(
+                        "Per-member column " + msg::val(node.value) + " is read outside a reduction.\n" +
+                        "Fold it over the household members with min(), max(), sum() or prod(), e.g. " +
+                        msg::code("max(" + node.value + "@D)") + ".");
+                indiv_ptr = &house_ptr->at(0);
+            }
+
             if (!indiv_ptr)
             {
                 std::string sms = "Individual specific definitions as " + node.err_str() +
@@ -127,12 +139,11 @@ namespace housepi
         return storage_;
     }
 
-    void Translator::helper_store_read_function_(
-        const parse::Entry &node,
-        const Individual *indiv_ptr) const
+    void Translator::helper_store_read_function_(const parse::Entry &node,
+                                                 const Individual *indiv_ptr,
+                                                 const Household *house_ptr) const
     {
-        Attribute parent;
-        parent.init_function(registry::create_function(
+        std::unique_ptr<Function> func = registry::create_function(
             node.func,
             ErrType::Function,
             {registry::Kind::Custom,
@@ -140,23 +151,101 @@ namespace housepi
              registry::Kind::Arithmetic,
              registry::Kind::Continuous,
              registry::Kind::Discrete,
-             registry::Kind::InfecProfile}));
+             registry::Kind::InfecProfile});
+        if (is_house_fold(node, house_ptr))
+            func->set_eval_as_fold();
 
-        for (const auto &child : node.children)
-            parent.init_func_attr(child.key, to_attribute(child, indiv_ptr));
+        Attribute parent;
+        parent.init_function(std::move(func));
+        const bool is_defined = bind_arguments(parent, node, indiv_ptr, house_ptr);
 
-        storage_ = parent;
+        storage_ = Attribute();
+        if (is_defined)
+            storage_ = parent;
+        else
+            storage_.init_numeric(na::DOUBLE);
     }
-    const Attribute &Translator::to_attribute(
-        const std::string &expr,
-        const Individual *indiv_ptr) const
+
+    /// Wheter function is an explicit reduction, folding household members.
+    bool is_reduction_(std::string_view f)
+    {
+        return f == "sum" || f == "prod" || f == "min" || f == "max";
+    }
+
+    bool Translator::reads_member_cell_(const parse::Entry &node) const
+    {
+        if (node.is_terminal())
+            return parse::is_data_wide(node.type) && !augm_.is_house_obs(node.value);
+        // an inner reduction folds its own operands
+        if (is_reduction_(node.func))
+            return false;
+        return reads_member_cell_(node.children);
+    }
+
+    bool Translator::reads_member_cell_(const std::vector<parse::Entry> &nodes) const
+    {
+        return std::any_of(nodes.begin(), nodes.end(),
+                    [this](const parse::Entry &child)
+                    { return reads_member_cell_(child); });
+    }
+
+    bool Translator::is_house_fold(const parse::Entry &node,
+                                   const Household *house_ptr) const
+    {
+        return house_ptr && !node.is_terminal() && is_reduction_(node.func) &&
+               reads_member_cell_(node.children);
+    }
+
+    bool Translator::bind_arguments(Attribute &parent,
+                                    const parse::Entry &node,
+                                    const Individual *indiv_ptr,
+                                    const Household *house_ptr) const
+    {
+        const bool is_fold = is_house_fold(node, house_ptr);
+
+        // operands keep their own key, unless the fold makes the call variadic
+        size_t n_operand = 0;
+        const auto append = [&](const std::string &key, const Attribute &attr)
+        {
+            ++n_operand;
+
+            parent.init_func_attr(!is_fold ? key : n_operand > 1 ? "x" + std::to_string(n_operand)
+                                                                 : "x",
+                                  attr);
+        };
+        // within a household, an operand carrying no value drops out of a fold
+        // and leaves any other call undefined
+        const auto is_valueless = [&](const Attribute &attr)
+        { return house_ptr && attr.is_constant() && attr.is_na(); };
+
+        for (const parse::Entry &child : node.children)
+            if (is_fold && reads_member_cell_(child))
+                for (const Individual &indiv : *house_ptr)
+                {
+                    const Attribute &attr = to_attribute(child, &indiv, house_ptr);
+                    if (!is_valueless(attr))
+                        append(child.key, attr);
+                }
+            else
+            {
+                const Attribute &attr = to_attribute(child, indiv_ptr, house_ptr);
+                if (!is_valueless(attr))
+                    append(child.key, attr);
+                else if (!is_fold)
+                    return false;
+            }
+
+        return !is_fold || n_operand > 0;
+    }
+
+    const Attribute &Translator::to_attribute(const std::string &expr,
+                                              const Individual *indiv_ptr) const
     {
         return to_attribute(parse::Definition(expr).root, indiv_ptr);
     }
 
-    const Attribute &Translator::to_numeric(
-        const parse::Entry &node,
-        const Individual *indiv_ptr) const
+    const Attribute &Translator::to_numeric(const parse::Entry &node,
+                                            const Individual *indiv_ptr) const
     {
         storage_ = to_attribute(node, indiv_ptr);
         if (!storage_.is_empty() && !storage_.is_constant())

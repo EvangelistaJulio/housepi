@@ -38,7 +38,7 @@ definitions the model carries; when two of them share it, the convention
 \code{argument@source} ("argument at source") says which one is meant:
 \describe{
 \item{\verb{@A}}{latent variable;}
-\item{\verb{@D}}{data column;}
+\item{\verb{@D}}{data column or observation;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
 \item{\verb{@P}}{parameter.}
@@ -51,7 +51,7 @@ definitions the model carries; when two of them share it, the convention
 \code{argument@source} ("argument at source") says which one is meant:
 \describe{
 \item{\verb{@A}}{latent variable;}
-\item{\verb{@D}}{data column;}
+\item{\verb{@D}}{data column or observation;}
 \item{\verb{@G}}{group risk;}
 \item{\verb{@N}}{numeric value (assumed for a number);}
 \item{\verb{@P}}{parameter.}

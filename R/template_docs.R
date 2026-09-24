@@ -1,4 +1,10 @@
-# nolint start: line_length_linter.
+## housepi - Epidemiological Analysis of Household Outbreaks.
+##
+## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
+## Distributed under the terms of the GNU General Public License (GPLv3).
+## See the LICENSE file for details.
+##
+
 #' Test
 #'
 #' @description
@@ -139,4 +145,3 @@ NULL
 #' @name template_case_ascertained
 #' @keywords internal
 NULL
-# nolint end

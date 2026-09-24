@@ -583,11 +583,18 @@ namespace housepi
 
         const std::vector<size_t> rows = get_unsorted_definition_rows_(s);
         dpdcy::prod_graph pgraph = build_producer_graph_(rows);
+        assert_producers_declared_(pgraph, err_status);
         dict<size_t> name_to_row; // reverse dictionary name-to-row-index
         for (size_t k : rows)
             name_to_row[deftable_.c_name[k]] = k;
 
-        assert_producers_declared_(pgraph, err_status);
+        // a member observation read as data is drawn before its reader
+        for (size_t k : rows)
+            for (const DefTable_::col *col : deftable_.source_cols())
+                for (const std::string &dstr : parse::Definition((*col)[k]).list_data_wide_producers())
+                    if (dstr != deftable_.c_name[k] && name_to_row.count(dstr) &&
+                        deftable_.c_kind[name_to_row.at(dstr)] == Kind::Member)
+                        pgraph[deftable_.c_name[k]].insert(dstr);
 
         // assert acyclicity and translate order from name to deftable row index
         try
@@ -632,11 +639,13 @@ namespace housepi
         for (const auto &node : pgraph)
             for (const std::string &astr : node.second)
             {
-                if (pgraph.count(astr))
+                // an observation stands for a column
+                const bool is_obs = is_member_obs(astr) || is_house_obs(astr);
+                if (pgraph.count(astr) && !is_obs)
                     continue;
 
                 // declared for another status and report accordingly
-                if (vect::contains(deftable_.c_name, astr))
+                if (!is_obs && vect::contains(deftable_.c_name, astr))
                 {
                     if (status::is_missing(s))
                         msg::stop("No generic latent definition was found for " + msg::val(astr) + ".");
@@ -647,7 +656,7 @@ namespace housepi
 
                 // declared elsewhere and forgot sourcing
                 std::string sms = "Could not find a latent definition for " + msg::val(astr) + ".";
-                if (mcmc_->data_wide().khold().count(astr))
+                if (is_obs || mcmc_->data_wide().khold().count(astr))
                     sms += "\nDid you mean " + msg::code(astr + "@D") + "?";
                 else if (mcmc_->group_risk.khold().count(astr))
                     sms += "\nDid you mean " + msg::code(astr + "@G") + "?";
@@ -1333,9 +1342,10 @@ namespace housepi
             // model support {model,min,max} vs the deterministic value {value,func}.
             // Keep them in sync with source_cols() if that set ever changes.
 
-            // Rule 1: a sampled quantity's model (distribution + support) must not read an
+            // Rule 1: a latent's model (distribution + support) must not read an
             // observation. Its producers may only be parameters and other latents.
-            if (!na::is(deftable_.c_model[k]))
+            // An observation's model may read another observation: it is drawn after it.
+            if (deftable_.c_kind[k] == Kind::Latent && !na::is(deftable_.c_model[k]))
                 for (const std::string *col : {&deftable_.c_model[k],
                                                &deftable_.c_min[k],
                                                &deftable_.c_max[k]})
@@ -1436,20 +1446,27 @@ namespace housepi
             const std::string &value = deftable_.c_value[k];
             parse::Definition parser(has_model || na::is(value) ? deftable_.c_func[k] : value);
 
+            // a household definition binds no member: its per-member cells fold over them
+            const Translator &translator = mcmc_->translator;
+            const Individual *indiv_ptr = kind == Kind::House ? nullptr : &anchor;
+
             // pointer mode: a bare reference points at what it names
             if (parser.is_terminal())
             {
-                var.transfer(mcmc_->translator.to_attribute(parser.root, &anchor));
+                var.transfer(translator.to_attribute(parser.root, indiv_ptr, house));
                 return;
             }
 
             // function mode: compose it once
             const bool is_discr = str::tobool(deftable_.c_discr[k]);
-            var.init_function(registry::create_function(
+            std::unique_ptr<Function> func = registry::create_function(
                 parser.root.func,
                 ErrType::Function,
                 latent_func_kinds(is_discr),
-                str::tobool(deftable_.c_fcumul[k])));
+                str::tobool(deftable_.c_fcumul[k]));
+            if (translator.is_house_fold(parser.root, house))
+                func->set_eval_as_fold();
+            var.init_function(std::move(func));
 
             // a surrogate member-observation materializes a data column for every member:
             // where the cells it reads are empty it has nothing to stand for
@@ -1457,18 +1474,18 @@ namespace housepi
 
             bool is_defined = true;
             if (kind == Kind::House)
-                is_defined = bind_house_reduction_(var, parser.root, *house, anchor);
+                is_defined = translator.bind_arguments(var, parser.root, nullptr, house);
             else
                 for (const parse::Entry &child : parser.root.children)
                 {
-                    const Attribute &attr = mcmc_->translator.to_attribute(child, &anchor);
+                    const Attribute &attr = translator.to_attribute(child, &anchor);
                     if (is_surrogate && attr.is_constant() && attr.is_na())
                     {
                         is_defined = false;
                         break;
                     }
                     var.init_func_attr(child.key, attr);
-                    mcmc_->translator.mark_param_produces_transm_cache(child);
+                    translator.mark_param_produces_transm_cache(child);
                 }
 
             // no operand carries a value: the definition yields NA here
@@ -1479,8 +1496,8 @@ namespace housepi
             }
 
             // domain and reshaping
-            var.init_func_attr("min", mcmc_->translator.to_attribute(deftable_.c_min[k], &anchor));
-            var.init_func_attr("max", mcmc_->translator.to_attribute(deftable_.c_max[k], &anchor));
+            var.init_func_attr("min", translator.to_attribute(deftable_.c_min[k], &anchor));
+            var.init_func_attr("max", translator.to_attribute(deftable_.c_max[k], &anchor));
             var.reshape_function(is_discr);
         }
         catch (const std::exception &e)
@@ -1490,35 +1507,6 @@ namespace housepi
                 std::string(e.what()) + "\nCheck " + var.str() + " for " +
                 (house ? data_wide.str(*house) : data_wide.str(anchor)) + ".");
         }
-    }
-
-    bool Augmented::bind_house_reduction_(Variable &var,
-                                          const parse::Entry &root,
-                                          const Household &house,
-                                          const Individual &anchor)
-    {
-        size_t n_operand = 0;
-        const auto append = [&](const Attribute &attr)
-        {
-            var.init_func_attr(n_operand ? "x" + std::to_string(n_operand) : "x", attr);
-            ++n_operand;
-        };
-
-        for (const parse::Entry &child : root.children)
-            // a per-member data cell unfolds over the house; a household observation is
-            // already one value for the whole house and enters the reduction once
-            if (parse::is_data_wide(child.type) && !is_house_obs(child.value))
-                for (const Individual &indiv : house)
-                {
-                    const Attribute &attr = mcmc_->translator.to_attribute(child, &indiv);
-                    if (attr.is_constant() && attr.is_na())
-                        continue; // an empty cell drops out of the reduction
-                    append(attr);
-                }
-            else
-                append(mcmc_->translator.to_attribute(child, &anchor));
-
-        return n_operand > 0;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

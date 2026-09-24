@@ -236,8 +236,8 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
   # complete_draws renames the pointwise columns to the loo / priorsense
   # convention; their values must be the same pointwise log-likelihood
   expect_same_pointwise <- function(results) {
-    pointwise <- posterior::as_draws_matrix(get_log_lik_draws(results))
-    bundle <- posterior::as_draws_matrix(get_complete_draws(results))
+    pointwise <- draws_to_frame(get_log_lik_draws(results))
+    bundle <- draws_to_frame(get_complete_draws(results))
     ll_cols <- grep("^log_lik\\[", colnames(bundle))
     expect_equal(length(ll_cols), ncol(pointwise))
     expect_equal(unname(bundle[, ll_cols]), unname(pointwise))

@@ -320,34 +320,26 @@ test_that("A copy is deep", {
 
 test_that("Every declared name maps to the source declaring it", {
   # the reserved columns are not addressable as data, the others are
-  expect_equal(dig_(mk_sources$model, "source_dictionary_"),
-               c(datum = "D", record = "D", datum_2 = "D"))
+  mk_sources$model |>
+    dig_("source_dictionary_") |>
+    expect_equal(c(datum = "D", record = "D", datum_2 = "D"))
 
   dict <- mk_sources$model |>
     add_parameter("rho", prior = "gamma", shape = 2, scale = 1) |>
     add_latent("hidden", model = "gamma", shape = 2, scale = 1) |>
-    dig_("source_dictionary_")
-  expect_equal(unname(dict[c("rho", "hidden")]), c("P", "A"))
-
-  # a member-level observation shadows the like-named column: the read-cell is
-  # wired to the producer, so the producer is not an ambiguity
-  dict <- mk_sources$model |>
-    add_latent("hidden", model = "gamma", shape = 2, scale = 1) |>
+    # a latent shadows the like-named column, as a simulated output fed back
+    add_latent("record", model = "gamma", shape = 2, scale = 1) |>
     add_observation("datum_2", model = "normal", mean = hidden@A, sd = 1) |>
+    add_observation("datum_3", level = "house", value = min(datum_2@D)) |>
     dig_("source_dictionary_")
-  expect_equal(unname(dict["datum_2"]), "A")
-
-  # a household-level observation has no latent key: it is only ever a column
-  dict <- mk_sources$model |>
-    add_observation("record_2", level = "house", value = min(datum_2@D)) |>
-    dig_("source_dictionary_")
-  expect_equal(unname(dict["record_2"]), "D")
+  unname(dict[c("rho", "hidden", "record", "datum_2", "datum_3")]) |>
+    expect_equal(c("P", "A", "A", "D", "D"))
 
   # two holders under one name: the marker says no sigil-free read settles it
   dict <- mk_sources$model |>
     add_parameter("datum", prior = "gamma", shape = 2, scale = 1) |>
     dig_("source_dictionary_")
-  expect_equal(unname(dict["datum"]), "")
+  unname(dict["datum"]) |> expect_equal("")
 })
 
 test_that("An unresolved source is reported softly and at the wall", {

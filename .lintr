@@ -2,4 +2,7 @@ linters: linters_with_defaults(
     object_name_linter = object_name_linter(styles = c("snake_case", "CamelCase"))
   )
 encoding: "UTF-8"
-exclusions: list("tests/testthat/_snaps")
+exclusions: list(
+    "tests/testthat/_snaps",
+    "R/template_docs.R" = list(line_length_linter = Inf)
+  )

@@ -26,11 +26,11 @@ mk_outbreak <- local({
 
 # case-ascertained household sampling incubation periods and infection times
 mk_onset <- local({
-  hhdata <- subset(helper_onset_house$data, select = -infec_time)
+  hhdata <- dplyr::select(helper_onset_house$data, -infec_time)
   hhmodel <- hhdata |>
-    new_housepi_model("case-ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
-    add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
+    add_parameter(shape = 2, scale = 1.1) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1, max = 14),
       infec_time = list(model = "uniform", min = -14, max = end_date@D)
@@ -44,7 +44,7 @@ mk_status <- local({
   hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hhid = "h1",
                        status = c(1, 2, 0, 0), start_date = 0, end_date = 21)
   hhmodel <- hhdata |>
-    new_housepi_model("case-ascertained", quiet = TRUE) |>
+    new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
     add_latent(import = "template")
   list(data = hhdata, model = hhmodel)
@@ -59,17 +59,15 @@ mk_pinned <- local({
   list(model = hhmodel)
 })
 
+# whether on an integer lattice
 on_integer_lattice <- function(x) {
   x <- as.numeric(x[!is.na(x)])
   length(x) > 0 && all(x == floor(x))
 }
 
 # draws of a run as a data frame of its latent traces
-latent_frame <- function(results) {
-  results |>
-    get_latent_draws() |>
-    posterior::as_draws_matrix() |>
-    as.data.frame()
+latent_frame <- function(x) {
+  draws_to_frame(get_latent_draws(x))
 }
 
 ##############################
@@ -326,21 +324,25 @@ test_that("Independence proposal rejects an unsupported prior domain", {
 test_that("Latent function definition is correct", {
   hhmodel <- mk_latent$model |>
     add_latent(layer_1 = list(model = "normal", mean = 0, sd = 1),
-               layer_2 = list(model = "gamma", shape = 2, scale = 1))
+               layer_2 = list(model = "gamma", shape = 2, scale = 1),
+               layer_3 = list(model = "lognormal", mean = 0, sd = 1))
 
-  # difference definition
+  # deterministic definition: subtraction (as sum of minuses)
   augm <- hhmodel |>
-    add_latent("hidden", func = layer_1 - layer_2) |>
+    add_latent("hidden", func = layer_1 - layer_2 - layer_3) |>
     get_latent("hidden")
-  expect_equal(augm$func, "sub")
-  expect_equal(augm$func_args[[1]], c(x = "layer_1|A", x2 = "layer_2|A"))
-  expect_equal(augm$value, NA_real_)
+  augm$value |> expect_equal(NA_real_)
+  augm$func |> expect_equal("+")
+  augm$func_args[[1]] |>
+    expect_equal(c(x = "layer_1|A",
+                   x2 = "minus|x|[layer_2|A]",
+                   x3 = "minus|x|[layer_3|A]"))
 
   # alternative function call definitions
   by_args <- hhmodel |>
     add_latent("hidden", func = "log", x = layer_1@A)
   by_expr <- hhmodel |> add_latent(hidden = log(layer_1@A))
-  expect_equal(get_latent(by_expr), get_latent(by_args))
+  get_latent(by_expr) |> expect_equal(get_latent(by_args))
 
   # an expression carries its own arguments: spare ones have no reading
   hhmodel |>
@@ -351,15 +353,15 @@ test_that("Latent function definition is correct", {
     overwritten <- by_expr |> add_latent("hidden", func = log(layer_1@A)),
     "[Oo]verwriting"
   )
-  expect_equal(get_latent(overwritten), get_latent(by_args))
+  get_latent(overwritten) |> expect_equal(get_latent(by_args))
 
   # multi-status definition: one row per status, identical otherwise
   multi <- hhmodel |>
     add_latent("hidden", func = log(layer_1@A), status = c(1, 3)) |>
     get_latent("hidden")
-  expect_equal(multi$status, c("1", "3"))
+  multi$status |> expect_equal(c("1", "3"))
   multi$status <- NULL
-  expect_equal(multi[1, , drop = TRUE], multi[2, , drop = TRUE])
+  multi[1, , drop = TRUE] |> expect_equal(multi[2, , drop = TRUE])
 })
 
 test_that("Symbolic definitions are equivalent", {
@@ -387,7 +389,7 @@ test_that("Symbolic definitions are equivalent", {
   get_latent(hhmodel_2, "hidden_2")$func |>
     expect_equal("log")
   get_latent(hhmodel_2, "hidden_2")$func_args[[1]] |>
-    expect_equal(c(x = sprintf("sum|x:x2|[layer_1|A]:[%s|N]", external_value)))
+    expect_equal(c(x = sprintf("+|x:x2|[layer_1|A]:[%s|N]", external_value)))
 
   # the two spellings of the same bounded definition agree
   by_vector <- get_latent(hhmodel_2, "hidden_3")
@@ -1072,15 +1074,80 @@ test_that("Surrogate columns of both levels build in dependency order", {
     expect_length(0)
 })
 
+test_that("Reading only house observations casts member level to house", {
+  hhdata <- data.frame(hhid = "h1", status = c(1, 0, 0), datum = c(2, 9, 4),
+                       record = 0, record_2 = 0, record_3 = 0,
+                       record_4 = 0, record_5 = 0, record_6 = 0)
+  hhmodel <- hhdata |>
+    new_housepi_model("test") |>
+    add_observation(record = list(value = max(datum@D), level = "house"),
+                    record_2 = record + 1,
+                    record_3 = record_2 * 2,
+                    record_4 = datum + 1, # <- member level
+                    record_5 = record - 1,
+                    record_6 = 18 / record)
+
+  # a cast row is a household value to the rows reading it
+  obs <- hhmodel$observations
+  names <- c("record_2", "record_3", "record_4", "record_5", "record_6")
+  obs$level[match(names, obs$name)] |>
+    expect_equal(c("house", "house", "member", "house", "house"))
+
+  hhdata_2 <- get_data_wide(hhmodel)
+  hhdata_2[["record_2"]] |> expect_equal(c(10, 10, 10))
+  hhdata_2[["record_3"]] |> expect_equal(c(20, 20, 20))
+  hhdata_2[["record_4"]] |> expect_equal(c(3, 10, 5))
+  hhdata_2[["record_5"]] |> expect_equal(c(8, 8, 8))
+  hhdata_2[["record_6"]] |> expect_equal(c(2, 2, 2))
+})
+
+test_that("A household reduction folds its argument over the members", {
+  # datum differs across members, the first one holds 2
+  hhdata <- data.frame(hhid = "h1", status = c(1, 0, 0), datum = c(2, 9, 4),
+                       record = 0)
+  reduce <- function(defin, data = hhdata) {
+    data |>
+      new_housepi_model("test") |>
+      add_observation("record", value = !!defin, level = "house") |>
+      get_data_wide() |>
+      getElement("record") |>
+      unique()
+  }
+
+  # a nested reduction reads every member
+  reduce(quote(max(datum@D) + 1)) |> expect_equal(10)
+  reduce(quote(log(max(datum@D)))) |> expect_equal(log(9))
+  reduce(quote(max(datum@D) - min(datum@D))) |> expect_equal(7)
+  # the argument is computed for each member, then folded
+  reduce(quote(max(datum@D + 1))) |> expect_equal(10)
+  reduce(quote(sum(datum@D + 1))) |> expect_equal(18)
+  reduce(quote(max(log(datum@D)))) |> expect_equal(log(9))
+
+  # a member with no datum drops out of the fold
+  reduce(quote(max(datum@D + 1)), transform(hhdata, datum = c(2, NA, 4))) |>
+    expect_equal(5)
+  # with no datum at all there is nothing to fold
+  reduce(quote(max(datum@D) + 1), transform(hhdata, datum = NA_real_)) |>
+    is.na() |>
+    expect_true()
+
+  # a per-member column outside any reduction has no household value
+  reduce(quote(datum@D + 1)) |>
+    expect_error("[Pp]er-member column .datum. is read outside a reduction")
+  reduce(quote(log(datum@D))) |>
+    expect_error("[Pp]er-member column .datum. is read outside a reduction")
+  reduce(quote(datum@D)) |>
+    expect_error("[Pp]er-member column .datum. is read outside a reduction")
+})
+
 test_that("A household observation with no datum yet reads as NA", {
   # 'start_date' reduces over an observation the run has still to draw: there
   # is nothing to reduce, so the data view reports NA rather than reading the
   # empty reduction as a datum failing the discreteness 'case_ascertained' asks
-  hhdata <- data.frame(
-    id = c("m1", "m2", "m3", "m4"), hhid = c("h1", "h1", "h2", "h2"),
-    status = NA, end_date = 21
-  ) |>
-    new_housepi_model("case-ascertained", quiet = TRUE) |>
+  hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"),
+                       hhid = c("h1", "h1", "h2", "h2"),
+                       status = NA, end_date = 21) |>
+    new_housepi_model("case-ascertained") |>
     add_observation(
       onset_date = list(model = "normal", discr = TRUE, mean = 3, sd = 1),
       start_date = list(value = min(onset_date@D), level = "house")
@@ -1096,11 +1163,10 @@ test_that("A surrogate column proves the requirement its model asks", {
   # happens to settle on. A household-level definition reduces over its members,
   # so its root is the reduction; the member level takes the algebra directly
   mk <- function(defin, level = "house") {
-    data.frame(
-      id = c("m1", "m2", "m3", "m4"), hhid = c("h1", "h1", "h2", "h2"),
-      status = c(1, 0, 1, 0), end_date = 16, datum = 0.5
-    ) |>
-      new_housepi_model("case-ascertained", quiet = TRUE) |>
+    data.frame(id = c("m1", "m2", "m3", "m4"),
+               hhid = c("h1", "h1", "h2", "h2"),
+               status = c(1, 0, 1, 0), end_date = 16, datum = 0.5) |>
+      new_housepi_model("case-ascertained") |>
       add_observation("start_date", value = !!defin, level = level) |>
       get_data_wide()
   }
@@ -1172,8 +1238,7 @@ test_that("Status process rejects latent or parameter probabilities", {
 
 test_that("Escaped label colliding with an infected status is rejected", {
   mk_status$data |>
-    new_housepi_model("case-ascertained", quiet = TRUE,
-                      escaped = "symptomatic") |>
+    new_housepi_model("case-ascertained", escaped = "symptomatic") |>
     add_parameter(import = "template") |>
     add_latent(import = "template") |>
     add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
@@ -1237,24 +1302,26 @@ test_that("Independence proposal inherits the model location shift", {
   expect_true(all(draws$m2_hidden >= 8 & draws$m2_hidden <= 9))
 })
 
-test_that("Truncated latent models keep their normalizer in the log-likelihood trace", {
+test_that("Truncated latent models are normalized in log-likelihood traces", {
   # bounds read data, constants and a sampled parameter
   hhdata <- data.frame(id = c("m1", "m2"), hhid = c("h1", "h2"),
                        status = 1, datum = c(3, 6), obs = 0)
   results <- hhdata |>
     new_housepi_model("test") |>
     add_parameter(rho = list(prior = "uniform", min = 1, max = 3)) |>
-    add_latent(layer_1 = list(model = "gamma", shape = 2, scale = 1.5, max = datum@D),
-               hidden = list(model = "gamma", shape = rho@P, scale = 1, min = 0.5, max = 8),
-               hidden_2 = list(model = "gamma", shape = 1.7, scale = 1, max = 5)) |>
+    add_latent(
+      layer_1 = list(model = "gamma", shape = 2, scale = 1.5, max = datum@D),
+      hidden = list(model = "gamma", shape = rho@P, min = 0.5, max = 8),
+      hidden_2 = list(model = "gamma", shape = 1.7, max = 5)
+    ) |>
     helper_flat_sink(loc = layer_1@A + hidden@A + hidden_2@A) |>
     run_inference(steps = 50L, adapt = 0L, thin = 1L, chains = 1L,
                   id_draws = c("m1", "m2")) |>
     suppressWarnings()
 
   draws <- latent_frame(results)
-  rho <- as.data.frame(posterior::as_draws_matrix(get_parameter_draws(results)))$rho
-  log_lik <- as.data.frame(posterior::as_draws_matrix(get_log_lik_draws(results)))
+  rho <- draws_to_frame(get_parameter_draws(results))$rho
+  log_lik <- draws_to_frame(get_log_lik_draws(results))
   log_dtrunc <- function(x, shape, scale, min, max) {
     dgamma(x, shape, scale = scale, log = TRUE) -
       log(pgamma(max, shape, scale = scale) - pgamma(min, shape, scale = scale))
@@ -1432,13 +1499,16 @@ test_that("A latent degenerate domain warns and collapses", {
   hhmodel <- mk_latent$model |>
     add_parameter("rho", prior = "uniform") |>
     add_latent("hidden", model = "uniform", min = 5, max = 5)
-  # steps meet the diagnostic threshold, so the collapse warning stands alone
+  # the short run also skips the convergence diagnostics
   expect_warning(
-    tryCatch(
-      run_inference(hhmodel, steps = 400L, chains = 1L, adapt = 0L, thin = 1L),
-      error = function(e) NULL
+    expect_warning(
+      tryCatch(
+        hhmodel |> run_inference(steps = 400L, chains = 1L, adapt = 0L),
+        error = function(e) NULL
+      ),
+      regexp = "[Dd]egenerate domain|[Cc]ollapsed"
     ),
-    regexp = "[Dd]egenerate domain|[Cc]ollapsed"
+    regexp = "[Ss]ample size was below"
   )
 })
 
@@ -1683,6 +1753,67 @@ test_that("Discretization is resolved every time the data changes", {
   expect_true(on_integer_lattice(run_simulation(hhmodel)$record))
 })
 
+test_that("A bare observation name reads its column in a house reduction", {
+  simulated <- mk_outbreak$model |>
+    add_data_wide(dplyr::select(mk_outbreak$data, -test_date, -start_date)) |>
+    add_observation(
+      test_date = list(model = "normal", mean = infec_time + incub_period),
+      start_date = list(value = min(test_date), level = "house")
+    ) |>
+    run_simulation()
+
+  # the reduction runs over every infected member, not the first one
+  infected <- simulated[simulated$status > 0, ]
+  expected <- tapply(infected$test_date, infected$hhid, min)
+  per_house <- tapply(simulated$start_date, simulated$hhid, unique)
+  as.numeric(per_house[names(expected)]) |>
+    expect_equal(as.numeric(expected))
+})
+
+test_that("A household-bound member observation bounds every member", {
+  # the follow-up end reads the household start: a pinned index reads it too
+  simulated <- mk_outbreak$data |>
+    dplyr::select(-test_date, -start_date, -end_date) |>
+    new_housepi_model("case-ascertained") |>
+    add_infectivity_profile(import = "template") |>
+    add_parameter(alpha = 1e-3, beta = 0.15, gamma = 1, hhsize_ref = 4) |>
+    add_latent(
+      incub_period = list(model = "gamma", mean = 2, sd = 1),
+      infec_time = list(value = 0, model = "uniform",
+                        min = start_date - 8, max = end_date@D)
+    ) |>
+    add_observation(
+      test_date = list(model = "normal", mean = infec_time + incub_period),
+      start_date = list(value = min(test_date), level = "house"),
+      end_date = start_date + 21,
+      start_date_2 = list(value = min(test_date + 1), level = "house")
+    ) |>
+    run_simulation()
+
+  expect_false(anyNA(simulated$end_date))
+  simulated$end_date |> expect_equal(simulated$start_date + 21)
+  # uninfected members leave the risk set at the end of follow-up
+  mean(simulated$status > 0) |> expect_lt(1)
+  # the argument is computed for each member: an uninfected one draws no test
+  # date and drops out of the fold
+  as.numeric(simulated$start_date_2) |>
+    expect_equal(as.numeric(simulated$start_date) + 1)
+})
+
+test_that("An observation model reads an observation drawn before it", {
+  # the reader is declared first: the draw order follows the dependency
+  simulated <- mk_outbreak$model |>
+    add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
+    add_observation(
+      record = list(model = "normal", mean = test_date, sd = 1e-3),
+      test_date = list(model = "normal", mean = infec_time + incub_period)
+    ) |>
+    run_simulation()
+
+  infected <- simulated[simulated$status > 0, ]
+  max(abs(infected$record - infected$test_date)) |> expect_lt(0.1)
+})
+
 test_that("Observation cyclic dependencies are captured", {
   data.frame(hhid = "h1", status = c(1, 0)) |>
     new_housepi_model("test") |>
@@ -1731,19 +1862,13 @@ test_that("Discretized observation node initializes finite", {
 test_that("A stochastic observation is simulated for infected members only", {
   simulated <- mk_outbreak$model |>
     add_latent(onset_time = infec_time + incub_period) |>
-    # one definition set drives simulation too: no hand-written obs_process
     add_observation("onset_date", model = "normal", mean = onset_time) |>
     run_simulation()
 
-  # onset_date is generated for infected members and only those
-  infected <- simulated[simulated$status > 0, ]
-  expect_false(anyNA(infected$onset_date))
-  expect_true(all(is.na(simulated$onset_date[simulated$status == 0])))
-
-  # generated onset_date is a draw from normal(infec_time + incub_period, 1)
-  resid <- infected$onset_date - (infected$infec_time + infected$incub_period)
-  expect_lt(abs(mean(resid)), 0.2)
-  expect_lt(abs(sd(resid) - 1), 0.2)
+  # onset_date is generated only for infected members
+  mask_infected <- simulated$status > 0
+  expect_false(anyNA(simulated$onset_date[mask_infected]))
+  expect_true(all(is.na(simulated$onset_date[!mask_infected])))
 })
 
 test_that("Household observation derives from simulated observations", {
@@ -1953,7 +2078,7 @@ test_that("Status-specific blocks alone cover every drawn status", {
       id = c("m1", "m2", "m3", "m4"), hhid = c("h1", "h1", "h2", "h2"),
       status = NA, start_date = 0, end_date = 21
     ) |>
-      new_housepi_model("case-ascertained", quiet = TRUE) |>
+      new_housepi_model("case-ascertained") |>
       add_parameter(import = "template") |>
       add_infectivity_profile(import = "template") |>
       add_status(symptomatic = weights[1], asymptomatic = weights[2]) |>

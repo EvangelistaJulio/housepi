@@ -103,9 +103,14 @@ strip_useless_parens <- function(x) {
 # Collect leaf operands by flattening chains of the same binary operator.
 collect_flat_args <- function(node, op) {
   node_args <- lapply(rlang::call_args(node), strip_useless_parens)
+  # NOTE: differences sum minuend with negated subtrahend: a - b = a + (-b)
+  ops <- if (op == "+") c("+", "-") else op
+  if (rlang::call_name(node) == "-") {
+    node_args[[2]] <- rlang::call2("-", node_args[[2]])
+  }
   result <- list()
   for (a in node_args) {
-    if (rlang::is_call(a) && rlang::call_name(a) == op &&
+    if (rlang::is_call(a) && rlang::call_name(a) %in% ops &&
           length(rlang::call_args(a)) == 2) {
       result <- c(result, collect_flat_args(a, op))
     } else {
@@ -137,18 +142,16 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
   args <- lapply(rlang::call_args(call), strip_useless_parens)
 
   # map to function name
+  # NOTE `+` and `*` tell an operator apart from their reduction counterpart
   func_name <- switch(rlang::call_name(call),
-                      `+` = if (length(args) == 1) NA_character_ else "sum",
-                      `-` = if (length(args) == 1) "minus" else "sub",
-                      `*` = "prod",
+                      `+` = if (length(args) == 1) NA_character_ else "+",
+                      `-` = if (length(args) == 1) "minus" else "+",
                       `/` = "div",
                       `^` = "pow",
                       rlang::call_name(call))
 
-  # flatten variadic operators to avoid nested chains
-  if (func_name %in% c("sum", "prod")) {
-    args <- collect_flat_args(call, rlang::call_name(call))
-  }
+  # flatten operator chains to avoid nested calls
+  if (func_name %in% c("+", "*")) args <- collect_flat_args(call, func_name)
 
   # list operands as literals
   func_args <- character()

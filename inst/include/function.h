@@ -335,7 +335,8 @@ namespace housepi
             Function,
             Primitive,
             Probability,
-            Cumulative
+            Cumulative,
+            Fold
         } eval_mode_ = Evaluate::Function;
         enum class Discrete : std::uint8_t
         {
@@ -394,6 +395,8 @@ namespace housepi
         void set_eval_as_pdf() noexcept { eval_mode_ = Evaluate::Probability; }
         /// Select cdf as implicit evaluate.
         void set_eval_as_cdf() noexcept { eval_mode_ = Evaluate::Cumulative; }
+        /// Select an NA-skipping fold, for reductions over household members.
+        void set_eval_as_fold() noexcept { eval_mode_ = Evaluate::Fold; }
 
         /// Set argument value.
         /// UPDATE: just required by AdaptableProposal.
@@ -451,7 +454,7 @@ namespace housepi
                 return pdf(x);
             case Evaluate::Cumulative:
                 return cdf(x);
-            default: // case  Evaluate::Function:
+            default: // cases Evaluate::Function, Evaluate::Fold
                 return function_(delocate_(x));
             }
         }

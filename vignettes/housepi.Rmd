@@ -220,8 +220,7 @@ We load the parameter definitions directly from the model template.
 #| label: load-latent-model
 # load a dataset for the data structure (used later for the simulation)
 community_structure <- sarscov2_2021_icofs |>
-  dplyr::select(id, hhid) |>
-  dplyr::mutate(status = NA, end_date = 21)
+  dplyr::select(id, hhid)
 
 hhmodel <- community_structure |>
   new_housepi_model("case-ascertained") |>
@@ -247,8 +246,10 @@ hhmodel <- hhmodel |>
   add_latent(
     # infection time of primary case
     infec_time = list(
-      value = 0, 
-      model = "uniform", min = start_date@D - 14, max = end_date@D
+      # value used in simulation, eventually overwritten by transmission model
+      value = 0,
+      # latent model used in inference
+      model = "uniform", min = start_date - 14, max = end_date
     ),
     # incubation period for each individual
     incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14),
@@ -261,8 +262,10 @@ hhmodel <- hhmodel |>
       discr = TRUE, model = "normal",
       mean = onset_time, sd = 1, min = floor(onset_time)
     ),
-    # household-level observation of start date is earliest onset date
-    start_date = list(value = min(onset_date@D), level = "house")
+    # followup starts with earliest onset date (house-level observation)
+    start_date = list(value = min(onset_date), level = "house"),
+    # followup ends after 3 weeks after first onset 
+    end_date = start_date + 21
   )
 ```
 

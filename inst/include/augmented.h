@@ -501,19 +501,12 @@ namespace housepi
         /// Assign attributes to latent model.
         void helper_init_distr_attributes_(const Individual &indiv, size_t k);
         /// Build the Variable of definition row 'k' on 'anchor'. Its level selects the
-        /// operand policy: a household row reduces over the members of 'house', any other
-        /// row binds every operand to 'anchor' alone and needs no household.
+        /// operand policy: a household row folds per-member cells over the members of
+        /// 'house' through its reductions, any other row binds every operand to 'anchor'
+        /// alone and needs no household.
         void build_definition_variable_(Variable &var,
                                         size_t k,
                                         const Individual &anchor,
                                         const Household *house);
-        /// Fold a household-level definition into a reduction over 'house': a per-member
-        /// data cell unfolds into one operand each, any other operand contributes once
-        /// from 'anchor'. Empty cells drop out (na.rm convention).
-        /// Return whether the reduction holds any operand.
-        bool bind_house_reduction_(Variable &var,
-                                   const parse::Entry &root,
-                                   const Household &house,
-                                   const Individual &anchor);
     };
 }
