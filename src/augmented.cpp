@@ -1343,7 +1343,7 @@ namespace housepi
                         msg::stop(
                             "Definition collision: the model of " + msg::val(name) +
                             " reads observation " + msg::val(dstr) +
-                            ".\nAn latent model cannot depend on an observed or generated value.");
+                            ".\nA latent model cannot depend on observed or generated values.");
 
             // Rule 2: a deterministic definition may read an observation (a downstream
             // readout) unless it closes a loop, i.e. the observation is also its consumer.

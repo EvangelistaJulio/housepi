@@ -26,7 +26,7 @@ Contact risks model transmission between groups of individuals within a househol
 Unlike group risks, contact risks are pairwise: they scale the person-to-person rate from one member to another.
 By default, risks are absolute, each pair introducing its own parameter.
 If a reference pair is introduced (constant 1), all other contact pairs become relative to it.
-We illustrate the API on the Matsumoto influenza household survey, which reports the final size of `r format(length(unique(flu_2014_matsumoto$hhid)), big.mark = ",")` households together with the family role of each member.
+We illustrate the API on the influenza survey in Matsumoto, which reports final sizes together with the family role of each member.
 To simplify this walkthrough, we regroup members as follows:
 
 ```{r}
@@ -86,8 +86,8 @@ hhmodel |>
 #| include: false
 # count the number of parameters associated to contact risks
 count_ctr <- function(x) length(unique(get_contact_risks(x)$param_name))
-c_diff <- count_ctr(add_contact_risk(hhmodel, "member")) -
-  count_ctr(add_contact_risk(hhmodel, "member", symmetric = FALSE))
+c_diff <- count_ctr(add_contact_risk(hhmodel, "member", symmetric = FALSE)) -
+  count_ctr(add_contact_risk(hhmodel, "member"))
 ```
 
 Dropping symmetry splits every mixed pair in two, leaving the homologous pairs alone, and costing `r c_diff` new parameters to infer.

@@ -273,8 +273,13 @@ test_that("Print behavior works as expected", {
   print(hhmodel) |>
     expect_snapshot()
 
-  # help() dispatches without error in non-interactive mode (emits warning)
-  expect_warning(hhmodel$help())
+  # help() opens the template page, mocked so no pager is spawned
+  called_with <- NULL
+  with_mocked_bindings(
+    open_model_helper_ = function(name) called_with <<- name,
+    code = hhmodel$help()
+  )
+  expect_identical(called_with, "final_size")
 })
 
 test_that("A copy is deep", {

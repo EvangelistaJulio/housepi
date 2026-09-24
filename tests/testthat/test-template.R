@@ -1,5 +1,13 @@
 library(testthat)
 
+# Rd source of a template help page: man/ under load_all, help db when installed
+template_rd <- function(name) {
+  topic <- paste0("template_", name, ".Rd")
+  src <- system.file("man", topic, package = "housepi")
+  if (nzchar(src)) return(paste(readLines(src), collapse = "\n"))
+  paste(as.character(tools::Rd_db("housepi")[[topic]]), collapse = "")
+}
+
 ################################
 ###  TEMPLATE : DEFINITIONS  ###
 ################################
@@ -139,15 +147,13 @@ test_that("browse_templates triggers help preview when path is NA", {
     },
     code = browse_templates("final-size")
   )
-  expect_match(called_with, "final_size$")
+  expect_identical(called_with, "final_size")
 })
 
-test_that("open_model_helper_ errors when info.Rd is missing", {
-  empty_dir <- tempfile("empty_")
-  dir.create(empty_dir)
-  on.exit(unlink(empty_dir, recursive = TRUE), add = TRUE)
-  open_model_helper_(empty_dir) |>
-    expect_error("Impossible to show model description")
+test_that("Every template has a help page", {
+  for (name in list.files(template_models_dir())) {
+    template_rd(name) |> expect_match("\\\\name\\{template_")
+  }
 })
 
 test_that("browse_templates copies template to a new path", {
@@ -159,7 +165,6 @@ test_that("browse_templates copies template to a new path", {
   browse_templates("final-size", path = dest)
   expect_true(file.exists(model_cpp))
   expect_true(file.exists(file.path(dest, "param.R")))
-  expect_true(file.exists(file.path(dest, "info.Rd")))
   # final_size has no latent file: nothing should be copied
   expect_false(file.exists(file.path(dest, "latent.R")))
   shipped <- readLines(model_cpp)
@@ -194,9 +199,7 @@ test_that("Model help pages name the keys the engine registers", {
     cpp <- system.file("models", name, "model.cpp", package = "housepi") |>
       readLines() |>
       paste(collapse = "\n")
-    rd <- system.file("models", name, "info.Rd", package = "housepi") |>
-      readLines() |>
-      paste(collapse = "\n")
+    rd <- template_rd(name)
     # loop over all modules
     for (k in names(modules)) {
       # EMPTY_KEYS declarations match nothing and register no key

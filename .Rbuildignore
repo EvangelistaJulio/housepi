@@ -18,6 +18,7 @@
 ^src/Makevars\.win$
 ^data-raw$
 ^doc$
+^vignettes/articles$
 ^pkgdown$
 ^public$
 ^README\.Rmd$

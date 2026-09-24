@@ -5,7 +5,7 @@ for f in src/model_*.cpp; do
   [ -f "$f" ] || continue
   name=`basename "$f" .cpp | sed 's/^model_//'`
   dir="inst/models/${name}"
-  [ -d "$dir" ] || continue
+  mkdir -p "$dir"
   cp "$f" "${dir}/model.cpp"
 done
 

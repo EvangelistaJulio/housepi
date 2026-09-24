@@ -11,7 +11,7 @@ browse_templates(name = NA_character_, path = NA_character_, replace = FALSE)
 If \code{NA} print the list of available templates (default).}
 
 \item{path}{A \code{character(1)} with the path to where to copy the template scripts.
-If \code{NA} and name is not, print template description in RStudio Help window.}
+If \code{NA} and name is not, open the template help page.}
 
 \item{replace}{\code{logical(1)} to replace previous content of the path.}
 }

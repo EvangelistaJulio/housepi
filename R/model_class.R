@@ -1152,9 +1152,13 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @description
-    #' Show model description in RStudio Help window.
+    #' Open the help page of the template model.
     help = function() {
-      open_model_helper_(private$gen_$source_dir)
+      dir <- get_template_dir(private$gen_$raw_name)
+      if (is.na(dir)) stop_h(
+        "Model {.val {self$name}} is not a template and has no help page."
+      )
+      open_model_helper_(basename(dir))
       invisible(self)
     }
   )

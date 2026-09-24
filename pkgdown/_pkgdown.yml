@@ -110,6 +110,10 @@ articles:
       - infectivity_profiles
       - posterior_predictive_checks
       - user_functions
+  - title: "Gallery"
+    navbar: "Gallery"
+    contents:
+      - articles/gallery
 
 ## Navigation Bar ##
 navbar:

@@ -133,7 +133,6 @@ show_model_names <- function() {
 #' If `NA` returns list of available templates.
 #' @param path
 #' A `character(1)` with the path to where to copy the template scripts.
-#' If `NA` shows template model description in RStudio Help window.
 #'
 #' @keywords internal
 #' @noRd
@@ -147,8 +146,8 @@ copy_template_to_path <- function(name, path) {
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   if (!dir.exists(path)) raise_permissions_error()
 
-  # source cpp and info are always present
-  required <- c("model.cpp", "info.Rd")
+  # source cpp is always present
+  required <- "model.cpp"
   # definition templates are optional
   optional <- unname(template_def_files)
   for (f in c(required, optional)) {
@@ -163,44 +162,14 @@ copy_template_to_path <- function(name, path) {
 #' @title
 #' Open Model Description
 #' @description
-#' Preview the model description in RStudio Help window.
+#' Show the help page of a template model.
 #'
-#' @param choice
-#' A `character(1)` with the path/to/model folder.
+#' @param name
+#' A `character(1)` with the canonical template name.
 #'
 #' @noRd
-open_model_helper_ <- function(path) {
-  # check for info file
-  info_file <- file.path(path, "info.Rd")
-  if (!file.exists(info_file)) stop_h(
-    "Impossible to show model description.",
-    `!` = "No template info available for the given model."
-  )
-
-  # load system + Rdpack macros so \doi and \insertRef{key}{housepi}
-  # resolve against inst/REFERENCES.bib at render time
-  sys_macros <- tools::loadRdMacros(
-    file.path(R.home("share"), "Rd", "macros", "system.Rd")
-  )
-  macros <- tools::loadRdMacros(
-    system.file("help/macros/refmacros.Rd", package = "Rdpack"),
-    sys_macros
-  )
-  rd <- tools::parse_Rd(info_file, macros = macros)
-  stages <- c("build", "install", "render")
-
-  if (requireNamespace("rstudioapi", quietly = TRUE) &&
-        rstudioapi::isAvailable()) {
-    # nocov start
-    tmp <- tempfile(fileext = ".html")
-    tools::Rd2HTML(rd, out = tmp, stages = stages)
-    rstudioapi::viewer(tmp)
-    # nocov end
-  } else if (interactive()) {
-    cat(utils::capture.output(tools::Rd2txt(rd, stages = stages)), sep = "\n")
-  } else {
-    warn_h("Help method not supported in non-interactive mode.")
-  }
+open_model_helper_ <- function(name) {
+  print(utils::help(paste0("template_", name), package = "housepi"))
   invisible()
 }
 
@@ -212,7 +181,7 @@ open_model_helper_ <- function(path) {
 #' If `NA` print the list of available templates (default).
 #' @param path
 #' A `character(1)` with the path to where to copy the template scripts.
-#' If `NA` and name is not, print template description in RStudio Help window.
+#' If `NA` and name is not, open the template help page.
 #' @param replace
 #' `logical(1)` to replace previous content of the path.
 #' @return Invisibly returns `NULL`; called for printing the templates,
@@ -231,7 +200,7 @@ browse_templates <- function(name = NA_character_,
     find_closest_template_name(name)
   )
   # asking for template model description
-  else if (is.na(path)) open_model_helper_(get_template_dir(name))
+  else if (is.na(path)) open_model_helper_(basename(get_template_dir(name)))
   # asking for copying template to folder with model
   else if (file.exists(file.path(path, "model.cpp")) && !replace) warn_h(
     "A model already exists in the specified folder.",

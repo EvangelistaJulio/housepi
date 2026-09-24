@@ -81,12 +81,9 @@ We show how to generate a new instance of such a class with a template model, th
 
 ```{r}
 #| label: load-model
-# import the library housepi
-library(housepi)
-# set general seed
-set.seed(42)
-# set the theme for visualizations
-set_housepi_theme()
+library(housepi)    # import the library
+set.seed(42)        # specify seed for random number generators
+set_housepi_theme() # theme for visualizations
 
 # generate an instance of the final-size model with data
 hhmodel <- new_housepi_model(flu_1918_frederick, "final-size")
@@ -139,11 +136,11 @@ To know more about each model, choose a name from the previous list and run, e.g
 ```{r}
 #| label: model-help
 #| eval: false
-# show model description in RStudio help window
+# open the template help page
 browse_templates("final-size")
 ```
 
-This command will open the relative documentation file in the Help window of your RStudio session.
+This opens the help page of the template, also reachable with `?template_final_size`.
 
 # Associate parameters
 

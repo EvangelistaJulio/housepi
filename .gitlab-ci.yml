@@ -65,7 +65,7 @@ pages:
   script:
     - R -q -e "pak::pkg_install(c('pkgdown', 'rmarkdown'))"
     - R -q -e "pak::local_install()"
-    - Rscript pkgdown/custom_build_site.R
+    - R -q -e "pkgdown::build_site(install = FALSE)"
   artifacts:
     paths:
       - public

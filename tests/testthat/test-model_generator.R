@@ -265,6 +265,9 @@ test_that("Custom models share function registries", {
   hhmodel |>
     add_latent(import = "template") |>
     expect_error("file.*not found")
+  # no help page for custom example
+  hhmodel$help() |>
+    expect_error("not a template")
 
   # Growth_ overrides only raw_function_ and raw_primitive_
   # other raw_ virtuals fall back to raise_undefined_call_err_

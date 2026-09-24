@@ -149,7 +149,7 @@ character/factor.}
 \if{html}{\out{<a id="method-HousepiModel-help"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-help}{}}}
 \subsection{\code{HousepiModel$help()}}{
-  Show model description in RStudio Help window.
+  Open the help page of the template model.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiModel$help()}

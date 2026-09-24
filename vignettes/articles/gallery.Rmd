@@ -1,0 +1,23 @@
+---
+title: "Published applications"
+---
+
+Analyses of household studies run with housepi and published in peer-reviewed articles.
+The code of each analysis lives in its own repository, archived with the version of housepi it was run with.
+
+<!--
+Entry format, one level-2 heading per publication, newest first:
+
+## <Short title>
+
+![](gallery/<slug>.png)
+
+<Authors> (<year>). *<Title>*. <Journal>. <https://doi.org/...>
+
+<One or two sentences: the data, the model, the question answered.>
+
+- Code: <repository URL>, archived at <https://doi.org/...>
+- housepi version: <tag or commit>
+-->
+
+No entries yet.
