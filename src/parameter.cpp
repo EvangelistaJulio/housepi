@@ -9,6 +9,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "tools/dependency.h"
@@ -231,6 +232,167 @@ namespace housepi
         pProp_ = nullptr;
     }
 
+    //////////////////////////////  param::DefTable  //////////////////////////////
+
+    namespace param
+    {
+        DefRow::DefRow(const str_table &input, size_t r)
+            : name(input.at("name")[r]),
+              value(input.at("value")[r]),
+              prior(input.at("prior")[r]),
+              func(input.at("func")[r]),
+              min(input.at("min")[r]),
+              max(input.at("max")[r]),
+              proposal(input.at("proposal")[r]),
+              has_func(!na::is(input.at("func")[r])),
+              is_const(str::tobool(input.at("const")[r])),
+              is_discr(str::tobool(input.at("discr")[r]))
+        {
+            // a function parameter may only read other parameters
+            if (!has_func)
+                return;
+            if (func.consumes_latent())
+                msg::stop(
+                    "Parameter function " + msg::val(name) +
+                    " cannot depend on latent variables.");
+            if (func.consumes_data_wide())
+                msg::stop(
+                    "Parameter function " + msg::val(name) +
+                    " cannot depend on data variables.");
+        }
+
+        void DefTable::build(const str_table &input)
+        {
+            rows.clear();
+            for (size_t r = 0; r < read::csv_n_rows(input); ++r)
+                rows.emplace_back(input, r);
+        }
+
+        std::vector<size_t> DefTable::order() const
+        {
+            dict<size_t> name_to_row;
+            for (size_t k = 0; k < rows.size(); ++k)
+                name_to_row[rows[k].name] = k;
+
+            // producers first when function parameters exist, row order otherwise
+            std::vector<size_t> out;
+            out.reserve(rows.size());
+            if (std::none_of(rows.begin(), rows.end(), [](const DefRow &row)
+                             { return row.has_func; }))
+            {
+                for (const DefRow &row : rows)
+                    out.push_back(name_to_row.at(row.name));
+                return out;
+            }
+
+            dpdcy::prod_graph producer_graph;
+            for (const DefRow &row : rows)
+            {
+                auto &producers = producer_graph[row.name];
+                for (const parse::Definition *col : {&row.func, &row.min, &row.max})
+                    for (const std::string &pstr : col->list_parameter_producers())
+                        producers.insert(pstr);
+            }
+            for (const std::string &pstr : dpdcy::order_producers_first(producer_graph, ErrType::Parameter))
+                out.push_back(name_to_row.at(pstr));
+            return out;
+        }
+    }
+
+    //////////////////////////////  param::Scheme  //////////////////////////////
+
+    namespace param
+    {
+        void Scheme::build(const DefTable &def, const KeyHolder &khold, std::vector<size_t> rows)
+        {
+            order = std::move(rows);
+            constant.clear();
+            func.clear();
+            sample.clear();
+            adaptive.clear();
+            sample_cached.clear();
+
+            for (size_t k : order)
+            {
+                const DefRow &row = def[k];
+                size_t p = khold.from_string(row.name);
+                if (row.has_func)
+                {
+                    constant.push_back(p);
+                    func.push_back(p);
+                }
+                else if (row.is_const)
+                {
+                    constant.push_back(p);
+                }
+                else
+                {
+                    sample.push_back(p);
+                    if (parse::is_adaptive_proposal(row.proposal))
+                        adaptive.push_back(p);
+                }
+            }
+
+            // no parameter feeds the transmission cache until marked
+            sample_standard = sample;
+            // one slot per parameter
+            simulation_values.assign(khold.size(), {});
+        }
+
+        void Scheme::pin(size_t p, std::vector<double> values)
+        {
+            vect::remove(sample, {p});
+            vect::remove(sample_standard, {p});
+            vect::remove(sample_cached, {p});
+            vect::remove(adaptive, {p});
+            if (!vect::contains(constant, p))
+                constant.push_back(p);
+            simulation_values[p] = std::move(values);
+        }
+
+        void Scheme::mark_produces_transm_cache(size_t p)
+        {
+            // register as cached, once
+            if (!vect::contains(sample_cached, p))
+                sample_cached.push_back(p);
+            vect::remove(sample_standard, {p});
+        }
+    }
+
+    //////////////////////////////  param::State  //////////////////////////////
+
+    namespace param
+    {
+        void State::allocate(const KeyHolder &khold)
+        {
+            vec.clear();
+            vec.resize(khold.size());
+            for (size_t p = 0; p < vec.size(); ++p)
+                vec[p].name(khold.as_string(p), ErrType::Parameter);
+        }
+
+        void restart(const Scheme &scheme, State &state, rnd_gen &prng)
+        {
+            for (size_t p : scheme.sample)
+                state.vec[p].restart(prng);
+        }
+
+        void load_sample_values(const Scheme &scheme, State &state, size_t r)
+        {
+            for (size_t p = 0; p < scheme.simulation_values.size(); ++p)
+                if (const std::vector<double> &vec = scheme.simulation_values[p]; !vec.empty())
+                    state.vec[p].set(vec[r]);
+        }
+
+        void finalize(const Scheme &scheme, State &state)
+        {
+            for (size_t p : scheme.constant)
+                state.vec[p].finalize();
+            for (size_t p : scheme.sample)
+                state.vec[p].finalize();
+        }
+    }
+
     //////////////////////////////  Parameter  //////////////////////////////
 
     void Parameter::build(const str_table &input, const Translator &translator)
@@ -240,265 +402,108 @@ namespace housepi
         if (input.empty())
             return;
 
-        // check entries
-        const std::vector<std::string> file_headers = {"name", "value", "const", "discr",
-                                                       "func", "prior", "min", "max",
-                                                       "proposal"};
-        const std::vector<std::string> headers = read::extract_keys(input);
+        def_.build(input);
+        std::vector<size_t> order = def_.order();
 
-        // build the producer graph over parameters and validate function parameters
-        bool has_func_params = false;
-        dict<size_t> name_to_row;
-        for (size_t k = 0; k < input.at("name").size(); ++k)
-        {
-            const std::string &pstr = input.at("name")[k];
-            name_to_row[pstr] = k;
+        // user parameters take keys after model-declared ones, producer first
+        for (size_t k : order)
+            if (!khold_.count(def_[k].name))
+                khold_.add(def_[k].name);
 
-            // validate: a function parameter may only read other parameters
-            if (na::is(input.at("func")[k]))
-                continue;
-
-            has_func_params = true;
-            parse::Definition parser(input.at("func")[k]);
-            if (parser.consumes_latent())
-                msg::stop(
-                    "Parameter function " + msg::val(pstr) +
-                    " cannot depend on latent variables.");
-            if (parser.consumes_data_wide())
-                msg::stop(
-                    "Parameter function " + msg::val(pstr) +
-                    " cannot depend on data variables.");
-        }
-
-        // producers first when function parameters exist, input order otherwise
-        std::vector<std::string> ordered;
-        if (has_func_params)
-        {
-            dpdcy::prod_graph producer_graph;
-            for (size_t k = 0; k < input.at("name").size(); ++k)
-            {
-                auto &producers = producer_graph[input.at("name")[k]];
-                for (const auto col : {"func", "min", "max"})
-                    for (const std::string &pstr : parse::Definition(input.at(col)[k]).list_parameter_producers())
-                        producers.insert(pstr);
-            }
-            ordered = dpdcy::order_producers_first(producer_graph, ErrType::Parameter);
-        }
-        else
-        {
-            ordered = input.at("name");
-        }
-
-        init_param_vec_();
-        clear_lists_();
-        // load producers before consumers
-        for (const std::string &pstr : ordered)
-        {
-            size_t k = name_to_row.at(pstr);
-
-            if (!khold_.count(pstr))
-            {
-                khold_.add(pstr);
-                param_vec_.emplace_back();
-                param_vec_.back().name(pstr, ErrType::Parameter);
-            }
-
-            if (!na::is(input.at("func")[k]))
-                helper_build_function_(input, k, translator);
-            else if (str::tobool(input.at("const")[k]))
-                helper_build_constant_(input, k, translator);
-            else
-                helper_build_to_sample_(input, k, translator);
-
-            // check discreteness and positivity
-            size_t p = khold(pstr);
-            assert_requests(p, at(p));
-        }
-
-        // initialize all parameters to standard, i.e. none feeds transmission cache
-        list_sample_standard = list_sample;
-        for (size_t p : list_sample)
-            if (at(p).is_adaptive())
-                list_adaptive.push_back(p);
-
-        // reserve one slot per parameter
-        simulation_values.assign(khold_.size(), {});
+        scheme_.build(def_, khold_, std::move(order));
+        state.allocate(khold_);
+        bind_(translator);
     }
 
     void Parameter::build_for_predic(const dbl_table &input)
     {
-        const std::vector<std::string> headers = read::extract_keys(input);
-
         // classification from build() is kept: a parameter with no table column is drawn
-        simulation_values.assign(khold_.size(), {});
+        scheme_.simulation_values.assign(khold_.size(), {});
         for (const std::string &pstr : khold_.all())
-        {
-            if (!vect::contains(headers, pstr))
-                continue;
+            if (auto found = input.find(pstr); found != input.end())
+                scheme_.pin(khold(pstr), found->second);
+    }
 
-            size_t p = khold(pstr);
-            switch_to_const_(p);
-            simulation_values[p] = input.at(pstr);
+    void Parameter::bind_(const Translator &translator)
+    {
+        // producers bound before consumers
+        for (size_t k : scheme_.order)
+        {
+            const param::DefRow &row = def_[k];
+            size_t p = khold(row.name);
+            Variable &var = at(p);
+
+            if (row.has_func)
+                bind_function_(var, row, translator);
+            else if (row.is_const)
+                bind_constant_(var, row, translator);
+            else
+                bind_to_sample_(var, row, translator);
+
+            // check discreteness and positivity
+            assert_requests(p, var);
         }
     }
 
-    void Parameter::init_param_vec_()
+    void Parameter::bind_constant_(Variable &var,
+                                   const param::DefRow &row,
+                                   const Translator &translator)
     {
-        size_t n = khold_.size();
-        param_vec_.clear();
-        param_vec_.resize(n);
-        for (size_t p = 0; p < n; ++p)
-            at(p).name(khold(p), ErrType::Parameter);
+        var.transfer(translator.to_numeric(row.value.root));
     }
 
-    void Parameter::clear_lists_()
+    void Parameter::bind_to_sample_(Variable &var,
+                                    const param::DefRow &row,
+                                    const Translator &translator)
     {
-        list_const.clear();
-        list_func.clear();
-        list_sample.clear();
-        list_sample_standard.clear();
-        list_adaptive.clear();
-        list_sample_cached.clear();
-
-        simulation_values.clear();
-    }
-
-    void Parameter::helper_build_constant_(const str_table &input,
-                                           size_t k,
-                                           const Translator &translator)
-    {
-        const std::string &pstr = input.at("name")[k]; // parameter name
-
-        // constant value
-        size_t p = khold(pstr);
-        at(p).transfer(translator.to_numeric(input.at("value")[k]));
-
-        // register as constant
-        list_const.push_back(p);
-    }
-
-    void Parameter::helper_build_to_sample_(const str_table &input,
-                                            size_t k,
-                                            const Translator &translator)
-    {
-        const std::string &pstr = input.at("name")[k]; // parameter name
-
         // initial value
-        size_t p = khold(pstr);
-        Variable &xparam = at(p);
-        xparam.transfer(translator.to_numeric(input.at("value")[k]));
+        var.transfer(translator.to_numeric(row.value.root));
 
-        // prior distribution
-        const bool is_discr = str::tobool(input.at("discr")[k]);
-        parse::Definition parser(input.at("prior")[k]);
-        xparam.init_distr(parser.root.func, is_discr);
+        // prior distribution and its arguments
+        var.init_distr(row.prior.root.func, row.is_discr);
+        for (const auto &child : row.prior.root.children)
+            var.init_distr_attr(child.key, translator.to_numeric(child));
+        // parameter domain
+        var.init_distr_attr("min", translator.to_numeric(row.min.root));
+        var.init_distr_attr("max", translator.to_numeric(row.max.root));
+        var.reshape_distribution(row.is_discr);
 
-        // load prior arguments
-        for (const auto &child : parser.root.children)
-            xparam.init_distr_attr(child.key, translator.to_numeric(child));
-        // load parameter domain
-        for (const auto key : {"min", "max"})
-            xparam.init_distr_attr(key, translator.to_numeric(input.at(key)[k]));
-        xparam.reshape_distribution(is_discr);
-
-        // assign proposal (arguments are folded into the proposal call, if any)
-        parse::Definition prop(input.at("proposal")[k]);
+        // proposal, its arguments folded into the call
         dict<Attribute> prop_args;
-        for (const auto &child : prop.root.children)
+        for (const auto &child : row.proposal.root.children)
             prop_args.emplace(child.key, translator.to_numeric(child));
-        xparam.init_proposal(prop.root.func, prop_args);
-
-        // register as sampled
-        list_sample.push_back(p);
+        var.init_proposal(row.proposal.root.func, prop_args);
     }
 
-    void Parameter::helper_build_function_(const str_table &input,
-                                           size_t k,
-                                           const Translator &translator)
+    void Parameter::bind_function_(Variable &var,
+                                   const param::DefRow &row,
+                                   const Translator &translator)
     {
-        const std::string &pstr = input.at("name")[k];
-        size_t p = khold(pstr);
-        Variable &xparam = at(p);
-
-        parse::Definition parser(input.at("func")[k]);
-
         // pointer mode: a terminal is an alias for another parameter
-        if (parser.is_terminal())
+        if (row.func.is_terminal())
         {
-            xparam.transfer(translator.to_attribute(parser.root));
-            list_const.push_back(p);
-            list_func.push_back(p);
+            var.transfer(translator.to_attribute(row.func.root));
             return;
         }
 
         // function mode
-        xparam.init_function(registry::create_function(
-            parser.root.func,
+        var.init_function(registry::create_function(
+            row.func.root.func,
             ErrType::Function,
             {registry::Kind::Custom,
              registry::Kind::Transcendental,
              registry::Kind::Arithmetic}));
 
         // bind function arguments
-        for (const auto &child : parser.root.children)
-            xparam.init_func_attr(child.key, translator.to_attribute(child));
+        for (const auto &child : row.func.root.children)
+            var.init_func_attr(child.key, translator.to_attribute(child));
 
         // domain
-        for (const auto key : {"min", "max"})
-            xparam.init_func_attr(key, translator.to_attribute(input.at(key)[k]));
+        var.init_func_attr("min", translator.to_attribute(row.min.root));
+        var.init_func_attr("max", translator.to_attribute(row.max.root));
 
         // discretization
-        xparam.reshape_function(str::tobool(input.at("discr")[k]));
-
-        // classify: deterministic, not sampled
-        list_const.push_back(p);
-        list_func.push_back(p);
-    }
-
-    void Parameter::switch_to_const_(size_t p)
-    {
-        vect::remove(list_sample, {p});
-        vect::remove(list_sample_standard, {p});
-        vect::remove(list_sample_cached, {p});
-        vect::remove(list_adaptive, {p});
-        if (!vect::contains(list_const, p))
-            list_const.push_back(p);
-    }
-
-    void Parameter::mark_produces_transm_cache(size_t p)
-    {
-        // register as cached, once
-        if (!vect::contains(list_sample_cached, p))
-            list_sample_cached.push_back(p);
-
-        // drop from the standard list
-        if (!vect::contains(list_sample_standard, p))
-            return;
-        vect::remove(list_sample_standard, {p});
-    }
-
-    void Parameter::restart(rnd_gen &prng)
-    {
-        for (size_t p : list_sample)
-            at(p).restart(prng);
-    }
-
-    void Parameter::finalize()
-    {
-        for (size_t p : list_const)
-            at(p).finalize();
-        for (size_t p : list_sample)
-            at(p).finalize();
-    }
-
-    void Parameter::load_sample_values(size_t r)
-    {
-        for (size_t p = 0; p < khold_.size(); ++p)
-        {
-            const std::vector<double> &vec = simulation_values[p];
-            if (!vec.empty())
-                at(p).set(vec[r]);
-        }
+        var.reshape_function(row.is_discr);
     }
 
     //////////////////////////////  risks::Anchor  //////////////////////////////

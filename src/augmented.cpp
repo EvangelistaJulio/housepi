@@ -915,17 +915,7 @@ namespace housepi
                 scheme_.is_any_sample_ = true;
                 at_(s).sample.emplace_back(a);
 
-                // adaptive only for a random-walk kernel carrying no pinned scale
-                // a user-defined scale, folded into the proposal call, freezes it
-                const parse::Definition &pdef = def_[k].proposal;
-                const std::string &pf = pdef.root.func;
-                bool has_scale = false;
-                for (const parse::Entry &child : pdef.root.children)
-                    if (child.key == "scale")
-                        has_scale = true;
-
-                bool is_random_walk = (pf == "rw" || pf == "rw_log" || pf == "rw_unif");
-                if (is_random_walk && !has_scale)
+                if (parse::is_adaptive_proposal(def_[k].proposal))
                 {
                     scheme_.is_any_adaptive_ = true;
                     at_(s).adaptive.emplace_back(a);

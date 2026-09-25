@@ -276,13 +276,13 @@ namespace housepi
             const Parameter &param,
             unsigned long sample_size)
         {
-            size_t n_sample = param.list_sample.size();
-            size_t n_func = param.list_func.size();
+            size_t n_sample = param.scheme().sample.size();
+            size_t n_func = param.scheme().func.size();
             post->param_values.reserve(n_sample + n_func);
             post->param_priors.reserve(n_sample);
             post->param_names.reserve(n_sample + n_func);
             post->param_prior_names.reserve(n_sample);
-            for (size_t p : param.list_sample)
+            for (size_t p : param.scheme().sample)
             {
                 post->param_values.emplace_back(sample_size, na::DOUBLE);
                 post->param_priors.emplace_back(sample_size, na::DOUBLE);
@@ -290,7 +290,7 @@ namespace housepi
                 post->param_prior_names.push_back("param_lprior_" + param.khold(p));
             }
             // function-derived parameters: value trace only, no prior
-            for (size_t p : param.list_func)
+            for (size_t p : param.scheme().func)
             {
                 post->param_values.emplace_back(sample_size, na::DOUBLE);
                 post->param_names.push_back(param.khold(p));
@@ -454,14 +454,14 @@ namespace housepi
         // parameter values and priors
         const Parameter &param = mcmc.param;
         size_t i = 0;
-        for (size_t p : param.list_sample)
+        for (size_t p : param.scheme().sample)
         {
             const Variable &var = param.at(p);
             param_values[i][col] = var.value();
             param_priors[i++][col] = var.log_pdf();
         }
         // function-derived parameters: store value, no prior
-        for (size_t p : param.list_func)
+        for (size_t p : param.scheme().func)
             param_values[i++][col] = param.at(p).value();
 
         // pointwise household log-likelihood: transmission + observation + latent
@@ -621,7 +621,7 @@ namespace housepi
                 "Nothing to sample.\nCheck your parameter and latent definitions.");
 
         // whether adaptation is required
-        bool is_adaptive = !param.list_adaptive.empty() || augm.scheme().is_any_adaptive();
+        bool is_adaptive = !param.scheme().adaptive.empty() || augm.scheme().is_any_adaptive();
         // initialize setup for mcmc
         setup.init_mcmc_configuration(is_adaptive);
 
@@ -636,7 +636,7 @@ namespace housepi
         augm.restart(setup.prng());  // reset latent
 
         // re-initialize the adaptable proposal of every variable
-        for (size_t p : param.list_adaptive)
+        for (size_t p : param.scheme().adaptive)
             param.at(p).init_proposal();
         if (augm.scheme().is_any_adaptive())
             for (const Household &house : data_wide())
@@ -994,7 +994,7 @@ namespace housepi
             // fraction of the adaptation budget spent, for vanishing adaptation
             const double ratio = static_cast<double>(i) / setup.n_adapt;
 
-            for (size_t p : param.list_adaptive)
+            for (size_t p : param.scheme().adaptive)
                 param.at(p).adapt_proposal(ratio);
             if (augm.scheme().is_any_adaptive())
                 for (const Household &house : data_wide())
@@ -1025,10 +1025,10 @@ namespace housepi
         move_all_latent_<Adapt>();
 
         // move standard model parameters
-        for (size_t p : param.list_sample_standard)
+        for (size_t p : param.scheme().sample_standard)
             move_single_parameter_<Adapt>(p, false);
         // move parameters with cached dependencies
-        for (size_t p : param.list_sample_cached)
+        for (size_t p : param.scheme().sample_cached)
             move_single_parameter_<Adapt>(p, true);
 
         // update progress bar

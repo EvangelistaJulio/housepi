@@ -99,4 +99,17 @@ namespace housepi::parse
         bool consumes_data_wide() const { return !list_data_wide_producers().empty(); }
         bool consumes_parameter() const { return !list_parameter_producers().empty(); }
     };
+
+    /// Whether proposal `prop` adapts its scale: a random walk with no `scale` argument.
+    /// - user-defined scale: frozen.
+    inline bool is_adaptive_proposal(const Definition &prop)
+    {
+        const std::string &pf = prop.root.func;
+        if (pf != "rw" && pf != "rw_log" && pf != "rw_unif")
+            return false;
+        for (const Entry &child : prop.root.children)
+            if (child.key == "scale")
+                return false;
+        return true;
+    }
 }
