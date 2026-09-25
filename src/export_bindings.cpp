@@ -1266,7 +1266,7 @@ namespace
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string(e.what()) + "\nFor household " + msg::val(hhid) + ".");
+            msg::stop(msg::join(e.what(), "for household " + msg::val(hhid)));
         }
     }
 
@@ -1336,8 +1336,7 @@ namespace
                     catch (const std::exception &e)
                     {
                         throw std::runtime_error(
-                            std::string(e.what()) +
-                            "\nFor " + data_wide.str(data_wide.at(H)) + ".");
+                            msg::join(e.what(), "for " + data_wide.str(data_wide.at(H))));
                     }
                 },
                 engine.setup.budget.inner);
@@ -1380,6 +1379,7 @@ namespace
         {
             engine.model->init_model_for_simulation(); // model specific initialization
             engine.augm.init_house_for_simulation();   // build household-level observations
+            data_wide.assert_required_everyone(augm.get_live_cols());
             engine.param.assert_risk_identifiability(engine.group_risk, engine.contact_risk);
 
             // FIXME: latent variables are not built yet here

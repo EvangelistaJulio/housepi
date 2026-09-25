@@ -814,6 +814,7 @@ namespace housepi
         if (khold_.empty())
             return;
 
+        assert_every_member_cols_();
         materialize_surrogate_columns(false);
         init_model_list_();
 
@@ -1180,11 +1181,21 @@ namespace housepi
         return produced_cols;
     }
 
+    std::vector<std::string> Augmented::get_live_cols() const
+    {
+        std::vector<std::string> live_cols = khold(list_obs_member);
+        for (const Surrogate &surr : list_surrogate)
+            if (!surr.is_static)
+                live_cols.push_back(deftable_.c_name[surr.row]);
+        return live_cols;
+    }
+
     void Augmented::init_house_for_simulation()
     {
         DataWide &data_wide = mcmc_->data_wide();
 
         assert_no_live_house_obs_cycle_();
+        assert_every_member_cols_();
         data_wide.reset_readcells(get_produced_cols());
 
         // reserve household-level observations
@@ -1216,12 +1227,24 @@ namespace housepi
         DataWide &data_wide = mcmc_->data_wide();
         const std::string &name = deftable_.c_name[surr.row];
         const size_t d = data_wide.khold(name);
+        const auto build = [&](Variable &var, const Individual &anchor, const Household *hptr)
+        {
+            try
+            {
+                build_definition_variable_(var, surr.row, anchor, hptr);
+            }
+            catch (const std::exception &e)
+            {
+                msg::stop(std::string(e.what()) + "\nCheck " + var.str() + " for " +
+                          (hptr ? data_wide.str(*hptr) : data_wide.str(anchor)) + ".");
+            }
+        };
 
         // household-level
         if (surr.is_house)
         {
             Variable &hvar = house_varia[Index::of(house)][surr.slot];
-            build_definition_variable_(hvar, surr.row, house.at(0), &house);
+            build(hvar, house.at(0), &house);
             if (for_evaluation)
             {
                 assert_surrogate_datum_requests_(d, hvar, data_wide.str(house));
@@ -1237,7 +1260,7 @@ namespace housepi
         for (const Individual &indiv : house)
         {
             Variable &avar = varia_of_(indiv).vec[a];
-            build_definition_variable_(avar, surr.row, indiv, nullptr);
+            build(avar, indiv, nullptr);
             if (for_evaluation)
             {
                 assert_surrogate_datum_requests_(d, avar, data_wide.str(indiv));
@@ -1280,6 +1303,33 @@ namespace housepi
             if (vect::contains(names, dstr))
                 output.push_back(dstr);
         return output;
+    }
+
+    void Augmented::assert_every_member_cols_() const
+    {
+        const DataWide &data_wide = mcmc_->data_wide();
+        for (size_t k = 0; k < deftable_.c_name.size(); ++k)
+        {
+            const std::string &name = deftable_.c_name[k];
+            if (deftable_.c_kind[k] != Kind::Member || 
+                !data_wide.khold().count(name) ||
+                !data_wide.is_required_everyone(data_wide.khold(name)))
+                continue;
+
+            // drawn, or computed from a draw, with the infection of each member
+            bool is_per_infection = !na::is(deftable_.c_model[k]);
+            for (const Surrogate &surr : list_surrogate)
+                if (surr.row == k && !is_own_column(surr))
+                    is_per_infection = true;
+
+            if (is_per_infection)
+                msg::stop(
+                    "Data " + msg::val(name) + " needs a value for every member, escaped ones included.\n" +
+                    msg::alert(str::format(deftable_.c_kind[k]) + " " + msg::val(name) +
+                    " has a value only for infected members.") +
+                    "\nDefine it at household level with " + msg::code("level = \"house\"") +
+                    ", or from data columns only.");
+        }
     }
 
     void Augmented::assert_no_live_house_obs_cycle_() const
@@ -1437,76 +1487,66 @@ namespace housepi
         const std::string &astr = deftable_.c_name[k];
         var.name(astr, kind_to_err_type(kind));
 
-        try
+        // a deterministic definition is driven by its value, anything else by its
+        // function: a value paired with a model is a simulation-only override,
+        // applied before this
+        const bool has_model = !na::is(deftable_.c_model[k]);
+        const std::string &value = deftable_.c_value[k];
+        parse::Definition parser(has_model || na::is(value) ? deftable_.c_func[k] : value);
+
+        // a household definition binds no member: its per-member cells fold over them
+        const Translator &translator = mcmc_->translator;
+        const Individual *indiv_ptr = kind == Kind::House ? nullptr : &anchor;
+
+        // pointer mode: a bare reference points at what it names
+        if (parser.is_terminal())
         {
-            // a deterministic definition is driven by its value, anything else by its
-            // function: a value paired with a model is a simulation-only override,
-            // applied before this
-            const bool has_model = !na::is(deftable_.c_model[k]);
-            const std::string &value = deftable_.c_value[k];
-            parse::Definition parser(has_model || na::is(value) ? deftable_.c_func[k] : value);
+            var.transfer(translator.to_attribute(parser.root, indiv_ptr, house));
+            return;
+        }
 
-            // a household definition binds no member: its per-member cells fold over them
-            const Translator &translator = mcmc_->translator;
-            const Individual *indiv_ptr = kind == Kind::House ? nullptr : &anchor;
+        // function mode: compose it once
+        const bool is_discr = str::tobool(deftable_.c_discr[k]);
+        std::unique_ptr<Function> func = registry::create_function(
+            parser.root.func,
+            ErrType::Function,
+            latent_func_kinds(is_discr),
+            str::tobool(deftable_.c_fcumul[k]));
+        if (translator.is_house_fold(parser.root, house))
+            func->set_eval_as_fold();
+        var.init_function(std::move(func));
 
-            // pointer mode: a bare reference points at what it names
-            if (parser.is_terminal())
+        // a surrogate member-observation materializes a data column for every member:
+        // where the cells it reads are empty it has nothing to stand for
+        const bool is_surrogate = kind == Kind::Member && !has_model;
+
+        bool is_defined = true;
+        if (kind == Kind::House)
+            is_defined = translator.bind_arguments(var, parser.root, nullptr, house);
+        else
+            for (const parse::Entry &child : parser.root.children)
             {
-                var.transfer(translator.to_attribute(parser.root, indiv_ptr, house));
-                return;
-            }
-
-            // function mode: compose it once
-            const bool is_discr = str::tobool(deftable_.c_discr[k]);
-            std::unique_ptr<Function> func = registry::create_function(
-                parser.root.func,
-                ErrType::Function,
-                latent_func_kinds(is_discr),
-                str::tobool(deftable_.c_fcumul[k]));
-            if (translator.is_house_fold(parser.root, house))
-                func->set_eval_as_fold();
-            var.init_function(std::move(func));
-
-            // a surrogate member-observation materializes a data column for every member:
-            // where the cells it reads are empty it has nothing to stand for
-            const bool is_surrogate = kind == Kind::Member && !has_model;
-
-            bool is_defined = true;
-            if (kind == Kind::House)
-                is_defined = translator.bind_arguments(var, parser.root, nullptr, house);
-            else
-                for (const parse::Entry &child : parser.root.children)
+                const Attribute &attr = translator.to_attribute(child, &anchor);
+                if (is_surrogate && attr.is_constant() && attr.is_na())
                 {
-                    const Attribute &attr = translator.to_attribute(child, &anchor);
-                    if (is_surrogate && attr.is_constant() && attr.is_na())
-                    {
-                        is_defined = false;
-                        break;
-                    }
-                    var.init_func_attr(child.key, attr);
-                    translator.mark_param_produces_transm_cache(child);
+                    is_defined = false;
+                    break;
                 }
-
-            // no operand carries a value: the definition yields NA here
-            if (!is_defined)
-            {
-                var.init_numeric(na::DOUBLE);
-                return;
+                var.init_func_attr(child.key, attr);
+                translator.mark_param_produces_transm_cache(child);
             }
 
-            // domain and reshaping
-            var.init_func_attr("min", translator.to_attribute(deftable_.c_min[k], &anchor));
-            var.init_func_attr("max", translator.to_attribute(deftable_.c_max[k], &anchor));
-            var.reshape_function(is_discr);
-        }
-        catch (const std::exception &e)
+        // no operand carries a value: the definition yields NA here
+        if (!is_defined)
         {
-            const DataWide &data_wide = mcmc_->data_wide();
-            msg::stop(
-                std::string(e.what()) + "\nCheck " + var.str() + " for " +
-                (house ? data_wide.str(*house) : data_wide.str(anchor)) + ".");
+            var.init_numeric(na::DOUBLE);
+            return;
         }
+
+        // domain and reshaping
+        var.init_func_attr("min", translator.to_attribute(deftable_.c_min[k], &anchor));
+        var.init_func_attr("max", translator.to_attribute(deftable_.c_max[k], &anchor));
+        var.reshape_function(is_discr);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1577,9 +1617,9 @@ namespace housepi
                 msg::stop(
                     "Cannot infer from " +
                     str::format(deftable_.c_kind[surr.row]) + " " +
-                    msg::val(astr) + ": it must resolve from data alone.\n"
-                                     "A definition reading a latent variable or a parameter is only "
-                                     "meaningful in simulation.");
+                    msg::val(astr) + ": it must resolve from data alone.\n" +
+                    "A definition reading a latent variable or a parameter is only "
+                    "meaningful in simulation.");
             }
 
             for (Household &house : data_wide)
@@ -1705,7 +1745,7 @@ namespace housepi
         {
             msg::stop(
                 std::string(e.what()) +
-                "\nCheck latent " + msg::val(astr) + " for " +
+                "\nCheck " + varia_of_(indiv).vec[a].str() + " for " +
                 mcmc_->data_wide().str(indiv) + " (status " + std::to_string(indiv.status()) + ").");
         }
     }

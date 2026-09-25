@@ -160,6 +160,19 @@ test_that("Wide data can be deferred and attached with add_data_wide", {
   expect_true(is.finite(evaluate_log_lik(hhmodel)))
 })
 
+test_that("Deferred data answers the model requests", {
+  # case-ascertained follow-up dates are requested discrete
+  hhmodel <- new_housepi_model(model = "case-ascertained") |>
+    add_parameter(import = "template") |>
+    add_latent(import = "template") |>
+    add_infectivity_profile(import = "template")
+
+  hhmodel |>
+    add_data_wide(transform(helper_onset_house$data, end_date = 21.5)) |>
+    evaluate_log_lik() |>
+    expect_error("[Dd]ata.*end_date.*not discrete-valued")
+})
+
 test_that("Data without hhid warns on every attach", {
   # no household structure: every row becomes a household of its own
   hhdata <- data.frame(id = c("m1", "m2", "m3"), status = c(1, 0, 1))

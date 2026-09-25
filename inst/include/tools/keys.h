@@ -95,6 +95,13 @@ namespace housepi
         /// Names of the keys requested positive.
         std::vector<std::string> positive_keys() const { return khold(posit_); }
 
+        /// Copy the requests registered on a module over the same keys.
+        void copy_requests(const KeyModuleWithRequests &other)
+        {
+            discr_ = other.discr_;
+            posit_ = other.posit_;
+        }
+
         /// Throw if a definition does not satisfy the requests registred on its key.
         template <class Def>
         void assert_requests(size_t p, const Def &def) const;

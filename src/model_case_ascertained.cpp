@@ -37,6 +37,8 @@ public:
 	{
 		request_data_discrete(
 			{Data::start_date, Data::end_date});
+		request_data_every_member(
+			{Data::start_date, Data::end_date});
 		request_param_positive(
 			{Param::alpha, Param::hhsize_ref});
 		request_risk_identifiability(

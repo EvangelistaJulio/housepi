@@ -1133,11 +1133,11 @@ test_that("A household reduction folds its argument over the members", {
 
   # a per-member column outside any reduction has no household value
   reduce(quote(datum@D + 1)) |>
-    expect_error("[Pp]er-member column .datum. is read outside a reduction")
+    expect_error("[Pp]er-member data .datum. is read outside a reduction")
   reduce(quote(log(datum@D))) |>
-    expect_error("[Pp]er-member column .datum. is read outside a reduction")
+    expect_error("[Pp]er-member data .datum. is read outside a reduction")
   reduce(quote(datum@D)) |>
-    expect_error("[Pp]er-member column .datum. is read outside a reduction")
+    expect_error("[Pp]er-member data .datum. is read outside a reduction")
 })
 
 test_that("A household observation with no datum yet reads as NA", {
@@ -1893,6 +1893,60 @@ test_that("Household observation derives from simulated observations", {
     expect_equal(as.numeric(unlist(per_house)[names(expected)]),
                  as.numeric(expected))
   }
+})
+
+test_that("A household reduction folds a latent over the members", {
+  # the escaped member draws no 'hidden' and drops out of the fold
+  hhmodel <- data.frame(hhid = "h1", status = c(1, 1, 0), datum = c(2, 9, 4)) |>
+    new_housepi_model("test") |>
+    add_latent(hidden = list(model = "normal", mean = 0, sd = 1)) |>
+    add_observation(record = list(model = "normal", mean = hidden, sd = 1))
+
+  results <- hhmodel |>
+    add_observation(record_2 = max(hidden@A), record_3 = sum(hidden@A + 1),
+                    level = "house") |>
+    run_simulation()
+  unique(results$record_2) |>
+    expect_equal(max(results$hidden, na.rm = TRUE))
+  unique(results$record_3) |>
+    expect_equal(sum(results$hidden + 1, na.rm = TRUE))
+
+  # a latent outside any reduction has no household value
+  hhmodel |>
+    add_observation("record_2", value = hidden@A + 0, level = "house") |>
+    run_simulation() |>
+    expect_error("[Pp]er-member latent .hidden. is read outside a reduction")
+})
+
+test_that("A column needed for every member is not drawn with infection", {
+  hhmodel <- mk_outbreak$model |>
+    add_data_wide(dplyr::select(mk_outbreak$data, -end_date)) |>
+    add_latent(onset_time = infec_time + incub_period) |>
+    add_observation("onset_date", model = "normal", mean = onset_time)
+
+  # onset_date has no value for escaped members, nor has what reads it
+  hhmodel |>
+    add_observation(end_date = onset_date + 21) |>
+    run_simulation() |>
+    expect_error("[Dd]ata .end_date. needs a value for every member")
+
+  # a household value covers escaped members too
+  results <- hhmodel |>
+    add_observation(end_date = min(onset_date) + 21, level = "house") |>
+    run_simulation()
+  expect_false(anyNA(results$end_date))
+})
+
+test_that("A model argument reading an empty cell names member and household", {
+  sms <- data.frame(hhid = "h1", status = 1, datum = c(2, NA, 4), record = 0) |>
+    new_housepi_model("test") |>
+    add_observation(record = list(model = "normal", mean = datum@D + 1)) |>
+    run_simulation() |>
+    tryCatch(error = conditionMessage)
+  expect_match(sms, "[Dd]ata .datum. has no value")
+  expect_match(sms, "observation .record. for\\s+individual\\s+.2.")
+  expect_match(sms, ".2.\\s+\\(status\\s+1\\)")
+  expect_match(sms, "\\(status\\s+1\\)\\s+for\\s+household\\s+.h1.")
 })
 
 test_that("Household observations aggregate a data column across members", {

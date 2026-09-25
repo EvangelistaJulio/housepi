@@ -81,7 +81,8 @@ namespace housepi
         void helper_store_read_function_(const parse::Entry &node,
                                          const Individual *indiv_ptr,
                                          const Household *house_ptr) const;
-        /// Whether node reads a per-member data cell outside an inner reduction.
+        /// Whether node reads a per-member value (data cell, latent or group risk)
+        /// outside an inner reduction.
         bool reads_member_cell_(const parse::Entry &node) const;
         bool reads_member_cell_(const std::vector<parse::Entry> &nodes) const;
     };

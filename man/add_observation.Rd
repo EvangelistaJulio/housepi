@@ -43,10 +43,10 @@ observation, depending on \code{level}:
 with a \code{model}, the datum the model is evaluated at, the like-named data
 column when omitted;}
 \item{\code{"house"}}{one value for the whole household. The reductions
-\code{min()}, \code{max()}, \code{sum()} and \code{prod()} fold a per-member column over the
-members: their argument is computed for each member, and members with no
-value are left out, e.g. \code{min(onset_date@D) + 21} or
-\code{max(test_date@D - onset_date@D)}. A per-member column read outside a
+\code{min()}, \code{max()}, \code{sum()} and \code{prod()} fold a per-member value (data column,
+latent or group risk) over the members: their argument is computed for each
+member, and members with no value are left out, e.g. \code{min(onset_date@D) + 21}
+or \code{max(test_date@D - onset_date@D)}. A per-member value read outside a
 reduction is an error.}
 } Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
@@ -122,9 +122,8 @@ no value at all is an error.
 At household level, the observation is a reduction across all members,
 it's shared by the whole household, and must reduce to a constant value.
 
-An observation carrying no \code{model} produces its own data column, at either
-level: it is evaluated for every member, and overwrites any data column of
-the same name.
+An observation carrying no \code{model} produces its own data column:
+it is evaluated for every member, and overwrites data of the same name.
 
 There are three mutually exclusive definition modes:
 \describe{

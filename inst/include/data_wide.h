@@ -178,6 +178,20 @@ namespace housepi
         /// Assert no individual has missing status.
         void assert_no_missing_status() const;
 
+        /// Take the requests registered on 'other', a store over the same keys.
+        void copy_requests(const DataWide &other)
+        {
+            KeyModuleWithRequests::copy_requests(other);
+            request_everyone_ = other.request_everyone_;
+        }
+        /// Request a value for every member, escaped ones included.
+        void request_everyone(std::vector<size_t> vec);
+        /// Whether a key was requested for every member.
+        bool is_required_everyone(size_t d) const noexcept;
+        /// Throw if a column requested for every member has no value for one.
+        /// Columns 'live' take their value during the run and are skipped.
+        void assert_required_everyone(const std::vector<std::string> &live = {}) const;
+
         /// Return maximum number of observed infected household members.
         size_t get_max_hh_cases() const noexcept { return report_hh_size.max_cases.first; }
 
@@ -197,11 +211,12 @@ namespace housepi
             std::vector<Attribute> readcell = {}; /// per-column read-surface (raw or wired)
         };
 
-        dict<size_t> hhid_to_index_ = {};         /// Map house-id to internal index
-        std::vector<IndivWide_> indiv_data_;      /// External storage for individual data
-        std::vector<std::string> indiv_ids_ = {}; /// User individual ids, by individual index
-        std::vector<std::string> hhids_ = {};     /// User house ids, by household index
-        size_t n_imported_ = 0;                   /// Number of columns known at import
+        std::vector<size_t> request_everyone_ = {}; /// Keys requested for every member
+        dict<size_t> hhid_to_index_ = {};           /// Map house-id to internal index
+        std::vector<IndivWide_> indiv_data_;        /// External storage for individual data
+        std::vector<std::string> indiv_ids_ = {};   /// User individual ids, by individual index
+        std::vector<std::string> hhids_ = {};       /// User house ids, by household index
+        size_t n_imported_ = 0;                     /// Number of columns known at import
 
         std::vector<Household> house_vector_ = {};   /// All households in data
         std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood

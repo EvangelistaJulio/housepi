@@ -159,23 +159,22 @@ namespace housepi
         {
             std::string id = std::to_string(i + 1);                      // default id
             std::string hhid = std::to_string(house_vector_.size() + 1); // default hhid
-            StatusLvl status = status::MISSING;
+            StatusLvl status = status::MISSING;                          // default status
+            // individual context for reading errors
+            std::string err_ctx = " for individual in row n." + std::to_string(i + 1);
 
             if (input.count("id"))
             {
                 id = input.at("id")[i]; // user id
                 if (na::is(id))
-                    msg::stop(
-                        "Individual in row n." + std::to_string(i + 1) +
-                        " had missing " + msg::field("id") + ".");
+                    msg::stop("Missing identifier " + msg::field("id") + err_ctx + ".");
+                err_ctx = " for individual " + msg::val(id);
             }
             if (input.count("hhid"))
             {
                 hhid = input.at("hhid")[i]; // user hhid
                 if (na::is(hhid))
-                    msg::stop(
-                        "Individual in row n." + std::to_string(i + 1) +
-                        " had missing " + msg::field("hhid") + ".");
+                    msg::stop("Missing household identifier " + msg::field("hhid") + err_ctx + ".");
             }
             if (input.count("status"))
             {
@@ -185,9 +184,8 @@ namespace housepi
                     const int s = str::toi(input.at("status")[i], "individual status");
                     if (s < 0)
                         msg::stop(
-                            "Individual in row n." + std::to_string(i + 1) +
-                            " had a negative status.\nUse " + msg::val("NA") +
-                            " to declare a missing status.");
+                            "Negative status found " + err_ctx +
+                            "\nUse " + msg::val("NA") + " to declare a missing status.");
                     if (s > status::MAX_INFECTED)
                         msg::stop(
                             "Data exceeded the maximum of " +
@@ -228,8 +226,7 @@ namespace housepi
                 catch (const std::exception &e)
                 {
                     msg::stop(
-                        std::string(e.what()) + "\nCheck " + idata.readcell[d].str() +
-                        " for individual in row n." + std::to_string(i + 1) + ".");
+                        std::string(e.what()) + "\nCheck " + idata.readcell[d].str() + err_ctx + ".");
                 }
             }
 
@@ -641,6 +638,28 @@ namespace housepi
         if (report_indiv.missing > 0)
             msg::stop(
                 "Individual with missing status are incompatible with current model.");
+    }
+
+    void DataWide::request_everyone(std::vector<size_t> vec)
+    {
+        vect::append_unique(request_everyone_, vec);
+    }
+
+    bool DataWide::is_required_everyone(size_t d) const noexcept
+    {
+        return vect::contains(request_everyone_, d);
+    }
+
+    void DataWide::assert_required_everyone(const std::vector<std::string> &live) const
+    {
+        for (size_t d : request_everyone_)
+            if (!vect::contains(live, khold(d)))
+                for (const Household &house : house_vector_)
+                    for (const Individual &indiv : house)
+                        if (na::is(data(d, indiv)))
+                            msg::stop(
+                                "Data " + msg::val(khold(d)) + " has no value for " + str(indiv) + " for " +
+                                str(house) + ".\nThe model request it for every member, escaped ones included.");
     }
 
     void DataWide::recover_all_status() noexcept

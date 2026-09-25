@@ -123,6 +123,8 @@ namespace housepi
 		void request_data_discrete(std::vector<size_t> vec) { mcmc_->data_wide().request_discrete(vec); }
 		/// Request data definition greater than zero.
 		void request_data_positive(std::vector<size_t> vec) { mcmc_->data_wide().request_positive(vec); }
+		/// Request a data value for every member, escaped ones included.
+		void request_data_every_member(std::vector<size_t> vec) { mcmc_->data_wide().request_everyone(vec); }
 
 		/// Throw an exception if at least a member as missing status.
 		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }

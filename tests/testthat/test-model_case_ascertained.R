@@ -177,6 +177,27 @@ test_that("Sentinel against a reversed follow-up window throws error", {
     expect_error("negative follow-up period")
 })
 
+test_that("Sentinel against a member missing a follow-up date throws error", {
+  hhmodel <- new_housepi_model(model = "case-ascertained") |>
+    add_parameter(import = "template") |>
+    add_latent(infec_time = infec_time@D) |>
+    add_infectivity_profile(import = "template")
+
+  # escaped members without end_date throw
+  hhmodel |>
+    add_data_wide(transform(mk_house$data, end_date = c(rep(21, 6), NA))) |>
+    evaluate_log_lik() |>
+    expect_error("[Dd]ata .end_date. has no value for individual .m7.")
+
+  # end_date computed from member observations have no value for escaped members
+  hhmodel |>
+    add_data_wide(dplyr::select(mk_house$data, -end_date)) |>
+    add_observation(onset_date = list(model = "normal", mean = infec_time),
+                    end_date = onset_date + 21) |>
+    evaluate_log_lik() |>
+    expect_error("[Dd]ata.*end_date. needs a value for every member")
+})
+
 test_that("Log-likelihood of case ascertained model is correct", {
   house <- mk_house$data[c("id", "hhid", "status", "infec_time",
                            "start_date", "end_date")]

@@ -28,4 +28,6 @@ helper_onset_house <- list(
 )
 
 # convert draws to data.frame
-draws_to_frame <- function(x) { as.data.frame(posterior::as_draws_matrix(x)) }
+draws_to_frame <- function(x) {
+  as.data.frame(posterior::as_draws_matrix(x))
+}

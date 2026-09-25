@@ -188,6 +188,9 @@ namespace housepi
         /// NOTE: run-scoped, an import drops the optional keys of the previous one.
         std::vector<std::string> get_produced_cols();
 
+        /// Columns drawn, or computed from a draw, during a simulation.
+        std::vector<std::string> get_live_cols() const;
+
         /// Export column name of a surrogate column.
         const std::string &surrogate_name(const Surrogate &surr) const { return deftable_.c_name[surr.row]; }
         /// Whether a surrogate column is produced as a column of its own, rather than
@@ -479,6 +482,9 @@ namespace housepi
         /// Reject a latent variable that reads a live data-bound household observation.
         /// NOTE: This function is only ever reached while simulating.
         void assert_no_live_house_obs_cycle_() const;
+        /// Reject a member observation standing for a column the model needs for every
+        /// member, when it has a value only for infected members.
+        void assert_every_member_cols_() const;
         /// Reject a definition whose model reads an observation column.
         void assert_no_obs_entry_collision_() const;
         /// The column a definition resolves through in simulation: its value when it

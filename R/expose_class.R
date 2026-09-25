@@ -122,10 +122,10 @@ observation, depending on `level`:
   with a `model`, the datum the model is evaluated at, the like-named data
   column when omitted;}
   \\item{`\"house\"`}{one value for the whole household. The reductions
-  `min()`, `max()`, `sum()` and `prod()` fold a per-member column over the
-  members: their argument is computed for each member, and members with no
-  value are left out, e.g. `min(onset_date@D) + 21` or
-  `max(test_date@D - onset_date@D)`. A per-member column read outside a
+  `min()`, `max()`, `sum()` and `prod()` fold a per-member value (data column,
+  latent or group risk) over the members: their argument is computed for each
+  member, and members with no value are left out, e.g. `min(onset_date@D) + 21`
+  or `max(test_date@D - onset_date@D)`. A per-member value read outside a
   reduction is an error.}
 }", rd_sources_)
 rd_aug_min_ <- paste(rd_var_min_, rd_sources_)

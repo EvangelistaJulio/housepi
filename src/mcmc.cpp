@@ -102,9 +102,9 @@ namespace housepi
             {
                 if (reads_member_cell_(node))
                     msg::stop(
-                        "Per-member column " + msg::val(node.value) + " is read outside a reduction.\n" +
+                        "Per-member " + node.err_str() + " is read outside a reduction.\n" +
                         "Fold it over the household members with min(), max(), sum() or prod(), e.g. " +
-                        msg::code("max(" + node.value + "@D)") + ".");
+                        msg::code("max(" + node.value + "@" + node.type + ")") + ".");
                 indiv_ptr = &house_ptr->at(0);
             }
 
@@ -175,7 +175,9 @@ namespace housepi
     bool Translator::reads_member_cell_(const parse::Entry &node) const
     {
         if (node.is_terminal())
-            return parse::is_data_wide(node.type) && !augm_.is_house_obs(node.value);
+            return (parse::is_data_wide(node.type) && !augm_.is_house_obs(node.value)) ||
+                   parse::is_latent(node.type) ||
+                   parse::is_group_risk(node.type);
         // an inner reduction folds its own operands
         if (is_reduction_(node.func))
             return false;
@@ -185,8 +187,8 @@ namespace housepi
     bool Translator::reads_member_cell_(const std::vector<parse::Entry> &nodes) const
     {
         return std::any_of(nodes.begin(), nodes.end(),
-                    [this](const parse::Entry &child)
-                    { return reads_member_cell_(child); });
+                           [this](const parse::Entry &child)
+                           { return reads_member_cell_(child); });
     }
 
     bool Translator::is_house_fold(const parse::Entry &node,
@@ -727,6 +729,7 @@ namespace housepi
             return;
         auto new_ds = std::make_shared<DataStore>();
         new_ds->data_wide.init_key_holder(model->key_Data());
+        new_ds->data_wide.copy_requests(data_wide()); // model requests outlive the data
         new_ds->data_wide.init_cache_key_holders(
             model->key_HHmember(),
             model->key_HHmembervec(),
@@ -779,6 +782,7 @@ namespace housepi
         // materialize surrogate data columns before anything reads the data store
         data_wide.reset_readcells(augm.get_produced_cols());
         augm.init_for_evaluation();
+        data_wide.assert_required_everyone();
         data_wide.init_eq_classes(augm.is_unique_eq_class());
         data_wide.allocate_all_cache();
         data_wide.allocate_transm_log_lik();

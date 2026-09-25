@@ -805,6 +805,10 @@ namespace housepi
 
     void Function::init_attr(std::string_view key, const Attribute &attr)
     {
+        if (attr.is_constant() && attr.is_na())
+            msg::stop(attr.str() + " has no value to pass as argument " +
+                      msg::arg(std::string(key)) + " of " + str() + ".");
+
         // assert that function attribute are implicitely callable
         try
         {
@@ -841,7 +845,7 @@ namespace housepi
         else if (attr.is_constant())
         {
             double x = attr.value();
-            if (attr.is_na() || (key == "x" && !is_valid(x)))
+            if (key == "x" && !is_valid(x))
                 msg::stop(
                     "Value " + str::format(x) + " for argument " + msg::arg(std::string(key)) +
                     " is outside of domain " + domain_.str() + ".");

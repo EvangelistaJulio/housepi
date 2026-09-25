@@ -90,6 +90,9 @@ NULL
 #' - \code{start_date} : first day of follow-up of the member
 #' - \code{end_date} \eqn{t_\mathrm{end}}{t_end} : last day of follow-up of the member, included
 #'
+#' Both need a value for every member, escaped ones included.
+#' An observation standing for them is defined at household level, or from data columns only.
+#'
 #' @section Parameters:
 #' - \code{alpha} \eqn{\alpha}{alpha} : baseline community instantaneous transmission risk
 #' - \code{beta} \eqn{\beta}{beta} : baseline person-to-person instantaneous transmission rate
