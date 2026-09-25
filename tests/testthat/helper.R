@@ -1,7 +1,7 @@
 # Helper to test read-only active fields.
 helper_test_read_only <- function(obj, ...) {
   for (f in list(...)) {
-    testthat::expect_error(obj[[f]] <- NULL, regexp = "read only")
+    (obj[[f]] <- NULL) |> testthat::expect_error(regexp = "read only")
   }
 }
 
@@ -26,6 +26,24 @@ helper_onset_house <- list(
   param = list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
                hhsize_ref = 4, shape = 2, scale = 1.1)
 )
+
+# Expect every element to be missing, or none of them; an empty vector passes.
+# The failure names the offending positions.
+expect_all_na <- function(object) {
+  expect_na_share_(testthat::quasi_label(rlang::enquo(object)), TRUE)
+}
+expect_no_na <- function(object) {
+  expect_na_share_(testthat::quasi_label(rlang::enquo(object)), FALSE)
+}
+expect_na_share_ <- function(act, missing) {
+  off <- which(is.na(act$val) != missing)
+  testthat::expect(length(off) == 0, sprintf(
+    "Expected %s to be %s.\nOffending position(s): %s", act$lab,
+    if (missing) "all missing" else "free of missing values",
+    paste(utils::head(off, 10), collapse = ", ")
+  ))
+  invisible(act$val)
+}
 
 # convert draws to data.frame
 draws_to_frame <- function(x) {

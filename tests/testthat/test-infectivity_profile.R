@@ -69,12 +69,12 @@ test_that("Infectivity profile definitions are correct", {
                             min = 2, max = 10) |>
     get_infectivity_profiles()
 
-  expect_equal(defs$func, "gamma")
-  expect_equal(defs$func_args[[1]], c(shape = 1, scale = 2))
-  expect_equal(defs$status, NA_real_)
-  expect_equal(defs$discr, FALSE)
-  expect_equal(defs$min, 2)
-  expect_equal(defs$max, 10)
+  defs$func |> expect_identical("gamma")
+  defs$func_args[[1]] |> expect_equal(c(shape = 1, scale = 2))
+  defs$status |> expect_equal(NA_real_)
+  defs$discr |> expect_identical(FALSE)
+  defs$min |> expect_equal(2)
+  defs$max |> expect_equal(10)
 
   # bulk form
   ## UPDATE: the bulk form names a definition only to discard the name: a
@@ -83,7 +83,7 @@ test_that("Infectivity profile definitions are correct", {
     add_infectivity_profile(profile = list(func = "lognormal")) |>
     get_infectivity_profiles() |>
     getElement("func") |>
-    expect_equal("lognormal")
+    expect_identical("lognormal")
 })
 
 test_that("Template import loads the profile shipped with the model", {
@@ -91,9 +91,9 @@ test_that("Template import loads the profile shipped with the model", {
     add_infectivity_profile(import = "template") |>
     get_infectivity_profiles()
 
-  expect_equal(defs$func, "gamma")
-  expect_equal(defs$func_args[[1]], c(mean = 4, sd = 1.7))
-  expect_equal(defs$discr, FALSE)
+  defs$func |> expect_identical("gamma")
+  defs$func_args[[1]] |> expect_equal(c(mean = 4, sd = 1.7))
+  defs$discr |> expect_identical(FALSE)
 })
 
 test_that("Status-specific definitions replace the generic one", {
@@ -110,17 +110,17 @@ test_that("Status-specific definitions replace the generic one", {
     ) |>
     get_infectivity_profiles()
 
-  expect_equal(defs$func, c("lognormal", "ferretti20", "uniform"))
-  expect_equal(defs$func_args[[2]],
-               c(incub_period = 5, shape = 5.85, scale = 1.85,
-                 c_loc = -4, mean_incub = 5.42))
-  expect_equal(defs$status, c(1, 2, NA_real_))
+  defs$func |> expect_identical(c("lognormal", "ferretti20", "uniform"))
+  defs$func_args[[2]] |>
+    expect_equal(c(incub_period = 5, shape = 5.85, scale = 1.85,
+                   c_loc = -4, mean_incub = 5.42))
+  defs$status |> expect_equal(c(1, 2, NA_real_))
 
   # one call over several statuses fills the defaults of every row it appends
   defs <- mk_infec$model |>
     add_infectivity_profile("gamma", shape = 2, status = c(1, 2)) |>
     get_infectivity_profiles()
-  expect_equal(defs$func_args, rep(list(c(shape = 2, scale = 1)), 2))
+  defs$func_args |> expect_equal(rep(list(c(shape = 2, scale = 1)), 2))
 })
 
 test_that("Spurious names of imported definitions are dropped", {
@@ -137,18 +137,18 @@ test_that("Spurious names of imported definitions are dropped", {
     get_infectivity_profiles()
 
   defs$status <- NULL
-  expect_equal(nrow(unique(defs)), 1)
+  nrow(unique(defs)) |> expect_identical(1L)
 })
 
 test_that("A new profile overwrites the previous one", {
   hhmodel <- mk_infec$model |>
     add_infectivity_profile(func = "gamma", shape = 2, scale = 1)
-  expect_equal(hhmodel$infectivity_profiles$func, "gamma")
+  hhmodel$infectivity_profiles$func |> expect_identical("gamma")
   expect_warning(
     hhmodel <- add_infectivity_profile(hhmodel, func = "lognormal"),
     regexp = "Overwriting"
   )
-  expect_equal(hhmodel$infectivity_profiles$func, "lognormal")
+  hhmodel$infectivity_profiles$func |> expect_identical("lognormal")
 })
 
 test_that("The domain minimum defaults to the first transmission day", {
@@ -191,13 +191,13 @@ test_that("A discrete-time model resolves a latent 'uniform' to the lattice", {
       add_infectivity_profile("uniform", max = 4) |>
       evaluate_log_lik()
   }
-  expect_no_error(mk(0))
+  mk(0) |> is.finite() |> expect_true()
 
   # the flat lattice law owns every integer value in the window, so a bound that
   # is not one has no reading, and the error names the latent that carries it
   sms <- tryCatch(mk(0.5), error = conditionMessage)
-  expect_match(sms, "min.*uniform.*discrete")
-  expect_match(sms, "infec_time")
+  sms |> expect_match("min.*uniform.*discrete")
+  sms |> expect_match("infec_time")
 })
 
 test_that("A profile dependency reached through 'min' is reported", {
@@ -224,12 +224,12 @@ test_that("Declaration order does not matter", {
 
   # both reach the wall: the log-likelihood is random, only finiteness is
   # comparable (see evaluate_log_lik)
-  expect_true(is.finite(evaluate_log_lik(before)))
-  expect_true(is.finite(evaluate_log_lik(after)))
+  is.finite(evaluate_log_lik(before)) |> expect_true()
+  is.finite(evaluate_log_lik(after)) |> expect_true()
 })
 
 test_that("A model needing a profile throws", {
-  expect_null(get_infectivity_profiles(mk_infec$model))
+  get_infectivity_profiles(mk_infec$model) |> expect_null()
   mk_infec$model |>
     evaluate_log_lik() |>
     expect_error("[Mm]issing infectivity profile")
@@ -303,7 +303,7 @@ test_that("Shifting a profile with 'loc' matches the explicit bounds", {
   wider <- hhmodel |>
     add_infectivity_profile("uniform", loc = incub_period, max = 4) |>
     evaluate_log_lik()
-  expect_false(isTRUE(all.equal(shifted, wider)))
+  isTRUE(all.equal(shifted, wider)) |> expect_false()
 })
 
 test_that("A profile shifted by a sampled latent is judged on its support", {
@@ -317,13 +317,15 @@ test_that("A profile shifted by a sampled latent is judged on its support", {
   kept_away |>
     add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
     evaluate_log_lik() |>
-    expect_no_error()
+    is.finite() |>
+    expect_true()
   # the explicit spelling of the same support agrees
   kept_away |>
     add_infectivity_profile("uniform", min = incub_period,
                             max = incub_period + 2) |>
     evaluate_log_lik() |>
-    expect_no_error()
+    is.finite() |>
+    expect_true()
 
   # dropping the incubation's own minimum makes day 0 attainable
   hhmodel |>
@@ -351,7 +353,7 @@ test_that("A latent parameterizing the profile drives transmission", {
     add_latent(incub_period = 8) |>
     add_infectivity_profile("ferretti20", incub_period = incub_period) |>
     evaluate_log_lik()
-  expect_false(identical(short, long))
+  identical(short, long) |> expect_false()
 })
 
 test_that("The household snapshot reports the profile of each member", {
@@ -361,7 +363,7 @@ test_that("The household snapshot reports the profile of each member", {
   }
 
   # the model requires a profile, so the entry is kept but reads empty
-  expect_equal(nrow(profiles_of(hhmodel)), 0L)
+  nrow(profiles_of(hhmodel)) |> expect_identical(0L)
 
   # a generic profile repeats on every infected member, susceptibles read NA
   generic <- hhmodel |>
@@ -369,15 +371,15 @@ test_that("The household snapshot reports the profile of each member", {
     add_infectivity_profile("gamma", shape = 2, scale = 1) |>
     profiles_of()
 
-  expect_equal(names(generic),
-               c("id", "discr", "func", "min", "max", "func_args"))
-  expect_equal(generic$id, c("m1", "m2", "m3"))
-  expect_equal(generic$func, c("gamma", "gamma", NA_character_))
-  expect_equal(generic$discr, c(FALSE, FALSE, NA))
-  expect_equal(generic$func_args[[1]], c(shape = 2, scale = 1))
-  expect_equal(generic$func_args[[2]], generic$func_args[[1]])
+  names(generic) |>
+    expect_identical(c("id", "discr", "func", "min", "max", "func_args"))
+  generic$id |> expect_identical(c("m1", "m2", "m3"))
+  generic$func |> expect_identical(c("gamma", "gamma", NA_character_))
+  generic$discr |> expect_identical(c(FALSE, FALSE, NA))
+  generic$func_args[[1]] |> expect_equal(c(shape = 2, scale = 1))
+  generic$func_args[[2]] |> expect_identical(generic$func_args[[1]])
   # the susceptible carries no profile at all
-  expect_length(generic$func_args[[3]], 0)
+  generic$func_args[[3]] |> expect_length(0)
 
   # a latent profile is resolved per member: same house, two incubations
   latent <- hhmodel |>
@@ -385,11 +387,12 @@ test_that("The household snapshot reports the profile of each member", {
     add_infectivity_profile("ferretti20", incub_period = incub_period)
 
   # the latent storage is not allocated until the model is evaluated
-  expect_equal(profiles_of(latent)$func, rep(NA_character_, 3))
+  profiles_of(latent)$func |> expect_identical(rep(NA_character_, 3))
 
   invisible(evaluate_log_lik(latent))
   snapshot <- profiles_of(latent)
-  expect_equal(snapshot$func, c("ferretti20", "ferretti20", NA_character_))
-  expect_equal(unname(snapshot$func_args[[1]]["incub_period"]), 2)
-  expect_equal(unname(snapshot$func_args[[2]]["incub_period"]), 9)
+  snapshot$func |>
+    expect_identical(c("ferretti20", "ferretti20", NA_character_))
+  unname(snapshot$func_args[[1]]["incub_period"]) |> expect_equal(2)
+  unname(snapshot$func_args[[2]]["incub_period"]) |> expect_equal(9)
 })

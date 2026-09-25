@@ -38,27 +38,27 @@ test_that("Default household resampling behaves as expected", {
 
   # default sampling targets the observed household count
   struct <- sample_house_structure(mk_recov_data$hhdata)
-  length(unique(struct$hhid)) |> expect_equal(2L)
+  length(unique(struct$hhid)) |> expect_identical(2L)
 })
 
 test_that("Households are resampled whole", {
   struct <- sample_house_structure(mk_recov_data$hhdata, houses = 6)
   # every household is renumbered
-  sort(unique(struct$hhid)) |> expect_equal(1:6)
+  sort(unique(struct$hhid)) |> expect_identical(1:6)
   # an identifier carried by the input is regenerated
-  struct$id |> expect_equal(seq_len(nrow(struct)))
+  struct$id |> expect_identical(seq_len(nrow(struct)))
   # household sizes are only the observed ones
   sizes <- as.integer(table(struct$hhid))
-  expect_true(all(sizes %in% c(1L, 3L)))
+  sizes |> expect_in(c(1L, 3L))
   # covariate datum is still unique per household and not mixed
   levels <- tapply(struct$datum, struct$hhid, function(x) length(unique(x)))
-  expect_true(all(levels == 1L))
+  levels |> as.vector() |> expect_all_equal(1L)
 })
 
 test_that("Recovery statistics summarise the replicates", {
   summary <- recovery_summary_(mk_recov_frame$estimates)
-  summary$houses |> expect_equal(c(10L, 10L, 20L, 20L))
-  summary$variable |> expect_equal(c("rho", "rho_2", "rho", "rho_2"))
+  summary$houses |> expect_identical(c(10L, 10L, 20L, 20L))
+  summary$variable |> expect_identical(c("rho", "rho_2", "rho", "rho_2"))
   summary$bias |> expect_equal(c(1, 1, -1, 3))
   summary$rmse |> expect_equal(c(1, 1, 1, 3))
   # relative bias is undefined against a zero truth
@@ -66,7 +66,7 @@ test_that("Recovery statistics summarise the replicates", {
   # the interval misses the truth of `rho_2` at either count
   summary$coverage |> expect_equal(c(1, 0, 1, 0))
   summary$cri_width |> expect_equal(c(4, 1, 2, 4))
-  summary$n_flagged |> expect_equal(c(0L, 1L, 0L, 0L))
+  summary$n_flagged |> expect_identical(c(0L, 1L, 0L, 0L))
 })
 
 test_that("Sweep cost is averaged over the replicates", {
@@ -76,9 +76,9 @@ test_that("Sweep cost is averaged over the replicates", {
     converged = c(TRUE, FALSE, NA), error = c(NA, NA, "failed")
   )
   overview <- recovery_overview_(replicates)
-  overview$nrep |> expect_equal(c(2L, 1L))
-  overview$n_failed |> expect_equal(c(0L, 1L))
-  overview$n_flagged |> expect_equal(c(1L, 0L))
+  overview$nrep |> expect_identical(c(2L, 1L))
+  overview$n_failed |> expect_identical(c(0L, 1L))
+  overview$n_flagged |> expect_identical(c(1L, 0L))
   # a failed replicate carries no cost to average
   overview$mean_inference_seconds |> expect_equal(c(2, NaN))
 })
@@ -117,27 +117,27 @@ test_that("Recovery results are read only", {
 
 test_that("Recovery sweeps every household count", {
   results <- mk_recov$results
-  results$houses |> expect_equal(c(20L, 40L))
+  results$houses |> expect_identical(c(20L, 40L))
   results$truth |> expect_equal(c(alpha = 0.15, beta = 0.20, gamma = 1))
   # two counts, two replicates, three estimated parameters
-  nrow(results$estimates) |> expect_equal(12L)
+  nrow(results$estimates) |> expect_identical(12L)
   sort(unique(results$estimates$variable)) |>
-    expect_equal(c("alpha", "beta", "gamma"))
-  nrow(results$replicates) |> expect_equal(4L)
-  nrow(results$summary) |> expect_equal(6L)
-  results$overview$houses |> expect_equal(c(20L, 40L))
-  results$overview$n_failed |> expect_equal(c(0L, 0L))
-  results$nrep |> expect_equal(2L)
-  results$point_estimate |> expect_equal("median")
+    expect_identical(c("alpha", "beta", "gamma"))
+  nrow(results$replicates) |> expect_identical(4L)
+  nrow(results$summary) |> expect_identical(6L)
+  results$overview$houses |> expect_identical(c(20L, 40L))
+  results$overview$n_failed |> expect_identical(c(0L, 0L))
+  results$nrep |> expect_identical(2L)
+  results$point_estimate |> expect_identical("median")
   results$cri_level |> expect_equal(0.95)
 })
 
 test_that("Each replicate reports its cost and its survey", {
   replicates <- mk_recov$results$replicates
-  expect_true(all(replicates$inference_seconds > 0))
-  expect_true(all(is.na(replicates$error)))
+  (replicates$inference_seconds > 0) |> expect_all_true()
+  replicates$error |> expect_all_na()
   estimates <- mk_recov$results$estimates
-  expect_true(all(mk_recov$results$summary$coverage %in% c(0, 0.5, 1)))
+  mk_recov$results$summary$coverage |> expect_in(c(0, 0.5, 1))
 })
 
 test_that("A run too short to diagnose is flagged whole", {
@@ -149,9 +149,9 @@ test_that("A run too short to diagnose is flagged whole", {
     "raised 1 distinct warning"
   )
   results$warnings$message |> expect_match("[Tt]otal sample size")
-  results$warnings$count |> expect_equal(2L)
-  expect_false(any(results$estimates$converged))
-  results$overview$n_flagged |> expect_equal(2L)
+  results$warnings$count |> expect_identical(2L)
+  results$estimates$converged |> expect_all_false()
+  results$overview$n_flagged |> expect_identical(2L)
 })
 
 test_that("Recovery leaves the model it was given untouched", {
@@ -159,7 +159,7 @@ test_that("Recovery leaves the model it was given untouched", {
   params <- get_parameters(hhmodel)
   stats::setNames(params$value, params$name)[c("alpha", "beta")] |>
     expect_equal(c(alpha = 0.15, beta = 0.20))
-  nrow(hhmodel$data_wide) |> expect_equal(nrow(flu_1918_frederick))
+  nrow(hhmodel$data_wide) |> expect_identical(nrow(flu_1918_frederick))
 })
 
 test_that("Every estimated parameter needs a simulation value", {
@@ -173,11 +173,9 @@ test_that("Every estimated parameter needs a simulation value", {
   run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o simulation value.*beta")
   # a value given for a parameter the model does not carry is reported
-  expect_warning(
-    run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE,
-                                 truth = data.frame(beta = 0.2, rho = 1)),
-    "[Nn]o parameter named"
-  )
+  run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE,
+                               truth = data.frame(beta = 0.2, rho = 1)) |>
+    expect_warning("[Nn]o parameter named")
 })
 
 test_that("A collapsed baseline takes no simulation value", {

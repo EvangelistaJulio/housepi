@@ -135,8 +135,8 @@ test_that("Without transmission only the introductions are infected", {
     add_data_wide(dplyr::mutate(mk_simulation$model$data_wide, status = NA)) |>
     add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hhsize_ref = 4) |>
     run_simulation(obs_process = obs_process)
-  expect_identical(length(unique(simulated$hhid)),
-                   sum(simulated$onset_time == 0, na.rm = TRUE))
+  length(unique(simulated$hhid)) |>
+    expect_identical(sum(simulated$onset_time == 0, na.rm = TRUE))
 })
 
 test_that("A saturated transmission infects every member", {
@@ -144,9 +144,9 @@ test_that("A saturated transmission infects every member", {
     add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
     run_simulation()
 
-  expect_true(all(simulated$status > 0))
-  expect_false(anyNA(simulated$infec_time))
-  expect_false(anyNA(simulated$incub_period))
+  (simulated$status > 0) |> expect_all_true()
+  simulated$infec_time |> expect_no_na()
+  simulated$incub_period |> expect_no_na()
 })
 
 ##################################################
@@ -214,7 +214,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
       expect_equal(latent_infec_obs_log_lik(house, mk_house$param, discr))
 
     # test complex print, discrete and continuous time
-    expect_snapshot(print(hhmodel))
+    print(hhmodel) |> expect_snapshot()
   }
 })
 
@@ -258,10 +258,10 @@ test_that("Latent moves preserve log-likelihood", {
 
   # the snapshot holds the last state
   snapshot <- inspect_house_state(hhmodel, "h1")
-  expect_identical(unlist(c(param_draws[n_steps, ], consts)),
-                   snapshot$parameters)
-  expect_identical(get_latent_state(latent_draws, n_steps),
-                   snapshot$latent[house$status > 0, ])
+  unlist(c(param_draws[n_steps, ], consts)) |>
+    expect_identical(snapshot$parameters)
+  get_latent_state(latent_draws, n_steps) |>
+    expect_identical(snapshot$latent[house$status > 0, ])
 
   # every retained draw matches an independent R recomputation
   expected <- vapply(seq_len(n_steps), function(i) {
@@ -273,7 +273,7 @@ test_that("Latent moves preserve log-likelihood", {
       sum(dweibull(infected$incub_period, shape = 2, scale = 1, log = TRUE)) +
       sum(dunif(infected$infec_time, -14, 21, log = TRUE))
   }, numeric(1))
-  expect_equal(log_lik, expected)
+  log_lik |> expect_equal(expected)
 
   # the fresh-model likelihood matches the tracked pointwise likelihood
   state_at(n_steps) |>

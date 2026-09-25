@@ -14,8 +14,8 @@ template_rd <- function(name) {
 
 test_that("set_source_name_ assigns names to vector", {
   result <- set_source_name_(c("a", "b"), "param")
-  expect_equal(names(result), c("param", "param"))
-  expect_equal(unname(result), c("a", "b"))
+  names(result) |> expect_identical(c("param", "param"))
+  unname(result) |> expect_identical(c("a", "b"))
 
   # NULL input: returns NULL
   set_source_name_(NULL, "param") |>
@@ -34,7 +34,7 @@ test_that("Missing template definitions are found and reported", {
 
   # partial overlap
   template_missing_find(required, defined) |>
-    expect_equal("c")
+    expect_identical("c")
   # all defined
   template_missing_find(defined, defined) |>
     expect_identical(character(0))
@@ -43,10 +43,10 @@ test_that("Missing template definitions are found and reported", {
     expect_null()
   # no defined: returns all required sorted
   template_missing_find(rev(defined), character(0)) |>
-    expect_equal(defined)
+    expect_identical(defined)
 
   results <- template_missing_stop(required, defined, "parameter")
-  expect_true(any(grepl(pattern = "missing", results)))
+  results |> expect_match("missing", all = FALSE)
 
   # no missing: empty output
   template_missing_stop(c("a"), c("a"), "parameter") |>
@@ -66,10 +66,10 @@ test_that("Unused template definitions are found and warned about", {
 
   # partial overlap
   template_not_used_find(required, defined) |>
-    expect_equal(c("b", "c"))
+    expect_identical(c("b", "c"))
   # no required: returns all defined sorted
   template_not_used_find(character(0), rev(defined)) |>
-    expect_equal(defined)
+    expect_identical(defined)
   # no defined
   template_not_used_find(c("a"), character(0)) |>
     expect_null()
@@ -97,26 +97,26 @@ test_that("fmt_assert_cli formats messages correctly", {
   result <- fmt_assert_cli(
     "Parameters", c("There were 2 missing parameter definitions: 'a', 'b'.")
   )
-  expect_true(any(grepl("Parameters", result)))
-  expect_true(any(grepl("are", result)))
+  result |> expect_match("Parameters", all = FALSE)
+  result |> expect_match("are", all = FALSE)
 
   # minor mode: rewrites "Required by" to "Can be specified for"
   result <- fmt_assert_cli(
     "Parameters", c("There was 1 definition.", "Required by ..."),
     minor = TRUE
   )
-  expect_true(any(grepl(pattern = "Can be specified", result)))
+  result |> expect_match("Can be specified", all = FALSE)
 })
 
 test_that("Template name normalization", {
   for (f in c("Final-Size", "final_size", " final siZe ", "FINAL SIZE")) {
-    expect_equal(spaced_template_choice(f), "final size")
+    spaced_template_choice(f) |> expect_identical("final size")
   }
 
   result <- find_closest_template_name("final siz")
-  expect_true(any(grepl(pattern = "Did you mean", result)))
+  result |> expect_match("Did you mean", all = FALSE)
   result <- find_closest_template_name("")
-  expect_true(any(grepl(pattern = "browse_template", result)))
+  result |> expect_match("browse_template", all = FALSE)
 })
 
 #############################
@@ -125,7 +125,7 @@ test_that("Template name normalization", {
 
 test_that("browse_templates branches inform correctly", {
   # print existing templates
-  expect_snapshot(browse_templates())
+  browse_templates() |> expect_snapshot()
   # non-character name
   browse_templates(42) |>
     expect_error("not a character")
@@ -147,7 +147,7 @@ test_that("browse_templates triggers help preview when path is NA", {
     },
     code = browse_templates("final-size")
   )
-  expect_identical(called_with, "final_size")
+  called_with |> expect_identical("final_size")
 })
 
 test_that("Every template has a help page", {
@@ -163,21 +163,21 @@ test_that("browse_templates copies template to a new path", {
 
   # first copy: creates the model sources
   browse_templates("final-size", path = dest)
-  expect_true(file.exists(model_cpp))
-  expect_true(file.exists(file.path(dest, "param.R")))
+  file.exists(model_cpp) |> expect_true()
+  file.exists(file.path(dest, "param.R")) |> expect_true()
   # final_size has no latent file: nothing should be copied
-  expect_false(file.exists(file.path(dest, "latent.R")))
+  file.exists(file.path(dest, "latent.R")) |> expect_false()
   shipped <- readLines(model_cpp)
 
   # second copy without replace: warns and does not overwrite
   writeLines("edited", model_cpp)
   browse_templates("final-size", path = dest) |>
     expect_warning("already exists")
-  expect_identical(readLines(model_cpp), "edited")
+  readLines(model_cpp) |> expect_identical("edited")
 
   # with replace = TRUE: overwrites silently
   browse_templates("final-size", path = dest, replace = TRUE)
-  expect_identical(readLines(model_cpp), shipped)
+  readLines(model_cpp) |> expect_identical(shipped)
 })
 
 test_that("browse_templates rejects '.' as destination path", {
@@ -188,7 +188,7 @@ test_that("browse_templates rejects '.' as destination path", {
     browse_templates("final-size", path = ".") |>
       expect_warning("current directory")
     # helper redirects "." to a folder named after the template
-    expect_true(dir.exists("final-size"))
+    dir.exists("final-size") |> expect_true()
   })
 })
 
@@ -212,7 +212,7 @@ test_that("Model help pages name the keys the engine registers", {
       if (identical(section, rd)) section <- ""
       pattern <- "(?<=\\\\item \\\\code\\{)[^}]+"
       listed <- regmatches(section, gregexpr(pattern, section, perl = TRUE))
-      expect_setequal(listed[[1]], keys)
+      listed[[1]] |> expect_setequal(keys)
     }
   }
 })

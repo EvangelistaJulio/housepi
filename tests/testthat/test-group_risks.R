@@ -80,9 +80,9 @@ test_that("Group risks logic table computes combinations and counts", {
   tbl <- group_risk_logic_table(mk_risk$data, c("age", "sex"))
 
   # counts sum to the number of rows, one count per observed combination
-  expect_equal(sum(tbl$n), nrow(mk_risk$data))
-  expect_equal(sort(tbl$n), c(1L, 1L, 2L))
-  expect_true(all(c("age", "sex", "n") %in% colnames(tbl)))
+  sum(tbl$n) |> expect_identical(nrow(mk_risk$data))
+  sort(tbl$n) |> expect_identical(c(1L, 1L, 2L))
+  colnames(tbl) |> expect_contains(c("age", "sex", "n"))
 })
 
 test_that("Associate param names decorates table and marks reference", {
@@ -90,24 +90,24 @@ test_that("Associate param names decorates table and marks reference", {
   res <- associate_group_param_names(tbl, prefix = "sus", reference = ".auto")
 
   # exactly one .reference row (largest group)
-  expect_equal(sum(res$param_name == ".reference"), 1L)
+  sum(res$param_name == ".reference") |> expect_identical(1L)
   # other param_names start with the provided prefix
   others <- res$param_name[res$param_name != ".reference"]
-  expect_true(all(grepl("^sus_", others)))
+  others |> expect_match("^sus_")
 
   # absolute by default: every stratum keeps its own parameter
   abs_res <- associate_group_param_names(tbl, prefix = "sus", reference = NULL)
-  expect_false(".reference" %in% abs_res$param_name)
-  expect_true(all(grepl("^sus_", abs_res$param_name)))
+  (".reference" %in% abs_res$param_name) |> expect_false()
+  abs_res$param_name |> expect_match("^sus_")
 })
 
 test_that("An empty logic table passes through grouping and ordering", {
   tbl <- compute_rule_groups(
     data.frame(age = character(), param_name = character(), n = integer())
   )
-  expect_equal(nrow(tbl), 0L)
-  expect_true("rule_group" %in% colnames(tbl))
-  expect_identical(reorder_risks_logic_table(tbl), tbl)
+  nrow(tbl) |> expect_identical(0L)
+  ("rule_group" %in% colnames(tbl)) |> expect_true()
+  reorder_risks_logic_table(tbl) |> expect_identical(tbl)
 })
 
 test_that("Custom strata logic table is validated", {
@@ -140,19 +140,19 @@ test_that("Group risks integrate with data", {
     add_group_risk("community", by = c("age", "sex"), joint = TRUE)
 
   tidy <- get_group_risks(hhmodel)
-  expect_true(all(tidy$group_risk == "community"))
+  tidy$group_risk |> expect_all_equal("community")
   # joint expansion: one rule group over both covariates
-  expect_equal(length(unique(tidy$rule_group)), 1L)
-  expect_true(all(c("age", "sex") %in% colnames(tidy)))
+  length(unique(tidy$rule_group)) |> expect_identical(1L)
+  colnames(tidy) |> expect_contains(c("age", "sex"))
   # absolute by default: no reference stratum
-  expect_equal(sum(tidy$param_name == ".reference"), 0L)
+  sum(tidy$param_name == ".reference") |> expect_identical(0L)
 
   # mcmc setup is the absolute default
   params <- get_parameters(hhmodel)
   params <- params[!params$const, ]
-  expect_true(all(params$min == 0))
-  expect_true(all(params$max == 1))
-  expect_true(all(params$proposal == "rw_log"))
+  params$min |> expect_all_equal(0)
+  params$max |> expect_all_equal(1)
+  params$proposal |> expect_all_equal("rw_log")
 })
 
 test_that("Reference turns group risks relative with its own mcmc setup", {
@@ -161,16 +161,16 @@ test_that("Reference turns group risks relative with its own mcmc setup", {
                    reference = ".auto")
 
   tidy <- get_group_risks(hhmodel)
-  expect_equal(sum(tidy$param_name == ".reference"), 1L)
+  sum(tidy$param_name == ".reference") |> expect_identical(1L)
   # the reference is the largest stratum
-  expect_equal(tidy$n[tidy$param_name == ".reference"], max(tidy$n))
+  tidy$n[tidy$param_name == ".reference"] |> expect_identical(max(tidy$n))
 
   # mcmc setup is default (Cauchemez et al., 2009)
   params <- get_parameters(hhmodel)
-  expect_equal(params$args[[1]], c(meanlog = 0, sdlog = 3))
-  expect_true(all(params$min == 0))
-  expect_true(all(params$max == 10))
-  expect_true(all(params$proposal == "rw_log"))
+  params$args[[1]] |> expect_equal(c(meanlog = 0, sdlog = 3))
+  params$min |> expect_all_equal(0)
+  params$max |> expect_all_equal(10)
+  params$proposal |> expect_all_equal("rw_log")
 })
 
 test_that("Group risks hold without data and re-derive on add_data_wide", {
@@ -179,19 +179,19 @@ test_that("Group risks hold without data and re-derive on add_data_wide", {
     add_parameter(import = "template") |>
     # relative: the template's baseline stays free alongside the risk
     add_group_risk("susceptibility", by = "member", reference = ".auto")
-  expect_false(any(grepl("^sus_member", hhmodel$parameters$name)))
+  hhmodel$parameters$name |> expect_no_match("^sus_member")
 
   # attaching data materialises the risk parameters and runs
   hhmodel_2 <- add_data_wide(hhmodel, mk_flu$data)
   full_params <- hhmodel_2$parameters$name
-  expect_true(any(grepl("^sus_member", full_params)))
-  expect_true(is.finite(evaluate_log_lik(hhmodel_2)))
+  full_params |> expect_match("^sus_member", all = FALSE)
+  is.finite(evaluate_log_lik(hhmodel_2)) |> expect_true()
 
   # replacing data re-derives: a single-level subset drops the stale risk params
   hhmodel_3 <- add_data_wide(hhmodel_2,
                              mk_flu$data[mk_flu$data$member == "student", ])
-  expect_false(any(grepl("^sus_member", hhmodel_3$parameters$name)))
-  expect_true(is.finite(evaluate_log_lik(hhmodel_3)))
+  hhmodel_3$parameters$name |> expect_no_match("^sus_member")
+  is.finite(evaluate_log_lik(hhmodel_3)) |> expect_true()
 
   # re-attaching the full data restores the exact original parameter set
   add_data_wide(hhmodel_3, mk_flu$data)$parameters$name |>
@@ -208,8 +208,8 @@ test_that("Group risks expand on their own covariates only", {
     new_housepi_model("case-ascertained") |>
     add_group_risk("susceptibility", by = "age") |>
     get_group_risks()
-  expect_setequal(risks$group_risk, "susceptibility")
-  expect_true("sus_age_child" %in% risks$param_name)
+  risks$group_risk |> expect_setequal("susceptibility")
+  ("sus_age_child" %in% risks$param_name) |> expect_true()
 
   # without data the read surface warns and keeps the table shape
   expect_warning(
@@ -218,8 +218,8 @@ test_that("Group risks expand on their own covariates only", {
       get_group_risks(),
     regexp = "without data"
   )
-  expect_equal(nrow(risks), 0L)
-  expect_named(risks, c("group_risk", "param_name", "n", "rule_group"))
+  nrow(risks) |> expect_identical(0L)
+  risks |> expect_named(c("group_risk", "param_name", "n", "rule_group"))
 })
 
 test_that("Group risks sentinels work correctly", {
@@ -270,7 +270,9 @@ test_that("Group risks reference support behaves as expected", {
                             "M",  "gentlemen")
   mk_icofs$model |>
     add_group_risk("susceptibility", strata = strata) |>
-    expect_no_error()
+    get_group_risks() |>
+    getElement("param_name") |>
+    expect_identical(c("ladies", "gentlemen"))
   # reference has no meaning against a custom table
   mk_icofs$model |>
     add_group_risk("susceptibility", reference = ".auto", strata = strata) |>
@@ -283,7 +285,7 @@ test_that("Group risks reference support behaves as expected", {
     get_group_risks() |>
     subset(param_name == ".reference") |>
     nrow() |>
-    expect_equal(1L)
+    expect_identical(1L)
 })
 
 test_that("Custom strata carry at most one reference per rule group", {
@@ -305,7 +307,10 @@ test_that("Custom strata carry at most one reference per rule group", {
   )
   mk_icofs$model |>
     add_group_risk("susceptibility", strata = strata) |>
-    expect_no_error()
+    get_group_risks() |>
+    subset(param_name == ".reference") |>
+    getElement("rule_group") |>
+    expect_setequal(1:2)
 })
 
 test_that("A group risk cannot combine 'by' with a custom 'strata' table", {
@@ -327,21 +332,21 @@ test_that("Parameter options work correctly", {
     add_group_risk("susceptibility", by = c("age", "sex"),
                    prior = "uniform", min = 0, max = 10, joint = TRUE) |>
     sampled_params()
-  expect_true(all(params$prior == "uniform"))
-  expect_true(all(params$min == 0))
-  expect_true(all(params$max == 10))
+  params$prior |> expect_all_equal("uniform")
+  params$min |> expect_all_equal(0)
+  params$max |> expect_all_equal(10)
   # a sampled risk parameter defaults to a random walk
-  expect_true(all(params$proposal == "rw"))
+  params$proposal |> expect_all_equal("rw")
 
   params <- mk_risk$model |>
     add_group_risk("infectivity", by = c("age", "sex"),
                    prior = "gamma", shape = 2, scale = 1, joint = TRUE) |>
     sampled_params()
-  expect_true(all(params$prior == "gamma"))
-  expect_equal(params$args[[1]], c(shape = 2, scale = 1))
-  expect_true(all(params$min == 0))
-  expect_true(all(is.na(params$max)))
-  expect_true(all(params$proposal == "rw"))
+  params$prior |> expect_all_equal("gamma")
+  params$args[[1]] |> expect_equal(c(shape = 2, scale = 1))
+  params$min |> expect_all_equal(0)
+  params$max |> expect_all_na()
+  params$proposal |> expect_all_equal("rw")
 })
 
 test_that("Load list works as expected", {
@@ -354,9 +359,9 @@ test_that("Load list works as expected", {
     ) |>
     get_group_risks()
 
-  expect_setequal(unique(tidy$group_risk), c("community", "susceptibility"))
-  expect_true(any(grepl("^ct_", tidy$param_name)))
-  expect_true(any(grepl("^sus_", tidy$param_name)))
+  unique(tidy$group_risk) |> expect_setequal(c("community", "susceptibility"))
+  tidy$param_name |> expect_match("^ct_", all = FALSE)
+  tidy$param_name |> expect_match("^sus_", all = FALSE)
 })
 
 #################################################
@@ -369,16 +374,16 @@ test_that("Group risks deal with custom logic table correctly", {
                    prior = "lognormal", meanlog = 0, sdlog = 2)
 
   tidy <- get_group_risks(hhmodel)
-  expect_true(all(tidy$group_risk == "infectivity"))
+  tidy$group_risk |> expect_all_equal("infectivity")
   # the custom strata drives the covariate column and the rows
-  expect_true("isolation" %in% colnames(tidy))
-  expect_setequal(tidy$param_name, c(".reference", "inf_isol"))
+  ("isolation" %in% colnames(tidy)) |> expect_true()
+  tidy$param_name |> expect_setequal(c(".reference", "inf_isol"))
 
   # parameters generated for non-reference only
   params <- get_parameters(hhmodel)
-  expect_equal(params$name, "inf_isol")
-  expect_equal(params$prior, "lognormal")
-  expect_equal(params$args[[1]], c(meanlog = 0, sdlog = 2))
+  params$name |> expect_identical("inf_isol")
+  params$prior |> expect_identical("lognormal")
+  params$args[[1]] |> expect_equal(c(meanlog = 0, sdlog = 2))
 })
 
 test_that("A stratum naming an unobserved level is skipped", {
@@ -395,8 +400,8 @@ test_that("A stratum naming an unobserved level is skipped", {
   )
 
   # only the reference survives, and it asks for no parameter
-  expect_setequal(get_group_risks(hhmodel)$param_name, ".reference")
-  expect_false("sus_elderly" %in% get_parameters(hhmodel)$name)
+  get_group_risks(hhmodel)$param_name |> expect_setequal(".reference")
+  ("sus_elderly" %in% get_parameters(hhmodel)$name) |> expect_false()
 })
 
 test_that("A strata table emptied by unknown levels stratifies nothing", {
@@ -412,8 +417,8 @@ test_that("A strata table emptied by unknown levels stratifies nothing", {
     "[Uu]nknown definitions.*elderly"
   )
 
-  get_group_risks(hhmodel)$param_name |> expect_equal(".reference")
-  expect_false("sus_infant" %in% get_parameters(hhmodel)$name)
+  get_group_risks(hhmodel)$param_name |> expect_identical(".reference")
+  ("sus_infant" %in% get_parameters(hhmodel)$name) |> expect_false()
 })
 
 test_that("Group risk parameter overrides work", {
@@ -434,14 +439,14 @@ test_that("Group risk parameter overrides work", {
                    params = overrides, prior = "gamma", shape = 2, scale = 1)
 
   params <- get_parameters(hhmodel)
-  expect_setequal(params$name, c("sus_old", "sus_elderly"))
+  params$name |> expect_setequal(c("sus_old", "sus_elderly"))
   # overrides used instead of raw params
   old <- get_parameters(hhmodel, "sus_old")
-  expect_equal(old$value, 1.73)
-  expect_true(old$const)
+  old$value |> expect_equal(1.73)
+  old$const |> expect_true()
   elderly <- get_parameters(hhmodel, "sus_elderly")
-  expect_equal(elderly$prior, "lognormal")
-  expect_equal(elderly$args[[1]], c(sdlog = 1.2, meanlog = 0))
+  elderly$prior |> expect_identical("lognormal")
+  elderly$args[[1]] |> expect_equal(c(sdlog = 1.2, meanlog = 0))
 
   strata <- tibble::tribble(~sex, ~param_name,
                             "M",  "sus_male",
@@ -473,8 +478,8 @@ test_that("Group risk mixed auto and custom modes preserve strata entries", {
     expect_setequal(c(".reference", "inf_isol"))
   # both modes materialise their parameters
   param_names <- get_parameters(hhmodel)$name
-  expect_true("inf_isol" %in% param_names)
-  expect_true(any(grepl("^com_", param_names)))
+  ("inf_isol" %in% param_names) |> expect_true()
+  param_names |> expect_match("^com_", all = FALSE)
 
   add_group_risk(hhmodel, "infectivity", by = "age") |>
     expect_warning("[Oo]verwriting.*infectivity")
@@ -500,14 +505,14 @@ test_that("Absoluteness follows the reference across every definition mode", {
                          param_name = c("ladies", "gentlemen"))
 
   # auto mode: absolute unless a reference is resolved
-  expect_equal(risk_prior("susceptibility", by = "sex"), "uniform")
-  expect_equal(risk_prior("susceptibility", by = "sex",
-                          reference = ".auto"), "lognormal")
-  expect_equal(risk_prior("susceptibility", by = "sex",
-                          reference = c(sex = "M")), "lognormal")
+  risk_prior("susceptibility", by = "sex") |> expect_identical("uniform")
+  risk_prior("susceptibility", by = "sex", reference = ".auto") |>
+    expect_identical("lognormal")
+  risk_prior("susceptibility", by = "sex", reference = c(sex = "M")) |>
+    expect_identical("lognormal")
   # custom mode: the tag alone decides
-  expect_equal(risk_prior("susceptibility", strata = untagged), "uniform")
-  expect_equal(risk_prior("susceptibility", strata = tagged), "lognormal")
+  risk_prior("susceptibility", strata = untagged) |> expect_identical("uniform")
+  risk_prior("susceptibility", strata = tagged) |> expect_identical("lognormal")
 })
 
 ###################################
@@ -519,24 +524,24 @@ test_that("A strata value pins the stratum and keeps its prior", {
     add_group_risk("susceptibility", strata = pin_strata(),
                    prior = "lognormal", sdlog = 3)
   mum <- get_parameters(hhmodel, "sus_mum")
-  expect_equal(mum$value, 1.2)
-  expect_false(mum$const)
-  expect_equal(mum$prior, "lognormal")
+  mum$value |> expect_equal(1.2)
+  mum$const |> expect_false()
+  mum$prior |> expect_identical("lognormal")
 
   # a fixed stratum is a constant parameter: it carries no prior
   dad <- get_parameters(hhmodel, "sus_dad")
-  expect_equal(dad$value, 0.5)
-  expect_true(dad$const)
-  expect_true(is.na(dad$prior))
+  dad$value |> expect_equal(0.5)
+  dad$const |> expect_true()
+  dad$prior |> expect_all_na()
 
   # pin columns surface on the read table only when a pin exists
   tidy <- get_group_risks(hhmodel)
-  expect_true(all(c("value", "const") %in% colnames(tidy)))
+  colnames(tidy) |> expect_contains(c("value", "const"))
   # padding keeps the columns typed across sub-tables
   tidy$value |> expect_type("double")
   tidy$const |> expect_type("logical")
   tidy$value[tidy$param_name == "sus_mum"] |> expect_equal(1.2)
-  expect_true(is.na(tidy$value[tidy$param_name == ".reference"]))
+  tidy$value[tidy$param_name == ".reference"] |> expect_all_na()
 
   # an unpinned risk keeps the table it had
   mk_flu$model |>
@@ -633,9 +638,8 @@ test_that("Only the risks the model declares may be status stratified", {
   # a model that declares no status level cannot stratify on it. The risk
   # waits for the declaration, so decorator order is free, and the wall reports
   # that it never came
-  expect_no_error(
-    hhmodel <- add_group_risk(mk_risk$model, "infectivity", by = "status")
-  )
+  hhmodel <- add_group_risk(mk_risk$model, "infectivity", by = "status")
+  get_group_risks(hhmodel)$group_risk |> expect_identical("infectivity")
   hhmodel |>
     add_parameter(alpha = 0.01, beta = 0.2, gamma = 1, hhsize_ref = 3) |>
     suppressWarnings() |>
@@ -672,7 +676,7 @@ test_that("Status strata are declared, not read off the data", {
     add_group_risk("infectivity", strata = strata) |>
     get_group_risks() |>
     getElement("n") |>
-    expect_equal(c(NA_integer_, NA_integer_))
+    expect_identical(c(NA_integer_, NA_integer_))
 })
 
 test_that("A status stratum reads as a covariate duplicating it", {
@@ -697,8 +701,8 @@ test_that("A status stratum reads as a covariate duplicating it", {
     pin("inf_datum_asymptomatic")
 
   # every parameter is pinned, so the likelihood is a deterministic probe
-  expect_false(anyNA(get_parameters(by_status)$value))
-  expect_identical(evaluate_log_lik(by_status), evaluate_log_lik(by_datum))
+  get_parameters(by_status)$value |> expect_no_na()
+  evaluate_log_lik(by_status) |> expect_identical(evaluate_log_lik(by_datum))
 })
 
 test_that("A status stratum drives simulated transmission", {
@@ -733,7 +737,7 @@ test_that("A status stratum drives simulated transmission", {
   }
 
   # alpha is negligible, so every case beyond the introductions is transmitted
-  expect_gt(attack_rate(0.9), 1.5 * attack_rate(0.1))
+  attack_rate(0.9) |> expect_gt(1.5 * attack_rate(0.1))
 })
 
 test_that("Status strata count the infected members only", {
@@ -744,7 +748,7 @@ test_that("Status strata count the infected members only", {
     add_group_risk(infectivity = list(by = "status", reference = ".auto")) |>
     get_group_risks()
 
-  sum(tbl$n) |> expect_equal(sum(sarscov2_2021_icofs$status > 0))
+  sum(tbl$n) |> expect_identical(sum(sarscov2_2021_icofs$status > 0))
   as.character(tbl$status) |> expect_setequal(c("1", "2"))
 })
 
@@ -758,9 +762,9 @@ test_that("An absolute risk collapses the baseline it scales", {
     add_group_risk("community", by = "member") |>
     add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
 
-  expect_true(is.finite(evaluate_log_lik(hhmodel)))
+  is.finite(evaluate_log_lik(hhmodel)) |> expect_true()
   params <- get_parameters(hhmodel)
-  expect_true(params$const[params$name == "alpha"])
+  params$const[params$name == "alpha"] |> expect_true()
   params$value[params$name == "alpha"] |> expect_equal(1.)
 
   # the collapsed baseline is carried into the posterior
@@ -768,8 +772,8 @@ test_that("An absolute risk collapses the baseline it scales", {
     run_inference(steps = 5L, thin = 1L, adapt = 0L, chains = 1L) |>
     suppressWarnings() |>
     summarise_draws()
-  expect_false("alpha" %in% draws$variable)
-  expect_true(any(grepl("^com_member", draws$variable)))
+  ("alpha" %in% draws$variable) |> expect_false()
+  draws$variable |> expect_match("^com_member", all = FALSE)
 })
 
 test_that("A baseline pinned by an absolute risk follows its redeclaration", {
@@ -789,7 +793,7 @@ test_that("A baseline pinned by an absolute risk follows its redeclaration", {
   by_name <- function(x) x[order(x$name), , drop = FALSE]
   by_name(get_parameters(hhmodel_2)) |>
     expect_equal(by_name(get_parameters(hhmodel)), ignore_attr = TRUE)
-  expect_false("alpha" %in% get_parameters(hhmodel_2)$name)
+  ("alpha" %in% get_parameters(hhmodel_2)$name) |> expect_false()
   hhmodel_2 |>
     evaluate_log_lik() |>
     expect_error("[Mm]issing parameter definition.*alpha")
@@ -827,7 +831,7 @@ test_that("An absolute group risk holds its baseline at the reference", {
     expect_s3_class("data.frame")
   # the prior it was given leaves with the scale
   params <- get_parameters(hhmodel)
-  expect_true(params$const[params$name == "alpha"])
+  params$const[params$name == "alpha"] |> expect_true()
   params$value[params$name == "alpha"] |> expect_equal(1.)
 
   # a stratum held constant anchors the same way
@@ -877,26 +881,28 @@ test_that("A collapsed baseline is reported again only on a new declaration", {
     add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4) |>
     add_parameter(alpha = list(prior = "uniform", min = 0, max = 1)) |>
     suppressWarnings() # suppress overwrite warning
-  expect_true(warned(
+  warned(
     hhmodel <- add_group_risk(hhmodel, "community", by = "member")
-  ))
+  ) |>
+    expect_true()
 
   # an untouched baseline and a copy of the model say nothing more
-  expect_false(warned(hhmodel |> add_parameter(gamma = 2)))
-  expect_false(warned(hhmodel$copy() |> add_parameter(gamma = 2)))
+  warned(hhmodel |> add_parameter(gamma = 2)) |> expect_false()
+  warned(hhmodel$copy() |> add_parameter(gamma = 2)) |> expect_false()
 
   # a new range for the same prior is a new declaration
-  expect_true(warned(
+  warned(
     hhmodel |>
       add_parameter(alpha = list(prior = "uniform", min = 0, max = 2))
-  ))
+  ) |>
+    expect_true()
 
   # a baseline its risk released is reported again once re-collapsed
   released <- hhmodel |>
     add_group_risk("community", by = "member", reference = "student") |>
     suppressWarnings() # suppress overwrite warning
-  expect_false(get_parameters(released, "alpha")$const)
-  expect_true(warned(add_group_risk(released, "community", by = "member")))
+  get_parameters(released, "alpha")$const |> expect_false()
+  warned(add_group_risk(released, "community", by = "member")) |> expect_true()
 })
 
 test_that("A measure table cannot give a collapsed baseline its scale back", {
@@ -939,7 +945,7 @@ test_that("A fixed stratum holds across draws, a pinned one is resampled", {
   # a value= pin is a simulation-only override: the prior still drives inference
   log_lik <- twice(mk(pin_strata(value = c(NA, 1.2, 0.5),
                                  const = c(NA, NA, NA))))
-  expect_false(isTRUE(all.equal(log_lik[1], log_lik[2])))
+  isTRUE(all.equal(log_lik[1], log_lik[2])) |> expect_false()
 })
 
 test_that("A fixed stratum anchors the scale of its rule group", {
@@ -952,7 +958,7 @@ test_that("A fixed stratum anchors the scale of its rule group", {
       prior = "lognormal", sdlog = 3
     ) |>
     evaluate_log_lik()
-  expect_true(is.finite(log_lik))
+  is.finite(log_lik) |> expect_true()
 })
 
 test_that("Strata counts come from the engine cross-tabulation", {
@@ -968,13 +974,13 @@ test_that("Strata counts come from the engine cross-tabulation", {
                    infectivity = list(by = "datum_2", reference = ".auto"))
 
   datum <- hhmodel |> get_group_risks("susceptibility")
-  expect_setequal(as.character(datum$datum), c("a", "b"))
-  sum(datum$n) |> expect_equal(4L)
+  as.character(datum$datum) |> expect_setequal(c("a", "b"))
+  sum(datum$n) |> expect_identical(4L)
 
   # a logical column keeps both of its levels, and drops the missing one
   datum_2 <- hhmodel |> get_group_risks("infectivity")
-  expect_setequal(as.character(datum_2$datum_2), c("TRUE", "FALSE"))
-  sum(datum_2$n) |> expect_equal(4L)
+  as.character(datum_2$datum_2) |> expect_setequal(c("TRUE", "FALSE"))
+  sum(datum_2$n) |> expect_identical(4L)
 })
 
 test_that("A wildcard stratum survives a missing covariate cell", {
@@ -1003,8 +1009,8 @@ test_that("A wildcard stratum survives a missing covariate cell", {
 
   # wildcard stratum counts the members it resolves to
   risks <- get_group_risks(hhmodel)
-  risks$n[risks$param_name == ".reference"] |> expect_equal(sum(risk == 1))
-  risks$n[risks$param_name == "sus_rest"] |> expect_equal(sum(risk == 3))
+  risks$n[risks$param_name == ".reference"] |> expect_identical(sum(risk == 1))
+  risks$n[risks$param_name == "sus_rest"] |> expect_identical(sum(risk == 3))
 })
 
 #########################################

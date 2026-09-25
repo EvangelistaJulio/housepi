@@ -290,7 +290,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
     "alpha.*turned.*reference"
   )
   params <- get_parameters(hhmodel)
-  expect_equal(params$value[params$name == "alpha"], 1)
+  params$value[params$name == "alpha"] |> expect_equal(1)
 
   # the contact table names a reference, so `beta` keeps its scale
   strata <- tibble::tribble(
@@ -319,7 +319,7 @@ test_that("Chain binomial returns infinite if extreme values are provided", {
     add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hhsize_ref = 4)
 
   # homogeneous branch
-  expect_false(is.finite(evaluate_log_lik(hhmodel)))
+  is.finite(evaluate_log_lik(hhmodel)) |> expect_false()
 
   # heterogeneous branch: the risk names a reference, so `beta` stays extreme
   hhmodel |>

@@ -2,22 +2,22 @@ library(testthat)
 
 test_that("Helper format errors keeps full multi-line text of the pick", {
   # single error: returns the full (multi-line) text for the cli split
-  expect_equal(helper_format_error(list("first line\nlast line")),
-               "first line\nlast line")
+  helper_format_error(list("first line\nlast line")) |>
+    expect_identical("first line\nlast line")
 
   # multiple errors: "Unused" or "Missing" are prioritized
   err <- list(a = "some error", b = "Unused argument x")
-  expect_equal(helper_format_error(err), "Unused argument x")
+  helper_format_error(err) |> expect_identical("Unused argument x")
   err <- list(a = "some error", b = "Missing argument x")
-  expect_equal(helper_format_error(err), "Missing argument x")
+  helper_format_error(err) |> expect_identical("Missing argument x")
 
   # "func" value in err triggers func branch (checks value, not key)
   err <- list(dist = "dist error", func = "func")
-  expect_equal(helper_format_error(err), list(func = "func"))
+  helper_format_error(err) |> expect_identical(list(func = "func"))
 
   # fallback to first
   err <- list(a = "first", b = "second")
-  expect_equal(helper_format_error(err), "first")
+  helper_format_error(err) |> expect_identical("first")
 })
 
 test_that("Assert valid definition name rejects invalid names", {
@@ -43,16 +43,17 @@ test_that("Assert valid definition name rejects invalid names", {
     expect_error("cannot start with a dot")
   assert_valid_definition_name(".ration", "latent") |>
     expect_error("cannot start with a dot")
-  expect_no_error(assert_valid_definition_name(".ration", "status observation",
-                                               allow_reserved = TRUE))
+  assert_valid_definition_name(".ration", "status observation",
+                               allow_reserved = TRUE) |>
+    expect_null()
   # valid names pass
-  expect_no_error(assert_valid_definition_name("alpha", "parameter"))
-  expect_no_error(assert_valid_definition_name("beta_1", "parameter"))
+  assert_valid_definition_name("alpha", "parameter") |> expect_null()
+  assert_valid_definition_name("beta_1", "parameter") |> expect_null()
 })
 
 test_that("Assert valid status rejects non-positive integers", {
   # valid
-  expect_no_error(assert_valid_status(c(NA, 1, 2, 3)))
+  assert_valid_status(c(NA, 1, 2, 3)) |> expect_null()
   # zero
   assert_valid_status(c(0, 1)) |>
     expect_error("positive integer")
@@ -63,16 +64,15 @@ test_that("Assert valid status rejects non-positive integers", {
   assert_valid_status(c(1.5)) |>
     expect_error("positive integer")
   # above the engine status storage
-  expect_no_error(assert_valid_status(254))
+  assert_valid_status(254) |> expect_null()
   assert_valid_status(c(1, 255)) |>
     expect_error("maximum of 254")
 })
 
 test_that("Assert valid data columns holds the definition alphabet", {
   # a column is a key a definition sources with `@D`: same alphabet as a name
-  expect_no_error(
-    assert_valid_data_columns(c("id", "3", "if", "dose.2", "vacc_status"))
-  )
+  assert_valid_data_columns(c("id", "3", "if", "dose.2", "vacc_status")) |>
+    expect_null()
   assert_valid_data_columns(c("id", "bad name")) |>
     expect_error("bad name")
   # the grammar delimiter never reaches the engine as a key
@@ -90,8 +90,8 @@ test_that("Definitions carry the defaults the user left out", {
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     get_parameters()
-  expect_equal(param$min, c(0, 0, 0, NA))
-  expect_equal(param$max, c(1, 1, 3, NA))
+  param$min |> expect_equal(c(0, 0, 0, NA))
+  param$max |> expect_equal(c(1, 1, 3, NA))
 
   hhdata <- data.frame(hhid = c("h1", "h1"), status = c(1, 0),
                        record = c(3L, 1L), record_2 = c(0.5, 2.1))
@@ -109,15 +109,15 @@ test_that("Definitions carry the defaults the user left out", {
     )
   param <- get_parameters(hhmodel, name = c("rho", "rho_2", "rho_3", "rho_4"))
   # the parametrization in use lends its defaults, the other one has none
-  expect_equal(param$args[[1]], c(shape = 2, scale = 1))
-  expect_equal(param$args[[2]], c(mean = 2, sd = 1))
-  expect_equal(param$args[[3]], c(sd = 2, mean = 0))
+  param$args[[1]] |> expect_equal(c(shape = 2, scale = 1))
+  param$args[[2]] |> expect_equal(c(mean = 2, sd = 1))
+  param$args[[3]] |> expect_equal(c(sd = 2, mean = 0))
   # the open bound of `log` at 0 is passed back as it is declared
-  expect_equal(param$min, c(0, 0, -1, 0))
+  param$min |> expect_equal(c(0, 0, -1, 0))
 
   obs <- get_observations(hhmodel)
-  expect_equal(obs$args[[2]], c(shape = 2, scale = 3))
+  obs$args[[2]] |> expect_equal(c(shape = 2, scale = 3))
   # the binomial upper bound reads `size`, so it is left to track it
-  expect_equal(obs$min, c(0, 0))
-  expect_equal(obs$max, c(NA_real_, NA_real_))
+  obs$min |> expect_equal(c(0, 0))
+  obs$max |> expect_equal(c(NA_real_, NA_real_))
 })

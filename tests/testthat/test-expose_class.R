@@ -45,14 +45,14 @@ test_that("Wrappers reject objects that are not a housepi model", {
 
 test_that("Data provided at construction is exposed via get_data_wide", {
   hhdata <- get_data_wide(new_housepi_model(flu_1918_baltimore, "test"))
-  expect_true(all(c("hhid", "status") %in% colnames(hhdata)))
+  colnames(hhdata) |> expect_contains(c("hhid", "status"))
 
   # id automatically added
-  expect_identical(hhdata$id, as.character(seq_len(nrow(hhdata))))
+  hhdata$id |> expect_identical(as.character(seq_len(nrow(hhdata))))
   # hhid cast to character
-  expect_identical(hhdata$hhid, as.character(flu_1918_baltimore$hhid))
+  hhdata$hhid |> expect_identical(as.character(flu_1918_baltimore$hhid))
   # statuses are integer
-  expect_identical(hhdata$status, flu_1918_baltimore$status)
+  hhdata$status |> expect_identical(flu_1918_baltimore$status)
 })
 
 test_that("Variadic labels are not swallowed by formal matching", {
@@ -61,8 +61,8 @@ test_that("Variadic labels are not swallowed by formal matching", {
   param <- mk_wrapper$model |>
     add_parameter("rho", prior = "categorical", a = 0.2, b = 0.1, c = 0.7) |>
     get_parameters()
-  expect_equal(param$prior, "categorical")
-  expect_equal(param$args[[1]], c(a = 0.2, b = 0.1, c = 0.7))
+  param$prior |> expect_identical("categorical")
+  param$args[[1]] |> expect_equal(c(a = 0.2, b = 0.1, c = 0.7))
 
   # bulk form
   param <- mk_wrapper$model |>
@@ -71,10 +71,10 @@ test_that("Variadic labels are not swallowed by formal matching", {
       rho_2 = list(prior = "categorical", d = 0.4, p = 0.6)
     ) |>
     get_parameters()
-  expect_equal(param$name, c("rho", "rho_2"))
-  expect_equal(param$prior, c("categorical", "categorical"))
-  expect_equal(param$args[[1]], c(a = 0.2, b = 0.1, c = 0.7))
-  expect_equal(param$args[[2]], c(d = 0.4, p = 0.6))
+  param$name |> expect_identical(c("rho", "rho_2"))
+  param$prior |> expect_identical(c("categorical", "categorical"))
+  param$args[[1]] |> expect_equal(c(a = 0.2, b = 0.1, c = 0.7))
+  param$args[[2]] |> expect_equal(c(d = 0.4, p = 0.6))
 })
 
 test_that("Bulk import mirrors inline name = value pairs", {
@@ -119,7 +119,7 @@ test_that("Bulk import resolves symbols in the calling frame", {
       add_parameter(import = list(rho = quote(datum_local * 2))) |>
       get_parameters()
   })
-  expect_equal(param$value, 6)
+  param$value |> expect_equal(6)
 })
 
 test_that("add_observation routes every input branch on `level`", {
@@ -142,9 +142,9 @@ test_that("add_observation routes every input branch on `level`", {
     add_observation(import = list(record_2 = quote(min(datum@D))),
                     level = "house")
 
-  expect_identical(get_observations(bulk), get_observations(single))
-  expect_identical(get_observations(imported), get_observations(single))
-  expect_identical(get_observations(single)[["level"]], "house")
+  get_observations(bulk) |> expect_identical(get_observations(single))
+  get_observations(imported) |> expect_identical(get_observations(single))
+  get_observations(single)[["level"]] |> expect_identical("house")
 
   # a member-level function reaches the definition through `func`
   single <- hhmodel |>
@@ -156,9 +156,9 @@ test_that("add_observation routes every input branch on `level`", {
       import = list(record_2 = list(func = quote(min(datum@D)), status = 1))
     )
 
-  expect_identical(get_observations(bulk), get_observations(single))
-  expect_identical(get_observations(imported), get_observations(single))
-  expect_identical(get_observations(single)[["func"]], "min")
+  get_observations(bulk) |> expect_identical(get_observations(single))
+  get_observations(imported) |> expect_identical(get_observations(single))
+  get_observations(single)[["func"]] |> expect_identical("min")
 
   # an unknown level is rejected before anything is stored
   hhmodel |>
@@ -180,7 +180,7 @@ test_that("Advanced setup options route through `...`", {
     run_inference(steps = 4L, thin = 1L, adapt = 4L, chains = 1L,
                   adapt_window = 2L) |>
     suppressWarnings()
-  expect_equal(hhmodel$setup$adapt_window, 2)
+  hhmodel$setup$adapt_window |> expect_equal(2)
 })
 
 test_that("Progress bar renders, refreshes and closes", {
@@ -197,14 +197,14 @@ test_that("Progress bar renders, refreshes and closes", {
       }, interrupt = function(e) e)
     })
   )
-  expect_s3_class(outcome, "interrupt")
+  outcome |> expect_s3_class("interrupt")
 
   # an opening "0s<?s" line, then refreshes every `progress` seconds,
   # the last reporting the time left, "3s<6h17m"
   secs <- as.integer(sub(".*% ([0-9]+)s<.*", "\\1", bar))
-  expect_identical(secs, c(0L, 3L))
-  expect_match(bar[1], "0s<\\?s")
-  expect_match(bar[length(bar)], "[0-9]+s<[0-9]+[dhms]")
+  secs |> expect_identical(c(0L, 3L))
+  bar[1] |> expect_match("0s<\\?s")
+  bar[length(bar)] |> expect_match("[0-9]+s<[0-9]+[dhms]")
 })
 
 ######################################
@@ -214,14 +214,14 @@ test_that("Progress bar renders, refreshes and closes", {
 test_that("Group risk wrapper input branches", {
   hhmodel <- add_group_risk(mk_member$model, "community", by = "member")
   groups <- get_group_risks(hhmodel)
-  expect_gt(nrow(groups), 0)
+  nrow(groups) |> expect_gt(0)
 
   # the bulk form overwrites the single one with the same definition
   expect_warning(
     hhmodel_2 <- add_group_risk(hhmodel, community = "member"),
     "[Oo]verwriting.*community"
   )
-  expect_identical(get_group_risks(hhmodel_2), groups)
+  get_group_risks(hhmodel_2) |> expect_identical(groups)
 
   # load custom definitions
   strata <- tibble::tribble(~member,   ~param_name,
@@ -242,7 +242,8 @@ test_that("Group risk wrapper input branches", {
     expect_warning("[Uu]nknown.*member.*unknown")
 
   # append = FALSE drops the existing group risks
-  expect_true("susceptibility" %in% get_group_risks(hhmodel)[["group_risk"]])
+  ("susceptibility" %in% get_group_risks(hhmodel)[["group_risk"]]) |>
+    expect_true()
   hhmodel |>
     add_group_risk(community = list(by = "member"), append = FALSE) |>
     get_group_risks() |>
@@ -270,11 +271,11 @@ test_that("Contact risk wrapper input branches", {
   # the wrapper returns a new model, leaving its input untouched
   hhmodel <- mk_member$model |>
     add_contact_risk(strata = strata, params = list(ctr_student = 1.21))
-  expect_equal(nrow(mk_member$model$contact_risks), 0L)
-  expect_gt(nrow(get_contact_risks(hhmodel)), 0L)
-  expect_equal(get_contact_risks(hhmodel), hhmodel$contact_risks)
+  nrow(mk_member$model$contact_risks) |> expect_identical(0L)
+  nrow(get_contact_risks(hhmodel)) |> expect_gt(0L)
+  get_contact_risks(hhmodel) |> expect_identical(hhmodel$contact_risks)
   # the rebuilt parameter is exposed on the returned model
-  expect_true("ctr_student" %in% get_parameters(hhmodel)$name)
+  ("ctr_student" %in% get_parameters(hhmodel)$name) |> expect_true()
 
   # second call warns about overwrite
   hhmodel |>

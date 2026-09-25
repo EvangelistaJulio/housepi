@@ -29,14 +29,14 @@ test_that("Default parameter definitions are correct", {
     add_parameter("rho", value = 3, prior = "uniform", max = 5) |>
     get_parameters()
 
-  expect_equal(param$name, "rho")
-  expect_equal(param$value, 3)
-  expect_equal(param$const, FALSE)
-  expect_equal(param$discr, FALSE)
-  expect_equal(param$proposal, "rw")
-  expect_equal(param$prior, "uniform")
-  expect_equal(param$min, 0)
-  expect_equal(param$max, 5)
+  param$name |> expect_identical("rho")
+  param$value |> expect_equal(3)
+  param$const |> expect_identical(FALSE)
+  param$discr |> expect_identical(FALSE)
+  param$proposal |> expect_identical("rw")
+  param$prior |> expect_identical("uniform")
+  param$min |> expect_equal(0)
+  param$max |> expect_equal(5)
 
   # bulk and single modes definitions should be identical
   mk_param$model |>
@@ -48,8 +48,8 @@ test_that("Default parameter definitions are correct", {
   param <- mk_param$model |>
     add_parameter("rho", prior = "gamma", shape = 2, scale = 1) |>
     get_parameters()
-  expect_equal(param$prior, "gamma")
-  expect_equal(param$args[[1]], c(shape = 2, scale = 1))
+  param$prior |> expect_identical("gamma")
+  param$args[[1]] |> expect_equal(c(shape = 2, scale = 1))
 
   # a user-defined proposal_scale is folded into the proposal call as an
   # argument of the DSL, pinning the scale (no adaptation)
@@ -57,8 +57,8 @@ test_that("Default parameter definitions are correct", {
     add_parameter("rho", prior = "uniform", max = 5,
                   proposal = "rw_log", proposal_scale = 0.5) |>
     get_parameters()
-  expect_equal(param$proposal, "rw_log")
-  expect_equal(param$proposal_args[[1]], c(scale = 0.5))
+  param$proposal |> expect_identical("rw_log")
+  param$proposal_args[[1]] |> expect_equal(c(scale = 0.5))
 })
 
 test_that("The defining distribution of the sibling family is named as spare", {
@@ -75,7 +75,7 @@ test_that("A func definition is deterministic", {
   # a plain number is a constant value, whichever argument carried it
   by_func <- mk_param$model |> add_parameter(rho = list(func = 21))
   by_value <- mk_param$model |> add_parameter(rho = list(value = 21))
-  expect_equal(get_parameters(by_func), get_parameters(by_value))
+  get_parameters(by_func) |> expect_identical(get_parameters(by_value))
 
   # a deterministic definition accepts no proposal
   mk_param$model |>
@@ -86,8 +86,8 @@ test_that("A func definition is deterministic", {
   hhmodel <- mk_param$model |> add_parameter("rho_2", value = 2)
   by_args <- hhmodel |> add_parameter("rho", func = "log", x = rho_2@P)
   by_expr <- hhmodel |> add_parameter(rho = log(rho_2@P))
-  expect_equal(get_parameters(by_args), get_parameters(by_expr))
-  expect_equal(get_parameters(by_args)$func_args[[2]], c(x = "rho_2|P"))
+  get_parameters(by_args) |> expect_identical(get_parameters(by_expr))
+  get_parameters(by_args)$func_args[[2]] |> expect_identical(c(x = "rho_2|P"))
 })
 
 test_that("A parameter takes a single defining argument", {
@@ -128,8 +128,8 @@ test_that("Proposal families route correctly", {
     add_parameter("rho", prior = "uniform", min = 0, max = 5,
                   proposal = "normal", proposal_mean = 0, proposal_sd = 1) |>
     get_parameters()
-  expect_equal(param$proposal, "normal")
-  expect_equal(param$proposal_args[[1]], c(mean = 0, sd = 1))
+  param$proposal |> expect_identical("normal")
+  param$proposal_args[[1]] |> expect_equal(c(mean = 0, sd = 1))
 
   # sampling from the variable's own distribution uses the "forward" keyword
   mk_param$model |>
@@ -137,7 +137,7 @@ test_that("Proposal families route correctly", {
                   proposal = "forward") |>
     get_parameters() |>
     getElement("proposal") |>
-    expect_equal("forward")
+    expect_identical("forward")
 
   # proposal_scale only tunes a random walk
   mk_param$model |>
@@ -175,13 +175,13 @@ test_that("Constant parameter definitions are correct", {
   # bulk and single add should be coherent
   hhmodel <- mk_param$model |> add_parameter(rho = 3)
   hhmodel_2 <- mk_param$model |> add_parameter("rho", value = 3)
-  expect_identical(get_parameters(hhmodel), get_parameters(hhmodel_2))
+  get_parameters(hhmodel) |> expect_identical(get_parameters(hhmodel_2))
 
   param <- get_parameters(hhmodel)
-  expect_equal(param$name, "rho")
-  expect_equal(param$value, 3)
-  expect_equal(param$const, TRUE)
-  expect_equal(param$proposal, NA_real_)
+  param$name |> expect_identical("rho")
+  param$value |> expect_equal(3)
+  param$const |> expect_identical(TRUE)
+  param$proposal |> expect_equal(NA_real_)
 
   expect_warning(
     overwritten <- hhmodel |>
@@ -189,7 +189,7 @@ test_that("Constant parameter definitions are correct", {
                     min = 0, max = 5, const = TRUE),
     "[Oo]verwriting"
   )
-  expect_equal(get_parameters(overwritten), get_parameters(hhmodel_2))
+  get_parameters(overwritten) |> expect_identical(get_parameters(hhmodel_2))
 })
 
 test_that("Parameter options typed as values refuse other types", {
@@ -214,10 +214,9 @@ test_that("Unsupported parameter definitions throw errors", {
     add_parameter("rho", prior = "uniform", min = datum@D) |>
     expect_error("[Nn]ot supported")
   # a bare name nothing declares carries no source yet: it waits for the wall
-  expect_no_error(
-    hhmodel <- add_parameter(mk_param$model, "rho", prior = "uniform",
-                             min = datum)
-  )
+  hhmodel <- add_parameter(mk_param$model, "rho", prior = "uniform",
+                           min = datum)
+  get_parameters(hhmodel)$min |> expect_identical("datum|?")
   hhmodel |>
     evaluate_log_lik() |>
     expect_error("[Cc]ould not resolve the source of .datum.")
@@ -266,8 +265,8 @@ test_that("Lognormal proposal rejects unsupported domains", {
     run_inference(steps = 20L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings() |>
     get_parameter_draws()
-  expect_true(all(draws[["rho"]] > -1))
-  expect_true(all(draws[["rho"]] < 4))
+  (draws[["rho"]] > -1) |> expect_all_true()
+  (draws[["rho"]] < 4) |> expect_all_true()
 })
 
 test_that("Discretization is enabled as expected", {
@@ -286,14 +285,14 @@ test_that("Discretization is enabled as expected", {
     suppressWarnings() |>
     get_parameter_draws() |>
     draws_to_frame()
-  expect_true(all(draws == floor(draws)))
-  expect_true(all(draws >= val$min))
-  expect_true(all(draws <= val$max))
+  (draws == floor(draws)) |> as.vector() |> expect_all_true()
+  (draws >= val$min) |> as.vector() |> expect_all_true()
+  (draws <= val$max) |> as.vector() |> expect_all_true()
 
   # a lattice kernel tuned narrower than one integer value stays pinned to its
   # starting point, every step proposing the value it already holds
-  expect_gt(length(unique(draws[, "rho_2"])), 1L)
-  expect_gt(length(unique(draws[, "rho_3"])), 1L)
+  length(unique(draws[, "rho_2"])) |> expect_gt(1L)
+  length(unique(draws[, "rho_3"])) |> expect_gt(1L)
 })
 
 test_that("Lattice random walks sample their target", {
@@ -313,7 +312,7 @@ test_that("Lattice random walks sample their target", {
     empirical <- as.numeric(table(factor(draws[["rho"]], levels = 0:6)))
     empirical <- empirical / sum(empirical)
     # total variation distance, well within the spread of a correct kernel
-    expect_lt(0.5 * sum(abs(empirical - exact)), 0.06)
+    (0.5 * sum(abs(empirical - exact))) |> expect_lt(0.06)
   }
 })
 
@@ -335,9 +334,9 @@ test_that("Parameter defined as a function tracks its dependencies", {
   bare <- mk_final_size$model |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref^-gamma,
                   gamma = list(prior = "uniform"), hhsize_ref = 4)
-  expect_equal(get_parameters(bare), get_parameters(sigilled))
-  expect_equal(get_parameters(bare)$func_args[[2]],
-               c(x = "hhsize_ref|P", x2 = "minus|x|[gamma|P]"))
+  get_parameters(bare) |> expect_identical(get_parameters(sigilled))
+  get_parameters(bare)$func_args[[2]] |>
+    expect_identical(c(x = "hhsize_ref|P", x2 = "minus|x|[gamma|P]"))
   # a sigil reads the same in lower case
   mk_final_size$model |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref@p^-gamma@p,
@@ -352,9 +351,9 @@ test_that("Parameter defined as a function tracks its dependencies", {
     getElement("parameter_draws") |>
     posterior::as_draws_df() |>
     as.data.frame()
-  expect_true(all(c("gamma", "beta") %in% names(draws)))
+  names(draws) |> expect_contains(c("gamma", "beta"))
   # every draw of beta equals hhsize_ref^(-gamma) exactly
-  expect_equal(draws$beta, 4^(-draws$gamma))
+  draws$beta |> expect_equal(4^(-draws$gamma))
 })
 
 test_that("Parameter function rejects non-parameter dependencies", {
@@ -391,7 +390,7 @@ test_that("Parameter template import loads the shipped definitions", {
     hhmodel <- add_parameter(mk_param$model, import = "template"),
     regexp = "test model"
   )
-  expect_identical(nrow(get_parameters(hhmodel)), 0L)
+  nrow(get_parameters(hhmodel)) |> expect_identical(0L)
 })
 
 test_that("A parameter meets the model definition requirements", {
@@ -420,12 +419,14 @@ test_that("A parameter meets the model definition requirements", {
     add_parameter(hhsize_ref = 3.3) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
-    expect_no_error()
+    is.finite() |>
+    expect_true()
   hhmodel |>
     add_parameter(hhsize_ref = list(prior = "uniform", min = 2, max = 6)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
-    expect_no_error()
+    is.finite() |>
+    expect_true()
 })
 
 test_that("Strict positivity propagates through a parameter function", {
@@ -439,15 +440,20 @@ test_that("Strict positivity propagates through a parameter function", {
   }
 
   # positivity follows the operands, one node at a time
-  expect_no_error(mk(alpha = exp(-rho@P)))
-  expect_no_error(mk(alpha = sqrt(rho@P) / 10))
-  expect_no_error(mk(alpha = rho@P^2 * 1e-2))
-  expect_no_error(mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
-                     alpha = min(rho@P, rho_2@P) * 1e-2))
-  expect_no_error(mk(rho_2 = list(prior = "normal"),
-                     alpha = max(rho@P, rho_2@P) * 1e-2))
-  expect_no_error(mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
-                     alpha = (rho@P + rho_2@P) * 1e-2))
+  mk(alpha = exp(-rho@P)) |> is.finite() |> expect_true()
+  mk(alpha = sqrt(rho@P) / 10) |> is.finite() |> expect_true()
+  mk(alpha = rho@P^2 * 1e-2) |> is.finite() |> expect_true()
+  mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
+     alpha = min(rho@P, rho_2@P) * 1e-2) |>
+    is.finite() |>
+    expect_true()
+  mk(rho_2 = list(prior = "normal"), alpha = max(rho@P, rho_2@P) * 1e-2) |>
+    is.finite() |>
+    expect_true()
+  mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
+     alpha = (rho@P + rho_2@P) * 1e-2) |>
+    is.finite() |>
+    expect_true()
 
   # a sign-indefinite node is not provably positive, whatever it evaluates to
   mk(alpha = log(rho@P)) |>
@@ -469,7 +475,8 @@ test_that("Strict positivity propagates through a shifted prior", {
                                loc = 1e-3)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
-    expect_no_error()
+    is.finite() |>
+    expect_true()
 
   # the same interval, unshifted, keeps no proof
   mk_final_size$template |>
@@ -516,13 +523,12 @@ test_that("Every prior and function is copied into each chain", {
     suppressWarnings() |>
     get_parameter_draws()
 
-  expect_equal(posterior::nchains(draws), 2L)
-  expect_setequal(posterior::variables(draws),
-                  c("rho", paste0("rho_", 2:11)))
+  posterior::nchains(draws) |> expect_identical(2L)
+  posterior::variables(draws) |> expect_setequal(c("rho", paste0("rho_", 2:11)))
   # the functions track their operand within every chain
   draws <- as.data.frame(posterior::as_draws_df(draws))
-  expect_equal(draws$rho_9, sin(draws$rho))
-  expect_equal(draws$rho_11, exp(draws$rho))
+  draws$rho_9 |> expect_equal(sin(draws$rho))
+  draws$rho_11 |> expect_equal(exp(draws$rho))
 })
 
 test_that("An unpinned parameter is drawn from its prior in simulation", {
@@ -539,9 +545,9 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
   drawn <- run_simulation(hhmodel, nrep = 40) |>
     vapply(function(x) x$hidden[1], numeric(1))
 
-  expect_true(all(drawn >= 0.1 & drawn <= 0.9))
-  expect_gt(stats::sd(drawn), 0.15) # uniform spread, not the proposal's 0.005
-  expect_lt(mean(drawn), 0.7)       # centred on the prior, not on 0.88
+  (drawn >= 0.1 & drawn <= 0.9) |> expect_all_true()
+  stats::sd(drawn) |> expect_gt(0.15) # uniform spread, not the proposal's 0.005
+  mean(drawn) |> expect_lt(0.7)            # centred on the prior, not on 0.88
 })
 
 test_that("An unpinned parameter is drawn from its prior at evaluation", {
@@ -557,8 +563,8 @@ test_that("An unpinned parameter is drawn from its prior at evaluation", {
   pinned <- function(a) evaluate_log_lik(add_parameter(hhmodel, alpha = !!a))
   span <- abs(pinned(0.9) - pinned(0.1))
 
-  expect_true(all(is.finite(log_lik)))
-  expect_gt(stats::sd(log_lik), 0.05 * span)
+  is.finite(log_lik) |> expect_all_true()
+  stats::sd(log_lik) |> expect_gt(0.05 * span)
 })
 
 test_that("A fixed seed reproduces parameter draws on a single thread", {
@@ -574,7 +580,7 @@ test_that("A fixed seed reproduces parameter draws on a single thread", {
   }
   draws <- draws_at(1105L)
 
-  expect_identical(draws, draws_at(1105L))
+  draws |> expect_identical(draws_at(1105L))
   # a seed that moves the draws, so the equality above is not vacuous
-  expect_false(identical(draws, draws_at(2705L)))
+  identical(draws, draws_at(2705L)) |> expect_false()
 })

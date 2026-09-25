@@ -44,23 +44,23 @@ expect_function_matches <- function(name, args,
                                     domain = "(-Inf, Inf)", discrete = FALSE,
                                     x = seq(0.1, 10, 0.1), h = 0.1) {
   func <- do.call(browse_functions, c(list(name), args))
-  expect_identical(func$domain, interval(domain))
-  expect_identical(func$is_discrete, discrete)
+  func$domain |> expect_identical(interval(domain))
+  func$is_discrete |> expect_identical(discrete)
 
-  expect_equal(func$func(x), ref_f(x))
+  func$func(x) |> expect_equal(ref_f(x))
 
-  if (is.null(ref_prim)) expect_error(func$prim(x), "undefined method")
-  else expect_equal(func$prim(x), ref_prim(x))
+  if (is.null(ref_prim)) func$prim(x) |> expect_error("undefined method")
+  else func$prim(x) |> expect_equal(ref_prim(x))
 
   keep <- in_interval(domain)(x)
   null_move <- func$log_ratio(x, x)
-  expect_equal(null_move[keep], rep(0, sum(keep)))
+  null_move[keep] |> expect_equal(rep(0, sum(keep)))
   if (is.null(ref_log)) {
-    expect_error(func$log_func(x), "undefined method")
-    expect_equal(func$log_ratio(x, x + h), rep(0, length(x)))
+    func$log_func(x) |> expect_error("undefined method")
+    func$log_ratio(x, x + h) |> expect_equal(rep(0, length(x)))
   } else {
-    expect_equal(func$log_func(x), ref_log(func$func(x)))
-    expect_equal(func$log_ratio(x, x + h), log(ref_f(x + h) / ref_f(x)))
+    func$log_func(x) |> expect_equal(ref_log(func$func(x)))
+    func$log_ratio(x, x + h) |> expect_equal(log(ref_f(x + h) / ref_f(x)))
   }
 }
 
@@ -71,18 +71,20 @@ expect_distribution_matches <- function(name, args, ref,
                                         discrete = FALSE,
                                         x = seq(-20, 20, 1), h = pi) {
   distr <- do.call(browse_distributions, c(list(name), args))
-  expect_identical(distr$domain, interval(domain))
-  expect_identical(distr$is_discrete, discrete)
+  distr$domain |> expect_identical(interval(domain))
+  distr$is_discrete |> expect_identical(discrete)
 
-  expect_equal(distr$pdf(x), stats_ref("d", ref, args)(x))
-  expect_equal(distr$cdf(x), stats_ref("p", ref, args)(x))
-  expect_equal(distr$log_pdf(x), log(distr$pdf(x)))
-  expect_equal(distr$log_ratio(x, x + h), log(distr$pdf(x + h) / distr$pdf(x)))
-  expect_equal(distr$log_ratio(x + h, x), log(distr$pdf(x) / distr$pdf(x + h)))
+  distr$pdf(x) |> expect_equal(stats_ref("d", ref, args)(x))
+  distr$cdf(x) |> expect_equal(stats_ref("p", ref, args)(x))
+  distr$log_pdf(x) |> expect_equal(log(distr$pdf(x)))
+  distr$log_ratio(x, x + h) |>
+    expect_equal(log(distr$pdf(x + h) / distr$pdf(x)))
+  distr$log_ratio(x + h, x) |>
+    expect_equal(log(distr$pdf(x) / distr$pdf(x + h)))
   keep <- in_interval(domain)(x)
   null_move <- distr$log_ratio(x, x)
-  expect_equal(null_move[keep], rep(0, sum(keep)))
-  expect_true(all(is.na(null_move[!keep])))
+  null_move[keep] |> expect_equal(rep(0, sum(keep)))
+  null_move[!keep] |> expect_all_na()
 }
 
 # Assert a truncated continuous law against its renormalized R reference.
@@ -93,8 +95,8 @@ expect_truncated_matches <- function(name, args, ref, x,
   d <- stats_ref("d", ref, args)
   p <- stats_ref("p", ref, args)
   zz <- p(max) - p(min)
-  expect_equal(distr$pdf(x), ifelse(x >= min & x <= max, d(x), 0) / zz)
-  expect_equal(distr$cdf(x), pmin(pmax((p(x) - p(min)) / zz, 0), 1))
+  distr$pdf(x) |> expect_equal(ifelse(x >= min & x <= max, d(x), 0) / zz)
+  distr$cdf(x) |> expect_equal(pmin(pmax((p(x) - p(min)) / zz, 0), 1))
 }
 
 # Assert a discretized law stays finite far in the upper tail, where the naive
@@ -105,11 +107,11 @@ expect_tail_finite <- function(name, args, ref, x, bin = c(0, 1),
                                log_scale = TRUE) {
   distr <- do.call(browse_distributions, c(list(name), args, discr = TRUE))
   p <- stats_ref("p", ref, args)
-  expect_true(any(p(x + bin[2]) == p(x + bin[1])))
+  any(p(x + bin[2]) == p(x + bin[1])) |> expect_true()
   pmf <- p(x + bin[1], lower.tail = FALSE) - p(x + bin[2], lower.tail = FALSE)
-  expect_true(all(is.finite(distr$log_pdf(x))))
-  expect_equal(distr$pdf(x), pmf)
-  if (log_scale) expect_equal(distr$log_pdf(x), log(pmf))
+  is.finite(distr$log_pdf(x)) |> expect_all_true()
+  distr$pdf(x) |> expect_equal(pmf)
+  if (log_scale) distr$log_pdf(x) |> expect_equal(log(pmf))
 }
 
 ################################################################################
@@ -118,9 +120,9 @@ expect_tail_finite <- function(name, args, ref, x, bin = c(0, 1),
 
 test_that("Available names listing is stable", {
   # "uniform" is carried by both distribution registries and must be listed once
-  expect_snapshot(browse_functions())
-  expect_snapshot(browse_distributions())
-  expect_snapshot(browse_infectivity_profiles())
+  browse_functions() |> expect_snapshot()
+  browse_distributions() |> expect_snapshot()
+  browse_infectivity_profiles() |> expect_snapshot()
 })
 
 test_that("Browsed functions do not leak memory", {
@@ -138,7 +140,7 @@ test_that("Browsed functions do not leak memory", {
     if (i %% 10 == 0) gc()
   }
   invisible(gc())
-  expect_lt(mem_used_mb() - mem_before, 5)
+  (mem_used_mb() - mem_before) |> expect_lt(5)
 })
 
 ######################################
@@ -147,11 +149,11 @@ test_that("Browsed functions do not leak memory", {
 
 test_that("Exposed fields are read only", {
   distr <- browse_distributions("normal", mean = 0, sd = 1)
-  expect_error(distr$domain <- "[0, 1]", "read only")
-  expect_error(distr$args <- c(mean = 1), "read only")
-  expect_error(distr$is_discrete <- TRUE, "read only")
-  expect_error(distr$is_positive <- TRUE, "read only")
-  expect_error(distr$codomain <- "[0, 1]", "read only")
+  (distr$domain <- "[0, 1]") |> expect_error("read only")
+  (distr$args <- c(mean = 1)) |> expect_error("read only")
+  (distr$is_discrete <- TRUE) |> expect_error("read only")
+  (distr$is_positive <- TRUE) |> expect_error("read only")
+  (distr$codomain <- "[0, 1]") |> expect_error("read only")
 })
 
 test_that("Exposed methods carry R formals", {
@@ -170,98 +172,100 @@ test_that("Exposed methods carry R formals", {
 test_that("Truncation bounds the reported domain, location stays apart", {
   # bounds read before the location shift, as the arguments do
   distr <- browse_distributions("gamma", shape = 2, scale = 1, loc = 3)
-  expect_equal(distr$domain, interval("[0, Inf)"))
+  distr$domain |> expect_equal(interval("[0, Inf)"))
   distr_2 <- browse_distributions("normal", mean = 0, sd = 1,
                                   min = -1, max = 2, loc = 10)
-  expect_equal(distr_2$domain, interval("[-1, 2]"))
+  distr_2$domain |> expect_equal(interval("[-1, 2]"))
   # arguments report the parametrization, location stays unreported
   distr <- browse_distributions("poisson", lambda = 3, loc = 1)
-  expect_equal(distr$args, c(lambda = 3))
+  distr$args |> expect_equal(c(lambda = 3))
 
   # an untruncated law reports the interval its own definition carries
-  expect_equal(browse_distributions("poisson", lambda = 5)$domain,
-               interval("[0, Inf)"))
+  browse_distributions("poisson", lambda = 5)$domain |>
+    expect_equal(interval("[0, Inf)"))
   # the upper bound tracks the 'size' argument it is aliased to
-  expect_equal(browse_distributions("binomial", size = 10, prob = 0.4)$domain,
-               interval("[0, 10]"))
+  browse_distributions("binomial", size = 10, prob = 0.4)$domain |>
+    expect_equal(interval("[0, 10]"))
 })
 
 test_that("The codomain reports what a definition returns", {
   # a function is bounded on the values it accepts and on the values it gives
   # back, and the two are not the same interval
   func <- browse_functions("log")
-  expect_equal(func$domain, interval("(0, Inf)"))
-  expect_equal(func$codomain, interval("(-Inf, Inf)"))
+  func$domain |> expect_equal(interval("(0, Inf)"))
+  func$codomain |> expect_equal(interval("(-Inf, Inf)"))
   func_2 <- browse_functions("exp")
-  expect_equal(func_2$domain, interval("(-Inf, Inf)"))
-  expect_equal(func_2$codomain, interval("(0, Inf)"))
+  func_2$domain |> expect_equal(interval("(-Inf, Inf)"))
+  func_2$codomain |> expect_equal(interval("(0, Inf)"))
   # bounded whatever it reads
-  expect_equal(browse_functions("sin")$codomain, interval("[-1, 1]"))
-  expect_equal(browse_functions("cos")$codomain, interval("[-1, 1]"))
+  browse_functions("sin")$codomain |> expect_equal(interval("[-1, 1]"))
+  browse_functions("cos")$codomain |> expect_equal(interval("[-1, 1]"))
 
   # a reduction folds its declared operands, skipping the unbound "x"
-  expect_equal(browse_functions("sum", x2 = 5)$codomain, interval("[5, 5]"))
-  expect_equal(browse_functions("min", x2 = 5, x3 = -5)$codomain,
-               interval("[-5, -5]"))
-  expect_equal(browse_functions("max", x2 = 5, x3 = -5)$codomain,
-               interval("[5, 5]"))
+  browse_functions("sum", x2 = 5)$codomain |> expect_equal(interval("[5, 5]"))
+  browse_functions("min", x2 = 5, x3 = -5)$codomain |>
+    expect_equal(interval("[-5, -5]"))
+  browse_functions("max", x2 = 5, x3 = -5)$codomain |>
+    expect_equal(interval("[5, 5]"))
 
   # a distribution evaluates to a density, never to a draw: it answers here for
   # the mass it gives back, and in `domain` for the values it is defined on
-  expect_equal(browse_distributions("gamma", shape = 2, scale = 1)$codomain,
-               interval("[0, Inf)"))
+  browse_distributions("gamma", shape = 2, scale = 1)$codomain |>
+    expect_equal(interval("[0, Inf)"))
   # the location moves the values read in, never the density read out
-  expect_equal(browse_distributions("gamma", shape = 2, scale = 1,
-                                    loc = 3)$codomain, interval("[0, Inf)"))
+  browse_distributions("gamma", shape = 2, scale = 1, loc = 3)$codomain |>
+    expect_equal(interval("[0, Inf)"))
   # a mass is bounded by one, a density is not
-  expect_equal(browse_distributions("poisson", lambda = 5)$codomain,
-               interval("[0, 1]"))
-  expect_equal(browse_distributions("binomial", size = 10, prob = 0.4)$codomain,
-               interval("[0, 1]"))
-  expect_equal(browse_distributions("gamma", shape = 2, scale = 1,
-                                    discr = TRUE)$codomain, interval("[0, 1]"))
+  browse_distributions("poisson", lambda = 5)$codomain |>
+    expect_equal(interval("[0, 1]"))
+  browse_distributions("binomial", size = 10, prob = 0.4)$codomain |>
+    expect_equal(interval("[0, 1]"))
+  browse_distributions("gamma", shape = 2, scale = 1, discr = TRUE)$codomain |>
+    expect_equal(interval("[0, 1]"))
 })
 
 test_that("Strict positivity follows the support", {
   # a continuous support closing at zero puts no mass on the boundary
-  expect_true(browse_distributions("gamma", shape = 2, scale = 1)$is_positive)
-  expect_true(browse_distributions("lognormal", meanlog = 0,
-                                   sdlog = 1)$is_positive)
-  expect_true(browse_distributions("exponential", rate = 1)$is_positive)
+  browse_distributions("gamma", shape = 2, scale = 1)$is_positive |>
+    expect_true()
+  browse_distributions("lognormal", meanlog = 0, sdlog = 1)$is_positive |>
+    expect_true()
+  browse_distributions("exponential", rate = 1)$is_positive |> expect_true()
 
   # a discrete law owning the zero bin does not, discretization included
-  expect_false(browse_distributions("poisson", lambda = 5)$is_positive)
-  expect_false(browse_distributions("binomial", size = 10,
-                                    prob = 0.4)$is_positive)
-  expect_false(browse_distributions("gamma", shape = 2, scale = 1,
-                                    discr = TRUE)$is_positive)
-  expect_true(browse_distributions("uniform", min = 2, max = 6,
-                                   discr = TRUE)$is_positive)
+  browse_distributions("poisson", lambda = 5)$is_positive |> expect_false()
+  browse_distributions("binomial", size = 10, prob = 0.4)$is_positive |>
+    expect_false()
+  browse_distributions("gamma", shape = 2, scale = 1,
+                       discr = TRUE)$is_positive |>
+    expect_false()
+  browse_distributions("uniform", min = 2, max = 6, discr = TRUE)$is_positive |>
+    expect_true()
 
   # the floor is read in the absolute frame, after truncation and location
-  expect_false(browse_distributions("normal", mean = 0, sd = 1)$is_positive)
-  expect_true(browse_distributions("normal", mean = 0, sd = 1,
-                                   min = 0)$is_positive)
+  browse_distributions("normal", mean = 0, sd = 1)$is_positive |> expect_false()
+  browse_distributions("normal", mean = 0, sd = 1, min = 0)$is_positive |>
+    expect_true()
   distr <- browse_distributions("gamma", shape = 2, scale = 1, loc = -1)
-  expect_false(distr$is_positive)
+  distr$is_positive |> expect_false()
 
   # a function answers for the value it returns: the exponential is positive
   # whatever it reads, the others follow an "x" this surface leaves unbound
-  expect_true(browse_functions("exp")$is_positive)
-  expect_false(browse_functions("log")$is_positive)
-  expect_false(browse_functions("sqrt")$is_positive)
-  expect_false(browse_functions("div", x2 = 5)$is_positive)
+  browse_functions("exp")$is_positive |> expect_true()
+  browse_functions("log")$is_positive |> expect_false()
+  browse_functions("sqrt")$is_positive |> expect_false()
+  browse_functions("div", x2 = 5)$is_positive |> expect_false()
 
   # a reduction folds over its declared operands, skipping the unbound "x"
-  expect_true(browse_functions("sum", x2 = 5)$is_positive)
-  expect_false(browse_functions("sum", x2 = -5)$is_positive)
-  expect_true(browse_functions("prod", x2 = 5)$is_positive)
-  expect_false(browse_functions("prod", x2 = -5)$is_positive)
+  browse_functions("sum", x2 = 5)$is_positive |> expect_true()
+  browse_functions("sum", x2 = -5)$is_positive |> expect_false()
+  browse_functions("prod", x2 = 5)$is_positive |> expect_true()
+  browse_functions("prod", x2 = -5)$is_positive |> expect_false()
   # the minimum needs every operand positive, the maximum just one
-  expect_false(browse_functions("min", x2 = 5, x3 = -5)$is_positive)
-  expect_true(browse_functions("max", x2 = 5, x3 = -5)$is_positive)
-  expect_true(browse_functions("min", x2 = 5, x3 = 1)$is_positive)
-  expect_false(browse_functions("max", x2 = -5, x3 = -1)$is_positive)
+  browse_functions("min", x2 = 5, x3 = -5)$is_positive |> expect_false()
+  browse_functions("max", x2 = 5, x3 = -5)$is_positive |> expect_true()
+  browse_functions("min", x2 = 5, x3 = 1)$is_positive |> expect_true()
+  browse_functions("max", x2 = -5, x3 = -1)$is_positive |> expect_false()
 })
 
 #################################
@@ -271,9 +275,8 @@ test_that("Strict positivity follows the support", {
 test_that("Function arguments are validated", {
   x <- seq(0.1, 10, 0.1)
   func <- browse_functions("pow", x2 = 3)
-  expect_equal(func$args, c(x2 = 3))
-  func$log_ratio(x, x[-1]) |>
-    expect_error("[Ss]ize")
+  func$args |> expect_equal(c(x2 = 3))
+  func$log_ratio(x, x[-1]) |> expect_error("[Ss]ize")
 
   browse_functions("pow")$func(x) |>
     expect_error("Missing non default")
@@ -288,10 +291,12 @@ test_that("Function arguments are validated", {
 test_that("Location shifts the function argument", {
   x <- seq(-10, 10, 0.1)
   loc_val <- 1.5
-  expect_equal(browse_functions("exp", loc = loc_val)$func(x), exp(x - loc_val))
-  expect_equal(browse_functions("exp", loc = loc_val)$prim(x), exp(x - loc_val))
+  browse_functions("exp", loc = loc_val)$func(x) |>
+    expect_equal(exp(x - loc_val))
+  browse_functions("exp", loc = loc_val)$prim(x) |>
+    expect_equal(exp(x - loc_val))
   # a quarter-turn shift turns the sine into the cosine
-  expect_equal(browse_functions("sin", loc = -0.5 * pi)$func(x), cos(x))
+  browse_functions("sin", loc = -0.5 * pi)$func(x) |> expect_equal(cos(x))
 })
 
 test_that("Transcendental functions match R reference", {
@@ -343,7 +348,7 @@ test_that("Variadic kernels return NA on an NA operand", {
   # as in R without na.rm: sum(NA, 3) is NA
   for (name in c("sum", "prod", "min", "max")) {
     func <- browse_functions(name, x2 = 3)
-    expect_equal(func$func(c(NA, 2)), c(NA, get(name)(2, 3)))
+    func$func(c(NA, 2)) |> expect_equal(c(NA, get(name)(2, 3)))
   }
 })
 
@@ -356,35 +361,36 @@ test_that("Truncated discrete mass is normalised on the bins of the support", {
   x <- 1:10
   distr <- browse_distributions("binomial", size = 12, prob = 0.2, min = 1)
   shift <- stats::pbinom(0, 12, 0.2)
-  expect_equal(distr$pdf(x), stats::dbinom(x, 12, 0.2) / (1 - shift))
-  expect_equal(distr$cdf(x), (stats::pbinom(x, 12, 0.2) - shift) / (1 - shift))
+  distr$pdf(x) |> expect_equal(stats::dbinom(x, 12, 0.2) / (1 - shift))
+  distr$cdf(x) |>
+    expect_equal((stats::pbinom(x, 12, 0.2) - shift) / (1 - shift))
 
   # the window closes on the last bin inside the support, not one atom past it
   k <- 2:6
   distr <- browse_distributions("poisson", lambda = 3,
                                 min = min(k), max = max(k))
   norm <- diff(stats::ppois(c(min(k) - 1, max(k)), 3))
-  expect_equal(distr$pdf(k), stats::dpois(k, 3) / norm)
-  expect_equal(sum(distr$pdf(k)), 1)
-  expect_equal(distr$cdf(max(k)), 1)
+  distr$pdf(k) |> expect_equal(stats::dpois(k, 3) / norm)
+  sum(distr$pdf(k)) |> expect_equal(1)
+  distr$cdf(max(k)) |> expect_equal(1)
 
   # left-discretized: bin i carries [i, i + 1), so the support holds 5 bins
   i <- 1:5
   distr <- browse_distributions("gamma", shape = 2, scale = 1,
                                 min = min(i), max = max(i), discr = TRUE)
   norm <- diff(stats::pgamma(c(min(i), max(i) + 1), shape = 2, scale = 1))
-  expect_equal(distr$pdf(i),
-               diff(stats::pgamma(c(i, max(i) + 1), shape = 2,
-                                  scale = 1)) / norm)
-  expect_equal(sum(distr$pdf(i)), 1)
-  expect_equal(distr$cdf(max(i)), 1)
+  distr$pdf(i) |>
+    expect_equal(diff(stats::pgamma(c(i, max(i) + 1), shape = 2,
+                                    scale = 1)) / norm)
+  sum(distr$pdf(i)) |> expect_equal(1)
+  distr$cdf(max(i)) |> expect_equal(1)
 })
 
 test_that("Truncated discrete rand() reaches every bin of the support", {
   # both sampling branches must reproduce the mass they are scored against
   expect_draws_match_pdf <- function(distr, k, n = 2e4) {
     freq <- as.vector(table(factor(distr$rand(n), levels = k))) / n
-    expect_equal(freq, distr$pdf(k), tolerance = 0.05)
+    freq |> expect_equal(distr$pdf(k), tolerance = 0.05)
   }
 
   # retained mass 0.54: rejection branch
@@ -402,7 +408,7 @@ test_that("Truncated discrete rand() reaches every bin of the support", {
   distr <- browse_distributions("gamma", shape = 2, scale = 1,
                                 min = min(i), max = max(i), discr = TRUE)
   expect_draws_match_pdf(distr, i)
-  expect_identical(max(distr$rand(2e4L)), max(i))
+  max(distr$rand(2e4L)) |> expect_identical(max(i))
 })
 
 test_that("Discrete uniform spreads flat mass over the integers", {
@@ -410,27 +416,27 @@ test_that("Discrete uniform spreads flat mass over the integers", {
   distr <- browse_distributions("uniform", min = 0, max = 10, discr = TRUE)
 
   # every integer value in the support carries the same mass
-  expect_equal(distr$pdf(k), rep(1 / length(k), length(k)))
-  expect_equal(sum(distr$pdf(k)), 1)
-  expect_equal(distr$log_pdf(k), rep(-log(length(k)), length(k)))
-  expect_equal(distr$pdf(c(-1, 11)), c(0, 0))
+  distr$pdf(k) |> expect_equal(rep(1 / length(k), length(k)))
+  sum(distr$pdf(k)) |> expect_equal(1)
+  distr$log_pdf(k) |> expect_equal(rep(-log(length(k)), length(k)))
+  distr$pdf(c(-1, 11)) |> expect_equal(c(0, 0))
 
   # the cumulative closes on the last atom, and is the running mass
-  expect_equal(distr$cdf(k), cumsum(distr$pdf(k)))
-  expect_equal(distr$cdf(max(k)), 1)
+  distr$cdf(k) |> expect_equal(cumsum(distr$pdf(k)))
+  distr$cdf(max(k)) |> expect_equal(1)
 
   # flat mass leaves every move even
-  expect_equal(distr$log_ratio(c(0, 5), c(10, 6)), c(0, 0))
+  distr$log_ratio(c(0, 5), c(10, 6)) |> expect_equal(c(0, 0))
 
   # the quantile is the first atom whose cumulative reaches p
   p <- c(0.01, 0.25, 0.5, 0.75, 0.99)
   first_atom <- function(q) k[which(cumsum(distr$pdf(k)) >= q)[1]]
-  expect_equal(distr$quantile(p), vapply(p, first_atom, 0))
+  distr$quantile(p) |> expect_equal(vapply(p, first_atom, 0))
 
   # the default support is a coin flip
   coin <- browse_distributions("uniform", discr = TRUE)
-  expect_equal(coin$pdf(0:1), c(0.5, 0.5))
-  expect_equal(coin$cdf(0:1), c(0.5, 1))
+  coin$pdf(0:1) |> expect_equal(c(0.5, 0.5))
+  coin$cdf(0:1) |> expect_equal(c(0.5, 1))
 
   # 'loc' carries the atoms without reshaping them
   browse_distributions("uniform", min = 0, max = 10, loc = 100,
@@ -496,33 +502,32 @@ test_that("Categorical distribution is correct", {
   args <- list(a = 2, b = 1, c = 7)
   distr <- browse_distributions("categorical", args)
   pmf <- unname(unlist(args)) / sum(unlist(args))
-  expect_equal(distr$pdf(0:2), pmf)
-  expect_equal(distr$pdf(c(-1, 3)), c(0, 0))
-  expect_equal(distr$log_pdf(0:2), log(pmf))
+  distr$pdf(0:2) |> expect_equal(pmf)
+  distr$pdf(c(-1, 3)) |> expect_equal(c(0, 0))
+  distr$log_pdf(0:2) |> expect_equal(log(pmf))
 
   # cumulative pmf
-  expect_equal(distr$cdf(0:2), cumsum(pmf))
-  expect_equal(distr$cdf(c(-1, 5)), c(0, 1))
+  distr$cdf(0:2) |> expect_equal(cumsum(pmf))
+  distr$cdf(c(-1, 5)) |> expect_equal(c(0, 1))
 
   # log-ratio
   distr$log_ratio(c(0, 1), c(1, 2)) |>
     expect_equal(log(pmf[c(2, 3)] / pmf[c(1, 2)]))
 
   # the quantile is the first label whose cumulative weight reaches p
-  expect_equal(distr$quantile(c(0.1, 0.25, 0.5, 0.9)), c(0, 1, 2, 2))
+  distr$quantile(c(0.1, 0.25, 0.5, 0.9)) |> expect_equal(c(0, 1, 2, 2))
 
-  browse_distributions("categorical") |>
-    expect_error("no weights")
+  browse_distributions("categorical") |> expect_error("no weights")
   browse_distributions("categorical", a = 1, b = -2) |>
     expect_error("non-strictly positive")
 })
 
 test_that("Default parameters match R reference for d", {
   x <- seq(-20, 20, 1)
-  expect_equal(browse_distributions("normal")$pdf(x), stats::dnorm(x))
-  expect_equal(browse_distributions("uniform")$pdf(x), stats::dunif(x))
-  expect_equal(browse_distributions("lognormal")$pdf(x), stats::dlnorm(x))
-  expect_equal(browse_distributions("exponential")$pdf(x), stats::dexp(x))
+  browse_distributions("normal")$pdf(x) |> expect_equal(stats::dnorm(x))
+  browse_distributions("uniform")$pdf(x) |> expect_equal(stats::dunif(x))
+  browse_distributions("lognormal")$pdf(x) |> expect_equal(stats::dlnorm(x))
+  browse_distributions("exponential")$pdf(x) |> expect_equal(stats::dexp(x))
 })
 
 test_that("Truncated continuous laws renormalize their R reference", {
@@ -559,9 +564,9 @@ test_that("Gamma and lognormal accept a mean/sd parametrization", {
   for (name in names(canonical)) {
     d_can <- do.call(browse_distributions, c(list(name), canonical[[name]]))
     d_alt <- browse_distributions(name, mean = m, sd = s)
-    expect_equal(d_alt$pdf(x), d_can$pdf(x), info = name)
-    expect_equal(d_alt$cdf(x), d_can$cdf(x), info = name)
-    expect_equal(d_alt$log_pdf(x), d_can$log_pdf(x), info = name)
+    d_alt$pdf(x) |> expect_equal(d_can$pdf(x), info = name)
+    d_alt$cdf(x) |> expect_equal(d_can$cdf(x), info = name)
+    d_alt$log_pdf(x) |> expect_equal(d_can$log_pdf(x), info = name)
   }
 })
 
@@ -569,8 +574,8 @@ test_that("Non-integer x maps to floor for Discrete::Defined distributions", {
   # pdf and cdf at k and any value in [k, k+1) are identical
   distr <- browse_distributions("poisson", lambda = 3)
   k <- seq(0, 9, 1)
-  expect_equal(distr$pdf(k + 0.7), distr$pdf(k))
-  expect_equal(distr$cdf(k + 0.7), distr$cdf(k))
+  distr$pdf(k + 0.7) |> expect_equal(distr$pdf(k))
+  distr$cdf(k + 0.7) |> expect_equal(distr$cdf(k))
 })
 
 test_that("Discretized exponential and gamma use left-discretization", {
@@ -578,8 +583,8 @@ test_that("Discretized exponential and gamma use left-discretization", {
   x <- seq(0, 5, 1)
   distr <- browse_distributions("exponential", rate = 0.4, discr = TRUE)
   expected_pmf <- stats::pexp(x + 1, 0.4) - stats::pexp(x, 0.4)
-  expect_equal(distr$pdf(x), expected_pmf)
-  expect_equal(distr$cdf(x), cumsum(expected_pmf), tolerance = 1e-10)
+  distr$pdf(x) |> expect_equal(expected_pmf)
+  distr$cdf(x) |> expect_equal(cumsum(expected_pmf), tolerance = 1e-10)
 
   x <- seq(0, 10, 1)
   gcdf <- stats_ref("p", "gamma", list(shape = 2, scale = 1.5))
@@ -595,18 +600,18 @@ test_that("Discretized normal methods go through center-discretization", {
   # center discretization: pdf(k) = pnorm(k+0.5) - pnorm(k-0.5)
   x <- seq(0, 10, 1)
   expected_pmf <- normcdf(x + 0.5) - normcdf(x - 0.5)
-  expect_equal(distr$pdf(x), expected_pmf)
+  distr$pdf(x) |> expect_equal(expected_pmf)
 
   # log_func_ Center branch
-  expect_equal(distr$log_pdf(x), log(expected_pmf))
+  distr$log_pdf(x) |> expect_equal(log(expected_pmf))
   # primitive_ Center branch (cdf is the primitive)
-  expect_equal(distr$cdf(x), normcdf(x + 0.5))
+  distr$cdf(x) |> expect_equal(normcdf(x + 0.5))
   # log_ratio_ Center branch with distinct rounded values
   xn <- x + 1
   distr$log_ratio(x, xn) |>
     expect_equal(log(distr$pdf(xn) / distr$pdf(x)))
   # log_ratio when rounded values coincide should be 0
-  expect_equal(distr$log_ratio(x, x + 0.1), rep(0, length(x)))
+  distr$log_ratio(x, x + 0.1) |> expect_equal(rep(0, length(x)))
 
   # truncation at max renormalizes over the bins below it
   args <- list(mean = 2, sd = 1.5)
@@ -615,7 +620,7 @@ test_that("Discretized normal methods go through center-discretization", {
   x <- seq(-3, 5, 1)
   expec_pmf <- ifelse(x > 4, 0, normcdf(x + 0.5) - normcdf(x - 0.5)) /
     normcdf(4.5)
-  expect_equal(distr$pdf(x), expec_pmf)
+  distr$pdf(x) |> expect_equal(expec_pmf)
 })
 
 test_that("Discretized lognormal keeps the mass of the origin bin", {
@@ -624,20 +629,20 @@ test_that("Discretized lognormal keeps the mass of the origin bin", {
   distr <- browse_distributions("lognormal", args, discr = TRUE)
 
   lncdf <- stats_ref("p", "lnorm", args)
-  expect_equal(distr$pdf(x), lncdf(x + 1) - lncdf(x))
-  expect_equal(sum(distr$pdf(x)), 1)
+  distr$pdf(x) |> expect_equal(lncdf(x + 1) - lncdf(x))
+  sum(distr$pdf(x)) |> expect_equal(1)
 
   # the pmf and the cdf agree on the origin bin
-  expect_gt(distr$pdf(0), 0)
-  expect_equal(distr$cdf(0:3), cumsum(distr$pdf(0:3)))
+  distr$pdf(0) |> expect_gt(0)
+  distr$cdf(0:3) |> expect_equal(cumsum(distr$pdf(0:3)))
 
   # in continuous time the origin is a zero-density point, not a NaN
   contin <- browse_distributions("lognormal", args)
-  expect_equal(contin$pdf(0), 0)
-  expect_equal(contin$log_pdf(0), -Inf)
-  expect_equal(contin$log_ratio(0, 0), 0)
-  expect_equal(contin$log_ratio(0, 2), Inf)
-  expect_equal(contin$log_ratio(2, 0), -Inf)
+  contin$pdf(0) |> expect_equal(0)
+  contin$log_pdf(0) |> expect_equal(-Inf)
+  contin$log_ratio(0, 0) |> expect_equal(0)
+  contin$log_ratio(0, 2) |> expect_equal(Inf)
+  contin$log_ratio(2, 0) |> expect_equal(-Inf)
 })
 
 test_that("Discretized laws stay finite far in the upper tail", {
@@ -654,7 +659,7 @@ test_that("Discretized laws stay finite far in the upper tail", {
 
   # symmetry: reflecting about the mean matches the lower tail
   distr <- browse_distributions("normal", mean = 0, sd = 1, discr = TRUE)
-  expect_equal(distr$pdf(9:30), distr$pdf(-(9:30)))
+  distr$pdf(9:30) |> expect_equal(distr$pdf(-(9:30)))
 })
 
 test_that("rand() draws are reproducible and statistically plausible", {
@@ -663,19 +668,19 @@ test_that("rand() draws are reproducible and statistically plausible", {
   x1 <- d$rand(50L)
   set.seed(42L)
   x2 <- d$rand(50L)
-  expect_identical(x1, x2) # same R seed -> same draws
-  expect_length(x1, 50L)
+  x1 |> expect_identical(x2) # same R seed -> same draws
+  x1 |> expect_length(50L)
   # different seed -> different draws
   set.seed(43L)
-  expect_false(identical(x1, d$rand(50L)))
+  identical(x1, d$rand(50L)) |> expect_false()
 
   # mean / sd of 20k draws should be close to the truth
   big <- d$rand(20000L)
-  expect_equal(mean(big), 2, tolerance = 0.05)
-  expect_equal(sd(big), 3, tolerance = 0.05)
+  mean(big) |> expect_equal(2, tolerance = 0.05)
+  sd(big) |> expect_equal(3, tolerance = 0.05)
 
   # without set.seed, successive calls are non-deterministic
-  expect_false(identical(d$rand(10L), d$rand(10L)))
+  identical(d$rand(10L), d$rand(10L)) |> expect_false()
 
   # invalid n
   d$rand(-1L) |>
@@ -684,12 +689,12 @@ test_that("rand() draws are reproducible and statistically plausible", {
 
 test_that("rand() honours location shift and truncation", {
   d <- browse_distributions("normal", mean = 0, sd = 1, loc = 5)
-  expect_equal(d$pdf(5), stats::dnorm(0))
-  expect_equal(mean(d$rand(20000L)), 5, tolerance = 0.05)
+  d$pdf(5) |> expect_equal(stats::dnorm(0))
+  mean(d$rand(20000L)) |> expect_equal(5, tolerance = 0.05)
 
   x <- browse_distributions("normal", mean = 0, sd = 1,
                             min = -1, max = 2)$rand(5000L)
-  expect_true(all(x >= -1 & x <= 2))
+  (x >= -1 & x <= 2) |> expect_all_true()
 })
 
 test_that("cdf honours location shift above the upper bound", {
@@ -699,16 +704,16 @@ test_that("cdf honours location shift above the upper bound", {
   args$loc <- NULL
   plain <- browse_distributions("uniform", args)
   x <- seq(9, 17, 0.5)
-  expect_equal(shifted$pdf(x), plain$pdf(x))
-  expect_equal(shifted$cdf(x), plain$cdf(x))
+  shifted$pdf(x) |> expect_equal(plain$pdf(x))
+  shifted$cdf(x) |> expect_equal(plain$cdf(x))
 
   # shifting by 'loc' does not touch arguments
   args <- list(shape = 2, scale = 1, loc = 3, max = 4)
   shifted <- browse_distributions("gamma", args)
   args$loc <- NULL
   plain <- browse_distributions("gamma", args)
-  expect_equal(shifted$cdf(x), plain$cdf(x - 3))
-  expect_equal(shifted$cdf(20), 1)
+  shifted$cdf(x) |> expect_equal(plain$cdf(x - 3))
+  shifted$cdf(20) |> expect_equal(1)
 })
 
 test_that("Discrete draws from rand() have type integer", {
@@ -733,16 +738,18 @@ test_that("Location off the integers is refused when discrete", {
   browse_distributions("gamma", shape = 2, discr = TRUE, loc = -1.5) |>
     expect_error("[Ss]et.*loc.*integer")
   # an integer shift, and a fractional bound that only truncates, are fine
-  browse_distributions("poisson", lambda = 3, loc = -2) |> expect_no_error()
-  browse_distributions("poisson", lambda = 3, min = 0.5) |> expect_no_error()
+  browse_distributions("poisson", lambda = 3, loc = -2)$pdf(-2) |>
+    expect_equal(stats::dpois(0, 3))
+  browse_distributions("poisson", lambda = 3, min = 0.5)$domain |>
+    expect_equal(interval("[0.5, Inf)"))
   # a continuous definition is free to sit anywhere
-  browse_distributions("gamma", shape = 2, scale = 1, loc = 0.5) |>
-    expect_no_error()
+  browse_distributions("gamma", shape = 2, scale = 1, loc = 0.5)$pdf(1.5) |>
+    expect_equal(stats::dgamma(1, shape = 2, scale = 1))
 })
 
 test_that("quantile returns NA outside [0, 1]", {
   distr <- browse_distributions("normal", mean = 0, sd = 1)
-  expect_true(all(is.na(distr$quantile(c(-2, -0.1, -0.001, 1.001, 1.5, 7.7)))))
+  distr$quantile(c(-2, -0.1, -0.001, 1.001, 1.5, 7.7)) |> expect_all_na()
 })
 
 test_that("quantile matches R reference for standard distributions", {
@@ -767,7 +774,7 @@ test_that("quantile matches R reference for standard distributions", {
   for (case in cases) {
     distr <- do.call(browse_distributions, c(case[1], case[[2]]))
     ref <- stats_ref("q", case[[3]], case[[if (length(case) == 4) 4 else 2]])
-    expect_equal(distr$quantile(p), ref(p), info = case[[1]])
+    distr$quantile(p) |> expect_equal(ref(p), info = case[[1]])
   }
 })
 
@@ -791,15 +798,12 @@ test_that("quantile is truncation-aware", {
   )
   for (case in cases) {
     distr <- do.call(browse_distributions, case$args)
-    expect_equal(distr$quantile(p), case$ref(p),
-      tolerance = 1e-10, info = case$args[[1]]
-    )
-    expect_true(all(distr$quantile(p) >= case$args$min %||% -Inf),
-      info = paste(case$args[[1]], "above min")
-    )
-    expect_true(all(distr$quantile(p) <= case$args$max %||% Inf),
-      info = paste(case$args[[1]], "below max")
-    )
+    distr$quantile(p) |>
+      expect_equal(case$ref(p), tolerance = 1e-10, info = case$args[[1]])
+    all(distr$quantile(p) >= case$args$min %||% -Inf) |>
+      expect_true(info = paste(case$args[[1]], "above min"))
+    all(distr$quantile(p) <= case$args$max %||% Inf) |>
+      expect_true(info = paste(case$args[[1]], "below max"))
   }
 })
 
@@ -807,18 +811,18 @@ test_that("Gamma pdf and log_pdf handle x == 0 across shape regimes", {
   scale <- 2
   # test case: shape < 1
   d1 <- browse_distributions("gamma", shape = 0.5, scale = scale)
-  expect_equal(d1$pdf(0), Inf)
-  expect_equal(d1$log_pdf(0), Inf)
+  d1$pdf(0) |> expect_equal(Inf)
+  d1$log_pdf(0) |> expect_equal(Inf)
 
   # test case: shape == 1
   d2 <- browse_distributions("gamma", shape = 1, scale = scale)
-  expect_equal(d2$pdf(0), 1 / scale)
-  expect_equal(d2$log_pdf(0), -log(scale))
+  d2$pdf(0) |> expect_equal(1 / scale)
+  d2$log_pdf(0) |> expect_equal(-log(scale))
 
   # test case: shape > 1
   d3 <- browse_distributions("gamma", shape = 2, scale = scale)
-  expect_equal(d3$pdf(0), 0)
-  expect_equal(d3$log_pdf(0), -Inf)
+  d3$pdf(0) |> expect_equal(0)
+  d3$log_pdf(0) |> expect_equal(-Inf)
 })
 
 test_that("rand() is reproducible and plausible for all distributions", {
@@ -844,12 +848,12 @@ test_that("rand() is reproducible and plausible for all distributions", {
     set.seed(42L)
     x1 <- d$rand(50L)
     set.seed(42L)
-    expect_identical(d$rand(50L), x1, info = nm)
+    d$rand(50L) |> expect_identical(x1, info = nm)
     big <- d$rand(2000L)
-    expect_true(all(big >= 0), info = nm)
-    if (cc$int) expect_true(all(big == floor(big)), info = nm)
-    if (!is.null(cc$max)) expect_true(all(big <= cc$max), info = nm)
-    expect_equal(mean(big), cc$mean, tolerance = 0.15, info = nm)
+    all(big >= 0) |> expect_true(info = nm)
+    if (cc$int) all(big == floor(big)) |> expect_true(info = nm)
+    if (!is.null(cc$max)) all(big <= cc$max) |> expect_true(info = nm)
+    mean(big) |> expect_equal(cc$mean, tolerance = 0.15, info = nm)
   }
 })
 
@@ -860,17 +864,17 @@ test_that("rand() is reproducible and plausible for all distributions", {
 test_that("Ferretti20 infectivity profile integrates and discretizes", {
   x <- seq(0, 15, 0.001)
   profile <- browse_infectivity_profiles("ferretti20", incub_period = 5)
-  expect_equal(trapezoid(x, profile$inst(x)), profile$cumul(x)[length(x)])
-  expect_false(profile$is_discrete)
-  expect_equal(profile$domain, interval("[0, Inf)"))
+  trapezoid(x, profile$inst(x)) |> expect_equal(profile$cumul(x)[length(x)])
+  profile$is_discrete |> expect_false()
+  profile$domain |> expect_equal(interval("[0, Inf)"))
 
   # left discretization works as expected
   x <- seq(1.0, 1.9, 0.1)
   profile <- browse_infectivity_profiles("ferretti20",
                                          incub_period = 5, discr = TRUE)
-  expect_true(all(profile$inst(x) == profile$cumul(1)))
-  expect_true(profile$is_discrete)
-  expect_equal(profile$domain, interval("[1, Inf)"))
+  profile$inst(x) |> expect_all_equal(profile$cumul(1))
+  profile$is_discrete |> expect_true()
+  profile$domain |> expect_equal(interval("[1, Inf)"))
 })
 
 ####################################

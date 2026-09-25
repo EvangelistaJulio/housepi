@@ -131,22 +131,22 @@ test_that("Undefined definitions are controlled", {
   defs <- mk_latent$model |>
     add_latent("hidden", value = 3, const = TRUE, proposal = "forward") |>
     get_latent()
-  expect_true(is.na(defs$proposal))
+  defs$proposal |> expect_all_na()
 })
 
 test_that("Passing a prior raises a hint on model", {
   sms <- mk_latent$model |>
     add_latent(hidden = list(prior = "uniform", min = -1, max = 2)) |>
     tryCatch(error = conditionMessage)
-  expect_match(sms, "[Ss]pare.*prior.*hidden")
-  expect_match(sms, "[Dd]id you mean.*model")
+  sms |> expect_match("[Ss]pare.*prior.*hidden")
+  sms |> expect_match("[Dd]id you mean.*model")
 })
 
 test_that("A func definition is deterministic", {
   # a plain number is a constant value, whichever argument carried it
   by_func <- mk_latent$model |> add_latent(hidden = list(func = 21))
   by_value <- mk_latent$model |> add_latent(hidden = list(value = 21))
-  expect_equal(get_latent(by_func), get_latent(by_value))
+  get_latent(by_func) |> expect_identical(get_latent(by_value))
 
   # deterministic definitions reject model or proposal
   mk_latent$model |>
@@ -167,14 +167,14 @@ test_that("A name carrying no source sigil is resolved, not guessed", {
   obs <- mk_latent$model |>
     add_observation(record_2 = min(datum_2)) |>
     get_observations()
-  expect_equal(obs[["func_args"]][[1]], c(x = "datum_2|D"))
+  obs[["func_args"]][[1]] |> expect_identical(c(x = "datum_2|D"))
 
   # and a bare name reaches the parameter declaring it
   obs <- mk_latent$model |>
     add_parameter(rho = list(prior = "gamma", shape = 2, scale = 1)) |>
     add_observation(record = list(model = "normal", mean = rho, sd = 1)) |>
     get_observations()
-  expect_equal(obs[["args"]][[1]], c(mean = "rho|P", sd = "1"))
+  obs[["args"]][[1]] |> expect_identical(c(mean = "rho|P", sd = "1"))
 
   # a name two holders answer to is settled by the sigil, never by the engine
   both <- mk_latent$model |>
@@ -183,20 +183,21 @@ test_that("A name carrying no source sigil is resolved, not guessed", {
     add_observation(record = list(model = "normal", mean = datum, sd = 1)) |>
     evaluate_log_lik() |>
     tryCatch(error = conditionMessage)
-  expect_match(sms, "[Cc]ould not resolve the source of .datum.")
-  expect_match(sms, "[Tt]ag it .datum@D. or .datum@P.")
+  sms |> expect_match("[Cc]ould not resolve the source of .datum.")
+  sms |> expect_match("[Tt]ag it .datum@D. or .datum@P.")
   both |>
     add_observation(record = list(model = "normal", mean = datum@P, sd = 1)) |>
     evaluate_log_lik() |>
-    expect_no_error()
+    is.finite() |>
+    expect_true()
 
   # nothing of that name anywhere: the defect is named, with the near miss
   sms <- mk_latent$model |>
     add_observation(record = list(model = "normal", mean = datums, sd = 1)) |>
     evaluate_log_lik() |>
     tryCatch(error = conditionMessage)
-  expect_match(sms, "[Cc]ould not resolve the source of .datums.")
-  expect_match(sms, "[Dd]id you mean .datum.")
+  sms |> expect_match("[Cc]ould not resolve the source of .datums.")
+  sms |> expect_match("[Dd]id you mean .datum.")
 
   # an explicitly mis-tagged sigil still reaches the engine hint
   mk_latent$model |>
@@ -219,14 +220,14 @@ test_that("A forward consumer waits resolves after declaration", {
   obs <- mk_latent$model |>
     add_observation(record = list(model = "normal", mean = rho, sd = 1)) |>
     get_observations()
-  expect_equal(obs[["args"]][[1]], c(mean = "rho|?", sd = "1"))
+  obs[["args"]][[1]] |> expect_identical(c(mean = "rho|?", sd = "1"))
 
   # the consumer is encoded before the parameter exists, and resolves after
   obs <- mk_latent$model |>
     add_observation(record = list(model = "normal", mean = rho, sd = 1)) |>
     add_parameter(rho = list(prior = "gamma", shape = 2, scale = 1)) |>
     get_observations()
-  expect_equal(obs[["args"]][[1]], c(mean = "rho|P", sd = "1"))
+  obs[["args"]][[1]] |> expect_identical(c(mean = "rho|P", sd = "1"))
 })
 
 test_that("A status left without definitions names the status", {
@@ -236,7 +237,7 @@ test_that("A status left without definitions names the status", {
                hidden_2 = list(func = min(datum_2@D), status = 1)) |>
     get_latent() |>
     nrow() |>
-    expect_equal(2L)
+    expect_identical(2L)
 
   # every per-member definition is pinned to a status no individual carries
   mk_latent$model |>
@@ -257,25 +258,27 @@ test_that("Latent variable definitions are correct", {
   augm <- mk_latent$model |>
     add_latent("hidden", value = 3) |>
     get_latent()
-  expect_equal(augm$name, "hidden")
-  expect_equal(augm$status, NA_real_)
-  expect_equal(augm$const, TRUE)
-  expect_equal(augm$discr, FALSE)
-  expect_equal(augm$value, 3)
-  expect_equal(augm$proposal, NA_real_)
+  augm$name |> expect_identical("hidden")
+  augm$status |> expect_equal(NA_real_)
+  augm$const |> expect_identical(TRUE)
+  augm$discr |> expect_identical(FALSE)
+  augm$value |> expect_equal(3)
+  augm$proposal |> expect_equal(NA_real_)
   # a bare value is the same constant, whatever its source
-  expect_equal(get_latent(add_latent(mk_latent$model, hidden = 3)), augm)
+  get_latent(add_latent(mk_latent$model, hidden = 3)) |> expect_identical(augm)
   mk_latent$model |>
     add_latent(hidden = 3@D) |>
     get_latent() |>
-    expect_equal(get_latent(add_latent(mk_latent$model, "hidden", value = 3@D)))
+    expect_identical(
+      get_latent(add_latent(mk_latent$model, "hidden", value = 3@D))
+    )
 
   # a model with no value is sampled by random walk
   augm <- mk_latent$model |>
     add_latent("hidden", model = "normal") |>
     get_latent()
-  expect_equal(augm$const, FALSE)
-  expect_equal(augm$proposal, "rw")
+  augm$const |> expect_identical(FALSE)
+  augm$proposal |> expect_identical("rw")
   # a misspelled family is caught at definition
   mk_latent$model |>
     add_latent("hidden", model = "norm") |>
@@ -290,11 +293,11 @@ test_that("Latent variable definitions are correct", {
     add_latent("hidden", value = datum@D, model = "uniform",
                min = layer_1@A, max = rho@P) |>
     get_latent("hidden")
-  expect_equal(augm$status, NA_real_)
-  expect_equal(augm$value, "datum|D")
-  expect_equal(augm$model, "uniform")
-  expect_equal(augm$min, "layer_1|A")
-  expect_equal(augm$max, "rho|P")
+  augm$status |> expect_equal(NA_real_)
+  augm$value |> expect_identical("datum|D")
+  augm$model |> expect_identical("uniform")
+  augm$min |> expect_identical("layer_1|A")
+  augm$max |> expect_identical("rho|P")
 })
 
 test_that("Latent independence proposal folds its arguments", {
@@ -302,8 +305,8 @@ test_that("Latent independence proposal folds its arguments", {
     add_latent("hidden", model = "uniform", min = 0, max = 5,
                proposal = "normal", proposal_mean = 0, proposal_sd = 1) |>
     get_latent()
-  expect_equal(augm$proposal, "normal")
-  expect_equal(augm$proposal_args[[1]], c(mean = 0, sd = 1))
+  augm$proposal |> expect_identical("normal")
+  augm$proposal_args[[1]] |> expect_equal(c(mean = 0, sd = 1))
 
   # random-walk scale is not accepted by an independence sampler
   mk_latent$model |>
@@ -332,17 +335,17 @@ test_that("Latent function definition is correct", {
     add_latent("hidden", func = layer_1 - layer_2 - layer_3) |>
     get_latent("hidden")
   augm$value |> expect_equal(NA_real_)
-  augm$func |> expect_equal("+")
+  augm$func |> expect_identical("+")
   augm$func_args[[1]] |>
-    expect_equal(c(x = "layer_1|A",
-                   x2 = "minus|x|[layer_2|A]",
-                   x3 = "minus|x|[layer_3|A]"))
+    expect_identical(c(x = "layer_1|A",
+                       x2 = "minus|x|[layer_2|A]",
+                       x3 = "minus|x|[layer_3|A]"))
 
   # alternative function call definitions
   by_args <- hhmodel |>
     add_latent("hidden", func = "log", x = layer_1@A)
   by_expr <- hhmodel |> add_latent(hidden = log(layer_1@A))
-  get_latent(by_expr) |> expect_equal(get_latent(by_args))
+  get_latent(by_expr) |> expect_identical(get_latent(by_args))
 
   # an expression carries its own arguments: spare ones have no reading
   hhmodel |>
@@ -353,15 +356,15 @@ test_that("Latent function definition is correct", {
     overwritten <- by_expr |> add_latent("hidden", func = log(layer_1@A)),
     "[Oo]verwriting"
   )
-  get_latent(overwritten) |> expect_equal(get_latent(by_args))
+  get_latent(overwritten) |> expect_identical(get_latent(by_args))
 
   # multi-status definition: one row per status, identical otherwise
   multi <- hhmodel |>
     add_latent("hidden", func = log(layer_1@A), status = c(1, 3)) |>
     get_latent("hidden")
-  multi$status |> expect_equal(c("1", "3"))
+  multi$status |> expect_identical(c("1", "3"))
   multi$status <- NULL
-  multi[1, , drop = TRUE] |> expect_equal(multi[2, , drop = TRUE])
+  multi[1, , drop = TRUE] |> expect_identical(multi[2, , drop = TRUE])
 })
 
 test_that("Symbolic definitions are equivalent", {
@@ -387,7 +390,7 @@ test_that("Symbolic definitions are equivalent", {
   get_latent(hhmodel_2, "hidden")$value |>
     expect_equal(external_value)
   get_latent(hhmodel_2, "hidden_2")$func |>
-    expect_equal("log")
+    expect_identical("log")
   get_latent(hhmodel_2, "hidden_2")$func_args[[1]] |>
     expect_equal(c(x = sprintf("+|x:x2|[layer_1|A]:[%s|N]", external_value)))
 
@@ -395,7 +398,7 @@ test_that("Symbolic definitions are equivalent", {
   by_vector <- get_latent(hhmodel_2, "hidden_3")
   by_list <- get_latent(hhmodel_2, "hidden_4")
   by_vector$name <- by_list$name <- NULL
-  expect_equal(by_vector, by_list, ignore_attr = TRUE)
+  by_vector |> expect_equal(by_list, ignore_attr = TRUE)
 
   # a bare name, a bang and a formula encode the same read
   val <- 1
@@ -410,7 +413,7 @@ test_that("Symbolic definitions are equivalent", {
     subset(name != "layer_1")
   augm$name <- NULL
   # every row is identical
-  expect_equal(nrow(unique(augm)), 1)
+  nrow(unique(augm)) |> expect_identical(1L)
 })
 
 test_that("An external list of latent definitions can be imported", {
@@ -428,8 +431,9 @@ test_that("An external list of latent definitions can be imported", {
   augm <- hhmodel |>
     add_latent(import = external) |>
     get_latent("hidden")
-  expect_equal(augm$model, "gamma")
-  expect_equal(augm$args[[1]], c(shape = "hidden_2|A", scale = "hidden_3|A"))
+  augm$model |> expect_identical("gamma")
+  augm$args[[1]] |>
+    expect_identical(c(shape = "hidden_2|A", scale = "hidden_3|A"))
 
   # formulas import as the bare expressions they wrap
   mk_latent$model |>
@@ -469,7 +473,8 @@ test_that("Nested latent definitions raise errors", {
                layer_1 = list(value = layer_2, status = c(2, 3, 4)),
                hidden = layer_1) |>
     evaluate_log_lik() |>
-    expect_no_error()
+    is.finite() |>
+    expect_true()
 
   # simple nest
   hhmodel |>
@@ -511,7 +516,8 @@ test_that("A discrete latent resolves 'uniform' to the discrete distribution", {
   hhmodel |>
     add_latent("hidden", model = "uniform", min = 0, max = 3, discr = TRUE) |>
     evaluate_log_lik() |>
-    expect_no_error()
+    is.finite() |>
+    expect_true()
 
   # the flat lattice law owns every integer value in the window, so a bound that
   # is not one has no reading, and the error names the latent that carries it
@@ -519,8 +525,8 @@ test_that("A discrete latent resolves 'uniform' to the discrete distribution", {
     add_latent("hidden", model = "uniform", min = 0.5, max = 3, discr = TRUE) |>
     evaluate_log_lik() |>
     tryCatch(error = conditionMessage)
-  expect_match(sms, "min.*uniform.*discrete")
-  expect_match(sms, "hidden")
+  sms |> expect_match("min.*uniform.*discrete")
+  sms |> expect_match("hidden")
 })
 
 test_that("A location off the integers is refused when discrete", {
@@ -546,9 +552,9 @@ test_that("A latent bound to a distribution returns its density, not a draw", {
                hidden = list(func = "poisson", x = layer_1, lambda = 3)) |>
     run_simulation(nrep = 1)
 
-  expect_type(simulated$layer_1, "integer")
-  expect_type(simulated$hidden, "double")
-  expect_equal(simulated$hidden, dpois(simulated$layer_1, 3))
+  simulated$layer_1 |> expect_type("integer")
+  simulated$hidden |> expect_type("double")
+  simulated$hidden |> expect_equal(dpois(simulated$layer_1, 3))
 })
 
 test_that("Bare column reads inherit the discretization of their column", {
@@ -564,9 +570,9 @@ test_that("Bare column reads inherit the discretization of their column", {
                hidden_3 = list(model = "normal", value = datum_2)) |>
     get_latent()
 
-  expect_equal(augm$value, c("datum|D", "datum|D", "datum_2|D"))
+  augm$value |> expect_identical(c("datum|D", "datum|D", "datum_2|D"))
   # the date column is discrete, the double one is not
-  expect_equal(augm$discr, c(TRUE, TRUE, FALSE))
+  augm$discr |> expect_identical(c(TRUE, TRUE, FALSE))
 })
 
 ###################################
@@ -582,13 +588,13 @@ test_that("Observation definitions are encoded", {
     get_observations()
 
   # marked as observation, data-bound and constant (never sampled)
-  expect_identical(obs[["level"]], "member")
-  expect_true(obs[["const"]])
-  expect_identical(obs[["value"]], "record|D")
-  expect_true(is.na(obs[["proposal"]]))
+  obs[["level"]] |> expect_identical("member")
+  obs[["const"]] |> expect_true()
+  obs[["value"]] |> expect_identical("record|D")
+  obs[["proposal"]] |> expect_all_na()
   # distribution carries the observation arguments
-  expect_identical(obs[["model"]], "normal")
-  expect_equal(obs[["args"]][[1]], c(mean = "hidden|A", sd = "1"))
+  obs[["model"]] |> expect_identical("normal")
+  obs[["args"]][[1]] |> expect_identical(c(mean = "hidden|A", sd = "1"))
 
   # a deterministic observation carries a function and no distribution
   obs <- mk_latent$model |>
@@ -597,10 +603,10 @@ test_that("Observation definitions are encoded", {
     add_observation(record = floor(hidden + layer_1)) |>
     get_observations()
 
-  expect_identical(obs[["level"]], "member")
-  expect_true(is.na(obs[["model"]]))
-  expect_true(is.na(obs[["value"]]))
-  expect_match(obs[["func"]], "floor")
+  obs[["level"]] |> expect_identical("member")
+  obs[["model"]] |> expect_all_na()
+  obs[["value"]] |> expect_all_na()
+  obs[["func"]] |> expect_match("floor")
 })
 
 test_that("Observation node rejects conflicting options", {
@@ -612,15 +618,15 @@ test_that("Observation node rejects conflicting options", {
   }
   obs <- ignored("record", model = "normal", const = FALSE,
                  proposal = "forward")
-  expect_true(obs[["const"]])
-  expect_true(is.na(obs[["proposal"]]))
+  obs[["const"]] |> expect_true()
+  obs[["proposal"]] |> expect_all_na()
 
   # a deterministic observation drops them alike
   obs <- ignored(record_2 = list(func = min(datum_2@D), status = 1,
                                  const = TRUE, proposal = "rw"))
-  expect_identical(obs[["func"]], "min")
-  expect_false(obs[["const"]])
-  expect_true(is.na(obs[["proposal"]]))
+  obs[["func"]] |> expect_identical("min")
+  obs[["const"]] |> expect_false()
+  obs[["proposal"]] |> expect_all_na()
 
   # a decorator carrying no definition at all
   mk_latent$model |>
@@ -660,21 +666,21 @@ test_that("Household observations reject a status", {
   member <- hhmodel |>
     add_observation(record_2 = list(func = min(datum_2@D), status = 1)) |>
     get_observations()
-  expect_identical(member[["level"]], "member")
-  expect_identical(as.integer(member[["status"]]), 1L)
+  member[["level"]] |> expect_identical("member")
+  as.integer(member[["status"]]) |> expect_identical(1L)
 
   # a bulk 'status =' reaches every entry, single and bulk modes alike
   bulk <- hhmodel |>
     add_observation(record_2 = list(func = min(datum_2@D)), status = 1) |>
     get_observations()
-  expect_identical(as.integer(bulk[["status"]]), 1L)
+  as.integer(bulk[["status"]]) |> expect_identical(1L)
   imported <- hhmodel |>
     add_observation(
       import = list(record_2 = list(func = quote(min(datum_2@D)))),
       status = 1
     ) |>
     get_observations()
-  expect_identical(as.integer(imported[["status"]]), 1L)
+  as.integer(imported[["status"]]) |> expect_identical(1L)
 })
 
 test_that("A name is declared under a single kind", {
@@ -720,7 +726,7 @@ test_that("A name is declared under a single kind", {
     add_latent(hidden = list(model = "normal", mean = 0, sd = 1, status = 2)) |>
     get_latent() |>
     nrow() |>
-    expect_equal(2L)
+    expect_identical(2L)
   hhmodel |>
     add_latent(hidden = list(model = "normal", mean = 0, sd = 1)) |>
     add_latent(hidden = list(model = "normal", mean = 0, sd = 2)) |>
@@ -749,8 +755,8 @@ test_that("Level is set per definition, the argument being the bulk default", {
       record_3 = list(func = 21, level = "member")
     ) |>
     get_observations()
-  expect_identical(level_of(mixed), expected)
-  expect_false("args" %in% names(mixed))
+  level_of(mixed) |> expect_identical(expected)
+  ("args" %in% names(mixed)) |> expect_false()
 
   # the argument is the default: entries not setting their own inherit it
   mk_latent$model |>
@@ -793,29 +799,29 @@ test_that("Observation and latent loads each keep the other's definitions", {
   hhmodel <- add_observation(
     hhmodel, record_2 = min(datum_2@D), level = "house", append = FALSE
   )
-  expect_identical(get_latent(hhmodel)[["name"]], "hidden")
+  get_latent(hhmodel)[["name"]] |> expect_identical("hidden")
   obs <- get_observations(hhmodel)
 
   # observations are a single family: the member row went with the reset
-  expect_setequal(obs[["name"]], "record_2")
-  expect_identical(obs[["level"]], "house")
-  expect_identical(obs[["func"]], "min")
-  expect_identical(obs[["func_args"]][[1]], c(x = "datum_2|D"))
+  obs[["name"]] |> expect_setequal("record_2")
+  obs[["level"]] |> expect_identical("house")
+  obs[["func"]] |> expect_identical("min")
+  obs[["func_args"]][[1]] |> expect_identical(c(x = "datum_2|D"))
 
   # appending keeps both levels side by side
   hhmodel <- add_observation(
     hhmodel, record_3 = max(datum_2@D), level = "house"
   )
-  expect_setequal(get_observations(hhmodel)[["name"]],
-                  c("record_2", "record_3"))
-  expect_identical(get_latent(hhmodel)[["name"]], "hidden")
+  get_observations(hhmodel)[["name"]] |>
+    expect_setequal(c("record_2", "record_3"))
+  get_latent(hhmodel)[["name"]] |> expect_identical("hidden")
 
   # symmetrically, a non-append latent load keeps observations
   hhmodel <- add_latent(hhmodel, append = FALSE,
                         layer_1 = list(model = "gamma", shape = 2, scale = 1))
-  expect_identical(get_latent(hhmodel)[["name"]], "layer_1")
-  expect_setequal(get_observations(hhmodel)[["name"]],
-                  c("record_2", "record_3"))
+  get_latent(hhmodel)[["name"]] |> expect_identical("layer_1")
+  get_observations(hhmodel)[["name"]] |>
+    expect_setequal(c("record_2", "record_3"))
 })
 
 test_that("A degenerate reduction at member level is cast to house level", {
@@ -826,7 +832,7 @@ test_that("A degenerate reduction at member level is cast to house level", {
       get_observations(),
     regexp = "no-effect.*reduction.*min"
   )
-  expect_identical(promoted[["level"]], "house")
+  promoted[["level"]] |> expect_identical("house")
   # explicit house-level reduction
   mk_latent$model |>
     add_observation(record_2 = min(datum_2@D), level = "house") |>
@@ -861,15 +867,15 @@ test_that("A missing observation leaves the likelihood", {
   }
 
   # both members observed: two terms of a uniform over a window of 0.8
-  expect_equal(evaluate_log_lik(mk(c(0.5, 0.5))), 2 * log(1 / 0.8))
+  evaluate_log_lik(mk(c(0.5, 0.5))) |> expect_equal(2 * log(1 / 0.8))
 
   # one datum absent: one term left, and the run says which column and how many
   expect_warning(log_lik <- evaluate_log_lik(mk(c(0.5, NA))),
                  "[Mm]issing for 1 of 2 infected individuals")
-  expect_equal(log_lik, log(1 / 0.8))
+  log_lik |> expect_equal(log(1 / 0.8))
 
   # the domain still binds where the datum is there
-  expect_equal(evaluate_log_lik(mk(c(0.5, 9))), -Inf)
+  evaluate_log_lik(mk(c(0.5, 9))) |> expect_equal(-Inf)
 
   # no datum anywhere: the model declares a density nothing feeds
   mk(c(NA_real_, NA_real_)) |>
@@ -885,7 +891,7 @@ test_that("A missing observation leaves the likelihood", {
   }
   expect_warning(log_lik <- evaluate_log_lik(mk_categorical(c(TRUE, NA))),
                  "[Mm]issing for 1 of 2 infected individuals")
-  expect_equal(log_lik, log(1 / 3))
+  log_lik |> expect_equal(log(1 / 3))
   mk_categorical(c(NA, NA)) |>
     evaluate_log_lik() |>
     expect_error("missing for every infected individual")
@@ -928,27 +934,27 @@ test_that("A latent goes with the observation that reads it", {
   }
 
   # both observed: two flat latent densities and two observation terms
-  expect_equal(evaluate_log_lik(mk(c(0.5, 0.5))),
-               2 * log(1 / 2) + 2 * log(1 / 10))
+  evaluate_log_lik(mk(c(0.5, 0.5))) |>
+    expect_equal(2 * log(1 / 2) + 2 * log(1 / 10))
 
   # m2 carries no datum: its observation and the latent feeding it both drop
   expect_warning(log_lik <- evaluate_log_lik(mk(c(0.5, NA))),
                  "[Mm]issing for 1 of 2")
-  expect_equal(log_lik, log(1 / 2) + log(1 / 10))
+  log_lik |> expect_equal(log(1 / 2) + log(1 / 10))
 
   # the same one hop away, through a deterministic readout
   expect_warning(log_lik <- evaluate_log_lik(mk(c(0.5, NA), hop = TRUE)),
                  "[Mm]issing for 1 of 2")
-  expect_equal(log_lik, log(1 / 2) + log(1 / 10))
+  log_lik |> expect_equal(log(1 / 2) + log(1 / 10))
 
   # a second observation still reads it, so m2 keeps its draw
   expect_warning(log_lik <- evaluate_log_lik(mk(c(0.5, NA), x_2 = c(0.5, 0.5))),
                  "[Mm]issing for 1 of 2")
-  expect_equal(log_lik, 2 * log(1 / 2) + 3 * log(1 / 10))
+  log_lik |> expect_equal(2 * log(1 / 2) + 3 * log(1 / 10))
 
   # simulations generate every observation, so they prune nothing
   simulated <- run_simulation(mk(c(0.5, 0.5)))
-  expect_false(anyNA(simulated$record))
+  simulated$record |> expect_no_na()
 })
 
 test_that("Reading an observation in models and loops are rejected", {
@@ -1002,7 +1008,7 @@ test_that("A surrogate column reading latent is simulation only", {
     add_observation(record = hidden + 2)
 
   # the data view has no derived value to report: it keeps the imported datum
-  expect_true(all(get_data_wide(hhmodel)[["record"]] == 0))
+  get_data_wide(hhmodel)[["record"]] |> expect_all_equal(0)
 
   # observation depends on sampled latent: not a valid surrogate definition
   evaluate_log_lik(hhmodel) |>
@@ -1011,9 +1017,9 @@ test_that("A surrogate column reading latent is simulation only", {
   # simulation produces it for infected members, following the latent draw
   simulated <- run_simulation(hhmodel)
   infected <- simulated$status > 0
-  expect_equal(sum(names(simulated) == "record"), 1)
-  expect_equal(simulated$record[infected], simulated$hidden[infected] + 2)
-  expect_true(all(is.na(simulated$record[!infected])))
+  sum(names(simulated) == "record") |> expect_identical(1L)
+  simulated$record[infected] |> expect_equal(simulated$hidden[infected] + 2)
+  simulated$record[!infected] |> expect_all_na()
 })
 
 test_that("A surrogate observation overwrites the corresponding data column", {
@@ -1027,18 +1033,18 @@ test_that("A surrogate observation overwrites the corresponding data column", {
     add_latent(hidden = list(value = record_3@D * 2))
 
   # the data view reports the derived value before evaluation
-  expect_identical(unique(get_data_wide(hhmodel)[["record_2"]]), 2)
-  expect_false("record_3" %in% colnames(get_data_wide(hhmodel)))
+  unique(get_data_wide(hhmodel)[["record_2"]]) |> expect_identical(2)
+  ("record_3" %in% colnames(get_data_wide(hhmodel))) |> expect_false()
 
   # and after evaluation
-  expect_no_error(evaluate_log_lik(hhmodel))
-  expect_identical(unique(get_data_wide(hhmodel)[["record_2"]]), 2)
-  expect_false("record_3" %in% colnames(get_data_wide(hhmodel)))
+  evaluate_log_lik(hhmodel) |> is.finite() |> expect_true()
+  unique(get_data_wide(hhmodel)[["record_2"]]) |> expect_identical(2)
+  ("record_3" %in% colnames(get_data_wide(hhmodel))) |> expect_false()
 
   # simulated observations are for all members, latent just for infected
   simulated <- run_simulation(hhmodel)
-  expect_equal(simulated[["record_3"]], c(3, 7, NA))
-  expect_equal(simulated[["hidden"]], c(6, NA, NA))
+  simulated[["record_3"]] |> expect_equal(c(3, 7, NA))
+  simulated[["hidden"]] |> expect_equal(c(6, NA, NA))
 
   # FIXME: the requirement reported state "latent", but it's "observation"
   # a stochastic observation carries no column to read: the datum is reported
@@ -1062,8 +1068,8 @@ test_that("Surrogate columns of both levels build in dependency order", {
 
   # every member carries a value regardless of status
   hhdata_2 <- get_data_wide(hhmodel)
-  expect_identical(hhdata_2[["record"]], c(5, 12, 7))
-  expect_identical(unique(hhdata_2[["record_2"]]), 12)
+  hhdata_2[["record"]] |> expect_identical(c(5, 12, 7))
+  unique(hhdata_2[["record_2"]]) |> expect_identical(12)
 
   # pure surrogate observations with no raw data columns are not exported
   hhmodel |>
@@ -1071,7 +1077,7 @@ test_that("Surrogate columns of both levels build in dependency order", {
     get_data_wide() |>
     colnames() |>
     intersect(c("record", "record_2")) |>
-    expect_length(0)
+    expect_length(0L)
 })
 
 test_that("Reading only house observations casts member level to house", {
@@ -1091,7 +1097,7 @@ test_that("Reading only house observations casts member level to house", {
   obs <- hhmodel$observations
   names <- c("record_2", "record_3", "record_4", "record_5", "record_6")
   obs$level[match(names, obs$name)] |>
-    expect_equal(c("house", "house", "member", "house", "house"))
+    expect_identical(c("house", "house", "member", "house", "house"))
 
   hhdata_2 <- get_data_wide(hhmodel)
   hhdata_2[["record_2"]] |> expect_equal(c(10, 10, 10))
@@ -1103,8 +1109,8 @@ test_that("Reading only house observations casts member level to house", {
 
 test_that("A household reduction folds its argument over the members", {
   # datum differs across members, the first one holds 2
-  hhdata <- data.frame(hhid = "h1", status = c(1, 0, 0), datum = c(2, 9, 4),
-                       record = 0)
+  hhdata <- data.frame(hhid = "h1", status = c(1, 0, 0),
+                       datum = c(2, 9, 4), record = 0)
   reduce <- function(defin, data = hhdata) {
     data |>
       new_housepi_model("test") |>
@@ -1154,7 +1160,7 @@ test_that("A household observation with no datum yet reads as NA", {
     ) |>
     get_data_wide()
 
-  expect_true(all(is.na(hhdata$start_date)))
+  hhdata$start_date |> expect_all_na()
 })
 
 test_that("A surrogate column proves the requirement its model asks", {
@@ -1172,9 +1178,10 @@ test_that("A surrogate column proves the requirement its model asks", {
   }
 
   # integer-valued cells fold to the integer lattice through the algebra
-  expect_no_error(mk(quote(min(end_date@D))))
-  expect_no_error(mk(quote(sum(end_date@D))))
-  expect_no_error(mk(quote(end_date@D * 2 - 1), level = "member"))
+  mk(quote(min(end_date@D)))$start_date |> expect_equal(rep(16, 4))
+  mk(quote(sum(end_date@D)))$start_date |> expect_equal(rep(32, 4))
+  mk(quote(end_date@D * 2 - 1), level = "member")$start_date |>
+    expect_equal(rep(31, 4))
 
   # two halves sum to an integer, and are refused all the same: the column
   # answers for what the definition can return, not for the value it settles on
@@ -1186,17 +1193,19 @@ test_that("A surrogate column proves the requirement its model asks", {
     expect_error("not discrete-valued")
 
   # rounding restores the proof
-  expect_no_error(mk(quote(round(end_date@D / 4)), level = "member"))
-  expect_no_error(mk(quote(ceil(sqrt(end_date@D))), level = "member"))
+  mk(quote(round(end_date@D / 4)), level = "member")$start_date |>
+    expect_equal(rep(4, 4))
+  mk(quote(ceil(sqrt(end_date@D))), level = "member")$start_date |>
+    expect_equal(rep(4, 4))
 
   # the refusal names the definition and the place it was built for
   sms <- tryCatch(mk(quote(sum(datum@D))), error = conditionMessage)
-  expect_match(sms, "[Hh]ousehold observation")
-  expect_match(sms, "h1")
+  sms |> expect_match("[Hh]ousehold observation")
+  sms |> expect_match("h1")
   sms <- tryCatch(mk(quote(end_date@D / 4), level = "member"),
                   error = conditionMessage)
-  expect_match(sms, "individual")
-  expect_match(sms, "m1")
+  sms |> expect_match("individual")
+  sms |> expect_match("m1")
 })
 
 test_that("Data-bound household observation rejects latent dependence", {
@@ -1222,8 +1231,6 @@ test_that("A status process needs probabilities, within the status storage", {
   weights <- function(k) {
     stats::setNames(as.list(rep(1 / k, k)), paste0("unit_", seq_len(k)))
   }
-  do.call(add_status, c(list(mk_latent$model), weights(254))) |>
-    expect_no_error()
   do.call(add_status, c(list(mk_latent$model), weights(255))) |>
     expect_error("255 statuses.*maximum of 254")
 })
@@ -1271,9 +1278,9 @@ test_that("Status is a constant in inference", {
     expect_equal(evaluate_log_lik(hhmodel))
 })
 
-###########################
-## LATENT : END-TO-END   ##
-###########################
+#############################
+###  LATENT : END-TO-END  ###
+#############################
 
 test_that("An undeclared producer defers the build to the wall", {
   # parameters land in the engine on their own decorator, so a definition
@@ -1283,8 +1290,8 @@ test_that("An undeclared producer defers the build to the wall", {
 
   # the wall names the missing parameters, not the key that could not be found
   sms <- tryCatch(evaluate_log_lik(hhmodel), error = conditionMessage)
-  expect_match(sms, "missing parameter definitions")
-  expect_false(grepl("status-specific", sms))
+  sms |> expect_match("missing parameter definitions")
+  grepl("status-specific", sms) |> expect_false()
 })
 
 test_that("Independence proposal inherits the model location shift", {
@@ -1298,8 +1305,8 @@ test_that("Independence proposal inherits the model location shift", {
     suppressWarnings()
 
   draws <- as.data.frame(get_latent_draws(results))
-  expect_true(all(draws$m1_hidden >= 4 & draws$m1_hidden <= 5))
-  expect_true(all(draws$m2_hidden >= 8 & draws$m2_hidden <= 9))
+  (draws$m1_hidden >= 4 & draws$m1_hidden <= 5) |> expect_all_true()
+  (draws$m2_hidden >= 8 & draws$m2_hidden <= 9) |> expect_all_true()
 })
 
 test_that("Truncated latent models are normalized in log-likelihood traces", {
@@ -1332,7 +1339,7 @@ test_that("Truncated latent models are normalized in log-likelihood traces", {
     expected <- log_dtrunc(col("layer_1"), 2, 1.5, 0, hhdata$datum[k]) +
       log_dtrunc(col("hidden"), rho, 1, 0.5, 8) +
       log_dtrunc(col("hidden_2"), 1.7, 1, 0, 5) - log(2e6)
-    expect_equal(log_lik[[sprintf("h%d", k)]], expected, tolerance = 1e-8)
+    log_lik[[sprintf("h%d", k)]] |> expect_equal(expected, tolerance = 1e-8)
   }
 })
 
@@ -1353,7 +1360,7 @@ test_that("Latent draws stay inside their live support", {
     run_short() |>
     latent_frame()
   gap <- draws[["1_hidden"]] - draws[["1_layer_1"]]
-  expect_true(all(gap >= 0 & gap <= 1))
+  (gap >= 0 & gap <= 1) |> expect_all_true()
 
   # transitive deterministic latent variable
   draws <- hhdata |>
@@ -1365,7 +1372,7 @@ test_that("Latent draws stay inside their live support", {
     run_short() |>
     latent_frame()
   gap <- draws[["1_hidden"]] - draws[["1_layer_2"]]
-  expect_true(all(gap >= 0 & gap <= 1))
+  (gap >= 0 & gap <= 1) |> expect_all_true()
 
   # parameter
   results <- hhdata |>
@@ -1376,7 +1383,7 @@ test_that("Latent draws stay inside their live support", {
     run_short()
   hidden <- latent_frame(results)[["1_hidden"]]
   rho <- as.data.frame(get_parameter_draws(results))[["rho"]]
-  expect_true(all(hidden >= rho))
+  (hidden >= rho) |> expect_all_true()
 })
 
 test_that("Draws requested where no latent is sampled are ignored", {
@@ -1408,8 +1415,9 @@ test_that("Latent definitions are integrated in simulations", {
                              min = layer_1, max = layer_1 + 1),
                layer_1 = list(model = "gamma", shape = 2, scale = 1)) |>
     run_simulation()
-  expect_true(all(simulated$layer_1 <= simulated$hidden &
-                    simulated$hidden <= simulated$layer_1 + 1))
+  (simulated$layer_1 <= simulated$hidden &
+     simulated$hidden <= simulated$layer_1 + 1) |>
+    expect_all_true()
 })
 
 test_that("A value paired with model overrides the draw in simulations only", {
@@ -1420,14 +1428,14 @@ test_that("A value paired with model overrides the draw in simulations only", {
     helper_flat_sink(loc = hidden@A)
 
   # simulation: pins the sampled variable to user value
-  expect_true(all(run_simulation(hhmodel)$hidden == 7))
+  run_simulation(hhmodel)$hidden |> expect_all_equal(7)
 
   # inference: the value does not pin the sampler and draws span the prior
   draws <- hhmodel |>
     run_inference(steps = 40L, chains = 1L) |>
     get_latent_draws() |>
     suppressWarnings()
-  expect_false(all(draws[["1_hidden"]] == 7))
+  all(draws[["1_hidden"]] == 7) |> expect_false()
 
   # a pin composed on another latent binds live: the relation holds member by
   # member, and follows the draw rather than collapsing to a single value
@@ -1438,8 +1446,8 @@ test_that("A value paired with model overrides the draw in simulations only", {
                hidden = list(model = "uniform", max = 100,
                              value = datum@D - layer_1@A)) |>
     run_simulation()
-  expect_equal(simulated$hidden, 7 - simulated$layer_1)
-  expect_gt(length(unique(simulated$layer_1)), 1)
+  simulated$hidden |> expect_equal(7 - simulated$layer_1)
+  length(unique(simulated$layer_1)) |> expect_gt(1)
 })
 
 test_that("Latent traces export only relevant variables", {
@@ -1484,15 +1492,15 @@ test_that("Latent traces export only relevant variables", {
   }
 
   # the observation reads expl and rho_sum, so their producers are drawn too
-  expect_setequal(
-    traced(observed),
-    paste(rep(c("m1", "m2"), each = 6),
-          c("hidden", "hidden_2", "layer", "rho_sum", "alias", "expl"),
-          sep = "_")
-  )
+  traced(observed) |>
+    expect_setequal(
+      paste(rep(c("m1", "m2"), each = 6),
+            c("hidden", "hidden_2", "layer", "rho_sum", "alias", "expl"),
+            sep = "_")
+    )
 
   # with no observation nothing reads any of them: the model has no sink
-  expect_length(traced(hhmodel), 0)
+  traced(hhmodel) |> expect_length(0)
 })
 
 test_that("A latent degenerate domain warns and collapses", {
@@ -1500,16 +1508,12 @@ test_that("A latent degenerate domain warns and collapses", {
     add_parameter("rho", prior = "uniform") |>
     add_latent("hidden", model = "uniform", min = 5, max = 5)
   # the short run also skips the convergence diagnostics
-  expect_warning(
-    expect_warning(
-      tryCatch(
-        hhmodel |> run_inference(steps = 400L, chains = 1L, adapt = 0L),
-        error = function(e) NULL
-      ),
-      regexp = "[Dd]egenerate domain|[Cc]ollapsed"
-    ),
-    regexp = "[Ss]ample size was below"
-  )
+  tryCatch(
+    hhmodel |> run_inference(steps = 400L, chains = 1L, adapt = 0L),
+    error = function(e) NULL
+  ) |>
+    expect_warning(regexp = "[Dd]egenerate domain|[Cc]ollapsed") |>
+    expect_warning(regexp = "[Ss]ample size was below")
 })
 
 test_that("Nested definitions works as expected", {
@@ -1519,7 +1523,7 @@ test_that("Nested definitions works as expected", {
                u1 = list(model = "uniform"),
                u2 = list(model = "uniform"),
                z0 = sqrt(-2 * log(u1)) * cos(2 * pi * u2))
-  expect_snapshot(print(hhmodel))
+  print(hhmodel) |> expect_snapshot()
 
   # a flat observation on each chain leaves both posteriors equal to the model
   results <- hhmodel |>
@@ -1528,22 +1532,22 @@ test_that("Nested definitions works as expected", {
     helper_flat_sink(loc = norm@A, column = "obs_norm") |>
     run_inference(steps = 1e5L, chains = 1L, adapt = 0L, thin = 1L)
   # no parameters nor priors, only latent
-  expect_equal(posterior::nvariables(results$parameter_draws), 0L)
+  posterior::nvariables(results$parameter_draws) |> expect_identical(0L)
   posterior::nvariables(results$latent_draws) |>
-    expect_equal(dim(hhmodel$latent)[1])
+    expect_identical(dim(hhmodel$latent)[1])
 
   # the S3 method of summarise_draws dispatches on the results
   out_vars <- posterior::summarise_draws(results)[["variable"]]
-  expect_true(all(startsWith(out_vars, "tommy")))
+  startsWith(out_vars, "tommy") |> expect_all_true()
 
   # empirical tests for goodness of Gaussian distribution
   probs <- c(0.025, 0.5, 0.975)
   for (draws in list(results$latent_draws$tommy_norm,
                      results$latent_draws$tommy_z0)) {
-    expect_equal(mean(draws), 0, tolerance = 0.05)
-    expect_equal(sd(draws), 1, tolerance = 0.05)
-    expect_equal(unname(stats::quantile(draws, probs)), qnorm(probs),
-                 tolerance = 0.05)
+    mean(draws) |> expect_equal(0, tolerance = 0.05)
+    sd(draws) |> expect_equal(1, tolerance = 0.05)
+    unname(stats::quantile(draws, probs)) |>
+      expect_equal(qnorm(probs), tolerance = 0.05)
   }
 })
 
@@ -1562,7 +1566,7 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   simulated <- do.call(rbind, run_simulation(hhmodel, nrep = 50))
   for (s in seq(4)) {
     draws <- simulated$hidden[simulated$status == s]
-    expect_true(all(draws >= s - 1 & draws <= s))
+    (draws >= s - 1 & draws <= s) |> expect_all_true()
   }
 
   # inference traces every member within its status support
@@ -1573,8 +1577,8 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   draws <- as.data.frame(get_latent_draws(results))
   for (s in seq(4)) {
     trace <- draws[[paste0(s, "_hidden")]]
-    expect_length(trace, 5L)
-    expect_true(all(trace >= s - 1 & trace <= s))
+    trace |> expect_length(5L)
+    (trace >= s - 1 & trace <= s) |> expect_all_true()
   }
 })
 
@@ -1584,13 +1588,13 @@ test_that("Evaluating a model allocates its latent storage", {
     add_latent("hidden", model = "uniform")
   evaluate_log_lik(hhmodel)
   augmented <- inspect_augmented_data(hhmodel)
-  expect_true(is.data.frame(augmented))
-  expect_true("hidden" %in% colnames(augmented))
+  is.data.frame(augmented) |> expect_true()
+  ("hidden" %in% colnames(augmented)) |> expect_true()
 })
 
-################################
-## OBSERVATION : END-TO-END   ##
-################################
+##################################
+###  OBSERVATION : END-TO-END  ###
+##################################
 
 test_that("Observation-aware initialization", {
   window <- 0.1
@@ -1604,10 +1608,12 @@ test_that("Observation-aware initialization", {
     add_latent("hidden", model = "uniform") |>
     add_observation("record", model = "uniform", loc = hidden,
                     min = -!!window, max = !!window)
-  hhmodel |>
+  draws <- hhmodel |>
     run_inference(steps = 10L, adapt = 0L, chains = 40L) |>
     suppressWarnings() |>
-    expect_no_error()
+    get_latent_draws() |>
+    as.data.frame()
+  max(abs(draws[["1_hidden"]] - 0.5)) |> expect_lte(window)
 
   # datum record = 5 is unreachable
   hhdata <- data.frame(hhid = "h1", status = 1, record = 5)
@@ -1638,7 +1644,7 @@ test_that("Members missing different observations still initialize", {
   # m1 carries a record and no record_2, m2 the reverse, m3 neither: the
   # ordinary censoring pattern must reach the sampler, not the
   # domain-feasibility wall of the observation-aware restart
-  data.frame(
+  draws <- data.frame(
     id = c("m1", "m2", "m3"), hhid = "h1", status = 1,
     record = c(0.5, NA, NA), record_2 = c(NA, 0.5, NA)
   ) |>
@@ -1650,7 +1656,10 @@ test_that("Members missing different observations still initialize", {
     ) |>
     run_inference(steps = 10L, adapt = 0L, chains = 2L) |>
     suppressWarnings() |>
-    expect_no_error()
+    get_latent_draws() |>
+    as.data.frame()
+  # each observed member stays inside its window
+  max(abs(unlist(draws[c("m1_hidden", "m2_hidden")]) - 0.5)) |> expect_lte(0.1)
 })
 
 test_that("An observation infers discretization from the column it reads", {
@@ -1674,10 +1683,10 @@ test_that("An observation infers discretization from the column it reads", {
   simulated <- run_simulation(hhmodel)
 
   # dates and integers are discrete, doubles are not
-  expect_true(on_integer_lattice(simulated[["date_col"]]))
-  expect_true(on_integer_lattice(simulated[["int_col"]]))
-  expect_false(on_integer_lattice(simulated[["whole_col"]]))
-  expect_false(on_integer_lattice(simulated[["kept_col"]]))
+  on_integer_lattice(simulated[["date_col"]]) |> expect_true()
+  on_integer_lattice(simulated[["int_col"]]) |> expect_true()
+  on_integer_lattice(simulated[["whole_col"]]) |> expect_false()
+  on_integer_lattice(simulated[["kept_col"]]) |> expect_false()
 
   # a deterministic observation is not influenced
   hhmodel |>
@@ -1702,11 +1711,11 @@ test_that("Simulated columns carry the discretization of their definition", {
   simulated <- run_simulation(hhmodel)
 
   # a discrete declaration, and the reduction folding it, export as integers
-  expect_type(simulated[["record"]], "integer")
-  expect_type(simulated[["record_3"]], "integer")
+  simulated[["record"]] |> expect_type("integer")
+  simulated[["record_3"]] |> expect_type("integer")
   # a continuous observation and a continuous latent stay double
-  expect_type(simulated[["record_2"]], "double")
-  expect_type(simulated[["hidden"]], "double")
+  simulated[["record_2"]] |> expect_type("double")
+  simulated[["hidden"]] |> expect_type("double")
 
   # feeding the simulated data back resolves the same discretization
   simulated |>
@@ -1730,8 +1739,9 @@ test_that("A column a status declares continuous keeps its fractions", {
     run_simulation()
 
   # one column, two declarations: the continuous one has values to lose
-  expect_type(simulated[["record"]], "double")
-  expect_false(on_integer_lattice(simulated[["record"]][simulated$status == 2]))
+  simulated[["record"]] |> expect_type("double")
+  on_integer_lattice(simulated[["record"]][simulated$status == 2]) |>
+    expect_false()
 })
 
 test_that("Discretization is resolved every time the data changes", {
@@ -1743,14 +1753,14 @@ test_that("Discretization is resolved every time the data changes", {
   # observations resolve to continuous in simulations and definitions
   hhmodel <- hhmodel |>
     add_data_wide(dplyr::mutate(hhdata, record = rep(c(2.4, 5.1), 20)))
-  expect_false(get_observations(hhmodel)$discr)
-  expect_false(on_integer_lattice(run_simulation(hhmodel)$record))
+  get_observations(hhmodel)$discr |> expect_false()
+  on_integer_lattice(run_simulation(hhmodel)$record) |> expect_false()
 
   # observations resolve to discrete in simulations and definitions
   hhmodel <- hhmodel |>
     add_data_wide(dplyr::mutate(hhdata, record = rep(c(2L, 5L), 20)))
-  expect_true(get_observations(hhmodel)$discr)
-  expect_true(on_integer_lattice(run_simulation(hhmodel)$record))
+  get_observations(hhmodel)$discr |> expect_true()
+  on_integer_lattice(run_simulation(hhmodel)$record) |> expect_true()
 })
 
 test_that("A bare observation name reads its column in a house reduction", {
@@ -1790,7 +1800,7 @@ test_that("A household-bound member observation bounds every member", {
     ) |>
     run_simulation()
 
-  expect_false(anyNA(simulated$end_date))
+  simulated$end_date |> expect_no_na()
   simulated$end_date |> expect_equal(simulated$start_date + 21)
   # uninfected members leave the risk set at the end of follow-up
   mean(simulated$status > 0) |> expect_lt(1)
@@ -1843,7 +1853,7 @@ test_that("A deterministic observation constrains its ancestors", {
   # the sampled onset (infec_time + incub_period) tracks the observed onset_date
   recon <- unname(colMeans(onset[, grep("onset_time", names(onset))]))
   observed <- mk_onset$data$onset_date[mk_onset$data$status > 0]
-  expect_lt(max(abs(recon - observed)), 0.5)
+  max(abs(recon - observed)) |> expect_lt(0.5)
 })
 
 test_that("Discretized observation node initializes finite", {
@@ -1856,7 +1866,7 @@ test_that("Discretized observation node initializes finite", {
     run_inference(steps = 50L, thin = 1L, adapt = 0L, chains = 1L) |>
     suppressWarnings()
 
-  expect_true(all(is.finite(get_log_lik_draws(results)$h1)))
+  is.finite(get_log_lik_draws(results)$h1) |> expect_all_true()
 })
 
 test_that("A stochastic observation is simulated for infected members only", {
@@ -1867,8 +1877,8 @@ test_that("A stochastic observation is simulated for infected members only", {
 
   # onset_date is generated only for infected members
   mask_infected <- simulated$status > 0
-  expect_false(anyNA(simulated$onset_date[mask_infected]))
-  expect_true(all(is.na(simulated$onset_date[!mask_infected])))
+  simulated$onset_date[mask_infected] |> expect_no_na()
+  simulated$onset_date[!mask_infected] |> expect_all_na()
 })
 
 test_that("Household observation derives from simulated observations", {
@@ -1885,13 +1895,13 @@ test_that("Household observation derives from simulated observations", {
   # min of that repetition's generated test_date, one value per household
   # replicated across rows, never NA (every house has a case)
   for (simulated in reps) {
-    expect_false(anyNA(simulated$start_date))
+    simulated$start_date |> expect_no_na()
     per_house <- tapply(simulated$start_date, simulated$hhid, unique)
-    expect_true(all(lengths(per_house) == 1))
+    lengths(per_house) |> as.vector() |> expect_all_equal(1)
     infected <- simulated[simulated$status > 0, ]
     expected <- tapply(infected$test_date, infected$hhid, min)
-    expect_equal(as.numeric(unlist(per_house)[names(expected)]),
-                 as.numeric(expected))
+    as.numeric(unlist(per_house)[names(expected)]) |>
+      expect_equal(as.numeric(expected))
   }
 })
 
@@ -1934,7 +1944,7 @@ test_that("A column needed for every member is not drawn with infection", {
   results <- hhmodel |>
     add_observation(end_date = min(onset_date) + 21, level = "house") |>
     run_simulation()
-  expect_false(anyNA(results$end_date))
+  results$end_date |> expect_no_na()
 })
 
 test_that("A model argument reading an empty cell names member and household", {
@@ -1943,10 +1953,10 @@ test_that("A model argument reading an empty cell names member and household", {
     add_observation(record = list(model = "normal", mean = datum@D + 1)) |>
     run_simulation() |>
     tryCatch(error = conditionMessage)
-  expect_match(sms, "[Dd]ata .datum. has no value")
-  expect_match(sms, "observation .record. for\\s+individual\\s+.2.")
-  expect_match(sms, ".2.\\s+\\(status\\s+1\\)")
-  expect_match(sms, "\\(status\\s+1\\)\\s+for\\s+household\\s+.h1.")
+  sms |> expect_match("[Dd]ata .datum. has no value")
+  sms |> expect_match("observation .record. for\\s+individual\\s+.2.")
+  sms |> expect_match(".2.\\s+\\(status\\s+1\\)")
+  sms |> expect_match("\\(status\\s+1\\)\\s+for\\s+household\\s+.h1.")
 })
 
 test_that("Household observations aggregate a data column across members", {
@@ -1969,7 +1979,7 @@ test_that("Household observations aggregate a data column across members", {
   # one value per household, replicated across every member row
   per_house <- function(col) {
     values <- tapply(simulated[[col]], simulated$hhid, unique)
-    expect_true(all(lengths(values) == 1))
+    lengths(values) |> as.vector() |> expect_all_equal(1)
     unlist(values)[sort(names(values))]
   }
   # values equal the na.rm min/max of test_date over each household's members,
@@ -1979,9 +1989,9 @@ test_that("Household observations aggregate a data column across members", {
     values <- tapply(as.numeric(hhdata$test_date), hhdata$hhid, reduce)
     values[sort(names(values))]
   }
-  expect_equal(per_house("first_test"), expected(min))
-  expect_equal(per_house("last_test"), expected(max))
-  expect_true(is.na(per_house("first_test")[[empty_house]]))
+  per_house("first_test") |> expect_equal(expected(min))
+  per_house("last_test") |> expect_equal(expected(max))
+  per_house("first_test")[[empty_house]] |> expect_all_na()
 })
 
 test_that("Simulation leaves overwritten data columns pristine", {
@@ -1998,8 +2008,8 @@ test_that("Simulation leaves overwritten data columns pristine", {
   before <- before[order(before$id), ]
   after <- after[order(after$id), ]
   # the overwritten column is restored, and no simulation-added column lingers
-  expect_equal(as.numeric(after$test_date), as.numeric(before$test_date))
-  expect_setequal(names(after), names(before))
+  as.numeric(after$test_date) |> expect_equal(as.numeric(before$test_date))
+  names(after) |> expect_setequal(names(before))
 })
 
 test_that("A latent reads a static data-bound household observation", {
@@ -2017,7 +2027,7 @@ test_that("A latent reads a static data-bound household observation", {
     run_simulation()
 
   # start_date is materialized statically (= 5) before the index is drawn
-  expect_true(all(simulated$start_date == 5))
+  simulated$start_date |> expect_all_equal(5)
 })
 
 test_that("Simulation rejects a latent reading a live household observation", {
@@ -2073,23 +2083,23 @@ test_that("Status process generates a labelled status factor in simulation", {
     run_simulation()
 
   # status is a factor: code 0 -> escaped, 1 -> symptomatic, 2 -> asymptomatic
-  expect_s3_class(simulated$status, "factor")
-  expect_identical(levels(simulated$status),
-                   c("escaped", "symptomatic", "asymptomatic"))
+  simulated$status |> expect_s3_class("factor")
+  levels(simulated$status) |>
+    expect_identical(c("escaped", "symptomatic", "asymptomatic"))
   infected <- as.character(simulated$status[simulated$status != "escaped"])
   # outcome split follows the probabilities (0.2 symptomatic)
-  expect_lt(abs(mean(infected == "symptomatic") - 0.2), 0.08)
+  abs(mean(infected == "symptomatic") - 0.2) |> expect_lt(0.08)
 
   # feed the factor-status output back for inference: factorization maps the
   # labels to the same codes (escaped -> 0), so the density is finite
   hhmodel <- simulated |>
     dplyr::select(id, hhid, status, infec_time, start_date, end_date) |>
     add_data_wide(hhmodel = mk_pinned$model)
-  expect_true(is.finite(evaluate_log_lik(hhmodel)))
+  is.finite(evaluate_log_lik(hhmodel)) |> expect_true()
 
   # the data-derived dictionary matches the simulated infected labels
-  expect_identical(levels(get_data_wide(hhmodel)$status),
-                   c("escaped", "symptomatic", "asymptomatic"))
+  levels(get_data_wide(hhmodel)$status) |>
+    expect_identical(c("escaped", "symptomatic", "asymptomatic"))
 })
 
 test_that("Status process drives status-specific latent blocks", {
@@ -2103,8 +2113,8 @@ test_that("Status process drives status-specific latent blocks", {
   by_status <- tapply(simulated$incub_period,
                       as.character(simulated$status), mean, na.rm = TRUE)
   # the resolved status selects the block: shape 8 symptomatic, 2 asymptomatic
-  expect_gt(by_status[["symptomatic"]], 5)
-  expect_lt(by_status[["asymptomatic"]], 4)
+  by_status[["symptomatic"]] |> expect_gt(5)
+  by_status[["asymptomatic"]] |> expect_lt(4)
 })
 
 test_that("Escaped label is configurable", {
@@ -2120,8 +2130,8 @@ test_that("Escaped label is configurable", {
     run_simulation()
 
   # weak transmission leaves escapees, labelled per the construction argument
-  expect_true("healthy" %in% levels(simulated$status))
-  expect_true(any(as.character(simulated$status) == "healthy"))
+  ("healthy" %in% levels(simulated$status)) |> expect_true()
+  any(as.character(simulated$status) == "healthy") |> expect_true()
 })
 
 test_that("Status-specific blocks alone cover every drawn status", {
@@ -2148,7 +2158,7 @@ test_that("Status-specific blocks alone cover every drawn status", {
     incub = list(model = "gamma", mean = 3, sd = 1, max = 14, status = 2),
     onset = list(func = infec_time + incub, status = 2)
   )
-  expect_s3_class(suppressWarnings(run_simulation(covered)), "data.frame")
+  suppressWarnings(run_simulation(covered)) |> expect_s3_class("data.frame")
 
   # a status left without a block is named itself, not reported as a missing
   # generic definition the model never had to declare. Every infected member
@@ -2161,8 +2171,8 @@ test_that("Status-specific blocks alone cover every drawn status", {
   )
   sms <- tryCatch(suppressWarnings(run_simulation(uncovered)),
                   error = conditionMessage)
-  expect_match(sms, "status 2")
-  expect_false(grepl("generic latent definition", sms))
+  sms |> expect_match("status 2")
+  grepl("generic latent definition", sms) |> expect_false()
 
   # a generic block on its own still serves every drawn status
   generic <- mk(
@@ -2170,5 +2180,5 @@ test_that("Status-specific blocks alone cover every drawn status", {
     incub = list(model = "gamma", mean = 2, sd = 1, max = 14),
     onset = list(func = infec_time + incub)
   )
-  expect_s3_class(suppressWarnings(run_simulation(generic)), "data.frame")
+  suppressWarnings(run_simulation(generic)) |> expect_s3_class("data.frame")
 })

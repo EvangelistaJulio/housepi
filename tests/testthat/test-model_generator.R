@@ -32,7 +32,7 @@ test_that("Model generator inconsistent calls are caught", {
   c("case ascertained", "case-ascertained", "case-ascertained") |>
     vapply(function(x) new_housepi_model(model = x)$name, character(1)) |>
     unique() |>
-    expect_equal("case ascertained")
+    expect_identical("case ascertained")
 })
 
 test_that("Model choice helper handles malformed input", {
@@ -41,7 +41,7 @@ test_that("Model choice helper handles malformed input", {
     hhmodel <- new_housepi_model(model = NA_character_),
     regexp = "test"
   )
-  expect_equal(hhmodel$name, "test")
+  hhmodel$name |> expect_identical("test")
 
   # non-character input is rejected
   new_housepi_model(model = 42) |>
@@ -85,7 +85,7 @@ test_that("as_template is refused for a built-in template", {
     regexp = "browse_templates"
   )
   # construction still succeeds
-  expect_equal(hhmodel$name, "test")
+  hhmodel$name |> expect_identical("test")
 })
 
 test_that("as_template is dropped on the 'test' fallback", {
@@ -98,9 +98,9 @@ test_that("as_template is dropped on the 'test' fallback", {
       invokeRestart("muffleWarning")
     }
   )
-  expect_true(any(grepl("No model specified", warns)))
-  expect_false(any(grepl("Cannot store template", warns)))
-  expect_equal(hhmodel$name, "test")
+  warns |> expect_match("No model specified", all = FALSE)
+  warns |> expect_no_match("Cannot store template")
+  hhmodel$name |> expect_identical("test")
 })
 
 test_that("A custom model directory without model.cpp is rejected", {
@@ -119,23 +119,23 @@ test_that("A custom model directory without model.cpp is rejected", {
 test_that("Active fields expose state", {
   generator <- mk_generator$generator
 
-  expect_equal(generator$raw_name, "test")
-  expect_equal(generator$name, "test")
-  expect_true(generator$is_test_model())
-  expect_true(dir.exists(generator$source_dir))
-  expect_identical(generator$cols_data_wide, character())
-  expect_null(generator$info_data_wide)
-  expect_identical(generator$infec_status_set, integer())
-  expect_identical(generator$status_data_labels, character())
-  expect_identical(generator$escaped, "escaped")
-  expect_false(is.null(generator$mcmc_ptr))
+  generator$raw_name |> expect_identical("test")
+  generator$name |> expect_identical("test")
+  generator$is_test_model() |> expect_true()
+  dir.exists(generator$source_dir) |> expect_true()
+  generator$cols_data_wide |> expect_identical(character())
+  generator$info_data_wide |> expect_null()
+  generator$infec_status_set |> expect_identical(integer())
+  generator$status_data_labels |> expect_identical(character())
+  generator$escaped |> expect_identical("escaped")
+  is.null(generator$mcmc_ptr) |> expect_false()
 })
 
 test_that("Required keys reflect the underlying template", {
   generator <- mk_generator$generator
-  expect_length(generator$data_required, 0L)
-  expect_length(generator$group_risks_required, 0L)
-  expect_length(generator$latent_required, 0L)
+  generator$data_required |> expect_length(0L)
+  generator$group_risks_required |> expect_length(0L)
+  generator$latent_required |> expect_length(0L)
 
   generator <- HousepiGenerator$new("case ascertained")
   generator$data_required |>
@@ -151,37 +151,37 @@ test_that("Required keys reflect the underlying template", {
   generator$param_required |>
     names() |>
     unique() |>
-    expect_equal("model")
+    expect_identical("model")
 })
 
 test_that("Risk anchors reflect the baselines the model declares", {
   anchors <- HousepiGenerator$new("final-size")$risk_anchors
-  expect_setequal(names(anchors), c("alpha", "beta"))
+  names(anchors) |> expect_setequal(c("alpha", "beta"))
 
   # the community risk scales alpha alone, no contact involved
-  expect_equal(anchors$alpha$risks, "community")
-  expect_false(anchors$alpha$contacts)
+  anchors$alpha$risks |> expect_identical("community")
+  anchors$alpha$contacts |> expect_false()
 
   # susceptibility and infectivity scale beta, alongside contact risks
-  expect_setequal(anchors$beta$risks, c("susceptibility", "infectivity"))
-  expect_true(anchors$beta$contacts)
+  anchors$beta$risks |> expect_setequal(c("susceptibility", "infectivity"))
+  anchors$beta$contacts |> expect_true()
 
   # a model without risks declares no anchor
-  expect_length(mk_generator$generator$risk_anchors, 0L)
+  mk_generator$generator$risk_anchors |> expect_length(0L)
 })
 
 test_that("Wide data is factorized and refactored by the generator", {
   generator <- HousepiGenerator$new("test")
 
   generator$factorize_data_wide(dummy_household)
-  expect_setequal(generator$cols_data_wide, colnames(dummy_household))
-  expect_equal(generator$infec_status_set, 1L)
-  expect_type(generator$info_data_wide, "list")
+  generator$cols_data_wide |> expect_setequal(colnames(dummy_household))
+  generator$infec_status_set |> expect_identical(1L)
+  generator$info_data_wide |> expect_type("list")
 
   # round-trip refactor keeps the original character columns intact
   refactored <- generator$refactor_data_wide(dummy_household)
-  expect_equal(refactored$id, dummy_household$id)
-  expect_equal(refactored$hhid, dummy_household$hhid)
+  refactored$id |> expect_identical(dummy_household$id)
+  refactored$hhid |> expect_identical(dummy_household$hhid)
 
   # data long format
   generator$import_data_long(list(a = 1)) |>
@@ -191,9 +191,9 @@ test_that("Wide data is factorized and refactored by the generator", {
 test_that("init_pointers is a no-op when pointers already exist", {
   generator <- HousepiGenerator$new("test")
   ptr_before <- generator$mcmc_ptr
-  expect_false(is.null(ptr_before))
+  is.null(ptr_before) |> expect_false()
   generator$init_pointers()
-  expect_identical(generator$mcmc_ptr, ptr_before)
+  generator$mcmc_ptr |> expect_identical(ptr_before)
 })
 
 test_that("Model has no leaks", {
@@ -211,7 +211,7 @@ test_that("Model has no leaks", {
     if (i %% 10 == 0) gc()
   }
   invisible(gc())
-  expect_lt(mem_used_mb() - mem_before, 5)
+  (mem_used_mb() - mem_before) |> expect_lt(5)
 })
 
 ########################################
@@ -232,14 +232,14 @@ test_that("A session template compiles user flags and warns when they change", {
     type = "output"
   )) |>
     paste(collapse = "\n")
-  expect_match(log, "-I/tmp/include_dir", fixed = TRUE)
-  expect_match(log,
-               paste0("-I", system.file("include", package = "housepi")),
-               fixed = TRUE)
-  expect_match(log, "-D_HOUSEPI_DISCRETE_TIME", fixed = TRUE)
-  expect_match(log, "-L/tmp/lib_dir", fixed = TRUE)
-  expect_identical(readLines(dll_flags_file(template_dll_file(path))),
-                   "_HOUSEPI_DISCRETE_TIME")
+  log |> expect_match("-I/tmp/include_dir", fixed = TRUE)
+  log |>
+    expect_match(paste0("-I", system.file("include", package = "housepi")),
+                 fixed = TRUE)
+  log |> expect_match("-D_HOUSEPI_DISCRETE_TIME", fixed = TRUE)
+  log |> expect_match("-L/tmp/lib_dir", fixed = TRUE)
+  readLines(dll_flags_file(template_dll_file(path))) |>
+    expect_identical("_HOUSEPI_DISCRETE_TIME")
 
   # the loaded discrete dll cannot be replaced by the continuous variant
   new_housepi_model(model = path, as_template = TRUE, quiet = TRUE) |>
@@ -273,8 +273,8 @@ test_that("Custom models share function registries", {
   # other raw_ virtuals fall back to raise_undefined_call_err_
   x <- seq(0, 3, 0.5)
   func <- browse_functions("growth", initial = 2, rate = 0.5)
-  expect_equal(func$func(x), 2 * exp(0.5 * x))
-  expect_equal(func$prim(x), 2 * exp(0.5 * x) / 0.5)
+  func$func(x) |> expect_equal(2 * exp(0.5 * x))
+  func$prim(x) |> expect_equal(2 * exp(0.5 * x) / 0.5)
   func$log_func(x) |>
     expect_error("undefined")
   # default raw_log_ratio_ returns 0

@@ -47,10 +47,10 @@ test_that("Contact risks pair counts are computed correctly", {
   count <- function(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
 
   # total: child->adult = 2, adult->child = 2, no same-age pair
-  expect_equal(count("child", "adult"), 2L)
-  expect_equal(count("adult", "child"), 2L)
-  expect_equal(count("child", "child"), integer(0))
-  expect_equal(count("adult", "adult"), integer(0))
+  count("child", "adult") |> expect_identical(2L)
+  count("adult", "child") |> expect_identical(2L)
+  count("child", "child") |> expect_identical(integer(0))
+  count("adult", "adult") |> expect_identical(integer(0))
 
   # no household structure, no pair to count
   contact_risk_logic_table(data.frame(age = c("child", "adult")), "age") |>
@@ -64,10 +64,10 @@ test_that("Pair counts drop the member meeting itself", {
     contact_risk_logic_table("age")
   count <- function(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
 
-  expect_equal(count("child", "child"), 2L)
-  expect_equal(count("adult", "adult"), 2L)
-  expect_equal(count("child", "adult"), 2L)
-  expect_equal(count("adult", "child"), 2L)
+  count("child", "child") |> expect_identical(2L)
+  count("adult", "adult") |> expect_identical(2L)
+  count("child", "adult") |> expect_identical(2L)
+  count("adult", "child") |> expect_identical(2L)
 })
 
 ######################################
@@ -84,32 +84,33 @@ test_that("Auto mode imposes symmetric contacts by default", {
   tidy <- risks_of()
 
   # two-level covariate: child, adult -> 4 pairs
-  expect_equal(nrow(tidy), 4L)
+  nrow(tidy) |> expect_identical(4L)
 
   # only 1 reference
-  expect_equal(sum(tidy$param_name == ".reference"), 1)
+  sum(tidy$param_name == ".reference") |> expect_identical(1L)
   # only 2 unique non-reference params (cross + child->child)
-  expect_length(setdiff(unique(tidy$param_name), ".reference"), 2)
+  setdiff(unique(tidy$param_name), ".reference") |> expect_length(2)
 
   # reference row is adult->adult
   ref_row <- tidy[tidy$param_name == ".reference", ]
-  ref_row$from_age |> expect_equal("adult")
-  ref_row$to_age |> expect_equal("adult")
+  ref_row$from_age |> expect_identical("adult")
+  ref_row$to_age |> expect_identical("adult")
 
   # symmetric: adult->child and child->adult share the same parameter
-  expect_equal(
-    subset(tidy, from_age == "adult" & to_age == "child")$param_name,
-    subset(tidy, from_age == "child" & to_age == "adult")$param_name
-  )
+  subset(tidy, from_age == "adult" & to_age == "child")$param_name |>
+    expect_identical(
+      subset(tidy, from_age == "child" & to_age == "adult")$param_name
+    )
 
   # symmetric = FALSE gives distinct parameters to the two directions
   tidy <- risks_of(symmetric = FALSE)
-  expect_equal(nrow(tidy), 4L)
-  expect_length(setdiff(unique(tidy$param_name), ".reference"), 3L)
-  expect_false(identical(
+  nrow(tidy) |> expect_identical(4L)
+  setdiff(unique(tidy$param_name), ".reference") |> expect_length(3L)
+  identical(
     subset(tidy, from_age == "adult" & to_age == "child")$param_name,
     subset(tidy, from_age == "child" & to_age == "adult")$param_name
-  ))
+  ) |>
+    expect_false()
 })
 
 test_that("Auto mode reference is opt-in and picks most abundant pair", {
@@ -120,15 +121,15 @@ test_that("Auto mode reference is opt-in and picks most abundant pair", {
   # automatic .reference on the most abundant pair,
   # tagged in both directions since the contact is symmetric
   ref <- subset(tidy, param_name == ".reference")
-  expect_gte(nrow(ref), 1L)
-  expect_true(all(ref$n == max(tidy$n)))
+  nrow(ref) |> expect_gte(1L)
+  ref$n |> expect_all_equal(max(tidy$n))
 
   # absolute by default: every pair keeps its own parameter
   ctr <- mk_risk$model |>
     add_contact_risk(by = "age") |>
     get_contact_risks()
   nrow(subset(ctr, param_name == ".reference")) |>
-    expect_equal(0L)
+    expect_identical(0L)
 })
 
 test_that("Non-joint produces independent per-covariate tables", {
@@ -139,17 +140,17 @@ test_that("Non-joint produces independent per-covariate tables", {
                      prior = "lognormal", sdlog = 1.) |>
     get_contact_risks()
 
-  expect_equal(length(unique(tidy$rule_group)), 2L)
+  length(unique(tidy$rule_group)) |> expect_identical(2L)
 
   # all age pairs are observed: 2 x 2
-  expect_equal(sum(tidy$rule_group == 1), 4L)
+  sum(tidy$rule_group == 1) |> expect_identical(4L)
   # 1 sex pair is missing: 2 x 2 - 1
-  expect_equal(sum(tidy$rule_group == 2), 3L)
+  sum(tidy$rule_group == 2) |> expect_identical(3L)
 
   # each sub-table has its own .reference
   for (grp in unique(tidy$rule_group)) {
     sum(tidy$param_name[tidy$rule_group == grp] == ".reference") |>
-      expect_equal(1L)
+      expect_identical(1L)
   }
 
   # symmetric default: 2 + 2 - 1 = 3 non-reference params
@@ -158,13 +159,17 @@ test_that("Non-joint produces independent per-covariate tables", {
 
   # first sub-table carries age, and leaves sex unset
   first <- subset(tidy, rule_group == 1)
-  expect_true(all(!is.na(first$from_age) & !is.na(first$to_age)))
-  expect_true(all(is.na(first$from_sex) & is.na(first$to_sex)))
+  first$from_age |> expect_no_na()
+  first$to_age |> expect_no_na()
+  first$from_sex |> expect_all_na()
+  first$to_sex |> expect_all_na()
 
   # second sub-table carries sex, and leaves age unset
   second <- subset(tidy, rule_group == 2)
-  expect_true(all(!is.na(second$from_sex) & !is.na(second$to_sex)))
-  expect_true(all(is.na(second$from_age) & is.na(second$to_age)))
+  second$from_sex |> expect_no_na()
+  second$to_sex |> expect_no_na()
+  second$from_age |> expect_all_na()
+  second$to_age |> expect_all_na()
 })
 
 test_that("Auto mode with two joint covariates behaves correctly", {
@@ -177,14 +182,14 @@ test_that("Auto mode with two joint covariates behaves correctly", {
 
   # NOTE: 3 observed types: <child,M>, <child,F>, <adult,M>
   # 7 observed pairs: 9 pairs - <child,M><child,F> - (<->)
-  expect_equal(nrow(tidy), 7L)
-  expect_equal(length(unique(tidy$rule_group)), 1L)
-  expect_equal(sum(tidy$param_name == ".reference"), 1)
+  nrow(tidy) |> expect_identical(7L)
+  length(unique(tidy$rule_group)) |> expect_identical(1L)
+  sum(tidy$param_name == ".reference") |> expect_identical(1L)
 
   # NOTE: symmetric pairs by default:
   # 3 heterogeneous: <child,M><child,F> <adult,M><child,F> <adult,M><child,M>
   # 1 homogeneous: <adult,M><adult,M> (reference)
-  expect_length(setdiff(unique(tidy$param_name), ".reference"), 3L)
+  setdiff(unique(tidy$param_name), ".reference") |> expect_length(3L)
 })
 
 test_that("Absoluteness follows the reference across every definition mode", {
@@ -201,16 +206,16 @@ test_that("Absoluteness follows the reference across every definition mode", {
 
   # auto mode: absolute unless a reference is resolved
   risk_prior(by = "age") |>
-    expect_equal("uniform")
+    expect_identical("uniform")
   risk_prior(by = "age", reference = ".auto") |>
-    expect_equal("lognormal")
+    expect_identical("lognormal")
   risk_prior(by = "age", reference = c(age = "adult")) |>
-    expect_equal("lognormal")
+    expect_identical("lognormal")
   # custom mode: the tag alone decides
   risk_prior(strata = untagged) |>
-    expect_equal("uniform")
+    expect_identical("uniform")
   risk_prior(strata = tagged) |>
-    expect_equal("lognormal")
+    expect_identical("lognormal")
 })
 
 test_that("Every rule group keeps its anchoring in auto", {
@@ -225,7 +230,7 @@ test_that("Every rule group keeps its anchoring in auto", {
   hhmodel <- risk_refer(reference = c(from_age = "adult", to_age = "adult"))
   params <- get_parameters(hhmodel)
   contact <- params[grepl("^(age|sex)_", params$name), ]
-  expect_true(all(contact["prior"] == "lognormal"))
+  contact$prior |> expect_all_equal("lognormal")
 
   # joint = FALSE by default so each covariate owns a rule group
   get_contact_risks(hhmodel)$rule_group |>
@@ -235,7 +240,7 @@ test_that("Every rule group keeps its anchoring in auto", {
   params <- risk_refer() |>
     get_parameters()
   contact <- params[grepl("^(age|sex)_", params$name), ]
-  expect_true(all(contact["prior"] == "uniform"))
+  contact$prior |> expect_all_equal("uniform")
 })
 
 test_that("Spare prior arguments on a contact risk are reported", {
@@ -273,7 +278,7 @@ test_that("Contact risks expand on their own covariates only", {
       get_contact_risks(),
     regexp = "without data"
   )
-  nrow(risks) |> expect_equal(0L)
+  nrow(risks) |> expect_identical(0L)
   risks |> expect_named(c("param_name", "n", "rule_group"))
 })
 
@@ -303,7 +308,7 @@ test_that("Contact risk custom mode default behaves correctly", {
 
   # the custom logic table drives the tidy table
   tidy <- get_contact_risks(hhmodel)
-  nrow(tidy) |> expect_equal(4L)
+  nrow(tidy) |> expect_identical(4L)
   tidy$param_name |> expect_setequal(strata$param_name)
 
   # parameters generated for non-reference
@@ -313,16 +318,16 @@ test_that("Contact risk custom mode default behaves correctly", {
 
   # default parameter definitions
   default <- get_parameters(hhmodel, "c2c")
-  default$prior |> expect_equal("lognormal")
+  default$prior |> expect_identical("lognormal")
   default$args[[1]] |> expect_equal(c(sdlog = 1.8, meanlog = 0))
   # overrides as variable
   variable <- get_parameters(hhmodel, "a2c")
-  variable$prior |> expect_equal("uniform")
+  variable$prior |> expect_identical("uniform")
   variable$min |> expect_equal(1)
   # overrides as constant
   constant <- get_parameters(hhmodel, "c2a")
   constant$value |> expect_equal(2.34)
-  expect_true(constant$const)
+  constant$const |> expect_true()
 })
 
 test_that("A reference has no meaning against a custom contact table", {
@@ -345,7 +350,9 @@ test_that("Custom contact strata carry at most one reference per rule group", {
                             "child",   "child", "c_to_c")
   mk_risk$model |>
     add_contact_risk(strata = strata, symmetric = TRUE) |>
-    expect_no_error()
+    get_contact_risks() |>
+    getElement("param_name") |>
+    expect_identical(c(".reference", ".reference", "c_to_c"))
   # without symmetry the two directions are two competing scales
   mk_risk$model |>
     add_contact_risk(strata = strata, symmetric = FALSE) |>
@@ -363,24 +370,24 @@ test_that("Custom mode fills the symmetric counterpart of a pair", {
 
   # symmetric fill adds child->adult with same param_name as adult->child
   filled <- get_contact_risks(hhmodel)
-  nrow(filled) |> expect_equal(4L)
+  nrow(filled) |> expect_identical(4L)
   filled$param_name[filled$from_age == "child" & filled$to_age == "adult"] |>
-    expect_equal("a_to_c")
+    expect_identical("a_to_c")
 
   # both directions share the override value
   get_parameters(hhmodel) |>
     getElement("name") |>
     expect_setequal(c("a_to_c", "c_to_c"))
   a_to_c <- get_parameters(hhmodel, "a_to_c")
-  expect_equal(a_to_c$value, 2)
-  expect_true(a_to_c$const)
+  a_to_c$value |> expect_equal(2)
+  a_to_c$const |> expect_true()
 
   # symmetric = FALSE does not fill gaps
   mk_risk$model |>
     add_contact_risk(strata = strata, symmetric = FALSE) |>
     get_contact_risks() |>
     nrow() |>
-    expect_equal(3L)
+    expect_identical(3L)
 })
 
 test_that("An unobserved contact level is dropped", {
@@ -399,7 +406,7 @@ test_that("An unobserved contact level is dropped", {
   # since mother->grandparent is not present, `rho`` is not present too
   risks <- get_contact_risks(hhmodel)
   risks$param_name |> expect_setequal(".reference")
-  expect_false("rho" %in% get_parameters(hhmodel)$name)
+  ("rho" %in% get_parameters(hhmodel)$name) |> expect_false()
 
   # every pair reads the reference, the mother's contacts included
   snapshot <- inspect_house_state(hhmodel, "h1")
@@ -422,8 +429,8 @@ test_that("A wildcard contact rule counts every pair it reaches", {
     get_contact_risks()
 
   ctr <- inspect_house_state(hhmodel, "h1")$contact_risks
-  risks$n[risks$param_name == "rho"] |> expect_equal(sum(ctr == 2))
-  risks$n[risks$param_name == ".reference"] |> expect_equal(sum(ctr == 1))
+  risks$n[risks$param_name == "rho"] |> expect_identical(sum(ctr == 2))
+  risks$n[risks$param_name == ".reference"] |> expect_identical(sum(ctr == 1))
 })
 
 test_that("A rule counts no pairs when households never form one", {
@@ -440,7 +447,7 @@ test_that("A rule counts no pairs when households never form one", {
                      params = list(rho = 2)) |>
     get_contact_risks()
 
-  risks$n |> expect_equal(c(0L, 0L))
+  risks$n |> expect_identical(c(0L, 0L))
 })
 
 test_that("A dropped contact rule leaves no mirrored counterpart", {
@@ -498,8 +505,8 @@ test_that("A contact table emptied by unknown levels defines no risk", {
     "[Uu]nknown definition.*grandparent"
   )
 
-  expect_equal(nrow(get_contact_risks(hhmodel)), 0L)
-  expect_false("rho" %in% get_parameters(hhmodel)$name)
+  nrow(get_contact_risks(hhmodel)) |> expect_identical(0L)
+  ("rho" %in% get_parameters(hhmodel)$name) |> expect_false()
 })
 
 #############################################
@@ -570,13 +577,13 @@ test_that("Most-specific rule wins over reference (single covariate)", {
     inspect_house_state("h1")
 
   # the explicit pair wins
-  expect_equal(ctr_cell(snapshot, "father", "mother"), 2)
+  ctr_cell(snapshot, "father", "mother") |> expect_equal(2)
   # symmetric = FALSE: reverse falls back to reference
-  expect_equal(ctr_cell(snapshot, "mother", "father"), 1)
+  ctr_cell(snapshot, "mother", "father") |> expect_equal(1)
   # unrelated pair falls back to reference
-  expect_equal(ctr_cell(snapshot, "student", "sibling"), 1)
+  ctr_cell(snapshot, "student", "sibling") |> expect_equal(1)
   # diagonal stays 0 (no self-contact)
-  expect_equal(unname(diag(snapshot$contact_risks)), rep(0., 4))
+  unname(diag(snapshot$contact_risks)) |> expect_equal(rep(0., 4))
 })
 
 test_that("Rules tied at equal specificity are rejected as ambiguous", {
@@ -614,12 +621,12 @@ test_that("A wildcard rule survives a missing cell in its covariate column", {
     suppressWarnings() # suppress baseline collapse warning
 
   # the specific pair still wins on specificity
-  expect_equal(ctr_cell(snapshot, "m1", "m2", key = "id"), 2)
+  ctr_cell(snapshot, "m1", "m2", key = "id") |> expect_equal(2)
   # the catch-all reaches a pair of members that both carry a role
-  expect_equal(ctr_cell(snapshot, "m3", "m1", key = "id"), 3)
+  ctr_cell(snapshot, "m3", "m1", key = "id") |> expect_equal(3)
   # and the member with no role reads it too
-  expect_equal(ctr_cell(snapshot, "m4", "m1", key = "id"), 3)
-  expect_equal(ctr_cell(snapshot, "m1", "m4", key = "id"), 3)
+  ctr_cell(snapshot, "m4", "m1", key = "id") |> expect_equal(3)
+  ctr_cell(snapshot, "m1", "m4", key = "id") |> expect_equal(3)
 })
 
 test_that("Distinct rule_groups multiply at the cell", {
@@ -668,8 +675,8 @@ test_that("Contact risk definition work as expected", {
 
   # no contact risk defs -> empty matrix
   contact_risks <- inspect_house_state(hhmodel, "h2")$contact_risks
-  expect_true(is.matrix(contact_risks))
-  dim(contact_risks) |> expect_equal(c(0L, 0L))
+  is.matrix(contact_risks) |> expect_true()
+  dim(contact_risks) |> expect_identical(c(0L, 0L))
 
   # mutually exclusive strata
   strata <- tibble::tribble(
@@ -696,10 +703,10 @@ test_that("Contact risk definition work as expected", {
 
   # every off-diagonal cell resolves to the reference (1)
   # or to exactly one param value: no multiplications
-  expect_true(all(snapshot$contact_risks %in% c(0, 1, params)))
+  snapshot$contact_risks |> expect_in(c(0, 1, params))
 
   # the template parameters added previously survive alongside the risk ones
-  expect_true(all(c("alpha", "beta", "gamma") %in% hhmodel$parameters$name))
+  hhmodel$parameters$name |> expect_contains(c("alpha", "beta", "gamma"))
 })
 
 test_that("A contact risk keyed on an observation is rejected", {
@@ -735,21 +742,21 @@ test_that("Contact risks raise an error for incompatible models", {
 test_that("A contact strata value pins the stratum and keeps its prior", {
   pinned <- pin_ctr_strata(const = c(NA, NA)) |>
     get_parameters("ctr_fm")
-  expect_equal(pinned$value, 0.4)
-  expect_false(pinned$const)
-  expect_equal(pinned$prior, "lognormal")
+  pinned$value |> expect_equal(0.4)
+  pinned$const |> expect_false()
+  pinned$prior |> expect_identical("lognormal")
 
   # a fixed stratum is a constant parameter: it carries no prior
   hhmodel <- pin_ctr_strata()
   fixed <- get_parameters(hhmodel, "ctr_fm")
-  expect_equal(fixed$value, 0.4)
-  expect_true(fixed$const)
-  expect_true(is.na(fixed$prior))
+  fixed$value |> expect_equal(0.4)
+  fixed$const |> expect_true()
+  fixed$prior |> expect_all_na()
 
   # the read table keeps the columns typed
   tidy <- get_contact_risks(hhmodel)
-  expect_type(tidy$value, "double")
-  expect_type(tidy$const, "logical")
+  tidy$value |> expect_type("double")
+  tidy$const |> expect_type("logical")
 })
 
 test_that("Invalid contact strata pins are rejected", {
@@ -759,8 +766,8 @@ test_that("Invalid contact strata pins are rejected", {
   # an all-NA column pins nothing, whichever type it was written with
   unpinned <- pin_ctr_strata(value = c(NA, NA), const = c(NA, NA)) |>
     get_parameters("ctr_fm")
-  expect_false(unpinned$const)
-  expect_equal(unpinned$prior, "lognormal")
+  unpinned$const |> expect_false()
+  unpinned$prior |> expect_identical("lognormal")
   # the reference is 1 by definition
   pin_ctr_strata(value = c(0.4, 0.9), const = c(NA, NA)) |>
     expect_error("[Rr]eference")
@@ -785,14 +792,14 @@ test_that("A symmetric pin reaches the mirrored pair", {
     inspect_house_state("h1")
 
   # the mirrored row inherits both the parameter and its pin
-  expect_equal(ctr_cell(snapshot, "father", "mother"), 0.4)
-  expect_equal(ctr_cell(snapshot, "mother", "father"), 0.4)
+  ctr_cell(snapshot, "father", "mother") |> expect_equal(0.4)
+  ctr_cell(snapshot, "mother", "father") |> expect_equal(0.4)
   # every other pair falls through to the reference
-  expect_equal(ctr_cell(snapshot, "student", "sibling"), 1)
+  ctr_cell(snapshot, "student", "sibling") |> expect_equal(1)
 
   # symmetric = FALSE leaves the reverse direction at the reference
   snapshot <- pin_ctr_strata(symmetric = FALSE) |>
     inspect_house_state("h1")
-  expect_equal(ctr_cell(snapshot, "father", "mother"), 0.4)
-  expect_equal(ctr_cell(snapshot, "mother", "father"), 1)
+  ctr_cell(snapshot, "father", "mother") |> expect_equal(0.4)
+  ctr_cell(snapshot, "mother", "father") |> expect_equal(1)
 })
