@@ -24,11 +24,7 @@
 #include "posterior.h"
 #include "translator.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** MCMCBase : class ***  //////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  MCMCBase  //////////////////////////////
 
 namespace housepi
 {
@@ -36,15 +32,15 @@ namespace housepi
 	{
 	public:
 		Setup setup;
-		LogProba tot_obs_log_lik;	 /// observation log-likelihood
-		LogProba tot_transm_log_lik; /// transmission log-likelihood
-		LogProba tot_latent_log_lik;	 /// latent-variable log-models
+		LogProba tot_obs_log_lik;	 /// Observation log-likelihood.
+		LogProba tot_transm_log_lik; /// Transmission log-likelihood.
+		LogProba tot_latent_log_lik; /// Latent-model log-likelihood.
 		Posterior posterior;
 
-		/// Pointer to data storage.
-		std::shared_ptr<DataStore> pDataStore;
+		std::shared_ptr<DataStore> pDataStore; /// Data storage.
 
-		/// Key holders.
+		//////  Key holders  //////
+
 		Parameter param;
 		GroupRisk group_risk;
 		ContactRisk contact_risk;
@@ -52,14 +48,12 @@ namespace housepi
 		Augmented augm;
 		Translator translator;
 
-		///////////////////////////
-		//////  CONSTRUCTOR  //////
-		///////////////////////////
+		//////  Constructor  //////
 
 		MCMCBase();
 		virtual ~MCMCBase();
 
-		/// Initialize all key-holders.
+		/// Initialize every key holder.
 		void init_key_holder(
 			const std::vector<std::string> &data_wide_keys,
 			const std::vector<std::string> &hh_member_keys,
@@ -71,11 +65,9 @@ namespace housepi
 			const std::vector<std::string> &group_risk_keys,
 			const std::vector<std::string> &latent_keys);
 
-		///////////////////////////
-		//////  DATA ACCESS  //////
-		///////////////////////////
+		//////  Data access  //////
 
-		/// Associate data storage.
+		/// Attach data store `ds`.
 		void set_data_store(std::shared_ptr<DataStore> ds);
 
 		DataWide &data_wide() noexcept { return pDataStore->data_wide; }
@@ -83,88 +75,84 @@ namespace housepi
 		DataLong &data_long() noexcept { return pDataStore->data_long; }
 		const DataLong &data_long() const noexcept { return pDataStore->data_long; }
 
-		/// Initialize equivalence class compression.
-		/// NOTE: assume unique if latent definitions required, but not imported yet.
+		/// Initialize equivalence-class compression.
+		/// - latent definitions required, not imported yet: one class per household.
 		void init_equivalence_class_compression();
 
 		/// Throw if the generic profile transmits at generation time 0.
-		/// NOTE: a status-specific profile is checked per member, with its variable.
+		/// - status-specific profile: checked per member, with its variable.
 		void assert_valid_infectivity_profile() const;
 
-		////////////////
-		///  GETTER  ///
-		////////////////
+		//////  Getter  //////
 
+		/// Latent `a` of member `m`.
 		double aug(size_t a, const Individual &m) const { return augm.at(a, m).value(); }
+		/// Datum `d` of member `m`.
 		double data(size_t d, const Individual &m) const noexcept { return data_wide().data(d, m); }
 
-		/// Whether two household members belong to same partition according to risks.
+		/// Whether members `i` and `j` of `house` share a risk partition.
 		bool is_same_risk_partition(const Household &house,
 									MemberIdx i,
 									MemberIdx j) const;
 
-		/// Column names of data shared across simulations.
+		/// Data column names shared across simulations.
 		std::vector<std::string> get_static_data_names() const;
-		/// Column name vector for the per-iteration shallow list.
+		/// Column names of the per-iteration shallow list.
 		std::vector<std::string> get_col_names() const;
-		// Pre-compute per-household row offsets. Used to fix OpenMP race in simulations.
+		/// Per-household row offsets, so parallel simulations write disjoint rows.
 		std::vector<size_t> get_row_offsets() const;
-		/// Sum per-infected-member observation log-likelihhood.
+		/// Sum the observation log-likelihood over infected members of `house`.
 		double house_obs_log_lik(const Household &house) const;
-		/// Sum per-infected-member latent log-likelihhood.
+		/// Sum the latent log-likelihood over infected members of `house`.
 		double house_latent_log_lik(const Household &house) const;
 
 	protected:
-		//////////////////////////////
-		//////  LOG-LIKELIHOOD  //////
-		//////////////////////////////
+		//////  Log-likelihood  //////
 
-		/// Log-likelihood of individual observation model.
-		LogProba &obs_log_lik_(const Individual &indiv) noexcept
+		/// Observation-model log-likelihood of `m`.
+		LogProba &obs_log_lik_(const Individual &m) noexcept
 		{
-			return augm.varia[Index::of(indiv)].obs_log_lik;
+			return augm.state.of(m).obs_log_lik;
 		}
-		const LogProba &obs_log_lik_(const Individual &indiv) const noexcept
+		const LogProba &obs_log_lik_(const Individual &m) const noexcept
 		{
-			return augm.varia[Index::of(indiv)].obs_log_lik;
-		}
-		/// Log-likelihood of individual latent model.
-		LogProba &latent_log_lik_(const Individual &indiv) noexcept
-		{
-			return augm.varia[Index::of(indiv)].latent_log_lik;
-		}
-		const LogProba &latent_log_lik_(const Individual &indiv) const noexcept
-		{
-			return augm.varia[Index::of(indiv)].latent_log_lik;
+			return augm.state.of(m).obs_log_lik;
 		}
 
-		///////////////////////////////////
-		//////  METROPOLIS-HASTINGS  //////
-		///////////////////////////////////
+		/// Latent-model log-likelihood of `m`.
+		LogProba &latent_log_lik_(const Individual &m) noexcept
+		{
+			return augm.state.of(m).latent_log_lik;
+		}
+		const LogProba &latent_log_lik_(const Individual &m) const noexcept
+		{
+			return augm.state.of(m).latent_log_lik;
+		}
 
-		/// Assert and initialize configuration to proceed with Monte Carlo.
+		//////  Metropolis-Hastings  //////
+
+		/// Assert configuration and initialize Monte Carlo.
 		void init_monte_carlo_();
-		/// Intialize a single Markov chain for Monte Carlo.
+		/// Initialize one Markov chain.
 		void init_monte_carlo_chain_();
 
-		/// Recover old log-likelihood contributions.
-		/// NOTE: called after a refused parameter move.
-		void recover_latent_log_lik_(const Individual &indiv) noexcept
+		/// Recover previous latent log-likelihood of `m`, after a rejected move.
+		void recover_latent_log_lik_(const Individual &m) noexcept
 		{
-			latent_log_lik_(indiv).recover();
+			latent_log_lik_(m).recover();
 		}
-		void recover_obs_log_lik_(const Individual &indiv) noexcept
+		/// Recover previous observation log-likelihood of `m`, after a rejected move.
+		void recover_obs_log_lik_(const Individual &m) noexcept
 		{
-			obs_log_lik_(indiv).recover();
+			obs_log_lik_(m).recover();
 		}
+		/// Recover previous transmission log-likelihood of `house`, after a rejected move.
 		void recover_transm_log_lik_(const Household &house) noexcept
 		{
 			data_wide().transm_log_lik(house).recover();
 		}
-		/// @brief Recover old value of the total log-likelihood.
-		/// @param with_cache Whether to recover cached values.
-		/// @param with_latent_ll Whether to recover latent log-likelihood.
-		/// @param with_obs_ll Whether to recover observation log-likelihood.
+		/// Recover previous total log-likelihood.
+		/// @param with_cache Whether to recover cached values too.
 		void recover_total_log_lik_(bool with_cache,
 									bool with_latent_ll = true,
 									bool with_obs_ll = true);

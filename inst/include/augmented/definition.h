@@ -1,0 +1,102 @@
+/* housepi - Epidemiological Analysis of Household Outbreaks.
+ *
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Distributed under the terms of the GNU General Public License (GPLv3).
+ * See the LICENSE file for details.
+ */
+
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "tools/messages.h"
+#include "tools/parser.h"
+#include "tools/status.h"
+#include "tools/types.h"
+
+//////////////////////////////  augm::DefTable  //////////////////////////////
+
+namespace housepi::augm
+{
+    /// Level of a definition row: latent, or one of the observation levels.
+    enum class Kind : std::uint8_t
+    {
+        Latent,
+        Member,
+        House,
+        Status
+    };
+
+    /// Map a row level to its error-message family.
+    inline ErrType kind_to_err_type(Kind kind) noexcept
+    {
+        switch (kind)
+        {
+        case Kind::Member:
+            return ErrType::Observation;
+        case Kind::House:
+            return ErrType::HouseholdObservation;
+        default:
+            return ErrType::Latent;
+        }
+    }
+
+    /// Definition parsed once: every source column as an AST, flags typed.
+    struct DefRow
+    {
+        std::string name;                   /// Latent or observation name.
+        Kind kind = Kind::Latent;           /// Row level.
+        StatusLvl status = status::MISSING; /// Declared status, MISSING for a generic definition.
+
+        parse::Definition value, func, model, min, max, proposal;
+
+        bool has_value = false, has_func = false, has_model = false, has_proposal = false;
+        bool is_const = false, is_discr = false, is_fcumul = false;
+
+        /// Parse row `r` of definition table `input`.
+        DefRow(const str_table &input, size_t r);
+
+        /// List the columns that may read sources.
+        std::array<const parse::Definition *, 5> source_cols() const noexcept
+        {
+            return {&value, &model, &func, &min, &max};
+        }
+        /// Select the column the definition resolves through in simulation.
+        /// - with a value, an override included: the value;
+        /// - otherwise: the function.
+        const parse::Definition &sim_source() const noexcept { return has_value ? value : func; }
+    };
+
+    /// Latent and observation definitions, immutable once built.
+    struct DefTable
+    {
+        std::vector<DefRow> rows = {};
+
+        const DefRow &operator[](size_t k) const noexcept { return rows[k]; }
+        size_t size() const noexcept { return rows.size(); }
+        bool empty() const noexcept { return rows.empty(); }
+        void clear() noexcept { rows.clear(); }
+        /// Append definitions from `input`.
+        void append(const str_table &input);
+
+        /// Whether a row declares `name`.
+        bool has_name(std::string_view name) const noexcept;
+        /// Whether `name` is a member observation.
+        bool is_member_obs(std::string_view name) const noexcept;
+        /// Whether `name` is a household observation.
+        bool is_house_obs(std::string_view name) const noexcept;
+        /// Whether any declaration of `name` carrying a model is continuous.
+        bool has_continuous_declaration(std::string_view name) const noexcept;
+        /// Whether definition row `k` reads only data and numeric sources.
+        bool is_pure_data(size_t k) const;
+    };
+}
+
+namespace housepi::str
+{
+    inline std::string format(augm::Kind kind) { return format(augm::kind_to_err_type(kind)); }
+}

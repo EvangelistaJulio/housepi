@@ -1,0 +1,96 @@
+/* housepi - Epidemiological Analysis of Household Outbreaks.
+ *
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Distributed under the terms of the GNU General Public License (GPLv3).
+ * See the LICENSE file for details.
+ */
+
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "tools/dependency.h"
+#include "tools/keys.h"
+#include "tools/types.h"
+
+#include "augmented/definition.h"
+
+//////////////////////////////  augm::check  //////////////////////////////
+
+namespace housepi
+{
+    struct DataWide;
+    struct Parameter;
+}
+
+/// Checks on definition rows, each throwing on its first violation.
+namespace housepi::augm::check
+{
+    /// Compose the error message for a status no definition declares.
+    /// - missing `err_status`: no generic definition;
+    /// - other `err_status`: no definition specific to it.
+    std::string undeclared_status_message(StatusLvl err_status);
+
+    /// Reject a read of a latent name absent from the producer graph of status `s`.
+    ///
+    /// The message tells apart a name declared:
+    /// - for other statuses;
+    /// - elsewhere (data, group risk, parameter) and read as latent.
+    void producers_declared(const DefTable &def,
+                            const dpdcy::prod_graph &pgraph,
+                            StatusLvl s,
+                            const KeyHolder &data,
+                            const KeyHolder &group_risk,
+                            const KeyHolder &param);
+
+    /// Assert that status observation `row` reads only data and numeric constants.
+    /// @note Coverage of the declared statuses is asserted R-side.
+    void status_obs_consistent(const DefTable &def, size_t row);
+
+    /// Reject a member observation filling an every-member column only for infected members.
+    ///
+    /// A member observation has a value only for infected members when:
+    /// - it carries a model;
+    /// - it is among `per_infection` rows, computed from a draw.
+    void every_member_cols(const DefTable &def,
+                           const DataWide &data_wide,
+                           const std::vector<size_t> &per_infection);
+
+    /// Reject a latent that reads a generated household observation.
+    /// @param live_names Household observations generated in simulation, empty in inference.
+    void no_live_house_obs_cycle(const DefTable &def,
+                                 const std::vector<std::string> &live_names);
+
+    /// Reject a definition reading an observation:
+    /// - a latent model reading any observation;
+    /// - a deterministic definition reading an observation that consumes it.
+    void no_obs_entry_collision(const DefTable &def,
+                                const std::vector<std::string> &obs_names);
+
+    /// Reject a simulation override (value and model) that reads an observation.
+    ///
+    /// Reads through deterministic definitions count.
+    /// An override is applied before the observation is generated.
+    void no_sim_override_obs_read(const DefTable &def,
+                                  const std::vector<std::string> &obs_names);
+
+    /// Report why observations `rows` of a member lie outside their domain.
+    ///
+    /// Cause, first found:
+    /// - a latent shifting the domain;
+    /// - a free parameter shifting the domain;
+    /// - the data themselves.
+    /// @param context Member named in the error message.
+    [[noreturn]] void obs_init_error(const DefTable &def,
+                                     const std::vector<size_t> &rows,
+                                     const Parameter &param,
+                                     const std::string &context);
+
+    /// Report the observations left out, per key.
+    /// - some members carry the datum: warning;
+    /// - no member does: error.
+    void report_missing_obs(const KeyHolder &khold,
+                            const std::vector<size_t> &declared,
+                            const std::vector<size_t> &missing);
+}

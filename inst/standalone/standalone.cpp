@@ -29,11 +29,7 @@
 #include "infec_profile.h"
 #include "augmented.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Stdout Message Function  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Stdout Message Function  //////////////////////////////
 
 namespace housepi
 {
@@ -71,15 +67,11 @@ namespace housepi
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  MCMC : Impl : read  ////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  MCMC : Impl : read  //////////////////////////////
 
     namespace read
     {
-        /// Load files from the row with headers.
+        /// Read one row of `input` into `this_row`, keyed by `headers`.
         bool read_row_by_headers_(std::ifstream &input,
                                   const std::vector<std::string> &headers,
                                   dict<std::string> &this_row)
@@ -102,10 +94,10 @@ namespace housepi
             return true;
         }
 
-        /// Read column headers and compare to required headers.
+        /// Read the column headers from the first line of `input`.
         std::vector<std::string> read_column_headers_(std::ifstream &input)
         {
-            // clean headers
+            // cleaned headers
             std::vector<std::string> headers = {};
 
             // read first line
@@ -120,7 +112,7 @@ namespace housepi
             return headers;
         }
 
-        /// Read csv table in pathtofile and store it parsed in csv_parsed_table.
+        /// Read and parse the csv table at `pathtofile`.
         str_table csv_table(const std::string &pathtofile)
         {
             if (na::is(pathtofile))
@@ -252,13 +244,9 @@ namespace housepi
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  MCMC : print infer state  /////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  MCMC : print infer state  //////////////////////////////
 
-    /// Initialize the output file with inferred parameters with column names and initial values.
+    /// Run inference and write its trace to `out_file`.
     void print_infer_state(MCMC &engine, const std::string &out_file)
     {
         engine.run_inference();
@@ -276,22 +264,21 @@ namespace housepi
             throw std::runtime_error(
                 "Unable to open file: " + out_file);
 
-        // Headers
-        // header log-likelihood
+        // header: log-likelihood
         ofs << "iteration" << read::DELIMITER << "log_lik";
 
-        // header parameters
+        // header: parameters
         for (const auto &name : post.param_names)
             ofs << read::DELIMITER << name;
 
-        // header latent variable of id trace
+        // header: latents of the traced id
         for (const auto &name : post.latent_col_names)
             ofs << read::DELIMITER << name;
 
-        // header chain
+        // header: chain
         ofs << read::DELIMITER << "_chain_\n";
 
-        // Values
+        // values: one row per draw
         for (size_t c = 0; c < setup.n_chains; ++c)
             for (size_t k = 0; k < setup.c_sample_size; k++)
             {
@@ -301,8 +288,7 @@ namespace housepi
                 unsigned long sweep = setup.n_burn + (k + 1) * setup.n_thin;
                 ofs << sweep;
 
-                // joint log-likelihood (transmission + observation), summed over
-                // households from the pointwise draws kept during inference
+                // joint log-likelihood (transmission + observation), summed over households from pointwise draws
                 double log_lik = 0.;
                 for (const auto &house : post.house_log_lik)
                     log_lik += house[i];
@@ -314,7 +300,7 @@ namespace housepi
                     ofs << read::DELIMITER << std::setprecision(5)
                         << std::fixed << post.param_values[u][i];
 
-                // print latent variable of id trace
+                // print latents of the traced id
                 {
                     for (auto &indiv_matrix : post.latent_values)
                         for (auto &var_vec : indiv_matrix)
@@ -322,20 +308,16 @@ namespace housepi
                                 << std::fixed << var_vec[i];
                 }
 
-                // print which chain
+                // print the chain
                 ofs << read::DELIMITER << (c + 1) << '\n';
             }
 
         ofs.close();
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  MCMC::Impl : print simulation  /////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  MCMC::Impl : print simulation  //////////////////////////////
 
-    /// Print all latent variables of each individual.
+    /// Open `f` and write its header: data columns, then latent columns.
     std::ofstream open_ofstream_datawide(const std::string &f,
                                          const std::vector<std::string> &data_headers,
                                          const std::vector<std::string> &latent_headers)
@@ -359,7 +341,7 @@ namespace housepi
         return ofs;
     }
 
-    /// Print all latent variables of each individual.
+    /// Write the rows of `house` for replicate `rep`.
     void update_ofstream_datawide(std::ofstream &ofs,
                                   size_t rep,
                                   const Household &house,
@@ -401,23 +383,22 @@ namespace housepi
         // no output file: simulate without serializing
         const bool is_writing = !na::is(pathtofile);
 
-        // model specific initialization
+        // model-specific initialization
         engine.model->init_model_for_simulation();
         engine.augm.init_house_for_simulation(); // build household-level observations
 
-        // header after initialization: a produced observation registers its data
-        // column there, and the row loop reports every column the holder carries
+        // header after initialization: a produced observation registers its data column there
+        // the row loop reports every column the holder carries
         std::ofstream ofs;
         if (is_writing)
             ofs = open_ofstream_datawide(pathtofile,
                                          data_wide.khold().all(),
-                                         augm.khold().as_string(augm.list_latent_export));
+                                         augm.khold().as_string(augm.scheme().list_latent_export));
 
         // the setup step count is the number of replicates
         for (size_t r = 0; r < engine.setup.n_steps; ++r)
         {
-            // clear before recovering: clear_all() walks the infected members
-            // of the replicate that just ran
+            // clear before recovering: clear_all() walks the infected members of the last replicate
             engine.augm.clear_all();
             data_wide.recover_all_status();
 
@@ -428,7 +409,7 @@ namespace housepi
                     if (is_writing)
                         update_ofstream_datawide(ofs, r, house,
                                                  data_wide,
-                                                 augm.list_latent_export, augm);
+                                                 augm.scheme().list_latent_export, augm);
                 }
                 catch (const std::exception &e)
                 {
@@ -454,7 +435,7 @@ namespace housepi
         int carg_i = 1;   // command line iterator
         std::string carg; // command line argument
 
-        // check any command was supplied
+        // check a command is supplied
         if (argc < 2)
             msg::stop("No argument or command found. Check the usage through:\n" +
                       std::string(argv[0]) + " -h");
@@ -464,8 +445,8 @@ namespace housepi
         {
             carg = std::string(argv[carg_i]); // update command line argument
 
-            // Command line argument asking for help
-            // UPDATE : should I produce a manual for the standalone?
+            // help argument
+            // @todo Write a manual for the standalone.
             if (toup(carg) == "-H" || tolow(carg) == "--help")
                 msg::stop(
                     "No Software Manual is available, refer to the Rcpp tutorials.\nApologies for the inconvenience.");
@@ -516,7 +497,7 @@ namespace housepi
 
     void Options::assert()
     {
-        // check for single option
+        // check for a single option
         int aux = is_log_lik + is_infer + is_simulate;
 
         if (aux == 0)
@@ -532,14 +513,12 @@ namespace housepi
             msg::stop("Missing output file for inference.");
     }
 
-    /// Main function for the standalone version of 'housepi'.
+    /// Entry point of the standalone housepi build.
     int standalone(std::string_view model_name, int argc, char *argv[])
     {
         MCMC engine(model_name);
 
-        ///////////////////////
-        //////  OPTIONS  //////
-        ///////////////////////
+        //////  Options  //////
 
         Options opts(argc, argv);
         opts.read_data_wide(engine);     // 1) Load Data Wide
@@ -551,9 +530,7 @@ namespace housepi
         opts.read_contact_risk(engine);  // ... and Contact Risks
         opts.read_latent(engine);        // 6) Load Latent Variables
 
-        //////////////////////////////
-        ////////  EXECUTION  /////////
-        //////////////////////////////
+        //////  Execution  //////
 
         try
         {

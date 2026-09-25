@@ -43,16 +43,12 @@
 #include "parameter.h"
 #include "variable.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Stdout Message Function  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Stdout Message Function  //////////////////////////////
 
 namespace housepi
 {
-    /// Package-authored exception.
-    /// NOTE: must keep the qualified name in sync with the R side.
+    /// Exception raised by housepi code.
+    /// @note Keep its qualified name in sync with the R side.
     struct CppError : std::exception
     {
         std::string m;
@@ -63,7 +59,7 @@ namespace housepi
 
 namespace housepi::msg
 {
-    /// Throw an error message.
+    /// Throw `txt` as a CppError.
     [[noreturn]] void stop(const std::string &txt)
     {
         throw housepi::CppError(txt);
@@ -76,8 +72,7 @@ namespace housepi::msg
         Rcpp::Rcout.flush();
     }
 
-    /// Display a warning message.
-    /// Raised as a classed condition to identify housepi-authored warnings.
+    /// Raise warning `txt` as a housepi_cpp_warning condition.
     void warn(const std::string &txt)
     {
         Rcpp::List cond = Rcpp::List::create(Rcpp::_["message"] = txt,
@@ -88,17 +83,13 @@ namespace housepi::msg
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////  *** Housepi Rcpp Base : class ***  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Housepi Rcpp Base  //////////////////////////////
 
 namespace
 {
     using namespace housepi;
 
-    /// Auxiliary converter to R NA real values.
+    /// Convert a value to an R double, NA_REAL when missing.
     double hsp_to_rcpp(double x) { return na::is(x) ? NA_REAL : x; }
     double hsp_to_rcpp(const Attribute &attr)
     {
@@ -108,14 +99,15 @@ namespace
             return NA_REAL;
         return hsp_to_rcpp(attr.value());
     }
-    /// Auxiliary converter of an individual status, missing status to R NA integer.
+    /// Convert the status of `indiv` to an R integer, NA_INTEGER when missing.
     int hsp_to_rcpp(const Individual &indiv)
     {
         return indiv.is_missing_status() ? NA_INTEGER : static_cast<int>(indiv.status());
     }
 
-    /// Return IntegerVector conversion of 'x' if discrete is a request.
-    /// Values are granted discrete, draw back to continuos if beyond max integer.
+    /// Convert `input` to an IntegerVector when `discr` is requested.
+    /// Values are assumed whole.
+    /// - value beyond the int range: `input` returned unchanged.
     SEXP rcpp_typed_column(const Rcpp::NumericVector &input, bool discr)
     {
         static int machine_max_int = static_cast<double>(std::numeric_limits<int>::max());
@@ -135,7 +127,8 @@ namespace
         return out;
     }
 
-    /// Interval as an R list; an unbounded side reads -Inf/Inf.
+    /// Convert an interval to an R list.
+    /// - unbounded side: -Inf or Inf.
     Rcpp::List rcpp_interval(double min, double max, Interval below, Interval above)
     {
         return Rcpp::List::create(
@@ -147,8 +140,8 @@ namespace
     }
 
     /// Stamp a list of equally-sized columns as an R data.frame.
-    /// Column names cross verbatim: they are data keys and definition names,
-    /// which the Rcpp data.frame conversion would sanitise into other names.
+    /// Column names pass verbatim: Rcpp's data.frame conversion would sanitise them.
+    /// They are data keys and definition names.
     Rcpp::DataFrame rcpp_data_frame(Rcpp::List output)
     {
         R_xlen_t n_rows = output.size() ? Rf_xlength(output[0]) : 0;
@@ -159,13 +152,11 @@ namespace
         return output;
     }
 
-    /// Base class to wrap internal hosuepi functions.
+    /// Base wrapper exposing a housepi Function to R.
     class ExposeBase
     {
     public:
-        /////////////////////
-        ///  CONSTRUCTOR  ///
-        /////////////////////
+        //////  Constructor  //////
 
         ExposeBase(
             std::string name,
@@ -175,9 +166,7 @@ namespace
               family_(family) {}
         virtual ~ExposeBase() = default;
 
-        ////////////////
-        ///  SETTER  ///
-        ////////////////
+        //////  Setter  //////
 
         void init(SEXP args_, double min, double max, bool is_discr)
         {
@@ -202,9 +191,7 @@ namespace
             ptr_->reshape(is_discr);
         }
 
-        ////////////////
-        ///  GETTER  ///
-        ////////////////
+        //////  Getter  //////
 
         Rcpp::NumericVector args() const
         {
@@ -219,11 +206,11 @@ namespace
             return output;
         }
 
-        /// Wheter the definition takes discrete values.
-        /// NOTE: a plain function takes the values it returns; a distribution
-        /// takes them on its support, so the families that draw override this.
+        /// Whether the definition takes discrete values.
+        /// - plain function: the values it returns;
+        /// - distribution: the values of its support, so drawing families override this.
         virtual bool is_discrete() const { return ptr_->codomain().on_integers(); }
-        /// Wheter the definition is provably strictly positive.
+        /// Whether the definition is provably strictly positive.
         virtual bool is_positive() const { return ptr_->is_positive(); }
         /// Values returned.
         Rcpp::List codomain() const
@@ -237,14 +224,14 @@ namespace
             const Domain &d = ptr_->domain();
             return rcpp_interval(d.min.value(), d.max.value(), d.below, d.above);
         }
-        /// Wheter each bound reads an argument rather than holding its own value.
+        /// Whether each bound reads an argument rather than holding its own value.
         Rcpp::LogicalVector bound_aliases() const
         {
             return Rcpp::LogicalVector::create(
                 Rcpp::_["min"] = ptr_->min().is_pointer(),
                 Rcpp::_["max"] = ptr_->max().is_pointer());
         }
-        /// Location shift, NA when no location argument was given.
+        /// Location shift, NA without a location argument.
         double loc() const { return ptr_->loc().value(); }
 
     protected:
@@ -344,8 +331,8 @@ namespace
         MAKE_EXPOSE_METHOD_CALL(cdf, ptr_->cdf(v))
         MAKE_EXPOSE_METHOD_CALL(quantile, distr_()->quantile(v))
 
-        /// Sample n random draws. Integer-typed on a discrete distribution.
-        /// NOTE: seed is drawn from R so that set.seed() controls the result.
+        /// Draw `n` random values, integer-typed on a discrete distribution.
+        /// The seed is drawn from R, so set.seed() controls the result.
         SEXP rand(int n) const
         {
             try
@@ -390,23 +377,22 @@ namespace
         ExposeInfecProfile(std::string name_, bool discr)
             : ExposeBase(name_, family(), reg_kinds(discr))
         {
-            // core errors from the underlying object should say "infectivity
-            // profile X", not the Distribution default "distribution X".
+            // core errors say "infectivity profile X", not the Distribution default "distribution X"
             if (ptr_)
                 ptr_->set_err_family(ErrType::InfecProfile);
         }
 
-        /// A profile is evaluated, never drawn: what is discrete about it is the
-        /// lattice it is called on, which reshape() has already put on the integers.
+        /// A profile is evaluated, never drawn: its discreteness is the lattice it is called on.
+        /// reshape() puts that lattice on the integers.
         bool is_discrete() const override final { return ptr_->is_discretized(); }
 
         MAKE_EXPOSE_METHOD_CALL(inst, ptr_->pdf(v))
         MAKE_EXPOSE_METHOD_CALL(cumul, ptr_->cdf(v))
     };
 
-    // Factory free functions: construct + initialise in one call, so the whole
-    // build routes through the `.engine` proxy interceptor like every other
-    // module free function. Ownership of the returned object passes to R.
+    /// Construct and initialize an Expose object in one call.
+    /// The whole build routes through the `.engine` proxy interceptor, like every module free function.
+    /// Ownership of the returned object passes to R.
     template <class Expose>
     Expose *expose_(std::string name, SEXP args, double min, double max, bool discr)
     {
@@ -415,20 +401,16 @@ namespace
         return obj.release();
     }
 
-    // List every name the family accepts from the registry kinds it looks up.
+    /// List every name the family accepts, from the registry kinds it looks up.
     template <class Expose>
     std::vector<std::string> list_options_()
     {
         return registry::list_names(Expose::reg_kinds());
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  MCMC : imports from Rcpp ////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  MCMC : imports from Rcpp  //////////////////////////////
 
-    /// Convert R dataframe map of string vectors.
+    /// Convert an R data frame to a map of string vectors.
     str_table rdataframe_to_strmap(SEXP input)
     {
         if (Rf_isNull(input))
@@ -448,7 +430,7 @@ namespace
         return output;
     }
 
-    /// Convert R dataframe map of double vectors.
+    /// Convert an R data frame to a map of double vectors.
     dbl_table rdataframe_to_dblmap(SEXP input)
     {
         if (Rf_isNull(input))
@@ -468,7 +450,7 @@ namespace
         return output;
     }
 
-    /// Export Function argument list to R.
+    /// Export the argument list of `func` to R.
     Rcpp::NumericVector rcpp_export_args(const Function *func)
     {
         size_t n_args = func->n_args();
@@ -483,15 +465,16 @@ namespace
         return vals;
     }
 
-    /// Standaridized percentage formatting.
+    /// Format `value` as a percentage of `total`.
     double format_percentage(size_t value, size_t total)
     {
         return std::round(10000. * static_cast<double>(value) / static_cast<double>(total)) / 100.;
     }
 
-    // Import helpers run serially at the Rcpp boundary; their build() paths
-    // raise housepi::CppError (via msg::stop) directly, which Rcpp forwards to R
-    // with the right class, so no per-import try/catch conversion is needed.
+    // import helpers run serially at the Rcpp boundary
+    // their build() paths raise housepi::CppError through msg::stop
+    // Rcpp forwards it to R with its class
+    // no import needs its own try/catch conversion
     void import_setup(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
         mcmc_ptr->setup.build(rdataframe_to_strmap(input));
@@ -511,7 +494,7 @@ namespace
 
     void import_data_long(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        /// FIXME: copy-on-write should be also on long? Not clear...
+        // @todo Decide whether long data should be copy-on-write too.
         mcmc_ptr->data_long().build(mcmc_ptr->data_wide(), rdataframe_to_strmap(input));
     }
 
@@ -543,13 +526,9 @@ namespace
         mcmc_ptr->param.build_for_predic(rdataframe_to_dblmap(input));
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  MCMC : exports to Rcpp //////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  MCMC : exports to Rcpp  //////////////////////////////
 
-    /// Export current setup configurations to R List.
+    /// Export the current setup to an R list.
     Rcpp::List export_setup(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const Setup &setup = mcmc_ptr->setup;
@@ -568,9 +547,7 @@ namespace
             Rcpp::_["time_step"] = setup.time_step);
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////  MCMC : DataWide : exports  /////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  MCMC : DataWide : exports  //////
 
     Rcpp::List helper_export_data_wide(const DataWide &data_wide,
                                        const std::vector<std::string> &columns,
@@ -581,7 +558,7 @@ namespace
         Rcpp::CharacterVector hhid_col = Rcpp::CharacterVector(n_rows);
         Rcpp::IntegerVector status_col = Rcpp::IntegerVector(n_rows);
 
-        // other non standard data columns
+        // other non-standard data columns
         std::vector<size_t> data_keys = data_wide.khold(columns);
         std::vector<Rcpp::NumericVector> data_col(columns.size());
         for (size_t d = 0; d < columns.size(); ++d)
@@ -611,16 +588,17 @@ namespace
         return output;
     }
 
+    /// Export the imported data columns to an R data frame.
     Rcpp::DataFrame export_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         MCMC &engine = *mcmc_ptr;
 
-        // a deterministic observation stands in for its data column: build it here so the
-        // exported frame reports the value the model reads, run or no run. Finalizing
-        // collapses each wired cell to a constant, so no read-cell outlives the Variable
-        // it points at (the next definition import clears them) -- which is also why a
-        // failed build rewinds the read-surface before the error travels on.
-        if (!engine.augm.list_surrogate.empty())
+        // a deterministic observation stands in for its data column: build it here
+        // the exported frame then reports the value the model reads, with or without a run
+        // finalizing collapses each wired cell to a constant: no read-cell outlives its Variable
+        // the next definition import clears the Variables
+        // a failed build rewinds the read-surface before rethrowing
+        if (!engine.augm.scheme().list_surrogate.empty())
         {
             engine.data_wide().reset_readcells(engine.augm.get_produced_cols());
             try
@@ -639,13 +617,13 @@ namespace
         return rcpp_data_frame(helper_export_data_wide(data_wide, data_wide.imported_cols(), true));
     }
 
-    /// Export to R all latent variables at the current state.
+    /// Export data and latents at the current state to an R data frame.
     Rcpp::DataFrame export_augmented_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
 
-        size_t n_cols = augm.list_latent_export.size();
+        size_t n_cols = augm.scheme().list_latent_export.size();
         size_t n_rows = data_wide.report_indiv.total;
 
         std::vector<Rcpp::NumericVector> latent_cols(n_cols);
@@ -653,24 +631,24 @@ namespace
             latent_cols[i] = Rcpp::NumericVector(n_rows);
 
         const std::vector<std::string> data_names =
-            vect::difference(data_wide.khold().all(), augm.khold(augm.list_latent_export));
+            vect::difference(data_wide.khold().all(), augm.khold(augm.scheme().list_latent_export));
 
         size_t row = 0;
         for (const Household &house : data_wide)
             for (const Individual &indiv : house)
             {
                 size_t c = 0;
-                for (size_t a : augm.list_latent_export)
+                for (size_t a : augm.scheme().list_latent_export)
                     latent_cols[c++][row] = hsp_to_rcpp(mcmc_ptr->augm.at(a, indiv));
                 ++row;
             }
 
-        // NOTE: discrete_export_cols starts with list_latent_export.
+        // discrete_export_cols starts with the list_latent_export columns
         const std::vector<bool> discr_cols = augm.discrete_export_cols();
 
         Rcpp::List output = helper_export_data_wide(data_wide, data_names, true);
         size_t i = 0;
-        for (size_t a : augm.list_latent_export)
+        for (size_t a : augm.scheme().list_latent_export)
         {
             output.push_back(rcpp_typed_column(latent_cols[i], discr_cols[i]), augm.khold(a));
             ++i;
@@ -678,11 +656,9 @@ namespace
         return rcpp_data_frame(output);
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  MCMCBase : DataLong : exports  ///////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  MCMCBase : DataLong : exports  //////
 
-    /// Export current data configurations to R DataFrame.
+    /// Export the long data to an R data frame.
     Rcpp::DataFrame export_data_long(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
@@ -699,7 +675,7 @@ namespace
 
         Rcpp::CharacterVector datalist_index(n_rows);
 
-        // other non standard data-long columns
+        // other non-standard data-long columns
         std::vector<Rcpp::NumericVector> datalist_dbl(data_long.khold().size());
         for (size_t d = 0; d < datalist_dbl.size(); ++d)
             datalist_dbl[d] = Rcpp::NumericVector(n_rows);
@@ -728,11 +704,9 @@ namespace
         return rcpp_data_frame(output);
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  MCMCBase : report exports  ///////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  MCMCBase : report exports  //////
 
-    /// Export current data configurations to R DataFrame.
+    /// Summarise household cases to an R data frame.
     Rcpp::DataFrame summarise_house_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
@@ -782,11 +756,9 @@ namespace
             Rcpp::_["percent"] = std::move(percent));
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////  MCMCBase : export house size report  //////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  MCMCBase : export house size report  //////
 
-    /// Export current data configurations to R DataFrame.
+    /// Summarise household sizes to an R data frame.
     Rcpp::DataFrame summarise_house_sizes(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
@@ -821,11 +793,9 @@ namespace
             Rcpp::_["percent"] = std::move(percent));
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  Posterior : Rcpp export methods  ///////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  Posterior : Rcpp export methods  //////
 
-    /// Move a vector<double> into a fresh NumericVector and release the source.
+    /// Move `src` into a fresh NumericVector and release it.
     /// One allocation, one copy, no enclosing matrix.
     Rcpp::NumericVector flush_vector_to_numvec(std::vector<double> &src)
     {
@@ -834,16 +804,15 @@ namespace
         return col;
     }
 
-    /// Attach data.frame class + row.names to a List of equal-length columns.
+    /// Attach data.frame class and row names to `cols`, a list of equal-length columns.
     void helper_set_dataframe_attrs(Rcpp::List &cols, R_xlen_t n_rows)
     {
         cols.attr("row.names") = Rcpp::IntegerVector::create(NA_INTEGER, -static_cast<int>(n_rows));
         cols.attr("class") = "data.frame";
     }
 
-    /// Flush each vector<double> as a NumericVector column of a data.frame,
-    /// release all C++ storage, set column names. Skips the contiguous
-    /// NumericMatrix intermediate so R can use the columns in place.
+    /// Flush each column of `draws` into a data.frame column, releasing C++ storage.
+    /// Skipping the NumericMatrix intermediate lets R use the columns in place.
     Rcpp::List flush_2d_draws_to_df(
         std::vector<std::vector<double>> &draws,
         const std::vector<std::string> &col_names,
@@ -865,7 +834,7 @@ namespace
         return cols;
     }
 
-    /// Rcpp wrapper: parameter value draws as a data.frame.
+    /// Flush parameter value draws as a data.frame.
     Rcpp::List flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
@@ -873,7 +842,7 @@ namespace
                                     post.sample_size(), "parameter");
     }
 
-    /// Rcpp wrapper: parameter log-prior draws as a data.frame.
+    /// Flush parameter log-prior draws as a data.frame.
     Rcpp::List flush_param_log_prior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
@@ -881,7 +850,7 @@ namespace
                                     post.sample_size(), "parameter log-prior");
     }
 
-    /// Rcpp wrapper: latent variable draws as a data.frame.
+    /// Flush latent draws as a data.frame.
     Rcpp::List flush_latent_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
@@ -906,13 +875,12 @@ namespace
         return cols;
     }
 
-    /// Rcpp wrapper: pointwise per-household log-likelihood draws as a data.frame.
-    /// Each column is the complete-data household log-likelihood = transmission
-    /// (+ observation, when an observation node is defined). Observation nodes force
-    /// unique equivalence classes, so the obs store aligns 1:1 with the transmission
-    /// store. Households of same equivalence class share NumericVector SEXP.
-    /// R's reference counting keeps storage at n_classes * n_draws
-    /// until a downstream consumer (e.g. as_draws_matrix) materialises it.
+    /// Flush pointwise household log-likelihood draws as a data.frame.
+    ///
+    /// Each column is the complete-data household log-likelihood: transmission, observation, latent.
+    /// Observation nodes force unique equivalence classes: every store aligns with transmission.
+    /// Households of one equivalence class share a NumericVector SEXP.
+    /// R's reference counting keeps storage at n_classes * n_draws until a consumer materialises it.
     Rcpp::List flush_house_log_lik_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
@@ -921,14 +889,13 @@ namespace
         size_t n_classes = post.house_log_lik.size();
         size_t n_houses = data_wide.report_house.total;
 
-        // One NumericVector per class = transmission (+ observation when present),
-        // already summed at store time.
+        // one NumericVector per class, its terms summed at store time
         std::vector<Rcpp::NumericVector> class_cols(n_classes);
         for (size_t R = 0; R < n_classes; ++R)
             class_cols[R] = flush_vector_to_numvec(post.house_log_lik[R]);
         std::vector<std::vector<double>>().swap(post.house_log_lik);
 
-        // Identity case (n_classes == n_houses) is naturally a no-op.
+        // identity case (n_classes == n_houses) is a no-op
         Rcpp::List cols(n_houses);
         for (size_t H = 0; H < n_houses; ++H)
             cols[H] = class_cols[data_wide.get_eq_class(H)];
@@ -938,12 +905,9 @@ namespace
         return cols;
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  MCMC : house state snapshot ///////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  MCMC : house state snapshot  //////
 
-    /// Export to R a snapshot of current state of house data.
-    /// NOTE: there are not private parameters so far.
+    /// Snapshot the current parameter values, shared by every household.
     Rcpp::NumericVector rcpp_snapshot_param(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const Parameter &param = mcmc_ptr->param;
@@ -964,7 +928,7 @@ namespace
         return output;
     }
 
-    /// Export to R a snapshot of current state of house data.
+    /// Snapshot the data of `house`.
     Rcpp::DataFrame rcpp_snapshot_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr,
                                             const Household &house)
     {
@@ -1001,7 +965,7 @@ namespace
         return rcpp_data_frame(output);
     }
 
-    /// Export to R a snapshot of current state of house data-long.
+    /// Snapshot the long data of `house`.
     Rcpp::DataFrame rcpp_snapshot_data_long(Rcpp::XPtr<MCMC> mcmc_ptr,
                                             const Household &house)
     {
@@ -1046,7 +1010,7 @@ namespace
         return rcpp_data_frame(output);
     }
 
-    /// Export to R a snapshot of current state of house latent variables.
+    /// Snapshot the group risks of the members of `house`.
     Rcpp::DataFrame rcpp_snapshot_group_risks(Rcpp::XPtr<MCMC> mcmc_ptr,
                                               const Household &house)
     {
@@ -1081,9 +1045,8 @@ namespace
         return rcpp_data_frame(output);
     }
 
-    /// Export to R a snapshot of current contact risk attribute values
-    /// for a household as a (from x to) numeric matrix with member id dimnames.
-    /// Returns an empty 0x0 matrix when no contact risk was defined.
+    /// Snapshot the contact risks of `house` as a from-by-to matrix, with member ids as dimnames.
+    /// - no contact risk defined: empty 0x0 matrix.
     Rcpp::NumericMatrix rcpp_snapshot_contact_risks(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                     const Household &house)
     {
@@ -1108,8 +1071,7 @@ namespace
         return mtx;
     }
 
-    /// Export to R a snapshot of current state of house infectivity profile.
-    /// Each infected member reads the profile resolved for it.
+    /// Snapshot the infectivity profile of `house`, as resolved for each infected member.
     Rcpp::List rcpp_snapshot_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr,
                                            const Household &house)
     {
@@ -1157,8 +1119,8 @@ namespace
             Rcpp::_["max"] = infprof_max);
     }
 
-    /// Export to R the log-density of each key of 'list', per household member.
-    /// A key carrying no distribution for a member reads NA.
+    /// Snapshot the log-density of each key of `list`, per member of `house`.
+    /// - key with no distribution for a member: NA.
     Rcpp::DataFrame helper_log_lik_rcpp_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                  const Household &house,
                                                  const std::vector<size_t> &list)
@@ -1199,13 +1161,13 @@ namespace
         return rcpp_data_frame(output);
     }
 
-    /// Export to R a snapshot of current state of house latent variables.
+    /// Snapshot the latents of `house`.
     Rcpp::DataFrame helper_latent_rcpp_snapshot(
         Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
         const Augmented &augm = mcmc_ptr->augm;
-        size_t n_cols = augm.list_latent_export.size();
+        size_t n_cols = augm.scheme().list_latent_export.size();
 
         if (n_cols == 0 || !augm.is_allocated())
             return Rcpp::DataFrame::create();
@@ -1222,17 +1184,17 @@ namespace
             const Individual &indiv_i = house.at(i);
             id_col[i] = data_wide.id(indiv_i);
             size_t c = 0;
-            for (size_t a : augm.list_latent_export)
+            for (size_t a : augm.scheme().list_latent_export)
                 df_double[c++][i] = hsp_to_rcpp(mcmc_ptr->augm.at(a, indiv_i));
         }
 
-        // NOTE: discrete_export_cols starts with list_latent_export.
+        // discrete_export_cols starts with the list_latent_export columns
         const std::vector<bool> discr_cols = augm.discrete_export_cols();
 
         Rcpp::List output;
         output.push_back(id_col, "id");
         size_t i = 0;
-        for (size_t a : augm.list_latent_export)
+        for (size_t a : augm.scheme().list_latent_export)
         {
             output.push_back(rcpp_typed_column(df_double[i], discr_cols[i]), augm.khold(a));
             ++i;
@@ -1241,7 +1203,7 @@ namespace
         return rcpp_data_frame(output);
     }
 
-    /// Export a list containing all relevant information for a debug.
+    /// Export every snapshot of household `hhid`, for debugging.
     Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &hhid)
     {
         try
@@ -1260,8 +1222,8 @@ namespace
                 Rcpp::_["contact_risks"] = rcpp_snapshot_contact_risks(mcmc_ptr, house),
                 Rcpp::_["latent"] = helper_latent_rcpp_snapshot(mcmc_ptr, house),
                 Rcpp::_["infectivity_profiles"] = rcpp_snapshot_infec_profile(mcmc_ptr, house),
-                Rcpp::_["latent_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.list_latent_export),
-                Rcpp::_["observation_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.list_obs_member),
+                Rcpp::_["latent_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.scheme().list_latent_export),
+                Rcpp::_["observation_log_lik"] = helper_log_lik_rcpp_snapshot(mcmc_ptr, house, augm.scheme().list_obs_member),
                 Rcpp::_["transmission_log_lik"] = mcmc_ptr->data_wide().transm_log_lik(house).value());
         }
         catch (const std::exception &e)
@@ -1270,13 +1232,11 @@ namespace
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////  MCMC : simulate ///////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  MCMC : simulate  //////
 
     namespace simulate
     {
-        /// Perform a single repetition.
+        /// Simulate one repetition over every household.
         void single_repetition(MCMC &engine,
                                Rcpp::IntegerVector &status_col,
                                std::vector<Rcpp::NumericVector> &latent_cols,
@@ -1299,33 +1259,33 @@ namespace
                         {
                             status_col[row] = hsp_to_rcpp(indiv);
                             size_t c = 0;
-                            for (size_t a : augm.list_latent_export)
+                            for (size_t a : augm.scheme().list_latent_export)
                                 latent_cols[c++][row] = hsp_to_rcpp(engine.augm.at(a, indiv));
                             // observation nodes: generated for infected members, NA otherwise
-                            for (size_t a : augm.list_obs_member)
+                            for (size_t a : augm.scheme().list_obs_member)
                                 latent_cols[c++][row] = indiv.is_infected_status()
                                                             ? hsp_to_rcpp(engine.augm.at(a, indiv))
                                                             : NA_REAL;
                             ++row;
                         }
 
-                        // surrogate columns: a household reduction is one value shared by
-                        // every member row, a member column is read on each member --
-                        // including those never infected, which the model reads too
-                        size_t c = augm.list_latent_export.size() + augm.list_obs_member.size();
-                        for (const Augmented::Surrogate &surr : augm.list_surrogate)
+                        // surrogate columns:
+                        // - household reduction: one value shared by every member row;
+                        // - member column: read on each member, never-infected ones included, as the model reads them.
+                        size_t c = augm.scheme().list_latent_export.size() + augm.scheme().list_obs_member.size();
+                        for (const augm::Surrogate &surr : augm.scheme().list_surrogate)
                         {
-                            if (!Augmented::is_own_column(surr))
+                            if (!surr.is_own_column())
                                 continue;
                             if (surr.is_house)
                             {
-                                const double v = hsp_to_rcpp(augm.house_varia[H][surr.slot].value());
+                                const double v = hsp_to_rcpp(augm.state.house_varia[H][surr.slot].value());
                                 for (size_t r = row_offsets[H]; r < row_offsets[H + 1]; ++r)
                                     latent_cols[c][r] = v;
                             }
                             else
                             {
-                                const size_t a = augm.khold(augm.surrogate_name(surr));
+                                const size_t a = augm.khold(augm.def()[surr.row].name);
                                 size_t r = row_offsets[H];
                                 for (const Individual &indiv : house)
                                     latent_cols[c][r++] = hsp_to_rcpp(engine.augm.at(a, indiv));
@@ -1342,7 +1302,7 @@ namespace
                 engine.setup.budget.inner);
         }
 
-        // pre-compute per-household row offsets (fixes OpenMP race on row counter)
+        /// Build the simulated data frame: shared columns, status, then exported columns.
         Rcpp::DataFrame build_simulated(const Rcpp::List &shared_df,
                                         const Rcpp::IntegerVector &status_col,
                                         const std::vector<Rcpp::NumericVector> &latent_cols,
@@ -1364,7 +1324,7 @@ namespace
         }
     }
 
-    /// Perform simulation and return simulated data with separate wide and long post-processing.
+    /// Run the simulation, returning wide and long results after post-processing.
     Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr,
                               Rcpp::Nullable<Rcpp::Function> obs_process,
                               Rcpp::Nullable<Rcpp::Function> apply_wide,
@@ -1377,20 +1337,18 @@ namespace
 
         try
         {
-            engine.model->init_model_for_simulation(); // model specific initialization
+            engine.model->init_model_for_simulation(); // model-specific initialization
             engine.augm.init_house_for_simulation();   // build household-level observations
             data_wide.assert_required_everyone(augm.get_live_cols());
             engine.param.assert_risk_identifiability(engine.group_risk, engine.contact_risk);
 
-            // FIXME: latent variables are not built yet here
-            // -> impossible to assert profile whe Mode::Latent
+            // @todo Assert the infectivity profile here.
+            // latents are not built yet, so a latent profile cannot be checked
             // engine.assert_valid_infectivity_profile(); // assert profile is valid
 
-            //////////////////////////////////////////////
             //////  Observation Process & Measures  //////
-            //////////////////////////////////////////////
 
-            // UPDATE: only work-around I found for NULL functions...
+            // @todo Hold nullable R functions without a pointer work-around.
             std::unique_ptr<Rcpp::Function> f_obs_process = nullptr, f_wide = nullptr, f_long = nullptr;
 
             if (!obs_process.isNull())
@@ -1400,9 +1358,7 @@ namespace
             if (!obs_process_and_apply_long.isNull())
                 f_long = std::make_unique<Rcpp::Function>(obs_process_and_apply_long);
 
-            //////////////////////////////
             //////  Initialization  //////
-            //////////////////////////////
 
             Rcpp::List out_wide(setup.n_steps); // allocate memory for wide results
             Rcpp::List out_long;                // long results are optional
@@ -1412,26 +1368,23 @@ namespace
             const std::vector<std::string> static_data_names = engine.get_static_data_names();
             const Rcpp::List shared_df = helper_export_data_wide(data_wide, static_data_names, false);
 
-            // simulated data column name vector
+            // simulated data column names
             Rcpp::CharacterVector sim_names = Rcpp::wrap(engine.get_col_names());
             // row offsets for house parallelization
             const std::vector<size_t> row_offsets = engine.get_row_offsets();
 
-            // pre-allocate mutable output columns once (reused across iterations):
-            // exported latent, observation and surrogate columns
+            // pre-allocate output columns once, reused across repetitions
+            // they hold exported latent, observation and surrogate columns
             Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
 
             std::vector<Rcpp::NumericVector> latent_cols(augm.n_export_cols());
             for (size_t c = 0; c < latent_cols.size(); ++c)
                 latent_cols[c] = Rcpp::NumericVector(data_wide.report_indiv.total);
 
-            // flags for discrete columns
-            // NOTE: variables are bound after first repepetion
+            // flags for discrete columns, set once variables are bound after the first repetition
             std::vector<bool> discr_cols(latent_cols.size(), false);
 
-            ///////////////////////////
             //////  Simulations  //////
-            ///////////////////////////
 
             setup.prog_open_for_simulation();
             for (size_t r = 0; r < setup.n_steps; ++r, setup.prog_update())
@@ -1441,7 +1394,7 @@ namespace
                 engine.param.load_sample_values(r);
                 engine.param.draw_sample(setup.prng()); // draw parameters with no pinned value
 
-                // run single repetition
+                // run one repetition
                 simulate::single_repetition(
                     engine, status_col, latent_cols, row_offsets);
 
@@ -1456,7 +1409,7 @@ namespace
                 if (f_obs_process)
                     simulated = (*f_obs_process)(simulated);
 
-                // apply measure to data-wide or store it
+                // apply the measure to data-wide, or store it
                 if (f_wide)
                     out_wide[r] = (*f_wide)(simulated);
                 else
@@ -1467,10 +1420,10 @@ namespace
             }
             setup.prog_close();
 
-            // restore observed status and point every read-cell back at its imported
-            // value, so post-simulation reads of data_wide return the input: the
-            // generated values were handed back in the simulated frames, and the cells
-            // wired to produce them refer to Variables this run is about to clear.
+            // restore observed status and point every read-cell back at its imported value
+            // post-simulation reads of data_wide then return the input
+            // generated values leave through the simulated frames
+            // the wired cells refer to Variables this run is about to clear
             engine.augm.clear_all();
             engine.data_wide().recover_all_status();
             engine.data_wide().reset_readcells();
@@ -1484,11 +1437,7 @@ namespace
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////  *** Rcpp exports ***  ////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Rcpp exports  //////////////////////////////
 
 /// Keys the model declares through HOUSEPI_DECLARE_REGISTER_KEYS.
 #define MAKE_EXPORT_CHARACTER_VECTOR(method)                         \
@@ -1513,7 +1462,7 @@ namespace
     MAKE_EXPORT_DISCRETE_KEYS(key_Param_discrete, param)
     MAKE_EXPORT_DISCRETE_KEYS(key_Latent_discrete, augm)
 
-    /// Data columns the model requests as discrete (data_wide is an accessor).
+    /// Data columns the model requests as discrete.
     Rcpp::CharacterVector key_Data_discrete(Rcpp::XPtr<housepi::MCMC> mcmc_ptr)
     {
         return Rcpp::wrap(mcmc_ptr->data_wide().discrete_keys());
@@ -1541,7 +1490,7 @@ namespace
     {
         Rcpp::XPtr<MCMC> mcmc(new MCMC(module_name), true);
 
-        // options to be passed to progress setup
+        // options passed to the progress setup
         const unsigned width = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width"));
         const bool is_interactive = Rcpp::as<bool>(Rcpp::Function("interactive")());
         mcmc->setup.init_R_context(
@@ -1553,7 +1502,7 @@ namespace
         return mcmc;
     }
 
-    /// Share the DataStore between two MCMC objects (COW copy).
+    /// Share the DataStore of `src` with `dest`, copy-on-write.
     void share_data_store(Rcpp::XPtr<MCMC> dest, Rcpp::XPtr<MCMC> src)
     {
         dest->set_data_store(src->pDataStore);
@@ -1593,7 +1542,7 @@ namespace
     }
 
     /// Aggregate individuals by hhid, given as 1-based codes of the distinct ids.
-    /// A missing status reads NA (NA_INTEGER is INT_MIN).
+    /// - missing status: NA (NA_INTEGER is INT_MIN).
     measure::cases::Table summarise_houses_from_df(Rcpp::DataFrame data_wide)
     {
         Rcpp::CharacterVector col_names = data_wide.names();

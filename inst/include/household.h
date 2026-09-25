@@ -13,24 +13,21 @@
 #include "tools/types.h"
 #include "individual.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  *** Household : class ***  ////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Household  //////////////////////////////
 
 namespace housepi
 {
-	/// Household class.
-	/// NOTE: the user house id lives in DataWide, keyed by the household index (see Index::of).
+	/// Members of one household, partitioned by status.
+	///
+	/// The user household id lives in DataWide, keyed by household index, see Index::of().
 	class Household
 	{
-		friend struct Index;	 /// reads the opaque storage index
-		friend struct DataWide;	 /// owns and mutates its households
-		friend class ModelBase;	 /// changes member status
-		friend struct Augmented; /// changes member status
+		friend struct Index;	 /// Reads the opaque storage index.
+		friend struct DataWide;	 /// Owns and mutates its households.
+		friend class ModelBase;	 /// Changes member status.
+		friend struct Augmented; /// Changes member status.
 
-		/// Auxiliary iterator for member indexes of members with same status.
+		/// Range of member indexes sharing a status.
 		struct MemberRange_
 		{
 			const MemberIdx *data_;
@@ -43,7 +40,7 @@ namespace housepi
 			const MemberIdx &front() const noexcept { return data_[0]; }
 		};
 
-		/// Auxiliary iterator for individuals with same status.
+		/// Range of individuals sharing a status.
 		struct ConstIndivRange_
 		{
 			const Household *house_;
@@ -69,33 +66,29 @@ namespace housepi
 		};
 
 	public:
-		//////////////////////
-		//////  SETTER  //////
-		//////////////////////
+		//////  Setter  //////
 
-		/// Emplace a new individual in the household.
+		/// Emplace an individual with `index` and `status`.
 		void add_indiv(IndivIdx index, StatusLvl status);
 
-		//////////////////////
-		//////  GETTER  //////
-		//////////////////////
+		//////  Getter  //////
 
-		/// Individual with member index i.
+		/// Individual at member index `i`.
 		Individual &at(MemberIdx i) noexcept { return indivs_[i]; }
 		const Individual &at(MemberIdx i) const noexcept { return indivs_[i]; }
 
-		/// Iterator for member indexes of members with infected status.
+		/// Range of member indexes with infected status.
 		MemberRange_ infected_members() const noexcept { return {status_vec_.data(), ninf_}; }
-		/// Iterator for member indexes of members with escaped status.
+		/// Range of member indexes with escaped status.
 		MemberRange_ escaped_members() const noexcept { return {status_vec_.data() + ninf_, nsus_}; }
-		/// Iterator for member indexes of members with missing status.
+		/// Range of member indexes with missing status.
 		MemberRange_ missing_members() const noexcept { return {status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 
-		/// Iterator for individuals with infected status.
+		/// Range of individuals with infected status.
 		ConstIndivRange_ infected_indivs() const noexcept { return {this, status_vec_.data(), ninf_}; }
-		/// Iterator for individuals with escaped status.
+		/// Range of individuals with escaped status.
 		ConstIndivRange_ escaped_indivs() const noexcept { return {this, status_vec_.data() + ninf_, nsus_}; }
-		/// Iterator for individuals with missing status.
+		/// Range of individuals with missing status.
 		ConstIndivRange_ missing_indivs() const noexcept { return {this, status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 
 		/// Number of members with infected status.
@@ -105,38 +98,35 @@ namespace housepi
 		/// Number of members with missing status.
 		MemberIdx n_missing_status() const noexcept { return hhsize_ - ninf_ - nsus_; }
 
-		/////////////////////////
-		//////  ITERATORS  //////
-		/////////////////////////
+		//////  Iterators  //////
 
 		auto begin() noexcept { return indivs_.begin(); }
 		auto end() noexcept { return indivs_.end(); }
 		auto begin() const noexcept { return indivs_.begin(); }
 		auto end() const noexcept { return indivs_.end(); }
 
-		////////////////////
-		//////  SHOW  //////
-		////////////////////
+		//////  Show  //////
 
 		/// Number of household members.
 		MemberIdx size() const noexcept { return hhsize_; }
-		/// Index of equivalence class.
+		/// Equivalence class index.
 		HouseIdx eq_class() const noexcept { return eq_class_; }
 
 	private:
-		HouseIdx house_index_ = 0;			   /// housepi internal household index
-		HouseIdx eq_class_ = na::UINDEX;		   /// equivalence class index
-		MemberIdx hhsize_ = 0;				   /// number of household members
-		MemberIdx ninf_ = 0;					   /// number of infected members
-		MemberIdx nsus_ = 0;					   /// number of escaped members
-		std::vector<Individual> indivs_ = {};	   /// household members
-		std::vector<MemberIdx> status_vec_ = {}; /// partitioned: [infected | escaped | missing]
+		HouseIdx house_index_ = 0;				 /// Internal household index.
+		HouseIdx eq_class_ = na::UINDEX;		 /// Equivalence class index.
+		MemberIdx hhsize_ = 0;					 /// Number of household members.
+		MemberIdx ninf_ = 0;					 /// Number of infected members.
+		MemberIdx nsus_ = 0;					 /// Number of escaped members.
+		std::vector<Individual> indivs_ = {};	 /// Household members.
+		std::vector<MemberIdx> status_vec_ = {}; /// Partitioned: [infected | escaped | missing].
 
-		/// Change status of individual i to new status.
-		/// NOTE: Using 'partition refinement' to track member statuses.
+		/// Move `indiv` to status `new_status`.
+		///
+		/// Member statuses are tracked by partition refinement.
 		void set_new_status_(Individual &indiv, StatusLvl new_status);
 	};
 
-	/// Index of Household (see individual.h).
+	/// Storage index of `house`, declared in individual.h.
 	inline HouseIdx Index::of(const Household &house) noexcept { return house.house_index_; }
 }
