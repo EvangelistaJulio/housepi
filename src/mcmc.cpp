@@ -27,12 +27,10 @@
 #include "tools/vector.h"
 
 #include "augmented.h"
-#include "contact_risk.h"
 #include "data_wide.h"
 #include "data_long.h"
 #include "distribution.h"
 #include "function.h"
-#include "group_risk.h"
 #include "household.h"
 #include "individual.h"
 #include "infec_profile.h"
@@ -41,6 +39,7 @@
 #include "model.h"
 #include "parameter.h"
 #include "registry.h"
+#include "risks.h"
 #include "setup.h"
 #include "translator.h"
 
@@ -524,37 +523,11 @@ namespace housepi
                                            hh_double_mtx_keys);
         data_long().init_key_holder(data_long_keys);
         param.init_key_holder(param_keys);
-        group_risk.init_key_holder(group_risk_keys);
+        risks.init_key_holder(group_risk_keys);
         augm.init_key_holder(latent_keys);
 
         translator.bind_data_wide(&data_wide());
-        translator.bind_group_risk(&group_risk);
-    }
-
-    /// Whether members `i` and `j` of `house` are equivalent in terms of risks.
-    ///
-    /// They are when:
-    /// - their group-risk attributes match;
-    /// - each contact risk involving one matches its counterpart for the other, outgoing and incoming.
-    bool MCMCBase::is_same_risk_partition(const Household &house,
-                                          MemberIdx i,
-                                          MemberIdx j) const
-    {
-        if (i == j)
-            return true;
-
-        const Individual &indiv_i = house.at(i);
-        const Individual &indiv_j = house.at(j);
-
-        // check all group risks
-        if (!group_risk.same_group(indiv_i, indiv_j))
-            return false;
-
-        // check all contact risks
-        if (!contact_risk.same_contacts(house, i, j))
-            return false;
-
-        return true;
+        translator.bind_group_risk(&risks.group());
     }
 
     void MCMCBase::init_equivalence_class_compression()
@@ -846,13 +819,12 @@ namespace housepi
         data_wide.allocate_transm_log_lik();
 
         param.finalize();
-        group_risk.finalize();
-        contact_risk.finalize();
+        risks.finalize();
         augm.finalize();
         infec_profile.finalize();
         data_wide.finalize();
 
-        param.assert_risk_identifiability(group_risk, contact_risk);
+        risks.assert_identifiability(param);
         assert_valid_infectivity_profile();
 
         model->init_model_for_evaluation();

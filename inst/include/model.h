@@ -13,11 +13,7 @@
 #include "tools/types.h"
 #include "mcmc_base.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** ModelBase : class ***  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  ModelBase  //////////////////////////////
 
 namespace housepi
 {
@@ -34,16 +30,21 @@ namespace housepi
 		return mcmc_->data_wide().cache_##NAME(house, e);                     \
 	}
 
+	/// Transmission model: per-household log-likelihood and simulation hooks.
+	///
+	/// - built-in and custom models derive from it through the `HOUSEPI_*` macros;
+	/// - the accessors below read the engine the model is bound to.
 	class ModelBase
 	{
 	public:
-		/////////////////////
-		///  CONSTRUCTOR  ///
-		/////////////////////
+		//////  Constructor  //////
 
 		virtual ~ModelBase() = default;
 
+		/// Bind the engine `mcmc` the model reads.
 		void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
+
+		//////  Model-declared keys  //////
 
 		virtual const std::vector<std::string> key_Data() const = 0;
 		virtual const std::vector<std::string> key_HHmember() const = 0;
@@ -55,102 +56,96 @@ namespace housepi
 		virtual const std::vector<std::string> key_GroupRisk() const = 0;
 		virtual const std::vector<std::string> key_Latent() const = 0;
 
-		///////////////
-		///  MODEL  ///
-		///////////////
+		//////  Model  //////
 
 		/// Whether the model uses contact risks.
 		virtual bool has_contact_risk() const { return false; }
 		/// Whether the model requires an infectivity profile definition.
 		virtual bool has_infec_profile() const { return false; }
 
-		/// Recompute the household cached quantities consumed by the transmission model.
+		/// Recompute the cached quantities of `house` read by the transmission model.
 		virtual void update_house_transmission_cache(const Household & /*house*/) {}
-		/// Same, restricted to a single individual.
+		/// Recompute the cached quantities of member `indiv` read by the transmission model.
 		virtual void update_member_transmission_cache(const Household & /*house*/,
 													  const Individual & /*indiv*/) {}
-		/// Compute the transmission log-likelihood within a single household.
+		/// Compute the transmission log-likelihood of `house`.
 		virtual double compute_house_transm_log_lik(const Household & /*house*/) = 0;
 
-		/// Inference specific initialization (e. g. cache variables, lookup tables, etc).
+		/// Initialize the model for evaluation (cache variables, lookup tables).
 		virtual void init_model_for_evaluation() {}
-		/// Inference specific initialization for each household.
-		/// NOTE: it's run right after 'init_model_for_evaluation'.
+		/// Initialize household `house` for evaluation.
+		/// - runs right after init_model_for_evaluation().
 		virtual void init_house_for_evaluation(const Household & /*house*/) {}
 
-		/// Simulation specific initialization (e. g. cache variables, lookup tables, etc).
+		/// Initialize the model for simulation (cache variables, lookup tables).
 		virtual void init_model_for_simulation() {}
-		/// Simulation for a single household.
+		/// Simulate household `house`.
 		virtual void simulate_single_house(Household & /*house*/) = 0;
 
-		/////////////////////////////////
-		///  SETTER : MODEL REQUESTS  ///
-		/////////////////////////////////
+		//////  Setter: model requests  //////
 
-		/// Initialize model-specific definition requirements.
+		/// Declare the model definition requirements.
 		virtual void init_model_requirements() {}
 
-		/// Request that a baseline parameter and the relative risks scaling it share one reference.
-		/// 'contacts' declares that contact risks scale the same term as the listed group risks.
+		/// Request that baseline parameter `p` and group risks `risks` share one reference.
+		/// @param contacts Whether contact risks scale the same term as `risks`.
 		void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts = false)
 		{
-			mcmc_->param.request_risk_identifiability(p, std::move(risks), contacts);
+			mcmc_->risks.request_identifiability(p, std::move(risks), contacts);
 		}
 
-		/// Declare the group risks a rule may stratify by the infected status.
-		/// NOTE: risks read before the member's status is drawn in simulations cannot be listed.
+		/// Declare the group risks `vec` a rule may stratify by infected status.
+		/// @note Leave out risks read before a member's status is drawn in simulation.
 		void request_risk_status_stratified(std::vector<size_t> vec)
 		{
-			mcmc_->group_risk.request_status_stratified(std::move(vec));
+			mcmc_->risks.request_status_stratified(std::move(vec));
 		}
 
-		/// Request discrete parameter definition.
+		/// Request discrete parameters `vec`.
 		void request_param_discrete(std::vector<size_t> vec) { mcmc_->param.request_discrete(vec); }
-		/// Request positive parameter definition.
+		/// Request positive parameters `vec`.
 		void request_param_positive(std::vector<size_t> vec) { mcmc_->param.request_positive(vec); }
 
-		/// Request discrete latent definition.
+		/// Request discrete latents `vec`.
 		void request_latent_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }
-		/// Request positive latent definition.
+		/// Request positive latents `vec`.
 		void request_latent_positive(std::vector<size_t> vec) { mcmc_->augm.request_positive(vec); }
-		/// Declare a latent key read by the transmission computation (included cache).
+		/// Declare latents `vec` as read by transmission, cache included.
 		void request_latent_transmission(std::vector<size_t> vec) { mcmc_->augm.request_transmission(vec); }
 
-		/// Request discrete infectivity profile definition.
+		/// Request a discrete infectivity profile.
 		void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
 
-		/// Request discrete data definition.
+		/// Request discrete data columns `vec`.
 		void request_data_discrete(std::vector<size_t> vec) { mcmc_->data_wide().request_discrete(vec); }
-		/// Request data definition greater than zero.
+		/// Request positive data columns `vec`.
 		void request_data_positive(std::vector<size_t> vec) { mcmc_->data_wide().request_positive(vec); }
-		/// Request a data value for every member, escaped ones included.
+		/// Request data columns `vec` with a value for every member, escaped ones included.
 		void request_data_every_member(std::vector<size_t> vec) { mcmc_->data_wide().request_everyone(vec); }
 
-		/// Throw an exception if at least a member as missing status.
+		/// Throw if some member has missing status.
 		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
 
-		//////////////////////////////
-		///  SETTER : MODEL CALLS  ///
-		//////////////////////////////
+		//////  Setter: model calls  //////
 
-		/// Set an individual status to infected. Resolve status observation, if any.
-		/// NOTE: call init_missing_latent to materialize status-specific definition block after.
+		/// Set member `indiv` infected, drawing its status observation, if any.
+		/// @note Call init_missing_latent() next, to build the definitions of its status.
 		void set_infected(Household &house, Individual &indiv)
 		{
 			mcmc_->augm.simulate_infected_status(house, indiv, mcmc_->setup.prng());
 		}
-		/// Set an individual status to escaped status.
+		/// Set member `indiv` escaped.
 		void set_escaped(Household &house, Individual &indiv)
 		{
 			house.set_new_status_(indiv, status::ESCAPED);
 		}
 
-		/// Set numeric value of latent variable. If not allowed, raise exception.
+		/// Set latent `a` of member `m` to `x`; throw if not allowed.
 		void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->augm.at(a, m).set(x); }
 
-		/// Initialize all latent variables and observations.
-		/// If a variable has been set by the user, it's skipped.
-		/// UPDATE: right now simulations assignments must be order independent.
+		/// Initialize the latents and observations of member `indiv`.
+		/// - latent set by the user: skipped.
+		/// @todo Allow order-dependent assignments in simulation.
 		void init_missing_latent(Individual &indiv)
 		{
 			mcmc_->augm.init_definitions_for_simulation(indiv);
@@ -158,74 +153,73 @@ namespace housepi
 			mcmc_->augm.sample_obs(indiv, mcmc_->setup.prng());
 		}
 
-		////////////////
-		///  GETTER  ///
-		////////////////
+		//////  Getter  //////
 
-		/// Sample a uniform-distributed variable between 0 and 1.
+		/// Draw a uniform variate on [0, 1].
 		double uniform() const { return mcmc_->setup.uniform(); }
-		/// Sample a exponential-distributed variable between 0 and Inf.
+		/// Draw a unit-rate exponential variate.
 		double exponential() const { return mcmc_->setup.exponential(); }
 
-		/// Real-time integration step for simulation. Returns the user-configured.
+		/// User-configured time step of the simulation.
 		double real_time_step() const { return mcmc_->setup.time_step; }
 
-		/// Get parameter value.
+		/// Value of parameter `p`.
 		double par(size_t p) const { return mcmc_->param.at(p).value(); }
-		/// Get latent value for given individual.
+		/// Latent `a` of member `m`.
 		double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
-		/// Get wide-format data value for given individual.
+		/// Datum `d` of member `m`.
 		double data(size_t d, const Individual &m) const { return mcmc_->data(d, m); }
-		/// Get group-risk value for given individual.
-		double group_risk(size_t g, const Individual &m) const { return mcmc_->group_risk.value(g, m); }
+		/// Group risk `g` of member `m`.
+		double group_risk(size_t g, const Individual &m) const { return mcmc_->risks.group().value(g, m); }
 
-		/// Names for error messages.
+		/// Name of member `m`, for error messages.
 		std::string str(const Individual &m) const { return mcmc_->data_wide().str(m); }
+		/// Name of household `h`, for error messages.
 		std::string str(const Household &h) const { return mcmc_->data_wide().str(h); }
 
-		/// Get contact risk 'from' household member 'to' member.
+		/// Contact risk from member `from` to member `to` of `house`.
 		double contact_risk(const Household &house, MemberIdx from, MemberIdx to) const
 		{
-			return mcmc_->contact_risk.value(house, from, to);
+			return mcmc_->risks.contact().value(house, from, to);
 		}
-		/// Wheter hosuehold members i and j are equivalent in terms of risks.
+		/// Whether members `i` and `j` of `house` are equivalent according to risks.
 		bool is_same_risk_partition(const Household &house, MemberIdx i, MemberIdx j) const
 		{
-			return mcmc_->is_same_risk_partition(house, i, j);
+			return mcmc_->risks.same_partition(house, i, j);
 		}
-		/// Get contact risk intra member partition (self-contact).
+		/// Contact risk within the partition of member `i` (self-contact).
 		double intra_partition_contact_risk(const Household &house, MemberIdx i) const
 		{
-			return mcmc_->contact_risk.intra_value(house, i);
+			return mcmc_->risks.contact().intra_value(house, i);
 		}
 
-		/// Return maximum number of observed infected household members.
+		/// Maximum number of infected members observed in one household.
 		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }
 
+		/// Instantaneous infectivity profile of member `m` at time `t`.
 		double infec_profile_inst(const Individual &m, double t) const
 		{
 			return mcmc_->infec_profile.inst(&m, t);
 		}
+		/// Cumulative infectivity profile of member `m` at time `t`.
 		double infec_profile_cumul(const Individual &m, double t) const
 		{
 			return mcmc_->infec_profile.cumul(&m, t);
 		}
 
-		///////////////
-		///  CACHE  ///
-		///////////////
+		//////  Cache  //////
 
-		/// Return cached member value.
+		/// Cached member value.
 		MAKE_HOUSEPI_CACHE_FORWARDER(member)
-		/// Return cached member vector.
+		/// Cached member vector.
 		MAKE_HOUSEPI_CACHE_FORWARDER(member_vector)
-		/// Return cached double vector.
+		/// Cached double vector.
 		MAKE_HOUSEPI_CACHE_FORWARDER(double_vector)
-		/// Return cached double matrix.
+		/// Cached double matrix.
 		MAKE_HOUSEPI_CACHE_FORWARDER(double_matrix)
 
 	private:
-		MCMCBase *mcmc_;
+		MCMCBase *mcmc_; /// Engine the model reads.
 	};
 }
 

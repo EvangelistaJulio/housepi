@@ -47,6 +47,7 @@ BUILD := build/$(FLAVOUR)
 OBJECTS := $(addprefix $(BUILD)/,$(notdir $(SOURCES:.cpp=.o)))
 DEPENDS := $(OBJECTS:.o=.d)
 EXECUTABLE := $(BUILD)/model.exe
+MODEL_STAMP := $(BUILD)/model.stamp
 
 # sources are gathered from several directories, objects land in one
 vpath %.cpp . $(SRC) $(DIRMODEL)
@@ -102,9 +103,17 @@ endif
 # Make rules
 all: $(EXECUTABLE)
 
-# For the executable
-$(EXECUTABLE): $(OBJECTS)
+# For the executable, relinked when MODEL changes: object timestamps alone
+# keep a binary linked against the previous model
+$(EXECUTABLE): $(OBJECTS) $(MODEL_STAMP)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS) -o $@
+
+# Stamp holding the model last linked, rewritten only when it differs
+$(MODEL_STAMP): FORCE | $(BUILD)
+	@echo '$(MODEL)' | cmp -s - $@ || echo '$(MODEL)' > $@
+
+.PHONY: FORCE
+FORCE:
 
 # For the standalone object, the only one reading the model's header
 $(BUILD)/standalone.o: standalone.cpp | $(BUILD)

@@ -1,0 +1,46 @@
+/* housepi - Epidemiological Analysis of Household Outbreaks.
+ *
+ * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
+ * Distributed under the terms of the GNU General Public License (GPLv3).
+ * See the LICENSE file for details.
+ */
+
+#pragma once
+
+#include <cstddef>
+#include <vector>
+
+#include "tools/types.h"
+
+#include "function.h"
+
+//////////////////////////////  risks::Store  //////////////////////////////
+
+namespace housepi::risks
+{
+    /// Risk attributes of every unique definition, in one flat store.
+    ///
+    /// - reading one crosses a single indirection;
+    /// - an owner (member for group risks, household for contact risks) maps to the offset its block starts at.
+    struct Store
+    {
+    public:
+        /// Whether the last build received no definition.
+        bool is_empty() const noexcept { return flat_.empty(); }
+        /// Finalize every attribute (see Attribute::finalize).
+        void finalize();
+
+    protected:
+        std::vector<Attribute> flat_ = {};  /// Risk attributes, one block per unique definition.
+        std::vector<RiskOffset> base_ = {}; /// Offset each owner's block starts at.
+
+        /// Drop the previous build and point every owner at the first block.
+        void reset_store_(size_t n_owners);
+
+        /// Attribute `offset` cells into the block that `owner` reads.
+        const Attribute &cell_(size_t owner, size_t offset) const noexcept
+        {
+            return flat_[base_[owner] + offset];
+        }
+    };
+}

@@ -25,160 +25,140 @@
 
 namespace housepi
 {
-    namespace risks
-    {
-        constexpr const char *REFERENCE = ".reference"; /// Risk reference choice.
-        constexpr const char *STATUS_KEY = "status";    /// Rule column carrying the infected status.
-        constexpr double VALUE_REFERENCE = 1.0;         /// Alias for reference value.
-    }
-
 #define MAKE_HOUSEPI_CACHE_ACCESSOR(TYPE, NAME)                                                                        \
     TYPE &cache_##NAME(const Household &house, size_t e) noexcept { return cached_.current[house.eq_class_].NAME[e]; } \
     const TYPE &cache_##NAME(const Household &house, size_t e) const noexcept { return cached_.current[house.eq_class_].NAME[e]; }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  *** DataWide : struct ***  ///////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  DataWide  //////////////////////////////
 
+    /// Wide-format data: one row per member, households and their equivalence classes.
     struct DataWide : public KeyModuleWithRequests
     {
-        KeyHolder khold_member_val; /// cache key-holder member values
-        KeyHolder khold_member_vec; /// cache key-holder member vectors
-        KeyHolder khold_double_vec; /// cache key-holder double vectors
-        KeyHolder khold_double_mtx; /// cache key-holder double matrices
+        KeyHolder khold_member_val; /// Cache key holder, member values.
+        KeyHolder khold_member_vec; /// Cache key holder, member vectors.
+        KeyHolder khold_double_vec; /// Cache key holder, double vectors.
+        KeyHolder khold_double_mtx; /// Cache key holder, double matrices.
 
-        ReportIndividual report_indiv;   /// individuals report
-        ReportHousehold report_house;    /// households report
-        ReportHouseSizes report_hh_size; /// house-sizes report
+        ReportIndividual report_indiv;   /// Member report.
+        ReportHousehold report_house;    /// Household report.
+        ReportHouseSizes report_hh_size; /// Household-size report.
 
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        //////  Setter  //////
 
-        /// Assign data (wide format).
+        /// Build members and households from wide-format table `input`.
         void build(const str_table &input);
-        /// Recover all status.
+        /// Recover every status.
         void recover_all_status() noexcept;
-        /// Re-wire every read-cell back at its imported raw value.
-        /// Optionally associate data columns produced by observations.
-        /// NOTE: necessary because of stale pointers during Variable re-build.
+        /// Point every read-cell back at its imported raw value.
+        /// - `produced_cols`: data columns produced by observations, declared alongside.
+        /// @note Call before rebuilding Variables: wired cells would point at stale ones.
         void reset_readcells(const std::vector<std::string> &produced_cols = {});
 
-        /// Transmission log-likelihood of head of household equivalence class.
+        /// Transmission log-likelihood of the head of equivalence class `R`.
         double house_transm_log_lik(size_t R) const { return transm_log_lik(eq_class_head(R)).value(); }
 
-        /// Allocate per-equivalence-class transmission log-likelihood storage.
-        /// NOTE: requires equivalence classes to be initialized (see init_eq_classes).
+        /// Allocate transmission log-likelihood storage, one per equivalence class.
+        /// @note Requires equivalence classes (see init_eq_classes).
         void allocate_transm_log_lik() { house_transm_log_lik_.assign(eq_class_size(), LogProba()); }
 
-        /// Access the transmission log-likelihood of a household equivalence class.
+        /// Transmission log-likelihood of the equivalence class of `house`.
         LogProba &transm_log_lik(const Household &house) noexcept { return house_transm_log_lik_[house.eq_class_]; }
         const LogProba &transm_log_lik(const Household &house) const noexcept { return house_transm_log_lik_[house.eq_class_]; }
 
-        /////////////////////////
-        //////  ITERATORS  //////
-        /////////////////////////
+        //////  Iterators  //////
 
         auto begin() noexcept { return house_vector_.begin(); }
         auto begin() const noexcept { return house_vector_.begin(); }
         auto end() noexcept { return house_vector_.end(); }
         auto end() const noexcept { return house_vector_.end(); }
 
-        //////////////////////
-        //////  GETTER  //////
-        //////////////////////
+        //////  Getter  //////
 
-        /// Get reference of household by internal absolute indexing position H or by hhid.
+        /// Household at internal position `H`, or with user id `hhid`.
         Household &at(size_t H) noexcept { return house_vector_[H]; }
         const Household &at(size_t H) const noexcept { return house_vector_[H]; }
         Household &at(std::string_view hhid) { return at(index_of_(hhid)); }
         const Household &at(std::string_view hhid) const { return at(index_of_(hhid)); }
 
-        /// Access wide-format data of given column for an individual.
-        /// NOTE: resolves through the per-member read-surface (raw or a wired Variable).
+        /// Datum `d` of member `indiv`.
+        /// - read through the member read-cell: raw value or wired Variable.
         double data(size_t d, const Individual &indiv) const noexcept { return readcell(d, indiv).value(); }
-        /// Read-surface attribute of given column for an individual (for live @D resolution).
+        /// Read-cell `d` of member `indiv`, resolved live by `@D`.
         const Attribute &readcell(size_t d, const Individual &indiv) const noexcept { return indiv_data_[Index::of(indiv)].readcell[d]; }
-        /// Point a column's read-surface at the Variable of a surrogate column.
+        /// Point read-cell `d` of member `indiv` at the Variable of a surrogate column.
         void wire_readcell(size_t d, const Individual &indiv, const Attribute *p) noexcept { indiv_data_[Index::of(indiv)].readcell[d].init_pointer(p); }
-        /// Finalize every Variable object in the read-cells.
-        /// NOTE: evaluation-only; simulation re-wires the cells live.
+        /// Finalize every Variable wired into a read-cell.
+        /// - evaluation only: simulation re-wires the cells live.
         void finalize();
 
-        /// Unique identifier of an individual, as provided in data.
+        /// User id of member `indiv`.
         const std::string &id(const Individual &indiv) const noexcept { return indiv_ids_[Index::of(indiv)]; }
-        /// Identifier of a household, as provided in data.
+        /// User id of household `house`.
         const std::string &hhid(const Household &house) const noexcept { return hhids_[Index::of(house)]; }
-        /// Names for error messages.
+        /// Name of member `indiv`, for error messages.
         std::string str(const Individual &indiv) const { return "individual " + msg::val(id(indiv)); }
+        /// Name of household `house`, for error messages.
         std::string str(const Household &house) const { return "household " + msg::val(hhid(house)); }
 
-        /// Column names known at import, without those produced by an observation.
+        /// Column names known at import, those produced by an observation excluded.
         std::vector<std::string> imported_cols() const;
 
-        ///////////////////////////////////
-        //////  EQUIVALENCE CLASSES  //////
-        ///////////////////////////////////
+        //////  Equivalence classes  //////
 
-        // Associate data names as relevant for equivalence classes.
+        /// Declare data columns `data_list` as equivalence-class keys.
         void set_eq_class_data_names(const std::vector<std::string> &data_list);
-        /// Initialize frequency weights for equivalence class compression.
-        /// NOTE: An equivalence class is a unit of computational redundancy.
+        /// Group households into equivalence classes, weighted by their frequency.
+        /// - equivalence class: households with the same likelihood, computed once.
+        /// - `force_unique`: one class per household.
         void init_eq_classes(bool force_unique);
 
-        /// Number of households in equivalence class R.
+        /// Number of households in equivalence class `R`.
         size_t eq_class_weight(size_t R) const noexcept { return eq_classes_[R].weight_; }
-        /// Index to household equivalence class head.
+        /// Equivalence class of household `H`.
         size_t get_eq_class(size_t H) const noexcept { return house_vector_[H].eq_class_; }
-        /// Restricted number of household equivalence classes.
+        /// Number of equivalence classes.
         size_t eq_class_size() const noexcept { return report_house.distinct; }
-        /// Head household of equivalence class R.
+        /// Head household of equivalence class `R`.
         Household &eq_class_head(size_t R) noexcept { return at(eq_classes_[R].head_); }
         const Household &eq_class_head(size_t R) const noexcept { return at(eq_classes_[R].head_); }
 
-        /////////////////////
-        //////  CACHE  //////
-        /////////////////////
+        //////  Cache  //////
 
-        /// Initialize cache key-holder with model declared keys.
+        /// Initialize cache key holders with model-declared keys.
         void init_cache_key_holders(
             const std::vector<std::string> &member_keys,
             const std::vector<std::string> &member_vec_keys,
             const std::vector<std::string> &double_vec_keys,
             const std::vector<std::string> &double_mtx_keys);
 
-        /// Initialize cached structeres according to household size.
+        /// Allocate cached structures according to household size.
         void allocate_all_cache();
-        /// Store all household cache attributes.
+        /// Save every household cache.
         void save_all_cached() { cached_.save(); }
-        /// Recover old values of cached depedencies and attributes.
+        /// Recover every household cache from the last save.
         void recover_old_cached() noexcept { cached_.recover(); }
-        /// Save member cached attributes.
+        /// Save the cache of member `indiv`.
         void save_member_cache(const Household &house, const Individual &indiv);
-        /// Recover member old values of cached member depedencies and member attributes.
+        /// Recover the cache of member `indiv` from the last save.
         void recover_member_old_cached(const Household &house, const Individual &indiv);
 
-        /// Return cached member value.
+        /// Cached member value.
         MAKE_HOUSEPI_CACHE_ACCESSOR(MemberIdx, member)
-        /// Return cached member vector.
+        /// Cached member vector.
         MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<MemberIdx>, member_vector)
-        /// Return cached double vector.
+        /// Cached double vector.
         MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<double>, double_vector)
-        /// Return cached double matrix.
+        /// Cached double matrix.
         MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<std::vector<double>>, double_matrix)
 
-        /////////////////////
-        //////  FLAGS  //////
-        /////////////////////
+        //////  Flags  //////
 
-        /// Assert that not all individuals have missing status.
+        /// Throw if every member has missing status.
         void assert_not_all_missing_status() const;
-        /// Assert no individual has missing status.
+        /// Throw if some member has missing status.
         void assert_no_missing_status() const;
 
-        /// Take the requests registered on 'other', a store over the same keys.
+        /// Copy the requests registered on `other`, a store over the same keys.
         void copy_requests(const DataWide &other)
         {
             KeyModuleWithRequests::copy_requests(other);
@@ -186,60 +166,57 @@ namespace housepi
         }
         /// Request a value for every member, escaped ones included.
         void request_everyone(std::vector<size_t> vec);
-        /// Whether a key was requested for every member.
+        /// Whether key `d` was requested for every member.
         bool is_required_everyone(size_t d) const noexcept;
         /// Throw if a column requested for every member has no value for one.
-        /// Columns 'live' take their value during the run and are skipped.
+        /// - `live` columns: skipped, they take their value during the run.
         void assert_required_everyone(const std::vector<std::string> &live = {}) const;
 
-        /// Return maximum number of observed infected household members.
+        /// Maximum number of infected members observed in one household.
         size_t get_max_hh_cases() const noexcept { return report_hh_size.max_cases.first; }
 
-        /// Wheter data has been provided.
+        /// Whether no data was provided.
         bool is_empty() const noexcept { return house_vector_.empty(); }
 
     private:
-        ////////////////////
-        //////  DATA  //////
-        ////////////////////
+        //////  Data  //////
 
-        /// Individual wide-format data.
+        /// Wide-format data of one member.
         struct IndivWide_
         {
-            StatusLvl status = status::MISSING;
-            std::vector<double> vec = {};         /// immutable imported-raw backing
-            std::vector<Attribute> readcell = {}; /// per-column read-surface (raw or wired)
+            StatusLvl status = status::MISSING;   /// Imported status.
+            std::vector<double> vec = {};         /// Imported raw values, immutable.
+            std::vector<Attribute> readcell = {}; /// Read-cell per column: raw value or wired Variable.
         };
 
-        std::vector<size_t> request_everyone_ = {}; /// Keys requested for every member
-        dict<size_t> hhid_to_index_ = {};           /// Map house-id to internal index
-        std::vector<IndivWide_> indiv_data_;        /// External storage for individual data
-        std::vector<std::string> indiv_ids_ = {};   /// User individual ids, by individual index
-        std::vector<std::string> hhids_ = {};       /// User house ids, by household index
-        size_t n_imported_ = 0;                     /// Number of columns known at import
+        std::vector<size_t> request_everyone_ = {}; /// Keys requested for every member.
+        dict<size_t> hhid_to_index_ = {};           /// Internal index per household user id.
+        std::vector<IndivWide_> indiv_data_;        /// Member data, by member index.
+        std::vector<std::string> indiv_ids_ = {};   /// Member user ids, by member index.
+        std::vector<std::string> hhids_ = {};       /// Household user ids, by household index.
+        size_t n_imported_ = 0;                     /// Number of columns known at import.
 
-        std::vector<Household> house_vector_ = {};   /// All households in data
-        std::vector<LogProba> house_transm_log_lik_; /// Per-equivalence-class transmission log-likelihood
+        std::vector<Household> house_vector_ = {};   /// Every household.
+        std::vector<LogProba> house_transm_log_lik_; /// Transmission log-likelihood per equivalence class.
 
-        /////////////////////////////////
-        //////  EQUIVALENCE CLASS  //////
-        /////////////////////////////////
+        //////  Equivalence class  //////
 
+        /// Equivalence class: head household and number of households.
         struct EquivalenceClass_
         {
             EquivalenceClass_() = default;
             EquivalenceClass_(const std::vector<size_t> &group)
-                : head_(group.front()), weight_(group.size()) {}
-            size_t head_ = na::INDEX;
-            size_t weight_ = 1;
+                : head_(group.front()),
+                  weight_(group.size()) {}
+            size_t head_ = na::INDEX; /// Head household.
+            size_t weight_ = 1;       /// Number of households.
         };
-        std::vector<EquivalenceClass_> eq_classes_ = {};      /// Equivalence classes
-        std::unordered_set<size_t> eq_class_covariates_ = {}; /// Covariates used for equivalence class hashing
+        std::vector<EquivalenceClass_> eq_classes_ = {};      /// Equivalence classes.
+        std::unordered_set<size_t> eq_class_covariates_ = {}; /// Covariates hashed into equivalence classes.
 
-        //////////////////////
-        //////  CACHED  //////
-        //////////////////////
+        //////  Cached  //////
 
+        /// Model cache per equivalence class, current and last saved.
         struct Cached_
         {
             struct State_
@@ -255,19 +232,17 @@ namespace housepi
             void recover() noexcept { current.swap(previous); }
         } cached_;
 
-        ///////////////////////
-        //////  HELPERS  //////
-        ///////////////////////
+        //////  Helpers  //////
 
-        /// Get housepi household index from the user hhid.
+        /// Internal index of household with user id `hhid`.
         size_t index_of_(std::string_view hhid) const;
-        /// Clear previous data report.
+        /// Clear the previous data and report.
         void helper_build_clear_data_();
-        /// Assert that data headers are correct.
+        /// Throw if the headers of `input` are malformed.
         void helper_build_data_headers_(const str_table &input);
-        /// Use the loaded data to fill-in the respective report.
+        /// Fill the report from the loaded data.
         void build_helper_fill_report_data_();
-        /// Initialize equivalence classes as if all distinct.
+        /// Initialize equivalence classes, one per household.
         void helper_init_unique_eq_classes_();
     };
 }

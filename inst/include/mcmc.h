@@ -21,81 +21,75 @@
 #include "data_wide.h"
 #include "data_long.h"
 #include "parameter.h"
-#include "group_risk.h"
+#include "risks.h"
 #include "infec_profile.h"
 #include "augmented.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////  *** MCMC : class ***  ////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  MCMC  //////////////////////////////
 
 namespace housepi
 {
 	class Individual;
 	class Household;
 
-	/// Max resamples per member.
+	/// Maximum resamples per member, at initialization.
 	static constexpr size_t N_INIT_ATTEMPTS_ = 100;
 
+	/// Engine running a built-in or custom model: evaluation, inference and simulation.
 	class MCMC : public MCMCBase
 	{
 	public:
-		std::unique_ptr<ModelBase> model;
+		std::unique_ptr<ModelBase> model; /// Transmission model.
 
-		///////////////////////////
-		//////  CONSTRUCTOR  //////
-		///////////////////////////
+		//////  Constructor  //////
 
 		explicit MCMC(std::string_view model_name);
 
-		/// Detach shared DataStore before mutation. Used for copy-on-write logic.
+		/// Detach a shared data store before mutation (copy-on-write).
 		void detach_data_store();
 
-		//////////////////////////
-		//////  EVALUATION  //////
-		//////////////////////////
+		//////  Evaluation  //////
 
-		/// Initialize model and evaluate the scalar complete-data household
-		/// log-likelihood (observation + transmission), joint over latent variables.
+		/// Initialize the model and evaluate the complete-data log-likelihood, joint over latents.
+		/// - sum of observation, transmission and latent terms;
+		/// - missing `hhid`: every household.
 		double evaluate_log_lik(std::string_view hhid);
 
 	private:
-		/// Assert setup definitions, then proceed with initialization for evaluation.
+		/// Assert definitions, then initialize for evaluation.
 		void init_for_evaluation_();
 
-		/// Compute total log-posterior. Store all old values.
-		/// Result is left in tot_obs_log_lik, tot_transm_log_lik, tot_latent_log_lik.
-		/// NOTE: with_latent_ll / with_obs_ll run respective re-evaluations.
+		/// Compute the total log-posterior, storing every old value.
+		/// - result: `tot_obs_log_lik`, `tot_transm_log_lik`, `tot_latent_log_lik`;
+		/// - `with_latent_ll`, `with_obs_ll`: re-evaluate the latent and observation terms.
 		void commit_total_log_posterior_(bool with_cache,
 										 bool with_latent_ll = true,
 										 bool with_obs_ll = true);
-		/// Commit single household's posterior contribution.
+		/// Commit the posterior contribution of `house`.
 		LogLikAccumulator commit_house_log_posterior_(const Household &house,
 													  bool with_cache,
 													  bool with_latent_ll,
 													  bool with_obs_ll);
 
-		/// Guarded total log-posterior computation for initialization.
-		/// Assert for finite initial value and mechanisms to recover in place.
+		/// Compute the total log-posterior at initialization, guarded.
+		/// - non-finite contribution: recovered in place, or error.
 		void init_guarded_commit_total_();
-		/// Single household's guarded contribution.
+		/// Guarded contribution of `house`.
 		LogLikAccumulator init_guarded_commit_house_(Household &house);
 
-		/// Compute and store log-ratio of prior of single latent variable.
+		/// Compute and store the latent-model log-ratio of a move of `a`.
 		double commit_latent_log_lik_ratio(const Individual &indiv, size_t a)
 		{
 			return augm.commit_latent_log_lik_ratio(indiv, a);
 		}
 
-		/// Compute and store log-ratio of observation nodes parameterized by 'a'.
+		/// Compute and store the log-ratio of observations parameterized by `a`.
 		double commit_obs_log_lik_ratio(const Individual &indiv, size_t a)
 		{
 			return augm.commit_obs_log_lik_ratio(indiv, a);
 		}
 
-		/// Compute and set value of observation log-likelihood. Return log-like.
+		/// Compute and store the transmission log-likelihood of `house`.
 		double commit_transm_log_lik_(const Household &house)
 		{
 			double output = model->compute_house_transm_log_lik(house);
@@ -103,7 +97,8 @@ namespace housepi
 			return output;
 		}
 
-		/// Compute and set value of observation log-likelihood. Return log-like ratio.
+		/// Compute and store the transmission log-likelihood of `house`.
+		/// @return Log-ratio against the stored value.
 		double commit_transm_log_lik_ratio_(const Household &house)
 		{
 			double output = -data_wide().transm_log_lik(house).value();
@@ -112,44 +107,40 @@ namespace housepi
 		}
 
 	public:
-		///////////////////////////////////
-		//////  METROPOLIS-HASTINGS  //////
-		///////////////////////////////////
+		//////  Metropolis-Hastings  //////
 
-		/// Performs the inference using Metropolis-Hastings algorithm.
-		/// Returns the seconds spent sampling.
+		/// Run inference with the Metropolis-Hastings algorithm.
+		/// @return Seconds spent sampling.
 		double run_inference();
 
 	private:
-		/// Markov chain core.
-		/// NOTE: sweep is the number of previously completed thin sweeps.
+		/// Run every chain: initialization, adaptation, then posterior sampling.
 		void run_monte_carlo_();
-		/// Finite adaptative iterations.
+		/// Run the finite adaptation iterations.
 		void run_mc_finite_adaptation_();
-		// Run MC chain posterior sampling iterations, with optional burn-in.
-		// Draws are stored in the column block of chain `chain_id`.
+		/// Run posterior sampling iterations, burn-in included.
+		/// - draws: stored in the column block of chain `chain_id`.
 		void run_mc_posterior_sampling_(unsigned long chain_id);
 
-		/// Move all model parameters and latent variables.
-		/// Adapt: moves are credited to the proposals, which only adaptation reads.
+		/// Move every parameter and latent.
+		/// - `Adapt`: moves credited to the proposals, read by adaptation only.
 		template <bool Adapt>
 		void move_all_();
-		/// Attempt to move a single parameter.
+		/// Attempt a move of parameter `p`.
 		template <bool Adapt>
 		void move_single_parameter_(size_t p, bool with_cache);
-		/// Move latent variables of all infected individuals.
+		/// Move the latents of every infected member.
 		template <bool Adapt>
 		void move_all_latent_();
-		/// Move latent variables of infectious members inside household.
-		/// The move is performed one member at a time, one latent variable at a time.
-		/// Returns the accepted transmission log-likelihood and latent log-model deltas.
+		/// Move the latents of infected members of household `H`, one member and one latent at a time.
+		/// @return Accepted deltas of transmission and latent-model log-likelihoods.
 		template <bool Adapt>
 		LogLikAccumulator move_latent_single_house_(size_t H);
-		/// Move a single latent variable.
-		/// Returns the accepted transmission log-likelihood and latent log-model deltas.
+		/// Move latent `a` of member `indiv`.
+		/// @return Accepted deltas of transmission and latent-model log-likelihoods.
 		template <bool Adapt>
 		LogLikAccumulator move_latent_single_variable_(const Household &house,
-													 const Individual &indiv,
-													 size_t a);
+													   const Individual &indiv,
+													   size_t a);
 	};
 }

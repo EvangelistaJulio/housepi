@@ -16,101 +16,72 @@
 
 #include "variable.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** Parameter : struct ***  ////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Parameter  //////////////////////////////
 
 namespace housepi
 {
-    struct ContactRisk;
-    struct GroupRisk;
     struct Translator;
 
-    /// Implementation of Parameters.
+    /// Model parameters of a run.
+    ///
+    /// - `list_const` + `list_sample`: every parameter;
+    /// - `list_func`: subset of `list_const`, deterministic function parameters;
+    /// - `list_sample_standard` + `list_sample_cached`: `list_sample`.
     struct Parameter : public KeyModuleWithRequests
     {
-        /// NOTE:
-        /// list_const + list_sample = all parameters in param_vec_
-        /// list_func < list_const (function-based parameters are deterministic)
-        /// list_sample = list_sample_standard + list_sample_cached
+        std::vector<size_t> list_const = {};    /// Constant parameters.
+        std::vector<size_t> list_func = {};     /// Function parameters.
+        std::vector<size_t> list_sample = {};   /// Parameters to sample.
+        std::vector<size_t> list_adaptive = {}; /// Parameters to sample with an adaptive proposal.
 
-        std::vector<size_t> list_const = {};    /// constant parameters
-        std::vector<size_t> list_func = {};     /// function-based parameters
-        std::vector<size_t> list_sample = {};   /// parameters to sample
-        std::vector<size_t> list_adaptive = {}; /// parameters to sample with adaptive proposal
+        std::vector<size_t> list_sample_standard = {}; /// Sampled parameters feeding no transmission cache.
+        std::vector<size_t> list_sample_cached = {};   /// Sampled parameters feeding the transmission cache.
 
-        std::vector<size_t> list_sample_standard = {};
-        std::vector<size_t> list_sample_cached = {};
+        std::vector<std::vector<double>> simulation_values = {}; /// Simulation values, per parameter.
 
-        std::vector<std::vector<double>> simulation_values = {}; /// simulation values
+        //////  Setter  //////
 
-        ////////////////
-        ///  SETTER  ///
-        ////////////////
-
-        /// Request that a baseline parameter and the relative risks scaling it share one reference.
-        void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts);
-
-        /// Assign parameter definitions to dictionary.
-        /// Expect unique definitions.
+        /// Build parameters from definition table `deftable`.
+        /// @note Expects one definition per parameter.
         void build(const str_table &deftable, const Translator &translator);
-        /// Build parameter dictionaries for expected measure on posterior sample.
-        /// Expect a non-empty table.
+        /// Pin the parameters `deftable` holds a column for, for measures on a posterior sample.
+        /// @note Expects a non-empty table.
         void build_for_predic(const dbl_table &deftable);
-        /// Mark parameter as a producer of transmission cache.
+        /// Mark parameter `p` as a producer of the transmission cache.
         void mark_produces_transm_cache(size_t p);
 
-        /// Assert that at most one scale is free among a baseline and the risks scaling it.
-        /// Pin the baseline to the reference value when it is the only way to resolve.
-        void assert_risk_identifiability(const GroupRisk &group_risk, const ContactRisk &contact_risk);
-
-        /// Randomly initialize values of the parameters to be inferred.
+        /// Initialize parameters to sample, for inference.
         void restart(rnd_gen &prng);
-        /// Simulation initialization (unlike restart it uses no proposal).
-        /// Draw sampled latent from their prior.
+        /// Draw parameters to sample from their prior, for simulation.
+        /// Unlike restart(), it uses no proposal.
         void draw_sample(rnd_gen &prng)
         {
             for (size_t p : list_sample)
                 at(p).draw_value(prng);
         }
-        /// Finalize all variables (see Variable::finalize).
+        /// Finalize every parameter (see Variable::finalize).
         void finalize();
-        /// Load parameters values of the n-th posterior sample.
+        /// Load parameter values of posterior sample `n`.
         void load_sample_values(size_t n);
 
-        /// Baseline parameter and the relative risks scaling it, as declared by the model.
-        struct RiskAnchor
-        {
-            size_t baseline;           /// parameter scaled by the risks
-            std::vector<size_t> risks; /// (relative) risk keys
-            bool contacts;             /// whether contact risks scale the same term
-        };
+        //////  Getter  //////
 
-        ////////////////
-        ///  GETTER  ///
-        ////////////////
-
-        /// Baselines declared by the model, with the risks anchored to them.
-        const std::vector<RiskAnchor> &risk_anchors() const noexcept { return risk_anchors_; }
-
-        /// Get reference to parameter Variable class.
+        /// Parameter `p`.
         Variable &at(size_t p) noexcept { return param_vec_[p]; }
-        /// Get reference to parameter constant Variable class.
         const Variable &at(size_t p) const noexcept { return param_vec_[p]; }
 
-        /// Whether parameter storage was allocated.
+        /// Whether parameter storage is allocated.
         bool is_allocated() const noexcept { return !param_vec_.empty(); }
 
-        /// Whether the parameter is pinned andcannot move.
-        /// Constant by definition, or held by the simulation table of the current run.
+        /// Whether parameter `p` is pinned and cannot move.
+        /// - constant by definition;
+        /// - held by the simulation table of the current run.
         bool is_pinned(size_t p) const noexcept
         {
             return at(p).is_constant() || !simulation_values[p].empty();
         }
 
-        /// Flag to check if there are parameters to sample.
+        /// Whether some parameter is sampled.
         bool is_any_sample() const noexcept { return !list_sample.empty(); }
 
         /// Total log-prior over sampled parameters.
@@ -123,20 +94,19 @@ namespace housepi
         }
 
     private:
-        std::vector<Variable> param_vec_ = {};      /// parameters vector
-        std::vector<RiskAnchor> risk_anchors_ = {}; /// model requested identifiability
+        std::vector<Variable> param_vec_ = {}; /// Parameters, by key.
 
-        /// Initialize parameter vector.
+        /// Allocate one named parameter per key.
         void init_param_vec_();
-        /// Drop a parameter from every sampling list and register it as constant.
+        /// Drop parameter `p` from every sampling list and register it as constant.
         void switch_to_const_(size_t p);
-        /// Drop current lists of parameters.
+        /// Drop every parameter list.
         void clear_lists_();
-        /// Helper to build constant parameter.
+        /// Build constant parameter of row `k`.
         void helper_build_constant_(const str_table &deftable, size_t k, const Translator &translator);
-        /// Helper to build parameter to sample.
+        /// Build parameter to sample of row `k`.
         void helper_build_to_sample_(const str_table &deftable, size_t k, const Translator &translator);
-        /// Helper to build function-based parameter.
+        /// Build function parameter of row `k`.
         void helper_build_function_(const str_table &deftable, size_t k, const Translator &translator);
     };
 }

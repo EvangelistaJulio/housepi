@@ -17,8 +17,7 @@
 #include "setup.h"
 #include "data_store.h"
 #include "parameter.h"
-#include "group_risk.h"
-#include "contact_risk.h"
+#include "risks.h"
 #include "infec_profile.h"
 #include "augmented.h"
 #include "posterior.h"
@@ -42,8 +41,7 @@ namespace housepi
 		//////  Key holders  //////
 
 		Parameter param;
-		GroupRisk group_risk;
-		ContactRisk contact_risk;
+		Risks risks;
 		InfecProfile infec_profile;
 		Augmented augm;
 		Translator translator;
@@ -54,16 +52,15 @@ namespace housepi
 		virtual ~MCMCBase();
 
 		/// Initialize every key holder.
-		void init_key_holder(
-			const std::vector<std::string> &data_wide_keys,
-			const std::vector<std::string> &hh_member_keys,
-			const std::vector<std::string> &hh_member_vec_keys,
-			const std::vector<std::string> &hh_double_vec_keys,
-			const std::vector<std::string> &hh_double_mtx_keys,
-			const std::vector<std::string> &data_long_keys,
-			const std::vector<std::string> &param_keys,
-			const std::vector<std::string> &group_risk_keys,
-			const std::vector<std::string> &latent_keys);
+		void init_key_holder(const std::vector<std::string> &data_wide_keys,
+							 const std::vector<std::string> &hh_member_keys,
+							 const std::vector<std::string> &hh_member_vec_keys,
+							 const std::vector<std::string> &hh_double_vec_keys,
+							 const std::vector<std::string> &hh_double_mtx_keys,
+							 const std::vector<std::string> &data_long_keys,
+							 const std::vector<std::string> &param_keys,
+							 const std::vector<std::string> &group_risk_keys,
+							 const std::vector<std::string> &latent_keys);
 
 		//////  Data access  //////
 
@@ -89,11 +86,6 @@ namespace housepi
 		double aug(size_t a, const Individual &m) const { return augm.at(a, m).value(); }
 		/// Datum `d` of member `m`.
 		double data(size_t d, const Individual &m) const noexcept { return data_wide().data(d, m); }
-
-		/// Whether members `i` and `j` of `house` share a risk partition.
-		bool is_same_risk_partition(const Household &house,
-									MemberIdx i,
-									MemberIdx j) const;
 
 		/// Data column names shared across simulations.
 		std::vector<std::string> get_static_data_names() const;

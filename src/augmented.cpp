@@ -1557,7 +1557,7 @@ namespace housepi
         // definition order per status, and equivalence-class covariates
         mcmc_->data_wide().set_eq_class_data_names(
             builder.order({infected.begin(), infected.end()}, mcmc_->param,
-                          mcmc_->data_wide().khold(), mcmc_->group_risk.khold()));
+                          mcmc_->data_wide().khold(), mcmc_->risks.group().khold()));
 
         builder.init_surrogates();   // surrogate columns
         builder.init_observations(); // observation nodes

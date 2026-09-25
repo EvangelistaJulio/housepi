@@ -24,8 +24,7 @@
 #include "data_wide.h"
 #include "data_long.h"
 #include "parameter.h"
-#include "group_risk.h"
-#include "contact_risk.h"
+#include "risks.h"
 #include "infec_profile.h"
 #include "augmented.h"
 
@@ -200,7 +199,7 @@ namespace housepi
     {
         try
         {
-            model.group_risk.build(model.data_wide(), model.param, read::csv_table(file.group_risk));
+            model.risks.build_group(model.data_wide(), model.param, read::csv_table(file.group_risk));
         }
         catch (const std::exception &e)
         {
@@ -212,7 +211,7 @@ namespace housepi
     {
         try
         {
-            model.contact_risk.build(model.data_wide(), model.param, read::csv_table(file.contact_risk));
+            model.risks.build_contact(model.data_wide(), model.param, read::csv_table(file.contact_risk));
         }
         catch (const std::exception &e)
         {

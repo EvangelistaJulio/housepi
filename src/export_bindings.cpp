@@ -38,7 +38,7 @@
 #include "data_long.h"
 #include "distribution.h"
 #include "function.h"
-#include "group_risk.h"
+#include "risks.h"
 #include "infec_profile.h"
 #include "parameter.h"
 #include "variable.h"
@@ -500,13 +500,13 @@ namespace
 
     void import_group_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        mcmc_ptr->group_risk.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+        mcmc_ptr->risks.build_group(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
         mcmc_ptr->init_equivalence_class_compression();
     }
 
     void import_contact_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
     {
-        mcmc_ptr->contact_risk.build(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
+        mcmc_ptr->risks.build_contact(mcmc_ptr->data_wide(), mcmc_ptr->param, rdataframe_to_strmap(input));
         mcmc_ptr->init_equivalence_class_compression();
     }
 
@@ -1015,7 +1015,7 @@ namespace
                                               const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
-        const GroupRisk &group_risk = mcmc_ptr->group_risk;
+        const risks::Group &group_risk = mcmc_ptr->risks.group();
         const std::vector<std::string> &headers = group_risk.khold().all();
 
         if (headers.empty() || group_risk.is_empty())
@@ -1051,7 +1051,7 @@ namespace
                                                     const Household &house)
     {
         const DataWide &data_wide = mcmc_ptr->data_wide();
-        const ContactRisk &contact_risk = mcmc_ptr->contact_risk;
+        const risks::Contact &contact_risk = mcmc_ptr->risks.contact();
 
         if (contact_risk.is_empty())
             return Rcpp::NumericMatrix(0, 0);
@@ -1340,7 +1340,7 @@ namespace
             engine.model->init_model_for_simulation(); // model-specific initialization
             engine.augm.init_house_for_simulation();   // build household-level observations
             data_wide.assert_required_everyone(augm.get_live_cols());
-            engine.param.assert_risk_identifiability(engine.group_risk, engine.contact_risk);
+            engine.risks.assert_identifiability(engine.param);
 
             // @todo Assert the infectivity profile here.
             // latents are not built yet, so a latent profile cannot be checked
@@ -1471,7 +1471,7 @@ namespace
     /// Baselines the model anchors to risks, keyed by parameter name.
     Rcpp::List risk_anchors(Rcpp::XPtr<housepi::MCMC> mcmc_ptr)
     {
-        const std::vector<Parameter::RiskAnchor> &anchors = mcmc_ptr->param.risk_anchors();
+        const std::vector<risks::Anchor> &anchors = mcmc_ptr->risks.anchors();
 
         Rcpp::List out(anchors.size());
         Rcpp::CharacterVector names(anchors.size());
@@ -1479,7 +1479,7 @@ namespace
         {
             names[a] = mcmc_ptr->param.khold(anchors[a].baseline);
             out[a] = Rcpp::List::create(
-                Rcpp::_["risks"] = Rcpp::wrap(mcmc_ptr->group_risk.khold(anchors[a].risks)),
+                Rcpp::_["risks"] = Rcpp::wrap(mcmc_ptr->risks.group().khold(anchors[a].risks)),
                 Rcpp::_["contacts"] = anchors[a].contacts);
         }
         out.names() = names;

@@ -20,20 +20,22 @@
 #include "tools/string.h"
 #include "tools/types.h"
 
-namespace housepi
+//////////////////////////////  risks::RuleTable  //////////////////////////////
+
+namespace housepi::risks
 {
-    /// Thin view over `str_table`.
-    /// It carries precomputed per-row `rule_group` id and specificity.
-    /// Drives specificity-based conflict resolution:
-    /// 'generalia specialibus non derogant'
+    /// Thin view over a rule table, with rule group and specificity precomputed per row.
+    ///
+    /// - conflicts resolve by specificity: 'generalia specialibus non derogant';
+    /// - specificity of a row: number of non-NA cells among the specificity columns.
     struct RuleTable
     {
-        const str_table &input;            /// user tidy definition table
-        const std::size_t n_rows;          /// rows in input
-        std::vector<std::size_t> row_gid;  /// rule_group id per row
-        std::vector<std::size_t> row_spec; /// specificity (non-NA cell count) per row
+        const str_table &input;            /// User tidy definition table.
+        const std::size_t n_rows;          /// Rows in the table.
+        std::vector<std::size_t> row_gid;  /// Rule-group id per row.
+        std::vector<std::size_t> row_spec; /// Specificity per row.
 
-        /// `spec_columns`: input columns counted into the specificity score.
+        /// View `input`, counting `spec_columns` into the specificity.
         RuleTable(const str_table &input_,
                   const std::vector<std::string> &spec_columns)
             : input(input_),
@@ -50,13 +52,15 @@ namespace housepi
             }
         }
 
-        /// Pick the most-specific matching row per Key.
-        /// `matches(r)`: row predicate.
-        /// `key_of(r)`:  Key extracted from row r.
-        /// `ctx_of(k)`:  error-context builder, used on tie at max specificity.
+        /// Pick the most specific matching row per key.
+        /// - tie at the top specificity: error.
+        /// @param matches Row predicate.
+        /// @param key_of Key of row `r`.
+        /// @param ctx_of Error context of key `k`, read on a tie.
         template <class Key, class Predicate, class KeyFn, class CtxFn>
-        std::map<Key, std::size_t>
-        resolve(Predicate matches, KeyFn key_of, CtxFn ctx_of) const
+        std::map<Key, std::size_t> resolve(Predicate matches,
+                                           KeyFn key_of,
+                                           CtxFn ctx_of) const
         {
             std::map<Key, BestMatch_> best;
             for (std::size_t r = 0; r < n_rows; ++r)
@@ -70,14 +74,13 @@ namespace housepi
         }
 
     private:
-        /// Per-key best rule: max specificity, rows tied at it.
+        /// Best rule of one key: top specificity, and the rows tied at it.
         using BestMatch_ = std::pair<std::size_t, std::vector<std::size_t>>;
 
-        /// Register a matching row under its key's current best match.
-        static void update_best_match_(
-            BestMatch_ &b,
-            std::size_t spec,
-            std::size_t row)
+        /// Register matching row `row` against the current best match of its key.
+        static void update_best_match_(BestMatch_ &b,
+                                       std::size_t spec,
+                                       std::size_t row)
         {
             if (b.second.empty() || spec > b.first)
             {
@@ -88,11 +91,10 @@ namespace housepi
                 b.second.push_back(row);
         }
 
-        /// Return the surviving row id. Throw on tie at max specificity.
-        static std::size_t resolve_best_match_(
-            const BestMatch_ &b,
-            const str_table &input,
-            const std::string &ctx)
+        /// Return the surviving row, throw on a tie at the top specificity.
+        static std::size_t resolve_best_match_(const BestMatch_ &b,
+                                               const str_table &input,
+                                               const std::string &ctx)
         {
             if (b.second.size() == 1)
                 return b.second[0];

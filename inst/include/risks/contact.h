@@ -7,36 +7,41 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
+#include <cstddef>
 #include <vector>
 
 #include "tools/types.h"
-#include "function.h"
-#include "group_risk.h"
-#include "household.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  *** ContactRisk : struct ***  ///////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+#include "household.h"
+#include "risks/anchor.h"
+#include "risks/store.h"
+
+//////////////////////////////  risks::Contact  //////////////////////////////
 
 namespace housepi
 {
     struct DataWide;
     struct Parameter;
+}
 
-    struct ContactRisk : public RiskStorage
+namespace housepi::risks
+{
+    /// Contact risks of every ordered member pair, one row-major matrix per household.
+    struct Contact : public Store
     {
     public:
-        /// Build symmetric contact risks from table definitions.
+        //////  Setter  //////
+
+        /// Build contact risks from rule table `input`.
+        /// - contact risks are not symmetric a priori.
         void build(DataWide &data_wide,
                    const Parameter &param,
                    const str_table &input);
 
-        /// Whether household members i and j have matching contact risks across all members.
-        /// Self-contacts are included: all contacts i<->j must also be equal.
+        //////  Getter  //////
+
+        /// Whether members `i` and `j` of `house` have matching contact risks with every member.
+        /// - self-contacts and the contacts `i` to `j` and `j` to `i` must match too.
         bool same_contacts(const Household &house,
                            MemberIdx i,
                            MemberIdx j) const noexcept
@@ -59,7 +64,7 @@ namespace housepi
             return true;
         }
 
-        /// Contact risk of an ordered pair, row-major within the household.
+        /// Contact-risk attribute from member `from` to member `to`, row-major within `house`.
         const Attribute &at(const Household &house,
                             MemberIdx from,
                             MemberIdx to) const noexcept
@@ -69,8 +74,17 @@ namespace housepi
                              static_cast<size_t>(to));
         }
 
-        /// Contact risk 'from' household member 'to' member.
-        /// NOTE: self-contacts are set to 0.
+        /// Contact-risk value within the partition of member `i` (self-contact attribute).
+        /// - no definition: 1.
+        double intra_value(const Household &house,
+                           MemberIdx i) const
+        {
+            return is_empty() ? 1. : at(house, i, i).value();
+        }
+
+        /// Contact-risk value from member `from` to member `to`.
+        /// - self-contact: 0;
+        /// - no definition: 1.
         double value(const Household &house,
                      MemberIdx from,
                      MemberIdx to) const
@@ -78,19 +92,13 @@ namespace housepi
             return from == to ? 0. : (is_empty() ? 1. : at(house, from, to).value());
         }
 
-        /// Contact risk intra member partition (self-contact).
-        double intra_value(const Household &house, MemberIdx i) const
-        {
-            return is_empty() ? 1. : at(house, i, i).value();
-        }
-
-        /// Rule groups whose overall scale is free (see Parameter::assert_risk_identifiability).
+        /// Number of rule groups whose overall scale is free.
         size_t n_scale_free(const Parameter &param) const
         {
-            return count_scale_free_(scale_anchors_, param);
+            return count_scale_free(scale_anchors_, param);
         }
 
     private:
-        std::vector<ScaleAnchor> scale_anchors_ = {}; /// rule groups scaling the contacts
+        std::vector<ScaleAnchor> scale_anchors_ = {}; /// Rule groups scaling the contacts.
     };
 }
