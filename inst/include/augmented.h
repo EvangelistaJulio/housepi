@@ -18,7 +18,7 @@
 #include "augmented/definition.h"
 #include "augmented/scheme.h"
 #include "augmented/state.h"
-#include "individual.h"
+#include "data/individual.h"
 #include "variable.h"
 
 //////////////////////////////  Augmented  //////////////////////////////
@@ -26,7 +26,10 @@
 namespace housepi
 {
     struct InfecProfile;
-    struct DataWide;
+    namespace data
+    {
+        struct Wide;
+    }
     class Household;
     class MCMCBase;
 

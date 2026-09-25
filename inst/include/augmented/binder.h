@@ -19,7 +19,7 @@
 
 namespace housepi
 {
-    struct DataWide;
+    struct Data;
     struct Translator;
     class Household;
 }
@@ -34,11 +34,11 @@ namespace housepi::augm
         Binder(const DefTable &def,
                const KeyModuleWithRequests &keys,
                const Translator &translator,
-               DataWide &data_wide)
+               Data &data)
             : def_(def),
               keys_(keys),
               translator_(translator),
-              data_wide_(data_wide) {}
+              data_(data) {}
 
         /// Bind definition row `k` to `anchor`.
         ///
@@ -81,7 +81,7 @@ namespace housepi::augm
         const DefTable &def_;               /// Definitions, one row per latent or observation.
         const KeyModuleWithRequests &keys_; /// Latent keys and their model requests.
         const Translator &translator_;      /// Resolves definition entries into Attributes.
-        DataWide &data_wide_;               /// Data columns, whose cells surrogates fill.
+        Data &data_;                        /// Data columns, whose read-cells surrogates fill.
 
         /// Assign model, arguments and domain to definition row `k`.
         void bind_distr_(Variable &var, size_t k,

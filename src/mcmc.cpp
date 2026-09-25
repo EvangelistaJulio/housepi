@@ -27,12 +27,13 @@
 #include "tools/vector.h"
 
 #include "augmented.h"
-#include "data_wide.h"
-#include "data_long.h"
+#include "data.h"
+#include "data/household.h"
+#include "data/individual.h"
+#include "data/long.h"
+#include "data/wide.h"
 #include "distribution.h"
 #include "function.h"
-#include "household.h"
-#include "individual.h"
 #include "infec_profile.h"
 #include "mcmc.h"
 #include "mcmc_base.h"
@@ -116,7 +117,7 @@ namespace housepi
                 // wire the column's read-cell: its producer points the cell at itself
                 // the reader needs no rule of its own
                 storage_.init_pointer(
-                    &pdata_wide_->readcell(pdata_wide_->khold(node.value), *indiv_ptr));
+                    &pdata_->at(pdata_->wide().khold(node.value), *indiv_ptr));
                 storage_.name(node.value, ErrType::Data);
             }
             else if (parse::is_latent(node.type))
@@ -300,7 +301,7 @@ namespace housepi
         /// Initialize the household transmission log-likelihood draws of the posterior.
         void helper_init_house_draws(
             Posterior *post,
-            const DataWide &data_wide,
+            const data::Wide &data_wide,
             unsigned long sample_size)
         {
             post->house_log_lik.reserve(data_wide.eq_class_size());
@@ -320,7 +321,7 @@ namespace housepi
             std::vector<std::string> hhids;
             std::vector<const Individual *> ptrs;
 
-            void store(const DataWide &data_wide, const Household &house, const Individual &indiv)
+            void store(const data::Wide &data_wide, const Household &house, const Individual &indiv)
             {
                 ids.emplace_back(data_wide.id(indiv));
                 hhids.emplace_back(data_wide.hhid(house));
@@ -332,7 +333,7 @@ namespace housepi
         /// @note Draw lists are assumed to hold unique ids.
         std::vector<const Individual *> helper_init_individual_sample(
             const Augmented &augm,
-            const DataWide &data_wide,
+            const data::Wide &data_wide,
             const std::vector<std::string> &id_draws,
             const std::vector<std::string> &house_draws,
             rnd_gen &prng)
@@ -401,7 +402,7 @@ namespace housepi
         void helper_init_latent_draws(
             Posterior *post,
             const Augmented &augm,
-            const DataWide &data_wide,
+            const data::Wide &data_wide,
             const Setup &setup,
             unsigned long sample_size)
         {
@@ -443,8 +444,8 @@ namespace housepi
         sample_size_ = setup.c_sample_size * setup.n_chains;
 
         helper_init_param_draws(this, mcmc.param, sample_size_);
-        helper_init_house_draws(this, mcmc.data_wide(), sample_size_);
-        helper_init_latent_draws(this, mcmc.augm, mcmc.data_wide(), setup, sample_size_);
+        helper_init_house_draws(this, mcmc.data.wide(), sample_size_);
+        helper_init_latent_draws(this, mcmc.augm, mcmc.data.wide(), setup, sample_size_);
     }
 
     void Posterior::store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local)
@@ -466,13 +467,13 @@ namespace housepi
 
         // pointwise household log-likelihood: transmission + observation + latent
         // with a latent or observation model, every household is its own equivalence class
-        const DataWide &data_wide = mcmc.data_wide();
+        const data::Wide &data_wide = mcmc.data.wide();
         const bool with_obs = mcmc.augm.scheme().is_any_obs_model();
         const bool with_model = mcmc.augm.scheme().is_any_latent_model();
         for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
         {
             const Household &head = data_wide.eq_class_head(R);
-            double value = data_wide.house_transm_log_lik(R);
+            double value = mcmc.data.state.transm_log_lik(data_wide.eq_class_head(R)).value();
             if (with_obs)
                 value += mcmc.house_obs_log_lik(head);
             if (with_model)
@@ -495,15 +496,8 @@ namespace housepi
     //////////////////////////////  MCMCBase  //////////////////////////////
 
     MCMCBase::MCMCBase()
-        : pDataStore(std::make_shared<DataStore>()),
-          augm(this), translator(param, augm) {}
+        : augm(this), translator(param, augm) {}
     MCMCBase::~MCMCBase() = default;
-
-    void MCMCBase::set_data_store(std::shared_ptr<DataStore> ds)
-    {
-        pDataStore = std::move(ds);
-        translator.bind_data_wide(&pDataStore->data_wide);
-    }
 
     void MCMCBase::init_key_holder(
         const std::vector<std::string> &data_wide_keys,
@@ -516,17 +510,17 @@ namespace housepi
         const std::vector<std::string> &group_risk_keys,
         const std::vector<std::string> &latent_keys)
     {
-        data_wide().init_key_holder(data_wide_keys);
-        data_wide().init_cache_key_holders(hh_member_keys,
+        data.wide().init_key_holder(data_wide_keys);
+        data.wide().init_cache_key_holders(hh_member_keys,
                                            hh_member_vec_keys,
                                            hh_double_vec_keys,
                                            hh_double_mtx_keys);
-        data_long().init_key_holder(data_long_keys);
+        data.long_format().init_key_holder(data_long_keys);
         param.init_key_holder(param_keys);
         risks.init_key_holder(group_risk_keys);
         augm.init_key_holder(latent_keys);
 
-        translator.bind_data_wide(&data_wide());
+        translator.bind_data(&data);
         translator.bind_group_risk(&risks.group());
     }
 
@@ -538,8 +532,8 @@ namespace housepi
         if (!force_unique && augm.scheme().list_latent_export.size() == 0)
             force_unique = augm.khold().size() > 0;
 
-        data_wide().init_eq_classes(force_unique);
-        data_wide().allocate_transm_log_lik();
+        data.wide().init_eq_classes(force_unique, data.state);
+        data.state.allocate_transm_log_lik(data.wide());
     }
 
     namespace infprof
@@ -601,7 +595,7 @@ namespace housepi
         if (infec_profile.generic)
             infprof::assert_zero_at_origin(*infec_profile.generic, is_discr);
         else
-            for (const Household &house : data_wide())
+            for (const Household &house : data.wide())
                 for (const Individual &indiv : house.infected_indivs())
                 {
                     // check status-specific profiles
@@ -639,7 +633,7 @@ namespace housepi
         for (size_t p : param.scheme().adaptive)
             param.at(p).init_proposal();
         if (augm.scheme().is_any_adaptive())
-            for (const Household &house : data_wide())
+            for (const Household &house : data.wide())
                 for (const Individual &indiv : house.infected_indivs())
                     for (size_t a : augm.list_adaptive(indiv))
                         augm.at(a, indiv).init_proposal();
@@ -656,9 +650,9 @@ namespace housepi
             tot_latent_log_lik.recover();
 
         // recover old log-likelihood values for households
-        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
+        for (size_t R = 0; R < data.wide().eq_class_size(); ++R)
         {
-            const Household &house = data_wide().eq_class_head(R);
+            const Household &house = data.wide().eq_class_head(R);
             recover_transm_log_lik_(house);
 
             // recover from commit_total_log_posterior_
@@ -672,7 +666,7 @@ namespace housepi
 
         if (with_cache)
         {
-            data_wide().recover_old_cached();
+            data.state.recover_cache();
             infec_profile.recover();
         }
     }
@@ -687,15 +681,15 @@ namespace housepi
         for (const augm::Surrogate &surr : augm.scheme().list_surrogate)
             if (surr.is_own_column())
                 produced.push_back(augm.def()[surr.row].name);
-        return vect::difference(data_wide().khold().all(), produced);
+        return vect::difference(data.wide().khold().all(), produced);
     }
 
     std::vector<size_t> MCMCBase::get_row_offsets() const
     {
-        size_t n_houses = data_wide().report_house.total;
+        size_t n_houses = data.wide().report_house.total;
         std::vector<size_t> output(n_houses + 1, 0);
         for (size_t H = 0; H < n_houses; ++H)
-            output[H + 1] = output[H] + data_wide().at(H).size();
+            output[H + 1] = output[H] + data.wide().at(H).size();
         return output;
     }
 
@@ -759,18 +753,18 @@ namespace housepi
 
     void MCMC::detach_data_store()
     {
-        if (pDataStore.use_count() <= 1)
+        if (!data.is_shared())
             return;
-        auto new_ds = std::make_shared<DataStore>();
-        new_ds->data_wide.init_key_holder(model->key_Data());
-        new_ds->data_wide.copy_requests(data_wide()); // model requests outlive the data
-        new_ds->data_wide.init_cache_key_holders(
+        Data fresh;
+        fresh.wide().init_key_holder(model->key_Data());
+        fresh.wide().copy_requests(data.wide()); // model requests outlive the data
+        fresh.wide().init_cache_key_holders(
             model->key_HHmember(),
             model->key_HHmembervec(),
             model->key_HHdoublevec(),
             model->key_HHdoublemtx());
-        new_ds->data_long.init_key_holder(model->key_Long());
-        set_data_store(std::move(new_ds));
+        fresh.long_format().init_key_holder(model->key_Long());
+        data.share(fresh);
     }
 
     //////  Evaluation  //////
@@ -797,7 +791,7 @@ namespace housepi
             // single household evaluation
             infec_profile.update_cache();
             acc = commit_house_log_posterior_(
-                data_wide().at(hhid),
+                data.wide().at(hhid),
                 true, augm.scheme().is_any_latent_model(), augm.scheme().is_any_obs_model());
         }
 
@@ -807,22 +801,22 @@ namespace housepi
 
     void MCMC::init_for_evaluation_()
     {
-        DataWide &data_wide = this->data_wide();
+        data::Wide &data_wide = this->data.wide();
         data_wide.assert_not_all_missing_status();
 
         // materialize surrogate data columns before anything reads the data store
-        data_wide.reset_readcells(augm.get_produced_cols());
+        data.reset_readcells(augm.get_produced_cols());
         augm.init_for_evaluation();
-        data_wide.assert_required_everyone();
-        data_wide.init_eq_classes(augm.scheme().is_unique_eq_class());
-        data_wide.allocate_all_cache();
-        data_wide.allocate_transm_log_lik();
+        data_wide.assert_required_everyone(data.state);
+        data_wide.init_eq_classes(augm.scheme().is_unique_eq_class(), data.state);
+        data.state.allocate_cache(data_wide);
+        data.state.allocate_transm_log_lik(data_wide);
 
         param.finalize();
         risks.finalize();
         augm.finalize();
         infec_profile.finalize();
-        data_wide.finalize();
+        data.finalize();
 
         risks.assert_identifiability(param);
         assert_valid_infectivity_profile();
@@ -836,11 +830,11 @@ namespace housepi
                                            bool with_latent_ll,
                                            bool with_obs_ll)
     {
-        DataWide &data_wide = this->data_wide();
+        data::Wide &data_wide = this->data.wide();
 
         if (with_cache)
         {
-            data_wide.save_all_cached();
+            data.state.save_cache();
             infec_profile.update_cache();
         }
 
@@ -918,15 +912,15 @@ namespace housepi
 
     void MCMC::init_guarded_commit_total_()
     {
-        data_wide().save_all_cached();
+        data.state.save_cache();
         infec_profile.update_cache();
 
         // single serial pass
         LogLikAccumulator acc;
-        for (size_t R = 0; R < data_wide().eq_class_size(); ++R)
+        for (size_t R = 0; R < data.wide().eq_class_size(); ++R)
         {
-            double w = data_wide().eq_class_weight(R);
-            LogLikAccumulator a = init_guarded_commit_house_(data_wide().eq_class_head(R));
+            double w = data.wide().eq_class_weight(R);
+            LogLikAccumulator a = init_guarded_commit_house_(data.wide().eq_class_head(R));
             acc += {w * a.obs_ll, w * a.transm_ll, w * a.latent_ll};
         }
 
@@ -944,10 +938,10 @@ namespace housepi
         // --- Transmission ---
         model->update_house_transmission_cache(house);
         acc.transm_ll = commit_transm_log_lik_(house);
-        if (data_wide().transm_log_lik(house).is_inf())
+        if (data.state.transm_log_lik(house).is_inf())
             msg::stop(
                 "Initial transmission log-likelihood returned infinity for " +
-                data_wide().str(house) + ".");
+                data.wide().str(house) + ".");
 
         // --- Observation ---
         // resample each individual variable upon failure
@@ -979,7 +973,7 @@ namespace housepi
                 if (latent_log_lik_(indiv).is_inf())
                     msg::stop(
                         "Initial latent log-likelihood returned infinity for " +
-                        data_wide().str(indiv) + ".");
+                        data.wide().str(indiv) + ".");
             }
 
         return acc;
@@ -997,7 +991,7 @@ namespace housepi
             for (size_t p : param.scheme().adaptive)
                 param.at(p).adapt_proposal(ratio);
             if (augm.scheme().is_any_adaptive())
-                for (const Household &house : data_wide())
+                for (const Household &house : data.wide())
                     for (const Individual &indiv : house.infected_indivs())
                         for (size_t a : augm.list_adaptive(indiv))
                             augm.at(a, indiv).adapt_proposal(ratio);
@@ -1086,7 +1080,7 @@ namespace housepi
 
         // run per-house latent moves, and accumulate accepted log-density deltas
         LogLikAccumulator acc = parallel::for_reduce<LogLikAccumulator>(
-            data_wide().report_house.total,
+            data.wide().report_house.total,
             [&](size_t H) -> LogLikAccumulator
             { return move_latent_single_house_<Adapt>(H); },
             setup.budget.inner);
@@ -1099,7 +1093,7 @@ namespace housepi
     template <bool Adapt>
     LogLikAccumulator MCMC::move_latent_single_house_(size_t H)
     {
-        const Household &house = data_wide().at(H);
+        const Household &house = data.wide().at(H);
 
         LogLikAccumulator acc;
         for (const Individual &indiv : house.infected_indivs())
@@ -1130,7 +1124,7 @@ namespace housepi
             // recompute the cached quantities consuming this member
             if (produces_transm)
             {
-                data_wide().save_member_cache(house, indiv);
+                data.state.save_member_cache(house, indiv);
                 model->update_member_transmission_cache(house, indiv);
             }
 
@@ -1158,7 +1152,7 @@ namespace housepi
             recover_latent_log_lik_(indiv);
 
             if (produces_transm)
-                data_wide().recover_member_old_cached(house, indiv);
+                data.state.recover_member_cache(house, indiv);
         }
         avar.restore();
         if constexpr (Adapt)

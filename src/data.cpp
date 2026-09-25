@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "tools/data_reports.h"
+#include "data/reports.h"
 #include "tools/keys.h"
 #include "tools/logproba.h"
 #include "tools/messages.h"
@@ -27,19 +27,16 @@
 #include "tools/types.h"
 #include "tools/vector.h"
 
-#include "data_long.h"
-#include "data_wide.h"
+#include "data/household.h"
+#include "data/individual.h"
+#include "data/long.h"
+#include "data/state.h"
+#include "data/wide.h"
 #include "function.h"
-#include "household.h"
-#include "individual.h"
 
 namespace housepi
 {
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  *** Household : class ***  ///////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Household  //////////////////////////////
 
     void Household::add_indiv(IndivIdx index, StatusLvl status)
     {
@@ -63,14 +60,14 @@ namespace housepi
         size_t cold = status::category(indiv.status());
         size_t cnew = status::category(snew);
 
-        indiv.status_ = snew; // NOTE: might just change within infected status
+        indiv.status_ = snew; // may stay within the infected category
         if (cold == cnew)
             return;
 
         // segment starts [infected | escaped | missing]
         const size_t starts[] = {0, ninf_, static_cast<size_t>(ninf_ + nsus_)};
         // find old position given the old segment
-        // NOTE: segments are small, raw scan profiled better
+        // linear scan: segments are small
         size_t pos = starts[cold];
         while (status_vec_[pos] != i)
             ++pos;
@@ -117,13 +114,13 @@ namespace housepi
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  *** DataWide : struct ***  ///////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+}
 
-    void DataWide::init_cache_key_holders(const std::vector<std::string> &member_keys,
+namespace housepi::data
+{
+    //////////////////////////////  data::Wide  //////////////////////////////
+
+    void Wide::init_cache_key_holders(const std::vector<std::string> &member_keys,
                                           const std::vector<std::string> &member_vec_keys,
                                           const std::vector<std::string> &double_vec_keys,
                                           const std::vector<std::string> &double_mtx_keys)
@@ -134,7 +131,7 @@ namespace housepi
         khold_double_mtx.init(double_mtx_keys);
     }
 
-    void DataWide::build(const str_table &input)
+    void Wide::build(const str_table &input)
     {
         khold_.clear_optional();
         khold_member_val.clear_optional();
@@ -198,35 +195,32 @@ namespace housepi
             IndivWide_ &idata = indiv_data_[i];
             idata.status = status;
             idata.vec.resize(khold_.size());
-            // per-column read-cell defaults to the imported raw data value
-            idata.readcell.resize(idata.vec.size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
             {
                 const std::string &dname = khold(d);
                 double &x = idata.vec[d];
 
-                // placeholder for model-required columns absent at import
-                // NOTE: the check is deferred to the R-side wall (see build_full_)
+                // model-required column absent at import: missing, reported at the run wall
                 x = na::DOUBLE;
 
                 if (input.count(dname))
                     x = str::tod(input.at(dname)[i], "data " + msg::arg(dname));
 
-                idata.readcell[d].name(dname, ErrType::Data);
-                idata.readcell[d].init_numeric(x);
-
                 // a missing cell carries no verdict: absence is reported at
                 // the run wall, not as a violated requirement
                 if (na::is(x))
                     continue;
+                Attribute cell;
+                cell.name(dname, ErrType::Data);
+                cell.init_numeric(x);
                 try
                 {
-                    assert_requests(d, idata.readcell[d]);
+                    assert_requests(d, cell);
                 }
                 catch (const std::exception &e)
                 {
                     msg::stop(
-                        std::string(e.what()) + "\nCheck " + idata.readcell[d].str() + err_ctx + ".");
+                        std::string(e.what()) + "\nCheck " + cell.str() + err_ctx + ".");
                 }
             }
 
@@ -258,46 +252,29 @@ namespace housepi
         }
 
         // columns known at import: model declared keys plus the user ones. Columns
-        // produced by an observation are appended later (see reset_readcells).
+        // produced by an observation are appended later (see add_produced_cols).
         n_imported_ = khold_.size();
 
         // update report for data
         build_helper_fill_report_data_();
     }
 
-    std::vector<std::string> DataWide::imported_cols() const
+    std::vector<std::string> Wide::imported_cols() const
     {
         std::vector<std::string> all = khold_.all();
         all.resize(n_imported_);
         return all;
     }
 
-    void DataWide::reset_readcells(const std::vector<std::string> &produced_cols)
+    void Wide::add_produced_cols(const std::vector<std::string> &produced_cols)
     {
         for (const std::string &name : produced_cols)
             khold_.add(name);
-        const size_t total = khold_.size();
-
         for (IndivWide_ &idata : indiv_data_)
-        {
-            idata.vec.resize(total, na::DOUBLE);
-            idata.readcell.resize(total);
-            for (size_t d = 0; d < total; ++d)
-            {
-                idata.readcell[d].name(khold(d), ErrType::Data);
-                idata.readcell[d].init_numeric(idata.vec[d]);
-            }
-        }
+            idata.vec.resize(khold_.size(), na::DOUBLE);
     }
 
-    void DataWide::finalize()
-    {
-        for (IndivWide_ &idata : indiv_data_)
-            for (Attribute &attr : idata.readcell)
-                attr.finalize();
-    }
-
-    size_t DataWide::index_of_(std::string_view hhid) const
+    size_t Wide::index_of_(std::string_view hhid) const
     {
         auto it = hhid_to_index_.find(hhid);
         if (it == hhid_to_index_.end())
@@ -306,7 +283,7 @@ namespace housepi
         return it->second;
     }
 
-    void DataWide::helper_build_clear_data_()
+    void Wide::helper_build_clear_data_()
     {
         house_vector_.clear();
         hhid_to_index_.clear();
@@ -318,7 +295,7 @@ namespace housepi
         report_hh_size = ReportHouseSizes();
     }
 
-    void DataWide::helper_build_data_headers_(const str_table &input)
+    void Wide::helper_build_data_headers_(const str_table &input)
     {
         std::vector<std::string> headers = read::extract_keys(input);
 
@@ -340,7 +317,7 @@ namespace housepi
             khold_.add(datastring);
     }
 
-    void DataWide::build_helper_fill_report_data_()
+    void Wide::build_helper_fill_report_data_()
     {
         report_house.total = house_vector_.size();
         report_house.distinct = report_house.total;
@@ -382,18 +359,16 @@ namespace housepi
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////  *** DataWide : frequency weights ***  /////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  data::Wide : equivalence classes  //////
 
     namespace
     {
         struct FrequencyMapper_
         {
-            FrequencyMapper_(const std::unordered_set<size_t> data_list, const DataWide &data_wide)
-                : data_list_(data_list), data_wide_(data_wide) {}
+            FrequencyMapper_(const std::unordered_set<size_t> data_list, const State &state)
+                : data_list_(data_list), state_(state) {}
 
-            /// Compute frequency-relevant hash for each household
+            /// Group households by hash of their sorted members.
             std::map<size_t, std::vector<size_t>> define_hash_groups(
                 const std::vector<Household> &house_vector)
             {
@@ -418,7 +393,7 @@ namespace housepi
                         const Individual &indiv = house.at(i);
                         hash_combine_(seed, std::hash<StatusLvl>{}(indiv.status()));
                         for (size_t d : data_list_)
-                            hash_combine_(seed, std::hash<double>{}(data_wide_.data(d, indiv)));
+                            hash_combine_(seed, std::hash<double>{}(state_.readcell(d, indiv).value()));
                     }
                     output[seed].emplace_back(H);
                 }
@@ -427,21 +402,18 @@ namespace housepi
             }
 
         private:
-            /// List of data relevant for frequency groups
-            const std::unordered_set<size_t> data_list_;
-            /// Wide-format data storage
-            const DataWide &data_wide_;
+            const std::unordered_set<size_t> data_list_; /// Covariates hashed into equivalence classes.
+            const State &state_;                         /// Read-cells of every member.
 
-            /// Comparison functor: sort members by (status, data[0], data[1], ...)
-            /// NOTE: a missing cell is a class of its own, ordered last, so the
-            /// equivalence it induces stays transitive (see CovariateLess_).
+            /// Whether member `a` sorts before `b`, by status then covariates.
+            /// - missing cell: a class of its own, ordered last, so the equivalence stays transitive.
             bool indiv_less_(const Individual &a, const Individual &b) const
             {
                 if (a.status() != b.status())
                     return a.status() < b.status();
                 for (size_t d : data_list_)
                 {
-                    const double x = data_wide_.data(d, a), y = data_wide_.data(d, b);
+                    const double x = state_.readcell(d, a).value(), y = state_.readcell(d, b).value();
                     const bool na_x = na::is(x), na_y = na::is(y);
                     if (na_x != na_y)
                         return na_y;
@@ -451,8 +423,8 @@ namespace housepi
                 return false;
             }
 
-            /// Using golden ratio fractional part to ensure bit distribution.
-            /// Based on @cite james_boostcontainerhash_2022
+            /// Combine hash `h` into `seed`, golden-ratio mixing.
+            /// Based on @cite james_boostcontainerhash_2022.
             void hash_combine_(size_t &seed, size_t h)
             {
 #if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
@@ -464,13 +436,13 @@ namespace housepi
         };
     }
 
-    void DataWide::set_eq_class_data_names(const std::vector<std::string> &data_list)
+    void Wide::set_eq_class_data_names(const std::vector<std::string> &data_list)
     {
         for (size_t d : khold(data_list))
             eq_class_covariates_.emplace(d);
     }
 
-    void DataWide::init_eq_classes(bool force_unique)
+    void Wide::init_eq_classes(bool force_unique, const State &state)
     {
         if (force_unique)
         {
@@ -480,7 +452,7 @@ namespace housepi
 
         // compute frequency-relevant hash for each household
         std::map<size_t, std::vector<size_t>> hash_groups =
-            FrequencyMapper_(eq_class_covariates_, *this).define_hash_groups(house_vector_);
+            FrequencyMapper_(eq_class_covariates_, state).define_hash_groups(house_vector_);
 
         // update number of distinct frequency groups
         report_house.distinct = hash_groups.size();
@@ -505,7 +477,7 @@ namespace housepi
         }
     }
 
-    void DataWide::helper_init_unique_eq_classes_()
+    void Wide::helper_init_unique_eq_classes_()
     {
         // restore distinct count
         report_house.distinct = report_house.total;
@@ -523,29 +495,100 @@ namespace housepi
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  DataWide : cache attributes  //////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  data::Wide : flags  //////
 
-    void DataWide::allocate_all_cache()
+    void Wide::assert_not_all_missing_status() const
     {
-        cached_.previous.resize(eq_class_size());
-        cached_.current.resize(eq_class_size());
+        if (report_indiv.total == report_indiv.missing)
+            msg::stop(
+                "All individuals in the data had missing status.");
+    }
 
-        for (size_t R = 0; R < eq_class_size(); ++R)
+    void Wide::assert_no_missing_status() const
+    {
+        if (report_indiv.missing > 0)
+            msg::stop(
+                "Individual with missing status are incompatible with current model.");
+    }
+
+    void Wide::request_everyone(std::vector<size_t> vec)
+    {
+        vect::append_unique(request_everyone_, vec);
+    }
+
+    bool Wide::is_required_everyone(size_t d) const noexcept
+    {
+        return vect::contains(request_everyone_, d);
+    }
+
+    void Wide::assert_required_everyone(const State &state, const std::vector<std::string> &live) const
+    {
+        for (size_t d : request_everyone_)
+            if (!vect::contains(live, khold(d)))
+                for (const Household &house : house_vector_)
+                    for (const Individual &indiv : house)
+                        if (na::is(state.readcell(d, indiv).value()))
+                            msg::stop(
+                                "Data " + msg::val(khold(d)) + " has no value for " + str(indiv) + " for " +
+                                str(house) + ".\nThe model request it for every member, escaped ones included.");
+    }
+
+    void Wide::recover_all_status() noexcept
+    {
+        for (Household &house : house_vector_)
+            for (Individual &indiv : house)
+                house.set_new_status_(indiv, indiv_data_[Index::of(indiv)].status);
+    }
+
+    //////////////////////////////  data::State  //////////////////////////////
+
+    void State::reset_readcells(const Wide &wide)
+    {
+        const size_t total = wide.khold().size();
+        readcell_.resize(wide.report_indiv.total);
+        for (const Household &house : wide)
+            for (const Individual &indiv : house)
+            {
+                std::vector<Attribute> &cells = readcell_[Index::of(indiv)];
+                cells.resize(total);
+                for (size_t d = 0; d < total; ++d)
+                {
+                    cells[d].name(wide.khold(d), ErrType::Data);
+                    cells[d].init_numeric(wide.raw(d, indiv));
+                }
+            }
+    }
+
+    void State::finalize_readcells()
+    {
+        for (std::vector<Attribute> &cells : readcell_)
+            for (Attribute &cell : cells)
+                cell.finalize();
+    }
+
+    void State::allocate_transm_log_lik(const Wide &wide)
+    {
+        transm_log_lik_.assign(wide.eq_class_size(), LogProba());
+    }
+
+    void State::allocate_cache(const Wide &wide)
+    {
+        previous_.resize(wide.eq_class_size());
+        current_.resize(wide.eq_class_size());
+
+        for (size_t R = 0; R < wide.eq_class_size(); ++R)
         {
-            Household &house = eq_class_head(R);
-            size_t hh_size = house.size();
-            Cached_::State_ &prev = cached_.previous[R];
-            Cached_::State_ &curr = cached_.current[R];
+            size_t hh_size = wide.eq_class_head(R).size();
+            Cache_ &prev = previous_[R];
+            Cache_ &curr = current_[R];
 
             // member value
-            size_t s_member = khold_member_val.size();
+            size_t s_member = wide.khold_member_val.size();
             curr.member.assign(s_member, 0);
             prev.member.assign(s_member, 0);
 
             // member vector
-            size_t s_member_vec = khold_member_vec.size();
+            size_t s_member_vec = wide.khold_member_vec.size();
             curr.member_vector.resize(s_member_vec);
             prev.member_vector.resize(s_member_vec);
             for (size_t e = 0; e < s_member_vec; ++e)
@@ -555,7 +598,7 @@ namespace housepi
             }
 
             // double vector
-            size_t s_double_vec = khold_double_vec.size();
+            size_t s_double_vec = wide.khold_double_vec.size();
             curr.double_vector.resize(s_double_vec);
             prev.double_vector.resize(s_double_vec);
             for (size_t e = 0; e < s_double_vec; ++e)
@@ -565,7 +608,7 @@ namespace housepi
             }
 
             // double matrix
-            size_t s_double_mtx = khold_double_mtx.size();
+            size_t s_double_mtx = wide.khold_double_mtx.size();
             curr.double_matrix.resize(s_double_mtx);
             prev.double_matrix.resize(s_double_mtx);
             for (size_t e = 0; e < s_double_mtx; ++e)
@@ -576,12 +619,11 @@ namespace housepi
         }
     }
 
-    void DataWide::save_member_cache(const Household &house,
-                                     const Individual &indiv)
+    void State::save_member_cache(const Household &house, const Individual &indiv)
     {
         size_t i = Index::member(indiv);
-        Cached_::State_ &prev = cached_.previous[house.eq_class_];
-        Cached_::State_ &curr = cached_.current[house.eq_class_];
+        Cache_ &prev = previous_[house.eq_class()];
+        Cache_ &curr = current_[house.eq_class()];
         prev.member = curr.member;
 
         for (size_t e = 0; e < curr.member_vector.size(); ++e)
@@ -599,12 +641,11 @@ namespace housepi
             }
     }
 
-    void DataWide::recover_member_old_cached(const Household &house,
-                                             const Individual &indiv)
+    void State::recover_member_cache(const Household &house, const Individual &indiv)
     {
         size_t i = Index::member(indiv);
-        Cached_::State_ &prev = cached_.previous[house.eq_class_];
-        Cached_::State_ &curr = cached_.current[house.eq_class_];
+        Cache_ &prev = previous_[house.eq_class()];
+        Cache_ &curr = current_[house.eq_class()];
         curr.member.swap(prev.member);
 
         for (size_t e = 0; e < prev.member_vector.size(); ++e)
@@ -622,60 +663,9 @@ namespace housepi
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  DataWide : posterior draws  //////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  data::Long  //////////////////////////////
 
-    void DataWide::assert_not_all_missing_status() const
-    {
-        if (report_indiv.total == report_indiv.missing)
-            msg::stop(
-                "All individuals in the data had missing status.");
-    }
-
-    void DataWide::assert_no_missing_status() const
-    {
-        if (report_indiv.missing > 0)
-            msg::stop(
-                "Individual with missing status are incompatible with current model.");
-    }
-
-    void DataWide::request_everyone(std::vector<size_t> vec)
-    {
-        vect::append_unique(request_everyone_, vec);
-    }
-
-    bool DataWide::is_required_everyone(size_t d) const noexcept
-    {
-        return vect::contains(request_everyone_, d);
-    }
-
-    void DataWide::assert_required_everyone(const std::vector<std::string> &live) const
-    {
-        for (size_t d : request_everyone_)
-            if (!vect::contains(live, khold(d)))
-                for (const Household &house : house_vector_)
-                    for (const Individual &indiv : house)
-                        if (na::is(data(d, indiv)))
-                            msg::stop(
-                                "Data " + msg::val(khold(d)) + " has no value for " + str(indiv) + " for " +
-                                str(house) + ".\nThe model request it for every member, escaped ones included.");
-    }
-
-    void DataWide::recover_all_status() noexcept
-    {
-        for (Household &house : house_vector_)
-            for (Individual &indiv : house)
-                house.set_new_status_(indiv, indiv_data_[Index::of(indiv)].status);
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////  *** DataLong : struct ***  //////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-    void DataLong::build(DataWide &data_wide, const str_table &input)
+    void Long::build(Wide &data_wide, const str_table &input)
     {
         khold_.clear_optional();
 
@@ -703,7 +693,6 @@ namespace housepi
             if (na::is(id))
                 msg::stop(
                     "Invalid id found in row n." + std::to_string(r + 1) + ".");
-            // UPDATE: these errors should be more self-explicative
             if (!id_to_index.count(id))
                 msg::stop(
                     "Id " + msg::val(id) + " from data long-format had no match in loaded data wide-format.");
@@ -720,14 +709,14 @@ namespace housepi
         }
     }
 
-    void DataLong::helper_build_clear_data_()
+    void Long::helper_build_clear_data_()
     {
         // data sequence headers
         headers.clear();
         indiv_datalist.clear();
     }
 
-    void DataLong::helper_build_data_headers_(const DataWide &data_wide,
+    void Long::helper_build_data_headers_(const Wide &data_wide,
                                               const str_table &input)
     {
         if (data_wide.is_empty())

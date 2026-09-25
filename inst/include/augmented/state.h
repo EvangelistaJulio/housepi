@@ -14,7 +14,7 @@
 #include "tools/random.h"
 
 #include "augmented/scheme.h"
-#include "individual.h"
+#include "data/individual.h"
 #include "variable.h"
 
 //////////////////////////////  augm::State  //////////////////////////////

@@ -15,7 +15,7 @@
 #include "tools/keys.h"
 #include "tools/types.h"
 
-#include "individual.h"
+#include "data/individual.h"
 #include "risks/anchor.h"
 #include "risks/store.h"
 
@@ -23,7 +23,10 @@
 
 namespace housepi
 {
-    struct DataWide;
+    namespace data
+    {
+        struct Wide;
+    }
     struct Parameter;
 }
 
@@ -41,7 +44,7 @@ namespace housepi::risks
         /// Build group risks from rule table `input`, one block per unique member definition.
         /// - empty `input`: every declared risk reads the reference.
         /// @note Run it even on an empty `input`, so declared risks are initialized.
-        void build(DataWide &data_wide,
+        void build(data::Wide &data_wide,
                    const Parameter &param,
                    const str_table &input);
 
@@ -94,7 +97,7 @@ namespace housepi::risks
         StatusTable<StatusSlot> helper_init_status_slots_(const std::vector<std::string> &status_col);
         /// Register the risk names of `input` and declare its covariates as equivalence-class keys.
         /// @return Covariate columns a rule may key on.
-        std::vector<std::string> helper_process_definitions_(DataWide &data_wide,
+        std::vector<std::string> helper_process_definitions_(data::Wide &data_wide,
                                                              const str_table &input);
         /// Append the block of one unique definition, a product of parameters per slot and key.
         void helper_init_unique_risk_(const Parameter &param,

@@ -21,8 +21,8 @@
 #include "mcmc.h"
 #include "standalone.h"
 #include "setup.h"
-#include "data_wide.h"
-#include "data_long.h"
+#include "data/wide.h"
+#include "data/long.h"
 #include "parameter.h"
 #include "risks.h"
 #include "infec_profile.h"
@@ -175,7 +175,7 @@ namespace housepi
     {
         try
         {
-            model.data_wide().build(read::csv_table(file.data_wide));
+            model.data.build_wide(read::csv_table(file.data_wide));
         }
         catch (const std::exception &e)
         {
@@ -187,7 +187,7 @@ namespace housepi
     {
         try
         {
-            model.data_long().build(model.data_wide(), read::csv_table(file.data_long));
+            model.data.build_long(read::csv_table(file.data_long));
         }
         catch (const std::exception &e)
         {
@@ -199,7 +199,7 @@ namespace housepi
     {
         try
         {
-            model.risks.build_group(model.data_wide(), model.param, read::csv_table(file.group_risk));
+            model.risks.build_group(model.data.wide(), model.param, read::csv_table(file.group_risk));
         }
         catch (const std::exception &e)
         {
@@ -211,7 +211,7 @@ namespace housepi
     {
         try
         {
-            model.risks.build_contact(model.data_wide(), model.param, read::csv_table(file.contact_risk));
+            model.risks.build_contact(model.data.wide(), model.param, read::csv_table(file.contact_risk));
         }
         catch (const std::exception &e)
         {
@@ -344,13 +344,14 @@ namespace housepi
     void update_ofstream_datawide(std::ofstream &ofs,
                                   size_t rep,
                                   const Household &house,
-                                  const DataWide &data_wide,
+                                  const Data &data,
                                   const std::vector<size_t> &latent_export,
                                   const Augmented &augm)
     {
         if (!ofs.is_open())
             throw std::runtime_error("Output file closed unexpectedly.");
 
+        const data::Wide &data_wide = data.wide();
         for (const Individual &indiv : house)
         {
             ofs << rep
@@ -363,7 +364,7 @@ namespace housepi
             else
                 ofs << static_cast<int>(indiv.status());
             for (size_t d = 0; d < data_wide.khold().size(); ++d)
-                ofs << read::DELIMITER << data_wide.data(d, indiv);
+                ofs << read::DELIMITER << data.at(d, indiv).value();
             for (size_t a : latent_export)
             {
                 const Variable &xlatent = augm.at(a, indiv);
@@ -376,7 +377,7 @@ namespace housepi
 
     void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile)
     {
-        DataWide &data_wide = engine.data_wide();
+        data::Wide &data_wide = engine.data.wide();
         const Augmented &augm = engine.augm;
 
         // no output file: simulate without serializing
@@ -407,7 +408,7 @@ namespace housepi
                     engine.model->simulate_single_house(house);
                     if (is_writing)
                         update_ofstream_datawide(ofs, r, house,
-                                                 data_wide,
+                                                 engine.data,
                                                  augm.scheme().list_latent_export, augm);
                 }
                 catch (const std::exception &e)

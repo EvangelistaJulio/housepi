@@ -23,18 +23,18 @@
 #include "tools/types.h"
 #include "tools/vector.h"
 
-#include "data_wide.h"
+#include "data/household.h"
+#include "data/individual.h"
+#include "data/wide.h"
 #include "distribution.h"
 #include "function.h"
-#include "household.h"
-#include "individual.h"
 #include "parameter.h"
 #include "proposal.h"
 #include "registry.h"
 #include "risks.h"
 #include "risks/definition.h"
-#include "variable.h"
 #include "translator.h"
+#include "variable.h"
 
 namespace housepi
 {
@@ -552,7 +552,7 @@ namespace housepi
 
         //////////////////////////////  risks::Group  //////////////////////////////
 
-        void Group::build(DataWide &data_wide,
+        void Group::build(data::Wide &data_wide,
                           const Parameter &param,
                           const str_table &input)
         {
@@ -638,7 +638,7 @@ namespace housepi
                 scale_anchors_[khold(key.first)].push_back(anchor);
         }
 
-        std::vector<std::string> Group::helper_process_definitions_(DataWide &data_wide,
+        std::vector<std::string> Group::helper_process_definitions_(data::Wide &data_wide,
                                                                     const str_table &input)
         {
             const std::vector<std::string> file_headers = {"group_risk", "param_name", "rule_group"};
@@ -739,7 +739,7 @@ namespace housepi
 
         //////////////////////////////  risks::Contact  //////////////////////////////
 
-        void Contact::build(DataWide &data_wide,
+        void Contact::build(data::Wide &data_wide,
                             const Parameter &param,
                             const str_table &input)
         {

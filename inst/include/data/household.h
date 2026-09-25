@@ -11,21 +11,26 @@
 
 #include "tools/nan.h"
 #include "tools/types.h"
-#include "individual.h"
+#include "data/individual.h"
 
 //////////////////////////////  Household  //////////////////////////////
 
 namespace housepi
 {
+	namespace data
+	{
+		struct Wide;
+	}
+
 	/// Members of one household, partitioned by status.
 	///
-	/// The user household id lives in DataWide, keyed by household index, see Index::of().
+	/// The user household id lives in data::Wide, keyed by household index, see Index::of().
 	class Household
 	{
-		friend struct Index;	 /// Reads the opaque storage index.
-		friend struct DataWide;	 /// Owns and mutates its households.
-		friend class ModelBase;	 /// Changes member status.
-		friend struct Augmented; /// Changes member status.
+		friend struct Index;	  /// Reads the opaque storage index.
+		friend struct data::Wide; /// Owns and mutates its households.
+		friend class ModelBase;	  /// Changes member status.
+		friend struct Augmented;  /// Changes member status.
 
 		/// Range of member indexes sharing a status.
 		struct MemberRange_
@@ -127,6 +132,6 @@ namespace housepi
 		void set_new_status_(Individual &indiv, StatusLvl new_status);
 	};
 
-	/// Storage index of `house`, declared in individual.h.
+	/// Storage index of `house`, declared in data/individual.h.
 	inline HouseIdx Index::of(const Household &house) noexcept { return house.house_index_; }
 }

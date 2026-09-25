@@ -15,8 +15,8 @@
 #include "tools/read.h"
 
 #include "model.h"
-#include "individual.h"
-#include "household.h"
+#include "data/individual.h"
+#include "data/household.h"
 #include "registry.h"
 #ifdef _STANDALONE
 #include "mcmc.h"

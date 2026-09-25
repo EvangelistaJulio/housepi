@@ -12,7 +12,7 @@
 
 #include "tools/types.h"
 
-#include "household.h"
+#include "data/household.h"
 #include "risks/anchor.h"
 #include "risks/store.h"
 
@@ -20,7 +20,10 @@
 
 namespace housepi
 {
-    struct DataWide;
+    namespace data
+    {
+        struct Wide;
+    }
     struct Parameter;
 }
 
@@ -34,7 +37,7 @@ namespace housepi::risks
 
         /// Build contact risks from rule table `input`.
         /// - contact risks are not symmetric a priori.
-        void build(DataWide &data_wide,
+        void build(data::Wide &data_wide,
                    const Parameter &param,
                    const str_table &input);
 

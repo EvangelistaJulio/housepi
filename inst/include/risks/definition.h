@@ -21,9 +21,9 @@
 #include "tools/types.h"
 #include "tools/vector.h"
 
-#include "data_wide.h"
+#include "data/individual.h"
+#include "data/wide.h"
 #include "function.h"
-#include "individual.h"
 #include "parameter.h"
 #include "risks/anchor.h"
 #include "risks/rule_table.h"
@@ -75,7 +75,7 @@ namespace housepi::risks
         /// @param spec_headers Every covariate a rule may key on.
         /// @param slot_of Slot of each status level.
         GroupDefinitions(const str_table &input,
-                         const DataWide &data_wide,
+                         const data::Wide &data_wide,
                          const std::vector<std::string> &spec_headers,
                          const StatusTable<StatusSlot> &slot_of)
             : data(vect::difference(spec_headers, {STATUS_KEY})),
@@ -89,7 +89,7 @@ namespace housepi::risks
 
         /// Resolve the most specific matching rule per risk name and rule group.
         /// - covariates of `indiv` read at status slot `slot`.
-        std::map<GroupKey, size_t> resolve(const DataWide &data_wide,
+        std::map<GroupKey, size_t> resolve(const data::Wide &data_wide,
                                            const Individual &indiv,
                                            StatusSlot slot) const
         {
@@ -111,7 +111,7 @@ namespace housepi::risks
         const StatusTable<StatusSlot> &slot_of_;               /// Slot each status level reads.
 
         /// Whether member `indiv` matches rule row `r`, read at status slot `slot`.
-        bool matches_(const DataWide &data_wide,
+        bool matches_(const data::Wide &data_wide,
                       size_t r,
                       const Individual &indiv,
                       StatusSlot slot) const
@@ -125,7 +125,7 @@ namespace housepi::risks
             for (size_t i = 0; i < data.size(); ++i)
             {
                 const std::string &dval = rules.input.at(data[i])[r];
-                if (!na::is(dval) && data_wide.data(keys[i], indiv) != str::tod(dval))
+                if (!na::is(dval) && data_wide.raw(keys[i], indiv) != str::tod(dval))
                     return false;
             }
             return true;
@@ -150,7 +150,7 @@ namespace housepi::risks
         /// Read the rules of `input`.
         /// @note Expects as many `from_` as `to_` columns.
         ContactDefinitions(const str_table &input,
-                           const DataWide &data_wide)
+                           const data::Wide &data_wide)
             : from(extract_prefixed_(input, "from_")),
               to(extract_prefixed_(input, "to_")),
               data(strip_from_prefix_(from)),
@@ -161,7 +161,7 @@ namespace housepi::risks
         /// - per rule group: the most specific matching rule;
         /// - across groups: the product, the reference left out.
         /// Registers the scale anchoring of every group in `anchors`.
-        std::vector<const Attribute *> associate_param_ptrs(const DataWide &data_wide,
+        std::vector<const Attribute *> associate_param_ptrs(const data::Wide &data_wide,
                                                             const Parameter &param,
                                                             const Individual &indiv_from,
                                                             const Individual &indiv_to,
@@ -212,7 +212,7 @@ namespace housepi::risks
         }
 
         /// Whether the pair `indiv_from` to `indiv_to` matches rule row `r`.
-        bool matches_(const DataWide &data_wide,
+        bool matches_(const data::Wide &data_wide,
                       size_t r,
                       const Individual &indiv_from,
                       const Individual &indiv_to) const
@@ -220,11 +220,11 @@ namespace housepi::risks
             for (size_t i = 0; i < from.size(); ++i)
             {
                 const std::string &fval = rules.input.at(from[i])[r];
-                if (!na::is(fval) && data_wide.data(keys[i], indiv_from) != str::tod(fval))
+                if (!na::is(fval) && data_wide.raw(keys[i], indiv_from) != str::tod(fval))
                     return false;
 
                 const std::string &tval = rules.input.at(to[i])[r];
-                if (!na::is(tval) && data_wide.data(keys[i], indiv_to) != str::tod(tval))
+                if (!na::is(tval) && data_wide.raw(keys[i], indiv_to) != str::tod(tval))
                     return false;
             }
             return true;
@@ -264,7 +264,7 @@ namespace housepi::risks
         size_t count = 0;             /// Number of distinct classes.
 
         /// Class every member of `data_wide` on covariates `keys`.
-        CovariateClasses(const DataWide &data_wide,
+        CovariateClasses(const data::Wide &data_wide,
                          const std::vector<size_t> &keys)
             : of_indiv(data_wide.report_indiv.total, 0)
         {
@@ -274,7 +274,7 @@ namespace housepi::risks
                 for (const Individual &indiv : house)
                 {
                     for (size_t i = 0; i < keys.size(); ++i)
-                        covariates[i] = data_wide.data(keys[i], indiv);
+                        covariates[i] = data_wide.raw(keys[i], indiv);
                     of_indiv[Index::of(indiv)] =
                         class_of.emplace(covariates, class_of.size()).first->second;
                 }

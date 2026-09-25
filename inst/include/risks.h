@@ -14,8 +14,8 @@
 
 #include "tools/types.h"
 
-#include "household.h"
-#include "individual.h"
+#include "data/household.h"
+#include "data/individual.h"
 #include "risks/anchor.h"
 #include "risks/contact.h"
 #include "risks/group.h"
@@ -24,7 +24,10 @@
 
 namespace housepi
 {
-    struct DataWide;
+    namespace data
+    {
+        struct Wide;
+    }
     struct Parameter;
 
     /// Group and contact risks of a run.
@@ -47,12 +50,12 @@ namespace housepi
         }
 
         /// Build group risks from rule table `input` (see risks::Group::build).
-        void build_group(DataWide &data_wide, const Parameter &param, const str_table &input)
+        void build_group(data::Wide &data_wide, const Parameter &param, const str_table &input)
         {
             group_.build(data_wide, param, input);
         }
         /// Build contact risks from rule table `input` (see risks::Contact::build).
-        void build_contact(DataWide &data_wide, const Parameter &param, const str_table &input)
+        void build_contact(data::Wide &data_wide, const Parameter &param, const str_table &input)
         {
             contact_.build(data_wide, param, input);
         }

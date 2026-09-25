@@ -23,11 +23,11 @@ namespace housepi
 #define MAKE_HOUSEPI_CACHE_FORWARDER(NAME)                                    \
 	auto &cache_##NAME(const Household &house, size_t e) noexcept             \
 	{                                                                         \
-		return mcmc_->data_wide().cache_##NAME(house, e);                     \
+		return mcmc_->data.state.cache_##NAME(house, e);                     \
 	}                                                                         \
 	const auto &cache_##NAME(const Household &house, size_t e) const noexcept \
 	{                                                                         \
-		return mcmc_->data_wide().cache_##NAME(house, e);                     \
+		return mcmc_->data.state.cache_##NAME(house, e);                     \
 	}
 
 	/// Transmission model: per-household log-likelihood and simulation hooks.
@@ -117,14 +117,14 @@ namespace housepi
 		void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
 
 		/// Request discrete data columns `vec`.
-		void request_data_discrete(std::vector<size_t> vec) { mcmc_->data_wide().request_discrete(vec); }
+		void request_data_discrete(std::vector<size_t> vec) { mcmc_->data.wide().request_discrete(vec); }
 		/// Request positive data columns `vec`.
-		void request_data_positive(std::vector<size_t> vec) { mcmc_->data_wide().request_positive(vec); }
+		void request_data_positive(std::vector<size_t> vec) { mcmc_->data.wide().request_positive(vec); }
 		/// Request data columns `vec` with a value for every member, escaped ones included.
-		void request_data_every_member(std::vector<size_t> vec) { mcmc_->data_wide().request_everyone(vec); }
+		void request_data_every_member(std::vector<size_t> vec) { mcmc_->data.wide().request_everyone(vec); }
 
 		/// Throw if some member has missing status.
-		void assert_no_missing_status() const { mcmc_->data_wide().assert_no_missing_status(); }
+		void assert_no_missing_status() const { mcmc_->data.wide().assert_no_missing_status(); }
 
 		//////  Setter: model calls  //////
 
@@ -168,14 +168,14 @@ namespace housepi
 		/// Latent `a` of member `m`.
 		double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
 		/// Datum `d` of member `m`.
-		double data(size_t d, const Individual &m) const { return mcmc_->data(d, m); }
+		double data(size_t d, const Individual &m) const { return mcmc_->data.at(d, m).value(); }
 		/// Group risk `g` of member `m`.
 		double group_risk(size_t g, const Individual &m) const { return mcmc_->risks.group().value(g, m); }
 
 		/// Name of member `m`, for error messages.
-		std::string str(const Individual &m) const { return mcmc_->data_wide().str(m); }
+		std::string str(const Individual &m) const { return mcmc_->data.wide().str(m); }
 		/// Name of household `h`, for error messages.
-		std::string str(const Household &h) const { return mcmc_->data_wide().str(h); }
+		std::string str(const Household &h) const { return mcmc_->data.wide().str(h); }
 
 		/// Contact risk from member `from` to member `to` of `house`.
 		double contact_risk(const Household &house, MemberIdx from, MemberIdx to) const
@@ -194,7 +194,7 @@ namespace housepi
 		}
 
 		/// Maximum number of infected members observed in one household.
-		size_t get_max_hh_cases() const noexcept { return mcmc_->data_wide().get_max_hh_cases(); }
+		size_t get_max_hh_cases() const noexcept { return mcmc_->data.wide().get_max_hh_cases(); }
 
 		/// Instantaneous infectivity profile of member `m` at time `t`.
 		double infec_profile_inst(const Individual &m, double t) const

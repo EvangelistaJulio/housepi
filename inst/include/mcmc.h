@@ -18,8 +18,8 @@
 #include "mcmc_base.h"
 #include "model.h"
 #include "setup.h"
-#include "data_wide.h"
-#include "data_long.h"
+#include "data/wide.h"
+#include "data/long.h"
 #include "parameter.h"
 #include "risks.h"
 #include "infec_profile.h"
@@ -93,7 +93,7 @@ namespace housepi
 		double commit_transm_log_lik_(const Household &house)
 		{
 			double output = model->compute_house_transm_log_lik(house);
-			data_wide().transm_log_lik(house).set(output);
+			data.state.transm_log_lik(house).set(output);
 			return output;
 		}
 
@@ -101,7 +101,7 @@ namespace housepi
 		/// @return Log-ratio against the stored value.
 		double commit_transm_log_lik_ratio_(const Household &house)
 		{
-			double output = -data_wide().transm_log_lik(house).value();
+			double output = -data.state.transm_log_lik(house).value();
 			output += commit_transm_log_lik_(house);
 			return output;
 		}

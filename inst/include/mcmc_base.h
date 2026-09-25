@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -15,7 +14,7 @@
 #include "tools/nan.h"
 
 #include "setup.h"
-#include "data_store.h"
+#include "data.h"
 #include "parameter.h"
 #include "risks.h"
 #include "infec_profile.h"
@@ -36,10 +35,9 @@ namespace housepi
 		LogProba tot_latent_log_lik; /// Latent-model log-likelihood.
 		Posterior posterior;
 
-		std::shared_ptr<DataStore> pDataStore; /// Data storage.
-
 		//////  Key holders  //////
 
+		Data data; /// Imported tables.
 		Parameter param;
 		Risks risks;
 		InfecProfile infec_profile;
@@ -62,15 +60,7 @@ namespace housepi
 							 const std::vector<std::string> &group_risk_keys,
 							 const std::vector<std::string> &latent_keys);
 
-		//////  Data access  //////
-
-		/// Attach data store `ds`.
-		void set_data_store(std::shared_ptr<DataStore> ds);
-
-		DataWide &data_wide() noexcept { return pDataStore->data_wide; }
-		const DataWide &data_wide() const noexcept { return pDataStore->data_wide; }
-		DataLong &data_long() noexcept { return pDataStore->data_long; }
-		const DataLong &data_long() const noexcept { return pDataStore->data_long; }
+		//////  Data  //////
 
 		/// Initialize equivalence-class compression.
 		/// - latent definitions required, not imported yet: one class per household.
@@ -84,8 +74,6 @@ namespace housepi
 
 		/// Latent `a` of member `m`.
 		double aug(size_t a, const Individual &m) const { return augm.at(a, m).value(); }
-		/// Datum `d` of member `m`.
-		double data(size_t d, const Individual &m) const noexcept { return data_wide().data(d, m); }
 
 		/// Data column names shared across simulations.
 		std::vector<std::string> get_static_data_names() const;
@@ -141,7 +129,7 @@ namespace housepi
 		/// Recover previous transmission log-likelihood of `house`, after a rejected move.
 		void recover_transm_log_lik_(const Household &house) noexcept
 		{
-			data_wide().transm_log_lik(house).recover();
+			data.state.transm_log_lik(house).recover();
 		}
 		/// Recover previous total log-likelihood.
 		/// @param with_cache Whether to recover cached values too.

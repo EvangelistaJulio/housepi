@@ -23,8 +23,8 @@ namespace housepi
     {
         struct Group;
     }
-    struct DataWide;
     struct Augmented;
+    struct Data;
     struct Parameter;
     class Individual;
     class Household;
@@ -37,8 +37,8 @@ namespace housepi
             : param_(param),
               augm_(augm) {}
 
-        /// Bind data-wide storage, read by member-specific sources.
-        void bind_data_wide(const DataWide *data_wide) noexcept { pdata_wide_ = data_wide; }
+        /// Bind data tables, read by member-specific sources.
+        void bind_data(const Data *data) noexcept { pdata_ = data; }
         /// Bind group-risk storage, read by member-specific sources.
         void bind_group_risk(const risks::Group *group_risk) noexcept { pgroup_risk_ = group_risk; }
 
@@ -76,7 +76,7 @@ namespace housepi
     private:
         Parameter &param_;                /// Parameter key module.
         Augmented &augm_;                 /// Latent key module.
-        const DataWide *pdata_wide_;      /// Data-wide storage and key holder.
+        const Data *pdata_;               /// Data tables and key holder.
         const risks::Group *pgroup_risk_; /// Group-risk storage and key holder.
         mutable Attribute storage_;       /// Auxiliary storage attribute.
 
