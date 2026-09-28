@@ -12,8 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include "tools/types.h"
-
+#include "tools/dictionary.h"
 #include "data/household.h"
 #include "data/individual.h"
 #include "risks/anchor.h"

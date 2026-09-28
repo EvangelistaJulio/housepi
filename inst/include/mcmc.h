@@ -14,10 +14,9 @@
 
 #include "tools/logproba.h"
 #include "tools/nan.h"
-
-#include "mcmc_base.h"
+#include "mcmc/base.h"
+#include "mcmc/setup.h"
 #include "model.h"
-#include "setup.h"
 #include "data/wide.h"
 #include "data/long.h"
 #include "parameter.h"
@@ -34,6 +33,22 @@ namespace housepi
 
 	/// Maximum resamples per member, at initialization.
 	static constexpr size_t N_INIT_ATTEMPTS_ = 100;
+
+	/// Sum log-likelihood terms over households.
+	struct LogLikAccumulator
+	{
+		double obs_ll = 0.;	   /// Observation.
+		double transm_ll = 0.; /// Transmission.
+		double latent_ll = 0.; /// Latent model.
+
+		LogLikAccumulator &operator+=(const LogLikAccumulator &other) noexcept
+		{
+			obs_ll += other.obs_ll;
+			transm_ll += other.transm_ll;
+			latent_ll += other.latent_ll;
+			return *this;
+		}
+	};
 
 	/// Engine running a built-in or custom model: evaluation, inference and simulation.
 	class MCMC : public MCMCBase
@@ -74,7 +89,7 @@ namespace housepi
 		/// Compute the total log-posterior at initialization, guarded.
 		/// - non-finite contribution: recovered in place, or error.
 		void init_guarded_commit_total_();
-		/// Guarded contribution of `house`.
+		/// Compute the guarded contribution of `house`.
 		LogLikAccumulator init_guarded_commit_house_(Household &house);
 
 		/// Compute and store the latent-model log-ratio of a move of `a`.

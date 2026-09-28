@@ -10,11 +10,10 @@
 #include <string>
 #include <vector>
 
-#include "tools/dependency.h"
+#include "tools/dag.h"
 #include "tools/keys.h"
-#include "tools/types.h"
-
 #include "augmented/definition.h"
+#include "data/status.h"
 
 //////////////////////////////  augm::check  //////////////////////////////
 
@@ -41,7 +40,7 @@ namespace housepi::augm::check
     /// - for other statuses;
     /// - elsewhere (data, group risk, parameter) and read as latent.
     void producers_declared(const DefTable &def,
-                            const dpdcy::prod_graph &pgraph,
+                            const dag::prod_graph &pgraph,
                             StatusLvl s,
                             const KeyHolder &data,
                             const KeyHolder &group_risk,

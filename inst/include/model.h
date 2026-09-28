@@ -10,8 +10,8 @@
 #include <vector>
 #include <string>
 
-#include "tools/types.h"
-#include "mcmc_base.h"
+#include "data/individual.h"
+#include "mcmc/base.h"
 
 //////////////////////////////  ModelBase  //////////////////////////////
 
@@ -23,11 +23,11 @@ namespace housepi
 #define MAKE_HOUSEPI_CACHE_FORWARDER(NAME)                                    \
 	auto &cache_##NAME(const Household &house, size_t e) noexcept             \
 	{                                                                         \
-		return mcmc_->data.state.cache_##NAME(house, e);                     \
+		return mcmc_->data.state.cache_##NAME(house, e);                      \
 	}                                                                         \
 	const auto &cache_##NAME(const Household &house, size_t e) const noexcept \
 	{                                                                         \
-		return mcmc_->data.state.cache_##NAME(house, e);                     \
+		return mcmc_->data.state.cache_##NAME(house, e);                      \
 	}
 
 	/// Transmission model: per-household log-likelihood and simulation hooks.

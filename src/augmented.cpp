@@ -15,18 +15,16 @@
 #include <unordered_set>
 #include <vector>
 
-#include "tools/dependency.h"
+#include "tools/dag.h"
+#include "tools/dictionary.h"
 #include "tools/keys.h"
 #include "tools/logproba.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parser.h"
 #include "tools/random.h"
-#include "tools/read.h"
 #include "tools/string.h"
-#include "tools/types.h"
 #include "tools/vector.h"
-
 #include "augmented.h"
 #include "augmented/check.h"
 #include "augmented/graph.h"
@@ -37,7 +35,7 @@
 #include "distribution.h"
 #include "function.h"
 #include "infec_profile.h"
-#include "mcmc_base.h"
+#include "mcmc/base.h"
 #include "parameter.h"
 #include "registry.h"
 #include "translator.h"
@@ -101,7 +99,8 @@ namespace housepi
     InfecProfile::InfecProfile() = default;
     InfecProfile::~InfecProfile() = default;
 
-    void InfecProfile::build(Translator &translator, const str_table &input)
+    void InfecProfile::build(Translator &translator,
+                             const str_table &input)
     {
         latent_definitions.clear();
 
@@ -109,7 +108,7 @@ namespace housepi
             return;
 
         // check if definition is generic or latent
-        if (read::csv_n_rows(input) > 1 ||
+        if (count_rows(input) > 1 ||
             parse::Definition(input.at("func")[0]).consumes_latent() ||
             parse::Definition(input.at("min")[0]).consumes_latent() ||
             parse::Definition(input.at("max")[0]).consumes_latent() ||
@@ -119,7 +118,8 @@ namespace housepi
             build_generic_(translator, input);
     }
 
-    void InfecProfile::build_generic_(Translator &translator, const str_table &input)
+    void InfecProfile::build_generic_(Translator &translator,
+                                      const str_table &input)
     {
         mode_ = Mode::Generic;
         const bool is_discr = is_required_discrete_ || str::tobool(input.at("discr")[0]);
@@ -152,7 +152,8 @@ namespace housepi
         }
     }
 
-    void InfecProfile::build_latent_(Translator &translator, const str_table &input)
+    void InfecProfile::build_latent_(Translator &translator,
+                                     const str_table &input)
     {
         // drop generic definition
         mode_ = Mode::Latent;
@@ -161,7 +162,7 @@ namespace housepi
         latent_definitions.clear();
 
         // match infectivity profile and latent variable definition
-        for (size_t r = 0; r < read::csv_n_rows(input); ++r)
+        for (size_t r = 0; r < count_rows(input); ++r)
         {
             // a discrete-time model discretizes whatever profile it is handed
             bool discr = is_required_discrete_ || str::tobool(input.at("discr")[r]);
@@ -251,7 +252,7 @@ namespace housepi
 
         void DefTable::append(const str_table &input)
         {
-            for (size_t r = 0; r < read::csv_n_rows(input); ++r)
+            for (size_t r = 0; r < count_rows(input); ++r)
                 rows.emplace_back(input, r);
         }
 
@@ -317,9 +318,10 @@ namespace housepi
 
     namespace augm::graph
     {
-        dpdcy::prod_graph producers(const DefTable &def, const std::vector<size_t> &rows)
+        dag::prod_graph producers(const DefTable &def,
+                                  const std::vector<size_t> &rows)
         {
-            dpdcy::prod_graph pgraph;
+            dag::prod_graph pgraph;
             for (size_t k : rows)
             {
                 auto &producers = pgraph[def[k].name];
@@ -330,7 +332,7 @@ namespace housepi
             return pgraph;
         }
 
-        void add_member_obs_edges(dpdcy::prod_graph &pgraph,
+        void add_member_obs_edges(dag::prod_graph &pgraph,
                                   const DefTable &def,
                                   const std::vector<size_t> &rows)
         {
@@ -346,9 +348,10 @@ namespace housepi
                             pgraph[def[k].name].insert(dstr);
         }
 
-        str_table model_consumers(const DefTable &def, const std::vector<size_t> &order)
+        str_table model_consumers(const DefTable &def,
+                                  const std::vector<size_t> &order)
         {
-            const dpdcy::prod_graph pgraph = producers(def, order);
+            const dag::prod_graph pgraph = producers(def, order);
 
             std::vector<std::string> without_model;
             for (size_t k : order)
@@ -363,7 +366,7 @@ namespace housepi
                 if (!vect::contains(without_model, key))
                     output.emplace(
                         key,
-                        vect::difference(dpdcy::transitive_consumers(key, pgraph, ErrType::Latent),
+                        vect::difference(dag::transitive_consumers(key, pgraph, ErrType::Latent),
                                          without_model));
 
             return output;
@@ -399,10 +402,10 @@ namespace housepi
         /// Whether the run reads `astr`, directly or through the definitions consuming it.
         /// A sink reaches itself: transitive_consumers returns `start` first.
         static bool reaches_sink(const std::string &astr,
-                                 const dpdcy::prod_graph &pgraph,
+                                 const dag::prod_graph &pgraph,
                                  const std::vector<std::string> &sinks)
         {
-            for (const std::string &cstr : dpdcy::transitive_consumers(astr, pgraph, ErrType::Latent))
+            for (const std::string &cstr : dag::transitive_consumers(astr, pgraph, ErrType::Latent))
                 if (vect::contains(sinks, cstr))
                     return true;
             return false;
@@ -413,7 +416,7 @@ namespace housepi
                                             const std::vector<std::string> &transm,
                                             const std::vector<std::string> &absent)
         {
-            const dpdcy::prod_graph pgraph = producers(def, order);
+            const dag::prod_graph pgraph = producers(def, order);
             const std::vector<std::string> run_sinks = sinks(def, order, transm, absent);
 
             std::vector<std::string> dead;
@@ -428,11 +431,11 @@ namespace housepi
                                                   const std::vector<std::string> &transm)
         {
             // whatever a node consumes, transmission consumes
-            const dpdcy::prod_graph pgraph = producers(def, order);
+            const dag::prod_graph pgraph = producers(def, order);
             std::vector<std::string> output;
             for (const std::string &node : transm)
                 if (pgraph.count(node)) // a root needs no definition in every block
-                    vect::append(output, dpdcy::transitive_producers(node, pgraph, ErrType::Latent));
+                    vect::append(output, dag::transitive_producers(node, pgraph, ErrType::Latent));
             return output;
         }
     }
@@ -454,7 +457,7 @@ namespace housepi
         }
 
         void producers_declared(const DefTable &def,
-                                const dpdcy::prod_graph &pgraph,
+                                const dag::prod_graph &pgraph,
                                 StatusLvl s,
                                 const KeyHolder &data,
                                 const KeyHolder &group_risk,
@@ -536,7 +539,8 @@ namespace housepi
             }
         }
 
-        void no_live_house_obs_cycle(const DefTable &def, const std::vector<std::string> &live_names)
+        void no_live_house_obs_cycle(const DefTable &def,
+                                     const std::vector<std::string> &live_names)
         {
             if (live_names.empty())
                 return;
@@ -567,7 +571,8 @@ namespace housepi
             }
         }
 
-        void no_obs_entry_collision(const DefTable &def, const std::vector<std::string> &obs_names)
+        void no_obs_entry_collision(const DefTable &def,
+                                    const std::vector<std::string> &obs_names)
         {
             if (obs_names.empty())
                 return;
@@ -577,7 +582,7 @@ namespace housepi
             for (size_t k = 0; k < def.size(); ++k)
                 if (def[k].kind == Kind::Latent || def[k].kind == Kind::Member)
                     rows.push_back(k);
-            const dpdcy::prod_graph pgraph = graph::producers(def, rows);
+            const dag::prod_graph pgraph = graph::producers(def, rows);
 
             for (size_t k : rows)
             {
@@ -607,7 +612,7 @@ namespace housepi
                         if (dstr == name)
                             continue; // observation node reading its own entry column
                         // loop iff observation `d` transitively consumes `name`
-                        const auto consumers = dpdcy::transitive_consumers(name, pgraph, ErrType::Latent);
+                        const auto consumers = dag::transitive_consumers(name, pgraph, ErrType::Latent);
                         if (vect::contains(consumers, dstr))
                             msg::stop(
                                 "Cyclic definition: " + msg::val(name) +
@@ -618,7 +623,8 @@ namespace housepi
             }
         }
 
-        void no_sim_override_obs_read(const DefTable &def, const std::vector<std::string> &obs_names)
+        void no_sim_override_obs_read(const DefTable &def,
+                                      const std::vector<std::string> &obs_names)
         {
             // a simulation override (value and model) is applied when its variable is first drawn
             // sample_obs runs after draw_sample: an observation reached from the override is still undrawn
@@ -629,7 +635,7 @@ namespace housepi
                 return;
 
             // producer graph over the column each definition resolves through in simulation
-            dpdcy::prod_graph pgraph;
+            dag::prod_graph pgraph;
             for (const DefRow &row : def.rows)
                 if (row.kind == Kind::Latent)
                 {
@@ -644,7 +650,7 @@ namespace housepi
                     continue;
 
                 for (const std::string &pstr :
-                     dpdcy::transitive_producers(row.name, pgraph, ErrType::Latent))
+                     dag::transitive_producers(row.name, pgraph, ErrType::Latent))
                     // a name spans several rows when statuses declare it apart
                     for (const DefRow &prow : def.rows)
                     {
@@ -815,7 +821,9 @@ namespace housepi
             return std::move(src.covariates);
         }
 
-        void SchemeBuilder::order_status_(StatusLvl s, StatusLvl err_status, Sources_ &src)
+        void SchemeBuilder::order_status_(StatusLvl s,
+                                          StatusLvl err_status,
+                                          Sources_ &src)
         {
             auto &index = scheme_.status_index_;
             // skip a status ordered before
@@ -826,7 +834,7 @@ namespace housepi
                 msg::stop(check::undeclared_status_message(err_status));
 
             const std::vector<size_t> rows = unsorted_rows_(s);
-            dpdcy::prod_graph pgraph = graph::producers(def_, rows);
+            dag::prod_graph pgraph = graph::producers(def_, rows);
             check::producers_declared(def_, pgraph, err_status, src.data, src.group_risk, src.param.khold());
             graph::add_member_obs_edges(pgraph, def_, rows);
             dict<size_t> name_to_row; // reverse dictionary name-to-row-index
@@ -840,7 +848,7 @@ namespace housepi
                 index.emplace(s, scheme_.status_schemes_.size());
                 scheme_.status_schemes_.emplace_back();
 
-                for (const std::string &astr : dpdcy::order_producers_first(pgraph, ErrType::Latent))
+                for (const std::string &astr : dag::order_producers_first(pgraph, ErrType::Latent))
                     scheme_.status_schemes_.back().order.emplace_back(name_to_row[astr]);
 
                 // define usage lists respecting definition order
@@ -879,7 +887,9 @@ namespace housepi
             return allrows;
         }
 
-        void SchemeBuilder::list_definition_(StatusLvl s, size_t k, Sources_ &src)
+        void SchemeBuilder::list_definition_(StatusLvl s,
+                                             size_t k,
+                                             Sources_ &src)
         {
             const std::string &astr = def_[k].name;
             size_t a = khold_.from_string(astr);
@@ -939,7 +949,9 @@ namespace housepi
                 at_(s).draws.emplace_back(a);
         }
 
-        std::pair<bool, bool> SchemeBuilder::list_function_(StatusLvl s, size_t k, Sources_ &src)
+        std::pair<bool, bool> SchemeBuilder::list_function_(StatusLvl s,
+                                                            size_t k,
+                                                            Sources_ &src)
         {
             bool is_to_export = true;
             bool is_to_draw = true;
@@ -988,7 +1000,7 @@ namespace housepi
                 return;
 
             // order producer-before-consumer surrogate columns
-            dpdcy::prod_graph pgraph;
+            dag::prod_graph pgraph;
             for (const auto &[nm, k] : name_to_row)
             {
                 auto &producers = pgraph[nm];
@@ -1005,7 +1017,7 @@ namespace housepi
                     live_names.insert(row.name);
 
             // build list of surrogate data columns in order
-            for (const std::string &nm : dpdcy::order_producers_first(pgraph, ErrType::Observation))
+            for (const std::string &nm : dag::order_producers_first(pgraph, ErrType::Observation))
             {
                 Surrogate surr;
                 surr.row = name_to_row.at(nm);
@@ -1041,7 +1053,7 @@ namespace housepi
                 // an observation reaches its sampled producers through deterministic nodes
                 // the consumer map follows the transitive closure, as the latent-model map does
                 // otherwise moving such a producer would skip the observation ratio
-                dpdcy::prod_graph pgraph = graph::producers(def_, ss.order);
+                dag::prod_graph pgraph = graph::producers(def_, ss.order);
 
                 for (size_t k : ss.order)
                 {
@@ -1070,7 +1082,7 @@ namespace housepi
                     ss.obs_models.push_back(obs_key);
 
                     // list the observation under each of its producers, so moving any of them recomputes it
-                    for (const std::string &astr : dpdcy::transitive_producers(def_[k].name, pgraph, ErrType::Latent))
+                    for (const std::string &astr : dag::transitive_producers(def_[k].name, pgraph, ErrType::Latent))
                         if (astr != def_[k].name) // transitive_producers returns 'start' last
                             ss.obs_consumers[khold_.from_string(astr)].push_back(obs_key);
                 }
@@ -1104,7 +1116,7 @@ namespace housepi
                 if (!model_consumers.empty())
                 {
                     scheme_.is_any_latent_model_ = true;
-                    ss.latent_models = khold_.from_string(read::extract_keys(model_consumers));
+                    ss.latent_models = khold_.from_string(extract_keys(model_consumers));
 
                     for (const auto &[astr, consumers] : model_consumers)
                         ss.consumers[khold_.from_string(astr)] = khold_.from_string(consumers);
@@ -1185,7 +1197,9 @@ namespace housepi
 
     namespace augm
     {
-        void State::allocate(size_t n_indiv, const KeyHolder &khold, const DefTable &def)
+        void State::allocate(size_t n_indiv,
+                             const KeyHolder &khold,
+                             const DefTable &def)
         {
             std::vector<Variable> vec(khold.size());
             for (size_t a = 0; a < vec.size(); ++a)
@@ -1199,7 +1213,8 @@ namespace housepi
                 st.vec = vec;
         }
 
-        double commit_latent_log_lik(const StatusScheme &ss, IndivState &st)
+        double commit_latent_log_lik(const StatusScheme &ss,
+                                     IndivState &st)
         {
             if (ss.latent_models.empty())
                 return 0.;
@@ -1212,7 +1227,9 @@ namespace housepi
             return new_ll;
         }
 
-        double commit_latent_log_lik_ratio(const StatusScheme &ss, IndivState &st, size_t a)
+        double commit_latent_log_lik_ratio(const StatusScheme &ss,
+                                           IndivState &st,
+                                           size_t a)
         {
             double delta_ll = 0;
             // consumers[a] includes `a`: the model of `a` is counted
@@ -1222,7 +1239,9 @@ namespace housepi
             return delta_ll;
         }
 
-        double sum_guarded_latent_log_lik(const StatusScheme &ss, const IndivState &st, size_t a)
+        double sum_guarded_latent_log_lik(const StatusScheme &ss,
+                                          const IndivState &st,
+                                          size_t a)
         {
             double ll = 0.;
             // consumers[a] includes `a`: the model of `a` is counted
@@ -1243,7 +1262,8 @@ namespace housepi
             return delta_ll;
         }
 
-        double eval_log_obs(const StatusScheme &ss, const IndivState &st)
+        double eval_log_obs(const StatusScheme &ss,
+                            const IndivState &st)
         {
             double ll = 0.0;
             for (size_t a : ss.obs_models)
@@ -1251,7 +1271,8 @@ namespace housepi
             return ll;
         }
 
-        double commit_obs_log_lik(const StatusScheme &ss, IndivState &st)
+        double commit_obs_log_lik(const StatusScheme &ss,
+                                  IndivState &st)
         {
             if (ss.obs_models.empty())
                 return 0.;
@@ -1260,7 +1281,9 @@ namespace housepi
             return new_ll;
         }
 
-        double commit_obs_log_lik_ratio(const StatusScheme &ss, IndivState &st, size_t a)
+        double commit_obs_log_lik_ratio(const StatusScheme &ss,
+                                        IndivState &st,
+                                        size_t a)
         {
             // skip unless the moved latent `a` parameterizes an observation node
             if (ss.obs_consumers[a].empty())
@@ -1278,13 +1301,11 @@ namespace housepi
             for (size_t a : ss.sample)
                 st.vec[a].restart(prng);
         }
-
         void draw_sample(const StatusScheme &ss, IndivState &st, rnd_gen &prng)
         {
             for (size_t a : ss.sample)
                 st.vec[a].draw_value(prng);
         }
-
         void sample_obs(const StatusScheme &ss, IndivState &st, rnd_gen &prng)
         {
             // draw each observation into its Variable: @D consumers read it from there
@@ -1375,7 +1396,9 @@ namespace housepi
             var.reshape_function(row.is_discr);
         }
 
-        void Binder::bind_member(Variable &var, size_t k, const Individual &indiv, bool simulation) const
+        void Binder::bind_member(Variable &var, size_t k,
+                                 const Individual &indiv,
+                                 bool simulation) const
         {
             const DefRow &row = def_[k];
 
@@ -1429,7 +1452,9 @@ namespace housepi
             }
         }
 
-        void Binder::bind_distr_(Variable &var, size_t k, const Individual &indiv) const
+        void Binder::bind_distr_(Variable &var,
+                                 size_t k,
+                                 const Individual &indiv) const
         {
             const DefRow &row = def_[k];
             var.init_distr(row.model.root.func, row.is_discr);
@@ -1450,7 +1475,9 @@ namespace housepi
         {
             const std::string &name = def_[surr.row].name;
             const size_t d = data_.wide().khold(name);
-            const auto build = [&](Variable &var, const Individual &anchor, const Household *hptr)
+            const auto build = [&](Variable &var,
+                                   const Individual &anchor,
+                                   const Household *hptr)
             {
                 try
                 {
@@ -1523,7 +1550,8 @@ namespace housepi
         vect::append_unique(user_transm_vec_, vec);
     }
 
-    void Augmented::build(InfecProfile &infec_profile, const str_table &input)
+    void Augmented::build(InfecProfile &infec_profile,
+                          const str_table &input)
     {
         build_restore_internal_(); // reset internal state
         if (!input.empty())        // DefTable::append indexes its columns
@@ -1535,8 +1563,10 @@ namespace housepi
             return;
 
         augm::SchemeBuilder builder(scheme_, def_, khold_);
-        builder.register_rows();                                             // definition names and status routing
-        state.allocate(mcmc_->data.wide().report_indiv.total, khold_, def_); // per-member storage
+        // definition names and status routing
+        builder.register_rows();
+        // per-member storage
+        state.allocate(mcmc_->data.wide().report_indiv.total, khold_, def_);
 
         // infected statuses the data carries
         std::unordered_set<StatusLvl> infected;
@@ -1550,12 +1580,16 @@ namespace housepi
             builder.order({infected.begin(), infected.end()}, mcmc_->param,
                           mcmc_->data.wide().khold(), mcmc_->risks.group().khold()));
 
-        builder.init_surrogates();   // surrogate columns
-        builder.init_observations(); // observation nodes
+        // surrogate columns
+        builder.init_surrogates();
+        // observation nodes
+        builder.init_observations();
+        // keys reaching the transmission side
         builder.init_transm(user_transm_vec_.empty() ? std::vector<std::string>{}
-                                                     : transm_names_()); // keys reaching the transmission side
+                                                     : transm_names_());
 
-        if (scheme_.is_any_status_obs()) // assert status observation
+        // assert status observation
+        if (scheme_.is_any_status_obs())
             augm::check::status_obs_consistent(def_, scheme_.status_obs_row());
         // no definition reads an obs entry column, no simulation override reads an observation
         augm::check::no_obs_entry_collision(def_, khold(scheme_.list_obs_member));
@@ -1819,11 +1853,9 @@ namespace housepi
                 if (for_export)
                     continue;
                 msg::stop(
-                    "Cannot infer from " +
-                    str::format(def_[surr.row].kind) + " " +
+                    "Cannot infer from " + str::format(def_[surr.row].kind) + " " +
                     msg::val(astr) + ": it must resolve from data alone.\n" +
-                    "A definition reading a latent variable or a parameter is only "
-                    "meaningful in simulation.");
+                    "A definition reading a latent variable or a parameter is only meaningful in simulation.");
             }
 
             for (Household &house : data_wide)

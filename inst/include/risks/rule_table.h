@@ -14,11 +14,10 @@
 #include <utility>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/read.h"
 #include "tools/string.h"
-#include "tools/types.h"
 
 //////////////////////////////  risks::RuleTable  //////////////////////////////
 
@@ -39,7 +38,7 @@ namespace housepi::risks
         RuleTable(const str_table &input_,
                   const std::vector<std::string> &spec_columns)
             : input(input_),
-              n_rows(read::csv_n_rows(input_)),
+              n_rows(count_rows(input_)),
               row_gid(n_rows),
               row_spec(n_rows)
         {

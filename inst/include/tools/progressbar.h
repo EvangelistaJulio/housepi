@@ -5,9 +5,10 @@
  * See the LICENSE file for details.
  */
 
+#pragma once
+
 #include <chrono>
 #include <cstdint>
-#include <fstream>
 #include <functional>
 #include <iomanip>
 #include <sstream>
@@ -15,59 +16,11 @@
 
 #include "tools/messages.h"
 
+//////////////////////////////  ProgressBar  //////////////////////////////
+
 namespace housepi
 {
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////// *** ProgressBar : class *** //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-
-    using namespace std::chrono;
-
-    namespace
-    {
-        namespace ansi
-        {
-            constexpr const char *reset = "\033[39m";
-            constexpr const char *green = "\033[32m";
-        }
-
-        /// Format elapsed time in seconds.
-        std::string format_time_(seconds scs)
-        {
-            std::ostringstream oss;
-
-            const auto dys = duration_cast<duration<int, std::ratio<86400>>>(scs);
-            scs -= duration_cast<seconds>(dys);
-
-            const auto hrs = duration_cast<hours>(scs);
-            scs -= duration_cast<seconds>(hrs);
-
-            const auto mns = duration_cast<minutes>(scs);
-            scs -= duration_cast<seconds>(mns);
-
-            // show large time scales only if relevant
-            if (dys.count() > 0)
-                oss << dys.count() << "d"
-                    << std::setfill('0') << std::setw(2) << hrs.count() << "h";
-
-            else if (hrs.count() > 0)
-                oss << hrs.count() << "h"
-                    << std::setfill('0') << std::setw(2) << mns.count() << "m";
-
-            else if (mns.count() > 0)
-                oss << mns.count() << "m"
-                    << std::setfill('0') << std::setw(2) << scs.count() << "s";
-
-            else
-                oss << scs.count() << "s";
-
-            return oss.str();
-        }
-    }
-
-    /// Implementation class for progress bar.
+    /// Display the progress of an iteration count, with elapsed and remaining time.
     /// Based on @cite hammouchi_fancy_2024
     class ProgressBar
     {
@@ -77,10 +30,11 @@ namespace housepi
             Static
         } mode_ = Mode::Interactive;
 
+        using Clock = std::chrono::steady_clock;
+        using Seconds = std::chrono::seconds;
+
     public:
-        /////////////////////
-        ///  CONSTRUCTOR  ///
-        /////////////////////
+        //////  Constructor  //////
 
         ProgressBar(
             unsigned barwidth = 33,
@@ -93,21 +47,19 @@ namespace housepi
         };
         ~ProgressBar() = default;
 
-        ////////////////
-        ///  SETTER  ///
-        ////////////////
+        //////  Setter  //////
 
         /// Set description text of progress bar.
         void set_text(const std::string &text) { text_ = text; }
 
-        /// Start progressbar clock and display firs message.
+        /// Start progress bar clock and display first message.
         void open(unsigned long total, unsigned long thintime)
         {
             check_user_interrupt_();
 
             // initialize internal fields
             total_ = total;
-            start_ = steady_clock::now();
+            start_ = Clock::now();
             lastprint_ = start_;
             state_ = 0;
             has_bar_print_ = false;
@@ -118,22 +70,24 @@ namespace housepi
         /// Update progress bar given the progress state.
         void update()
         {
+            using std::chrono::duration_cast;
+
             check_user_interrupt_();
             ++state_; // update internal state
             if (!verbose_)
                 return;
 
             const double progress = static_cast<double>(state_) / static_cast<double>(total_);
-            const auto now = steady_clock::now();
-            const auto elapsed = duration_cast<seconds>(now - start_);
-            const auto missing = duration_cast<seconds>(elapsed * (1. - progress) / progress);
+            const auto now = Clock::now();
+            const auto elapsed = duration_cast<Seconds>(now - start_);
+            const auto missing = duration_cast<Seconds>(elapsed * (1. - progress) / progress);
 
             // skip if expected to finish soon (less than 1 second)
             if (missing.count() < 1)
                 return;
 
             // print update message if time since last print greater than thin-time
-            if (static_cast<unsigned long>(duration_cast<seconds>(now - lastprint_).count()) > thintime_)
+            if (static_cast<unsigned long>(duration_cast<Seconds>(now - lastprint_).count()) > thintime_)
             {
                 std::ostringstream oss;
                 oss << text_
@@ -144,7 +98,7 @@ namespace housepi
                 oss << std::string(10, ' ');
                 print_(oss.str());
 
-                lastprint_ = steady_clock::now();
+                lastprint_ = Clock::now();
                 has_bar_print_ = true;
             }
             else if (!has_bar_print_ && static_cast<unsigned long>(missing.count()) > thintime_)
@@ -156,7 +110,7 @@ namespace housepi
                     << "0s<?s"
                     << std::string(10, ' ');
 
-                // NOTE: initial message must not print '\r', eventually '\n'
+                // initial message prints no '\r', a '\n' in static mode
                 if (mode_ == Mode::Static)
                     oss << "\n";
                 msg::info(oss.str());
@@ -175,15 +129,15 @@ namespace housepi
         /// Close the progress bar, returning the seconds since `open()`.
         double close()
         {
-            const auto now = steady_clock::now();
-            const double spent = duration<double>(now - start_).count();
+            const auto now = Clock::now();
+            const double spent = std::chrono::duration<double>(now - start_).count();
 
-            // close only if it was opened
+            // close an opened bar only
             if (!has_bar_print_)
                 return spent;
             has_bar_print_ = false;
 
-            const auto elapsed = duration_cast<seconds>(now - start_);
+            const auto elapsed = std::chrono::duration_cast<Seconds>(now - start_);
             if (static_cast<unsigned long>(elapsed.count()) > thintime_)
             {
                 std::ostringstream oss;
@@ -203,18 +157,53 @@ namespace housepi
         }
 
     private:
-        const std::string symbol_ = "\u25A0";  /// bar decorator
-        unsigned barwidth_ = 33;               /// bar total size
-        std::function<void()> interrupt_func_; /// user-interrupt callback
-        bool verbose_ = true;                  /// wheter to show bar
-        bool has_bar_print_ = false;           /// wheter bar has printed once
-        unsigned long state_ = 0;              /// current iteration
-        unsigned long total_ = 0;              /// total number of iterations
-        std::string text_ = "";                /// current text to show
+        static constexpr const char *ansi_reset_ = "\033[39m"; /// Default foreground colour.
+        static constexpr const char *ansi_green_ = "\033[32m"; /// Green foreground colour.
 
-        steady_clock::time_point start_;
-        steady_clock::time_point lastprint_;
-        unsigned long thintime_ = 0;
+        const std::string symbol_ = "■";       /// Bar decorator.
+        unsigned barwidth_ = 33;               /// Bar total size.
+        std::function<void()> interrupt_func_; /// User-interrupt callback.
+        bool verbose_ = true;                  /// Whether to show the bar.
+        bool has_bar_print_ = false;           /// Whether the bar has printed once.
+        unsigned long state_ = 0;              /// Current iteration.
+        unsigned long total_ = 0;              /// Total number of iterations.
+        std::string text_ = "";                /// Current text to show.
+        Clock::time_point start_;              /// Time of `open()`.
+        Clock::time_point lastprint_;          /// Time of the last print.
+        unsigned long thintime_ = 0;           /// Seconds between two prints.
+
+        /// Format elapsed time `scs`, showing large time scales only when relevant.
+        static std::string format_time_(Seconds scs)
+        {
+            using namespace std::chrono;
+            std::ostringstream oss;
+
+            const auto dys = duration_cast<duration<int, std::ratio<86400>>>(scs);
+            scs -= duration_cast<seconds>(dys);
+
+            const auto hrs = duration_cast<hours>(scs);
+            scs -= duration_cast<seconds>(hrs);
+
+            const auto mns = duration_cast<minutes>(scs);
+            scs -= duration_cast<seconds>(mns);
+
+            if (dys.count() > 0)
+                oss << dys.count() << "d"
+                    << std::setfill('0') << std::setw(2) << hrs.count() << "h";
+
+            else if (hrs.count() > 0)
+                oss << hrs.count() << "h"
+                    << std::setfill('0') << std::setw(2) << mns.count() << "m";
+
+            else if (mns.count() > 0)
+                oss << mns.count() << "m"
+                    << std::setfill('0') << std::setw(2) << scs.count() << "s";
+
+            else
+                oss << scs.count() << "s";
+
+            return oss.str();
+        }
 
         /// Colored progress bar.
         std::string bar_(double progress) const
@@ -224,13 +213,13 @@ namespace housepi
             oss << " |";
             // # nocov start
             if (mode_ == Mode::Interactive)
-                oss << ansi::green;
+                oss << ansi_green_;
             // # nocov end
             for (unsigned u = 0; u < where; ++u)
                 oss << symbol_;
             // # nocov start
             if (mode_ == Mode::Interactive)
-                oss << ansi::reset;
+                oss << ansi_reset_;
             // # nocov end
             oss << std::string(barwidth_ - where, ' ') << "| ";
             return oss.str();
@@ -239,7 +228,7 @@ namespace housepi
         /// Check for user interrupt.
         void check_user_interrupt_() const { interrupt_func_(); }
 
-        /// Function to display the progress bar.
+        /// Print message `sms`, overwriting the current line in interactive mode.
         void print_(const std::string &sms) const
         {
             switch (mode_)

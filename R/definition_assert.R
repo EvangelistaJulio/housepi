@@ -218,7 +218,7 @@ assert_valid_data_columns <- function(cols) {
 }
 
 # Highest infected status level the engine stores.
-# StatusLevel is an unsigned 8-bit integer (see inst/include/tools/status.h).
+# StatusLevel is an unsigned 8-bit integer (see inst/include/data/status.h).
 max_status_level <- 254L
 
 # Assert that given status(es) name is(are) valid.

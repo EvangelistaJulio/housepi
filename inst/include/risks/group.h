@@ -12,9 +12,8 @@
 #include <utility>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/keys.h"
-#include "tools/types.h"
-
 #include "data/individual.h"
 #include "risks/anchor.h"
 #include "risks/store.h"

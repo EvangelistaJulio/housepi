@@ -19,26 +19,19 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/random.h"
-
 #include "function.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// *** Distribution : class *** ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Distribution  //////////////////////////////
 
 namespace housepi
 {
-	/// Parent class of all distributions.
+	/// Base of every distribution.
 	class Distribution : public Function
 	{
 	public:
-		/////////////////////
-		///  CONSTRUCTOR  ///
-		/////////////////////
+		//////  Constructor  //////
 
-		Distribution(const std::vector<std::pair<std::string, double>> &args = {},
+		Distribution(const default_args &args = {},
 					 double domain_min = na::DOUBLE,
 					 double domain_max = na::DOUBLE)
 			: Function(args, domain_min, domain_max)
@@ -48,7 +41,9 @@ namespace housepi
 		}
 		virtual ~Distribution() = default;
 
+		/// Return a copy, typed as a distribution.
 		virtual std::unique_ptr<Distribution> clone_distrib() const = 0;
+		/// Return a copy.
 		std::unique_ptr<Function> clone() const override final { return clone_distrib(); };
 
 		/// Finalize, then store the truncation normalizer when nothing it reads can move.
@@ -63,10 +58,9 @@ namespace housepi
 				logtrunc_mode_ = LogTrunc::Compute;
 		}
 
-		////////////////
-		///  GETTER  ///
-		////////////////
+		//////  Getter  //////
 
+		/// Draw a value, truncation included.
 		double rand(rnd_gen &prng) const
 		{
 			switch (trunc_mode_)
@@ -77,12 +71,12 @@ namespace housepi
 				return relocate_(cast_discr_(truncated_rand_(prng)));
 			}
 		}
-		/// Return value of log-probability density/mass function.
+		/// Return log-density or log-mass at `x`.
 		double log_pdf(double x) const { return log_func_(delocate_(x)); }
-		/// Check for validity, then return value of log-probability density/mass function.
+		/// Return log-density or log-mass at `x`, minus infinity outside the domain.
 		double guarded_log_pdf(double x) const { return is_valid(x) ? log_pdf(x) : -inf::DOUBLE; }
 
-		/// Check for validity, then  return the quantile (inverse CDF) at probability p.
+		/// Return the quantile at probability `p`, NA outside [0, 1].
 		double quantile(double p) const
 		{
 			if (p < 0 || p > 1)
@@ -98,8 +92,9 @@ namespace housepi
 		Codomain support() const noexcept { return domain_.relocated(lattice_()); }
 
 		/// Values returned by evaluate().
-		/// NOTE: pdf() and cdf() return zero off the domain.
-		/// NOTE: density is unbounded above, a mass and a cumulative are not.
+		///
+		/// - pdf() and cdf() return zero off the domain;
+		/// - a density is unbounded above, a mass and a cumulative are not.
 		Codomain codomain() const noexcept override
 		{
 			Codomain c;
@@ -113,31 +108,28 @@ namespace housepi
 		}
 
 	protected:
-		/////////////////
-		///  VIRTUAL  ///
-		/////////////////
+		//////  Virtual  //////
 
-		/// Raw random sampling method of the distribution.
-		/// @param prng : pseudo-random number generator.
+		/// Raw random draw.
 		virtual double raw_rand_(rnd_gen & /*prng*/) const { raise_undefined_call_err_("rand"); }
 
-		/// Raw probability density/mass function of the distribution.
+		/// Raw density or mass.
 		virtual double raw_pdf_(double /*x*/) const = 0;
 
-		/// Raw log-probability density/mass function of the distribution.
+		/// Raw log-density or log-mass.
 		virtual double raw_log_pdf_(double /*x*/) const { raise_undefined_call_err_("log_pdf"); }
 
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double /*x*/) const = 0;
 
-		/// Raw complementary CDF (1 - cdf).
-		/// NOTE: used in discretization when a tail-accurate closed form exists.
+		/// Raw complementary cumulative distribution, 1 - cdf.
+		/// Discretization reads it where a tail-accurate closed form exists.
 		virtual double raw_ccdf_(double x) const { return 1. - raw_cdf_(x); }
 
-		/// Raw method to call.
+		/// Raw function: undefined for a distribution.
 		double raw_function_(double /*x*/) const override final { raise_undefined_call_err_("function"); }
 
-		/// Polymorphic function method.
+		/// Evaluate density or mass under the discretization scheme.
 		double function_(double x) const override final
 		{
 			double y;
@@ -159,7 +151,7 @@ namespace housepi
 			return y / trunc_();
 		}
 
-		/// Polymorphic log-function method.
+		/// Evaluate log-density or log-mass under the discretization scheme.
 		double log_func_(double x) const override final
 		{
 			double y;
@@ -181,10 +173,10 @@ namespace housepi
 			return y - logtrunc_();
 		}
 
-		/// Polymorphic primitive method.
+		/// Evaluate the truncated cumulative under the discretization scheme.
 		double primitive_(double x) const override final { return (raw_cdf_(primitive_x_helper_(x)) - shift_()) / trunc_(); }
 
-		/// Polymorphic log_ratio method.
+		/// Evaluate the log-ratio of densities under the discretization scheme.
 		double log_ratio_(double xo, double xn) const override final
 		{
 			switch (discr_mode_)
@@ -200,12 +192,10 @@ namespace housepi
 			}
 		}
 
-		////////////////
-		///  GETTER  ///
-		////////////////
+		//////  Getter  //////
 
-		/// Integer-value structure of the draws.
-		/// NOTE: location off the integers moves the support off as well.
+		/// Lattice of the draws.
+		/// - location off the integers: the support moves off with it.
 		Lattice lattice_() const noexcept
 		{
 			if (discr_mode_ == Discrete::None)
@@ -215,6 +205,7 @@ namespace housepi
 			return Lattice::Doubles;
 		}
 
+		/// Round draw `x` onto the lattice of the discretization scheme.
 		double cast_discr_(double x) const
 		{
 			switch (discr_mode_)
@@ -228,15 +219,15 @@ namespace housepi
 			}
 		}
 
-		/// Minimum CDF window for rejection sampling.
+		/// Minimum cumulative window for rejection sampling.
 		static constexpr double MIN_REJECT_WINDOW = 0.5;
-		/// Rejection attempts before falling back to inverse sampling.
-		/// NOTE: succeeds with > 99% proba
+		/// Rejection attempts before falling back to inverse sampling, succeeding with probability above 99%.
 		static constexpr int MAX_REJECT_DRAWS = 8;
 
-		/// Sample from the truncated distribution.
-		/// When truncation window is large, uses rejection-sampling.
-		/// Otherwise falls back to inverse sampling.
+		/// Draw from the truncated distribution.
+		///
+		/// - window above MIN_REJECT_WINDOW: rejection sampling;
+		/// - otherwise, or after MAX_REJECT_DRAWS rejections: inverse sampling.
 		double truncated_rand_(rnd_gen &prng) const
 		{
 			const double cdf_at_min = trunc_mode_ == Trunc::Max ? 0. : cdf_min_();
@@ -257,22 +248,22 @@ namespace housepi
 			return raw_quantile_(cdf_at_min + standard_uniform(prng) * window);
 		}
 
-		////////////////////
-		///  TRUNCATION  ///
-		////////////////////
+		//////  Truncation  //////
 
+		/// Truncated sides.
 		enum class Trunc : std::uint8_t
 		{
-			None, /// No truncation
-			Min,  /// Lower-bound truncation
-			Max,  /// Upper-bound truncation
-			Both  /// Two-sided truncation
+			None, /// No truncation.
+			Min,  /// Lower-bound truncation.
+			Max,  /// Upper-bound truncation.
+			Both  /// Two-sided truncation.
 		} trunc_mode_ = Trunc::None;
+		/// Source of the log-normalizer.
 		enum class LogTrunc : std::uint8_t
 		{
-			None,	/// No truncation, null log-normalizer
-			LookUp, /// Constant log-normalizer, stored by finalize()
-			Compute /// Log-normalizer computed per evaluation
+			None,	/// No truncation, null log-normalizer.
+			LookUp, /// Constant log-normalizer, stored by finalize().
+			Compute /// Log-normalizer computed per evaluation.
 		} logtrunc_mode_ = LogTrunc::Compute;
 		/// Log-normalizer read in LogTrunc::LookUp mode.
 		double lookup_log_trunc_ = na::DOUBLE;
@@ -354,6 +345,7 @@ namespace housepi
 			}
 		}
 
+		/// Log-normalizer of the truncated distribution.
 		double logtrunc_() const
 		{
 			switch (logtrunc_mode_)
@@ -368,20 +360,18 @@ namespace housepi
 		}
 
 	private:
-		////////////////////////
-		///  DISCRETIZATION  ///
-		////////////////////////
+		//////  Discretization  //////
 
-		/// Helper for Center discretization.
+		/// Mass of the unit bin centered on `x`.
 		double discr_dist_center_(double x) const
 		{
 			const double i = std::round(x);
 			const double p = raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
-			// fall back to the complementary CDF only when the plain difference
-			// cancels in the right tail (keeps the pmf finite); the bulk pays nothing.
+			// complementary cumulative only where the plain difference cancels in the right tail
+			// the pmf stays finite, the bulk pays nothing
 			return p > 0. ? p : raw_ccdf_(i - 0.5) - raw_ccdf_(i + 0.5);
 		}
-		/// Helper for Left discretization.
+		/// Mass of the unit bin starting at floor(`x`).
 		double discr_dist_left_(double x) const
 		{
 			const double i = std::floor(x);

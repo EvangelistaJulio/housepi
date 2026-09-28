@@ -16,21 +16,19 @@
 #include <unordered_map>
 #include <vector>
 
-#include "data/reports.h"
+#include "tools/dictionary.h"
 #include "tools/keys.h"
 #include "tools/logproba.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/read.h"
-#include "tools/status.h"
 #include "tools/string.h"
-#include "tools/types.h"
 #include "tools/vector.h"
-
 #include "data/household.h"
 #include "data/individual.h"
 #include "data/long.h"
+#include "data/reports.h"
 #include "data/state.h"
+#include "data/status.h"
 #include "data/wide.h"
 #include "function.h"
 
@@ -121,9 +119,9 @@ namespace housepi::data
     //////////////////////////////  data::Wide  //////////////////////////////
 
     void Wide::init_cache_key_holders(const std::vector<std::string> &member_keys,
-                                          const std::vector<std::string> &member_vec_keys,
-                                          const std::vector<std::string> &double_vec_keys,
-                                          const std::vector<std::string> &double_mtx_keys)
+                                      const std::vector<std::string> &member_vec_keys,
+                                      const std::vector<std::string> &double_vec_keys,
+                                      const std::vector<std::string> &double_mtx_keys)
     {
         khold_member_val.init(member_keys);
         khold_member_vec.init(member_vec_keys);
@@ -141,7 +139,7 @@ namespace housepi::data
 
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
-        report_indiv.total = read::csv_n_rows(input);
+        report_indiv.total = count_rows(input);
         if (report_indiv.total > std::numeric_limits<IndivIdx>::max())
             msg::stop(
                 "Data exceeded the maximum of " +
@@ -206,8 +204,7 @@ namespace housepi::data
                 if (input.count(dname))
                     x = str::tod(input.at(dname)[i], "data " + msg::arg(dname));
 
-                // a missing cell carries no verdict: absence is reported at
-                // the run wall, not as a violated requirement
+                // a missing cell carries no verdict, its absence is reported at the run wall
                 if (na::is(x))
                     continue;
                 Attribute cell;
@@ -251,8 +248,8 @@ namespace housepi::data
             house.add_indiv(static_cast<IndivIdx>(i), idata.status);
         }
 
-        // columns known at import: model declared keys plus the user ones. Columns
-        // produced by an observation are appended later (see add_produced_cols).
+        // columns known at import: model-declared keys plus the user ones
+        // columns produced by an observation are appended later, see add_produced_cols
         n_imported_ = khold_.size();
 
         // update report for data
@@ -297,7 +294,7 @@ namespace housepi::data
 
     void Wide::helper_build_data_headers_(const str_table &input)
     {
-        std::vector<std::string> headers = read::extract_keys(input);
+        std::vector<std::string> headers = extract_keys(input);
 
         // assess the presence of house IDs
         if (!vect::contains(headers, "hhid"))
@@ -365,8 +362,10 @@ namespace housepi::data
     {
         struct FrequencyMapper_
         {
-            FrequencyMapper_(const std::unordered_set<size_t> data_list, const State &state)
-                : data_list_(data_list), state_(state) {}
+            FrequencyMapper_(const std::unordered_set<size_t> data_list,
+                             const State &state)
+                : data_list_(data_list),
+                  state_(state) {}
 
             /// Group households by hash of their sorted members.
             std::map<size_t, std::vector<size_t>> define_hash_groups(
@@ -521,7 +520,8 @@ namespace housepi::data
         return vect::contains(request_everyone_, d);
     }
 
-    void Wide::assert_required_everyone(const State &state, const std::vector<std::string> &live) const
+    void Wide::assert_required_everyone(const State &state,
+                                        const std::vector<std::string> &live) const
     {
         for (size_t d : request_everyone_)
             if (!vect::contains(live, khold(d)))
@@ -619,7 +619,8 @@ namespace housepi::data
         }
     }
 
-    void State::save_member_cache(const Household &house, const Individual &indiv)
+    void State::save_member_cache(const Household &house,
+                                  const Individual &indiv)
     {
         size_t i = Index::member(indiv);
         Cache_ &prev = previous_[house.eq_class()];
@@ -641,7 +642,8 @@ namespace housepi::data
             }
     }
 
-    void State::recover_member_cache(const Household &house, const Individual &indiv)
+    void State::recover_member_cache(const Household &house,
+                                     const Individual &indiv)
     {
         size_t i = Index::member(indiv);
         Cache_ &prev = previous_[house.eq_class()];
@@ -665,7 +667,8 @@ namespace housepi::data
 
     //////////////////////////////  data::Long  //////////////////////////////
 
-    void Long::build(Wide &data_wide, const str_table &input)
+    void Long::build(Wide &data_wide,
+                     const str_table &input)
     {
         khold_.clear_optional();
 
@@ -686,7 +689,7 @@ namespace housepi::data
                 id_to_index.emplace(data_wide.id(indiv), Index::of(indiv));
 
         // load individual data list
-        size_t n_rows = read::csv_n_rows(input);
+        size_t n_rows = count_rows(input);
         for (size_t r = 0; r < n_rows; ++r)
         {
             const std::string &id = input.at("id")[r];
@@ -699,11 +702,11 @@ namespace housepi::data
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
-            idat.vec.resize(khold_.size());
+            idat.resize(khold_.size());
             for (size_t d = 0; d < khold_.size(); ++d)
             {
                 const std::string &dstr = khold(d);
-                idat.vec[d].emplace_back(
+                idat[d].emplace_back(
                     str::tod(input.at(dstr)[r], "data long format " + msg::arg(dstr)));
             }
         }
@@ -717,13 +720,13 @@ namespace housepi::data
     }
 
     void Long::helper_build_data_headers_(const Wide &data_wide,
-                                              const str_table &input)
+                                          const str_table &input)
     {
         if (data_wide.is_empty())
             msg::stop(
                 "Tried to define data long format before wide format.");
 
-        headers = read::extract_keys(input);
+        headers = extract_keys(input);
         // check for individual IDs
         if (!vect::contains(headers, "id"))
             msg::stop(

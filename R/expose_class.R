@@ -304,7 +304,7 @@ stopifnothousepi <- function(hhmodel) {
 #' # construct the model first, attach the data afterwards
 #' hhmodel <- new_housepi_model(model = "final_size") |>
 #'   add_data_wide(flu_1918_frederick)
-#' summarise_house_sizes(hhmodel)
+#' summarise_house_cases(hhmodel)
 #' @export
 add_data_wide <- function(hhmodel, data) {
   stopifnothousepi(hhmodel)
@@ -368,31 +368,6 @@ summarise_house_cases <- function(hhmodel) {
 #' @rdname summarise_house_cases
 #' @export
 summarize_house_cases <- summarise_house_cases
-
-#' @title Summarise household sizes in the loaded household data
-#' @description
-#' Summarise number of members (size) in the loaded household data.
-#' @param hhmodel `r rd_model_in_`
-#' @return `data.frame`, one row per metric:
-#' \describe{
-#'   \item{metric}{quantity reported in the row}
-#'   \item{value}{household size for that metric}
-#'   \item{count}{absolute count}
-#'   \item{percent}{percentage of individuals}
-#' }
-#' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
-#' summarise_house_sizes(hhmodel)
-#' @export
-summarise_house_sizes <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  pvt <- hhmodel$.__enclos_env__$private
-  .engine$summarise_house_sizes(pvt$gen_$mcmc_ptr)
-}
-
-#' @rdname summarise_house_sizes
-#' @export
-summarize_house_sizes <- summarise_house_sizes
 
 ############################################################################
 ############################################################################

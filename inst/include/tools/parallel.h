@@ -10,8 +10,6 @@
 #include <cstddef>
 #include <utility>
 
-#include "types.h"
-
 #ifndef _STANDALONE
 #include <RcppParallel.h>
 #include <tbb/task_arena.h>
@@ -19,12 +17,11 @@
 
 namespace housepi::parallel
 {
-    /// Worker count left to the global budget.
-    inline constexpr std::size_t global_workers = 0;
+    inline constexpr std::size_t global_workers = 0; /// Worker count deferring to the global budget.
 
     namespace detail
     {
-        /// Serial fallback loop, shared by standalone and the single-worker shortcut.
+        /// Run the serial loop, shared by standalone and the single-worker shortcut.
         template <class F>
         inline void serial_for_each(std::size_t n, F &body)
         {
@@ -32,8 +29,8 @@ namespace housepi::parallel
                 body(i);
         }
 
-        /// Serial reduction, shared by standalone and the single-worker shortcut.
-        /// T is value-initialized to identity and accumulates via operator+=.
+        /// Run the serial reduction, shared by standalone and the single-worker shortcut.
+        /// @note `T` value-initializes to the identity and accumulates via `operator+=`.
         template <class T, class F>
         inline T serial_for_reduce(std::size_t n, F &body)
         {
@@ -72,8 +69,8 @@ namespace housepi::parallel
 
     namespace detail
     {
-        /// Number of threads requested.
-        /// NOTE: stored at file scope.
+        /// Return number of threads requested.
+        /// @note Held in a function-local static.
         inline int &num_threads_ref() noexcept
         {
             static int n = -1;
@@ -95,9 +92,11 @@ namespace housepi::parallel
             ~RegionGuard() { region_flag() = previous; }
         };
 
-        /// Workers a dispatch may use: its own budget, or the global one.
-        /// A dispatch with no budget of its own that is already inside a
-        /// parallel region falls back to a single worker.
+        /// Return workers a dispatch may use.
+        ///
+        /// - own budget: that budget;
+        /// - no own budget, inside a parallel region: one worker;
+        /// - no own budget, outside: the global budget.
         inline int resolve_workers(std::size_t workers) noexcept
         {
             if (workers != global_workers)
@@ -145,7 +144,7 @@ namespace housepi::parallel
         return n <= 0 ? 1 : static_cast<std::size_t>(n);
     }
 
-    /// Set number of threads.
+    /// Set number of threads, 0 read as 1.
     inline void set_num_threads(std::size_t n) noexcept
     {
         detail::num_threads_ref() = (n == 0) ? 1 : static_cast<int>(n);
@@ -154,8 +153,7 @@ namespace housepi::parallel
     /// Whether the caller runs inside the body of a parallel dispatch.
     inline bool in_parallel_region() noexcept { return detail::region_flag(); }
 
-    /// Index of the calling worker.
-    /// Returns 0 when called outside any parallel region.
+    /// Return index of the calling worker, 0 outside any parallel region.
     inline std::size_t current_thread_index() noexcept
     {
         if (detail::num_threads_ref() == 1)
@@ -165,7 +163,7 @@ namespace housepi::parallel
     }
 
     /// Run `body(i)` for i in [0, n) across `workers` RcppParallel workers.
-    /// A single worker takes the serial loop.
+    /// - single worker: serial loop.
     template <class F>
     inline void for_each(std::size_t n, F &&body, std::size_t workers = global_workers)
     {
@@ -176,8 +174,7 @@ namespace housepi::parallel
         RcppParallel::parallelFor(0, n, w, 1, count);
     }
 
-    /// Run `body(i)` for i in [0, n) across `workers` workers
-    /// and reduce contributions into a T via operator+=.
+    /// Run `body(i)` for i in [0, n) across `workers` workers, reducing into `T` via `operator+=`.
     template <class T, class F>
     inline T for_reduce(std::size_t n, F &&body, std::size_t workers = global_workers)
     {

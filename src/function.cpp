@@ -12,13 +12,12 @@
 #include <string>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parser.h"
 #include "tools/string.h"
-#include "tools/types.h"
 #include "tools/vector.h"
-
 #include "function.h"
 #include "registry.h"
 
@@ -26,13 +25,13 @@ namespace housepi
 {
     namespace
     {
-        /// Deduplicated string pool. Shared across models, thus append only.
-        /// NOTE: intern should be run only during serial model construction.
+        /// Deduplicated string pool, shared across models, hence append-only.
+        /// @note Intern only during serial model construction.
         struct NamePool_
         {
         public:
-            /// Intern a name and return its index.
-            /// NOTE: index 0 == empty name (NA).
+            /// Intern `name`, returning its index.
+            /// - index 0: empty name, NA.
             NameIndex intern(std::string_view name)
             {
                 auto it = lut_.find(name); // heterogeneous lookup: no std::string built
@@ -45,15 +44,15 @@ namespace housepi
                 return id;
             }
 
-            /// Resolve an index to its copied name.
+            /// Return a copy of the name at index `id`.
             std::string at(NameIndex id) const { return pool_[id]; }
 
         private:
-            std::vector<std::string> pool_ = {""}; /// interned names
-            dict<NameIndex> lut_ = {{"", 0}};      /// reverse name-to-index
+            std::vector<std::string> pool_ = {""}; /// Interned names.
+            dict<NameIndex> lut_ = {{"", 0}};      /// Index of each name.
         };
 
-        /// The single process-global name pool.
+        /// Return the process-global name pool.
         NamePool_ &name_pool_()
         {
             static NamePool_ pool;
@@ -61,15 +60,11 @@ namespace housepi
         }
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  *** Interval Arithmetics ***  ///////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Interval arithmetic  //////////////////////////////
 
     namespace
     {
-        /// A sum reaches its bound only where both operands reach theirs.
+        /// Combine openness for a sum: a bound is reached only where both operands reach theirs.
         Interval both_(Interval a, Interval b) noexcept
         {
             if (a == Interval::Unbounded || b == Interval::Unbounded)
@@ -77,7 +72,7 @@ namespace housepi
             return a == Interval::Closed && b == Interval::Closed ? Interval::Closed : Interval::Open;
         }
 
-        /// A minimum reaches a tied bound as soon as either operand reaches it.
+        /// Combine openness for a tied extremum: reached as soon as either operand reaches it.
         Interval either_(Interval a, Interval b) noexcept
         {
             if (a == Interval::Unbounded || b == Interval::Unbounded)
@@ -85,11 +80,13 @@ namespace housepi
             return a == Interval::Closed || b == Interval::Closed ? Interval::Closed : Interval::Open;
         }
 
+        /// Integers only when both lattices are.
         Lattice both_integers_(Lattice a, Lattice b) noexcept
         {
             return a == Lattice::Integers && b == Lattice::Integers ? Lattice::Integers : Lattice::Doubles;
         }
 
+        /// Sum of codomains `a` and `b`.
         Codomain add_(const Codomain &a, const Codomain &b)
         {
             Codomain c;
@@ -103,8 +100,9 @@ namespace housepi
             return c;
         }
 
-        /// NOTE: endpoints compose only while neither operand reaches below zero;
-        /// a factor that changes sign needs the four products and a union.
+        /// Product of codomains `a` and `b`.
+        /// Endpoints compose only while neither operand reaches below zero.
+        /// A factor changing sign needs the four products and a union.
         Codomain mul_(const Codomain &a, const Codomain &b)
         {
             Codomain c;
@@ -120,6 +118,7 @@ namespace housepi
             return c;
         }
 
+        /// Minimum of codomains `a` and `b`.
         Codomain min_(const Codomain &a, const Codomain &b)
         {
             Codomain c;
@@ -147,6 +146,7 @@ namespace housepi
             return c;
         }
 
+        /// Maximum of codomains `a` and `b`.
         Codomain max_(const Codomain &a, const Codomain &b)
         {
             Codomain c;
@@ -174,7 +174,7 @@ namespace housepi
             return c;
         }
 
-        /// Interval notation around bounds already rendered by the caller.
+        /// Format interval notation around bounds rendered by the caller.
         std::string str_interval_(const std::string &str_min,
                                   const std::string &str_max,
                                   Interval below,
@@ -205,7 +205,7 @@ namespace housepi
             }
         }
 
-        /// A number is the interval that contains only itself.
+        /// Codomain of number `v`: the interval holding only itself.
         Codomain numeric_codomain_(double v) noexcept
         {
             if (na::is(v))
@@ -224,11 +224,7 @@ namespace housepi
         return str_interval_(str::format(inf), str::format(sup), below, above);
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  *** Attribute : class ***  /////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Attribute  //////////////////////////////
 
     /// Read the attribute through its storage mode, one branch per mode.
 #define MAKE_ATTR_MODE(numeric, pointer, function, empty) \
@@ -301,7 +297,7 @@ namespace housepi
                        str::format(na::DOUBLE))
     }
 
-    // UPDATE: why this is not well formatted?
+    // @todo Fix the formatting of is_constant().
     bool Attribute::is_constant() const noexcept {
         MAKE_ATTR_MODE(is_user_const_,
                        pAttr_ -> is_constant(),
@@ -329,7 +325,6 @@ namespace housepi
                        pFunc_->is_callable_implicitly(),
                        false)
     }
-    /// NOTE: the pointer branch is not inlineable.
     double Attribute::value() const
     {
         MAKE_ATTR_MODE(value_,
@@ -338,9 +333,7 @@ namespace housepi
                        na::DOUBLE)
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  Attribute : setter //////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Attribute : setter  //////////////////////////////
 
     void Attribute::name(const std::string &txt) { name_id_ = name_pool_().intern(txt); }
 
@@ -407,7 +400,7 @@ namespace housepi
             init_function(other.function()->clone());
             return;
         default: // case Mode::Empty:
-            // NOTE: nothing to transfer if other is pure empty
+            // nothing to transfer from a pure empty
             if (other.err_type_ != ErrType::Empty)
                 init_pointer(other.pointer());
             return;
@@ -428,7 +421,8 @@ namespace housepi
             pFunc_->finalize();
     }
 
-    void Attribute::init_func_attr(std::string_view key, const Attribute &attr)
+    void Attribute::init_func_attr(std::string_view key,
+                                   const Attribute &attr)
     {
         switch (mode_)
         {
@@ -451,17 +445,13 @@ namespace housepi
         msg::stop(sms + ".");
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  *** Function : class ***  ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Function  //////////////////////////////
 
-    /// Initial defaults for function.
-    /// NOTE: to access arguments by index, I must provide separate name/value.
-    /// UPDATE: at the moment only place where to set an open domain
-    /// UPDATE: not sure if setting pointer to smtg exiting the domain I still have control
-    Function::Function(const std::vector<std::pair<std::string, double>> &args,
+    /// Name the standard arguments, register the canonical parametrization, close the given bounds.
+    /// - arguments come as name-value pairs, to be accessed by index.
+    /// @todo Construction is the only place setting the domain bounds.
+    /// @todo Check control over a pointer argument leaving the domain.
+    Function::Function(const Function::default_args &args,
                        double domain_min, double domain_max)
     {
         // default arguments initialized as empty
@@ -470,7 +460,7 @@ namespace housepi
         domain_.min.name("min");
         domain_.max.name("max");
 
-        // Fill canonical parametrization at construction
+        // canonical parametrization
         register_alt_("canonical", args);
 
         // assign domain if any, otherwise leave empty
@@ -497,9 +487,7 @@ namespace housepi
             "Called undefined method " + msg::val(call_name) + " of " + str() + ".");
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////  Function : Getter  /////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Function : getter  //////////////////////////////
 
     Attribute &Function::find_arg_(std::string_view key)
     {
@@ -512,8 +500,7 @@ namespace housepi
         if (key == "max")
             return domain_.max;
 
-        // search non standard arguments
-        // NOTE: first hit picks/confirms the active alternative set
+        // non-standard arguments: the first hit picks or confirms the active parametrization
         for (size_t i = 0; i < alts_.size(); ++i)
             for (Attribute &attr : alts_[i].args)
                 if (attr.name() == key)
@@ -593,7 +580,7 @@ namespace housepi
         return true;
     }
 
-    /// Collect names of missing arguments (from the active parametrization).
+    /// Collect names of missing arguments, from the active parametrization.
     std::vector<std::string> Function::get_missing_argument() const
     {
         std::vector<std::string> undefined_args = {};
@@ -603,7 +590,7 @@ namespace housepi
         return undefined_args;
     }
 
-    /// Throw exception if not callable explicitly.
+    /// Throw if not callable explicitly.
     void Function::assert_is_callable_explicitly() const
     {
         const std::vector<std::string> undefined_args = get_missing_argument();
@@ -627,8 +614,8 @@ namespace housepi
 
     void Function::assert_location_matches_discrete() const
     {
-        // a lattice survives an integer-valued shift and not a fractional one, so what
-        // is asked here is where the lattice lands, not whether there is one
+        // a lattice survives an integer shift, not a fractional one
+        // the check asks where the lattice lands, not whether there is one
         if (!is_discretized() || domain_.loc.is_empty() || domain_.loc.is_discrete())
             return;
 
@@ -644,20 +631,18 @@ namespace housepi
                     *attr, msg::arg(attr->name()) + " of " + str() + " must be discrete.");
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////  Function : Setter  /////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Function : setter  //////////////////////////////
 
     void Function::register_alt_(const std::string &alt_name,
-                                 const std::vector<std::pair<std::string, double>> &args)
+                                 const Function::default_args &args)
     {
-        // collect already-known names for collision detection
+        // known names, for collision detection
         std::vector<std::string> existing_names = {"x", "loc", "min", "max"};
         for (const AltArgSet &alt : alts_)
             for (const Attribute &attr : alt.args)
                 existing_names.emplace_back(attr.name());
 
-        // also check alt set names are unique
+        // parametrization names are unique too
         for (const AltArgSet &alt : alts_)
             if (alt.name == alt_name)
                 msg::stop(
@@ -684,11 +669,11 @@ namespace housepi
         alts_.emplace_back(std::move(alt));
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  Function : set domain  /////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Function : domain  //////////////////////////////
 
-    bool Domain::init_min(double min_val, bool is_min_open, const std::string &owner)
+    bool Domain::init_min(double min_val,
+                          bool is_min_open,
+                          const std::string &owner)
     {
         if (min.is_empty())
             msg::stop(
@@ -744,11 +729,7 @@ namespace housepi
             msg::stop("Inconsistent domain " + str() + " for " + owner + ".");
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////  Function : show  ///////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Function : show  //////////////////////////////
 
     Codomain Domain::relocated() const
     {
@@ -797,11 +778,7 @@ namespace housepi
         return str_interval_(str_min, str_max, below, above);
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////  Function : Arguments  ///////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Function : arguments  //////////////////////////////
 
     void Function::init_attr(std::string_view key, const Attribute &attr)
     {
@@ -809,7 +786,7 @@ namespace housepi
             msg::stop(attr.str() + " has no value to pass as argument " +
                       msg::arg(std::string(key)) + " of " + str() + ".");
 
-        // assert that function attribute are implicitely callable
+        // the attribute must be callable implicitly
         try
         {
             helper_assert_valid_attribute_(key, attr);
@@ -826,8 +803,9 @@ namespace housepi
         find_arg_(key).transfer(attr);
     }
 
-    /// Assert that proposed function attribute is valid.
-    void Function::helper_assert_valid_attribute_(std::string_view key, const Attribute &attr)
+    /// Assert argument `key` accepts `attr`.
+    void Function::helper_assert_valid_attribute_(std::string_view key,
+                                                  const Attribute &attr)
     {
         if (attr.is_function())
         {
@@ -862,11 +840,7 @@ namespace housepi
         domain_.max.finalize();
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  *** registry::RegFunctions : class ***  //////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  registry::RegFunctions  //////////////////////////////
 
     namespace registry
     {
@@ -886,7 +860,7 @@ namespace housepi
                 return nullptr;
 
             auto output = it->second();
-            // NOTE: by default evaluates as function
+            // evaluates as function unless primitive
             if (is_prim)
                 output->set_eval_as_prim();
 
@@ -948,11 +922,7 @@ namespace housepi
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////  *** Function : implementations ***  /////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Function implementations  //////////////////////////////
 
 namespace
 {
@@ -1037,7 +1007,7 @@ namespace
         Codomain codomain() const noexcept override final
         {
             Codomain c;
-            // NOTE: a divisor spanning zero yields two rays, which is not an interval
+            // a divisor spanning zero yields two rays, not an interval
             if (x_arg_.codomain().is_positive() && arguments_(0).codomain().is_positive())
                 c.inf = 0., c.below = Interval::Open;
             return c;
@@ -1062,7 +1032,7 @@ namespace
             // an integer base raised to an integer non-negative power stays an integer
             if (b.on_integers() && e.on_integers() && e.below != Interval::Unbounded && e.inf >= 0.)
                 c.lattice = Lattice::Integers;
-            // NOTE: tightening the interval needs the exponent's sign and parity
+            // a tighter interval needs the sign and parity of the exponent
             if (b.is_positive())
                 c.inf = 0., c.below = Interval::Open;
             return c;
@@ -1217,18 +1187,17 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Tangent_, Transcendental)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  ReductionFunction : class  //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  ReductionFunction  //////////////////////////////
 
-    /// Auxialiary class to deal with reduction functions.
+    /// Base of reductions over `x` and variadic arguments.
     class ReductionFunction : public Function
     {
     public:
     protected:
-        /// Wheter the fold always skips this operand: structurally absent, or a
-        /// literal NA. A pointer is never skipped, even while it reads NA before
-        /// initialization, as it answers for the definition it points at.
+        /// Whether the fold always skips operand `attr`.
+        ///
+        /// - structurally absent, or a literal NA: skipped;
+        /// - pointer: never skipped, even reading NA before initialization: it answers for its target.
         static bool is_skipped_(const Attribute &attr) noexcept
         {
             return attr.is_empty() || (attr.is_numeric() && attr.is_na());
@@ -1236,8 +1205,9 @@ namespace
 
         Attribute &find_arg_(std::string_view key) override final { return find_or_append_arg_(key); }
 
-        /// Fold over x and all arguments: NA-skipping in fold mode, else any NA
-        /// operand makes it NA.
+        /// Fold over `x` and every argument.
+        /// - fold mode: NA skipped;
+        /// - otherwise: any NA operand makes it NA.
         template <class Op>
         double reduce_(double x, Op op) const
         {
@@ -1259,8 +1229,8 @@ namespace
             }
         }
 
-        /// NA-skipping fold over x and all arguments.
-        /// Returns NA if no non-NA operand is found.
+        /// Fold over `x` and every argument, NA skipped.
+        /// - no operand left: NA.
         template <class Op>
         double reduce_na_rm_(double x, Op op) const
         {
@@ -1277,9 +1247,8 @@ namespace
             return has ? acc : na::DOUBLE;
         }
 
-        /// NA-skipping fold of codomain() over x and all arguments.
-        /// Returns the unbounded codomain if no operand is folded, as the runtime
-        /// fold returns NA there.
+        /// Fold codomain() over `x` and every argument, NA skipped.
+        /// - no operand folded: unbounded codomain, where the runtime fold returns NA.
         template <class Op>
         Codomain reduce_codomain_(Op op) const
         {
@@ -1295,9 +1264,8 @@ namespace
             return has ? acc : Codomain();
         }
 
-        /// Reduce all single constant inside the first constant argument.
-        /// A constant NA argument is skipped in fold mode, else it leaves the call
-        /// unfolded, to return NA.
+        /// Fold every constant argument into the first constant one.
+        /// - constant NA argument: skipped in fold mode, else the call stays unfolded to return NA.
         template <class Op>
         void reduce_const_(Op op)
         {
@@ -1398,11 +1366,9 @@ namespace
     HOUSEPI_REGISTER_FUNCTION(Maximum_, Arithmetic)
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  Attribute : init product  ///////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Attribute : init product  //////////////////////////////
 
-/// UPDATE: this will be moved when Attribute func beomes unique ptr
+/// @todo Move next to the Attribute implementation.
 void Attribute::init_product(const std::vector<const Attribute *> &other_ptrs)
 {
     if (other_ptrs.size() == 1)

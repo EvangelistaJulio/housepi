@@ -5,11 +5,7 @@
  * See the LICENSE file for details.
  */
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////  * *** * AUGMENT INFECTION TIMES - SINGLE INTRODUCTION * *** *  /////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  case_ascertained  //////////////////////////////
 
 #include "housepi.h"
 
@@ -19,6 +15,7 @@
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
 
+/// Model ascertained cases with augmented infection times and a single introduction per household.
 class Model final : public ModelBase
 {
 public:
@@ -32,7 +29,7 @@ public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtx, inst, cumul)
 	HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha, beta, gamma, hhsize_ref)
 
-	/// Initialize infectivity profile.
+	/// Declare data, parameter, risk and latent requirements.
 	void init_model_requirements() override final
 	{
 		request_data_discrete(
@@ -56,16 +53,16 @@ public:
 #endif
 	}
 
-	/// Allow for contact risk definitions.
+	/// Whether the model uses contact risks.
 	bool has_contact_risk() const override final { return true; }
 
-	/// Transmission is driven by an infectivity profile.
+	/// Whether the model requires an infectivity profile definition.
 	bool has_infec_profile() const override final { return true; }
 
-	/// NOTE: missing status are not modeled
+	/// Assert no member has missing status: the model does not handle it.
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
-	/// Initialize household for evaluation
+	/// Assert `house` has an infected member and non-negative follow-up periods.
 	void init_house_for_evaluation(const Household &house) override final
 	{
 		if (house.n_infected_status() == 0)
@@ -81,20 +78,16 @@ public:
 					".\nCheck " + msg::arg("start_date") + " and " + msg::arg("end_date") + ".");
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////  Model : compute single house log-likelihood  /////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////  Model : household log-likelihood  //////////////////////////////
 
-	/// Transmission rate.
+	/// Return transmission rate, scaled by household size.
 	double transmission_rate(MemberIdx house_size) const
 	{
 		return par(Param::beta) *
 			   std::exp(par(Param::gamma) * std::log(par(Param::hhsize_ref) / house_size));
 	}
 
-	/// End of follow-up `end_date` is the last fully-observed day (inclusive)
+	/// Return end of follow-up of `indiv`: `end_date` is the last fully observed day, included.
 	double follow_up_end(const Individual &indiv) const
 	{
 #ifdef _HOUSEPI_DISCRETE_TIME
@@ -137,7 +130,7 @@ public:
 			if (i == i0)
 				continue;
 
-			// Risk of infection from other household members k
+			// risk of infection from the other infected members j
 			double roi_inst_i = 0.;
 			double roi_cumul_i = 0.;
 			for (MemberIdx j : house.infected_members())
@@ -159,9 +152,8 @@ public:
 			roi_inst_i += a_i;
 
 #ifdef _HOUSEPI_DISCRETE_TIME
-			// days escaped infection before transmission:
-			// a member infected the day after the introduction survived none
-			// NOTE: co-primary cannot survive fewer
+			// days escaped before infection: none for a member infected the day after the introduction
+			// a co-primary cannot survive fewer
 			const double survived = aug(Latent::infec_time, indiv_i) - 1. - t_intro;
 			if (survived > 0.)
 				roi_cumul_i += a_i * survived;
@@ -175,23 +167,21 @@ public:
 		return output;
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////// Model : cached quantities consuming latent variables  ////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////  Model : transmission cache  //////////////////////////////
 
-	void helper_update_pairwise_cache(
-		std::vector<std::vector<double>> &inst_mtx,
-		std::vector<std::vector<double>> &cumul_mtx,
-		const Individual &indiv_i,
-		const Individual &indiv_j,
-		double t_infec_i,
-		double t_infec_j)
+	/// Store profiles between infected members `indiv_i` and `indiv_j`, by generation time.
+	void helper_update_pairwise_cache(std::vector<std::vector<double>> &inst_mtx,
+									  std::vector<std::vector<double>> &cumul_mtx,
+									  const Individual &indiv_i,
+									  const Individual &indiv_j,
+									  double t_infec_i,
+									  double t_infec_j)
 	{
 		const MemberIdx i = Index::member(indiv_i);
 		const MemberIdx j = Index::member(indiv_j);
 		const double gentime = t_infec_j - t_infec_i;
 
-		// note: setting lut to 0 this is necessary because ROI is brute force
+		// the reverse direction is set to 0: the risk of infection sums over every pair
 		if (gentime > 0)
 		{ // i : infector, j : infectee
 			inst_mtx[i][j] = infec_profile_inst(indiv_i, gentime);
@@ -204,7 +194,7 @@ public:
 			cumul_mtx[j][i] = 0.0;
 		}
 		else if (gentime < 0)
-		{ // k : infector, i : infectee
+		{ // j : infector, i : infectee
 			inst_mtx[i][j] = 0.0;
 			cumul_mtx[i][j] = 0.0;
 			inst_mtx[j][i] = infec_profile_inst(indiv_j, -gentime);
@@ -225,8 +215,11 @@ public:
 #endif
 	}
 
-	/// Introduction rule: earliest infection, ties to smallest hosuehold index.
-	static void helper_commit_intro(MemberIdx &i0, double &t0, MemberIdx i, double t)
+	/// Commit the introduction: earliest infection, ties to the smallest member index.
+	static void helper_commit_intro(MemberIdx &i0,
+									double &t0,
+									MemberIdx i,
+									double t)
 	{
 		if (t < t0 || (t == t0 && i < i0))
 		{
@@ -235,9 +228,8 @@ public:
 		}
 	}
 
-	/// Store cumulative and instantaneous infectivity profiles for household.
-	/// WARNING: unpredictable behavior if i is not an infector.
-	/// WARNING: these function must not call any mutable parameter.
+	/// Store cumulative and instantaneous infectivity profiles of `house`.
+	/// @note Must not read a mutable parameter.
 	void update_house_transmission_cache(const Household &house) override final
 	{
 		auto &inst_mtx = cache_double_matrix(house, HHdoublemtx::inst);
@@ -254,9 +246,7 @@ public:
 			const Individual &indiv_i = house.at(i);
 			const double t_infec_i = aug(Latent::infec_time, indiv_i);
 
-			///////////////////////////////
-			//////  Escaped Members  //////
-			///////////////////////////////
+			//////  Escaped members  //////
 
 			for (MemberIdx s : house.escaped_members())
 			{
@@ -266,9 +256,7 @@ public:
 				cumul_mtx[s][i] = 0.0;
 			}
 
-			///////////////////////////////////
-			//////// Infectious Members ///////
-			///////////////////////////////////
+			//////  Infectious members  //////
 
 			for (MemberIdx b = a + 1; b < n_infec; ++b)
 			{
@@ -286,7 +274,8 @@ public:
 		}
 	}
 
-	/// Store cumulative and instantaneous infectivity profiles according to an infector.
+	/// Store the infectivity profiles involving infector `indiv_i`.
+	/// @note Undefined when `indiv_i` is not an infector.
 	void update_member_transmission_cache(const Household &house,
 										  const Individual &indiv_i) override final
 	{
@@ -297,9 +286,7 @@ public:
 		const MemberIdx i = Index::member(indiv_i);
 		const double t_infec_i = aug(Latent::infec_time, indiv_i);
 
-		///////////////////////////////
-		//////  Escaped Members  //////
-		///////////////////////////////
+		//////  Escaped members  //////
 
 		for (MemberIdx s : house.escaped_members())
 		{
@@ -309,9 +296,7 @@ public:
 			cumul_mtx[s][i] = 0.0;
 		}
 
-		///////////////////////////////////
-		//////// Infectious Members ///////
-		///////////////////////////////////
+		//////  Infectious members  //////
 
 		// commit introduction to current member
 		i0 = i;
@@ -334,13 +319,9 @@ public:
 		}
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////  Model : simulate single house  //////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////  Model : household simulation  //////////////////////////////
 
-	/// Poisson point process to simulate outbreak in a single household.
+	/// Simulate the outbreak in `house` as a Poisson point process.
 	void simulate_single_house(Household &house) override final
 	{
 #ifdef _HOUSEPI_DISCRETE_TIME
@@ -348,16 +329,12 @@ public:
 #else
 		const double Dt = real_time_step();
 #endif
-		/////////////////////////////////////////////////////////////////
-		/////////////  Generation 0 : by single introduction  ///////////
-		/////////////////////////////////////////////////////////////////
+		//////  Generation 0: single introduction  //////
 
 		const MemberIdx i0 = helper_rand_intro(house);
 		Individual &indiv_0 = house.at(i0);
 
-		/////////////////////////////////////////////////////////////////
-		//////  Generation >=1 : infection by previous generation  //////
-		/////////////////////////////////////////////////////////////////
+		//////  Generation 1+: infection by the previous generation  //////
 
 		const double alpha = par(Param::alpha);
 		const double beta = transmission_rate(house.size());
@@ -394,7 +371,7 @@ public:
 		set_infected(house, indiv_0);
 		init_missing_latent(indiv_0);
 
-		// set all others members to escaped status
+		// every other member escaped
 		for (Individual &indiv : house)
 			if (indiv != indiv_0)
 				set_escaped(house, indiv);
@@ -402,7 +379,7 @@ public:
 		return i0;
 	}
 
-	/// Instantaneous risk of Infection for individual i. Used in simulation.
+	/// Instantaneous risk of infection of `indiv_i` at time `t_infec_i`, in simulation.
 	double roi_inst_simulation(
 		const Household &house,
 		const Individual &indiv_i,

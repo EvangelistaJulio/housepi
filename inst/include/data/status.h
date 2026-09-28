@@ -8,20 +8,20 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 
-#include "types.h"
+namespace housepi
+{
+	using StatusLvl = std::uint8_t; /// Individual status level.
+}
 
 namespace housepi::status
 {
-	/// escaped status (==)
-	constexpr StatusLvl ESCAPED = 0;
-	/// infected status (>= and != MISSING)
-	constexpr StatusLvl INFECTED = 1;
-	/// missing status (==), the top level a status can hold
-	constexpr StatusLvl MISSING = std::numeric_limits<StatusLvl>::max();
-	/// largest infected status
-	constexpr StatusLvl MAX_INFECTED = MISSING - 1;
+	constexpr StatusLvl ESCAPED = 0;                                     /// Escaped status, matched by equality.
+	constexpr StatusLvl INFECTED = 1;                                    /// Lowest infected status.
+	constexpr StatusLvl MISSING = std::numeric_limits<StatusLvl>::max(); /// Missing status, the top level.
+	constexpr StatusLvl MAX_INFECTED = MISSING - 1;                      /// Highest infected status.
 
 	/// Whether individual status is infected.
 	inline bool is_infected(int s) { return s >= INFECTED && s != MISSING; }

@@ -16,24 +16,17 @@
 #include <unordered_set>
 #include <vector>
 
-#include "tools/dependency.h"
+#include "tools/dag.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parser.h"
-#include "tools/read.h"
 #include "tools/string.h"
-#include "tools/types.h"
 #include "tools/vector.h"
-
 #include "function.h"
 #include "variable.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  Housepi Model Keys  ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  KeyHolder  //////////////////////////////
 
 namespace housepi
 {
@@ -141,11 +134,7 @@ namespace housepi
     template void KeyModuleWithRequests::assert_requests(size_t, const Variable &) const;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////  Not Available Recognition Functions  //////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////  na values  ///////////////////////////
 
 namespace housepi::na
 {
@@ -161,21 +150,15 @@ namespace housepi::na
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////  String Manipulation Functions  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////  strings  ////////////////////////////
 
 #ifndef M_PI
-#define M_PI 3.14159265358979323846264338327950288 /// pi
+#define M_PI 3.14159265358979323846264338327950288 /// Pi.
 #endif
 
 namespace housepi::str
 {
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  Converter Functions  ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////  Converters  //////
 
     std::string toup(std::string s)
     {
@@ -194,8 +177,7 @@ namespace housepi::str
         return false;
     }
 
-    /// Template function to wrap conversion functions with try-catch.
-    /// Using function pointer casting.
+    /// Call conversion `func` on `input`, raising an invalid argument as an error naming `errtxt`.
     template <typename Func, typename... Args>
     auto helper_converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
     {
@@ -215,7 +197,7 @@ namespace housepi::str
     {
         if (na::is(input))
             return na::DOUBLE;
-        // UPDATE: this is not a robust approach...
+        // @todo Replace the literal match on "pi" with a lookup of named constants.
         if (input == "pi")
             return M_PI;
         return helper_converter_(static_cast<double (*)(const std::string &, size_t *)>(std::stod), input, errtxt, nullptr);
@@ -229,9 +211,7 @@ namespace housepi::str
         return helper_converter_(static_cast<unsigned long (*)(const std::string &, size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  Formatter Functions  ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////  Formatters  //////
 
     std::string format(bool condition) { return condition ? "TRUE" : "FALSE"; }
 
@@ -295,9 +275,7 @@ namespace housepi::str
         }
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  String Vector Functions  //////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////  String vectors  //////
 
     bool starts_with(std::string_view s, std::string_view pattern) noexcept
     {
@@ -316,8 +294,8 @@ namespace housepi::str
         return out;
     }
 
-    /// Calcuate the Levenshtein distance.
-    /// Distance is equal to seq_B length if seq_A is empty, and viceversa.
+    /// Return Levenshtein distance between `seq_A` and `seq_B`.
+    /// - one empty sequence: length of the other.
     /// Based on @cite wikipedia_levenshtein_2026
     size_t helper_levenshtein_(std::string_view seq_A, std::string_view seq_B)
     {
@@ -350,7 +328,7 @@ namespace housepi::str
             return "";
 
         std::string closest = "";
-        // shorer inputs tolerate fewer edits
+        // shorter inputs tolerate fewer edits
         size_t dist_closest = std::min(min_dist, input.size() / 2);
 
         if (dist_closest > 0)
@@ -371,17 +349,10 @@ namespace housepi::str
             return "\nAvailable option is " + format(options);
         return "\nAvailable options are: " + format(options);
     }
-}
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////  CSV Reader Functions  /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+    //////  List parsers  //////
 
-namespace housepi::read
-{
-    std::string strcleaner(std::string tkn)
+    std::string clean(std::string tkn)
     {
         // forbidden characters
         for (char r : {'"', '\r', '\n'})
@@ -389,20 +360,19 @@ namespace housepi::read
         return tkn;
     }
 
-    std::vector<std::string> parse_list(const std::string &tkn)
+    std::vector<std::string> split_list(const std::string &tkn)
     {
         std::vector<std::string> output = {};
-        std::istringstream args_ss(strcleaner(tkn));
+        std::istringstream args_ss(clean(tkn));
         std::string tmp;
 
-        // rea the entries of the dictionary
+        // read the entries of the list
         while (std::getline(args_ss, tmp, LIST_DELIMITER))
             output.push_back(tmp);
         return output;
     }
 
-    // UPDATE: can't I merge this and the previous 'parse_list'?
-    std::vector<std::string> helper_parse_names(std::string input)
+    std::vector<std::string> parse_names(std::string input)
     {
         std::vector<std::string> result;
         size_t start = 0;
@@ -438,13 +408,9 @@ namespace housepi::read
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////  Dependencies Checking ///////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////  directed acyclic graphs  ////////////////////////
 
-namespace housepi::dpdcy
+namespace housepi::dag
 {
     void walk_graph(const std::string &entry,
                     const prod_graph &graph,
@@ -470,8 +436,8 @@ namespace housepi::dpdcy
         for (const std::string &next : graph.at(entry))
             walk_graph(next, graph, visited, recursion_stack, ordered, err);
 
-        // the cycle guard keeps 'entry' unique on the stack and the nested
-        // calls balance out, so 'entry' is the top on return
+        // the cycle guard keeps 'entry' unique on the stack, nested calls balance out
+        // 'entry' is the top on return
         recursion_stack.pop_back();
         visited.push_back(entry);
         ordered.push_back(entry);
@@ -490,8 +456,7 @@ namespace housepi::dpdcy
                                                   const prod_graph &graph,
                                                   ErrType err)
     {
-        // walk_graph accumulates 'start' and its producers in post-order,
-        // i.e. producer-before-consumer, with 'start' last.
+        // post-order: producers first, 'start' last
         std::vector<std::string> visited, recursion_stack, ordered;
         walk_graph(start, graph, visited, recursion_stack, ordered, err);
         return ordered;
@@ -501,8 +466,7 @@ namespace housepi::dpdcy
                                                   const prod_graph &graph,
                                                   ErrType err)
     {
-        // invert producer graph and create a consumer graph,
-        // where every node is the consumer of what it reads
+        // consumer graph: each node maps to the nodes reading it
         prod_graph consumer_graph;
         for (const auto &[node, producers] : graph)
         {
@@ -523,13 +487,9 @@ namespace housepi::dpdcy
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////  Definition Parser /////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  parse  //////////////////////////////
 
-/// Append the producers of chosen type to stack.
+/// Define `Entry::append_<type>_producers`, appending producers of the type to `stack`.
 #define MAKE_NODE_LIST_PRODUCERS(type_flag)                                           \
     void Entry::append_##type_flag##_producers(std::vector<std::string> &stack) const \
     {                                                                                 \
@@ -540,7 +500,7 @@ namespace housepi::dpdcy
                 child.append_##type_flag##_producers(stack);                          \
     }
 
-/// Return unique list of producers of chosen type.
+/// Define `Definition::list_<type>_producers`, listing distinct producers of the type.
 #define MAKE_PARSER_LIST_PRODUCERS(type_flag)                                 \
     std::vector<std::string> Definition::list_##type_flag##_producers() const \
     {                                                                         \
@@ -551,7 +511,7 @@ namespace housepi::dpdcy
 
 namespace housepi::parse
 {
-    /// Split on sep at top level (ignore separators inside brackets).
+    /// Split `s` at top-level delimiters, skipping those inside brackets.
     std::vector<std::string> split_top_(const std::string &s)
     {
         std::vector<std::string> entries;
@@ -560,13 +520,13 @@ namespace housepi::parse
 
         for (char c : s)
         {
-            // check the level accroding to brackets
+            // bracket depth
             if (c == '[')
                 ++level;
             else if (c == ']')
                 --level;
             // parse only top level
-            if (c == read::LIST_DELIMITER && level == 0)
+            if (c == str::LIST_DELIMITER && level == 0)
             {
                 entries.push_back(current);
                 current.clear();
@@ -600,17 +560,16 @@ namespace housepi::parse
         const std::string expr_head = expr.substr(0, bar_1);
         const std::string expr_tail = expr.substr(bar_1 + 1);
 
-        // if not found, then it's a terminal node "value|type"
+        // no second bar: terminal node "value|type"
         size_t bar_2 = expr_tail.find('|');
         if (bar_2 == std::string::npos)
             return Entry(expr_head, expr_tail);
 
-        // otherwise it is a non-default function node
-        // e. g. "func|arg_1:...:arg_n|child_1:...child_n"
+        // non-default function node, e.g. "func|arg_1:...:arg_n|child_1:...child_n"
         const std::vector<std::string> args = split_top_(expr_tail.substr(0, bar_2));
         const std::vector<std::string> children = split_top_(expr_tail.substr(bar_2 + 1));
 
-        // populate the parent node with children nodes
+        // children nodes
         Entry node;
         node.func = expr_head;
         node.children.reserve(children.size());
@@ -620,8 +579,7 @@ namespace housepi::parse
 
             if (c.size() >= 2 && c.front() == '[' && c.back() == ']')
             {
-                // function child node
-                // parse inner expression and keep bracketed flag
+                // function child: parse inner expression, keep bracketed flag
                 auto child = parse_expression_(c.substr(1, c.size() - 2));
                 child.is_bracketed = true;
                 child.key = args[i];
@@ -629,7 +587,7 @@ namespace housepi::parse
             }
             else
             {
-                // terminal child node
+                // terminal child
                 size_t barc = c.find('|');
                 Entry child(c.substr(0, barc), c.substr(barc + 1));
                 child.key = args[i];
@@ -637,7 +595,7 @@ namespace housepi::parse
             }
         }
 
-        // ensure "x" arguments is defined at the end
+        // "x" argument goes last
         auto it = std::find_if(node.children.begin(), node.children.end(),
                                [&](const Entry &e)
                                { return e.key == "x"; });
@@ -669,8 +627,8 @@ namespace housepi::parse
             const auto &child = children[i];
             if (i > 0)
             {
-                str_args += read::DELIMITER;
-                str_children += read::DELIMITER;
+                str_args += str::DELIMITER;
+                str_children += str::DELIMITER;
             }
             str_args += child.key;
 

@@ -13,23 +13,20 @@
 
 namespace housepi
 {
+    /// Register definition names: model-declared ones first, then optional user ones.
     struct KeyHolder
     {
     public:
-        //////////////////////
-        //////  SETTER  //////
-        //////////////////////
+        //////  Setter  //////
 
-        /// Assign the vector of model declared keys.
+        /// Assign model-declared keys `keys`, dropping optional ones.
         void init(const std::vector<std::string> &keys);
         /// Drop all optional definitions.
         void clear_optional();
-        /// Add a new definition.
+        /// Add optional definition `name`, if absent.
         void add(std::string_view name);
 
-        //////////////////////
-        //////  GETTER  //////
-        //////////////////////
+        //////  Getter  //////
 
         /// Total number of definition names.
         size_t size() const noexcept { return size_; }
@@ -45,45 +42,45 @@ namespace housepi
         size_t from_string(std::string_view name) const;
         std::vector<size_t> from_string(const std::vector<std::string> &names) const;
 
-        /////////////////////
-        //////  FLAGS  //////
-        /////////////////////
+        //////  Flags  //////
 
         /// Whether no definition has been provided.
         bool empty() const noexcept { return size() == 0; };
-        /// Wheter a given definition is registred.
+        /// Whether definition `name` is registered.
         bool count(std::string_view name) const;
 
     private:
-        size_t size_ = 0;                        /// Store registry size
-        std::vector<std::string> declared_ = {}; /// Model declared definitions
-        std::vector<std::string> optional_ = {}; /// User optional definitions
+        size_t size_ = 0;                        /// Number of definitions.
+        std::vector<std::string> declared_ = {}; /// Model-declared definitions.
+        std::vector<std::string> optional_ = {}; /// Optional user definitions.
     };
 
+    /// Module addressing its definitions through a key holder.
     struct KeyModule
     {
     public:
-        /// Initialize key-holder with model declared keys.
+        /// Initialize the key holder with model-declared keys.
         void init_key_holder(const std::vector<std::string> &keys) { khold_.init(keys); }
 
-        /// Reference to key-holder.
+        /// Key holder.
         const KeyHolder &khold() const { return khold_; }
-        /// Call key-holder index-to-string converter.
+        /// Convert indexes to definition names.
         std::string khold(size_t index) const { return khold_.as_string(index); }
         std::vector<std::string> khold(std::vector<size_t> indexes) const { return khold_.as_string(indexes); }
-        /// Call key-holder string-to-index converter.
+        /// Convert definition names to indexes.
         size_t khold(std::string_view name) const { return khold_.from_string(name); }
         std::vector<size_t> khold(const std::vector<std::string> &names) const { return khold_.from_string(names); }
 
     protected:
-        KeyHolder khold_; /// definitions key-holder
+        KeyHolder khold_; /// Key holder of the definitions.
     };
 
+    /// Key module recording discrete and positive requests per key.
     struct KeyModuleWithRequests : public KeyModule
     {
-        /// Request discrete definition.
+        /// Request discrete definitions `vec`.
         void request_discrete(std::vector<size_t> vec);
-        /// Request positive definition.
+        /// Request positive definitions `vec`.
         void request_positive(std::vector<size_t> vec);
 
         /// Whether a key was requested discrete.
@@ -95,19 +92,19 @@ namespace housepi
         /// Names of the keys requested positive.
         std::vector<std::string> positive_keys() const { return khold(posit_); }
 
-        /// Copy the requests registered on a module over the same keys.
+        /// Copy the requests registered on `other`, a module over the same keys.
         void copy_requests(const KeyModuleWithRequests &other)
         {
             discr_ = other.discr_;
             posit_ = other.posit_;
         }
 
-        /// Throw if a definition does not satisfy the requests registred on its key.
+        /// Throw if definition `def` does not satisfy the requests registered on key `p`.
         template <class Def>
         void assert_requests(size_t p, const Def &def) const;
 
     private:
-        std::vector<size_t> discr_ = {}; /// Keys requested discrete
-        std::vector<size_t> posit_ = {}; /// Keys requested positive
+        std::vector<size_t> discr_ = {}; /// Keys requested discrete.
+        std::vector<size_t> posit_ = {}; /// Keys requested positive.
     };
 }

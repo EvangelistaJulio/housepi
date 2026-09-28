@@ -23,9 +23,7 @@
 #include "tools/parser.h"
 #include "tools/random.h"
 #include "tools/string.h"
-#include "tools/types.h"
 #include "tools/vector.h"
-
 #include "augmented.h"
 #include "data.h"
 #include "data/household.h"
@@ -36,12 +34,12 @@
 #include "function.h"
 #include "infec_profile.h"
 #include "mcmc.h"
-#include "mcmc_base.h"
+#include "mcmc/base.h"
 #include "model.h"
 #include "parameter.h"
 #include "registry.h"
 #include "risks.h"
-#include "setup.h"
+#include "mcmc/setup.h"
 #include "translator.h"
 
 namespace housepi
@@ -271,49 +269,6 @@ namespace housepi
 
     namespace
     {
-        /// Initialize the parameter draws of the posterior.
-        void helper_init_param_draws(
-            Posterior *post,
-            const Parameter &param,
-            unsigned long sample_size)
-        {
-            size_t n_sample = param.scheme().sample.size();
-            size_t n_func = param.scheme().func.size();
-            post->param_values.reserve(n_sample + n_func);
-            post->param_priors.reserve(n_sample);
-            post->param_names.reserve(n_sample + n_func);
-            post->param_prior_names.reserve(n_sample);
-            for (size_t p : param.scheme().sample)
-            {
-                post->param_values.emplace_back(sample_size, na::DOUBLE);
-                post->param_priors.emplace_back(sample_size, na::DOUBLE);
-                post->param_names.push_back(param.khold(p));
-                post->param_prior_names.push_back("param_lprior_" + param.khold(p));
-            }
-            // function-derived parameters: value trace only, no prior
-            for (size_t p : param.scheme().func)
-            {
-                post->param_values.emplace_back(sample_size, na::DOUBLE);
-                post->param_names.push_back(param.khold(p));
-            }
-        }
-
-        /// Initialize the household transmission log-likelihood draws of the posterior.
-        void helper_init_house_draws(
-            Posterior *post,
-            const data::Wide &data_wide,
-            unsigned long sample_size)
-        {
-            post->house_log_lik.reserve(data_wide.eq_class_size());
-            for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
-                post->house_log_lik.emplace_back(sample_size, na::DOUBLE);
-
-            size_t n_houses = data_wide.report_house.total;
-            post->house_names.reserve(n_houses);
-            for (const Household &house : data_wide)
-                post->house_names.push_back(data_wide.hhid(house));
-        }
-
         /// Individuals selected for latent draws, with their ids and household ids.
         struct LatentDraws_
         {
@@ -321,7 +276,9 @@ namespace housepi
             std::vector<std::string> hhids;
             std::vector<const Individual *> ptrs;
 
-            void store(const data::Wide &data_wide, const Household &house, const Individual &indiv)
+            void store(const data::Wide &data_wide,
+                       const Household &house,
+                       const Individual &indiv)
             {
                 ids.emplace_back(data_wide.id(indiv));
                 hhids.emplace_back(data_wide.hhid(house));
@@ -331,12 +288,11 @@ namespace housepi
 
         /// Resolve individual and household ids for latent draws, and return tracked pointers.
         /// @note Draw lists are assumed to hold unique ids.
-        std::vector<const Individual *> helper_init_individual_sample(
-            const Augmented &augm,
-            const data::Wide &data_wide,
-            const std::vector<std::string> &id_draws,
-            const std::vector<std::string> &house_draws,
-            rnd_gen &prng)
+        std::vector<const Individual *> helper_init_individual_sample(const Augmented &augm,
+                                                                      const data::Wide &data_wide,
+                                                                      const std::vector<std::string> &id_draws,
+                                                                      const std::vector<std::string> &house_draws,
+                                                                      rnd_gen &prng)
         {
             if (id_draws.size() == 1 && id_draws[0] == ".none" && house_draws.empty())
                 return {};
@@ -357,22 +313,24 @@ namespace housepi
 
             // collect explicit selections, or eligible households for the default
             for (const Household &house : data_wide)
-                if (house.n_infected_status() > 0)
-                {
-                    if (is_default)
-                    {
-                        eligible.push_back(&house);
-                        continue;
-                    }
+            {
+                if (house.n_infected_status() == 0)
+                    continue;
 
-                    if (vect::contains(house_draws, data_wide.hhid(house)))
-                        for (const Individual &indiv : house.infected_indivs())
-                            seen.store(data_wide, house, indiv);
-                    else
-                        for (const Individual &indiv : house.infected_indivs())
-                            if (vect::contains(id_draws, data_wide.id(indiv)))
-                                seen.store(data_wide, house, indiv);
+                if (is_default)
+                {
+                    eligible.push_back(&house);
+                    continue;
                 }
+
+                if (vect::contains(house_draws, data_wide.hhid(house)))
+                    for (const Individual &indiv : house.infected_indivs())
+                        seen.store(data_wide, house, indiv);
+                else
+                    for (const Individual &indiv : house.infected_indivs())
+                        if (vect::contains(id_draws, data_wide.id(indiv)))
+                            seen.store(data_wide, house, indiv);
+            }
 
             // warn on draws not found in the data
             std::vector<std::string> missed_id = vect::difference(id_draws, seen.ids);
@@ -397,33 +355,69 @@ namespace housepi
 
             return seen.ptrs;
         }
+    }
 
-        /// Initialize the latent draws of the posterior.
-        void helper_init_latent_draws(
-            Posterior *post,
-            const Augmented &augm,
-            const data::Wide &data_wide,
-            const Setup &setup,
-            unsigned long sample_size)
+    /// Initialize the parameter draws of the posterior.
+    void Posterior::init_param_draws_(const Parameter &param,
+                                      unsigned long sample_size)
+    {
+        size_t n_sample = param.scheme().sample.size();
+        size_t n_func = param.scheme().func.size();
+        param_values.reserve(n_sample + n_func);
+        param_priors.reserve(n_sample);
+        param_names.reserve(n_sample + n_func);
+        param_prior_names.reserve(n_sample);
+        for (size_t p : param.scheme().sample)
         {
-            post->tracked_indivs = helper_init_individual_sample(
-                augm, data_wide, setup.id_draws, setup.house_draws, setup.prng());
+            param_values.emplace_back(sample_size, na::DOUBLE);
+            param_priors.emplace_back(sample_size, na::DOUBLE);
+            param_names.push_back(param.khold(p));
+            param_prior_names.push_back("param_lprior_" + param.khold(p));
+        }
+        // function-derived parameters: value trace only, no prior
+        for (size_t p : param.scheme().func)
+        {
+            param_values.emplace_back(sample_size, na::DOUBLE);
+            param_names.push_back(param.khold(p));
+        }
+    }
 
-            if (post->tracked_indivs.empty())
-                return;
+    void Posterior::init_house_draws_(const data::Wide &data_wide,
+                                      unsigned long sample_size)
+    {
+        house_log_lik.reserve(data_wide.eq_class_size());
+        for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
+            house_log_lik.emplace_back(sample_size, na::DOUBLE);
 
-            post->latent_values.resize(post->tracked_indivs.size());
-            for (size_t i = 0; i < post->tracked_indivs.size(); ++i)
+        size_t n_houses = data_wide.report_house.total;
+        house_names.reserve(n_houses);
+        for (const Household &house : data_wide)
+            house_names.push_back(data_wide.hhid(house));
+    }
+
+    /// Initialize the latent draws of the posterior.
+    void Posterior::init_latent_draws_(const Augmented &augm,
+                                       const data::Wide &data_wide,
+                                       const Setup &setup,
+                                       unsigned long sample_size)
+    {
+        tracked_indivs = helper_init_individual_sample(
+            augm, data_wide, setup.id_draws, setup.house_draws, setup.prng());
+
+        if (tracked_indivs.empty())
+            return;
+
+        latent_values.resize(tracked_indivs.size());
+        for (size_t i = 0; i < tracked_indivs.size(); ++i)
+        {
+            const Individual &indiv = *tracked_indivs[i];
+            const auto &draws_list = augm.list_draws(indiv);
+            auto &indiv_matrix = latent_values[i];
+            indiv_matrix.reserve(draws_list.size());
+            for (size_t a : draws_list)
             {
-                const Individual &indiv = *post->tracked_indivs[i];
-                const auto &draws_list = augm.list_draws(indiv);
-                auto &indiv_matrix = post->latent_values[i];
-                indiv_matrix.reserve(draws_list.size());
-                for (size_t a : draws_list)
-                {
-                    indiv_matrix.emplace_back(sample_size, na::DOUBLE);
-                    post->latent_col_names.push_back(data_wide.id(indiv) + "_" + augm.khold(a));
-                }
+                indiv_matrix.emplace_back(sample_size, na::DOUBLE);
+                latent_col_names.push_back(data_wide.id(indiv) + "_" + augm.khold(a));
             }
         }
     }
@@ -443,9 +437,9 @@ namespace housepi
         const Setup &setup = mcmc.setup;
         sample_size_ = setup.c_sample_size * setup.n_chains;
 
-        helper_init_param_draws(this, mcmc.param, sample_size_);
-        helper_init_house_draws(this, mcmc.data.wide(), sample_size_);
-        helper_init_latent_draws(this, mcmc.augm, mcmc.data.wide(), setup, sample_size_);
+        init_param_draws_(mcmc.param, sample_size_);
+        init_house_draws_(mcmc.data.wide(), sample_size_);
+        init_latent_draws_(mcmc.augm, mcmc.data.wide(), setup, sample_size_);
     }
 
     void Posterior::store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local)
@@ -871,13 +865,13 @@ namespace housepi
         if (with_cache)
             model->update_house_transmission_cache(house);
 
-        // --- Transmission ---
+        // transmission
         acc.transm_ll = commit_transm_log_lik_(house);
-        // --- Observation ---
+        // observation
         if (with_obs_ll)
             for (const Individual &indiv : house.infected_indivs())
                 acc.obs_ll += augm.commit_obs_log_lik(indiv);
-        // --- Latent ---
+        // latent
         if (with_latent_ll)
             for (const Individual &indiv : house.infected_indivs())
                 acc.latent_ll += augm.commit_latent_log_lik(indiv);
@@ -935,7 +929,7 @@ namespace housepi
     {
         LogLikAccumulator acc;
 
-        // --- Transmission ---
+        // transmission
         model->update_house_transmission_cache(house);
         acc.transm_ll = commit_transm_log_lik_(house);
         if (data.state.transm_log_lik(house).is_inf())
@@ -943,7 +937,7 @@ namespace housepi
                 "Initial transmission log-likelihood returned infinity for " +
                 data.wide().str(house) + ".");
 
-        // --- Observation ---
+        // observation
         // resample each individual variable upon failure
         if (augm.scheme().is_any_obs_model())
             for (const Individual &indiv : house.infected_indivs())
@@ -962,7 +956,7 @@ namespace housepi
                 acc.obs_ll += augm.commit_obs_log_lik(indiv);
             }
 
-        // --- Latent ---
+        // latent
         if (augm.scheme().is_any_latent_model())
             for (const Individual &indiv : house.infected_indivs())
             {

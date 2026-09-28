@@ -43,20 +43,20 @@ namespace housepi
     /// Values a definition returns, in the absolute frame.
     struct Codomain
     {
-        double inf = -inf::DOUBLE;
-        double sup = inf::DOUBLE;
-        Interval below = Interval::Unbounded;
-        Interval above = Interval::Unbounded;
-        Lattice lattice = Lattice::Doubles;
+        double inf = -inf::DOUBLE;            /// Infimum.
+        double sup = inf::DOUBLE;             /// Supremum.
+        Interval below = Interval::Unbounded; /// Openness of the lower side.
+        Interval above = Interval::Unbounded; /// Openness of the upper side.
+        Lattice lattice = Lattice::Doubles;   /// Lattice of the values.
 
-        /// Wheter every value returned is an integer.
+        /// Whether every value returned is an integer.
         bool on_integers() const noexcept { return lattice == Lattice::Integers; }
 
         /// Interval notation, in the absolute frame.
         std::string str() const;
 
-        /// Wheter every value returned is provably greater than zero.
-        /// NOTE: one-sided, "false" does not mean "negative".
+        /// Whether every value returned is provably greater than zero.
+        /// @note One-sided: false does not mean negative.
         bool is_positive() const noexcept
         {
             return below != Interval::Unbounded &&
@@ -64,45 +64,37 @@ namespace housepi
         }
     };
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////// *** Attribute : class *** ///////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Attribute  //////////////////////////////
 
+    /// Hold one value of a definition: empty, a number, a pointer to another attribute, or a function.
     class Attribute
     {
     public:
-        /////////////////////
-        ///  CONSTRUCTOR  ///
-        /////////////////////
+        //////  Constructor  //////
 
         Attribute();
         Attribute(double x) { init_numeric(x); }
         virtual ~Attribute();
 
-        /// Copy constructor
+        /// Copy constructor.
         Attribute(const Attribute &other);
-        /// Move constructor
+        /// Move constructor.
         Attribute(Attribute &&);
-        /// Copy assignment
+        /// Copy assignment.
         Attribute &operator=(Attribute other);
 
+        /// Swap contents with `other`.
         void swap(Attribute &other) noexcept;
 
-        ///////////////////
-        ///  OPERATORS  ///
-        ///////////////////
+        //////  Operators  //////
 
-        /// Equal to operator.
-        /// UPDATE: are these still necessary?
+        /// Whether both attributes are equal.
+        /// @todo Check whether the equality operators are still used.
         bool operator==(const Attribute &other) const noexcept;
-        /// Not equal to operator.
+        /// Whether the attributes differ.
         bool operator!=(const Attribute &other) const noexcept { return !(*this == other); }
 
-        ////////////////
-        ///  SETTER  ///
-        ////////////////
+        //////  Setter  //////
 
         /// Set attribute name.
         void name(const std::string &txt);
@@ -118,12 +110,12 @@ namespace housepi
         void init_pointer(const Attribute *y);
         /// Initialize attribute as function.
         void init_function(std::unique_ptr<Function> f);
-        /// Productory of pointed attributes values.
+        /// Initialize attribute as the product of the attributes in `other_ptrs`.
         void init_product(const std::vector<const Attribute *> &other_ptrs);
-        /// Transfer from other Attribute.
+        /// Transfer definition from `other`.
         void transfer(const Attribute &other);
-        /// Finalizing by pruning indirections and setting constants to numeric.
-        /// NOTE: evaluation-only, never run for simulations.
+        /// Finalize: prune indirections, collapse constants to numeric.
+        /// @note Evaluation only, never run for simulations.
         virtual void finalize();
 
         /// Set attribute value.
@@ -143,21 +135,19 @@ namespace housepi
             }
         }
 
-        /// Initialize function attribute by assigning from another one.
+        /// Initialize argument `key` of the function from `attr`.
         void init_func_attr(std::string_view key, const Attribute &attr);
 
-        ////////////////
-        ///  GETTER  ///
-        ////////////////
+        //////  Getter  //////
 
         /// Values the attribute takes.
         virtual Codomain codomain() const noexcept;
 
-        /// Get attribute numeric value.
-        // UPDATE: Mode::Pointer forces value out-of-line.
+        /// Get numeric value.
+        /// @note Out of line: Mode::Pointer recurses.
         double value() const;
 
-        /// Get pointer to attribute value.
+        /// Get the attribute holding the value, pointers followed.
         const Attribute *pointer() const noexcept
         {
             switch (mode_)
@@ -168,8 +158,8 @@ namespace housepi
                 return this;
             }
         }
-        /// Get pointer to attribute function.
-        /// FIXME: this should not be a constant method.
+        /// Get the function, pointers followed, or nullptr.
+        /// @todo Make it non-const.
         const Function *function() const noexcept
         {
             switch (mode_)
@@ -183,35 +173,31 @@ namespace housepi
             }
         }
 
-        ///////////////
-        ///  FLAGS  ///
-        ///////////////
+        //////  Flags  //////
 
-        /// Wheter it holds no value.
-        /// NOTE: by convention function is never missing.
-        /// NOTE: reduction function can still return NA.
+        /// Whether it holds no value.
+        /// - function: never missing, by convention;
+        /// - reduction function: may still return NA.
         bool is_na() const noexcept;
-        /// Wheter it's constant.
+        /// Whether it is constant.
         bool is_constant() const noexcept;
-        /// Wheter every value it returns is a discrete number.
+        /// Whether every value it returns is an integer.
         bool is_discrete() const noexcept { return codomain().on_integers(); }
-        /// Wheter every value it returns is a positive number.
+        /// Whether every value it returns is positive.
         bool is_positive() const noexcept { return codomain().is_positive(); }
-        /// Wheter it's able to return.
+        /// Whether it can return a value.
         bool is_callable() const noexcept;
 
-        /// Wheter it has no definitions.
+        /// Whether it has no definition.
         bool is_empty() const noexcept { return mode_ == Mode::Empty; }
-        /// Wheter it's a number.
+        /// Whether it is a number.
         bool is_numeric() const noexcept { return mode_ == Mode::Numeric; }
-        /// Wheter it's a pointer.
+        /// Whether it is a pointer.
         bool is_pointer() const noexcept { return mode_ == Mode::Pointer; }
-        /// Wheter it's a function.
+        /// Whether it is a function.
         bool is_function() const noexcept { return mode_ == Mode::Function; }
 
-        //////////////
-        ///  SHOW  ///
-        //////////////
+        //////  Show  //////
 
         /// Get attribute name.
         std::string name() const;
@@ -221,6 +207,7 @@ namespace housepi
         std::string str_val() const;
 
     protected:
+        /// Storage mode.
         enum class Mode : std::uint8_t
         {
             Empty,
@@ -229,39 +216,36 @@ namespace housepi
             Function
         } mode_ = Mode::Empty;
 
-        ErrType err_type_ = ErrType::Empty;         /// type name displayed in errors
-        bool is_user_const_ = false;                /// user flag for constant
-        NameIndex name_id_ = 0;                     /// interned name id (0 == empty)
-        double value_ = na::DOUBLE;                 /// internal value
-        const Attribute *pAttr_ = nullptr;          /// pointer to attribute
-        std::unique_ptr<Function> pFunc_ = nullptr; /// pointer to function
+        ErrType err_type_ = ErrType::Empty;         /// Type name displayed in errors.
+        bool is_user_const_ = false;                /// Whether the user declared it constant.
+        NameIndex name_id_ = 0;                     /// Interned name id, 0 when empty.
+        double value_ = na::DOUBLE;                 /// Numeric value.
+        const Attribute *pAttr_ = nullptr;          /// Pointed attribute.
+        std::unique_ptr<Function> pFunc_ = nullptr; /// Owned function.
 
+        /// Throw on setting a value into an attribute that is not numeric.
         [[noreturn]] void raise_set_error_() const;
     };
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////// *** Domain : struct *** /////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Domain  //////////////////////////////
 
     /// Values a definition may be called on.
-    /// NOTE: bounds are live attributes.
+    /// Bounds are live attributes.
     struct Domain
     {
-        Attribute min = Attribute(); /// user defined minimum
-        Attribute max = Attribute(); /// user defined maximum
-        Attribute loc = Attribute(); /// shift between the frames
-        Interval below = Interval::Unbounded;
-        Interval above = Interval::Unbounded;
+        Attribute min = Attribute();          /// User-defined minimum.
+        Attribute max = Attribute();          /// User-defined maximum.
+        Attribute loc = Attribute();          /// Shift between the frames.
+        Interval below = Interval::Unbounded; /// Openness of the lower side.
+        Interval above = Interval::Unbounded; /// Openness of the upper side.
 
-        /// Into the frame the bounds and all raw math live in.
-        /// NOTE: read per evaluation, so the guard stays a mode compare.
+        /// Cast `x` into the frame the bounds and all raw math live in.
+        /// @note Read per evaluation, so the guard stays a mode compare.
         double delocate(double x) const { return loc.is_empty() ? x : x - loc.value(); }
-        /// Back into the frame the caller sees.
+        /// Cast `x` back into the frame the caller sees.
         double relocate(double x) const { return loc.is_empty() ? x : x + loc.value(); }
 
-        /// Wheter x falls below the minimum.
+        /// Whether `x` falls below the minimum.
         bool is_below(double x) const
         {
             switch (below)
@@ -275,7 +259,7 @@ namespace housepi
             }
         }
 
-        /// Wheter x falls above the maximum.
+        /// Whether `x` falls above the maximum.
         bool is_above(double x) const
         {
             switch (above)
@@ -289,47 +273,43 @@ namespace housepi
             }
         }
 
-        /// Wheter x falls inside.
+        /// Whether `x` falls inside.
         bool is_valid(double x) const { return !is_below(x) && !is_above(x); }
         /// The interval the bounds delimit, in the absolute frame.
-        /// NOTE: composed from the codomains of the bounds, so an undrawn
-        /// bound still places the interval it can reach.
+        /// Bounds read through their codomains: an undrawn bound still places the interval it reaches.
         Codomain relocated() const;
         /// Snapshot into the absolute frame, for the support of a distribution.
-        /// NOTE: a dense support puts no mass on its floor, so a closed bound
-        /// reads open there - that is where boundary attainability is decided.
+        /// A dense support puts no mass on its floor: a closed bound reads open there.
+        /// Boundary attainability is decided here.
         Codomain relocated(Lattice lattice) const;
 
         /// Set the openness of both sides from the bounds provided.
-        /// @param owner : name of the definition, for the error it may raise.
+        /// @param owner Name of the definition, for the error it may raise.
         void init_standard(bool is_min_open, bool is_max_open, const std::string &owner);
-        /// Lower the minimum onto 'min_val'. Returns whether truncation is needed.
+        /// Lower the minimum onto `min_val`, returning whether truncation is needed.
         bool init_min(double min_val, bool is_min_open, const std::string &owner);
 
-        /// UPDATE: consistency check now are anaware of codomains/constantness of attributes.
-        /// Wheter both bounds read and delimit a non-empty interval.
+        /// Whether both bounds read and delimit a non-empty interval.
+        /// @todo Account for the codomains and constantness of the bounds.
         bool is_consistent() const;
-        /// Wheter both bounds read and coincide on a single point.
+        /// Whether both bounds read and coincide on a single point.
         bool is_degenerate() const { return min.is_callable() && max.is_callable() && min.value() == max.value(); }
 
         /// Raise a uniform error if the domain is not consistent.
-        /// @param owner : name of the definition, for the error it may raise.
+        /// @param owner Name of the definition, for the error it may raise.
         void assert_consistent(const std::string &owner) const;
 
         /// Interval notation, in the absolute frame.
         std::string str() const;
     };
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////// *** Function : class *** /////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Function  //////////////////////////////
 
-    /// Function parent class. Arguments stored in arrays.
+    /// Base of every function and distribution, with arguments stored in arrays.
     class Function
     {
     protected:
+        /// Method an implicit evaluate() dispatches to.
         enum class Evaluate : std::uint8_t
         {
             Function,
@@ -338,6 +318,7 @@ namespace housepi
             Cumulative,
             Fold
         } eval_mode_ = Evaluate::Function;
+        /// Discretization scheme.
         enum class Discrete : std::uint8_t
         {
             None,
@@ -347,37 +328,33 @@ namespace housepi
         } discr_mode_ = Discrete::None;
 
     public:
-        /////////////////////
-        ///  CONSTRUCTOR  ///
-        /////////////////////
+        //////  Constructor  //////
 
-        Function(const std::vector<std::pair<std::string, double>> &args = {},
+        using default_args = std::vector<std::pair<std::string, double>>;
+        Function(const default_args &args = {},
                  double domain_min = na::DOUBLE,
                  double domain_max = na::DOUBLE);
         virtual ~Function() = default;
 
-        ///////////////////
-        ///  OPERATORS  ///
-        ///////////////////
+        //////  Operators  //////
 
-        /// Sugar operator to call evaluate.
+        /// Call evaluate() at `x`.
         double operator()(double x) const { return evaluate(x); }
 
+        /// Return a copy.
         virtual std::unique_ptr<Function> clone() const = 0;
 
-        ////////////////
-        ///  SETTER  ///
-        ////////////////
+        //////  Setter  //////
 
-        /// UPDATE: these two methods can turn into protected probably.
-        /// Virtual function to initialize discretization.
+        /// Initialize discretization.
+        /// @todo Make discretize() and truncate() protected.
         virtual void discretize() { raise_undefined_call_err_("discretize"); }
-        /// Virtual function to initialize truncation.
-        /// NOTE: always to be called ONLY after discretize.
+        /// Initialize truncation.
+        /// @note Call only after discretize().
         virtual void truncate() { helper_init_standard_domain_(); };
 
-        /// Finalize discretization, truncation and consistency asserts.
-        /// NOTE: to be called once all arguments and domain are assigned.
+        /// Discretize, truncate, then assert consistency.
+        /// @note Call once every argument and the domain are assigned.
         void reshape(bool discr)
         {
             if (discr)
@@ -389,61 +366,58 @@ namespace housepi
             assert_discrete_args();
         }
 
-        /// Select primitive method for implicit evaluate.
+        /// Select primitive as implicit evaluate.
         void set_eval_as_prim() noexcept { eval_mode_ = Evaluate::Primitive; }
-        /// Select pdf as implicit evaluate (default for distributions).
+        /// Select pdf as implicit evaluate, the default for distributions.
         void set_eval_as_pdf() noexcept { eval_mode_ = Evaluate::Probability; }
         /// Select cdf as implicit evaluate.
         void set_eval_as_cdf() noexcept { eval_mode_ = Evaluate::Cumulative; }
         /// Select an NA-skipping fold, for reductions over household members.
         void set_eval_as_fold() noexcept { eval_mode_ = Evaluate::Fold; }
 
-        /// Set argument value.
-        /// UPDATE: just required by AdaptableProposal.
+        /// Set argument `i` to `x`.
+        /// @todo Narrow access to set_arg(), set_min(), set_max(): AdaptableProposal is their only caller.
         void set_arg(size_t i, double x) { alts_[alt_idx_].args[i].set(x); }
         /// Set the minimum.
-        /// UPDATE: just required by AdaptableProposal.
         void set_min(double x) { domain_.min.set(x); }
         /// Set the maximum.
-        /// UPDATE: just required by AdaptableProposal.
         void set_max(double x) { domain_.max.set(x); }
 
-        /// Transfer a live bound attribute into the min/max truncation, preserving
-        /// pointer/function liveness so the domain tracks the source per evaluation.
+        /// Transfer live bound `a` into the minimum or maximum truncation.
+        /// Pointers and functions stay live: the domain tracks the source per evaluation.
         void transfer_min(const Attribute &a) { domain_.min.transfer(a); }
         void transfer_max(const Attribute &a) { domain_.max.transfer(a); }
 
-        /// Initialize function attribute by assigning from another one.
+        /// Initialize argument `key` from `attr`.
         void init_attr(std::string_view key, const Attribute &attr);
 
-        /// Finalize by pruning indirections and setting constants to numeric.
+        /// Finalize: prune indirections, collapse constants to numeric.
         virtual void finalize();
 
-        ////////////////
-        ///  GETTER  ///
-        ////////////////
+        //////  Getter  //////
 
         /// Values returned, composed from the operands.
-        /// NOTE: computed live, never stored - the algebraic nodes read their
-        /// operands, which finalize() may fold after reshape() has run.
-        /// NOTE: defaulted, so an out-of-tree custom function still compiles.
+        ///
+        /// - computed live, never stored: finalize() may fold the operands after reshape();
+        /// - defaulted, so an out-of-tree custom function still compiles.
         virtual Codomain codomain() const noexcept { return Codomain(); }
 
         /// Number of arguments in the *active* parametrization.
         size_t n_args() const noexcept { return arguments_().size(); }
-        /// Read the i-th argument value of the *active* parametrization.
+        /// Read value of argument `i` of the *active* parametrization.
         double arg(size_t i) const { return alts_[alt_idx_].args[i].value(); }
 
+        /// Location, minimum and maximum of the domain.
         const Attribute &loc() const noexcept { return domain_.loc; }
         const Attribute &min() const noexcept { return domain_.min; }
         const Attribute &max() const noexcept { return domain_.max; }
-        /// Values 'x' may take, in the de-located frame.
+        /// Values `x` may take, in the de-located frame.
         const Domain &domain() const noexcept { return domain_; }
 
-        /// Evaluate implicitly at 'x' value.
+        /// Evaluate at the bound argument `x`.
         double evaluate() const { return evaluate(x_arg_.value()); }
 
-        /// Central method to return function's value at given x.
+        /// Evaluate at `x`, according to the selected mode.
         double evaluate(double x) const
         {
             switch (eval_mode_)
@@ -459,32 +433,36 @@ namespace housepi
             }
         }
 
-        /// Return function value at x (with delocation applied).
+        /// Return function value at `x`, delocated.
         double func(double x) const { return function_(delocate_(x)); }
-        /// Return log-function value at x (with delocation applied).
+        /// Return log-function value at `x`, delocated.
         double log_func(double x) const { return log_func_(delocate_(x)); }
-        /// Return primitive value at x (with delocation applied).
+        /// Return primitive value at `x`, delocated.
         double prim(double x) const { return primitive_(delocate_(x)); }
 
-        /// Return value as for a probability density/mass function.
+        /// Return density or mass at `x`, 0 outside the domain.
         double pdf(double x) const
         {
             return is_valid(x) ? function_(delocate_(x)) : 0.;
         }
-        /// Return value as for a cumulative distribution function.
-        /// NOTE: the maximum already lives in the de-located frame.
+        /// Return cumulative distribution at `x`.
+        /// - above the domain: primitive at the maximum, which lives in the de-located frame.
         double cdf(double x) const
         {
             return is_below(x) ? 0 : primitive_(is_above(x) ? domain_.max.value() : delocate_(x));
         }
 
-        /// Return value of log-ratio of probability density/mass functions.
-        /// NOTE: a null move carries no density change, whatever the density at that point.
+        /// Return log-ratio of densities from `xo` to `xn`.
+        /// - null move: 0, whatever the density at that point.
         double log_ratio(double xo, double xn) const
         {
             return xo == xn ? 0. : log_ratio_(delocate_(xo), delocate_(xn));
         }
-        /// Check for validity, then return value of log-ratio of probability density/mass functions.
+        /// Return log-ratio of densities from `xo` to `xn`, validity checked first.
+        ///
+        /// - only `xn` valid: infinity;
+        /// - only `xo` valid: minus infinity;
+        /// - neither: NA.
         double guarded_log_ratio(double xo, double xn) const
         {
             bool ov = is_valid(xo), nv = is_valid(xn);
@@ -497,64 +475,59 @@ namespace housepi
             return na::DOUBLE;
         }
 
-        ///////////////
-        ///  FLAGS  ///
-        ///////////////
+        //////  Flags  //////
 
-        /// Wheter return value is always constant.
-        /// NOTE: at the moment also a mutable domain makes the function non constant.
+        /// Whether the return value is constant.
+        /// - mutable domain: not constant.
         bool is_constant() const noexcept
         {
             return x_arg_.is_constant() && has_constant_args_();
         }
 
-        /// Wheter discretize() has put the value on a unit lattice, of unspecified
-        /// offset. This is the machinery: a location off the integers carries the
-        /// lattice with it, so a discretized definition need not return integer values.
-        /// NOTE: for "the values are integers" ask codomain().on_integers() instead.
+        /// Whether discretize() put the value on a unit lattice, of unspecified offset.
+        ///
+        /// - location off the integers: the lattice shifts with it;
+        /// - a discretized definition may return values off the integers.
+        /// @note For "the values are integers", ask codomain().on_integers().
         bool is_discretized() const noexcept { return discr_mode_ != Discrete::None; }
-        /// Wheter return value is always strictly positive.
+        /// Whether the return value is always strictly positive.
         bool is_positive() const noexcept { return codomain().is_positive(); }
-        /// Wheter all arguments are not empty.
+        /// Whether no argument is empty.
         bool is_callable_explicitly() const noexcept;
-        /// Wheter it can be called implicitely, i. e. if also 'x' has been linked.
+        /// Whether it can be called implicitly, with `x` bound too.
         bool is_callable_implicitly() const noexcept { return !x_arg_.is_empty() && is_callable_explicitly(); }
 
         /// Collect names of missing arguments.
         std::vector<std::string> get_missing_argument() const;
-        /// Throw exception if not callable explicitly.
+        /// Throw if not callable explicitly.
         void assert_is_callable_explicitly() const;
-        /// Throw exception if discrete and location do not match.
+        /// Throw if discretization and location do not match.
         void assert_location_matches_discrete() const;
-        /// Throw exception if a declared argument does not hold an integer value.
+        /// Throw if a declared argument does not hold an integer value.
         void assert_discrete_args() const;
 
-        /// Returns TRUE if value x is below the domain minimum.
+        /// Whether `x` is below the domain minimum.
         bool is_below(double x) const { return domain_.is_below(x); }
-        /// Returns TRUE if value x is above the domain maximum.
+        /// Whether `x` is above the domain maximum.
         bool is_above(double x) const { return domain_.is_above(x); }
-        /// Returns TRUE if value x is inside the domain.
+        /// Whether `x` is inside the domain.
         bool is_valid(double x) const { return domain_.is_valid(x); }
 
-        //////////////
-        ///  SHOW  ///
-        //////////////
+        //////  Show  //////
 
         /// Get function name.
         virtual std::string name() const noexcept = 0;
-        /// Get argument name (from the active parametrization).
+        /// Get name of argument `i`, from the active parametrization.
         std::string arg_name(unsigned short i) const { return alts_[alt_idx_].args[i].name(); }
         /// Name formatted for error messages.
         virtual std::string str() const;
-        /// Set the family word shown in errors (see str()).
+        /// Set the family word shown in errors, see str().
         void set_err_family(ErrType family) noexcept { err_family_ = family; }
 
     protected:
-        ////////////////
-        ///  DOMAIN  ///
-        ////////////////
+        //////  Domain  //////
 
-        Domain domain_ = Domain(); /// values 'x' may take, and the frame they live in
+        Domain domain_ = Domain(); /// Values `x` may take, and their frame.
 
         /// Cast into the de-located frame.
         double delocate_(double x) const { return domain_.delocate(x); }
@@ -564,78 +537,72 @@ namespace housepi
         /// Whether the active arguments and the bounded sides of the domain are constant.
         bool has_constant_args_() const noexcept;
 
-        /// Set the domain of validity of the value, and the corresponding validation function.
-        /// UPDATE: passing str() forces to compute it at runtime...
+        /// Set the standard domain, open or closed on each side.
+        /// @todo Avoid computing str() on every call.
         void helper_init_standard_domain_(bool is_min_open = false, bool is_max_open = false)
         {
             domain_.init_standard(is_min_open, is_max_open, str());
         }
-        /// Set a domain for given minimum and no maximum.
+        /// Set a domain with minimum `min_val` and no maximum.
         bool helper_init_domain_min_(double min_val = 0., bool is_min_open = false)
         {
             return domain_.init_min(min_val, is_min_open, str());
         }
 
-        ///////////////////
-        ///  ARGUMENTS  ///
-        ///////////////////
+        //////  Arguments  //////
 
-        Attribute x_arg_ = Attribute(); /// 'x' argument
+        Attribute x_arg_ = Attribute(); /// Argument `x`.
 
-        /// Alternative arguments for re-parametrization
+        /// Arguments of one parametrization.
         struct AltArgSet
         {
-            std::string name = {};            /// Alternative set name
-            std::vector<Attribute> args = {}; /// Alternative arguments
+            std::string name = {};            /// Parametrization name.
+            std::vector<Attribute> args = {}; /// Arguments.
         };
-        std::vector<AltArgSet> alts_;            /// Alternative parametrizations (canonical is 0)
-        std::uint8_t alt_idx_ = 0;               /// Current select arguments
-        bool is_user_alt_ = false;               /// Whether user has picked a re-parametrization
-        ErrType err_family_ = ErrType::Function; /// family word shown in errors
+        std::vector<AltArgSet> alts_;            /// Alternative parametrizations, 0 canonical.
+        std::uint8_t alt_idx_ = 0;               /// Active parametrization.
+        bool is_user_alt_ = false;               /// Whether the user picked a re-parametrization.
+        ErrType err_family_ = ErrType::Function; /// Family word shown in errors.
 
         /// Register an alternative parametrization.
-        void register_alt_(const std::string &name,
-                           const std::vector<std::pair<std::string, double>> &args);
+        void register_alt_(const std::string &name, const default_args &args);
 
-        /// Assert that proposed function attribute is valid.
+        /// Assert argument `key` accepts `attr`.
         void helper_assert_valid_attribute_(std::string_view key, const Attribute &attr);
 
+        /// Arguments of the active parametrization.
         std::vector<Attribute> &arguments_() noexcept { return alts_[alt_idx_].args; }
         const std::vector<Attribute> &arguments_() const noexcept { return alts_[alt_idx_].args; }
         Attribute &arguments_(size_t i) noexcept { return alts_[alt_idx_].args[i]; }
         const Attribute &arguments_(size_t i) const noexcept { return alts_[alt_idx_].args[i]; }
 
-        /// Find attribute and return its reference.
-        /// If doesn't exists, return an empty attribute.
+        /// Return argument `arg_name`, an empty attribute if absent.
         virtual Attribute &find_arg_(std::string_view arg_name);
 
-        /// Find-or-append a named argument, for variadic parametrizations.
-        /// If attribute is absent at initialization, create it.
+        /// Return argument `key`, appended if absent, for variadic parametrizations.
         Attribute &find_or_append_arg_(std::string_view key);
 
-        /////////////////
-        ///  VIRTUAL  ///
-        /////////////////
+        //////  Virtual  //////
 
-        /// Helper to raise call if undefined virtual methods are called.
+        /// Throw on a call to virtual method `call_name`, left undefined.
         [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
 
-        /// Attributes that must return integer values.
-        /// NOTE: read once, when the definition is reshaped.
+        /// Arguments that must hold integer values.
+        /// Read once, when the definition is reshaped.
         virtual std::vector<const Attribute *> discrete_args_() const { return {}; }
 
-        /// Raw method to call.
+        /// Raw function.
         virtual double raw_function_(double /*x*/) const = 0;
-        /// Raw method to call log-function.
+        /// Raw log-function.
         virtual double raw_log_func_(double /*x*/) const { raise_undefined_call_err_("log_func"); }
-        /// Raw primitive method.
+        /// Raw primitive.
         virtual double raw_primitive_(double /*x*/) const { raise_undefined_call_err_("primitive"); }
-        /// Raw quantile method.
+        /// Raw quantile.
         virtual double raw_quantile_(double /*p*/) const { raise_undefined_call_err_("quantile"); }
-        /// Raw log-ratio method. NOTE: empty function return 0 by convention.
+        /// Raw log-ratio, 0 by default.
         virtual double raw_log_ratio_(double /*xo*/, double /*xn*/) const { return 0.; }
 
-        /// Polymorphic function method.
+        /// Evaluate the function under the discretization scheme.
         virtual double function_(double x) const
         {
             switch (discr_mode_)
@@ -651,7 +618,7 @@ namespace housepi
             }
         }
 
-        /// Polymorphic log-function method.
+        /// Evaluate the log-function under the discretization scheme.
         virtual double log_func_(double x) const
         {
             switch (discr_mode_)
@@ -667,10 +634,10 @@ namespace housepi
             }
         }
 
-        /// Polymorphic primitive method.
+        /// Evaluate the primitive under the discretization scheme.
         virtual double primitive_(double x) const { return raw_primitive_(primitive_x_helper_(x)); }
 
-        /// Polymorphic log_ratio method.
+        /// Evaluate the log-ratio under the discretization scheme.
         virtual double log_ratio_(double xo, double xn) const
         {
             switch (discr_mode_)
@@ -686,11 +653,9 @@ namespace housepi
             }
         }
 
-        ////////////////////////
-        ///  DISCRETIZATION  ///
-        ////////////////////////
+        //////  Discretization  //////
 
-        /// Helper for the primitive method.
+        /// Map `x` to the point the primitive reads, per discretization scheme.
         double primitive_x_helper_(double x) const
         {
             switch (discr_mode_)
@@ -706,13 +671,13 @@ namespace housepi
             }
         }
 
-        /// Helper for Center discretization.
+        /// Mass of the unit bin centered on `x`.
         double discr_func_center_(double x) const
         {
             const double i = std::round(x);
             return raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5);
         }
-        /// Helper for Left discretization.
+        /// Mass of the unit bin starting at floor(`x`).
         double discr_func_left_(double x) const
         {
             const double i = std::floor(x);

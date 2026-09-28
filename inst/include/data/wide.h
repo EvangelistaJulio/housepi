@@ -13,13 +13,12 @@
 #include <unordered_set>
 #include <vector>
 
-#include "data/reports.h"
+#include "tools/dictionary.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/types.h"
-
 #include "data/household.h"
+#include "data/reports.h"
 
 //////////////////////////////  data::Wide  //////////////////////////////
 

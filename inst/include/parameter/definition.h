@@ -10,8 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/parser.h"
-#include "tools/types.h"
 
 //////////////////////////////  param::DefTable  //////////////////////////////
 
@@ -24,7 +24,9 @@ namespace housepi::param
 
         parse::Definition value, prior, func, min, max, proposal;
 
-        bool has_func = false, is_const = false, is_discr = false;
+        bool has_func = false;
+        bool is_const = false;
+        bool is_discr = false;
 
         /// Parse row `r` of definition table `input`.
         /// - function reading a latent or a data column: error.

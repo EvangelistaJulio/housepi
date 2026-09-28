@@ -10,8 +10,7 @@
 #include <cstddef>
 #include <vector>
 
-#include "tools/types.h"
-
+#include "tools/dictionary.h"
 #include "data/household.h"
 #include "risks/anchor.h"
 #include "risks/store.h"

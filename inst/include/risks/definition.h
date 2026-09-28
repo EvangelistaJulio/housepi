@@ -14,19 +14,18 @@
 #include <utility>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/read.h"
 #include "tools/string.h"
-#include "tools/types.h"
 #include "tools/vector.h"
-
 #include "data/individual.h"
 #include "data/wide.h"
 #include "function.h"
 #include "parameter.h"
 #include "risks/anchor.h"
 #include "risks/rule_table.h"
+#include "risks/store.h"
 
 //////////////////////////////  risks : rule vocabulary  //////////////////////////////
 
@@ -196,7 +195,7 @@ namespace housepi::risks
         static std::vector<std::string> extract_prefixed_(const str_table &input, const char *prefix)
         {
             std::vector<std::string> out;
-            for (const auto &key : read::extract_keys(input))
+            for (const auto &key : extract_keys(input))
                 if (str::starts_with(key, prefix))
                     out.push_back(key);
             return out;

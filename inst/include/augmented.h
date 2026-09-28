@@ -10,10 +10,9 @@
 #include <string>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/keys.h"
 #include "tools/random.h"
-#include "tools/types.h"
-
 #include "augmented/binder.h"
 #include "augmented/definition.h"
 #include "augmented/scheme.h"

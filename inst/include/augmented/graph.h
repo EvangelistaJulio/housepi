@@ -10,9 +10,8 @@
 #include <string>
 #include <vector>
 
-#include "tools/dependency.h"
-#include "tools/types.h"
-
+#include "tools/dag.h"
+#include "tools/dictionary.h"
 #include "augmented/definition.h"
 
 //////////////////////////////  augm::graph  //////////////////////////////
@@ -23,13 +22,13 @@ namespace housepi::augm::graph
     /// Build the latent producer graph of `rows`.
     /// - node: definition name;
     /// - edges: @A names it reads, across source columns.
-    dpdcy::prod_graph producers(const DefTable &def,
-                                const std::vector<size_t> &rows);
+    dag::prod_graph producers(const DefTable &def,
+                              const std::vector<size_t> &rows);
 
     /// Add edges from a definition to the member observations of `rows` it reads as data.
     ///
     /// An observation is drawn before its reader.
-    void add_member_obs_edges(dpdcy::prod_graph &pgraph,
+    void add_member_obs_edges(dag::prod_graph &pgraph,
                               const DefTable &def,
                               const std::vector<size_t> &rows);
 

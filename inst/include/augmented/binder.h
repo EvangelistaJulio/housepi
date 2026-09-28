@@ -10,7 +10,6 @@
 #include <string>
 
 #include "tools/keys.h"
-
 #include "augmented/definition.h"
 #include "augmented/scheme.h"
 #include "augmented/state.h"

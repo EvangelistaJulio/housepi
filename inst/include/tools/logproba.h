@@ -14,11 +14,11 @@
 
 namespace housepi
 {
-    /// Log-probability used for Metropolis. Aware of old value.
+    /// Hold a log-probability and its previous value, for Metropolis moves.
     struct LogProba
     {
-        /// Set new log-probability value. Store old value.
-        /// Raise exception if new value is a NaN.
+        /// Set value to `new_ll`, keeping the previous one.
+        /// - NaN `new_ll`: error.
         void set(double new_ll)
         {
             old_ = value_;
@@ -28,38 +28,22 @@ namespace housepi
                 throw std::runtime_error(
                     "Log-probability computation returned NaN value.");
         }
-        /// Increment log-probability by a delta. Store old value.
-        /// Raise exception if new value is a NaN.
+        /// Increment value by `delta_ll`, keeping the previous one.
+        /// - NaN result: error.
         void increment(double delta_ll) { set(value_ + delta_ll); }
-        /// Recover old value.
+        /// Restore previous value.
         void recover() noexcept { value_ = old_; }
 
-        /// Return current value of log-probability.
+        /// Return current value.
         double value() const noexcept { return value_; }
-        /// Return log-ratio current vs old values.
+        /// Return log-ratio of current to previous value.
         double ratio() const noexcept { return value_ - old_; }
 
-        /// Wheter value is infinity.
+        /// Whether value is infinite.
         bool is_inf() const noexcept { return std::isinf(value_); }
 
     private:
-        double value_ = 0.; /// Current log-likelihood
-        double old_ = 0.;   /// Old log-likelihood
-    };
-
-    /// Accumulator for log-densities computations.
-    struct LogLikAccumulator
-    {
-        double obs_ll = 0.;    /// observation
-        double transm_ll = 0.; /// transmission
-        double latent_ll = 0.;   /// latent
-
-        LogLikAccumulator &operator+=(const LogLikAccumulator &other) noexcept
-        {
-            obs_ll += other.obs_ll;
-            transm_ll += other.transm_ll;
-            latent_ll += other.latent_ll;
-            return *this;
-        }
+        double value_ = 0.; /// Current log-probability.
+        double old_ = 0.;   /// Previous log-probability.
     };
 }

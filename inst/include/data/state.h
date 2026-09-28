@@ -10,8 +10,6 @@
 #include <vector>
 
 #include "tools/logproba.h"
-#include "tools/types.h"
-
 #include "data/household.h"
 #include "data/individual.h"
 #include "function.h"

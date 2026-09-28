@@ -5,20 +5,17 @@
  * See the LICENSE file for details.
  */
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////  * *** * CHAIN BINOMIAL * *** *  ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  final_size  //////////////////////////////
 
 #include "housepi.h"
-#include "binomial.h"
+#include "chain_binom.h"
 
 #ifndef _HOUSEPI_MODULE
 #define _HOUSEPI_MODULE final_size
 #endif
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
+/// Model final-size outbreaks with a chain binomial: community and person-to-person escape.
 class Model final : public ModelBase
 {
 public:
@@ -32,7 +29,7 @@ public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtx, p2p_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha, beta, gamma, hhsize_ref)
 
-	/// General advanced inscrition for the setup.
+	/// Declare parameter and risk requirements.
 	void init_model_requirements() override final
 	{
 		request_param_positive(
@@ -45,36 +42,32 @@ public:
 			{GroupRisk::infectivity});
 	}
 
-	/// Allow for contact risk definitions.
+	/// Whether the model uses contact risks.
 	bool has_contact_risk() const override final { return true; }
 
+	/// Assert no member has missing status, then clear the lookup tables.
 	void init_model_for_evaluation() override final
 	{
 		assert_no_missing_status();
 		chain_binom::clear_lookuptables();
 	}
 
-	/// Initialize hosuehold for evaluation
+	/// Order members of `house`, then group infected ones into risk partitions.
 	void init_house_for_evaluation(const Household &house) override final
 	{
-		//////////////////////////////////
-		/////////////  ORDER  ////////////
-		//////////////////////////////////
+		//////  Order  //////
 
-		// initialize internal order for house escape matrix
-		// ordered members : 1) infected, 2) escaped
+		// order of the escape matrix: infected members first, then escaped ones
 		auto &order = cache_member_vector(house, HHmembervec::order);
 		order.clear();
 		order.reserve(house.size());
 		order.insert(order.end(), house.infected_members().begin(), house.infected_members().end());
 		order.insert(order.end(), house.escaped_members().begin(), house.escaped_members().end());
 
-		///////////////////////////////////////
-		/////////////  PARTITIONS  ////////////
-		///////////////////////////////////////
+		//////  Partitions  //////
 
-		// associate infected integer-partition, built in place in the cache:
-		// both vectors hold house.size() entries and K never exceeds n_infec
+		// integer partition of infected members, built in place in the cache
+		// both vectors hold house.size() entries, K never exceeds n_infec
 		const MemberIdx n_infec = house.n_infected_status();
 		auto &part_counts = cache_member_vector(house, HHmembervec::part_counts);
 		auto &part_indexes = cache_member_vector(house, HHmembervec::part_indexes);
@@ -86,7 +79,7 @@ public:
 			MemberIdx p = K; // tentatively new
 			for (MemberIdx oj = 0; oj < K; ++oj)
 				if (is_same_risk_partition(house, order[part_indexes[oj]], order[oi]))
-					p = oj; // this acts as a break
+					p = oj; // partitions are disjoint: at most one matches
 
 			if (p == K)
 			{
@@ -97,7 +90,7 @@ public:
 			}
 			else
 			{
-				// update counts, then bubble-up to guarantee descending order
+				// update count, then bubble up to keep counts descending
 				++part_counts[p];
 				while (p > 0 && part_counts[p] > part_counts[p - 1])
 				{
@@ -116,24 +109,19 @@ public:
 			chain_binom::ensure_partitioned(house.eq_class(), part_counts, K);
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////  Model : compute single house loglike  ////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////  Model : household log-likelihood  //////////////////////////////
 
-	/// Risk of infection from the community.
+	/// Return risk of infection from the community.
 	double community_risk() const { return par(Param::alpha); }
-	/// Risk of infection from another household member.
+	/// Return risk of infection from another member, scaled by household size.
 	double person_to_person_risk(MemberIdx house_size) const
 	{
 		return par(Param::beta) *
 			   std::exp(par(Param::gamma) * std::log(par(Param::hhsize_ref) / house_size));
 	}
 
-	/// Store person-to-person escape probabilities inside a cache.
-	/// UPDATE: I don't need to compute for all members, just for partitions.
-	/// This requires to compute also escaped partitions.
+	/// Store community and person-to-person escape rates of `house` in the cache.
+	/// @todo Compute per partition, not per member, escaped partitions included.
 	void fill_house_escape_matrix(const Household &house)
 	{
 		const MemberIdx house_size = house.size();
@@ -141,20 +129,20 @@ public:
 		const double commu_rate = community_risk();
 		const double p2p_rate = person_to_person_risk(house_size);
 
-		// assign values to escape matrix
+		// escape rates
 		auto &commu_mtx = cache_double_vector(house, HHdoublevec::commu_escape_rate);
 		auto &p2p_mtx = cache_double_matrix(house, HHdoublemtx::p2p_escape_rate);
 
-		// fill matrix according to order
+		// fill in member order
 		for (MemberIdx oi = 0; oi < house_size; ++oi)
 		{
-			MemberIdx i = order[oi]; // retrieve household member index (partition representative)
+			MemberIdx i = order[oi]; // member index, partition representative
 			const Individual &indiv_i = house.at(i);
 			const double inf_i_scl = group_risk(GroupRisk::infectivity, indiv_i) * p2p_rate;
 			const double sus_i = group_risk(GroupRisk::susceptibility, indiv_i);
 			const double sus_i_scl = p2p_rate * sus_i;
 
-			// community filled in order
+			// community
 			commu_mtx[oi] = commu_rate * group_risk(GroupRisk::community, indiv_i);
 
 			// person-to-person
@@ -162,17 +150,16 @@ public:
 			{
 				MemberIdx j = order[oj];
 				const Individual &indiv_j = house.at(j);
-				// [i] : infector -> [k] : infectee
+				// i infector, j infectee
 				p2p_mtx[oi][oj] = inf_i_scl * contact_risk(house, i, j) *
 								  group_risk(GroupRisk::susceptibility, indiv_j);
-				// [k] : infector -> [i] : infectee
+				// j infector, i infectee
 				p2p_mtx[oj][oi] = group_risk(GroupRisk::infectivity, indiv_j) *
 								  contact_risk(house, j, i) * sus_i_scl;
 			}
 
-			// NOTE: for partitions, I need to compute also diagonal terms:
-			// i. e. from partition 'i' to partition 'i' (intra-partition)
-			// NOTE: by definition contact_risk(house, i, i) = 0
+			// diagonal: intra-partition term, read by partitions
+			// contact_risk(house, i, i) is 0 by definition
 			p2p_mtx[oi][oi] = inf_i_scl * intra_partition_contact_risk(house, i) * sus_i;
 		}
 	}
@@ -180,7 +167,7 @@ public:
 	/// Compute transmission log-likelihood within household.
 	double compute_house_transm_log_lik(const Household &house) override final
 	{
-		// fill per-individual escape rate matrices
+		// per-member escape rates
 		fill_house_escape_matrix(house);
 
 		return chain_binom::log_likelihood(
@@ -192,21 +179,15 @@ public:
 			cache_double_matrix(house, HHdoublemtx::p2p_escape_rate));
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////  Model : simulate single house  //////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////  Model : household simulation  //////////////////////////////
 
-	/// Simulate the infection within a household.
+	/// Simulate transmission within `house`, generation by generation.
 	void simulate_single_house(Household &house) override final
 	{
 		const double commu_rate = community_risk();
 		const double p2p_rate = person_to_person_risk(house.size());
 
-		//////////////////////////////////////////////////////////////////
-		/////////////  Generation 0 : infection by community  ////////////
-		//////////////////////////////////////////////////////////////////
+		//////  Generation 0: community infection  //////
 
 		std::vector<MemberIdx> new_gen_set = {};
 
@@ -219,9 +200,7 @@ public:
 				new_gen_set.push_back(Index::member(indiv));
 			}
 
-		//////////////////////////////////////////////////////////////////
-		//////  Generation >=1 : infection by previous generation  ///////
-		//////////////////////////////////////////////////////////////////
+		//////  Generation 1+: infection by the previous generation  //////
 
 		std::vector<MemberIdx> old_gen_set = {};
 

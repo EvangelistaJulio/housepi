@@ -7,21 +7,37 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <vector>
 
-#include "tools/types.h"
-
+#include "data/status.h"
 #include "function.h"
 
 //////////////////////////////  risks::Store  //////////////////////////////
+
+namespace housepi
+{
+    /// Storage slot a status level reads in a risk store.
+    using StatusSlot = std::uint8_t;
+    /// Offset of a status slot within one risk definition.
+    using SlotOffset = std::uint16_t;
+    /// Offset into a flat risk store.
+    using RiskOffset = std::uint32_t;
+    /// Fixed-size table addressed by a status level.
+    template <typename T>
+    using StatusTable = std::array<T, 1 + std::numeric_limits<StatusLvl>::max()>;
+}
 
 namespace housepi::risks
 {
     /// Risk attributes of every unique definition, in one flat store.
     ///
     /// - reading one crosses a single indirection;
-    /// - an owner (member for group risks, household for contact risks) maps to the offset its block starts at.
+    /// - each owner maps to the offset its block starts at;
+    /// - owner: member for group risks, household for contact risks.
     struct Store
     {
     public:

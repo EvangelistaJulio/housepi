@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "tools/keys.h"
-
 #include "parameter/definition.h"
 
 //////////////////////////////  param::Scheme  //////////////////////////////
@@ -36,7 +35,9 @@ namespace housepi::param
         std::vector<std::vector<double>> simulation_values = {}; /// Pinned values per repetition, per parameter.
 
         /// Classify definitions `def`, visited in `rows` order, over keys `khold`.
-        void build(const DefTable &def, const KeyHolder &khold, std::vector<size_t> rows);
+        void build(const DefTable &def,
+                   const KeyHolder &khold,
+                   std::vector<size_t> rows);
         /// Pin parameter `p` to `values`, one per simulation repetition, and drop it from sampling.
         void pin(size_t p, std::vector<double> values);
         /// Mark parameter `p` as a producer of the transmission cache.

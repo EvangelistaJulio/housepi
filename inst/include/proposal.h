@@ -11,24 +11,19 @@
 #include <cmath>
 #include <memory>
 
+#include "tools/dictionary.h"
 #include "tools/messages.h"
 #include "tools/random.h"
 #include "tools/string.h"
-#include "tools/types.h"
-
 #include "distribution.h"
 #include "function.h"
 #include "registry.h"
 
 namespace housepi
 {
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  *** Proposal : class ***  /////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Proposal  //////////////////////////////
 
-    /// Base class for Metropolis proposals.
+    /// Base of every Metropolis proposal.
     class Proposal
     {
     public:
@@ -36,47 +31,45 @@ namespace housepi
         Proposal() = default;
         /// Virtual destructor.
         virtual ~Proposal() = default;
-        /// Clone this proposal object.
+        /// Return a copy.
         virtual std::unique_ptr<Proposal> clone() const = 0;
 
-        virtual void reset_scale() {}
-
-        /// Check if proposal is adaptive.
+        /// Whether the proposal is adaptive.
         virtual bool is_adaptive() const noexcept { return false; }
 
-        /// If adaptive, reset proposal before moving.
+        /// Reset an adaptive proposal before moving, from `prior`.
         virtual void reset(const Distribution * /*prior*/) noexcept {}
-        /// Adapt parametric proposal based on current steps ratio.
+        /// Adapt the proposal, `ratio` being the spent fraction of the adaptation budget.
         virtual void adapt(double /*ratio*/) {}
-        /// Refuse last proposed move.
+        /// Record the last proposed move as refused.
         virtual void refuse_move() noexcept {}
-        /// Commit last proposed move.
+        /// Record the last proposed move as accepted.
         virtual void commit_move(double /*xo*/, double /*xn*/) noexcept {}
 
-        /// Propose a value using random number generator.
+        /// Propose a value from current value `xo`.
         virtual double propose(rnd_gen & /*prng*/, double /*xo*/) = 0;
-        /// Compute log-ratio of proposal densities for Metropolis-Hastings.
+        /// Compute the Metropolis-Hastings log-ratio of proposal densities, from `xo` to `xn`.
         virtual double log_ratio(double /*xo*/, double /*xn*/) const = 0;
 
-        /// Whether propose() yields an absolute draw independent of the current
-        /// value; such a proposal can seed an observation-feasible initial value.
+        /// Whether propose() draws independently of the current value.
+        /// Such a proposal can seed an observation-feasible initial value.
         virtual bool is_independent() const noexcept { return false; }
 
-        /// Rebind proposal to a new prior distribution.
+        /// Rebind the proposal to prior `new_distr`.
         virtual void rebind_prior(const Distribution * /*new_distr*/) {}
 
-        /// Resolve the read-surface of an owned proposal distribution (evaluation-only).
-        /// @param owner : name of the variable proposed, for the error it may raise.
+        /// Resolve the read-surface of an owned proposal distribution, evaluation only.
+        /// @param owner Name of the variable proposed, for the error it may raise.
         virtual void finalize(const std::string & /*owner*/) {}
     };
 
+/// Define clone() of proposal class `Class_`.
 #define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
     std::unique_ptr<Proposal> clone() const override { return std::make_unique<Class_>(*this); }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////  *** NullProposal : class ***  /////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  NullProposal  //////////////////////////////
 
+    /// Keep the current value: the variable never moves.
     class NullProposal final : public Proposal
     {
     public:
@@ -87,10 +80,9 @@ namespace housepi
         double log_ratio(double /*xo*/, double /*xn*/) const override final { return 0.; }
     };
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////  *** ForwardProposal : class ***  ///////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  ForwardProposal  //////////////////////////////
 
+    /// Draw from the prior itself.
     class ForwardProposal final : public Proposal
     {
     public:
@@ -103,19 +95,17 @@ namespace housepi
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
 
     private:
-        const Distribution *pDistr_;
+        const Distribution *pDistr_; /// Prior drawn from.
     };
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////  *** IndependenceProposal : class ***  /////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  IndependenceProposal  //////////////////////////////
 
-    /// Independence sampler drawing from an owned distribution (not the prior).
+    /// Independence sampler drawing from an owned distribution, not the prior.
     class IndependenceProposal final : public Proposal
     {
     public:
-        /// Proposal builds its owned distribution internally.
-        /// Truncate at prior's domain, wired before reshaping.
+        /// Build distribution `distr_name` with arguments `args`, truncated at the domain of `prior`.
+        /// The domain is wired before reshaping.
         IndependenceProposal(
             const std::string &distr_name,
             const dict<Attribute> &args,
@@ -144,6 +134,7 @@ namespace housepi
 
         void rebind_prior(const Distribution *new_distr) override final { pPrior_ = new_distr; }
 
+        /// Finalize the distribution, then assert it covers the domain of the prior on both sides.
         void finalize(const std::string &owner) override final
         {
             if (!pDistr_)
@@ -155,28 +146,27 @@ namespace housepi
         }
 
     private:
-        std::unique_ptr<Distribution> pDistr_; /// distribution drawn from independently
-        const Distribution *pPrior_ = nullptr; /// prior, read for the domain to cover
+        std::unique_ptr<Distribution> pDistr_; /// Distribution drawn from.
+        const Distribution *pPrior_ = nullptr; /// Prior, read for the domain to cover.
 
-        /// The proposal's own bounds, snapshot before it inherited the prior's.
-        /// The transfer belongs to construction, ahead of the reshape() that reads the
-        /// domain to settle the truncation mode; it overwrites these, so coverage is
-        /// checked against the snapshot once finalize() runs.
-        /// NOTE: user arguments land first, so a given 'min' is captured here too.
+        /// Own bounds of the proposal, snapshot before it inherits the prior's.
+        ///
+        /// - the transfer runs at construction, ahead of reshape() settling the truncation mode;
+        /// - it overwrites the bounds: finalize() checks coverage against this snapshot;
+        /// - user arguments land first: a given `min` is captured here too.
         double intrinsic_min_ = na::DOUBLE;
         double intrinsic_max_ = na::DOUBLE;
 
-        /// Snapshot the proposal's own support, then point the proposal
-        /// truncation at the prior's (possibly live/data-bound) domain. No static value is
-        /// baked: transfer keeps pointer/function bounds live, so rand() re-truncates per move.
+        /// Snapshot the own support, then truncate the proposal at the domain of `prior`.
+        /// The domain may be live or data-bound: bounds stay live, so rand() re-truncates per move.
         void wire_to_prior_domain_(const Distribution *prior)
         {
             pPrior_ = prior;
             intrinsic_min_ = pDistr_->min().is_callable() ? pDistr_->min().value() : na::DOUBLE;
             intrinsic_max_ = pDistr_->max().is_callable() ? pDistr_->max().value() : na::DOUBLE;
 
-            // inherit the prior's location shift so the proposal samples in the same
-            // absolute frame; bounds below stay in the shared delocated frame
+            // location shift of the prior: the proposal samples in the same absolute frame
+            // bounds below stay in the shared delocated frame
             if (!prior->loc().is_empty())
                 pDistr_->init_attr("loc", prior->loc());
 
@@ -188,8 +178,8 @@ namespace housepi
                 pDistr_->transfer_max(max_val);
         }
 
-        /// Assert proposal's own support covers prior's domain on given side.
-        /// UPDATE: this should be improved with interval arythmetic
+        /// Assert the own support of the proposal covers the domain of the prior on one side.
+        /// @todo Compare with interval arithmetic.
         void assert_covers_side_(double intrinsic, bool below, const std::string &owner) const
         {
             if (na::is(intrinsic)) // unbounded family: covers any domain on this side
@@ -197,7 +187,7 @@ namespace housepi
             if (!pPrior_)
                 raise_uncovered_(owner);
 
-            // an intrinsically bounded family only covers a constant prior bound it reaches;
+            // an intrinsically bounded family covers only a constant prior bound it reaches
             // an unbounded prior, or one not yet readable, leaves a gap
             const Attribute &bound = below ? pPrior_->min() : pPrior_->max();
             if (bound.is_empty() || !bound.is_constant() ||
@@ -205,6 +195,7 @@ namespace housepi
                 raise_uncovered_(owner);
         }
 
+        /// Throw: the support of the proposal cannot cover the domain of the prior.
         [[noreturn]] void raise_uncovered_(const std::string &owner) const
         {
             Domain support;
@@ -225,19 +216,16 @@ namespace housepi
         }
     };
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  *** AdaptableProposal : class ***  ///////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  AdaptableProposal  //////////////////////////////
 
-    /// Adaptable version of Metropolis proposals.
+    /// Base of random-walk proposals adapting their scale.
     class AdaptableProposal : public Proposal
     {
     public:
-        ///////////////////////////
-        //////  CONSTRUCTOR  //////
-        ///////////////////////////
+        //////  Constructor  //////
 
-        /// constructor
+        /// Build distribution `distr_name`.
+        /// - NA `scale`: adaptive.
         AdaptableProposal(const std::string &distr_name,
                           double scale,
                           bool is_discr)
@@ -250,23 +238,21 @@ namespace housepi
             is_discrete_ = pDistr_->is_discretized();
         }
 
-        /// destructor
+        /// Destructor.
         virtual ~AdaptableProposal() = default;
 
-        /// copy
+        /// Copy constructor.
         AdaptableProposal(const AdaptableProposal &other)
             : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
               is_adaptive_(other.is_adaptive_),
               is_discrete_(pDistr_ && pDistr_->is_discretized()) {}
 
-        //////////////////////////
-        //////  ADAPTATION  //////
-        //////////////////////////
+        //////  Adaptation  //////
 
-        /// Initialize adaptable proposal before moving.
+        /// Reset before moving: acceptance rate at the target, default scale from `prior` if adaptive.
         void reset(const Distribution *prior) noexcept override final
         {
-            /// NOTE: initialised at the target to avoid first steps adaptation
+            // start at the target: no adaptation over the first steps
             accept_rate_ = TARGET_ACCEPT_RATE;
 
             if (is_adaptive())
@@ -274,7 +260,7 @@ namespace housepi
         }
 
         /// Move the scale towards the target acceptance rate.
-        /// NOTE: ratio is the spent fraction of the adaptation budget, in [0, 1).
+        /// @param ratio Spent fraction of the adaptation budget, in [0, 1).
         void adapt(double ratio) override final { robbins_monro_(ratio); }
 
         /// Credit the accepted move to the acceptance rate.
@@ -282,7 +268,7 @@ namespace housepi
         /// Credit the refused move to the acceptance rate.
         void refuse_move() noexcept override final { update_accept_rate_(0.); }
 
-        /// Wheter proposal is adaptive.
+        /// Whether the proposal is adaptive.
         bool is_adaptive() const noexcept override final { return is_adaptive_; }
 
         /// Resolve the read-surface of the owned proposal distribution.
@@ -292,63 +278,62 @@ namespace housepi
                 pDistr_->finalize();
         }
 
-        /// Set EMA smoothing factor (0, 1). NOTE: shared across variables.
+        /// Set the smoothing factor of the acceptance-rate average, in (0, 1), shared across variables.
         static void set_smoothing(double s) noexcept { EMA_SMOOTHING = s; }
-        /// Get EMA smoothing factor.
+        /// Get the smoothing factor.
         static double get_smoothing() noexcept { return EMA_SMOOTHING; }
 
     protected:
-        /// EMA smoothing factor. NOTE: effective window is 1. / EMA_SMOOTHING.
+        /// Smoothing factor of the acceptance-rate average, effective window 1 / EMA_SMOOTHING.
         inline static double EMA_SMOOTHING = 1.;
 
         /// Target Metropolis acceptance rate.
         /// Based on @cite roberts_weak_1997
         static constexpr double TARGET_ACCEPT_RATE = 0.44;
 
-        std::unique_ptr<Distribution> pDistr_;    /// distribution associated to proposal
-        bool is_adaptive_ = true;                 /// whether scale is adaptive
-        bool is_discrete_ = false;                /// whether the proposal steps on discrete values
-        double accept_rate_ = TARGET_ACCEPT_RATE; /// acceptance rate
+        std::unique_ptr<Distribution> pDistr_;    /// Proposal distribution.
+        bool is_adaptive_ = true;                 /// Whether the scale is adaptive.
+        bool is_discrete_ = false;                /// Whether the proposal steps on discrete values.
+        double accept_rate_ = TARGET_ACCEPT_RATE; /// Smoothed acceptance rate.
 
         /// Initialize scale at construction.
         void init_scale_(double scale) { set_scale_(is_adaptive() ? 1. : std::fabs(scale)); }
 
-        /// Set default proposal scale.
+        /// Return the default scale, from `prior`.
         virtual double get_default_scale_(const Distribution * /*prior*/) = 0;
-        /// Read the current scale from pDistr_.
+        /// Read current scale.
         virtual double get_scale_() const = 0;
-        /// Mechanism to change corresponding scale in pDistr_.
+        /// Set scale of the proposal distribution.
         virtual void set_scale_(double /*scale*/) = 0;
 
-        /// Exponentially moving average (EMA) of the acceptance rate.
+        /// Update the exponential moving average of the acceptance rate with `granted`.
         void update_accept_rate_(double granted) noexcept
         {
             accept_rate_ += EMA_SMOOTHING * (granted - accept_rate_);
         }
 
-        /// Vanishing Robbins-Monro multiplier from an observed accept rate.
+        /// Scale by a vanishing Robbins-Monro multiplier from the acceptance rate.
         /// Based on @cite andrieu_tutorial_2008
         void robbins_monro_(double ratio) noexcept
         {
             set_scale_(
                 get_scale_() * std::exp((1. - ratio) * (accept_rate_ - TARGET_ACCEPT_RATE)));
         }
-        /// Compute InterQuartile Range (IQR) from prior distribution (Q25, Q75).
+        /// Return quartiles Q25 and Q75 of `prior`.
         static std::pair<double, double> get_iqr_from_prior_(const Distribution *prior)
         {
             return {prior->quantile(0.25), prior->quantile(0.75)};
         }
-        /// Wheter IQR is finite and can be used to compute initial proposal scale.
+        /// Whether the interquartile range is finite and positive, fit for an initial scale.
         static bool is_iqr_finite_(double q25, double q75) noexcept
         {
             return std::isfinite(q25) && std::isfinite(q75) && q75 > q25;
         }
     };
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////  *** RndWalkUnifProposal : class ***  //////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  RndWalkUnifProposal  //////////////////////////////
 
+    /// Random walk with uniform steps in [-scale, scale].
     class RndWalkUnifProposal final : public AdaptableProposal
     {
     public:
@@ -368,8 +353,8 @@ namespace housepi
             return 1.;
         }
         double get_scale_() const override final { return pDistr_->max().value(); }
-        /// Adapt standard minimum and maximum.
-        /// NOTE: scale cannot be smaller than 1 in the discrete case.
+        /// Set steps to [-scale, scale].
+        /// - discrete: scale rounded, at least 1.
         void set_scale_(double scale) override final
         {
             const double s = is_discrete_ ? std::max(1., std::round(scale)) : scale;
@@ -378,10 +363,9 @@ namespace housepi
         }
     };
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////  *** RndWalkProposal : class ***  ////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  RndWalkProposal  //////////////////////////////
 
+    /// Random walk with normal steps, scale as standard deviation.
     class RndWalkProposal final : public AdaptableProposal
     {
     public:
@@ -401,14 +385,13 @@ namespace housepi
             return 1.;
         }
         double get_scale_() const override final { return pDistr_->arg(1); }
-        /// Adapt standard deviation.
+        /// Set standard deviation of the steps.
         void set_scale_(double scale) override final { pDistr_->set_arg(1, scale); }
     };
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////  *** RndWalkLogProposal : class ***  //////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  RndWalkLogProposal  //////////////////////////////
 
+    /// Random walk on the log scale, with log-normal multiplicative steps.
     class RndWalkLogProposal final : public AdaptableProposal
     {
     public:
@@ -426,7 +409,7 @@ namespace housepi
                 msg::stop(
                     "Provided proposal " + msg::val("lognormal") + " for non-positive");
 
-            // associate location parameter from prior
+            // location of the prior, if any
             if (prior->loc().is_callable())
                 pAttr_loc_ = prior->loc().pointer();
             loc_mode_ = pAttr_loc_ ? Location::Active : Location::None;
@@ -459,12 +442,13 @@ namespace housepi
         }
 
     protected:
+        /// Whether steps are relative to the location of the prior.
         enum class Location : std::uint8_t
         {
             None,
             Active
         } loc_mode_ = Location::None;
-        const Attribute *pAttr_loc_ = nullptr;
+        const Attribute *pAttr_loc_ = nullptr; /// Location of the prior.
 
         double get_default_scale_(const Distribution *prior) override final
         {
@@ -475,7 +459,7 @@ namespace housepi
             return 1.;
         }
         double get_scale_() const override final { return pDistr_->arg(1); }
-        /// Adapt log of standard deviation.
+        /// Set standard deviation of the log-steps.
         void set_scale_(double scale) override final { pDistr_->set_arg(1, scale); }
     };
 }

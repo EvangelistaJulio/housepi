@@ -6,7 +6,7 @@
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
 
-/// Custom function
+/// Exponential growth `initial * exp(rate * x)`, a custom function.
 class Growth_ : public Function
 {
 public:
@@ -14,11 +14,11 @@ public:
     HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Growth_)
     HOUSEPI_OVERRIDE_NAME_METHOD(growth)
 
+    /// Set the domain to x >= 0.
     void truncate() override final { helper_init_domain_min_(0.); }
 
-    /// Values returned, as opposed to the domain set by truncate() above.
-    /// Declaring it lets the engine prove a model requirement this function
-    /// satisfies; leaving it out only means the engine assumes nothing.
+    /// Values returned.
+    /// The engine can prove a model requirement this function satisfies;
     Codomain codomain() const noexcept override final
     {
         Codomain c;
@@ -28,8 +28,8 @@ public:
     }
 
 protected:
-    /// Internal method called when the function is evaluated.
-    /// Arguments order is by definition.
+    /// Evaluate the function at `x`.
+    /// Arguments are read in declaration order.
     double raw_function_(double x) const override final
     {
         const double I0 = arg(0);
@@ -37,7 +37,7 @@ protected:
         return I0 * std::exp(r * x);
     }
 
-    /// Internal method called when the primitive is evaluated.
+    /// Evaluate the primitive at `x`.
     double raw_primitive_(double x) const override final
     {
         const double I0 = arg(0);
@@ -45,14 +45,14 @@ protected:
         return I0 * std::exp(r * x) / r;
     }
 };
-/// Register user function so that it can be used in the analysis.
+/// Register the function, available to definitions as `growth`.
 HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)
 
-/// Custom model.
+/// Custom model: one latent probability per infected member.
 class Model : public ModelBase
 {
 public:
-    /// Model specific registries of mandatory definitions
+    /// Keys of the definitions the model requires.
     HOUSEPI_DECLARE_REGISTER_KEYS(Latent, proba)
     HOUSEPI_DECLARE_EMPTY_KEYS(Data)
     HOUSEPI_DECLARE_EMPTY_KEYS(Long)
@@ -63,16 +63,16 @@ public:
     HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtx)
     HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha)
 
-    /// Compute the log-likelihood within household.
+    /// Compute the transmission log-likelihood of `house`.
     double compute_house_transm_log_lik(const Household &house) override final
     {
-        double output = -Param::alpha;
+        double output = -par(Param::alpha);
         for (const Individual &indiv : house.infected_indivs())
             output += std::log(aug(Latent::proba, indiv));
         return output;
     }
 
-    /// Latent variable initialization.
+    /// Initialize the latent variables of infected members.
     void simulate_single_house(Household &house) override final
     {
 		for (MemberIdx i = 0; i < house.size(); ++i)

@@ -12,12 +12,12 @@
 #include <vector>
 
 #include "tools/messages.h"
-#include "tools/read.h"
-
+#include "tools/string.h"
 #include "model.h"
 #include "data/individual.h"
 #include "data/household.h"
 #include "registry.h"
+
 #ifdef _STANDALONE
 #include "mcmc.h"
 #include "standalone.h"
@@ -41,7 +41,7 @@
                                                                   \
     const std::vector<std::string> key_##T() const override final \
     {                                                             \
-        return housepi::read::helper_parse_names(#__VA_ARGS__);   \
+        return housepi::str::parse_names(#__VA_ARGS__);           \
     }
 
 #ifdef _STANDALONE

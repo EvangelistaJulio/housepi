@@ -222,7 +222,8 @@ recovery_warning_counts_ <- function(raised) {
 #' a row number when the input carries one.
 #' @examples
 #' structure <- sample_house_structure(flu_1918_frederick, houses = 20)
-#' summarise_house_sizes(new_housepi_model(structure, "final_size"))
+#' new_housepi_model(structure, "final_size") |>
+#'   summarise_house_cases()
 #' @export
 sample_house_structure <- function(data_wide, houses = NA_integer_) {
   data <- as.data.frame(data_wide)

@@ -12,7 +12,6 @@
 #include "tools/keys.h"
 #include "tools/logproba.h"
 #include "tools/random.h"
-
 #include "augmented/scheme.h"
 #include "data/individual.h"
 #include "variable.h"
@@ -91,16 +90,10 @@ namespace housepi::augm
     //////  Sampling  //////
 
     /// Initialize the sampled latents of a member for inference.
-    void restart(const StatusScheme &ss,
-                 IndivState &st,
-                 rnd_gen &prng);
+    void restart(const StatusScheme &ss, IndivState &st, rnd_gen &prng);
     /// Draw the sampled latents of a member from their models, for simulation.
     /// Unlike restart(), it uses no proposal.
-    void draw_sample(const StatusScheme &ss,
-                     IndivState &st,
-                     rnd_gen &prng);
+    void draw_sample(const StatusScheme &ss, IndivState &st, rnd_gen &prng);
     /// Draw the observations of a member from their models.
-    void sample_obs(const StatusScheme &ss,
-                    IndivState &st,
-                    rnd_gen &prng);
+    void sample_obs(const StatusScheme &ss, IndivState &st, rnd_gen &prng);
 }

@@ -20,28 +20,23 @@ namespace housepi
     {
         using result_type = std::uint64_t;
 
-        /////////////////////
-        ///  CONSTRUCTOR  ///
-        /////////////////////
+        //////  Constructor  //////
 
         rnd_gen() = default;
         explicit rnd_gen(result_type seed) { this->seed(seed); }
 
-        ///////////////////
-        ///  OPERATORS  ///
-        ///////////////////
+        //////  Operators  //////
 
+        /// Draw the next 64-bit integer.
         result_type operator()() noexcept { return engine_(); }
 
         /// Draw a standard N(0,1) deviate.
-        /// NOTE: deviates come in pairs, sampler holds a spare between calls.
+        /// Deviates come in pairs: the sampler holds a spare between calls.
         double draw_normal() { return normal_dist_(*this); }
-        ///  Reset the normal distribution sampler (discard spare).
+        /// Reset the normal sampler, discarding the spare.
         void reset() { normal_dist_.reset(); }
 
-        ////////////////
-        ///  SETTER  ///
-        ////////////////
+        //////  Setter  //////
 
         /// Seed with SplitMix64.
         void seed(result_type seed)
@@ -50,43 +45,40 @@ namespace housepi
             engine_.seed(seed);
         }
 
-        /// Jump of 2^128 steps (for parallel stream splitting).
+        /// Jump 2^128 steps ahead, splitting parallel streams.
         void jump() noexcept
         {
             reset();
             engine_.jump();
         }
 
-        ////////////////
-        ///  GETTER  ///
-        ////////////////
+        //////  Getter  //////
 
+        /// Range of the integers drawn.
         static constexpr result_type min() noexcept { return boost::random::xoshiro256mm::min(); }
         static constexpr result_type max() noexcept { return boost::random::xoshiro256mm::max(); }
 
     private:
-        boost::random::xoshiro256mm engine_;
+        boost::random::xoshiro256mm engine_;           /// Generator engine.
         std::normal_distribution<double> normal_dist_; /// Holds the spare of each normal pair.
     };
 
-    ///////////////////////////
-    ///  STANDARD SAMPLERS  ///
-    ///////////////////////////
+    //////  Standard samplers  //////
 
-    /// UPDATE: these samplers can be improved.
+    /// @todo Improve the standard samplers.
 
-    /// Standard N(0,1) random variable.
-    /// NOTE: sampler lives on the generator in order to allow for reset.
+    /// Draw a standard N(0,1) variate.
+    /// The sampler lives on the generator, so seed() and jump() reset it.
     inline double standard_normal(rnd_gen &prng) { return prng.draw_normal(); }
 
-    /// Uniform [0,1) random variable. Stateless.
+    /// Draw a uniform [0, 1) variate, stateless.
     inline double standard_uniform(rnd_gen &prng)
     {
         std::uniform_real_distribution<double> gen(0., 1.);
         return gen(prng);
     }
 
-    /// Exponential random variable with rate 1. Stateless.
+    /// Draw a unit-rate exponential variate, stateless.
     inline double standard_exponential(rnd_gen &prng)
     {
         std::exponential_distribution<double> gen(1.);

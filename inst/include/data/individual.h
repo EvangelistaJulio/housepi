@@ -8,14 +8,18 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
-#include "tools/status.h"
-#include "tools/types.h"
+#include "data/status.h"
 
 //////////////////////////////  Individual  //////////////////////////////
 
 namespace housepi
 {
+	using IndivIdx = std::uint32_t; /// Global individual index.
+	using HouseIdx = std::uint32_t; /// Global household index.
+	using MemberIdx = std::uint8_t; /// Member index within its household.
+
 	/// Member of one household.
 	///
 	/// The user id lives in data::Wide, keyed by individual index, see Index::of().

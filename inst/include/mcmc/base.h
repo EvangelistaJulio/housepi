@@ -12,14 +12,13 @@
 
 #include "tools/logproba.h"
 #include "tools/nan.h"
-
-#include "setup.h"
+#include "mcmc/posterior.h"
+#include "mcmc/setup.h"
 #include "data.h"
 #include "parameter.h"
 #include "risks.h"
 #include "infec_profile.h"
 #include "augmented.h"
-#include "posterior.h"
 #include "translator.h"
 
 //////////////////////////////  MCMCBase  //////////////////////////////
@@ -30,10 +29,10 @@ namespace housepi
 	{
 	public:
 		Setup setup;
+		Posterior posterior;
 		LogProba tot_obs_log_lik;	 /// Observation log-likelihood.
 		LogProba tot_transm_log_lik; /// Transmission log-likelihood.
 		LogProba tot_latent_log_lik; /// Latent-model log-likelihood.
-		Posterior posterior;
 
 		//////  Key holders  //////
 
@@ -89,21 +88,12 @@ namespace housepi
 	protected:
 		//////  Log-likelihood  //////
 
-		/// Observation-model log-likelihood of `m`.
-		LogProba &obs_log_lik_(const Individual &m) noexcept
-		{
-			return augm.state.of(m).obs_log_lik;
-		}
+		/// Observation-model log-likelihood of individual `m`.
 		const LogProba &obs_log_lik_(const Individual &m) const noexcept
 		{
 			return augm.state.of(m).obs_log_lik;
 		}
-
-		/// Latent-model log-likelihood of `m`.
-		LogProba &latent_log_lik_(const Individual &m) noexcept
-		{
-			return augm.state.of(m).latent_log_lik;
-		}
+		/// Latent-model log-likelihood of individual `m`.
 		const LogProba &latent_log_lik_(const Individual &m) const noexcept
 		{
 			return augm.state.of(m).latent_log_lik;
@@ -119,12 +109,12 @@ namespace housepi
 		/// Recover previous latent log-likelihood of `m`, after a rejected move.
 		void recover_latent_log_lik_(const Individual &m) noexcept
 		{
-			latent_log_lik_(m).recover();
+			augm.state.of(m).latent_log_lik.recover();
 		}
 		/// Recover previous observation log-likelihood of `m`, after a rejected move.
 		void recover_obs_log_lik_(const Individual &m) noexcept
 		{
-			obs_log_lik_(m).recover();
+			augm.state.of(m).obs_log_lik.recover();
 		}
 		/// Recover previous transmission log-likelihood of `house`, after a rejected move.
 		void recover_transm_log_lik_(const Household &house) noexcept

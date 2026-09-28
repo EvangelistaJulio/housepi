@@ -15,12 +15,10 @@
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
-#include "tools/read.h"
 #include "tools/string.h"
-
-#include "mcmc.h"
 #include "standalone.h"
-#include "setup.h"
+#include "mcmc.h"
+#include "mcmc/setup.h"
 #include "data/wide.h"
 #include "data/long.h"
 #include "parameter.h"
@@ -28,7 +26,7 @@
 #include "infec_profile.h"
 #include "augmented.h"
 
-//////////////////////////////  Stdout Message Function  //////////////////////////////
+//////////////////////////////  msg  //////////////////////////////
 
 namespace housepi
 {
@@ -66,7 +64,7 @@ namespace housepi
         }
     }
 
-    //////////////////////////////  MCMC : Impl : read  //////////////////////////////
+    //////////////////////////////  read  //////////////////////////////
 
     namespace read
     {
@@ -83,8 +81,8 @@ namespace housepi
             std::istringstream iss(line);
             size_t n_cols = 0;
 
-            while (std::getline(iss, tkn, DELIMITER))
-                this_row.emplace(headers[n_cols++], strcleaner(tkn));
+            while (std::getline(iss, tkn, str::DELIMITER))
+                this_row.emplace(headers[n_cols++], str::clean(tkn));
 
             // last column is empty
             for (size_t i = n_cols; i < headers.size(); i++)
@@ -105,8 +103,8 @@ namespace housepi
             std::istringstream iss(line);
 
             // get headers from first line
-            while (std::getline(iss, tkn, DELIMITER))
-                headers.push_back(strcleaner(tkn));
+            while (std::getline(iss, tkn, str::DELIMITER))
+                headers.push_back(str::clean(tkn));
 
             return headers;
         }
@@ -135,7 +133,7 @@ namespace housepi
             }
 
             // ensure all columns have the same number of rows
-            size_t n_rows = csv_n_rows(output);
+            size_t n_rows = count_rows(output);
             for (const auto &[col, vec] : output)
                 if (vec.size() != n_rows)
                     throw std::runtime_error(
@@ -243,7 +241,7 @@ namespace housepi
         }
     }
 
-    //////////////////////////////  MCMC : print infer state  //////////////////////////////
+    //////////////////////////////  Inference trace  //////////////////////////////
 
     /// Run inference and write its trace to `out_file`.
     void print_infer_state(MCMC &engine, const std::string &out_file)
@@ -264,18 +262,18 @@ namespace housepi
                 "Unable to open file: " + out_file);
 
         // header: log-likelihood
-        ofs << "iteration" << read::DELIMITER << "log_lik";
+        ofs << "iteration" << str::DELIMITER << "log_lik";
 
         // header: parameters
         for (const auto &name : post.param_names)
-            ofs << read::DELIMITER << name;
+            ofs << str::DELIMITER << name;
 
         // header: latents of the traced id
         for (const auto &name : post.latent_col_names)
-            ofs << read::DELIMITER << name;
+            ofs << str::DELIMITER << name;
 
         // header: chain
-        ofs << read::DELIMITER << "_chain_\n";
+        ofs << str::DELIMITER << "_chain_\n";
 
         // values: one row per draw
         for (size_t c = 0; c < setup.n_chains; ++c)
@@ -291,30 +289,30 @@ namespace housepi
                 double log_lik = 0.;
                 for (const auto &house : post.house_log_lik)
                     log_lik += house[i];
-                ofs << read::DELIMITER << std::setprecision(2)
+                ofs << str::DELIMITER << std::setprecision(2)
                     << std::fixed << log_lik;
 
                 // print parameter values
                 for (size_t u = 0; u < post.param_values.size(); ++u)
-                    ofs << read::DELIMITER << std::setprecision(5)
+                    ofs << str::DELIMITER << std::setprecision(5)
                         << std::fixed << post.param_values[u][i];
 
                 // print latents of the traced id
                 {
                     for (auto &indiv_matrix : post.latent_values)
                         for (auto &var_vec : indiv_matrix)
-                            ofs << read::DELIMITER << std::setprecision(5)
+                            ofs << str::DELIMITER << std::setprecision(5)
                                 << std::fixed << var_vec[i];
                 }
 
                 // print the chain
-                ofs << read::DELIMITER << (c + 1) << '\n';
+                ofs << str::DELIMITER << (c + 1) << '\n';
             }
 
         ofs.close();
     }
 
-    //////////////////////////////  MCMC::Impl : print simulation  //////////////////////////////
+    //////////////////////////////  Simulation output  //////////////////////////////
 
     /// Open `f` and write its header: data columns, then latent columns.
     std::ofstream open_ofstream_datawide(const std::string &f,
@@ -328,13 +326,13 @@ namespace housepi
             throw std::runtime_error("Unable to open file: '" + f + "'");
 
         ofs << "rep"
-            << read::DELIMITER << "id"
-            << read::DELIMITER << "hhid"
-            << read::DELIMITER << "status";
+            << str::DELIMITER << "id"
+            << str::DELIMITER << "hhid"
+            << str::DELIMITER << "status";
         for (const std::string &datastr : data_headers)
-            ofs << read::DELIMITER << datastr;
+            ofs << str::DELIMITER << datastr;
         for (const std::string &latentstr : latent_headers)
-            ofs << read::DELIMITER << latentstr;
+            ofs << str::DELIMITER << latentstr;
         ofs << '\n';
 
         return ofs;
@@ -355,21 +353,21 @@ namespace housepi
         for (const Individual &indiv : house)
         {
             ofs << rep
-                << read::DELIMITER << data_wide.id(indiv)
-                << read::DELIMITER << data_wide.hhid(house)
-                << read::DELIMITER;
-            // StatusLevel is a byte: stream it as a number, not as a character
+                << str::DELIMITER << data_wide.id(indiv)
+                << str::DELIMITER << data_wide.hhid(house)
+                << str::DELIMITER;
+            // StatusLvl is a byte: stream it as a number, not as a character
             if (indiv.is_missing_status())
                 ofs << "NA";
             else
                 ofs << static_cast<int>(indiv.status());
             for (size_t d = 0; d < data_wide.khold().size(); ++d)
-                ofs << read::DELIMITER << data.at(d, indiv).value();
+                ofs << str::DELIMITER << data.at(d, indiv).value();
             for (size_t a : latent_export)
             {
                 const Variable &xlatent = augm.at(a, indiv);
                 double x = xlatent.is_empty() ? na::DOUBLE : xlatent.value();
-                ofs << read::DELIMITER << x;
+                ofs << str::DELIMITER << x;
             }
             ofs << '\n';
         }

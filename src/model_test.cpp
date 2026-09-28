@@ -5,11 +5,7 @@
  * See the LICENSE file for details.
  */
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  * *** * BLANK MODEL * *** *  /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  test  //////////////////////////////
 
 #include "housepi.h"
 
@@ -18,6 +14,7 @@
 #endif
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
+/// Blank model: unit likelihood, latents initialized in simulation.
 class Model final : public ModelBase
 {
 public:
@@ -31,10 +28,10 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtx)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Param)
 
-	/// Compute transmission log-likelihood within household. Unitary likelihood.
+	/// Return a null log-likelihood: unit likelihood.
 	double compute_house_transm_log_lik(const Household &) override final { return 0.; }
 
-	/// Latent variable initialization.
+	/// Initialize the latent variables of infected members.
 	void simulate_single_house(Household &house) override final
 	{
 		for (MemberIdx i = 0; i < house.size(); ++i)

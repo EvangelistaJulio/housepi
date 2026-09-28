@@ -18,21 +18,19 @@
 
 #include <Rcpp.h>
 
+#include "tools/dictionary.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parallel.h"
-#include "tools/read.h"
 #include "tools/string.h"
-#include "tools/types.h"
 #include "tools/vector.h"
-
 #include "mcmc.h"
 #include "measures.h"
-#include "posterior.h"
+#include "mcmc/posterior.h"
 #include "registry.h"
 #include "augmented.h"
-#include "binomial.h"
+#include "chain_binom.h"
 #include "data.h"
 #include "data/wide.h"
 #include "data/long.h"
@@ -43,7 +41,7 @@
 #include "parameter.h"
 #include "variable.h"
 
-//////////////////////////////  Stdout Message Function  //////////////////////////////
+//////////////////////////////  msg  //////////////////////////////
 
 namespace housepi
 {
@@ -83,7 +81,7 @@ namespace housepi::msg
     }
 }
 
-//////////////////////////////  Housepi Rcpp Base  //////////////////////////////
+//////////////////////////////  Rcpp helpers  //////////////////////////////
 
 namespace
 {
@@ -129,7 +127,8 @@ namespace
 
     /// Convert an interval to an R list.
     /// - unbounded side: -Inf or Inf.
-    Rcpp::List rcpp_interval(double min, double max, Interval below, Interval above)
+    Rcpp::List rcpp_interval(double min, double max,
+                             Interval below, Interval above)
     {
         return Rcpp::List::create(
             Rcpp::_["min"] = below == Interval::Unbounded ? -inf::DOUBLE : hsp_to_rcpp(min),
@@ -158,10 +157,9 @@ namespace
     public:
         //////  Constructor  //////
 
-        ExposeBase(
-            std::string name,
-            ErrType family,
-            std::vector<registry::Kind> reg_kinds)
+        ExposeBase(std::string name,
+                   ErrType family,
+                   std::vector<registry::Kind> reg_kinds)
             : ptr_(registry::create_function(name, family, reg_kinds, false)),
               family_(family) {}
         virtual ~ExposeBase() = default;
@@ -670,8 +668,8 @@ namespace
         // retrieve total number of rows
         size_t n_rows = 0;
         for (const auto &tbl : data_long.indiv_datalist)
-            if (!tbl.vec.empty())
-                n_rows += tbl.vec.begin()->size();
+            if (!tbl.empty())
+                n_rows += tbl.begin()->size();
 
         Rcpp::CharacterVector datalist_index(n_rows);
 
@@ -684,7 +682,7 @@ namespace
         for (const Household &house : data_wide)
             for (const Individual &indiv : house)
             {
-                const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(indiv);
+                const data::Long::IndivLong *ptr = data_long.get_data_long_ptr(indiv);
                 if (!ptr->empty())
                     for (size_t k = 0; k < ptr->begin()->size(); ++k)
                     {
@@ -756,43 +754,6 @@ namespace
             Rcpp::_["percent"] = std::move(percent));
     }
 
-    //////  MCMCBase : export house size report  //////
-
-    /// Summarise household sizes to an R data frame.
-    Rcpp::DataFrame summarise_house_sizes(Rcpp::XPtr<MCMC> mcmc_ptr)
-    {
-        const data::Wide &data_wide = mcmc_ptr->data.wide();
-        const data::ReportIndividual &report_indiv = data_wide.report_indiv;
-        const data::ReportHouseSizes &report_hh_size = data_wide.report_hh_size;
-
-        Rcpp::CharacterVector metric({"most cases", "most missing", "smallest size", "largest size"});
-        R_xlen_t n_rows = metric.size();
-        Rcpp::IntegerVector value(n_rows), count(n_rows);
-        Rcpp::NumericVector percent(n_rows);
-
-        value[0] = report_hh_size.max_cases.first;
-        count[0] = report_hh_size.max_cases.second;
-        percent[0] = format_percentage(count[0], report_indiv.total);
-
-        value[1] = report_hh_size.max_miss.first;
-        count[1] = report_hh_size.max_miss.second;
-        percent[1] = format_percentage(count[1], report_indiv.total);
-
-        value[2] = report_hh_size.min_size.first;
-        count[2] = report_hh_size.min_size.second;
-        percent[2] = format_percentage(count[2], report_indiv.total);
-
-        value[3] = report_hh_size.max_size.first;
-        count[3] = report_hh_size.max_size.second;
-        percent[3] = format_percentage(count[3], report_indiv.total);
-
-        return Rcpp::DataFrame::create(
-            Rcpp::_["metric"] = std::move(metric),
-            Rcpp::_["value"] = std::move(value),
-            Rcpp::_["count"] = std::move(count),
-            Rcpp::_["percent"] = std::move(percent));
-    }
-
     //////  Posterior : Rcpp export methods  //////
 
     /// Move `src` into a fresh NumericVector and release it.
@@ -805,7 +766,8 @@ namespace
     }
 
     /// Attach data.frame class and row names to `cols`, a list of equal-length columns.
-    void helper_set_dataframe_attrs(Rcpp::List &cols, R_xlen_t n_rows)
+    void helper_set_dataframe_attrs(Rcpp::List &cols,
+                                    R_xlen_t n_rows)
     {
         cols.attr("row.names") = Rcpp::IntegerVector::create(NA_INTEGER, -static_cast<int>(n_rows));
         cols.attr("class") = "data.frame";
@@ -813,11 +775,10 @@ namespace
 
     /// Flush each column of `draws` into a data.frame column, releasing C++ storage.
     /// Skipping the NumericMatrix intermediate lets R use the columns in place.
-    Rcpp::List flush_2d_draws_to_df(
-        std::vector<std::vector<double>> &draws,
-        const std::vector<std::string> &col_names,
-        size_t n_rows,
-        const char *err_type)
+    Rcpp::List flush_2d_draws_to_df(std::vector<std::vector<double>> &draws,
+                                    const std::vector<std::string> &col_names,
+                                    size_t n_rows,
+                                    const char *err_type)
     {
         if (draws.empty())
             return Rcpp::List();
@@ -978,7 +939,7 @@ namespace
         size_t n_rows = 0;
         for (const Individual &indiv : house)
         {
-            const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(indiv);
+            const data::Long::IndivLong *ptr = data_long.get_data_long_ptr(indiv);
             if (!ptr->empty())
                 n_rows += ptr->begin()->size();
         }
@@ -991,7 +952,7 @@ namespace
         size_t r = 0;
         for (const Individual &indiv : house)
         {
-            const std::vector<std::vector<double>> *ptr = data_long.get_data_long_ptr(indiv);
+            const data::Long::IndivLong *ptr = data_long.get_data_long_ptr(indiv);
             if (!ptr->empty())
                 for (size_t k = 0; k < ptr->begin()->size(); ++k)
                 {
@@ -1162,8 +1123,8 @@ namespace
     }
 
     /// Snapshot the latents of `house`.
-    Rcpp::DataFrame helper_latent_rcpp_snapshot(
-        Rcpp::XPtr<MCMC> mcmc_ptr, const Household &house)
+    Rcpp::DataFrame helper_latent_rcpp_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr,
+                                                const Household &house)
     {
         const data::Wide &data_wide = mcmc_ptr->data.wide();
         const Augmented &augm = mcmc_ptr->augm;
@@ -1440,10 +1401,10 @@ namespace
     //////////////////////////////  Rcpp exports  //////////////////////////////
 
 /// Keys the model declares through HOUSEPI_DECLARE_REGISTER_KEYS.
-#define MAKE_EXPORT_CHARACTER_VECTOR(method)                         \
-    Rcpp::CharacterVector method(Rcpp::XPtr<housepi::MCMC> mcmc_ptr) \
-    {                                                                \
-        return Rcpp::wrap(mcmc_ptr->model->method());                \
+#define MAKE_EXPORT_CHARACTER_VECTOR(method)                \
+    Rcpp::CharacterVector method(Rcpp::XPtr<MCMC> mcmc_ptr) \
+    {                                                       \
+        return Rcpp::wrap(mcmc_ptr->model->method());       \
     }
 
     MAKE_EXPORT_CHARACTER_VECTOR(key_Data)
@@ -1453,23 +1414,23 @@ namespace
     MAKE_EXPORT_CHARACTER_VECTOR(key_Latent)
 
 /// Keys the model requests as discrete.
-#define MAKE_EXPORT_DISCRETE_KEYS(method, module)                    \
-    Rcpp::CharacterVector method(Rcpp::XPtr<housepi::MCMC> mcmc_ptr) \
-    {                                                                \
-        return Rcpp::wrap(mcmc_ptr->module.discrete_keys());         \
+#define MAKE_EXPORT_DISCRETE_KEYS(method, module)            \
+    Rcpp::CharacterVector method(Rcpp::XPtr<MCMC> mcmc_ptr)  \
+    {                                                        \
+        return Rcpp::wrap(mcmc_ptr->module.discrete_keys()); \
     }
 
     MAKE_EXPORT_DISCRETE_KEYS(key_Param_discrete, param)
     MAKE_EXPORT_DISCRETE_KEYS(key_Latent_discrete, augm)
 
     /// Data columns the model requests as discrete.
-    Rcpp::CharacterVector key_Data_discrete(Rcpp::XPtr<housepi::MCMC> mcmc_ptr)
+    Rcpp::CharacterVector key_Data_discrete(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         return Rcpp::wrap(mcmc_ptr->data.wide().discrete_keys());
     }
 
     /// Baselines the model anchors to risks, keyed by parameter name.
-    Rcpp::List risk_anchors(Rcpp::XPtr<housepi::MCMC> mcmc_ptr)
+    Rcpp::List risk_anchors(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         const std::vector<risks::Anchor> &anchors = mcmc_ptr->risks.anchors();
 
@@ -1722,7 +1683,6 @@ RCPP_MODULE(housepi)
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);
     Rcpp::function("summarise_house_cases", &summarise_house_cases);
-    Rcpp::function("summarise_house_sizes", &summarise_house_sizes);
     Rcpp::function("export_setup", &export_setup);
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);
     Rcpp::function("flush_param_draws", &flush_param_draws);

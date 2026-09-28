@@ -11,58 +11,50 @@
 #include <cmath>
 #include <vector>
 
-#include "tools/status.h"
+#include "data/status.h"
 
 namespace housepi::measure
 {
     namespace cases
     {
+        /// Count households per size and number of cases.
         struct Table
         {
-            /// Smallest household size observed.
-            unsigned min_size = 0;
-            /// Largest household size observed.
-            unsigned max_size = 0;
-            /// Most cases observed in a single household.
-            unsigned max_cases = 0;
-            /// counts[r][c] with rows = hhsize - min_size, columns 0..max_size.
-            std::vector<std::vector<unsigned>> counts;
+            unsigned min_size = 0;                     /// Smallest household size observed.
+            unsigned max_size = 0;                     /// Largest household size observed.
+            unsigned max_cases = 0;                    /// Most cases observed in a single household.
+            std::vector<std::vector<unsigned>> counts; /// Rows: hhsize - min_size; columns: cases 0..max_size.
         };
 
+        /// Count households per size, with at least one case or in total.
         struct HouseCounts
         {
-            /// First house size on the grid (>= 1).
-            unsigned grid_min = 0;
-            /// All houses per size from grid_min.
-            std::vector<unsigned> total;
-            /// Houses with >=1 case per size.
-            std::vector<unsigned> at_least_1_case;
+            unsigned grid_min = 0;                 /// First household size on the grid, 1 or more.
+            std::vector<unsigned> total;           /// Households per size.
+            std::vector<unsigned> at_least_1_case; /// Households with at least one case, per size.
         };
 
+        /// Hold mean attack rate per household size.
         struct AttackRates
         {
-            /// First house size on the grid (>= 1).
-            unsigned grid_min = 0;
-            /// Mean attack rate per size.
-            std::vector<double> ar_mean;
-            /// Contributing households per size.
-            std::vector<unsigned> count;
+            unsigned grid_min = 0;       /// First household size on the grid, 1 or more.
+            std::vector<double> ar_mean; /// Mean attack rate per size.
+            std::vector<unsigned> count; /// Contributing households per size.
         };
 
+        /// Hold mean secondary attack rate per household size.
         struct SecAttackRates
         {
-            /// First house size on the grid (>= 2).
-            unsigned grid_min = 0;
-            /// Mean SAR per size.
-            std::vector<double> sar_mean;
-            /// Contributing households per size.
-            std::vector<unsigned> count;
+            unsigned grid_min = 0;        /// First household size on the grid, 2 or more.
+            std::vector<double> sar_mean; /// Mean secondary attack rate per size.
+            std::vector<unsigned> count;  /// Contributing households per size.
         };
     }
 
-    /// Tabulate households by size and number of cases, aggregating individuals by hhid.
-    /// `hhid` holds 1-based codes 1..n_houses, each code used at least once.
-    /// `status` values as read from an R column: NA = missing, 0 = escaped, >=1 = infected.
+    /// Tabulate households by size and number of cases, aggregating individuals by `hhid`.
+    ///
+    /// - `hhid`: 1-based codes 1..n_houses, each code used at least once;
+    /// - `status`: values as read from an R column, NA missing, 0 escaped, 1 or more infected.
     inline cases::Table summarise_houses(const std::vector<int> &hhid,
                                          const std::vector<int> &status)
     {
@@ -100,7 +92,7 @@ namespace housepi::measure
         return output;
     }
 
-    /// Total houses and houses with >=1 case per size, on the same grid as attack_rate_by_hhsize.
+    /// Count households per size, all and with a case, on the `attack_rate_by_hhsize` grid.
     inline cases::HouseCounts house_counts(const cases::Table &table)
     {
         cases::HouseCounts output;
@@ -116,6 +108,7 @@ namespace housepi::measure
         return output;
     }
 
+    /// Compute mean attack rate per household size.
     inline cases::AttackRates attack_rate_by_hhsize(const cases::Table &table)
     {
         cases::AttackRates output;
@@ -135,6 +128,7 @@ namespace housepi::measure
         return output;
     }
 
+    /// Compute mean secondary attack rate per household size, from size 2.
     inline cases::SecAttackRates sar_by_hhsize(const cases::Table &table)
     {
         cases::SecAttackRates output;
@@ -154,8 +148,8 @@ namespace housepi::measure
         return output;
     }
 
-    /// Geometric mean of household size, weighted by secondary cases max(cases - 1, 0).
-    /// NOTE: requires cases::Table::max_cases > 1.
+    /// Return geometric mean of household size, weighted by secondary cases max(cases - 1, 0).
+    /// @note Requires `cases::Table::max_cases` above 1.
     inline double geom_mean_hhsize(const cases::Table &table)
     {
         double sum_w = 0.0, sum_wlog = 0.0;

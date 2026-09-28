@@ -26,5 +26,6 @@ the number of households is scaled.
 }
 \examples{
 structure <- sample_house_structure(flu_1918_frederick, houses = 20)
-summarise_house_sizes(new_housepi_model(structure, "final_size"))
+new_housepi_model(structure, "final_size") |>
+  summarise_house_cases()
 }

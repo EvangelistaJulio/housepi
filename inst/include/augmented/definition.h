@@ -13,10 +13,10 @@
 #include <string_view>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/messages.h"
 #include "tools/parser.h"
-#include "tools/status.h"
-#include "tools/types.h"
+#include "data/status.h"
 
 //////////////////////////////  augm::DefTable  //////////////////////////////
 
@@ -54,8 +54,13 @@ namespace housepi::augm
 
         parse::Definition value, func, model, min, max, proposal;
 
-        bool has_value = false, has_func = false, has_model = false, has_proposal = false;
-        bool is_const = false, is_discr = false, is_fcumul = false;
+        bool has_value = false;
+        bool has_func = false;
+        bool has_model = false;
+        bool has_proposal = false;
+        bool is_const = false;
+        bool is_discr = false;
+        bool is_fcumul = false;
 
         /// Parse row `r` of definition table `input`.
         DefRow(const str_table &input, size_t r);

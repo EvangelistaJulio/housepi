@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "tools/nan.h"
-#include "tools/types.h"
 #include "data/individual.h"
 
 //////////////////////////////  Household  //////////////////////////////
@@ -129,7 +128,8 @@ namespace housepi
 		/// Move `indiv` to status `new_status`.
 		///
 		/// Member statuses are tracked by partition refinement.
-		void set_new_status_(Individual &indiv, StatusLvl new_status);
+		void set_new_status_(Individual &indiv,
+							 StatusLvl new_status);
 	};
 
 	/// Storage index of `house`, declared in data/individual.h.

@@ -378,10 +378,6 @@ test_that("An unresolved source is reported softly and at the wall", {
 test_that("Flu 2014 Matsumoto is correctly pre-processed", {
   hhmodel <- new_housepi_model(flu_2014_matsumoto, "final-size")
 
-  hhmodel |>
-    summarise_house_sizes() |>
-    expect_s3_class("data.frame")
-
   case_summary <- summarise_house_cases(hhmodel)
   # expect same household count as in Endo, et al. ('19)
   subset(case_summary, level == "household" & metric == "total")$count |>

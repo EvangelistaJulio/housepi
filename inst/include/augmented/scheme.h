@@ -14,9 +14,8 @@
 
 #include "tools/keys.h"
 #include "tools/nan.h"
-#include "tools/types.h"
-
 #include "augmented/definition.h"
+#include "data/status.h"
 
 //////////////////////////////  augm::Scheme  //////////////////////////////
 

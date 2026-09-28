@@ -12,17 +12,15 @@
 #include <utility>
 #include <vector>
 
-#include "tools/dependency.h"
+#include "tools/dag.h"
+#include "tools/dictionary.h"
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parser.h"
 #include "tools/random.h"
-#include "tools/read.h"
 #include "tools/string.h"
-#include "tools/types.h"
 #include "tools/vector.h"
-
 #include "data/household.h"
 #include "data/individual.h"
 #include "data/wide.h"
@@ -178,8 +176,8 @@ namespace housepi
         valid_mode_ = Validity::Check;
     }
 
-    void Variable::helper_init_independence_proposal_(
-        const std::string &proposal, const dict<Attribute> &args)
+    void Variable::helper_init_independence_proposal_(const std::string &proposal,
+                                                      const dict<Attribute> &args)
     {
         // valid by construction: no per-step validity check
         pProp_ = std::make_unique<IndependenceProposal>(proposal, args, pDistr_.get());
@@ -264,7 +262,7 @@ namespace housepi
         void DefTable::build(const str_table &input)
         {
             rows.clear();
-            for (size_t r = 0; r < read::csv_n_rows(input); ++r)
+            for (size_t r = 0; r < count_rows(input); ++r)
                 rows.emplace_back(input, r);
         }
 
@@ -285,7 +283,7 @@ namespace housepi
                 return out;
             }
 
-            dpdcy::prod_graph producer_graph;
+            dag::prod_graph producer_graph;
             for (const DefRow &row : rows)
             {
                 auto &producers = producer_graph[row.name];
@@ -293,7 +291,7 @@ namespace housepi
                     for (const std::string &pstr : col->list_parameter_producers())
                         producers.insert(pstr);
             }
-            for (const std::string &pstr : dpdcy::order_producers_first(producer_graph, ErrType::Parameter))
+            for (const std::string &pstr : dag::order_producers_first(producer_graph, ErrType::Parameter))
                 out.push_back(name_to_row.at(pstr));
             return out;
         }
@@ -303,7 +301,9 @@ namespace housepi
 
     namespace param
     {
-        void Scheme::build(const DefTable &def, const KeyHolder &khold, std::vector<size_t> rows)
+        void Scheme::build(const DefTable &def,
+                           const KeyHolder &khold,
+                           std::vector<size_t> rows)
         {
             order = std::move(rows);
             constant.clear();
@@ -395,7 +395,8 @@ namespace housepi
 
     //////////////////////////////  Parameter  //////////////////////////////
 
-    void Parameter::build(const str_table &input, const Translator &translator)
+    void Parameter::build(const str_table &input,
+                          const Translator &translator)
     {
         khold_.clear_optional();
 
@@ -510,7 +511,8 @@ namespace housepi
 
     namespace risks
     {
-        void ScaleAnchor::update(std::string_view pstr, const Parameter &param)
+        void ScaleAnchor::update(std::string_view pstr,
+                                 const Parameter &param)
         {
             if (na::is(pstr) || pstr == REFERENCE)
                 anchored = true;
@@ -528,7 +530,8 @@ namespace housepi
             return true;
         }
 
-        size_t count_scale_free(const std::vector<ScaleAnchor> &anchors, const Parameter &param)
+        size_t count_scale_free(const std::vector<ScaleAnchor> &anchors,
+                                const Parameter &param)
         {
             size_t n = 0;
             for (const ScaleAnchor &anchor : anchors)
@@ -644,7 +647,7 @@ namespace housepi
             const std::vector<std::string> file_headers = {"group_risk", "param_name", "rule_group"};
 
             // every column but the template headers is a covariate
-            std::vector<std::string> data_headers = read::extract_keys(input);
+            std::vector<std::string> data_headers = extract_keys(input);
             vect::remove(data_headers, file_headers);
 
             // register the group-risk names
@@ -698,8 +701,8 @@ namespace housepi
                 if (!na::is(sval))
                     is_keyed[static_cast<StatusLvl>(str::toi(sval))] = true;
 
-            // one slot per keyed level; the rest share slot 0 with escaped and missing levels,
-            // which resolve the wildcard rules alone
+            // one slot per keyed level
+            // other levels share slot 0 with escaped and missing ones, resolving wildcard rules alone
             StatusTable<StatusSlot> slot_of = {};
             for (size_t level = 0; level < slot_of.size(); ++level)
             {
@@ -711,7 +714,8 @@ namespace housepi
             return slot_of;
         }
 
-        void Group::helper_init_unique_risk_(const Parameter &param, const std::vector<str_table> &slot_risks)
+        void Group::helper_init_unique_risk_(const Parameter &param,
+                                             const std::vector<str_table> &slot_risks)
         {
             // every cell starts at the reference: status rules never cover escaped members
             const size_t base = flat_.size();

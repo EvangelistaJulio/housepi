@@ -11,7 +11,6 @@
 
 #include "tools/keys.h"
 #include "tools/random.h"
-
 #include "parameter/scheme.h"
 #include "variable.h"
 
@@ -31,23 +30,31 @@ namespace housepi::param
     //////  Sampling  //////
 
     /// Initialize parameters to sample, for inference.
-    void restart(const Scheme &scheme, State &state, rnd_gen &prng);
+    void restart(const Scheme &scheme,
+                 State &state,
+                 rnd_gen &prng);
     /// Draw parameters to sample from their prior, for simulation.
     /// Unlike restart(), it uses no proposal.
-    inline void draw_sample(const Scheme &scheme, State &state, rnd_gen &prng)
+    inline void draw_sample(const Scheme &scheme,
+                            State &state,
+                            rnd_gen &prng)
     {
         for (size_t p : scheme.sample)
             state.vec[p].draw_value(prng);
     }
     /// Load pinned values of simulation repetition `r`.
-    void load_sample_values(const Scheme &scheme, State &state, size_t r);
+    void load_sample_values(const Scheme &scheme,
+                            State &state,
+                            size_t r);
     /// Finalize every parameter (see Variable::finalize).
-    void finalize(const Scheme &scheme, State &state);
+    void finalize(const Scheme &scheme,
+                  State &state);
 
     //////  Log-prior  //////
 
     /// Total log-prior over sampled parameters.
-    inline double total_log_prior(const Scheme &scheme, const State &state)
+    inline double total_log_prior(const Scheme &scheme,
+                                  const State &state)
     {
         double out = 0.;
         for (size_t p : scheme.sample)

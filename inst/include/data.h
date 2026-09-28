@@ -11,8 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "tools/types.h"
-
+#include "tools/dictionary.h"
 #include "data/long.h"
 #include "data/state.h"
 #include "data/wide.h"

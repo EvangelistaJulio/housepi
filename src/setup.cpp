@@ -13,32 +13,25 @@
 #include <string>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parallel.h"
-#include "tools/read.h"
+#include "tools/progressbar.h"
 #include "tools/string.h"
-#include "tools/types.h"
-
-#include "progressbar.h"
-#include "setup.h"
+#include "mcmc/setup.h"
 
 namespace housepi
 {
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////  *** Setup : struct ***  ////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Setup  //////////////////////////////
 
     Setup::Setup()
         : progressbar_(std::make_unique<ProgressBar>()) { reset_defaults(); }
     Setup::~Setup() = default;
 
-    void Setup::init_R_context(
-        unsigned barwidth,
-        bool is_interactive,
-        std::function<void()> interrupt_func)
+    void Setup::init_R_context(unsigned barwidth,
+                               bool is_interactive,
+                               std::function<void()> interrupt_func)
     {
         progressbar_ = std::make_unique<ProgressBar>(
             barwidth,
@@ -69,66 +62,62 @@ namespace housepi
 
     void Setup::build(const str_table &input)
     {
-        reset_defaults();                 // single source of truth for defaults
-        helper_non_default_build_(input); // read user input
-        set_n_threads();                  // define number of threads
-        set_prng_seed();                  // pseudo-random number generator seeding
+        reset_defaults();                 // defaults
+        helper_non_default_build_(input); // user input
+        set_n_threads();                  // number of threads
+        set_prng_seed();                  // generator seeds
     }
 
     void Setup::helper_non_default_build_(const housepi::str_table &input)
     {
-        // check entries
-        const std::vector<std::string> &headers = read::extract_keys(input);
-
-        // Random Initialization of Parameters
+        // progress bar interval
         if (input.count("progress") && !na::is(input.at("progress")[0]))
             progress = str::toul(input.at("progress")[0]);
 
-        // N. of Threads
+        // number of threads
         if (input.count("threads") && !na::is(input.at("threads")[0]))
             n_threads = str::toi(input.at("threads")[0], "threads");
 
-        // PRNG Seed (enforce 32bit integer)
+        // seed, cast to a 32-bit integer
         if (input.count("seed") && !na::is(input.at("seed")[0]))
             seed = static_cast<std::int32_t>(str::toi(input.at("seed")[0], "seed"));
 
-        // N. of Chains
+        // number of chains
         if (input.count("chains") && !na::is(input.at("chains")[0]))
             n_chains = str::toul(input.at("chains")[0], "chains");
 
-        // N. of Steps
+        // number of steps
         if (input.count("steps") && !na::is(input.at("steps")[0]))
             n_steps = str::toul(input.at("steps")[0], "steps");
 
-        // N. of Adaptive Steps
+        // number of adaptive steps
         if (input.count("adapt") && !na::is(input.at("adapt")[0]))
-            n_adapt = str::toul(input.at("adapt")[0], "adpat");
+            n_adapt = str::toul(input.at("adapt")[0], "adapt");
 
-        // EMA window for the smoothed acceptance-rate estimate.
+        // window of the smoothed acceptance rate
         if (input.count("adapt_window") && !na::is(input.at("adapt_window")[0]))
             n_adapt_window = str::toul(input.at("adapt_window")[0], "adapt_window");
 
-        // N. of Thinning Steps
+        // thinning interval
         if (input.count("thin") && !na::is(input.at("thin")[0]))
             n_thin = str::toul(input.at("thin")[0], "thin");
 
-        // N. of Steps to "Burn-In"
+        // burn-in steps
         if (input.count("burn") && !na::is(input.at("burn")[0]))
             n_burn = str::toul(input.at("burn")[0], "burn");
 
-        // Individual ID for Latent Trace
+        // individual IDs whose latent draws are traced
         if (input.count("id_draws") && !input.at("id_draws")[0].empty())
-            id_draws = str::unique(read::parse_list(input.at("id_draws")[0]));
+            id_draws = str::unique(str::split_list(input.at("id_draws")[0]));
 
-        // Household ID for Latent Trace
+        // household IDs whose infected members are traced
         if (input.count("house_draws") && !input.at("house_draws")[0].empty())
-            house_draws = str::unique(read::parse_list(input.at("house_draws")[0]));
+            house_draws = str::unique(str::split_list(input.at("house_draws")[0]));
 
-        // Real-time integration step for simulation
+        // integration step of simulation
         if (input.count("time_step") && !na::is(input.at("time_step")[0]))
         {
             time_step = str::tod(input.at("time_step")[0], "time_step");
-            // UPDATE: by symmetry it should be tested where appropriate
             if (time_step <= 0.)
                 msg::stop("Setup 'time_step' must be strictly positive.");
         }
@@ -155,15 +144,13 @@ namespace housepi
         }
         housepi::parallel::set_num_threads(n_threads);
 #endif
-        // one dispatch level: every thread goes to the households of a single chain
+        // every thread goes to the households of a single chain
         budget = {1, n_threads};
     }
 
-    /// Assign seed for random generators.
-    /// Concomitantely create different generators for different parallel threads.
     void Setup::set_prng_seed()
     {
-        seed = std::max(1, seed); // NOTE: default seed for standalone
+        seed = std::max(1, seed); // seeds below 1 fall back to 1
         prng_parallel_.resize(n_threads);
         prng_parallel_[0].seed(seed);
         for (size_t t = 1; t < n_threads; ++t)
@@ -173,7 +160,6 @@ namespace housepi
         }
     }
 
-    /// Return pseudo random number generator.
     rnd_gen &Setup::prng() const
     {
         return prng_parallel_[housepi::parallel::current_thread_index()];
@@ -181,7 +167,7 @@ namespace housepi
 
     void Setup::init_mcmc_configuration(bool is_adaptive)
     {
-        // clip options mistakenly set to 0 has 1
+        // counts set to 0 are clamped to 1
         n_steps = std::max(1ul, n_steps);
         n_chains = std::max(1ul, n_chains);
         n_thin = std::max(1ul, n_thin);
@@ -192,15 +178,16 @@ namespace housepi
                 "Wrong setup: " + msg::arg("burn") + " must be smaller than " + msg::arg("steps") + ".");
         if (n_thin > n_steps)
             msg::stop(
-                "Wrong setup: " + msg::arg("thin") + "cannot be greater than " + msg::arg("steps") + ".");
+                "Wrong setup: " + msg::arg("thin") + " cannot be greater than " + msg::arg("steps") + ".");
 
+        // round sample size up, then extend steps to fill it
         c_sample_size = (n_steps - n_burn) / n_thin;
-        // adjust steps and sample size
         c_sample_size += (n_steps - n_burn) % n_thin > 0;
         n_steps = n_burn + c_sample_size * n_thin;
 
-        // drop adaptation steps if nothing to adapt
-        // if burn = 0, repurpose adaptation budget as burn
+        // if nothing to adapt, adaptation steps are:
+        // - converted in burn-in steps when burn is 0;
+        // - dropped otherwise.
         if (!is_adaptive)
         {
             if (n_adapt > 0 && n_burn == 0)

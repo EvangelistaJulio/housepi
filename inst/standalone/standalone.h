@@ -15,12 +15,14 @@ namespace housepi
     class MCMCBase;
     class MCMC;
 
+    /// Command-line options of the standalone build.
     struct Options
     {
-        bool is_log_lik = false;     // loglikelihood option
-        bool is_infer = false;       // inference option
-        bool is_simulate = false;    // simulation option
+        bool is_log_lik = false;  /// Evaluate the log-likelihood.
+        bool is_infer = false;    /// Run inference.
+        bool is_simulate = false; /// Run a simulation.
 
+        /// Paths of the input tables and of the output file.
         struct PathToFiles
         {
             std::string latent = "";
@@ -34,8 +36,10 @@ namespace housepi
             std::string setup = "";
         } file;
 
+        /// Parse the command line.
         Options(int argc, char *argv[]);
 
+        /// Import each table into `engine`, when its path is given.
         void read_data_wide(MCMCBase &engine);
         void read_data_long(MCMCBase &engine);
         void read_setup(MCMCBase &engine);
@@ -45,26 +49,27 @@ namespace housepi
         void read_contact_risk(MCMCBase &engine);
         void read_latent(MCMCBase &engine);
 
+        /// Assert at most one mode is selected, log-likelihood by default.
         void assert();
     };
 
-    /// Initialize the output file with inferred parameters with column names and initial values.
+    /// Run inference and write its trace to `f`.
     void print_infer_state(MCMC &engine, const std::string &f);
 
-    /// Print all latent variables of each individual.
+    /// Open `f` and write its header: data columns, then latent columns.
     std::ofstream open_ofstream_datawide(const std::string &f,
                                          const std::vector<std::string> &data_headers,
                                          const std::vector<std::string> &latent_headers);
 
-    /// Print all latent variables of each individual.
+    /// Write the rows of `house`: data, then exported latents.
     void update_ofstream_datawide(std::ofstream &ofs,
                                   const Household &house,
                                   size_t data_wide_size,
                                   const std::vector<size_t> &latent_export);
 
-    /// Print the simulated data to the provided file.
+    /// Simulate and write the data to `pathtofile`.
     void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile);
 
-    /// Main function for the standalone version of 'housepi'.
+    /// Entry point of the standalone build, for model `model_name`.
     int standalone(std::string_view model_name, int argc, char *argv[]);
 }

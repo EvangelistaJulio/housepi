@@ -17,11 +17,7 @@
 
 #include "function.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////  *** registry : functions and distributions ***  ///////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  registry : functions and distributions  //////////////////////////////
 
 namespace housepi
 {
@@ -32,30 +28,26 @@ namespace housepi
     /// Factory-based creation of Function, Distribution and ModelBase objects by name.
     namespace registry
     {
-        /// @class RegFunctions
-        /// @brief Name to factory map for Function objects.
+        /// Map names to factories of Function objects.
         ///
-        /// Function types register a factory lambda under their name(), which is then
-        /// invoked to instantiate them. New types are added without touching core code.
+        /// - each function type registers a factory under its name();
+        /// - new types are added without touching core code.
         class RegFunctions
         {
         public:
             using func_uptr = std::unique_ptr<Function>;
 
-            /// @brief Check whether a factory is registered under the given name.
+            /// Whether a factory is registered under `name`.
             bool contains(std::string_view name) const { return factory_map_.count(name); }
 
-            /// @brief Get all registered names.
+            /// Get every registered name.
             std::vector<std::string> names() const;
 
-            /// @brief Create a Function instance from its registered name.
-            /// @param name The name to instantiate.
+            /// Create the function registered under `name`, or nullptr if unknown.
             /// @param is_prim Whether the object evaluates as its primitive.
-            /// @return A unique_ptr to the created object. nullptr if the name is unknown.
             virtual func_uptr create(std::string_view name, bool is_prim = false) const;
 
-            /// @brief Register a function factory under its name.
-            /// @tparam T The function class type to register.
+            /// Register the factory of function class `T` under its name.
             template <typename T>
             void register_factory()
             {
@@ -65,19 +57,16 @@ namespace housepi
             }
 
         protected:
-            /// @brief Name to factory map, keyed by the registered names.
+            /// Factories, keyed by the registered names.
             std::map<std::string, std::function<func_uptr()>, std::less<>> factory_map_ = {};
         };
 
-        /// @class RegDistributions
-        /// @brief Name to factory map for Distribution objects.
+        /// Map names to factories of Distribution objects.
         class RegDistributions : public RegFunctions
         {
         public:
-            /// @brief Create a Distribution instance from its registered name.
-            /// @param name The name to instantiate.
+            /// Create the distribution registered under `name`, or nullptr if unknown.
             /// @param is_cumul Whether the object evaluates as its cumulative.
-            /// @return A unique_ptr to the created object. nullptr if the name is unknown.
             func_uptr create(std::string_view name, bool is_cumul = false) const override final;
         };
 
@@ -92,12 +81,12 @@ namespace housepi
             InfecProfile
         };
 
-        /// Registry holding the given kind.
-        /// NOTE: I define instance in source to avoid duplication across DLLs.
+        /// Registry holding `kind`.
+        /// Defined in source, so every DLL shares one instance.
         RegFunctions &instance(Kind kind);
 
-        /// Distribution registries in lookup order. 
-        /// NOTE: names shared by both registries resolves to discrete when the distribution is discrete.
+        /// Distribution registries in lookup order.
+        /// - name in both registries: the discrete one when `discr`.
         inline std::vector<Kind> distr_kinds(bool discr)
         {
             return discr ? std::vector<Kind>{Kind::Discrete, Kind::Continuous}
@@ -152,31 +141,24 @@ namespace housepi
         static T##kind##_AutoRegister T##kind##_auto_register;             \
     }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////  *** registry : models ***  /////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  registry : models  //////////////////////////////
 
 namespace housepi::registry
 {
-    /// @class RegModels
-    /// @brief Name to factory map for ModelBase objects.
+    /// Map names to factories of ModelBase objects.
     ///
-    /// Model DLLs auto-register their factory into this singleton at load time.
-    /// The singleton lives in housepi.so, so all model DLLs share the same instance.
+    /// - model DLLs register their factory into this singleton at load time;
+    /// - the singleton lives in housepi.so: every model DLL shares one instance.
     class RegModels
     {
     public:
         using model_uptr = std::unique_ptr<ModelBase>;
 
-        /// @brief Get the global model registry.
-        /// NOTE: I define instance in source to avoid duplication across DLLs.
+        /// Get the global model registry.
+        /// Defined in source, so every DLL shares one instance.
         static RegModels &instance();
 
-        /// @brief Register a model factory under the given name.
-        /// @tparam T The model class type to register.
-        /// @param name The name of the model.
+        /// Register the factory of model class `T` under `name`.
         template <typename T>
         void register_factory(const std::string &name)
         {
@@ -185,11 +167,12 @@ namespace housepi::registry
                                  { return std::make_unique<T>(); });
         }
 
-        /// @brief Create a model by name.
-        /// @throws std::runtime_error if the name is not registered.
+        /// Create the model registered under `name`.
+        /// - unregistered name: error.
         model_uptr create(std::string_view name) const;
 
     private:
+        /// Factories, keyed by model name.
         std::map<std::string, std::function<model_uptr()>, std::less<>> factory_map_;
     };
 }

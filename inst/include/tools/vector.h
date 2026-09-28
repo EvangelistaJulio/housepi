@@ -13,7 +13,7 @@
 
 namespace housepi::vect
 {
-    /// Appends the second container to the first.
+    /// Append `y` to `x`.
     template <typename T>
     void append(std::vector<T> &x, const std::vector<T> &y)
     {
@@ -21,7 +21,7 @@ namespace housepi::vect
         x.insert(x.end(), y.begin(), y.end());
     }
 
-    /// Concatenation of two containers.
+    /// Return `y` appended to `x`.
     template <typename T>
     std::vector<T> concatenate(const std::vector<T> &x, const std::vector<T> &y)
     {
@@ -30,7 +30,7 @@ namespace housepi::vect
         return out;
     }
 
-    /// Removes from the first container every element of the second.
+    /// Remove from `v` every element of `w`.
     template <typename T>
     void remove(std::vector<T> &v, const std::vector<T> &w)
     {
@@ -40,7 +40,7 @@ namespace housepi::vect
                 v.end());
     }
 
-    /// First container deprived of all the elements of the second.
+    /// Return `v` without the elements of `w`.
     template <typename T>
     std::vector<T> difference(const std::vector<T> &v, const std::vector<T> &w)
     {
@@ -49,14 +49,14 @@ namespace housepi::vect
         return out;
     }
 
-    /// Whether the given element is contained in the given vector.
+    /// Whether `vec` contains `elem`.
     template <typename T, typename U>
     bool contains(const T &vec, U elem)
     {
         return std::find(vec.begin(), vec.end(), elem) != vec.end();
     }
 
-    /// Appends elements from another container that are not already in the first.
+    /// Append to `v` the elements of `other` absent from `v`.
     template <typename T>
     void append_unique(std::vector<T> &v, const std::vector<T> &other)
     {

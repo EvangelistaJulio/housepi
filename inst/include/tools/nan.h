@@ -7,27 +7,27 @@
 
 #pragma once
 
-#include <string>
 #include <cmath>
-#include <limits>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <string_view>
 
 namespace housepi::na
 {
-    constexpr double DOUBLE = std::numeric_limits<double>::quiet_NaN(); /// NA double value
-    constexpr std::size_t INDEX = static_cast<std::size_t>(-1);         /// NA index value
-    constexpr std::uint32_t UINDEX = static_cast<std::uint32_t>(-1);    /// NA narrow index value
+    constexpr double DOUBLE = std::numeric_limits<double>::quiet_NaN(); /// NA double.
+    constexpr std::size_t INDEX = static_cast<std::size_t>(-1);         /// NA index.
+    constexpr std::uint32_t UINDEX = static_cast<std::uint32_t>(-1);    /// NA narrow index.
 
-    /// Wheter double represents NA.
+    /// Whether double `x` is NA.
     inline bool is(double x) noexcept { return std::isnan(x); }
-    /// Wheter string represents NA.
+    /// Whether string `txt` is NA.
     bool is(std::string_view txt) noexcept;
-    /// Wheter index represents NA.
+    /// Whether index `i` is NA.
     constexpr bool is(std::size_t i) noexcept { return i == INDEX; }
 }
 
 namespace housepi::inf
 {
-    constexpr double DOUBLE = std::numeric_limits<double>::infinity(); /// infinity double value
+    constexpr double DOUBLE = std::numeric_limits<double>::infinity(); /// Infinite double.
 }

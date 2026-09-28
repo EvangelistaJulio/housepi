@@ -26,5 +26,5 @@ its own: recode it to a label of your choice to stratify on it.
 # construct the model first, attach the data afterwards
 hhmodel <- new_housepi_model(model = "final_size") |>
   add_data_wide(flu_1918_frederick)
-summarise_house_sizes(hhmodel)
+summarise_house_cases(hhmodel)
 }

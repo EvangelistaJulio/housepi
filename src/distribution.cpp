@@ -16,7 +16,6 @@
 #include <boost/math/special_functions/erf.hpp>
 #include <boost/math/special_functions/beta.hpp>
 #include <boost/math/special_functions/gamma.hpp>
-
 #include <boost/math/distributions/poisson.hpp>
 #include <boost/math/distributions/binomial.hpp>
 #include <boost/math/distributions/negative_binomial.hpp>
@@ -27,9 +26,10 @@ using no_promote_policy = boost::math::policies::policy<
     boost::math::policies::promote_float<false>,
     boost::math::policies::promote_double<false>>;
 
-/// Discrete quantile policy matching R's convention: min{k : P(X<=k) >= p}.
-/// Boost's default 'integer_round_outwards' rounds toward the distribution tails
-/// which differs from R for p < 0.5. 'integer_round_up' matches R exactly.
+/// Discrete quantile policy of R: min{k : P(X <= k) >= p}.
+///
+/// - boost's default `integer_round_outwards` rounds toward the tails, unlike R for p < 0.5;
+/// - `integer_round_up` matches R exactly.
 using discrete_up_policy = boost::math::policies::policy<
     boost::math::policies::promote_float<false>,
     boost::math::policies::promote_double<false>,
@@ -44,15 +44,12 @@ using discrete_up_policy = boost::math::policies::policy<
 
 namespace housepi
 {
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////  *** registry::RegDistributions : class ***  //////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  registry::RegDistributions  //////////////////////////////
 
     namespace registry
     {
-        std::unique_ptr<Function> RegDistributions::create(std::string_view name, bool is_cumul) const
+        RegDistributions::func_uptr RegDistributions::create(std::string_view name,
+                                                             bool is_cumul) const
         {
             auto it = factory_map_.find(name);
             if (it == factory_map_.end())
@@ -71,7 +68,8 @@ namespace housepi
         {
             /// Resolve a kind to its singleton registry.
             /// Kinds holding plain functions are rejected.
-            const RegDistributions &distr_instance_(Kind kind, ErrType err_type)
+            const RegDistributions &distr_instance_(Kind kind,
+                                                    ErrType err_type)
             {
                 switch (kind)
                 {
@@ -110,11 +108,7 @@ namespace housepi
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////  *** Distribution : implementations ***  //////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  Distribution implementations  //////////////////////////////
 
 namespace
 {
@@ -126,19 +120,19 @@ namespace
     using std::sqrt;
 
 #ifndef M_1_SQRT_2PI
-    constexpr double M_1_SQRT_2PI = 0.398942280401432677939946059934; /// 1/sqrt(2pi)
+    constexpr double M_1_SQRT_2PI = 0.398942280401432677939946059934; /// 1 / sqrt(2 pi).
 #endif
 
 #ifndef M_SQRT2
-    constexpr double M_SQRT2 = 1.41421356237309504880168872420969808; /// sqrt(2)
+    constexpr double M_SQRT2 = 1.41421356237309504880168872420969808; /// sqrt(2).
 #endif
 
 #ifndef M_SQRT1_2
-    constexpr double M_SQRT1_2 = 0.707106781186547524400844362105; /// 1/sqrt(2)
+    constexpr double M_SQRT1_2 = 0.707106781186547524400844362105; /// 1 / sqrt(2).
 #endif
 
 #ifndef M_LN_SQRT_2PI
-    constexpr double M_LN_SQRT_2PI = 0.918938533204672741780329736406; /// log(sqrt(2pi))
+    constexpr double M_LN_SQRT_2PI = 0.918938533204672741780329736406; /// log(sqrt(2 pi)).
 #endif
 
     /// Logarithm of binomial coefficient.
@@ -162,7 +156,7 @@ namespace
         return lgamma(a) + lgamma(b) - lgamma(a + b);
     }
 
-// Macro for left discretization when min = 0 (close).
+/// Define left discretization, with a minimum closed at 0.
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()        \
     void discretize() override final            \
     {                                           \
@@ -174,7 +168,7 @@ namespace
             helper_init_distr_truncation_();    \
     }
 
-// Macro for discrete defined when min = 0 (close).
+/// Define a discrete-defined distribution, with a minimum closed at 0.
 #define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()     \
     void discretize() override final {}         \
     void truncate() override final              \
@@ -183,9 +177,7 @@ namespace
             helper_init_distr_truncation_();    \
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////  *** Uniform Distribution : class ***  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Uniform  //////////////////////////////
 
     class Uniform_ final : public Distribution
     {
@@ -211,9 +203,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Uniform_, Continuous)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////  *** Uniform Discrete Distribution : class ***  /////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Discrete uniform  //////////////////////////////
 
     /// Flat mass over the integers in [min, max].
     class UniformDiscrete_ final : public Distribution
@@ -244,9 +234,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(UniformDiscrete_, Discrete)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////  *** Normal Distribution : class ***  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Normal  //////////////////////////////
 
     class Normal_ final : public Distribution
     {
@@ -304,17 +292,15 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Normal_, Continuous)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////  *** Lognormal Distribution : class ***  /////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Lognormal  //////////////////////////////
 
-    /// Lognormal Distribution derived class.
+    /// Lognormal distribution.
     class Lognormal_ final : public Distribution
     {
     public:
-        /// Alternative parametrizations:
-        /// 0. "meanlog-sdlog"
-        /// 1. "mean-sd"
+        /// Build with parametrizations:
+        /// - 0: meanlog-sdlog;
+        /// - 1: mean-sd.
         Lognormal_()
             : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.)
         {
@@ -395,9 +381,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Lognormal_, Continuous)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////  *** Beta Distribution : class ***  //////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Beta  //////////////////////////////
 
     class Beta_ final : public Distribution
     {
@@ -466,16 +450,14 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Beta_, Continuous)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////  *** Gamma Distribution : class ***  /////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Gamma  //////////////////////////////
 
     class Gamma_ final : public Distribution
     {
     public:
-        /// Alternative parametrizations:
-        /// 0. "shape-scale"
-        /// 1. "mean-sd"
+        /// Build with parametrizations:
+        /// - 0: shape-scale;
+        /// - 1: mean-sd.
         Gamma_()
             : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.)
         {
@@ -558,9 +540,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Gamma_, Continuous)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////  *** Rayleigh Distribution : class ***  ////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Rayleigh  //////////////////////////////
 
     class Rayleigh_ final : public Distribution
     {
@@ -610,9 +590,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Rayleigh_, Continuous)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////  *** Weibull Distribution : class ***  /////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Weibull  //////////////////////////////
 
     class Weibull_ final : public Distribution
     {
@@ -664,9 +642,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Weibull_, Continuous)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////  *** Exponential Distribution : class ***  //////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Exponential  //////////////////////////////
 
     class Exponential_ final : public Distribution
     {
@@ -712,9 +688,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Exponential_, Continuous)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  *** Poisson Distribution : class ***  ////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Poisson  //////////////////////////////
 
     class Poisson_ final : public Distribution
     {
@@ -756,9 +730,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Poisson_, Discrete)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  *** Binomial Distribution : class ***  ///////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Binomial  //////////////////////////////
 
     class Binomial_ final : public Distribution
     {
@@ -795,7 +767,7 @@ namespace
         }
 
     protected:
-        /// 'size' counts trials.
+        /// `size` counts trials.
         std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
 
         double raw_pdf_(double x) const override final
@@ -834,9 +806,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Binomial_, Discrete)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////  *** NegativeBinomial Distribution : class ***  ///////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  NegativeBinomial  //////////////////////////////
 
     class NegativeBinomial_ final : public Distribution
     {
@@ -849,7 +819,7 @@ namespace
         INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
     protected:
-        /// 'size' counts successes: the binomial coefficient truncates it to an integer.
+        /// `size` counts successes: the binomial coefficient truncates it to an integer.
         std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
 
         double raw_pdf_(double x) const override final
@@ -886,9 +856,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(NegativeBinomial_, Discrete)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////  *** Geometric Distribution : class ***  ///////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Geometric  //////////////////////////////
 
     class Geometric_ final : public Distribution
     {
@@ -931,9 +899,7 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Geometric_, Discrete)
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////  *** Categorical Distribution : class ***  /////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Categorical  //////////////////////////////
 
     class Categorical_ final : public Distribution
     {
@@ -1016,24 +982,21 @@ namespace
     };
     HOUSEPI_REGISTER_FUNCTION(Categorical_, Discrete)
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////  *** Ferretti20_ : class ***  ///////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////  Ferretti20  //////////////////////////////
 
-    /// The infectivity profile is considered equal to the distribution
-    /// of the Time from Onset of Symptoms to Transmission 't_ost':
-    /// >	t_ost = <time infection infectee> - <time onset infector>
-    /// Its distribution is modeled as a skew-logistic distribution (generalized logistic type I),
-    /// where the pre-symptomatic values are rescaled as a function of the incubation time 'incub'.
-    /// The arguments to provide are :
-    ///   0) "shape";
-    ///   1) "scale";
-    ///   2) "c_loc" (custom location);
-    ///   3) "mean_incub" (mean incubation period);
-    ///   4) "incub_period" (individual incubation period);
-    /// Note: symtoms can occur after infection (pre-symptomatic transmission),
-    /// i. e. 't_ost' can be negative.
+    /// Infectivity profile as the distribution of the time from symptom onset to transmission.
     /// Based on @cite ferretti_timing_2020
+    ///
+    /// - `t_ost`: time of infection of the infectee minus time of onset of the infector;
+    /// - `t_ost` negative: pre-symptomatic transmission;
+    /// - skew-logistic distribution, generalized logistic type I;
+    /// - pre-symptomatic values rescaled according to the incubation periods.
+    ///
+    /// Arguments, in order:
+    /// - `shape`, `scale`;
+    /// - `c_loc`: custom location;
+    /// - `mean_incub`: mean incubation period;
+    /// - `incub_period`: individual incubation period.
     class Ferretti20_ final : public Distribution
     {
     public:
@@ -1078,12 +1041,12 @@ namespace
             const double pemTSa = pow(1. + exp((m + T) / s), -a);
             const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
 
-            if (tOST < 0) // Integrate from -incub_period to tOST
+            if (tOST < 0) // integrate from -incub_period to tOST
                 return iT * (pow(1. + exp((m - tOST / iT) / s), -a) - pemTSa) / norm_cdf;
 
-            // Integrate from -incub to 0
+            // integrate from -incub_period to 0
             const double F0 = iT * (pema - pemTSa);
-            // Integrate from 0 to t_ost
+            // integrate from 0 to tOST
             return (F0 + pow(1. + exp((m - tOST) / s), -a) - pema) / norm_cdf;
         }
     };
