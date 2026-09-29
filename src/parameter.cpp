@@ -46,12 +46,7 @@ namespace housepi
           valid_mode_(other.valid_mode_),
           ratio_mode_(other.ratio_mode_),
           old_(other.old_),
-          pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-          pProp_(other.pProp_ ? other.pProp_->clone() : nullptr)
-    {
-        if (pProp_)
-            pProp_->rebind_prior(pDistr_.get());
-    }
+          pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr) {}
     Variable::Variable(Variable &&) = default;
 
     Variable &Variable::operator=(Variable other)
@@ -84,7 +79,9 @@ namespace housepi
         if (!domain.is_degenerate())
             return;
 
-        if (!domain.min.is_constant() || !domain.max.is_constant() || is_user_const_)
+        // a live bound or location has no point to pin yet
+        if (!domain.min.is_constant() || !domain.max.is_constant() || is_user_const_ ||
+            (!domain.loc.is_empty() && !domain.loc.is_constant()))
             return;
 
         const std::string sms = "Definitions of " + msg::arg("min") + " as " + domain.min.str() +
@@ -94,10 +91,12 @@ namespace housepi
         if (err_type_ == ErrType::Parameter)
             msg::stop(sms + " for " + str() + ".");
 
-        // latent
+        // latent: pinned to the point, its degenerate model replaced by a null one
         msg::warn("Collapsed (at least) one " + str() + " to constant.\n" +
                   msg::alert(sms + "."));
-        init_numeric(domain.min.value());
+        const double x0 = domain.relocate(domain.min.value());
+        init_numeric(x0);
+        pDistr_ = std::make_unique<NullDistribution>(x0);
         helper_init_null_proposal_();
     }
 
@@ -511,18 +510,9 @@ namespace housepi
 
     namespace risks
     {
-        void ScaleAnchor::update(std::string_view pstr,
-                                 const Parameter &param)
-        {
-            if (na::is(pstr) || pstr == REFERENCE)
-                anchored = true;
-            else if (size_t p = param.khold(pstr); !vect::contains(scaling_params, p))
-                scaling_params.push_back(p);
-        }
-
         bool ScaleAnchor::is_free(const Parameter &param) const
         {
-            if (anchored || scaling_params.empty())
+            if (anchored)
                 return false;
             for (size_t p : scaling_params)
                 if (param.is_pinned(p))
@@ -574,71 +564,43 @@ namespace housepi
                 return;
             scale_anchors_.assign(khold_.size(), {});
 
-            // group-risk and parameter name columns, if any
+            // group-risk name column, if any
             std::vector<std::string> g_input_vec = {};
-            std::vector<std::string> p_input_vec = {};
             if (input.count("group_risk"))
-            {
                 g_input_vec = input.at("group_risk");
-                p_input_vec = input.at("param_name");
-            }
             assert_status_stratified_(input, g_input_vec);
-
-            // risks no rule defines read the reference
-            str_table undefined_risks = {};
-            for (const std::string &gstr : khold_.all())
-                if (!vect::contains(g_input_vec, gstr))
-                    undefined_risks[gstr].push_back(REFERENCE);
 
             // a storage slot of its own for every status level a rule keys on
             StatusTable<StatusSlot> slot_of = {};
             if (input.count(STATUS_KEY))
                 slot_of = helper_init_status_slots_(input.at(STATUS_KEY));
 
-            const GroupDefinitions defs(input, data_wide, spec_headers, slot_of);
+            const GroupDefinitions defs(input, data_wide, param, spec_headers, slot_of);
 
-            // scale anchoring per risk name and rule group, resolved member by member
-            std::map<GroupKey, ScaleAnchor> anchors;
-            for (size_t r = 0; r < defs.rules.n_rows; ++r)
-                anchors.emplace(GroupKey{g_input_vec[r], defs.rules.row_gid[r]}, ScaleAnchor{});
+            // scale anchoring per risk name and rule group
+            for (const auto &[key, anchor] : read_scale_anchors<GroupKey>(
+                     defs.rules, [&](size_t r)
+                     { return GroupKey{g_input_vec[r], defs.rules.row_gid[r]}; }))
+                scale_anchors_[khold(key.first)].push_back(anchor);
 
-            // unique definitions, one resolution per status slot
-            std::map<std::vector<str_table>, RiskOffset> unique_defin_map;
+            // unique definitions: parameter keys per status slot and risk, the reference left out
+            const size_t n_keys = khold_.size();
+            std::map<std::vector<std::vector<size_t>>, RiskOffset> unique_defin_map;
             for (Household &house : data_wide)
                 for (Individual &indiv : house)
                 {
-                    // status still to be drawn: anchors on every slot; settled: on its own
-                    StatusSlot own_slot = 0;
-                    const bool any_slot = indiv.is_missing_status();
-                    if (!any_slot)
-                        own_slot = slot_of[indiv.status()];
-
-                    std::vector<str_table> slot_risks(n_slots_, undefined_risks);
+                    std::vector<std::vector<size_t>> cell_params(n_slots_ * n_keys);
                     for (size_t s = 0; s < n_slots_; ++s)
-                    {
-                        const auto resolved =
-                            defs.resolve(data_wide, indiv, static_cast<StatusSlot>(s));
+                        for (auto &[key, r] : defs.resolve(data_wide, indiv, static_cast<StatusSlot>(s)))
+                            if (const size_t p = defs.rules.row_param[r]; !na::is(p))
+                                cell_params[s * n_keys + khold(key.first)].push_back(p);
 
-                        for (auto &[key, r] : resolved)
-                            slot_risks[s][key.first].push_back(p_input_vec[r]);
-
-                        if (any_slot || s == own_slot)
-                            update_anchors(anchors, resolved, p_input_vec, param);
-                    }
-
-                    auto it = unique_defin_map.find(slot_risks);
-                    if (it == unique_defin_map.end())
-                    {
-                        it = unique_defin_map.emplace(
-                                                 slot_risks, static_cast<RiskOffset>(flat_.size()))
-                                 .first;
-                        helper_init_unique_risk_(param, slot_risks);
-                    }
+                    auto [it, is_new] = unique_defin_map.try_emplace(
+                        std::move(cell_params), static_cast<RiskOffset>(flat_.size()));
+                    if (is_new)
+                        helper_init_unique_risk_(param, it->first);
                     base_[Index::of(indiv)] = it->second;
                 }
-
-            for (const auto &[key, anchor] : anchors)
-                scale_anchors_[khold(key.first)].push_back(anchor);
         }
 
         std::vector<std::string> Group::helper_process_definitions_(data::Wide &data_wide,
@@ -651,20 +613,8 @@ namespace housepi
             vect::remove(data_headers, file_headers);
 
             // register the group-risk names
-            dict<size_t> definition_counts = {};
             for (const std::string &gstr : str::unique(input.at("group_risk")))
-            {
                 khold_.add(gstr);
-                definition_counts.emplace(gstr, 0);
-            }
-
-            // reserve the cartesian product of distinct definitions per group risk
-            for (const std::string &gstr : input.at("group_risk"))
-                ++definition_counts[gstr];
-            size_t max_unique = 1;
-            for (auto &[gstr, count] : definition_counts)
-                max_unique *= count;
-            flat_.reserve(max_unique * khold_.size());
 
             // the status is carried by the member: no data key, the equivalence-class hash mixes it in
             data_wide.set_eq_class_data_names(
@@ -702,7 +652,7 @@ namespace housepi
                     is_keyed[static_cast<StatusLvl>(str::toi(sval))] = true;
 
             // one slot per keyed level
-            // other levels share slot 0 with escaped and missing ones, resolving wildcard rules alone
+            // other levels share slot 0 with escaped and missing ones, resolving catch-all rules alone
             StatusTable<StatusSlot> slot_of = {};
             for (size_t level = 0; level < slot_of.size(); ++level)
             {
@@ -715,30 +665,22 @@ namespace housepi
         }
 
         void Group::helper_init_unique_risk_(const Parameter &param,
-                                             const std::vector<str_table> &slot_risks)
+                                             const std::vector<std::vector<size_t>> &cell_params)
         {
             // every cell starts at the reference: status rules never cover escaped members
-            const size_t base = flat_.size();
-            for (size_t s = 0; s < n_slots_; ++s)
-                for (const std::string &gstr : khold_.all())
-                {
-                    flat_.emplace_back(VALUE_REFERENCE);
-                    flat_.back().name(gstr, ErrType::GroupRisk);
-                }
+            const std::vector<std::string> names = khold_.all();
+            for (size_t c = 0; c < cell_params.size(); ++c)
+            {
+                flat_.emplace_back(VALUE_REFERENCE);
+                flat_.back().name(names[c % names.size()], ErrType::GroupRisk);
 
-            // product of the non-reference parameters each cell resolves to
-            for (size_t s = 0; s < n_slots_; ++s)
-                for (const auto &[gstr, pstr_vec] : slot_risks[s])
-                {
-                    std::vector<const Attribute *> param_pointers = {};
-                    for (const std::string &pstr : pstr_vec)
-                        if (pstr != REFERENCE)
-                            param_pointers.emplace_back(
-                                param.at(param.khold(pstr)).pointer());
-
-                    if (!param_pointers.empty())
-                        flat_[base + s * khold_.size() + khold(gstr)].init_product(param_pointers);
-                }
+                // product of the parameters the cell resolves to
+                std::vector<const Attribute *> param_ptrs = {};
+                for (size_t p : cell_params[c])
+                    param_ptrs.push_back(param.at(p).pointer());
+                if (!param_ptrs.empty())
+                    flat_.back().init_product(param_ptrs);
+            }
         }
 
         //////////////////////////////  risks::Contact  //////////////////////////////
@@ -752,17 +694,17 @@ namespace housepi
             if (input.empty())
                 return;
 
-            ContactDefinitions defs(input, data_wide);
+            ContactDefinitions defs(input, data_wide, param);
 
             data_wide.set_eq_class_data_names(defs.data);
 
-            // scale anchoring per rule group, resolved pair by pair
-            std::map<size_t, ScaleAnchor> anchors;
-            for (size_t r = 0; r < defs.rules.n_rows; ++r)
-                anchors.emplace(defs.rules.row_gid[r], ScaleAnchor{});
+            // scale anchoring per rule group
+            for (const auto &[gid, anchor] : read_scale_anchors<size_t>(
+                     defs.rules, [&](size_t r)
+                     { return defs.rules.row_gid[r]; }))
+                scale_anchors_.push_back(anchor);
 
-            // pairs of covariate classes resolve on first encounter only:
-            // ScaleAnchor::update is idempotent, anchors end as one pass over every pair leaves them
+            // pairs of covariate classes resolve on first encounter only
             const CovariateClasses classes(data_wide, defs.keys);
             std::vector<PairRisk> pair_risks(classes.count * classes.count);
 
@@ -790,8 +732,7 @@ namespace housepi
                         if (!pair.resolved)
                         {
                             pair.param_ptrs =
-                                defs.associate_param_ptrs(data_wide, param, house.at(from),
-                                                          house.at(to), anchors);
+                                defs.associate_param_ptrs(data_wide, param, house.at(from), house.at(to));
                             pair.resolved = true;
                         }
 
@@ -799,9 +740,6 @@ namespace housepi
                             flat_[base_[H] + from * house_size + to].init_product(pair.param_ptrs);
                     }
             }
-
-            for (const auto &[gid, anchor] : anchors)
-                scale_anchors_.push_back(anchor);
         }
     }
 
@@ -811,8 +749,6 @@ namespace housepi
                                MemberIdx i,
                                MemberIdx j) const
     {
-        if (i == j)
-            return true;
         return group_.same_group(house.at(i), house.at(j)) &&
                contact_.same_contacts(house, i, j);
     }
@@ -844,7 +780,8 @@ namespace housepi
             // the R front end holds baselines at the reference for absolute risks
             if (n_scale_free > 1)
                 msg::stop(
-                    "The product of " + msg::qty(free_names) + " risk{?s} introduces non-identifiability: " + str::format(free_names) +
+                    "The product of " + std::to_string(n_scale_free) + " absolute rule groups introduces non-identifiability: " +
+                    str::format(free_names) +
                     "\nRisks are absolute unless a " + msg::code("reference") + " is given: make all but one relative," +
                     " naming their reference group or asking for " + msg::val(".auto") + ".");
         }

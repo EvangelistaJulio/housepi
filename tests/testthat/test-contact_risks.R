@@ -44,7 +44,7 @@ test_that("Contact risks pair counts are computed correctly", {
   tbl <- data.frame(hhid = c(rep("h1", 2L), rep("h2", 2L)),
                     age = rep(c("child", "adult"), 2L)) |>
     contact_risk_logic_table("age")
-  count <- function(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
+  count <- \(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
 
   # total: child->adult = 2, adult->child = 2, no same-age pair
   count("child", "adult") |> expect_identical(2L)
@@ -62,7 +62,7 @@ test_that("Pair counts drop the member meeting itself", {
   tbl <- data.frame(hhid = c(rep("h1", 3), rep("h2", 2)),
                     age = c(rep("child", 2), rep("adult", 3))) |>
     contact_risk_logic_table("age")
-  count <- function(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
+  count <- \(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
 
   count("child", "child") |> expect_identical(2L)
   count("adult", "adult") |> expect_identical(2L)
@@ -84,7 +84,7 @@ test_that("Auto mode imposes symmetric contacts by default", {
   tidy <- risks_of()
 
   # two-level covariate: child, adult -> 4 pairs
-  nrow(tidy) |> expect_identical(4L)
+  tidy |> expect_nrow(4L)
 
   # only 1 reference
   sum(tidy$param_name == ".reference") |> expect_identical(1L)
@@ -104,7 +104,7 @@ test_that("Auto mode imposes symmetric contacts by default", {
 
   # symmetric = FALSE gives distinct parameters to the two directions
   tidy <- risks_of(symmetric = FALSE)
-  nrow(tidy) |> expect_identical(4L)
+  tidy |> expect_nrow(4L)
   setdiff(unique(tidy$param_name), ".reference") |> expect_length(3L)
   identical(
     subset(tidy, from_age == "adult" & to_age == "child")$param_name,
@@ -128,8 +128,8 @@ test_that("Auto mode reference is opt-in and picks most abundant pair", {
   ctr <- mk_risk$model |>
     add_contact_risk(by = "age") |>
     get_contact_risks()
-  nrow(subset(ctr, param_name == ".reference")) |>
-    expect_identical(0L)
+  subset(ctr, param_name == ".reference") |>
+    expect_nrow(0L)
 })
 
 test_that("Non-joint produces independent per-covariate tables", {
@@ -182,8 +182,8 @@ test_that("Auto mode with two joint covariates behaves correctly", {
 
   # NOTE: 3 observed types: <child,M>, <child,F>, <adult,M>
   # 7 observed pairs: 9 pairs - <child,M><child,F> - (<->)
-  nrow(tidy) |> expect_identical(7L)
-  length(unique(tidy$rule_group)) |> expect_identical(1L)
+  tidy |> expect_nrow(7L)
+  unique(tidy$rule_group) |> expect_length(1L)
   sum(tidy$param_name == ".reference") |> expect_identical(1L)
 
   # NOTE: symmetric pairs by default:
@@ -198,55 +198,113 @@ test_that("Absoluteness follows the reference across every definition mode", {
     params <- get_parameters(add_contact_risk(mk_risk$model, ...))
     unique(params$prior[!params$const])
   }
-  tagged <- data.frame(from_age = c("adult", "adult"),
-                       to_age = c("adult", "child"),
-                       param_name = c(".reference", "a_to_c"))
-  untagged <- tagged
-  untagged$param_name[1] <- "a_to_a"
 
-  # auto mode: absolute unless a reference is resolved
-  risk_prior(by = "age") |>
-    expect_identical("uniform")
-  risk_prior(by = "age", reference = ".auto") |>
-    expect_identical("lognormal")
-  risk_prior(by = "age", reference = c(age = "adult")) |>
-    expect_identical("lognormal")
-  # custom mode: the tag alone decides
-  risk_prior(strata = untagged) |>
-    expect_identical("uniform")
-  risk_prior(strata = tagged) |>
-    expect_identical("lognormal")
+  # auto mode: absolute unless a reference is provided
+  risk_prior(by = "age") |> expect_identical("uniform")
+  risk_prior(by = "age", reference = ".auto") |> expect_identical("lognormal")
+  risk_prior(by = "age", reference = "adult") |> expect_identical("lognormal")
+
+  # custom mode: the reference parameter decides
+  anchored <- tibble::tribble(
+    ~from_age, ~to_age, ~param_name,
+    "adult",   "adult", ".reference",
+    "adult",   "child", "a_to_c",
+    "child",   "child", "c_to_c"
+  )
+  unanchored <- anchored
+  unanchored$param_name[1] <- "a_to_a"
+
+  risk_prior(strata = unanchored) |> expect_identical("uniform")
+  risk_prior(strata = anchored) |> expect_identical("lognormal")
+})
+
+test_that("Two absolute rule groups are not identifiable", {
+  mk_risk$model |>
+    add_contact_risk(by = c("age", "sex")) |>
+    add_parameter(alpha = 0.1, gamma = 1, hhsize_ref = 4) |>
+    evaluate_log_lik() |>
+    expect_error("2 absolute rule groups.*non-identifiability")
 })
 
 test_that("Every rule group keeps its anchoring in auto", {
-  risk_refer <- function(...) {
-    sarscov2_2021_icofs |>
-      dplyr::filter(hhid %in% utils::head(unique(hhid), 50)) |>
-      new_housepi_model("final-size") |>
-      add_contact_risk(by = c("age", "sex"), ...)
+  by <- c("age", "sex")
+  hhmodel <-  sarscov2_2021_icofs |>
+    dplyr::filter(hhid %in% utils::head(unique(hhid), 50)) |>
+    new_housepi_model("final-size")
+
+  contact_prior <- function(hhmodel) {
+    params <- get_parameters(hhmodel)
+    params$prior[grepl("^(age|sex)_", params$name)]
   }
 
-  # reference anchors and sets lognormal prior
-  hhmodel <- risk_refer(reference = c(from_age = "adult", to_age = "adult"))
-  params <- get_parameters(hhmodel)
-  contact <- params[grepl("^(age|sex)_", params$name), ]
-  contact$prior |> expect_all_equal("lognormal")
+  # no reference makes it scale free and sets uniform prior
+  hhmodel |>
+    add_contact_risk(by = by) |>
+    contact_prior() |>
+    expect_all_equal("uniform")
+
+  # the sex rule group left without reference makes the risk absolute
+  hhmodel |>
+    add_contact_risk(by = by,
+                     reference = c(from_age = "adult", to_age = "adult")) |>
+    contact_prior() |>
+    expect_all_equal("uniform")
+
+  # a reference in every rule group anchors the risk: lognormal prior
+  hhmodel <- hhmodel |>
+    add_contact_risk(by = by,
+                     reference = c(from_age = "adult", to_age = "adult",
+                                   from_sex = "F", to_sex = "F"))
+  contact_prior(hhmodel) |> expect_all_equal("lognormal")
 
   # joint = FALSE by default so each covariate owns a rule group
   get_contact_risks(hhmodel)$rule_group |>
     expect_setequal(c(1L, 2L))
-
-  # no reference makes it scale free and and sets uniform prior
-  params <- risk_refer() |>
-    get_parameters()
-  contact <- params[grepl("^(age|sex)_", params$name), ]
-  contact$prior |> expect_all_equal("uniform")
 })
 
 test_that("Spare prior arguments on a contact risk are reported", {
   mk_risk$model |>
     add_contact_risk(by = "age", sdlog = 1.8) |>
     expect_error("[Ss]pare prior arguments.*contact risk")
+})
+
+test_that("A reference naming part of its pair is refused", {
+  # one end of the pair
+  mk_risk$model |>
+    add_contact_risk(by = "age", reference = c(from_age = "adult")) |>
+    expect_error("[Rr]eference names from_age but leaves to_age unnamed")
+
+  # part of a joint cell, prefixed or bare
+  mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), joint = TRUE,
+                     reference = c(from_age = "adult", to_age = "adult")) |>
+    expect_error("leaves from_sex and to_sex unnamed")
+  mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), joint = TRUE,
+                     reference = c(age = "adult")) |>
+    expect_error("leaves from_sex and to_sex unnamed")
+})
+
+test_that("An automatic contact risk refuses pairs missing a covariate", {
+  # the member with no role meets the two others both ways: 4 ordered pairs
+  data.frame(hhid = 1, status = 0, member = c("father", "mother", NA)) |>
+    new_housepi_model("final-size") |>
+    add_contact_risk(by = "member") |>
+    expect_error("leaves 4 ordered pairs unmatched")
+
+  # no member carries the covariate: the table holds no rule
+  data.frame(hhid = 1, status = 0, member = rep(NA_character_, 2)) |>
+    new_housepi_model("final-size") |>
+    add_contact_risk(by = "member") |>
+    expect_error("leaves 2 ordered pairs unmatched")
+})
+
+test_that("Households of singles give an automatic risk no rule", {
+  data.frame(hhid = c("h1", "h2"), status = 0, member = c("a", "b")) |>
+    new_housepi_model("final-size") |>
+    add_contact_risk(by = "member") |>
+    get_contact_risks() |>
+    expect_nrow(0L)
 })
 
 test_that("An invalid contact reference is rejected", {
@@ -257,6 +315,22 @@ test_that("An invalid contact reference is rejected", {
   mk_risk$model |>
     add_contact_risk(by = "age", reference = c(age_from = "adult")) |>
     expect_error("[Uu]nrecognized choice for reference: .age_from.")
+  # two covariates leave an unnamed reference ambiguous
+  mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), reference = c("adult", "M")) |>
+    expect_error("must be named using covariates")
+  mk_risk$model |>
+    add_contact_risk(by = c("age", "sex"), reference = "adult") |>
+    expect_error("must be named using covariates")
+})
+
+test_that("An unnamed reference names the single covariate", {
+  tidy <- mk_risk$model |>
+    add_contact_risk(by = "age", reference = "adult") |>
+    get_contact_risks()
+
+  ref <- subset(tidy, param_name == ".reference")
+  c(ref$from_age, ref$to_age) |> expect_identical(c("adult", "adult"))
 })
 
 test_that("Contact risks expand on their own covariates only", {
@@ -278,7 +352,7 @@ test_that("Contact risks expand on their own covariates only", {
       get_contact_risks(),
     regexp = "without data"
   )
-  nrow(risks) |> expect_identical(0L)
+  risks |> expect_nrow(0L)
   risks |> expect_named(c("param_name", "n", "rule_group"))
 })
 
@@ -308,7 +382,7 @@ test_that("Contact risk custom mode default behaves correctly", {
 
   # the custom logic table drives the tidy table
   tidy <- get_contact_risks(hhmodel)
-  nrow(tidy) |> expect_identical(4L)
+  tidy |> expect_nrow(4L)
   tidy$param_name |> expect_setequal(strata$param_name)
 
   # parameters generated for non-reference
@@ -330,6 +404,26 @@ test_that("Contact risk custom mode default behaves correctly", {
   constant$const |> expect_true()
 })
 
+test_that("A contact strata row without a param_name is refused", {
+  strata <- tibble::tribble(~from_age, ~to_age, ~param_name,
+                            NA,        NA,      ".reference",
+                            "child",   "child", "")
+
+  mk_risk$model |>
+    add_contact_risk(strata = strata) |>
+    expect_error("[Ss]trata row without param_name: 2")
+})
+
+test_that("Contact strata leaving pairs unmatched are refused", {
+  # the two child -> child pairs match no rule
+  strata <- tibble::tribble(~from_age, ~to_age, ~param_name,
+                            "adult",   "adult", "a_to_a",
+                            "adult",   "child", "a_to_c")
+  mk_risk$model |>
+    add_contact_risk(strata = strata) |>
+    expect_error("[Cc]ontact risk leaves 2 ordered pairs unmatched")
+})
+
 test_that("A reference has no meaning against a custom contact table", {
   strata <- tibble::tribble(~from_age, ~to_age, ~param_name,
                             "adult",   "adult", "a_to_a",
@@ -347,12 +441,13 @@ test_that("Custom contact strata carry at most one reference per rule group", {
   strata <- tibble::tribble(~from_age, ~to_age, ~param_name,
                             "adult",   "child", ".reference",
                             "child",   "adult", ".reference",
-                            "child",   "child", "c_to_c")
+                            "child",   "child", "c_to_c",
+                            "adult",   "adult", "a_to_a")
   mk_risk$model |>
     add_contact_risk(strata = strata, symmetric = TRUE) |>
     get_contact_risks() |>
     getElement("param_name") |>
-    expect_identical(c(".reference", ".reference", "c_to_c"))
+    expect_setequal(c(".reference", "c_to_c", "a_to_a"))
   # without symmetry the two directions are two competing scales
   mk_risk$model |>
     add_contact_risk(strata = strata, symmetric = FALSE) |>
@@ -370,7 +465,7 @@ test_that("Custom mode fills the symmetric counterpart of a pair", {
 
   # symmetric fill adds child->adult with same param_name as adult->child
   filled <- get_contact_risks(hhmodel)
-  nrow(filled) |> expect_identical(4L)
+  filled |> expect_nrow(4L)
   filled$param_name[filled$from_age == "child" & filled$to_age == "adult"] |>
     expect_identical("a_to_c")
 
@@ -382,40 +477,23 @@ test_that("Custom mode fills the symmetric counterpart of a pair", {
   a_to_c$value |> expect_equal(2)
   a_to_c$const |> expect_true()
 
-  # symmetric = FALSE does not fill gaps
+  # symmetric = FALSE does not fill gaps: child->adult pairs match no rule
   mk_risk$model |>
     add_contact_risk(strata = strata, symmetric = FALSE) |>
-    get_contact_risks() |>
-    nrow() |>
-    expect_identical(3L)
+    expect_error("leaves 4 ordered pairs unmatched")
 })
 
-test_that("An unobserved contact level is dropped", {
-  strata <- tibble::tribble(
-    ~from_member, ~to_member,    ~param_name,
-    "mother",     "grandparent", "rho",
-    NA,           NA,            ".reference"
-  )
-  expect_warning(
-    hhmodel <- mk_house$model |>
-      add_contact_risk(strata = strata, symmetric = FALSE,
-                       params = list(rho = 2)),
-    "[Uu]nknown definition.*grandparent"
-  )
-
-  # since mother->grandparent is not present, `rho`` is not present too
-  risks <- get_contact_risks(hhmodel)
-  risks$param_name |> expect_setequal(".reference")
-  ("rho" %in% get_parameters(hhmodel)$name) |> expect_false()
-
-  # every pair reads the reference, the mother's contacts included
-  snapshot <- inspect_house_state(hhmodel, "h1")
-  ctr_cell(snapshot, "mother", "student") |> expect_equal(1.)
-  ctr_cell(snapshot, "mother", "father") |> expect_equal(1.)
-  ctr_cell(snapshot, "student", "sibling") |> expect_equal(1.)
+test_that("An unobserved contact level is refused", {
+  strata <- tibble::tribble(~from_member, ~to_member, ~param_name,
+                            "mother",     "uncle",    "rho",
+                            NA,           NA,         ".reference")
+  mk_house$model |>
+    add_contact_risk(strata = strata, symmetric = FALSE,
+                     params = list(rho = 2)) |>
+    expect_error("no ordered pair resolves.*uncle.*rho")
 })
 
-test_that("A wildcard contact rule counts every pair it reaches", {
+test_that("A catch-all contact rule counts every pair it reaches", {
   # 4 members: 12 ordered pairs, one of them father -> mother
   strata <- tibble::tribble(
     ~from_member, ~to_member, ~param_name,
@@ -433,44 +511,48 @@ test_that("A wildcard contact rule counts every pair it reaches", {
   risks$n[risks$param_name == ".reference"] |> expect_identical(sum(ctr == 1))
 })
 
-test_that("A rule counts no pairs when households never form one", {
+test_that("A contact table setting no covariate value is refused", {
+  # a single risk over every pair duplicates the baseline
+  hhmodel <- data.frame(hhid = c(1, 1, 2, 2, 2), status = c(1, 0, 1, 1, 0),
+                        age = c("child", "adult", "child", "adult", "adult")) |>
+    new_housepi_model("final-size")
+  hhmodel |>
+    add_contact_risk(strata = data.frame(param_name = "ctr")) |>
+    expect_error("[Ss]trata table sets no covariate value")
+  hhmodel |>
+    add_contact_risk(strata = data.frame(from_age = NA, to_age = NA,
+                                         param_name = "ctr")) |>
+    expect_error("[Ss]trata table sets no covariate value")
+})
+
+test_that("Households that never form a pair leave every contact rule dead", {
   # two singleton households: no member ever meets another
   strata <- tibble::tribble(
     ~from_member, ~to_member, ~param_name,
     "father",     "mother",   "rho",
     NA,           NA,         ".reference"
   )
-  risks <- data.frame(hhid = c("h1", "h2"), status = 0,
-                      member = c("father", "mother")) |>
-    new_housepi_model("final-size", quiet = TRUE) |>
+  data.frame(hhid = c("h1", "h2"), status = 0,
+             member = c("father", "mother")) |>
+    new_housepi_model("final-size") |>
     add_contact_risk(strata = strata, symmetric = FALSE,
                      params = list(rho = 2)) |>
-    get_contact_risks()
-
-  risks$n |> expect_identical(c(0L, 0L))
+    expect_error("2 rules no ordered pair resolves to")
 })
 
-test_that("A dropped contact rule leaves no mirrored counterpart", {
-  # the symmetric fill mirrors what survives: were the grandparent rule kept,
-  # its two halves would tie on the mother meeting herself
+test_that("An unknown contact level is refused as written, not mirrored", {
+  # the rule is checked before the symmetric fill: the message names the
+  # direction the table carries, not its mirror
   strata <- tibble::tribble(
     ~from_member, ~to_member,    ~param_name,
     "mother",     "student",     "rho",
     "mother",     "grandparent", "rho",
     NA,           NA,            ".reference"
   )
-  expect_warning(
-    hhmodel <- mk_house$model |>
-      add_contact_risk(strata = strata, params = list(rho = 2)),
-    "[Uu]nknown definition.*grandparent"
-  )
-
-  # the observed pair stands, in both directions
-  snapshot <- inspect_house_state(hhmodel, "h1")
-  ctr_cell(snapshot, "mother", "student") |> expect_equal(2)
-  ctr_cell(snapshot, "student", "mother") |> expect_equal(2)
-  # every other pair falls through to the reference
-  ctr_cell(snapshot, "father", "sibling") |> expect_equal(1)
+  mk_house$model |>
+    add_contact_risk(strata = strata, params = list(rho = 2)) |>
+    expect_error(paste("1 rule no ordered pair resolves to:",
+                       "from_member = .mother. and to_member = .grandparent."))
 })
 
 test_that("A params entry names a parameter of the table", {
@@ -492,36 +574,39 @@ test_that("An automatic definition takes no params list", {
     expect_warning("[Bb]aseline.*constant reference")
 })
 
-test_that("A contact table emptied by unknown levels defines no risk", {
-  # the only rule names a level no household carries: nothing is left to
-  # stratify, and the model ends up carrying no contact risk at all
-  strata <- tibble::tribble(
-    ~from_member,  ~to_member,    ~param_name,
-    "grandparent", "grandparent", "rho"
-  )
-  expect_warning(
-    hhmodel <- mk_house$model |>
-      add_contact_risk(strata = strata),
-    "[Uu]nknown definition.*grandparent"
-  )
-
-  nrow(get_contact_risks(hhmodel)) |> expect_identical(0L)
-  ("rho" %in% get_parameters(hhmodel)$name) |> expect_false()
-})
-
 #############################################
 ###  CONTACT RISKS : RULE GROUPING LOGIC  ###
 #############################################
 
-test_that("An ambiguous subset of rules raises an error", {
-  tibble::tribble(
-    ~from_age, ~from_sex, ~to_age, ~param_name,
-    "child",   "M",       NA,      "rho",
-    "child",   NA,        "child", "rho_2",
-    "child",   NA,        NA,      "rho_3"
-  ) |>
-    compute_rule_groups() |>
-    expect_error("[Aa]mbiguous")
+test_that("A rule fitting two rule groups is refused as ambiguous", {
+  # rho_3 keys on from_age alone: it fits {from_age, from_sex} and
+  # {from_age, to_age} equally
+  strata <- tibble::tribble(
+    ~from_age, ~from_sex, ~to_age, ~to_sex, ~param_name,
+    "child",   "M",       NA,      NA,      "rho",
+    "child",   NA,        "child", NA,      "rho_2",
+    "child",   NA,        NA,      NA,      "rho_3"
+  )
+  mk_risk$model |>
+    add_contact_risk(strata = strata, symmetric = FALSE) |>
+    expect_error("[Aa]mbiguous rule 3 .*rho_3.*fitting 2")
+})
+
+test_that("A contact column without its partner is refused", {
+  strata <- tibble::tribble(~from_age, ~param_name,
+                            "child",   "rho",
+                            NA,        ".reference")
+  mk_risk$model |>
+    add_contact_risk(strata = strata) |>
+    expect_error("[Cc]ontact strata column from_age has no partner")
+
+  # "from children to anyone" names its catch-all partner
+  strata$to_age <- NA
+  mk_risk$model |>
+    add_contact_risk(strata = strata, symmetric = FALSE) |>
+    get_contact_risks() |>
+    getElement("param_name") |>
+    expect_setequal(c("rho", ".reference"))
 })
 
 test_that("Custom mode absorbs all-NA default into single group", {
@@ -545,11 +630,15 @@ test_that("Custom mode absorbs all-NA default into single group", {
 
 test_that("Rule groups follow the maximal patterns of the strata", {
   # disjoint age vs sex patterns -> 2 distinct rule_groups
+  # a half-keyed rule stays in the group of the pattern containing it
   strata <- tibble::tribble(
     ~from_age, ~from_sex, ~to_age, ~to_sex, ~param_name,
     "child",   NA,        "child", NA,      "age_child_to_age_child",
+    "child",   NA,        "adult", NA,      "age_child_to_age_adult",
+    "adult",   NA,        NA,      NA,      "age_adult_to_any",
     NA,        "M",       NA,      "M",     ".reference",
-    NA,        "F",       NA,      "F",     "sex_F_to_sex_F"
+    NA,        "M",       NA,      "F",     "sex_M_to_sex_F",
+    NA,        "F",       NA,      "M",     "sex_F_to_sex_M"
   )
   mk_risk$model |>
     add_contact_risk(strata = strata, symmetric = FALSE) |>
@@ -589,12 +678,13 @@ test_that("Most-specific rule wins over reference (single covariate)", {
 test_that("Rules tied at equal specificity are rejected as ambiguous", {
   # student -> mother is reached by two half-keyed rules, one specificity each,
   # and the fully-keyed pair makes {from, to} the only maximal pattern: the
-  # three rules share a group, so the engine has to compare the tied two
+  # rules share a group, so the engine has to compare the tied two
   strata <- tibble::tribble(
     ~from_member, ~to_member, ~param_name,
     "student",    NA,         "rho",
     NA,           "mother",   "rho_2",
-    "father",     "mother",   "rho_3"
+    "father",     "mother",   "rho_3",
+    NA,           NA,         ".reference"
   )
   mk_house$model |>
     add_contact_risk(strata = strata, symmetric = FALSE,
@@ -603,7 +693,7 @@ test_that("Rules tied at equal specificity are rejected as ambiguous", {
     expect_error("[Aa]mbiguous contact risk.*tied rules")
 })
 
-test_that("A wildcard rule survives a missing cell in its covariate column", {
+test_that("A catch-all rule survives a missing cell in its covariate column", {
   # the catch-all row keys on nothing, so it must reach every pair, including
   # the ones whose covariate cell carries a value
   # the table tags no .reference, so `beta` is collapsed onto it
@@ -631,12 +721,16 @@ test_that("A wildcard rule survives a missing cell in its covariate column", {
 
 test_that("Distinct rule_groups multiply at the cell", {
   # two disjoint maximal patterns ({from_age,to_age}, {from_class,to_class})
-  # make two rule groups whose winners multiply into one cell. The table tags
-  # no .reference, and unmatched cells read the reference value 1
+  # make two rule groups whose winners multiply into one cell
+  # a half-keyed rule stays in the group of the pattern containing it
   strata <- tibble::tribble(
     ~from_age, ~to_age, ~from_class, ~to_class, ~param_name,
     "adult",   "adult", NA,          NA,        "ctr_aa",
-    NA,        NA,      "a",         "a",       "ctr_class_aa"
+    "adult",   "child", NA,          NA,        ".reference",
+    "child",   NA,      NA,          NA,        "ctr_child",
+    NA,        NA,      "a",         "a",       "ctr_class_aa",
+    NA,        NA,      "a",         "b",       ".reference",
+    NA,        NA,      "b",         NA,        "ctr_class_b"
   )
   snapshot <- data.frame(
     id = c("m1", "m2", "m3", "m4"), hhid = "h1", status = 0L,
@@ -648,17 +742,19 @@ test_that("Distinct rule_groups multiply at the cell", {
     add_contact_risk(
       strata = strata, symmetric = FALSE,
       # prime values catch any accidental sum or overwrite
-      params = list(ctr_aa = 3, ctr_class_aa = 5)
+      params = list(ctr_aa = 3, ctr_class_aa = 5, ctr_child = 7,
+                    ctr_class_b = 11)
     ) |>
-    inspect_house_state("h1") |>
-    suppressWarnings() # suppress baseline collapse warning
+    inspect_house_state("h1")
 
   # m1 (adult,a) -> m2 (adult,a): both rules match -> 3 * 5 = 15
   ctr_cell(snapshot, "m1", "m2", key = "id") |> expect_equal(15)
-  # m1 (adult,a) -> m4 (adult,b): only age rule matches -> 3
+  # m1 (adult,a) -> m4 (adult,b): age rule and class reference -> 3
   ctr_cell(snapshot, "m1", "m4", key = "id") |> expect_equal(3)
-  # m1 (adult,a) -> m3 (child,b): neither rule matches -> reference (1)
+  # m1 (adult,a) -> m3 (child,b): both references -> 1
   ctr_cell(snapshot, "m1", "m3", key = "id") |> expect_equal(1)
+  # m3 (child,b) -> m1 (adult,a): both half-keyed rules -> 7 * 11 = 77
+  ctr_cell(snapshot, "m3", "m1", key = "id") |> expect_equal(77)
   # diagonal is 0
   unname(diag(snapshot$contact_risks)) |> expect_equal(rep(0., 4))
 })
@@ -683,7 +779,6 @@ test_that("Contact risk definition work as expected", {
     ~from_member, ~to_member, ~param_name,
     "student",    "student",  "child_child",
     "student",    "sibling",  "child_child",
-    "sibling",    "sibling",  "child_child",
     "mother",     "student",  "mother_child",
     "mother",     "sibling",  "mother_child",
     "father",     "mother",   ".reference",
@@ -691,7 +786,7 @@ test_that("Contact risk definition work as expected", {
     NA,           NA,         "cross_gen"
   )
   # prime numbers as param values to ensure non duplicate pair products
-  params <- stats::setNames(c(2, 3, 5, 7, 11, 13, 17, 19), strata$param_name)
+  params <- stats::setNames(c(2, 3, 5, 7, 11, 13, 17), strata$param_name)
   params <- params[names(params) != ".reference"]
   hhmodel <- add_contact_risk(hhmodel, strata = strata, params = params)
 

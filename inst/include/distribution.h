@@ -111,14 +111,11 @@ namespace housepi
 		//////  Virtual  //////
 
 		/// Raw random draw.
-		virtual double raw_rand_(rnd_gen & /*prng*/) const { raise_undefined_call_err_("rand"); }
-
+		virtual double raw_rand_(rnd_gen & /*prng*/) const = 0;
 		/// Raw density or mass.
 		virtual double raw_pdf_(double /*x*/) const = 0;
-
 		/// Raw log-density or log-mass.
-		virtual double raw_log_pdf_(double /*x*/) const { raise_undefined_call_err_("log_pdf"); }
-
+		virtual double raw_log_pdf_(double /*x*/) const = 0;
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double /*x*/) const = 0;
 
@@ -380,4 +377,27 @@ namespace housepi
 		}
 	};
 
+	//////////////////////////////  NullDistribution  //////////////////////////////
+
+	/// Point `x0` carrying no density: the model of a variable pinned to `x0`.
+	///
+	/// - log-density and log-ratio: 0, the variable never moves;
+	/// - draws: `x0`.
+	/// @note Unregistered: built in place of a collapsed model, never named by the user.
+	class NullDistribution final : public Distribution
+	{
+	public:
+		NullDistribution(double x0) : x0_(x0) {}
+		std::unique_ptr<Distribution> clone_distrib() const override final { return std::make_unique<NullDistribution>(*this); }
+		std::string name() const noexcept override final { return "null"; }
+
+	protected:
+		double raw_rand_(rnd_gen & /*prng*/) const override final { return x0_; }
+		double raw_pdf_(double /*x*/) const override final { return 1.; }
+		double raw_log_pdf_(double /*x*/) const override final { return 0.; }
+		double raw_cdf_(double x) const override final { return x < x0_ ? 0. : 1.; }
+
+	private:
+		double x0_; /// Pinned point.
+	};
 }

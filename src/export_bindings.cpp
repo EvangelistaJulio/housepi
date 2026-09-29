@@ -1447,6 +1447,13 @@ namespace
         return out;
     }
 
+    /// Group risks the model reads on members with infected status only.
+    Rcpp::CharacterVector risk_status_stratified(Rcpp::XPtr<MCMC> mcmc_ptr)
+    {
+        const risks::Group &group = mcmc_ptr->risks.group();
+        return Rcpp::wrap(group.khold(group.status_stratified()));
+    }
+
     Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
     {
         Rcpp::XPtr<MCMC> mcmc(new MCMC(module_name), true);
@@ -1655,6 +1662,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("key_Latent_discrete", &key_Latent_discrete);
     Rcpp::function("key_Data_discrete", &key_Data_discrete);
     Rcpp::function("risk_anchors", &risk_anchors);
+    Rcpp::function("risk_status_stratified", &risk_status_stratified);
 
     Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
     Rcpp::function("measure_ar_by_hhsize", &measure_ar_by_hhsize);

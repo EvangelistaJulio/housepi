@@ -5,6 +5,23 @@
 ## See the LICENSE file for details.
 ##
 
+#' @description Augmented definitions of a single kind.
+#' Column 'kind' is dropped.
+#' @param defs `data.frame()` Definitions to filter.
+#' @param kind `character(1)` One of "latent", "member", "house", "status".
+#' @details Used to read a resolved copy of the declarations.
+#' @return `data.frame()` or `NULL` when no definition of that kind exists.
+#' @keywords internal
+#' @noRd
+augm_defs_of_kind <- function(defs, kind = definition_kinds_) {
+  kind <- match.arg(kind)
+  if (is.null(defs)) return(defs)
+  out <- defs[defs[["kind"]] == kind, , drop = FALSE]
+  if (nrow(out) == 0) return(NULL)
+  out[["kind"]] <- NULL
+  out
+}
+
 #' @title Internal R6 holder for housepi latent definitions
 #' @description
 #' Helper class managing latent definitions of the model object.
@@ -41,8 +58,7 @@ HousepiAugmented <- R6::R6Class(
     #' @field observation_names `character()`.
     #' Names of member-level observations.
     observation_names = function(value) {
-      if (is.null(self$defs) ||
-            !"kind" %in% names(self$defs)) return(character())
+      if (is.null(self$defs)) return(character())
       self$defs[["name"]][self$defs[["kind"]] == "member"]
     },
 
@@ -50,9 +66,7 @@ HousepiAugmented <- R6::R6Class(
     #' Names of deterministic observations producing a data column:
     #' member- and household-level observations, carrying no model.
     surrogate_names = function(value) {
-      if (is.null(self$defs) || !"kind" %in% names(self$defs)) {
-        return(character())
-      }
+      if (is.null(self$defs)) return(character())
       mask <- self$defs[["kind"]] == "house" |
         (self$defs[["kind"]] == "member" & is.na(self$defs[["model"]]))
       self$defs[["name"]][mask]
@@ -61,8 +75,7 @@ HousepiAugmented <- R6::R6Class(
     #' @field status_names `character()`.
     #' Reserved node name of the status process, if defined.
     status_names = function(value) {
-      if (is.null(self$defs) ||
-            !"kind" %in% names(self$defs)) return(character())
+      if (is.null(self$defs)) return(character())
       self$defs[["name"]][self$defs[["kind"]] == "status"]
     },
 
@@ -72,9 +85,7 @@ HousepiAugmented <- R6::R6Class(
     #' `status =` labels declared across the latent definitions.
     status_dictionary = function(value) {
       if (length(self$status_levels) > 0) return(self$status_levels)
-      if (is.null(self$defs) || !"status" %in% names(self$defs)) {
-        return(character())
-      }
+      if (is.null(self$defs)) return(character())
       labels <- unlist(self$defs[["status"]], use.names = FALSE)
       labels <- labels[!is.na(labels)]
       # literal character statuses only (integers are already codes)
@@ -136,21 +147,6 @@ HousepiAugmented <- R6::R6Class(
       c()
     },
 
-    #' @description Definitions of a single kind.
-    #' Column 'kind' is dropped.
-    #' @param defs `data.frame()` Definitions to filter.
-    #' @param kind `character(1)` One of "latent", "member", "house", "status".
-    #' @details Used to read a resolved copy of the declarations.
-    #' @return `data.frame()` or `NULL` when no definition of that kind exists.
-    defs_of_kind = function(defs, kind = definition_kinds_) {
-      kind <- match.arg(kind)
-      if (is.null(defs) || !"kind" %in% names(defs)) return(NULL)
-      out <- defs[defs[["kind"]] == kind, , drop = FALSE]
-      if (nrow(out) == 0) return(NULL)
-      out[["kind"]] <- NULL
-      out
-    },
-
     #' @description Whether every infected status lands on a definition block.
     #' A generic (unstatused) definition covers them all, otherwise each status
     #' the model can carry needs one of its own: every dictionary entry when a
@@ -159,7 +155,7 @@ HousepiAugmented <- R6::R6Class(
     #' @param status_set `integer()`. Infected statuses observed in data.
     #' @return `logical(1)`
     covers_statuses = function(defs, status_set) {
-      if (is.null(defs) || !"kind" %in% names(defs)) return(TRUE)
+      if (is.null(defs)) return(TRUE)
 
       # household observations and the status process need no status block
       block <- defs[!defs[["kind"]] %in% c("house", "status"), , drop = FALSE]
@@ -206,7 +202,10 @@ HousepiAugmented <- R6::R6Class(
       max <- housepi_extractor(!!max)
 
       # extract args and proposal from the dots
-      def_args <- helper_definition_args(proposal, list(...))
+      def_args <- helper_definition_args(
+        proposal, list(...), kind2family(.kind),
+        if (identical(.kind, "status")) NULL else name
+      )
       args <- def_args$args
       proposal <- def_args$proposal
 

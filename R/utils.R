@@ -140,6 +140,8 @@ key_sep_ <- "\x1F"
 #' @param cols `character()` Columns to hash.
 #' @noRd
 row_keys_ <- function(x, cols) {
+  # no column: every row shares one key
+  if (length(cols) == 0) return(rep(key_sep_, nrow(x)))
   do.call(paste, c(lapply(x[cols], as.character), list(sep = key_sep_)))
 }
 
@@ -414,7 +416,7 @@ char_data_input_ <- function(df) {
 #' @keywords internal
 #' @noRd
 resolve_status_codes_ <- function(defs, dictionary) {
-  if (is.null(defs) || !"status" %in% names(defs)) return(defs)
+  if (is.null(defs)) return(defs)
   st <- as.character(unlist(defs[["status"]], use.names = FALSE))
   known <- !is.na(st)
   as_int <- suppressWarnings(as.integer(st))
@@ -470,7 +472,7 @@ resolve_discr_flags_ <- function(defs, discr_req_defs,
                                  discr_col_types = NULL,
                                  discr_req_cols = character(),
                                  is_prior = FALSE) {
-  if (is.null(defs) || !"discr" %in% names(defs)) return(defs)
+  if (is.null(defs)) return(defs)
   discr <- as.logical(defs[["discr"]])
   unresolved <- is.na(discr)
   if (!any(unresolved)) return(defs)

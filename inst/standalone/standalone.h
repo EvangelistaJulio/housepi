@@ -7,11 +7,13 @@
 
 #pragma once
 
+#include <iosfwd>
 #include <string>
 #include <vector>
 
 namespace housepi
 {
+    class Household;
     class MCMCBase;
     class MCMC;
 

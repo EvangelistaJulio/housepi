@@ -18,52 +18,81 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/string.h"
+#include "parameter.h"
 
 //////////////////////////////  risks::RuleTable  //////////////////////////////
 
 namespace housepi::risks
 {
-    /// Thin view over a rule table, with rule group and specificity precomputed per row.
+    constexpr const char *REFERENCE = ".reference"; /// Rule value choosing the reference.
+    constexpr const char *STATUS_KEY = "status";    /// Rule column carrying the infected status.
+    constexpr double VALUE_REFERENCE = 1.0;         /// Risk value of the reference.
+
+    /// View over a rule table, with rule group, parameter, specificity and cells precomputed per row.
     ///
     /// - conflicts resolve by specificity: 'generalia specialibus non derogant';
     /// - specificity of a row: number of non-NA cells among the specificity columns.
     struct RuleTable
     {
-        const str_table &input;            /// User tidy definition table.
-        const std::size_t n_rows;          /// Rows in the table.
-        std::vector<std::size_t> row_gid;  /// Rule-group id per row.
-        std::vector<std::size_t> row_spec; /// Specificity per row.
+        const str_table &input;                  /// User tidy definition table.
+        const std::size_t n_rows;                /// Rows in the table.
+        std::vector<std::size_t> row_gid;        /// Rule-group id per row.
+        std::vector<std::size_t> row_param;      /// Parameter key per row, NA for the reference.
+        std::vector<std::size_t> row_spec;       /// Specificity per row.
+        std::vector<std::vector<double>> cells;  /// Cells per specificity column, NA for a catch-all.
 
-        /// View `input`, counting `spec_columns` into the specificity.
+        /// View `input`, parsing `spec_columns` into the cells and parameter names into `param` keys.
         RuleTable(const str_table &input_,
-                  const std::vector<std::string> &spec_columns)
+                  const std::vector<std::string> &spec_columns,
+                  const Parameter &param)
             : input(input_),
               n_rows(count_rows(input_)),
               row_gid(n_rows),
-              row_spec(n_rows)
+              row_param(n_rows, na::INDEX),
+              row_spec(n_rows),
+              cells(spec_columns.size(), std::vector<double>(n_rows, na::DOUBLE))
         {
             for (std::size_t r = 0; r < n_rows; ++r)
             {
-                row_gid[r] = static_cast<std::size_t>(
-                    str::toi(input.at("rule_group")[r]));
-                for (const std::string &col : spec_columns)
-                    row_spec[r] += !na::is(input.at(col)[r]);
+                row_gid[r] = static_cast<std::size_t>(str::toi(input.at("rule_group")[r]));
+                if (const std::string &pstr = input.at("param_name")[r]; pstr != REFERENCE)
+                    row_param[r] = param.khold(pstr);
+            }
+            for (std::size_t c = 0; c < spec_columns.size(); ++c)
+            {
+                const std::vector<std::string> &col = input.at(spec_columns[c]);
+                for (std::size_t r = 0; r < n_rows; ++r)
+                    if (!na::is(col[r]))
+                    {
+                        cells[c][r] = str::tod(col[r]);
+                        ++row_spec[r];
+                    }
             }
         }
 
-        /// Pick the most specific matching row per key.
+        /// Whether row `r` matches `probe`, one value per specificity column.
+        /// - catch-all cell: matches any value;
+        /// - NA probe value: matches a catch-all only.
+        bool matches(std::size_t r, const std::vector<double> &probe) const noexcept
+        {
+            for (std::size_t c = 0; c < cells.size(); ++c)
+                if (!na::is(cells[c][r]) && probe[c] != cells[c][r])
+                    return false;
+            return true;
+        }
+
+        /// Pick the most specific row matching `probe`, per key.
         /// - tie at the top specificity: error.
-        /// @param matches Row predicate.
         /// @param key_of Key of row `r`.
         /// @param ctx_of Error context of key `k`, read on a tie.
-        template <class Key, class Predicate, class KeyFn, class CtxFn>
-        std::map<Key, std::size_t> resolve(Predicate matches,
+        template <class Key, class KeyFn, class CtxFn>
+        std::map<Key, std::size_t> resolve(const std::vector<double> &probe,
                                            KeyFn key_of,
                                            CtxFn ctx_of) const
         {
             std::map<Key, BestMatch_> best;
             for (std::size_t r = 0; r < n_rows; ++r)
-                if (matches(r))
+                if (matches(r, probe))
                     update_best_match_(best[key_of(r)], row_spec[r], r);
 
             std::map<Key, std::size_t> out;

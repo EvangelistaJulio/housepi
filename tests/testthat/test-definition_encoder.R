@@ -121,6 +121,22 @@ test_that("Operator chains are flattened, explicit reductions are not", {
     expect_identical("prod|x:x2|[a|?]:[*|x:x2|[b|?]:[c|?]]")
 })
 
+test_that("Named operands bind to their key, the others fill the free slots", {
+  # a name and its position encode alike
+  housepi_extractor(pow(x2 = 3, rho@P)) |>
+    expect_identical(housepi_extractor(pow(rho@P, 3)))
+  housepi_extractor(pow(x2 = 3, rho@P)) |>
+    expect_identical("pow|x:x2|[rho|P]:[3|N]")
+  housepi_extractor(sum(rho@P, x2 = 1, 2)) |>
+    expect_identical("sum|x:x2:x3|[rho|P]:[1|N]:[2|N]")
+  # a name off the slots follows them, as written
+  housepi_extractor(growth(hidden@A, rate = rho@P)) |>
+    expect_identical("growth|x:rate|[hidden|A]:[rho|P]")
+
+  housepi_extractor(sum(rho@P, x2 = 1, x2 = 2)) |>
+    expect_error("[Rr]epeated argument .x2. for function .sum.")
+})
+
 test_that("Injected Date literals encode as numeric", {
   d_min <- as.Date(32)
   d_max <- as.Date(45)

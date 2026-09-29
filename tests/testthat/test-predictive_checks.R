@@ -277,12 +277,12 @@ test_that("Tables are filtered by household size band", {
                          `0` = c(1, 2, 3), `1` = c(4, 5, 0), `2` = c(0, 1, 0),
                          `3` = c(0, 1, 1), `4` = c(0, 0, 1),
                          check.names = FALSE)
-  scaled <- function(k) transform(observed * k, hhsize = observed$hhsize)
+  scaled <- \(k) transform(observed * k, hhsize = observed$hhsize)
   tables <- list(observed = observed, predicted = scaled(1.1),
                  cri_lower = scaled(0.9), cri_upper = scaled(1.2))
 
   # no filter
-  nrow(helper_filter_tables(tables)$observed) |> expect_identical(3L)
+  helper_filter_tables(tables)$observed |> expect_nrow(3L)
   # upper, lower and both bounds
   helper_filter_tables(tables, max_hhsize = 3)$observed$hhsize |>
     expect_identical(2:3)
@@ -442,7 +442,7 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
   observed <- measure_ar_by_hhsize(data_wide, mk_ppc$model$escaped)
   ppc$formatted_attack_rate$observed |> expect_equal(observed$ar)
   # with one, they are relabelled before the measure sees them
-  run_on(obs_process = function(x) x)$formatted_attack_rate$observed |>
+  run_on(obs_process = \(x) x)$formatted_attack_rate$observed |>
     expect_equal(observed$ar)
 
   # observed values agree across thread counts

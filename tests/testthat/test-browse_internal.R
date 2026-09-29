@@ -4,21 +4,19 @@ library(testthat)
 ###################################  HELPERS  ##################################
 ################################################################################
 
-trapezoid <- function(x, y) {
-  0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
-}
+trapezoid <- \(x, y) 0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
 
 # Rayleigh reference, named after the stats d/p/q convention.
 drayleigh <- function(x, scale) {
   ifelse(x >= 0, x / scale^2 * exp(-x^2 / (2 * scale^2)), 0)
 }
-prayleigh <- function(q, scale) ifelse(q >= 0, 1 - exp(-q^2 / (2 * scale^2)), 0)
-qrayleigh <- function(p, scale) scale * sqrt(-2 * log1p(-p))
+prayleigh <- \(q, scale) ifelse(q >= 0, 1 - exp(-q^2 / (2 * scale^2)), 0)
+qrayleigh <- \(p, scale) scale * sqrt(-2 * log1p(-p))
 
 # R reference `<prefix><ref>` (e.g. "d" + "norm") bound to named arguments.
 stats_ref <- function(prefix, ref, args) {
   f <- get(paste0(prefix, ref), mode = "function")
-  function(q, ...) do.call(f, c(list(q), args, list(...)))
+  \(q, ...) do.call(f, c(list(q), args, list(...)))
 }
 
 # Interval notation into the list the kernel reports.
@@ -33,7 +31,7 @@ in_interval <- function(txt) {
   bounds <- interval(txt)
   lo <- if (bounds$closed[["min"]]) `>=` else `>`
   up <- if (bounds$closed[["max"]]) `<=` else `<`
-  function(x) lo(x, bounds$min) & up(x, bounds$max)
+  \(x) lo(x, bounds$min) & up(x, bounds$max)
 }
 
 # Assert exposed function methods against R reference.
@@ -126,7 +124,7 @@ test_that("Available names listing is stable", {
 })
 
 test_that("Browsed functions do not leak memory", {
-  mem_used_mb <- function() gc()["Vcells", "(Mb)"]
+  mem_used_mb <- \() gc()["Vcells", "(Mb)"]
 
   func <- browse_functions("sin")
   rm(func)
@@ -186,6 +184,11 @@ test_that("Truncation bounds the reported domain, location stays apart", {
   # the upper bound tracks the 'size' argument it is aliased to
   browse_distributions("binomial", size = 10, prob = 0.4)$domain |>
     expect_equal(interval("[0, 10]"))
+
+  # a truncated side closes, a side left at the edge of the law stays open
+  browse_distributions("beta", shape1 = 2, shape2 = 2, min = 0.2)$domain |>
+    expect_equal(interval("[0.2, 1)"))
+  browse_functions("log", max = 5)$domain |> expect_equal(interval("(0, 5]"))
 })
 
 test_that("The codomain reports what a definition returns", {
@@ -200,6 +203,14 @@ test_that("The codomain reports what a definition returns", {
   # bounded whatever it reads
   browse_functions("sin")$codomain |> expect_equal(interval("[-1, 1]"))
   browse_functions("cos")$codomain |> expect_equal(interval("[-1, 1]"))
+  # a bound "x" maps to the single value it returns
+  browse_functions("minus", x = 3)$codomain |>
+    expect_equal(interval("[-3, -3]"))
+  browse_functions("exp", x = 0)$codomain |> expect_equal(interval("[1, 1]"))
+  browse_functions("log", x = 1)$codomain |> expect_equal(interval("[0, 0]"))
+  # an integer raised to a non-negative integer power stays an integer
+  browse_functions("pow", x = 2, x2 = 3)$is_discrete |> expect_true()
+  browse_functions("pow", x = 2, x2 = 0.5)$is_discrete |> expect_false()
 
   # a reduction folds its declared operands, skipping the unbound "x"
   browse_functions("sum", x2 = 5)$codomain |> expect_equal(interval("[5, 5]"))
@@ -286,6 +297,15 @@ test_that("Function arguments are validated", {
     expect_error("Unused argument.*y2.*[Dd]id you mean")
   browse_functions("pow", discr = TRUE)$func(x) |>
     expect_error("undefined method")
+  # a minimum below the domain of the function
+  browse_functions("sqrt", min = -1) |>
+    expect_error("[Ii]nvalid min value -1.*sqrt")
+  browse_functions("") |> expect_error("[Uu]nknown function")
+  # an argument given twice
+  browse_functions("sum", x2 = 1, x2 = 2) |>
+    expect_error("[Rr]epeated argument .x2. for function .sum.")
+  browse_distributions("normal", mean = 0, mean = 5) |>
+    expect_error("[Rr]epeated argument .mean. for distribution .normal.")
 })
 
 test_that("Location shifts the function argument", {
@@ -297,6 +317,8 @@ test_that("Location shifts the function argument", {
     expect_equal(exp(x - loc_val))
   # a quarter-turn shift turns the sine into the cosine
   browse_functions("sin", loc = -0.5 * pi)$func(x) |> expect_equal(cos(x))
+  # a reduction shifts its "x" operand alone
+  browse_functions("sum", x2 = 1, loc = 2)$func(x) |> expect_equal(x - 1)
 })
 
 test_that("Transcendental functions match R reference", {
@@ -430,7 +452,7 @@ test_that("Discrete uniform spreads flat mass over the integers", {
 
   # the quantile is the first atom whose cumulative reaches p
   p <- c(0.01, 0.25, 0.5, 0.75, 0.99)
-  first_atom <- function(q) k[which(cumsum(distr$pdf(k)) >= q)[1]]
+  first_atom <- \(q) k[which(cumsum(distr$pdf(k)) >= q)[1]]
   distr$quantile(p) |> expect_equal(vapply(p, first_atom, 0))
 
   # the default support is a coin flip
@@ -469,6 +491,9 @@ test_that("Options outside the support of a law are rejected", {
     expect_error("min")
   browse_distributions("binomial", size = 10, prob = 0.5, min = 11) |>
     expect_error("max")
+  # bounds crossing each other, reported in the located frame
+  browse_distributions("normal", mean = 0, sd = 1, min = 2, max = 1, loc = 1) |>
+    expect_error("[Ii]nconsistent domain \\[3, 2\\]")
 })
 
 test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
@@ -782,13 +807,13 @@ test_that("quantile is truncation-aware", {
   p <- c(0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99)
   cases <- list(
     list(args = list("normal", mean = 0, sd = 1, min = 0),
-         ref = function(p) qnorm(pnorm(0) + p * (1 - pnorm(0)))),
+         ref = \(p) qnorm(pnorm(0) + p * (1 - pnorm(0)))),
     list(args = list("normal", mean = 3, sd = 2, min = 1, max = 5),
          ref = function(p) {
            qnorm(pnorm(1, 3, 2) + p * (pnorm(5, 3, 2) - pnorm(1, 3, 2)), 3, 2)
          }),
     list(args = list("exponential", rate = 1, max = 3),
-         ref = function(p) qexp(p * pexp(3))),
+         ref = \(p) qexp(p * pexp(3))),
     list(args = list("gamma", shape = 2, scale = 1.5, min = 1, max = 8),
          ref = function(p) {
            qgamma(pgamma(1, shape = 2, scale = 1.5) +

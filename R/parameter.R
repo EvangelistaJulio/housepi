@@ -74,7 +74,7 @@ HousepiParameter <- R6::R6Class(
       max <- housepi_extractor(!!max)
 
       # extract args and proposal from the dots
-      def_args <- helper_definition_args(proposal, list(...))
+      def_args <- helper_definition_args(proposal, list(...), self$family, name)
       args <- def_args$args
       proposal <- def_args$proposal
 

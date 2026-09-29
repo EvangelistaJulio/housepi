@@ -89,7 +89,6 @@ namespace housepi
         //////  Operators  //////
 
         /// Whether both attributes are equal.
-        /// @todo Check whether the equality operators are still used.
         bool operator==(const Attribute &other) const noexcept;
         /// Whether the attributes differ.
         bool operator!=(const Attribute &other) const noexcept { return !(*this == other); }
@@ -136,6 +135,7 @@ namespace housepi
         }
 
         /// Initialize argument `key` of the function from `attr`.
+        /// @note Call only in function mode.
         void init_func_attr(std::string_view key, const Attribute &attr);
 
         //////  Getter  //////
@@ -158,20 +158,9 @@ namespace housepi
                 return this;
             }
         }
-        /// Get the function, pointers followed, or nullptr.
-        /// @todo Make it non-const.
-        const Function *function() const noexcept
-        {
-            switch (mode_)
-            {
-            case Mode::Pointer:
-                return pAttr_->function();
-            case Mode::Function:
-                return pFunc_.get();
-            default: // cases Mode::Empty, Mode::Numeric
-                return nullptr;
-            }
-        }
+        /// Get the function, nullptr unless in function mode.
+        /// @note Pointers are not followed: call pointer() first.
+        const Function *function() const noexcept { return pFunc_.get(); }
 
         //////  Flags  //////
 
@@ -579,8 +568,10 @@ namespace housepi
         /// Return argument `arg_name`, an empty attribute if absent.
         virtual Attribute &find_arg_(std::string_view arg_name);
 
-        /// Return argument `key`, appended if absent, for variadic parametrizations.
-        Attribute &find_or_append_arg_(std::string_view key);
+        /// Append argument `key`, for variadic parametrizations.
+        /// - standard arguments `x`, `loc`, `min`, `max`: returned, not appended.
+        /// @note Call once per key: repeated names are refused R-side.
+        Attribute &append_arg_(std::string_view key);
 
         //////  Virtual  //////
 

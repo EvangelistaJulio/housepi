@@ -153,21 +153,26 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
   # flatten operator chains to avoid nested calls
   if (func_name %in% c("+", "*")) args <- collect_flat_args(call, func_name)
 
+  # named operands keep their key, unnamed ones fill the free slots x, x2, ...
+  nms <- rlang::names2(args)
+  assert_unique_arg_names(nms, .family$func, func_name)
+  slots <- c("x", paste0("x", seq_len(2 * length(args))[-1]))
+  nms[!nzchar(nms)] <- utils::head(setdiff(slots, nms), sum(!nzchar(nms)))
+
   # list operands as literals
   func_args <- character()
-  if (length(args) > 0) {
-    for (i in seq_along(args)) {
-      y <- coerce_date_(args[[i]])
-      assert_valid_defin_node(y)
-      is_subcall <- rlang::is_call(y) && rlang::call_name(y) != "@"
-      folded <- if (is_subcall) try_fold_const_(y, env) else NULL
-      func_args[[paste0("x", i)]] <-
-        if (!is.null(folded)) as.character(folded)
-        else if (is_subcall) housepi_func_from_call(y, env)
-        else housepi_label_leaf(y)
-    }
-    names(func_args)[1] <- "x"
+  for (i in seq_along(args)) {
+    y <- coerce_date_(args[[i]])
+    assert_valid_defin_node(y)
+    is_subcall <- rlang::is_call(y) && rlang::call_name(y) != "@"
+    folded <- if (is_subcall) try_fold_const_(y, env) else NULL
+    func_args[[nms[i]]] <-
+      if (!is.null(folded)) as.character(folded)
+      else if (is_subcall) housepi_func_from_call(y, env)
+      else housepi_label_leaf(y)
   }
+  # canonical order: slots first, then other names as written
+  func_args <- func_args[order(match(nms, slots, nomatch = length(slots) + 1))]
 
   if (is.na(func_name)) housepi_format_sources(func_args)
   else if (length(func_args) == 0) func_name

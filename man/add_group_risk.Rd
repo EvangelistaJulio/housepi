@@ -41,15 +41,25 @@ distribution, the distribution parameters are supplied the same way (e.g.
 \item{reference}{named \code{list} Covariates associated to the reference group,
 whose risk becomes the unit that every other parameter multiplies.
 Pass \code{".auto"} to take the group with the largest sample size.
-Left empty, each stratum carries its own absolute risk.}
+Left empty, each stratum carries its own absolute risk; a covariate the
+reference does not name leaves the whole risk absolute.}
 
 \item{joint}{\code{logical(1)} Treat covariates as joint.
 If \code{FALSE}, covariates are independent (default).}
 
 \item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
 Each row defines one stratum. If \code{NA}, then match any value.
+Every member, or ordered pair of members for contact risks, must match a row,
+and every row must be the best match of at least one of them,
+else the definition is refused. So is a table setting no covariate value,
+which treats every member alike as the baseline does.
+The table is used as written.
+A risk read on infected members is checked at every infected status a member
+may take, whether or not the data records it.
+Rows keyed on different covariates form separate rule groups,
+whose risks multiply.
 Use \code{.reference} in \code{param_name} to designate the reference group;
-omit it to leave the risk absolute.
+a rule group without it leaves the risk absolute.
 The reserved column \code{value} pins a stratum to that value in simulation,
 while it keeps its prior and is sampled in inference.
 The reserved column \code{const} fixes a pinned stratum in inference too,

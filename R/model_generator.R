@@ -547,6 +547,12 @@ HousepiGenerator <- R6::R6Class(
       .engine$risk_anchors(private$mcmc_ptr_)
     },
 
+    #' @field risk_status_stratified `character()`
+    #' Group risks the model reads on members with infected status only.
+    risk_status_stratified = function(value) {
+      .engine$risk_status_stratified(private$mcmc_ptr_)
+    },
+
     #' @field has_infec_profile `logical(1)`
     #' Whether model allows for infectivity profile definitions.
     has_infec_profile = function(value) {

@@ -68,7 +68,7 @@ hhmodel |>
 Contact risks are paired, `from_member` (the infector), `to_member` (the infectee).
 Here `n` counts the ordered pairs observed in the data, and `param_name` names the associated parameter.
 Pairs that never occur are dropped.
-The `rule_group` column matters once rules overlap (see [strata tables](#strata-tables-and-wildcards)).
+The `rule_group` column matters once rules overlap (see [strata tables](#strata-tables-and-specificity-rules)).
 
 By default, a pair and its reverse share one parameter, so `parent` infecting `child` and viceversa will be equal.
 Set `symmetric = FALSE` to let them differ.
@@ -139,8 +139,8 @@ hhmodel |>
 
 While `by` associates parameters automatically to all covariates, a fine grained stratification can be provided with a `strata` table.
 In `strata`, covariate columns say which pairs each row matches, and `param_name` says which parameter they get.
-An `NA` cell is a wildcard that matches any value, unless a more specific rule exists.
-A row with all covariate cells set to `NA` is the least specific rule possible, so it is beaten by every other rule and catch all that remains.
+An `NA` cell is a catch-all that matches any value, unless a more specific rule exists.
+A row with all covariate cells set to `NA` is the least specific rule possible, so it is beaten by every other rule and covers whatever remains.
 
 ```{r}
 #| label: strata-table
@@ -183,7 +183,7 @@ The `params` argument gives one MCMC setup per parameter; a bare number pins it,
 ## Ambiguous rules are rejected
 
 Rules that key on different columns cannot be ranked against each other.
-The `rule_group` column of `get_contact_risks()` reports which rules were compared together, and a wildcard that straddles two groups raises an error instead of picking a winner:
+The `rule_group` column of `get_contact_risks()` reports which rules were compared together, and a catch-all rule that straddles two groups raises an error instead of picking a winner:
 
 ```{r}
 #| label: strata-ambiguous

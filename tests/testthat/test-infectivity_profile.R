@@ -137,7 +137,7 @@ test_that("Spurious names of imported definitions are dropped", {
     get_infectivity_profiles()
 
   defs$status <- NULL
-  nrow(unique(defs)) |> expect_identical(1L)
+  unique(defs) |> expect_nrow(1L)
 })
 
 test_that("A new profile overwrites the previous one", {
@@ -358,12 +358,10 @@ test_that("A latent parameterizing the profile drives transmission", {
 
 test_that("The household snapshot reports the profile of each member", {
   hhmodel <- mk_house$model
-  profiles_of <- function(hhmodel) {
-    inspect_house_state(hhmodel, "h1")$infectivity_profiles
-  }
+  profiles_of <- \(h) inspect_house_state(h, "h1")$infectivity_profiles
 
   # the model requires a profile, so the entry is kept but reads empty
-  nrow(profiles_of(hhmodel)) |> expect_identical(0L)
+  profiles_of(hhmodel) |> expect_nrow(0L)
 
   # a generic profile repeats on every infected member, susceptibles read NA
   generic <- hhmodel |>

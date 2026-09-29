@@ -295,9 +295,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
   # the contact table names a reference, so `beta` keeps its scale
   strata <- tibble::tribble(
     ~from_member, ~to_member, ~param_name,
-    "student",    "student",  "ctr_child_child",
     "student",    "sibling",  "ctr_child_child",
-    "sibling",    "sibling",  "ctr_child_child",
     "mother",     "student",  "ctr_mother_child",
     "mother",     "sibling",  "ctr_mother_child",
     "father",     "mother",   ".reference",

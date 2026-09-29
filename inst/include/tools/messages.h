@@ -60,15 +60,12 @@ namespace housepi::msg
     /// Set the cli pluralization count of a following `{?singular/plural}`.
     template <class T>
     inline std::string qty(const T &v) { return "{cli::qty(" + std::to_string(v.size()) + ")}"; }
-    
+
     /// Append context `ctx` to the last sentence of message `what`.
     inline std::string join(std::string what, const std::string &ctx)
     {
         if (!what.empty() && what.back() == '.')
-        {
             what.back() = ' ';
-            return what + ctx + ".";
-        }
-        return what + "\n" + ctx + ".";
+        return what + ctx + ".";
     }
 }

@@ -150,11 +150,19 @@ housepi_assert_args <- function(gear, last = NA_integer_) {
   }
 }
 
+# Assert no argument name is given twice to one definition.
+assert_unique_arg_names <- function(nms, family, name = NULL) {
+  dups <- unique(nms[nzchar(nms) & duplicated(nms)])
+  if (length(dups) == 0) return(invisible())
+  stop_h(paste("{cli::qty(dups)}Repeated argument{?s} {.arg {dups}} for",
+               if (is.null(name)) "{family}." else "{family} {.val {name}}."))
+}
+
 # Assert a name carries no declaration of another kind:
 # latent variables, observations and status process share one definition store,
 # and each name stands for a single quantity of the model.
 assert_no_kind_clash <- function(defs, name, kind) {
-  if (is.null(defs) || !"kind" %in% names(defs)) return(invisible())
+  if (is.null(defs)) return(invisible())
   other <- defs[["kind"]][defs[["name"]] == name & defs[["kind"]] != kind]
   if (length(other) == 0) return(invisible())
   stop_h(

@@ -30,7 +30,7 @@ test_that("Model generator inconsistent calls are caught", {
 
   # model name imposed redundancy
   c("case ascertained", "case-ascertained", "case-ascertained") |>
-    vapply(function(x) new_housepi_model(model = x)$name, character(1)) |>
+    vapply(\(x) new_housepi_model(model = x)$name, character(1)) |>
     unique() |>
     expect_identical("case ascertained")
 })
@@ -197,7 +197,7 @@ test_that("init_pointers is a no-op when pointers already exist", {
 })
 
 test_that("Model has no leaks", {
-  mem_used_mb <- function() gc()["Vcells", "(Mb)"]
+  mem_used_mb <- \() gc()["Vcells", "(Mb)"]
 
   generator <- HousepiGenerator$new("case ascertained")
   rm(generator)

@@ -15,9 +15,7 @@ mk_sources <- local({
 })
 
 # the dictionary and its assertion are private: reach them through the object
-dig_ <- function(hhmodel, what, ...) {
-  hhmodel$.__enclos_env__$private[[what]](...)
-}
+dig_ <- \(hhmodel, what, ...) hhmodel$.__enclos_env__$private[[what]](...)
 
 ##################################
 ## MODEL CLASS : STANDARD CALLS ##
@@ -156,7 +154,7 @@ test_that("Wide data can be deferred and attached with add_data_wide", {
   # attach data later: populated and runnable
   hhmodel <- add_data_wide(hhmodel, flu_1918_frederick)
   hhmodel$data_wide |> expect_s3_class("data.frame")
-  nrow(hhmodel$data_wide) |> expect_identical(nrow(flu_1918_frederick))
+  hhmodel$data_wide |> expect_nrow(nrow(flu_1918_frederick))
   is.finite(evaluate_log_lik(hhmodel)) |> expect_true()
 })
 
@@ -288,7 +286,7 @@ test_that("Print behavior works as expected", {
   # help() opens the template page, mocked so no pager is spawned
   called_with <- NULL
   with_mocked_bindings(
-    open_model_helper_ = function(name) called_with <<- name,
+    open_model_helper_ = \(name) called_with <<- name,
     code = hhmodel$help()
   )
   called_with |> expect_identical("final_size")
@@ -551,16 +549,22 @@ test_that("Simulation reads undeclared parameters from param_table", {
   unlist(state$parameters[names(param_table)]) |>
     expect_equal(unlist(param_table[2, ]), ignore_attr = TRUE)
   # the table is not declared on the model
-  nrow(get_parameters(hhmodel)) |>
-    expect_identical(0L)
+  get_parameters(hhmodel) |> expect_nrow(0L)
   hhmodel |>
     evaluate_log_lik() |>
     expect_error("[Mm]issing parameter definition")
+
+  # a parameter defined as a function takes no value from the table
+  data.frame(hhid = "h1", status = 1) |>
+    new_housepi_model("test") |>
+    add_parameter(rho = list(prior = "uniform"), rho_2 = exp(rho@P)) |>
+    run_simulation(param_table = data.frame(rho = 0.5, rho_2 = 3)) |>
+    expect_error("[Nn]on numeric parameter .rho_2.")
 })
 
 test_that("Simulation returns combined wide/long output", {
   # supplying obs_process_long forces the long branch into a non-empty list
-  obs_long <- function(x) data.frame(id = "m1", measure = 1.0)
+  obs_long <- \(x) data.frame(id = "m1", measure = 1.0)
   simulated <- mk_frederick$template |>
     run_simulation(obs_process_long = obs_long)
   simulated |> expect_named(c("wide", "long"))
@@ -590,7 +594,7 @@ test_that("Simulation replicates are a list of data frames", {
 })
 
 test_that("A simulation with an observation process is reproducible", {
-  flag <- function(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
+  flag <- \(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
   simulated <- withr::with_seed(
     1, run_simulation(mk_frederick$template, obs_process = flag)
   )
@@ -607,8 +611,8 @@ test_that("Measures on long data require obs_process_long", {
 
   dig_(hhmodel, "run_measure_",
     param_table = data.frame(rho = c(0.1, 0.2, 0.3)),
-    apply_wide = function(x) list(x),
-    apply_long = function(x) list(x),
+    apply_wide = list,
+    apply_long = list,
     obs_proc_wide = NULL,
     obs_proc_long = NULL
   ) |>

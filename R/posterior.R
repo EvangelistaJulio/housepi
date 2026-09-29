@@ -365,22 +365,8 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' `r rd_natural_log_`
     lprior_draws = function(value) {
       if (!missing(value)) stop_read_only("lprior_draws")
-      has_param <- !is.null(private$draws_$param_prior) &&
-        posterior::nvariables(private$draws_$param_prior) > 0
-      # with no parameter prior the parameter log-prior is an empty product,
-      # log p(theta) = 0; keep a proper zero column over the pointwise draws
-      template <- if (has_param) private$draws_$param_prior
-      else private$draws_$point_log_lik
-      if (is.null(template) || posterior::ndraws(template) == 0) {
-        return(empty_draws_())
-      }
-      lp <- if (has_param) {
-        rowSums(posterior::as_draws_matrix(private$draws_$param_prior))
-      } else {
-        rep(0, posterior::ndraws(template))
-      }
-      out <- posterior::mutate_variables(template, lprior = lp)
-      tag_as_housepi_draws(posterior::subset_draws(out, variable = "lprior"))
+      if (is.null(private$draws_$lprior)) return(empty_draws_())
+      private$draws_$lprior
     },
 
     #' @field complete_draws `posterior::draws_df`.
@@ -397,7 +383,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       # bind parameters, pointwise log_lik and the parameter-only lprior
       # NOTE: bind_draws strips the tag, so re-stamp
       tag_as_housepi_draws(
-        posterior::bind_draws(private$draws_$param, aux, self$lprior_draws)
+        posterior::bind_draws(private$draws_$param, aux, private$draws_$lprior)
       )
     },
 
@@ -443,9 +429,10 @@ HousepiPosteriorDraws <- R6::R6Class(
 
       # store cpp draws converted to posterior
       tag <- function(df) tag_rcpp_draws_(df, idx)
+      lp <- .engine$flush_param_log_prior_draws(ptr)
       private$draws_ <- list(
         param = tag(.engine$flush_param_draws(ptr)),
-        param_prior = tag(.engine$flush_param_log_prior_draws(ptr)),
+        lprior = tag(if (length(lp) > 0) data.frame(lprior = rowSums(lp))),
         latent = tag(.engine$flush_latent_draws(ptr)),
         point_log_lik = tag(.engine$flush_house_log_lik_draws(ptr))
       )

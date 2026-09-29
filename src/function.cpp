@@ -73,10 +73,9 @@ namespace housepi
         }
 
         /// Combine openness for a tied extremum: reached as soon as either operand reaches it.
+        /// @note Both sides must be bounded.
         Interval either_(Interval a, Interval b) noexcept
         {
-            if (a == Interval::Unbounded || b == Interval::Unbounded)
-                return Interval::Unbounded;
             return a == Interval::Closed || b == Interval::Closed ? Interval::Closed : Interval::Open;
         }
 
@@ -351,9 +350,6 @@ namespace housepi
 
     void Attribute::init_pointer(const Attribute *y)
     {
-        if (!y)
-            msg::stop("Tried to assign empty pointer to " + str() + ".");
-
         if (err_type_ == ErrType::Empty)
             err_type_ = ErrType::Pointer;
 
@@ -366,12 +362,6 @@ namespace housepi
 
     void Attribute::init_function(std::unique_ptr<Function> f)
     {
-        // check the function is different from the current one
-        if (!f)
-            msg::stop("Tried to assign empty function to " + str() + ".");
-        if (f == pFunc_)
-            msg::stop("Tried to assign " + str() + " as its own argument.");
-
         if (err_type_ == ErrType::Empty)
             err_type_ = ErrType::Function;
         if (name_id_ == 0)
@@ -410,9 +400,6 @@ namespace housepi
     {
         if (is_constant())
             init_numeric(value());
-        else if (is_user_const_)
-            msg::stop(
-                "Impossible to set " + str() + " as constant. Check its dependencies.");
 
         // reduce function indirection
         if (is_pointer() && pointer()->is_function())
@@ -421,18 +408,9 @@ namespace housepi
             pFunc_->finalize();
     }
 
-    void Attribute::init_func_attr(std::string_view key,
-                                   const Attribute &attr)
+    void Attribute::init_func_attr(std::string_view key, const Attribute &attr)
     {
-        switch (mode_)
-        {
-        case Mode::Function:
-            pFunc_->init_attr(key, attr);
-            return;
-        default:
-            msg::stop(
-                "Attempted to initialize function attribute of " + str() + ".");
-        }
+        pFunc_->init_attr(key, attr);
     }
 
     void Attribute::raise_set_error_() const
@@ -534,7 +512,7 @@ namespace housepi
             str::find_closest(key, options));
     }
 
-    Attribute &Function::find_or_append_arg_(std::string_view key)
+    Attribute &Function::append_arg_(std::string_view key)
     {
         if (key == "x")
             return x_arg_;
@@ -546,10 +524,6 @@ namespace housepi
             return domain_.max;
 
         std::vector<Attribute> &args = arguments_();
-        for (Attribute &attr : args)
-            if (!na::is(attr.name()) && attr.name() == key)
-                return attr;
-
         args.emplace_back();
         args.back().name(std::string(key));
         return args.back();
@@ -813,7 +787,7 @@ namespace housepi
             if (!undefined_args.empty())
                 msg::stop(
                     "Non default argument" + std::string(undefined_args.size() > 1 ? "s " : " ") +
-                    str::format(undefined_args) +
+                    str::format(undefined_args, false) +
                     " of " + attr.str() + " cannot be missing.");
 
             if (!attr.function()->is_callable_implicitly())
@@ -902,9 +876,6 @@ namespace housepi
                                                   const std::vector<Kind> &kinds,
                                                   bool is_prim)
         {
-            if (na::is(name))
-                return nullptr;
-
             // an operator builds the function it spells
             if (name == "+")
                 name = "sum";
@@ -1203,7 +1174,7 @@ namespace
             return attr.is_empty() || (attr.is_numeric() && attr.is_na());
         }
 
-        Attribute &find_arg_(std::string_view key) override final { return find_or_append_arg_(key); }
+        Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
 
         /// Fold over `x` and every argument.
         /// - fold mode: NA skipped;

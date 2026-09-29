@@ -120,6 +120,11 @@ test_that("Spare arguments reach the function they belong to", {
   mk_param$model |>
     add_parameter("rho", func = "gamma", shape = 2, scale = 1) |>
     expect_error("Unknown function .gamma.")
+
+  # an argument given twice
+  mk_param$model |>
+    add_parameter(rho = list(prior = "normal", mean = 0, mean = 5)) |>
+    expect_error("[Rr]epeated argument .mean. for parameter .rho.")
 })
 
 test_that("Proposal families route correctly", {
@@ -221,6 +226,17 @@ test_that("Unsupported parameter definitions throw errors", {
     evaluate_log_lik() |>
     expect_error("[Cc]ould not resolve the source of .datum.")
 
+  # a nested function missing a non-default argument
+  mk_param$model |>
+    add_parameter(rho = list(prior = "uniform"), rho_2 = exp(pow(rho@P))) |>
+    evaluate_log_lik() |>
+    expect_error("[Nn]on default argument .x2.*cannot be missing")
+  mk_param$model |>
+    add_parameter(rho = list(prior = "uniform"),
+                  rho_2 = exp(pow(x2 = rho@P))) |>
+    evaluate_log_lik() |>
+    expect_error("[Aa]rgument .x. of function .pow. cannot be missing")
+
   # a constant argument outside the function domain
   mk_param$model |>
     add_parameter(rho = list(func = "log", x = -1)) |>
@@ -262,7 +278,7 @@ test_that("Lognormal proposal rejects unsupported domains", {
   draws <- mk_param$model |>
     add_parameter("rho", prior = "gamma", shape = 2,
                   max = 5, loc = -1, proposal = "rw_log") |>
-    run_inference(steps = 20L, chains = 1L, adapt = 0L, thin = 1L) |>
+    run_inference(steps = 20L, chains = 1L, adapt = 20L, thin = 1L) |>
     suppressWarnings() |>
     get_parameter_draws()
   (draws[["rho"]] > -1) |> expect_all_true()
@@ -279,7 +295,12 @@ test_that("Discretization is enabled as expected", {
       rho_2 = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
                    proposal = "rw_unif", min = !!val$min, max = !!val$max),
       rho_3 = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
-                   proposal = "rw", min = !!val$min, max = !!val$max)
+                   proposal = "rw", min = !!val$min, max = !!val$max),
+      # prior quartiles coincide: the walks start from a unit step
+      rho_4 = list(prior = "poisson", lambda = 0.1, proposal = "rw_unif",
+                   min = !!val$min, max = !!val$max),
+      rho_5 = list(prior = "poisson", lambda = 0.1, proposal = "rw",
+                   min = !!val$min, max = !!val$max)
     ) |>
     run_inference(steps = 50L, thin = 1L, adapt = 50L, chains = 1L) |>
     suppressWarnings() |>
@@ -390,7 +411,7 @@ test_that("Parameter template import loads the shipped definitions", {
     hhmodel <- add_parameter(mk_param$model, import = "template"),
     regexp = "test model"
   )
-  nrow(get_parameters(hhmodel)) |> expect_identical(0L)
+  get_parameters(hhmodel) |> expect_nrow(0L)
 })
 
 test_that("A parameter meets the model definition requirements", {
@@ -454,6 +475,12 @@ test_that("Strict positivity propagates through a parameter function", {
      alpha = (rho@P + rho_2@P) * 1e-2) |>
     is.finite() |>
     expect_true()
+  # a bounded operand caps the unbounded side of the other
+  mk(alpha = min(rho@P, 1e-2)) |> is.finite() |> expect_true()
+  mk(alpha = min(1e-2, rho@P)) |> is.finite() |> expect_true()
+  mk(rho_2 = list(prior = "normal"), alpha = max(rho_2@P, 1e-2) * rho@P) |>
+    is.finite() |>
+    expect_true()
 
   # a sign-indefinite node is not provably positive, whatever it evaluates to
   mk(alpha = log(rho@P)) |>
@@ -504,8 +531,8 @@ test_that("Strict positivity propagates through a shifted prior", {
     expect_error("[Ee]xpression .*rho.*could not be interpreted")
 })
 
-test_that("Every prior and function is copied into each chain", {
-  # chains sample copies of the definitions, one per prior family
+test_that("Every prior family and nested function samples across chains", {
+  # one parameter per prior family, and functions nested as operands
   draws <- mk_param$model |>
     add_parameter(
       rho = list(prior = "beta", shape1 = 2, shape2 = 2),
@@ -517,18 +544,20 @@ test_that("Every prior and function is copied into each chain", {
       rho_6 = list(prior = "binomial", size = 5, prob = 0.3),
       rho_7 = list(prior = "negative_binomial", size = 5, prob = 0.3),
       rho_8 = list(prior = "geometric", prob = 0.3),
-      rho_9 = sin(rho@P), rho_10 = tan(rho@P), rho_11 = exp(rho@P)
+      rho_9 = sin(rho@P), rho_10 = tan(rho@P), rho_11 = exp(rho@P),
+      rho_12 = log(1 + exp(sub(sin(rho@P), tan(rho@P))))
     ) |>
-    run_inference(steps = 5L, chains = 2L, adapt = 0L, thin = 1L) |>
+    run_inference(steps = 5L, chains = 2L, adapt = 5L, thin = 1L) |>
     suppressWarnings() |>
     get_parameter_draws()
 
   posterior::nchains(draws) |> expect_identical(2L)
-  posterior::variables(draws) |> expect_setequal(c("rho", paste0("rho_", 2:11)))
+  posterior::variables(draws) |> expect_setequal(c("rho", paste0("rho_", 2:12)))
   # the functions track their operand within every chain
   draws <- as.data.frame(posterior::as_draws_df(draws))
   draws$rho_9 |> expect_equal(sin(draws$rho))
   draws$rho_11 |> expect_equal(exp(draws$rho))
+  draws$rho_12 |> expect_equal(log(1 + exp(sin(draws$rho) - tan(draws$rho))))
 })
 
 test_that("An unpinned parameter is drawn from its prior in simulation", {
@@ -543,7 +572,7 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
 
   # a deterministic latent reading the parameter exports the value drawn
   drawn <- run_simulation(hhmodel, nrep = 40) |>
-    vapply(function(x) x$hidden[1], numeric(1))
+    vapply(\(x) x$hidden[1], numeric(1))
 
   (drawn >= 0.1 & drawn <= 0.9) |> expect_all_true()
   stats::sd(drawn) |> expect_gt(0.15) # uniform spread, not the proposal's 0.005
@@ -560,7 +589,7 @@ test_that("An unpinned parameter is drawn from its prior at evaluation", {
     (\(x) replicate(20, evaluate_log_lik(x)))()
 
   # what the whole prior domain is worth, to scale the spread against
-  pinned <- function(a) evaluate_log_lik(add_parameter(hhmodel, alpha = !!a))
+  pinned <- \(a) evaluate_log_lik(add_parameter(hhmodel, alpha = !!a))
   span <- abs(pinned(0.9) - pinned(0.1))
 
   is.finite(log_lik) |> expect_all_true()

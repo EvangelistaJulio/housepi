@@ -66,9 +66,7 @@ on_integer_lattice <- function(x) {
 }
 
 # draws of a run as a data frame of its latent traces
-latent_frame <- function(x) {
-  draws_to_frame(get_latent_draws(x))
-}
+latent_frame <- \(x) draws_to_frame(get_latent_draws(x))
 
 ##############################
 ###  LATENT : DEFINITIONS  ###
@@ -236,8 +234,7 @@ test_that("A status left without definitions names the status", {
     add_latent(hidden_2 = list(func = min(datum_2@D), status = 2),
                hidden_2 = list(func = min(datum_2@D), status = 1)) |>
     get_latent() |>
-    nrow() |>
-    expect_identical(2L)
+    expect_nrow(2L)
 
   # every per-member definition is pinned to a status no individual carries
   mk_latent$model |>
@@ -315,13 +312,36 @@ test_that("Latent independence proposal folds its arguments", {
     expect_error("random.?walk")
 })
 
-test_that("Independence proposal rejects an unsupported prior domain", {
+test_that("Independence proposal must cover the prior domain", {
+  # a live minimum drawn in [0, 1] stays within the support of the proposal
   mk_latent$model |>
     add_parameter("rho", prior = "uniform") |>
     add_latent("hidden", model = "uniform", min = rho@P, max = 5,
                proposal = "gamma", proposal_shape = 2) |>
+    helper_flat_sink(loc = hidden@A, column = "record") |>
     evaluate_log_lik() |>
-    expect_error("[Cc]annot cover")
+    is.finite() |>
+    expect_true()
+  # a live minimum drawn in [-1, 1] reaches below the support of the proposal
+  mk_latent$model |>
+    add_parameter("rho", prior = "uniform", min = -1) |>
+    add_latent("hidden", model = "uniform", min = rho@P, max = 5,
+               proposal = "gamma", proposal_shape = 2) |>
+    evaluate_log_lik() |>
+    expect_error("support \\[0, Inf\\) that cannot cover")
+
+  # a proposal bounded on both sides against an unbounded model
+  mk_latent$model |>
+    add_latent("hidden", model = "normal",
+               proposal = "beta", proposal_shape1 = 2, proposal_shape2 = 2) |>
+    evaluate_log_lik() |>
+    expect_error("support \\[0, 1\\] that cannot cover")
+  # a proposal minimum above the minimum of the model
+  mk_latent$model |>
+    add_latent("hidden", model = "beta", shape1 = 2, shape2 = 2, min = 0.2,
+               proposal = "gamma", proposal_shape = 2, proposal_min = 0.5) |>
+    evaluate_log_lik() |>
+    expect_error("support \\[0.5, Inf\\) that cannot cover")
 })
 
 test_that("Latent function definition is correct", {
@@ -413,7 +433,7 @@ test_that("Symbolic definitions are equivalent", {
     subset(name != "layer_1")
   augm$name <- NULL
   # every row is identical
-  nrow(unique(augm)) |> expect_identical(1L)
+  unique(augm) |> expect_nrow(1L)
 })
 
 test_that("An external list of latent definitions can be imported", {
@@ -725,8 +745,7 @@ test_that("A name is declared under a single kind", {
     add_latent(hidden = list(model = "normal", mean = 0, sd = 1, status = 1)) |>
     add_latent(hidden = list(model = "normal", mean = 0, sd = 1, status = 2)) |>
     get_latent() |>
-    nrow() |>
-    expect_identical(2L)
+    expect_nrow(2L)
   hhmodel |>
     add_latent(hidden = list(model = "normal", mean = 0, sd = 1)) |>
     add_latent(hidden = list(model = "normal", mean = 0, sd = 2)) |>
@@ -1046,16 +1065,14 @@ test_that("A surrogate observation overwrites the corresponding data column", {
   simulated[["record_3"]] |> expect_equal(c(3, 7, NA))
   simulated[["hidden"]] |> expect_equal(c(6, NA, NA))
 
-  # FIXME: the requirement reported state "latent", but it's "observation"
-  # a stochastic observation carries no column to read: the datum is reported
-  # missing, rather than failing on the key it stands for
+  # missing datum is reported and attributed to the observation reading it
   data.frame(hhid = "h1", status = 1, record = 5) |>
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform")) |>
     add_observation(record_2 = list(model = "normal", mean = hidden, sd = 1)) |>
     add_observation(record = record_2@D + 2) |>
     evaluate_log_lik() |>
-    expect_error("missing data column")
+    expect_error("missing data column.*record_2.*[Rr]equired by observation")
 })
 
 test_that("Surrogate columns of both levels build in dependency order", {
@@ -1226,6 +1243,9 @@ test_that("A status process needs probabilities, within the status storage", {
   mk_latent$model |>
     add_status() |>
     expect_error("[Nn]o status probability")
+  mk_latent$model |>
+    add_status(symptomatic = 0.5, symptomatic = 0.5) |>
+    expect_error("[Rr]epeated argument .symptomatic. for status observation")
 
   # the engine stores at most 254 infected statuses
   weights <- function(k) {
@@ -1335,7 +1355,7 @@ test_that("Truncated latent models are normalized in log-likelihood traces", {
   }
   # one member per household, the flat sink adds log(1 / 2e6)
   for (k in seq(2)) {
-    col <- function(name) draws[[sprintf("m%d_%s", k, name)]]
+    col <- \(name) draws[[sprintf("m%d_%s", k, name)]]
     expected <- log_dtrunc(col("layer_1"), 2, 1.5, 0, hhdata$datum[k]) +
       log_dtrunc(col("hidden"), rho, 1, 0.5, 8) +
       log_dtrunc(col("hidden_2"), 1.7, 1, 0, 5) - log(2e6)
@@ -1504,16 +1524,34 @@ test_that("Latent traces export only relevant variables", {
 })
 
 test_that("A latent degenerate domain warns and collapses", {
-  hhmodel <- mk_latent$model |>
-    add_parameter("rho", prior = "uniform") |>
-    add_latent("hidden", model = "uniform", min = 5, max = 5)
+  # the bounds meet for m1 only: m1 is pinned, m2 is sampled
+  # the pinned point is read in the located frame, loc + min
+  hhmodel <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 1,
+                        datum = 1, datum_2 = c(1, 3), obs = 0) |>
+    new_housepi_model("test") |>
+    add_latent("hidden", model = "uniform", min = datum@D, max = datum_2@D,
+               loc = 2) |>
+    helper_flat_sink(loc = hidden@A)
   # the short run also skips the convergence diagnostics
-  tryCatch(
-    hhmodel |> run_inference(steps = 400L, chains = 1L, adapt = 0L),
-    error = function(e) NULL
-  ) |>
-    expect_warning(regexp = "[Dd]egenerate domain|[Cc]ollapsed") |>
-    expect_warning(regexp = "[Ss]ample size was below")
+  expect_warning(
+    expect_warning(
+      results <- hhmodel |>
+        run_inference(steps = 400L, chains = 1L, adapt = 50L),
+      "[Cc]ollapsed .*latent .hidden. to constant"
+    ),
+    "[Ss]ample size was below"
+  )
+  draws <- as.data.frame(get_latent_draws(results))
+  draws$m1_hidden |> expect_all_equal(3)
+  length(unique(draws$m2_hidden)) |> expect_gt(1L)
+  (draws$m2_hidden >= 3 & draws$m2_hidden <= 5) |> expect_all_true()
+
+  # simulation draws the pinned member at its point too
+  expect_warning(
+    simulated <- run_simulation(hhmodel, nrep = 3L),
+    "[Cc]ollapsed .*latent .hidden. to constant"
+  )
+  vapply(simulated, \(x) x$hidden[1], numeric(1)) |> expect_all_equal(3)
 })
 
 test_that("Nested definitions works as expected", {
@@ -1985,7 +2023,7 @@ test_that("Household observations aggregate a data column across members", {
   # values equal the na.rm min/max of test_date over each household's members,
   # NA when every member is missing
   expected <- function(f) {
-    reduce <- function(x) if (all(is.na(x))) NA_real_ else f(x, na.rm = TRUE)
+    reduce <- \(x) if (all(is.na(x))) NA_real_ else f(x, na.rm = TRUE)
     values <- tapply(as.numeric(hhdata$test_date), hhdata$hhid, reduce)
     values[sort(names(values))]
   }

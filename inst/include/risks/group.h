@@ -53,6 +53,9 @@ namespace housepi::risks
 
         //////  Getter  //////
 
+        /// Keys a rule may stratify by infected status.
+        const std::vector<size_t> &status_stratified() const noexcept { return status_stratified_; }
+
         /// Whether members `a` and `b` share a group-risk partition.
         /// - members reading different status slots read different risks.
         bool same_group(const Individual &a,
@@ -99,7 +102,8 @@ namespace housepi::risks
         std::vector<std::string> helper_process_definitions_(data::Wide &data_wide,
                                                              const str_table &input);
         /// Append the block of one unique definition, a product of parameters per slot and key.
+        /// @param cell_params Parameter keys per cell, slot-major.
         void helper_init_unique_risk_(const Parameter &param,
-                                      const std::vector<str_table> &slot_risks);
+                                      const std::vector<std::vector<size_t>> &cell_params);
     };
 }

@@ -116,6 +116,7 @@ namespace
     using std::exp;
     using std::lgamma;
     using std::log;
+    using std::log1p;
     using std::pow;
     using std::sqrt;
 
@@ -188,18 +189,21 @@ namespace
         HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
     protected:
-        double n_() const { return domain_.max.value() - domain_.min.value(); }
+        double norm_() const { return domain_.max.value() - domain_.min.value(); }
 
-        double raw_pdf_(double) const override final { return 1. / n_(); }
-        double raw_cdf_(double x) const override final { return (x - domain_.min.value()) / n_(); }
-        double raw_log_pdf_(double) const override final { return -std::log(n_()); }
+        double raw_pdf_(double) const override final { return 1. / norm_(); }
+        double raw_cdf_(double x) const override final { return (x - domain_.min.value()) / norm_(); }
+        double raw_log_pdf_(double) const override final { return -log(norm_()); }
         double raw_log_ratio_(double, double) const override final { return 0.; }
         double raw_rand_(rnd_gen &prng) const override final
         {
             const double r = standard_uniform(prng);
             return domain_.min.value() * (1. - r) + domain_.max.value() * r;
         }
-        double raw_quantile_(double p) const override final { return domain_.min.value() * (1. - p) + domain_.max.value() * p; }
+        double raw_quantile_(double p) const override final
+        {
+            return domain_.min.value() * (1. - p) + domain_.max.value() * p;
+        }
     };
     HOUSEPI_REGISTER_FUNCTION(Uniform_, Continuous)
 
@@ -219,13 +223,13 @@ namespace
     protected:
         std::vector<const Attribute *> discrete_args_() const override final { return {&domain_.min, &domain_.max}; }
 
-        double n_() const { return domain_.max.value() - domain_.min.value() + 1.; }
+        double norm_() const { return domain_.max.value() - domain_.min.value() + 1.; }
 
-        double raw_pdf_(double) const override final { return 1. / n_(); }
-        double raw_cdf_(double x) const override final { return (x - domain_.min.value() + 1.) / n_(); }
-        double raw_log_pdf_(double) const override final { return -log(n_()); }
+        double raw_pdf_(double) const override final { return 1. / norm_(); }
+        double raw_cdf_(double x) const override final { return (x - domain_.min.value() + 1.) / norm_(); }
+        double raw_log_pdf_(double) const override final { return -log(norm_()); }
         double raw_log_ratio_(double, double) const override final { return 0.; }
-        double raw_quantile_(double p) const override final { return domain_.min.value() + std::ceil(p * n_()) - 1.; }
+        double raw_quantile_(double p) const override final { return domain_.min.value() + std::ceil(p * norm_()) - 1.; }
         double raw_rand_(rnd_gen &prng) const override final
         {
             return std::uniform_int_distribution<long>(
@@ -321,8 +325,8 @@ namespace
             case 1: // "mean-sd"
             {
                 const double m = arg(0), r = arg(1) / m;
-                const double v = std::log1p(r * r);
-                return {log(m) - 0.5 * v, std::sqrt(v)};
+                const double v = log1p(r * r);
+                return {log(m) - 0.5 * v, sqrt(v)};
             }
             default: // case 0: "meanlog-sdlog"
                 return {arg(0), arg(1)};
@@ -516,7 +520,7 @@ namespace
                 if (shape < 1.)
                     return inf::DOUBLE;
                 if (shape == 1.)
-                    return -std::log(scale);
+                    return -log(scale);
                 return -inf::DOUBLE;
             }
             const double t = x / scale;
@@ -937,7 +941,7 @@ namespace
         }
 
     protected:
-        Attribute &find_arg_(std::string_view key) override final { return find_or_append_arg_(key); }
+        Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
 
         double raw_pdf_(double x) const override final
         {
@@ -945,7 +949,7 @@ namespace
         }
         double raw_log_pdf_(double x) const override final
         {
-            return std::log(arg(static_cast<size_t>(x))) - std::log(weight_sum_());
+            return log(arg(static_cast<size_t>(x))) - log(weight_sum_());
         }
         double raw_cdf_(double x) const override final
         {
@@ -957,7 +961,7 @@ namespace
         }
         double raw_log_ratio_(double xo, double xn) const override final
         {
-            return std::log(arg(static_cast<size_t>(xn))) - std::log(arg(static_cast<size_t>(xo)));
+            return log(arg(static_cast<size_t>(xn))) - log(arg(static_cast<size_t>(xo)));
         }
         double raw_quantile_(double p) const override final
         {
@@ -1008,25 +1012,39 @@ namespace
         INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
     protected:
+        double raw_rand_(rnd_gen & /*prng*/) const override final { raise_undefined_call_err_("rand"); }
         double raw_pdf_(double x) const override final
         {
-            const double a = arg(0); // 'shape'
-            const double s = arg(1); // 'scale'
-            const double m = arg(2); // 'c_loc'
-            const double T = arg(3); // 'mean_incub'
-            const double i = arg(4); // 'incub_period'
-            double tOST = x - i;     // time from onset to transmission
+            const double a = arg(0);   // 'shape'
+            const double s = arg(1);   // 'scale'
+            const double m = arg(2);   // 'c_loc'
+            const double T = arg(3);   // 'mean_incub'
+            const double i = arg(4);   // 'incub_period'
+            const double tOST = x - i; // time from onset to transmission
+            const double iT = i / T;   // re-scaled incubation period
 
-            const double iT = i / T;
-            const double norm_pdf = (s / a) * (1. + (iT - 1.) * pow(1 + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a));
+            const double norm_pdf =
+                (s / a) * (1. + (iT - 1.) * pow(1 + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a));
 
-            if (tOST < 0)
-                tOST /= iT;
-
-            const double emOSTs = exp((m - tOST) / s);
+            const double emOSTs = exp((m - (tOST < 0. ? tOST / iT : tOST)) / s);
             return emOSTs * pow(1. + emOSTs, -a - 1.) / norm_pdf;
         }
+        double raw_log_pdf_(double x) const override final
+        {
+            const double a = arg(0);   // 'shape'
+            const double s = arg(1);   // 'scale'
+            const double m = arg(2);   // 'c_loc'
+            const double T = arg(3);   // 'mean_incub'
+            const double i = arg(4);   // 'incub_period'
+            const double tOST = x - i; // time from onset to transmission
+            const double iT = i / T;   // re-scaled incubation period
 
+            const double log_norm = log(
+                (s / a) * (1. + (iT - 1.) * pow(1. + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a)));
+
+            const double mOSTs = (m - (tOST < 0. ? tOST / iT : tOST)) / s;
+            return mOSTs - (a + 1.) * log1p(exp(mOSTs)) - log_norm;
+        }
         double raw_cdf_(double x) const override final
         {
             const double a = arg(0);   // 'shape'
@@ -1035,8 +1053,8 @@ namespace
             const double T = arg(3);   // 'mean_incub'
             const double i = arg(4);   // 'incub_period'
             const double tOST = x - i; // time from onset to transmission
+            const double iT = i / T;   // re-scaled incubation period
 
-            const double iT = i / T;
             const double pema = pow(1. + exp(m / s), -a);
             const double pemTSa = pow(1. + exp((m + T) / s), -a);
             const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;

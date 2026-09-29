@@ -51,7 +51,7 @@ test_that("Households are resampled whole", {
   sizes <- as.integer(table(struct$hhid))
   sizes |> expect_in(c(1L, 3L))
   # covariate datum is still unique per household and not mixed
-  levels <- tapply(struct$datum, struct$hhid, function(x) length(unique(x)))
+  levels <- tapply(struct$datum, struct$hhid, \(x) length(unique(x)))
   levels |> as.vector() |> expect_all_equal(1L)
 })
 
@@ -120,11 +120,11 @@ test_that("Recovery sweeps every household count", {
   results$houses |> expect_identical(c(20L, 40L))
   results$truth |> expect_equal(c(alpha = 0.15, beta = 0.20, gamma = 1))
   # two counts, two replicates, three estimated parameters
-  nrow(results$estimates) |> expect_identical(12L)
+  results$estimates |> expect_nrow(12L)
   sort(unique(results$estimates$variable)) |>
     expect_identical(c("alpha", "beta", "gamma"))
-  nrow(results$replicates) |> expect_identical(4L)
-  nrow(results$summary) |> expect_identical(6L)
+  results$replicates |> expect_nrow(4L)
+  results$summary |> expect_nrow(6L)
   results$overview$houses |> expect_identical(c(20L, 40L))
   results$overview$n_failed |> expect_identical(c(0L, 0L))
   results$nrep |> expect_identical(2L)
@@ -159,7 +159,7 @@ test_that("Recovery leaves the model it was given untouched", {
   params <- get_parameters(hhmodel)
   stats::setNames(params$value, params$name)[c("alpha", "beta")] |>
     expect_equal(c(alpha = 0.15, beta = 0.20))
-  nrow(hhmodel$data_wide) |> expect_identical(nrow(flu_1918_frederick))
+  hhmodel$data_wide |> expect_nrow(nrow(flu_1918_frederick))
 })
 
 test_that("Every estimated parameter needs a simulation value", {

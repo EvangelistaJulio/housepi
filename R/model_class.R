@@ -53,12 +53,19 @@ HousepiModel <- R6::R6Class(
     # @description
     # Names of one source the latent declaration reads: latent, observation
     # and infectivity profile definitions. Read from the resolved tables, so a
-    # reference carrying no sigil counts under the kind it resolves to.
+    # reference carrying no sigil counts under the kind it resolves to. Each
+    # name is labelled with the family of the definition reading it, member-
+    # and household-level observations alike.
     # @param type `character(1)`. Source letter.
     required_of_declaration_ = function(type) {
-      c(find_required_definitions(private$resolved_latent_(), type,
-                                  c("value", "func", "model", "min", "max"),
-                                  private$augm_$family),
+      defs <- private$resolved_latent_()
+      family <- vapply(sub("^house$", "member", defs[["kind"]]), kind2family,
+                       character(1), USE.NAMES = FALSE)
+      by_kind <- lapply(unique(family), function(f) {
+        find_required_definitions(defs[family == f, , drop = FALSE], type,
+                                  c("value", "func", "model", "min", "max"), f)
+      })
+      c(unlist(by_kind),
         find_required_definitions(private$resolved_profile_(), type,
                                   c("func", "min", "max"),
                                   private$infec_profile_$family))
@@ -148,9 +155,8 @@ HousepiModel <- R6::R6Class(
 
     # @description
     # Assert group risk definitions from the model implementation script.
-    # @param wall `logical(1)` to raise error.
-    assert_group_risks_ = function(wall = TRUE) {
-      private$group_risks_$assert(private$get_required_group_risks_(), wall)
+    assert_group_risks_ = function() {
+      private$group_risks_$assert(private$get_required_group_risks_())
     },
 
     # @description
@@ -402,7 +408,10 @@ HousepiModel <- R6::R6Class(
     build_group_risks_ = function(wall = FALSE) {
       status_codes <- private$status_codes_()
       private$assert_group_risks_()
-      private$helper_build_risks_(private$group_risks_, status_codes, wall)
+      private$helper_build_risks_(
+        private$group_risks_, status_codes, wall,
+        stratified = private$gen_$risk_status_stratified
+      )
     },
 
     # @description
@@ -504,7 +513,7 @@ HousepiModel <- R6::R6Class(
       defs <- private$augm_$defs
       latent <- character()
       obs <- character()
-      if (length(defs) > 0 && "kind" %in% names(defs)) {
+      if (!is.null(defs)) {
         kind <- defs[["kind"]]
         latent <- defs[["name"]][kind %in% c("latent", "status")]
         obs <- defs[["name"]][kind %in% c("member", "house")]
@@ -715,7 +724,7 @@ HousepiModel <- R6::R6Class(
       # a column not yet attached is the likeliest cause of an unsettled source
       private$assert_sources_(wall = TRUE)
       private$assert_param_(wall = TRUE)
-      private$assert_group_risks_(wall = TRUE)
+      private$assert_group_risks_()
       private$assert_infec_profile_(wall = TRUE)
       # engine build reports unresolved read first
       private$rebuild_(wall = TRUE)
@@ -953,7 +962,7 @@ HousepiModel <- R6::R6Class(
     #' Latent definitions.
     latent = function(value) {
       if (!missing(value)) stop_read_only("latent")
-      defs <- private$augm_$defs_of_kind(private$resolved_latent_(), "latent")
+      defs <- augm_defs_of_kind(private$resolved_latent_(), "latent")
       housepi_defin_showcaser(defs)
     },
 
@@ -964,7 +973,7 @@ HousepiModel <- R6::R6Class(
       if (!missing(value)) stop_read_only("observations")
       resolved <- private$resolved_latent_()
       defs <- do.call(rbind, lapply(c("member", "house"), function(level) {
-        out <- private$augm_$defs_of_kind(resolved, level)
+        out <- augm_defs_of_kind(resolved, level)
         if (is.null(out)) return(NULL)
         cbind(out, level = level)
       }))

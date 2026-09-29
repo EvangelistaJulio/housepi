@@ -172,7 +172,7 @@ test_that("Print behavior is stable", {
 
 test_that("A short run records the diagnostic it skipped", {
   flagged <- mk_draws$results$warnings
-  nrow(flagged) |> expect_identical(1L)
+  flagged |> expect_nrow(1L)
   flagged$message |> expect_match("[Ss]ample size was below")
   flagged$count |> expect_identical(1L)
 })
@@ -262,9 +262,10 @@ test_that("A model without parameters returns empty parameter draws", {
     suppressWarnings()
 
   print(results) |> expect_output("1 latent")
-  # nothing carries a prior: the log-prior is zero at every draw
-  posterior::extract_variable(results$lprior_draws, "lprior") |>
-    expect_equal(rep(0, 5))
+  # nothing carries a prior: no lprior column, in its field or the bundle
+  posterior::nvariables(results$lprior_draws) |> expect_identical(0L)
+  posterior::variables(get_complete_draws(results)) |>
+    expect_identical("log_lik[1]")
   get_parameter_draws(results) |>
     expect_warning("[Ee]mpty draws: no parameter")
 })

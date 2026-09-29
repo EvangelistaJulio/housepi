@@ -31,11 +31,6 @@ namespace housepi
         Proposal() = default;
         /// Virtual destructor.
         virtual ~Proposal() = default;
-        /// Return a copy.
-        virtual std::unique_ptr<Proposal> clone() const = 0;
-
-        /// Whether the proposal is adaptive.
-        virtual bool is_adaptive() const noexcept { return false; }
 
         /// Reset an adaptive proposal before moving, from `prior`.
         virtual void reset(const Distribution * /*prior*/) noexcept {}
@@ -55,17 +50,10 @@ namespace housepi
         /// Such a proposal can seed an observation-feasible initial value.
         virtual bool is_independent() const noexcept { return false; }
 
-        /// Rebind the proposal to prior `new_distr`.
-        virtual void rebind_prior(const Distribution * /*new_distr*/) {}
-
         /// Resolve the read-surface of an owned proposal distribution, evaluation only.
         /// @param owner Name of the variable proposed, for the error it may raise.
         virtual void finalize(const std::string & /*owner*/) {}
     };
-
-/// Define clone() of proposal class `Class_`.
-#define MAKE_PROPOSAL_CLONE_METHOD(Class_) \
-    std::unique_ptr<Proposal> clone() const override { return std::make_unique<Class_>(*this); }
 
     //////////////////////////////  NullProposal  //////////////////////////////
 
@@ -74,7 +62,6 @@ namespace housepi
     {
     public:
         NullProposal() {}
-        MAKE_PROPOSAL_CLONE_METHOD(NullProposal)
 
         double propose(rnd_gen & /*prng*/, double xo) override final { return xo; }
         double log_ratio(double /*xo*/, double /*xn*/) const override final { return 0.; }
@@ -87,9 +74,6 @@ namespace housepi
     {
     public:
         ForwardProposal(const Distribution *distr) : pDistr_(distr) {}
-        MAKE_PROPOSAL_CLONE_METHOD(ForwardProposal)
-
-        void rebind_prior(const Distribution *new_distr) override final { pDistr_ = new_distr; }
 
         double propose(rnd_gen &prng, double /*xo*/) override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
@@ -113,32 +97,23 @@ namespace housepi
             : pDistr_(registry::create_distribution(
                   distr_name,
                   ErrType::Proposal,
-                  registry::distr_kinds(prior && prior->is_discretized())))
+                  registry::distr_kinds(prior->is_discretized()))),
+              pPrior_(prior)
         {
             for (const auto &[key, attr] : args)
                 pDistr_->init_attr(key, attr);
 
-            if (prior)
-                wire_to_prior_domain_(prior);
-            pDistr_->reshape(prior && prior->is_discretized());
+            wire_to_prior_domain_();
+            pDistr_->reshape(prior->is_discretized());
         }
-        IndependenceProposal(const IndependenceProposal &other)
-            : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-              pPrior_(other.pPrior_),
-              intrinsic_min_(other.intrinsic_min_), intrinsic_max_(other.intrinsic_max_) {}
-        MAKE_PROPOSAL_CLONE_METHOD(IndependenceProposal)
 
         double propose(rnd_gen &prng, double /*xo*/) override final { return pDistr_->rand(prng); }
         double log_ratio(double xo, double xn) const override final { return pDistr_->log_ratio(xo, xn); }
         bool is_independent() const noexcept override final { return true; }
 
-        void rebind_prior(const Distribution *new_distr) override final { pPrior_ = new_distr; }
-
         /// Finalize the distribution, then assert it covers the domain of the prior on both sides.
         void finalize(const std::string &owner) override final
         {
-            if (!pDistr_)
-                return;
             pDistr_->finalize();
 
             assert_covers_side_(intrinsic_min_, true, owner);
@@ -147,7 +122,7 @@ namespace housepi
 
     private:
         std::unique_ptr<Distribution> pDistr_; /// Distribution drawn from.
-        const Distribution *pPrior_ = nullptr; /// Prior, read for the domain to cover.
+        const Distribution *pPrior_;           /// Prior, read for the domain to cover.
 
         /// Own bounds of the proposal, snapshot before it inherits the prior's.
         ///
@@ -157,21 +132,20 @@ namespace housepi
         double intrinsic_min_ = na::DOUBLE;
         double intrinsic_max_ = na::DOUBLE;
 
-        /// Snapshot the own support, then truncate the proposal at the domain of `prior`.
+        /// Snapshot the own support, then truncate the proposal at the domain of the prior.
         /// The domain may be live or data-bound: bounds stay live, so rand() re-truncates per move.
-        void wire_to_prior_domain_(const Distribution *prior)
+        void wire_to_prior_domain_()
         {
-            pPrior_ = prior;
             intrinsic_min_ = pDistr_->min().is_callable() ? pDistr_->min().value() : na::DOUBLE;
             intrinsic_max_ = pDistr_->max().is_callable() ? pDistr_->max().value() : na::DOUBLE;
 
             // location shift of the prior: the proposal samples in the same absolute frame
             // bounds below stay in the shared delocated frame
-            if (!prior->loc().is_empty())
-                pDistr_->init_attr("loc", prior->loc());
+            if (!pPrior_->loc().is_empty())
+                pDistr_->init_attr("loc", pPrior_->loc());
 
-            const Attribute &min_val = prior->min();
-            const Attribute &max_val = prior->max();
+            const Attribute &min_val = pPrior_->min();
+            const Attribute &max_val = pPrior_->max();
             if (!min_val.is_empty())
                 pDistr_->transfer_min(min_val);
             if (!max_val.is_empty())
@@ -179,19 +153,17 @@ namespace housepi
         }
 
         /// Assert the own support of the proposal covers the domain of the prior on one side.
-        /// @todo Compare with interval arithmetic.
+        /// The prior bound is read through its codomain: a live bound places every value it reaches.
         void assert_covers_side_(double intrinsic, bool below, const std::string &owner) const
         {
             if (na::is(intrinsic)) // unbounded family: covers any domain on this side
                 return;
-            if (!pPrior_)
-                raise_uncovered_(owner);
 
-            // an intrinsically bounded family covers only a constant prior bound it reaches
-            // an unbounded prior, or one not yet readable, leaves a gap
-            const Attribute &bound = below ? pPrior_->min() : pPrior_->max();
-            if (bound.is_empty() || !bound.is_constant() ||
-                (below ? intrinsic > bound.value() : intrinsic < bound.value()))
+            // an intrinsically bounded family covers only a prior bound it reaches in full
+            // an unbounded prior, or a bound reaching past the family, leaves a gap
+            const Codomain reach = (below ? pPrior_->min() : pPrior_->max()).codomain();
+            if ((below ? reach.below : reach.above) == Interval::Unbounded ||
+                (below ? intrinsic > reach.inf : intrinsic < reach.sup))
                 raise_uncovered_(owner);
         }
 
@@ -210,8 +182,7 @@ namespace housepi
                 support.above = Interval::Closed;
             }
             msg::stop("Proposal " + msg::val(pDistr_->name()) + " has support " + support.str() +
-                      " that cannot cover the domain " +
-                      (pPrior_ ? pPrior_->domain().str() : std::string("(-Inf, Inf)")) +
+                      " that cannot cover the domain " + pPrior_->domain().str() +
                       " of " + owner + ".\nCorrect the proposal rule.");
         }
     };
@@ -241,12 +212,6 @@ namespace housepi
         /// Destructor.
         virtual ~AdaptableProposal() = default;
 
-        /// Copy constructor.
-        AdaptableProposal(const AdaptableProposal &other)
-            : pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr),
-              is_adaptive_(other.is_adaptive_),
-              is_discrete_(pDistr_ && pDistr_->is_discretized()) {}
-
         //////  Adaptation  //////
 
         /// Reset before moving: acceptance rate at the target, default scale from `prior` if adaptive.
@@ -268,15 +233,11 @@ namespace housepi
         /// Credit the refused move to the acceptance rate.
         void refuse_move() noexcept override final { update_accept_rate_(0.); }
 
-        /// Whether the proposal is adaptive.
-        bool is_adaptive() const noexcept override final { return is_adaptive_; }
+        /// Whether the scale is adaptive.
+        bool is_adaptive() const noexcept { return is_adaptive_; }
 
         /// Resolve the read-surface of the owned proposal distribution.
-        void finalize(const std::string & /*owner*/) override final
-        {
-            if (pDistr_)
-                pDistr_->finalize();
-        }
+        void finalize(const std::string & /*owner*/) override final { pDistr_->finalize(); }
 
         /// Set the smoothing factor of the acceptance-rate average, in (0, 1), shared across variables.
         static void set_smoothing(double s) noexcept { EMA_SMOOTHING = s; }
@@ -339,7 +300,6 @@ namespace housepi
     public:
         RndWalkUnifProposal(double scale, const Distribution *prior)
             : AdaptableProposal("uniform", scale, prior->is_discretized()) { init_scale_(scale); }
-        MAKE_PROPOSAL_CLONE_METHOD(RndWalkUnifProposal)
 
         double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
         double log_ratio(double, double) const override final { return 0.; }
@@ -371,7 +331,6 @@ namespace housepi
     public:
         RndWalkProposal(double scale, const Distribution *prior)
             : AdaptableProposal("normal", scale, prior->is_discretized()) { init_scale_(scale); }
-        MAKE_PROPOSAL_CLONE_METHOD(RndWalkProposal)
 
         double propose(rnd_gen &prng, double xo) override final { return xo + pDistr_->rand(prng); }
         double log_ratio(double, double) const override final { return 0.; }
@@ -416,7 +375,6 @@ namespace housepi
 
             init_scale_(scale);
         }
-        MAKE_PROPOSAL_CLONE_METHOD(RndWalkLogProposal)
 
         double propose(rnd_gen &prng, double xo) override final
         {
@@ -463,5 +421,3 @@ namespace housepi
         void set_scale_(double scale) override final { pDistr_->set_arg(1, scale); }
     };
 }
-
-#undef MAKE_PROPOSAL_CLONE_METHOD

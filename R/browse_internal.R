@@ -336,6 +336,7 @@ browse_functions <- function(name = NA_character_, ...,
   if (is.na(name)) {
     return(show_registered_(.engine$list_functions(), .family$func))
   }
+  assert_unique_arg_names(names(list(...)), .family$func, name)
   obj <- .engine$expose_function(name, unlist(list(...)), min, max, discr)
   HousepiExposedFunction$new(obj, name)
 }
@@ -366,6 +367,7 @@ browse_distributions <- function(name = NA_character_, ...,
   if (is.na(name)) {
     return(show_registered_(.engine$list_distributions(), .family$distr))
   }
+  assert_unique_arg_names(names(list(...)), .family$distr, name)
   obj <- .engine$expose_distribution(name, unlist(list(...)), min, max, discr)
   HousepiExposedDistribution$new(obj, name)
 }
@@ -397,6 +399,7 @@ browse_infectivity_profiles <- function(name = NA_character_, ...,
   }
   # FIXME: this is unaware of loc !
   if (is.na(min)) min <- ifelse(discr, 1, 0)
+  assert_unique_arg_names(names(list(...)), .family$infec, name)
   obj <- .engine$expose_infec_profile(name, unlist(list(...)), min, max, discr)
   HousepiExposedProfile$new(obj, name)
 }

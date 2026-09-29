@@ -198,13 +198,14 @@ flatten_definition_dots <- function(dots) {
 }
 
 # @description
-# Extract arguments carried by the dots.
+# Extract arguments carried by the dots of definition `name` of `family`.
 # Fold any advanced `proposal_*` option into the proposal call, routing
 # `proposal_scale` to random walks and distribution arguments to independence
 # samplers.
-helper_definition_args <- function(proposal, dots) {
+helper_definition_args <- function(proposal, dots, family, name = NULL) {
   args <- housepi_extractor(!!!flatten_definition_dots(dots))
   nms <- names(args)
+  assert_unique_arg_names(nms, family, name)
   # skip if empty
   if (length(nms) == 0) return(list(args = args, proposal = proposal))
 
@@ -349,7 +350,7 @@ helper_variable_level <- function(opts, defs) {
 # @param defs `data.frame()`. Definitions with sources resolved.
 # @return `data.frame()`
 helper_cast_house_level <- function(defs) {
-  if (is.null(defs) || !"kind" %in% names(defs)) return(defs)
+  if (is.null(defs)) return(defs)
   reads <- function(r, src) {
     unlist(lapply(c("value", "func", "min", "max"), function(col) {
       housepi_walk_definition(defs[[col]][[r]], src)

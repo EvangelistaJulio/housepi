@@ -34,7 +34,10 @@ namespace housepi
 
         Variable();                          /// Constructor.
         ~Variable();                         /// Destructor.
-        Variable(const Variable &other);     /// Copy constructor.
+        /// Copy constructor.
+        /// - proposal: not copied, the copy binds its own.
+        /// @note Copy only before proposals are bound, as State allocation does.
+        Variable(const Variable &other);
         Variable(Variable &&);               /// Move constructor.
         Variable &operator=(Variable other); /// Copy assignment.
 
@@ -52,8 +55,6 @@ namespace housepi
             Attribute::set(x);
         }
 
-        /// Initialize argument `key` of the function from `attr`.
-        void init_func_attr(std::string_view key, const Attribute &attr) { pFunc_->init_attr(key, attr); }
         /// Reshape the function, see Function::reshape().
         /// @note The model's discretization takes priority, e.g. `discr` false on a discrete-defined model.
         void reshape_function(bool discr) { pFunc_->reshape(discr); }
@@ -81,7 +82,7 @@ namespace housepi
         void draw_value(rnd_gen &prng)
         {
             // a variable pinned by the simulation holds no distribution
-            if (has_distr())
+            if (pDistr_)
                 set(pDistr_->rand(prng));
         }
         /// Finalize the attribute and the distribution arguments, see Attribute::finalize().
@@ -92,14 +93,14 @@ namespace housepi
         //////  Flags  //////
 
         /// Values the variable takes, in the absolute frame.
+        /// - constant: its value, whatever the distribution;
+        /// - otherwise: the support of the distribution.
         Codomain codomain() const noexcept override final
         {
-            return has_distr() ? pDistr_->support() : Attribute::codomain();
+            return !pDistr_ || is_constant() ? Attribute::codomain() : pDistr_->support();
         }
         /// Whether the variable has a distribution.
         bool has_distr() const noexcept { return pDistr_ != nullptr; }
-        /// Whether the variable has an adaptive proposal.
-        bool is_adaptive() const noexcept { return pProp_ && pProp_->is_adaptive(); }
 
         //////  Metropolis-Hastings  //////
 

@@ -8,7 +8,6 @@
 #pragma once
 
 #include <cstddef>
-#include <string_view>
 #include <vector>
 
 //////////////////////////////  risks::Anchor  //////////////////////////////
@@ -28,23 +27,17 @@ namespace housepi::risks
         bool contacts;             /// Whether contact risks scale the same term.
     };
 
-    /// Scale anchoring of one rule group (see Risks::assert_identifiability).
+    /// Scale anchoring of one rule group, read off its rules (see Risks::assert_identifiability).
     ///
-    /// Resolving the group against a member, or an ordered pair for contact risks:
-    /// - matches a rule: reads the risk it names;
-    /// - matches none: reads the reference.
-    /// The risks read are kept, not counted: whether they move depends on the pinning of the run.
+    /// The risks are kept, not counted: whether they move depends on the pinning of the run.
+    /// @note Every member or pair reading the risk matches a rule of the group, asserted R-side.
     struct ScaleAnchor
     {
-        bool anchored = false;                   /// Whether some resolution reads the reference.
+        bool anchored = false;                   /// Whether a rule of the group names the reference.
         std::vector<size_t> scaling_params = {}; /// Distinct risks the group applies.
 
-        /// Register the risk one resolution reads.
-        /// @param pstr Parameter name of the matched rule, empty when no rule matched.
-        void update(std::string_view pstr,
-                    const Parameter &param);
         /// Whether the overall scale of the rule group is free.
-        /// - some resolution reads the reference: not free;
+        /// - a rule names the reference: not free;
         /// - some risk applied is pinned: not free, it fixes the level of the whole group.
         bool is_free(const Parameter &param) const;
     };

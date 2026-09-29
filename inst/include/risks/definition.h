@@ -27,31 +27,28 @@
 #include "risks/rule_table.h"
 #include "risks/store.h"
 
-//////////////////////////////  risks : rule vocabulary  //////////////////////////////
+//////////////////////////////  risks::read_scale_anchors  //////////////////////////////
 
 namespace housepi::risks
 {
-    constexpr const char *REFERENCE = ".reference"; /// Rule value choosing the reference.
-    constexpr const char *STATUS_KEY = "status";    /// Rule column carrying the infected status.
-    constexpr double VALUE_REFERENCE = 1.0;         /// Risk value of the reference.
-
-    /// Register on every rule group in `anchors` the risk one resolution reads.
-    /// - group no rule matched: reads the reference.
-    /// @param resolved Rule row each matched group resolved to.
-    template <class Key>
-    void update_anchors(std::map<Key, ScaleAnchor> &anchors,
-                        const std::map<Key, size_t> &resolved,
-                        const std::vector<std::string> &param_name,
-                        const Parameter &param)
+    /// Read the scale anchoring of every rule group of `rules`.
+    /// - a rule named the reference: anchors its group;
+    /// - any other rule: a risk its group applies.
+    /// @param key_of Rule-group key of row `r`.
+    template <class Key, class KeyFn>
+    std::map<Key, ScaleAnchor> read_scale_anchors(const RuleTable &rules, KeyFn key_of)
     {
-        for (auto &[key, anchor] : anchors)
+        std::map<Key, ScaleAnchor> anchors;
+        for (size_t r = 0; r < rules.n_rows; ++r)
         {
-            // empty name: no rule matched
-            std::string_view pstr = {};
-            if (auto found = resolved.find(key); found != resolved.end())
-                pstr = param_name[found->second];
-            anchor.update(pstr, param);
+            ScaleAnchor &anchor = anchors[key_of(r)];
+            const size_t p = rules.row_param[r];
+            if (na::is(p))
+                anchor.anchored = true;
+            else if (!vect::contains(anchor.scaling_params, p))
+                anchor.scaling_params.push_back(p);
         }
+        return anchors;
     }
 
     //////////////////////////////  risks::GroupDefinitions  //////////////////////////////
@@ -65,25 +62,31 @@ namespace housepi::risks
     /// - every other covariate: carried by the data.
     struct GroupDefinitions
     {
-    public:
         std::vector<std::string> data; /// Covariates carried by the data.
         std::vector<size_t> keys;      /// Data-wide keys of the covariates.
-        RuleTable rules;               /// Rule groups and specificities.
+        RuleTable rules;               /// Rules over the covariates, then the status slot if keyed.
 
         /// Read the rules of `input`.
         /// @param spec_headers Every covariate a rule may key on.
         /// @param slot_of Slot of each status level.
         GroupDefinitions(const str_table &input,
                          const data::Wide &data_wide,
+                         const Parameter &param,
                          const std::vector<std::string> &spec_headers,
                          const StatusTable<StatusSlot> &slot_of)
             : data(vect::difference(spec_headers, {STATUS_KEY})),
               keys(data_wide.khold(data)),
-              rules(input, spec_headers),
-              slot_of_(slot_of)
+              rules(input,
+                    input.count(STATUS_KEY)
+                        ? vect::concatenate(data, std::vector<std::string>{STATUS_KEY})
+                        : data,
+                    param)
         {
+            // a status cell reads as the slot of its level
             if (input.count(STATUS_KEY))
-                status_col_ = &input.at(STATUS_KEY);
+                for (double &cell : rules.cells.back())
+                    if (!na::is(cell))
+                        cell = slot_of[static_cast<StatusLvl>(cell)];
         }
 
         /// Resolve the most specific matching rule per risk name and rule group.
@@ -92,9 +95,11 @@ namespace housepi::risks
                                            const Individual &indiv,
                                            StatusSlot slot) const
         {
+            std::vector<double> probe(rules.cells.size(), slot);
+            for (size_t i = 0; i < keys.size(); ++i)
+                probe[i] = data_wide.raw(keys[i], indiv);
             return rules.resolve<GroupKey>(
-                [&](size_t r)
-                { return matches_(data_wide, r, indiv, slot); },
+                probe,
                 [&](size_t r)
                 { return GroupKey{rules.input.at("group_risk")[r], rules.row_gid[r]}; },
                 [&](const GroupKey &key)
@@ -103,31 +108,6 @@ namespace housepi::risks
                            data_wide.str(indiv) + " (group " +
                            std::to_string(key.second) + ")";
                 });
-        }
-
-    private:
-        const std::vector<std::string> *status_col_ = nullptr; /// Status column of the rules, null if absent.
-        const StatusTable<StatusSlot> &slot_of_;               /// Slot each status level reads.
-
-        /// Whether member `indiv` matches rule row `r`, read at status slot `slot`.
-        bool matches_(const data::Wide &data_wide,
-                      size_t r,
-                      const Individual &indiv,
-                      StatusSlot slot) const
-        {
-            if (status_col_)
-            {
-                const std::string &sval = (*status_col_)[r];
-                if (!na::is(sval) && slot != slot_of_[str::toi(sval)])
-                    return false;
-            }
-            for (size_t i = 0; i < data.size(); ++i)
-            {
-                const std::string &dval = rules.input.at(data[i])[r];
-                if (!na::is(dval) && data_wide.raw(keys[i], indiv) != str::tod(dval))
-                    return false;
-            }
-            return true;
         }
     };
 
@@ -140,35 +120,35 @@ namespace housepi::risks
     struct ContactDefinitions
     {
     public:
-        std::vector<std::string> from; /// Covariate columns prefixed `from_`.
-        std::vector<std::string> to;   /// Covariate columns prefixed `to_`.
         std::vector<std::string> data; /// Covariates, prefix dropped.
         std::vector<size_t> keys;      /// Data-wide keys of the covariates.
-        RuleTable rules;               /// Rule groups and specificities.
+        RuleTable rules;               /// Rules over the `from_` columns, then the `to_` columns.
 
         /// Read the rules of `input`.
         /// @note Expects as many `from_` as `to_` columns.
         ContactDefinitions(const str_table &input,
-                           const data::Wide &data_wide)
-            : from(extract_prefixed_(input, "from_")),
-              to(extract_prefixed_(input, "to_")),
-              data(strip_from_prefix_(from)),
+                           const data::Wide &data_wide,
+                           const Parameter &param)
+            : data(prefixed_(input, "from_", true)),
               keys(data_wide.khold(data)),
-              rules(input, vect::concatenate(from, to)) {}
+              rules(input, vect::concatenate(prefixed_(input, "from_"), prefixed_(input, "to_")), param) {}
 
         /// Resolve the risks the pair `indiv_from` to `indiv_to` multiplies.
         /// - per rule group: the most specific matching rule;
         /// - across groups: the product, the reference left out.
-        /// Registers the scale anchoring of every group in `anchors`.
         std::vector<const Attribute *> associate_param_ptrs(const data::Wide &data_wide,
                                                             const Parameter &param,
                                                             const Individual &indiv_from,
-                                                            const Individual &indiv_to,
-                                                            std::map<size_t, ScaleAnchor> &anchors) const
+                                                            const Individual &indiv_to) const
         {
+            std::vector<double> probe(2 * keys.size());
+            for (size_t i = 0; i < keys.size(); ++i)
+            {
+                probe[i] = data_wide.raw(keys[i], indiv_from);
+                probe[keys.size() + i] = data_wide.raw(keys[i], indiv_to);
+            }
             const auto resolved = rules.resolve<size_t>(
-                [&](size_t r)
-                { return matches_(data_wide, r, indiv_from, indiv_to); },
+                probe,
                 [&](size_t r)
                 { return rules.row_gid[r]; },
                 [&](size_t)
@@ -178,55 +158,23 @@ namespace housepi::risks
                 });
 
             std::vector<const Attribute *> param_ptrs;
-            param_ptrs.reserve(resolved.size());
             for (auto &[gid, r] : resolved)
-            {
-                const auto &pstr = rules.input.at("param_name")[r];
-                if (!na::is(pstr) && pstr != REFERENCE)
-                    param_ptrs.push_back(param.at(param.khold(pstr)).pointer());
-            }
-
-            update_anchors(anchors, resolved, rules.input.at("param_name"), param);
+                if (const size_t p = rules.row_param[r]; !na::is(p))
+                    param_ptrs.push_back(param.at(p).pointer());
             return param_ptrs;
         }
 
     private:
-        /// Columns of `input` starting with `prefix`.
-        static std::vector<std::string> extract_prefixed_(const str_table &input, const char *prefix)
+        /// Columns of `input` starting with `prefix`, the prefix dropped when `strip`.
+        static std::vector<std::string> prefixed_(const str_table &input,
+                                                  std::string_view prefix,
+                                                  bool strip = false)
         {
             std::vector<std::string> out;
             for (const auto &key : extract_keys(input))
                 if (str::starts_with(key, prefix))
-                    out.push_back(key);
+                    out.push_back(strip ? key.substr(prefix.size()) : key);
             return out;
-        }
-        /// Drop the `from_` prefix of every column in `from`.
-        static std::vector<std::string> strip_from_prefix_(const std::vector<std::string> &from)
-        {
-            std::vector<std::string> out;
-            out.reserve(from.size());
-            for (const auto &k : from)
-                out.push_back(k.substr(5));
-            return out;
-        }
-
-        /// Whether the pair `indiv_from` to `indiv_to` matches rule row `r`.
-        bool matches_(const data::Wide &data_wide,
-                      size_t r,
-                      const Individual &indiv_from,
-                      const Individual &indiv_to) const
-        {
-            for (size_t i = 0; i < from.size(); ++i)
-            {
-                const std::string &fval = rules.input.at(from[i])[r];
-                if (!na::is(fval) && data_wide.raw(keys[i], indiv_from) != str::tod(fval))
-                    return false;
-
-                const std::string &tval = rules.input.at(to[i])[r];
-                if (!na::is(tval) && data_wide.raw(keys[i], indiv_to) != str::tod(tval))
-                    return false;
-            }
-            return true;
         }
     };
 

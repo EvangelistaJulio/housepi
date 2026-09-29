@@ -194,7 +194,7 @@ test_that("Progress bar renders, refreshes and closes", {
         hhmodel <- mk_wrapper$model |>
           add_parameter("rho", prior = "uniform") |>
           run_inference(steps = 1e10, thin = 1e4, progress = 3)
-      }, interrupt = function(e) e)
+      }, interrupt = \(e) e)
     })
   )
   outcome |> expect_s3_class("interrupt")
@@ -233,13 +233,13 @@ test_that("Group risk wrapper input branches", {
     )
   get_parameters(hhmodel, "sus_student")$value |> expect_equal(1.23)
 
-  # check for non-existing custom covariates
+  # a covariate value the data never carries resolves no member
   strata <- tibble::tribble(~member,   ~param_name,
                             "unknown", "sus_student",
                             NA,        ".reference")
   hhmodel |>
     add_group_risk("susceptibility", strata = strata, append = FALSE) |>
-    expect_warning("[Uu]nknown.*member.*unknown")
+    expect_error("1 rule no member resolves to.*member = .unknown.")
 
   # append = FALSE drops the existing group risks
   ("susceptibility" %in% get_group_risks(hhmodel)[["group_risk"]]) |>
@@ -254,7 +254,7 @@ test_that("Group risk wrapper input branches", {
 test_that("Contact risk wrapper input branches", {
   strata <- tibble::tribble(
     ~from_member, ~to_member, ~param_name,
-    "student",    "student",  "ctr_student",
+    "student",    "mother",   "ctr_student",
     NA,           NA,         ".reference"
   )
 
@@ -271,7 +271,7 @@ test_that("Contact risk wrapper input branches", {
   # the wrapper returns a new model, leaving its input untouched
   hhmodel <- mk_member$model |>
     add_contact_risk(strata = strata, params = list(ctr_student = 1.21))
-  nrow(mk_member$model$contact_risks) |> expect_identical(0L)
+  mk_member$model$contact_risks |> expect_nrow(0L)
   nrow(get_contact_risks(hhmodel)) |> expect_gt(0L)
   get_contact_risks(hhmodel) |> expect_identical(hhmodel$contact_risks)
   # the rebuilt parameter is exposed on the returned model
