@@ -619,7 +619,8 @@ HousepiModel <- R6::R6Class(
     # Derive the risks from the data and push every definition the engine can
     # already take.
     # @param wall `logical(1)` Whether to raise error.
-    push_definitions_ = function(wall = FALSE) {
+    # @param derive `logical(1)` Whether to re-derive the risk tables.
+    push_definitions_ = function(wall = FALSE, derive = TRUE) {
       # guard: pre-init (before generator is created)
       if (is.null(private$gen_) ||
             is.null(private$gen_$mcmc_ptr)) {
@@ -641,10 +642,10 @@ HousepiModel <- R6::R6Class(
       )
 
       # risks derive from their own covariates (they append to param_$defs)
-      if (length(private$group_risks_$defs) > 0) {
+      if (derive && length(private$group_risks_$defs) > 0) {
         private$build_group_risks_(wall)
       }
-      if (length(private$contact_risks_$defs) > 0) {
+      if (derive && length(private$contact_risks_$defs) > 0) {
         private$build_contact_risks_()
       }
 
@@ -1055,13 +1056,14 @@ HousepiModel <- R6::R6Class(
       new_gen$init_pointers()
       obj_priv$gen_ <- new_gen
 
-      # NOTE: setup is run-scoped, fully resupplied by build_full_ at every
+      # @note setup is run-scoped, fully resupplied by build_full_ at every
       # run/evaluate, so it is intentionally not carried across a copy.
       # share data store (just copy-on-write)
       .engine$share_data_store(new_gen$mcmc_ptr, private$gen_$mcmc_ptr)
 
       # fresh pointer needs definitions pushed to the engine
-      obj_priv$rebuild_()
+      # @note cloned risk tables were derived on shared data so not re-derived
+      obj_priv$push_definitions_(derive = FALSE)
 
       obj
     },

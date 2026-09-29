@@ -176,17 +176,6 @@ recovery_house_counts_ <- function(houses, observed, one = FALSE) {
   n
 }
 
-#' Whether a fit passed both diagnostics, on the predicate that
-#' `check_diagnostics_()` warns on. A sample too short for a diagnostic is
-#' flagged whole, as the engine skips it entirely.
-#' @noRd
-recovery_converged_ <- function(summ, sample_size) {
-  if (sample_size < diagnostic_[["ss_min"]]) return(rep(FALSE, nrow(summ)))
-  good_rhat <- !(round(summ[["rhat"]], 2) > diagnostic_[["rhat_max"]])
-  good_ess <- !(summ[["ess_bulk"]] / sample_size < diagnostic_[["neff_min"]])
-  (good_rhat %in% TRUE) & (good_ess %in% TRUE)
-}
-
 #' Progress bar over the replicate grid, or nothing when it is switched off.
 #' The bar of each fit is suppressed, so a sweep prints one bar.
 #' @noRd
@@ -354,17 +343,17 @@ HousepiParameterRecovery <- R6::R6Class(
         pdraws,
         estimate = stat,
         cri_lower = function(x) unname(stats::quantile(x, probs[["lower"]])),
-        cri_upper = function(x) unname(stats::quantile(x, probs[["upper"]])),
-        rhat = posterior::rhat, ess_bulk = posterior::ess_bulk
+        cri_upper = function(x) unname(stats::quantile(x, probs[["upper"]]))
       ))
       summ <- summ[summ[["variable"]] %in% names(private$truth_), ]
-      sample_size <- posterior::niterations(pdraws) * posterior::nchains(pdraws)
-      cbind(
-        summ["variable"],
-        truth = unname(private$truth_[summ[["variable"]]]),
-        summ[c("estimate", "cri_lower", "cri_upper", "rhat", "ess_bulk")],
-        converged = recovery_converged_(summ, sample_size)
-      )
+      # the diagnostics and the verdict the fit reached
+      diag <- draws$.__enclos_env__$private$diagnostics_
+      diag <- diag[match(summ[["variable"]], diag[["variable"]]), ]
+      cbind(summ["variable"],
+            truth = unname(private$truth_[summ[["variable"]]]),
+            summ[c("estimate", "cri_lower", "cri_upper")],
+            diag[c("rhat", "ess_bulk", "converged")],
+            row.names = NULL)
     },
 
     # One warning per distinct message, with the count of replicates that
@@ -395,7 +384,8 @@ HousepiParameterRecovery <- R6::R6Class(
     #'   \item{estimate}{Posterior point estimate}
     #'   \item{cri_lower, cri_upper}{Credible interval bounds}
     #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit}
-    #'   \item{converged}{Whether the fit passed both diagnostics}
+    #'   \item{converged}{`FALSE` when the fit was flagged:
+    #'     `r paste(diagnostic_flags_, collapse = "; ")`}
     #' }
     estimates = function(value) {
       if (!missing(value)) stop_read_only("estimates")
@@ -406,7 +396,7 @@ HousepiParameterRecovery <- R6::R6Class(
     #' One row per household count and replicate
     #' \describe{
     #'   \item{inference_seconds}{Wall-clock of the sampling loop}
-    #'   \item{converged}{Whether every parameter passed both diagnostics}
+    #'   \item{converged}{Whether every parameter of the fit converged}
     #'   \item{error}{Message of a replicate that failed, else `NA`}
     #' }
     replicates = function(value) {
@@ -533,8 +523,8 @@ HousepiParameterRecovery <- R6::R6Class(
       )
       private$fit_args_ <- c(
         list(steps = steps, burn = burn, thin = thin, adapt = adapt,
-             chains = chains, threads = threads, progress = FALSE,
-             warn = FALSE),
+             chains = chains, threads = threads, id_draws = ".none",
+             progress = FALSE, warn = FALSE),
         dots[names(dots) == "adapt_window"]
       )
       swept <- private$sweep_(hhmodel, structure, structure_sampler, progress)

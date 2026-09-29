@@ -27,14 +27,15 @@ One row per household count, replicate and parameter
 \item{estimate}{Posterior point estimate}
 \item{cri_lower, cri_upper}{Credible interval bounds}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit}
-\item{converged}{Whether the fit passed both diagnostics}
+\item{converged}{\code{FALSE} when the fit was flagged:
+Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws}
 }}
 
     \item{\code{replicates}}{\code{data.frame}
 One row per household count and replicate
 \describe{
 \item{inference_seconds}{Wall-clock of the sampling loop}
-\item{converged}{Whether every parameter passed both diagnostics}
+\item{converged}{Whether every parameter of the fit converged}
 \item{error}{Message of a replicate that failed, else \code{NA}}
 }}
 

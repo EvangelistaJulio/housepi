@@ -460,16 +460,14 @@ get_observations <- function(hhmodel, name = NA) {
 #' @export
 get_group_risks <- function(hhmodel, name = NA) {
   stopifnothousepi(hhmodel)
-  # NOTE: internal build requires deep clone to avoid in-place
-  subset_definitions_(hhmodel$copy()$group_risks, name, "group_risk")
+  subset_definitions_(hhmodel$group_risks, name, "group_risk")
 }
 
 #' @rdname get_definitions
 #' @export
 get_contact_risks <- function(hhmodel) {
   stopifnothousepi(hhmodel)
-  # NOTE: internal build requires deep clone to avoid in-place
-  hhmodel$copy()$contact_risks
+  hhmodel$contact_risks
 }
 
 #' @rdname get_definitions

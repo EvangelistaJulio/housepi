@@ -150,6 +150,9 @@ test_that("A run too short to diagnose is flagged whole", {
   )
   results$warnings$message |> expect_match("[Tt]otal sample size")
   results$warnings$count |> expect_identical(2L)
+  # diagnosed all the same, and never converged
+  results$estimates$rhat |> expect_no_na()
+  results$estimates$ess_bulk |> expect_no_na()
   results$estimates$converged |> expect_all_false()
   results$overview$n_flagged |> expect_identical(2L)
 })

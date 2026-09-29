@@ -55,34 +55,37 @@ test_that("Invalid posterior summary settings are rejected", {
 })
 
 test_that("A rejected setting leaves both values in place", {
-  withr::with_options(list(housepi.point_estimate = "median",
-                           housepi.cri_level = 0.95), {
-    # the point estimate is valid, the credible level is not
-    set_global_posterior_summary(point_estimate = "mean", cri_level = 2) |>
-      expect_error("between 0.5 and 1")
-    get_global_point_estimate() |> expect_identical("median")
-    get_global_cri_level() |> expect_equal(0.95)
-  })
+  withr::with_options(
+    list(housepi.point_estimate = "median", housepi.cri_level = 0.95), {
+      # the point estimate is valid, the credible level is not
+      set_global_posterior_summary(point_estimate = "mean", cri_level = 2) |>
+        expect_error("between 0.5 and 1")
+      get_global_point_estimate() |> expect_identical("median")
+      get_global_cri_level() |> expect_equal(0.95)
+    }
+  )
 })
 
 test_that("The global posterior summary is set and read back", {
-  withr::with_options(list(housepi.point_estimate = NULL,
-                           housepi.cri_level = NULL), {
-    get_global_point_estimate() |> expect_identical("median")
-    get_global_cri_level() |> expect_equal(0.95)
-  })
-  withr::with_options(list(housepi.point_estimate = "median",
-                           housepi.cri_level = 0.95), {
-    # an argument left out keeps its value
-    old <- set_global_posterior_summary(cri_level = 0.90)
-    old |> expect_equal(list(point_estimate = "median", cri_level = 0.95))
-    get_global_cri_level() |> expect_equal(0.90)
-    get_global_point_estimate() |> expect_identical("median")
+  withr::with_options(
+    list(housepi.point_estimate = NULL, housepi.cri_level = NULL), {
+      get_global_point_estimate() |> expect_identical("median")
+      get_global_cri_level() |> expect_equal(0.95)
+    }
+  )
+  withr::with_options(
+    list(housepi.point_estimate = "median", housepi.cri_level = 0.95), {
+      # an argument left out keeps its value
+      old <- set_global_posterior_summary(cri_level = 0.90)
+      old |> expect_equal(list(point_estimate = "median", cri_level = 0.95))
+      get_global_cri_level() |> expect_equal(0.90)
+      get_global_point_estimate() |> expect_identical("median")
 
-    # the returned values restore what was there
-    do.call(set_global_posterior_summary, old)
-    get_global_cri_level() |> expect_equal(0.95)
-  })
+      # the returned values restore what was there
+      do.call(set_global_posterior_summary, old)
+      get_global_cri_level() |> expect_equal(0.95)
+    }
+  )
 })
 
 test_that("Summarise-draws default columns track cri_level", {
@@ -170,7 +173,7 @@ test_that("Print behavior is stable", {
   print(local_results) |> expect_snapshot()
 })
 
-test_that("A short run records the diagnostic it skipped", {
+test_that("A short run records one warning, under its sample size", {
   flagged <- mk_draws$results$warnings
   flagged |> expect_nrow(1L)
   flagged$message |> expect_match("[Ss]ample size was below")
