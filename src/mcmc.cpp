@@ -929,14 +929,6 @@ namespace housepi
     {
         LogLikAccumulator acc;
 
-        // transmission
-        model->update_house_transmission_cache(house);
-        acc.transm_ll = commit_transm_log_lik_(house);
-        if (data.state.transm_log_lik(house).is_inf())
-            msg::stop(
-                "Initial transmission log-likelihood returned infinity for " +
-                data.wide().str(house) + ".");
-
         // observation
         // resample each individual variable upon failure
         if (augm.scheme().is_any_obs_model())
@@ -955,6 +947,14 @@ namespace housepi
                 }
                 acc.obs_ll += augm.commit_obs_log_lik(indiv);
             }
+
+        // transmission, on the latents the observations accepted
+        model->update_house_transmission_cache(house);
+        acc.transm_ll = commit_transm_log_lik_(house);
+        if (data.state.transm_log_lik(house).is_inf())
+            msg::stop(
+                "Initial transmission log-likelihood returned infinity for " +
+                data.wide().str(house) + ".");
 
         // latent
         if (augm.scheme().is_any_latent_model())
