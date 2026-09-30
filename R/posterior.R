@@ -233,8 +233,9 @@ diagnose_block_ <- function(d, ss) {
   sm
 }
 
-# Findings of one diagnosed block, one line per failure combination, with a
-# hint on the failure modes present; `NULL` when nothing is flagged.
+# Findings of one diagnosed block, under a header naming the flagged draws,
+# one line per failure combination, with a hint on the failure modes present;
+# `NULL` when nothing is flagged.
 check_diagnostics_one_ <- function(sm, draws_kind) {
   if (is.null(sm)) return(NULL)
   bad_rhat <- which(sm$bad_rhat %in% TRUE)
@@ -265,11 +266,13 @@ check_diagnostics_one_ <- function(sm, draws_kind) {
     if (length(bad_bulk) > 0L) "the sampler explores the posterior slowly"
   ), collapse = "; ")
   substr(hint, 1L, 1L) <- toupper(substr(hint, 1L, 1L))
-  list(findings = findings, hint = paste0(hint, "."))
+  list(header = paste0("Convergence diagnostics flagged ", draws_kind,
+                       " draws."),
+       findings = findings, hint = paste0(hint, "."))
 }
 
 # Stan-style post-inference diagnostics: the message blocks to report and the
-# per-parameter R-hat, Bulk ESS and convergence verdict.
+# per-parameter R-hat, Bulk ESS and whether the parameter is flagged.
 # A short sample reports its findings under one block of its own.
 # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
 check_diagnostics_ <- function(draws) {
@@ -289,13 +292,13 @@ check_diagnostics_ <- function(draws) {
     unlist(lapply(found, `[[`, "findings")),
     "Estimates may be unreliable."
   )) else lapply(found, function(f) {
-    c("Convergence diagnostics flagged the following:", f$findings, f$hint)
+    c(f$header, f$findings, f$hint)
   })
 
   param <- sm$param
   if (!is.null(param)) param <- data.frame(
     param[c("variable", "rhat", "ess_bulk")],
-    converged = !short & param$bad_rhat %in% FALSE & param$bad_ess %in% FALSE
+    flagged = short | !(param$bad_rhat %in% FALSE) | !(param$bad_ess %in% FALSE)
   )
   list(blocks = blocks, param = param)
 }
@@ -462,7 +465,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       idx <- draws_index_(.engine$export_setup(ptr))
 
       # store cpp draws converted to posterior
-      tag <- function(df) tag_rcpp_draws_(df, idx)
+      tag <- \(df) tag_rcpp_draws_(df, idx)
       lp <- .engine$flush_param_log_prior_draws(ptr)
       private$draws_ <- list(
         param = tag(.engine$flush_param_draws(ptr)),

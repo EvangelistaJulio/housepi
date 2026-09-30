@@ -29,7 +29,7 @@ One row per household count, replicate and parameter
 \item{cri_lower, cri_upper}{Credible interval bounds}
 \item{covers}{Whether the credible interval covers the truth}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit}
-\item{converged}{\code{FALSE} when the fit was flagged:
+\item{flagged}{\code{TRUE} when the diagnostics flagged the parameter:
 Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws}
 }}
 
@@ -39,7 +39,7 @@ One row per household count and replicate
 \item{inference_secs}{Wall-clock of the sampling loop}
 \item{min_ess_bulk}{Smallest bulk effective sample size over the
 parameters of the fit}
-\item{converged}{Whether every parameter of the fit converged}
+\item{flagged}{Whether any parameter of the fit was flagged}
 \item{error}{Message of a replicate that crashed, else \code{NA}}
 }}
 
@@ -58,9 +58,9 @@ Sweep cost per household count, averaged over the replicates
 \describe{
 \item{nrep, n_crashed, n_flagged}{Replicates run, crashed and flagged}
 \item{mean_inference_secs}{Mean wall-clock of a sampling loop}
-\item{mean_min_ess_per_sec}{Mean of \code{min_ess_bulk} per second of
-sampling, as in \code{replicates}: an efficiency of this run on this
-machine and thread count, not of the model}
+\item{secs_per_ess}{Seconds of sampling per effective draw of the
+worst-mixing parameter, pooled over the replicates: a cost of this
+run on this machine and thread count, not of the model}
 }}
 
     \item{\code{truth}}{named \code{numeric()}

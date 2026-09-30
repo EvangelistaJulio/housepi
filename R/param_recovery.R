@@ -76,9 +76,8 @@ recovery_collapse_truth_ <- function(truth, point_estimate) {
 }
 
 #' The parameters a recovery check is about: estimated, hence carrying a prior
-#' and free. Every one of them must be pinned, since a parameter absent from
-#' the simulation table is drawn from its prior and its recorded truth would
-#' be a lie.
+#' and free. Every one of them must be pinned, since a recovery check simulates
+#' every replicate at the same known values.
 #' @noRd
 recovery_truth_ <- function(hhmodel, param_table) {
   defs <- get_parameters(hhmodel)
@@ -103,17 +102,17 @@ recovery_truth_ <- function(hhmodel, param_table) {
 #' @noRd
 recovery_summary_ <- function(estimates) {
   recovery_by_(estimates, c("houses", "variable"), function(d) {
-    truth <- d[["truth"]][[1L]]
+    truth <- d[["truth"]]
     error <- d[["estimate"]] - truth
     data.frame(
-      d[1L, c("houses", "variable")], truth = truth,
+      d[1L, c("houses", "variable")], truth = truth[[1L]],
       estimate = mean(d[["estimate"]]), bias = mean(error),
-      rel_bias = if (truth == 0) NA_real_ else mean(error) / truth,
+      rel_bias = if (any(truth == 0)) NA_real_ else mean(error / truth),
       rmse = sqrt(mean(error^2)),
       coverage = mean(d[["covers"]]),
       cri_width = mean(d[["cri_upper"]] - d[["cri_lower"]]),
       ess_bulk = mean(d[["ess_bulk"]]),
-      nrep = nrow(d), n_flagged = sum(!d[["converged"]])
+      nrep = nrow(d), n_flagged = sum(d[["flagged"]])
     )
   })
 }
@@ -123,14 +122,14 @@ recovery_summary_ <- function(estimates) {
 #' @noRd
 recovery_overview_ <- function(replicates) {
   recovery_by_(replicates, "houses", function(d) {
+    ok <- !is.na(d[["inference_secs"]]) & !is.na(d[["min_ess_bulk"]])
     data.frame(
       houses = d[["houses"]][[1L]], nrep = nrow(d),
       n_crashed = sum(!is.na(d[["error"]])),
-      n_flagged = sum(d[["converged"]] %in% FALSE),
+      n_flagged = sum(d[["flagged"]] %in% TRUE),
       mean_inference_secs = mean(d[["inference_secs"]], na.rm = TRUE),
-      mean_min_ess_per_sec = mean(
-        d[["min_ess_bulk"]] / d[["inference_secs"]], na.rm = TRUE
-      )
+      secs_per_ess =
+        sum(d[["inference_secs"]][ok]) / sum(d[["min_ess_bulk"]][ok])
     )
   })
 }
@@ -277,15 +276,18 @@ HousepiParameterRecovery <- R6::R6Class(
       for (houses in private$houses_) {
         struct <- structure
         if (!is.null(sampler)) struct <- sampler(structure, houses)
-        surveys <- recovery_run_(run_simulation, hhmodel, struct,
+        surveys <- recovery_run_(simulate_with_parameters_, hhmodel, struct,
                                  private$sim_args_)
-        if (is.data.frame(surveys)) surveys <- list(surveys)
+        wide <- surveys$wide
+        if (is.data.frame(wide)) wide <- list(wide)
         cell <- lapply(seq_len(private$nrep_), function(rep) {
-          one <- private$one_replicate_(hhmodel, surveys[[rep]], houses, rep)
+          truth <- unlist(surveys$parameters[rep, , drop = FALSE])
+          one <- private$one_replicate_(hhmodel, wide[[rep]], truth, houses,
+                                        rep)
           if (!is.null(bar)) cli::cli_progress_update(id = bar)
           one
         })
-        rm(surveys)
+        rm(surveys, wide)
         done <- Filter(Negate(is.null), lapply(cell, `[[`, "estimates"))
         # an engine message carries no markup: interpolate, never inline
         reason <- cell[[1L]]$replicate[["error"]]
@@ -301,12 +303,12 @@ HousepiParameterRecovery <- R6::R6Class(
            warnings = recovery_warning_counts_(raised))
     },
 
-    # One replicate: the fit of one survey.
+    # One replicate: the fit of the survey simulated at `truth`.
     # A replicate that crashes is recorded and the sweep carries on.
-    one_replicate_ = function(hhmodel, simulated, houses, rep) {
+    one_replicate_ = function(hhmodel, simulated, truth, houses, rep) {
       crash <- NA_character_
       fit <- tryCatch(
-        private$fit_one_(hhmodel, simulated, houses, rep),
+        private$fit_one_(hhmodel, simulated, truth, houses, rep),
         error = function(e) {
           crash <<- conditionMessage(e)
           NULL
@@ -320,7 +322,7 @@ HousepiParameterRecovery <- R6::R6Class(
           inference_secs = if (is.null(fit)) NA_real_ else fit$secs,
           min_ess_bulk = if (is.null(fit)) NA_real_ else
             min(fit$estimates$ess_bulk),
-          converged = if (is.null(fit)) NA else all(fit$estimates$converged),
+          flagged = if (is.null(fit)) NA else any(fit$estimates$flagged),
           error = crash
         )
       )
@@ -328,20 +330,21 @@ HousepiParameterRecovery <- R6::R6Class(
 
     # Fit one survey back and summarise its draws.
     # Kept whole and free of sweep state, so it can be mapped later.
-    fit_one_ = function(hhmodel, simulated, houses, rep) {
+    fit_one_ = function(hhmodel, simulated, truth, houses, rep) {
       latent <- intersect(hhmodel$latent[["name"]], names(simulated))
       hhdata <- simulated[setdiff(names(simulated), latent)]
       draws <- recovery_run_(run_inference, hhmodel, hhdata,
                              private$fit_args_)
       list(estimates = cbind(houses = houses, rep = rep,
-                             private$summarise_draws_(draws)),
+                             private$summarise_draws_(draws, truth)),
            warnings = draws$warnings,
            secs = draws$inference_secs)
     },
 
     # Point estimate, posterior sd, credible interval, whether it covers the
-    # truth, and convergence diagnostics per parameter.
-    summarise_draws_ = function(draws) {
+    # values the survey was simulated at, and convergence diagnostics per
+    # parameter.
+    summarise_draws_ = function(draws, truth) {
       stat <- switch(private$point_estimate_, mean = mean, stats::median)
       probs <- cri_level_probs(private$cri_level_)
       pdraws <- get_parameter_draws(draws)
@@ -349,11 +352,11 @@ HousepiParameterRecovery <- R6::R6Class(
         pdraws,
         estimate = stat,
         sd = stats::sd,
-        cri_lower = function(x) unname(stats::quantile(x, probs[["lower"]])),
-        cri_upper = function(x) unname(stats::quantile(x, probs[["upper"]]))
+        cri_lower = \(x) unname(stats::quantile(x, probs[["lower"]])),
+        cri_upper = \(x) unname(stats::quantile(x, probs[["upper"]]))
       ))
       summ <- summ[summ[["variable"]] %in% names(private$truth_), ]
-      truth <- unname(private$truth_[summ[["variable"]]])
+      truth <- unname(truth[summ[["variable"]]])
       covers <- summ[["cri_lower"]] <= truth & truth <= summ[["cri_upper"]]
       # the diagnostics and the verdict the fit reached
       diag <- draws$.__enclos_env__$private$diagnostics_
@@ -361,7 +364,7 @@ HousepiParameterRecovery <- R6::R6Class(
       cbind(summ["variable"], truth = truth,
             summ[c("estimate", "sd", "cri_lower", "cri_upper")],
             covers = covers,
-            diag[c("rhat", "ess_bulk", "converged")],
+            diag[c("rhat", "ess_bulk", "flagged")],
             row.names = NULL)
     },
 
@@ -370,7 +373,7 @@ HousepiParameterRecovery <- R6::R6Class(
     report_warnings_ = function() {
       if (is.null(private$warnings_) || nrow(private$warnings_) == 0L) return()
       n_warn <- nrow(private$warnings_)
-      lines <- mapply(function(n, msg) inline_cli_("{n} replicate{?s}: {msg}"),
+      lines <- mapply(\(n, msg) inline_cli_("{n} replicate{?s}: {msg}"),
                       private$warnings_[["count"]],
                       private$warnings_[["message"]])
       header <- inline_cli_(
@@ -395,7 +398,7 @@ HousepiParameterRecovery <- R6::R6Class(
     #'   \item{cri_lower, cri_upper}{Credible interval bounds}
     #'   \item{covers}{Whether the credible interval covers the truth}
     #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit}
-    #'   \item{converged}{`FALSE` when the fit was flagged:
+    #'   \item{flagged}{`TRUE` when the diagnostics flagged the parameter:
     #'     `r paste(diagnostic_flags_, collapse = "; ")`}
     #' }
     estimates = function(value) {
@@ -409,7 +412,7 @@ HousepiParameterRecovery <- R6::R6Class(
     #'   \item{inference_secs}{Wall-clock of the sampling loop}
     #'   \item{min_ess_bulk}{Smallest bulk effective sample size over the
     #'     parameters of the fit}
-    #'   \item{converged}{Whether every parameter of the fit converged}
+    #'   \item{flagged}{Whether any parameter of the fit was flagged}
     #'   \item{error}{Message of a replicate that crashed, else `NA`}
     #' }
     replicates = function(value) {
@@ -436,9 +439,9 @@ HousepiParameterRecovery <- R6::R6Class(
     #' \describe{
     #'   \item{nrep, n_crashed, n_flagged}{Replicates run, crashed and flagged}
     #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop}
-    #'   \item{mean_min_ess_per_sec}{Mean of `min_ess_bulk` per second of
-    #'     sampling, as in `replicates`: an efficiency of this run on this
-    #'     machine and thread count, not of the model}
+    #'   \item{secs_per_ess}{Seconds of sampling per effective draw of the
+    #'     worst-mixing parameter, pooled over the replicates: a cost of this
+    #'     run on this machine and thread count, not of the model}
     #' }
     overview = function(value) {
       if (!missing(value)) stop_read_only("overview")
@@ -557,7 +560,7 @@ HousepiParameterRecovery <- R6::R6Class(
     print = function() {
       model <- spaced_template_choice(private$name_)
       crashed <- sum(!is.na(private$replicates_[["error"]]))
-      flagged <- sum(private$replicates_[["converged"]] %in% FALSE)
+      flagged <- sum(private$replicates_[["flagged"]] %in% TRUE)
       print_bullets(c(
         i = "Parameter recovery check of model {.val {model}}.",
         "Households: {.val {private$houses_}}. \\

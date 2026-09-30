@@ -20,7 +20,7 @@ coerce_date_ <- function(x) {
 # anything else fails and stays symbolic. Date results collapse to a day count.
 try_fold_const_ <- function(expr, env) {
   val <- tryCatch(suppressWarnings(coerce_date_(eval(expr, envir = env))),
-                  error = function(e) NULL)
+                  error = \(e) NULL)
   if (is.numeric(val) && length(val) == 1L && !is.na(val)) val else NULL
 }
 
@@ -56,9 +56,9 @@ helper_default_source <- function(types, values) {
 
     } else if (!(k %in% names(source_labels_))) {
       stop_h("Invalid type {.val {k}} for value {.val {y}}.",
-             paste(mapply(function(tag, label) {
-               inline_cli_("{.val {tag}} ({label})")
-             }, names(source_labels_), source_labels_), collapse = ", "))
+             paste(mapply(\(tag, label) inline_cli_("{.val {tag}} ({label})"),
+                          names(source_labels_), source_labels_),
+                   collapse = ", "))
     }
 
     if (identical(types[i], "D") && y %in% data_reserved_cols) stop_h(
@@ -215,9 +215,7 @@ helper_case_container <- function(x_quos) {
     if (rlang::is_call(x_expr, c("list", "c"))) {
       elements <- as.list(x_expr[-1])
       # convert each element to a quosure with the same environment
-      x_quos <- lapply(elements, function(elem) {
-        rlang::new_quosure(elem, x_env)
-      })
+      x_quos <- lapply(elements, \(elem) rlang::new_quosure(elem, x_env))
     }
   }
   x_quos
@@ -293,7 +291,7 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
   requires_name <- "name" %in% names(formals(self$add_quo))
 
   # only inject defaults the per-definition arguments did not override
-  inject_defaults <- function(keys) defaults[setdiff(names(defaults), keys)]
+  inject_defaults <- \(keys) defaults[setdiff(names(defaults), keys)]
 
   for (i in seq_along(xquos)) {
     nm <- names(xquos[i])

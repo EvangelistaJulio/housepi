@@ -4,5 +4,6 @@ linters: linters_with_defaults(
 encoding: "UTF-8"
 exclusions: list(
     "tests/testthat/_snaps",
+    "R/data.R" = list(line_length_linter = Inf),
     "R/template_docs.R" = list(line_length_linter = Inf)
   )

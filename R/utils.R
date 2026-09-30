@@ -178,8 +178,7 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
       # an ESS above the draw count keeps every draw, capped or not
       # degenerate draws give NA, asserted below
       ess_bulk <- suppressWarnings(
-        sapply(posterior::variables(ptab),
-               function(v) posterior::ess_bulk(ptab[, v]))
+        sapply(posterior::variables(ptab), \(v) posterior::ess_bulk(ptab[, v]))
       )
       # check no NA values in ESS
       if (any(is.na(ess_bulk))) stop_h(
@@ -195,7 +194,7 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
 
   tryCatch({
     return(as.data.frame(ptab))
-  }, error = function(e) stop_h("Type of {.arg param_table} not supported.")
+  }, error = \(e) stop_h("Type of {.arg param_table} not supported.")
   )
 }
 
@@ -269,9 +268,8 @@ find_closest_match <- function(input, options, min_dist = 3,
 
     if (any(idxs)) {
       closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
-      output <- vapply(closest, function(x) {
-        inline_cli_("Did you mean {.val {x}}?")
-      }, character(1), USE.NAMES = FALSE)
+      output <- vapply(closest, \(x) inline_cli_("Did you mean {.val {x}}?"),
+                       character(1), USE.NAMES = FALSE)
     }
 
     if (!all(idxs) && isTRUE(list_options)) output <- c(output, inline_cli_(

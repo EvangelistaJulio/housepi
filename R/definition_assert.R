@@ -41,7 +41,7 @@ family2function_col <- function(family) {
 # keys on the salient last line (the cause), not the "Exposing ..." header.
 helper_format_error <- function(err) {
   if (length(err) == 1) return(err[[1]])
-  last <- vapply(err, function(x) utils::tail(strsplit(x, "\n")[[1]], 1),
+  last <- vapply(err, \(x) utils::tail(strsplit(x, "\n")[[1]], 1),
                  character(1))
   unused <- grepl(paste0("^(", bullet_tag_, ".)?(Unused|Missing)"), last)
   if (any(unused)) err[[which(unused)[[1]]]]
@@ -56,7 +56,7 @@ helper_format_error <- function(err) {
 probe_exposer_ <- function(fn, name, args) {
   member <- cpp_member_(.subset2(.engine, "module"), fn)
   tryCatch(member(name, unlist(args), NA_real_, NA_real_, FALSE),
-           error = function(e) conditionMessage(e))
+           error = \(e) conditionMessage(e))
 }
 
 # Build the definition in every registry the engine queries for this column
@@ -76,10 +76,8 @@ probe_definition_ <- function(func_name, arg_names, def_name,
   exposers <- c(func = "expose_function",
                 dist = "expose_distribution",
                 infec = "expose_infec_profile")
-  out <- lapply(
-    stats::setNames(nm = probed),
-    function(k) probe_exposer_(exposers[[k]], func_name, func_args)
-  )
+  out <- lapply(stats::setNames(nm = probed),
+                \(k) probe_exposer_(exposers[[k]], func_name, func_args))
   err <- Filter(is.character, out)
 
   # every registry refused the name: the definition has no reading

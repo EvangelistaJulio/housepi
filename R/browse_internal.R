@@ -17,7 +17,7 @@ rd_test_x_ <- "`numeric()` Points of evaluation."
 # No `{.run}` links: there is no per-name description to open.
 show_registered_ <- function(names, family) {
   fmt_names <- vapply(sort(names),
-                      function(nm) inline_cli_("{.val {nm}}"),
+                      \(nm) inline_cli_("{.val {nm}}"),
                       character(1), USE.NAMES = FALSE)
   cli::cli_inform(c(i = "Available {family}s:",
                     paste(cli::symbol$bullet, fmt_names)))
@@ -149,7 +149,7 @@ HousepiExposed <- R6::R6Class(
     print = function() {
       args <- self$args
       items <- vapply(names(args),
-                      function(arg) inline_cli_("{.arg {arg}} = {args[[arg]]}"),
+                      \(arg) inline_cli_("{.arg {arg}} = {args[[arg]]}"),
                       character(1), USE.NAMES = FALSE)
       if (!is.na(private$loc_)) {
         items <- c(items, "{.arg loc} = {format(private$loc_)}")

@@ -39,7 +39,7 @@ cpp_member_ <- function(x, name) {
 # conditions raised while the member runs route through the interceptor.
 wrap_cpp_member_ <- function(x, name) {
   fn <- cpp_member_(x, name)
-  function(...) with_cpp_conditions(fn(...))
+  \(...) with_cpp_conditions(fn(...))
 }
 #' Define the wrapper for to the .engine Rcpp class.
 #' @exportS3Method "$" housepi_engine

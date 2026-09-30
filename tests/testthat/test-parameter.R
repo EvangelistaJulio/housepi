@@ -570,13 +570,32 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
                              proposal_mean = 0.88, proposal_sd = 0.005)) |>
     add_latent(hidden = list(func = "rho@P"))
 
-  # a deterministic latent reading the parameter exports the value drawn
-  drawn <- run_simulation(hhmodel, nrep = 40) |>
-    vapply(\(x) x$hidden[1], numeric(1))
+  results <- simulate_with_parameters_(hhmodel, nrep = 40)
+  drawn <- results$parameters$rho
 
+  drawn |> expect_length(40L)
+  unique(drawn) |> expect_length(40L)
   (drawn >= 0.1 & drawn <= 0.9) |> expect_all_true()
   stats::sd(drawn) |> expect_gt(0.15) # uniform spread, not the proposal's 0.005
   mean(drawn) |> expect_lt(0.7)            # centred on the prior, not on 0.88
+  # a deterministic latent reading the parameter sees the value returned
+  vapply(results$wide, \(x) x$hidden[1], numeric(1)) |> expect_equal(drawn)
+})
+
+test_that("A pinned parameter is returned at its pin in simulation", {
+  hhmodel <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 0) |>
+    new_housepi_model("test") |>
+    add_parameter(rho = list(value = 0.3, prior = "uniform"),
+                  rho_2 = list(prior = "uniform"))
+
+  results <- simulate_with_parameters_(hhmodel, nrep = 5)
+  results$parameters |> expect_named(c("rho", "rho_2"), ignore.order = TRUE)
+  results$parameters$rho |> expect_all_equal(0.3)
+  # a single replicate returns its frame and a one-row table
+  results <- simulate_with_parameters_(hhmodel)
+  results$wide |> expect_s3_class("data.frame")
+  results$parameters |> expect_nrow(1L)
+  results$parameters$rho |> expect_equal(0.3)
 })
 
 test_that("An unpinned parameter is drawn from its prior at evaluation", {

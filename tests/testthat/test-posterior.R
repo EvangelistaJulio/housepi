@@ -220,18 +220,22 @@ test_that("The sampling loop reports its own cost", {
 })
 
 test_that("Diagnostic warning fires on poor mixing", {
-  flu_1918_frederick |>
-    new_housepi_model("final-size") |>
-    add_parameter(
-      # explicitly define micro-steps
-      alpha = list(prior = "uniform", proposal = "rw_log",
-                   proposal_scale = 1e-4),
-      beta  = list(prior = "uniform", proposal = "rw_log",
-                   proposal_scale = 1e-4),
-      gamma = 1, hhsize_ref = 5
-    ) |>
-    run_inference(steps = 1000L, thin = 1L, adapt = 0L, chains = 2L) |>
-    expect_warning("alpha.*beta.*not mixed")
+  expect_warning(
+    results <- flu_1918_frederick |>
+      new_housepi_model("final-size") |>
+      add_parameter(
+        # explicitly define micro-steps
+        alpha = list(prior = "uniform", proposal = "rw_log",
+                     proposal_scale = 1e-4),
+        beta  = list(prior = "uniform", proposal = "rw_log",
+                     proposal_scale = 1e-4),
+        gamma = 1, hhsize_ref = 5
+      ) |>
+      run_inference(steps = 1000L, thin = 1L, adapt = 0L, chains = 2L),
+    "alpha.*beta.*not mixed"
+  )
+  # the recorded line states what was flagged without the findings under it
+  results$warnings$message |> expect_match("[Ff]lagged parameter draws")
 })
 
 test_that("Pointwise log-lik is carried into the complete-draws bundle", {

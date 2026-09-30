@@ -1221,6 +1221,27 @@ run_simulation <- function(hhmodel,
                            thin_ess = TRUE,
                            nrep = NA_integer_,
                            ...) {
+  output <- simulate_with_parameters_(
+    hhmodel, obs_process = obs_process, obs_process_long = obs_process_long,
+    param_table = param_table, thin_ess = thin_ess, nrep = nrep, ...
+  )
+  output$parameters <- NULL
+  if (length(output) == 1) output[[1]] else output
+}
+
+#' Simulate from `hhmodel` as [run_simulation()] does, returning the list of
+#' `wide` and `long` surveys (one frame each for a single replicate) and
+#' `parameters`: the values each replicate is simulated at, pinned or drawn
+#' from the prior, one row per replicate.
+#' @keywords internal
+#' @noRd
+simulate_with_parameters_ <- function(hhmodel,
+                                      obs_process = NULL,
+                                      obs_process_long = NULL,
+                                      param_table = NULL,
+                                      thin_ess = TRUE,
+                                      nrep = NA_integer_,
+                                      ...) {
   stopifnothousepi(hhmodel)
   # simulation specific build
   assert_advanced_setup_("time_step", ...)
@@ -1240,13 +1261,10 @@ run_simulation <- function(hhmodel,
 
   # drop empty long
   if (length(output$long) == 0) output$long <- NULL
-  if (length(output) == 1) {
-    output <- output[[1]]
-    if (nrep == 1) output <- output[[1]]
-  } else if (nrep == 1) {
+  # unwrap the frames of a single replicate
+  if (nrep == 1) {
     output$wide <- output$wide[[1]]
     output$long <- output$long[[1]]
   }
-
   output
 }

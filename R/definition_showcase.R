@@ -29,14 +29,13 @@ showcaser_extract_numeric <- function(x) {
     if (length(z) != 2 || z[2] != "N") return(element)
     if (z[1] %in% .reserved_math_consts) return(get(z[1]))
     as.numeric(z[1])
-  }, na = function(e) if (is.logical(e)) e else NA_real_)
+  }, na = \(e) if (is.logical(e)) e else NA_real_)
 }
 
 # helper to extract function name from a definition
 showcaser_extract_func <- function(x) {
-  showcase_map_(x, function(z, element) {
-    if (length(z) <= 2) element else z[1]
-  }, na = NA_real_)
+  showcase_map_(x, \(z, element) if (length(z) <= 2) element else z[1],
+                na = NA_real_)
 }
 
 # helper to split most external semicolon separator

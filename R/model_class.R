@@ -277,9 +277,8 @@ HousepiModel <- R6::R6Class(
     # @param arg `character(1)`. Argument the values came from.
     assert_no_baseline_value_ = function(given, arg) {
       named <- intersect(names(given), names(private$baseline_pins_()))
-      held <- named[!vapply(given[named], function(v) {
-        all(v[!is.na(v)] == 1)
-      }, logical(1))]
+      held <- named[!vapply(given[named], \(v) all(v[!is.na(v)] == 1),
+                            logical(1))]
       if (length(held) == 0) return(invisible(self))
       stop_h(
         "{.arg {arg}} sets {.val {held}} to a value other than 1.",
@@ -310,9 +309,7 @@ HousepiModel <- R6::R6Class(
       # the full source-bearing column set, not the narrower requirement one:
       # a distribution or proposal argument carries references too
       cols <- c("value", "func", "prior", "model", "min", "max", "proposal")
-      scan <- function(defs) {
-        find_required_definitions(defs, "?", cols, NA_character_)
-      }
+      scan <- \(defs) find_required_definitions(defs, "?", cols, NA_character_)
       unresolved <- unique(c(scan(private$resolved_latent_()),
                              scan(private$resolved_profile_()),
                              scan(private$resolved_param_())))
@@ -325,7 +322,7 @@ HousepiModel <- R6::R6Class(
 
       sms <- character()
       for (nm in unresolved) {
-        claims <- names(sets)[vapply(sets, function(x) nm %in% x, logical(1))]
+        claims <- names(sets)[vapply(sets, \(x) nm %in% x, logical(1))]
         sms <- c(sms,
                  inline_cli_("Could not resolve the source of {.val {nm}}."))
         if (length(claims) > 1) {
@@ -508,7 +505,7 @@ HousepiModel <- R6::R6Class(
       live <- !is.null(gen) && !is.null(gen$mcmc_ptr)
       # what the transmission model declares it needs, whether or not the
       # matching column or parameter has landed yet
-      needs <- function(field) if (live) unname(gen[[field]]) else character()
+      needs <- \(field) if (live) unname(gen[[field]]) else character()
 
       defs <- private$augm_$defs
       latent <- character()
@@ -762,7 +759,7 @@ HousepiModel <- R6::R6Class(
       # byte budget for posterior draws materialisation
       # set 80% cap under R vsize, otherwise fall back to 16 GiB
       budget <- 16 * 2^30
-      vsize_mb <- tryCatch(mem.maxVSize(), error = function(e) Inf)
+      vsize_mb <- tryCatch(mem.maxVSize(), error = \(e) Inf)
       if (is.finite(vsize_mb) && vsize_mb > 0) budget <- 0.8 * vsize_mb * 2^20
 
       if (bytes_final <= budget) return(invisible())
@@ -836,17 +833,13 @@ HousepiModel <- R6::R6Class(
     # only suits consumers reading `hhid` and `status`.
     helper_obs_process_ = function(obs_process, labelled = TRUE) {
       gen <- private$gen_
-      if (is.null(obs_process)) {
-        if (!labelled) return(NULL)
-        function(x) gen$refactor_data_wide(x)
-      } else if (is.function(obs_process)) {
-        function(x) obs_process(gen$refactor_data_wide(x))
-      } else {
-        stop_h(
-          "Observation process must be a function.",
-          format_type_error(obs_process)
-        )
-      }
+      if (is.function(obs_process)) \(x) obs_process(gen$refactor_data_wide(x))
+      else if (!is.null(obs_process)) stop_h(
+        "Observation process must be a function.",
+        format_type_error(obs_process)
+      )
+      else if (!labelled) NULL
+      else \(x) gen$refactor_data_wide(x)
     },
 
     # @description
@@ -881,8 +874,7 @@ HousepiModel <- R6::R6Class(
       .engine$run_simulation(
         private$gen_$mcmc_ptr,
         obs_func, apply_wide,
-        if (is.null(apply_long)) NULL
-        else function(x) apply_long(obs_proc_long(x))
+        if (is.null(apply_long)) NULL else \(x) apply_long(obs_proc_long(x))
       )
     }
   ),
@@ -1145,7 +1137,7 @@ HousepiModel <- R6::R6Class(
 
       # order blocks by gravity (error, minor, satisfied), stable within ties
       rank <- c(x = 1L, `!` = 2L, v = 3L)
-      order_key <- vapply(blocks, function(b) rank[[names(b)[1]]], integer(1))
+      order_key <- vapply(blocks, \(b) rank[[names(b)[1]]], integer(1))
       blocks <- blocks[order(order_key)]
       order_key <- sort(order_key)
 

@@ -196,7 +196,7 @@ assess_covariate_values <- function(this_table) {
   # column names to consider
   colmask <- risk_cov_cols_(this_table)
   for (col in colmask) {
-    sapply(this_table[[col]], function(x) assert_valid_covariate(x, col))
+    sapply(this_table[[col]], \(x) assert_valid_covariate(x, col))
   }
   colmask
 }
@@ -356,9 +356,8 @@ compute_rule_groups <- function(tbl) {
 
   # a pattern is maximal when no other pattern strictly contains it
   has_strict_superset <- function(p) {
-    any(vapply(uniq_patterns, function(q) {
-      length(q) > length(p) && all(p %in% q)
-    }, logical(1)))
+    any(vapply(uniq_patterns, \(q) length(q) > length(p) && all(p %in% q),
+               logical(1)))
   }
   max_patterns <- uniq_patterns[
     !vapply(uniq_patterns, has_strict_superset, logical(1))
@@ -366,7 +365,7 @@ compute_rule_groups <- function(tbl) {
 
   # deterministic ordering: by serialized column set
   ord <- order(vapply(
-    max_patterns, function(p) paste(p, collapse = key_sep_), character(1)
+    max_patterns, \(p) paste(p, collapse = key_sep_), character(1)
   ))
   max_patterns <- max_patterns[ord]
 
@@ -374,8 +373,7 @@ compute_rule_groups <- function(tbl) {
   gids <- integer(nrow(tbl))
   for (i in seq_along(patterns)) {
     p <- patterns[[i]]
-    candidates <- which(vapply(max_patterns,
-                               function(m) all(p %in% m), logical(1)))
+    candidates <- which(vapply(max_patterns, \(m) all(p %in% m), logical(1)))
     if (length(candidates) == 1) {
       gids[i] <- candidates
     } else {
@@ -408,7 +406,7 @@ rule_hits_ <- function(tbl, cells) {
   # nothing but a catch-all
   Reduce(`&`, lapply(names(cells), function(col) {
     outer(as.character(cells[[col]]), as.character(tbl[[col]]),
-          function(d, r) is.na(r) | (!is.na(d) & d == r))
+          \(d, r) is.na(r) | (!is.na(d) & d == r))
   }), matrix(TRUE, nrow(cells), nrow(tbl)))
 }
 
@@ -517,7 +515,7 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
   # within a rule group, every tagged row must denote the same cell
   clash <- unlist(lapply(
     split(seq_along(idx_refer), tbl$rule_group),
-    function(k) if (length(unique(keys[k])) > 1) idx_refer[k]
+    \(k) if (length(unique(keys[k])) > 1) idx_refer[k]
   ))
   if (length(clash) > 0) stop_h(
     paste("{cli::qty(length(clash))}Row{?s} {sort(clash)} of one rule group",
@@ -819,7 +817,7 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
   assert_no_sibling_dist_arg(args, family, name)
 
   is_default <- sapply(c(prior, args, min, max, proposal),
-                       function(x) is.na(x) || is.null(x))
+                       \(x) is.na(x) || is.null(x))
   # all defaults: resolved once the data tells absolute from relative
   if (all(is_default)) return(NULL)
   # nolint next: object_usage_linter. read by the cli glue below
@@ -1190,7 +1188,7 @@ HousepiGroupRisk <- R6::R6Class(
                          wall = FALSE, stratified = character()) {
       # preserve custom-mode entries and drop auto-mode entries
       mask_custom <- names(which(vapply(
-        self$defs, function(d) d[["mode"]] == "custom", logical(1)
+        self$defs, \(d) d[["mode"]] == "custom", logical(1)
       )))
       self$logic_tables <- self$logic_tables[mask_custom]
 

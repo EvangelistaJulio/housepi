@@ -24,8 +24,8 @@ options(housepi.footer.sample = TRUE)
 ```
 
 Here we show how to check whether inference recovers the parameters used to simulate a dataset, at the same time checking how that changes with the sample size.
-The simulation study of [Get started](housepi.html) does this once: a single replicate can miss the truth by chance, while many of them show whether it misses systematically.
-A recovery check simulates many studys at known parameter values, fits each one back with the same model, and compares the estimates with the truth.
+A single replicate can miss the truth by chance, while many of them show whether it misses systematically.
+Recovery checks simulate many studies at known parameter values, fitting each one back with the same model, and comparing the estimates against the truth.
 
 We use the same final-size example presented in [Get started](housepi.html):
 
@@ -47,10 +47,10 @@ results <- hhmodel |>
 results
 ```
 
-The posterior above is used to estimate the model parameters.
-We ask whether inference process on a target study like the considered one, generated at those very values, would let inference find them again.
+The posterior draws above are used to estimate the model parameters.
+We check whether a dataset similar to the target one, simulated at the estimated parameters, would let inference recover them.
 
-# Would this study recover its own estimates?
+# Recover the model parameters
 
 Passing the fit as `truth` simulates at its point estimates.
 Without it, the check simulates at the `value` pins of the parameter definitions, which is how to test values of your own choosing.
@@ -67,9 +67,7 @@ houses <- round(n_houses * c(0.25, 0.5, 1, 2))
 houses
 ```
 
-# How many households?
-
-A check costs one fit per replicate and household sample size, and larger studys take longer to fit.
+A check costs one fit per replicate and household sample size, and larger studies take longer to fit.
 We can run different replicates at each sample size using `run_parameter_recovery_check`:
 
 ```{r}
@@ -79,7 +77,7 @@ recovery <- hhmodel |>
                                progress = FALSE)
 recovery
 
-# wall-clock of the sampling loop, averaged over the replicates
+# overview of the checks per sample size, averaged over replicates
 recovery$overview
 ```
 
@@ -89,7 +87,7 @@ recovery$overview
 sweep_minutes <- with(recovery$overview, sum(nrep * mean_inference_secs)) / 60
 ```
 
-Before running longer checks, it is useful to note how slower are the fits for the largest sample sizes.
+Before running longer checks, it is useful to note how much slower the fits are for the largest sample sizes.
 Here the `r sum(recovery$overview$nrep)` fits took `r round(sweep_minutes, 1)` minutes on one thread, from `r round(min(recovery$overview$mean_inference_secs), 1)` seconds each at `r min(houses)` households to `r round(max(recovery$overview$mean_inference_secs), 1)` seconds at `r max(houses)`.
 
 A fit whose draws do not pass the convergence diagnostics is counted as flagged: here `r sum(recovery$overview$n_flagged)` of `r sum(recovery$overview$nrep)`.
@@ -113,10 +111,8 @@ recovery$estimates |>
   ggplot(aes(x = rep, y = estimate)) +
   geom_pointrange(aes(ymin = cri_lower, ymax = cri_upper, colour = covers)) +
   geom_hline(aes(yintercept = truth)) +
-  # tell the intervals that miss the truth
   scale_colour_manual(values = c(`TRUE` = "black", `FALSE` = "coral"),
-                      labels = c(`TRUE` = "covers truth",
-                                 `FALSE` = "misses truth")) +
+                      labels = c(`TRUE` = "covered", `FALSE` = "missed")) +
   facet_wrap(~ variable, scales = "free_y") +
   labs(x = "Replicate", y = "Estimate", colour = NULL)
 ```
@@ -129,6 +125,7 @@ rownames(observed) <- observed$variable
 ```
 
 A reasonable recovery check shows intervals scattered around the target line, whereas intervals stacked on one side of it would be bias.
+An interval that misses the truth on a flagged fit points at the sampler rather than at the model.
 At this size the 95% intervals cover the truth in `r round(100 * observed["alpha", "coverage"])`% of the replicates for `alpha`, `r round(100 * observed["beta", "coverage"])`% for `beta`, and `r round(100 * observed["gamma", "coverage"])`% for `gamma`.
 
 ## Bias across sizes
@@ -156,30 +153,28 @@ A box that narrows as households are added is a study buying precision, and one 
 ## What a larger study buys
 
 A larger study costs more to collect, and more to fit.
-We put the width of the credible interval on each parameter next to the time of one fit, and to the effective sample size (ESS) it draws per second.
-A fit is only as usable as its worst-mixing parameter, so the ESS is the smallest bulk ESS over the parameters:
+We put the width of the credible interval on each parameter next to the seconds it takes to draw 1000 effective samples.
+A fit is only as usable as its worst-mixing parameter, so the effective sample size (ESS) is here the smallest bulk ESS over the parameters:
 
 ```{r}
 #| label: design-table
-vars <- names(recovery$truth)
+n_vars <- length(names(recovery$truth))
+
+cost <- recovery$overview |> 
+  dplyr::summarise(cost = 1000 * secs_per_ess, .by = "houses")
 
 recovery$summary |>
   dplyr::select(houses, variable, cri_width) |>
   tidyr::pivot_wider(names_from = variable, values_from = cri_width) |>
-  dplyr::left_join(recovery$overview[c("houses", "mean_inference_secs",
-                                       "mean_min_ess_per_sec")],
-                   by = "houses") |>
-  dplyr::mutate(mean_min_ess_per_sec = as.integer(mean_min_ess_per_sec)) |>
+  dplyr::left_join(cost, by = "houses") |>
   flextable::flextable() |>
   flextable::colformat_double(digits = 3) |>
-  flextable::colformat_double(j = "mean_inference_secs", digits = 1) |>
-  flextable::add_header_row(values = c("", "CrI width", "", ""),
-                            colwidths = c(1, length(vars), 1, 1)) |>
-  flextable::labelizor(
-    labels = c(houses = "n. households",
-               mean_inference_secs = "seconds per fit",
-               mean_min_ess_per_sec = "min ESS per second")
-  ) |>
+  flextable::colformat_double(j = "cost", digits = 1) |>
+  flextable::add_header_row(values = c("houses", "CrI width", "cost"),
+                            colwidths = c(1, n_vars, 1)) |>
+  flextable::merge_v(part = "header") |>
+  flextable::labelizor(labels = c(houses = "n. households",
+                                  cost = "seconds per 1000 ESS")) |>
   flextable::align(align = "center", part = "all") |>
   flextable::autofit()
 ```
@@ -190,12 +185,11 @@ recovery$summary |>
 width <- tidyr::pivot_wider(recovery$summary[c("houses", "variable", "cri_width")],
                             names_from = houses, values_from = cri_width)
 narrower <- 1 - width[[as.character(2 * n_houses)]] / width[[as.character(n_houses)]]
-secs <- setNames(recovery$overview$mean_inference_secs,
-                 recovery$overview$houses)
+secs <- setNames(cost$cost, cost$houses)
 slower <- secs[[as.character(2 * n_houses)]] / secs[[as.character(n_houses)]] - 1
 ```
 
-Doubling Frederick to `r 2 * n_houses` households narrows the intervals by `r round(100 * min(narrower))`% - `r round(100 * max(narrower))`%, but makes a fit `r round(100 * slower)`% slower.
+Doubling the sample size narrows the intervals by `r round(100 * min(narrower))`% - `r round(100 * max(narrower))`%, but makes its `r round(100 * slower)`% slower to collect 1000 effective draws.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

@@ -765,20 +765,10 @@ namespace
         return col;
     }
 
-    /// Attach data.frame class and row names to `cols`, a list of equal-length columns.
-    void helper_set_dataframe_attrs(Rcpp::List &cols,
-                                    R_xlen_t n_rows)
-    {
-        cols.attr("row.names") = Rcpp::IntegerVector::create(NA_INTEGER, -static_cast<int>(n_rows));
-        cols.attr("class") = "data.frame";
-    }
-
     /// Flush each column of `draws` into a data.frame column, releasing C++ storage.
     /// Skipping the NumericMatrix intermediate lets R use the columns in place.
     Rcpp::List flush_2d_draws_to_df(std::vector<std::vector<double>> &draws,
-                                    const std::vector<std::string> &col_names,
-                                    size_t n_rows,
-                                    const char *err_type)
+                                    const std::vector<std::string> &col_names)
     {
         if (draws.empty())
             return Rcpp::List();
@@ -791,24 +781,21 @@ namespace
         std::vector<std::vector<double>>().swap(draws);
 
         cols.attr("names") = Rcpp::wrap(col_names);
-        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(n_rows));
-        return cols;
+        return rcpp_data_frame(cols);
     }
 
     /// Flush parameter value draws as a data.frame.
     Rcpp::List flush_param_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
-        return flush_2d_draws_to_df(post.param_values, post.param_names,
-                                    post.sample_size(), "parameter");
+        return flush_2d_draws_to_df(post.param_values, post.param_names);
     }
 
     /// Flush parameter log-prior draws as a data.frame.
     Rcpp::List flush_param_log_prior_draws(Rcpp::XPtr<MCMC> mcmc_ptr)
     {
         Posterior &post = mcmc_ptr->posterior;
-        return flush_2d_draws_to_df(post.param_priors, post.param_prior_names,
-                                    post.sample_size(), "parameter log-prior");
+        return flush_2d_draws_to_df(post.param_priors, post.param_prior_names);
     }
 
     /// Flush latent draws as a data.frame.
@@ -832,8 +819,7 @@ namespace
         std::vector<std::vector<std::vector<double>>>().swap(post.latent_values);
 
         cols.attr("names") = Rcpp::wrap(post.latent_col_names);
-        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.sample_size()));
-        return cols;
+        return rcpp_data_frame(cols);
     }
 
     /// Flush pointwise household log-likelihood draws as a data.frame.
@@ -862,8 +848,7 @@ namespace
             cols[H] = class_cols[data_wide.get_eq_class(H)];
 
         cols.attr("names") = Rcpp::wrap(post.house_names);
-        helper_set_dataframe_attrs(cols, static_cast<R_xlen_t>(post.sample_size()));
-        return cols;
+        return rcpp_data_frame(cols);
     }
 
     //////  MCMC : house state snapshot  //////
@@ -876,15 +861,10 @@ namespace
         if (!param.is_allocated())
             return Rcpp::NumericVector::create();
 
-        size_t n = param.khold().size();
-        Rcpp::NumericVector output(n);
-        Rcpp::CharacterVector headers(n);
-        for (size_t p = 0; p < n; ++p)
-        {
-            output[p] = param.at(p).value();
-            headers[p] = std::string(param.at(p).name());
-        }
-        output.names() = Rcpp::CharacterVector(headers);
+        Rcpp::NumericVector output(param.khold().size());
+        for (R_xlen_t p = 0; p < output.size(); ++p)
+            output[p] = hsp_to_rcpp(param.at(p).value());
+        output.names() = Rcpp::wrap(param.khold().all());
 
         return output;
     }
@@ -1263,6 +1243,27 @@ namespace
                 engine.setup.budget.inner);
         }
 
+        /// Record parameter values per repetition, one column per parameter.
+        struct ParamTrace
+        {
+            ParamTrace(const Parameter &param, size_t n_rep)
+                : param_(param),
+                  cols_(param.khold().size(), std::vector<double>(n_rep)) {}
+
+            /// Record the current parameter values as repetition `r`.
+            void record(size_t r)
+            {
+                for (size_t p = 0; p < cols_.size(); ++p)
+                    cols_[p][r] = hsp_to_rcpp(param_.at(p).value());
+            }
+            /// Flush the recorded values as a data.frame, releasing C++ storage.
+            Rcpp::List flush() { return flush_2d_draws_to_df(cols_, param_.khold().all()); }
+
+        private:
+            const Parameter &param_;                /// Parameters traced.
+            std::vector<std::vector<double>> cols_; /// Values per parameter, one row per repetition.
+        };
+
         /// Build the simulated data frame: shared columns, status, then exported columns.
         Rcpp::DataFrame build_simulated(const Rcpp::List &shared_df,
                                         const Rcpp::IntegerVector &status_col,
@@ -1345,6 +1346,8 @@ namespace
             // flags for discrete columns, set once variables are bound after the first repetition
             std::vector<bool> discr_cols(latent_cols.size(), false);
 
+            simulate::ParamTrace param_trace(engine.param, setup.n_steps);
+
             //////  Simulations  //////
 
             setup.prog_open_for_simulation();
@@ -1354,6 +1357,7 @@ namespace
                 engine.data.wide().recover_all_status();
                 engine.param.load_sample_values(r);
                 engine.param.draw_sample(setup.prng()); // draw parameters with no pinned value
+                param_trace.record(r);
 
                 // run one repetition
                 simulate::single_repetition(
@@ -1390,7 +1394,8 @@ namespace
             engine.data.reset_readcells();
 
             return Rcpp::List::create(Rcpp::_["wide"] = out_wide,
-                                      Rcpp::_["long"] = out_long);
+                                      Rcpp::_["long"] = out_long,
+                                      Rcpp::_["parameters"] = param_trace.flush());
         }
         catch (std::exception &e)
         {

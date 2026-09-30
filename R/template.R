@@ -54,7 +54,7 @@ get_template_from_dll <- function(dll) {
 
 # Check if the same DLL is already loaded.
 is_dll_loaded <- function(dll) {
-  any(vapply(getLoadedDLLs(), function(x) x[["path"]] == dll, FALSE))
+  any(vapply(getLoadedDLLs(), \(x) x[["path"]] == dll, FALSE))
 }
 
 # Load model DLL if not already loaded.
@@ -116,7 +116,7 @@ show_model_names <- function() {
   model_names <- list.files(template_models_dir())
   links <- vapply(
     tolower(gsub("-| |_", "_", model_names)),
-    function(m) inline_cli_("{.run [{m}](housepi::browse_templates(\"{m}\"))}"),
+    \(m) inline_cli_("{.run [{m}](housepi::browse_templates(\"{m}\"))}"),
     character(1), USE.NAMES = FALSE
   )
   cli::cli_inform(c(i = "Available template models:",

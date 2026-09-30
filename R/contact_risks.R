@@ -162,9 +162,7 @@ fill_symmetric_gaps <- function(tbl) {
                                          sub("^to_", "from_", nm)))[nm]
   # a catch-all cell keys apart from every value
   key <- function(x) {
-    cells <- lapply(x[cov_cols], function(v) {
-      ifelse(is.na(v), "\x1F", paste0("=", v))
-    })
+    cells <- lapply(x[cov_cols], \(v) ifelse(is.na(v), "\x1F", paste0("=", v)))
     do.call(paste, c(cells, sep = key_sep_))
   }
   gaps <- flipped[!key(flipped) %in% key(tbl), , drop = FALSE]
@@ -369,7 +367,7 @@ HousepiContactRisk <- R6::R6Class(
         unknown <- unknown_strata_rows(
           this_table,
           known = lapply(stats::setNames(nm = this_cov),
-                         function(cov) unique(data_wide[[cov]])),
+                         \(cov) unique(data_wide[[cov]])),
           # both sides of a pair read the same data column
           cols = stats::setNames(rep(this_cov, 2L), pair_cols_(this_cov))
         )
@@ -533,7 +531,7 @@ HousepiContactRisk <- R6::R6Class(
       defs[risk_pin_cols] <- NULL
       # both ends of a pair encode against the levels of one data column
       encode_risk_levels_(defs, info,
-                          key = function(col) sub("^(from|to)_", "", col),
+                          key = \(col) sub("^(from|to)_", "", col),
                           cols = risk_cov_cols_(defs))
     }
   )

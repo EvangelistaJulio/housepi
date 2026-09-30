@@ -131,8 +131,7 @@ measure_geom_mean_hhsize <- function(data_wide, escaped = "escaped") {
 ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
   # ensure all elements share the same dimensions
   elem_n1 <- frame_list[[1]]
-  dims_match <- vapply(frame_list[-1],
-                       function(f) identical(dim(f), dim(elem_n1)),
+  dims_match <- vapply(frame_list[-1], \(f) identical(dim(f), dim(elem_n1)),
                        logical(1))
   if (!all(dims_match)) stop_h(
     paste0("Not all computed measures share identical dimensions",
@@ -142,8 +141,7 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
 
   if (is.null(dim(elem_n1))) {
     # scalar or vector
-    output <- sapply(seq_along(elem_n1),
-                     function(x) func(sapply(frame_list, `[[`, x)))
+    output <- sapply(seq_along(elem_n1), \(x) func(sapply(frame_list, `[[`, x)))
     names(output) <- names(elem_n1)
     if (is.list(elem_n1)) output <- as.list(output)
 
@@ -201,8 +199,8 @@ ppc_frame_apply_summary <- function(frame_list,
                                     name = NA_character_) {
   point_estimate <- validate_point_estimate(point_estimate)
   fn <- switch(point_estimate,
-               mean = function(x) mean(x, na.rm = TRUE),
-               median = function(x) stats::median(x, na.rm = TRUE))
+               mean = \(x) mean(x, na.rm = TRUE),
+               median = \(x) stats::median(x, na.rm = TRUE))
   ppc_frame_apply_stat(frame_list, fn, label = point_estimate, name = name)
 }
 
@@ -220,7 +218,7 @@ ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95,
                                 upper = TRUE, name = NA_character_) {
   p <- cri_level_probs(cri_level)[[ifelse(isTRUE(upper), "upper", "lower")]]
   ppc_frame_apply_stat(frame_list,
-                       function(x) stats::quantile(x, probs = p, na.rm = TRUE),
+                       \(x) stats::quantile(x, probs = p, na.rm = TRUE),
                        label = "credible interval",
                        name = name)
 }
@@ -410,17 +408,17 @@ HousepiCustomPPC <- R6::R6Class(
       apply_wide <- NULL
       if (has_wide) {
         observations <- c(
-          observations, lapply(m_wide, function(func) func(hhmodel$data_wide))
+          observations, lapply(m_wide, \(func) func(hhmodel$data_wide))
         )
-        apply_wide <- function(x) lapply(m_wide, function(func) func(x))
+        apply_wide <- \(x) lapply(m_wide, \(func) func(x))
       }
       # long-measure application
       apply_long <- NULL
       if (has_long) {
         observations <- c(
-          observations, lapply(m_long, function(func) func(hhmodel$data_long))
+          observations, lapply(m_long, \(func) func(hhmodel$data_long))
         )
-        apply_long <- function(x) lapply(m_long, function(func) func(x))
+        apply_long <- \(x) lapply(m_long, \(func) func(x))
       }
 
       # check measures
@@ -447,10 +445,10 @@ HousepiCustomPPC <- R6::R6Class(
 
       parsed <- c()
       if (has_wide) parsed <- c(parsed,
-        lapply(names(m_wide), function(x) lapply(output$wide, `[[`, x))
+        lapply(names(m_wide), \(x) lapply(output$wide, `[[`, x))
       )
       if (has_long) parsed <- c(parsed,
-        lapply(names(m_long), function(x) lapply(output$long, `[[`, x))
+        lapply(names(m_long), \(x) lapply(output$long, `[[`, x))
       )
       names(parsed) <- all_measure_names
 
@@ -595,8 +593,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 
   # format columns to extract labels with labelizor
   colnames(combined)[3:ncol(combined)] <- sapply(
-    colnames(combined)[3:ncol(combined)],
-    function(x) paste("cases", x, sep = "_")
+    colnames(combined)[3:ncol(combined)], \(x) paste("cases", x, sep = "_")
   )
 
   combined
@@ -703,7 +700,7 @@ HousepiPPC <- R6::R6Class(
 
       # empty frame as a placeholder for Credible Interval
       na_df <- cases$observed
-      na_df[] <- lapply(na_df, function(col) ifelse(is.numeric(col), NA, col))
+      na_df[] <- lapply(na_df, \(col) if (is.numeric(col)) NA else col)
       na_df$hhsize <- cases$observed$hhsize
 
       list(
@@ -746,9 +743,9 @@ HousepiPPC <- R6::R6Class(
       # ininitialize parent class HousepiCustomPPC
       super$initialize(
         hhmodel = hhmodel, param_table = param_table,
-        attack_rate = function(x) measure_ar_by_hhsize(x, esc),
-        sec_attack_rate = function(x) measure_sar_by_hhsize(x, esc),
-        cases_count = function(x) measure_cases_by_hhsize(x, esc),
+        attack_rate = \(x) measure_ar_by_hhsize(x, esc),
+        sec_attack_rate = \(x) measure_sar_by_hhsize(x, esc),
+        cases_count = \(x) measure_cases_by_hhsize(x, esc),
         obs_process = obs_process,
         thin_ess = thin_ess, max_nrep = max_nrep,
         threads = threads, progress = progress

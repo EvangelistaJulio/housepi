@@ -23,7 +23,7 @@ mk_recov_frame <- local({
     cri_lower = c(0, 2, -1, 1), cri_upper = c(4, 3, 1, 5),
     covers = c(TRUE, FALSE, TRUE, FALSE),
     rhat = 1, ess_bulk = c(100, 200, 300, 400),
-    converged = c(TRUE, FALSE, TRUE, TRUE)
+    flagged = c(FALSE, TRUE, FALSE, FALSE)
   )
   list(estimates = estimates)
 })
@@ -74,7 +74,7 @@ test_that("Sweep cost is averaged over the replicates", {
   replicates <- data.frame(
     houses = c(10L, 10L, 20L), rep = c(1L, 2L, 1L),
     inference_secs = c(1, 3, NA), min_ess_bulk = c(100, 600, NA),
-    converged = c(TRUE, FALSE, NA), error = c(NA, NA, "crashed")
+    flagged = c(FALSE, TRUE, NA), error = c(NA, NA, "crashed")
   )
   overview <- recovery_overview_(replicates)
   overview$nrep |> expect_identical(c(2L, 1L))
@@ -82,8 +82,8 @@ test_that("Sweep cost is averaged over the replicates", {
   overview$n_flagged |> expect_identical(c(1L, 0L))
   # a crashed replicate carries no cost to average
   overview$mean_inference_secs |> expect_equal(c(2, NaN))
-  # rate per replicate: 100 / 1 and 600 / 3
-  overview$mean_min_ess_per_sec |> expect_equal(c(150, NaN))
+  # pooled over the replicates: (1 + 3) / (100 + 600)
+  overview$secs_per_ess |> expect_equal(c(4 / 700, NaN))
 })
 
 test_that("A table of values collapses to its point estimate", {
@@ -111,12 +111,12 @@ mk_recov <- local({
   list(model = hhmodel, results = results)
 })
 
-# every fit converged and every point estimate lies within four posterior sd
+# no fit is flagged and every point estimate lies within four posterior sd
 # of its simulating value, which a calibrated posterior strays past about once
 # in 16,000 fits
 expect_recovered <- function(results) {
   estimates <- results$estimates
-  estimates$converged |> expect_all_true()
+  estimates$flagged |> expect_all_false()
   (abs(estimates$estimate - estimates$truth) < 4 * estimates$sd) |>
     expect_all_true()
 }
@@ -152,7 +152,7 @@ test_that("Each replicate reports its cost and its survey", {
   replicates$min_ess_bulk |>
     expect_equal(as.vector(tapply(estimates$ess_bulk,
                                   estimates[c("rep", "houses")], min)))
-  (mk_recov$results$overview$mean_min_ess_per_sec > 0) |> expect_all_true()
+  (mk_recov$results$overview$secs_per_ess > 0) |> expect_all_true()
   replicates$error |> expect_all_na()
   estimates$covers |>
     expect_identical(estimates$cri_lower <= estimates$truth &
@@ -170,10 +170,10 @@ test_that("A run too short to diagnose is flagged whole", {
   )
   results$warnings$message |> expect_match("[Tt]otal sample size")
   results$warnings$count |> expect_identical(2L)
-  # diagnosed all the same, and never converged
+  # diagnosed all the same, and always flagged
   results$estimates$rhat |> expect_no_na()
   results$estimates$ess_bulk |> expect_no_na()
-  results$estimates$converged |> expect_all_false()
+  results$estimates$flagged |> expect_all_true()
   results$overview$n_flagged |> expect_identical(2L)
 })
 

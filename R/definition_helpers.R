@@ -352,9 +352,8 @@ helper_variable_level <- function(opts, defs) {
 helper_cast_house_level <- function(defs) {
   if (is.null(defs)) return(defs)
   reads <- function(r, src) {
-    unlist(lapply(c("value", "func", "min", "max"), function(col) {
-      housepi_walk_definition(defs[[col]][[r]], src)
-    }))
+    unlist(lapply(c("value", "func", "min", "max"),
+                  \(col) housepi_walk_definition(defs[[col]][[r]], src)))
   }
   is_candidate <- function(r) {
     identical(defs[["kind"]][r], "member") && is.na(defs[["model"]][r]) &&

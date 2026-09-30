@@ -11,7 +11,7 @@ NULL
 
 # Whether the build cache would overlap the model source.
 cache_overlaps_source <- function(cache, source) {
-  norm <- function(p) normalizePath(p, winslash = "/", mustWork = FALSE)
+  norm <- \(p) normalizePath(p, winslash = "/", mustWork = FALSE)
   cache <- norm(cache)
   source <- norm(source)
   cache == source || startsWith(source, paste0(cache, "/"))
@@ -19,13 +19,12 @@ cache_overlaps_source <- function(cache, source) {
 
 # Assert valid household data. Return dummy_household if nothing is provided.
 assert_household_data <- function(data, model) {
-  .is_test_model <- function(x) {
-    is.character(x) && length(x) == 1 && isTRUE(x == "test")
-  }
+  is_test_model <- is.character(model) && length(model) == 1 &&
+    isTRUE(model == "test")
 
   if (is.null(data)) {
     # data may be supplied later with add_data_wide(): held until the wall
-    if (!.is_test_model(model)) return(NULL)
+    if (!is_test_model) return(NULL)
     env <- new.env(parent = emptyenv())
     utils::data("dummy_household", package = "housepi", envir = env)
     return(env$dummy_household)
@@ -407,8 +406,7 @@ HousepiGenerator <- R6::R6Class(
       if (Sys.info()[["sysname"]] != "Darwin") return(invisible())
       # R's PACKAGE="housepi" lookup picks the last loaded entry, so the
       # last one is what .engine resolves against.
-      hp_entries <- Filter(function(d) d[["name"]] == "housepi",
-                           getLoadedDLLs())
+      hp_entries <- Filter(\(d) d[["name"]] == "housepi", getLoadedDLLs())
       housepi_path <- hp_entries[[length(hp_entries)]][["path"]]
       system2("install_name_tool",
               c("-change", "housepi.so",
