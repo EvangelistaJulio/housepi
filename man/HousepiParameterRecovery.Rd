@@ -25,7 +25,9 @@ One row per household count, replicate and parameter
 \describe{
 \item{truth}{Value the survey was simulated at}
 \item{estimate}{Posterior point estimate}
+\item{sd}{Posterior standard deviation}
 \item{cri_lower, cri_upper}{Credible interval bounds}
+\item{covers}{Whether the credible interval covers the truth}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit}
 \item{converged}{\code{FALSE} when the fit was flagged:
 Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws}
@@ -34,9 +36,11 @@ Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) 
     \item{\code{replicates}}{\code{data.frame}
 One row per household count and replicate
 \describe{
-\item{inference_seconds}{Wall-clock of the sampling loop}
+\item{inference_secs}{Wall-clock of the sampling loop}
+\item{min_ess_bulk}{Smallest bulk effective sample size over the
+parameters of the fit}
 \item{converged}{Whether every parameter of the fit converged}
-\item{error}{Message of a replicate that failed, else \code{NA}}
+\item{error}{Message of a replicate that crashed, else \code{NA}}
 }}
 
     \item{\code{summary}}{\code{data.frame}
@@ -52,8 +56,11 @@ Recovery statistics per household count and parameter
     \item{\code{overview}}{\code{data.frame}
 Sweep cost per household count, averaged over the replicates
 \describe{
-\item{nrep, n_failed, n_flagged}{Replicates run, failed and flagged}
-\item{mean_inference_seconds}{Mean wall-clock of a sampling loop}
+\item{nrep, n_crashed, n_flagged}{Replicates run, crashed and flagged}
+\item{mean_inference_secs}{Mean wall-clock of a sampling loop}
+\item{mean_min_ess_per_sec}{Mean of \code{min_ess_bulk} per second of
+sampling, as in \code{replicates}: an efficiency of this run on this
+machine and thread count, not of the model}
 }}
 
     \item{\code{truth}}{named \code{numeric()}

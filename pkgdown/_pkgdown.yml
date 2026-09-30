@@ -117,6 +117,7 @@ articles:
       - data_augmentation
       - infectivity_profiles
       - posterior_predictive_checks
+      - parameter_recovery_checks
       - user_functions
   - title: "Gallery"
     navbar: "Gallery"

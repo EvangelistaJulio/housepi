@@ -1,0 +1,201 @@
+---
+title: "Parameter recovery checks"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc-depth: 3
+vignette: >
+  %\VignetteIndexEntry{Parameter recovery checks}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+editor_options:
+  markdown:
+    wrap: sentence
+---
+
+```{r setup-child, child = "helpers/_setup.Rmd"}
+```
+
+```{r}
+#| label: options
+#| include: false
+options(housepi.footer.warranty = TRUE)
+options(housepi.footer.sample = TRUE)
+```
+
+Here we show how to check whether inference recovers the parameters used to simulate a dataset, at the same time checking how that changes with the sample size.
+The simulation study of [Get started](housepi.html) does this once: a single replicate can miss the truth by chance, while many of them show whether it misses systematically.
+A recovery check simulates many studys at known parameter values, fits each one back with the same model, and compares the estimates with the truth.
+
+We use the same final-size example presented in [Get started](housepi.html):
+
+```{r}
+#| label: inference-setup
+# repeat inference as in 'Get Started'
+library(housepi)
+set_housepi_theme()
+set.seed(42)
+
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("final-size") |>
+  add_parameter(import = "template")
+
+# store posterior draws
+results <- hhmodel |>
+  run_inference(progress = FALSE)
+
+results
+```
+
+The posterior above is used to estimate the model parameters.
+We ask whether inference process on a target study like the considered one, generated at those very values, would let inference find them again.
+
+# Would this study recover its own estimates?
+
+Passing the fit as `truth` simulates at its point estimates.
+Without it, the check simulates at the `value` pins of the parameter definitions, which is how to test values of your own choosing.
+
+Each study is generated on households drawn with replacement from the attached data by `sample_house_structure()`, so it keeps the original household-size distribution, while the model draws who gets infected.
+Besides the observed number of households, we ask what a quarter, half and twice as many would give:
+
+```{r}
+#| label: house-counts
+# number of households in target data
+n_houses <- length(unique(flu_1918_frederick$hhid))
+# household sample sizes for power analysis
+houses <- round(n_houses * c(0.25, 0.5, 1, 2))
+houses
+```
+
+# How many households?
+
+A check costs one fit per replicate and household sample size, and larger studys take longer to fit.
+We can run different replicates at each sample size using `run_parameter_recovery_check`:
+
+```{r}
+#| label: sweep
+recovery <- hhmodel |>
+  run_parameter_recovery_check(truth = results, nrep = 15, houses = houses,
+                               progress = FALSE)
+recovery
+
+# wall-clock of the sampling loop, averaged over the replicates
+recovery$overview
+```
+
+```{r}
+#| label: sweep-cost
+#| include: false
+sweep_minutes <- with(recovery$overview, sum(nrep * mean_inference_secs)) / 60
+```
+
+Before running longer checks, it is useful to note how slower are the fits for the largest sample sizes.
+Here the `r sum(recovery$overview$nrep)` fits took `r round(sweep_minutes, 1)` minutes on one thread, from `r round(min(recovery$overview$mean_inference_secs), 1)` seconds each at `r min(houses)` households to `r round(max(recovery$overview$mean_inference_secs), 1)` seconds at `r max(houses)`.
+
+A fit whose draws do not pass the convergence diagnostics is counted as flagged: here `r sum(recovery$overview$n_flagged)` of `r sum(recovery$overview$nrep)`.
+A few flags among many clean fits are expected from a finite sampler; flags concentrated at one household count call for more `steps` at that size.
+
+## At the observed size
+
+Each credible interval against the value that generated its study, at the `r n_houses` households of Frederick:
+
+```{r}
+#| label: recovery-plot
+#| fig-height: 3.5
+#| fig-alt: >
+#|  Three panels, one per parameter. Each shows credible intervals,
+#|  one per replicate, around a horizontal line at the true value.
+#|  Intervals that miss the line are drawn in orange.
+library(ggplot2)
+
+recovery$estimates |>
+  dplyr::filter(houses == n_houses) |>
+  ggplot(aes(x = rep, y = estimate)) +
+  geom_pointrange(aes(ymin = cri_lower, ymax = cri_upper, colour = covers)) +
+  geom_hline(aes(yintercept = truth)) +
+  # tell the intervals that miss the truth
+  scale_colour_manual(values = c(`TRUE` = "black", `FALSE` = "coral"),
+                      labels = c(`TRUE` = "covers truth",
+                                 `FALSE` = "misses truth")) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(x = "Replicate", y = "Estimate", colour = NULL)
+```
+
+```{r}
+#| label: observed-size
+#| include: false
+observed <- subset(recovery$summary, houses == n_houses)
+rownames(observed) <- observed$variable
+```
+
+A reasonable recovery check shows intervals scattered around the target line, whereas intervals stacked on one side of it would be bias.
+At this size the 95% intervals cover the truth in `r round(100 * observed["alpha", "coverage"])`% of the replicates for `alpha`, `r round(100 * observed["beta", "coverage"])`% for `beta`, and `r round(100 * observed["gamma", "coverage"])`% for `gamma`.
+
+## Bias across sizes
+
+The error of every estimate relative to the truth, at each household count, is distributed as follows:
+
+```{r}
+#| label: bias-plot
+#| fig-height: 3
+#| fig-alt: >
+#|  Three panels, one per parameter, on a shared vertical axis. Each shows
+#|  one box per household count over the relative error of the estimates, against a line at zero.
+recovery$estimates |>
+  dplyr::mutate(rel_error = estimate / truth - 1) |>
+  ggplot(aes(x = factor(houses), y = rel_error)) +
+  geom_boxplot() +
+  geom_hline(yintercept = 0) +
+  facet_wrap(~ variable) +
+  labs(x = "Number of households", y = "Relative error")
+```
+
+Each box spans the middle half of the estimates, so it shows how far a single study of that size lands from the truth.
+A box that narrows as households are added is a study buying precision, and one that stays off zero while it narrows is an estimator centered on the wrong value.
+
+## What a larger study buys
+
+A larger study costs more to collect, and more to fit.
+We put the width of the credible interval on each parameter next to the time of one fit, and to the effective sample size (ESS) it draws per second.
+A fit is only as usable as its worst-mixing parameter, so the ESS is the smallest bulk ESS over the parameters:
+
+```{r}
+#| label: design-table
+vars <- names(recovery$truth)
+
+recovery$summary |>
+  dplyr::select(houses, variable, cri_width) |>
+  tidyr::pivot_wider(names_from = variable, values_from = cri_width) |>
+  dplyr::left_join(recovery$overview[c("houses", "mean_inference_secs",
+                                       "mean_min_ess_per_sec")],
+                   by = "houses") |>
+  dplyr::mutate(mean_min_ess_per_sec = as.integer(mean_min_ess_per_sec)) |>
+  flextable::flextable() |>
+  flextable::colformat_double(digits = 3) |>
+  flextable::colformat_double(j = "mean_inference_secs", digits = 1) |>
+  flextable::add_header_row(values = c("", "CrI width", "", ""),
+                            colwidths = c(1, length(vars), 1, 1)) |>
+  flextable::labelizor(
+    labels = c(houses = "n. households",
+               mean_inference_secs = "seconds per fit",
+               mean_min_ess_per_sec = "min ESS per second")
+  ) |>
+  flextable::align(align = "center", part = "all") |>
+  flextable::autofit()
+```
+
+```{r}
+#| label: doubling
+#| include: false
+width <- tidyr::pivot_wider(recovery$summary[c("houses", "variable", "cri_width")],
+                            names_from = houses, values_from = cri_width)
+narrower <- 1 - width[[as.character(2 * n_houses)]] / width[[as.character(n_houses)]]
+secs <- setNames(recovery$overview$mean_inference_secs,
+                 recovery$overview$houses)
+slower <- secs[[as.character(2 * n_houses)]] / secs[[as.character(n_houses)]] - 1
+```
+
+Doubling Frederick to `r 2 * n_houses` households narrows the intervals by `r round(100 * min(narrower))`% - `r round(100 * max(narrower))`%, but makes a fit `r round(100 * slower)`% slower.
+
+```{r footer-child, child = "helpers/_footer.Rmd"}
+```

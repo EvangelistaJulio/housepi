@@ -1185,9 +1185,9 @@ run_inference <- function(hhmodel,
     chains = chains, threads = threads, id_draws = id_draws,
     progress = progress, ...
   )
-  seconds <- .engine$run_inference(pvt$gen_$mcmc_ptr)
+  secs <- .engine$run_inference(pvt$gen_$mcmc_ptr)
   HousepiPosteriorDraws$new(pvt$gen_$raw_name,
-                            pvt$gen_$mcmc_ptr, seconds)
+                            pvt$gen_$mcmc_ptr, secs)
 }
 
 #' @title Simulate a household survey from a housepi model

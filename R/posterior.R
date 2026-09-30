@@ -352,7 +352,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     # @field
     name_ = NA_character_,
     draws_ = list(),
-    seconds_ = NA_real_,
+    secs_ = NA_real_,
     warnings_ = NULL,
     # per-parameter R-hat, Bulk ESS and convergence verdict
     diagnostics_ = NULL
@@ -434,12 +434,12 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$warnings_
     },
 
-    #' @field inference_seconds `numeric(1)`
+    #' @field inference_secs `numeric(1)`
     #' Wall-clock of the sampling loop, leaving out the model build and the
     #' conversion of the draws.
-    inference_seconds = function(value) {
-      if (!missing(value)) stop_read_only("inference_seconds")
-      private$seconds_
+    inference_secs = function(value) {
+      if (!missing(value)) stop_read_only("inference_secs")
+      private$secs_
     }
   ),
 
@@ -453,11 +453,11 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' don't call `$new()` directly.
     #' @param name Model name.
     #' @param ptr Internal engine handle.
-    #' @param seconds Wall-clock the engine timed the sampling loop at.
-    initialize = function(name, ptr, seconds = NA_real_) {
+    #' @param secs Wall-clock the engine timed the sampling loop at.
+    initialize = function(name, ptr, secs = NA_real_) {
       # inherit model name
       private$name_ <- as.character(name)
-      private$seconds_ <- as.numeric(seconds)
+      private$secs_ <- as.numeric(secs)
       # per-draw chain/iteration index from the inference setup
       idx <- draws_index_(.engine$export_setup(ptr))
 

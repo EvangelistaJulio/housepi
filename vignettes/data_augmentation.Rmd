@@ -34,7 +34,7 @@ where the incubation period is distributed according to a prior.
 
 Say $x$ the data of a single household (onset date and status), $z$ its latent variables (infection time and incubation period) and $\theta$ the vector of parameters.
 The joint posterior then reads
-$$p(\theta, z \mid x) \varpropto
+$$p(\theta, z \mid x) \propto
   \underbrace{p^\mathrm{obs}(x \mid \theta, z)\, p^\mathrm{transm}(x \mid \theta, z)\, p^\mathrm{lat}(z \mid \theta)}_{\texttt{likelihood}}\;
   \underbrace{p(\theta)}_{\texttt{prior}},$$
 where the reported `log_lik` gathers the transmission term $p^\mathrm{transm}$, the observation term $p^\mathrm{obs}$ (only when an observation node is defined, so it contracts to transmission otherwise) and the latent-variable model $p^\mathrm{lat}$, while `lprior` is the parameter prior $p(\theta)$.

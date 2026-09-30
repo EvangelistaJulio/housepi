@@ -130,9 +130,8 @@ test_that("Without transmission only the introductions are infected", {
     hhdata$onset_time <- hhdata$infec_time + hhdata$incub_period
     hhdata
   }
-  # pick introduction randomly with onset_time at 0
+  # the introduction is the only case, its onset_time at 0
   simulated <- mk_simulation$model |>
-    add_data_wide(dplyr::mutate(mk_simulation$model$data_wide, status = NA)) |>
     add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hhsize_ref = 4) |>
     run_simulation(obs_process = obs_process)
   length(unique(simulated$hhid)) |>

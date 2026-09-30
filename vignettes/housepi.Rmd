@@ -378,8 +378,8 @@ param_draws |>
   flextable::autofit()
 ```
 
-Due to the stochastic nature of this kind of simulation, a single parameter recovery is a limiting check.
-In [Posterior predictive checks](posterior_predictive_checks.html) we show how to compute common household measures according to the model posterior distribution.
+Due to the stochastic nature of the process, a single simulation study might not be enough to assess inference quality, and [parameter recovery checks](parameter_recovery_checks.html) should be considered.
+Alongside them, [posterior predictive checks](posterior_predictive_checks.html) can be used to compare observed household measures against model posterior predicted measures.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

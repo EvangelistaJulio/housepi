@@ -21,6 +21,7 @@ mk_recov_frame <- local({
     truth = c(1, 0, 1, 0),
     estimate = c(2, 1, 0, 3),
     cri_lower = c(0, 2, -1, 1), cri_upper = c(4, 3, 1, 5),
+    covers = c(TRUE, FALSE, TRUE, FALSE),
     rhat = 1, ess_bulk = c(100, 200, 300, 400),
     converged = c(TRUE, FALSE, TRUE, TRUE)
   )
@@ -72,15 +73,17 @@ test_that("Recovery statistics summarise the replicates", {
 test_that("Sweep cost is averaged over the replicates", {
   replicates <- data.frame(
     houses = c(10L, 10L, 20L), rep = c(1L, 2L, 1L),
-    inference_seconds = c(1, 3, NA),
-    converged = c(TRUE, FALSE, NA), error = c(NA, NA, "failed")
+    inference_secs = c(1, 3, NA), min_ess_bulk = c(100, 600, NA),
+    converged = c(TRUE, FALSE, NA), error = c(NA, NA, "crashed")
   )
   overview <- recovery_overview_(replicates)
   overview$nrep |> expect_identical(c(2L, 1L))
-  overview$n_failed |> expect_identical(c(0L, 1L))
+  overview$n_crashed |> expect_identical(c(0L, 1L))
   overview$n_flagged |> expect_identical(c(1L, 0L))
-  # a failed replicate carries no cost to average
-  overview$mean_inference_seconds |> expect_equal(c(2, NaN))
+  # a crashed replicate carries no cost to average
+  overview$mean_inference_secs |> expect_equal(c(2, NaN))
+  # rate per replicate: 100 / 1 and 600 / 3
+  overview$mean_min_ess_per_sec |> expect_equal(c(150, NaN))
 })
 
 test_that("A table of values collapses to its point estimate", {
@@ -108,6 +111,16 @@ mk_recov <- local({
   list(model = hhmodel, results = results)
 })
 
+# every fit converged and every point estimate lies within four posterior sd
+# of its simulating value, which a calibrated posterior strays past about once
+# in 16,000 fits
+expect_recovered <- function(results) {
+  estimates <- results$estimates
+  estimates$converged |> expect_all_true()
+  (abs(estimates$estimate - estimates$truth) < 4 * estimates$sd) |>
+    expect_all_true()
+}
+
 test_that("Recovery results are read only", {
   mk_recov$results |>
     helper_test_read_only("estimates", "replicates", "summary",
@@ -126,7 +139,7 @@ test_that("Recovery sweeps every household count", {
   results$replicates |> expect_nrow(4L)
   results$summary |> expect_nrow(6L)
   results$overview$houses |> expect_identical(c(20L, 40L))
-  results$overview$n_failed |> expect_identical(c(0L, 0L))
+  results$overview$n_crashed |> expect_identical(c(0L, 0L))
   results$nrep |> expect_identical(2L)
   results$point_estimate |> expect_identical("median")
   results$cri_level |> expect_equal(0.95)
@@ -134,9 +147,16 @@ test_that("Recovery sweeps every household count", {
 
 test_that("Each replicate reports its cost and its survey", {
   replicates <- mk_recov$results$replicates
-  (replicates$inference_seconds > 0) |> expect_all_true()
-  replicates$error |> expect_all_na()
+  (replicates$inference_secs > 0) |> expect_all_true()
   estimates <- mk_recov$results$estimates
+  replicates$min_ess_bulk |>
+    expect_equal(as.vector(tapply(estimates$ess_bulk,
+                                  estimates[c("rep", "houses")], min)))
+  (mk_recov$results$overview$mean_min_ess_per_sec > 0) |> expect_all_true()
+  replicates$error |> expect_all_na()
+  estimates$covers |>
+    expect_identical(estimates$cri_lower <= estimates$truth &
+                       estimates$truth <= estimates$cri_upper)
   mk_recov$results$summary$coverage |> expect_in(c(0, 0.5, 1))
 })
 
@@ -209,4 +229,48 @@ test_that("Recovery needs a parameter to recover", {
 
   run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o parameter to recover")
+})
+
+test_that("Latent inference recovers the simulating parameter", {
+  skip_on_cran()
+  # @note test model simulates only on the statuses it is given
+  data.frame(hhid = seq(200), status = 1) |>
+    new_housepi_model("test") |>
+    add_parameter("rho", value = 2, prior = "uniform", min = -5, max = 5) |>
+    add_latent("hidden", model = "normal", mean = rho@P, sd = 1) |>
+    add_observation("record", model = "normal", mean = hidden@A, sd = 1) |>
+    run_parameter_recovery_check(nrep = 1, progress = FALSE) |>
+    expect_recovered()
+})
+
+test_that("Final-size inference recovers the simulating parameters", {
+  skip_on_cran()
+  flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template") |>
+    run_parameter_recovery_check(nrep = 1, progress = FALSE) |>
+    expect_recovered()
+})
+
+test_that("Case-ascertained inference recovers the simulating parameters", {
+  skip_on_cran()
+  # observed onsets date the infection times the transmission reads
+  sarscov2_2021_icofs[c("id", "hhid")] |>
+    new_housepi_model("case-ascertained") |>
+    add_parameter(import = "template") |>
+    add_infectivity_profile(import = "template") |>
+    add_latent(
+      infec_time = list(value = 0, model = "uniform",
+                        min = start_date - 14, max = end_date),
+      incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14),
+      onset_time = infec_time + incub_period
+    ) |>
+    add_observation(
+      onset_date = list(discr = TRUE, model = "normal",
+                        mean = onset_time, sd = 1, min = floor(onset_time)),
+      start_date = list(value = min(onset_date), level = "house"),
+      end_date = start_date + 21
+    ) |>
+    run_parameter_recovery_check(nrep = 1, houses = 200, progress = FALSE) |>
+    expect_recovered()
 })

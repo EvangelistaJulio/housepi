@@ -74,7 +74,7 @@ Convergence diagnostics the run flagged
 Recorded whether or not the run reported them. Per-variable R-hat and
 Bulk ESS behind a flag are read from \code{\link[=summarise_draws]{summarise_draws()}}.}
 
-    \item{\code{inference_seconds}}{\code{numeric(1)}
+    \item{\code{inference_secs}}{\code{numeric(1)}
 Wall-clock of the sampling loop, leaving out the model build and the
 conversion of the draws.}
   }
@@ -96,7 +96,7 @@ conversion of the draws.}
 don't call \verb{$new()} directly.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiPosteriorDraws$new(name, ptr, seconds = NA_real_)}
+    \preformatted{HousepiPosteriorDraws$new(name, ptr, secs = NA_real_)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -104,7 +104,7 @@ don't call \verb{$new()} directly.
     \describe{
       \item{\code{name}}{Model name.}
       \item{\code{ptr}}{Internal engine handle.}
-      \item{\code{seconds}}{Wall-clock the engine timed the sampling loop at.}
+      \item{\code{secs}}{Wall-clock the engine timed the sampling loop at.}
     }
     \if{html}{\out{</div>}}
   }

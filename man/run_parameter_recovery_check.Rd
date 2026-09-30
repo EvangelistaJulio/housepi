@@ -78,8 +78,8 @@ at, and the priors of the very same model drive inference, so no separate
 simulation model is needed.
 }
 \details{
-A replicate that fails is recorded and the sweep carries on; a household
-count whose every replicate failed raises an error.
+A replicate that crashes is recorded and the sweep carries on; a household
+count whose every replicate crashed raises an error.
 Results are summarised at the point estimate and the
 credible level held by the global options;
 see \code{\link[=set_global_posterior_summary]{set_global_posterior_summary()}}.

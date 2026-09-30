@@ -130,7 +130,7 @@ test_that("Active fields are read-only", {
     helper_test_read_only(
       "parameter_draws", "latent_draws",
       "log_lik_draws", "lprior_draws", "complete_draws",
-      "warnings", "inference_seconds"
+      "warnings", "inference_secs"
     )
 })
 
@@ -214,9 +214,9 @@ test_that("A quiet run holds back its build warnings too", {
 })
 
 test_that("The sampling loop reports its own cost", {
-  seconds <- mk_draws$results$inference_seconds
-  seconds |> expect_length(1L)
-  (is.finite(seconds) && seconds > 0) |> expect_true()
+  secs <- mk_draws$results$inference_secs
+  secs |> expect_length(1L)
+  (is.finite(secs) && secs > 0) |> expect_true()
 })
 
 test_that("Diagnostic warning fires on poor mixing", {
