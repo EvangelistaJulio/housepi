@@ -277,7 +277,4 @@ test_that("Custom models share function registries", {
   func$prim(x) |> expect_equal(2 * exp(0.5 * x) / 0.5)
   func$log_func(x) |>
     expect_error("undefined")
-  # default raw_log_ratio_ returns 0
-  func$log_ratio(x, x + 0.1) |>
-    expect_equal(rep(0L, length(x)))
 })

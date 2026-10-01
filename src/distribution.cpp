@@ -1013,6 +1013,7 @@ namespace
 
     protected:
         double raw_rand_(rnd_gen & /*prng*/) const override final { raise_undefined_call_err_("rand"); }
+        double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { raise_undefined_call_err_("log_ratio"); }
         double raw_pdf_(double x) const override final
         {
             const double a = arg(0);   // 'shape'

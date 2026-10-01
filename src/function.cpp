@@ -1018,7 +1018,6 @@ namespace
                 return std::log(std::abs(x));
             return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
         }
-        double raw_log_ratio_(double xo, double xn) const override final { return arg(0) * std::log(xn / xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Power_, Transcendental)
 
@@ -1046,7 +1045,6 @@ namespace
         double raw_function_(double x) const override final { return std::sqrt(x); }
         double raw_log_func_(double x) const override final { return 0.5 * std::log(x); }
         double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
-        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(SquareRoot_, Transcendental)
 
@@ -1072,7 +1070,6 @@ namespace
         double raw_function_(double x) const override final { return std::exp(x); }
         double raw_log_func_(double x) const override final { return x; }
         double raw_primitive_(double x) const override final { return std::exp(x); }
-        double raw_log_ratio_(double xo, double xn) const override final { return xn - xo; }
     };
     HOUSEPI_REGISTER_FUNCTION(Exponential_, Transcendental)
 
@@ -1099,7 +1096,6 @@ namespace
         double raw_function_(double x) const override final { return std::log(x); }
         double raw_log_func_(double x) const override final { return std::log(std::log(x)); }
         double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
-        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Logarithm_, Transcendental)
 
@@ -1120,7 +1116,6 @@ namespace
         double raw_function_(double x) const override final { return std::sin(x); }
         double raw_log_func_(double x) const override final { return std::log(std::sin(x)); }
         double raw_primitive_(double x) const override final { return -std::cos(x); }
-        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Sine_, Transcendental)
 
@@ -1141,7 +1136,6 @@ namespace
         double raw_function_(double x) const override final { return std::cos(x); }
         double raw_log_func_(double x) const override final { return std::log(std::cos(x)); }
         double raw_primitive_(double x) const override final { return std::sin(x); }
-        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Cosine_, Transcendental)
 
@@ -1154,7 +1148,6 @@ namespace
     protected:
         double raw_function_(double x) const override final { return std::tan(x); }
         double raw_log_func_(double x) const override final { return std::log(std::tan(x)); }
-        double raw_log_ratio_(double xo, double xn) const override final { return raw_log_func_(xn) - raw_log_func_(xo); }
     };
     HOUSEPI_REGISTER_FUNCTION(Tangent_, Transcendental)
 

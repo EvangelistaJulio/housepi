@@ -75,6 +75,28 @@ namespace housepi
 		double log_pdf(double x) const { return log_func_(delocate_(x)); }
 		/// Return log-density or log-mass at `x`, minus infinity outside the domain.
 		double guarded_log_pdf(double x) const { return is_valid(x) ? log_pdf(x) : -inf::DOUBLE; }
+		/// Return log-ratio of densities or masses from `xo` to `xn`.
+		/// - null move: 0, whatever the density at that point.
+		double log_ratio(double xo, double xn) const
+		{
+			return xo == xn ? 0. : log_ratio_(delocate_(xo), delocate_(xn));
+		}
+		/// Return log-ratio of densities or masses from `xo` to `xn`, validity checked first.
+		///
+		/// - only `xn` valid: infinity;
+		/// - only `xo` valid: minus infinity;
+		/// - neither: NA.
+		double guarded_log_ratio(double xo, double xn) const
+		{
+			bool ov = is_valid(xo), nv = is_valid(xn);
+			if (ov && nv)
+				return log_ratio(xo, xn);
+			else if (!ov && nv)
+				return inf::DOUBLE;
+			else if (ov && !nv)
+				return -inf::DOUBLE;
+			return na::DOUBLE;
+		}
 
 		/// Return the quantile at probability `p`, NA outside [0, 1].
 		double quantile(double p) const
@@ -118,6 +140,8 @@ namespace housepi
 		virtual double raw_log_pdf_(double /*x*/) const = 0;
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double /*x*/) const = 0;
+		/// Raw log-ratio of densities or masses from `xo` to `xn`.
+		virtual double raw_log_ratio_(double /*xo*/, double /*xn*/) const = 0;
 
 		/// Raw complementary cumulative distribution, 1 - cdf.
 		/// Discretization reads it where a tail-accurate closed form exists.
@@ -173,8 +197,8 @@ namespace housepi
 		/// Evaluate the truncated cumulative under the discretization scheme.
 		double primitive_(double x) const override final { return (raw_cdf_(primitive_x_helper_(x)) - shift_()) / trunc_(); }
 
-		/// Evaluate the log-ratio of densities under the discretization scheme.
-		double log_ratio_(double xo, double xn) const override final
+		/// Evaluate the log-ratio of densities or masses under the discretization scheme.
+		double log_ratio_(double xo, double xn) const
 		{
 			switch (discr_mode_)
 			{
@@ -396,6 +420,7 @@ namespace housepi
 		double raw_pdf_(double /*x*/) const override final { return 1.; }
 		double raw_log_pdf_(double /*x*/) const override final { return 0.; }
 		double raw_cdf_(double x) const override final { return x < x0_ ? 0. : 1.; }
+		double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { return 0.; }
 
 	private:
 		double x0_; /// Pinned point.

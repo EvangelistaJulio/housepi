@@ -198,14 +198,6 @@ HousepiExposedFunction <- R6::R6Class(
     #' @return `numeric()`
     log_func = function(x) private$call_("log_func", x),
 
-    #' @description
-    #' Evaluate the natural logarithm of the ratio between the function at two
-    #' points.
-    #' @param xo `numeric()` Points the ratio is taken from.
-    #' @param xn `numeric()` Points the ratio is taken to.
-    #' @return `numeric()`
-    log_ratio = function(xo, xn) private$call_("log_ratio", xo, xn),
-
     #' @description Evaluate the primitive of the function.
     #' @param x `r rd_test_x_`
     #' @return `numeric()`

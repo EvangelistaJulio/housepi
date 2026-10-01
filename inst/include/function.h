@@ -441,29 +441,6 @@ namespace housepi
             return is_below(x) ? 0 : primitive_(is_above(x) ? domain_.max.value() : delocate_(x));
         }
 
-        /// Return log-ratio of densities from `xo` to `xn`.
-        /// - null move: 0, whatever the density at that point.
-        double log_ratio(double xo, double xn) const
-        {
-            return xo == xn ? 0. : log_ratio_(delocate_(xo), delocate_(xn));
-        }
-        /// Return log-ratio of densities from `xo` to `xn`, validity checked first.
-        ///
-        /// - only `xn` valid: infinity;
-        /// - only `xo` valid: minus infinity;
-        /// - neither: NA.
-        double guarded_log_ratio(double xo, double xn) const
-        {
-            bool ov = is_valid(xo), nv = is_valid(xn);
-            if (ov && nv)
-                return log_ratio(xo, xn);
-            else if (!ov && nv)
-                return inf::DOUBLE;
-            else if (ov && !nv)
-                return -inf::DOUBLE;
-            return na::DOUBLE;
-        }
-
         //////  Flags  //////
 
         /// Whether the return value is constant.
@@ -590,8 +567,6 @@ namespace housepi
         virtual double raw_primitive_(double /*x*/) const { raise_undefined_call_err_("primitive"); }
         /// Raw quantile.
         virtual double raw_quantile_(double /*p*/) const { raise_undefined_call_err_("quantile"); }
-        /// Raw log-ratio, 0 by default.
-        virtual double raw_log_ratio_(double /*xo*/, double /*xn*/) const { return 0.; }
 
         /// Evaluate the function under the discretization scheme.
         virtual double function_(double x) const
@@ -627,22 +602,6 @@ namespace housepi
 
         /// Evaluate the primitive under the discretization scheme.
         virtual double primitive_(double x) const { return raw_primitive_(primitive_x_helper_(x)); }
-
-        /// Evaluate the log-ratio under the discretization scheme.
-        virtual double log_ratio_(double xo, double xn) const
-        {
-            switch (discr_mode_)
-            {
-            case Discrete::None:
-                return raw_log_ratio_(xo, xn);
-            case Discrete::Center:
-                return std::log(discr_func_center_(xn)) - std::log(discr_func_center_(xo));
-            case Discrete::Left:
-                return std::log(discr_func_left_(xn)) - std::log(discr_func_left_(xo));
-            default: // Discrete::Defined:
-                return raw_log_ratio_(std::floor(xo), std::floor(xn));
-            }
-        }
 
         //////  Discretization  //////
 

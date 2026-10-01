@@ -20,7 +20,6 @@ fnc$prim(seq(0, 5))
   \itemize{
     \item \href{#method-HousepiExposedFunction-func}{\code{HousepiExposedFunction$func()}}
     \item \href{#method-HousepiExposedFunction-log_func}{\code{HousepiExposedFunction$log_func()}}
-    \item \href{#method-HousepiExposedFunction-log_ratio}{\code{HousepiExposedFunction$log_ratio()}}
     \item \href{#method-HousepiExposedFunction-prim}{\code{HousepiExposedFunction$prim()}}
   }
 }
@@ -66,30 +65,6 @@ fnc$prim(seq(0, 5))
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{x}}{\code{numeric()} Points of evaluation.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    \code{numeric()}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiExposedFunction-log_ratio"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiExposedFunction-log_ratio}{}}}
-\subsection{\code{HousepiExposedFunction$log_ratio()}}{
-  Evaluate the natural logarithm of the ratio between the function at two
-points.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiExposedFunction$log_ratio(xo, xn)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{xo}}{\code{numeric()} Points the ratio is taken from.}
-      \item{\code{xn}}{\code{numeric()} Points the ratio is taken to.}
     }
     \if{html}{\out{</div>}}
   }

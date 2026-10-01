@@ -304,7 +304,6 @@ namespace
 
         MAKE_EXPOSE_METHOD_CALL(func, ptr_->func(v))
         MAKE_EXPOSE_METHOD_CALL(log_func, ptr_->log_func(v))
-        MAKE_EXPOSE_METHOD_CALL_RATIO(log_ratio, ptr_->guarded_log_ratio(vo, vn))
         MAKE_EXPOSE_METHOD_CALL(prim, ptr_->prim(v))
     };
 
@@ -1633,7 +1632,6 @@ RCPP_MODULE(housepi)
         .derives<ExposeBase>("ExposeBase")
         .method("func", &ExposeFunction::func)
         .method("log_func", &ExposeFunction::log_func)
-        .method("log_ratio", &ExposeFunction::log_ratio)
         .method("prim", &ExposeFunction::prim);
 
     Rcpp::class_<ExposeDistribution>("ExposeDistribution")

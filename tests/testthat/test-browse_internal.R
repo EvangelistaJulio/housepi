@@ -40,7 +40,7 @@ expect_function_matches <- function(name, args,
                                     ref_f, ref_prim = NULL,
                                     ref_log = log,
                                     domain = "(-Inf, Inf)", discrete = FALSE,
-                                    x = seq(0.1, 10, 0.1), h = 0.1) {
+                                    x = seq(0.1, 10, 0.1)) {
   func <- do.call(browse_functions, c(list(name), args))
   func$domain |> expect_identical(interval(domain))
   func$is_discrete |> expect_identical(discrete)
@@ -50,16 +50,8 @@ expect_function_matches <- function(name, args,
   if (is.null(ref_prim)) func$prim(x) |> expect_error("undefined method")
   else func$prim(x) |> expect_equal(ref_prim(x))
 
-  keep <- in_interval(domain)(x)
-  null_move <- func$log_ratio(x, x)
-  null_move[keep] |> expect_equal(rep(0, sum(keep)))
-  if (is.null(ref_log)) {
-    func$log_func(x) |> expect_error("undefined method")
-    func$log_ratio(x, x + h) |> expect_equal(rep(0, length(x)))
-  } else {
-    func$log_func(x) |> expect_equal(ref_log(func$func(x)))
-    func$log_ratio(x, x + h) |> expect_equal(log(ref_f(x + h) / ref_f(x)))
-  }
+  if (is.null(ref_log)) func$log_func(x) |> expect_error("undefined method")
+  else func$log_func(x) |> expect_equal(ref_log(func$func(x)))
 }
 
 # Assert exposed distribution methods against R reference `ref`.
@@ -160,10 +152,14 @@ test_that("Exposed methods carry R formals", {
     expect_error("[Aa]rgument.*x.*missing")
   distr$log_ratio(1) |>
     expect_error("[Aa]rgument.*xn.*missing")
+  distr$log_ratio(1:2, 1) |>
+    expect_error("[Ss]ize")
   distr$unknown() |>
     expect_error("attempt to apply non-function")
   # each family answers for its own methods only
   browse_functions("sin")$inst() |>
+    expect_error("attempt to apply non-function")
+  browse_functions("sin")$log_ratio(1, 2) |>
     expect_error("attempt to apply non-function")
 })
 
@@ -287,7 +283,6 @@ test_that("Function arguments are validated", {
   x <- seq(0.1, 10, 0.1)
   func <- browse_functions("pow", x2 = 3)
   func$args |> expect_equal(c(x2 = 3))
-  func$log_ratio(x, x[-1]) |> expect_error("[Ss]ize")
 
   browse_functions("pow")$func(x) |>
     expect_error("Missing non default")
@@ -329,9 +324,9 @@ test_that("Transcendental functions match R reference", {
   expect_function_matches("pow", list(x2 = 0.5), sqrt, \(x) x^1.5 / 1.5)
   expect_function_matches("sqrt", list(), sqrt, \(x) x^1.5 / 1.5,
                           domain = "[0, Inf)")
-  expect_function_matches("exp", list(), exp, exp, x = seq(-5, 5, 0.1), h = pi)
+  expect_function_matches("exp", list(), exp, exp, x = seq(-5, 5, 0.1))
   expect_function_matches("log", list(), log, \(x) x * log(x) - x,
-                          domain = "(0, Inf)", x = seq(1.1, 20, 0.1), h = pi)
+                          domain = "(0, Inf)", x = seq(1.1, 20, 0.1))
   expect_function_matches("sin", list(), sin, \(x) -cos(x),
                           x = seq(0.1, pi - 0.1, 0.05))
   expect_function_matches("cos", list(), cos, sin,
@@ -343,7 +338,7 @@ test_that("Transcendental functions match R reference", {
 test_that("Arithmetic kernels have no log surface", {
   arith <- function(name, args, ref, discrete = FALSE, x = seq(-5, 5, 0.5)) {
     expect_function_matches(name, args, ref, ref_log = NULL,
-                            discrete = discrete, x = x, h = pi)
+                            discrete = discrete, x = x)
   }
   fold <- c(3.3, 5.5, 6.6)
   # NOTE: avoid half-values: C++ std::round uses round-half-away-from-zero
