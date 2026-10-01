@@ -10,7 +10,7 @@ trapezoid <- \(x, y) 0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
 drayleigh <- function(x, scale) {
   ifelse(x >= 0, x / scale^2 * exp(-x^2 / (2 * scale^2)), 0)
 }
-prayleigh <- \(q, scale) ifelse(q >= 0, 1 - exp(-q^2 / (2 * scale^2)), 0)
+prayleigh <- \(q, scale) ifelse(q >= 0, -expm1(-q^2 / (2 * scale^2)), 0)
 qrayleigh <- \(p, scale) scale * sqrt(-2 * log1p(-p))
 
 # R reference `<prefix><ref>` (e.g. "d" + "norm") bound to named arguments.
@@ -93,15 +93,24 @@ expect_truncated_matches <- function(name, args, ref, x,
 # difference of cumulatives underflows. `bin` holds the edges of the bin at x.
 # Tail masses sit below the tolerance of `expect_equal`, which then compares
 # them in absolute terms: only the log-scale comparison has resolution there.
-expect_tail_finite <- function(name, args, ref, x, bin = c(0, 1),
-                               log_scale = TRUE) {
+expect_tail_finite <- function(name, args, ref, x, bin = c(0, 1)) {
   distr <- do.call(browse_distributions, c(list(name), args, discr = TRUE))
   p <- stats_ref("p", ref, args)
   any(p(x + bin[2]) == p(x + bin[1])) |> expect_true()
   pmf <- p(x + bin[1], lower.tail = FALSE) - p(x + bin[2], lower.tail = FALSE)
   is.finite(distr$log_pdf(x)) |> expect_all_true()
   distr$pdf(x) |> expect_equal(pmf)
-  if (log_scale) distr$log_pdf(x) |> expect_equal(log(pmf))
+  distr$log_pdf(x) |> expect_equal(log(pmf))
+}
+
+# Assert a discretized law keeps its mass far in the lower tail, where the
+# masses sit below the machine epsilon and `1 - exp(-z)` rounds them to 0.
+expect_head_exact <- function(name, args, ref, x) {
+  distr <- do.call(browse_distributions, c(list(name), args, discr = TRUE))
+  p <- stats_ref("p", ref, args)
+  pmf <- p(x + 1) - p(x)
+  (pmf < .Machine$double.eps / 2) |> expect_all_true()
+  distr$log_pdf(x) |> expect_equal(log(pmf))
 }
 
 ################################################################################
@@ -672,14 +681,18 @@ test_that("Discretized laws stay finite far in the upper tail", {
                      bin = c(-0.5, 0.5))
   expect_tail_finite("lognormal", list(meanlog = 0, sdlog = 0.5), "lnorm",
                      seq(60, 200, 5))
-  ## UPDATE: at x = 60 the gamma log-pmf reads log(2^-53) = -36.74 against
-  ## -37.02: the naive difference is taken one ulp below 1, before it cancels
   expect_tail_finite("gamma", list(shape = 2, scale = 1.5), "gamma",
-                     seq(60, 120, 5), log_scale = FALSE)
+                     seq(55, 120, 1))
 
   # symmetry: reflecting about the mean matches the lower tail
   distr <- browse_distributions("normal", mean = 0, sd = 1, discr = TRUE)
   distr$pdf(9:30) |> expect_equal(distr$pdf(-(9:30)))
+})
+
+test_that("Discretized laws keep their mass far in the lower tail", {
+  expect_head_exact("exponential", list(rate = 1e-17), "exp", 0:5)
+  expect_head_exact("weibull", list(shape = 0.5, scale = 1e40), "weibull", 0:5)
+  expect_head_exact("rayleigh", list(scale = 1e9), "rayleigh", 0:5)
 })
 
 test_that("rand() draws are reproducible and statistically plausible", {

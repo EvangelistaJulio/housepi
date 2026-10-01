@@ -188,9 +188,10 @@ namespace
         HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Uniform_)
         HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
-    protected:
+    private:
         double norm_() const { return domain_.max.value() - domain_.min.value(); }
 
+    protected:
         double raw_pdf_(double) const override final { return 1. / norm_(); }
         double raw_cdf_(double x) const override final { return (x - domain_.min.value()) / norm_(); }
         double raw_log_pdf_(double) const override final { return -log(norm_()); }
@@ -220,10 +221,11 @@ namespace
 
         void discretize() override final {}
 
+    private:
+        double norm_() const { return domain_.max.value() - domain_.min.value() + 1.; }
+
     protected:
         std::vector<const Attribute *> discrete_args_() const override final { return {&domain_.min, &domain_.max}; }
-
-        double norm_() const { return domain_.max.value() - domain_.min.value() + 1.; }
 
         double raw_pdf_(double) const override final { return 1. / norm_(); }
         double raw_cdf_(double x) const override final { return (x - domain_.min.value() + 1.) / norm_(); }
@@ -497,10 +499,9 @@ namespace
             const auto [shape, scale] = eff_params_();
             if (shape < 1.)
                 return inf::DOUBLE;
-            else if (shape == 1.)
+            if (shape == 1.)
                 return exp(-log(scale) - lgamma(1));
-            else
-                return 0.;
+            return 0.;
         }
         double raw_cdf_(double x) const override final
         {
@@ -565,7 +566,8 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return 1. - raw_ccdf_(x);
+            const double scale = arg(0), z = 0.5 * x * x / (scale * scale);
+            return z < 0x1p-10 ? -expm1(-z) : 1. - exp(-z);
         }
         double raw_ccdf_(double x) const override final
         {
@@ -616,7 +618,8 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return 1. - raw_ccdf_(x);
+            const double z = pow(x / arg(1), arg(0));
+            return z < 0x1p-10 ? -expm1(-z) : 1. - exp(-z);
         }
         double raw_ccdf_(double x) const override final
         {
@@ -666,7 +669,8 @@ namespace
         }
         double raw_cdf_(double x) const override final
         {
-            return 1. - raw_ccdf_(x);
+            const double z = arg(0) * x;
+            return z < 0x1p-10 ? -expm1(-z) : 1. - exp(-z);
         }
         double raw_ccdf_(double x) const override final
         {
@@ -920,7 +924,7 @@ namespace
                 msg::stop(
                     "Invoked " + str() + " with no weights.\nProvide at least one weight.");
 
-            if (weight_sum_() <= 0.)
+            if (norm_() <= 0.)
                 msg::stop(
                     "Invoked " + str() + " with weights summing to non-strictly positive value.");
 
@@ -931,8 +935,7 @@ namespace
         }
 
     private:
-        /// Live normalizing constant.
-        double weight_sum_() const
+        double norm_() const
         {
             double z = 0.;
             for (size_t i = 0; i < n_args(); ++i)
@@ -945,11 +948,11 @@ namespace
 
         double raw_pdf_(double x) const override final
         {
-            return arg(static_cast<size_t>(x)) / weight_sum_();
+            return arg(static_cast<size_t>(x)) / norm_();
         }
         double raw_log_pdf_(double x) const override final
         {
-            return log(arg(static_cast<size_t>(x))) - log(weight_sum_());
+            return log(arg(static_cast<size_t>(x))) - log(norm_());
         }
         double raw_cdf_(double x) const override final
         {
@@ -957,7 +960,7 @@ namespace
             double acc = 0.;
             for (size_t i = 0; i <= k; ++i)
                 acc += arg(i);
-            return acc / weight_sum_();
+            return acc / norm_();
         }
         double raw_log_ratio_(double xo, double xn) const override final
         {
@@ -966,7 +969,7 @@ namespace
         double raw_quantile_(double p) const override final
         {
             const size_t cases = n_args();
-            const double target = p * weight_sum_();
+            const double target = p * norm_();
             size_t i = 0;
             double acc = arg(0);
             while (i < cases && acc < target)
@@ -976,7 +979,7 @@ namespace
         double raw_rand_(rnd_gen &prng) const override final
         {
             const size_t cases = n_args();
-            const double target = standard_uniform(prng) * weight_sum_();
+            const double target = standard_uniform(prng) * norm_();
             size_t i = 0;
             double acc = arg(0);
             while (i < cases && acc < target)

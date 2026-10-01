@@ -88,14 +88,17 @@ namespace housepi
 		/// - neither: NA.
 		double guarded_log_ratio(double xo, double xn) const
 		{
-			bool ov = is_valid(xo), nv = is_valid(xn);
-			if (ov && nv)
+			switch (is_valid(xo) + 2 * is_valid(xn))
+			{
+			case 3:
 				return log_ratio(xo, xn);
-			else if (!ov && nv)
+			case 2:
 				return inf::DOUBLE;
-			else if (ov && !nv)
+			case 1:
 				return -inf::DOUBLE;
-			return na::DOUBLE;
+			default:
+				return na::DOUBLE;
+			}
 		}
 
 		/// Return the quantile at probability `p`, NA outside [0, 1].
@@ -383,21 +386,20 @@ namespace housepi
 	private:
 		//////  Discretization  //////
 
+		static constexpr double tail_mass_ = 0x1p-20; /// Upper-tail mass below which cumulatives lose precision.
+
 		/// Mass of the unit bin centered on `x`.
-		double discr_dist_center_(double x) const
-		{
-			const double i = std::round(x);
-			const double p = raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
-			// complementary cumulative only where the plain difference cancels in the right tail
-			// the pmf stays finite, the bulk pays nothing
-			return p > 0. ? p : raw_ccdf_(i - 0.5) - raw_ccdf_(i + 0.5);
-		}
+		double discr_dist_center_(double x) const { return discr_bin_(std::round(x) - 0.5); }
 		/// Mass of the unit bin starting at floor(`x`).
-		double discr_dist_left_(double x) const
+		double discr_dist_left_(double x) const { return discr_bin_(std::floor(x)); }
+		/// Mass of the unit bin starting at `a`.
+		///
+		/// - default: difference of cumulatives;
+		/// - bin above the median with mass below `tail_mass_`: difference of complementary cumulatives.
+		double discr_bin_(double a) const
 		{
-			const double i = std::floor(x);
-			const double p = raw_cdf_(i + 1.) - raw_cdf_(i);
-			return p > 0. ? p : raw_ccdf_(i) - raw_ccdf_(i + 1.);
+			const double hi = raw_cdf_(a + 1.), lo = raw_cdf_(a), p = hi - lo;
+			return p > tail_mass_ || lo < 0.5 ? p : raw_ccdf_(a) - raw_ccdf_(a + 1.);
 		}
 	};
 
