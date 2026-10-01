@@ -265,11 +265,11 @@ namespace housepi
         ofs << "iteration" << str::DELIMITER << "log_lik";
 
         // header: parameters
-        for (const auto &name : post.param_names)
+        for (const auto &name : post.param_values.names)
             ofs << str::DELIMITER << name;
 
         // header: latents of the traced id
-        for (const auto &name : post.latent_col_names)
+        for (const auto &name : post.latent_values.names)
             ofs << str::DELIMITER << name;
 
         // header: chain
@@ -287,23 +287,20 @@ namespace housepi
 
                 // joint log-likelihood (transmission + observation), summed over households from pointwise draws
                 double log_lik = 0.;
-                for (const auto &house : post.house_log_lik)
-                    log_lik += house[i];
+                for (size_t R : post.house_log_lik.source)
+                    log_lik += post.house_log_lik.cols[R][i];
                 ofs << str::DELIMITER << std::setprecision(2)
                     << std::fixed << log_lik;
 
                 // print parameter values
-                for (size_t u = 0; u < post.param_values.size(); ++u)
+                for (const auto &param_col : post.param_values.cols)
                     ofs << str::DELIMITER << std::setprecision(5)
-                        << std::fixed << post.param_values[u][i];
+                        << std::fixed << param_col[i];
 
                 // print latents of the traced id
-                {
-                    for (auto &indiv_matrix : post.latent_values)
-                        for (auto &var_vec : indiv_matrix)
-                            ofs << str::DELIMITER << std::setprecision(5)
-                                << std::fixed << var_vec[i];
-                }
+                for (const auto &latent_col : post.latent_values.cols)
+                    ofs << str::DELIMITER << std::setprecision(5)
+                        << std::fixed << latent_col[i];
 
                 // print the chain
                 ofs << str::DELIMITER << (c + 1) << '\n';

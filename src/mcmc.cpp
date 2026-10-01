@@ -361,38 +361,27 @@ namespace housepi
     void Posterior::init_param_draws_(const Parameter &param,
                                       unsigned long sample_size)
     {
-        size_t n_sample = param.scheme().sample.size();
-        size_t n_func = param.scheme().func.size();
-        param_values.reserve(n_sample + n_func);
-        param_priors.reserve(n_sample);
-        param_names.reserve(n_sample + n_func);
-        param_prior_names.reserve(n_sample);
         for (size_t p : param.scheme().sample)
         {
-            param_values.emplace_back(sample_size, na::DOUBLE);
-            param_priors.emplace_back(sample_size, na::DOUBLE);
-            param_names.push_back(param.khold(p));
-            param_prior_names.push_back("param_lprior_" + param.khold(p));
+            param_values.add(param.khold(p), sample_size);
+            param_priors.add("param_lprior_" + param.khold(p), sample_size);
         }
         // function-derived parameters: value trace only, no prior
         for (size_t p : param.scheme().func)
-        {
-            param_values.emplace_back(sample_size, na::DOUBLE);
-            param_names.push_back(param.khold(p));
-        }
+            param_values.add(param.khold(p), sample_size);
     }
 
     void Posterior::init_house_draws_(const data::Wide &data_wide,
                                       unsigned long sample_size)
     {
-        house_log_lik.reserve(data_wide.eq_class_size());
-        for (size_t R = 0; R < data_wide.eq_class_size(); ++R)
-            house_log_lik.emplace_back(sample_size, na::DOUBLE);
+        house_log_lik.cols.assign(data_wide.eq_class_size(), std::vector<double>(sample_size, na::DOUBLE));
 
-        size_t n_houses = data_wide.report_house.total;
-        house_names.reserve(n_houses);
+        size_t H = 0;
         for (const Household &house : data_wide)
-            house_names.push_back(data_wide.hhid(house));
+        {
+            house_log_lik.names.push_back(data_wide.hhid(house));
+            house_log_lik.source.push_back(data_wide.get_eq_class(H++));
+        }
     }
 
     /// Initialize the latent draws of the posterior.
@@ -404,35 +393,18 @@ namespace housepi
         tracked_indivs = helper_init_individual_sample(
             augm, data_wide, setup.id_draws, setup.house_draws, setup.prng());
 
-        if (tracked_indivs.empty())
-            return;
-
-        latent_values.resize(tracked_indivs.size());
-        for (size_t i = 0; i < tracked_indivs.size(); ++i)
-        {
-            const Individual &indiv = *tracked_indivs[i];
-            const auto &draws_list = augm.list_draws(indiv);
-            auto &indiv_matrix = latent_values[i];
-            indiv_matrix.reserve(draws_list.size());
-            for (size_t a : draws_list)
-            {
-                indiv_matrix.emplace_back(sample_size, na::DOUBLE);
-                latent_col_names.push_back(data_wide.id(indiv) + "_" + augm.khold(a));
-            }
-        }
+        for (const Individual *indiv : tracked_indivs)
+            for (size_t a : augm.list_draws(*indiv))
+                latent_values.add(data_wide.id(*indiv) + "_" + augm.khold(a), sample_size);
     }
 
     void Posterior::init(MCMCBase &mcmc)
     {
-        param_values.clear();
-        param_priors.clear();
-        house_log_lik.clear();
-        latent_values.clear();
+        param_values = {};
+        param_priors = {};
+        latent_values = {};
+        house_log_lik = {};
         tracked_indivs.clear();
-        param_names.clear();
-        param_prior_names.clear();
-        latent_col_names.clear();
-        house_names.clear();
 
         const Setup &setup = mcmc.setup;
         sample_size_ = setup.c_sample_size * setup.n_chains;
@@ -452,12 +424,12 @@ namespace housepi
         for (size_t p : param.scheme().sample)
         {
             const Variable &var = param.at(p);
-            param_values[i][col] = var.value();
-            param_priors[i++][col] = var.log_pdf();
+            param_values.cols[i][col] = var.value();
+            param_priors.cols[i++][col] = var.log_pdf();
         }
         // function-derived parameters: store value, no prior
         for (size_t p : param.scheme().func)
-            param_values[i++][col] = param.at(p).value();
+            param_values.cols[i++][col] = param.at(p).value();
 
         // pointwise household log-likelihood: transmission + observation + latent
         // with a latent or observation model, every household is its own equivalence class
@@ -472,19 +444,15 @@ namespace housepi
                 value += mcmc.house_obs_log_lik(head);
             if (with_model)
                 value += mcmc.house_latent_log_lik(head);
-            house_log_lik[R][col] = value;
+            house_log_lik.cols[R][col] = value;
         }
 
-        // latent variable draws
+        // latent variable draws, member by member
         const Augmented &augm = mcmc.augm;
-        for (size_t j = 0; j < tracked_indivs.size(); ++j)
-        {
-            const Individual &indiv = *tracked_indivs[j];
-            auto &indiv_matrix = latent_values[j];
-            size_t c = 0;
-            for (size_t a : augm.list_draws(indiv))
-                indiv_matrix[c++][col] = mcmc.aug(a, indiv);
-        }
+        size_t c = 0;
+        for (const Individual *indiv : tracked_indivs)
+            for (size_t a : augm.list_draws(*indiv))
+                latent_values.cols[c++][col] = mcmc.aug(a, *indiv);
     }
 
     //////////////////////////////  MCMCBase  //////////////////////////////

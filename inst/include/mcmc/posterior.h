@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "tools/nan.h"
@@ -28,20 +29,31 @@ namespace housepi
     struct Posterior
     {
         using matrix = std::vector<std::vector<double>>;
-        /// Pointwise log-likelihood: transmission, observation and latent model.
-        matrix house_log_lik;
-        matrix param_values;                            /// Parameter values.
-        matrix param_priors;                            /// Log-prior of each parameter.
-        std::vector<matrix> latent_values;              /// Latent values of tracked members.
-        std::vector<const Individual *> tracked_indivs; /// Members to track.
-
-        //////  Column names, captured at initialization  //////
-
         using headers = std::vector<std::string>;
-        headers param_names;       /// Parameter names.
-        headers param_prior_names; /// Parameter prior names.
-        headers latent_col_names;  /// Latent column names.
-        headers house_names;       /// Household names.
+
+        /// Draw columns of one table, shaped at initialization.
+        /// - table column `k` reads stored column `source[k]`, or `k` when `source` is empty.
+        struct Draws
+        {
+            matrix cols;                /// Draws per stored column.
+            headers names;              /// Name of each table column.
+            std::vector<size_t> source; /// Stored column of each table column.
+
+            /// Append stored column `name` of `n_draws` NA draws.
+            void add(std::string name, size_t n_draws)
+            {
+                cols.emplace_back(n_draws, na::DOUBLE);
+                names.push_back(std::move(name));
+            }
+        };
+
+        Draws param_values;  /// Parameter values.
+        Draws param_priors;  /// Log-prior of each sampled parameter.
+        Draws latent_values; /// Latent values of tracked members, member by member.
+        /// Pointwise log-likelihood: observation + transmission + latent model.
+        /// - one stored column per equivalence household head class.
+        Draws house_log_lik;
+        std::vector<const Individual *> tracked_indivs; /// Members to track.
 
         /// Initialize posterior sample.
         void init(MCMCBase &mcmc);
