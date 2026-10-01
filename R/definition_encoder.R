@@ -202,7 +202,7 @@ housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
   if (length(func_args) == 0) return(func_name)
 
   sprintf("%s|%s|%s", func_name,
-          paste(names(func_args), collapse = ":"),
+          paste(rlang::names2(func_args), collapse = ":"),
           paste(sprintf("[%s]", func_args), collapse = ":"))
 }
 

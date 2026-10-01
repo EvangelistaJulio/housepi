@@ -53,20 +53,35 @@ helper_format_error <- function(err) {
 # re-styling proxy. A failure then yields the plain C++ text (glue markup, but
 # no cli bullets) that `helper_format_error` classifies on; success returns
 # the exposer.
-probe_exposer_ <- function(fn, name, args) {
+probe_exposer_ <- function(fn, name, args, min = NA_real_, max = NA_real_) {
   member <- cpp_member_(.subset2(.engine, "module"), fn)
-  tryCatch(member(name, unlist(args), NA_real_, NA_real_, FALSE),
+  tryCatch(member(name, unlist(args), min, max, FALSE),
            error = \(e) conditionMessage(e))
+}
+
+# Value a readable definition entry is probed at: a constant at its own value,
+# anything sourced or computed (an encoding carrying '|') at `placeholder`.
+probe_value_ <- function(x, placeholder) {
+  x <- as.character(x)
+  out <- suppressWarnings(as.numeric(x))
+  out[is.na(x) | grepl("|", x, fixed = TRUE) | is.na(out)] <- placeholder
+  out
 }
 
 # Build the definition in every registry the engine queries for this column
 # and family, and raise the C++ error when none accepts it. Return the exposer
 # when a single registry accepts it, NULL otherwise.
-probe_definition_ <- function(func_name, arg_names, def_name,
-                              family, model_col) {
-  # WARNING: I am assuming `1` is a safe argument value...
-  arg_names <- arg_names[arg_names != "x"]
-  func_args <- stats::setNames(rep(1, length(arg_names)), arg_names)
+# Constant arguments and bounds are probed at their value, so that a value the
+# engine rejects errors at definition. Other arguments are probed at `1`; the
+# bounds are left out unless all given ones are constant.
+probe_definition_ <- function(func_name, args, def_name, family, model_col,
+                              min = NA_real_, max = NA_real_) {
+  # a definition without arguments reads back as an unnamed NA
+  args <- if (is.null(names(args))) numeric() else args[names(args) != "x"]
+  func_args <- stats::setNames(probe_value_(args, 1), names(args))
+  # a constant bound beside a sourced one would meet the default in its place
+  bounds <- probe_value_(c(min, max), NA_real_)
+  if (any(is.na(bounds) & !is.na(c(min, max)))) bounds[] <- NA_real_
 
   probed <- if (!identical(model_col, "func")) "dist"
   else if (family == "infectivity profile") "infec"
@@ -76,8 +91,9 @@ probe_definition_ <- function(func_name, arg_names, def_name,
   exposers <- c(func = "expose_function",
                 dist = "expose_distribution",
                 infec = "expose_infec_profile")
-  out <- lapply(stats::setNames(nm = probed),
-                \(k) probe_exposer_(exposers[[k]], func_name, func_args))
+  out <- lapply(stats::setNames(nm = probed), \(k) {
+    probe_exposer_(exposers[[k]], func_name, func_args, bounds[1], bounds[2])
+  })
   err <- Filter(is.character, out)
 
   # every registry refused the name: the definition has no reading
@@ -137,13 +153,19 @@ housepi_assert_args <- function(gear, last = NA_integer_) {
 
     for (i in which(!is.na(func_names))) {
       r <- rows[[i]]
-      user_args <- names(readable_defs[i, col_args][[1]])
+      # the bounds truncate the defining distribution, never the function
+      bound <- \(key) {
+        if (col == "func" || !key %in% colnames(readable_defs)) NA_real_
+        else readable_defs[[key]][[i]]
+      }
+      user_args <- readable_defs[i, col_args][[1]]
       obj <- probe_definition_(
         func_names[[i]], user_args,
         if ("name" %in% colnames(gear$defs)) gear$defs[r, "name"] else NA,
-        family, col
+        family, col, min = bound("min"), max = bound("max")
       )
-      if (!is.null(obj)) fill_defaults_(gear, r, col, obj, user_args)
+      if (!is.null(obj))
+        fill_defaults_(gear, r, col, obj, names(user_args))
     }
   }
 }

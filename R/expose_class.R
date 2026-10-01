@@ -794,7 +794,7 @@ add_observation <- function(hhmodel, name = NULL,
 #' constant and the probabilities must be data or numeric constants.
 #' @param hhmodel `r rd_model_in_`
 #' @param ... Probabilities of the infected statuses, in order. When named, the
-#' names label the corresponding statuses.
+#' names label the corresponding statuses: name all of them or none.
 #' @param model `character(1)`. Discrete distribution generating the status.
 #' @return `r rd_model_out_`
 #' @examples
@@ -814,6 +814,11 @@ add_status <- function(hhmodel, ..., model = "categorical") {
   if (length(weights) == 0) stop_h(
     "No status probability provided.",
     "Provide at least one infected-status probability."
+  )
+  labels <- rlang::names2(weights)
+  if (any(nzchar(labels)) && !all(nzchar(labels))) stop_h(
+    "Status labels were given to some probabilities only.",
+    "Name every status probability, or none."
   )
   # a single reserved node carries the status process (there is one status)
   pvt$augm_$add_quo(

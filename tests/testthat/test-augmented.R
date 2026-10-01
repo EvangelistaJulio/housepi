@@ -297,6 +297,20 @@ test_that("Latent variable definitions are correct", {
   augm$max |> expect_identical("rho|P")
 })
 
+test_that("Positional arguments bind a variadic distribution only", {
+  # categorical weights keep one empty key each
+  augm <- mk_latent$model |>
+    add_latent(hidden = list(model = "categorical", 0.2, 0.8)) |>
+    get_latent()
+  augm$model |> expect_identical("categorical")
+  augm$args[[1]] |> expect_equal(c(0.2, 0.8) |> stats::setNames(c("", "")))
+
+  # a fixed-arity distribution names its arguments
+  mk_latent$model |>
+    add_latent(hidden = list(model = "normal", 1, 2)) |>
+    expect_error("[Uu]nnamed argument passed to distribution .normal.")
+})
+
 test_that("Latent independence proposal folds its arguments", {
   augm <- mk_latent$model |>
     add_latent("hidden", model = "uniform", min = 0, max = 5,
@@ -1255,6 +1269,12 @@ test_that("A status process needs probabilities, within the status storage", {
     expect_error("255 statuses.*maximum of 254")
 })
 
+test_that("Status labels name every probability or none", {
+  mk_latent$model |>
+    add_status(symptomatic = 0.7, 0.3) |>
+    expect_error("[Ss]tatus labels were given to some probabilities only")
+})
+
 test_that("Status process rejects latent or parameter probabilities", {
   # probabilities must be a pure function of data/numerics
   mk_status$model |>
@@ -2138,6 +2158,17 @@ test_that("Status process generates a labelled status factor in simulation", {
   # the data-derived dictionary matches the simulated infected labels
   levels(get_data_wide(hhmodel)$status) |>
     expect_identical(c("escaped", "symptomatic", "asymptomatic"))
+})
+
+test_that("Unnamed status probabilities draw integer status codes", {
+  simulated <- mk_outbreak$model |>
+    add_status(0, 1, 0, 0) |>
+    run_simulation()
+
+  # the second of four statuses is certain, and none is labelled
+  infected <- simulated$status[simulated$status != 0]
+  infected |> expect_all_equal(2)
+  simulated$status |> expect_type("integer")
 })
 
 test_that("Status process drives status-specific latent blocks", {

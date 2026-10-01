@@ -121,3 +121,23 @@ test_that("Definitions carry the defaults the user left out", {
   obs$min |> expect_equal(c(0, 0))
   obs$max |> expect_equal(c(NA_real_, NA_real_))
 })
+
+test_that("Constant arguments and bounds are checked at definition", {
+  hhmodel <- data.frame(hhid = "h1", status = 1) |>
+    new_housepi_model("test")
+
+  # the latent build waits for the run, the definition does not
+  hhmodel |>
+    add_latent(hidden = list(model = "categorical", 0, 0)) |>
+    expect_error("weights summing to non-strictly")
+  hhmodel |>
+    add_latent(hidden = list(model = "uniform", min = 2, max = 1)) |>
+    expect_error("[Ii]nconsistent domain")
+
+  # a sourced argument has no value at definition
+  augm <- hhmodel |>
+    add_parameter(rho = list(prior = "gamma", shape = 2)) |>
+    add_latent(hidden = list(model = "normal", sd = rho@P)) |>
+    get_latent()
+  augm$args[[1]] |> expect_identical(c(sd = "rho|P", mean = "0"))
+})
