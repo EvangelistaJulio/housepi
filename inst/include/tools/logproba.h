@@ -8,9 +8,8 @@
 #pragma once
 
 #include <cmath>
-#include <stdexcept>
 
-#include "tools/nan.h"
+#include "tools/messages.h"
 
 namespace housepi
 {
@@ -18,18 +17,18 @@ namespace housepi
     struct LogProba
     {
         /// Set value to `new_ll`, keeping the previous one.
-        /// - NaN `new_ll`: error.
+        /// - NaN or `+Inf` `new_ll`: error.
         void set(double new_ll)
         {
             old_ = value_;
             value_ = new_ll;
 
-            if (na::is(new_ll))
-                throw std::runtime_error(
-                    "Log-probability computation returned NaN value.");
+            // NaN compares false: caught with +Inf
+            if (!(new_ll < INFINITY))
+                throw_invalid_(new_ll);
         }
         /// Increment value by `delta_ll`, keeping the previous one.
-        /// - NaN result: error.
+        /// - NaN or `+Inf` result: error.
         void increment(double delta_ll) { set(value_ + delta_ll); }
         /// Restore previous value.
         void recover() noexcept { value_ = old_; }
@@ -45,5 +44,13 @@ namespace housepi
     private:
         double value_ = 0.; /// Current log-probability.
         double old_ = 0.;   /// Previous log-probability.
+
+        /// Throw the error for an invalid log-probability `ll`, NaN or `+Inf`.
+        [[noreturn]] static void throw_invalid_(double ll)
+        {
+            if (std::isnan(ll))
+                msg::stop("Log-likelihood is not a number.");
+            msg::stop("Log-likelihood is infinite.");
+        }
     };
 }

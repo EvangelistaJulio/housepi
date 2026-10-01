@@ -1,7 +1,7 @@
 Package: housepi
 Type: Package
 Title: Household Epidemiological Modelling and Analysis
-Version: 0.9.9.28
+Version: 0.9.9.29
 Authors@R: c(person("Francesco", "Camaglia", role = c("aut", "cre"), 
                     email = "francesco.camaglia@pasteur.fr", comment = c(ORCID = "0000-0003-4810-2631")),
              person("Simon", "Cauchemez", role = "aut", comment = c(ORCID = "0000-0001-9186-4549")),

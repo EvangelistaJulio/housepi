@@ -334,5 +334,5 @@ test_that("Chain binomial raises if the log-likelihood is not a number", {
     new_housepi_model("final-size") |>
     add_parameter(alpha = 0.1, beta = 0, gamma = 1e10, hhsize_ref = 4) |>
     evaluate_log_lik() |>
-    expect_error("returned NaN")
+    expect_error("[Nn]ot a number")
 })

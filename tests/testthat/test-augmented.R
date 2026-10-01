@@ -1698,6 +1698,27 @@ test_that("Observation-aware initialization", {
     expect_error("[Oo]utside of respective domain")
 })
 
+test_that("An unbounded observation density stops the run", {
+  # gamma with shape below 1 is unbounded at its lower bound, reached at hidden = record
+  hhdata <- data.frame(hhid = "h1", status = 1, record = 5)
+  mk <- function(...) {
+    hhdata |>
+      new_housepi_model("test") |>
+      add_latent("hidden", ...) |>
+      add_observation("record", model = "gamma", shape = 0.5, scale = 1,
+                      loc = hidden@A)
+  }
+
+  mk(value = 5) |>
+    evaluate_log_lik() |>
+    expect_error("[Ll]og-likelihood is infinite")
+
+  # a discrete latent reaches the bound within a few moves
+  mk(model = "uniform", min = 0, max = 5, discr = TRUE) |>
+    run_inference(steps = 200L, adapt = 0L) |>
+    expect_error("[Ll]og-likelihood is infinite")
+})
+
 test_that("Members missing different observations still initialize", {
   # m1 carries a record and no record_2, m2 the reverse, m3 neither: the
   # ordinary censoring pattern must reach the sampler, not the
