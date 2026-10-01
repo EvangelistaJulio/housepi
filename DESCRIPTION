@@ -17,11 +17,11 @@ NeedsCompilation: yes
 Encoding: UTF-8
 Imports:
     cli (>= 3.5.0),
-    pkgbuild (>= 1.0.5),
-    posterior,
-    R6,
+    pkgbuild (>= 1.2.0),
+    posterior (>= 1.4.1),
+    R6 (>= 2.4.1),
     Rcpp,
-    RcppParallel,
+    RcppParallel (>= 6.2.0),
     Rdpack,
     rlang (>= 1.0.0),
     stats,
@@ -30,21 +30,20 @@ Imports:
     withr
 LinkingTo:
     Rcpp,
-    RcppParallel,
+    RcppParallel (>= 6.2.0),
     BH (>= 1.90.0-1)
 Roxygen: list(markdown = TRUE, r6 = TRUE)
 RdMacros: Rdpack
 Suggests:
-    bayesplot,
-    dplyr,
-    flextable,
-    ggplot2,
-    knitr,
-    pkgdown,
+    bayesplot (>= 1.9.0),
+    dplyr (>= 1.1.0),
+    flextable (>= 0.8.0),
+    ggplot2 (>= 3.4.0),
+    knitr (>= 1.35),
     rmarkdown,
     testthat (>= 3.3.0),
-    tibble,
-    tidyr
+    tibble (>= 1.2.0),
+    tidyr (>= 1.0.0)
 VignetteBuilder: knitr
 Depends: 
     R (>= 4.3.0)

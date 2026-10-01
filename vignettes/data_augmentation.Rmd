@@ -3,7 +3,6 @@ title: "Data augmentation"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Data augmentation}
   %\VignetteEngine{knitr::rmarkdown}

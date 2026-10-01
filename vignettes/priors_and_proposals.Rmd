@@ -3,7 +3,6 @@ title: "Priors and proposals"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Priors and proposals}
   %\VignetteEngine{knitr::rmarkdown}

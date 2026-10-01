@@ -3,7 +3,6 @@ title: "User functions"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{User functions}
   %\VignetteEngine{knitr::rmarkdown}

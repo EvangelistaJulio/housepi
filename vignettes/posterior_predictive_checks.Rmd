@@ -3,7 +3,6 @@ title: "Posterior predictive checks"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Posterior predictive checks}
   %\VignetteEngine{knitr::rmarkdown}

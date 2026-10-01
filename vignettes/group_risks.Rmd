@@ -3,7 +3,6 @@ title: "Group risks"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc-depth: 3
 bibliography: ../inst/REFERENCES.bib
 link-citations: true
 vignette: >

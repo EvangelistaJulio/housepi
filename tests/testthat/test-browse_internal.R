@@ -825,9 +825,9 @@ test_that("quantile is truncation-aware", {
     distr <- do.call(browse_distributions, case$args)
     distr$quantile(p) |>
       expect_equal(case$ref(p), tolerance = 1e-10, info = case$args[[1]])
-    all(distr$quantile(p) >= case$args$min %||% -Inf) |>
+    all(distr$quantile(p) >= max(-Inf, case$args$min)) |>
       expect_true(info = paste(case$args[[1]], "above min"))
-    all(distr$quantile(p) <= case$args$max %||% Inf) |>
+    all(distr$quantile(p) <= min(Inf, case$args$max)) |>
       expect_true(info = paste(case$args[[1]], "below max"))
   }
 })

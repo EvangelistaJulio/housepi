@@ -3,7 +3,6 @@ title: "Parameter recovery checks"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Parameter recovery checks}
   %\VignetteEngine{knitr::rmarkdown}

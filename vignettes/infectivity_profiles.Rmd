@@ -3,7 +3,6 @@ title: "Infectivity profiles"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc-depth: 3
 vignette: >
   %\VignetteIndexEntry{Infectivity profiles}
   %\VignetteEngine{knitr::rmarkdown}
