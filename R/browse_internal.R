@@ -28,10 +28,10 @@ show_registered_ <- function(names, family) {
 # e.g. "[0, Inf)".
 format_interval_ <- function(x, loc = 0) {
   sprintf("%s%s, %s%s",
-          ifelse(x$closed[["min"]], "[", "("),
+          if (x$closed[["min"]]) "[" else "(",
           format(x$min + loc),
           format(x$max + loc),
-          ifelse(x$closed[["max"]], "]", ")"))
+          if (x$closed[["max"]]) "]" else ")")
 }
 
 ############################################################################
@@ -390,7 +390,7 @@ browse_infectivity_profiles <- function(name = NA_character_, ...,
     return(show_registered_(.engine$list_infec_profiles(), .family$infec))
   }
   # FIXME: this is unaware of loc !
-  if (is.na(min)) min <- ifelse(discr, 1, 0)
+  if (is.na(min)) min <- if (discr) 1 else 0
   assert_unique_arg_names(names(list(...)), .family$infec, name)
   obj <- .engine$expose_infec_profile(name, unlist(list(...)), min, max, discr)
   HousepiExposedProfile$new(obj, name)

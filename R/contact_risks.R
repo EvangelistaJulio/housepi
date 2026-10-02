@@ -61,8 +61,7 @@ contact_risk_logic_table <- function(data_wide, covariates) {
 count_contact_rule_pairs <- function(tbl, data_wide, covariates) {
   pairs <- contact_risk_logic_table(data_wide, covariates)
   # no household structure, no pair to count
-  if (is.null(pairs) || nrow(pairs) == 0) return(rep(0L, nrow(tbl)))
-
+  if (!NROW(pairs)) return(rep(0L, nrow(tbl)))
   count_resolved_rules(tbl, pairs[pair_cols_(covariates)], pairs$n)
 }
 
@@ -89,14 +88,14 @@ associate_contact_param_names <- function(this_table, prefix, reference,
   if (identical(reference, ".auto")) {
     idx_refer <- which.max(this_table$n)
 
-  } else if (length(reference) > 0) {
+  } else if (length(reference)) {
     idx_refer <- reference_rows_(this_table, colmask, reference)
     if (length(idx_refer) != 1) stop_h(
       "Provided reference contact risk is not valid.",
       `!` = paste(
         "The pair",
         "{reference_to_phrase(reference[grep(fp, names(reference))], fp)}",
-        "{ifelse(symmetric, '<->', '-->')}",
+        "{if (symmetric) '<->' else '-->'}",
         "{reference_to_phrase(reference[grep(tp, names(reference))], tp)}",
         "is never observed."
       )
@@ -139,7 +138,7 @@ assert_paired_contact_cols <- function(strata) {
   to <- sub("^to_", "", grep("^to_", cols, value = TRUE))
   unpaired <- c(paste0("from_", setdiff(from, to), recycle0 = TRUE),
                 paste0("to_", setdiff(to, from), recycle0 = TRUE))
-  if (length(unpaired) > 0) stop_h(
+  if (length(unpaired)) stop_h(
     "Contact strata column{?s} {.field {unpaired}} {?has/have} no partner.",
     paste("Add the {.code from_}/{.code to_} counterpart,",
           "set to {.code NA} to match any value.")
@@ -166,7 +165,7 @@ fill_symmetric_gaps <- function(tbl) {
     do.call(paste, c(cells, sep = key_sep_))
   }
   gaps <- flipped[!key(flipped) %in% key(tbl), , drop = FALSE]
-  if (nrow(gaps) == 0) return(tbl)
+  if (!nrow(gaps)) return(tbl)
   tbl <- rbind(tbl, gaps)
   rownames(tbl) <- NULL
   tbl
@@ -178,7 +177,7 @@ fill_symmetric_gaps <- function(tbl) {
 #' @keywords internal
 #' @noRd
 tidyup_contact_risk_tables <- function(tables) {
-  if (length(tables) == 0) return(data.frame())
+  if (!length(tables)) return(data.frame())
 
   # covariates lead, the rule outcome (parameter, count, pins) closes the row
   present <- unique(unlist(lapply(tables, names)))
@@ -230,7 +229,7 @@ auto_contact_reference_ <- function(by, reference, joint = FALSE) {
                                    pair_cols_(names(reference)[bare])))
   }
   wrong_entries <- setdiff(names(reference), valid_names)
-  if (length(wrong_entries) != 0) stop_h(
+  if (length(wrong_entries)) stop_h(
     "Unrecognized choice{?s} for reference: {.val {wrong_entries}}.",
     paste("Reference should match {.arg by}",
           "and use {.code from_}\\{.code to_} prefixes.")
@@ -240,7 +239,7 @@ auto_contact_reference_ <- function(by, reference, joint = FALSE) {
     cols <- pair_cols_(cell)
     named <- intersect(cols, names(reference))
     unnamed <- setdiff(cols, names(reference))
-    if (length(named) > 0 && length(unnamed) > 0) stop_h(
+    if (length(named) && length(unnamed)) stop_h(
       "Reference names {.field {named}} but leaves {.field {unnamed}} unnamed.",
       "Name every column of the reference pair, or none of them."
     )
@@ -276,7 +275,7 @@ HousepiContactRisk <- R6::R6Class(
       assert_valid_covariates(by)
 
       # load reference and validate reference names
-      if (length(reference) > 0) {
+      if (length(reference)) {
         reference <- auto_contact_reference_(by, reference, joint)
       }
 
@@ -484,7 +483,7 @@ HousepiContactRisk <- R6::R6Class(
       setup <- unwrap_risk_setup_(prior, proposal, min, max, list(...),
                                   self$family)
       mode <- risk_mode_(by, strata, params)
-      if (.warn_over && length(self$defs) > 0) warn_h(
+      if (.warn_over && length(self$defs)) warn_h(
         "Overwriting previous contact risk definition."
       )
       if (mode == "auto") {
@@ -519,7 +518,7 @@ HousepiContactRisk <- R6::R6Class(
     #' @description
     #' Assert that contact risk definitions are compatible.
     assert = function() {
-      length(self$defs) > 0 &&
+      length(self$defs) &&
         (!all(is.na(self$defs[["by"]])) || self$defs[["mode"]] == "custom")
     },
 

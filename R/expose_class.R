@@ -380,9 +380,9 @@ summarize_house_cases <- summarise_house_cases
 # All of them when `name` is `NA`.
 subset_definitions_ <- function(defs, name, col = "name") {
   if (length(name) == 1L && is.na(name)) return(defs)
-  stopifnot(is.character(name), !any(is.na(name)))
+  stopifnot(is.character(name), !anyNA(name))
   unmatched <- setdiff(name, defs[[col]])
-  if (length(unmatched) > 0L) stop_h(
+  if (length(unmatched)) stop_h(
     "No definition{?s} named {.val {unmatched}}.",
     find_closest_match(unmatched, defs[[col]])
   )
@@ -488,7 +488,7 @@ template_helper_ <- paste(
 
 # Guard the inline (`...`) bulk form.
 assert_bulk_defs_ <- function(family, dots, has_template = FALSE) {
-  if (length(dots) > 0L) return(dots)
+  if (length(dots)) return(dots)
   sms <- c("Missing or empty {family} definitions.", definition_helper_)
   if (isTRUE(has_template)) sms <- c(sms, template_helper_)
   stop_h(sms)
@@ -496,7 +496,7 @@ assert_bulk_defs_ <- function(family, dots, has_template = FALSE) {
 
 # Reject `import` combined with single-mode or inline `...` pairs.
 assert_no_def_mixing_ <- function(key, dots) {
-  if (!is.null(key) || length(dots) > 0L) stop_h(
+  if (!is.null(key) || length(dots)) stop_h(
     "Mixing imported definitions with single and multiple definitions",
     definition_helper_
   )
@@ -539,7 +539,7 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
                              dots, env, has_template = FALSE, ...) {
   if (has_template && is_template_import_(import)) {
     add_template_defs_(holder, generator, family, append, key, dots)
-  } else if (length(import) > 0L) {
+  } else if (length(import)) {
     holder$add_quo_list(defs_to_quos_(import, key, dots, env),
                         append = append, ...)
   } else if (is.null(key)) {
@@ -804,7 +804,7 @@ add_status <- function(hhmodel, ..., model = "categorical") {
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
   weights <- rlang::enquos(...)
-  if (length(weights) == 0) stop_h(
+  if (!length(weights)) stop_h(
     "No status probability provided.",
     "Provide at least one infected-status probability."
   )
@@ -963,7 +963,7 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 
   # contact risk holds a single definition:
   # import a named arg list, or the explicit arguments
-  if (length(import) == 0L) import <- list(
+  if (!length(import)) import <- list(
     by = by, reference = reference, joint = joint,
     symmetric = symmetric, strata = strata, params = params,
     prior = prior, rlang::enquos(...),
@@ -1108,16 +1108,16 @@ inspect_house_state <- function(hhmodel, hhid) {
   if (all(dim(out$data_long) == 0)) out$data_long <- NULL
   else out$data_long <- gen$refactor_data_long(out$data_long)
   ## parameters
-  if (length(gen$param_required) == 0 &&
+  if (!length(gen$param_required) &&
         all(dim(out$parameters) == 0)) out$parameters <- NULL
   ## group risks
-  if (length(gen$group_risks_required) == 0 &&
+  if (!length(gen$group_risks_required) &&
         all(dim(out$group_risks) == 0)) out$group_risks <- NULL
   ## contact risks
   if (!gen$has_contact_risk &&
         all(dim(out$contact_risks) == 0)) out$contact_risks <- NULL
   ## infectivity profiles
-  if (!gen$has_infec_profile && length(out$infectivity_profiles) == 0) {
+  if (!gen$has_infec_profile && !length(out$infectivity_profiles)) {
     out$infectivity_profiles <- NULL
   } else {
     lst <- out$infectivity_profiles
@@ -1266,7 +1266,7 @@ simulate_with_parameters_ <- function(hhmodel,
   )
 
   # drop empty long
-  if (length(output$long) == 0) output$long <- NULL
+  if (!length(output$long)) output$long <- NULL
   # unwrap the frames of a single replicate
   if (nrep == 1) {
     output$wide <- output$wide[[1]]

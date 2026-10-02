@@ -26,7 +26,7 @@ NULL
 helper_process_data <- function(data_wide, escaped = "escaped") {
   df <- as.data.frame(data_wide)
   # an empty call returns the empty shape of the measure
-  if (ncol(df) == 0) return(df)
+  if (!ncol(df)) return(df)
   for (col in c("hhid", "status")) if (!col %in% colnames(df)) stop_h(
     "Column {.field {col}} is missing from the data.",
     paste("Measures by household size need one row per individual, with a",
@@ -136,7 +136,7 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
                        logical(1))
   if (!all(dims_match)) stop_h(
     paste0("Not all computed measures share identical dimensions",
-           ifelse(is.na(name), ".", " in measure {.field {name}}.")),
+           if (is.na(name)) "." else " in measure {.field {name}}."),
     "Check output of your measure function."
   )
 
@@ -182,7 +182,7 @@ ppc_frame_apply_stat <- function(frame_list, stat_fn, label,
     else if (length(unique(x)) == 1) unique(x)
     else stop_h(
       paste0("Undefined {.fn {label}} for non-numeric, non-unique values",
-             ifelse(is.na(name), ".", " in measure {.field {name}}.")),
+             if (is.na(name)) "." else " in measure {.field {name}}."),
       "Check output of your measure function."
     )
   }, name = name)
@@ -217,7 +217,7 @@ ppc_frame_apply_summary <- function(frame_list,
 #' @noRd
 ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95,
                                 upper = TRUE, name = NA_character_) {
-  p <- cri_level_probs(cri_level)[[ifelse(isTRUE(upper), "upper", "lower")]]
+  p <- cri_level_probs(cri_level)[[if (isTRUE(upper)) "upper" else "lower"]]
   ppc_frame_apply_stat(frame_list,
                        \(x) stats::quantile(x, probs = p, na.rm = TRUE),
                        label = "credible interval",
@@ -302,7 +302,7 @@ HousepiPredictiveCheck <- R6::R6Class(
           " outside of {cri_pct}% CrI for measure {.field {m}}."
         ))
       }
-      if (length(findings) > 0L) {
+      if (length(findings)) {
         names(findings) <- rep("!", length(findings))
         warn_h(c(
           "Posterior predictive checks flagged the following:",
@@ -389,14 +389,12 @@ HousepiPredictiveCheck <- R6::R6Class(
 
       # load and classify measure functions (wide vs long)
       m_wide <- list(...)
-      has_wide <- length(m_wide) > 0
       # FIXME this breaks if it's already list
       m_long <- list()
       if (!is.null(measures_long)) m_long <- list(measures_long)
-      has_long <- length(m_long) > 0
 
       # FIXME: temporary forcing obs process long
-      if (has_long && is.null(obs_process_long)) stop_h(
+      if (length(m_long) && is.null(obs_process_long)) stop_h(
         "{.arg obs_process_long} is required when long measures are provided."
       )
 
@@ -405,7 +403,7 @@ HousepiPredictiveCheck <- R6::R6Class(
 
       # wide-measure application
       apply_wide <- NULL
-      if (has_wide) {
+      if (length(m_wide)) {
         observations <- c(
           observations, lapply(m_wide, \(func) func(hhmodel$data_wide))
         )
@@ -413,7 +411,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       }
       # long-measure application
       apply_long <- NULL
-      if (has_long) {
+      if (length(m_long)) {
         observations <- c(
           observations, lapply(m_long, \(func) func(hhmodel$data_long))
         )
@@ -443,10 +441,10 @@ HousepiPredictiveCheck <- R6::R6Class(
       all_measure_names <- c(names(m_wide), names(m_long))
 
       parsed <- c()
-      if (has_wide) parsed <- c(parsed,
+      if (length(m_wide)) parsed <- c(parsed,
         lapply(names(m_wide), \(x) lapply(output$wide, `[[`, x))
       )
-      if (has_long) parsed <- c(parsed,
+      if (length(m_long)) parsed <- c(parsed,
         lapply(names(m_long), \(x) lapply(output$long, `[[`, x))
       )
       names(parsed) <- all_measure_names
@@ -502,7 +500,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       print_bullets(c(
         sms,
         paste0("N. replicates: {private$nrep_}",
-               ifelse(private$thin_ess_, " (ESS)", "")),
+               if (private$thin_ess_) " (ESS)" else ""),
         "Point estimate: {private$point_estimate_}",
         "Credible interval: {round(100 * private$cri_level_)}%"
       ))
@@ -588,7 +586,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   # reorder columns
   y <- colnames(combined)
   aux <- c("hhsize", "distr")
-  combined <- combined[, c(aux, y[!(y %in% aux)])]
+  combined <- combined[, c(aux, y[!y %in% aux])]
 
   # format columns to extract labels with labelizor
   colnames(combined)[3:ncol(combined)] <- sapply(
@@ -850,7 +848,7 @@ check_predictive <- function(hhmodel,
                              threads = 1L,
                              progress = TRUE) {
   stopifnothousepi(hhmodel)
-  if (...length() == 0L) {
+  if (!...length()) {
     if (!is.null(obs_process_long)) stop_h(
       "{.arg obs_process_long} has no measure to apply to.",
       "Pass the measures on {.code data_long} in {.arg ...}."
@@ -925,10 +923,10 @@ format_credible_interval <- function(point_estimate, cri_lower, cri_upper,
       else digits <- max(0, ceiling(-log10(abs(pe))) + 1)
 
       pe_f <- formatC(pe, digits = digits, format = "f")
-      low_f <- ifelse(is.na(low), NA_character_,
-                      formatC(low, digits = digits, format = "f"))
-      up_f <- ifelse(is.na(up), NA_character_,
-                     formatC(up, digits = digits, format = "f"))
+      low_f <- if (is.na(low)) NA_character_
+      else formatC(low, digits = digits, format = "f")
+      up_f <- if (is.na(up)) NA_character_
+      else formatC(up, digits = digits, format = "f")
 
       sprintf(fmt, pe_f, low_f, up_f)
     }

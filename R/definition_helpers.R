@@ -59,13 +59,13 @@ helper_evaluate_defin_block <- function(block, type) {
 #' @noRd
 housepi_walk_definition <- function(input, type) {
   output <- c()
-  if (!is.na(input) && !is.null(input) && input != "") {
+  if (length(input) && !is.na(input) && nzchar(input)) {
     blocks <- helper_extract_defin_blocks(input)
-    if (length(blocks) > 0) {
+    if (length(blocks)) {
       for (b in blocks) {
         output <- c(output, helper_evaluate_defin_block(b, type))
       }
-      if (length(output) > 0) output <- unique(output)
+      if (length(output)) output <- unique(output)
     } else {
       # terminal node
       parts <- unlist(strsplit(input, "\\|"))
@@ -103,7 +103,7 @@ housepi_resolve_definition <- function(input, dict) {
 # Definitions required by definitions according to the "source"
 find_required_definitions <- function(defs, src, col_with_sources, family) {
   output <- c()
-  if (length(defs) > 0) {
+  if (length(defs)) {
     for (col in col_with_sources) {
       for (x in defs[[col]]) {
         output <- c(output, housepi_walk_definition(x, src))
@@ -169,7 +169,7 @@ helper_variable_core <- function(opts, family, value, func) {
 # Attach the spare arguments to the object that takes them: the distribution
 # sampling the variable, or the function computing it.
 helper_variable_args <- function(opts, family, args, func) {
-  if (length(args) == 0) return(opts)
+  if (!length(args)) return(opts)
   dcol <- family2model_col(family)
   col <- if (!is.na(opts[[dcol]])) dcol else if (!is.na(opts$func)) "func"
   headline <- paste("{cli::qty(args)}There {?was/were} {length(args)} spare",
@@ -207,7 +207,7 @@ helper_definition_args <- function(proposal, dots, family, name = NULL) {
   nms <- names(args)
   assert_unique_arg_names(nms, family, name)
   # skip if empty
-  if (length(nms) == 0) return(list(args = args, proposal = proposal))
+  if (!length(nms)) return(list(args = args, proposal = proposal))
 
   # find proposal advanced definitions
   mask_prop <- startsWith(nms, "proposal_")
@@ -215,7 +215,7 @@ helper_definition_args <- function(proposal, dots, family, name = NULL) {
   names(prop_args) <- sub("^proposal_", "", names(prop_args))
 
   # validate proposal arguments against the chosen family
-  if (length(prop_args) > 0) {
+  if (length(prop_args)) {
     arg_nms <- names(prop_args)
     is_rw <- !is.na(proposal) && proposal %in% .random_walk_proposals
     if (is.na(proposal)) stop_h(
@@ -370,7 +370,7 @@ helper_cast_house_level <- function(defs) {
     cast <- Filter(function(r) {
       defs[["kind"]][r] == "member" && all(reads(r, "D") %in% house)
     }, candidates)
-    if (length(cast) == 0) return(defs)
+    if (!length(cast)) return(defs)
     defs[["kind"]][cast] <- "house"
   }
 }

@@ -155,7 +155,7 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
   func_args <- func_args[order(match(nms, slots, nomatch = length(slots) + 1))]
 
   if (is.na(func_name)) unname(func_args)
-  else if (length(func_args) == 0) func_name
+  else if (!length(func_args)) func_name
   else housepi_format_call(func_name, func_args)
 }
 
@@ -174,12 +174,12 @@ housepi_is_call <- function(x) isTRUE(housepi_bar_count(x) > 1)
 # Combione function name and arguments.
 housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
   func_name <- as.character(func_name)
-  if (housepi_is_call(func_name) && length(func_args) > 0) {
+  if (housepi_is_call(func_name) && length(func_args)) {
     stop_h("Impossible to associate arguments to a function which is a call.")
   } else if (housepi_is_sourced_value(func_name) && isTRUE(is_func)) {
     func_name <- showcaser_extract(func_name, "?")
   }
-  if (length(func_args) == 0) return(func_name)
+  if (!length(func_args)) return(func_name)
 
   assert_valid_arg_keys(rlang::names2(func_args))
   sprintf("%s|%s|%s", func_name,
@@ -249,7 +249,7 @@ housepi_extractor <- function(...) {
   x_quos <- helper_case_container(x_quos)
   output <- unlist(lapply(x_quos, .extract_node))
 
-  if (!is.null(names(x_quos)) && !all(names(x_quos) == "")) output
+  if (!is.null(names(x_quos)) && any(nzchar(names(x_quos)))) output
   else unname(output)
 }
 
@@ -271,7 +271,7 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
 
   for (i in seq_along(xquos)) {
     nm <- names(xquos[i])
-    if (requires_name && (is.na(nm) || length(nm) == 0 || nm == "")) stop_h(
+    if (requires_name && (!length(nm) || is.na(nm) || nm == "")) stop_h(
       "Name of {self$family} must be a non-empty string.",
       "Did you provide a list and forgot rlang injection operator {.code !!!}?"
     )
@@ -284,7 +284,7 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
                           rlang::new_quosure,
                           env = rlang::quo_get_env(def_quo))
 
-      if (all(names(args_quos) == "")) {
+      if (!any(nzchar(names(args_quos)))) {
         args_quos <- rlang::set_names(list(def_quo), implicit_name)
       }
       inj <- inject_defaults(names(args_quos))

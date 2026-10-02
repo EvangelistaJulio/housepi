@@ -37,7 +37,7 @@ assert_household_data <- function(data, model) {
     )
     stop_h(sms)
   }
-  if (nrow(data) == 0) stop_h("Provided {.arg data} is empty.")
+  if (!nrow(data)) stop_h("Provided {.arg data} is empty.")
   assert_valid_data_columns(colnames(data))
   data
 }
@@ -176,7 +176,7 @@ HousepiGenerator <- R6::R6Class(
         return(setequal(private$last_flags_, readLines(flags_file)))
       }
       # NOTE: built-in templates have no extra flags
-      length(private$last_flags_) == 0
+      !length(private$last_flags_)
     },
 
     ############################################################################

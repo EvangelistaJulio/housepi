@@ -122,15 +122,17 @@ append_call_args_ <- function(call, args) {
 fill_defaults_ <- function(gear, r, col, obj, user_args) {
   args <- cpp_member_(obj, "args")()
   args <- args[!is.na(args) & !names(args) %in% user_args]
-  if (length(args) > 0)
+  if (length(args)) {
     gear$defs[r, col] <- append_call_args_(gear$defs[r, col], args)
+  }
 
   domain <- cpp_member_(obj, "domain")()
   aliases <- cpp_member_(obj, "bound_aliases")()
   for (key in intersect(c("min", "max"), colnames(gear$defs))) {
     bound <- domain[[key]]
-    if (is.na(gear$defs[r, key]) && is.finite(bound) && !aliases[[key]])
+    if (is.na(gear$defs[r, key]) && is.finite(bound) && !aliases[[key]]) {
       gear$defs[r, key] <- sprintf("%s|N", as.character(bound))
+    }
   }
 }
 
@@ -146,7 +148,7 @@ housepi_assert_args <- function(gear, last = NA_integer_) {
 
   # load requested faimily definitions
   for (col in family2function_col(family)) {
-    col_args <- ifelse(col == "func", "func_args", "args")
+    col_args <- if (col == "func") "func_args" else "args"
 
     readable_defs <- housepi_defin_showcaser(gear$defs[rows, , drop = FALSE])
     func_names <- readable_defs[[col]]
@@ -173,7 +175,7 @@ housepi_assert_args <- function(gear, last = NA_integer_) {
 # Assert no argument name is given twice to one definition.
 assert_unique_arg_names <- function(nms, family, name = NULL) {
   dups <- unique(nms[nzchar(nms) & duplicated(nms)])
-  if (length(dups) == 0) return(invisible())
+  if (!length(dups)) return(invisible())
   stop_h(paste("{cli::qty(dups)}Repeated argument{?s} {.arg {dups}} for",
                if (is.null(name)) "{family}." else "{family} {.val {name}}."))
 }
@@ -184,7 +186,7 @@ assert_unique_arg_names <- function(nms, family, name = NULL) {
 assert_no_kind_clash <- function(defs, name, kind) {
   if (is.null(defs)) return(invisible())
   other <- defs[["kind"]][defs[["name"]] == name & defs[["kind"]] != kind]
-  if (length(other) == 0) return(invisible())
+  if (!length(other)) return(invisible())
   stop_h(
     "Name {.val {name}} is already declared as {kind2family(other[1])}.",
     "Each name stands for one quantity: choose a different name."
@@ -194,7 +196,7 @@ assert_no_kind_clash <- function(defs, name, kind) {
 # Assert that a string argument respects the naming convention, `what` naming
 # it in the message.
 assert_valid_character <- function(x, what) {
-  if (nchar(x) == 0) stop_h("{what} must be a non-empty string.")
+  if (!nzchar(x)) stop_h("{what} must be a non-empty string.")
   else if (!grepl("^[A-Za-z0-9_.]+$", x)) stop_h(
     "{what} {.val {x}} contained invalid characters.",
     "Only letters, numbers, underscores and dots are allowed."
@@ -242,7 +244,7 @@ assert_valid_definition_name <- function(x, family, allow_reserved = FALSE) {
 # Assert data columns have valid names and can be sourced by definitions.
 assert_valid_data_columns <- function(cols) {
   forbidden <- cols[!grepl("^[A-Za-z0-9_.]+$", cols)]
-  if (length(forbidden) == 0) return(invisible())
+  if (!length(forbidden)) return(invisible())
   stop_h(
     "Column {cli::qty(forbidden)}name{?s} are forbidden: {.field {forbidden}}.",
     "Use only letters, digits and/or underscores {.code _}."
@@ -258,7 +260,7 @@ max_status_level <- 254L
 # resolved to integer codes against the status dictionary at build time.
 assert_valid_status <- function(status) {
   status <- status[!is.na(status)]
-  if (length(status) == 0) return(invisible())
+  if (!length(status)) return(invisible())
   if (!is.numeric(status)) return(invisible())
   if (any(status <= 0) || any(status != as.integer(status))) stop_h(
     "Status specific definition is valid only for positive integer values."

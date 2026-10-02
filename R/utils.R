@@ -74,7 +74,7 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   # un-named continuation lines become info hints
   nms <- names(parts)
   nms[nms == ""] <- "i"
-  if (length(nms) > 0) nms[[1]] <- ifelse(level == "stop", "x", "")
+  if (length(nms)) nms[[1]] <- if (level == "stop") "x" else ""
   bullets <- stats::setNames(parts, nms)
 
   if (level == "stop") cli::cli_abort(bullets, call = NULL, .envir = .envir)
@@ -141,7 +141,7 @@ key_sep_ <- "\x1F"
 #' @noRd
 row_keys_ <- function(x, cols) {
   # no column: every row shares one key
-  if (length(cols) == 0) return(rep(key_sep_, nrow(x)))
+  if (!length(cols)) return(rep(key_sep_, nrow(x)))
   do.call(paste, c(lapply(x[cols], as.character), list(sep = key_sep_)))
 }
 
@@ -150,7 +150,7 @@ row_keys_ <- function(x, cols) {
 #' @param wall `logical(1)` Raise the error.
 #' @noRd
 wall_or_return_ <- function(sms, wall) {
-  if (isTRUE(wall) && length(sms) > 0) stop_h(sms) else sms
+  if (isTRUE(wall) && length(sms)) stop_h(sms) else sms
 }
 
 #' Thin draws to `n` evenly spaced elements, or rows of a `data.frame`, first
@@ -195,7 +195,7 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
         sapply(posterior::variables(ptab), \(v) posterior::ess_bulk(ptab[, v]))
       )
       # check no NA values in ESS
-      if (any(is.na(ess_bulk))) stop_h(
+      if (anyNA(ess_bulk)) stop_h(
         "ESS values return NA.",
         "Check your draws for degenerate parameters."
       )
@@ -220,7 +220,7 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
 resolve_id_draws_ <- function(id_draws) {
   out <- list(id = character(), hhid = character())
   # unspecified: let the engine follow one random household
-  if (is.null(id_draws) || length(id_draws) == 0L) {
+  if (!length(id_draws)) {
     return(out)
   }
   # explicit opt-out: forward the sentinel so the engine stores nothing
@@ -231,7 +231,7 @@ resolve_id_draws_ <- function(id_draws) {
   # named list: split individual and household identifiers
   if (is.list(id_draws)) {
     extra <- setdiff(names(id_draws), c("id", "hhid"))
-    if (length(extra) > 0) stop_h(
+    if (length(extra)) stop_h(
       "Unknown {.arg id_draws} name{?s}: {.val {extra}}."
     )
     if (!is.null(id_draws$id)) out$id <- as.character(id_draws$id)
@@ -366,7 +366,7 @@ helper_clone <- function(x) {
 assert_advanced_setup_ <- function(allowed, ...) {
   dots <- list(...)
   for (nm in names(dots)) {
-    if (!(nm %in% allowed)) stop_h(
+    if (!nm %in% allowed) stop_h(
       "Unexpected argument {.arg {nm}} passed through {.code ...}.",
       # NOTE: do not print all advanced options, just suggest
       find_closest_match(nm, setdiff(allowed, names(dots)),
@@ -392,7 +392,7 @@ char_setup_input_ <- function(defs) {
   # correct id / house trace vectors
   for (key in intersect(c("id_draws", "house_draws"), names(defs))) {
     y <- unlist(defs[[key]])
-    if (length(y) == 0) defs[[key]] <- ""
+    if (!length(y)) defs[[key]] <- ""
     else defs[[key]] <- paste0(unique(y), collapse = ":")
   }
   data.frame(lapply(defs, as.character))
@@ -460,7 +460,7 @@ resolve_status_codes_ <- function(defs, dictionary) {
 #' @keywords internal
 #' @noRd
 resolve_source_types_ <- function(defs, dict) {
-  if (is.null(defs) || length(defs) == 0) return(defs)
+  if (!length(defs)) return(defs)
   cols <- c("value", "func", "prior", "model", "min", "max", "proposal")
   for (col in intersect(names(defs), cols)) {
     if (is.character(defs[[col]])) {
@@ -505,7 +505,7 @@ resolve_discr_flags_ <- function(defs, discr_req_defs,
     by_data[is.na(by_data)] <- FALSE
   }
 
-  distr_col <- ifelse(is_prior, "prior", "model")
+  distr_col <- if (is_prior) "prior" else "model"
   mask <- !is.na(defs[[distr_col]]) & (by_model | by_data)
   discr[unresolved] <- mask[unresolved]
   defs[["discr"]] <- discr
@@ -526,7 +526,7 @@ status_to_codes_ <- function(x, escaped = "escaped") {
   lv <- if (is.factor(x)) levels(x) else unique(as.character(x))
   lv <- lv[!is.na(lv)]
   # an all-missing column carries no outcome at all, so it stays silent
-  if (length(lv) > 0 && !escaped %in% lv) {
+  if (length(lv) && !escaped %in% lv) {
     guess <- lv[tolower(lv) %in% c("susceptible", "negative", "control",
                                    "no", "false", "uninfected", "healthy", "0")]
     warn_h(
@@ -579,8 +579,8 @@ cpp_data_factorize <- function(df, escaped = "escaped") {
       info[[col]] <- list(class = "Date")
       df[[col]] <- as.numeric(x)
     } else if (is.character(x) || is.factor(x) || is.logical(x)) {
-      cls <- ifelse(is.character(x), "character",
-                    ifelse(is.logical(x), "logical", "factor"))
+      cls <- if (is.character(x)) "character"
+      else if (is.logical(x)) "logical" else "factor"
       # a missing cell is missing data, not a category: it carries no level
       # and codes to NA, which the engine reads as an empty cell
       y <- factor(x, levels = unique(x))
@@ -625,7 +625,7 @@ cpp_data_refactor <- function(data, info, headers,
 
   if ("status" %in% colnames(data)) {
     s <- as.integer(data[["status"]])
-    if (length(status_levels) > 0) {
+    if (length(status_levels)) {
       # code 0 -> escaped label, code k -> k-th infected label
       lv <- c(escaped, status_levels)
       data[["status"]] <- factor(s + 1L, levels = seq_along(lv), labels = lv)
@@ -692,7 +692,7 @@ set_housepi_theme <- function(base_size = 11,
     my_strip <- ggplot2::element_rect(fill = "#FBE09B", color = NA)
     my_grid <- ggplot2::element_line(color = "#FDFEFE", linewidth = 1)
     my_plot <- ggplot2::element_rect(
-      color = NA, fill = ifelse(isTRUE(transparent), "transparent", "white")
+      color = NA, fill = if (isTRUE(transparent)) "transparent" else "white"
     )
     ggplot2::theme_set(
       ggplot2::theme_minimal(base_size = base_size,

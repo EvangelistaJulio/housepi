@@ -26,7 +26,7 @@ the check to replay a whole sweep, and only at `threads = 1`."
 #' @noRd
 sweep_base_structure_ <- function(hhmodel) {
   data <- hhmodel$data_wide
-  if (is.null(data) || nrow(data) == 0L) stop_h(
+  if (!NROW(data)) stop_h(
     "No data is attached to the model.",
     paste("The check generates its surveys on the structure of the",
           "attached data: add one with {.fn add_data_wide}.")
@@ -58,8 +58,8 @@ sweep_param_table_ <- function(pins, nrep) {
 sweep_estimated_ <- function(hhmodel) {
   defs <- get_parameters(hhmodel)
   estimated <- defs[["name"]][!is.na(defs[["prior"]]) &
-                                !(defs[["const"]] %in% TRUE)]
-  if (length(estimated) == 0L) stop_h(
+                                !defs[["const"]] %in% TRUE]
+  if (!length(estimated)) stop_h(
     "The model holds no parameter to estimate.",
     "The check needs a parameter carrying a prior and free to move."
   )
@@ -133,7 +133,7 @@ sweep_houses_ <- function(structure, houses, verbatim, one = FALSE) {
 sweep_house_counts_ <- function(houses, observed, one = FALSE) {
   n <- suppressWarnings(as.integer(houses))
   n[is.na(houses)] <- observed
-  ok <- length(n) > 0L && !anyNA(n) && all(n >= 1L) && !(one && length(n) > 1L)
+  ok <- length(n) && !anyNA(n) && all(n >= 1L) && !(one && length(n) > 1L)
   if (!ok) stop_h("Number of households should be a positive integer.")
   n
 }
@@ -151,7 +151,7 @@ sweep_progress_bar_ <- function(progress, total, label) {
 #' @noRd
 sweep_warning_counts_ <- function(raised) {
   held <- do.call(rbind, raised)
-  if (is.null(held) || nrow(held) == 0L) {
+  if (!NROW(held)) {
     return(data.frame(message = character(), count = integer()))
   }
   counts <- tapply(held[["count"]], held[["message"]], sum)
@@ -164,7 +164,7 @@ sweep_warning_counts_ <- function(raised) {
 #' @param what `character(1)` Name of the check, heading the warning.
 #' @noRd
 sweep_report_warnings_ <- function(warnings, what) {
-  if (is.null(warnings) || nrow(warnings) == 0L) return()
+  if (!NROW(warnings)) return()
   # nolint next: object_usage_linter. read by the cli glue below
   n_warn <- nrow(warnings)
   lines <- mapply(\(n, msg) inline_cli_("{n} replicate{?s}: {msg}"),
@@ -205,7 +205,7 @@ sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, sim_args,
     # an engine message carries no markup: interpolate, never inline
     # nolint next: object_usage_linter. read by the cli glue below
     reason <- cell[[1L]]$replicate[["error"]]
-    if (length(done) == 0L) stop_h(
+    if (!length(done)) stop_h(
       "Every replicate crashed at {.val {n_houses}} households.",
       `!` = "{reason}"
     )

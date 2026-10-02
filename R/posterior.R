@@ -102,7 +102,7 @@ set_housepi_summary <- function(point_estimate = NULL,
     if (!is.null(cri_level))
       list(housepi.cri_level = validate_cri_level(cri_level))
   )
-  if (length(new) > 0L) options(new)
+  if (length(new)) options(new)
   invisible(old)
 }
 
@@ -132,7 +132,7 @@ draws_index_ <- function(setup) {
 # `posterior::draws_df`, attaching the `.chain`/`.iteration`/`.draw` bookkeeping
 # from a `draws_index_()` result.
 tag_rcpp_draws_ <- function(df, index) {
-  if (length(df) == 0) return(NULL)
+  if (!length(df)) return(NULL)
   df$.chain <- index$chain
   df$.iteration <- rep(index$iteration, times = length(unique(index$chain)))
   df$.draw <- seq_len(nrow(df))
@@ -256,14 +256,14 @@ check_diagnostics_one_ <- function(sm, draws_kind) {
     finding(only_rhat, diagnostic_flags_$rhat),
     finding(only_bulk, diagnostic_flags_$ess)
   )
-  if (length(findings) == 0L) return(NULL)
+  if (!length(findings)) return(NULL)
   names(findings) <- rep("!", length(findings))
 
   # a high R-hat means chains may not have mixed,
   # a low ESS means the sampler mixes slowly
   hint <- paste(c(
-    if (length(bad_rhat) > 0L) "chains may have not mixed",
-    if (length(bad_bulk) > 0L) "the sampler explores the posterior slowly"
+    if (length(bad_rhat)) "chains may have not mixed",
+    if (length(bad_bulk)) "the sampler explores the posterior slowly"
   ), collapse = "; ")
   substr(hint, 1L, 1L) <- toupper(substr(hint, 1L, 1L))
   list(header = paste0("Convergence diagnostics flagged ", draws_kind,
@@ -298,7 +298,7 @@ check_diagnostics_ <- function(draws) {
   param <- sm$param
   if (!is.null(param)) param <- data.frame(
     param[c("variable", "rhat", "ess_bulk")],
-    flagged = short | !(param$bad_rhat %in% FALSE) | !(param$bad_ess %in% FALSE)
+    flagged = short | !param$bad_rhat %in% FALSE | !param$bad_ess %in% FALSE
   )
   list(blocks = blocks, param = param)
 }
@@ -469,7 +469,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       lp <- .engine$flush_param_log_prior_draws(ptr)
       private$draws_ <- list(
         param = tag(.engine$flush_param_draws(ptr)),
-        lprior = tag(if (length(lp) > 0) data.frame(lprior = rowSums(lp))),
+        lprior = tag(if (length(lp)) data.frame(lprior = rowSums(lp))),
         latent = tag(.engine$flush_latent_draws(ptr)),
         point_log_lik = tag(.engine$flush_house_log_lik_draws(ptr))
       )
@@ -500,8 +500,8 @@ HousepiPosteriorDraws <- R6::R6Class(
         i = "Posterior draws of model {.val {model}}.",
         paste0(
           "{niter} iteration{?s}, {nchains} chain{?s}",
-          ifelse(nparams > 0, ", {nparams} parameter{?s}", ""),
-          ifelse(nlatent > 0, ", {nlatent} latent", ""), "."
+          if (nparams > 0) ", {nparams} parameter{?s}" else "",
+          if (nlatent > 0) ", {nlatent} latent" else "", "."
         )
       ))
       invisible()
@@ -523,7 +523,7 @@ subset_draws_ <- function(out, variable, prefix = "") {
   hits <- lapply(sprintf("^%s%s(\\[.+\\])?$", prefix, escaped),
                  grep, x = vars, value = TRUE)
   unmatched <- variable[lengths(hits) == 0L]
-  if (length(unmatched) > 0L) stop_h(
+  if (length(unmatched)) stop_h(
     "No draws of variable{?s} {.val {unmatched}}."
   )
   tag_as_housepi_draws(

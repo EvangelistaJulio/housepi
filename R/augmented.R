@@ -17,7 +17,7 @@ augm_defs_of_kind <- function(defs, kind = definition_kinds_) {
   kind <- match.arg(kind)
   if (is.null(defs)) return(defs)
   out <- defs[defs[["kind"]] == kind, , drop = FALSE]
-  if (nrow(out) == 0) return(NULL)
+  if (!nrow(out)) return(NULL)
   out[["kind"]] <- NULL
   out
 }
@@ -84,7 +84,7 @@ HousepiAugmented <- R6::R6Class(
     #' the status process when present, else factorized from literal character
     #' `status =` labels declared across the latent definitions.
     status_dictionary = function(value) {
-      if (length(self$status_levels) > 0) return(self$status_levels)
+      if (length(self$status_levels)) return(self$status_levels)
       if (is.null(self$defs)) return(character())
       labels <- unlist(self$defs[["status"]], use.names = FALSE)
       labels <- labels[!is.na(labels)]
@@ -135,9 +135,9 @@ HousepiAugmented <- R6::R6Class(
       mask <- self$defs[["name"]] == name
       if (any(mask)) {
         # check if same name and status (raw: integer code or character label)
-        mask <- mask & sapply(self$defs[["status"]], function(x) {
+        mask <- mask & vapply(self$defs[["status"]], function(x) {
           identical(as.character(x), as.character(status))
-        })
+        }, logical(1))
         if (any(mask)) {
           self$defs <- self$defs[!mask, ]
           return(name)
@@ -159,17 +159,17 @@ HousepiAugmented <- R6::R6Class(
 
       # household observations and the status process need no status block
       block <- defs[!defs[["kind"]] %in% c("house", "status"), , drop = FALSE]
-      if (nrow(block) == 0) return(TRUE)
+      if (!nrow(block)) return(TRUE)
       declared <- unlist(block[["status"]], use.names = FALSE)
       if (anyNA(declared)) return(TRUE)
 
       # a drawn status is any dictionary code, whatever the data carries
-      required <- if (length(self$status_names) > 0) {
+      required <- if (length(self$status_names)) {
         seq_along(self$status_dictionary)
       } else {
         status_set[!is.na(status_set)]
       }
-      length(required) > 0 && all(required %in% as.integer(declared))
+      length(required) && all(required %in% as.integer(declared))
     },
 
     #' @inherit add_latent
@@ -235,10 +235,10 @@ HousepiAugmented <- R6::R6Class(
         # an observation is evaluated at its datum, never sampled:
         # sampling options are dropped, those landing in the dots included
         in_dots <- intersect(c("const", "proposal"), names(args))
-        if (length(in_dots) > 0) args <- args[!names(args) %in% in_dots]
+        if (length(in_dots)) args <- args[!names(args) %in% in_dots]
         ignored <- c("const", "proposal")[!is.na(c(const, proposal))]
         ignored <- union(ignored, in_dots)
-        if (length(ignored) > 0) warn_h(
+        if (length(ignored)) warn_h(
           "Observation {.val {name}} cannot be sampled.",
           `!` = "Ignored {.arg {ignored}} definition."
         )

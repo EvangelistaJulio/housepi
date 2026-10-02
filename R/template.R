@@ -230,8 +230,8 @@ set_source_name_ <- function(x, name = NA_character_) {
 #' @keywords internal
 #' @noRd
 template_missing_find <- function(required, defined) {
-  if (length(required) == 0) NULL
-  else if (length(defined) == 0) sort(unlist(required))
+  if (!length(required)) NULL
+  else if (!length(defined)) sort(unlist(required))
   else sort(setdiff(unlist(required), unlist(defined)))
 }
 
@@ -247,7 +247,7 @@ template_missing_find <- function(required, defined) {
 template_missing_stop <- function(required, defined, holder,
                                   noun = "definition", style = "val") {
   miss <- template_missing_find(required, defined)
-  if (length(miss) == 0) return(NULL)
+  if (!length(miss)) return(NULL)
   # find sources of missing definitions
   sources <- unique(names(required[required %in% miss]))
   sources <- ifelse(sources == "model", "transmission model",
@@ -293,8 +293,8 @@ warn_or_store_overwrite_ <- function(self, rmv_name, warn) {
 #' @keywords internal
 #' @noRd
 template_not_used_find <- function(required, defined) {
-  if (length(required) == 0) sort(unlist(defined))
-  else if (length(defined) == 0) NULL
+  if (!length(required)) sort(unlist(defined))
+  else if (!length(defined)) NULL
   else sort(setdiff(unlist(defined), unlist(required)))
 }
 
@@ -329,7 +329,7 @@ fmt_assert_cli <- function(section, sms, minor = FALSE) {
   sms <- gsub(sms, pattern = " were ", replacement = " are ")
   sms <- gsub(sms, pattern = " was ", replacement = " is ")
   # colour the section name to match its bullet
-  if (length(sms) == 0) return(stats::setNames(cli::col_green(section), "v"))
+  if (!length(sms)) return(stats::setNames(cli::col_green(section), "v"))
   col <- if (minor) cli::col_yellow else cli::col_red
   if (minor) sms <- sub(sms, pattern = "^Required by ",
                         replacement = "Can be specified for ")

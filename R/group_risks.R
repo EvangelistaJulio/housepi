@@ -53,8 +53,8 @@ risk_params_ <- function(tables, overrides, setup, absolute) {
 # reference. An automatic definition not yet built from the data reads it
 # off its reference.
 risk_is_absolute_ <- function(def, tables) {
-  if (length(def) == 0) return(FALSE)
-  if (identical(def$mode, "auto") && length(tables) == 0)
+  if (!length(def)) return(FALSE)
+  if (identical(def$mode, "auto") && !length(tables))
     return(is.null(def$reference))
   lacks_reference_(tables)
 }
@@ -77,7 +77,7 @@ encode_risk_levels_ <- function(defs, info, key = identity,
 # Reorder `df` to `cols`, padding the missing ones with typed `NA`.
 pad_risk_cols_ <- function(df, cols) {
   miss <- setdiff(cols, names(df))
-  if (length(miss) > 0) df[miss] <- risk_na_pad(miss)
+  if (length(miss)) df[miss] <- risk_na_pad(miss)
   df[cols]
 }
 
@@ -92,8 +92,8 @@ format_risk_prefix_ <- function(prefix) {
 # If none is attached the table is an empty shell with columns `cols`.
 helper_show_risk_table <- function(module, cols, is_data_attached) {
   out <- module$tidy_table
-  if (!is.null(out) && nrow(out) > 0) return(out)
-  if (length(module$defs) > 0 && !is_data_attached) warn_h(
+  if (NROW(out)) return(out)
+  if (length(module$defs) && !is_data_attached) warn_h(
     "Cannot expand {module$family} definitions without data.",
     "Attach household data using {.fn add_data_wide}."
   )
@@ -123,13 +123,13 @@ risk_mode_ <- function(by, strata, params) {
 assert_valid_strata_ <- function(strata, params, reference,
                                  allow = character(), symmetric = FALSE) {
   assert_valid_logic_table(strata, allow)
-  if (length(reference) > 0) stop_h(
+  if (length(reference)) stop_h(
     paste("Argument {.arg reference} is not used",
           "with a custom {.arg strata} table."),
     "Tag one row's {.field param_name} as {.val .reference} instead."
   )
   assert_one_reference_per_group(strata, symmetric)
-  if (length(params) > 0) {
+  if (length(params)) {
     assert_known_params_names(strata, params)
     assert_no_pin_params_clash(strata, params)
   }
@@ -166,7 +166,7 @@ assert_valid_covariates <- function(covariates, allow = character()) {
   # avoid group risks associated to reserved data/definition names
   reserved_data <- setdiff(c(data_reserved_cols, risk_reserved_cols), allow)
   forbidden <- reserved_data[reserved_data %in% covariates]
-  if (length(forbidden) > 0) stop_h(
+  if (length(forbidden)) stop_h(
     "Impossible to associate risk to covariate{?s}: {.field {forbidden}}.",
     "These names are reserved.",
     paste("Change {cli::qty(forbidden)}covariate{?s} and/or",
@@ -181,7 +181,7 @@ assert_valid_covariates <- function(covariates, allow = character()) {
 #' @noRd
 assert_data_covariates <- function(covariates, headers) {
   missing <- setdiff(covariates, headers)
-  if (length(missing) > 0) stop_h(
+  if (length(missing)) stop_h(
     "Unknown covariate{?s}: {.field {missing}}.",
     "Check your data headers."
   )
@@ -195,9 +195,7 @@ assert_data_covariates <- function(covariates, headers) {
 assess_covariate_values <- function(this_table) {
   # column names to consider
   colmask <- risk_cov_cols_(this_table)
-  for (col in colmask) {
-    sapply(this_table[[col]], \(x) assert_valid_covariate(x, col))
-  }
+  for (col in colmask) lapply(this_table[[col]], assert_valid_covariate, col)
   colmask
 }
 
@@ -236,7 +234,7 @@ assert_no_dead_rules <- function(tbl, dead, label, unit) {
     cells <- as.list(tbl[i, cov_cols, drop = FALSE])
     keyed <- cells[!is.na(unlist(cells))]
     cli::format_inline(
-      if (length(keyed) == 0) "catch-all" else reference_to_phrase(keyed),
+      if (!length(keyed)) "catch-all" else reference_to_phrase(keyed),
       " ({.val {tbl$param_name[i]}})"
     )
   }, character(1))
@@ -259,13 +257,13 @@ assert_valid_logic_table <- function(logic_table, allow = character()) {
   if (!"param_name" %in% colnames(logic_table)) stop_h(
     "Logic table must contain a {.field param_name} column."
   )
-  if (nrow(logic_table) == 0) stop_h(
+  if (!nrow(logic_table)) stop_h(
     "Logic table must contain at least one row."
   )
   # every row names its parameter, or tags the reference
   pnames <- as.character(logic_table$param_name)
   unnamed <- which(is.na(pnames) | !nzchar(pnames))
-  if (length(unnamed) > 0) stop_h(
+  if (length(unnamed)) stop_h(
     paste("Strata {cli::qty(length(unnamed))}row{?s} without",
           "{.field param_name}: {unnamed}."),
     "Name the parameter of each row, or tag it {.val .reference}."
@@ -323,7 +321,7 @@ assert_valid_pins <- function(tbl) {
   conflicts <- vapply(names(rows), function(nm) {
     cli::format_inline("{.val {nm}} (rows {rows[[nm]]})")
   }, character(1))
-  if (length(conflicts) > 0) stop_h(
+  if (length(conflicts)) stop_h(
     "Conflicting {.field value} for {cli::qty(rows)}strat{?um/a} {conflicts}.",
     "A stratum spread over several rules carries a single {.field value}."
   )
@@ -340,7 +338,7 @@ assert_valid_pins <- function(tbl) {
 #' @keywords internal
 #' @noRd
 compute_rule_groups <- function(tbl) {
-  if (nrow(tbl) == 0) {
+  if (!nrow(tbl)) {
     tbl$rule_group <- integer(0)
     return(tbl)
   }
@@ -383,7 +381,7 @@ compute_rule_groups <- function(tbl) {
       }, character(1))
       stop_h(
         paste0("Ambiguous rule {i} ({.val {tbl$param_name[i]}}) ",
-               if (length(p) == 0) "names no covariates"
+               if (!length(p)) "names no covariates"
                else "names only {.field {p}}",
                ", fitting {length(candidates)} equally specific groups: ",
                "{groups}."),
@@ -424,7 +422,7 @@ rule_hits_ <- function(tbl, cells) {
 #' @keywords internal
 #' @noRd
 risk_check_cells_ <- function(data_wide, covs, status_levels = character()) {
-  if (length(covs) == 0) {
+  if (!length(covs)) {
     cells <- data.frame(.weight = nrow(data_wide))
   } else {
     key <- row_keys_(data_wide, covs)
@@ -433,7 +431,7 @@ risk_check_cells_ <- function(data_wide, covs, status_levels = character()) {
     cells$.weight <- as.integer(table(key)[key[first]])
   }
   cells$.combo <- seq_len(nrow(cells))
-  if (length(status_levels) == 0) return(cells)
+  if (!length(status_levels)) return(cells)
   do.call(rbind, lapply(status_levels, function(lv) {
     cells$status <- rep(lv, nrow(cells))
     cells
@@ -448,7 +446,7 @@ risk_check_cells_ <- function(data_wide, covs, status_levels = character()) {
 #' @noRd
 unmatched_cells_ <- function(tbl, cells) {
   # a table without rules matches no cell
-  if (nrow(tbl) == 0) return(rep(TRUE, nrow(cells)))
+  if (!nrow(tbl)) return(rep(TRUE, nrow(cells)))
   hit <- rule_hits_(tbl, cells)
   gid <- compute_rule_groups(tbl)$rule_group
   Reduce(`|`, lapply(unique(gid), function(g) {
@@ -517,7 +515,7 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
     split(seq_along(idx_refer), tbl$rule_group),
     \(k) if (length(unique(keys[k])) > 1) idx_refer[k]
   ))
-  if (length(clash) > 0) stop_h(
+  if (length(clash)) stop_h(
     paste("{cli::qty(length(clash))}Row{?s} {sort(clash)} of one rule group",
           "are tagged {.val .reference}."),
     "A rule group has a single reference, setting its unit scale."
@@ -579,7 +577,7 @@ lacks_reference_ <- function(tables) {
 #' @noRd
 assert_known_params_names <- function(strata, params) {
   unknown <- setdiff(names(params), setdiff(strata$param_name, ".reference"))
-  if (length(unknown) > 0) stop_h(
+  if (length(unknown)) stop_h(
     "Unknown parameter{?s} in {.arg params}: {.val {unknown}}."
   )
   invisible(params)
@@ -592,7 +590,7 @@ assert_known_params_names <- function(strata, params) {
 #' @keywords internal
 #' @noRd
 warn_unused_auto_params <- function(params) {
-  if (length(params) == 0) return(invisible(params))
+  if (!length(params)) return(invisible(params))
   warn_h(
     "{.arg params} is not used with {.arg by}.",
     paste("Give {.val {names(params)}} a value with {.fn add_parameter},",
@@ -609,7 +607,7 @@ warn_unused_auto_params <- function(params) {
 #' @noRd
 assert_no_pin_params_clash <- function(strata, params) {
   clash <- intersect(names(params), names(collect_table_pins(strata)))
-  if (length(clash) > 0) stop_h(
+  if (length(clash)) stop_h(
     paste("Pinned {cli::qty(clash)}strat{?um/a} also set through",
           "{.arg params}: {.val {clash}}."),
     paste("A pinned stratum carries no MCMC setup:",
@@ -624,7 +622,7 @@ assert_no_pin_params_clash <- function(strata, params) {
 #' @keywords internal
 #' @noRd
 reorder_risks_logic_table <- function(tbl) {
-  if (nrow(tbl) == 0) return(tbl)
+  if (!nrow(tbl)) return(tbl)
   is_ref <- tbl$param_name == ".reference"
   n_val <- suppressWarnings(as.numeric(tbl[["n"]]))
   ord <- order(tbl$rule_group, !is_ref, -n_val, method = "radix")
@@ -664,7 +662,7 @@ group_risk_logic_table <- function(data_wide, this_cov,
   uni_covariates <- lapply(this_cov, function(f) {
     if (identical(f, "status")) status_levels else sort(unique(data_wide[[f]]))
   })
-  sorted_indices <- order(sapply(uni_covariates, length), decreasing = TRUE)
+  sorted_indices <- order(lengths(uni_covariates), decreasing = TRUE)
   this_cov <- this_cov[sorted_indices]
   uni_covariates <- uni_covariates[sorted_indices]
   names(uni_covariates) <- this_cov
@@ -686,7 +684,7 @@ group_risk_logic_table <- function(data_wide, this_cov,
   if ("status" %in% this_cov) {
     others <- setdiff(this_cov, "status")
     keep <- rep(TRUE, nrow(y))
-    if (length(others) > 0) {
+    if (length(others)) {
       held <- data_wide[stats::complete.cases(data_wide[others]), ,
                         drop = FALSE]
       keep <- row_keys_(y, others) %in% row_keys_(held, others)
@@ -739,7 +737,7 @@ associate_group_param_names <- function(this_table, prefix, reference) {
     )
     idx_refer <- which.max(this_table$n)
 
-  } else if (length(reference) > 0) {
+  } else if (length(reference)) {
     idx_refer <- reference_rows_(this_table, colmask, reference)
     if (length(idx_refer) != 1) stop_h(
       "Provided reference group is not valid.",
@@ -776,7 +774,7 @@ reference_rows_ <- function(tbl, cols, reference) {
 tidyup_group_risk_tables <- function(all_tables) {
   df_list <- lapply(names(all_tables), function(risk) {
     this_table <- all_tables[[risk]]
-    if (length(this_table) == 0) return(data.frame(
+    if (!length(this_table)) return(data.frame(
       group_risk = risk, param_name = ".reference", rule_group = 1L
     ))
     # concat this risk's sub-tables, then compute rule_groups within risk
@@ -818,13 +816,14 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
   args <- helper_definition_args(proposal, dots, family, name)$args
   assert_no_sibling_dist_arg(args, family, name)
 
-  is_default <- sapply(c(prior, args, min, max, proposal),
-                       \(x) is.na(x) || is.null(x))
+  setup <- c(list(prior = prior), as.list(args),
+             list(min = min, max = max, proposal = proposal))
+  is_default <- vapply(setup, \(x) isTRUE(is.na(x)), logical(1))
   # all defaults: resolved once the data tells absolute from relative
   if (all(is_default)) return(NULL)
   # nolint next: object_usage_linter. read by the cli glue below
   label <- if (is.null(name)) family else name
-  if (is_default[1]) stop_h(
+  if (is_default[["prior"]]) stop_h(
     "Found spare prior arguments for risk {.val {label}}.",
     "Either leave all as defaults or provide a {.arg prior}."
   )
@@ -893,7 +892,7 @@ HousepiGroupRisk <- R6::R6Class(
       warn_or_store_overwrite_(self, rmv_name, .warn_over)
 
       # load reference and validate reference names
-      if (length(reference) > 0) {
+      if (length(reference)) {
         reference <- auto_group_reference_(by, reference)
       }
 
@@ -1205,7 +1204,7 @@ HousepiGroupRisk <- R6::R6Class(
       for (risk_id in names(self$defs)) {
         # a status-keyed risk waits for the statuses to be declared, so
         # decorator order stays free; the wall reports one that never came
-        if (length(status_codes) == 0 && private$keys_on_status_(risk_id)) {
+        if (!length(status_codes) && private$keys_on_status_(risk_id)) {
           if (isTRUE(wall)) stop_h(
             paste("A {self$family} is keyed on {.field status},",
                   "for which the model declares no level."),
@@ -1242,7 +1241,7 @@ HousepiGroupRisk <- R6::R6Class(
       # point out group risks that are not used
       notused <- template_not_used_find(required, defined)
       # drop unused group risks
-      if (length(notused) > 0) {
+      if (length(notused)) {
         sms <- c("Dropped unused group risk{?s}: {.val {notused}}.",
                  find_closest_match(notused, required))
         for (which in notused) self$remove(which)
