@@ -1231,24 +1231,17 @@ HousepiGroupRisk <- R6::R6Class(
     },
 
     #' @description
-    #' Assert that group risk definitions match the requirements.
+    #' Stop on group risk definitions the model never reads. A required group
+    #' risk left undefined holds 1 for every member.
     #' @param required `character()`. Required group risks.
     assert = function(required) {
-      # load definitions
-      defined <- names(self$defs)
-
-      # UPDATE
-      # point out group risks that are not used
-      notused <- template_not_used_find(required, defined)
-      # drop unused group risks
-      if (length(notused)) {
-        sms <- c("Dropped unused group risk{?s}: {.val {notused}}.",
-                 find_closest_match(notused, required))
-        for (which in notused) self$remove(which)
-        stop_h(sms)
-      }
-
-      template_missing_stop(required, defined, self$family)
+      notused <- template_not_used_find(required, names(self$defs))
+      if (length(notused)) stop_h(
+        "Unused group risk{?s}: {.val {notused}}.",
+        "The model reads no group risk of that name.",
+        find_closest_match(notused, required)
+      )
+      invisible(self)
     },
 
     #' @description
