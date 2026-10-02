@@ -580,9 +580,6 @@ namespace housepi
         bool is_adaptive = !param.scheme().adaptive.empty() || augm.scheme().is_any_adaptive();
         // initialize setup for mcmc
         setup.init_mcmc_configuration(is_adaptive);
-
-        // set moving average smoothing factor for every Variable
-        Variable::set_adapt_smoothing(1. / setup.n_adapt_window);
     }
 
     void MCMCBase::init_monte_carlo_chain_()
@@ -1022,7 +1019,7 @@ namespace housepi
             if (setup.exponential() > -r)
             {
                 if constexpr (Adapt)
-                    this_par.commit_proposal_move();
+                    this_par.commit_proposal_move(setup.adapt_smoothing);
                 return;
             }
 
@@ -1031,7 +1028,7 @@ namespace housepi
         }
         this_par.restore();
         if constexpr (Adapt)
-            this_par.refuse_proposal_move();
+            this_par.refuse_proposal_move(setup.adapt_smoothing);
     }
 
     template <bool Adapt>
@@ -1103,7 +1100,7 @@ namespace housepi
             if (setup.exponential() > -r)
             {
                 if constexpr (Adapt)
-                    avar.commit_proposal_move();
+                    avar.commit_proposal_move(setup.adapt_smoothing);
                 return {d_obs, d_transm, d_latent};
             }
 
@@ -1118,7 +1115,7 @@ namespace housepi
         }
         avar.restore();
         if constexpr (Adapt)
-            avar.refuse_proposal_move();
+            avar.refuse_proposal_move(setup.adapt_smoothing);
 
         return {0., 0., 0.};
     }

@@ -58,6 +58,7 @@ namespace housepi
         // derived configuration
         budget = {};
         c_sample_size = 0;
+        adapt_smoothing = 1.;
     }
 
     void Setup::build(const str_table &input)
@@ -142,7 +143,6 @@ namespace housepi
                 std::to_string(max_threads) + " available threads.");
             n_threads = max_threads;
         }
-        housepi::parallel::set_num_threads(n_threads);
 #endif
         // every thread goes to the households of a single chain
         budget = {1, n_threads};
@@ -162,7 +162,7 @@ namespace housepi
 
     rnd_gen &Setup::prng() const
     {
-        return prng_parallel_[housepi::parallel::current_thread_index()];
+        return prng_parallel_[budget.inner == 1 ? 0 : housepi::parallel::current_thread_index()];
     }
 
     void Setup::init_mcmc_configuration(bool is_adaptive)
@@ -172,6 +172,7 @@ namespace housepi
         n_chains = std::max(1ul, n_chains);
         n_thin = std::max(1ul, n_thin);
         n_adapt_window = std::max(1ul, n_adapt_window);
+        adapt_smoothing = 1. / n_adapt_window;
 
         if (n_burn >= n_steps)
             msg::stop(

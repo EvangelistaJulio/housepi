@@ -23,7 +23,6 @@
 namespace housepi::chain_binom
 {
     using std::vector;
-    using gentype = vector<MemberIdx>;
 
     template <typename T>
     using matrix = vector<vector<T>>;
@@ -72,8 +71,36 @@ namespace housepi::chain_binom
             ++n_patterns_;
         }
 
-        /// Return formula of the likelihood.
-        std::string str() const;
+        /// Return formula of the likelihood, reading nested patterns from `patterns`.
+        std::string str(const vector<vector<EscapePattern>> &patterns) const
+        {
+            std::ostringstream oss;
+
+            for (size_t c = 0; c < n_entries_; ++c)
+            {
+                unsigned u = entries_[c];
+                if (u < max_n_infec_)
+                    oss << "B" << u + 1;
+                else
+                    oss << "Q" << u / max_n_infec_ << "_" << u % max_n_infec_ + 1;
+
+                if (c < n_entries_ - 1)
+                    oss << "*";
+            }
+
+            if (n_patterns_ > 0)
+            {
+                if (n_entries_ > 0)
+                    oss << "*(";
+                oss << "1";
+                for (size_t c = 0; c < n_patterns_; ++c)
+                    oss << " - " << patterns[max_n_infec_][pattern_idxs_[c]].str(patterns);
+                if (n_entries_ > 0)
+                    oss << ")";
+            }
+
+            return oss.str();
+        }
 
     private:
         const unsigned max_n_infec_; /// Number of infected members of the chain binomial.
@@ -84,33 +111,11 @@ namespace housepi::chain_binom
         vector<unsigned long> pattern_idxs_ = {}; /// Nested patterns, subtracted from 1.
     };
 
-    //////////////////////////////  chain_binom::PartitionTree  //////////////////////////////
+    //////////////////////////////  chain_binom::DebugTables  //////////////////////////////
 
-    /// Hold the multitype partition tree of a chain binomial.
-    /// Based on @cite ball_unified_1986 and @cite addy_generalized_1991
-    /// @todo Flatten the tree.
-    struct PartitionTree
+    /// Hold lookup tables of the symbolic polynomial, built per debugger call.
+    struct DebugTables
     {
-        vector<gentype> sub_vecs; /// Sub-vectors of the root, in a linear extension of the componentwise order.
-        /// Per sub-vector `t`: each smaller `w`, as its index and log C(t, w).
-        vector<vector<std::pair<std::uint32_t, double>>> ancestors;
-    };
-
-    //////////////////////////////  chain_binom::LookUpTables  //////////////////////////////
-
-    /// Hold lookup tables shared across evaluations.
-    struct LookUpTables
-    {
-        //////  Transmission generations  //////
-
-        vector<unsigned long> num_generations;  /// Number of generations, per infected count.
-        matrix<unsigned long> gen_multiplicity; /// Multiplicity of each generation.
-        matrix<gentype> generations;            /// Count-compressed generations, per infected count.
-
-        //////  Cached partition trees  //////
-
-        vector<PartitionTree> partition_trees; /// Partition trees, per equivalence class.
-
         //////  Combinations  //////
 
         matrix<unsigned long> num_combinations; /// Number of combinations, per `N` and `k`.
@@ -120,7 +125,7 @@ namespace housepi::chain_binom
 
         vector<EscapePattern> chain_binomial;  /// Root escape pattern, per infected count.
         matrix<EscapePattern> escape_patterns; /// Escape patterns, per infected count.
-    } lut;
+    };
 
     //////////////////////////////  Transmission generations  //////////////////////////////
 
@@ -142,29 +147,21 @@ namespace housepi::chain_binom
         return output;
     }
 
-    void clear_lookuptables()
+    void LookUpTables::ensure_homogeneous(MemberIdx n)
     {
-        lut.num_generations.clear();
-        lut.gen_multiplicity.clear();
-        lut.generations.clear();
-        lut.partition_trees.clear();
-    }
-
-    void ensure_homogeneous(MemberIdx n)
-    {
-        if (n < lut.num_generations.size())
+        if (n < num_generations.size())
             return;
 
-        unsigned old_size(lut.num_generations.size());
-        lut.num_generations.resize(n + 1);
-        lut.gen_multiplicity.resize(n + 1);
-        lut.generations.resize(n + 1);
+        unsigned old_size(num_generations.size());
+        num_generations.resize(n + 1);
+        gen_multiplicity.resize(n + 1);
+        generations.resize(n + 1);
 
         if (old_size == 0)
         {
-            lut.num_generations[0] = 0;
-            lut.gen_multiplicity[0].push_back(0);
-            lut.generations[0].push_back({});
+            num_generations[0] = 0;
+            gen_multiplicity[0].push_back(0);
+            generations[0].push_back({});
             old_size = 1;
         }
 
@@ -199,14 +196,14 @@ namespace housepi::chain_binom
             }
 
             size_t tot_num_gen = aux_gen_vec.size();
-            lut.num_generations[k] = tot_num_gen;
-            lut.gen_multiplicity[k].resize(tot_num_gen);
-            lut.generations[k].resize(tot_num_gen);
+            num_generations[k] = tot_num_gen;
+            gen_multiplicity[k].resize(tot_num_gen);
+            generations[k].resize(tot_num_gen);
 
             for (size_t c = 0; c < tot_num_gen; ++c)
             {
-                lut.gen_multiplicity[k][c] = aux_num_vec[c];
-                lut.generations[k][c] = aux_gen_vec[c];
+                gen_multiplicity[k][c] = aux_num_vec[c];
+                generations[k][c] = aux_gen_vec[c];
             }
         }
     }
@@ -215,7 +212,8 @@ namespace housepi::chain_binom
 
     /// Compute the homogeneous chain-binomial log-likelihood.
     /// Based on @cite longini_household_1982
-    double log_lik_homogeneous_(MemberIdx n_infec,
+    double log_lik_homogeneous_(const LookUpTables &lut,
+                                MemberIdx n_infec,
                                 double commu_infec_rate,
                                 double p2p_infec_rate)
     {
@@ -301,7 +299,7 @@ namespace housepi::chain_binom
     }
 
     /// Store every combination and complement of `N` elements in `k` positions.
-    void store_combinations_(unsigned N, unsigned k)
+    void store_combinations_(DebugTables &dbg, unsigned N, unsigned k)
     {
         // generate combinations with the recursive algorithm
         matrix<unsigned> results;
@@ -309,97 +307,55 @@ namespace housepi::chain_binom
         recursive_span_combinations_(N, k, current, results, 0, 0);
 
         unsigned long num_combin = binom_coeff(N, k);
-        lut.num_combinations[N][k] = num_combin;
-        lut.combinations[N][k].resize(num_combin);
+        dbg.num_combinations[N][k] = num_combin;
+        dbg.combinations[N][k].resize(num_combin);
 
         // store results in the lookup table
         unsigned long c = 0;
         for (const vector<unsigned> &res_c : results)
         {
-            lut.combinations[N][k][c].resize(N);
+            dbg.combinations[N][k][c].resize(N);
 
             // combination and complement
             for (unsigned i = 0; i < N; ++i)
-                lut.combinations[N][k][c][i] = res_c[i];
+                dbg.combinations[N][k][c][i] = res_c[i];
             ++c;
         }
     }
 
     /// Initialize lookup table of combinations and their counts, up to `max_N` elements.
-    void init_combinations_lookuptable_(unsigned max_N)
+    void init_combinations_lookuptable_(DebugTables &dbg, unsigned max_N)
     {
-        // empty the tables first
-        lut.num_combinations.clear();
-        lut.combinations.clear();
-
-        lut.num_combinations.resize(max_N + 1);
-        lut.combinations.resize(max_N + 1);
+        dbg.num_combinations.assign(max_N + 1, {});
+        dbg.combinations.assign(max_N + 1, {});
 
         for (unsigned N = 0; N <= max_N; ++N)
         {
-            lut.num_combinations[N].resize(max_N);
-            lut.combinations[N].resize(max_N);
+            dbg.num_combinations[N].resize(max_N);
+            dbg.combinations[N].resize(max_N);
 
             for (unsigned k = 0; k < N; ++k)
-                store_combinations_(N, k);
+                store_combinations_(dbg, N, k);
         }
-    }
-
-    /// Clear lookup table of combinations and their counts, releasing memory.
-    void clear_combinations_lookuptable_()
-    {
-        lut.num_combinations.clear();
-        lut.num_combinations.shrink_to_fit();
-        lut.combinations.clear();
-        lut.combinations.shrink_to_fit();
     }
 
     //////////////////////////////  Escape patterns  //////////////////////////////
 
-    std::string EscapePattern::str() const
-    {
-        std::ostringstream oss;
-
-        for (size_t c = 0; c < n_entries_; ++c)
-        {
-            unsigned u = entries_[c];
-            if (u < max_n_infec_)
-                oss << "B" << u + 1;
-            else
-                oss << "Q" << u / max_n_infec_ << "_" << u % max_n_infec_ + 1;
-
-            if (c < n_entries_ - 1)
-                oss << "*";
-        }
-
-        if (n_patterns_ > 0)
-        {
-            if (n_entries_ > 0)
-                oss << "*(";
-            oss << "1";
-            for (size_t c = 0; c < n_patterns_; ++c)
-                oss << " - " << lut.escape_patterns[max_n_infec_][pattern_idxs_[c]].str();
-            if (n_entries_ > 0)
-                oss << ")";
-        }
-
-        return oss.str();
-    }
-
     /// Generate every escape pattern of `N_star` seropositives into `results`, recursively.
-    void recursive_escape_patterns_function_(unsigned N_star,
+    void recursive_escape_patterns_function_(const DebugTables &dbg,
+                                             unsigned N_star,
                                              unsigned N,
                                              vector<unsigned> access_matrix,
                                              EscapePattern &father,
                                              vector<EscapePattern> &results)
     {
         for (unsigned k = 0; k < N; ++k)
-            for (unsigned long c = 0; c < lut.num_combinations[N][k]; ++c)
+            for (unsigned long c = 0; c < dbg.num_combinations[N][k]; ++c)
             {
                 EscapePattern new_child(N_star);
 
                 // associate entries for this pattern
-                vector<unsigned> &indidx = lut.combinations[N][k][c];
+                const vector<unsigned> &indidx = dbg.combinations[N][k][c];
 
                 for (unsigned i = k; i < N; ++i)
                 {
@@ -421,7 +377,7 @@ namespace housepi::chain_binom
                         for (unsigned col = 0; col < k; ++col)
                             sub_access_matrix[col + k * row] = access_matrix[indidx[col] + N * inf];
 
-                    recursive_escape_patterns_function_(N_star, k, sub_access_matrix, new_child, results);
+                    recursive_escape_patterns_function_(dbg, N_star, k, sub_access_matrix, new_child, results);
                     sub_access_matrix.clear();
                 }
 
@@ -431,18 +387,14 @@ namespace housepi::chain_binom
     }
 
     /// Initialize lookup table of escape patterns, up to `max_n_infec` infected members.
-    void init_escape_patterns_lookuptable_(unsigned max_n_infec)
+    void init_escape_patterns_lookuptable_(DebugTables &dbg, unsigned max_n_infec)
     {
         // combinations and complements
-        init_combinations_lookuptable_(max_n_infec);
-
-        // empty the tables first
-        lut.chain_binomial.clear();
-        lut.escape_patterns.clear();
+        init_combinations_lookuptable_(dbg, max_n_infec);
 
         // no infected member: empty pattern, for consistency
-        lut.chain_binomial.emplace_back(0);
-        lut.escape_patterns.push_back(vector<EscapePattern>());
+        dbg.chain_binomial.emplace_back(0);
+        dbg.escape_patterns.push_back(vector<EscapePattern>());
 
         // at least one infected member
         for (unsigned n_infec = 1; n_infec <= max_n_infec; ++n_infec)
@@ -451,12 +403,12 @@ namespace housepi::chain_binom
             std::iota(access_matrix.begin(), access_matrix.end(), 0);
 
             // store in the lookup table
-            lut.chain_binomial.emplace_back(n_infec);
-            lut.escape_patterns.emplace_back(vector<EscapePattern>());
+            dbg.chain_binomial.emplace_back(n_infec);
+            dbg.escape_patterns.emplace_back(vector<EscapePattern>());
 
-            recursive_escape_patterns_function_(n_infec, n_infec, access_matrix,
-                                                lut.chain_binomial[n_infec],
-                                                lut.escape_patterns[n_infec]);
+            recursive_escape_patterns_function_(dbg, n_infec, n_infec, access_matrix,
+                                                dbg.chain_binomial[n_infec],
+                                                dbg.escape_patterns[n_infec]);
         }
     }
 
@@ -465,10 +417,9 @@ namespace housepi::chain_binom
         unsigned limit_max_n_infec = 8;
         if (max_n_infec < limit_max_n_infec)
         {
-            init_escape_patterns_lookuptable_(max_n_infec);
-            std::string output = lut.chain_binomial[max_n_infec].str();
-            clear_combinations_lookuptable_();
-            return output;
+            DebugTables dbg;
+            init_escape_patterns_lookuptable_(dbg, max_n_infec);
+            return dbg.chain_binomial[max_n_infec].str(dbg.escape_patterns);
         }
         msg::stop(
             "Maximum number of infected members is fixed to " +
@@ -600,13 +551,13 @@ namespace housepi::chain_binom
         return dp;
     }
 
-    void ensure_partitioned(HouseIdx idx,
-                            const std::vector<MemberIdx> &part_counts,
-                            MemberIdx n_parts)
+    void LookUpTables::ensure_partitioned(HouseIdx idx,
+                                          const std::vector<MemberIdx> &part_counts,
+                                          MemberIdx n_parts)
     {
-        if (lut.partition_trees.size() <= idx)
-            lut.partition_trees.resize(idx + 1);
-        lut.partition_trees[idx] = build_partition_tree_(part_counts.data(), n_parts);
+        if (partition_trees.size() <= idx)
+            partition_trees.resize(idx + 1);
+        partition_trees[idx] = build_partition_tree_(part_counts.data(), n_parts);
     }
 
     /// Evaluate log P(final = c_root | all infecteds in c_root).
@@ -662,7 +613,8 @@ namespace housepi::chain_binom
     /// @param part_indexes Member representative of each part.
     /// @param commu_infec_rate Community infection rate per member.
     /// @param p2p_infec_rate Person-to-person infection rate per member pair.
-    double log_lik_partitioned_(HouseIdx dp_idx,
+    double log_lik_partitioned_(const LookUpTables &lut,
+                                HouseIdx dp_idx,
                                 MemberIdx n_parts,
                                 const std::vector<MemberIdx> &part_indexes,
                                 const std::vector<double> &commu_infec_rate,
@@ -687,7 +639,8 @@ namespace housepi::chain_binom
 
     //////////////////////////////  Log-likelihood dispatcher  //////////////////////////////
 
-    double log_likelihood(HouseIdx dp_idx,
+    double log_likelihood(const LookUpTables &lut,
+                          HouseIdx dp_idx,
                           MemberIdx n_infec, MemberIdx n_parts,
                           const std::vector<MemberIdx> &part_indexes,
                           const std::vector<double> &commu_infec_rate,
@@ -716,11 +669,11 @@ namespace housepi::chain_binom
         // homogeneous case
         else if (n_parts < 2)
             return ll + log_lik_homogeneous_(
-                            n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
+                            lut, n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
         // partitioned case
         else if (n_parts < n_infec)
             return ll + log_lik_partitioned_(
-                            dp_idx, n_parts, part_indexes,
+                            lut, dp_idx, n_parts, part_indexes,
                             commu_infec_rate, p2p_infec_rate);
         // heterogeneous case
         else

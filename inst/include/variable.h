@@ -126,14 +126,10 @@ namespace housepi
         /// Adapt the proposal to acceptance ratio `ratio`, if adaptable.
         void adapt_proposal(double ratio) { pProp_->adapt(ratio); }
 
-        /// Set and get the smoothing factor shared by adaptable proposals.
-        static void set_adapt_smoothing(double s) noexcept { AdaptableProposal::set_smoothing(s); }
-        static double get_adapt_smoothing() noexcept { return AdaptableProposal::get_smoothing(); }
-
-        /// Under adaptation, inform the proposal about refusal.
-        void refuse_proposal_move() noexcept { pProp_->refuse_move(); }
-        /// Under adaptation, inform the proposal about acceptance.
-        void commit_proposal_move() noexcept { pProp_->commit_move(old_, value_); }
+        /// Under adaptation, inform the proposal about refusal, with accept-rate smoothing `s`.
+        void refuse_proposal_move(double s) noexcept { pProp_->refuse_move(s); }
+        /// Under adaptation, inform the proposal about acceptance, with accept-rate smoothing `s`.
+        void commit_proposal_move(double s) noexcept { pProp_->commit_move(old_, value_, s); }
 
         /// Log-pdf of the current value.
         /// @note Assumes the value is valid: no check.

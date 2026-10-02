@@ -36,10 +36,10 @@ namespace housepi
         virtual void reset(const Distribution * /*prior*/) noexcept {}
         /// Adapt the proposal, `ratio` being the spent fraction of the adaptation budget.
         virtual void adapt(double /*ratio*/) {}
-        /// Record the last proposed move as refused.
-        virtual void refuse_move() noexcept {}
-        /// Record the last proposed move as accepted.
-        virtual void commit_move(double /*xo*/, double /*xn*/) noexcept {}
+        /// Record the last proposed move as refused, with accept-rate smoothing `s`.
+        virtual void refuse_move(double /*s*/) noexcept {}
+        /// Record the last proposed move as accepted, with accept-rate smoothing `s`.
+        virtual void commit_move(double /*xo*/, double /*xn*/, double /*s*/) noexcept {}
 
         /// Propose a value from current value `xo`.
         virtual double propose(rnd_gen & /*prng*/, double /*xo*/) = 0;
@@ -229,9 +229,9 @@ namespace housepi
         void adapt(double ratio) override final { robbins_monro_(ratio); }
 
         /// Credit the accepted move to the acceptance rate.
-        void commit_move(double /*xo*/, double /*xn*/) noexcept override final { update_accept_rate_(1.); }
+        void commit_move(double /*xo*/, double /*xn*/, double s) noexcept override final { update_accept_rate_(1., s); }
         /// Credit the refused move to the acceptance rate.
-        void refuse_move() noexcept override final { update_accept_rate_(0.); }
+        void refuse_move(double s) noexcept override final { update_accept_rate_(0., s); }
 
         /// Whether the scale is adaptive.
         bool is_adaptive() const noexcept { return is_adaptive_; }
@@ -239,15 +239,7 @@ namespace housepi
         /// Resolve the read-surface of the owned proposal distribution.
         void finalize(const std::string & /*owner*/) override final { pDistr_->finalize(); }
 
-        /// Set the smoothing factor of the acceptance-rate average, in (0, 1), shared across variables.
-        static void set_smoothing(double s) noexcept { EMA_SMOOTHING = s; }
-        /// Get the smoothing factor.
-        static double get_smoothing() noexcept { return EMA_SMOOTHING; }
-
     protected:
-        /// Smoothing factor of the acceptance-rate average, effective window 1 / EMA_SMOOTHING.
-        inline static double EMA_SMOOTHING = 1.;
-
         /// Target Metropolis acceptance rate.
         /// Based on @cite roberts_weak_1997
         static constexpr double TARGET_ACCEPT_RATE = 0.44;
@@ -268,9 +260,10 @@ namespace housepi
         virtual void set_scale_(double /*scale*/) = 0;
 
         /// Update the exponential moving average of the acceptance rate with `granted`.
-        void update_accept_rate_(double granted) noexcept
+        /// @param s Smoothing factor in (0, 1], effective window 1 / s.
+        void update_accept_rate_(double granted, double s) noexcept
         {
-            accept_rate_ += EMA_SMOOTHING * (granted - accept_rate_);
+            accept_rate_ += s * (granted - accept_rate_);
         }
 
         /// Scale by a vanishing Robbins-Monro multiplier from the acceptance rate.

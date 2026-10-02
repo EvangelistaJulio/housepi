@@ -18,6 +18,9 @@ HOUSEPI_OPEN_MODULE_NAMESPACE()
 /// Model final-size outbreaks with a chain binomial: community and person-to-person escape.
 class Model final : public ModelBase
 {
+private:
+	chain_binom::LookUpTables lut_; /// Chain-binomial lookup tables.
+
 public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(Latent)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Data)
@@ -45,12 +48,8 @@ public:
 	/// Whether the model uses contact risks.
 	bool has_contact_risk() const override final { return true; }
 
-	/// Assert no member has missing status, then clear the lookup tables.
-	void init_model_for_evaluation() override final
-	{
-		assert_no_missing_status();
-		chain_binom::clear_lookuptables();
-	}
+	/// Assert no member has missing status.
+	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
 	/// Order members of `house`, then group infected ones into risk partitions.
 	void init_house_for_evaluation(const Household &house) override final
@@ -104,9 +103,9 @@ public:
 		cache_member(house, HHmember::num_parts) = K;
 
 		if (K <= 1 && n_infec > 1)
-			chain_binom::ensure_homogeneous(n_infec);
+			lut_.ensure_homogeneous(n_infec);
 		else if (K > 1 && K < n_infec)
-			chain_binom::ensure_partitioned(house.eq_class(), part_counts, K);
+			lut_.ensure_partitioned(house.eq_class(), part_counts, K);
 	}
 
 	//////////////////////////////  Model : household log-likelihood  //////////////////////////////
@@ -172,6 +171,7 @@ public:
 		fill_house_escape_matrix(house);
 
 		return chain_binom::log_likelihood(
+			lut_,
 			house.eq_class(),
 			house.n_infected_status(),
 			cache_member(house, HHmember::num_parts),

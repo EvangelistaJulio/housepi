@@ -57,6 +57,7 @@ namespace housepi
 
         Budget budget;               /// Workers allotted to the chain and the per-chain dispatch level.
         unsigned long c_sample_size; /// Sample size for a single chain after thinning.
+        double adapt_smoothing;      /// Smoothing factor of the accept-rate average, 1 / n_adapt_window.
 
         //////  Constructor  //////
 
