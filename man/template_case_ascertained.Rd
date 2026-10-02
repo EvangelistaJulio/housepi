@@ -80,14 +80,14 @@ for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_
 
 \section{Notes}{
 
-In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma},
+In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
 so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
 The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
 Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hhsize]{measure_geom_mean_hhsize()}} to keep them nearly uncorrelated.
 }
 
 \references{
-\insertRef{cauchemez_bayesian_2004}{housepi}
+\insertAllCited{}
 }
 \seealso{
 \code{\link[=browse_templates]{browse_templates()}}

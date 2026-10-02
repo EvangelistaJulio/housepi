@@ -114,6 +114,7 @@ public:
 	/// Return risk of infection from the community.
 	double community_risk() const { return par(Param::alpha); }
 	/// Return risk of infection from another member, scaled by household size.
+	/// Based on @cite cauchemez_bayesian_2004
 	double person_to_person_risk(MemberIdx house_size) const
 	{
 		return par(Param::beta) *

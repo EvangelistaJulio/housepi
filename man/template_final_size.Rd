@@ -38,7 +38,7 @@ and \eqn{n^{+}}{n^+} members are infected.
 \itemize{
 \item Escaped contribution :
 \eqn{p^\mathrm{esc} = \prod_{i:\,s_i = 0} q^\mathrm{com}_{i} \prod_{j:\,s_j = 1} q^\mathrm{pp}_{ji}}{p^esc = prod_{i: s_i = 0} q^com_i prod_{j: s_j = 1} q^pp_ji}
-\item Infected contribution :
+\item Infected contribution \insertCite{longini_household_1982,addy_generalized_1991}{housepi} :
 \eqn{p^\mathrm{inf} = 1 - \sum_{m=0}^{n^{+}-1} P_m}{p^inf = 1 - sum_{m = 0}^{n^+ - 1} P_m}
 \item Chains of smaller final size :
 \eqn{P_m = \sum_{k=1}^{\binom{n^{+}}{m}} p^\mathrm{transm}\left(s^{(m,k)}\right)}{P_m = sum_{k = 1}^{choose(n^+, m)} p^transm(s^(m,k))},
@@ -57,14 +57,14 @@ with escape probabilities
 
 \section{Notes}{
 
-In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma},
+In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
 so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
 The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
 Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hhsize]{measure_geom_mean_hhsize()}} to keep them nearly uncorrelated.
 }
 
 \references{
-\insertRef{longini_household_1982}{housepi}
+\insertAllCited{}
 }
 \seealso{
 \code{\link[=browse_templates]{browse_templates()}}

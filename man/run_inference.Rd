@@ -61,7 +61,14 @@ from the \code{warnings} field of the returned object.}
 An object of class \code{HousepiPosteriorDraws}.
 }
 \description{
-Run inference with Bayesian Markov Chain Monte Carlo.
+Run inference with Bayesian Markov Chain Monte Carlo, by the
+Metropolis-Hastings algorithm
+\insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
+}
+\details{
+The run warns on any of: Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws.
+R-hat and bulk ESS are the rank-normalized ones of
+\insertCite{vehtari_rank_normalization_2021;textual}{housepi}.
 }
 \examples{
 flu_1918_frederick |>
@@ -71,4 +78,7 @@ flu_1918_frederick |>
                 chains = 2, progress = FALSE) |>
   get_parameter_draws() |>
   posterior::summarize_draws()
+}
+\references{
+\insertAllCited{}
 }

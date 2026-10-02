@@ -3,6 +3,8 @@ title: "Parameter recovery checks"
 output:
   rmarkdown::html_vignette:
     toc: true
+bibliography: ../inst/REFERENCES.bib
+link-citations: true
 vignette: >
   %\VignetteIndexEntry{Parameter recovery checks}
   %\VignetteEngine{knitr::rmarkdown}
@@ -67,13 +69,12 @@ houses
 ```
 
 A check costs one fit per replicate and household sample size, and larger studies take longer to fit.
-We can run different replicates at each sample size using `run_parameter_recovery_check`:
+We can run different replicates at each sample size using `check_recovery()`:
 
 ```{r}
 #| label: sweep
 recovery <- hhmodel |>
-  run_parameter_recovery_check(truth = results, nrep = 15, houses = houses,
-                               progress = FALSE)
+  check_recovery(truth = results, nrep = 15, houses = houses, progress = FALSE)
 recovery
 
 # overview of the checks per sample size, averaged over replicates
@@ -153,7 +154,7 @@ A box that narrows as households are added is a study buying precision, and one 
 
 A larger study costs more to collect, and more to fit.
 We put the width of the credible interval on each parameter next to the seconds it takes to draw 1000 effective samples.
-A fit is only as usable as its worst-mixing parameter, so the effective sample size (ESS) is here the smallest bulk ESS over the parameters:
+A fit is only as usable as its worst-mixing parameter, so the effective sample size (ESS) is here the smallest bulk ESS over the parameters [@vehtari_rank_normalization_2021]:
 
 ```{r}
 #| label: design-table
@@ -192,3 +193,5 @@ Doubling the sample size narrows the intervals by `r round(100 * min(narrower))`
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```
+
+# References

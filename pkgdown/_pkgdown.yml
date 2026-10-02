@@ -37,8 +37,7 @@ reference:
     - HousepiModel
     - evaluate_log_lik
     - starts_with("inspect_")
-    - run_inference
-    - run_simulation
+    - starts_with("run_")
 
 - title: "Model definitions"
   desc: >
@@ -68,26 +67,27 @@ reference:
     Perform posterior predictive checks.
   contents:
   - starts_with("measure_")
-  - ends_with("_predictive_check")
-  - ends_with("PPC")
+  - check_predictive
+  - ends_with("PredictiveCheck")
 
-- title: "Parameter recovery"
+- title: "Parameter recovery and calibration"
   desc: >
-    Simulate surveys at known parameter values and fit them back.
+    Simulate surveys at known or prior-drawn parameter values and fit them back.
   contents:
-  - run_parameter_recovery_check
-  - HousepiParameterRecovery
+  - check_recovery
+  - HousepiRecoveryCheck
+  - check_calibration
+  - HousepiCalibrationCheck
   - sample_house_structure
 
 - title: "Auxiliary tools"
   desc: >
     Miscellaneous functions for general purpose tasks.
   contents:
-    - starts_with("summarise_")
-    - starts_with("summarize_")
+    - starts_with("summari")
     - -ends_with("_draws")
     - format_credible_interval
-    - set_global_posterior_summary
+    - set_housepi_summary
     - set_housepi_theme
 
 - title: "Browse available definitions"
@@ -118,6 +118,7 @@ articles:
       - infectivity_profiles
       - posterior_predictive_checks
       - parameter_recovery_checks
+      - simulation_calibration_checks
       - user_functions
   - title: "Gallery"
     navbar: "Gallery"

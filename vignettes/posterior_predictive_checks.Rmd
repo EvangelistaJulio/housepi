@@ -3,6 +3,8 @@ title: "Posterior predictive checks"
 output:
   rmarkdown::html_vignette:
     toc: true
+bibliography: ../inst/REFERENCES.bib
+link-citations: true
 vignette: >
   %\VignetteIndexEntry{Posterior predictive checks}
   %\VignetteEngine{knitr::rmarkdown}
@@ -22,7 +24,7 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC). We use the same final-size example presented in [Get started](housepi.html):
+Here we show how to compute common household measures according to the model posterior distribution. This is generally referred to as Posterior Predictive Checks (PPC) [@gelman_posterior_1996]. We use the same final-size example presented in [Get started](housepi.html):
 
 ```{r}
 #| label: inference-setup
@@ -49,7 +51,7 @@ We can use the simulation process to challenge the validity of the inferred mode
 # compute posterior predictive checks
 ppc <- hhmodel |>
   # run simulations according to previous posterior traces in results
-  run_epi_predictive_check(results)
+  check_predictive(results)
 print(ppc)
 ```
 
@@ -125,10 +127,9 @@ ggplot(ppc$formatted_sec_attack_rate,
 
 # Other posterior measures
 
-`run_custom_predictive_check()` computes any custom measure on simulated data and compares it against the observed values. 
-It accepts one or more named measure functions as arguments.
+`check_predictive()` also accepts named measure functions: it then computes them on simulated data in place of the built-in measures, and compares them against the observed values.
 
-You can also pass multiple custom measures at once, optionally alongside the built-in measure functions otherwise embedded in `run_epi_predictive_check`. 
+Custom measures can be passed alongside the built-in measure functions it checks by default. 
 Current built-in measures are stratified by household size:
 
 - `measure_ar_by_hhsize`: attack rate;
@@ -148,13 +149,13 @@ measure_overall_attack_rate <- function(data_wide) {
 
 # compute both built-in and custom measures together
 ppc_multi <- hhmodel |>
-  run_custom_predictive_check(results,
-                     sar = measure_sar_by_hhsize,
-                     overall = measure_overall_attack_rate)
+  check_predictive(results,
+                   sar = measure_sar_by_hhsize,
+                   overall = measure_overall_attack_rate)
 ppc_multi
 ```
 
-The returned `HousepiCustomPPC` object stores `observed`, `predicted`, `cri_lower` and `cri_upper` for each measure, accessible by name:
+The returned `HousepiPredictiveCheck` object stores `observed`, `predicted`, `cri_lower` and `cri_upper` for each measure, accessible by name:
   
 ```{r}
 #| label: extract-sar-components
@@ -186,3 +187,5 @@ ggplot(data.frame(ppc_multi$overall)) +
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```
+
+# References

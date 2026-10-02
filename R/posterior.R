@@ -88,10 +88,10 @@ get_global_point_estimate <- function() {
 #' @details
 #' A rejected value leaves both settings as they were.
 #' @examples
-#' old <- set_global_posterior_summary(point_estimate = "mean")
-#' do.call(set_global_posterior_summary, old)
+#' old <- set_housepi_summary(point_estimate = "mean")
+#' do.call(set_housepi_summary, old)
 #' @export
-set_global_posterior_summary <- function(point_estimate = NULL,
+set_housepi_summary <- function(point_estimate = NULL,
                                          cri_level = NULL) {
   old <- list(point_estimate = get_global_point_estimate(),
               cri_level = get_global_cri_level())
@@ -145,7 +145,7 @@ tag_rcpp_draws_ <- function(df, index) {
 #' `"housepi_draws"` (returned by housepi getters and active fields on
 #' [`HousepiPosteriorDraws`]). When no summary functions are passed via
 #' `...`, the housepi defaults are used and the quantile pair tracks
-#' [set_global_posterior_summary()]. Otherwise dispatch falls through to
+#' [set_housepi_summary()]. Otherwise dispatch falls through to
 #' [posterior::summarise_draws()] behaviour.
 #' @param .x A housepi-tagged draws object, or a [`HousepiPosteriorDraws`].
 #' @param ... Summary functions, as in [posterior::summarise_draws()].

@@ -777,17 +777,14 @@ HousepiModel <- R6::R6Class(
                                         nrep = NA_integer_,
                                         thin_ess = TRUE,
                                         ...) {
-      # assert number of replicates
-      if (!is.na(nrep) && (!is.numeric(nrep) || nrep < 1)) stop_h(
-        "Number of replicates should be a positive integer."
-      )
+      nrep <- assert_count_(nrep, "Number of replicates", allow_na = TRUE)
 
       # read param table
       if (is.null(param_table)) {
         if (is.na(nrep)) nrep <- 1L
       } else {
         param_table <- private$read_param_table_(param_table, thin_ess)
-        if (!is.na(nrep)) param_table <- helper_thin_table_(param_table, nrep)
+        if (!is.na(nrep)) param_table <- helper_thin_even_(param_table, nrep)
         nrep <- nrow(param_table)
         # an undeclared model builds on the table's first row: the engine
         # keeps it for the run, the caller's definitions stay as declared
@@ -856,7 +853,7 @@ HousepiModel <- R6::R6Class(
                             progress = TRUE,
                             labelled = TRUE) {
       param_table <- private$read_param_table_(param_table, thin_ess)
-      param_table <- helper_thin_table_(param_table, max_nrep)
+      param_table <- helper_thin_even_(param_table, max_nrep)
       nsim <- nrow(param_table)
 
       # internal build function

@@ -240,7 +240,7 @@ When provided, each simulation returns `list(wide = ..., long = ...)`."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
 rd_global_summary_ <- "Results are summarised at the point estimate and the
 credible level held by the global options;
-see [set_global_posterior_summary()]."
+see [set_housepi_summary()]."
 
 ## State inspection ##
 
@@ -1133,7 +1133,9 @@ inspect_house_state <- function(hhmodel, hhid) {
 
 #' @title Run Bayesian MCMC inference on a housepi model
 #' @description
-#' Run inference with Bayesian Markov Chain Monte Carlo.
+#' Run inference with Bayesian Markov Chain Monte Carlo, by the
+#' Metropolis-Hastings algorithm
+#' \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
 #' @param hhmodel `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
 #' @param burn `r rd_smpl_burn_`
@@ -1153,6 +1155,12 @@ inspect_house_state <- function(hhmodel, hhid) {
 #' from the `warnings` field of the returned object.
 #' @param ... `r rd_dots_config_`
 #' @return An object of class `HousepiPosteriorDraws`.
+#' @details
+#' The run warns on any of: `r paste(diagnostic_flags_, collapse = "; ")`.
+#' R-hat and bulk ESS are the rank-normalized ones of
+#' \insertCite{vehtari_rank_normalization_2021;textual}{housepi}.
+#' @references
+#' \insertAllCited{}
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>

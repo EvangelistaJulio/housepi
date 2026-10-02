@@ -3,6 +3,8 @@ title: "Data augmentation"
 output:
   rmarkdown::html_vignette:
     toc: true
+bibliography: ../inst/REFERENCES.bib
+link-citations: true
 vignette: >
   %\VignetteIndexEntry{Data augmentation}
   %\VignetteEngine{knitr::rmarkdown}
@@ -21,7 +23,7 @@ editor_options:
 options(housepi.footer.sample = TRUE)
 ```
 
-Bayesian data augmentation is a computational strategy that expands the parameter space by introducing latent variables (also referred to as hidden or augmented variables) to make sampling from the posterior easier.
+Bayesian data augmentation is a computational strategy that expands the parameter space by introducing latent variables (also referred to as hidden or augmented variables) to make sampling from the posterior easier [@tanner_calculation_1987].
 
 For example, consider a single infectious individual $i$.
 Imagine that someone reported the date of symptom onset $T^\mathrm{ons}_{i}$.
@@ -308,3 +310,5 @@ results |>
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```
+
+# References

@@ -16,7 +16,7 @@
 #' Run the inference with [run_inference()], extract draws with
 #' [get_parameter_draws()] and summarise them with [summarise_draws()].
 #' Run simulations with [run_simulation()],
-#' predictive checks with [run_epi_predictive_check()].
+#' predictive checks with [check_predictive()].
 #' Explore available building blocks using [browse_templates()],
 #' [browse_distributions()], [browse_functions()]
 #' and [browse_infectivity_profiles()].

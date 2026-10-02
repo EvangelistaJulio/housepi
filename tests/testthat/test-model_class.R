@@ -23,7 +23,7 @@ dig_ <- \(hhmodel, what, ...) hhmodel$.__enclos_env__$private[[what]](...)
 
 test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
-    helper_test_read_only(
+    expect_read_only_field(
       "data_wide", "data_long", "parameters", "latent", "observations",
       "infectivity_profiles", "group_risks", "contact_risks", "name", "setup",
       "escaped"

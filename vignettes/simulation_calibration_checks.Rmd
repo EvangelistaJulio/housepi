@@ -1,0 +1,202 @@
+---
+title: "Simulation-based calibration checks"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+bibliography: ../inst/REFERENCES.bib
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{Simulation-based calibration checks}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+editor_options:
+  markdown:
+    wrap: sentence
+---
+
+```{r setup-child, child = "helpers/_setup.Rmd"}
+```
+
+```{r}
+#| label: options
+#| include: false
+options(housepi.footer.warranty = TRUE)
+options(housepi.footer.sample = TRUE)
+```
+
+Here we show how to check that inference returns the posterior it should, on average over the prior.
+This is simulation-based calibration [@talts_validating_2020; @modrak_simulation_2025].
+Each replicate draws parameter values from the prior, simulates a study at them, fits it back with the same model, and ranks each drawn value among the posterior draws of its fit.
+When the likelihood and the sampler are correct, the drawn value behaves as one more posterior draw, so its rank is uniform over the replicates.
+
+[Parameter recovery checks](parameter_recovery_checks.html) hold the truth at one value and measure how far the estimates land from it.
+Calibration draws a new truth for every replicate and checks the posterior as a whole: its 50% intervals contain the truth in half of the replicates, its 90% intervals in nine out of ten, and so on for every level.
+
+We use the same final-size example presented in [Get started](housepi.html):
+
+```{r}
+#| label: model-setup
+# define the model as in 'Get Started'
+library(housepi)
+set_housepi_theme()
+set.seed(42)
+
+hhmodel <- flu_1918_frederick |>
+  new_housepi_model("final-size") |>
+  add_parameter(import = "template")
+
+hhmodel$parameters
+```
+
+The check needs no fit to the Frederick data.
+The truth of each replicate is drawn from the uniform priors of `alpha`, `beta` and `gamma`, while `hhsize_ref` is held constant at 4.
+The data only lends its households to the simulated studies.
+
+# Rank the prior draws
+
+`check_calibration()` simulates each study on households drawn with replacement from the attached data by `sample_house_structure()`, as many as in Frederick.
+Each fit runs four chains of 1000 steps and keeps every fifth draw, as `run_inference()` does by default.
+The drawn value is ranked among 99 draws thinned evenly from these 800:
+
+```{r}
+#| label: calibration
+calibration <- hhmodel |>
+  check_calibration(nrep = 100, progress = FALSE)
+calibration
+
+# overview of the sweep, averaged over replicates
+calibration$overview
+```
+
+```{r}
+#| label: calibration-cost
+#| include: false
+sweep_minutes <- with(calibration$overview, nrep * mean_inference_secs) / 60
+n_flagged <- calibration$overview$n_flagged
+```
+
+The `r calibration$nrep` fits took `r round(sweep_minutes, 1)` minutes on one thread.
+A rank is uniform only if the 99 draws it is taken among behave like independent ones.
+A parameter is flagged when its bulk effective sample size [@vehtari_rank_normalization_2021] falls below 99, or when its fit fails the convergence diagnostics: here `r n_flagged` of `r calibration$nrep` replicates were flagged.
+
+The rank of every parameter in every replicate is stored in `calibration$estimates`.
+Uniform ranks fill each bin of ten ranks with about `r calibration$nrep / 10` replicates:
+
+```{r}
+#| label: rank-histogram
+#| fig-height: 3
+#| fig-alt: >
+#|  Three histograms, one per parameter, of the ranks of the drawn values
+#|  among 99 posterior draws, in bins of ten ranks, against a horizontal
+#|  line at the count expected for uniform ranks.
+library(ggplot2)
+
+ggplot(calibration$estimates, aes(x = rank)) +
+  geom_histogram(binwidth = 10, boundary = 0, closed = "left") +
+  geom_hline(yintercept = calibration$nrep / 10, colour = "coral") +
+  facet_wrap(~ variable) +
+  labs(x = "Rank", y = "Replicates")
+```
+
+Ranks piling at both ends mean the posterior is too narrow, so the truth falls in its tails too often.
+Ranks piling in the middle mean it is too wide.
+Ranks piling on one side mean it is shifted: low ranks put the truth below most posterior draws, so the model overestimates the parameter.
+
+# Test for uniformity
+
+```{r}
+#| label: bin-counts
+#| include: false
+bins <- table(calibration$estimates$variable, calibration$estimates$rank %/% 10)
+```
+
+With 100 replicates a bin of ten ranks holds 10 on average, give or take 3, and the picture changes with the bin width.
+Here the bins hold from `r min(bins)` to `r max(bins)` ranks.
+@sailynoja_graphical_2022 compare instead the empirical CDF of the ranks with the uniform CDF, inside a band that a uniform ECDF stays within at every point at once with 95% probability.
+bayesplot draws this band with `ppc_pit_ecdf_grouped()`, from the ranks rescaled to $[0, 1]$:
+
+```{r}
+#| label: rank-ecdf
+#| fig-height: 3
+#| message: false
+#| fig-alt: >
+#|  Three panels, one per parameter. Each shows the difference between the
+#|  empirical CDF of the scaled ranks and the uniform CDF, as a solid step
+#|  line, inside a dashed band around zero.
+rank_draws <- calibration$rank_draws
+
+bayesplot::ppc_pit_ecdf_grouped(
+  pit = calibration$estimates$rank / rank_draws,
+  group = calibration$estimates$variable,
+  K = rank_draws + 1, prob = 0.95, plot_diff = TRUE
+) +
+  labs(x = "Scaled rank")
+```
+
+A posterior that overestimates puts the curve above zero, since low ranks make the ECDF rise early, and one that underestimates puts it below.
+A posterior too narrow draws an S, above zero on the left and below on the right; one too wide draws the mirror image.
+
+`calibration$summary` reads the same test: `uniform` is `FALSE` when the ECDF leaves the band at any point, which happens to uniform ranks in at most 5% of checks.
+
+```{r}
+#| label: summary
+calibration$summary
+```
+
+```{r}
+#| label: verdict
+#| include: false
+verdict <- calibration$summary
+n_uniform <- sum(verdict$uniform)
+```
+
+Here `r n_uniform` of `r nrow(verdict)` parameters pass.
+Passing says that the sampler and the likelihood agree with the prior and the model.
+It says nothing about whether the model fits Frederick: for that, compare its predictions with the data in [Posterior predictive checks](posterior_predictive_checks.html).
+
+# A sampler run too short
+
+Calibration also catches a sampler run too short for its draws to stand for the posterior.
+We repeat the check with two chains of 50 steps, the first 25 of each spent adapting the proposals, and keep every draw:
+
+```{r}
+#| label: short-chains
+short <- hhmodel |>
+  check_calibration(nrep = 100, steps = 50, thin = 1, adapt = 25,
+                    chains = 2, progress = FALSE)
+short$summary
+```
+
+```{r}
+#| label: short-chains-ecdf
+#| fig-height: 3
+#| message: false
+#| fig-alt: >
+#|  Same three panels as above, for the ranks of the short chains.
+bayesplot::ppc_pit_ecdf_grouped(
+  pit = short$estimates$rank / rank_draws,
+  group = short$estimates$variable,
+  K = rank_draws + 1, prob = 0.95, plot_diff = TRUE
+) +
+  labs(x = "Scaled rank")
+```
+
+```{r}
+#| label: short-verdict
+#| include: false
+code_words <- \(x) knitr::combine_words(x, before = "`")
+failed <- short$summary$variable[!short$summary$uniform]
+passed <- short$summary$variable[short$summary$uniform]
+extreme <- with(short$estimates, tapply(rank %in% c(0, rank_draws), variable, mean))
+```
+
+`r sum(short$replicates$flagged)` of `r short$nrep` replicates are flagged, since 100 correlated draws are worth far fewer than 99 independent ones.
+Correlated draws sit closer together than the posterior they come from, so the truth falls outside all of them too often.
+Rank 0 or 99 takes `r knitr::combine_words(paste0(round(100 * extreme), "% of the ranks of \x60", names(extreme), "\x60"))`, against 2% for uniform ranks.
+The ranks of `r code_words(failed)` fail the test: their ECDF jumps at both ends and draws the S of a posterior too narrow, an excess that the first and last bins of a histogram would dilute among ten ranks each.
+`r if (length(passed)) paste("The ranks of", code_words(passed), "pass on flagged fits, which is no evidence of calibration.")`
+
+```{r footer-child, child = "helpers/_footer.Rmd"}
+```
+
+# References

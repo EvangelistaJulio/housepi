@@ -86,7 +86,7 @@ namespace housepi::chain_binom
     //////////////////////////////  chain_binom::PartitionTree  //////////////////////////////
 
     /// Hold the multitype partition tree of a chain binomial.
-    /// Based on @cite ball_unified_1986
+    /// Based on @cite ball_unified_1986 and @cite addy_generalized_1991
     /// @todo Flatten the tree.
     struct PartitionTree
     {
@@ -609,7 +609,7 @@ namespace housepi::chain_binom
     }
 
     /// Evaluate log P(final = c_root | all infecteds in c_root).
-    /// Ball recursion: pi(t|t) = 1 - sum_{w < t} C(t,w) * pi(w|w) * prod_s q_s(w)^(t_s - w_s).
+    /// Recursion: pi(t|t) = 1 - sum_{w < t} C(t,w) * pi(w|w) * prod_s q_s(w)^(t_s - w_s).
     double evaluate_partition_tree_(const PartitionTree &dp,
                                     const vector<double> &log_commu_esc,
                                     const matrix<double> &log_p2p_esc)

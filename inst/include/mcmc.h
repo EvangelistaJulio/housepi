@@ -125,6 +125,7 @@ namespace housepi
 		//////  Metropolis-Hastings  //////
 
 		/// Run inference with the Metropolis-Hastings algorithm.
+		/// Based on @cite metropolis_equation_1953 and @cite hastings_monte_1970
 		/// @return Seconds spent sampling.
 		double run_inference();
 

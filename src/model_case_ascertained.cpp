@@ -81,6 +81,7 @@ public:
 	//////////////////////////////  Model : household log-likelihood  //////////////////////////////
 
 	/// Return transmission rate, scaled by household size.
+	/// Based on @cite cauchemez_bayesian_2004
 	double transmission_rate(MemberIdx house_size) const
 	{
 		return par(Param::beta) *

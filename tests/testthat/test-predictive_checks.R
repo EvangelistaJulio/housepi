@@ -29,7 +29,7 @@ test_that("Measures require the columns they aggregate over", {
   mk_houses$data[c("id", "hhid")] |>
     measure_sar_by_hhsize() |>
     expect_error("status")
-  
+
   # without a household identifier every row would count as its own household
   mk_houses$data[c("id", "status")] |>
     measure_sar_by_hhsize() |>
@@ -41,7 +41,7 @@ test_that("Attack rate is averaged per household size", {
   measure_ar_by_hhsize(NULL) |>
     dim() |>
     expect_identical(c(0L, 2L))
-  
+
   result <- measure_ar_by_hhsize(mk_houses$data)
   result |> expect_named(c("hhsize", "ar"), ignore.order = TRUE)
   # size 2: mean of AR 2/2 (h1) and 1/2 (h3) = 0.75
@@ -96,11 +96,11 @@ test_that("Household size geometric mean is weighted by secondary cases", {
     expect_equal(2)
 
   # h4 (size 4, 3 cases) weighs 2: exp((log 2 + 2 log 4) / 3) = 2^(5/3)
- mk_houses$data |> 
-   rbind(data.frame(
-     id = paste0("m", 8:11), hhid = "h4", status = c(1, 1, 1, 0)
-     )) |>
-   measure_geom_mean_hhsize() |>
+  mk_houses$data |>
+    rbind(data.frame(
+      id = paste0("m", 8:11), hhid = "h4", status = c(1, 1, 1, 0)
+    )) |>
+    measure_geom_mean_hhsize() |>
     expect_equal(2^(5 / 3))
 })
 
@@ -332,20 +332,27 @@ test_that("Observed entries outside the interval are flagged", {
 ## PREDICTIVE CHECKS : END-TO-END       ##
 ##########################################
 
-test_that("HousepiCustomPPC active fields are read-only", {
-  # predicted-measures raises error when no measure is provided
+test_that("Each kind of predictive check refuses the arguments of the other", {
+  # household size bounds apply to the standard measures only
   mk_ppc$model |>
-    run_custom_predictive_check(mk_ppc$results) |>
-    expect_error("No measure was provided")
+    check_predictive(mk_ppc$results, sar = measure_sar_by_hhsize,
+                     max_hhsize = 3L) |>
+    expect_error("[Mm]in_hhsize.*max_hhsize.*bound only the standard")
+  # a long observation process needs a measure on data_long
+  mk_ppc$model |>
+    check_predictive(mk_ppc$results, obs_process_long = identity) |>
+    expect_error("[Oo]bs_process_long.*has no measure")
+})
 
+test_that("Predictive check on custom measures has read-only fields", {
   ppc <- mk_ppc$model |>
-    run_custom_predictive_check(
+    check_predictive(
       mk_ppc$results, sar = measure_sar_by_hhsize,
       thin_ess = FALSE, max_nrep = 10
     ) |>
     suppressWarnings()
 
-  ppc |> expect_s3_class("HousepiCustomPPC")
+  class(ppc)[1] |> expect_identical("HousepiPredictiveCheck")
   names(ppc$sar) |> expect_contains(c("observed", "predicted"))
   print(ppc) |> expect_snapshot()
 
@@ -354,33 +361,34 @@ test_that("HousepiCustomPPC active fields are read-only", {
   ppc$point_estimate |> expect_identical("median")
   ppc$cri_level |> expect_identical(0.95)
   # the summary settings are read off the global options at construction
-  withr::with_options(list(housepi.point_estimate = "mean",
-                           housepi.cri_level = 0.8), {
-    averaged <- mk_ppc$model |>
-      run_custom_predictive_check(
-        mk_ppc$results, sar = measure_sar_by_hhsize,
-        thin_ess = FALSE, max_nrep = 2
-      ) |>
-      suppressWarnings()
-    averaged$point_estimate |> expect_identical("mean")
-    averaged$cri_level |> expect_identical(0.8)
-  })
+  withr::with_options(
+    list(housepi.point_estimate = "mean", housepi.cri_level = 0.8), {
+      averaged <- mk_ppc$model |>
+        check_predictive(
+          mk_ppc$results, sar = measure_sar_by_hhsize,
+          thin_ess = FALSE, max_nrep = 2
+        ) |>
+        suppressWarnings()
+      averaged$point_estimate |> expect_identical("mean")
+      averaged$cri_level |> expect_identical(0.8)
+    }
+  )
   ppc$thin_ess |> expect_false()
   ppc$is_posterior |> expect_true()
   ppc$model_name |> expect_identical("final size")
 
   # active fields are read-only
   ppc |>
-    helper_test_read_only(
+    expect_read_only_field(
       "point_estimate", "cri_level", "nrep",
       "thin_ess", "is_posterior", "model_name"
     )
 })
 
 test_that("Predicted cases by house size works as expected", {
-  ppc <- run_epi_predictive_check(mk_ppc$model, mk_ppc$results) |>
+  ppc <- check_predictive(mk_ppc$model, mk_ppc$results) |>
     suppressWarnings()
-  ppc |> expect_s3_class("HousepiPPC")
+  class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
   counts <- helper_house_counts(mk_ppc$model$data_wide)
 
   # formatted_attack_rate: counts are the raw house totals on the AR grid
@@ -399,7 +407,7 @@ test_that("Predicted cases by house size works as expected", {
 
   # subclass active fields and inherited dynamic measure fields are read-only
   ppc |>
-    helper_test_read_only(
+    expect_read_only_field(
       "formatted_attack_rate", "attack_rate",
       "formatted_sec_attack_rate", "sec_attack_rate",
       "formatted_cases_count", "cases_count"
@@ -419,8 +427,7 @@ test_that("Predicted cases by house size works as expected", {
 
 test_that("Epi PPC honours min/max_hhsize arguments", {
   ppc <- mk_ppc$model |>
-    run_epi_predictive_check(mk_ppc$results,
-                             min_hhsize = 2L, max_hhsize = 3L) |>
+    check_predictive(mk_ppc$results, min_hhsize = 2L, max_hhsize = 3L) |>
     suppressWarnings()
   ppc$formatted_attack_rate$hhsize |> expect_in(2:3)
   ppc$formatted_sec_attack_rate$hhsize |> expect_in(2:3)
@@ -430,8 +437,7 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
   data_wide <- mk_ppc$model$data_wide
   run_on <- function(...) {
     mk_ppc$model |>
-      run_epi_predictive_check(mk_ppc$results, thin_ess = FALSE,
-                               max_nrep = 5, ...) |>
+      check_predictive(mk_ppc$results, thin_ess = FALSE, max_nrep = 5, ...) |>
       suppressWarnings()
   }
   ppc <- run_on()
@@ -456,11 +462,9 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
 
 test_that("Custom PPC warns on observed values outside the interval", {
   # parameter set deliberately so that SAR~1
+  param_table <- data.frame(alpha = 50, beta = 50, gamma = 1, hhsize_ref = 4)
   mk_ppc$model |>
-    run_custom_predictive_check(
-      data.frame(alpha = 50., beta = 50., gamma = 1., hhsize_ref = 4L),
-      sar = measure_sar_by_hhsize,
-      thin_ess = FALSE, max_nrep = 20L
-    ) |>
+    check_predictive(param_table, sar = measure_sar_by_hhsize,
+                     thin_ess = FALSE, max_nrep = 20L) |>
     expect_warning(".*outside.*CrI")
 })

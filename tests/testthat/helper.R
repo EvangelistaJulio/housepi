@@ -1,5 +1,5 @@
 # Helper to test read-only active fields.
-helper_test_read_only <- function(obj, ...) {
+expect_read_only_field <- function(obj, ...) {
   for (f in list(...)) {
     (obj[[f]] <- NULL) |> testthat::expect_error(regexp = "read only")
   }

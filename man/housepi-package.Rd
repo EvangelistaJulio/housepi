@@ -20,7 +20,7 @@ Specify the model features with the decorators \code{\link[=add_parameter]{add_p
 Run the inference with \code{\link[=run_inference]{run_inference()}}, extract draws with
 \code{\link[=get_parameter_draws]{get_parameter_draws()}} and summarise them with \code{\link[=summarise_draws]{summarise_draws()}}.
 Run simulations with \code{\link[=run_simulation]{run_simulation()}},
-predictive checks with \code{\link[=run_epi_predictive_check]{run_epi_predictive_check()}}.
+predictive checks with \code{\link[=check_predictive]{check_predictive()}}.
 Explore available building blocks using \code{\link[=browse_templates]{browse_templates()}},
 \code{\link[=browse_distributions]{browse_distributions()}}, \code{\link[=browse_functions]{browse_functions()}}
 and \code{\link[=browse_infectivity_profiles]{browse_infectivity_profiles()}}.

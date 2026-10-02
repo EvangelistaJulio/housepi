@@ -33,6 +33,7 @@ namespace housepi
     class MCMCBase;
 
     /// Latent variables and observations of a run.
+    /// Based on @cite tanner_calculation_1987
     ///
     /// - definitions, stored;
     /// - sampling schemes, built from definitions;

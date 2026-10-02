@@ -115,6 +115,35 @@ test_that("Char data input handles NULL and data.frame", {
   names(char_data_input_(exotic)) |> expect_identical(names(exotic))
 })
 
+test_that("Draws are thinned evenly, first and last kept", {
+  helper_thin_even_(seq(10), 4) |> expect_identical(c(1L, 4L, 7L, 10L))
+  hhdata <- data.frame(datum = seq(10))
+  helper_thin_even_(hhdata, 4)$datum |> expect_identical(c(1L, 4L, 7L, 10L))
+  # fewer draws than asked, or no target: every draw kept
+  helper_thin_even_(seq(3), 4) |> expect_identical(seq(3))
+  helper_thin_even_(hhdata, NA) |> expect_identical(hhdata)
+})
+
+test_that("A count is a whole positive number", {
+  assert_count_(3, "Number of replicates") |> expect_identical(3L)
+  assert_count_(NA, "Number of replicates", allow_na = TRUE) |>
+    expect_identical(NA_integer_)
+  assert_count_(NA, "Number of replicates") |>
+    expect_error("[Nn]umber of replicates should be a positive integer")
+  assert_count_(2.5, "Number of replicates") |> expect_error("positive integer")
+  assert_count_(c(1, 2), "Number of replicates", allow_na = TRUE) |>
+    expect_error("positive integer")
+})
+
+test_that("ESS thinning keeps a draw of every chain", {
+  # four chains of 100 draws stuck apart: the bulk ESS is near one
+  rho <- rep(1:4, each = 100L) + stats::rnorm(400L, sd = 0.01)
+  draws <- posterior::draws_df(rho = rho, .nchains = 4L)
+  thinned <- helper_read_param_table_(draws)
+  thinned |> expect_nrow(4L)
+  round(thinned$rho) |> expect_equal(1:4)
+})
+
 ###############################
 ###  UTILS : FACTORIZATION  ###
 ###############################

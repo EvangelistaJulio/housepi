@@ -39,8 +39,7 @@ test_that("Wrappers reject objects that are not a housepi model", {
   run_inference(obj) |> expect_error(err)
   run_simulation(obj) |> expect_error(err)
   add_group_risk(obj) |> expect_error(err)
-  run_custom_predictive_check(obj, NULL) |> expect_error(err)
-  run_epi_predictive_check(obj, NULL) |> expect_error(err)
+  check_predictive(obj, NULL) |> expect_error(err)
 })
 
 test_that("Data provided at construction is exposed via get_data_wide", {

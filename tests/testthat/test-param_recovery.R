@@ -76,7 +76,7 @@ test_that("Sweep cost is averaged over the replicates", {
     inference_secs = c(1, 3, NA), min_ess_bulk = c(100, 600, NA),
     flagged = c(FALSE, TRUE, NA), error = c(NA, NA, "crashed")
   )
-  overview <- recovery_overview_(replicates)
+  overview <- sweep_overview_(replicates)
   overview$nrep |> expect_identical(c(2L, 1L))
   overview$n_crashed |> expect_identical(c(0L, 1L))
   overview$n_flagged |> expect_identical(c(1L, 0L))
@@ -105,8 +105,8 @@ mk_recov <- local({
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
   results <- hhmodel |>
-    run_parameter_recovery_check(nrep = 2, houses = c(20, 40),
-                                 steps = 50, chains = 1, progress = FALSE) |>
+    check_recovery(nrep = 2, houses = c(20, 40),
+                   steps = 50, chains = 1, progress = FALSE) |>
     suppressWarnings()
   list(model = hhmodel, results = results)
 })
@@ -123,7 +123,7 @@ expect_recovered <- function(results) {
 
 test_that("Recovery results are read only", {
   mk_recov$results |>
-    helper_test_read_only("estimates", "replicates", "summary",
+    expect_read_only_field("estimates", "replicates", "summary",
                           "overview", "truth", "houses", "nrep",
                           "point_estimate", "cri_level", "warnings")
 })
@@ -162,7 +162,7 @@ test_that("Each replicate reports its cost and its survey", {
 
 test_that("A run too short to diagnose is flagged whole", {
   expect_warning(
-    results <- run_parameter_recovery_check(
+    results <- check_recovery(
       mk_recov$model, nrep = 2, houses = 20, steps = 50, chains = 1,
       progress = FALSE
     ),
@@ -193,11 +193,11 @@ test_that("Every estimated parameter needs a simulation value", {
                   gamma = list(value = 1, prior = "uniform", max = 3),
                   hhsize_ref = 4)
 
-  run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE) |>
+  check_recovery(hhmodel, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o simulation value.*beta")
   # a value given for a parameter the model does not carry is reported
-  run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE,
-                               truth = data.frame(beta = 0.2, rho = 1)) |>
+  check_recovery(hhmodel, nrep = 1, progress = FALSE,
+                 truth = data.frame(beta = 0.2, rho = 1)) |>
     expect_warning("[Nn]o parameter named")
 })
 
@@ -215,8 +215,8 @@ test_that("A collapsed baseline takes no simulation value", {
     "alpha.*constant reference"
   )
 
-  run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE,
-                               truth = data.frame(alpha = 0.3)) |>
+  check_recovery(hhmodel, nrep = 1, progress = FALSE,
+                 truth = data.frame(alpha = 0.3)) |>
     expect_error("[Tt]ruth.*alpha.*other than 1")
 })
 
@@ -227,8 +227,8 @@ test_that("Recovery needs a parameter to recover", {
                   beta = list(value = 0.20, const = TRUE),
                   gamma = list(value = 1, const = TRUE), hhsize_ref = 4)
 
-  run_parameter_recovery_check(hhmodel, nrep = 1, progress = FALSE) |>
-    expect_error("[Nn]o parameter to recover")
+  check_recovery(hhmodel, nrep = 1, progress = FALSE) |>
+    expect_error("[Nn]o parameter to estimate")
 })
 
 test_that("Latent inference recovers the simulating parameter", {
@@ -239,7 +239,7 @@ test_that("Latent inference recovers the simulating parameter", {
     add_parameter("rho", value = 2, prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho@P, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden@A, sd = 1) |>
-    run_parameter_recovery_check(nrep = 1, progress = FALSE) |>
+    check_recovery(nrep = 1, progress = FALSE) |>
     expect_recovered()
 })
 
@@ -248,7 +248,7 @@ test_that("Final-size inference recovers the simulating parameters", {
   flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
-    run_parameter_recovery_check(nrep = 1, progress = FALSE) |>
+    check_recovery(nrep = 1, progress = FALSE) |>
     expect_recovered()
 })
 
@@ -271,6 +271,6 @@ test_that("Case-ascertained inference recovers the simulating parameters", {
       start_date = list(value = min(onset_date), level = "house"),
       end_date = start_date + 21
     ) |>
-    run_parameter_recovery_check(nrep = 1, houses = 200, progress = FALSE) |>
+    check_recovery(nrep = 1, houses = 200, progress = FALSE) |>
     expect_recovered()
 })

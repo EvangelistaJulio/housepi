@@ -3,6 +3,8 @@ title: "Priors and proposals"
 output:
   rmarkdown::html_vignette:
     toc: true
+bibliography: ../inst/REFERENCES.bib
+link-citations: true
 vignette: >
   %\VignetteIndexEntry{Priors and proposals}
   %\VignetteEngine{knitr::rmarkdown}
@@ -231,7 +233,7 @@ Only the random walks are adaptable.
 By default, housepi tunes the scale on the fly to target an acceptance rate of 44% [@roberts_weak_1997].
 This is enabled by supplying `adapt = N` to `run_inference()`.
 Here `N` is the number of adaptation iterations run before the MCMC `steps`.
-The adaptation uses a Robbins-Monro update at every iteration
+The adaptation uses a Robbins-Monro update at every iteration [@andrieu_tutorial_2008]
 on an acceptance rate estimated with exponentially weighted moving average.
 The scale is initialized from the prior's interquartile range.
 
@@ -297,3 +299,5 @@ Handle `proposal_scale` with care!
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```
+
+# References

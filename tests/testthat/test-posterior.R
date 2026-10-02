@@ -30,27 +30,27 @@ mk_latent_draws <- local({
 ##############################
 
 test_that("Invalid posterior summary settings are rejected", {
-  set_global_posterior_summary(cri_level = 0.5) |>
+  set_housepi_summary(cri_level = 0.5) |>
     expect_error("between 0.5 and 1")
-  set_global_posterior_summary(cri_level = 1) |>
+  set_housepi_summary(cri_level = 1) |>
     expect_error("between 0.5 and 1")
-  set_global_posterior_summary(cri_level = NA_real_) |>
+  set_housepi_summary(cri_level = NA_real_) |>
     expect_error("non-NA")
-  set_global_posterior_summary(cri_level = "0.9") |>
+  set_housepi_summary(cri_level = "0.9") |>
     expect_error("numeric")
-  set_global_posterior_summary(cri_level = c(0.9, 0.95)) |>
+  set_housepi_summary(cri_level = c(0.9, 0.95)) |>
     expect_error("single")
 
-  set_global_posterior_summary(point_estimate = "mode") |>
+  set_housepi_summary(point_estimate = "mode") |>
     expect_error("one between")
   # an abbreviation is not a choice
-  set_global_posterior_summary(point_estimate = "med") |>
+  set_housepi_summary(point_estimate = "med") |>
     expect_error("one between")
-  set_global_posterior_summary(point_estimate = NA_character_) |>
+  set_housepi_summary(point_estimate = NA_character_) |>
     expect_error("non-NA")
-  set_global_posterior_summary(point_estimate = 0.5) |>
+  set_housepi_summary(point_estimate = 0.5) |>
     expect_error("character")
-  set_global_posterior_summary(point_estimate = c("mean", "median")) |>
+  set_housepi_summary(point_estimate = c("mean", "median")) |>
     expect_error("single")
 })
 
@@ -58,7 +58,7 @@ test_that("A rejected setting leaves both values in place", {
   withr::with_options(
     list(housepi.point_estimate = "median", housepi.cri_level = 0.95), {
       # the point estimate is valid, the credible level is not
-      set_global_posterior_summary(point_estimate = "mean", cri_level = 2) |>
+      set_housepi_summary(point_estimate = "mean", cri_level = 2) |>
         expect_error("between 0.5 and 1")
       get_global_point_estimate() |> expect_identical("median")
       get_global_cri_level() |> expect_equal(0.95)
@@ -76,13 +76,13 @@ test_that("The global posterior summary is set and read back", {
   withr::with_options(
     list(housepi.point_estimate = "median", housepi.cri_level = 0.95), {
       # an argument left out keeps its value
-      old <- set_global_posterior_summary(cri_level = 0.90)
+      old <- set_housepi_summary(cri_level = 0.90)
       old |> expect_equal(list(point_estimate = "median", cri_level = 0.95))
       get_global_cri_level() |> expect_equal(0.90)
       get_global_point_estimate() |> expect_identical("median")
 
       # the returned values restore what was there
-      do.call(set_global_posterior_summary, old)
+      do.call(set_housepi_summary, old)
       get_global_cri_level() |> expect_equal(0.95)
     }
   )
@@ -127,7 +127,7 @@ test_that("Summarise-draws default columns track cri_level", {
 
 test_that("Active fields are read-only", {
   mk_draws$results |>
-    helper_test_read_only(
+    expect_read_only_field(
       "parameter_draws", "latent_draws",
       "log_lik_draws", "lprior_draws", "complete_draws",
       "warnings", "inference_secs"

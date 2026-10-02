@@ -1,4 +1,4 @@
-# HousepiCustomPPC active fields are read-only
+# Predictive check on custom measures has read-only fields
 
     Code
       print(ppc)

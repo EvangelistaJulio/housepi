@@ -7,13 +7,8 @@
 
 ## Roxygen text shared by several blocks, read at the use site as `r <name>`.
 
-rd_recov_nrep_ <- "`integer(1)` Number of surveys simulated and fitted back
-at each household count."
 rd_recov_houses_ <- "`integer()` One or more household counts to sweep.
 `NA` targets the number of households carried by the attached data."
-rd_recov_sampler_ <- "`function` Sampler of the household structure the surveys
-are generated on, called as `structure_sampler(data_wide, houses)`.
-`NULL` reuses the attached structure verbatim and ignores `houses`."
 rd_recov_truth_ <- "Values the surveys are simulated at, overriding the
 parameter pins of the model. `NULL` reads the pins.
 One between
@@ -22,36 +17,17 @@ One between
 - [HousepiPosteriorDraws][housepi::HousepiPosteriorDraws].
 
 Several rows are collapsed to their point estimate."
-rd_recov_seed_ <- "Replicates are independent draws: call `set.seed()` before
-the check to replay a whole sweep, and only at `threads = 1`."
 
 ############################################################################
 ############################################################################
 ############################################################################
 
-#' Columns the surveys are generated on: the attached data without the
-#' observations and latent variables, which simulation regenerates and a
-#' definition reading one of them must not see observed.
-#' Status is kept as simulation receives it: a transmission model draws it anew.
-#' @noRd
-recovery_base_structure_ <- function(hhmodel) {
-  data <- hhmodel$data_wide
-  if (is.null(data) || nrow(data) == 0L) stop_h(
-    "No data is attached to the model.",
-    paste("A recovery check generates its surveys on the structure of the",
-          "attached data: add one with {.fn add_data_wide}.")
-  )
-  written <- c(hhmodel$observations[["name"]], hhmodel$latent[["name"]])
-  data[setdiff(names(data), written)]
-}
-
-#' Simulation table: every pinned parameter, overridden by `truth`.
+#' Simulation values: every pinned parameter, overridden by `truth`.
 #' Mirrors what `run_simulation()` builds from the pins on its own, so the
 #' surveys are generated exactly as an ordinary simulation would.
 #' @noRd
-recovery_param_table_ <- function(hhmodel, truth, point_estimate) {
-  defs <- get_parameters(hhmodel)
-  pins <- stats::setNames(defs[["value"]], defs[["name"]])
+recovery_pins_ <- function(hhmodel, truth, point_estimate) {
+  pins <- sweep_pins_(hhmodel)
   if (!is.null(truth)) {
     given <- recovery_collapse_truth_(truth, point_estimate)
     hhmodel$.__enclos_env__$private$assert_no_baseline_value_(given, "truth")
@@ -63,8 +39,7 @@ recovery_param_table_ <- function(hhmodel, truth, point_estimate) {
       `!` = "Its {.arg truth} value is ignored."
     )
   }
-  pins <- pins[!is.na(pins)]
-  as.data.frame(as.list(pins), check.names = FALSE)
+  pins[!is.na(pins)]
 }
 
 #' Collapse a table of values to one named vector of point estimates.
@@ -75,33 +50,27 @@ recovery_collapse_truth_ <- function(truth, point_estimate) {
   vapply(tab, function(x) stat(as.numeric(x)), numeric(1L))
 }
 
-#' The parameters a recovery check is about: estimated, hence carrying a prior
-#' and free. Every one of them must be pinned, since a recovery check simulates
-#' every replicate at the same known values.
+#' Simulation values of the estimated parameters. Every one of them must be
+#' pinned, since a recovery check simulates every replicate at the same known
+#' values.
 #' @noRd
-recovery_truth_ <- function(hhmodel, param_table) {
-  defs <- get_parameters(hhmodel)
-  estimated <- defs[["name"]][!is.na(defs[["prior"]]) &
-                                !(defs[["const"]] %in% TRUE)]
-  if (length(estimated) == 0L) stop_h(
-    "The model holds no parameter to recover.",
-    "A recovery check needs a parameter carrying a prior and free to move."
-  )
-  unpinned <- setdiff(estimated, names(param_table))
+recovery_truth_ <- function(hhmodel, pins) {
+  estimated <- sweep_estimated_(hhmodel)
+  unpinned <- setdiff(estimated, names(pins))
   if (length(unpinned)) stop_h(
     "No simulation value for parameter{?s} {.val {unpinned}}.",
     paste("A recovery check simulates at known values: set {.arg value} on",
           "{.fn add_parameter}, the {.field value} column of a strata table,",
           "or pass {.arg truth}.")
   )
-  unlist(param_table[estimated])
+  pins[estimated]
 }
 
 #' Recovery statistics per household count and parameter.
 #' @param estimates `data.frame` One row per replicate and parameter.
 #' @noRd
 recovery_summary_ <- function(estimates) {
-  recovery_by_(estimates, c("houses", "variable"), function(d) {
+  sweep_by_(estimates, c("houses", "variable"), function(d) {
     truth <- d[["truth"]]
     error <- d[["estimate"]] - truth
     data.frame(
@@ -115,89 +84,6 @@ recovery_summary_ <- function(estimates) {
       nrep = nrow(d), n_flagged = sum(d[["flagged"]])
     )
   })
-}
-
-#' Sweep cost per household count, averaged over the replicates.
-#' @param replicates `data.frame` One row per replicate.
-#' @noRd
-recovery_overview_ <- function(replicates) {
-  recovery_by_(replicates, "houses", function(d) {
-    ok <- !is.na(d[["inference_secs"]]) & !is.na(d[["min_ess_bulk"]])
-    data.frame(
-      houses = d[["houses"]][[1L]], nrep = nrow(d),
-      n_crashed = sum(!is.na(d[["error"]])),
-      n_flagged = sum(d[["flagged"]] %in% TRUE),
-      mean_inference_secs = mean(d[["inference_secs"]], na.rm = TRUE),
-      secs_per_ess =
-        sum(d[["inference_secs"]][ok]) / sum(d[["min_ess_bulk"]][ok])
-    )
-  })
-}
-
-#' One row of `fun` per group of `cols`, stacked back.
-#' @noRd
-recovery_by_ <- function(x, cols, fun) {
-  recovery_stack_(lapply(split(x, row_keys_(x, cols)), fun), cols)
-}
-
-#' Bind rows back into one frame, ordered by the grouping columns.
-#' @noRd
-recovery_stack_ <- function(parts, cols) {
-  out <- do.call(rbind, parts)
-  out <- out[do.call(order, out[cols]), , drop = FALSE]
-  rownames(out) <- NULL
-  out
-}
-
-#' Run `fn` on the model re-attached to `data`, with the given arguments.
-#' @noRd
-recovery_run_ <- function(fn, hhmodel, data, args) {
-  do.call(fn, c(list(add_data_wide(hhmodel, data)), args))
-}
-
-#' Household counts of the sweep, one cell each.
-#' @noRd
-recovery_houses_ <- function(structure, houses, verbatim) {
-  observed <- length(unique(structure[["hhid"]]))
-  if (!verbatim) return(unique(recovery_house_counts_(houses, observed)))
-  if (!all(is.na(houses))) warn_h(
-    "Argument {.arg houses} is ignored.",
-    "A {.code NULL} sampler reuses the attached structure verbatim."
-  )
-  observed
-}
-
-#' Household counts as whole positive numbers, `NA` standing for `observed`.
-#' @param one `logical(1)` Demand a single count.
-#' @noRd
-recovery_house_counts_ <- function(houses, observed, one = FALSE) {
-  n <- suppressWarnings(as.integer(houses))
-  n[is.na(houses)] <- observed
-  ok <- length(n) > 0L && !anyNA(n) && all(n >= 1L) && !(one && length(n) > 1L)
-  if (!ok) stop_h("Number of households should be a positive integer.")
-  n
-}
-
-#' Progress bar over the replicate grid, or nothing when it is switched off.
-#' The bar of each fit is suppressed, so a sweep prints one bar.
-#' @noRd
-recovery_progress_bar_ <- function(progress, total) {
-  if (!isTRUE(as.logical(progress[[1L]]))) return(NULL)
-  cli::cli_progress_bar("Recovery replicates", total = total,
-                        .envir = parent.frame())
-}
-
-#' Distinct warning messages raised over a sweep, with their counts.
-#' @param raised `list` Per-fit warnings, as a fit's `warnings` field holds.
-#' @noRd
-recovery_warning_counts_ <- function(raised) {
-  held <- do.call(rbind, raised)
-  if (is.null(held) || nrow(held) == 0L) {
-    return(data.frame(message = character(), count = integer()))
-  }
-  counts <- tapply(held[["count"]], held[["message"]], sum)
-  data.frame(message = names(counts), count = as.integer(counts),
-             row.names = NULL, stringsAsFactors = FALSE)
 }
 
 #' @title Resample the household structure of a survey
@@ -223,7 +109,7 @@ sample_house_structure <- function(data_wide, houses = NA_integer_) {
     "Provide an household identifier in order to allow sampling."
   )
   blocks <- split(data, data[["hhid"]], drop = TRUE)
-  houses <- recovery_house_counts_(houses, length(blocks), one = TRUE)
+  houses <- sweep_house_counts_(houses, length(blocks), one = TRUE)
   drawn <- blocks[sample.int(length(blocks), houses, replace = TRUE)]
   out <- do.call(rbind, drawn)
   rownames(out) <- NULL
@@ -234,19 +120,19 @@ sample_house_structure <- function(data_wide, houses = NA_integer_) {
 
 #' @title Parameter recovery check of a housepi model
 #' @description
-#' Container for the sweep run by [run_parameter_recovery_check()]: surveys
-#' simulated at known parameter values and fitted back, replicated at one or
-#' more household counts.
+#' Container for the sweep run by [check_recovery()]: surveys simulated at
+#' known parameter values and fitted back, replicated at one or more household
+#' counts.
 #' @examples
 #' recovery <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   run_parameter_recovery_check(nrep = 2, houses = 30, progress = FALSE)
+#'   check_recovery(nrep = 2, houses = 30, progress = FALSE)
 #' recovery
 #' recovery$summary
 #' @docType class
-HousepiParameterRecovery <- R6::R6Class(
-  classname = "HousepiParameterRecovery",
+HousepiRecoveryCheck <- R6::R6Class(
+  classname = "HousepiRecoveryCheck",
 
   ############################################################################
   ################################## PRIVATE #################################
@@ -262,84 +148,6 @@ HousepiParameterRecovery <- R6::R6Class(
     estimates_ = NULL,
     replicates_ = NULL,
     warnings_ = NULL,
-    sim_args_ = NULL,
-    fit_args_ = NULL,
-
-    # The sweep: one simulation call per household count, then one fit per
-    # replicate. The fitted model is built from the given model and never
-    # from the one that simulated, which holds the truth of the last
-    # replicate.
-    sweep_ = function(hhmodel, structure, sampler, progress) {
-      estimates <- replicates <- raised <- list()
-      bar <- recovery_progress_bar_(progress,
-                                    length(private$houses_) * private$nrep_)
-      for (houses in private$houses_) {
-        struct <- structure
-        if (!is.null(sampler)) struct <- sampler(structure, houses)
-        surveys <- recovery_run_(simulate_with_parameters_, hhmodel, struct,
-                                 private$sim_args_)
-        wide <- surveys$wide
-        if (is.data.frame(wide)) wide <- list(wide)
-        cell <- lapply(seq_len(private$nrep_), function(rep) {
-          truth <- unlist(surveys$parameters[rep, , drop = FALSE])
-          one <- private$one_replicate_(hhmodel, wide[[rep]], truth, houses,
-                                        rep)
-          if (!is.null(bar)) cli::cli_progress_update(id = bar)
-          one
-        })
-        rm(surveys, wide)
-        done <- Filter(Negate(is.null), lapply(cell, `[[`, "estimates"))
-        # an engine message carries no markup: interpolate, never inline
-        reason <- cell[[1L]]$replicate[["error"]]
-        if (length(done) == 0L) stop_h(
-          "Every replicate crashed at {.val {houses}} households.",
-          `!` = "{reason}"
-        )
-        estimates <- c(estimates, done)
-        replicates <- c(replicates, lapply(cell, `[[`, "replicate"))
-        raised <- c(raised, lapply(cell, `[[`, "warnings"))
-      }
-      list(estimates = estimates, replicates = replicates,
-           warnings = recovery_warning_counts_(raised))
-    },
-
-    # One replicate: the fit of the survey simulated at `truth`.
-    # A replicate that crashes is recorded and the sweep carries on.
-    one_replicate_ = function(hhmodel, simulated, truth, houses, rep) {
-      crash <- NA_character_
-      fit <- tryCatch(
-        private$fit_one_(hhmodel, simulated, truth, houses, rep),
-        error = function(e) {
-          crash <<- conditionMessage(e)
-          NULL
-        }
-      )
-      list(
-        estimates = fit$estimates,
-        warnings = fit$warnings,
-        replicate = data.frame(
-          houses = houses, rep = rep,
-          inference_secs = if (is.null(fit)) NA_real_ else fit$secs,
-          min_ess_bulk = if (is.null(fit)) NA_real_ else
-            min(fit$estimates$ess_bulk),
-          flagged = if (is.null(fit)) NA else any(fit$estimates$flagged),
-          error = crash
-        )
-      )
-    },
-
-    # Fit one survey back and summarise its draws.
-    # Kept whole and free of sweep state, so it can be mapped later.
-    fit_one_ = function(hhmodel, simulated, truth, houses, rep) {
-      latent <- intersect(hhmodel$latent[["name"]], names(simulated))
-      hhdata <- simulated[setdiff(names(simulated), latent)]
-      draws <- recovery_run_(run_inference, hhmodel, hhdata,
-                             private$fit_args_)
-      list(estimates = cbind(houses = houses, rep = rep,
-                             private$summarise_draws_(draws, truth)),
-           warnings = draws$warnings,
-           secs = draws$inference_secs)
-    },
 
     # Point estimate, posterior sd, credible interval, whether it covers the
     # values the survey was simulated at, and convergence diagnostics per
@@ -358,29 +166,11 @@ HousepiParameterRecovery <- R6::R6Class(
       summ <- summ[summ[["variable"]] %in% names(private$truth_), ]
       truth <- unname(truth[summ[["variable"]]])
       covers <- summ[["cri_lower"]] <= truth & truth <= summ[["cri_upper"]]
-      # the diagnostics and the verdict the fit reached
-      diag <- draws$.__enclos_env__$private$diagnostics_
-      diag <- diag[match(summ[["variable"]], diag[["variable"]]), ]
       cbind(summ["variable"], truth = truth,
             summ[c("estimate", "sd", "cri_lower", "cri_upper")],
             covers = covers,
-            diag[c("rhat", "ess_bulk", "flagged")],
+            sweep_diagnostics_(draws, summ[["variable"]]),
             row.names = NULL)
-    },
-
-    # One warning per distinct message, with the count of replicates that
-    # raised it. Foreign text carries no markup.
-    report_warnings_ = function() {
-      if (is.null(private$warnings_) || nrow(private$warnings_) == 0L) return()
-      n_warn <- nrow(private$warnings_)
-      lines <- mapply(\(n, msg) inline_cli_("{n} replicate{?s}: {msg}"),
-                      private$warnings_[["count"]],
-                      private$warnings_[["message"]])
-      header <- inline_cli_(
-        "Parameter recovery raised {n_warn} distinct warning{?s}."
-      )
-      bullets <- stats::setNames(lines, rep("!", length(lines)))
-      emit_cli_condition(c(list(header), as.list(bullets)), "warn")
     }
   ),
 
@@ -445,7 +235,7 @@ HousepiParameterRecovery <- R6::R6Class(
     #' }
     overview = function(value) {
       if (!missing(value)) stop_read_only("overview")
-      recovery_overview_(private$replicates_)
+      sweep_overview_(private$replicates_)
     },
 
     #' @field truth named `numeric()`
@@ -497,12 +287,12 @@ HousepiParameterRecovery <- R6::R6Class(
 
   public = list(
     #' @description
-    #' Internal: [run_parameter_recovery_check()] builds this object, don't
-    #' call `$new()` directly.
+    #' Internal: [check_recovery()] builds this object, don't call `$new()`
+    #' directly.
     #' @param hhmodel `r rd_model_in_`
-    #' @param nrep `r rd_recov_nrep_`
+    #' @param nrep `r rd_sweep_nrep_`
     #' @param houses `r rd_recov_houses_`
-    #' @param structure_sampler `r rd_recov_sampler_`
+    #' @param structure_sampler `r rd_sweep_sampler_`
     #' @param truth `r rd_recov_truth_`
     #' @param steps `r rd_smpl_steps_`
     #' @param burn `r rd_smpl_burn_`
@@ -519,40 +309,39 @@ HousepiParameterRecovery <- R6::R6Class(
                           thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
                           progress = TRUE, ...) {
-      if (!rlang::is_scalar_integerish(nrep) || is.na(nrep) || nrep < 1) stop_h(
-        "Number of replicates should be a positive integer."
-      )
-      private$nrep_ <- as.integer(nrep)
+      private$nrep_ <- assert_count_(nrep, "Number of replicates")
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
       private$name_ <- hhmodel$.__enclos_env__$private$gen_$raw_name
 
-      pins <- recovery_param_table_(hhmodel, truth, private$point_estimate_)
+      pins <- recovery_pins_(hhmodel, truth, private$point_estimate_)
       private$truth_ <- recovery_truth_(hhmodel, pins)
-      structure <- recovery_base_structure_(hhmodel)
-      private$houses_ <- recovery_houses_(structure, houses,
-                                          is.null(structure_sampler))
+      structure <- sweep_base_structure_(hhmodel)
+      private$houses_ <- sweep_houses_(structure, houses,
+                                       is.null(structure_sampler))
 
       dots <- list(...)
       # one simulation call per household count yields the whole cell: the
       # pins are repeated, one row per replicate
-      private$sim_args_ <- c(
-        list(param_table = pins[rep(1L, private$nrep_), , drop = FALSE]),
+      sim_args <- c(
+        list(param_table = sweep_param_table_(pins, private$nrep_)),
         dots[names(dots) == "time_step"]
       )
-      private$fit_args_ <- c(
+      fit_args <- c(
         list(steps = steps, burn = burn, thin = thin, adapt = adapt,
              chains = chains, threads = threads, id_draws = ".none",
              progress = FALSE, warn = FALSE),
         dots[names(dots) == "adapt_window"]
       )
-      swept <- private$sweep_(hhmodel, structure, structure_sampler, progress)
-      private$estimates_ <- recovery_stack_(swept$estimates,
-                                            c("houses", "rep"))
-      private$replicates_ <- recovery_stack_(swept$replicates,
-                                             c("houses", "rep"))
+      swept <- sweep_run_(
+        hhmodel, structure, structure_sampler, private$houses_, private$nrep_,
+        sim_args, fit_args, private$summarise_draws_, progress,
+        "Recovery replicates"
+      )
+      private$estimates_ <- swept$estimates
+      private$replicates_ <- swept$replicates
       private$warnings_ <- swept$warnings
-      private$report_warnings_()
+      sweep_report_warnings_(private$warnings_, "Parameter recovery")
       invisible(self)
     },
 
@@ -585,9 +374,9 @@ HousepiParameterRecovery <- R6::R6Class(
 #' at, and the priors of the very same model drive inference, so no separate
 #' simulation model is needed.
 #' @param hhmodel `r rd_model_in_`
-#' @param nrep `r rd_recov_nrep_`
+#' @param nrep `r rd_sweep_nrep_`
 #' @param houses `r rd_recov_houses_`
-#' @param structure_sampler `r rd_recov_sampler_`
+#' @param structure_sampler `r rd_sweep_sampler_`
 #' @param truth `r rd_recov_truth_`
 #' @param steps `r rd_smpl_steps_`
 #' @param burn `r rd_smpl_burn_`
@@ -598,34 +387,33 @@ HousepiParameterRecovery <- R6::R6Class(
 #' @param progress `logical(1)` Whether to show a progress bar over the
 #' replicates. The progress of each fit is always suppressed.
 #' @param ... `r rd_dots_config_`
-#' @return An object of class [HousepiParameterRecovery].
+#' @return An object of class [HousepiRecoveryCheck].
 #' @details
 #' A replicate that crashes is recorded and the sweep carries on; a household
 #' count whose every replicate crashed raises an error.
 #' `r rd_global_summary_`
-#' `r rd_recov_seed_`
+#' `r rd_sweep_seed_`
 #' @examples
 #' recovery <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   run_parameter_recovery_check(nrep = 2, houses = 30, progress = FALSE)
+#'   check_recovery(nrep = 2, houses = 30, progress = FALSE)
 #' recovery$summary
 #' recovery$overview
 #' @export
-run_parameter_recovery_check <- function(hhmodel,
-                                         nrep = 50L,
-                                         houses = NA_integer_,
-                                         structure_sampler =
-                                           sample_house_structure,
-                                         truth = NULL,
-                                         steps = 1000L, burn = 0L,
-                                         thin = 5L, adapt = 500L,
-                                         chains = 4L, threads = 1L,
-                                         progress = TRUE,
-                                         ...) {
+check_recovery <- function(hhmodel,
+                           nrep = 50L,
+                           houses = NA_integer_,
+                           structure_sampler = sample_house_structure,
+                           truth = NULL,
+                           steps = 1000L, burn = 0L,
+                           thin = 5L, adapt = 500L,
+                           chains = 4L, threads = 1L,
+                           progress = TRUE,
+                           ...) {
   stopifnothousepi(hhmodel)
   assert_advanced_setup_(c("adapt_window", "time_step"), ...)
-  HousepiParameterRecovery$new(
+  HousepiRecoveryCheck$new(
     hhmodel$copy(), nrep = nrep, houses = houses,
     structure_sampler = structure_sampler, truth = truth,
     steps = steps, burn = burn, thin = thin, adapt = adapt,

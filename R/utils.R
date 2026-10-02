@@ -153,14 +153,28 @@ wall_or_return_ <- function(sms, wall) {
   if (isTRUE(wall) && length(sms) > 0) stop_h(sms) else sms
 }
 
-#' Subsample a data.frame to ~n evenly spaced rows.
-#' Returns the input unchanged when n is NA or n >= nrow(df).
-#' @param df `data.frame` input table.
-#' @param n `integer(1)` Target number of rows.
+#' Thin draws to `n` evenly spaced elements, or rows of a `data.frame`, first
+#' and last kept. Spacing them out keeps autocorrelated draws as far apart as
+#' they can be. Returns `x` unchanged when `n` is `NA` or `n >= NROW(x)`.
+#' @param x Vector or `data.frame` of draws.
+#' @param n `integer(1)` Number of draws kept.
 #' @noRd
-helper_thin_table_ <- function(df, n) {
-  if (is.null(df) || is.na(n) || nrow(df) <= n) return(df)
-  df[round(seq.int(1L, nrow(df), length.out = n)), , drop = FALSE]
+helper_thin_even_ <- function(x, n) {
+  if (is.na(n) || NROW(x) <= n) return(x)
+  keep <- round(seq.int(1L, NROW(x), length.out = n))
+  if (is.data.frame(x)) x[keep, , drop = FALSE] else x[keep]
+}
+
+#' A count argument as a whole positive number.
+#' @param what `character(1)` What the count is, opening the error.
+#' @param allow_na `logical(1)` Let a single `NA` through, as `NA_integer_`.
+#' @noRd
+assert_count_ <- function(x, what, allow_na = FALSE) {
+  if (allow_na && length(x) == 1L && is.na(x)) return(NA_integer_)
+  if (!rlang::is_scalar_integerish(x) || is.na(x) || x < 1) stop_h(
+    "{what} should be a positive integer."
+  )
+  as.integer(x)
 }
 
 #' Read a parameter table from draws or a data.frame, thinned to the ESS.
@@ -185,10 +199,10 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
         "ESS values return NA.",
         "Check your draws for degenerate parameters."
       )
-      # keep at most ESS draws, and at least one per chain
-      thin <- ceiling(posterior::ndraws(ptab) / min(ess_bulk))
-      thin <- min(thin, posterior::niterations(ptab))
-      ptab <- posterior::thin_draws(ptab, thin = thin)
+      # keep at most ESS draws, and at least one per chain: rows run chain
+      # after chain, so as many evenly spaced rows as chains hit every chain
+      keep <- max(posterior::nchains(ptab), floor(min(ess_bulk)))
+      ptab <- helper_thin_even_(as.data.frame(ptab), keep)
     }
   }
 

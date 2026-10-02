@@ -3,6 +3,8 @@ title: "Get started with housepi"
 output:
   rmarkdown::html_vignette:
     toc: true
+bibliography: ../inst/REFERENCES.bib
+link-citations: true
 vignette: >
   %\VignetteIndexEntry{Get started with housepi}
   %\VignetteEngine{knitr::rmarkdown}
@@ -179,7 +181,7 @@ For further information on the available options for priors and MCMC proposals d
 # Run inference
 
 After having provided all necessary definitions, we can perform inference calling `run_inference()`.
-With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm.
+With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm [@metropolis_equation_1953; @hastings_monte_1970].
 Standard options for the MCMC can be provided at this stage, including controls on the number of `threads`.
 The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
 
@@ -341,7 +343,7 @@ bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
   geom_hline(data = simul_parameters, aes(yintercept = simulated))
 ```
 
-and we can perform R-hat diagnostics
+and we can perform R-hat diagnostics [@vehtari_rank_normalization_2021]
 
 ```{r}
 #| label: rhat-diagnostics
@@ -382,3 +384,5 @@ Alongside them, [posterior predictive checks](posterior_predictive_checks.html) 
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```
+
+# References

@@ -12,7 +12,8 @@ If `NA`, no lower bound is applied."
 rd_max_hhsize_ <- "`integer(1)` Maximum household size retained in the outputs.
 If `NA`, no upper bound is applied."
 rd_measure_dots_ <- "Named arguments. `function`s to compute measures from data.
-Each function should return one between `numeric()`, `list` or `data.frame`."
+Each function should return one between `numeric()`, `list` or `data.frame`.
+If none is given, the standard epidemiological measures are checked."
 
 ############################################################################
 ############################################################################
@@ -257,14 +258,14 @@ ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
 #'
 #' # a user-defined measure: the overall attack rate
 #' overall_ar <- function(data_wide) mean(data_wide$status > 0)
-#' ppc <- run_custom_predictive_check(hhmodel, results,
-#'                                    sar = measure_sar_by_hhsize,
-#'                                    overall = overall_ar,
-#'                                    max_nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hhmodel, results,
+#'                         sar = measure_sar_by_hhsize,
+#'                         overall = overall_ar,
+#'                         max_nrep = 50, progress = FALSE)
 #' ppc$overall
 #' @docType class
-HousepiCustomPPC <- R6::R6Class(
-  classname = "HousepiCustomPPC",
+HousepiPredictiveCheck <- R6::R6Class(
+  classname = "HousepiPredictiveCheck",
   cloneable = TRUE,
   lock_objects = FALSE,
 
@@ -380,9 +381,8 @@ HousepiCustomPPC <- R6::R6Class(
                           max_nrep = 200L,
                           threads = 1L,
                           progress = TRUE) {
-      if (!is.na(max_nrep) && (!is.numeric(max_nrep) || max_nrep < 1)) stop_h(
-        "{.arg max_nrep} must be a positive integer or NA."
-      )
+      max_nrep <- assert_count_(max_nrep, "Maximum number of replicates",
+                                allow_na = TRUE)
       # associate summary statistic and credible interval
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
@@ -395,7 +395,6 @@ HousepiCustomPPC <- R6::R6Class(
       if (!is.null(measures_long)) m_long <- list(measures_long)
       has_long <- length(m_long) > 0
 
-      if (!has_wide && !has_long) stop_h("No measure was provided.")
       # FIXME: temporary forcing obs process long
       if (has_long && is.null(obs_process_long)) stop_h(
         "{.arg obs_process_long} is required when long measures are provided."
@@ -610,13 +609,12 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 #'   add_parameter(import = "template")
 #' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 #'
-#' ppc <- run_epi_predictive_check(hhmodel, results,
-#'                                 max_nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hhmodel, results, max_nrep = 50, progress = FALSE)
 #' ppc$formatted_attack_rate
 #' @docType class
-HousepiPPC <- R6::R6Class(
-  classname = "HousepiPPC",
-  inherit = HousepiCustomPPC,
+HousepiEpiPredictiveCheck <- R6::R6Class(
+  classname = "HousepiEpiPredictiveCheck",
+  inherit = HousepiPredictiveCheck,
   cloneable = TRUE,
   lock_objects = FALSE,
 
@@ -740,7 +738,7 @@ HousepiPPC <- R6::R6Class(
       esc <- hhmodel$escaped
       private$labelled_ <- !is.null(obs_process)
 
-      # ininitialize parent class HousepiCustomPPC
+      # initialize parent class HousepiPredictiveCheck
       super$initialize(
         hhmodel = hhmodel, param_table = param_table,
         attack_rate = \(x) measure_ar_by_hhsize(x, esc),
@@ -787,102 +785,92 @@ HousepiPPC <- R6::R6Class(
   )
 )
 
-#' @title Custom posterior predictive check on a housepi model
+#' @title Posterior predictive check of a housepi model
 #' @description
-#' Posterior predictive check on user-supplied measures, comparing observed
-#' and predicted values according to a given table of parameters.
-#' @param hhmodel `r rd_model_in_`
-#' @param param_table `r rd_param_table_`
-#' @param ... `r rd_measure_dots_`
-#' @param obs_process `r rd_simul_observ_`
-#' @param obs_process_long `r rd_simul_obs_long_`
-#' @param thin_ess `r rd_thin_ess_`
-#' @param max_nrep `r rd_max_nrep_`
-#' @param threads `r rd_thread_`
-#' @param progress `r rd_progress_`
-#' @return An object of class [HousepiCustomPPC].
-#' @details
-#' `r rd_global_summary_`
-#' @examples
-#' hhmodel <- flu_1918_frederick |>
-#'   new_housepi_model("final-size") |>
-#'   add_parameter(import = "template")
-#' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
-#'
-#' # a user-defined measure: the overall attack rate
-#' overall_ar <- function(data_wide) mean(data_wide$status > 0)
-#' ppc <- run_custom_predictive_check(hhmodel, results,
-#'                                    sar = measure_sar_by_hhsize,
-#'                                    overall = overall_ar,
-#'                                    max_nrep = 50, progress = FALSE)
-#' ppc
-#' ppc$sar$observed
-#' @export
-run_custom_predictive_check <- function(hhmodel,
-                                        param_table,
-                                        ...,
-                                        obs_process = NULL,
-                                        obs_process_long = NULL,
-                                        thin_ess = TRUE,
-                                        max_nrep = 200L,
-                                        threads = 1L,
-                                        progress = TRUE) {
-  stopifnothousepi(hhmodel)
-  HousepiCustomPPC$new(
-    hhmodel$copy(), param_table, ...,
-    thin_ess = thin_ess, max_nrep = max_nrep,
-    obs_process = obs_process, obs_process_long = obs_process_long,
-    threads = threads, progress = progress
-  )
-}
-
-#' @title Standard epidemiological posterior predictive check
-#' @description
-#' Posterior predictive check on standard epidemiological measures
-#' by household size. It compares observed and predicted values of
+#' Posterior predictive check comparing observed values of household measures
+#' against their values on surveys simulated from a table of parameters
+#' \insertCite{gelman_posterior_1996}{housepi}.
+#' Without measures in `...`, it checks the standard epidemiological measures
+#' by household size:
 #' \describe{
 #' \item{`"attack_rate"`}{see [measure_ar_by_hhsize];}
 #' \item{`"sec_attack_rate"`}{see [measure_sar_by_hhsize];}
 #' \item{`"cases_count"`}{see [measure_cases_by_hhsize].}
 #' }
+#' Named measure functions in `...` replace them.
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
+#' @param ... `r rd_measure_dots_`
 #' @param obs_process `r rd_simul_observ_`
+#' @param obs_process_long `r rd_simul_obs_long_`
+#' Only with measures in `...`.
 #' @param thin_ess `r rd_thin_ess_`
 #' @param max_nrep `r rd_max_nrep_`
 #' @param min_hhsize `r rd_min_hhsize_`
+#' Only with the standard epidemiological measures.
 #' @param max_hhsize `r rd_max_hhsize_`
+#' Only with the standard epidemiological measures.
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return
-#' An object of class [HousepiPPC]
-#' containing methods to compare observed and predicted cases.
+#' An object of class [HousepiEpiPredictiveCheck] for the standard
+#' epidemiological measures, of class [HousepiPredictiveCheck] for measures
+#' in `...`.
 #' @details
 #' `r rd_global_summary_`
+#' @references
+#' \insertAllCited{}
 #' @examples
 #' hhmodel <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 #'
-#' ppc <- run_epi_predictive_check(hhmodel, results,
-#'                                 max_nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hhmodel, results, max_nrep = 50, progress = FALSE)
 #' ppc
+#'
+#' # a user-defined measure: the overall attack rate
+#' overall_ar <- function(data_wide) mean(data_wide$status > 0)
+#' ppc <- check_predictive(hhmodel, results,
+#'                         sar = measure_sar_by_hhsize,
+#'                         overall = overall_ar,
+#'                         max_nrep = 50, progress = FALSE)
+#' ppc
+#' ppc$sar$observed
 #' @export
-run_epi_predictive_check <- function(hhmodel,
-                                     param_table,
-                                     obs_process = NULL,
-                                     thin_ess = TRUE,
-                                     max_nrep = 200L,
-                                     min_hhsize = NA_integer_,
-                                     max_hhsize = NA_integer_,
-                                     threads = 1L,
-                                     progress = TRUE) {
+check_predictive <- function(hhmodel,
+                             param_table,
+                             ...,
+                             obs_process = NULL,
+                             obs_process_long = NULL,
+                             thin_ess = TRUE,
+                             max_nrep = 200L,
+                             min_hhsize = NA_integer_,
+                             max_hhsize = NA_integer_,
+                             threads = 1L,
+                             progress = TRUE) {
   stopifnothousepi(hhmodel)
-  HousepiPPC$new(
-    hhmodel$copy(), param_table,
-    obs_process = obs_process, thin_ess = thin_ess,
-    max_nrep = max_nrep, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
+  if (...length() == 0L) {
+    if (!is.null(obs_process_long)) stop_h(
+      "{.arg obs_process_long} has no measure to apply to.",
+      "Pass the measures on {.code data_long} in {.arg ...}."
+    )
+    return(HousepiEpiPredictiveCheck$new(
+      hhmodel$copy(), param_table,
+      obs_process = obs_process, thin_ess = thin_ess,
+      max_nrep = max_nrep, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
+      threads = threads, progress = progress
+    ))
+  }
+  if (!is.na(min_hhsize) || !is.na(max_hhsize)) stop_h(
+    paste("{.arg min_hhsize} and {.arg max_hhsize} bound only the standard",
+          "epidemiological measures, not the measures in {.arg ...}."),
+    "Restrict household sizes inside the measure functions."
+  )
+  HousepiPredictiveCheck$new(
+    hhmodel$copy(), param_table, ...,
+    thin_ess = thin_ess, max_nrep = max_nrep,
+    obs_process = obs_process, obs_process_long = obs_process_long,
     threads = threads, progress = progress
   )
 }

@@ -54,7 +54,7 @@ S3 method on \code{\link[posterior:summarise_draws]{posterior::summarise_draws()
 \code{"housepi_draws"} (returned by housepi getters and active fields on
 \code{\link{HousepiPosteriorDraws}}). When no summary functions are passed via
 \code{...}, the housepi defaults are used and the quantile pair tracks
-\code{\link[=set_global_posterior_summary]{set_global_posterior_summary()}}. Otherwise dispatch falls through to
+\code{\link[=set_housepi_summary]{set_housepi_summary()}}. Otherwise dispatch falls through to
 \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}} behaviour.
 }
 \examples{
