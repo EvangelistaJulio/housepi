@@ -13,6 +13,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "tools/math.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "chain_binom.h"
@@ -219,14 +220,14 @@ namespace housepi::chain_binom
                                 double p2p_infec_rate)
     {
         const double log_commu_esc_proba = -commu_infec_rate;
-        const double log_commu_infec_proba = std::log1p(-std::exp(log_commu_esc_proba));
+        const double log_commu_infec_proba = math::log1mexp(commu_infec_rate);
         const double log_p2p_esc_proba = -p2p_infec_rate;
 
         // log-probability of infection by a generation of n_prev infectors, per generation size
         thread_local vector<double> log_p2p_infec_proba;
         log_p2p_infec_proba.assign(n_infec + 1, 0.);
         for (unsigned n_prev = 1; n_prev <= n_infec; ++n_prev)
-            log_p2p_infec_proba[n_prev] = std::log1p(-std::exp(n_prev * log_p2p_esc_proba));
+            log_p2p_infec_proba[n_prev] = math::log1mexp(n_prev * p2p_infec_rate);
 
         //////  Seropositive contribution  //////
 
@@ -711,7 +712,7 @@ namespace housepi::chain_binom
             return ll;
         // single seropositive
         else if (n_infec == 1)
-            return ll + std::log1p(-std::exp(-commu_infec_rate[0]));
+            return ll + math::log1mexp(commu_infec_rate[0]);
         // homogeneous case
         else if (n_parts < 2)
             return ll + log_lik_homogeneous_(

@@ -265,10 +265,9 @@ test_that("A data column R can only spell quoted, survives the round trip", {
   names(inspect_house_state(hhmodel, "house")$data_wide) |>
     expect_identical(colnames(hhdata))
 
-  # a definition sources it, quoted or bare, and finds the datum
-  get_latent(add_latent(hhmodel, hidden = 3@D))$value |> expect_identical("3|D")
-  get_latent(add_latent(hhmodel, hidden = `3`@D))$value |>
-    expect_identical("3|D")
+  # a definition sources it by its name, quoted
+  get_latent(add_latent(hhmodel, hidden = `if`))$value |>
+    expect_identical("if|D")
 
   # data-long keys cross the same way
   long <- data.frame(id = hhdata$id, check.names = FALSE)

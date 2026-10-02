@@ -84,8 +84,8 @@ test_that("A func definition is deterministic", {
 
   # the spare arguments reach the function, whichever spelling declares it
   hhmodel <- mk_param$model |> add_parameter("rho_2", value = 2)
-  by_args <- hhmodel |> add_parameter("rho", func = "log", x = rho_2@P)
-  by_expr <- hhmodel |> add_parameter(rho = log(rho_2@P))
+  by_args <- hhmodel |> add_parameter("rho", func = "log", x = rho_2)
+  by_expr <- hhmodel |> add_parameter(rho = log(rho_2))
   get_parameters(by_args) |> expect_identical(get_parameters(by_expr))
   get_parameters(by_args)$func_args[[2]] |> expect_identical(c(x = "rho_2|P"))
 })
@@ -215,8 +215,9 @@ test_that("Parameter options typed as values refuse other types", {
 
 test_that("Unsupported parameter definitions throw errors", {
   # eager rebuild: errors surface at definition, not at run_inference
-  mk_param$model |>
-    add_parameter("rho", prior = "uniform", min = datum@D) |>
+  data.frame(id = 1, hhid = 1, status = 1, datum = 1) |>
+    new_housepi_model("test") |>
+    add_parameter("rho", prior = "uniform", min = datum) |>
     expect_error("[Nn]ot supported")
   # a bare name nothing declares carries no source yet: it waits for the wall
   hhmodel <- add_parameter(mk_param$model, "rho", prior = "uniform",
@@ -228,14 +229,22 @@ test_that("Unsupported parameter definitions throw errors", {
 
   # a nested function missing a non-default argument
   mk_param$model |>
-    add_parameter(rho = list(prior = "uniform"), rho_2 = exp(pow(rho@P))) |>
+    add_parameter(rho = list(prior = "uniform"), rho_2 = exp(pow(rho))) |>
     evaluate_log_lik() |>
     expect_error("[Nn]on default argument .x2.*cannot be missing")
   mk_param$model |>
     add_parameter(rho = list(prior = "uniform"),
-                  rho_2 = exp(pow(x2 = rho@P))) |>
+                  rho_2 = exp(pow(x2 = rho))) |>
     evaluate_log_lik() |>
     expect_error("[Aa]rgument .x. of function .pow. cannot be missing")
+
+  # strings outside the naming convention
+  mk_param$model |>
+    add_parameter("rho", prior = "normal|x") |>
+    expect_error("[Pp]rior .normal.x. contained invalid")
+  mk_param$model |>
+    add_parameter("rho", prior = "uniform", proposal = "rw|x") |>
+    expect_error("[Pp]roposal .rw.x. contained invalid")
 
   # a constant argument outside the function domain
   mk_param$model |>
@@ -347,26 +356,14 @@ test_that("A discrete prior resolves 'uniform' to the discrete distribution", {
 })
 
 test_that("Parameter defined as a function tracks its dependencies", {
-  sigilled <- mk_final_size$model |>
-    add_parameter(alpha = 1e-4, beta = hhsize_ref@P^-gamma@P,
-                  gamma = list(prior = "uniform"), hhsize_ref = 4)
-  # a bare reference encodes the same definition: no sigil is needed to reach
-  # a parameter no other holder claims
-  bare <- mk_final_size$model |>
+  hhmodel <- mk_final_size$model |>
     add_parameter(alpha = 1e-4, beta = hhsize_ref^-gamma,
                   gamma = list(prior = "uniform"), hhsize_ref = 4)
-  get_parameters(bare) |> expect_identical(get_parameters(sigilled))
-  get_parameters(bare)$func_args[[2]] |>
+  get_parameters(hhmodel)$func_args[[2]] |>
     expect_identical(c(x = "hhsize_ref|P", x2 = "minus|x|[gamma|P]"))
-  # a sigil reads the same in lower case
-  mk_final_size$model |>
-    add_parameter(alpha = 1e-4, beta = hhsize_ref@p^-gamma@p,
-                  gamma = list(prior = "uniform"), hhsize_ref = 4) |>
-    get_parameters() |>
-    expect_equal(get_parameters(sigilled))
 
   # both sampled and function-derived parameters appear in the trace
-  draws <- sigilled |>
+  draws <- hhmodel |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings() |>
     getElement("parameter_draws") |>
@@ -390,10 +387,10 @@ test_that("Parameter function rejects non-parameter dependencies", {
     add_parameter(rho = hidden^-2) |>
     expect_error("rho.*cannot.*depend.*latent")
 
-  # explicit reference to a data column is also rejected
+  # a data column is rejected as well
   mk_param$model |>
     add_data_wide(dplyr::mutate(dummy_household, datum = 1)) |>
-    add_parameter(rho = datum@D + 1) |>
+    add_parameter(rho = datum + 1) |>
     expect_error("rho.*cannot.*depend.*data")
 })
 
@@ -461,34 +458,34 @@ test_that("Strict positivity propagates through a parameter function", {
   }
 
   # positivity follows the operands, one node at a time
-  mk(alpha = exp(-rho@P)) |> is.finite() |> expect_true()
-  mk(alpha = sqrt(rho@P) / 10) |> is.finite() |> expect_true()
-  mk(alpha = rho@P^2 * 1e-2) |> is.finite() |> expect_true()
+  mk(alpha = exp(-rho)) |> is.finite() |> expect_true()
+  mk(alpha = sqrt(rho) / 10) |> is.finite() |> expect_true()
+  mk(alpha = rho^2 * 1e-2) |> is.finite() |> expect_true()
   mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
-     alpha = min(rho@P, rho_2@P) * 1e-2) |>
+     alpha = min(rho, rho_2) * 1e-2) |>
     is.finite() |>
     expect_true()
-  mk(rho_2 = list(prior = "normal"), alpha = max(rho@P, rho_2@P) * 1e-2) |>
+  mk(rho_2 = list(prior = "normal"), alpha = max(rho, rho_2) * 1e-2) |>
     is.finite() |>
     expect_true()
   mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
-     alpha = (rho@P + rho_2@P) * 1e-2) |>
+     alpha = (rho + rho_2) * 1e-2) |>
     is.finite() |>
     expect_true()
   # a bounded operand caps the unbounded side of the other
-  mk(alpha = min(rho@P, 1e-2)) |> is.finite() |> expect_true()
-  mk(alpha = min(1e-2, rho@P)) |> is.finite() |> expect_true()
-  mk(rho_2 = list(prior = "normal"), alpha = max(rho_2@P, 1e-2) * rho@P) |>
+  mk(alpha = min(rho, 1e-2)) |> is.finite() |> expect_true()
+  mk(alpha = min(1e-2, rho)) |> is.finite() |> expect_true()
+  mk(rho_2 = list(prior = "normal"), alpha = max(rho_2, 1e-2) * rho) |>
     is.finite() |>
     expect_true()
 
   # a sign-indefinite node is not provably positive, whatever it evaluates to
-  mk(alpha = log(rho@P)) |>
+  mk(alpha = log(rho)) |>
     expect_error("not strictly positive")
-  mk(alpha = -rho@P) |>
+  mk(alpha = -rho) |>
     expect_error("not strictly positive")
   # min over a sign-indefinite operand loses the proof, max keeps it
-  mk(rho_2 = list(prior = "normal"), alpha = min(rho@P, rho_2@P) * 1e-2) |>
+  mk(rho_2 = list(prior = "normal"), alpha = min(rho, rho_2) * 1e-2) |>
     expect_error("not strictly positive")
 })
 
@@ -516,7 +513,7 @@ test_that("Strict positivity propagates through a shifted prior", {
   mk_final_size$template |>
     add_parameter(rho = list(prior = "uniform", min = 1e-3, max = 2e-3),
                   alpha = list(prior = "uniform", min = -1e-4, max = 1e-4,
-                               loc = rho@P)) |>
+                               loc = rho)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_error("could not be interpreted as a numeric constant")
@@ -524,7 +521,7 @@ test_that("Strict positivity propagates through a shifted prior", {
   mk_final_size$template |>
     add_parameter(
       rho = list(prior = "uniform", min = 1e-3, max = 2e-3),
-      alpha = list(prior = "uniform", min = -1e-4, max = 1e-4, loc = rho@P * 2)
+      alpha = list(prior = "uniform", min = -1e-4, max = 1e-4, loc = rho * 2)
     ) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
@@ -544,8 +541,8 @@ test_that("Every prior family and nested function samples across chains", {
       rho_6 = list(prior = "binomial", size = 5, prob = 0.3),
       rho_7 = list(prior = "negative_binomial", size = 5, prob = 0.3),
       rho_8 = list(prior = "geometric", prob = 0.3),
-      rho_9 = sin(rho@P), rho_10 = tan(rho@P), rho_11 = exp(rho@P),
-      rho_12 = log(1 + exp(sub(sin(rho@P), tan(rho@P))))
+      rho_9 = sin(rho), rho_10 = tan(rho), rho_11 = exp(rho),
+      rho_12 = log(1 + exp(sub(sin(rho), tan(rho))))
     ) |>
     run_inference(steps = 5L, chains = 2L, adapt = 5L, thin = 1L) |>
     suppressWarnings() |>
@@ -568,7 +565,7 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
     add_parameter(rho = list(prior = "uniform", min = 0.1, max = 0.9,
                              proposal = "normal",
                              proposal_mean = 0.88, proposal_sd = 0.005)) |>
-    add_latent(hidden = list(func = "rho@P"))
+    add_latent(hidden = rho)
 
   results <- simulate_with_parameters_(hhmodel, nrep = 40)
   drawn <- results$parameters$rho

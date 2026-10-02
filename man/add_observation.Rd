@@ -45,20 +45,13 @@ column when omitted;}
 \item{\code{"house"}}{one value for the whole household. The reductions
 \code{min()}, \code{max()}, \code{sum()} and \code{prod()} fold a per-member value (data column,
 latent or group risk) over the members: their argument is computed for each
-member, and members with no value are left out, e.g. \code{min(onset_date@D) + 21}
-or \code{max(test_date@D - onset_date@D)}. A per-member value read outside a
+member, and members with no value are left out, e.g. \code{min(onset_date) + 21}
+or \code{max(test_date - onset_date)}. A per-member value read outside a
 reduction is an error.}
 } Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
-definitions the model carries; when two of them share it, the convention
-\code{argument@source} ("argument at source") says which one is meant:
-\describe{
-\item{\verb{@A}}{latent variable;}
-\item{\verb{@D}}{data column or observation;}
-\item{\verb{@G}}{group risk;}
-\item{\verb{@N}}{numeric value (assumed for a number);}
-\item{\verb{@P}}{parameter.}
-}}
+latent variables, data columns, observations, group risks and parameters the
+model carries: two of them sharing a name cannot be read.}
 
 \item{func}{One between:
 \itemize{
@@ -76,28 +69,14 @@ Inferred from the observed data column, or the model requirements if \code{NA} (
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
-definitions the model carries; when two of them share it, the convention
-\code{argument@source} ("argument at source") says which one is meant:
-\describe{
-\item{\verb{@A}}{latent variable;}
-\item{\verb{@D}}{data column or observation;}
-\item{\verb{@G}}{group risk;}
-\item{\verb{@N}}{numeric value (assumed for a number);}
-\item{\verb{@P}}{parameter.}
-}}
+latent variables, data columns, observations, group risks and parameters the
+model carries: two of them sharing a name cannot be read.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
-definitions the model carries; when two of them share it, the convention
-\code{argument@source} ("argument at source") says which one is meant:
-\describe{
-\item{\verb{@A}}{latent variable;}
-\item{\verb{@D}}{data column or observation;}
-\item{\verb{@G}}{group risk;}
-\item{\verb{@N}}{numeric value (assumed for a number);}
-\item{\verb{@P}}{parameter.}
-}}
+latent variables, data columns, observations, group risks and parameters the
+model carries: two of them sharing a name cannot be read.}
 
 \item{import}{Named \code{list} of pre-built definitions to import.
 Cannot be combined with single and/or multiple definitions.}
@@ -150,7 +129,7 @@ hhmodel <- sarscov2_2021_icofs |>
   add_infectivity_profile(import = "template") |>
   add_latent(
     infec_time = list(model = "uniform",
-                      min = start_date@D - 10, max = end_date@D),
+                      min = start_date - 10, max = end_date),
     incub_period = list(model = "gamma", mean = 3, sd = 1.4),
     onset_time = infec_time + incub_period
   ) |>
@@ -158,6 +137,6 @@ hhmodel <- sarscov2_2021_icofs |>
   add_observation("test_date", model = "normal",
                   mean = onset_time, sd = 1, min = floor(onset_time)) |>
   # house level: the earliest positive test among members
-  add_observation("first_test", value = min(test_date@D), level = "house")
+  add_observation("first_test", value = min(test_date), level = "house")
 get_observations(hhmodel)
 }

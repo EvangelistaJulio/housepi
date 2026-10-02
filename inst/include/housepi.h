@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "tools/math.h"
 #include "tools/messages.h"
 #include "tools/string.h"
 #include "model.h"

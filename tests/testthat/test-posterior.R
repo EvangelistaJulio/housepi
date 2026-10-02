@@ -18,7 +18,7 @@ mk_latent_draws <- local({
     add_parameter(rho = list(prior = "uniform"),
                   rho_2 = list(prior = "uniform")) |>
     add_latent(hidden = list(model = "uniform")) |>
-    helper_flat_sink(loc = hidden@A) |>
+    helper_flat_sink(loc = hidden) |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = "m1") |>
     suppressWarnings()
@@ -264,7 +264,7 @@ test_that("A model without parameters returns empty parameter draws", {
   results <- data.frame(hhid = 1, id = "m1", status = 1, obs = 0) |>
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform")) |>
-    helper_flat_sink(loc = hidden@A) |>
+    helper_flat_sink(loc = hidden) |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings()
 

@@ -75,6 +75,31 @@ namespace housepi
 		double log_pdf(double x) const { return log_func_(delocate_(x)); }
 		/// Return log-density or log-mass at `x`, minus infinity outside the domain.
 		double guarded_log_pdf(double x) const { return is_valid(x) ? log_pdf(x) : -inf::DOUBLE; }
+		/// Return log-ratio of densities or masses from `xo` to `xn`.
+		/// - null move: 0, whatever the density at that point.
+		double log_ratio(double xo, double xn) const
+		{
+			return xo == xn ? 0. : log_ratio_(delocate_(xo), delocate_(xn));
+		}
+		/// Return log-ratio of densities or masses from `xo` to `xn`, validity checked first.
+		///
+		/// - only `xn` valid: infinity;
+		/// - only `xo` valid: minus infinity;
+		/// - neither: NA.
+		double guarded_log_ratio(double xo, double xn) const
+		{
+			switch (is_valid(xo) + 2 * is_valid(xn))
+			{
+			case 3:
+				return log_ratio(xo, xn);
+			case 2:
+				return inf::DOUBLE;
+			case 1:
+				return -inf::DOUBLE;
+			default:
+				return na::DOUBLE;
+			}
+		}
 
 		/// Return the quantile at probability `p`, NA outside [0, 1].
 		double quantile(double p) const
@@ -110,18 +135,21 @@ namespace housepi
 	protected:
 		//////  Virtual  //////
 
-		/// Raw random draw.
-		virtual double raw_rand_(rnd_gen & /*prng*/) const = 0;
 		/// Raw density or mass.
 		virtual double raw_pdf_(double /*x*/) const = 0;
-		/// Raw log-density or log-mass.
-		virtual double raw_log_pdf_(double /*x*/) const = 0;
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double /*x*/) const = 0;
-
 		/// Raw complementary cumulative distribution, 1 - cdf.
-		/// Discretization reads it where a tail-accurate closed form exists.
-		virtual double raw_ccdf_(double x) const { return 1. - raw_cdf_(x); }
+		/// @note Discretization reads it where a tail-accurate closed form exists.
+		virtual double raw_ccdf_(double /*x*/) const = 0;
+		/// Raw quantile at cumulative probability `p`.
+		virtual double raw_quantile_(double /*p*/) const = 0;
+		/// Raw log-density or log-mass.
+		virtual double raw_log_pdf_(double /*x*/) const = 0;
+		/// Raw log-ratio of densities or masses from `xo` to `xn`.
+		virtual double raw_log_ratio_(double /*xo*/, double /*xn*/) const = 0;
+		/// Raw random draw.
+		virtual double raw_rand_(rnd_gen & /*prng*/) const = 0;
 
 		/// Raw function: undefined for a distribution.
 		double raw_function_(double /*x*/) const override final { raise_undefined_call_err_("function"); }
@@ -173,8 +201,8 @@ namespace housepi
 		/// Evaluate the truncated cumulative under the discretization scheme.
 		double primitive_(double x) const override final { return (raw_cdf_(primitive_x_helper_(x)) - shift_()) / trunc_(); }
 
-		/// Evaluate the log-ratio of densities under the discretization scheme.
-		double log_ratio_(double xo, double xn) const override final
+		/// Evaluate the log-ratio of densities or masses under the discretization scheme.
+		double log_ratio_(double xo, double xn) const
 		{
 			switch (discr_mode_)
 			{
@@ -359,21 +387,20 @@ namespace housepi
 	private:
 		//////  Discretization  //////
 
+		static constexpr double tail_mass_ = 0x1p-20; /// Upper-tail mass below which cumulatives lose precision.
+
 		/// Mass of the unit bin centered on `x`.
-		double discr_dist_center_(double x) const
-		{
-			const double i = std::round(x);
-			const double p = raw_cdf_(i + 0.5) - raw_cdf_(i - 0.5);
-			// complementary cumulative only where the plain difference cancels in the right tail
-			// the pmf stays finite, the bulk pays nothing
-			return p > 0. ? p : raw_ccdf_(i - 0.5) - raw_ccdf_(i + 0.5);
-		}
+		double discr_dist_center_(double x) const { return discr_bin_(std::round(x) - 0.5); }
 		/// Mass of the unit bin starting at floor(`x`).
-		double discr_dist_left_(double x) const
+		double discr_dist_left_(double x) const { return discr_bin_(std::floor(x)); }
+		/// Mass of the unit bin starting at `a`.
+		///
+		/// - default: difference of cumulatives;
+		/// - bin above the median with mass below `tail_mass_`: difference of complementary cumulatives.
+		double discr_bin_(double a) const
 		{
-			const double i = std::floor(x);
-			const double p = raw_cdf_(i + 1.) - raw_cdf_(i);
-			return p > 0. ? p : raw_ccdf_(i) - raw_ccdf_(i + 1.);
+			const double hi = raw_cdf_(a + 1.), lo = raw_cdf_(a), p = hi - lo;
+			return p > tail_mass_ || lo < 0.5 ? p : raw_ccdf_(a) - raw_ccdf_(a + 1.);
 		}
 	};
 
@@ -396,6 +423,9 @@ namespace housepi
 		double raw_pdf_(double /*x*/) const override final { return 1.; }
 		double raw_log_pdf_(double /*x*/) const override final { return 0.; }
 		double raw_cdf_(double x) const override final { return x < x0_ ? 0. : 1.; }
+		double raw_ccdf_(double x) const override final { return x < x0_ ? 1. : 0.; }
+		double raw_quantile_(double /*p*/) const override final { return x0_; }
+		double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { return 0.; }
 
 	private:
 		double x0_; /// Pinned point.

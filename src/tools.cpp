@@ -18,6 +18,7 @@
 
 #include "tools/dag.h"
 #include "tools/keys.h"
+#include "tools/math.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parser.h"
@@ -151,10 +152,6 @@ namespace housepi::na
 }
 
 ////////////////////////////  strings  ////////////////////////////
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846264338327950288 /// Pi.
-#endif
 
 namespace housepi::str
 {
@@ -512,6 +509,8 @@ namespace housepi::dag
 namespace housepi::parse
 {
     /// Split `s` at top-level delimiters, skipping those inside brackets.
+    ///
+    /// - n delimiters give n + 1 entries, empty ones included: an unnamed argument keeps its key slot.
     std::vector<std::string> split_top_(const std::string &s)
     {
         std::vector<std::string> entries;
@@ -534,8 +533,7 @@ namespace housepi::parse
             else
                 current.push_back(c);
         }
-        if (!current.empty())
-            entries.push_back(current);
+        entries.push_back(current);
 
         return entries;
     }

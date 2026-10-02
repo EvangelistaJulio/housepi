@@ -34,17 +34,9 @@ namespace housepi::augm::check
     /// - other `err_status`: no definition specific to it.
     std::string undeclared_status_message(StatusLvl err_status);
 
-    /// Reject a read of a latent name absent from the producer graph of status `s`.
-    ///
-    /// The message tells apart a name declared:
-    /// - for other statuses;
-    /// - elsewhere (data, group risk, parameter) and read as latent.
-    void producers_declared(const DefTable &def,
-                            const dag::prod_graph &pgraph,
-                            StatusLvl s,
-                            const KeyHolder &data,
-                            const KeyHolder &group_risk,
-                            const KeyHolder &param);
+    /// Reject a read of a latent name absent from the producer graph of status `s`,
+    /// telling apart a name declared for other statuses.
+    void producers_declared(const DefTable &def, const dag::prod_graph &pgraph, StatusLvl s);
 
     /// Assert that status observation `row` reads only data and numeric constants.
     /// @note Coverage of the declared statuses is asserted R-side.

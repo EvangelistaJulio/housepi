@@ -21,7 +21,7 @@ namespace housepi::augm::graph
 {
     /// Build the latent producer graph of `rows`.
     /// - node: definition name;
-    /// - edges: @A names it reads, across source columns.
+    /// - edges: latent names it reads, across source columns.
     dag::prod_graph producers(const DefTable &def,
                               const std::vector<size_t> &rows);
 

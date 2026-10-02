@@ -341,13 +341,13 @@ test_that("Every declared name maps to the source declaring it", {
     add_latent("hidden", model = "gamma", shape = 2, scale = 1) |>
     # a latent shadows the like-named column, as a simulated output fed back
     add_latent("record", model = "gamma", shape = 2, scale = 1) |>
-    add_observation("datum_2", model = "normal", mean = hidden@A, sd = 1) |>
-    add_observation("datum_3", level = "house", value = min(datum_2@D)) |>
+    add_observation("datum_2", model = "normal", mean = hidden, sd = 1) |>
+    add_observation("datum_3", level = "house", value = min(datum_2)) |>
     dig_("source_dictionary_")
   unname(dict[c("rho", "hidden", "record", "datum_2", "datum_3")]) |>
     expect_identical(c("P", "A", "A", "D", "D"))
 
-  # two holders under one name: the marker says no sigil-free read settles it
+  # two holders under one name: the marker says no read settles it
   dict <- mk_sources$model |>
     add_parameter("datum", prior = "gamma", shape = 2, scale = 1) |>
     dig_("source_dictionary_")
@@ -455,7 +455,7 @@ test_that("id_draws selections are resolved before the run", {
                         status = 1, obs = 0) |>
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform") |>
-    helper_flat_sink(loc = hidden@A)
+    helper_flat_sink(loc = hidden)
 
   hhmodel |>
     run_inference(steps = 5L, chains = 1L, id_draws = list(member = "m1")) |>
@@ -557,7 +557,7 @@ test_that("Simulation reads undeclared parameters from param_table", {
   # a parameter defined as a function takes no value from the table
   data.frame(hhid = "h1", status = 1) |>
     new_housepi_model("test") |>
-    add_parameter(rho = list(prior = "uniform"), rho_2 = exp(rho@P)) |>
+    add_parameter(rho = list(prior = "uniform"), rho_2 = exp(rho)) |>
     run_simulation(param_table = data.frame(rho = 0.5, rho_2 = 3)) |>
     expect_error("[Nn]on numeric parameter .rho_2.")
 })

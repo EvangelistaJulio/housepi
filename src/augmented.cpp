@@ -456,23 +456,16 @@ namespace housepi
                    "In alternative, drop " + msg::arg("status") + " from existing definitions to make them generic.";
         }
 
-        void producers_declared(const DefTable &def,
-                                const dag::prod_graph &pgraph,
-                                StatusLvl s,
-                                const KeyHolder &data,
-                                const KeyHolder &group_risk,
-                                const KeyHolder &param)
+        void producers_declared(const DefTable &def, const dag::prod_graph &pgraph, StatusLvl s)
         {
             for (const auto &node : pgraph)
                 for (const std::string &astr : node.second)
                 {
-                    // an observation stands for a column
-                    const bool is_obs = def.is_member_obs(astr) || def.is_house_obs(astr);
-                    if (pgraph.count(astr) && !is_obs)
+                    if (pgraph.count(astr))
                         continue;
 
                     // declared for another status: report it
-                    if (!is_obs && def.has_name(astr))
+                    if (def.has_name(astr))
                     {
                         if (status::is_missing(s))
                             msg::stop("No generic latent definition was found for " + msg::val(astr) + ".");
@@ -480,18 +473,8 @@ namespace housepi
                             msg::stop("No latent definition was found for " + msg::val(astr) +
                                       " for status " + std::to_string(s) + ".");
                     }
-
-                    // declared elsewhere, source sigil forgotten
-                    std::string sms = "Could not find a latent definition for " + msg::val(astr) + ".";
-                    if (is_obs || data.count(astr))
-                        sms += "\nDid you mean " + msg::code(astr + "@D") + "?";
-                    else if (group_risk.count(astr))
-                        sms += "\nDid you mean " + msg::code(astr + "@G") + "?";
-                    else if (param.count(astr))
-                        sms += "\nDid you mean " + msg::code(astr + "@P") + "?";
-                    else // true latent definition missing
-                        sms += "\nDeclare it with " + msg::fn("add_latent") + ".";
-                    msg::stop(sms);
+                    msg::stop("Could not find a latent definition for " + msg::val(astr) + ".\n" +
+                              "Declare it with " + msg::fn("add_latent") + ".");
                 }
         }
 
@@ -503,7 +486,7 @@ namespace housepi
                     " must depend only on data or numeric constants.");
         }
 
-        /// List the data names (@D) read by `def` that are in `names`.
+        /// List the data names (source D) read by `def` that are in `names`.
         static std::vector<std::string> referred_data(const parse::Definition &def,
                                                       const std::vector<std::string> &names)
         {
@@ -577,7 +560,7 @@ namespace housepi
             if (obs_names.empty())
                 return;
 
-            // producer graph (name -> the @A names it reads), over latent + obs rows
+            // producer graph (name -> the latent names it reads), over latent + obs rows
             std::vector<size_t> rows;
             for (size_t k = 0; k < def.size(); ++k)
                 if (def[k].kind == Kind::Latent || def[k].kind == Kind::Member)
@@ -835,7 +818,7 @@ namespace housepi
 
             const std::vector<size_t> rows = unsorted_rows_(s);
             dag::prod_graph pgraph = graph::producers(def_, rows);
-            check::producers_declared(def_, pgraph, err_status, src.data, src.group_risk, src.param.khold());
+            check::producers_declared(def_, pgraph, err_status);
             graph::add_member_obs_edges(pgraph, def_, rows);
             dict<size_t> name_to_row; // reverse dictionary name-to-row-index
             for (size_t k : rows)
@@ -1308,7 +1291,7 @@ namespace housepi
         }
         void sample_obs(const StatusScheme &ss, IndivState &st, rnd_gen &prng)
         {
-            // draw each observation into its Variable: @D consumers read it from there
+            // draw each observation into its Variable: data readers read it from there
             // the data column, if any, is never overwritten
             for (size_t a : ss.obs_models)
                 st.vec[a].draw_value(prng);
@@ -1836,7 +1819,7 @@ namespace housepi
 
         // build the surrogate Variables, shared with the simulation init
         // point each standing-in data column's read-surface at its Variable
-        // @D readers then resolve the surrogate value without a data copy
+        // data readers then resolve the surrogate value without a data copy
         state.house_varia.assign(data_wide.report_house.total,
                                  std::vector<Variable>(scheme_.list_obs_house.size()));
 

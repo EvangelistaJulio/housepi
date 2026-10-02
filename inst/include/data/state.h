@@ -61,7 +61,7 @@ namespace housepi::data
 
         //////  Getter  //////
 
-        /// Read-cell `d` of member `indiv`: imported value or wired Variable, resolved live by `@D`.
+        /// Read-cell `d` of member `indiv`: imported value or wired Variable, resolved live by a data read.
         const Attribute &readcell(size_t d, const Individual &indiv) const noexcept
         {
             return readcell_[Index::of(indiv)][d];

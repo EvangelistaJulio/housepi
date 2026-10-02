@@ -10,7 +10,7 @@ add_status(hhmodel, ..., model = "categorical")
 \item{hhmodel}{\code{HousepiModel} object.}
 
 \item{...}{Probabilities of the infected statuses, in order. When named, the
-names label the corresponding statuses.}
+names label the corresponding statuses: name all of them or none.}
 
 \item{model}{\code{character(1)}. Discrete distribution generating the status.}
 }

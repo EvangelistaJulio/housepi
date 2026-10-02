@@ -10,7 +10,7 @@ trapezoid <- \(x, y) 0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
 drayleigh <- function(x, scale) {
   ifelse(x >= 0, x / scale^2 * exp(-x^2 / (2 * scale^2)), 0)
 }
-prayleigh <- \(q, scale) ifelse(q >= 0, 1 - exp(-q^2 / (2 * scale^2)), 0)
+prayleigh <- \(q, scale) ifelse(q >= 0, -expm1(-q^2 / (2 * scale^2)), 0)
 qrayleigh <- \(p, scale) scale * sqrt(-2 * log1p(-p))
 
 # R reference `<prefix><ref>` (e.g. "d" + "norm") bound to named arguments.
@@ -40,7 +40,7 @@ expect_function_matches <- function(name, args,
                                     ref_f, ref_prim = NULL,
                                     ref_log = log,
                                     domain = "(-Inf, Inf)", discrete = FALSE,
-                                    x = seq(0.1, 10, 0.1), h = 0.1) {
+                                    x = seq(0.1, 10, 0.1)) {
   func <- do.call(browse_functions, c(list(name), args))
   func$domain |> expect_identical(interval(domain))
   func$is_discrete |> expect_identical(discrete)
@@ -50,16 +50,8 @@ expect_function_matches <- function(name, args,
   if (is.null(ref_prim)) func$prim(x) |> expect_error("undefined method")
   else func$prim(x) |> expect_equal(ref_prim(x))
 
-  keep <- in_interval(domain)(x)
-  null_move <- func$log_ratio(x, x)
-  null_move[keep] |> expect_equal(rep(0, sum(keep)))
-  if (is.null(ref_log)) {
-    func$log_func(x) |> expect_error("undefined method")
-    func$log_ratio(x, x + h) |> expect_equal(rep(0, length(x)))
-  } else {
-    func$log_func(x) |> expect_equal(ref_log(func$func(x)))
-    func$log_ratio(x, x + h) |> expect_equal(log(ref_f(x + h) / ref_f(x)))
-  }
+  if (is.null(ref_log)) func$log_func(x) |> expect_error("undefined method")
+  else func$log_func(x) |> expect_equal(ref_log(func$func(x)))
 }
 
 # Assert exposed distribution methods against R reference `ref`.
@@ -101,15 +93,24 @@ expect_truncated_matches <- function(name, args, ref, x,
 # difference of cumulatives underflows. `bin` holds the edges of the bin at x.
 # Tail masses sit below the tolerance of `expect_equal`, which then compares
 # them in absolute terms: only the log-scale comparison has resolution there.
-expect_tail_finite <- function(name, args, ref, x, bin = c(0, 1),
-                               log_scale = TRUE) {
+expect_tail_finite <- function(name, args, ref, x, bin = c(0, 1)) {
   distr <- do.call(browse_distributions, c(list(name), args, discr = TRUE))
   p <- stats_ref("p", ref, args)
   any(p(x + bin[2]) == p(x + bin[1])) |> expect_true()
   pmf <- p(x + bin[1], lower.tail = FALSE) - p(x + bin[2], lower.tail = FALSE)
   is.finite(distr$log_pdf(x)) |> expect_all_true()
   distr$pdf(x) |> expect_equal(pmf)
-  if (log_scale) distr$log_pdf(x) |> expect_equal(log(pmf))
+  distr$log_pdf(x) |> expect_equal(log(pmf))
+}
+
+# Assert a discretized law keeps its mass far in the lower tail, where the
+# masses sit below the machine epsilon and `1 - exp(-z)` rounds them to 0.
+expect_head_exact <- function(name, args, ref, x) {
+  distr <- do.call(browse_distributions, c(list(name), args, discr = TRUE))
+  p <- stats_ref("p", ref, args)
+  pmf <- p(x + 1) - p(x)
+  (pmf < .Machine$double.eps / 2) |> expect_all_true()
+  distr$log_pdf(x) |> expect_equal(log(pmf))
 }
 
 ################################################################################
@@ -160,10 +161,14 @@ test_that("Exposed methods carry R formals", {
     expect_error("[Aa]rgument.*x.*missing")
   distr$log_ratio(1) |>
     expect_error("[Aa]rgument.*xn.*missing")
+  distr$log_ratio(1:2, 1) |>
+    expect_error("[Ss]ize")
   distr$unknown() |>
     expect_error("attempt to apply non-function")
   # each family answers for its own methods only
   browse_functions("sin")$inst() |>
+    expect_error("attempt to apply non-function")
+  browse_functions("sin")$log_ratio(1, 2) |>
     expect_error("attempt to apply non-function")
 })
 
@@ -287,7 +292,6 @@ test_that("Function arguments are validated", {
   x <- seq(0.1, 10, 0.1)
   func <- browse_functions("pow", x2 = 3)
   func$args |> expect_equal(c(x2 = 3))
-  func$log_ratio(x, x[-1]) |> expect_error("[Ss]ize")
 
   browse_functions("pow")$func(x) |>
     expect_error("Missing non default")
@@ -329,9 +333,9 @@ test_that("Transcendental functions match R reference", {
   expect_function_matches("pow", list(x2 = 0.5), sqrt, \(x) x^1.5 / 1.5)
   expect_function_matches("sqrt", list(), sqrt, \(x) x^1.5 / 1.5,
                           domain = "[0, Inf)")
-  expect_function_matches("exp", list(), exp, exp, x = seq(-5, 5, 0.1), h = pi)
+  expect_function_matches("exp", list(), exp, exp, x = seq(-5, 5, 0.1))
   expect_function_matches("log", list(), log, \(x) x * log(x) - x,
-                          domain = "(0, Inf)", x = seq(1.1, 20, 0.1), h = pi)
+                          domain = "(0, Inf)", x = seq(1.1, 20, 0.1))
   expect_function_matches("sin", list(), sin, \(x) -cos(x),
                           x = seq(0.1, pi - 0.1, 0.05))
   expect_function_matches("cos", list(), cos, sin,
@@ -343,7 +347,7 @@ test_that("Transcendental functions match R reference", {
 test_that("Arithmetic kernels have no log surface", {
   arith <- function(name, args, ref, discrete = FALSE, x = seq(-5, 5, 0.5)) {
     expect_function_matches(name, args, ref, ref_log = NULL,
-                            discrete = discrete, x = x, h = pi)
+                            discrete = discrete, x = x)
   }
   fold <- c(3.3, 5.5, 6.6)
   # NOTE: avoid half-values: C++ std::round uses round-half-away-from-zero
@@ -677,14 +681,40 @@ test_that("Discretized laws stay finite far in the upper tail", {
                      bin = c(-0.5, 0.5))
   expect_tail_finite("lognormal", list(meanlog = 0, sdlog = 0.5), "lnorm",
                      seq(60, 200, 5))
-  ## UPDATE: at x = 60 the gamma log-pmf reads log(2^-53) = -36.74 against
-  ## -37.02: the naive difference is taken one ulp below 1, before it cancels
   expect_tail_finite("gamma", list(shape = 2, scale = 1.5), "gamma",
-                     seq(60, 120, 5), log_scale = FALSE)
+                     seq(55, 120, 1))
 
   # symmetry: reflecting about the mean matches the lower tail
   distr <- browse_distributions("normal", mean = 0, sd = 1, discr = TRUE)
   distr$pdf(9:30) |> expect_equal(distr$pdf(-(9:30)))
+})
+
+test_that("Discretized laws keep their mass far in the lower tail", {
+  expect_head_exact("exponential", list(rate = 1e-17), "exp", 0:5)
+  expect_head_exact("weibull", list(shape = 0.5, scale = 1e40), "weibull", 0:5)
+  expect_head_exact("rayleigh", list(scale = 1e9), "rayleigh", 0:5)
+})
+
+test_that("Geometric cumulative keeps its mass below the machine epsilon", {
+  # `1 - (1 - prob)^(x + 1)` rounds to 0
+  distr <- browse_distributions("geometric", prob = 1e-17)
+  distr$cdf(0:5) |> expect_equal(pgeom(0:5, 1e-17))
+})
+
+test_that("Geometric quantile is left-continuous at the cumulative atoms", {
+  # atoms up to `1 - cdf` near 1e-14, where `p` resolves single masses
+  distr <- browse_distributions("geometric", prob = 0.01)
+  distr$quantile(distr$cdf(0:3000)) |> expect_identical(as.double(0:3000))
+  distr$quantile(pgeom(0:3000, 0.01)) |> expect_identical(as.double(0:3000))
+  # a tiny probability, where the cumulative loses relative precision
+  distr_2 <- browse_distributions("geometric", prob = 1e-6)
+  distr_2$quantile(distr_2$cdf(0:2000)) |> expect_identical(as.double(0:2000))
+})
+
+test_that("Poisson cumulative keeps its mass below the machine epsilon", {
+  # `1 - P(X > x)` rounds to 0
+  distr <- browse_distributions("poisson", lambda = 100)
+  distr$cdf(0:5) |> expect_equal(ppois(0:5, 100))
 })
 
 test_that("rand() draws are reproducible and statistically plausible", {
@@ -900,6 +930,30 @@ test_that("Ferretti20 infectivity profile integrates and discretizes", {
   profile$inst(x) |> expect_all_equal(profile$cumul(1))
   profile$is_discrete |> expect_true()
   profile$domain |> expect_equal(interval("[1, Inf)"))
+})
+
+test_that("Discretized Ferretti20 stays finite far in the upper tail", {
+  # default shape, scale, c_loc and mean_incub, incubation period of 5 days
+  a <- 5.85
+  s <- 1.85
+  m <- -4
+  i_t <- 5 / 5.42
+  pema <- (1 + exp(m / s))^-a
+  norm <- 1 + (i_t - 1) * pema - i_t * (1 + exp((m + 5.42) / s))^-a
+  # complementary cumulative after onset, 1 - (1 + exp((m - t) / s))^-a
+  ccdf <- function(x) -expm1(-a * log1p(exp((m - x + 5) / s))) / norm
+
+  distr <- browse_infectivity_profiles("ferretti20", incub_period = 5)
+  (1 - distr$cumul(seq(5, 20, 0.5))) |> expect_equal(ccdf(seq(5, 20, 0.5)))
+
+  # bins whose cumulatives round to the same double,
+  # masses renormalized over the discretized domain [1, Inf)
+  x <- seq(70, 120, 5)
+  distr_2 <- browse_infectivity_profiles("ferretti20",
+                                         incub_period = 5, discr = TRUE)
+  (distr$cumul(x + 1) == distr$cumul(x)) |> expect_all_true()
+  log(distr_2$inst(x)) |>
+    expect_equal(log(ccdf(x) - ccdf(x + 1)) - log1p(-distr$cumul(1)))
 })
 
 ####################################

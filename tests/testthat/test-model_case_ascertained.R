@@ -94,7 +94,7 @@ loglike_infectious <- function(house, param, discr) {
       roi_cumul_i <- roi_cumul_i * beta + alpha * (t_infec_i - t_intro)
       roi_inst_i <- roi_inst_i * beta + alpha
       if (discr) {
-        output <- output + log1p(- exp(-roi_inst_i)) - roi_cumul_i + alpha
+        output <- output + log(-expm1(-roi_inst_i)) - roi_cumul_i + alpha
       } else {
         output <- output + log(roi_inst_i) - roi_cumul_i
       }
@@ -108,6 +108,18 @@ loglike_infectious <- function(house, param, discr) {
 latent_infec_obs_log_lik <- function(house, param, discr = FALSE) {
   loglike_escaped(house, param, discr) +
     loglike_infectious(house, param, discr)
+}
+
+# model reading the infection times of `hhdata`, every parameter pinned
+build_onset_model <- function(hhdata, param, discr) {
+  # nolint start: object_usage_linter. DSL symbols, read by the encoder
+  transform(hhdata, infec_date = infec_time) |>
+    new_housepi_model("case-ascertained", discr = discr, quiet = TRUE) |>
+    add_parameter(import = param) |>
+    add_latent(infec_time = infec_date) |>
+    add_infectivity_profile(func = "gamma", discr = discr,
+                            shape = shape, scale = scale)
+  # nolint end
 }
 
 # state of latent values per iteration
@@ -166,31 +178,32 @@ test_that("Sentinel against no introduction throws error", {
 test_that("Sentinel against a reversed follow-up window throws error", {
   # end_date < start_date has no valid exposure period
   data.frame(id = c("m1", "m2"), hhid = "h1",
-             status = c(1, 0), infec_time = c(0, NA),
+             status = c(1, 0), infec_date = c(0, NA),
              start_date = 5, end_date = 2) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = mk_house$param) |>
-    add_latent(infec_time = infec_time@D) |>
-    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P) |>
+    add_latent(infec_time = infec_date) |>
+    add_infectivity_profile(func = "gamma", shape = shape, scale = scale) |>
     evaluate_log_lik() |>
     expect_error("negative follow-up period")
 })
 
 test_that("Sentinel against a member missing a follow-up date throws error", {
+  hhdata <- transform(mk_house$data, infec_date = infec_time)
   hhmodel <- new_housepi_model(model = "case-ascertained") |>
     add_parameter(import = "template") |>
-    add_latent(infec_time = infec_time@D) |>
+    add_latent(infec_time = infec_date) |>
     add_infectivity_profile(import = "template")
 
   # escaped members without end_date throw
   hhmodel |>
-    add_data_wide(transform(mk_house$data, end_date = c(rep(21, 6), NA))) |>
+    add_data_wide(transform(hhdata, end_date = c(rep(21, 6), NA))) |>
     evaluate_log_lik() |>
     expect_error("[Dd]ata .end_date. has no value for individual .m7.")
 
   # end_date computed from member observations have no value for escaped members
   hhmodel |>
-    add_data_wide(dplyr::select(mk_house$data, -end_date)) |>
+    add_data_wide(dplyr::select(hhdata, -end_date)) |>
     add_observation(onset_date = list(model = "normal", mean = infec_time),
                     end_date = onset_date + 21) |>
     evaluate_log_lik() |>
@@ -200,20 +213,39 @@ test_that("Sentinel against a member missing a follow-up date throws error", {
 test_that("Log-likelihood of case ascertained model is correct", {
   house <- mk_house$data[c("id", "hhid", "status", "infec_time",
                            "start_date", "end_date")]
+  # risks far below the machine epsilon
+  tiny <- modifyList(mk_house$param, list(alpha = 1e-20, beta = 1e-20))
 
   for (discr in c(FALSE, TRUE)) {
-    hhmodel <- house |>
-      new_housepi_model("case-ascertained", discr = discr, quiet = TRUE) |>
-      add_parameter(import = mk_house$param) |>
-      add_latent(infec_time = infec_time@D) |>
-      add_infectivity_profile(func = "gamma", discr = discr,
-                              shape = shape@P, scale = scale@P)
-
+    hhmodel <- build_onset_model(house, mk_house$param, discr)
     evaluate_log_lik(hhmodel) |>
       expect_equal(latent_infec_obs_log_lik(house, mk_house$param, discr))
 
+    build_onset_model(house, tiny, discr) |>
+      evaluate_log_lik() |>
+      expect_equal(latent_infec_obs_log_lik(house, tiny, discr))
+
     # test complex print, discrete and continuous time
     print(hhmodel) |> expect_snapshot()
+  }
+})
+
+test_that("A case with no source of infection has zero likelihood", {
+  # `m2` is the only child, out of reach of the community,
+  # and no household transmission
+  hhdata <- transform(mk_house$data[c("id", "hhid", "status", "infec_time",
+                                      "start_date", "end_date")],
+                      age = c("adult", "child", rep("adult", 5)))
+  strata <- data.frame(age = c(NA, "child"),
+                       param_name = c(".reference", "com_child"),
+                       value = c(NA, 0), const = c(NA, TRUE))
+  param <- modifyList(mk_house$param, list(beta = 0))
+
+  for (discr in c(FALSE, TRUE)) {
+    build_onset_model(hhdata, param, discr) |>
+      add_group_risk("community", strata = strata) |>
+      evaluate_log_lik() |>
+      expect_identical(-Inf)
   }
 })
 
@@ -225,13 +257,13 @@ test_that("Latent moves preserve log-likelihood", {
     add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_latent(
-      infec_time = list(model = "uniform", min = -14, max = end_date@D),
+      infec_time = list(model = "uniform", min = -14, max = end_date),
       incub_period = list(model = "weibull", shape = 2, scale = 1)
     ) |>
     # read by the incubation only: a move of the infection time skips it
     add_observation("onset_date", model = "normal",
                     mean = incub_period, sd = 1) |>
-    add_infectivity_profile(func = "gamma", shape = shape@P, scale = scale@P)
+    add_infectivity_profile(func = "gamma", shape = shape, scale = scale)
 
   # the latent moves are reduced over two threads
   n_steps <- 30L
@@ -276,17 +308,18 @@ test_that("Latent moves preserve log-likelihood", {
 
   # the fresh-model likelihood matches the tracked pointwise likelihood
   state_at(n_steps) |>
+    transform(infec_draw = infec_time, incub_draw = incub_period) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_latent(
-      infec_time = list(value = infec_time@D, const = TRUE,
-                        model = "uniform", min = -14, max = end_date@D),
-      incub_period = list(value = incub_period@D, const = TRUE,
+      infec_time = list(value = infec_draw, const = TRUE,
+                        model = "uniform", min = -14, max = end_date),
+      incub_period = list(value = incub_draw, const = TRUE,
                           model = "weibull", shape = 2, scale = 1)
     ) |>
     add_observation("onset_date", model = "normal",
                     mean = incub_period, sd = 1) |>
     add_parameter(import = c(param_draws[n_steps, , drop = FALSE], consts)) |>
-    add_infectivity_profile("gamma", shape = shape@P, scale = scale@P) |>
+    add_infectivity_profile("gamma", shape = shape, scale = scale) |>
     evaluate_log_lik() |>
     expect_equal(log_lik[n_steps])
 })

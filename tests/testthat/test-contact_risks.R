@@ -817,7 +817,7 @@ test_that("A contact risk keyed on an observation is rejected", {
 
   # a deterministic household observation stands in for the column all the same
   hhmodel |>
-    add_observation(datum = min(datum_2@D), level = "house") |>
+    add_observation(datum = min(datum_2), level = "house") |>
     add_contact_risk(by = "datum") |>
     expect_error("keyed on observation.*datum")
 })

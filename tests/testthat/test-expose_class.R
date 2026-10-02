@@ -134,11 +134,11 @@ test_that("add_observation routes every input branch on `level`", {
 
   # single, bulk and imported definitions
   single <- hhmodel |>
-    add_observation("record_2", value = min(datum@D), level = "house")
+    add_observation("record_2", value = min(datum), level = "house")
   bulk <- hhmodel |>
-    add_observation(record_2 = min(datum@D), level = "house")
+    add_observation(record_2 = min(datum), level = "house")
   imported <- hhmodel |>
-    add_observation(import = list(record_2 = quote(min(datum@D))),
+    add_observation(import = list(record_2 = quote(min(datum))),
                     level = "house")
 
   get_observations(bulk) |> expect_identical(get_observations(single))
@@ -147,12 +147,12 @@ test_that("add_observation routes every input branch on `level`", {
 
   # a member-level function reaches the definition through `func`
   single <- hhmodel |>
-    add_observation("record_2", func = min(datum@D), status = 1)
+    add_observation("record_2", func = min(datum), status = 1)
   bulk <- hhmodel |>
-    add_observation(record_2 = list(func = min(datum@D), status = 1))
+    add_observation(record_2 = list(func = min(datum), status = 1))
   imported <- hhmodel |>
     add_observation(
-      import = list(record_2 = list(func = quote(min(datum@D)), status = 1))
+      import = list(record_2 = list(func = quote(min(datum)), status = 1))
     )
 
   get_observations(bulk) |> expect_identical(get_observations(single))
@@ -161,7 +161,7 @@ test_that("add_observation routes every input branch on `level`", {
 
   # an unknown level is rejected before anything is stored
   hhmodel |>
-    add_observation(record_2 = min(datum@D), level = "unknown") |>
+    add_observation(record_2 = min(datum), level = "unknown") |>
     expect_error("should be one of")
 })
 

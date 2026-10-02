@@ -53,7 +53,7 @@ HousepiModel <- R6::R6Class(
     # @description
     # Names of one source the latent declaration reads: latent, observation
     # and infectivity profile definitions. Read from the resolved tables, so a
-    # reference carrying no sigil counts under the kind it resolves to. Each
+    # reference counts under the kind it resolves to. Each
     # name is labelled with the family of the definition reading it, member-
     # and household-level observations alike.
     # @param type `character(1)`. Source letter.
@@ -301,9 +301,9 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Assert every reference carrying no source sigil names one declared
-    # definition. Scans the resolved tables for terminals the dictionary left
-    # unsettled: a name two holders claim, or a name nothing declares.
+    # Assert every reference names one declared definition. Scans the resolved
+    # tables for terminals the dictionary left unsettled: a name two holders
+    # claim, or a name nothing declares.
     # @param wall `logical(1)` to raise error.
     assert_sources_ = function(wall = TRUE) {
       # the full source-bearing column set, not the narrower requirement one:
@@ -326,11 +326,9 @@ HousepiModel <- R6::R6Class(
         sms <- c(sms,
                  inline_cli_("Could not resolve the source of {.val {nm}}."))
         if (length(claims) > 1) {
-          # two holders answer to the name: only a sigil tells them apart
-          tags <- paste0(nm, "@", claims)
           sms <- c(sms,
                    inline_cli_("Declared both as {source_labels_[claims]}."),
-                   inline_cli_("Tag it {.or {.code {tags}}}."))
+                   "Rename one of them.")
         } else {
           sms <- c(sms, nothing,
                    find_closest_match(nm, declared, list_options = FALSE))
@@ -499,7 +497,7 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Declared names under each source, keyed by its sigil letter.
+    # Declared names under each source, keyed by its source letter.
     source_sets_ = function() {
       gen <- private$gen_
       live <- !is.null(gen) && !is.null(gen$mcmc_ptr)
@@ -536,9 +534,8 @@ HousepiModel <- R6::R6Class(
     },
 
     # @description
-    # Source letter a reference carrying no sigil resolves to, for every name
-    # the model declares. A name two holders claim maps to `""`: only a sigil
-    # settles it.
+    # Source letter a reference resolves to, for every name the model
+    # declares. A name two holders claim maps to `""`: no reference settles it.
     source_dictionary_ = function() {
       sets <- private$source_sets_()
       dict <- character()
