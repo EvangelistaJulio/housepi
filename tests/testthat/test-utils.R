@@ -136,12 +136,22 @@ test_that("A count is a whole positive number", {
 })
 
 test_that("ESS thinning keeps a draw of every chain", {
-  # four chains of 100 draws stuck apart: the bulk ESS is near one
+  # four chains of 100 draws stuck apart: the bulk ESS is near the chain count
   rho <- rep(1:4, each = 100L) + stats::rnorm(400L, sd = 0.01)
   draws <- posterior::draws_df(rho = rho, .nchains = 4L)
   thinned <- helper_read_param_table_(draws)
-  thinned |> expect_nrow(4L)
-  round(thinned$rho) |> expect_equal(1:4)
+  nrow(thinned) |> expect_lt(10L)
+  round(thinned$rho) |> expect_setequal(1:4)
+})
+
+test_that("ESS thinning reads the chains apart", {
+  # four chains each drifting up one ramp: bulk ESS is near 6 over the chains,
+  # near 20 over the chains read end to end as one
+  rho <- rep(seq_len(100L), 4L) + rep(1:4 / 10, each = 100L)
+  draws <- posterior::draws_df(rho = rho, .nchains = 4L)
+  helper_read_param_table_(draws) |>
+    nrow() |>
+    expect_lt(10L)
 })
 
 ###############################

@@ -514,17 +514,17 @@ test_that("Param table with degenerate columns raises an ESS error", {
     expect_error("ESS")
 })
 
-test_that("Thinning to ESS keeps between one draw per chain and all draws", {
+test_that("Thinning to ESS keeps from a few draws up to all draws", {
   hhmodel <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 0) |>
     new_housepi_model("test")
-  # two disjoint trending chains of 20 iterations: ESS below the chain count
+  # two disjoint trending chains of 20 iterations: ESS near the chain count
   trend <- posterior::as_draws_df(data.frame(
     rho = rep(c(10, 20), each = 20) + rep(seq_len(20L), 2) / 20,
     .chain = rep(1:2, each = 20), .iteration = rep(seq_len(20L), 2)
   ))
-  hhmodel |>
-    run_simulation(param_table = trend) |>
-    expect_length(2L)
+  thinned <- run_simulation(hhmodel, param_table = trend)
+  length(thinned) |> expect_gte(2L)
+  length(thinned) |> expect_lt(5L)
   # without thinning, every draw is simulated
   hhmodel |>
     run_simulation(param_table = trend, thin_ess = FALSE) |>

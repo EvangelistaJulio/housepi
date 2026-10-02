@@ -356,7 +356,8 @@ and we can perform R-hat diagnostics [@vehtari_rank_normalization_2021]
 var_names <- get_parameters(hhmodel) |>
   dplyr::filter(!const) |>
   dplyr::pull(name)
-rhat_values <- sapply(var_names, function(v) posterior::rhat(param_draws[[v]]))
+rhat_table <- summarise_draws(param_draws, rhat = posterior::rhat)
+rhat_values <- setNames(rhat_table$rhat, rhat_table$variable)[var_names]
 
 # use bayesplot to showcase Rhat statistics
 bayesplot::mcmc_rhat(rhat_values) +

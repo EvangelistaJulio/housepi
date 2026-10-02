@@ -191,18 +191,16 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
     if (isTRUE(thin_ess)) {
       # an ESS above the draw count keeps every draw, capped or not
       # degenerate draws give NA, asserted below
-      ess_bulk <- suppressWarnings(
-        sapply(posterior::variables(ptab), \(v) posterior::ess_bulk(ptab[, v]))
-      )
+      ess_bulk <- suppressWarnings(posterior::summarise_draws(
+        ptab, ess_bulk = posterior::ess_bulk
+      )$ess_bulk)
       # check no NA values in ESS
       if (anyNA(ess_bulk)) stop_h(
         "ESS values return NA.",
         "Check your draws for degenerate parameters."
       )
-      # keep at most ESS draws, and at least one per chain: rows run chain
-      # after chain, so as many evenly spaced rows as chains hit every chain
-      keep <- max(posterior::nchains(ptab), floor(min(ess_bulk)))
-      ptab <- helper_thin_even_(as.data.frame(ptab), keep)
+      # keep at most ESS draws, evenly spaced over the rows
+      ptab <- helper_thin_even_(as.data.frame(ptab), floor(min(ess_bulk)))
     }
   }
 
