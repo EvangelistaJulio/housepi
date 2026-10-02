@@ -53,6 +53,10 @@ test_that("Infectivity profile definition errors are recognized", {
   mk_infec$model |>
     add_infectivity_profile(func = "unknown", x = 5) |>
     expect_error("[Uu]nknown infectivity profile")
+  # a name outside the naming convention
+  mk_infec$model |>
+    add_infectivity_profile(func = "gam|ma", shape = 2) |>
+    expect_error("[Ff]unction .gam.ma. contained invalid")
   # mixing definition modes
   mk_infec$model |>
     add_infectivity_profile("gamma", import = "template") |>
@@ -126,9 +130,9 @@ test_that("Status-specific definitions replace the generic one", {
 test_that("Spurious names of imported definitions are dropped", {
   external_list <- list(
     profile = list(func = "gamma", status = NA,
-                   discr = TRUE, shape = ~ shape@P, scale = ~ scale@P),
+                   discr = TRUE, shape = ~ shape, scale = ~ scale),
     profile_2 = list(func = "gamma", status = 2,
-                     discr = TRUE, shape = ~ shape@P, scale = ~ scale@P)
+                     discr = TRUE, shape = ~ shape, scale = ~ scale)
   )
 
   defs <- mk_infec$model |>
@@ -203,7 +207,7 @@ test_that("A discrete-time model resolves a latent 'uniform' to the lattice", {
 test_that("A profile dependency reached through 'min' is reported", {
   # 'min' carries the only reference to the missing column
   mk_infec_discr$model |>
-    add_infectivity_profile("uniform", min = datum@D, max = infec_time) |>
+    add_infectivity_profile("uniform", min = datum, max = infec_time) |>
     evaluate_log_lik() |>
     expect_error("datum")
 })
@@ -288,7 +292,7 @@ test_that("Shifting a profile with 'loc' matches the explicit bounds", {
   # profile reaching past it loses the mass it puts outside
   hhmodel <- mk_house_discr$model |>
     # deterministic, so the likelihood is reproducible across builds
-    add_latent(infec_time = start_date@D, incub_period = 3)
+    add_latent(infec_time = start_date, incub_period = 3)
 
   shifted <- hhmodel |>
     add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
@@ -309,7 +313,7 @@ test_that("Shifting a profile with 'loc' matches the explicit bounds", {
 test_that("A profile shifted by a sampled latent is judged on its support", {
   # the incubation is drawn, so the shift holds no value while the guard runs:
   # the support it places starts at day 1 and clears the day of infection
-  hhmodel <- add_latent(mk_house_discr$model, infec_time = start_date@D)
+  hhmodel <- add_latent(mk_house_discr$model, infec_time = start_date)
   kept_away <- hhmodel |>
     add_latent(
       "incub_period", model = "gamma", discr = TRUE, min = 1, mean = 3, sd = 2
@@ -340,7 +344,7 @@ test_that("A profile shifted by a sampled latent is judged on its support", {
 test_that("A latent parameterizing the profile drives transmission", {
   hhmodel <- mk_house$model |>
     add_latent(
-      "infec_time", model = "uniform", min = start_date@D, max = end_date@D
+      "infec_time", model = "uniform", min = start_date, max = end_date
     )
 
   # the profile is resolved per member, so the latent reaches the household
@@ -365,7 +369,7 @@ test_that("The household snapshot reports the profile of each member", {
 
   # a generic profile repeats on every infected member, susceptibles read NA
   generic <- hhmodel |>
-    add_latent(infec_time = start_date@D) |>
+    add_latent(infec_time = start_date) |>
     add_infectivity_profile("gamma", shape = 2, scale = 1) |>
     profiles_of()
 
@@ -381,7 +385,7 @@ test_that("The household snapshot reports the profile of each member", {
 
   # a latent profile is resolved per member: same house, two incubations
   latent <- hhmodel |>
-    add_latent(infec_time = start_date@D, incub_period = datum@D) |>
+    add_latent(infec_time = start_date, incub_period = datum) |>
     add_infectivity_profile("ferretti20", incub_period = incub_period)
 
   # the latent storage is not allocated until the model is evaluated

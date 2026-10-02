@@ -437,7 +437,7 @@ resolve_status_codes_ <- function(defs, dictionary) {
   defs
 }
 
-#' Resolve unsettled source sigils against the model's own declarations.
+#' Resolve unsettled sources against the model's own declarations.
 #' The distribution and proposal columns carry encoded arguments too, so they
 #' are rewritten alongside the value-bearing ones.
 #' @param defs `data.frame` Definitions table.

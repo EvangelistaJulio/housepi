@@ -191,16 +191,20 @@ assert_no_kind_clash <- function(defs, name, kind) {
   )
 }
 
-# Assert that character respect convention.
-assert_valid_character <- function(x, family, arg_name) {
-  if (nchar(x) == 0) {
-    stop_h("{arg_name} of {family} must be a non-empty string.")
-  } else if (!grepl("^[A-Za-z0-9_.]+$", x)) {
-    stop_h(
-      "{arg_name} of {family} {.val {x}} contained invalid characters.",
-      paste("Only letters, numbers, underscores {.code _}",
-            "and dots {.code .} are allowed.")
-    )
+# Assert that a string argument respects the naming convention, `what` naming
+# it in the message.
+assert_valid_character <- function(x, what) {
+  if (nchar(x) == 0) stop_h("{what} must be a non-empty string.")
+  else if (!grepl("^[A-Za-z0-9_.]+$", x)) stop_h(
+    "{what} {.val {x}} contained invalid characters.",
+    "Only letters, numbers, underscores and dots are allowed."
+  )
+}
+
+# Assert a given law name respects the naming convention.
+assert_valid_law_name <- function(x, what) {
+  if (is.character(x) && length(x) == 1 && !is.na(x)) {
+    assert_valid_character(x, what)
   }
 }
 
@@ -210,7 +214,7 @@ assert_valid_covariate <- function(x, family) {
   if (length(x) != 1 || is.na(x)) {
     stop_h("{arg_name} of {family} must be a scalar.")
   } else if (is.factor(x) || is.character(x)) {
-    assert_valid_character(as.character(x), family, arg_name)
+    assert_valid_character(as.character(x), paste(arg_name, "of", family))
   } else if (!is.logical(x) && !is.numeric(x)) {
     stop_h("{arg_name} of {family} must be a unidimensional type.",
            format_type_error(x))
@@ -224,7 +228,7 @@ assert_valid_definition_name <- function(x, family, allow_reserved = FALSE) {
     stop_h("Name of {family} must be a non-empty string.",
            format_type_error(x))
   } else {
-    assert_valid_character(x, family, "Name")
+    assert_valid_character(x, paste("Name of", family))
     if (x %in% .reserved_math_consts) stop_h(
       "Name {.val {x}} for {family} is reserved for constants."
     )

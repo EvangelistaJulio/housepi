@@ -24,69 +24,46 @@ try_fold_const_ <- function(expr, env) {
   if (is.numeric(val) && length(val) == 1L && !is.na(val)) val else NULL
 }
 
-# Plain name of every definition source, keyed by its sigil letter. The
-# unresolved sentinel is deliberately absent: it names no source.
+# Plain name of every definition source, keyed by its source letter.
 source_labels_ <- c(A = "latent variable",
                     D = "data column",
                     G = "group risk",
-                    N = "numeric",
                     P = "parameter")
 
-# Helper to check type definitions and set defaults.
-helper_default_source <- function(types, values) {
-
-  for (i in seq_along(types)) {
-    types[i] <- toupper(types[i])
-    k <- types[i]
-    y <- values[[i]]
-
-    # explicit type checking
-    if (is.na(k)) {
-      # no explicit type provided, then format for default types
-      if (is.na(y)) types[i] <- NA_character_
-      else if (is.numeric(y)) types[i] <- "N"
-      else if (!is.character(y)) stop_h(
-        "Found an unsupported definition type value.",
-        format_type_error(y)
-      )
-      else if (!is.na(suppressWarnings(as.numeric(y)))) types[i] <- "N"
-      else if (y %in% .reserved_math_consts) types[i] <- "N"
-      # a bare name is left unresolved: only the model knows what declares it
-      else types[i] <- "?"
-
-    } else if (!(k %in% names(source_labels_))) {
-      stop_h("Invalid type {.val {k}} for value {.val {y}}.",
-             paste(mapply(\(tag, label) inline_cli_("{.val {tag}} ({label})"),
-                          names(source_labels_), source_labels_),
-                   collapse = ", "))
-    }
-
-    if (identical(types[i], "D") && y %in% data_reserved_cols) stop_h(
-      "Cannot source column {.field {y}} as data with {.code @D}.",
-      "Columns {.field {data_reserved_cols}} are reserved."
-    )
-  }
-  types
-}
-
-# Add default types if not a call.
+# Encode leaf values with their source: a number is numeric, a name is left
+# unresolved, as only the model knows what declares it.
 housepi_format_sources <- function(func_args) {
   # default return
   if (is.null(func_args) || all(is.na(func_args))) return(NA_character_)
 
-  splitted <- strsplit(as.character(func_args), "\\@")
-  sapply(splitted, function(x) {
-    ifelse(housepi_bar_count(x[1]), x[1],
-           sprintf("%s|%s", x[1], helper_default_source(x[2], x[1])))
-  }, USE.NAMES = FALSE)
+  values <- as.character(func_args)
+  is_num <- is.numeric(func_args) |
+    !is.na(suppressWarnings(as.numeric(values))) |
+    values %in% .reserved_math_consts
+  for (y in values[!is_num & !is.na(values)]) {
+    assert_valid_character(y, "value")
+  }
+  sources <- ifelse(is_num, "N", "?")
+  sources[is.na(values)] <- NA_character_
+  sprintf("%s|%s", values, sources)
 }
 
-# Format a call to match housepi standard typed definitions
+# Assert the argument keys of a call respect the naming convention.
+# Positional arguments carry an empty key.
+assert_valid_arg_keys <- function(keys) {
+  for (k in keys[nzchar(keys)]) assert_valid_character(k, "argument name")
+}
+
+# Format a call over encoded arguments to match housepi standard typed
+# definitions.
 housepi_format_call <- function(func_name, func_args) {
+  if (!func_name %in% c("+", "*")) {
+    assert_valid_character(func_name, "function name")
+  }
+  assert_valid_arg_keys(names(func_args))
   paste0(c(func_name,
            paste0(names(func_args), collapse = ":"),
-           paste0(sprintf("[%s]", housepi_format_sources(func_args)),
-                  collapse = ":")),
+           paste0(sprintf("[%s]", func_args), collapse = ":")),
          collapse = "|")
 }
 
@@ -131,9 +108,12 @@ assert_valid_defin_node <- function(x) {
   )
 }
 
-# Label a leaf operand.
+# Label a leaf operand as spelled: a string and a name read the same, with
+# neither quotes nor backticks, which are R syntax and never part of the key.
 housepi_label_leaf <- function(y) {
-  if (rlang::is_syntactic_literal(y) && is.numeric(y)) as.character(y)
+  if (is.character(y)) y
+  else if (rlang::is_syntactic_literal(y) && is.numeric(y)) as.character(y)
+  else if (rlang::is_symbol(y)) rlang::as_string(y)
   else rlang::as_label(y)
 }
 
@@ -159,22 +139,22 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
   slots <- c("x", paste0("x", seq_len(2 * length(args))[-1]))
   nms[!nzchar(nms)] <- utils::head(setdiff(slots, nms), sum(!nzchar(nms)))
 
-  # list operands as literals
+  # list operands encoded
   func_args <- character()
   for (i in seq_along(args)) {
     y <- coerce_date_(args[[i]])
     assert_valid_defin_node(y)
-    is_subcall <- rlang::is_call(y) && rlang::call_name(y) != "@"
+    is_subcall <- rlang::is_call(y)
     folded <- if (is_subcall) try_fold_const_(y, env) else NULL
     func_args[[nms[i]]] <-
-      if (!is.null(folded)) as.character(folded)
+      if (!is.null(folded)) housepi_format_sources(folded)
       else if (is_subcall) housepi_func_from_call(y, env)
-      else housepi_label_leaf(y)
+      else housepi_format_sources(housepi_label_leaf(y))
   }
   # canonical order: slots first, then other names as written
   func_args <- func_args[order(match(nms, slots, nomatch = length(slots) + 1))]
 
-  if (is.na(func_name)) housepi_format_sources(func_args)
+  if (is.na(func_name)) unname(func_args)
   else if (length(func_args) == 0) func_name
   else housepi_format_call(func_name, func_args)
 }
@@ -201,6 +181,7 @@ housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
   }
   if (length(func_args) == 0) return(func_name)
 
+  assert_valid_arg_keys(rlang::names2(func_args))
   sprintf("%s|%s|%s", func_name,
           paste(rlang::names2(func_args), collapse = ":"),
           paste(sprintf("[%s]", func_args), collapse = ":"))
@@ -248,12 +229,6 @@ housepi_extractor <- function(...) {
                  rlang::is_syntactic_literal(x_expr[[2]])) {
       # unary
       housepi_format_sources(c(x = eval(x_expr)))
-    } else if (rlang::is_call(x_expr, "@")) {
-      # sourced unary: a name R can only spell quoted (`3`@D) deparses with its
-      # backticks, which are R syntax and never part of the key
-      housepi_format_sources(
-        c(x = gsub("`", "", rlang::expr_text(x_expr), fixed = TRUE))
-      )
     } else if (rlang::is_call(x_expr)) {
       # a self-contained constant call (e.g. as.Date()) folds to its numeric
       # value; a call over housepi nodes fails to evaluate and stays symbolic
@@ -263,6 +238,7 @@ housepi_extractor <- function(...) {
     } else if (rlang::is_syntactic_literal(x_expr) ||
                  rlang::is_scalar_atomic(x_expr) ||
                  rlang::is_symbol(x_expr)) {
+      if (rlang::is_symbol(x_expr)) x_expr <- rlang::as_string(x_expr)
       housepi_format_sources(c(x = x_expr))
     } else {
       assert_valid_defin_node(x_expr)

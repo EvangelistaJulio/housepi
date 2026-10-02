@@ -4,22 +4,14 @@ test_that("Rlang standard functions work as expected", {
   housepi_extractor(NULL) |> expect_null()
   housepi_extractor(NA) |> expect_all_na()
 
-  housepi_extractor(log(alpha@B)) |>
-    expect_error("Invalid type")
   housepi_extractor(log(alpha)) |>
     expect_identical("log|x|[alpha|?]")
-  housepi_extractor(log(alpha@P)) |>
-    expect_identical("log|x|[alpha|P]")
 })
 
 test_that("Invalid definition values are refused at encoding", {
-  # the reserved columns are no data source
-  housepi_extractor(id@D) |>
-    expect_error("[Cc]annot.*id.*as data.*reserved")
-  housepi_extractor(hhid@D) |>
-    expect_error("[Cc]annot.*hhid.*as data.*reserved")
-  housepi_extractor(status@D) |>
-    expect_error("[Cc]annot.*status.*as data.*reserved")
+  # a name carries no source tag
+  housepi_extractor(alpha@P) |>
+    expect_error("[Ff]unction name .@. contained invalid")
   # a vector is no single source
   housepi_extractor(!!c(1, 2)) |>
     expect_error("[Nn]ot a valid source")
@@ -30,9 +22,26 @@ test_that("Invalid definition values are refused at encoding", {
     expect_error("[Ii]mpossible to associate arguments to a function")
 })
 
-test_that("A bare name is encoded unresolved", {
-  # the encoder knows no model: only the sigil settles a source here, while
-  # numbers, numeric strings and math constants stay univocal
+test_that("A string outside the naming convention is refused at encoding", {
+  # a value reads a declaration, whichever way it is spelled
+  regexp <- "contained invalid"
+  housepi_extractor("a|Z") |> expect_error(regexp)
+  housepi_extractor(`a|Z`) |> expect_error(regexp)
+  housepi_extractor(exp(`a|Z`)) |> expect_error(regexp)
+  housepi_extractor("a:b") |> expect_error(regexp)
+  housepi_extractor("a[b]") |> expect_error(regexp)
+  housepi_extractor("a b") |> expect_error(regexp)
+  # argument keys and function names
+  housepi_extractor(normal(`k:z` = 1)) |> expect_error(regexp)
+  housepi_combine_to_call("normal", c(`k:z` = "1|N")) |> expect_error(regexp)
+  housepi_extractor(`a|b`(a)) |> expect_error(regexp)
+  # a string inside a call reads as the name it spells
+  housepi_extractor(exp("a")) |> expect_identical(housepi_extractor(exp(a)))
+})
+
+test_that("Numbers alone settle their source at encoding", {
+  # the encoder knows no model: numbers, numeric strings and math constants
+  # alone settle their source here
   housepi_extractor(3) |>
     expect_identical("3|N")
   housepi_extractor("3") |>
@@ -46,7 +55,7 @@ test_that("Resolution rewrites the unresolved terminals only", {
 
   housepi_resolve_definition("alpha|?", dict) |>
     expect_identical("alpha|P")
-  # an explicit sigil and a number are never touched
+  # a settled source and a number are never touched
   housepi_resolve_definition("alpha|A", dict) |>
     expect_identical("alpha|A")
   housepi_resolve_definition("3|N", dict) |>
@@ -79,30 +88,17 @@ test_that("Rlang basic identity assignments work as expected", {
   housepi_extractor(-1) |> expect_identical("-1|N")
 
   housepi_extractor(alpha) |> expect_identical("alpha|?")
-  housepi_extractor(alpha@P) |> expect_identical("alpha|P")
   housepi_extractor(+alpha) |> expect_identical("alpha|?")
-  housepi_extractor(+alpha@P) |> expect_identical("alpha|P")
   housepi_extractor(-alpha) |> expect_identical("minus|x|[alpha|?]")
-  housepi_extractor(-alpha@D) |> expect_identical("minus|x|[alpha|D]")
 })
 
 test_that("Rlang arithmetic operations work as expected", {
   housepi_extractor(alpha + beta) |>
     expect_identical("+|x:x2|[alpha|?]:[beta|?]")
-  housepi_extractor(alpha@P + beta) |>
-    expect_identical("+|x:x2|[alpha|P]:[beta|?]")
-  housepi_extractor(alpha + beta@P) |>
-    expect_identical("+|x:x2|[alpha|?]:[beta|P]")
-  housepi_extractor(alpha@P + beta@P) |>
-    expect_identical("+|x:x2|[alpha|P]:[beta|P]")
   housepi_extractor((alpha) - (beta)) |>
     expect_identical("+|x:x2|[alpha|?]:[minus|x|[beta|?]]")
   housepi_extractor(alpha * (beta)) |>
     expect_identical("*|x:x2|[alpha|?]:[beta|?]")
-  housepi_extractor(alpha * (beta@P)) |>
-    expect_identical("*|x:x2|[alpha|?]:[beta|P]")
-  housepi_extractor(alpha@P * beta@P) |>
-    expect_identical("*|x:x2|[alpha|P]:[beta|P]")
 })
 
 test_that("Operator chains are flattened, explicit reductions are not", {
@@ -123,17 +119,17 @@ test_that("Operator chains are flattened, explicit reductions are not", {
 
 test_that("Named operands bind to their key, the others fill the free slots", {
   # a name and its position encode alike
-  housepi_extractor(pow(x2 = 3, rho@P)) |>
-    expect_identical(housepi_extractor(pow(rho@P, 3)))
-  housepi_extractor(pow(x2 = 3, rho@P)) |>
-    expect_identical("pow|x:x2|[rho|P]:[3|N]")
-  housepi_extractor(sum(rho@P, x2 = 1, 2)) |>
-    expect_identical("sum|x:x2:x3|[rho|P]:[1|N]:[2|N]")
+  housepi_extractor(pow(x2 = 3, rho)) |>
+    expect_identical(housepi_extractor(pow(rho, 3)))
+  housepi_extractor(pow(x2 = 3, rho)) |>
+    expect_identical("pow|x:x2|[rho|?]:[3|N]")
+  housepi_extractor(sum(rho, x2 = 1, 2)) |>
+    expect_identical("sum|x:x2:x3|[rho|?]:[1|N]:[2|N]")
   # a name off the slots follows them, as written
-  housepi_extractor(growth(hidden@A, rate = rho@P)) |>
-    expect_identical("growth|x:rate|[hidden|A]:[rho|P]")
+  housepi_extractor(growth(hidden, rate = rho)) |>
+    expect_identical("growth|x:rate|[hidden|?]:[rho|?]")
 
-  housepi_extractor(sum(rho@P, x2 = 1, x2 = 2)) |>
+  housepi_extractor(sum(rho, x2 = 1, x2 = 2)) |>
     expect_error("[Rr]epeated argument .x2. for function .sum.")
 })
 
@@ -185,19 +181,17 @@ test_that("Rlang nested expression", {
     expect_identical("+|x:x2:x3|[a|?]:[b|?]:[minus|x|[c|?]]")
   housepi_extractor(a - b - c) |>
     expect_identical("+|x:x2:x3|[a|?]:[minus|x|[b|?]]:[minus|x|[c|?]]")
-  housepi_extractor(log(+ alpha@P)) |>
-    expect_identical("log|x|[alpha|P]")
+  housepi_extractor(log(+ alpha)) |>
+    expect_identical("log|x|[alpha|?]")
   housepi_extractor(log(a * 3 * b)) |>
     expect_identical("log|x|[*|x:x2:x3|[a|?]:[3|N]:[b|?]]")
 })
 
-test_that("Rlang sourced unary drops the quoting backticks", {
-  housepi_extractor(`3`@D) |>
-    expect_identical(housepi_extractor(3@D))
-  housepi_extractor(`3`@D) |>
-    expect_identical("3|D")
-  housepi_extractor(`if`@D) |>
-    expect_identical("if|D")
-  housepi_extractor(datum@D) |>
-    expect_identical("datum|D")
+test_that("Rlang quoted name drops the quoting backticks", {
+  housepi_extractor(`3`) |>
+    expect_identical(housepi_extractor(3))
+  housepi_extractor(`if`) |>
+    expect_identical("if|?")
+  housepi_extractor(log(`if`)) |>
+    expect_identical("log|x|[if|?]")
 })

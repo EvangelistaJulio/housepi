@@ -72,13 +72,13 @@ HousepiInfecProfile <- R6::R6Class(
       func <- housepi_smart_unwrap(func, "func")
       status <- housepi_smart_unwrap(status, "status")
       discr <- housepi_smart_unwrap(discr, "discr")
+      assert_valid_law_name(func, "function")
       # load quosures
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
-      # load dots
-      func_args <- housepi_extractor(!!!flatten_definition_dots(list(...)))
-      # ensure the argument name doesn't mistakenly be interpreted as argument
-      func_args <- func_args[names(func_args) != "name"]
+      # load dots: a stray 'name' of a listed definition is no argument
+      dots <- flatten_definition_dots(list(...))
+      func_args <- housepi_extractor(!!!dots[names(dots) != "name"])
 
       # check infectivity profile function
       if (is.na(func)) stop_h(

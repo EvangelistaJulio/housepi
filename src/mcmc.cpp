@@ -96,7 +96,7 @@ namespace housepi
                     msg::stop(
                         "Per-member " + node.err_str() + " is read outside a reduction.\n" +
                         "Fold it over the household members with min(), max(), sum() or prod(), e.g. " +
-                        msg::code("max(" + node.value + "@" + node.type + ")") + ".");
+                        msg::code("max(" + node.value + ")") + ".");
                 indiv_ptr = &house_ptr->at(0);
             }
 

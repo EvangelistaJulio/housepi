@@ -194,6 +194,8 @@ HousepiAugmented <- R6::R6Class(
       discr <- housepi_smart_unwrap(discr, "discr")
       model <- housepi_smart_unwrap(model, "model")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
+      assert_valid_law_name(model, "model")
+      assert_valid_law_name(proposal, "proposal")
 
       # load quosures
       value <- housepi_extractor(!!value)

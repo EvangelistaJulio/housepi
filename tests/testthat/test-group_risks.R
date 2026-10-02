@@ -324,6 +324,16 @@ test_that("A group risk cannot combine 'by' with a custom 'strata' table", {
     expect_error("[Ii]mpossible.*at the same time")
 })
 
+test_that("A risk prior outside the naming convention is refused", {
+  mk_risk$model |>
+    add_group_risk("susceptibility", by = "age", prior = "uniform|x") |>
+    expect_error("[Pp]rior .uniform.x. contained invalid")
+  mk_risk$model |>
+    add_group_risk("susceptibility", by = "age", prior = "uniform",
+                   proposal = "rw|x") |>
+    expect_error("[Pp]roposal .rw.x. contained invalid")
+})
+
 test_that("Parameter options work correctly", {
   # the collapsed baseline is not one of the risk parameters
   sampled_params <- function(hhmodel) {
@@ -1197,7 +1207,7 @@ test_that("A group risk keyed on an observation is rejected", {
   # a deterministic household observation standing in for its data column is
   # derived, an observation all the same
   mk_observed$model |>
-    add_observation(datum = min(datum_2@D), level = "house") |>
+    add_observation(datum = min(datum_2), level = "house") |>
     add_group_risk("susceptibility", by = "datum") |>
     expect_error("keyed on observation.*datum")
 })

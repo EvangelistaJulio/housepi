@@ -237,8 +237,8 @@ test_that("Latent inference recovers the simulating parameter", {
   data.frame(hhid = seq(200), status = 1) |>
     new_housepi_model("test") |>
     add_parameter("rho", value = 2, prior = "uniform", min = -5, max = 5) |>
-    add_latent("hidden", model = "normal", mean = rho@P, sd = 1) |>
-    add_observation("record", model = "normal", mean = hidden@A, sd = 1) |>
+    add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
+    add_observation("record", model = "normal", mean = hidden, sd = 1) |>
     run_parameter_recovery_check(nrep = 1, progress = FALSE) |>
     expect_recovered()
 })

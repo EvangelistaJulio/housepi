@@ -70,7 +70,7 @@ test_that("Assert valid status rejects non-positive integers", {
 })
 
 test_that("Assert valid data columns holds the definition alphabet", {
-  # a column is a key a definition sources with `@D`: same alphabet as a name
+  # a column is a key a definition reads: same alphabet as a name
   assert_valid_data_columns(c("id", "3", "if", "dose.2", "vacc_status")) |>
     expect_null()
   assert_valid_data_columns(c("id", "bad name")) |>
@@ -101,10 +101,10 @@ test_that("Definitions carry the defaults the user left out", {
       rho = list(value = 0.3, prior = "gamma", shape = 2),
       rho_2 = list(value = 0.3, prior = "gamma", mean = 2, sd = 1),
       rho_3 = list(value = 0, prior = "normal", sd = 2, min = -1),
-      rho_4 = list(func = "log", x = rho@P)
+      rho_4 = list(func = "log", x = rho)
     ) |>
     add_observation(
-      record = list(model = "binomial", size = 5, prob = rho@P),
+      record = list(model = "binomial", size = 5, prob = rho),
       record_2 = list(model = "gamma", shape = 2, scale = 3)
     )
   param <- get_parameters(hhmodel, name = c("rho", "rho_2", "rho_3", "rho_4"))
@@ -137,7 +137,7 @@ test_that("Constant arguments and bounds are checked at definition", {
   # a sourced argument has no value at definition
   augm <- hhmodel |>
     add_parameter(rho = list(prior = "gamma", shape = 2)) |>
-    add_latent(hidden = list(model = "normal", sd = rho@P)) |>
+    add_latent(hidden = list(model = "normal", sd = rho)) |>
     get_latent()
   augm$args[[1]] |> expect_identical(c(sd = "rho|P", mean = "0"))
 })

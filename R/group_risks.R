@@ -798,7 +798,8 @@ tidyup_group_risk_tables <- function(all_tables) {
   as.data.frame(combined_df)
 }
 
-#' Return the user MCMC setup of a risk, `NULL` if every choice is missing.
+#' Return the user MCMC setup of a risk as written, `NULL` if every choice is
+#' missing. It is validated here and encoded once its parameters are declared.
 #' @param dots `list` Distribution and proposal arguments.
 #' @param family `character(1)` Holder family.
 #' @param name `character(1)` or `NULL`. Name of the risk, when it has one.
@@ -811,9 +812,10 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
   proposal <- housepi_smart_unwrap(proposal, "proposal")
   min <- housepi_smart_unwrap(min, "min")
   max <- housepi_smart_unwrap(max, "max")
-  def_args <- helper_definition_args(proposal, dots, family, name)
-  args <- def_args$args
-  proposal <- def_args$proposal
+  assert_valid_law_name(prior, "prior")
+  assert_valid_law_name(proposal, "proposal")
+  dots <- flatten_definition_dots(dots)
+  args <- helper_definition_args(proposal, dots, family, name)$args
   assert_no_sibling_dist_arg(args, family, name)
 
   is_default <- sapply(c(prior, args, min, max, proposal),
@@ -826,7 +828,7 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
     "Found spare prior arguments for risk {.val {label}}.",
     "Either leave all as defaults or provide a {.arg prior}."
   )
-  c(list(prior = prior), args, list(min = min, max = max, proposal = proposal))
+  c(list(prior = prior), dots, list(min = min, max = max, proposal = proposal))
 }
 
 #' Return the default MCMC setup of a risk.

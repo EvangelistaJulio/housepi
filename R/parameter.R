@@ -66,6 +66,8 @@ HousepiParameter <- R6::R6Class(
       discr <- housepi_smart_unwrap(discr, "discr")
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
+      assert_valid_law_name(prior, "prior")
+      assert_valid_law_name(proposal, "proposal")
 
       # load quosures
       value <- housepi_extractor(!!value)

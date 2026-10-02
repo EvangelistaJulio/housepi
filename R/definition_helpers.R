@@ -75,7 +75,7 @@ housepi_walk_definition <- function(input, type) {
   output
 }
 
-#' Resolve unsettled source sigils in encoded definition strings.
+#' Resolve unsettled sources in encoded definition strings.
 #' A `name|?` terminal takes the letter the dictionary holds for that name;
 #' a name the dictionary does not settle keeps the sentinel, for the assertion
 #' to report.
@@ -323,7 +323,7 @@ helper_variable_level <- function(opts, defs) {
   operands <- showcase_extract_args(opts$func)[[1]]
   if (length(operands) != 1) return(opts)
   operand <- strsplit(as.character(operands[[1]]), "\\|")[[1]]
-  if (length(operand) != 2 || operand[2] != "D") return(opts)
+  if (length(operand) != 2 || !operand[2] %in% c("D", "?")) return(opts)
 
   sms <- paste("Member-level observation {.val {opts$name}}",
                "is a no-effect reduction {.fn {folded}}.")

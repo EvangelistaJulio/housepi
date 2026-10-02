@@ -46,36 +46,13 @@ We here explain how to associate individual latent variables in housepi for mini
 Similarly to parameters, latent variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
 In many applications, latent variable definitions can also depend on the dataset or on model parameters to be inferred.
 
-An argument value may name another definition of the model: a latent variable, a data column, a group risk or a parameter.
-The name alone is enough, as long as one definition answers to it: housepi looks it up among the definitions the model carries.
-When two of them share a name, the convention using the \@ symbol says which one is meant
-$$
-\mathrm{argument@source}
-$$
-which reads "argument at source".
-E.g. "visit_day\@D" sources the value from individual data "visit_day", "beta\@P" from the current value for the parameter "beta".
+An argument value may name another definition of the model: a latent variable, a data column, an observation, a group risk or a parameter.
+housepi looks the name up among the definitions the model carries, so each name must stand for one of them only^[A name nothing declares is an error, reported when the model is run, and so is a name two definitions claim.].
+E.g. `visit_day` reads the individual data column "visit_day", `beta` the current value of the parameter "beta", while a number such as `14` is read as it is.
 
-
-<div style="display: flex; justify-content: center;">
-<div>
-
-| Source     | Symbol | Examples                          |
-|------------|:------:|:---------------------------------:|
-| Latent     | A      | infection_time, infection_time\@A |
-| Data       | D      | visit_day, visit_day\@D           |
-| Group Risk | G      | susceptibility, susceptibility\@G |
-| Numeric    | N      | 14                                |
-| Parameter  | P      | beta, beta\@P                     |
-
-</div>
-</div>
-
-Notice that the symbol is only ever needed to break a tie: a name no other definition claims is resolved on its own^[A name nothing declares is an error, reported when the model is run, and so is a name two definitions claim without a symbol to tell them apart.].
-Similarly, there's no need to specify the source of a numeric value.
-
-More in general, the convention applies to every definition argument: not only `value`, `min` and `max`, but also the arguments of the model distribution, as in `model = "gamma", mean = mean@P, sd = sd@P`.
-Sources combine into arithmetic expressions, such as `onset_date@D - incub_period` or `exposure_max@D + 0.99`, and can be passed to any of the functions listed by `browse_functions()`, e.g. `sqrt(beta@P)` or `min(onset_date@D)`.
-An expression referencing no source is instead evaluated once, when the definition is built: `max = 3 * 7` is stored as the plain value `21`, and a date such as `as.Date("2021-07-01")` collapses to its day count.
+The convention applies to every definition argument: not only `value`, `min` and `max`, but also the arguments of the model distribution, as in `model = "gamma", mean = mean, sd = sd`, reading the parameters "mean" and "sd".
+Names combine into arithmetic expressions, such as `onset_date - incub_period` or `exposure_max + 0.99`, and can be passed to any of the functions listed by `browse_functions()`, e.g. `sqrt(beta)` or `min(onset_date)`.
+An expression referencing no definition is instead evaluated once, when the definition is built: `max = 3 * 7` is stored as the plain value `21`, and a date such as `as.Date("2021-07-01")` collapses to its day count.
 
 # Status specific definitions
 
@@ -110,13 +87,13 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
   add_latent(
     # latent infection time for symptomatic members
     # here we use a generic definition
-    infec_time = onset_date@D - incub_period,
+    infec_time = onset_date - incub_period,
     incub_period = list(model = "gamma", shape = 2, scale = 1),
 
     # latent infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
     infec_time = list(status = 2, model = "uniform",
-                      min = start_date@D, max = end_date@D)
+                      min = start_date, max = end_date)
   )
 ```
 
@@ -168,7 +145,7 @@ dataset <- data.frame(id = seq_len(n_cases), hhid = seq_len(n_cases),
     exposure_days = list(model = "categorical",
                          d1 = 0.28, d2 = 0.34, d3 = 0.26, d4 = 0.12),
     infec_time = list(model = "uniform", max = exposure_days + 1),
-    incub_period = list(model = "gamma", mean = mean@P, sd = sd@P),
+    incub_period = list(model = "gamma", mean = mean, sd = sd),
     onset_time = infec_time + incub_period,
     report_shift = list(model = "categorical",
                         early = 0.135, exact = 0.73, late = 0.135)
@@ -214,9 +191,9 @@ hhmodel <- dataset |>
   add_latent(
     # infection time uniform within the reported exposure window
     # min = 0 by default for uniform; + 0.99 spans the whole reported day
-    infec_time = list(model = "uniform", max = exposure_max@D + 0.99),
+    infec_time = list(model = "uniform", max = exposure_max + 0.99),
     # incubation period gamma by mean/std. deviation, bounded to a plausible range
-    incub_period = list(model = "gamma", mean = mean@P, sd = sd@P,
+    incub_period = list(model = "gamma", mean = mean, sd = sd,
                         min = 0.1, max = 14),
     # onset time follows deterministically as their sum
     onset_time = infec_time + incub_period
@@ -282,7 +259,7 @@ A uniform observation over a window the variable can never leave contributes the
 results <- data.frame(hhid = 1, id = 1:2, status = 1, readout = 0) |>
   new_housepi_model(model = "test") |>
   add_latent("z", model = "normal", mean = 14) |>
-  add_observation("readout", model = "uniform", loc = z@A,
+  add_observation("readout", model = "uniform", loc = z,
                   min = -1e6, max = 1e6) |>
   run_inference()
 ```
