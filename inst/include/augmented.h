@@ -97,11 +97,11 @@ namespace housepi
 
         /// Draw the sampled latents of `indiv` from their models, for simulation.
         /// Unlike restart(), it uses no proposal.
-        void draw_sample(const Individual &indiv, rnd_gen &prng)
+        void draw_sample_for_simulation(const Individual &indiv, rnd_gen &prng)
         {
-            augm::draw_sample(scheme_of_(indiv), state.of(indiv), prng);
+            augm::draw_sample(scheme_of_(indiv).sim_sample, state.of(indiv), prng);
         }
-        /// Draw the sampled latents of every individual from their models, for simulation.
+        /// Draw the sampled latents of every individual from their models, for evaluation.
         /// Unlike restart(), it uses no proposal.
         /// - no latent to sample: skipped.
         void draw_sample(rnd_gen &prng);
@@ -243,8 +243,8 @@ namespace housepi
         /// Reject a member observation filling an every-member column only for infected members.
         void assert_every_member_cols_() const;
 
-        /// Point member `indiv` at the scheme of its status, and return its definition order.
+        /// Point member `m` at the scheme of its status, and return its definition order for the run.
         /// - status the data does not carry: generic scheme.
-        const std::vector<size_t> &helper_materialize_definition_order_(const Individual &m);
+        const std::vector<size_t> &helper_materialize_definition_order_(const Individual &m, bool simulation);
     };
 }

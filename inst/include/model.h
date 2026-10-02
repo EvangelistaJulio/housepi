@@ -149,7 +149,7 @@ namespace housepi
 		void init_missing_latent(Individual &indiv)
 		{
 			mcmc_->augm.init_definitions_for_simulation(indiv);
-			mcmc_->augm.draw_sample(indiv, mcmc_->setup.prng());
+			mcmc_->augm.draw_sample_for_simulation(indiv, mcmc_->setup.prng());
 			mcmc_->augm.sample_obs(indiv, mcmc_->setup.prng());
 		}
 

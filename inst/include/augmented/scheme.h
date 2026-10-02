@@ -48,10 +48,12 @@ namespace housepi::augm
     /// - densities a move recomputes.
     struct StatusScheme
     {
-        std::vector<size_t> order = {}; /// Definition rows, producer before consumer.
+        std::vector<size_t> order = {};     /// Definition rows, producer before consumer, in inference.
+        std::vector<size_t> sim_order = {}; /// Definition rows, producer before consumer, in simulation.
 
         std::vector<size_t> latent_models = {}; /// Keys carrying a latent-model density.
         std::vector<size_t> sample = {};        /// Keys to sample.
+        std::vector<size_t> sim_sample = {};    /// Keys of `sample`, in simulation order.
         std::vector<size_t> adaptive = {};      /// Keys with an adaptive proposal, a subset of `sample`.
         std::vector<size_t> draws = {};         /// Keys to draw.
         /// Key -> itself and its transitive consumers, producer before consumer.

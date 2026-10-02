@@ -1001,13 +1001,6 @@ test_that("A simulation override (value + model) rejects observation reads", {
     add_latent(layer_1 = record,
                hidden = list(model = "normal", value = layer_1)) |>
     expect_error("[Ss]imulation override.*record.*through.*layer_1")
-
-  # a latent read is legal, so a downstream one closes an ordinary loop
-  data.frame(hhid = "h1", status = 1) |>
-    new_housepi_model("test") |>
-    add_latent(hidden = list(model = "normal", value = hidden_2),
-               hidden_2 = list(model = "normal", mean = hidden, sd = 1)) |>
-    expect_error("[Cc]ycl")
 })
 
 test_that("A surrogate column reading latent is simulation only", {
@@ -1453,6 +1446,62 @@ test_that("A value paired with model overrides the draw in simulations only", {
     run_simulation()
   simulated$hidden |> expect_equal(7 - simulated$layer_1)
   length(unique(simulated$layer_1)) |> expect_gt(1)
+})
+
+test_that("A simulation override orders its producers per run", {
+  hhmodel <- data.frame(id = sprintf("m%s", 1:4), hhid = "h1",
+                        status = 1, obs = 0) |>
+    new_housepi_model("test")
+
+  # simulation: hidden reads layer_1 through the value
+  # inference: layer_1 reads hidden through the model
+  # neither run closes a loop
+  hhmodel_2 <- hhmodel |>
+    add_latent(hidden = list(model = "normal", value = layer_1),
+               layer_1 = list(model = "normal", mean = hidden, sd = 1,
+                              value = 5)) |>
+    helper_flat_sink(loc = hidden + layer_1)
+  results <- run_simulation(hhmodel_2)
+  results$hidden |> expect_all_equal(5)
+  results$layer_1 |> expect_all_equal(5)
+  draws <- hhmodel_2 |>
+    run_inference(steps = 40L, chains = 1L) |>
+    get_latent_draws() |>
+    suppressWarnings()
+  all(draws[["m1_layer_1"]] == 5) |> expect_false()
+
+  # a support bound read by the model is an inference edge too
+  results <- hhmodel |>
+    add_latent(hidden = list(model = "normal", value = layer_1),
+               layer_1 = list(model = "uniform", min = hidden - 1,
+                              max = hidden + 1, value = 2)) |>
+    helper_flat_sink(loc = hidden + layer_1) |>
+    run_simulation()
+  results$hidden |> expect_all_equal(2)
+
+  # simulation draws layer_2 before hidden reads it through the pin layer_1
+  # inference orders hidden before layer_2
+  results <- hhmodel |>
+    add_latent(layer_1 = list(model = "normal", value = layer_2),
+               hidden = list(model = "normal", mean = layer_1, sd = 1e-3),
+               layer_3 = list(model = "normal", mean = hidden, sd = 1,
+                              value = 50),
+               layer_2 = list(model = "normal", mean = layer_3, sd = 1)) |>
+    helper_flat_sink(loc = hidden) |>
+    run_simulation()
+  (abs(results$hidden - results$layer_2) < 0.01) |> expect_all_true()
+
+  # a loop closed in simulation only
+  hhmodel |>
+    add_latent(hidden = list(model = "normal", value = hidden_2),
+               hidden_2 = list(model = "normal", mean = hidden, sd = 1)) |>
+    expect_error("[Cc]yclic.*hidden.*[Ss]imulation reads the value")
+
+  # a loop closed in inference only
+  hhmodel |>
+    add_latent(hidden = list(model = "normal", mean = hidden_2, value = 3),
+               hidden_2 = list(model = "normal", mean = hidden, sd = 1)) |>
+    expect_error("[Cc]yclic.*hidden")
 })
 
 test_that("Latent traces export only relevant variables", {

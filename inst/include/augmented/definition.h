@@ -65,11 +65,18 @@ namespace housepi::augm
         /// Parse row `r` of definition table `input`.
         DefRow(const str_table &input, size_t r);
 
+        /// Whether a value pins the row in simulation while its model drives inference.
+        bool is_sim_override() const noexcept { return has_value && has_model; }
+
         /// List the columns that may read sources.
         std::array<const parse::Definition *, 5> source_cols() const noexcept
         {
             return {&value, &model, &func, &min, &max};
         }
+        /// List the columns a run reads sources from.
+        /// - inference: every column, except the value of an override;
+        /// - simulation: value and function of an override, every column otherwise.
+        std::vector<const parse::Definition *> source_cols(bool simulation) const;
         /// Select the column the definition resolves through in simulation.
         /// - with a value, an override included: the value;
         /// - otherwise: the function.

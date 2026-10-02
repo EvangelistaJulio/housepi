@@ -19,18 +19,20 @@
 /// Dependency analysis over definition rows, by name.
 namespace housepi::augm::graph
 {
-    /// Build the latent producer graph of `rows`.
+    /// Build the latent producer graph of `rows`, for a simulation or inference run.
     /// - node: definition name;
-    /// - edges: latent names it reads, across source columns.
+    /// - edges: latent names it reads, across the source columns of the run, see DefRow::source_cols().
     dag::prod_graph producers(const DefTable &def,
-                              const std::vector<size_t> &rows);
+                              const std::vector<size_t> &rows,
+                              bool simulation);
 
     /// Add edges from a definition to the member observations of `rows` it reads as data.
     ///
     /// An observation is drawn before its reader.
     void add_member_obs_edges(dag::prod_graph &pgraph,
                               const DefTable &def,
-                              const std::vector<size_t> &rows);
+                              const std::vector<size_t> &rows,
+                              bool simulation);
 
     /// Map each model name to its transitive consumers among other model nodes of `order`.
     str_table model_consumers(const DefTable &def,
