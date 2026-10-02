@@ -310,16 +310,28 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
     expect_false()
 })
 
-test_that("Chain binomial returns infinite if extreme values are provided", {
+test_that("Infection rates below the machine epsilon keep their probability", {
   hhmodel <- data.frame(id = c(1, 2), hhid = "h1",
                         status = c(1, 1), age = c("child", "adult")) |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hhsize_ref = 4)
 
-  # homogeneous branch
-  is.finite(evaluate_log_lik(hhmodel)) |> expect_false()
+  # homogeneous branch: both infected from the community,
+  # or one from the community and the other from it, at rate beta * 4 / 2
+  p_commu <- -expm1(-1e-20)
+  p_p2p <- -expm1(-2e-20)
+  evaluate_log_lik(hhmodel) |>
+    expect_equal(log(p_commu^2 + 2 * p_commu * (1 - p_commu) * p_p2p))
+
+  # single infected member, the other escaping both routes
+  data.frame(id = c(1, 2), hhid = "h1", status = c(1, 0)) |>
+    new_housepi_model("final-size") |>
+    add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hhsize_ref = 4) |>
+    evaluate_log_lik() |>
+    expect_equal(log(p_commu) - 1e-20 - 2e-20)
 
   # heterogeneous branch: the risk names a reference, so `beta` stays extreme
+  # UPDATE: the recursion takes `1 - sum` over probabilities and returns -Inf
   hhmodel |>
     add_group_risk("susceptibility", by = "age", reference = ".auto") |>
     evaluate_log_lik() |>

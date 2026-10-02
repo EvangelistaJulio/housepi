@@ -565,8 +565,6 @@ namespace housepi
         virtual double raw_log_func_(double /*x*/) const { raise_undefined_call_err_("log_func"); }
         /// Raw primitive.
         virtual double raw_primitive_(double /*x*/) const { raise_undefined_call_err_("primitive"); }
-        /// Raw quantile.
-        virtual double raw_quantile_(double /*p*/) const { raise_undefined_call_err_("quantile"); }
 
         /// Evaluate the function under the discretization scheme.
         virtual double function_(double x) const

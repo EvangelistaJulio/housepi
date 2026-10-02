@@ -135,20 +135,21 @@ namespace housepi
 	protected:
 		//////  Virtual  //////
 
-		/// Raw random draw.
-		virtual double raw_rand_(rnd_gen & /*prng*/) const = 0;
 		/// Raw density or mass.
 		virtual double raw_pdf_(double /*x*/) const = 0;
-		/// Raw log-density or log-mass.
-		virtual double raw_log_pdf_(double /*x*/) const = 0;
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double /*x*/) const = 0;
+		/// Raw complementary cumulative distribution, 1 - cdf.
+		/// @note Discretization reads it where a tail-accurate closed form exists.
+		virtual double raw_ccdf_(double /*x*/) const = 0;
+		/// Raw quantile at cumulative probability `p`.
+		virtual double raw_quantile_(double /*p*/) const = 0;
+		/// Raw log-density or log-mass.
+		virtual double raw_log_pdf_(double /*x*/) const = 0;
 		/// Raw log-ratio of densities or masses from `xo` to `xn`.
 		virtual double raw_log_ratio_(double /*xo*/, double /*xn*/) const = 0;
-
-		/// Raw complementary cumulative distribution, 1 - cdf.
-		/// Discretization reads it where a tail-accurate closed form exists.
-		virtual double raw_ccdf_(double x) const { return 1. - raw_cdf_(x); }
+		/// Raw random draw.
+		virtual double raw_rand_(rnd_gen & /*prng*/) const = 0;
 
 		/// Raw function: undefined for a distribution.
 		double raw_function_(double /*x*/) const override final { raise_undefined_call_err_("function"); }
@@ -422,6 +423,8 @@ namespace housepi
 		double raw_pdf_(double /*x*/) const override final { return 1.; }
 		double raw_log_pdf_(double /*x*/) const override final { return 0.; }
 		double raw_cdf_(double x) const override final { return x < x0_ ? 0. : 1.; }
+		double raw_ccdf_(double x) const override final { return x < x0_ ? 1. : 0.; }
+		double raw_quantile_(double /*p*/) const override final { return x0_; }
 		double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { return 0.; }
 
 	private:

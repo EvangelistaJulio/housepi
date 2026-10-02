@@ -35,6 +35,7 @@ using discrete_up_policy = boost::math::policies::policy<
     boost::math::policies::promote_double<false>,
     boost::math::policies::discrete_quantile<boost::math::policies::integer_round_up>>;
 
+#include "tools/math.h"
 #include "tools/messages.h"
 #include "tools/string.h"
 #include "tools/vector.h"
@@ -110,54 +111,39 @@ namespace housepi
 
 //////////////////////////////  Distribution implementations  //////////////////////////////
 
-namespace
+namespace housepi
 {
-    using namespace housepi;
-    using std::exp;
-    using std::lgamma;
-    using std::log;
-    using std::log1p;
-    using std::pow;
-    using std::sqrt;
-
-#ifndef M_1_SQRT_2PI
-    constexpr double M_1_SQRT_2PI = 0.398942280401432677939946059934; /// 1 / sqrt(2 pi).
-#endif
-
-#ifndef M_SQRT2
-    constexpr double M_SQRT2 = 1.41421356237309504880168872420969808; /// sqrt(2).
-#endif
-
-#ifndef M_SQRT1_2
-    constexpr double M_SQRT1_2 = 0.707106781186547524400844362105; /// 1 / sqrt(2).
-#endif
-
-#ifndef M_LN_SQRT_2PI
-    constexpr double M_LN_SQRT_2PI = 0.918938533204672741780329736406; /// log(sqrt(2 pi)).
-#endif
-
-    /// Logarithm of binomial coefficient.
-    double log_binom_coeff(unsigned N, unsigned k)
+    namespace
     {
-        if (N == 0 || k == N)
-            return 0.;
-        return lgamma(N + 1) - lgamma(k + 1) - lgamma(N - k + 1);
-    }
+        using std::exp;
+        using std::lgamma;
+        using std::log;
+        using std::log1p;
+        using std::pow;
+        using std::sqrt;
 
-    /// Log-ratio of binomial coefficients.
-    double logratio_binom_coeff(unsigned N, unsigned ko, unsigned kn)
-    {
-        if (N == 0 || ko == kn)
-            return 0;
-        return lgamma(ko + 1) + lgamma(N - ko + 1) - lgamma(kn + 1) - lgamma(N - kn + 1);
-    }
-    /// Logarithm of beta function.
-    double lbeta(double a, double b)
-    {
-        return lgamma(a) + lgamma(b) - lgamma(a + b);
-    }
+        /// Logarithm of binomial coefficient.
+        double log_binom_coeff(unsigned N, unsigned k)
+        {
+            if (N == 0 || k == N)
+                return 0.;
+            return lgamma(N + 1) - lgamma(k + 1) - lgamma(N - k + 1);
+        }
 
-/// Define left discretization, with a minimum closed at 0.
+        /// Log-ratio of binomial coefficients.
+        double logratio_binom_coeff(unsigned N, unsigned ko, unsigned kn)
+        {
+            if (N == 0 || ko == kn)
+                return 0;
+            return lgamma(ko + 1) + lgamma(N - ko + 1) - lgamma(kn + 1) - lgamma(N - kn + 1);
+        }
+        /// Logarithm of beta function.
+        double lbeta(double a, double b)
+        {
+            return lgamma(a) + lgamma(b) - lgamma(a + b);
+        }
+
+        /// Define left discretization, with a minimum closed at 0.
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()        \
     void discretize() override final            \
     {                                           \
@@ -169,7 +155,7 @@ namespace
             helper_init_distr_truncation_();    \
     }
 
-/// Define a discrete-defined distribution, with a minimum closed at 0.
+        /// Define a discrete-defined distribution, with a minimum closed at 0.
 #define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()     \
     void discretize() override final {}         \
     void truncate() override final              \
@@ -178,899 +164,966 @@ namespace
             helper_init_distr_truncation_();    \
     }
 
-    //////////////////////////////  Uniform  //////////////////////////////
+        //////////////////////////////  Uniform  //////////////////////////////
 
-    class Uniform_ final : public Distribution
-    {
-    public:
-        Uniform_()
-            : Distribution({}, 0., 1.) {}
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Uniform_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
-
-    private:
-        double norm_() const { return domain_.max.value() - domain_.min.value(); }
-
-    protected:
-        double raw_pdf_(double) const override final { return 1. / norm_(); }
-        double raw_cdf_(double x) const override final { return (x - domain_.min.value()) / norm_(); }
-        double raw_log_pdf_(double) const override final { return -log(norm_()); }
-        double raw_log_ratio_(double, double) const override final { return 0.; }
-        double raw_rand_(rnd_gen &prng) const override final
+        class Uniform_ final : public Distribution
         {
-            const double r = standard_uniform(prng);
-            return domain_.min.value() * (1. - r) + domain_.max.value() * r;
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return domain_.min.value() * (1. - p) + domain_.max.value() * p;
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Uniform_, Continuous)
+        public:
+            Uniform_()
+                : Distribution({}, 0., 1.) {}
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Uniform_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
-    //////////////////////////////  Discrete uniform  //////////////////////////////
+        private:
+            double norm_() const { return domain_.max.value() - domain_.min.value(); }
 
-    /// Flat mass over the integers in [min, max].
-    class UniformDiscrete_ final : public Distribution
-    {
-    public:
-        UniformDiscrete_()
-            : Distribution({}, 0., 1.) { discr_mode_ = Discrete::Defined; }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(UniformDiscrete_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
-
-        void discretize() override final {}
-
-    private:
-        double norm_() const { return domain_.max.value() - domain_.min.value() + 1.; }
-
-    protected:
-        std::vector<const Attribute *> discrete_args_() const override final { return {&domain_.min, &domain_.max}; }
-
-        double raw_pdf_(double) const override final { return 1. / norm_(); }
-        double raw_cdf_(double x) const override final { return (x - domain_.min.value() + 1.) / norm_(); }
-        double raw_log_pdf_(double) const override final { return -log(norm_()); }
-        double raw_log_ratio_(double, double) const override final { return 0.; }
-        double raw_quantile_(double p) const override final { return domain_.min.value() + std::ceil(p * norm_()) - 1.; }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return std::uniform_int_distribution<long>(
-                static_cast<long>(domain_.min.value()), static_cast<long>(domain_.max.value()))(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(UniformDiscrete_, Discrete)
-
-    //////////////////////////////  Normal  //////////////////////////////
-
-    class Normal_ final : public Distribution
-    {
-    public:
-        Normal_()
-            : Distribution({{"mean", 0.}, {"sd", 1.}}) {}
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Normal_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(normal)
-
-        void discretize() override final
-        {
-            discr_mode_ = domain_.min.is_empty() ? Discrete::Center
-                                                 : Discrete::Left;
-        }
-        void truncate() override final
-        {
-            helper_init_standard_domain_();
-            helper_init_distr_truncation_();
-        }
-
-    protected:
-        double raw_pdf_(double x) const override final
-        {
-            const double sd = arg(1);
-            const double z = (x - arg(0)) / sd;
-            return M_1_SQRT_2PI * exp(-0.5 * z * z) / sd;
-        }
-        double raw_cdf_(double x) const override final
-        {
-            return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - x) / arg(1));
-        }
-        double raw_ccdf_(double x) const override final
-        {
-            return 0.5 * std::erfc(M_SQRT1_2 * (x - arg(0)) / arg(1));
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double sd = arg(1);
-            const double z = (x - arg(0)) / sd;
-            return -0.5 * z * z - M_LN_SQRT_2PI - log(sd);
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            const double sd = arg(1);
-            return (0.5 * (xo * xo - xn * xn) + (xn - xo) * arg(0)) / (sd * sd);
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return arg(0) + arg(1) * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2;
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return arg(0) + arg(1) * standard_normal(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Normal_, Continuous)
-
-    //////////////////////////////  Lognormal  //////////////////////////////
-
-    /// Lognormal distribution.
-    class Lognormal_ final : public Distribution
-    {
-    public:
-        /// Build with parametrizations:
-        /// - 0: meanlog-sdlog;
-        /// - 1: mean-sd.
-        Lognormal_()
-            : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.)
-        {
-            alts_[0].name = "meanlog-sdlog";
-            register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
-        }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(lognormal)
-
-        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-    protected:
-        /// Effective (meanlog, sdlog) for the active parametrization.
-        std::pair<double, double> eff_params_() const
-        {
-            switch (alt_idx_)
+        protected:
+            double raw_pdf_(double) const override final { return 1. / norm_(); }
+            double raw_cdf_(double x) const override final { return (x - domain_.min.value()) / norm_(); }
+            double raw_ccdf_(double x) const override final { return (domain_.max.value() - x) / norm_(); }
+            double raw_log_pdf_(double) const override final { return -log(norm_()); }
+            double raw_log_ratio_(double, double) const override final { return 0.; }
+            double raw_rand_(rnd_gen &prng) const override final
             {
-            case 1: // "mean-sd"
-            {
-                const double m = arg(0), r = arg(1) / m;
-                const double v = log1p(r * r);
-                return {log(m) - 0.5 * v, sqrt(v)};
+                const double r = standard_uniform(prng);
+                return domain_.min.value() * (1. - r) + domain_.max.value() * r;
             }
-            default: // case 0: "meanlog-sdlog"
-                return {arg(0), arg(1)};
-            }
-        }
-
-        double raw_pdf_(double x) const override final
-        {
-            if (x == 0.)
-                return 0.;
-
-            const auto [meanlog, sdlog] = eff_params_();
-            const double z = (log(x) - meanlog) / sdlog;
-            return exp(-0.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
-        }
-        double raw_cdf_(double x) const override final
-        {
-            const auto [meanlog, sdlog] = eff_params_();
-            return 0.5 * std::erfc(M_SQRT1_2 * (meanlog - log(x)) / sdlog);
-        }
-        double raw_ccdf_(double x) const override final
-        {
-            const auto [meanlog, sdlog] = eff_params_();
-            return 0.5 * std::erfc(M_SQRT1_2 * (log(x) - meanlog) / sdlog);
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            if (x == 0.)
-                return -inf::DOUBLE;
-
-            const auto [meanlog, sdlog] = eff_params_();
-            const double z = (log(x) - meanlog) / sdlog;
-            return -0.5 * z * z - log(x * sdlog) - M_LN_SQRT_2PI;
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            // the origin carries no density: the ratio saturates
-            if (xo == 0. || xn == 0.)
-                return std::copysign(inf::DOUBLE, xn - xo);
-
-            const auto [meanlog, sdlog] = eff_params_();
-            const double lxo = log(xo);
-            const double lxn = log(xn);
-            return (0.5 * (lxo * lxo - lxn * lxn) + (lxn - lxo) * meanlog) / (sdlog * sdlog) + lxo - lxn;
-        }
-        double raw_quantile_(double p) const override final
-        {
-            const auto [meanlog, sdlog] = eff_params_();
-            return exp(meanlog + sdlog * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2);
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            const auto [meanlog, sdlog] = eff_params_();
-            return exp(meanlog + sdlog * standard_normal(prng));
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Lognormal_, Continuous)
-
-    //////////////////////////////  Beta  //////////////////////////////
-
-    class Beta_ final : public Distribution
-    {
-    public:
-        Beta_()
-            : Distribution({{"shape1", na::DOUBLE}, {"shape2", na::DOUBLE}},
-                           0., 1.)
-        {
-            domain_.below = Interval::Open;
-            domain_.above = Interval::Open;
-        }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Beta_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(beta)
-
-        void discretize() override final
-        {
-            msg::stop(
-                "Invoked invalid option discrete for " + str() + ".");
-        }
-        void truncate() override final
-        {
-            const double sx = domain_.min.value();
-            const double dx = domain_.max.value();
-            if (sx < 0)
-                msg::stop(
-                    "Invoked invalid min value " + str::format(sx) + " for " + str() + ".");
-            if (dx > 1)
-                msg::stop(
-                    "Invoked invalid max value " + str::format(dx) + " for " + str() + ".");
-            if (sx > 0 || dx < 1)
+            double raw_quantile_(double p) const override final
             {
-                helper_init_standard_domain_(sx == 0, dx == 1);
-                helper_init_distr_truncation_();
+                return domain_.min.value() * (1. - p) + domain_.max.value() * p;
             }
-        }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Uniform_, Continuous)
 
-    protected:
-        double raw_pdf_(double x) const override final
-        {
-            const double alpha = arg(0);
-            const double beta = arg(1);
-            return exp((alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta));
-        }
-        double raw_cdf_(double x) const override final
-        {
-            return boost::math::ibeta(arg(0), arg(1), x, no_promote_policy{});
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double alpha = arg(0);
-            const double beta = arg(1);
-            return (alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta);
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            return (arg(0) - 1.) * log(xn / xo) + (arg(1) - 1.) * log((1. - xn) / (1. - xo));
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return boost::math::ibeta_inv(arg(0), arg(1), p, no_promote_policy{});
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Beta_, Continuous)
+        //////////////////////////////  Discrete uniform  //////////////////////////////
 
-    //////////////////////////////  Gamma  //////////////////////////////
-
-    class Gamma_ final : public Distribution
-    {
-    public:
-        /// Build with parametrizations:
-        /// - 0: shape-scale;
-        /// - 1: mean-sd.
-        Gamma_()
-            : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.)
+        /// Flat mass over the integers in [min, max].
+        class UniformDiscrete_ final : public Distribution
         {
-            alts_[0].name = "shape-scale";
-            register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
-        }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Gamma_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(gamma)
+        public:
+            UniformDiscrete_()
+                : Distribution({}, 0., 1.) { discr_mode_ = Discrete::Defined; }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(UniformDiscrete_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
 
-        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+            void discretize() override final {}
 
-    protected:
-        /// Effective (shape, scale) for the active parametrization.
-        std::pair<double, double> eff_params_() const
-        {
-            switch (alt_idx_)
+        private:
+            double norm_() const { return domain_.max.value() - domain_.min.value() + 1.; }
+
+        protected:
+            std::vector<const Attribute *> discrete_args_() const override final { return {&domain_.min, &domain_.max}; }
+
+            double raw_pdf_(double) const override final { return 1. / norm_(); }
+            double raw_cdf_(double x) const override final { return (x - domain_.min.value() + 1.) / norm_(); }
+            double raw_ccdf_(double x) const override final { return (domain_.max.value() - x) / norm_(); }
+            double raw_log_pdf_(double) const override final { return -log(norm_()); }
+            double raw_log_ratio_(double, double) const override final { return 0.; }
+            double raw_quantile_(double p) const override final { return domain_.min.value() + std::ceil(p * norm_()) - 1.; }
+            double raw_rand_(rnd_gen &prng) const override final
             {
-            case 1: // "mean-sd"
-            {
-                const double sd = arg(1), r = arg(0) / sd;
-                return {r * r, sd / r};
+                return std::uniform_int_distribution<long>(
+                    static_cast<long>(domain_.min.value()), static_cast<long>(domain_.max.value()))(prng);
             }
-            default: // case 0: "shape-scale"
-                return {arg(0), arg(1)};
-            }
-        }
+        };
+        HOUSEPI_REGISTER_FUNCTION(UniformDiscrete_, Discrete)
 
-        double raw_pdf_(double x) const override final
-        {
-            if (x != 0.)
-                return exp(raw_log_pdf_(x));
+        //////////////////////////////  Normal  //////////////////////////////
 
-            const auto [shape, scale] = eff_params_();
-            if (shape < 1.)
-                return inf::DOUBLE;
-            if (shape == 1.)
-                return exp(-log(scale) - lgamma(1));
-            return 0.;
-        }
-        double raw_cdf_(double x) const override final
+        class Normal_ final : public Distribution
         {
-            const auto [shape, scale] = eff_params_();
-            return boost::math::gamma_p(shape, x / scale, no_promote_policy{});
-        }
-        double raw_ccdf_(double x) const override final
-        {
-            const auto [shape, scale] = eff_params_();
-            return boost::math::gamma_q(shape, x / scale, no_promote_policy{});
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const auto [shape, scale] = eff_params_();
-            if (x == 0.)
+        public:
+            Normal_()
+                : Distribution({{"mean", 0.}, {"sd", 1.}}) {}
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Normal_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(normal)
+
+            void discretize() override final
             {
-                if (shape < 1.)
-                    return inf::DOUBLE;
-                if (shape == 1.)
-                    return -log(scale);
-                return -inf::DOUBLE;
+                discr_mode_ = domain_.min.is_empty() ? Discrete::Center : Discrete::Left;
             }
-            const double t = x / scale;
-            return shape * log(t) - log(x) - lgamma(shape) - t;
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            const auto [shape, scale] = eff_params_();
-            return (shape - 1.) * log(xn / xo) + (xo - xn) / scale;
-        }
-        double raw_quantile_(double p) const override final
-        {
-            const auto [shape, scale] = eff_params_();
-            return scale * boost::math::gamma_p_inv(shape, p, no_promote_policy{});
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            const auto [shape, scale] = eff_params_();
-            return std::gamma_distribution<double>(shape, scale)(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Gamma_, Continuous)
-
-    //////////////////////////////  Rayleigh  //////////////////////////////
-
-    class Rayleigh_ final : public Distribution
-    {
-    public:
-        Rayleigh_()
-            : Distribution({{"scale", 1.}}, 0.) {}
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Rayleigh_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(rayleigh)
-
-        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-    protected:
-        double raw_pdf_(double x) const override final
-        {
-            const double scale = arg(0);
-            const double scale2 = scale * scale;
-            return x * exp(-0.5 * x * x / scale2) / scale2;
-        }
-        double raw_cdf_(double x) const override final
-        {
-            const double scale = arg(0), z = 0.5 * x * x / (scale * scale);
-            return z < 0x1p-10 ? -expm1(-z) : 1. - exp(-z);
-        }
-        double raw_ccdf_(double x) const override final
-        {
-            const double scale = arg(0);
-            return exp(-0.5 * x * x / (scale * scale));
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double scale = arg(0);
-            const double scale2 = scale * scale;
-            return log(x / scale2) - 0.5 * x * x / scale2;
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            const double scale = arg(0);
-            return log(xn / xo) + 0.5 * (xo * xo - xn * xn) / (scale * scale);
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return arg(0) * sqrt(-2. * log1p(-p));
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return arg(0) * sqrt(-2 * log(standard_uniform(prng)));
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Rayleigh_, Continuous)
-
-    //////////////////////////////  Weibull  //////////////////////////////
-
-    class Weibull_ final : public Distribution
-    {
-    public:
-        Weibull_()
-            : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.) {}
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Weibull_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(weibull)
-
-        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-    protected:
-        double raw_pdf_(double x) const override final
-        {
-            const double shape = arg(0);
-            const double scale = arg(1);
-            const double z = x / scale;
-            return (shape / scale) * pow(z, shape - 1.) * exp(-pow(z, shape));
-        }
-        double raw_cdf_(double x) const override final
-        {
-            const double z = pow(x / arg(1), arg(0));
-            return z < 0x1p-10 ? -expm1(-z) : 1. - exp(-z);
-        }
-        double raw_ccdf_(double x) const override final
-        {
-            return exp(-pow(x / arg(1), arg(0)));
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double shape = arg(0);
-            const double scale = arg(1);
-            const double z = x / scale;
-            return log(shape / scale) + (shape - 1.) * log(z) - pow(z, shape);
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            const double shape = arg(0);
-            const double scale = arg(1);
-            return (shape - 1.) * log(xn / xo) + pow(xo / scale, shape) - pow(xn / scale, shape);
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return arg(1) * pow(-log1p(-p), 1. / arg(0));
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return arg(1) * pow(-log(standard_uniform(prng)), 1.0 / arg(0));
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Weibull_, Continuous)
-
-    //////////////////////////////  Exponential  //////////////////////////////
-
-    class Exponential_ final : public Distribution
-    {
-    public:
-        Exponential_()
-            : Distribution({{"rate", 1.}}, 0.) {}
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Exponential_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(exponential)
-
-        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
-
-    protected:
-        double raw_pdf_(double x) const override final
-        {
-            const double rate = arg(0);
-            return rate * exp(-rate * x);
-        }
-        double raw_cdf_(double x) const override final
-        {
-            const double z = arg(0) * x;
-            return z < 0x1p-10 ? -expm1(-z) : 1. - exp(-z);
-        }
-        double raw_ccdf_(double x) const override final
-        {
-            return exp(-arg(0) * x);
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double rate = arg(0);
-            return log(rate) - rate * x;
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            return arg(0) * (xo - xn);
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return -log1p(-p) / arg(0);
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return -log(standard_uniform(prng)) / arg(0);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Exponential_, Continuous)
-
-    //////////////////////////////  Poisson  //////////////////////////////
-
-    class Poisson_ final : public Distribution
-    {
-    public:
-        Poisson_()
-            : Distribution({{"lambda", na::DOUBLE}}, 0.) { discr_mode_ = Discrete::Defined; }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Poisson_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(poisson)
-
-        INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
-
-    protected:
-        double raw_pdf_(double x) const override final
-        {
-            return exp(raw_log_pdf_(x));
-        }
-        double raw_cdf_(double x) const override final
-        {
-            return 1. - boost::math::gamma_p(x + 1., arg(0), no_promote_policy{});
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double lambda = arg(0);
-            return x * log(lambda) - lambda - lgamma(x + 1.);
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            return (xn - xo) * log(arg(0)) + lgamma(xo + 1.) - lgamma(xn + 1.);
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return boost::math::quantile(
-                boost::math::poisson_distribution<double, discrete_up_policy>(arg(0)), p);
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return std::poisson_distribution<unsigned>(arg(0))(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Poisson_, Discrete)
-
-    //////////////////////////////  Binomial  //////////////////////////////
-
-    class Binomial_ final : public Distribution
-    {
-    public:
-        Binomial_()
-            : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
-        {
-            discr_mode_ = Discrete::Defined;
-            domain_.max.init_pointer(arguments_(0).pointer());
-            domain_.below = Interval::Closed;
-            domain_.above = Interval::Closed;
-        }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Binomial_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(binomial)
-
-        void discretize() override final {}
-        void truncate() override final
-        {
-            const double sx = domain_.min.value();
-            if (sx < 0.)
-                msg::stop(
-                    "Invoked invalid min value " + str::format(sx) +
-                    " for " + str() + ".");
-            if (sx > 0. || arguments_(0).pointer() != max().pointer())
+            void truncate() override final
             {
-                const double dx = domain_.min.value();
-                if (dx > arg(0))
-                    msg::stop(
-                        "Invoked invalid max value " + str::format(dx) +
-                        " for " + str() + " with size " + std::to_string(arg(0)) + ".");
                 helper_init_standard_domain_();
                 helper_init_distr_truncation_();
             }
-        }
 
-    protected:
-        /// `size` counts trials.
-        std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
+        protected:
+            double raw_pdf_(double x) const override final
+            {
+                const double sd = arg(1);
+                const double z = (x - arg(0)) / sd;
+                return M_1_SQRT_2PI * exp(-0.5 * z * z) / sd;
+            }
+            double raw_cdf_(double x) const override final
+            {
+                return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - x) / arg(1));
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                return 0.5 * std::erfc(M_SQRT1_2 * (x - arg(0)) / arg(1));
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double sd = arg(1);
+                const double z = (x - arg(0)) / sd;
+                return -0.5 * z * z - M_LN_SQRT_2PI - log(sd);
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                const double sd = arg(1);
+                return (0.5 * (xo * xo - xn * xn) + (xn - xo) * arg(0)) / (sd * sd);
+            }
+            double raw_quantile_(double p) const override final
+            {
+                return arg(0) + arg(1) * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2;
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return arg(0) + arg(1) * standard_normal(prng);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Normal_, Continuous)
 
-        double raw_pdf_(double x) const override final
-        {
-            const double size = arg(0);
-            const double prob = arg(1);
-            return exp(log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob));
-        }
-        double raw_cdf_(double x) const override final
-        {
-            const double size = arg(0);
-            if (x > size)
-                return 1.;
-            return boost::math::ibeta(size - x, x + 1, 1. - arg(1), no_promote_policy{});
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double size = arg(0);
-            const double prob = arg(1);
-            return log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob);
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            const double prob = arg(1);
-            return logratio_binom_coeff(arg(0), xo, xn) + (xn - xo) * log(prob / (1. - prob));
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return boost::math::quantile(
-                boost::math::binomial_distribution<double, discrete_up_policy>(arg(0), arg(1)), p);
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Binomial_, Discrete)
+        //////////////////////////////  Lognormal  //////////////////////////////
 
-    //////////////////////////////  NegativeBinomial  //////////////////////////////
+        /// Lognormal distribution.
+        class Lognormal_ final : public Distribution
+        {
+        public:
+            /// Build with parametrizations:
+            /// - 0: meanlog-sdlog;
+            /// - 1: mean-sd.
+            Lognormal_()
+                : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.)
+            {
+                alts_[0].name = "meanlog-sdlog";
+                register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
+            }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(lognormal)
 
-    class NegativeBinomial_ final : public Distribution
-    {
-    public:
-        NegativeBinomial_()
-            : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.) { discr_mode_ = Discrete::Defined; }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(NegativeBinomial_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(negative_binomial)
+            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
-        INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+        protected:
+            /// Effective (meanlog, sdlog) for the active parametrization.
+            std::pair<double, double> eff_params_() const
+            {
+                switch (alt_idx_)
+                {
+                case 1: // "mean-sd"
+                {
+                    const double m = arg(0), r = arg(1) / m;
+                    const double v = log1p(r * r);
+                    return {log(m) - 0.5 * v, sqrt(v)};
+                }
+                default: // case 0: "meanlog-sdlog"
+                    return {arg(0), arg(1)};
+                }
+            }
 
-    protected:
-        /// `size` counts successes: the binomial coefficient truncates it to an integer.
-        std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
+            double raw_pdf_(double x) const override final
+            {
+                if (x == 0.)
+                    return 0.;
 
-        double raw_pdf_(double x) const override final
-        {
-            const double size = arg(0);
-            const double prob = arg(1);
-            return exp(log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob));
-        }
-        double raw_cdf_(double x) const override final
-        {
-            return boost::math::ibeta(arg(0), x + 1., arg(1));
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double size = arg(0);
-            const double prob = arg(1);
-            return log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob);
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            const double size = arg(0);
-            const double prob = arg(1);
-            return lgamma(xn + size) + lgamma(xo + 1) - lgamma(xo + size) - lgamma(xn + 1) + (xn - xo) * log1p(-prob);
-        }
-        double raw_quantile_(double p) const override final
-        {
-            return boost::math::quantile(
-                boost::math::negative_binomial_distribution<double, discrete_up_policy>(arg(0), arg(1)), p);
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(NegativeBinomial_, Discrete)
+                const auto [meanlog, sdlog] = eff_params_();
+                const double z = (log(x) - meanlog) / sdlog;
+                return exp(-0.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
+            }
+            double raw_cdf_(double x) const override final
+            {
+                const auto [meanlog, sdlog] = eff_params_();
+                return 0.5 * std::erfc(M_SQRT1_2 * (meanlog - log(x)) / sdlog);
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                const auto [meanlog, sdlog] = eff_params_();
+                return 0.5 * std::erfc(M_SQRT1_2 * (log(x) - meanlog) / sdlog);
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                if (x == 0.)
+                    return -inf::DOUBLE;
 
-    //////////////////////////////  Geometric  //////////////////////////////
+                const auto [meanlog, sdlog] = eff_params_();
+                const double z = (log(x) - meanlog) / sdlog;
+                return -0.5 * z * z - log(x * sdlog) - M_LN_SQRT_2PI;
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                // the origin carries no density: the ratio saturates
+                if (xo == 0. || xn == 0.)
+                    return std::copysign(inf::DOUBLE, xn - xo);
 
-    class Geometric_ final : public Distribution
-    {
-    public:
-        Geometric_()
-            : Distribution({{"prob", na::DOUBLE}}, 0.) { discr_mode_ = Discrete::Defined; }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Geometric_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(geometric)
+                const auto [meanlog, sdlog] = eff_params_();
+                const double lxo = log(xo);
+                const double lxn = log(xn);
+                return (0.5 * (lxo * lxo - lxn * lxn) + (lxn - lxo) * meanlog) / (sdlog * sdlog) + lxo - lxn;
+            }
+            double raw_quantile_(double p) const override final
+            {
+                const auto [meanlog, sdlog] = eff_params_();
+                return exp(meanlog + sdlog * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2);
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                const auto [meanlog, sdlog] = eff_params_();
+                return exp(meanlog + sdlog * standard_normal(prng));
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Lognormal_, Continuous)
 
-        INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+        //////////////////////////////  Beta  //////////////////////////////
 
-    protected:
-        double raw_pdf_(double x) const override final
+        class Beta_ final : public Distribution
         {
-            const double prob = arg(0);
-            return prob * exp(x * log1p(-prob));
-        }
-        double raw_cdf_(double x) const override final
-        {
-            return 1. - exp((x + 1) * log1p(-arg(0)));
-        }
-        double raw_log_pdf_(double x) const override final
-        {
-            const double prob = arg(0);
-            return log(prob) + x * log1p(-prob);
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
-        {
-            return (xn - xo) * log1p(-arg(0));
-        }
-        double raw_quantile_(double p) const override final
-        {
-            p *= 1. - 64. * std::numeric_limits<double>::epsilon();
-            return std::ceil(log1p(-p) / log1p(-arg(0)) - 1.);
-        }
-        double raw_rand_(rnd_gen &prng) const override final
-        {
-            return std::geometric_distribution<unsigned>(arg(0))(prng);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Geometric_, Discrete)
+        public:
+            Beta_()
+                : Distribution({{"shape1", na::DOUBLE}, {"shape2", na::DOUBLE}}, 0., 1.)
+            {
+                domain_.below = Interval::Open;
+                domain_.above = Interval::Open;
+            }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Beta_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(beta)
 
-    //////////////////////////////  Categorical  //////////////////////////////
-
-    class Categorical_ final : public Distribution
-    {
-    public:
-        Categorical_() : Distribution() { discr_mode_ = Discrete::Defined; }
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Categorical_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(categorical)
-
-        void discretize() override final {}
-        void truncate() override final
-        {
-            const size_t cases = n_args();
-            if (cases == 0)
+            void discretize() override final
+            {
                 msg::stop(
-                    "Invoked " + str() + " with no weights.\nProvide at least one weight.");
+                    "Invoked invalid option discrete for " + str() + ".");
+            }
+            void truncate() override final
+            {
+                const double sx = domain_.min.value();
+                const double dx = domain_.max.value();
+                if (sx < 0)
+                    msg::stop(
+                        "Invoked invalid min value " + str::format(sx) + " for " + str() + ".");
+                if (dx > 1)
+                    msg::stop(
+                        "Invoked invalid max value " + str::format(dx) + " for " + str() + ".");
+                if (sx > 0 || dx < 1)
+                {
+                    helper_init_standard_domain_(sx == 0, dx == 1);
+                    helper_init_distr_truncation_();
+                }
+            }
 
-            if (norm_() <= 0.)
-                msg::stop(
-                    "Invoked " + str() + " with weights summing to non-strictly positive value.");
+        protected:
+            double raw_pdf_(double x) const override final
+            {
+                const double alpha = arg(0);
+                const double beta = arg(1);
+                return exp((alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta));
+            }
+            double raw_cdf_(double x) const override final
+            {
+                return boost::math::ibeta(arg(0), arg(1), x, no_promote_policy{});
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                return boost::math::ibetac(arg(0), arg(1), x, no_promote_policy{});
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double alpha = arg(0);
+                const double beta = arg(1);
+                return (alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta);
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                return (arg(0) - 1.) * log(xn / xo) + (arg(1) - 1.) * log((1. - xn) / (1. - xo));
+            }
+            double raw_quantile_(double p) const override final
+            {
+                return boost::math::ibeta_inv(arg(0), arg(1), p, no_promote_policy{});
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Beta_, Continuous)
 
-            domain_.min.init_numeric(0.);
-            domain_.max.init_numeric(static_cast<double>(cases - 1));
-            domain_.below = Interval::Closed;
-            domain_.above = Interval::Closed;
-        }
+        //////////////////////////////  Gamma  //////////////////////////////
 
-    private:
-        double norm_() const
+        class Gamma_ final : public Distribution
         {
-            double z = 0.;
-            for (size_t i = 0; i < n_args(); ++i)
-                z += arg(i);
-            return z;
-        }
+        public:
+            /// Build with parametrizations:
+            /// - 0: shape-scale;
+            /// - 1: mean-sd.
+            Gamma_()
+                : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.)
+            {
+                alts_[0].name = "shape-scale";
+                register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
+            }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Gamma_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(gamma)
 
-    protected:
-        Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
+            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
-        double raw_pdf_(double x) const override final
+        protected:
+            /// Effective (shape, scale) for the active parametrization.
+            std::pair<double, double> eff_params_() const
+            {
+                switch (alt_idx_)
+                {
+                case 1: // "mean-sd"
+                {
+                    const double sd = arg(1), r = arg(0) / sd;
+                    return {r * r, sd / r};
+                }
+                default: // case 0: "shape-scale"
+                    return {arg(0), arg(1)};
+                }
+            }
+
+            double raw_pdf_(double x) const override final
+            {
+                if (x != 0.)
+                    return exp(raw_log_pdf_(x));
+
+                const auto [shape, scale] = eff_params_();
+                if (shape < 1.)
+                    return inf::DOUBLE;
+                if (shape == 1.)
+                    return exp(-log(scale) - lgamma(1));
+                return 0.;
+            }
+            double raw_cdf_(double x) const override final
+            {
+                const auto [shape, scale] = eff_params_();
+                return boost::math::gamma_p(shape, x / scale, no_promote_policy{});
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                const auto [shape, scale] = eff_params_();
+                return boost::math::gamma_q(shape, x / scale, no_promote_policy{});
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const auto [shape, scale] = eff_params_();
+                if (x == 0.)
+                {
+                    if (shape < 1.)
+                        return inf::DOUBLE;
+                    if (shape == 1.)
+                        return -log(scale);
+                    return -inf::DOUBLE;
+                }
+                const double t = x / scale;
+                return shape * log(t) - log(x) - lgamma(shape) - t;
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                const auto [shape, scale] = eff_params_();
+                return (shape - 1.) * log(xn / xo) + (xo - xn) / scale;
+            }
+            double raw_quantile_(double p) const override final
+            {
+                const auto [shape, scale] = eff_params_();
+                return scale * boost::math::gamma_p_inv(shape, p, no_promote_policy{});
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                const auto [shape, scale] = eff_params_();
+                return std::gamma_distribution<double>(shape, scale)(prng);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Gamma_, Continuous)
+
+        //////////////////////////////  Rayleigh  //////////////////////////////
+
+        class Rayleigh_ final : public Distribution
         {
-            return arg(static_cast<size_t>(x)) / norm_();
-        }
-        double raw_log_pdf_(double x) const override final
+        public:
+            Rayleigh_()
+                : Distribution({{"scale", 1.}}, 0.) {}
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Rayleigh_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(rayleigh)
+
+            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+        protected:
+            double raw_pdf_(double x) const override final
+            {
+                const double scale = arg(0);
+                const double scale2 = scale * scale;
+                return x * exp(-0.5 * x * x / scale2) / scale2;
+            }
+            double raw_cdf_(double x) const override final
+            {
+                const double scale = arg(0);
+                return -math::expm1(-0.5 * x * x / (scale * scale));
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                const double scale = arg(0);
+                return exp(-0.5 * x * x / (scale * scale));
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double scale = arg(0);
+                const double scale2 = scale * scale;
+                return log(x / scale2) - 0.5 * x * x / scale2;
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                const double scale = arg(0);
+                return log(xn / xo) + 0.5 * (xo * xo - xn * xn) / (scale * scale);
+            }
+            double raw_quantile_(double p) const override final
+            {
+                return arg(0) * sqrt(-2. * log1p(-p));
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return arg(0) * sqrt(-2 * log(standard_uniform(prng)));
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Rayleigh_, Continuous)
+
+        //////////////////////////////  Weibull  //////////////////////////////
+
+        class Weibull_ final : public Distribution
         {
-            return log(arg(static_cast<size_t>(x))) - log(norm_());
-        }
-        double raw_cdf_(double x) const override final
+        public:
+            Weibull_()
+                : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.) {}
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Weibull_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(weibull)
+
+            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+        protected:
+            double raw_pdf_(double x) const override final
+            {
+                const double shape = arg(0);
+                const double scale = arg(1);
+                const double z = x / scale;
+                return (shape / scale) * pow(z, shape - 1.) * exp(-pow(z, shape));
+            }
+            double raw_cdf_(double x) const override final
+            {
+                return -math::expm1(-pow(x / arg(1), arg(0)));
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                return exp(-pow(x / arg(1), arg(0)));
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double shape = arg(0);
+                const double scale = arg(1);
+                const double z = x / scale;
+                return log(shape / scale) + (shape - 1.) * log(z) - pow(z, shape);
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                const double shape = arg(0);
+                const double scale = arg(1);
+                return (shape - 1.) * log(xn / xo) + pow(xo / scale, shape) - pow(xn / scale, shape);
+            }
+            double raw_quantile_(double p) const override final
+            {
+                return arg(1) * pow(-log1p(-p), 1. / arg(0));
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return arg(1) * pow(-log(standard_uniform(prng)), 1.0 / arg(0));
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Weibull_, Continuous)
+
+        //////////////////////////////  Exponential  //////////////////////////////
+
+        class Exponential_ final : public Distribution
         {
-            const size_t k = static_cast<size_t>(x);
-            double acc = 0.;
-            for (size_t i = 0; i <= k; ++i)
-                acc += arg(i);
-            return acc / norm_();
-        }
-        double raw_log_ratio_(double xo, double xn) const override final
+        public:
+            Exponential_()
+                : Distribution({{"rate", 1.}}, 0.) {}
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Exponential_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(exponential)
+
+            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+
+        protected:
+            double raw_pdf_(double x) const override final
+            {
+                const double rate = arg(0);
+                return rate * exp(-rate * x);
+            }
+            double raw_cdf_(double x) const override final
+            {
+                return -math::expm1(-arg(0) * x);
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                return exp(-arg(0) * x);
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double rate = arg(0);
+                return log(rate) - rate * x;
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                return arg(0) * (xo - xn);
+            }
+            double raw_quantile_(double p) const override final
+            {
+                return -log1p(-p) / arg(0);
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return -log(standard_uniform(prng)) / arg(0);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Exponential_, Continuous)
+
+        //////////////////////////////  Poisson  //////////////////////////////
+
+        class Poisson_ final : public Distribution
         {
-            return log(arg(static_cast<size_t>(xn))) - log(arg(static_cast<size_t>(xo)));
-        }
-        double raw_quantile_(double p) const override final
+        public:
+            Poisson_()
+                : Distribution({{"lambda", na::DOUBLE}}, 0.)
+            {
+                discr_mode_ = Discrete::Defined;
+            }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Poisson_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(poisson)
+
+            INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+
+        protected:
+            double raw_pdf_(double x) const override final
+            {
+                return exp(raw_log_pdf_(x));
+            }
+            double raw_cdf_(double x) const override final
+            {
+                return boost::math::gamma_q(x + 1., arg(0), no_promote_policy{});
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                return boost::math::gamma_p(x + 1., arg(0), no_promote_policy{});
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double lambda = arg(0);
+                return x * log(lambda) - lambda - lgamma(x + 1.);
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                return (xn - xo) * log(arg(0)) + lgamma(xo + 1.) - lgamma(xn + 1.);
+            }
+            double raw_quantile_(double p) const override final
+            {
+                return boost::math::quantile(
+                    boost::math::poisson_distribution<double, discrete_up_policy>(arg(0)), p);
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return std::poisson_distribution<unsigned>(arg(0))(prng);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Poisson_, Discrete)
+
+        //////////////////////////////  Binomial  //////////////////////////////
+
+        class Binomial_ final : public Distribution
         {
-            const size_t cases = n_args();
-            const double target = p * norm_();
-            size_t i = 0;
-            double acc = arg(0);
-            while (i < cases && acc < target)
-                acc += arg(++i);
-            return static_cast<double>(i);
-        }
-        double raw_rand_(rnd_gen &prng) const override final
+        public:
+            Binomial_()
+                : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
+            {
+                discr_mode_ = Discrete::Defined;
+                domain_.max.init_pointer(arguments_(0).pointer());
+                domain_.below = Interval::Closed;
+                domain_.above = Interval::Closed;
+            }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Binomial_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(binomial)
+
+            void discretize() override final {}
+            void truncate() override final
+            {
+                const double sx = domain_.min.value();
+                if (sx < 0.)
+                    msg::stop(
+                        "Invoked invalid min value " + str::format(sx) +
+                        " for " + str() + ".");
+                if (sx > 0. || arguments_(0).pointer() != max().pointer())
+                {
+                    const double dx = domain_.min.value();
+                    if (dx > arg(0))
+                        msg::stop(
+                            "Invoked invalid max value " + str::format(dx) +
+                            " for " + str() + " with size " + std::to_string(arg(0)) + ".");
+                    helper_init_standard_domain_();
+                    helper_init_distr_truncation_();
+                }
+            }
+
+        protected:
+            /// `size` counts trials.
+            std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
+
+            double raw_pdf_(double x) const override final
+            {
+                const double size = arg(0);
+                const double prob = arg(1);
+                return exp(log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob));
+            }
+            double raw_cdf_(double x) const override final
+            {
+                const double size = arg(0);
+                if (x > size)
+                    return 1.;
+                return boost::math::ibeta(size - x, x + 1, 1. - arg(1), no_promote_policy{});
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                const double size = arg(0);
+                if (x >= size)
+                    return 0.;
+                return boost::math::ibeta(x + 1, size - x, arg(1), no_promote_policy{});
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double size = arg(0);
+                const double prob = arg(1);
+                return log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob);
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                const double prob = arg(1);
+                return logratio_binom_coeff(arg(0), xo, xn) + (xn - xo) * log(prob / (1. - prob));
+            }
+            double raw_quantile_(double p) const override final
+            {
+                return boost::math::quantile(
+                    boost::math::binomial_distribution<double, discrete_up_policy>(arg(0), arg(1)), p);
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Binomial_, Discrete)
+
+        //////////////////////////////  NegativeBinomial  //////////////////////////////
+
+        class NegativeBinomial_ final : public Distribution
         {
-            const size_t cases = n_args();
-            const double target = standard_uniform(prng) * norm_();
-            size_t i = 0;
-            double acc = arg(0);
-            while (i < cases && acc < target)
-                acc += arg(++i);
-            return static_cast<double>(i);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Categorical_, Discrete)
+        public:
+            NegativeBinomial_()
+                : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
+            {
+                discr_mode_ = Discrete::Defined;
+            }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(NegativeBinomial_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(negative_binomial)
 
-    //////////////////////////////  Ferretti20  //////////////////////////////
+            INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
-    /// Infectivity profile as the distribution of the time from symptom onset to transmission.
-    /// Based on @cite ferretti_timing_2020
-    ///
-    /// - `t_ost`: time of infection of the infectee minus time of onset of the infector;
-    /// - `t_ost` negative: pre-symptomatic transmission;
-    /// - skew-logistic distribution, generalized logistic type I;
-    /// - pre-symptomatic values rescaled according to the incubation periods.
-    ///
-    /// Arguments, in order:
-    /// - `shape`, `scale`;
-    /// - `c_loc`: custom location;
-    /// - `mean_incub`: mean incubation period;
-    /// - `incub_period`: individual incubation period.
-    class Ferretti20_ final : public Distribution
-    {
-    public:
-        Ferretti20_()
-            : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", na::DOUBLE}}, 0.) {}
-        HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Ferretti20_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(ferretti20)
+        protected:
+            /// `size` counts successes: the binomial coefficient truncates it to an integer.
+            std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
 
-        INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+            double raw_pdf_(double x) const override final
+            {
+                const double size = arg(0);
+                const double prob = arg(1);
+                return exp(log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob));
+            }
+            double raw_cdf_(double x) const override final
+            {
+                return boost::math::ibeta(arg(0), x + 1., arg(1), no_promote_policy{});
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                return boost::math::ibetac(arg(0), x + 1., arg(1), no_promote_policy{});
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double size = arg(0);
+                const double prob = arg(1);
+                return log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob);
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                const double size = arg(0);
+                const double prob = arg(1);
+                return lgamma(xn + size) + lgamma(xo + 1) - lgamma(xo + size) - lgamma(xn + 1) + (xn - xo) * log1p(-prob);
+            }
+            double raw_quantile_(double p) const override final
+            {
+                return boost::math::quantile(
+                    boost::math::negative_binomial_distribution<double, discrete_up_policy>(arg(0), arg(1)), p);
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(NegativeBinomial_, Discrete)
 
-    protected:
-        double raw_rand_(rnd_gen & /*prng*/) const override final { raise_undefined_call_err_("rand"); }
-        double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { raise_undefined_call_err_("log_ratio"); }
-        double raw_pdf_(double x) const override final
+        //////////////////////////////  Geometric  //////////////////////////////
+
+        class Geometric_ final : public Distribution
         {
-            const double a = arg(0);   // 'shape'
-            const double s = arg(1);   // 'scale'
-            const double m = arg(2);   // 'c_loc'
-            const double T = arg(3);   // 'mean_incub'
-            const double i = arg(4);   // 'incub_period'
-            const double tOST = x - i; // time from onset to transmission
-            const double iT = i / T;   // re-scaled incubation period
+        public:
+            Geometric_()
+                : Distribution({{"prob", na::DOUBLE}}, 0.)
+            {
+                discr_mode_ = Discrete::Defined;
+            }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Geometric_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(geometric)
 
-            const double norm_pdf =
-                (s / a) * (1. + (iT - 1.) * pow(1 + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a));
+            INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
-            const double emOSTs = exp((m - (tOST < 0. ? tOST / iT : tOST)) / s);
-            return emOSTs * pow(1. + emOSTs, -a - 1.) / norm_pdf;
-        }
-        double raw_log_pdf_(double x) const override final
+        private:
+            /// Shrink of `p` keeping an accurate cumulative atom on its own quantile.
+            static constexpr double quantile_shrink_ = 1. - 2. * std::numeric_limits<double>::epsilon();
+
+        protected:
+            double raw_pdf_(double x) const override final
+            {
+                const double prob = arg(0);
+                return prob * exp(x * log1p(-prob));
+            }
+            double raw_cdf_(double x) const override final
+            {
+                return -math::expm1((x + 1.) * log1p(-arg(0)));
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                return exp((x + 1.) * log1p(-arg(0)));
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double prob = arg(0);
+                return log(prob) + x * log1p(-prob);
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                return (xn - xo) * log1p(-arg(0));
+            }
+            double raw_quantile_(double p) const override final
+            {
+                // closed form overshoots by one where the cumulative rounds below `p`: step back
+                const double k = std::ceil(log1p(-p * quantile_shrink_) / log1p(-arg(0)) - 1.);
+                return k > 0. && raw_cdf_(k - 1.) >= p ? k - 1. : k;
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                return std::geometric_distribution<unsigned>(arg(0))(prng);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Geometric_, Discrete)
+
+        //////////////////////////////  Categorical  //////////////////////////////
+
+        class Categorical_ final : public Distribution
         {
-            const double a = arg(0);   // 'shape'
-            const double s = arg(1);   // 'scale'
-            const double m = arg(2);   // 'c_loc'
-            const double T = arg(3);   // 'mean_incub'
-            const double i = arg(4);   // 'incub_period'
-            const double tOST = x - i; // time from onset to transmission
-            const double iT = i / T;   // re-scaled incubation period
+        public:
+            Categorical_() : Distribution()
+            {
+                discr_mode_ = Discrete::Defined;
+            }
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Categorical_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(categorical)
 
-            const double log_norm = log(
-                (s / a) * (1. + (iT - 1.) * pow(1. + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a)));
+            void discretize() override final {}
+            void truncate() override final
+            {
+                const size_t cases = n_args();
+                if (cases == 0)
+                    msg::stop(
+                        "Invoked " + str() + " with no weights.\nProvide at least one weight.");
 
-            const double mOSTs = (m - (tOST < 0. ? tOST / iT : tOST)) / s;
-            return mOSTs - (a + 1.) * log1p(exp(mOSTs)) - log_norm;
-        }
-        double raw_cdf_(double x) const override final
+                if (norm_() <= 0.)
+                    msg::stop(
+                        "Invoked " + str() + " with weights summing to non-strictly positive value.");
+
+                domain_.min.init_numeric(0.);
+                domain_.max.init_numeric(static_cast<double>(cases - 1));
+                domain_.below = Interval::Closed;
+                domain_.above = Interval::Closed;
+            }
+
+        private:
+            double norm_() const
+            {
+                double z = 0.;
+                for (size_t i = 0; i < n_args(); ++i)
+                    z += arg(i);
+                return z;
+            }
+
+        protected:
+            Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
+
+            double raw_pdf_(double x) const override final
+            {
+                return arg(static_cast<size_t>(x)) / norm_();
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                return log(arg(static_cast<size_t>(x))) - log(norm_());
+            }
+            double raw_cdf_(double x) const override final
+            {
+                const size_t k = static_cast<size_t>(x);
+                double acc = 0.;
+                for (size_t i = 0; i <= k; ++i)
+                    acc += arg(i);
+                return acc / norm_();
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                double acc = 0.;
+                for (size_t i = static_cast<size_t>(x) + 1; i < n_args(); ++i)
+                    acc += arg(i);
+                return acc / norm_();
+            }
+            double raw_log_ratio_(double xo, double xn) const override final
+            {
+                return log(arg(static_cast<size_t>(xn))) - log(arg(static_cast<size_t>(xo)));
+            }
+            double raw_quantile_(double p) const override final
+            {
+                const size_t cases = n_args();
+                const double target = p * norm_();
+                size_t i = 0;
+                double acc = arg(0);
+                while (i < cases && acc < target)
+                    acc += arg(++i);
+                return static_cast<double>(i);
+            }
+            double raw_rand_(rnd_gen &prng) const override final
+            {
+                const size_t cases = n_args();
+                const double target = standard_uniform(prng) * norm_();
+                size_t i = 0;
+                double acc = arg(0);
+                while (i < cases && acc < target)
+                    acc += arg(++i);
+                return static_cast<double>(i);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Categorical_, Discrete)
+
+        //////////////////////////////  Ferretti20  //////////////////////////////
+
+        /// Infectivity profile as the distribution of the time from symptom onset to transmission.
+        /// Based on @cite ferretti_timing_2020
+        ///
+        /// - `t_ost`: time of infection of the infectee minus time of onset of the infector;
+        /// - `t_ost` negative: pre-symptomatic transmission;
+        /// - skew-logistic distribution, generalized logistic type I;
+        /// - pre-symptomatic values rescaled according to the incubation periods.
+        ///
+        /// Arguments, in order:
+        /// - `shape`, `scale`;
+        /// - `c_loc`: custom location;
+        /// - `mean_incub`: mean incubation period;
+        /// - `incub_period`: individual incubation period.
+        class Ferretti20_ final : public Distribution
         {
-            const double a = arg(0);   // 'shape'
-            const double s = arg(1);   // 'scale'
-            const double m = arg(2);   // 'c_loc'
-            const double T = arg(3);   // 'mean_incub'
-            const double i = arg(4);   // 'incub_period'
-            const double tOST = x - i; // time from onset to transmission
-            const double iT = i / T;   // re-scaled incubation period
+        public:
+            Ferretti20_()
+                : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", na::DOUBLE}}, 0.) {}
+            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Ferretti20_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(ferretti20)
 
-            const double pema = pow(1. + exp(m / s), -a);
-            const double pemTSa = pow(1. + exp((m + T) / s), -a);
-            const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
+            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
-            if (tOST < 0) // integrate from -incub_period to tOST
-                return iT * (pow(1. + exp((m - tOST / iT) / s), -a) - pemTSa) / norm_cdf;
+        protected:
+            double raw_rand_(rnd_gen & /*prng*/) const override final { raise_undefined_call_err_("rand"); }
+            double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { raise_undefined_call_err_("log_ratio"); }
+            double raw_quantile_(double /*p*/) const override final { raise_undefined_call_err_("quantile"); }
+            double raw_pdf_(double x) const override final
+            {
+                const double a = arg(0);   // 'shape'
+                const double s = arg(1);   // 'scale'
+                const double m = arg(2);   // 'c_loc'
+                const double T = arg(3);   // 'mean_incub'
+                const double i = arg(4);   // 'incub_period'
+                const double tOST = x - i; // time from onset to transmission
+                const double iT = i / T;   // re-scaled incubation period
 
-            // integrate from -incub_period to 0
-            const double F0 = iT * (pema - pemTSa);
-            // integrate from 0 to tOST
-            return (F0 + pow(1. + exp((m - tOST) / s), -a) - pema) / norm_cdf;
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Ferretti20_, InfecProfile)
+                const double norm_pdf =
+                    (s / a) * (1. + (iT - 1.) * pow(1 + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a));
+
+                const double emOSTs = exp((m - (tOST < 0. ? tOST / iT : tOST)) / s);
+                return emOSTs * pow(1. + emOSTs, -a - 1.) / norm_pdf;
+            }
+            double raw_log_pdf_(double x) const override final
+            {
+                const double a = arg(0);   // 'shape'
+                const double s = arg(1);   // 'scale'
+                const double m = arg(2);   // 'c_loc'
+                const double T = arg(3);   // 'mean_incub'
+                const double i = arg(4);   // 'incub_period'
+                const double tOST = x - i; // time from onset to transmission
+                const double iT = i / T;   // re-scaled incubation period
+
+                const double log_norm = log(
+                    (s / a) * (1. + (iT - 1.) * pow(1. + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a)));
+
+                const double mOSTs = (m - (tOST < 0. ? tOST / iT : tOST)) / s;
+                return mOSTs - (a + 1.) * log1p(exp(mOSTs)) - log_norm;
+            }
+            double raw_cdf_(double x) const override final
+            {
+                const double a = arg(0);   // 'shape'
+                const double s = arg(1);   // 'scale'
+                const double m = arg(2);   // 'c_loc'
+                const double T = arg(3);   // 'mean_incub'
+                const double i = arg(4);   // 'incub_period'
+                const double tOST = x - i; // time from onset to transmission
+                const double iT = i / T;   // re-scaled incubation period
+
+                const double pema = pow(1. + exp(m / s), -a);
+                const double pemTSa = pow(1. + exp((m + T) / s), -a);
+                const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
+
+                if (tOST < 0) // integrate from -incub_period to tOST
+                    return iT * (pow(1. + exp((m - tOST / iT) / s), -a) - pemTSa) / norm_cdf;
+
+                // integrate from -incub_period to 0
+                const double F0 = iT * (pema - pemTSa);
+                // integrate from 0 to tOST
+                return (F0 + pow(1. + exp((m - tOST) / s), -a) - pema) / norm_cdf;
+            }
+            double raw_ccdf_(double x) const override final
+            {
+                const double a = arg(0);   // 'shape'
+                const double s = arg(1);   // 'scale'
+                const double m = arg(2);   // 'c_loc'
+                const double T = arg(3);   // 'mean_incub'
+                const double i = arg(4);   // 'incub_period'
+                const double tOST = x - i; // time from onset to transmission
+                const double iT = i / T;   // re-scaled incubation period
+
+                const double pema = pow(1. + exp(m / s), -a);
+                const double pemTSa = pow(1. + exp((m + T) / s), -a);
+                const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
+
+                if (tOST < 0) // integrate from tOST to infinity
+                    return (1. + (iT - 1.) * pema - iT * pow(1. + exp((m - tOST / iT) / s), -a)) / norm_cdf;
+
+                // integrate from tOST to infinity, 1 - (1 + exp((m - tOST) / s))^-a without cancellation
+                return -math::expm1(-a * log1p(exp((m - tOST) / s))) / norm_cdf;
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Ferretti20_, InfecProfile)
+    }
 }

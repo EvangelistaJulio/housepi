@@ -695,6 +695,28 @@ test_that("Discretized laws keep their mass far in the lower tail", {
   expect_head_exact("rayleigh", list(scale = 1e9), "rayleigh", 0:5)
 })
 
+test_that("Geometric cumulative keeps its mass below the machine epsilon", {
+  # `1 - (1 - prob)^(x + 1)` rounds to 0
+  distr <- browse_distributions("geometric", prob = 1e-17)
+  distr$cdf(0:5) |> expect_equal(pgeom(0:5, 1e-17))
+})
+
+test_that("Geometric quantile is left-continuous at the cumulative atoms", {
+  # atoms up to `1 - cdf` near 1e-14, where `p` resolves single masses
+  distr <- browse_distributions("geometric", prob = 0.01)
+  distr$quantile(distr$cdf(0:3000)) |> expect_identical(as.double(0:3000))
+  distr$quantile(pgeom(0:3000, 0.01)) |> expect_identical(as.double(0:3000))
+  # a tiny probability, where the cumulative loses relative precision
+  distr_2 <- browse_distributions("geometric", prob = 1e-6)
+  distr_2$quantile(distr_2$cdf(0:2000)) |> expect_identical(as.double(0:2000))
+})
+
+test_that("Poisson cumulative keeps its mass below the machine epsilon", {
+  # `1 - P(X > x)` rounds to 0
+  distr <- browse_distributions("poisson", lambda = 100)
+  distr$cdf(0:5) |> expect_equal(ppois(0:5, 100))
+})
+
 test_that("rand() draws are reproducible and statistically plausible", {
   d <- browse_distributions("normal", mean = 2, sd = 3)
   set.seed(42L)
@@ -908,6 +930,30 @@ test_that("Ferretti20 infectivity profile integrates and discretizes", {
   profile$inst(x) |> expect_all_equal(profile$cumul(1))
   profile$is_discrete |> expect_true()
   profile$domain |> expect_equal(interval("[1, Inf)"))
+})
+
+test_that("Discretized Ferretti20 stays finite far in the upper tail", {
+  # default shape, scale, c_loc and mean_incub, incubation period of 5 days
+  a <- 5.85
+  s <- 1.85
+  m <- -4
+  i_t <- 5 / 5.42
+  pema <- (1 + exp(m / s))^-a
+  norm <- 1 + (i_t - 1) * pema - i_t * (1 + exp((m + 5.42) / s))^-a
+  # complementary cumulative after onset, 1 - (1 + exp((m - t) / s))^-a
+  ccdf <- function(x) -expm1(-a * log1p(exp((m - x + 5) / s))) / norm
+
+  distr <- browse_infectivity_profiles("ferretti20", incub_period = 5)
+  (1 - distr$cumul(seq(5, 20, 0.5))) |> expect_equal(ccdf(seq(5, 20, 0.5)))
+
+  # bins whose cumulatives round to the same double,
+  # masses renormalized over the discretized domain [1, Inf)
+  x <- seq(70, 120, 5)
+  distr_2 <- browse_infectivity_profiles("ferretti20",
+                                         incub_period = 5, discr = TRUE)
+  (distr$cumul(x + 1) == distr$cumul(x)) |> expect_all_true()
+  log(distr_2$inst(x)) |>
+    expect_equal(log(ccdf(x) - ccdf(x + 1)) - log1p(-distr$cumul(1)))
 })
 
 ####################################

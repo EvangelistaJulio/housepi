@@ -157,7 +157,7 @@ public:
 			const double survived = aug(Latent::infec_time, indiv_i) - 1. - t_intro;
 			if (survived > 0.)
 				roi_cumul_i += a_i * survived;
-			output += std::log(1. - std::exp(-roi_inst_i)) - roi_cumul_i;
+			output += math::log1mexp(roi_inst_i) - roi_cumul_i;
 #else
 			roi_cumul_i += a_i * (aug(Latent::infec_time, indiv_i) - t_intro);
 			output += std::log(roi_inst_i) - roi_cumul_i;

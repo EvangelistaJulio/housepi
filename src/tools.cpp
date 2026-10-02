@@ -18,6 +18,7 @@
 
 #include "tools/dag.h"
 #include "tools/keys.h"
+#include "tools/math.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parser.h"
@@ -151,10 +152,6 @@ namespace housepi::na
 }
 
 ////////////////////////////  strings  ////////////////////////////
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846264338327950288 /// Pi.
-#endif
 
 namespace housepi::str
 {

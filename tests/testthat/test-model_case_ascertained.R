@@ -94,7 +94,7 @@ loglike_infectious <- function(house, param, discr) {
       roi_cumul_i <- roi_cumul_i * beta + alpha * (t_infec_i - t_intro)
       roi_inst_i <- roi_inst_i * beta + alpha
       if (discr) {
-        output <- output + log1p(- exp(-roi_inst_i)) - roi_cumul_i + alpha
+        output <- output + log(-expm1(-roi_inst_i)) - roi_cumul_i + alpha
       } else {
         output <- output + log(roi_inst_i) - roi_cumul_i
       }
@@ -108,6 +108,18 @@ loglike_infectious <- function(house, param, discr) {
 latent_infec_obs_log_lik <- function(house, param, discr = FALSE) {
   loglike_escaped(house, param, discr) +
     loglike_infectious(house, param, discr)
+}
+
+# model reading the infection times of `hhdata`, every parameter pinned
+build_onset_model <- function(hhdata, param, discr) {
+  # nolint start: object_usage_linter. DSL symbols, read by the encoder
+  hhdata |>
+    new_housepi_model("case-ascertained", discr = discr, quiet = TRUE) |>
+    add_parameter(import = param) |>
+    add_latent(infec_time = infec_time@D) |>
+    add_infectivity_profile(func = "gamma", discr = discr,
+                            shape = shape@P, scale = scale@P)
+  # nolint end
 }
 
 # state of latent values per iteration
@@ -200,20 +212,39 @@ test_that("Sentinel against a member missing a follow-up date throws error", {
 test_that("Log-likelihood of case ascertained model is correct", {
   house <- mk_house$data[c("id", "hhid", "status", "infec_time",
                            "start_date", "end_date")]
+  # risks far below the machine epsilon
+  tiny <- modifyList(mk_house$param, list(alpha = 1e-20, beta = 1e-20))
 
   for (discr in c(FALSE, TRUE)) {
-    hhmodel <- house |>
-      new_housepi_model("case-ascertained", discr = discr, quiet = TRUE) |>
-      add_parameter(import = mk_house$param) |>
-      add_latent(infec_time = infec_time@D) |>
-      add_infectivity_profile(func = "gamma", discr = discr,
-                              shape = shape@P, scale = scale@P)
-
+    hhmodel <- build_onset_model(house, mk_house$param, discr)
     evaluate_log_lik(hhmodel) |>
       expect_equal(latent_infec_obs_log_lik(house, mk_house$param, discr))
 
+    build_onset_model(house, tiny, discr) |>
+      evaluate_log_lik() |>
+      expect_equal(latent_infec_obs_log_lik(house, tiny, discr))
+
     # test complex print, discrete and continuous time
     print(hhmodel) |> expect_snapshot()
+  }
+})
+
+test_that("A case with no source of infection has zero likelihood", {
+  # `m2` is the only child, out of reach of the community,
+  # and no household transmission
+  hhdata <- transform(mk_house$data[c("id", "hhid", "status", "infec_time",
+                                      "start_date", "end_date")],
+                      age = c("adult", "child", rep("adult", 5)))
+  strata <- data.frame(age = c(NA, "child"),
+                       param_name = c(".reference", "com_child"),
+                       value = c(NA, 0), const = c(NA, TRUE))
+  param <- modifyList(mk_house$param, list(beta = 0))
+
+  for (discr in c(FALSE, TRUE)) {
+    build_onset_model(hhdata, param, discr) |>
+      add_group_risk("community", strata = strata) |>
+      evaluate_log_lik() |>
+      expect_identical(-Inf)
   }
 })
 

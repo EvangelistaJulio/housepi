@@ -895,461 +895,462 @@ namespace housepi
 
 //////////////////////////////  Function implementations  //////////////////////////////
 
-namespace
+namespace housepi
 {
-    using namespace housepi;
-
+    namespace
+    {
 #define MAKE_REAL_TO_INTEGER_FUNCTION(Name, call)                                    \
-    class Name final : public Function                                               \
-    {                                                                                \
-    public:                                                                          \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Name)                                 \
-        HOUSEPI_OVERRIDE_NAME_METHOD(call)                                           \
-        Codomain codomain() const noexcept override final                            \
+        class Name final : public Function                                           \
         {                                                                            \
-            Codomain c = x_arg_.codomain();                                          \
-            c.lattice = Lattice::Integers;                                           \
-            /* monotone, and an integer value is always reached */                   \
-            if (c.below != Interval::Unbounded)                                      \
-                c.inf = std::call(c.inf), c.below = Interval::Closed;                \
-            if (c.above != Interval::Unbounded)                                      \
-                c.sup = std::call(c.sup), c.above = Interval::Closed;                \
-            return c;                                                                \
-        }                                                                            \
-                                                                                     \
-    protected:                                                                       \
-        double raw_function_(double x) const override final { return std::call(x); } \
-    };                                                                               \
-    HOUSEPI_REGISTER_FUNCTION(Name, Arithmetic)
+        public:                                                                      \
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Name)                             \
+            HOUSEPI_OVERRIDE_NAME_METHOD(call)                                       \
+            Codomain codomain() const noexcept override final                        \
+            {                                                                        \
+                Codomain c = x_arg_.codomain();                                      \
+                c.lattice = Lattice::Integers;                                       \
+                /* monotone, and an integer value is always reached */               \
+                if (c.below != Interval::Unbounded)                                  \
+                    c.inf = std::call(c.inf), c.below = Interval::Closed;            \
+                if (c.above != Interval::Unbounded)                                  \
+                    c.sup = std::call(c.sup), c.above = Interval::Closed;            \
+                return c;                                                            \
+            }                                                                        \
+                                                                                         \
+        protected:                                                                   \
+            double raw_function_(double x) const override final { return std::call(x); } \
+        };                                                                           \
+        HOUSEPI_REGISTER_FUNCTION(Name, Arithmetic)
 
-    MAKE_REAL_TO_INTEGER_FUNCTION(Round_, round)
-    MAKE_REAL_TO_INTEGER_FUNCTION(Ceil_, ceil)
-    MAKE_REAL_TO_INTEGER_FUNCTION(Floor_, floor)
+        MAKE_REAL_TO_INTEGER_FUNCTION(Round_, round)
+        MAKE_REAL_TO_INTEGER_FUNCTION(Ceil_, ceil)
+        MAKE_REAL_TO_INTEGER_FUNCTION(Floor_, floor)
 
-    class Minus_ final : public Function
-    {
-    public:
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Minus_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(minus)
-        Codomain codomain() const noexcept override final
+        class Minus_ final : public Function
         {
-            const Codomain a = x_arg_.codomain();
-            Codomain c;
-            c.lattice = a.lattice;
-            if (a.above != Interval::Unbounded)
-                c.inf = -a.sup, c.below = a.above;
-            if (a.below != Interval::Unbounded)
-                c.sup = -a.inf, c.above = a.below;
-            return c;
-        }
-
-    protected:
-        double raw_function_(double x) const override final { return -x; }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Minus_, Arithmetic)
-
-    class Subtraction_ final : public Function
-    {
-    public:
-        Subtraction_() : Function({{"x2", na::DOUBLE}}) {}
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Subtraction_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(sub)
-        Codomain codomain() const noexcept override final
-        {
-            Codomain b = arguments_(0).codomain();
-            // subtracting is adding the negation
-            std::swap(b.inf, b.sup);
-            std::swap(b.below, b.above);
-            b.inf = -b.inf, b.sup = -b.sup;
-            return add_(x_arg_.codomain(), b);
-        }
-
-    protected:
-        double raw_function_(double x) const override final { return x - arg(0); }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Subtraction_, Arithmetic)
-
-    class Division_ final : public Function
-    {
-    public:
-        Division_() : Function({{"x2", na::DOUBLE}}) {}
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Division_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(div)
-        Codomain codomain() const noexcept override final
-        {
-            Codomain c;
-            // a divisor spanning zero yields two rays, not an interval
-            if (x_arg_.codomain().is_positive() && arguments_(0).codomain().is_positive())
-                c.inf = 0., c.below = Interval::Open;
-            return c;
-        }
-
-    protected:
-        double raw_function_(double x) const override final { return x / arg(0); }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Division_, Arithmetic)
-
-    class Power_ final : public Function
-    {
-    public:
-        Power_() : Function({{"x2", na::DOUBLE}}) {}
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Power_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(pow)
-        Codomain codomain() const noexcept override final
-        {
-            const Codomain b = x_arg_.codomain();
-            const Codomain e = arguments_(0).codomain();
-            Codomain c;
-            // an integer base raised to an integer non-negative power stays an integer
-            if (b.on_integers() && e.on_integers() && e.below != Interval::Unbounded && e.inf >= 0.)
-                c.lattice = Lattice::Integers;
-            // a tighter interval needs the sign and parity of the exponent
-            if (b.is_positive())
-                c.inf = 0., c.below = Interval::Open;
-            return c;
-        }
-
-    protected:
-        double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
-        double raw_log_func_(double x) const override final { return arg(0) * std::log(x); }
-        double raw_primitive_(double x) const override final
-        {
-            if (std::abs(arg(0) + 1.) < 1.e-10)
-                return std::log(std::abs(x));
-            return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
-        }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Power_, Transcendental)
-
-    class SquareRoot_ final : public Function
-    {
-    public:
-        SquareRoot_() : Function({}, 0.) {}
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(SquareRoot_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(sqrt)
-        Codomain codomain() const noexcept override final
-        {
-            const Codomain a = x_arg_.codomain();
-            Codomain c;
-            // the domain forbids a negative argument, so the root is never negative
-            c.inf = 0., c.below = Interval::Closed;
-            if (a.below != Interval::Unbounded && a.inf >= 0.)
-                c.inf = std::sqrt(a.inf), c.below = a.below;
-            if (a.above != Interval::Unbounded && a.sup >= 0.)
-                c.sup = std::sqrt(a.sup), c.above = a.above;
-            return c;
-        }
-        void truncate() override final { helper_init_domain_min_(); }
-
-    protected:
-        double raw_function_(double x) const override final { return std::sqrt(x); }
-        double raw_log_func_(double x) const override final { return 0.5 * std::log(x); }
-        double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
-    };
-    HOUSEPI_REGISTER_FUNCTION(SquareRoot_, Transcendental)
-
-    class Exponential_ final : public Function
-    {
-    public:
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Exponential_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(exp)
-        Codomain codomain() const noexcept override final
-        {
-            const Codomain a = x_arg_.codomain();
-            Codomain c;
-            // the exponential approaches zero without ever reaching it
-            c.inf = 0., c.below = Interval::Open;
-            if (a.below != Interval::Unbounded)
-                c.inf = std::exp(a.inf), c.below = a.below;
-            if (a.above != Interval::Unbounded)
-                c.sup = std::exp(a.sup), c.above = a.above;
-            return c;
-        }
-
-    protected:
-        double raw_function_(double x) const override final { return std::exp(x); }
-        double raw_log_func_(double x) const override final { return x; }
-        double raw_primitive_(double x) const override final { return std::exp(x); }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Exponential_, Transcendental)
-
-    class Logarithm_ final : public Function
-    {
-    public:
-        Logarithm_() : Function({}, 0.) { domain_.below = Interval::Open; }
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Logarithm_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(log)
-        Codomain codomain() const noexcept override final
-        {
-            const Codomain a = x_arg_.codomain();
-            Codomain c;
-            // the logarithm falls away without bound as its argument approaches zero
-            if (a.below != Interval::Unbounded && a.inf > 0.)
-                c.inf = std::log(a.inf), c.below = a.below;
-            if (a.above != Interval::Unbounded && a.sup > 0.)
-                c.sup = std::log(a.sup), c.above = a.above;
-            return c;
-        }
-        void truncate() override final { helper_init_domain_min_(0., true); }
-
-    protected:
-        double raw_function_(double x) const override final { return std::log(x); }
-        double raw_log_func_(double x) const override final { return std::log(std::log(x)); }
-        double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Logarithm_, Transcendental)
-
-    class Sine_ final : public Function
-    {
-    public:
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Sine_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(sin)
-        Codomain codomain() const noexcept override final
-        {
-            Codomain c;
-            c.inf = -1., c.sup = 1.;
-            c.below = c.above = Interval::Closed;
-            return c;
-        }
-
-    protected:
-        double raw_function_(double x) const override final { return std::sin(x); }
-        double raw_log_func_(double x) const override final { return std::log(std::sin(x)); }
-        double raw_primitive_(double x) const override final { return -std::cos(x); }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Sine_, Transcendental)
-
-    class Cosine_ final : public Function
-    {
-    public:
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Cosine_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(cos)
-        Codomain codomain() const noexcept override final
-        {
-            Codomain c;
-            c.inf = -1., c.sup = 1.;
-            c.below = c.above = Interval::Closed;
-            return c;
-        }
-
-    protected:
-        double raw_function_(double x) const override final { return std::cos(x); }
-        double raw_log_func_(double x) const override final { return std::log(std::cos(x)); }
-        double raw_primitive_(double x) const override final { return std::sin(x); }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Cosine_, Transcendental)
-
-    class Tangent_ final : public Function
-    {
-    public:
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Tangent_)
-        HOUSEPI_OVERRIDE_NAME_METHOD(tan)
-
-    protected:
-        double raw_function_(double x) const override final { return std::tan(x); }
-        double raw_log_func_(double x) const override final { return std::log(std::tan(x)); }
-    };
-    HOUSEPI_REGISTER_FUNCTION(Tangent_, Transcendental)
-
-    //////////////////////////////  ReductionFunction  //////////////////////////////
-
-    /// Base of reductions over `x` and variadic arguments.
-    class ReductionFunction : public Function
-    {
-    public:
-    protected:
-        /// Whether the fold always skips operand `attr`.
-        ///
-        /// - structurally absent, or a literal NA: skipped;
-        /// - pointer: never skipped, even reading NA before initialization: it answers for its target.
-        static bool is_skipped_(const Attribute &attr) noexcept
-        {
-            return attr.is_empty() || (attr.is_numeric() && attr.is_na());
-        }
-
-        Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
-
-        /// Fold over `x` and every argument.
-        /// - fold mode: NA skipped;
-        /// - otherwise: any NA operand makes it NA.
-        template <class Op>
-        double reduce_(double x, Op op) const
-        {
-            switch (eval_mode_)
+        public:
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Minus_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(minus)
+            Codomain codomain() const noexcept override final
             {
-            case Evaluate::Fold:
-                return reduce_na_rm_(x, op);
-            default:
-                if (na::is(x))
-                    return na::DOUBLE;
+                const Codomain a = x_arg_.codomain();
+                Codomain c;
+                c.lattice = a.lattice;
+                if (a.above != Interval::Unbounded)
+                    c.inf = -a.sup, c.below = a.above;
+                if (a.below != Interval::Unbounded)
+                    c.sup = -a.inf, c.above = a.below;
+                return c;
+            }
+
+        protected:
+            double raw_function_(double x) const override final { return -x; }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Minus_, Arithmetic)
+
+        class Subtraction_ final : public Function
+        {
+        public:
+            Subtraction_() : Function({{"x2", na::DOUBLE}}) {}
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Subtraction_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(sub)
+            Codomain codomain() const noexcept override final
+            {
+                Codomain b = arguments_(0).codomain();
+                // subtracting is adding the negation
+                std::swap(b.inf, b.sup);
+                std::swap(b.below, b.above);
+                b.inf = -b.inf, b.sup = -b.sup;
+                return add_(x_arg_.codomain(), b);
+            }
+
+        protected:
+            double raw_function_(double x) const override final { return x - arg(0); }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Subtraction_, Arithmetic)
+
+        class Division_ final : public Function
+        {
+        public:
+            Division_() : Function({{"x2", na::DOUBLE}}) {}
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Division_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(div)
+            Codomain codomain() const noexcept override final
+            {
+                Codomain c;
+                // a divisor spanning zero yields two rays, not an interval
+                if (x_arg_.codomain().is_positive() && arguments_(0).codomain().is_positive())
+                    c.inf = 0., c.below = Interval::Open;
+                return c;
+            }
+
+        protected:
+            double raw_function_(double x) const override final { return x / arg(0); }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Division_, Arithmetic)
+
+        class Power_ final : public Function
+        {
+        public:
+            Power_() : Function({{"x2", na::DOUBLE}}) {}
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Power_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(pow)
+            Codomain codomain() const noexcept override final
+            {
+                const Codomain b = x_arg_.codomain();
+                const Codomain e = arguments_(0).codomain();
+                Codomain c;
+                // an integer base raised to an integer non-negative power stays an integer
+                if (b.on_integers() && e.on_integers() && e.below != Interval::Unbounded && e.inf >= 0.)
+                    c.lattice = Lattice::Integers;
+                // a tighter interval needs the sign and parity of the exponent
+                if (b.is_positive())
+                    c.inf = 0., c.below = Interval::Open;
+                return c;
+            }
+
+        protected:
+            double raw_function_(double x) const override final { return std::pow(x, arg(0)); }
+            double raw_log_func_(double x) const override final { return arg(0) * std::log(x); }
+            double raw_primitive_(double x) const override final
+            {
+                if (std::abs(arg(0) + 1.) < 1.e-10)
+                    return std::log(std::abs(x));
+                return std::pow(x, arg(0) + 1.) / (arg(0) + 1.);
+            }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Power_, Transcendental)
+
+        class SquareRoot_ final : public Function
+        {
+        public:
+            SquareRoot_() : Function({}, 0.) {}
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(SquareRoot_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(sqrt)
+            Codomain codomain() const noexcept override final
+            {
+                const Codomain a = x_arg_.codomain();
+                Codomain c;
+                // the domain forbids a negative argument, so the root is never negative
+                c.inf = 0., c.below = Interval::Closed;
+                if (a.below != Interval::Unbounded && a.inf >= 0.)
+                    c.inf = std::sqrt(a.inf), c.below = a.below;
+                if (a.above != Interval::Unbounded && a.sup >= 0.)
+                    c.sup = std::sqrt(a.sup), c.above = a.above;
+                return c;
+            }
+            void truncate() override final { helper_init_domain_min_(); }
+
+        protected:
+            double raw_function_(double x) const override final { return std::sqrt(x); }
+            double raw_log_func_(double x) const override final { return 0.5 * std::log(x); }
+            double raw_primitive_(double x) const override final { return std::pow(x, 1.5) / 1.5; }
+        };
+        HOUSEPI_REGISTER_FUNCTION(SquareRoot_, Transcendental)
+
+        class Exponential_ final : public Function
+        {
+        public:
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Exponential_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(exp)
+            Codomain codomain() const noexcept override final
+            {
+                const Codomain a = x_arg_.codomain();
+                Codomain c;
+                // the exponential approaches zero without ever reaching it
+                c.inf = 0., c.below = Interval::Open;
+                if (a.below != Interval::Unbounded)
+                    c.inf = std::exp(a.inf), c.below = a.below;
+                if (a.above != Interval::Unbounded)
+                    c.sup = std::exp(a.sup), c.above = a.above;
+                return c;
+            }
+
+        protected:
+            double raw_function_(double x) const override final { return std::exp(x); }
+            double raw_log_func_(double x) const override final { return x; }
+            double raw_primitive_(double x) const override final { return std::exp(x); }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Exponential_, Transcendental)
+
+        class Logarithm_ final : public Function
+        {
+        public:
+            Logarithm_() : Function({}, 0.) { domain_.below = Interval::Open; }
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Logarithm_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(log)
+            Codomain codomain() const noexcept override final
+            {
+                const Codomain a = x_arg_.codomain();
+                Codomain c;
+                // the logarithm falls away without bound as its argument approaches zero
+                if (a.below != Interval::Unbounded && a.inf > 0.)
+                    c.inf = std::log(a.inf), c.below = a.below;
+                if (a.above != Interval::Unbounded && a.sup > 0.)
+                    c.sup = std::log(a.sup), c.above = a.above;
+                return c;
+            }
+            void truncate() override final { helper_init_domain_min_(0., true); }
+
+        protected:
+            double raw_function_(double x) const override final { return std::log(x); }
+            double raw_log_func_(double x) const override final { return std::log(std::log(x)); }
+            double raw_primitive_(double x) const override final { return x * std::log(x) - x; }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Logarithm_, Transcendental)
+
+        class Sine_ final : public Function
+        {
+        public:
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Sine_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(sin)
+            Codomain codomain() const noexcept override final
+            {
+                Codomain c;
+                c.inf = -1., c.sup = 1.;
+                c.below = c.above = Interval::Closed;
+                return c;
+            }
+
+        protected:
+            double raw_function_(double x) const override final { return std::sin(x); }
+            double raw_log_func_(double x) const override final { return std::log(std::sin(x)); }
+            double raw_primitive_(double x) const override final { return -std::cos(x); }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Sine_, Transcendental)
+
+        class Cosine_ final : public Function
+        {
+        public:
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Cosine_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(cos)
+            Codomain codomain() const noexcept override final
+            {
+                Codomain c;
+                c.inf = -1., c.sup = 1.;
+                c.below = c.above = Interval::Closed;
+                return c;
+            }
+
+        protected:
+            double raw_function_(double x) const override final { return std::cos(x); }
+            double raw_log_func_(double x) const override final { return std::log(std::cos(x)); }
+            double raw_primitive_(double x) const override final { return std::sin(x); }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Cosine_, Transcendental)
+
+        class Tangent_ final : public Function
+        {
+        public:
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Tangent_)
+            HOUSEPI_OVERRIDE_NAME_METHOD(tan)
+
+        protected:
+            double raw_function_(double x) const override final { return std::tan(x); }
+            double raw_log_func_(double x) const override final { return std::log(std::tan(x)); }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Tangent_, Transcendental)
+
+        //////////////////////////////  ReductionFunction  //////////////////////////////
+
+        /// Base of reductions over `x` and variadic arguments.
+        class ReductionFunction : public Function
+        {
+        public:
+        protected:
+            /// Whether the fold always skips operand `attr`.
+            ///
+            /// - structurally absent, or a literal NA: skipped;
+            /// - pointer: never skipped, even reading NA before initialization: it answers for its target.
+            static bool is_skipped_(const Attribute &attr) noexcept
+            {
+                return attr.is_empty() || (attr.is_numeric() && attr.is_na());
+            }
+
+            Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
+
+            /// Fold over `x` and every argument.
+            /// - fold mode: NA skipped;
+            /// - otherwise: any NA operand makes it NA.
+            template <class Op>
+            double reduce_(double x, Op op) const
+            {
+                switch (eval_mode_)
+                {
+                case Evaluate::Fold:
+                    return reduce_na_rm_(x, op);
+                default:
+                    if (na::is(x))
+                        return na::DOUBLE;
+                    for (const Attribute &attr : arguments_())
+                    {
+                        const double v = attr.value();
+                        if (na::is(v))
+                            return na::DOUBLE;
+                        x = op(x, v);
+                    }
+                    return x;
+                }
+            }
+
+            /// Fold over `x` and every argument, NA skipped.
+            /// - no operand left: NA.
+            template <class Op>
+            double reduce_na_rm_(double x, Op op) const
+            {
+                bool has = !na::is(x);
+                double acc = x;
                 for (const Attribute &attr : arguments_())
                 {
                     const double v = attr.value();
                     if (na::is(v))
-                        return na::DOUBLE;
-                    x = op(x, v);
+                        continue;
+                    acc = has ? op(acc, v) : v;
+                    has = true;
                 }
-                return x;
+                return has ? acc : na::DOUBLE;
             }
-        }
 
-        /// Fold over `x` and every argument, NA skipped.
-        /// - no operand left: NA.
-        template <class Op>
-        double reduce_na_rm_(double x, Op op) const
-        {
-            bool has = !na::is(x);
-            double acc = x;
-            for (const Attribute &attr : arguments_())
+            /// Fold codomain() over `x` and every argument, NA skipped.
+            /// - no operand folded: unbounded codomain, where the runtime fold returns NA.
+            template <class Op>
+            Codomain reduce_codomain_(Op op) const
             {
-                const double v = attr.value();
-                if (na::is(v))
-                    continue;
-                acc = has ? op(acc, v) : v;
-                has = true;
-            }
-            return has ? acc : na::DOUBLE;
-        }
-
-        /// Fold codomain() over `x` and every argument, NA skipped.
-        /// - no operand folded: unbounded codomain, where the runtime fold returns NA.
-        template <class Op>
-        Codomain reduce_codomain_(Op op) const
-        {
-            bool has = !is_skipped_(x_arg_);
-            Codomain acc = has ? x_arg_.codomain() : Codomain();
-            for (const Attribute &attr : arguments_())
-            {
-                if (is_skipped_(attr))
-                    continue;
-                acc = has ? op(acc, attr.codomain()) : attr.codomain();
-                has = true;
-            }
-            return has ? acc : Codomain();
-        }
-
-        /// Fold every constant argument into the first constant one.
-        /// - constant NA argument: skipped in fold mode, else the call stays unfolded to return NA.
-        template <class Op>
-        void reduce_const_(Op op)
-        {
-            const auto is_na_const = [](const Attribute &attr)
-            { return attr.is_constant() && attr.is_na(); };
-            if (eval_mode_ != Evaluate::Fold &&
-                (is_na_const(x_arg_) || std::any_of(arguments_().begin(), arguments_().end(), is_na_const)))
-                return;
-
-            Attribute *first_const = nullptr;
-            if (x_arg_.is_constant() && !x_arg_.is_na())
-                first_const = &x_arg_;
-            for (Attribute &attr : arguments_())
-                if (attr.is_constant() && !attr.is_na())
+                bool has = !is_skipped_(x_arg_);
+                Codomain acc = has ? x_arg_.codomain() : Codomain();
+                for (const Attribute &attr : arguments_())
                 {
-                    if (first_const)
-                        first_const->set(op(first_const->value(), attr.value()));
-                    else
-                        first_const = &attr;
+                    if (is_skipped_(attr))
+                        continue;
+                    acc = has ? op(acc, attr.codomain()) : attr.codomain();
+                    has = true;
                 }
+                return has ? acc : Codomain();
+            }
 
-            if (!first_const)
-                return;
+            /// Fold every constant argument into the first constant one.
+            /// - constant NA argument: skipped in fold mode, else the call stays unfolded to return NA.
+            template <class Op>
+            void reduce_const_(Op op)
+            {
+                const auto is_na_const = [](const Attribute &attr)
+                { return attr.is_constant() && attr.is_na(); };
+                if (eval_mode_ != Evaluate::Fold &&
+                    (is_na_const(x_arg_) || std::any_of(arguments_().begin(), arguments_().end(), is_na_const)))
+                    return;
 
-            std::vector<Attribute> &args = arguments_();
-            args.erase(
-                std::remove_if(args.begin(), args.end(),
-                               [&first_const](Attribute &attr)
-                               {
-                                   return attr.is_constant() && &attr != first_const;
-                               }),
-                args.end());
-        }
-    };
+                Attribute *first_const = nullptr;
+                if (x_arg_.is_constant() && !x_arg_.is_na())
+                    first_const = &x_arg_;
+                for (Attribute &attr : arguments_())
+                    if (attr.is_constant() && !attr.is_na())
+                    {
+                        if (first_const)
+                            first_const->set(op(first_const->value(), attr.value()));
+                        else
+                            first_const = &attr;
+                    }
+
+                if (!first_const)
+                    return;
+
+                std::vector<Attribute> &args = arguments_();
+                args.erase(
+                    std::remove_if(args.begin(), args.end(),
+                                   [&first_const](Attribute &attr)
+                                   {
+                                       return attr.is_constant() && &attr != first_const;
+                                   }),
+                    args.end());
+            }
+        };
 
 #define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol, fold_)      \
-    class Class_ final : public ReductionFunction                  \
-    {                                                              \
-    public:                                                        \
-        Class_() : ReductionFunction() {}                          \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)             \
-        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                        \
-                                                                   \
-        Codomain codomain() const noexcept override final          \
+        class Class_ final : public ReductionFunction              \
         {                                                          \
-            return reduce_codomain_(fold_);                        \
-        }                                                          \
-                                                                   \
-        void finalize() override                                   \
-        {                                                          \
-            Function::finalize();                                  \
-            reduce_const_(                                         \
-                [](double a, double b) { return a symbol b; });    \
-        }                                                          \
-                                                                   \
-    protected:                                                     \
-        double raw_function_(double x) const override final        \
-        {                                                          \
-            return reduce_(                                        \
-                x, [](double a, double b) { return a symbol b; }); \
-        }                                                          \
-    };
-    MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +, add_)
-    HOUSEPI_REGISTER_FUNCTION(Summation_, Arithmetic)
-    MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *, mul_)
-    HOUSEPI_REGISTER_FUNCTION(Product_, Arithmetic)
+        public:                                                    \
+            Class_() : ReductionFunction() {}                      \
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)         \
+            HOUSEPI_OVERRIDE_NAME_METHOD(name_)                    \
+                                                                       \
+            Codomain codomain() const noexcept override final      \
+            {                                                      \
+                return reduce_codomain_(fold_);                    \
+            }                                                      \
+                                                                       \
+            void finalize() override                               \
+            {                                                      \
+                Function::finalize();                              \
+                reduce_const_(                                     \
+                    [](double a, double b) { return a symbol b; });    \
+            }                                                      \
+                                                                       \
+        protected:                                                 \
+            double raw_function_(double x) const override final    \
+            {                                                      \
+                return reduce_(                                    \
+                    x, [](double a, double b) { return a symbol b; }); \
+            }                                                      \
+        };
+        MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +, add_)
+        HOUSEPI_REGISTER_FUNCTION(Summation_, Arithmetic)
+        MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *, mul_)
+        HOUSEPI_REGISTER_FUNCTION(Product_, Arithmetic)
 
 #define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol, fold_)                \
-    class Class_ final : public ReductionFunction                          \
-    {                                                                      \
-    public:                                                                \
-        Class_() : ReductionFunction() {}                                  \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                     \
-        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                                \
-                                                                           \
-        Codomain codomain() const noexcept override final                  \
+        class Class_ final : public ReductionFunction                      \
         {                                                                  \
-            return reduce_codomain_(fold_);                                \
-        }                                                                  \
-                                                                           \
-        void finalize() override                                           \
-        {                                                                  \
-            Function::finalize();                                          \
-            reduce_const_(                                                 \
-                [](double a, double b) { return b symbol a ? b : a; });    \
-        }                                                                  \
-                                                                           \
-    protected:                                                             \
-        double raw_function_(double x) const override final                \
-        {                                                                  \
-            return reduce_(                                                \
-                x, [](double a, double b) { return b symbol a ? b : a; }); \
-        }                                                                  \
-    };
-    MAKE_VARIADIC_MIN_MAX(Minimum_, min, <, min_)
-    HOUSEPI_REGISTER_FUNCTION(Minimum_, Arithmetic)
-    MAKE_VARIADIC_MIN_MAX(Maximum_, max, >, max_)
-    HOUSEPI_REGISTER_FUNCTION(Maximum_, Arithmetic)
-}
-
-//////////////////////////////  Attribute : init product  //////////////////////////////
-
-/// @todo Move next to the Attribute implementation.
-void Attribute::init_product(const std::vector<const Attribute *> &other_ptrs)
-{
-    if (other_ptrs.size() == 1)
-    {
-        init_pointer(other_ptrs[0]);
-        return;
+        public:                                                            \
+            Class_() : ReductionFunction() {}                              \
+            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                 \
+            HOUSEPI_OVERRIDE_NAME_METHOD(name_)                            \
+                                                                               \
+            Codomain codomain() const noexcept override final              \
+            {                                                              \
+                return reduce_codomain_(fold_);                            \
+            }                                                              \
+                                                                               \
+            void finalize() override                                       \
+            {                                                              \
+                Function::finalize();                                      \
+                reduce_const_(                                             \
+                    [](double a, double b) { return b symbol a ? b : a; });    \
+            }                                                              \
+                                                                               \
+        protected:                                                         \
+            double raw_function_(double x) const override final            \
+            {                                                              \
+                return reduce_(                                            \
+                    x, [](double a, double b) { return b symbol a ? b : a; }); \
+            }                                                              \
+        };
+        MAKE_VARIADIC_MIN_MAX(Minimum_, min, <, min_)
+        HOUSEPI_REGISTER_FUNCTION(Minimum_, Arithmetic)
+        MAKE_VARIADIC_MIN_MAX(Maximum_, max, >, max_)
+        HOUSEPI_REGISTER_FUNCTION(Maximum_, Arithmetic)
     }
 
-    auto fun = std::make_unique<Product_>();
-    Attribute aux;
-    aux.init_pointer(other_ptrs[0]);
-    fun->init_attr("x", aux);
-    for (size_t i = 1; i < other_ptrs.size(); ++i)
-    {
-        aux.init_pointer(other_ptrs[i]);
-        fun->init_attr("", aux);
-    }
+    //////////////////////////////  Attribute : init product  //////////////////////////////
 
-    init_function(std::move(fun));
+    /// @todo Move next to the Attribute implementation.
+    void Attribute::init_product(const std::vector<const Attribute *> &other_ptrs)
+    {
+        if (other_ptrs.size() == 1)
+        {
+            init_pointer(other_ptrs[0]);
+            return;
+        }
+
+        auto fun = std::make_unique<Product_>();
+        Attribute aux;
+        aux.init_pointer(other_ptrs[0]);
+        fun->init_attr("x", aux);
+        for (size_t i = 1; i < other_ptrs.size(); ++i)
+        {
+            aux.init_pointer(other_ptrs[i]);
+            fun->init_attr("", aux);
+        }
+
+        init_function(std::move(fun));
+    }
 }
