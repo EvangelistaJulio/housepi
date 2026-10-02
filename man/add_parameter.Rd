@@ -101,11 +101,6 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 }
-\details{
-A definition name colliding with reserved argument
-is deprecated.
-It can be supplied only via single mode definition.
-}
 \examples{
 # the single, inline-bulk and list-bulk forms compose freely in a pipe
 hhmodel <- flu_1918_frederick |>

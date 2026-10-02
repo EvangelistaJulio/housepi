@@ -128,11 +128,6 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 }
-\details{
-A definition name colliding with reserved argument
-is deprecated.
-It can be supplied only via single mode definition.
-}
 \examples{
 hhmodel <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
 

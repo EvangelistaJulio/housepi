@@ -96,6 +96,11 @@ test_that("Bulk import mirrors inline name = value pairs", {
     add_parameter(rho_3 = 1, import = defs) |>
     expect_error("[Mm]ixing")
 
+  # so are the arguments only single mode reads
+  mk_wrapper$model |>
+    add_parameter(import = defs, max = 2) |>
+    expect_error("[Mm]ixing")
+
   # the template sentinel follows the same exclusion rules
   mk_wrapper$model |>
     add_parameter("rho_3", import = "template") |>
@@ -103,11 +108,45 @@ test_that("Bulk import mirrors inline name = value pairs", {
   mk_wrapper$model |>
     add_latent(hidden = 1, import = "template") |>
     expect_error("[Mm]ixing")
+  mk_wrapper$model |>
+    add_latent(import = "template", discr = TRUE) |>
+    expect_error("[Mm]ixing")
 
   # a character import naming no known source is a typo, not a definition
   mk_wrapper$model |>
     add_parameter(import = "templte") |>
     expect_error("[Uu]nknown import source")
+})
+
+test_that("A definition named like a single-mode argument is not dropped", {
+  hhmodel <- data.frame(hhid = "h1", status = 1, datum = 2) |>
+    new_housepi_model("test")
+  err <- "[Dd]efinition can.t be named"
+
+  mk_wrapper$model |>
+    add_parameter(rho = 1, min = 2, rho_2 = 3) |>
+    expect_error(paste0(err, ".*min"))
+  hhmodel |>
+    add_latent(hidden = min(datum), value = 1) |>
+    expect_error(paste0(err, ".*value"))
+  hhmodel |>
+    add_observation(record = min(datum), value = max(datum),
+                    level = "house") |>
+    expect_error(paste0(err, ".*value"))
+  mk_member$model |>
+    add_group_risk(community = "member", reference = ".auto") |>
+    expect_error(paste0(err, ".*reference"))
+  data.frame(hhid = "h1", status = 1, start_date = 0, end_date = 20) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
+    add_infectivity_profile(discr = TRUE) |>
+    expect_error(paste0(err, ".*discr"))
+
+  # the arguments multiple mode reads apply to every definition
+  hhmodel |>
+    add_latent(hidden = min(datum), hidden_2 = max(datum), status = 1) |>
+    get_latent() |>
+    getElement("status") |>
+    expect_identical(c("1", "1"))
 })
 
 test_that("Bulk import resolves symbols in the calling frame", {

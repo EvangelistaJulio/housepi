@@ -68,11 +68,6 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 }
-\details{
-A definition name colliding with reserved argument
-is deprecated.
-It can be supplied only via single mode definition.
-}
 \examples{
 # `"template"` loads the profile shipped with the model
 hhmodel <- sarscov2_2021_icofs |>

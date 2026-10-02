@@ -138,9 +138,6 @@ rd_add_modes_ <- "There are three mutually exclusive definition modes:
   Pass a pre-built named list of definitions through `import`.
   }
 }"
-rd_add_details_ <- "A definition name colliding with reserved argument
-is deprecated.
-It can be supplied only via single mode definition."
 rd_import_ <- "Named `list` of pre-built definitions to import.
 Cannot be combined with single and/or multiple definitions."
 rd_tmpl_import_ <- "Named `list` of pre-built definitions to import,
@@ -494,17 +491,34 @@ assert_bulk_defs_ <- function(family, dots, has_template = FALSE) {
   stop_h(sms)
 }
 
-# Reject `import` combined with single-mode or inline `...` pairs.
-assert_no_def_mixing_ <- function(key, dots) {
-  if (!is.null(key) || length(dots)) stop_h(
+# Name the formals given in an `add_*` call that only single mode reads.
+# `listed` are the formals the list-like modes read besides `...`, `import`
+# and `append`.
+single_args_ <- function(call, listed) {
+  setdiff(names(call)[-1], c("hhmodel", "...", "import", "append", listed))
+}
+
+# Reject a `...` definition bound to a formal only single mode reads.
+assert_no_reserved_defs_ <- function(singles) {
+  if (length(singles)) stop_h(
+    paste("A definition can't be named {.or {.arg {singles}}},",
+          "{cli::qty(singles)}{?an argument/arguments}",
+          "reserved to single mode."),
+    "Define it in single mode, or within an {.arg import} list."
+  )
+}
+
+# Reject `import` combined with single-mode arguments or inline `...` pairs.
+assert_no_def_mixing_ <- function(key, dots, singles) {
+  if (!is.null(key) || length(dots) || length(singles)) stop_h(
     "Mixing imported definitions with single and multiple definitions",
     definition_helper_
   )
 }
 
 # Build the quosure list for the explicit `import` bulk form.
-defs_to_quos_ <- function(import, key, dots, env) {
-  assert_no_def_mixing_(key, dots)
+defs_to_quos_ <- function(import, key, dots, singles, env) {
+  assert_no_def_mixing_(key, dots, singles)
   convert_list_to_quosures(import, env)
 }
 
@@ -521,8 +535,9 @@ is_template_import_ <- function(import) {
 
 # Load default templated definitions shipped with the package.
 # Reject the sentinel combined with single-mode or inline `...` pairs.
-add_template_defs_ <- function(holder, generator, family, append, key, dots) {
-  assert_no_def_mixing_(key, dots)
+add_template_defs_ <- function(holder, generator, family, append, key, dots,
+                               singles) {
+  assert_no_def_mixing_(key, dots, singles)
   if (generator$is_test_model()) {
     warn_h("No template {family} definitions available for test model.")
   } else {
@@ -535,14 +550,20 @@ add_template_defs_ <- function(holder, generator, family, append, key, dots) {
 # an `import` list, or the inline `...` pairs of the multiple mode.
 # Returns `FALSE` in single mode (`key` given), left to the caller as it
 # captures its own arguments; `...` goes to `$add_quo_list()`.
+# `call` is the caller's `match.call(expand.dots = FALSE)`, and `listed` the
+# formals these modes read on top of `...`, `import` and `append`: any other
+# formal the call sets belongs to single mode.
 add_listed_defs_ <- function(holder, generator, family, key, import, append,
-                             dots, env, has_template = FALSE, ...) {
+                             dots, env, call, listed,
+                             has_template = FALSE, ...) {
+  singles <- single_args_(call, listed)
   if (has_template && is_template_import_(import)) {
-    add_template_defs_(holder, generator, family, append, key, dots)
+    add_template_defs_(holder, generator, family, append, key, dots, singles)
   } else if (length(import)) {
-    holder$add_quo_list(defs_to_quos_(import, key, dots, env),
+    holder$add_quo_list(defs_to_quos_(import, key, dots, singles, env),
                         append = append, ...)
   } else if (is.null(key)) {
+    assert_no_reserved_defs_(singles)
     holder$add_quo_list(assert_bulk_defs_(family, dots, has_template),
                         append = append, ...)
   } else {
@@ -556,8 +577,6 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 #' Add parameter(s) to a housepi model.
 #' If a parameter with the same name exists, the former gets overwritten.
 #' `r rd_add_modes_`
-#' @details
-#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `numeric(1)` `r rd_var_val_("prior")`
@@ -611,6 +630,7 @@ add_parameter <- function(hhmodel,
   #> template, import and multiple modes
   if (!add_listed_defs_(pvt$param_, pvt$gen_, "parameter", name, import,
                         append, rlang::enquos(...), rlang::caller_env(),
+                        match.call(expand.dots = FALSE), "name",
                         has_template = TRUE))
     #> single mode
     pvt$param_$add_quo(
@@ -636,8 +656,6 @@ add_parameter <- function(hhmodel,
 #' If a latent definitions with the same name and status exists,
 #' the former gets overwritten.
 #' `r rd_add_modes_`
-#' @details
-#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_aug_val_`
@@ -676,6 +694,7 @@ add_latent <- function(hhmodel,
   #> template, import and multiple modes
   if (!add_listed_defs_(pvt$augm_, pvt$gen_, "latent", name, import,
                         append, rlang::enquos(...), rlang::caller_env(),
+                        match.call(expand.dots = FALSE), c("name", "status"),
                         has_template = TRUE, status = status))
     #> single mode
     pvt$augm_$add_quo(
@@ -710,8 +729,6 @@ add_latent <- function(hhmodel,
 #' it is evaluated for every member, and overwrites data of the same name.
 #'
 #' `r rd_add_modes_`
-#' @details
-#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param model `character(1)` Choice for the observation model distribution.
@@ -764,7 +781,9 @@ add_observation <- function(hhmodel, name = NULL,
   #> import and multiple modes
   if (!add_listed_defs_(pvt$augm_, pvt$gen_, kind2family(level), name,
                         import, append, rlang::enquos(...),
-                        rlang::caller_env(), status = status, .kind = level))
+                        rlang::caller_env(), match.call(expand.dots = FALSE),
+                        c("name", "status", "level"),
+                        status = status, .kind = level))
     #> single mode
     pvt$augm_$add_quo(
       name = name, value = rlang::enquo(value), status = status,
@@ -833,8 +852,6 @@ add_status <- function(hhmodel, ..., model = "categorical") {
 #' @title Add a stratified group risk definition
 #' @description `r rd_risk_desc_("group")`
 #' `r rd_add_modes_`
-#' @details
-#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `list` Covariates associated to group risk as data headers.
@@ -890,7 +907,8 @@ add_group_risk <-  function(hhmodel,
   #> import and multiple modes
   if (!add_listed_defs_(pvt$group_risks_, pvt$gen_,
                         pvt$group_risks_$family, name, import, append,
-                        rlang::enquos(...), rlang::caller_env()))
+                        rlang::enquos(...), rlang::caller_env(),
+                        match.call(expand.dots = FALSE), "name"))
     #> single mode
     pvt$group_risks_$add_quo(
       name = name, by = by,
@@ -983,8 +1001,6 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 #' @description
 #' Add definitions for the infectivity profiles.
 #' `r rd_add_modes_`
-#' @details
-#' `r rd_add_details_`
 #' @param hhmodel `r rd_model_in_`
 #' @param func `r rd_var_name_`
 #' @param status `r rd_aug_status_`
@@ -1020,6 +1036,7 @@ add_infectivity_profile <- function(hhmodel,
   if (!add_listed_defs_(pvt$infec_profile_, pvt$gen_,
                         "infectivity profile", func, import, append,
                         rlang::enquos(...), rlang::caller_env(),
+                        match.call(expand.dots = FALSE), "func",
                         has_template = TRUE))
     #> single mode
     pvt$infec_profile_$add_quo(
