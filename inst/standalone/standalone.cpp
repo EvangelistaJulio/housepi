@@ -538,7 +538,8 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            engine.setup.crash(e);
+            engine.setup.prog_crash();
+            msg::stop(e.what());
         }
 
         return EXIT_SUCCESS;

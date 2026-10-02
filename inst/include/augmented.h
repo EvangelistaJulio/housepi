@@ -56,6 +56,7 @@ namespace housepi
         void build(InfecProfile &infec_profile, const str_table &input);
 
         /// Empty the definitions of every infected individual, for simulation.
+        /// - no definitions allocated: no-op.
         void clear_all();
         /// Empty the definitions of member `m`.
         void clear_definitions(const Individual &m);

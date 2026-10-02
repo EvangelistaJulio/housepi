@@ -66,14 +66,14 @@ public:
 	void init_house_for_evaluation(const Household &house) override final
 	{
 		if (house.n_infected_status() == 0)
-			throw std::logic_error(
+			msg::stop(
 				"No infected members were found in " + str(house) +
 				".\nCase-ascertained model assumes at least one infected member per household.");
 
 		// study period must be non-negative
 		for (const Individual &indiv : house)
 			if (data(Data::start_date, indiv) > data(Data::end_date, indiv))
-				throw std::logic_error(
+				msg::stop(
 					"Found negative follow-up period for " + str(indiv) +
 					".\nCheck " + msg::arg("start_date") + " and " + msg::arg("end_date") + ".");
 	}

@@ -108,8 +108,9 @@ namespace housepi
         void prog_update();
         /// Close the progress bar, returning the seconds it timed.
         double prog_close();
-        /// Close progress bar on error `e` and raise it.
-        [[noreturn]] void crash(const std::exception &e);
+        /// End the line of a bar left open by an error.
+        /// @note Skip on user interrupt: R ends the line itself.
+        void prog_crash() const noexcept;
 
         /// Open progress bar for standard MCMC sample.
         void prog_open_for_mcmc_sample();

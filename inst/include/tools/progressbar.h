@@ -7,12 +7,14 @@
 
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <functional>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <thread>
 
 #include "tools/messages.h"
 
@@ -22,6 +24,9 @@ namespace housepi
 {
     /// Display the progress of an iteration count, with elapsed and remaining time.
     /// Based on @cite hammouchi_fancy_2024
+    ///
+    /// - the thread calling `open()` prints and checks for user interrupts;
+    /// - any other thread only counts its iterations.
     class ProgressBar
     {
         enum class Mode : std::uint8_t
@@ -61,6 +66,7 @@ namespace housepi
             total_ = total;
             start_ = Clock::now();
             lastprint_ = start_;
+            main_id_ = std::this_thread::get_id();
             state_ = 0;
             has_bar_print_ = false;
             verbose_ = thintime > 0;
@@ -72,12 +78,14 @@ namespace housepi
         {
             using std::chrono::duration_cast;
 
+            const unsigned long state = ++state_;
+            if (std::this_thread::get_id() != main_id_)
+                return;
             check_user_interrupt_();
-            ++state_; // update internal state
             if (!verbose_)
                 return;
 
-            const double progress = static_cast<double>(state_) / static_cast<double>(total_);
+            const double progress = static_cast<double>(state) / static_cast<double>(total_);
             const auto now = Clock::now();
             const auto elapsed = duration_cast<Seconds>(now - start_);
             const auto missing = duration_cast<Seconds>(elapsed * (1. - progress) / progress);
@@ -119,11 +127,14 @@ namespace housepi
             }
         }
 
-        /// End the progress bar because of a crash.
-        void crash() const
+        /// End the line of a bar left open by an error.
+        /// - static mode: no-op, every print ends its line.
+        void crash() const noexcept
         {
-            if (has_bar_print_)
+            // # nocov start
+            if (has_bar_print_ && mode_ == Mode::Interactive)
                 msg::info("\n");
+            // # nocov end
         }
 
         /// Close the progress bar, returning the seconds since `open()`.
@@ -165,7 +176,8 @@ namespace housepi
         std::function<void()> interrupt_func_; /// User-interrupt callback.
         bool verbose_ = true;                  /// Whether to show the bar.
         bool has_bar_print_ = false;           /// Whether the bar has printed once.
-        unsigned long state_ = 0;              /// Current iteration.
+        std::atomic<unsigned long> state_{0};  /// Current iteration.
+        std::thread::id main_id_;              /// Thread that called `open()`.
         unsigned long total_ = 0;              /// Total number of iterations.
         std::string text_ = "";                /// Current text to show.
         Clock::time_point start_;              /// Time of `open()`.

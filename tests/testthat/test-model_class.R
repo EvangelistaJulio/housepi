@@ -618,3 +618,37 @@ test_that("Measures on long data require obs_process_long", {
   ) |>
     expect_error("obs_process_long")
 })
+
+test_that("A household error in simulation names the household", {
+  # a negative datum in h2 empties the latent domain
+  hhmodel <- data.frame(hhid = c("h1", "h1", "h2"), id = c("m1", "m2", "m3"),
+                        status = 1, datum = c(1, 1, -1), obs = 0) |>
+    new_housepi_model("test") |>
+    add_latent(hidden = list(model = "uniform", min = 0, max = datum)) |>
+    helper_flat_sink(loc = hidden)
+  err <- run_simulation(hhmodel) |> expect_error("[Ii]nconsistent domain")
+  # cli markup is rendered, not printed raw
+  conditionMessage(err) |> expect_match("household \"h2\"")
+  conditionMessage(err) |> expect_no_match("{.val", fixed = TRUE)
+})
+
+test_that("An error raised by an observation process reaches R verbatim", {
+  mk_frederick$template |>
+    run_simulation(obs_process = \(x) stop("a {b} c")) |>
+    expect_error("{b} c", fixed = TRUE)
+})
+
+test_that("A failed simulation leaves the observed data in place", {
+  hhmodel <- mk_frederick$model |>
+    add_parameter(alpha = 0.15, beta = 0.2, gamma = 1, hhsize_ref = 4)
+  log_lik <- evaluate_log_lik(hhmodel)
+  # the second replicate fails after the first one is simulated
+  calls <- 0L
+  fail_second <- \(x) if ((calls <<- calls + 1L) == 2L) stop("stop") else x
+  hhmodel |>
+    run_simulation(nrep = 3L, obs_process = fail_second) |>
+    expect_error("[Ss]top")
+  hhmodel |>
+    evaluate_log_lik() |>
+    expect_identical(log_lik)
+})

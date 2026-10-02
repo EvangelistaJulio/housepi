@@ -219,9 +219,5 @@ namespace housepi
 
     void Setup::prog_update() { progressbar_->update(); }
     double Setup::prog_close() { return progressbar_->close(); }
-    [[noreturn]] void Setup::crash(const std::exception &e)
-    {
-        progressbar_->crash();
-        msg::stop(e.what());
-    }
+    void Setup::prog_crash() const noexcept { progressbar_->crash(); }
 }

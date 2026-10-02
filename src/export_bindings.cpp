@@ -325,15 +325,15 @@ namespace housepi
         };
 
 #define MAKE_EXPOSE_METHOD_CALL(name, expr)                 \
-        Rcpp::NumericVector name(Rcpp::NumericVector x) const   \
-        {                                                       \
-            return call_([this](double v) { return expr; }, x); \
-        }
+    Rcpp::NumericVector name(Rcpp::NumericVector x) const   \
+    {                                                       \
+        return call_([this](double v) { return expr; }, x); \
+    }
 #define MAKE_EXPOSE_METHOD_CALL_RATIO(name, expr)                                  \
-        Rcpp::NumericVector name(Rcpp::NumericVector xo, Rcpp::NumericVector xn) const \
-        {                                                                              \
-            return call_ratio_([this](double vo, double vn) { return expr; }, xo, xn); \
-        }
+    Rcpp::NumericVector name(Rcpp::NumericVector xo, Rcpp::NumericVector xn) const \
+    {                                                                              \
+        return call_ratio_([this](double vo, double vn) { return expr; }, xo, xn); \
+    }
 
         class ExposeFunction : public ExposeBase
         {
@@ -805,7 +805,8 @@ namespace housepi
             {
                 Rcpp::NumericVector col(draws.cols[c].size());
                 std::transform(draws.cols[c].begin(), draws.cols[c].end(), col.begin(),
-                               [](double x) { return hsp_to_rcpp(x); });
+                               [](double x)
+                               { return hsp_to_rcpp(x); });
                 stored[c] = col;
                 std::vector<double>().swap(draws.cols[c]);
             }
@@ -939,8 +940,8 @@ namespace housepi
         /// Snapshot the log-density of each key of `list`, per member of `house`.
         /// - key with no distribution for a member: NA.
         Rcpp::DataFrame rcpp_snapshot_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr,
-                                                     const Household &house,
-                                                     const std::vector<size_t> &list)
+                                              const Household &house,
+                                              const std::vector<size_t> &list)
         {
             const Augmented &augm = mcmc_ptr->augm;
 
@@ -964,7 +965,7 @@ namespace housepi
 
         /// Snapshot the latents of `house`.
         Rcpp::DataFrame rcpp_snapshot_latent(Rcpp::XPtr<MCMC> mcmc_ptr,
-                                                    const Household &house)
+                                             const Household &house)
         {
             const Augmented &augm = mcmc_ptr->augm;
 
@@ -1000,7 +1001,7 @@ namespace housepi
                     Rcpp::_["observation_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_obs_member),
                     Rcpp::_["transmission_log_lik"] = hsp_to_rcpp(mcmc_ptr->data.state.transm_log_lik(house).value()));
             }
-            catch (const std::exception &e)
+            catch (const housepi::CppError &e)
             {
                 msg::stop(msg::join(e.what(), "for household " + msg::val(hhid)));
             }
@@ -1067,10 +1068,9 @@ namespace housepi
                                 ++c;
                             }
                         }
-                        catch (const std::exception &e)
+                        catch (const housepi::CppError &e)
                         {
-                            throw std::runtime_error(
-                                msg::join(e.what(), "for " + data_wide.str(data_wide.at(H))));
+                            msg::stop(msg::join(e.what(), "for " + data_wide.str(data_wide.at(H))));
                         }
                     },
                     engine.setup.budget.inner);
@@ -1118,6 +1118,18 @@ namespace housepi
                     sim_list[n_shared + 1 + c] = rcpp_typed_column(latent_cols[c], discr_cols[c]);
                 return rcpp_data_frame(sim_list, sim_names);
             }
+
+            /// Restore observed status and point every read-cell back at its imported value.
+            ///
+            /// - post-simulation reads of data_wide return the input;
+            /// - generated values leave through the simulated frames;
+            /// - wired cells refer to Variables the next run clears.
+            void restore(MCMC &engine)
+            {
+                engine.augm.clear_all();
+                engine.data.wide().recover_all_status();
+                engine.data.reset_readcells();
+            }
         }
 
         /// Run the simulation, returning wide and long results after post-processing.
@@ -1131,6 +1143,7 @@ namespace housepi
             const Augmented &augm = engine.augm;
             const data::Wide &data_wide = engine.data.wide();
 
+            // every exit restores the engine
             try
             {
                 engine.model->init_model_for_simulation(); // model-specific initialization
@@ -1218,33 +1231,33 @@ namespace housepi
                         out_long[r] = (*f_long)(simulated);
                 }
                 setup.prog_close();
-
-                // restore observed status and point every read-cell back at its imported value
-                // post-simulation reads of data_wide then return the input
-                // generated values leave through the simulated frames
-                // the wired cells refer to Variables this run is about to clear
-                engine.augm.clear_all();
-                engine.data.wide().recover_all_status();
-                engine.data.reset_readcells();
+                simulate::restore(engine);
 
                 return Rcpp::List::create(Rcpp::_["wide"] = out_wide,
                                           Rcpp::_["long"] = out_long,
                                           Rcpp::_["parameters"] = param_trace.flush());
             }
-            catch (const std::exception &e)
+            catch (const std::exception &)
             {
-                setup.crash(e);
+                setup.prog_crash();
+                simulate::restore(engine);
+                throw;
+            }
+            catch (...)
+            {
+                simulate::restore(engine);
+                throw;
             }
         }
 
         //////////////////////////////  Rcpp exports  //////////////////////////////
 
-    /// Export the keys `expr` reads on the engine.
+        /// Export the keys `expr` reads on the engine.
 #define MAKE_EXPORT_KEYS(name, expr)                      \
-        Rcpp::CharacterVector name(Rcpp::XPtr<MCMC> mcmc_ptr) \
-        {                                                     \
-            return Rcpp::wrap(mcmc_ptr->expr);                \
-        }
+    Rcpp::CharacterVector name(Rcpp::XPtr<MCMC> mcmc_ptr) \
+    {                                                     \
+        return Rcpp::wrap(mcmc_ptr->expr);                \
+    }
 
         // keys the model declares through HOUSEPI_DECLARE_REGISTER_KEYS
         MAKE_EXPORT_KEYS(key_Data, model->key_Data())
@@ -1316,14 +1329,7 @@ namespace housepi
 
         double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string hhid)
         {
-            try
-            {
-                return mcmc_ptr->evaluate_log_lik(hhid);
-            }
-            catch (const std::exception &e)
-            {
-                mcmc_ptr->setup.crash(e);
-            }
+            return mcmc_ptr->evaluate_log_lik(hhid);
         }
         double run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
@@ -1331,9 +1337,10 @@ namespace housepi
             {
                 return mcmc_ptr->run_inference();
             }
-            catch (const std::exception &e)
+            catch (const std::exception &)
             {
-                mcmc_ptr->setup.crash(e);
+                mcmc_ptr->setup.prog_crash();
+                throw;
             }
         }
 

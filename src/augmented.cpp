@@ -1850,7 +1850,7 @@ namespace housepi
 
     void Augmented::clear_all()
     {
-        if (khold_.empty())
+        if (khold_.empty() || !is_allocated())
             return;
 
         for (const Household &house : mcmc_->data.wide())
