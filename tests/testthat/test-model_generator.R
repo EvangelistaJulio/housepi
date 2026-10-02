@@ -44,16 +44,14 @@ test_that("Model choice helper handles malformed input", {
   hhmodel$name |> expect_identical("test")
 
   # non-character input is rejected
-  new_housepi_model(model = 42) |>
-    expect_error("non-empty")
+  new_housepi_model(model = 42) |> expect_error("non-empty")
 
   # length != 1 character input is rejected
   new_housepi_model(model = c("test", "final-size")) |>
     expect_error("non-empty")
 
   # '.' as a model choice is rejected with a clear message
-  new_housepi_model(model = ".") |>
-    expect_error("different folder")
+  new_housepi_model(model = ".") |> expect_error("different folder")
 
   # unknown template suggests closest match (none for unrelated input)
   new_housepi_model(model = "unknown.model") |>
@@ -108,8 +106,7 @@ test_that("A custom model directory without model.cpp is rejected", {
   dir.create(path, showWarnings = FALSE)
   on.exit(unlink(path, recursive = TRUE), add = TRUE)
 
-  new_housepi_model(model = path) |>
-    expect_error("empty_model.*was not found")
+  new_housepi_model(model = path) |> expect_error("empty_model.*was not found")
 })
 
 ######################################
@@ -184,8 +181,7 @@ test_that("Wide data is factorized and refactored by the generator", {
   refactored$hhid |> expect_identical(dummy_household$hhid)
 
   # data long format
-  generator$import_data_long(list(a = 1)) |>
-    expect_error("data.frame")
+  generator$import_data_long(list(a = 1)) |> expect_error("data.frame")
 })
 
 test_that("init_pointers is a no-op when pointers already exist", {
@@ -224,20 +220,23 @@ test_that("A session template compiles user flags and warns when they change", {
   browse_templates("case-ascertained", path, replace = TRUE)
 
   # build + load a discrete template: user paths, flags and libs reach the
-  # compile command, and the flags are recorded in a sidecar
+  # compile command as one token each, spaces included, and the flags are
+  # recorded in a sidecar
+  inc <- file.path(tempdir(), "include dir")
+  lib <- file.path(tempdir(), "lib dir")
   log <- suppressMessages(capture.output(
     new_housepi_model(model = path, discr = TRUE, as_template = TRUE,
-                      force = TRUE, paths = "/tmp/include_dir",
-                      libs = "/tmp/lib_dir"),
+                      force = TRUE, paths = inc, libs = lib),
     type = "output"
   )) |>
     paste(collapse = "\n")
-  log |> expect_match("-I/tmp/include_dir", fixed = TRUE)
+  log |> expect_match(shQuote(paste0("-I", inc)), fixed = TRUE)
   log |>
     expect_match(paste0("-I", system.file("include", package = "housepi")),
                  fixed = TRUE)
   log |> expect_match("-D_HOUSEPI_DISCRETE_TIME", fixed = TRUE)
-  log |> expect_match("-L/tmp/lib_dir", fixed = TRUE)
+  # the link command is echoed with its quotes already removed
+  log |> expect_match(paste0("-L", lib), fixed = TRUE)
   readLines(dll_flags_file(template_dll_file(path))) |>
     expect_identical("_HOUSEPI_DISCRETE_TIME")
 
@@ -253,8 +252,7 @@ test_that("A session template compiles user flags and warns when they change", {
 })
 
 test_that("Custom models share function registries", {
-  browse_functions("growth") |>
-    expect_error("Unknown function")
+  browse_functions("growth") |> expect_error("Unknown function")
 
   # compile example, skipping any cached build
   hhmodel <- flu_1918_frederick |>
@@ -266,8 +264,7 @@ test_that("Custom models share function registries", {
     add_latent(import = "template") |>
     expect_error("file.*not found")
   # no help page for custom example
-  hhmodel$help() |>
-    expect_error("not a template")
+  hhmodel$help() |> expect_error("not a template")
 
   # Growth_ overrides only raw_function_ and raw_primitive_
   # other raw_ virtuals fall back to raise_undefined_call_err_
@@ -275,6 +272,5 @@ test_that("Custom models share function registries", {
   func <- browse_functions("growth", initial = 2, rate = 0.5)
   func$func(x) |> expect_equal(2 * exp(0.5 * x))
   func$prim(x) |> expect_equal(2 * exp(0.5 * x) / 0.5)
-  func$log_func(x) |>
-    expect_error("undefined")
+  func$log_func(x) |> expect_error("undefined")
 })

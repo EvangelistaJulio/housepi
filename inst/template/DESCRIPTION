@@ -10,5 +10,6 @@ License: GPL (>= 3)
 NeedsCompilation: yes
 Encoding: UTF-8
 LinkingTo:
-    BH
+    BH,
+    RcppParallel
 RoxygenNote: 7.3.3

@@ -368,7 +368,7 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @descrtiption
+    # @description
     # Generate flags used for environment compilation.
     build_compile_flags_ = function(paths = NULL, flags = NULL, libs = NULL) {
       flags <- c(
@@ -384,13 +384,17 @@ HousepiGenerator <- R6::R6Class(
         RcppParallel::RcppParallelLibs()
       ), collapse = " ")
 
-      c(PKG_CXXFLAGS = paste0(c(paste0("-D", flags),
-                                paste0("-I", paths)),
-                              collapse = " "),
-        PKG_LIBS = paste0(c(rcpp_parallel_libs,
-                            if (length(libs)) paste0("-L", libs),
-                            housepi_lib),
-                          collapse = " "))
+      # quote each token: make hands the recipe to the shell
+      c(
+        PKG_CXXFLAGS = paste(
+          shQuote(c(paste0("-D", flags), paste0("-I", paths))), collapse = " "
+        ),
+        PKG_LIBS = paste(
+          c(rcpp_parallel_libs,
+            shQuote(c(if (length(libs)) paste0("-L", libs), housepi_lib))
+          ), collapse = " "
+        )
+      )
     },
 
     # @description
