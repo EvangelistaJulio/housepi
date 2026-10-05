@@ -36,6 +36,7 @@ Roxygen: list(markdown = TRUE, r6 = TRUE)
 RdMacros: Rdpack
 Suggests:
     bayesplot (>= 1.9.0),
+    BH (>= 1.90.0-1),
     dplyr (>= 1.1.0),
     flextable (>= 0.8.0),
     ggplot2 (>= 3.4.0),
