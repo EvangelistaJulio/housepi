@@ -62,7 +62,7 @@ An object of class \code{HousepiPosteriorDraws}.
 }
 \description{
 Run inference with Bayesian Markov Chain Monte Carlo, by the
-Metropolis-Hastings algorithm
+component-wise Metropolis-Hastings algorithm
 \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
 }
 \details{

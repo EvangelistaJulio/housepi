@@ -173,7 +173,7 @@ test_that("Reference turns group risks relative with its own mcmc setup", {
   params <- get_parameters(hhmodel)
   params$args[[1]] |> expect_equal(c(meanlog = 0, sdlog = 3))
   params$min |> expect_all_equal(0)
-  params$max |> expect_all_equal(10)
+  params$max |> expect_all_equal(NA_real_)
   params$proposal |> expect_all_equal("rw_log")
 })
 

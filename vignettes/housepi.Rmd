@@ -181,7 +181,7 @@ For further information on the available options for priors and MCMC proposals d
 # Run inference
 
 After having provided all necessary definitions, we can perform inference calling `run_inference()`.
-With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the Metropolis-Hastings algorithm [@metropolis_equation_1953; @hastings_monte_1970].
+With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the component-wise Metropolis-Hastings algorithm [@metropolis_equation_1953; @hastings_monte_1970].
 Standard options for the MCMC can be provided at this stage, including controls on the number of `threads`.
 The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
 

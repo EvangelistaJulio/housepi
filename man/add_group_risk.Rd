@@ -113,7 +113,7 @@ Each stratum carries its own absolute risk, unless a reference is chosen:
 then every parameter multiplies the baseline risk of the reference stratum.
 If no MCMC options are provided, absolute risks are assumed
 \eqn{\mathrm{uniform}} over their support, and relative ones
-\eqn{\mathrm{lognormal}[\mu=0, \sigma=3]} with support \eqn{[0, 10]}.
+\eqn{\mathrm{lognormal}[\mu=0, \sigma=3]}.
 Bypass automatic generation by providing a custom pre-built logic table.
 There are three mutually exclusive definition modes:
 \describe{

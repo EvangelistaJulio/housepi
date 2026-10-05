@@ -839,8 +839,7 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
 #' @noRd
 default_risk_mcmc_setup <- function(absolute) {
   if (isTRUE(absolute)) list(prior = "uniform", proposal = "rw_log")
-  else list(prior = "lognormal", meanlog = 0, sdlog = 3,
-            min = 0, max = 10, proposal = "rw_log")
+  else list(prior = "lognormal", meanlog = 0, sdlog = 3, proposal = "rw_log")
 }
 
 # Validate and shape the automatic reference of group risks.

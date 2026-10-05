@@ -154,7 +154,7 @@ Each stratum carries its own absolute risk, unless a reference is chosen:
 then every parameter multiplies the baseline risk of the reference stratum.
 If no MCMC options are provided, absolute risks are assumed
 \\eqn{\\mathrm{uniform}} over their support, and relative ones
-\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]} with support \\eqn{[0, 10]}.
+\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}.
 Bypass automatic generation by providing a custom pre-built logic table.",
           kind)
 }
@@ -1149,7 +1149,7 @@ inspect_house_state <- function(hhmodel, hhid) {
 #' @title Run Bayesian MCMC inference on a housepi model
 #' @description
 #' Run inference with Bayesian Markov Chain Monte Carlo, by the
-#' Metropolis-Hastings algorithm
+#' component-wise Metropolis-Hastings algorithm
 #' \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
 #' @param hhmodel `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
