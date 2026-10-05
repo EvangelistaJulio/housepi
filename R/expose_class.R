@@ -218,6 +218,10 @@ rd_param_table_ <- "One between
 - `posterior::draws`;
 - [HousepiPosteriorDraws][housepi::HousepiPosteriorDraws].
 "
+rd_nrep_ <- "`integer(1)` Maximum number of `param_table` rows simulated.
+Posterior draws are thinned to their ESS when `thin_ess` is `TRUE`.
+Then `nrep` evenly spaced rows are kept (all of them when fewer remain).
+If `NA`, every row is simulated (default)."
 rd_thin_ess_ <- "`logical(1)` Whether to thin `param_table` to its
 bulk effective sample size (ESS).
 Ignored if `param_table` has no posterior draws."
@@ -1221,15 +1225,16 @@ run_inference <- function(hhmodel,
 #' @param obs_process `r rd_simul_observ_`
 #' @param obs_process_long `r rd_simul_obs_long_`
 #' @param param_table `r rd_param_table_`
+#' @param nrep `r rd_nrep_`
 #' @param thin_ess `r rd_thin_ess_`
-#' @param nrep `integer(1)` Number of replicates to generate.
-#' If `param_table` is `NULL`, all replicates share the same parameters.
-#' Otherwise, if `nrep` is smaller than number of `param_table` rows
-#' (optionally ESS-thinned), the table is sub-sampled to `nrep`
-#' evenly-spaced rows.
-#' If `NA` produces a single repetition (default).
+#' Without `param_table`, the number of replicates, which share the pinned
+#' parameters and draw the others from their prior. If `NA`, one replicate.
+#' Once set, even to 1, the replicates are returned as a list.
 #' @param ... `r rd_dots_config_`
-#' @return `data.frame` or `list` (when `obs_process_long` is provided)
+#' @return A `data.frame` for a single replicate, when `nrep` is `NA` and
+#' `param_table` is `NULL` or a one-row `data.frame`.
+#' Otherwise a `list` with one `data.frame` per replicate.
+#' With `obs_process_long`, a `list(wide = , long = )` of either.
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -1241,36 +1246,42 @@ run_simulation <- function(hhmodel,
                            obs_process = NULL,
                            obs_process_long = NULL,
                            param_table = NULL,
-                           thin_ess = TRUE,
                            nrep = NA_integer_,
+                           thin_ess = TRUE,
                            ...) {
   output <- simulate_with_parameters_(
     hhmodel, obs_process = obs_process, obs_process_long = obs_process_long,
     param_table = param_table, thin_ess = thin_ess, nrep = nrep, ...
   )
   output$parameters <- NULL
+  # the arguments, not the replicates left after thinning, ask for one frame
+  single <- is.null(param_table) || (
+    is.data.frame(param_table) && !posterior::is_draws(param_table) &&
+      nrow(param_table) == 1L
+  )
+  if (is.na(nrep) && single) output <- lapply(output, `[[`, 1L)
   if (length(output) == 1) output[[1]] else output
 }
 
-#' Simulate from `hhmodel` as [run_simulation()] does, returning the list of
-#' `wide` and `long` surveys (one frame each for a single replicate) and
-#' `parameters`: the values each replicate is simulated at, pinned or drawn
-#' from the prior, one row per replicate.
+#' Simulate from `hhmodel` as [run_simulation()] does, returning the lists of
+#' `wide` and `long` surveys, one frame per replicate, and `parameters`: the
+#' values each replicate is simulated at, pinned or drawn from the prior, one
+#' row per replicate.
 #' @keywords internal
 #' @noRd
 simulate_with_parameters_ <- function(hhmodel,
                                       obs_process = NULL,
                                       obs_process_long = NULL,
                                       param_table = NULL,
-                                      thin_ess = TRUE,
                                       nrep = NA_integer_,
+                                      thin_ess = TRUE,
                                       ...) {
   stopifnothousepi(hhmodel)
   # simulation specific build
   assert_advanced_setup_("time_step", ...)
   pvt <- hhmodel$.__enclos_env__$private
-  nrep <- pvt$helper_simulation_build_(
-    param_table = param_table, thin_ess = thin_ess, nrep = nrep, ...
+  pvt$helper_simulation_build_(
+    param_table = param_table, nrep = nrep, thin_ess = thin_ess, ...
   )
 
   # combine observation process to measures and refactor
@@ -1284,10 +1295,5 @@ simulate_with_parameters_ <- function(hhmodel,
 
   # drop empty long
   if (!length(output$long)) output$long <- NULL
-  # unwrap the frames of a single replicate
-  if (nrep == 1) {
-    output$wide <- output$wide[[1]]
-    output$long <- output$long[[1]]
-  }
   output
 }

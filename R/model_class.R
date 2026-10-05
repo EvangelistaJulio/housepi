@@ -262,12 +262,16 @@ HousepiModel <- R6::R6Class(
     # Read a table of parameter values a run supplies, refusing a value for a
     # baseline an absolute risk holds at the reference.
     # @param table `data.frame` or path. Values keyed by parameter name.
+    # @param nrep `integer(1)`. Rows kept at most, evenly spaced, all if `NA`.
     # @param thin_ess `logical(1)`. Thin by effective sample size.
     # @param arg `character(1)`. Argument the table came from.
-    read_param_table_ = function(table, thin_ess = TRUE, arg = "param_table") {
+    read_param_table_ = function(table,
+                                 nrep = NA_integer_,
+                                 thin_ess = TRUE,
+                                 arg = "param_table") {
       table <- helper_read_param_table_(table, thin_ess = thin_ess)
       private$assert_no_baseline_value_(table, arg)
-      table
+      helper_thin_even_(table, nrep)
     },
 
     # @description
@@ -778,8 +782,7 @@ HousepiModel <- R6::R6Class(
       if (is.null(param_table)) {
         if (is.na(nrep)) nrep <- 1L
       } else {
-        param_table <- private$read_param_table_(param_table, thin_ess)
-        if (!is.na(nrep)) param_table <- helper_thin_even_(param_table, nrep)
+        param_table <- private$read_param_table_(param_table, nrep, thin_ess)
         nrep <- nrow(param_table)
         # an undeclared model builds on the table's first row: the engine
         # keeps it for the run, the caller's definitions stay as declared
@@ -842,13 +845,12 @@ HousepiModel <- R6::R6Class(
                             apply_long = NULL,
                             obs_proc_wide = NULL,
                             obs_proc_long = NULL,
+                            nrep = NA_integer_,
                             thin_ess = TRUE,
-                            max_nrep = NA_integer_,
                             threads = 1L,
                             progress = TRUE,
                             labelled = TRUE) {
-      param_table <- private$read_param_table_(param_table, thin_ess)
-      param_table <- helper_thin_even_(param_table, max_nrep)
+      param_table <- private$read_param_table_(param_table, nrep, thin_ess)
       nsim <- nrow(param_table)
 
       # internal build function

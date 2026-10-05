@@ -5,8 +5,6 @@
 ## See the LICENSE file for details.
 ##
 
-rd_max_nrep_ <- "`integer(1)` Larger number of replicates.
-The parameter table (optionally ESS-thinned) is thinned to `max_nrep` rows."
 rd_min_hhsize_ <- "`integer(1)` Minimum household size retained in the outputs.
 If `NA`, no lower bound is applied."
 rd_max_hhsize_ <- "`integer(1)` Maximum household size retained in the outputs.
@@ -261,7 +259,7 @@ ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
 #' ppc <- check_predictive(hhmodel, results,
 #'                         sar = measure_sar_by_hhsize,
 #'                         overall = overall_ar,
-#'                         max_nrep = 50, progress = FALSE)
+#'                         nrep = 50, progress = FALSE)
 #' ppc$overall
 #' @docType class
 HousepiPredictiveCheck <- R6::R6Class(
@@ -365,8 +363,8 @@ HousepiPredictiveCheck <- R6::R6Class(
     #' @param obs_process `r rd_simul_observ_`
     #' @param obs_process_long `r rd_simul_obs_long_`
     #' @param ... `r rd_measure_dots_`
+    #' @param nrep `r rd_nrep_`
     #' @param thin_ess `r rd_thin_ess_`
-    #' @param max_nrep `r rd_max_nrep_`
     #' @param measures_long `function` | `list` of `function`s.
     #' Applied to `data_long` (derived via `obs_process_long`).
     #' @param threads `r rd_thread_`
@@ -377,12 +375,11 @@ HousepiPredictiveCheck <- R6::R6Class(
                           obs_process_long = NULL,
                           ...,
                           measures_long = NULL,
+                          nrep = NA_integer_,
                           thin_ess = TRUE,
-                          max_nrep = 200L,
                           threads = 1L,
                           progress = TRUE) {
-      max_nrep <- assert_count_(max_nrep, "Maximum number of replicates",
-                                allow_na = TRUE)
+      nrep <- assert_count_(nrep, "Number of replicates", allow_na = TRUE)
       # associate summary statistic and credible interval
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
@@ -430,8 +427,8 @@ HousepiPredictiveCheck <- R6::R6Class(
         apply_long = apply_long,
         obs_proc_wide = obs_process,
         obs_proc_long = obs_process_long,
+        nrep = nrep,
         thin_ess = thin_ess,
-        max_nrep = max_nrep,
         threads = threads,
         progress = progress,
         labelled = private$labelled_
@@ -607,7 +604,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 #'   add_parameter(import = "template")
 #' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 #'
-#' ppc <- check_predictive(hhmodel, results, max_nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hhmodel, results, nrep = 50, progress = FALSE)
 #' ppc$formatted_attack_rate
 #' @docType class
 HousepiEpiPredictiveCheck <- R6::R6Class(
@@ -715,8 +712,8 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param obs_process `r rd_simul_observ_`
+    #' @param nrep `r rd_nrep_`
     #' @param thin_ess `r rd_thin_ess_`
-    #' @param max_nrep `r rd_max_nrep_`
     #' @param min_hhsize `r rd_min_hhsize_`
     #' @param max_hhsize `r rd_max_hhsize_`
     #' @param threads `r rd_thread_`
@@ -724,8 +721,8 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     initialize = function(hhmodel,
                           param_table,
                           obs_process = NULL,
+                          nrep = NA_integer_,
                           thin_ess = TRUE,
-                          max_nrep = 200L,
                           min_hhsize = NA_integer_,
                           max_hhsize = NA_integer_,
                           threads = 1L,
@@ -743,7 +740,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
         sec_attack_rate = \(x) measure_sar_by_hhsize(x, esc),
         cases_count = \(x) measure_cases_by_hhsize(x, esc),
         obs_process = obs_process,
-        thin_ess = thin_ess, max_nrep = max_nrep,
+        nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
       )
       private$house_counts_ <- helper_house_counts(hhmodel$data_wide, esc)
@@ -802,8 +799,8 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' @param obs_process `r rd_simul_observ_`
 #' @param obs_process_long `r rd_simul_obs_long_`
 #' Only with measures in `...`.
+#' @param nrep `r rd_nrep_`
 #' @param thin_ess `r rd_thin_ess_`
-#' @param max_nrep `r rd_max_nrep_`
 #' @param min_hhsize `r rd_min_hhsize_`
 #' Only with the standard epidemiological measures.
 #' @param max_hhsize `r rd_max_hhsize_`
@@ -824,7 +821,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #'   add_parameter(import = "template")
 #' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 #'
-#' ppc <- check_predictive(hhmodel, results, max_nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hhmodel, results, nrep = 50, progress = FALSE)
 #' ppc
 #'
 #' # a user-defined measure: the overall attack rate
@@ -832,7 +829,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' ppc <- check_predictive(hhmodel, results,
 #'                         sar = measure_sar_by_hhsize,
 #'                         overall = overall_ar,
-#'                         max_nrep = 50, progress = FALSE)
+#'                         nrep = 50, progress = FALSE)
 #' ppc
 #' ppc$sar$observed
 #' @export
@@ -841,8 +838,8 @@ check_predictive <- function(hhmodel,
                              ...,
                              obs_process = NULL,
                              obs_process_long = NULL,
+                             nrep = NA_integer_,
                              thin_ess = TRUE,
-                             max_nrep = 200L,
                              min_hhsize = NA_integer_,
                              max_hhsize = NA_integer_,
                              threads = 1L,
@@ -855,8 +852,8 @@ check_predictive <- function(hhmodel,
     )
     return(HousepiEpiPredictiveCheck$new(
       hhmodel$copy(), param_table,
-      obs_process = obs_process, thin_ess = thin_ess,
-      max_nrep = max_nrep, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
+      obs_process = obs_process, nrep = nrep, 
+      thin_ess = thin_ess, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
       threads = threads, progress = progress
     ))
   }
@@ -867,7 +864,7 @@ check_predictive <- function(hhmodel,
   )
   HousepiPredictiveCheck$new(
     hhmodel$copy(), param_table, ...,
-    thin_ess = thin_ess, max_nrep = max_nrep,
+    nrep = nrep, thin_ess = thin_ess,
     obs_process = obs_process, obs_process_long = obs_process_long,
     threads = threads, progress = progress
   )

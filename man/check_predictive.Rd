@@ -10,8 +10,8 @@ check_predictive(
   ...,
   obs_process = NULL,
   obs_process_long = NULL,
+  nrep = NA_integer_,
   thin_ess = TRUE,
-  max_nrep = 200L,
   min_hhsize = NA_integer_,
   max_hhsize = NA_integer_,
   threads = 1L,
@@ -41,12 +41,14 @@ Expects processed \code{data_wide} and returns a \code{data_long} data.frame.
 When provided, each simulation returns \code{list(wide = ..., long = ...)}.
 Only with measures in \code{...}.}
 
+\item{nrep}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
+Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
+Then \code{nrep} evenly spaced rows are kept (all of them when fewer remain).
+If \code{NA}, every row is simulated (default).}
+
 \item{thin_ess}{\code{logical(1)} Whether to thin \code{param_table} to its
 bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws.}
-
-\item{max_nrep}{\code{integer(1)} Larger number of replicates.
-The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.}
 
 \item{min_hhsize}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied.
@@ -95,7 +97,7 @@ hhmodel <- flu_1918_frederick |>
   add_parameter(import = "template")
 results <- run_inference(hhmodel, chains = 2, progress = FALSE)
 
-ppc <- check_predictive(hhmodel, results, max_nrep = 50, progress = FALSE)
+ppc <- check_predictive(hhmodel, results, nrep = 50, progress = FALSE)
 ppc
 
 # a user-defined measure: the overall attack rate
@@ -103,7 +105,7 @@ overall_ar <- function(data_wide) mean(data_wide$status > 0)
 ppc <- check_predictive(hhmodel, results,
                         sar = measure_sar_by_hhsize,
                         overall = overall_ar,
-                        max_nrep = 50, progress = FALSE)
+                        nrep = 50, progress = FALSE)
 ppc
 ppc$sar$observed
 }

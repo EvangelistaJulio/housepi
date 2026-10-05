@@ -525,9 +525,9 @@ test_that("Thinning to ESS keeps from a few draws up to all draws", {
   thinned <- run_simulation(hhmodel, param_table = trend)
   length(thinned) |> expect_gte(2L)
   length(thinned) |> expect_lt(5L)
-  # without thinning, every draw is simulated
+  # without thinning, every draw is simulated, under a cap above their count
   hhmodel |>
-    run_simulation(param_table = trend, thin_ess = FALSE) |>
+    run_simulation(param_table = trend, thin_ess = FALSE, nrep = 100) |>
     expect_length(40L)
   # one chain of 20 iterations alternating low and high draws:
   # its ESS lies above the draw count, where `posterior` caps it
@@ -535,6 +535,12 @@ test_that("Thinning to ESS keeps from a few draws up to all draws", {
   hhmodel |>
     run_simulation(param_table = posterior::as_draws_df(alternate)) |>
     expect_length(20L)
+  # one trending chain: its ESS floors to a single draw, still in a list
+  hhmodel |>
+    run_simulation(param_table = posterior::as_draws_df(
+      data.frame(rho = seq_len(100L))
+    )) |>
+    expect_length(1L)
 })
 
 test_that("Simulation reads undeclared parameters from param_table", {
@@ -579,9 +585,10 @@ test_that("Simulation returns combined wide/long output", {
 })
 
 test_that("Simulation replicates are a list of data frames", {
-  simulated <- run_simulation(mk_frederick$template, nrep = 3)
+  # even a single replicate, once `nrep` asks for replicates
+  simulated <- run_simulation(mk_frederick$template, nrep = 1)
   simulated |> expect_type("list")
-  simulated |> expect_length(3)
+  simulated |> expect_length(1L)
   simulated[[1]] |> expect_s3_class("data.frame")
 
   # a param_table larger than nrep is thinned down to it

@@ -9,8 +9,8 @@ run_simulation(
   obs_process = NULL,
   obs_process_long = NULL,
   param_table = NULL,
-  thin_ess = TRUE,
   nrep = NA_integer_,
+  thin_ess = TRUE,
   ...
 )
 }
@@ -32,21 +32,25 @@ When provided, each simulation returns \code{list(wide = ..., long = ...)}.}
 \item \link{HousepiPosteriorDraws}.
 }}
 
+\item{nrep}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
+Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
+Then \code{nrep} evenly spaced rows are kept (all of them when fewer remain).
+If \code{NA}, every row is simulated (default).}
+
 \item{thin_ess}{\code{logical(1)} Whether to thin \code{param_table} to its
 bulk effective sample size (ESS).
-Ignored if \code{param_table} has no posterior draws.}
-
-\item{nrep}{\code{integer(1)} Number of replicates to generate.
-If \code{param_table} is \code{NULL}, all replicates share the same parameters.
-Otherwise, if \code{nrep} is smaller than number of \code{param_table} rows
-(optionally ESS-thinned), the table is sub-sampled to \code{nrep}
-evenly-spaced rows.
-If \code{NA} produces a single repetition (default).}
+Ignored if \code{param_table} has no posterior draws.
+Without \code{param_table}, the number of replicates, which share the pinned
+parameters and draw the others from their prior. If \code{NA}, one replicate.
+Once set, even to 1, the replicates are returned as a list.}
 
 \item{...}{Advanced configuration.}
 }
 \value{
-\code{data.frame} or \code{list} (when \code{obs_process_long} is provided)
+A \code{data.frame} for a single replicate, when \code{nrep} is \code{NA} and
+\code{param_table} is \code{NULL} or a one-row \code{data.frame}.
+Otherwise a \code{list} with one \code{data.frame} per replicate.
+With \code{obs_process_long}, a \code{list(wide = , long = )} of either.
 }
 \description{
 Run simulation to generate a household survey.

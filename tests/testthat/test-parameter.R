@@ -588,9 +588,9 @@ test_that("A pinned parameter is returned at its pin in simulation", {
   results <- simulate_with_parameters_(hhmodel, nrep = 5)
   results$parameters |> expect_named(c("rho", "rho_2"), ignore.order = TRUE)
   results$parameters$rho |> expect_all_equal(0.3)
-  # a single replicate returns its frame and a one-row table
+  # a single replicate returns one frame and a one-row table
   results <- simulate_with_parameters_(hhmodel)
-  results$wide |> expect_s3_class("data.frame")
+  results$wide |> expect_length(1L)
   results$parameters |> expect_nrow(1L)
   results$parameters$rho |> expect_equal(0.3)
 })

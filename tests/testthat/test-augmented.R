@@ -562,7 +562,7 @@ test_that("A latent bound to a distribution returns its density, not a draw", {
     new_housepi_model("test") |>
     add_latent(layer_1 = list(model = "uniform", max = 5, discr = TRUE),
                hidden = list(func = "poisson", x = layer_1, lambda = 3)) |>
-    run_simulation(nrep = 1)
+    run_simulation()
 
   simulated$layer_1 |> expect_type("integer")
   simulated$hidden |> expect_type("double")

@@ -18,7 +18,7 @@ overall_ar <- function(data_wide) mean(data_wide$status > 0)
 ppc <- check_predictive(hhmodel, results,
                         sar = measure_sar_by_hhsize,
                         overall = overall_ar,
-                        max_nrep = 50, progress = FALSE)
+                        nrep = 50, progress = FALSE)
 ppc$overall
 }
 \section{Active bindings}{
@@ -62,8 +62,8 @@ performs simulation and compute predicted values of a set of measures.
   obs_process_long = NULL,
   ...,
   measures_long = NULL,
+  nrep = NA_integer_,
   thin_ess = TRUE,
-  max_nrep = 200L,
   threads = 1L,
   progress = TRUE
 )}
@@ -90,11 +90,13 @@ Each function should return one between \code{numeric()}, \code{list} or \code{d
 If none is given, the standard epidemiological measures are checked.}
       \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s.
 Applied to \code{data_long} (derived via \code{obs_process_long}).}
+      \item{\code{nrep}}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
+Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
+Then \code{nrep} evenly spaced rows are kept (all of them when fewer remain).
+If \code{NA}, every row is simulated (default).}
       \item{\code{thin_ess}}{\code{logical(1)} Whether to thin \code{param_table} to its
 bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws.}
-      \item{\code{max_nrep}}{\code{integer(1)} Larger number of replicates.
-The parameter table (optionally ESS-thinned) is thinned to \code{max_nrep} rows.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
       \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
 One between:

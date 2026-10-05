@@ -191,16 +191,14 @@ sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, sim_args,
     if (!is.null(sampler)) struct <- sampler(structure, n_houses)
     surveys <- sweep_run_fn_(simulate_with_parameters_, hhmodel, struct,
                              sim_args)
-    wide <- surveys$wide
-    if (is.data.frame(wide)) wide <- list(wide)
     cell <- lapply(seq_len(nrep), function(rep) {
       truth <- unlist(surveys$parameters[rep, , drop = FALSE])
-      one <- sweep_one_replicate_(hhmodel, wide[[rep]], truth, n_houses, rep,
-                                  fit_args, reducer)
+      one <- sweep_one_replicate_(hhmodel, surveys$wide[[rep]], truth,
+                                  n_houses, rep, fit_args, reducer)
       if (!is.null(bar)) cli::cli_progress_update(id = bar)
       one
     })
-    rm(surveys, wide)
+    rm(surveys)
     done <- Filter(Negate(is.null), lapply(cell, `[[`, "estimates"))
     # an engine message carries no markup: interpolate, never inline
     # nolint next: object_usage_linter. read by the cli glue below

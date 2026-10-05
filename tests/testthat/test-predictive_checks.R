@@ -348,7 +348,7 @@ test_that("Predictive check on custom measures has read-only fields", {
   ppc <- mk_ppc$model |>
     check_predictive(
       mk_ppc$results, sar = measure_sar_by_hhsize,
-      thin_ess = FALSE, max_nrep = 10
+      thin_ess = FALSE, nrep = 10
     ) |>
     suppressWarnings()
 
@@ -366,7 +366,7 @@ test_that("Predictive check on custom measures has read-only fields", {
       averaged <- mk_ppc$model |>
         check_predictive(
           mk_ppc$results, sar = measure_sar_by_hhsize,
-          thin_ess = FALSE, max_nrep = 2
+          thin_ess = FALSE, nrep = 2
         ) |>
         suppressWarnings()
       averaged$point_estimate |> expect_identical("mean")
@@ -437,7 +437,7 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
   data_wide <- mk_ppc$model$data_wide
   run_on <- function(...) {
     mk_ppc$model |>
-      check_predictive(mk_ppc$results, thin_ess = FALSE, max_nrep = 5, ...) |>
+      check_predictive(mk_ppc$results, thin_ess = FALSE, nrep = 5, ...) |>
       suppressWarnings()
   }
   ppc <- run_on()
@@ -465,6 +465,6 @@ test_that("Custom PPC warns on observed values outside the interval", {
   param_table <- data.frame(alpha = 50, beta = 50, gamma = 1, hhsize_ref = 4)
   mk_ppc$model |>
     check_predictive(param_table, sar = measure_sar_by_hhsize,
-                     thin_ess = FALSE, max_nrep = 20L) |>
+                     thin_ess = FALSE, nrep = 20L) |>
     expect_warning(".*outside.*CrI")
 })

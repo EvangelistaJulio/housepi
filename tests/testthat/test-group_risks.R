@@ -1071,7 +1071,7 @@ test_that("A measure table cannot give a collapsed baseline its scale back", {
     check_predictive(
       data.frame(alpha = 0.5, beta = 0.1, gamma = 1, hhsize_ref = 4L,
                  com_member_mother = 0.5),
-      sar = measure_sar_by_hhsize, thin_ess = FALSE, max_nrep = 2L
+      sar = measure_sar_by_hhsize, thin_ess = FALSE, nrep = 2L
     ) |>
     expect_error("[Pp]aram_table.*alpha.*other than 1")
 })
