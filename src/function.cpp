@@ -324,13 +324,6 @@ namespace housepi
                        pFunc_->is_callable_implicitly(),
                        false)
     }
-    double Attribute::value() const
-    {
-        MAKE_ATTR_MODE(value_,
-                       pAttr_->value(),
-                       pFunc_->evaluate(),
-                       na::DOUBLE)
-    }
 
     //////////////////////////////  Attribute : setter  //////////////////////////////
 

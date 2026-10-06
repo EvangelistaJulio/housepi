@@ -144,7 +144,7 @@ namespace housepi
         virtual Codomain codomain() const noexcept;
 
         /// Get numeric value.
-        /// @note Out of line: Mode::Pointer recurses.
+        /// @note Defined after Function, which function mode evaluates.
         double value() const;
 
         /// Get the attribute holding the value, pointers followed.
@@ -632,5 +632,20 @@ namespace housepi
             return raw_primitive_(i + 1.) - raw_primitive_(i);
         }
     };
+
+    inline double Attribute::value() const
+    {
+        switch (mode_)
+        {
+        case Mode::Numeric:
+            return value_;
+        case Mode::Pointer:
+            return pAttr_->value();
+        case Mode::Function:
+            return pFunc_->evaluate();
+        default: // case Mode::Empty
+            return na::DOUBLE;
+        }
+    }
 
 }
