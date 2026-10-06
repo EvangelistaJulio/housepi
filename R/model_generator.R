@@ -386,7 +386,7 @@ HousepiGenerator <- R6::R6Class(
 
       # quote each token: make hands the recipe to the shell
       c(
-        PKG_CXXFLAGS = paste(
+        PKG_CPPFLAGS = paste(
           shQuote(c(paste0("-D", flags), paste0("-I", paths))), collapse = " "
         ),
         PKG_LIBS = paste(

@@ -14,6 +14,6 @@ done
 RCPPPARALLEL_LIBS=`"${R_HOME}/bin/Rscript.exe" -e "RcppParallel::RcppParallelLibs()"`
 cat > src/Makevars.win << EOF
 CXX_STD = CXX17
-PKG_CXXFLAGS = -I"../inst/include"
+PKG_CPPFLAGS = -I"../inst/include"
 PKG_LIBS = ${RCPPPARALLEL_LIBS}
 EOF
