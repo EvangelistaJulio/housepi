@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "tools/dictionary.h"
@@ -64,6 +65,9 @@ namespace housepi
         /// Parameter `p`.
         Variable &at(size_t p) noexcept { return state.vec[p]; }
         const Variable &at(size_t p) const noexcept { return state.vec[p]; }
+
+        /// Whether parameter `pstr` is constant.
+        bool is_constant(std::string_view pstr) const { return at(khold(pstr)).is_constant(); }
 
         /// Whether parameter storage is allocated.
         bool is_allocated() const noexcept { return !state.vec.empty(); }

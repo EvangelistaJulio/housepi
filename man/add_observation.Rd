@@ -36,7 +36,7 @@ One between \code{"member"}, one value per positive status individual, and
 \code{"house"}, one value per household reduced over all its members.
 In mode 'multiple', applies to every entry not setting its own.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}. Definition of the
+\item{value}{\code{numeric(1)} | \code{character(1)} Definition of the
 observation, depending on \code{level}:
 \describe{
 \item{\code{"member"}}{without a \code{model}, the value computed for every member;
@@ -123,8 +123,7 @@ hhmodel <- sarscov2_2021_icofs |>
   add_parameter(import = "template") |>
   add_infectivity_profile(import = "template") |>
   add_latent(
-    infec_time = list(model = "uniform",
-                      min = start_date - 10, max = end_date),
+    infec_time = list(min = start_date - 10, max = end_date),
     incub_period = list(model = "gamma", mean = 3, sd = 1.4),
     onset_time = infec_time + incub_period
   ) |>

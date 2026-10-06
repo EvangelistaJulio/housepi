@@ -16,7 +16,6 @@ namespace housepi::str
 {
     constexpr size_t MAX_PRINT = 5;      /// Max elements to print.
     constexpr size_t MIN_DIST = 2;       /// Similarity threshold distance.
-    constexpr char DELIMITER = ',';      /// Delimiter of CSV columns and function arguments.
     constexpr char LIST_DELIMITER = ':'; /// Delimiter of list entries.
 
     /// Convert to upper case.

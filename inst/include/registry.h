@@ -87,11 +87,12 @@ namespace housepi
 
         /// Distribution registries in lookup order.
         /// - name in both registries: the discrete one when `discr`.
-        inline std::vector<Kind> distr_kinds(bool discr)
-        {
-            return discr ? std::vector<Kind>{Kind::Discrete, Kind::Continuous}
-                         : std::vector<Kind>{Kind::Continuous, Kind::Discrete};
-        }
+        std::vector<Kind> distr_kinds(bool discr);
+        /// Deterministic function registries in lookup order.
+        std::vector<Kind> func_kinds();
+        /// Function, distribution and infectivity-profile registries in lookup order.
+        /// - name in both distribution registries: the discrete one when `discr`.
+        std::vector<Kind> func_distr_kinds(bool discr);
 
         /// Create a function from the first registry carrying the name.
         /// An NA name carries no definition and yields a null pointer.

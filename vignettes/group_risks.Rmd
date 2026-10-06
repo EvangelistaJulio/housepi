@@ -151,9 +151,7 @@ hhmodel <- hhmodel |>
   # latent definitions
   add_latent(
     # public definitions
-    infec_time = list(
-      model = "uniform", min = start_date - 8, max = end_date
-    ),
+    infec_time = list(min = start_date - 8, max = end_date),
     # accessory definitions, generic to all statuses
     incub_period = list(model = "gamma", mean = 3, sd = 1.4),
     onset_time = infec_time + incub_period,

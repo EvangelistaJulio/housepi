@@ -26,13 +26,13 @@ namespace housepi::augm::graph
                               const std::vector<size_t> &rows,
                               bool simulation);
 
-    /// Add edges from a definition to the member observations of `rows` it reads as data.
+    /// Add edges from a definition to the member observations of `rows` it reads in simulation.
     ///
-    /// An observation is drawn before its reader.
+    /// - simulation: an observation is drawn before its reader;
+    /// - inference: a reader reads a fixed data cell, no edge.
     void add_member_obs_edges(dag::prod_graph &pgraph,
                               const DefTable &def,
-                              const std::vector<size_t> &rows,
-                              bool simulation);
+                              const std::vector<size_t> &rows);
 
     /// Map each model name to its transitive consumers among other model nodes of `order`.
     str_table model_consumers(const DefTable &def,

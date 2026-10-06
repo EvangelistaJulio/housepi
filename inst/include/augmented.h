@@ -74,9 +74,11 @@ namespace housepi
                                       Individual &indiv,
                                       rnd_gen &prng);
         /// Draw the observations of `indiv` from their models, for simulation.
+        /// - each draw lands in its Variable, where data readers read it;
+        /// - the data column, if any, is never overwritten.
         void sample_obs(const Individual &indiv, rnd_gen &prng)
         {
-            augm::sample_obs(scheme_of_(indiv), state.of(indiv), prng);
+            augm::draw_sample(scheme_of_(indiv).obs_models, state.of(indiv), prng);
         }
 
         /// Build surrogate columns standing in for data columns, and point member read-surfaces at them.
@@ -209,7 +211,7 @@ namespace housepi
     private:
         MCMCBase *mcmc_; /// Owning MCMCBase. @todo Drop.
 
-        std::vector<size_t> user_transm_vec_ = {}; /// Model-declared latent keys read by transmission.
+        std::vector<size_t> user_transm_vec_ = {}; /// Model-declared latent keys generated and read by transmission.
 
         augm::DefTable def_;  /// Latent and observation definitions.
         augm::Scheme scheme_; /// Sampling schemes built from definitions.
@@ -235,10 +237,10 @@ namespace housepi
         /// List names the transmission reads: model-declared keys and the latent infectivity profile.
         std::vector<std::string> transm_names_() const;
 
-        /// Whether the member variable filling exported column `a` is discrete.
-        bool is_member_col_discrete_(size_t a) const;
-        /// Whether the household variable filling exported slot `slot` is discrete.
-        bool is_house_col_discrete_(size_t slot) const;
+        /// Whether the variables filling an exported column are discrete, at least one carrying a value.
+        /// - member column `i`: a key, never discrete when declared continuous;
+        /// - household column `i`: a slot.
+        bool is_col_discrete_(size_t i, bool is_house) const;
 
         /// Reject a member observation filling an every-member column only for infected members.
         void assert_every_member_cols_() const;

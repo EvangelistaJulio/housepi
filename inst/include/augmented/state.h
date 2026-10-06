@@ -94,6 +94,4 @@ namespace housepi::augm
     /// Draw latents `keys` of a member from their models, in order.
     /// Unlike restart(), it uses no proposal.
     void draw_sample(const std::vector<size_t> &keys, IndivState &st, rnd_gen &prng);
-    /// Draw the observations of a member from their models.
-    void sample_obs(const StatusScheme &ss, IndivState &st, rnd_gen &prng);
 }

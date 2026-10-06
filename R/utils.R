@@ -469,7 +469,7 @@ resolve_source_types_ <- function(defs, dict) {
 }
 
 #' Resolve unspecified `discr` declarations against model and data.
-#' A definition without model/prior keeps discr = FALSE.
+#' A definition neither carrying a model/prior nor sampled keeps discr = FALSE.
 #' @param defs `data.frame` Definitions table.
 #' @param discr_req_defs `character()` Definitions the model requires discrete.
 #' @param discr_col_types named `logical()` Storage type per data column.
@@ -504,7 +504,9 @@ resolve_discr_flags_ <- function(defs, discr_req_defs,
   }
 
   distr_col <- if (is_prior) "prior" else "model"
-  mask <- !is.na(defs[[distr_col]]) & (by_model | by_data)
+  # a latent sampled without a model carries a proposal
+  is_sampled <- !is.na(defs[[distr_col]]) | !is.na(defs[["proposal"]])
+  mask <- is_sampled & (by_model | by_data)
   discr[unresolved] <- mask[unresolved]
   defs[["discr"]] <- discr
   defs

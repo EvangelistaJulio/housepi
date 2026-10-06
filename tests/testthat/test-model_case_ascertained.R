@@ -257,7 +257,7 @@ test_that("Latent moves preserve log-likelihood", {
     add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
     add_latent(
-      infec_time = list(model = "uniform", min = -14, max = end_date),
+      infec_time = list(min = -14, max = end_date),
       incub_period = list(model = "weibull", shape = 2, scale = 1)
     ) |>
     # read by the incubation only: a move of the infection time skips it
@@ -274,6 +274,7 @@ test_that("Latent moves preserve log-likelihood", {
 
   # the pointwise log-lik folds transmission, the latent model and the
   # observation node: the complete-data density, parameter prior aside
+  # the flat infection time adds no density: transmission gives it
   log_lik <- unname(get_log_lik_draws(results)$h1)
   param_draws <- get_parameter_draws(results) |>
     draws_to_frame()
@@ -301,8 +302,7 @@ test_that("Latent moves preserve log-likelihood", {
     infected <- hhdata[hhdata$status > 0, ]
     latent_infec_obs_log_lik(hhdata, par) +
       sum(dnorm(infected$onset_date, infected$incub_period, log = TRUE)) +
-      sum(dweibull(infected$incub_period, shape = 2, scale = 1, log = TRUE)) +
-      sum(dunif(infected$infec_time, -14, 21, log = TRUE))
+      sum(dweibull(infected$incub_period, shape = 2, scale = 1, log = TRUE))
   }, numeric(1))
   log_lik |> expect_equal(expected)
 
@@ -311,8 +311,7 @@ test_that("Latent moves preserve log-likelihood", {
     transform(infec_draw = infec_time, incub_draw = incub_period) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_latent(
-      infec_time = list(value = infec_draw, const = TRUE,
-                        model = "uniform", min = -14, max = end_date),
+      infec_time = list(value = infec_draw, const = TRUE),
       incub_period = list(value = incub_draw, const = TRUE,
                           model = "weibull", shape = 2, scale = 1)
     ) |>

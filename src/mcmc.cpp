@@ -41,6 +41,7 @@
 #include "risks.h"
 #include "mcmc/setup.h"
 #include "translator.h"
+#include "variable.h"
 
 namespace housepi
 {
@@ -136,14 +137,7 @@ namespace housepi
                                                  const Household *house_ptr) const
     {
         std::unique_ptr<Function> func = registry::create_function(
-            node.func,
-            ErrType::Function,
-            {registry::Kind::Custom,
-             registry::Kind::Transcendental,
-             registry::Kind::Arithmetic,
-             registry::Kind::Continuous,
-             registry::Kind::Discrete,
-             registry::Kind::InfecProfile});
+            node.func, ErrType::Function, registry::func_distr_kinds(false));
         if (is_house_fold(node, house_ptr))
             func->set_eval_as_fold();
 
@@ -167,7 +161,7 @@ namespace housepi
     bool Translator::reads_member_cell_(const parse::Entry &node) const
     {
         if (node.is_terminal())
-            return (parse::is_data_wide(node.type) && !augm_.def().is_house_obs(node.value)) ||
+            return (parse::is_data_wide(node.type) && !augm_.def().has_row(node.value, augm::Kind::House)) ||
                    parse::is_latent(node.type) ||
                    parse::is_group_risk(node.type);
         // an inner reduction folds its own operands
@@ -254,6 +248,32 @@ namespace housepi
         const Individual *indiv_ptr) const
     {
         return to_numeric(parse::Definition(expr).root, indiv_ptr);
+    }
+
+    dict<Attribute> Translator::to_numeric_args(const parse::Entry &node,
+                                                const Individual *indiv_ptr) const
+    {
+        dict<Attribute> args;
+        for (const parse::Entry &child : node.children)
+            args.emplace(child.key, to_numeric(child, indiv_ptr));
+        return args;
+    }
+
+    void Translator::bind_distr(Variable &var,
+                                const parse::Entry &model,
+                                const parse::Entry &min,
+                                const parse::Entry &max,
+                                bool discr,
+                                const Individual *indiv_ptr,
+                                bool numeric) const
+    {
+        const auto read = [&](const parse::Entry &node) -> const Attribute &
+        { return numeric ? to_numeric(node, indiv_ptr) : to_attribute(node, indiv_ptr); };
+        for (const parse::Entry &child : model.children)
+            var.init_distr_attr(child.key, read(child));
+        var.init_distr_attr("min", read(min));
+        var.init_distr_attr("max", read(max));
+        var.reshape_distribution(discr);
     }
 
     void Translator::mark_param_produces_transm_cache(const parse::Entry &node) const

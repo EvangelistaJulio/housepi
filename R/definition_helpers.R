@@ -148,12 +148,14 @@ helper_variable_core <- function(opts, family, value, func) {
   y <- housepi_combine_to_call(func_name = x,
                                func_args = character(),
                                is_func = is.null(value))
-  # a value= given alongside a model/prior is a simulation-only override and
+  # a value= given alongside a model/prior, or alongside the proposal of a
+  # latent sampled without a model, is a simulation-only override and
   # always lands in opts$value, whatever its shape; otherwise (including the
   # bulk `name = <expr>` shorthand, which is also passed in as `value`) the
   # shape alone decides, as a bare name/leaf and a compound call are handled
   # the same regardless of which argument carried it
-  has_law <- !is.na(opts[[family2model_col(family)]])
+  has_law <- !is.na(opts[[family2model_col(family)]]) ||
+    (identical(opts$kind, "latent") && !is.na(opts$proposal))
   if ((!is.null(value) && has_law) || housepi_is_sourced_value(y)) {
     opts$value <- y
   } else {
@@ -271,6 +273,26 @@ helper_variable_move <- function(opts, family) {
   } else if (is_param && is.na(opts[[dist_word]]) && is.na(opts$func)) {
     # missing prior/func for not constant parameter
     stop_h("No {.arg {dist_word}} provided for {family} {.val {opts$name}}.")
+  }
+
+  # a latent with neither model nor function is sampled flat within its bounds:
+  # with a proposal, with bounds alone, or with a number declared not constant
+  is_num <- is.numeric(showcaser_extract_numeric(opts$value))
+  if (identical(opts$kind, "latent") && is.na(opts[[dist_word]]) &&
+        is.na(opts$func) &&
+        (!is.na(opts$proposal) || is.na(opts$value) ||
+           (is_num && isFALSE(opts$const)))) {
+    headline <- "No {.arg {dist_word}} to sample from for {family} {.val {opts$name}}."
+    if (identical(opts$proposal, "forward")) stop_h(
+      headline, "Proposal {.val forward} draws from the {.arg {dist_word}}."
+    )
+    if (anyNA(c(opts$min, opts$max))) stop_h(
+      headline,
+      "Provide a {.arg {dist_word}}, or both {.arg min} and {.arg max} to sample within."
+    )
+    opts$const <- FALSE
+    if (is.na(opts$proposal)) opts$proposal <- "rw"
+    return(opts)
   }
 
   if (is.na(opts$proposal)) {

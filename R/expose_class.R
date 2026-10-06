@@ -106,9 +106,11 @@ model carries: two of them sharing a name cannot be read."
 rd_aug_status_ <- "`integer(1)` Individual positive status.
 Used to specify status-specific definitions.
 If `NA`, associate definition to all infectious individuals (default)."
-rd_aug_val_ <- paste("`numeric(1)` | `character(1)`.", rd_var_val_("model"),
-                     rd_sources_)
-rd_obs_val_ <- paste("`numeric(1)` | `character(1)`. Definition of the
+rd_aug_val_ <- paste("`numeric(1)` | `character(1)` Value the definition is
+pinned to in simulations. In inference, it pins a constant or deterministic
+definition, and is ignored when the latent is sampled, with a `model` or a
+`proposal`.", rd_sources_)
+rd_obs_val_ <- paste("`numeric(1)` | `character(1)` Definition of the
 observation, depending on `level`:
 \\describe{
   \\item{`\"member\"`}{without a `model`, the value computed for every member;
@@ -123,6 +125,8 @@ observation, depending on `level`:
 }", rd_sources_)
 rd_aug_min_ <- paste(rd_var_min_, rd_sources_)
 rd_aug_max_ <- paste(rd_var_max_, rd_sources_)
+rd_lat_flat_bound_ <- "Without a `model`, the bound the latent is sampled within
+in inference, reading only data, observations and constant parameters."
 
 ## Definition modes ##
 
@@ -660,6 +664,13 @@ add_parameter <- function(hhmodel,
 #' If a latent definitions with the same name and status exists,
 #' the former gets overwritten.
 #' `r rd_add_modes_`
+#' @details
+#' A latent with a `model` is sampled from it.
+#' A latent the transmission model generates, such as the infection times of
+#' [template_case_ascertained], takes no `model`: transmission gives its
+#' probability, and inference samples it flat within `min` and `max`.
+#' In simulation, transmission sets it, except where it does not, such as the
+#' first infection of a household, which takes `value`.
 #' @param hhmodel `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_aug_val_`
@@ -668,10 +679,13 @@ add_parameter <- function(hhmodel,
 #' @param discr `r rd_var_discr_("model", "the model requirements")`
 #' @param func `r rd_var_func_`
 #' @param model `character(1)` Latent model distribution.
+#' Omitted for a latent the transmission model generates (see Details).
 #' @param ... `r rd_var_args_("model", proposal = TRUE, func = TRUE)`
 #' In mode 'multiple', the `name = value` definitions.
 #' @param min `r rd_aug_min_`
+#' `r rd_lat_flat_bound_`
 #' @param max `r rd_aug_max_`
+#' `r rd_lat_flat_bound_`
 #' @param proposal `r rd_var_proposal_`
 #' @param import `r rd_tmpl_import_`
 #' @param append `r rd_list_append_`
@@ -758,8 +772,7 @@ add_latent <- function(hhmodel,
 #'   add_parameter(import = "template") |>
 #'   add_infectivity_profile(import = "template") |>
 #'   add_latent(
-#'     infec_time = list(model = "uniform",
-#'                       min = start_date - 10, max = end_date),
+#'     infec_time = list(min = start_date - 10, max = end_date),
 #'     incub_period = list(model = "gamma", mean = 3, sd = 1.4),
 #'     onset_time = infec_time + incub_period
 #'   ) |>

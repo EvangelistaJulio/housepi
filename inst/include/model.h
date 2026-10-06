@@ -110,7 +110,8 @@ namespace housepi
 		void request_latent_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }
 		/// Request positive latents `vec`.
 		void request_latent_positive(std::vector<size_t> vec) { mcmc_->augm.request_positive(vec); }
-		/// Declare latents `vec` as read by transmission, cache included.
+		/// Declare latents `vec` as generated and read by transmission, cache included.
+		/// A latent listed here takes no model: transmission gives its density.
 		void request_latent_transmission(std::vector<size_t> vec) { mcmc_->augm.request_transmission(vec); }
 
 		/// Request a discrete infectivity profile.

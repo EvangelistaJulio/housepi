@@ -339,12 +339,7 @@ namespace housepi
         {
         public:
             static ErrType family() { return ErrType::Function; }
-            static std::vector<registry::Kind> reg_kinds()
-            {
-                return {registry::Kind::Custom,
-                        registry::Kind::Transcendental,
-                        registry::Kind::Arithmetic};
-            }
+            static std::vector<registry::Kind> reg_kinds() { return registry::func_kinds(); }
 
             ExposeFunction(std::string name, bool /*discr*/)
                 : ExposeBase(std::move(name), family(), reg_kinds()) {}

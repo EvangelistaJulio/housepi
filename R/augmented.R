@@ -269,9 +269,16 @@ HousepiAugmented <- R6::R6Class(
       assert_valid_status(status)
       # control meaningful definition
       assert_no_sibling_dist_arg(args, self$family, name)
-      if (all(is.null(c(value, func)), is.na(model))) stop_h(
+      # a latent without a model is sampled within its bounds
+      is_bounded <- identical(.kind, "latent") && !all(is.null(c(min, max)))
+      if (all(is.null(c(value, func)), is.na(model), !is_bounded)) stop_h(
         "Incomplete definition for latent {.val {name}}.",
         "Provide at least one between {.arg {c('value', 'model', 'func')}}."
+      )
+      if (is_bounded && !is.null(value) && is.na(model) &&
+            is.na(proposal) && is.na(const)) stop_h(
+        "Latent {.val {name}} has a value and bounds, but no model or proposal.",
+        "Add {.arg proposal} to sample it within the bounds, or drop {.arg min} and {.arg max}."
       )
       if (!is.null(func) && !is.na(model)) stop_h(
         "Wrong definition for latent {.val {name}}.",
@@ -292,8 +299,8 @@ HousepiAugmented <- R6::R6Class(
                    fcumul = FALSE, # UPDATE: can I make this an option?
                    model = as.character(model),
                    kind = as.character(.kind),
-                   min = NA_real_,
-                   max = NA_real_,
+                   min = if (is.null(min)) NA_real_ else min,
+                   max = if (is.null(max)) NA_real_ else max,
                    proposal = proposal)
 
       # a name stands for one quantity of the model, whatever kind declares it
@@ -307,10 +314,6 @@ HousepiAugmented <- R6::R6Class(
       opts <- helper_variable_args(opts, self$family, args, func)
       opts <- helper_variable_move(opts, self$family)
       opts <- helper_variable_level(opts, self$defs)
-
-      # domain
-      if (!is.null(min)) opts$min <- min
-      if (!is.null(max)) opts$max <- max
 
       # append definition(s)
       new_defs <- data.frame(opts)

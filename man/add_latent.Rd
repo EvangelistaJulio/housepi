@@ -26,9 +26,10 @@ add_latent(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}. Value the definition is pinned to in simulations. In inference, it
-pins a constant or deterministic definition, and is ignored when a
-\code{model} is given. Either a plain value, the name of another definition,
+\item{value}{\code{numeric(1)} | \code{character(1)} Value the definition is
+pinned to in simulations. In inference, it pins a constant or deterministic
+definition, and is ignored when the latent is sampled, with a \code{model} or a
+\code{proposal}. Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
 latent variables, data columns, observations, group risks and parameters the
 model carries: two of them sharing a name cannot be read.}
@@ -58,19 +59,24 @@ Inferred from the model requirements if \code{NA} (default).}
 \item rlang expression.
 }}
 
-\item{model}{\code{character(1)} Latent model distribution.}
+\item{model}{\code{character(1)} Latent model distribution.
+Omitted for a latent the transmission model generates (see Details).}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
 latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.}
+model carries: two of them sharing a name cannot be read.
+Without a \code{model}, the bound the latent is sampled within
+in inference, reading only data, observations and constant parameters.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them. A name is looked up among the
 latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.}
+model carries: two of them sharing a name cannot be read.
+Without a \code{model}, the bound the latent is sampled within
+in inference, reading only data, observations and constant parameters.}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
 Random walks changes current value:
@@ -115,6 +121,14 @@ Pass pairs \code{name = list()} (or \code{name = value}) for multiple definition
 Pass a pre-built named list of definitions through \code{import}.
 }
 }
+}
+\details{
+A latent with a \code{model} is sampled from it.
+A latent the transmission model generates, such as the infection times of
+\link{template_case_ascertained}, takes no \code{model}: transmission gives its
+probability, and inference samples it flat within \code{min} and \code{max}.
+In simulation, transmission sets it, except where it does not, such as the
+first infection of a household, which takes \code{value}.
 }
 \examples{
 hhmodel <- dummy_household |>

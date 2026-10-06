@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "tools/dictionary.h"
 #include "function.h"
 
 //////////////////////////////  Translator  //////////////////////////////
@@ -28,6 +29,7 @@ namespace housepi
     struct Parameter;
     class Individual;
     class Household;
+    class Variable;
 
     /// Translate parsed definitions into Attributes, across modules.
     struct Translator
@@ -57,6 +59,21 @@ namespace housepi
         /// Translate expression `expr` into a numeric constant attribute.
         const Attribute &to_numeric(const std::string &expr,
                                     const Individual *indiv_ptr = nullptr) const;
+
+        /// Translate the arguments of call `node` into numeric constants, keyed by name.
+        dict<Attribute> to_numeric_args(const parse::Entry &node,
+                                        const Individual *indiv_ptr = nullptr) const;
+        /// Bind the arguments of distribution `model` and the bounds `min`, `max` into `var`, then reshape it.
+        /// - `numeric`: every argument a numeric constant;
+        /// - otherwise: arguments live, read on `indiv_ptr`.
+        /// @note Call after Variable::init_distr().
+        void bind_distr(Variable &var,
+                        const parse::Entry &model,
+                        const parse::Entry &min,
+                        const parse::Entry &max,
+                        bool discr,
+                        const Individual *indiv_ptr,
+                        bool numeric) const;
 
         /// Mark parameter node `node` as a producer of the transmission cache.
         void mark_param_produces_transm_cache(const parse::Entry &node) const;

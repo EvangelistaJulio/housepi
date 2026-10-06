@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <map>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -130,11 +131,8 @@ namespace housepi
                 helper_init_distr_proposal_();
             else if (proposal == "rw" || proposal == "rw_log" || proposal == "rw_unif")
             {
-                double scale = na::DOUBLE;
-                for (const auto &[key, attr] : args)
-                    if (key == "scale")
-                        scale = attr.value();
-                helper_init_random_walk_proposal_(proposal, scale);
+                const auto it = args.find("scale");
+                helper_init_random_walk_proposal_(proposal, it != args.end() ? it->second.value() : na::DOUBLE);
             }
             else
                 helper_init_independence_proposal_(proposal, args);
@@ -159,17 +157,12 @@ namespace housepi
                                                      double scale)
     {
         const Distribution *prior = pDistr_.get();
-
-        const std::vector<std::string> options = {"rw_unif", "rw", "rw_log"};
-        if (proposal == options[0])
+        if (proposal == "rw_unif")
             pProp_ = std::make_unique<RndWalkUnifProposal>(scale, prior);
-        else if (proposal == options[1])
+        else if (proposal == "rw")
             pProp_ = std::make_unique<RndWalkProposal>(scale, prior);
-        else if (proposal == options[2])
+        else // "rw_log"
             pProp_ = std::make_unique<RndWalkLogProposal>(scale, prior);
-        else
-            msg::stop(
-                "Unknown proposal " + msg::val(proposal) + "." + str::find_closest(proposal, options));
 
         ratio_mode_ = Ratio::Compute;
         valid_mode_ = Validity::Check;
@@ -267,21 +260,20 @@ namespace housepi
 
         std::vector<size_t> DefTable::order() const
         {
+            // producers first when function parameters exist, row order otherwise
+            std::vector<size_t> out(rows.size());
+            if (std::none_of(rows.begin(), rows.end(), [](const DefRow &row)
+                             { return row.has_func; }))
+            {
+                std::iota(out.begin(), out.end(), size_t{0});
+                return out;
+            }
+
             dict<size_t> name_to_row;
             for (size_t k = 0; k < rows.size(); ++k)
                 name_to_row[rows[k].name] = k;
 
-            // producers first when function parameters exist, row order otherwise
-            std::vector<size_t> out;
-            out.reserve(rows.size());
-            if (std::none_of(rows.begin(), rows.end(), [](const DefRow &row)
-                             { return row.has_func; }))
-            {
-                for (const DefRow &row : rows)
-                    out.push_back(name_to_row.at(row.name));
-                return out;
-            }
-
+            out.clear();
             dag::prod_graph producer_graph;
             for (const DefRow &row : rows)
             {
@@ -459,20 +451,12 @@ namespace housepi
         // initial value
         var.transfer(translator.to_numeric(row.value.root));
 
-        // prior distribution and its arguments
+        // prior distribution within the parameter domain, its arguments constant
         var.init_distr(row.prior.root.func, row.is_discr);
-        for (const auto &child : row.prior.root.children)
-            var.init_distr_attr(child.key, translator.to_numeric(child));
-        // parameter domain
-        var.init_distr_attr("min", translator.to_numeric(row.min.root));
-        var.init_distr_attr("max", translator.to_numeric(row.max.root));
-        var.reshape_distribution(row.is_discr);
+        translator.bind_distr(var, row.prior.root, row.min.root, row.max.root, row.is_discr, nullptr, true);
 
         // proposal, its arguments folded into the call
-        dict<Attribute> prop_args;
-        for (const auto &child : row.proposal.root.children)
-            prop_args.emplace(child.key, translator.to_numeric(child));
-        var.init_proposal(row.proposal.root.func, prop_args);
+        var.init_proposal(row.proposal.root.func, translator.to_numeric_args(row.proposal.root));
     }
 
     void Parameter::bind_function_(Variable &var,
@@ -488,11 +472,7 @@ namespace housepi
 
         // function mode
         var.init_function(registry::create_function(
-            row.func.root.func,
-            ErrType::Function,
-            {registry::Kind::Custom,
-             registry::Kind::Transcendental,
-             registry::Kind::Arithmetic}));
+            row.func.root.func, ErrType::Function, registry::func_kinds()));
 
         // bind function arguments
         for (const auto &child : row.func.root.children)

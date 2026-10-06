@@ -863,6 +863,23 @@ namespace housepi
             msg::stop("Unknown registry.");
         }
 
+        std::vector<Kind> distr_kinds(bool discr)
+        {
+            return discr ? std::vector<Kind>{Kind::Discrete, Kind::Continuous}
+                         : std::vector<Kind>{Kind::Continuous, Kind::Discrete};
+        }
+        std::vector<Kind> func_kinds()
+        {
+            return {Kind::Custom, Kind::Transcendental, Kind::Arithmetic};
+        }
+        std::vector<Kind> func_distr_kinds(bool discr)
+        {
+            return discr ? std::vector<Kind>{Kind::Custom, Kind::Transcendental, Kind::Arithmetic,
+                                             Kind::Discrete, Kind::Continuous, Kind::InfecProfile}
+                         : std::vector<Kind>{Kind::Custom, Kind::Transcendental, Kind::Arithmetic,
+                                             Kind::Continuous, Kind::Discrete, Kind::InfecProfile};
+        }
+
         std::vector<std::string> list_names(const std::vector<Kind> &kinds)
         {
             std::vector<std::string> options = {};
@@ -900,27 +917,27 @@ namespace housepi
     namespace
     {
 #define MAKE_REAL_TO_INTEGER_FUNCTION(Name, call)                                    \
-        class Name final : public Function                                           \
+    class Name final : public Function                                               \
+    {                                                                                \
+    public:                                                                          \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Name)                                 \
+        HOUSEPI_OVERRIDE_NAME_METHOD(call)                                           \
+        Codomain codomain() const noexcept override final                            \
         {                                                                            \
-        public:                                                                      \
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Name)                             \
-            HOUSEPI_OVERRIDE_NAME_METHOD(call)                                       \
-            Codomain codomain() const noexcept override final                        \
-            {                                                                        \
-                Codomain c = x_arg_.codomain();                                      \
-                c.lattice = Lattice::Integers;                                       \
-                /* monotone, and an integer value is always reached */               \
-                if (c.below != Interval::Unbounded)                                  \
-                    c.inf = std::call(c.inf), c.below = Interval::Closed;            \
-                if (c.above != Interval::Unbounded)                                  \
-                    c.sup = std::call(c.sup), c.above = Interval::Closed;            \
-                return c;                                                            \
-            }                                                                        \
-                                                                                         \
-        protected:                                                                   \
-            double raw_function_(double x) const override final { return std::call(x); } \
-        };                                                                           \
-        HOUSEPI_REGISTER_FUNCTION(Name, Arithmetic)
+            Codomain c = x_arg_.codomain();                                          \
+            c.lattice = Lattice::Integers;                                           \
+            /* monotone, and an integer value is always reached */                   \
+            if (c.below != Interval::Unbounded)                                      \
+                c.inf = std::call(c.inf), c.below = Interval::Closed;                \
+            if (c.above != Interval::Unbounded)                                      \
+                c.sup = std::call(c.sup), c.above = Interval::Closed;                \
+            return c;                                                                \
+        }                                                                            \
+                                                                                     \
+    protected:                                                                       \
+        double raw_function_(double x) const override final { return std::call(x); } \
+    };                                                                               \
+    HOUSEPI_REGISTER_FUNCTION(Name, Arithmetic)
 
         MAKE_REAL_TO_INTEGER_FUNCTION(Round_, round)
         MAKE_REAL_TO_INTEGER_FUNCTION(Ceil_, ceil)
@@ -1266,64 +1283,64 @@ namespace housepi
         };
 
 #define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol, fold_)      \
-        class Class_ final : public ReductionFunction              \
+    class Class_ final : public ReductionFunction                  \
+    {                                                              \
+    public:                                                        \
+        Class_() : ReductionFunction() {}                          \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)             \
+        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                        \
+                                                                   \
+        Codomain codomain() const noexcept override final          \
         {                                                          \
-        public:                                                    \
-            Class_() : ReductionFunction() {}                      \
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)         \
-            HOUSEPI_OVERRIDE_NAME_METHOD(name_)                    \
-                                                                       \
-            Codomain codomain() const noexcept override final      \
-            {                                                      \
-                return reduce_codomain_(fold_);                    \
-            }                                                      \
-                                                                       \
-            void finalize() override                               \
-            {                                                      \
-                Function::finalize();                              \
-                reduce_const_(                                     \
-                    [](double a, double b) { return a symbol b; });    \
-            }                                                      \
-                                                                       \
-        protected:                                                 \
-            double raw_function_(double x) const override final    \
-            {                                                      \
-                return reduce_(                                    \
-                    x, [](double a, double b) { return a symbol b; }); \
-            }                                                      \
-        };
+            return reduce_codomain_(fold_);                        \
+        }                                                          \
+                                                                   \
+        void finalize() override                                   \
+        {                                                          \
+            Function::finalize();                                  \
+            reduce_const_(                                         \
+                [](double a, double b) { return a symbol b; });    \
+        }                                                          \
+                                                                   \
+    protected:                                                     \
+        double raw_function_(double x) const override final        \
+        {                                                          \
+            return reduce_(                                        \
+                x, [](double a, double b) { return a symbol b; }); \
+        }                                                          \
+    };
         MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +, add_)
         HOUSEPI_REGISTER_FUNCTION(Summation_, Arithmetic)
         MAKE_VARIADIC_ALGEBRAIC(Product_, prod, *, mul_)
         HOUSEPI_REGISTER_FUNCTION(Product_, Arithmetic)
 
 #define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol, fold_)                \
-        class Class_ final : public ReductionFunction                      \
+    class Class_ final : public ReductionFunction                          \
+    {                                                                      \
+    public:                                                                \
+        Class_() : ReductionFunction() {}                                  \
+        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                     \
+        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                                \
+                                                                           \
+        Codomain codomain() const noexcept override final                  \
         {                                                                  \
-        public:                                                            \
-            Class_() : ReductionFunction() {}                              \
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                 \
-            HOUSEPI_OVERRIDE_NAME_METHOD(name_)                            \
-                                                                               \
-            Codomain codomain() const noexcept override final              \
-            {                                                              \
-                return reduce_codomain_(fold_);                            \
-            }                                                              \
-                                                                               \
-            void finalize() override                                       \
-            {                                                              \
-                Function::finalize();                                      \
-                reduce_const_(                                             \
-                    [](double a, double b) { return b symbol a ? b : a; });    \
-            }                                                              \
-                                                                               \
-        protected:                                                         \
-            double raw_function_(double x) const override final            \
-            {                                                              \
-                return reduce_(                                            \
-                    x, [](double a, double b) { return b symbol a ? b : a; }); \
-            }                                                              \
-        };
+            return reduce_codomain_(fold_);                                \
+        }                                                                  \
+                                                                           \
+        void finalize() override                                           \
+        {                                                                  \
+            Function::finalize();                                          \
+            reduce_const_(                                                 \
+                [](double a, double b) { return b symbol a ? b : a; });    \
+        }                                                                  \
+                                                                           \
+    protected:                                                             \
+        double raw_function_(double x) const override final                \
+        {                                                                  \
+            return reduce_(                                                \
+                x, [](double a, double b) { return b symbol a ? b : a; }); \
+        }                                                                  \
+    };
         MAKE_VARIADIC_MIN_MAX(Minimum_, min, <, min_)
         HOUSEPI_REGISTER_FUNCTION(Minimum_, Arithmetic)
         MAKE_VARIADIC_MIN_MAX(Maximum_, max, >, max_)

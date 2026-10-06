@@ -186,12 +186,11 @@ test_that("A discrete-time model refuses a profile declared continuous", {
     expect_error("must be discrete")
 })
 
-test_that("A discrete-time model resolves a latent 'uniform' to the lattice", {
+test_that("A discrete-time model resolves a flat latent to the lattice", {
   # the model imposes discretization on its latents, no per-definition flag
   mk <- function(min) {
     mk_infec_discr$model |>
-      add_latent(infec_time = list(model = "uniform", min = !!min, max = 3),
-                 append = FALSE) |>
+      add_latent(infec_time = list(min = !!min, max = 3), append = FALSE) |>
       add_infectivity_profile("uniform", max = 4) |>
       evaluate_log_lik()
   }
@@ -343,9 +342,7 @@ test_that("A profile shifted by a sampled latent is judged on its support", {
 
 test_that("A latent parameterizing the profile drives transmission", {
   hhmodel <- mk_house$model |>
-    add_latent(
-      "infec_time", model = "uniform", min = start_date, max = end_date
-    )
+    add_latent("infec_time", min = start_date, max = end_date)
 
   # the profile is resolved per member, so the latent reaches the household
   # cache without ever passing through 'infec_time'

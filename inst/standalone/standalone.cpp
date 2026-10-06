@@ -32,6 +32,8 @@ namespace housepi
 {
     namespace str
     {
+        constexpr char DELIMITER = ','; /// Delimiter of CSV columns.
+
         std::string tolow(std::string s)
         {
             std::transform(s.begin(), s.end(), s.begin(),

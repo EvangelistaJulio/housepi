@@ -59,7 +59,7 @@ namespace housepi::augm
         /// Key -> itself and its transitive consumers, producer before consumer.
         std::vector<std::vector<size_t>> consumers = {};
 
-        std::vector<size_t> obs_models = {}; /// Keys carrying an observation-model density.
+        std::vector<size_t> obs_models = {}; /// Keys carrying an observation-model density, in simulation order.
         /// Key -> observation nodes transitively consuming it, itself excluded.
         std::vector<std::vector<size_t>> obs_consumers = {};
 

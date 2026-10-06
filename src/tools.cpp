@@ -625,8 +625,8 @@ namespace housepi::parse
             const auto &child = children[i];
             if (i > 0)
             {
-                str_args += str::DELIMITER;
-                str_children += str::DELIMITER;
+                str_args += str::LIST_DELIMITER;
+                str_children += str::LIST_DELIMITER;
             }
             str_args += child.key;
 

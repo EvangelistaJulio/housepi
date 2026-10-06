@@ -63,7 +63,7 @@ We can address this issue in housepi using status specific definitions, as oppos
 Let's consider the case of a survey that reported symptoms within a follow-up period and tested every household member only when a first individual showed symptoms and after 10 days.
 Let's use `status = 1` to tag symptomatic individuals and `status = 2` to tag asymptomatic.
 We augment infection times of symptomatic members as shown in [Get Started](housepi.html), informed by the reported onset date.
-For asymptomatic members we draw the infection time uniformly within the period of the follow-up.
+For asymptomatic members we sample the infection time within the follow-up period: transmission gives its probability, so it takes no `model`.
 
 ```{r}
 #| label: status-specific-latent
@@ -93,8 +93,7 @@ hhmodel <- data.frame(id = c("tommy", "gina"),
 
     # latent infection time for asymptomatic members
     # here we use a status specific definition, with priority over generic
-    infec_time = list(status = 2, model = "uniform",
-                      min = start_date, max = end_date)
+    infec_time = list(status = 2, min = start_date, max = end_date)
   )
 ```
 
