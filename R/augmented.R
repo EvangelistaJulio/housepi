@@ -115,15 +115,16 @@ HousepiAugmented <- R6::R6Class(
     },
 
     #' @description Record the ordered status-process labels (the dictionary).
-    #' @param levels `character()`. Status labels in declaration order.
+    #' @param levels `character()`. Status labels in declaration order,
+    #' one per status, empty when unlabelled.
     set_status_levels = function(levels) {
-      levels <- levels[!is.na(levels) & nzchar(levels)]
-      # the labels are coded 1...K
+      # the statuses are coded 1...K, labelled or not
       # K is capped by the engine status storage
       if (length(levels) > max_status_level) stop_h(
         paste("Status process implies {length(levels)} statuses, exceeding",
               "the maximum of {max_status_level}.")
       )
+      levels <- levels[!is.na(levels) & nzchar(levels)]
       self$status_levels <- as.character(levels)
       invisible(self)
     },

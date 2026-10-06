@@ -1280,6 +1280,8 @@ test_that("A status process needs probabilities, within the status storage", {
   }
   do.call(add_status, c(list(mk_latent$model), weights(255))) |>
     expect_error("255 statuses.*maximum of 254")
+  do.call(add_status, c(list(mk_latent$model), unname(weights(255)))) |>
+    expect_error("255 statuses.*maximum of 254")
 })
 
 test_that("Status labels name every probability or none", {

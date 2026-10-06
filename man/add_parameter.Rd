@@ -77,6 +77,8 @@ Independence samplers draw a fresh value from a distribution:
 
 \item{import}{Named \code{list} of pre-built definitions to import,
 or \code{"template"} for the definitions shipped with the model.
+The template is R code evaluated from the model folder, so use it only with
+model folders you trust.
 Cannot be combined with single and/or multiple definitions.}
 
 \item{append}{\code{logical(1)} Append to current definitions.

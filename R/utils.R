@@ -674,8 +674,10 @@ eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {
 #' `bayesplot` and `flextable` themes as used in housepi vignettes.
 #' @return Invisibly returns `NULL`; called for setting the themes.
 #' @examples
+#' \donttest{
 #' # apply housepi defaults to ggplot2, bayesplot and flextable
 #' set_housepi_theme()
+#' }
 #' @export
 set_housepi_theme <- function(base_size = 11,
                               base_family = "",

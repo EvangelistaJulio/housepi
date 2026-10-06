@@ -146,6 +146,8 @@ rd_import_ <- "Named `list` of pre-built definitions to import.
 Cannot be combined with single and/or multiple definitions."
 rd_tmpl_import_ <- "Named `list` of pre-built definitions to import,
 or `\"template\"` for the definitions shipped with the model.
+The template is R code evaluated from the model folder, so use it only with
+model folders you trust.
 Cannot be combined with single and/or multiple definitions."
 rd_list_append_ <- "`logical(1)` Append to current definitions.
 If `FALSE` drop all pre-existing definitions."
@@ -816,7 +818,7 @@ add_observation <- function(hhmodel, name = NULL,
 #' @title Add a status process
 #' @description
 #' Declare how a member's infected status is generated during simulation, as a
-#' discrete distribution over the infected statuses. The probabilities are given
+#' categorical distribution over the infected statuses. The probabilities are given
 #' in declaration order (the \eqn{k}-th probability is that of the \eqn{k}-th
 #' infected status); when named, the names become the status labels.
 #' During evaluation the status is fixed observed data, so it contributes a
@@ -824,7 +826,6 @@ add_observation <- function(hhmodel, name = NULL,
 #' @param hhmodel `r rd_model_in_`
 #' @param ... Probabilities of the infected statuses, in order. When named, the
 #' names label the corresponding statuses: name all of them or none.
-#' @param model `character(1)`. Discrete distribution generating the status.
 #' @return `r rd_model_out_`
 #' @examples
 #' # simulate infected members as symptomatic (70%) or asymptomatic (30%)
@@ -835,7 +836,7 @@ add_observation <- function(hhmodel, name = NULL,
 #'   run_simulation()
 #' table(simulated$status)
 #' @export
-add_status <- function(hhmodel, ..., model = "categorical") {
+add_status <- function(hhmodel, ...) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
@@ -853,11 +854,11 @@ add_status <- function(hhmodel, ..., model = "categorical") {
   pvt$augm_$add_quo(
     name = ".status", value = NULL, status = NA_integer_,
     const = NA, discr = FALSE,
-    model = model, weights,
+    model = "categorical", weights,
     .assert = TRUE, .kind = "status"
   )
   # record the ordered status labels (the dictionary lives here, not in C++)
-  pvt$augm_$set_status_levels(names(weights))
+  pvt$augm_$set_status_levels(labels)
   pvt$rebuild_()
   new_obj
 }

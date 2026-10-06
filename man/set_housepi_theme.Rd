@@ -21,6 +21,8 @@ If suggested packages are installed, sets corresponding \code{ggplot2},
 \code{bayesplot} and \code{flextable} themes as used in housepi vignettes.
 }
 \examples{
+\donttest{
 # apply housepi defaults to ggplot2, bayesplot and flextable
 set_housepi_theme()
+}
 }
