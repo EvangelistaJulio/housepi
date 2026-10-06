@@ -167,8 +167,6 @@ namespace housepi
 
         /// Whether the profile is read from a latent.
         bool is_latent() const noexcept { return mode_ == Mode::Latent; }
-        /// Whether the profile is a lookup table.
-        bool is_lookup() const noexcept { return mode_ == Mode::LookUp; }
         /// Whether a discrete profile was requested.
         bool is_required_discrete() const noexcept { return is_required_discrete_; }
 

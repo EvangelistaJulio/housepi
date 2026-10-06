@@ -80,11 +80,6 @@ namespace housepi
         /// Assert consistency of MCMC options and derive the sample size.
         void init_mcmc_configuration(bool is_adaptive);
 
-        //////  Flags  //////
-
-        /// Whether the run takes more than one step.
-        bool is_mcmc_sample() const noexcept { return n_steps > 1; }
-
         //////  Random  //////
 
         /// Seed one generator per thread.

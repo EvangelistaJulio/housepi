@@ -89,8 +89,6 @@ namespace housepi
         bool is_required_positive(size_t p) const noexcept;
         /// Names of the keys requested discrete.
         std::vector<std::string> discrete_keys() const { return khold(discr_); }
-        /// Names of the keys requested positive.
-        std::vector<std::string> positive_keys() const { return khold(posit_); }
 
         /// Copy the requests registered on `other`, a module over the same keys.
         void copy_requests(const KeyModuleWithRequests &other)
