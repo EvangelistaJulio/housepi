@@ -882,10 +882,8 @@ namespace housepi
         // run multiple MCMC chains
         for (unsigned long chain_id = 0; chain_id < setup.n_chains; ++chain_id)
         {
-            init_monte_carlo_chain_();
-            init_guarded_commit_total_();
-            run_mc_finite_adaptation_();
-            run_mc_posterior_sampling_(chain_id);
+            init_chain_();
+            run_chain_(chain_id);
         }
     }
 

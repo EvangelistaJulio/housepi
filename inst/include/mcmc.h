@@ -86,9 +86,6 @@ namespace housepi
 													  bool with_latent_ll,
 													  bool with_obs_ll);
 
-		/// Compute the total log-posterior at initialization, guarded.
-		/// - non-finite contribution: recovered in place, or error.
-		void init_guarded_commit_total_();
 		/// Compute the guarded contribution of `house`.
 		LogLikAccumulator init_guarded_commit_house_(Household &house);
 
@@ -132,6 +129,24 @@ namespace housepi
 	private:
 		/// Run every chain: initialization, adaptation, then posterior sampling.
 		void run_monte_carlo_();
+		/// Initialize a chain: restart every variable, then commit the guarded total.
+		/// - infeasible start: redraws, then error.
+		void init_chain_()
+		{
+			init_monte_carlo_chain_();
+			init_guarded_commit_total_();
+		}
+		/// Run chain `chain_id`: adaptation, then posterior sampling.
+		/// @note Call after init_chain_(). It calls no R and raises no warning.
+		void run_chain_(unsigned long chain_id)
+		{
+			run_mc_finite_adaptation_();
+			run_mc_posterior_sampling_(chain_id);
+		}
+
+		/// Compute the total log-posterior at initialization, guarded.
+		/// - non-finite contribution: recovered in place, or error.
+		void init_guarded_commit_total_();
 		/// Run the finite adaptation iterations.
 		void run_mc_finite_adaptation_();
 		/// Run posterior sampling iterations, burn-in included.
