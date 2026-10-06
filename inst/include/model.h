@@ -130,7 +130,7 @@ namespace housepi
 		//////  Setter: model calls  //////
 
 		/// Set member `indiv` infected, drawing its status observation, if any.
-		/// @note Call init_missing_latent() next, to build the definitions of its status.
+		/// @note Call init_missing_latent() after to initialize individual status-specific variables.
 		void set_infected(Household &house, Individual &indiv)
 		{
 			mcmc_->augm.simulate_infected_status(house, indiv, mcmc_->setup.prng());

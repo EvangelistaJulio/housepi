@@ -1541,15 +1541,19 @@ test_that("Bounds of a flat latent read neither draws nor free parameters", {
 
 test_that("A flat latent is set by transmission, else by its value", {
   # transmission sets every infection but the first, which the value pins
+  # a reader follows the time transmission sets, not the value pin
   simulated <- mk_outbreak$model |>
     add_latent(infec_time = list(value = 0, min = -14, max = end_date,
                                  proposal = "rw"),
                append = FALSE) |>
+    add_observation(record = infec_time + 1) |>
     run_simulation()
   tapply(simulated$infec_time, simulated$hhid, min, na.rm = TRUE) |>
     as.vector() |>
     expect_all_equal(0)
   any(simulated$infec_time > 0) |> expect_true()
+  infected <- !is.na(simulated$infec_time)
+  simulated$record[infected] |> expect_equal(simulated$infec_time[infected] + 1)
 
   # with no model and no value, the first infection has nothing to draw from
   mk_outbreak$model |>
@@ -1696,6 +1700,18 @@ test_that("A latent degenerate domain warns and collapses", {
     "[Cc]ollapsed .*latent .hidden. to constant"
   )
   vapply(simulated, \(x) x$hidden[1], numeric(1)) |> expect_all_equal(3)
+
+  # both members collapse: one warning for the run
+  hhmodel_2 <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 1,
+                          datum = 1) |>
+    new_housepi_model("test") |>
+    add_latent("hidden", model = "uniform", min = datum, max = datum,
+               loc = 2)
+  warnings <- capture_warnings(simulated <- run_simulation(hhmodel_2,
+                                                           nrep = 3L))
+  warnings |> expect_length(1L)
+  warnings |> expect_match("[Cc]ollapsed .*latent .hidden. to constant")
+  unlist(lapply(simulated, `[[`, "hidden")) |> expect_all_equal(3)
 })
 
 test_that("Nested definitions works as expected", {
@@ -1823,7 +1839,7 @@ test_that("Observation-aware initialization", {
 })
 
 test_that("An unbounded observation density stops the run", {
-  # gamma with shape below 1 is unbounded at its lower bound, reached at hidden = record
+  # gamma with shape below 1 is unbounded at 0, reached at hidden = record
   hhdata <- data.frame(hhid = "h1", status = 1, record = 5)
   mk <- function(...) {
     hhdata |>
@@ -2333,6 +2349,30 @@ test_that("Status process drives status-specific latent blocks", {
   # the resolved status selects the block: shape 8 symptomatic, 2 asymptomatic
   by_status[["symptomatic"]] |> expect_gt(5)
   by_status[["asymptomatic"]] |> expect_lt(4)
+})
+
+test_that("A status weight with no value errors only where the status is drawn", {
+  # the test model keeps the observed statuses: no status is drawn
+  simulated <- data.frame(hhid = "h1", id = c("m1", "m2"), status = c(1, 0),
+                          datum = c(1, NA)) |>
+    new_housepi_model("test") |>
+    add_latent(hidden = list(model = "normal", mean = 0, sd = 1)) |>
+    add_status(symptomatic = datum, asymptomatic = 1) |>
+    run_simulation()
+  simulated$hidden[1] |> is.finite() |> expect_true()
+
+  # a saturated transmission draws the status of every member
+  hhdata <- mk_outbreak$data
+  hhdata$datum <- ifelse(seq_len(nrow(hhdata)) == 2L, NA, 1)
+  hhdata |>
+    new_housepi_model("case-ascertained") |>
+    add_infectivity_profile(import = "template") |>
+    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_latent(incub_period = list(model = "gamma", shape = 2, scale = 1),
+               infec_time = -incub_period) |>
+    add_status(symptomatic = datum, asymptomatic = 1) |>
+    run_simulation() |>
+    expect_error("[Nn]o value to pass as argument .symptomatic.*household")
 })
 
 test_that("Escaped label is configurable", {

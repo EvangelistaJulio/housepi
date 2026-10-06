@@ -1123,7 +1123,7 @@ namespace housepi
             /// - wired cells refer to Variables the next run clears.
             void restore(MCMC &engine)
             {
-                engine.augm.clear_all();
+                engine.augm.release_simulation();
                 engine.data.wide().recover_all_status();
                 engine.data.reset_readcells();
             }
@@ -1147,6 +1147,7 @@ namespace housepi
                 engine.augm.init_house_for_simulation();   // build household-level observations
                 data_wide.assert_required_everyone(engine.data.state, augm.get_live_cols());
                 engine.risks.assert_identifiability(engine.param);
+                engine.augm.init_members_for_simulation(); // bind member definitions once per run
 
                 // @todo Assert the infectivity profile here.
                 // latents are not built yet, so a latent profile cannot be checked

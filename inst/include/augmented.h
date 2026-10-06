@@ -55,12 +55,16 @@ namespace housepi
         /// Build definitions from `input` and the infectivity profile, then their sampling schemes.
         void build(InfecProfile &infec_profile, const str_table &input);
 
-        /// Empty the definitions of every infected individual, for simulation.
+        /// Empty the variables of every infected member, between simulated repetitions.
+        /// - variable from a block: returned to it;
+        /// - value transmission set: cleared;
+        /// - status observation, static surrogate: kept.
         /// - no definitions allocated: no-op.
         void clear_all();
-        /// Empty the definitions of member `m`.
-        void clear_definitions(const Individual &m);
-        /// Initialize the missing latents of member `m`, for simulation.
+        /// Hand member `m` the variables of its status scheme for simulation.
+        /// - variable transmission set: kept;
+        /// - flat latent transmission did not set: error;
+        /// - binding error of the scheme, kept by init_members_for_simulation(): raised.
         void init_definitions_for_simulation(const Individual &m);
         /// Initialize latent dependencies and models.
         /// @note Evaluation only, never for simulation.
@@ -68,6 +72,17 @@ namespace housepi
 
         /// Initialize surrogate columns of both levels, for simulation.
         void init_house_for_simulation();
+        /// Bind the member variables a simulation reads, once per run.
+        ///
+        /// - status observation, for the whole run;
+        /// - one block per status scheme the member can reach, handed out by init_definitions_for_simulation().
+        ///
+        /// A binding error is kept, and raised only if the member reaches what failed.
+        /// Distinct warnings are raised once each.
+        /// @note Call after init_house_for_simulation(), and release_simulation() when the run ends.
+        void init_members_for_simulation();
+        /// Empty every member variable and drop the blocks, at the end of a simulation run.
+        void release_simulation();
         /// Draw the status observation of `indiv`, if any.
         /// @todo Status should not be stored in viewers.
         void simulate_infected_status(Household &house,
@@ -212,6 +227,7 @@ namespace housepi
         MCMCBase *mcmc_; /// Owning MCMCBase. @todo Drop.
 
         std::vector<size_t> user_transm_vec_ = {}; /// Model-declared latent keys generated and read by transmission.
+        std::vector<bool> sim_fixed_ = {};         /// Key -> whether simulation binds it for the whole run.
 
         augm::DefTable def_;  /// Latent and observation definitions.
         augm::Scheme scheme_; /// Sampling schemes built from definitions.
@@ -244,6 +260,9 @@ namespace housepi
 
         /// Reject a member observation filling an every-member column only for infected members.
         void assert_every_member_cols_() const;
+
+        /// Bind the blocks of member `m`, one per status scheme its status observation can reach.
+        void bind_simulation_blocks_(const augm::Binder &binder, const Individual &m);
 
         /// Point member `m` at the scheme of its status, and return its definition order for the run.
         /// - status the data does not carry: generic scheme.

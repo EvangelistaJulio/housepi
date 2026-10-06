@@ -595,6 +595,26 @@ test_that("A pinned parameter is returned at its pin in simulation", {
   results$parameters$rho |> expect_equal(0.3)
 })
 
+test_that("Per-replicate parameter values reach the latents reading them", {
+  rho_table <- data.frame(rho = c(0, 10, 20))
+  # a deterministic latent and a model argument, both reading rho
+  # undeclared: the model is built on the table's first row
+  hhmodel <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 1) |>
+    new_housepi_model("test") |>
+    add_latent(hidden = rho,
+               hidden_2 = list(model = "normal", mean = rho, sd = 1e-3))
+  # declared constant: the table overrides its value
+  hhmodel_2 <- hhmodel |> add_parameter(rho = 0.3)
+
+  for (results in list(run_simulation(hhmodel, param_table = rho_table),
+                       run_simulation(hhmodel_2, param_table = rho_table))) {
+    vapply(results, \(x) x$hidden[2], numeric(1)) |>
+      expect_equal(rho_table$rho)
+    vapply(results, \(x) x$hidden_2[2], numeric(1)) |>
+      expect_equal(rho_table$rho, tolerance = 1e-2)
+  }
+})
+
 test_that("An unpinned parameter is drawn from its prior at evaluation", {
   hhmodel <- mk_final_size$model |>
     add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)

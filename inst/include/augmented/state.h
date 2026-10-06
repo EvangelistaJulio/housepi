@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <exception>
 #include <vector>
 
 #include "tools/keys.h"
@@ -29,6 +30,19 @@ namespace housepi::augm
         LogProba obs_log_lik;           /// Log-likelihood of observation models.
     };
 
+    /// Simulation storage of one member, bound once per run.
+    struct SimMember
+    {
+        /// Variables per status scheme, swapped into the member's own when its status selects them.
+        /// - unreachable status scheme: no block;
+        /// - key left unbound: empty, as in State::blank;
+        /// - binding error: partial, never swapped in.
+        std::vector<std::vector<Variable>> blocks = {};
+        std::vector<std::exception_ptr> errors = {}; /// Binding error per status scheme, raised if reached.
+        std::exception_ptr status_error = nullptr;   /// Binding error of the status observation, raised if drawn.
+        std::vector<size_t> swapped = {};            /// Keys the member holds from its block.
+    };
+
     /// Mutable per-run storage of variables, moved by inference and simulation.
     struct State
     {
@@ -37,6 +51,9 @@ namespace housepi::augm
         /// - inference: bound to data;
         /// - simulation: live.
         std::vector<std::vector<Variable>> house_varia = {};
+
+        std::vector<SimMember> sim = {};  /// Simulation storage, by individual index.
+        std::vector<Variable> blank = {}; /// Empty variables named by key.
 
         /// State of member `m`.
         IndivState &of(const Individual &m) noexcept { return varia[Index::of(m)]; }
@@ -51,6 +68,8 @@ namespace housepi::augm
         {
             varia.clear();
             house_varia.clear();
+            sim.clear();
+            blank.clear();
         }
     };
 

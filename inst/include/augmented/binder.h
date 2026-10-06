@@ -58,8 +58,8 @@ namespace housepi::augm
         ///
         /// In simulation:
         /// - a generated observation is a placeholder;
-        /// - the value of a sampled latent pins the Variable to it;
-        /// - a flat latent with no value throws: transmission sets it, or nothing does.
+        /// - the value of a sampled latent pins the Variable to it.
+        /// @note In simulation, never call it on a flat latent with no value: transmission sets it.
         void bind_member(Variable &var, size_t k,
                          const Individual &indiv,
                          bool simulation) const;

@@ -330,20 +330,19 @@ namespace housepi
             return pgraph;
         }
 
-        void add_member_obs_edges(dag::prod_graph &pgraph,
-                                  const DefTable &def,
-                                  const std::vector<size_t> &rows)
+        void add_data_edges(dag::prod_graph &pgraph,
+                            const DefTable &def,
+                            const std::vector<size_t> &rows,
+                            const std::vector<std::string> &targets)
         {
-            dict<size_t> name_to_row;
             for (size_t k : rows)
-                name_to_row[def[k].name] = k;
-
-            for (size_t k : rows)
+            {
+                auto &producers = pgraph[def[k].name];
                 for (const parse::Definition *col : def[k].source_cols(true))
                     for (const std::string &dstr : col->list_data_wide_producers())
-                        if (dstr != def[k].name && name_to_row.count(dstr) &&
-                            def[name_to_row.at(dstr)].kind == Kind::Member)
-                            pgraph[def[k].name].insert(dstr);
+                        if (dstr != def[k].name && vect::contains(targets, dstr))
+                            producers.insert(dstr);
+            }
         }
 
         str_table model_consumers(const DefTable &def,
@@ -854,16 +853,23 @@ namespace housepi
 
             const std::vector<size_t> rows = unsorted_rows_(s);
             dict<size_t> name_to_row; // reverse dictionary name-to-row-index
+            std::vector<std::string> member_obs;
             for (size_t k : rows)
+            {
                 name_to_row[def_[k].name] = k;
+                if (def_[k].kind == Kind::Member)
+                    member_obs.push_back(def_[k].name);
+            }
 
             // producer graph of one run, cycles reported by name
+            // in simulation, a member observation is drawn before the definitions reading its data column
+            // in inference, they read a fixed data cell
             const auto sorted_rows = [&](bool simulation)
             {
                 dag::prod_graph pgraph = graph::producers(def_, rows, simulation);
                 check::producers_declared(def_, pgraph, err_status);
                 if (simulation)
-                    graph::add_member_obs_edges(pgraph, def_, rows);
+                    graph::add_data_edges(pgraph, def_, rows, member_obs);
                 std::vector<size_t> order;
                 for (const std::string &astr : dag::order_producers_first(pgraph, ErrType::Latent))
                     order.emplace_back(name_to_row[astr]);
@@ -1039,15 +1045,12 @@ namespace housepi
                 return;
 
             // order producer-before-consumer surrogate columns
-            dag::prod_graph pgraph;
+            std::vector<size_t> rows;
+            std::vector<std::string> names;
             for (const auto &[nm, k] : name_to_row)
-            {
-                auto &producers = pgraph[nm];
-                for (const parse::Definition *col : def_[k].source_cols())
-                    for (const std::string &dstr : col->list_data_wide_producers())
-                        if (dstr != nm && name_to_row.count(dstr))
-                            producers.insert(dstr);
-            }
+                rows.push_back(k), names.push_back(nm);
+            dag::prod_graph pgraph;
+            graph::add_data_edges(pgraph, def_, rows, names);
 
             // extract member-level live observations (with a model)
             std::unordered_set<std::string> live_names;
@@ -1244,16 +1247,16 @@ namespace housepi
                              const KeyHolder &khold,
                              const DefTable &def)
         {
-            std::vector<Variable> vec(khold.size());
-            for (size_t a = 0; a < vec.size(); ++a)
+            blank.assign(khold.size(), Variable());
+            for (size_t a = 0; a < blank.size(); ++a)
                 if (def.has_row(khold.as_string(a), Kind::Member))
-                    vec[a].name(khold.as_string(a), ErrType::Observation);
+                    blank[a].name(khold.as_string(a), ErrType::Observation);
                 else
-                    vec[a].name(khold.as_string(a), ErrType::Latent);
+                    blank[a].name(khold.as_string(a), ErrType::Latent);
 
             varia.resize(n_indiv);
             for (IndivState &st : varia)
-                st.vec = vec;
+                st.vec = blank;
         }
 
         double commit_latent_log_lik(const StatusScheme &ss,
@@ -1447,12 +1450,6 @@ namespace housepi
                     var.transfer(translator_.to_attribute(row.value.root, &indiv));
                     return;
                 }
-                // a flat row reached here was not set by transmission, and has no value to pin it
-                else if (simulation && row.is_flat())
-                    msg::stop(
-                        "No " + msg::arg("value") + " to simulate latent " + msg::val(row.name) +
-                        ": it has no model, and transmission did not set it.\nProvide " +
-                        msg::arg("value") + " to set it in simulation.");
                 else
                     bind_variable(var, k, indiv, nullptr);
 
@@ -1470,10 +1467,9 @@ namespace housepi
             }
             catch (const std::exception &e)
             {
-                msg::stop(
-                    std::string(e.what()) +
-                    "\nCheck " + var.str() + " for " +
-                    data_.wide().str(indiv) + " (status " + std::to_string(indiv.status()) + ").");
+                msg::stop(std::string(e.what()) +
+                          "\nCheck " + var.str() + " for " + data_.wide().str(indiv) +
+                          " (status " + std::to_string(indiv.status()) + ").");
             }
         }
 
@@ -1562,6 +1558,15 @@ namespace housepi
     }
 
     //////////////////////////////  Augmented  //////////////////////////////
+
+    namespace
+    {
+        /// Infected status of a member whose status observation draws category `k`.
+        StatusLvl infected_level(double k) noexcept
+        {
+            return static_cast<StatusLvl>(status::INFECTED + static_cast<StatusLvl>(k));
+        }
+    }
 
     Augmented::Augmented(MCMCBase *mcmc)
         : mcmc_(mcmc) {}
@@ -1826,6 +1831,29 @@ namespace housepi
         }
     }
 
+    void Augmented::init_members_for_simulation()
+    {
+        if (khold_.empty() || !is_allocated())
+            return;
+
+        // member variables bound for the whole run: status observation, static surrogates
+        sim_fixed_.assign(khold_.size(), false);
+        if (scheme_.is_any_status_obs())
+            sim_fixed_[scheme_.status_obs_key()] = true;
+        for (const augm::Surrogate &surr : scheme_.list_surrogate)
+            if (surr.is_static && !surr.is_house)
+                sim_fixed_[khold(def_[surr.row].name)] = true;
+
+        // bind one block per reachable status scheme, swapped in by the household loop
+        state.sim.assign(state.varia.size(), {});
+        const augm::Binder binder = binder_();
+        msg::WarningBuffer warnings;
+        for (const Household &house : mcmc_->data.wide())
+            for (const Individual &indiv : house)
+                bind_simulation_blocks_(binder, indiv);
+        warnings.flush();
+    }
+
     //////  Augmented : data-bound surrogate columns  //////
 
     void Augmented::materialize_surrogate_columns(bool for_export)
@@ -1874,28 +1902,153 @@ namespace housepi
 
         for (const Household &house : mcmc_->data.wide())
             for (const Individual &indiv : house.infected_indivs())
-                clear_definitions(indiv);
+            {
+                augm::IndivState &st = state.of(indiv);
+                augm::SimMember &sm = state.sim[Index::of(indiv)];
+                for (size_t a : sm.swapped)
+                    st.vec[a].swap(sm.blocks[st.idx][a]);
+                sm.swapped.clear();
+
+                for (size_t a = 0; a < st.vec.size(); ++a)
+                    if (!sim_fixed_[a])
+                        st.vec[a].clear();
+            }
     }
 
-    void Augmented::clear_definitions(const Individual &indiv)
+    void Augmented::release_simulation()
     {
-        for (Variable &avar : state.of(indiv).vec)
-            avar.clear();
+        for (augm::IndivState &st : state.varia)
+            for (Variable &avar : st.vec)
+                avar.clear();
+        state.sim.clear();
     }
 
     void Augmented::init_definitions_for_simulation(const Individual &indiv)
     {
-        const augm::Binder binder = binder_();
-        for (size_t k : helper_materialize_definition_order_(indiv, true))
+        const std::vector<size_t> &order = helper_materialize_definition_order_(indiv, true);
+        augm::IndivState &st = state.of(indiv);
+        augm::SimMember &sm = state.sim[Index::of(indiv)];
+        if (sm.errors[st.idx])
+            std::rethrow_exception(sm.errors[st.idx]);
+        std::vector<Variable> &block = sm.blocks[st.idx];
+
+        for (size_t k : order)
         {
-            Variable &avar = state.of(indiv).vec[khold(def_[k].name)];
-            if (avar.is_empty())
-                binder.bind_member(avar, k, indiv, true);
+            const size_t a = khold(def_[k].name);
+            Variable &avar = st.vec[a];
+            // set by transmission, or bound for the whole run
+            if (avar.has_definition())
+                continue;
+
+            // only transmission sets a flat row, which has no block entry
+            if (!block[a].has_definition())
+                msg::stop(
+                    "No " + msg::arg("value") + " to simulate latent " + msg::val(def_[k].name) +
+                    ": it has no model, and transmission did not set it.\nProvide " +
+                    msg::arg("value") + " to set it in simulation." +
+                    "\nCheck " + avar.str() + " for " + mcmc_->data.wide().str(indiv) +
+                    " (status " + std::to_string(indiv.status()) + ").");
+
+            avar.swap(block[a]);
+            sm.swapped.push_back(a);
+        }
+    }
+
+    void Augmented::bind_simulation_blocks_(const augm::Binder &binder, const Individual &indiv)
+    {
+        augm::IndivState &st = state.of(indiv);
+        augm::SimMember &sm = state.sim[Index::of(indiv)];
+
+        std::vector<size_t> reached;
+        const auto reach = [&](StatusLvl s)
+        {
+            const size_t i = scheme_.index_of(s);
+            // an unmapped status reports its gap when drawn
+            if (!na::is(i) && !vect::contains(reached, i))
+                reached.push_back(i);
+        };
+
+        // reachable statuses:
+        // - the observed one, kept by a model that does not redraw it;
+        // - the infected level, shifted by the status observation draw.
+        if (indiv.is_infected_status())
+            reach(indiv.status());
+        double k_min = 0., k_max = 0.;
+        if (scheme_.is_any_status_obs())
+        {
+            Variable &svar = st.vec[scheme_.status_obs_key()];
+            try
+            {
+                binder.bind_member(svar, scheme_.status_obs_row(), indiv, true);
+                svar.release_user_const(); // readers follow the draw, not the placeholder
+                const Codomain c = svar.codomain();
+                k_min = c.inf;
+                k_max = c.sup;
+            }
+            // raised if the member is ever drawn infected
+            catch (const std::exception &)
+            {
+                sm.status_error = std::current_exception();
+                svar.clear();
+                k_max = -1.;
+            }
+        }
+        for (double k = k_min; k <= k_max; ++k)
+            reach(infected_level(k));
+
+        for (size_t i : reached)
+        {
+            if (sm.blocks.size() <= i)
+            {
+                sm.blocks.resize(i + 1);
+                sm.errors.resize(i + 1);
+            }
+            st.idx = i;
+            std::vector<Variable> &block = sm.blocks[i];
+            block = state.blank;
+
+            // bind into the member's variables, the context the definitions read
+            // a latent transmission generates binds into the block
+            // its readers bind to a placeholder in the member's variable
+            // they read what transmission or the block sets there
+            std::vector<size_t> bound, generated;
+            try
+            {
+                for (size_t k : scheme_.at(i).sim_order)
+                {
+                    const augm::DefRow &row = def_[k];
+                    const size_t a = khold(row.name);
+                    if (st.vec[a].has_definition()) // bound for the whole run
+                        continue;
+                    if (vect::contains(user_transm_vec_, a))
+                    {
+                        generated.push_back(a);
+                        st.vec[a].set(0.);
+                        // flat: only transmission sets it
+                        if (!row.is_flat() || row.is_sim_override())
+                            binder.bind_member(block[a], k, indiv, true);
+                        continue;
+                    }
+                    bound.push_back(a);
+                    binder.bind_member(st.vec[a], k, indiv, true);
+                }
+            }
+            // raised if the member reaches this status scheme
+            catch (const std::exception &)
+            {
+                sm.errors[i] = std::current_exception();
+            }
+
+            // move bound variables to the block, leaving the member's variables empty
+            for (size_t a : generated)
+                st.vec[a].clear();
+            for (size_t a : bound)
+                block[a].swap(st.vec[a]);
         }
     }
 
     const std::vector<size_t> &Augmented::helper_materialize_definition_order_(const Individual &indiv,
-                                                                                bool simulation)
+                                                                               bool simulation)
     {
         StatusLvl s = indiv.status();
 
@@ -1923,21 +2076,17 @@ namespace housepi
                                              Individual &indiv,
                                              rnd_gen &prng)
     {
-        StatusLvl s = status::INFECTED;
-
+        double k = 0.;
         if (scheme_.is_any_status_obs())
         {
+            if (const std::exception_ptr &err = state.sim[Index::of(indiv)].status_error)
+                std::rethrow_exception(err);
             Variable &svar = state.of(indiv).vec[scheme_.status_obs_key()];
-            // materialize the status observation lazily, on first use
-            if (svar.is_empty())
-                binder_().bind_member(svar, scheme_.status_obs_row(), indiv, true);
             svar.draw_value(prng);
-
-            // value draws are assumed integers in [0, max - 1]
-            s += static_cast<StatusLvl>(svar.value());
+            k = svar.value();
         }
 
-        house.set_new_status_(indiv, s);
+        house.set_new_status_(indiv, infected_level(k));
     }
 
     void Augmented::restart(rnd_gen &prng)

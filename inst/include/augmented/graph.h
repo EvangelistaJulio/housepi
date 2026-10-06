@@ -26,13 +26,15 @@ namespace housepi::augm::graph
                               const std::vector<size_t> &rows,
                               bool simulation);
 
-    /// Add edges from a definition to the member observations of `rows` it reads in simulation.
+    /// Add an edge from each row of `rows` to the definitions `targets` whose data column it reads.
     ///
-    /// - simulation: an observation is drawn before its reader;
-    /// - inference: a reader reads a fixed data cell, no edge.
-    void add_member_obs_edges(dag::prod_graph &pgraph,
-                              const DefTable &def,
-                              const std::vector<size_t> &rows);
+    /// - node: every row of `rows`, with or without edges;
+    /// - row reading its own column: no edge.
+    /// @note Edges follow the source columns of a simulation run, see DefRow::source_cols().
+    void add_data_edges(dag::prod_graph &pgraph,
+                        const DefTable &def,
+                        const std::vector<size_t> &rows,
+                        const std::vector<std::string> &targets);
 
     /// Map each model name to its transitive consumers among other model nodes of `order`.
     str_table model_consumers(const DefTable &def,

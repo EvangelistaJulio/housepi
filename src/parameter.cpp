@@ -59,6 +59,9 @@ namespace housepi
     void Variable::swap(Variable &other) noexcept
     {
         Attribute::swap(other);
+        std::swap(valid_mode_, other.valid_mode_);
+        std::swap(ratio_mode_, other.ratio_mode_);
+        std::swap(old_, other.old_);
         std::swap(pDistr_, other.pDistr_);
         std::swap(pProp_, other.pProp_);
     }
@@ -413,7 +416,11 @@ namespace housepi
         scheme_.simulation_values.assign(khold_.size(), {});
         for (const std::string &pstr : khold_.all())
             if (auto found = input.find(pstr); found != input.end())
+            {
+                // a value per repetition: readers follow it
+                at(khold(pstr)).release_user_const();
                 scheme_.pin(khold(pstr), found->second);
+            }
     }
 
     void Parameter::bind_(const Translator &translator)

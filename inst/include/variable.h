@@ -75,6 +75,8 @@ namespace housepi
 
         /// Enforce user choice for constant.
         void enforce_user_const() noexcept { is_user_const_ = true; }
+        /// Drop user choice for constant. Used when readers bind its variable.
+        void release_user_const() noexcept { is_user_const_ = false; }
         /// Draw the initial value from the distribution, if any.
         void restart(rnd_gen &prng);
         /// Draw the value from the distribution, the constant flag ignored.
@@ -101,6 +103,8 @@ namespace housepi
         }
         /// Whether the variable has a distribution.
         bool has_distr() const noexcept { return pDistr_ != nullptr; }
+        /// Whether the variable has a definition: a value, a pointer, a function or a distribution.
+        bool has_definition() const noexcept { return !is_empty() || pDistr_; }
 
         //////  Metropolis-Hastings  //////
 

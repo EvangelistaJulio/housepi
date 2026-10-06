@@ -385,6 +385,7 @@ namespace housepi
         // model-specific initialization
         engine.model->init_model_for_simulation();
         engine.augm.init_house_for_simulation(); // build household-level observations
+        engine.augm.init_members_for_simulation(); // bind member definitions once per run
 
         // header after initialization: a produced observation registers its data column there
         // the row loop reports every column the holder carries
