@@ -584,6 +584,18 @@ test_that("Simulation returns combined wide/long output", {
   simulated$long[[2]] |> expect_s3_class("data.frame")
 })
 
+test_that("Each simulated repetition holds its own draws", {
+  # a long frame passing a column through keeps its repetition's draws
+  results <- data.frame(id = c("m1", "m2", "m3"), hhid = "h1",
+                        status = c(1, 1, 0), record = 0) |>
+    new_housepi_model("test") |>
+    add_latent(hidden = list(model = "uniform")) |>
+    add_observation(record = hidden + 2) |>
+    run_simulation(nrep = 2, obs_process_long = \(x) x[, c("id", "hidden")])
+  results$long[[1]]$hidden |> expect_identical(results$wide[[1]]$hidden)
+  results$long[[2]]$hidden |> expect_identical(results$wide[[2]]$hidden)
+})
+
 test_that("Simulation replicates are a list of data frames", {
   # even a single replicate, once `nrep` asks for replicates
   simulated <- run_simulation(mk_frederick$template, nrep = 1)

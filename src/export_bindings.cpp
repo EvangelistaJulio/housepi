@@ -1179,14 +1179,8 @@ namespace housepi
                 // row offsets for house parallelization
                 const std::vector<size_t> row_offsets = engine.get_row_offsets();
 
-                // pre-allocate output columns once, reused across repetitions
-                // they hold exported latent, observation and surrogate columns
-                Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
-
-                std::vector<Rcpp::NumericVector> latent_cols = rcpp_columns(augm.n_export_cols(), data_wide.report_indiv.total);
-
                 // flags for discrete columns, set once variables are bound after the first repetition
-                std::vector<bool> discr_cols(latent_cols.size(), false);
+                std::vector<bool> discr_cols(augm.n_export_cols(), false);
 
                 simulate::ParamTrace param_trace(engine.param, setup.n_steps);
 
@@ -1200,6 +1194,10 @@ namespace housepi
                     engine.param.load_sample_values(r);
                     engine.param.draw_sample(setup.prng()); // draw parameters with no pinned value
                     param_trace.record(r);
+
+                    // this repetition's own columns: status, exported latents, observations and surrogates
+                    Rcpp::IntegerVector status_col(data_wide.report_indiv.total);
+                    std::vector<Rcpp::NumericVector> latent_cols = rcpp_columns(augm.n_export_cols(), data_wide.report_indiv.total);
 
                     // run one repetition
                     simulate::single_repetition(
@@ -1220,7 +1218,7 @@ namespace housepi
                     if (f_wide)
                         out_wide[r] = (*f_wide)(simulated);
                     else
-                        out_wide[r] = Rcpp::clone(simulated); // clone when storing
+                        out_wide[r] = simulated;
                     // long observation process and apply measure
                     if (f_long)
                         out_long[r] = (*f_long)(simulated);
