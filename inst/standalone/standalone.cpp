@@ -62,6 +62,8 @@ namespace housepi
         /// Display a warning message.
         void warn(const std::string &txt)
         {
+            if (WarningBuffer::hold(txt))
+                return;
             std::cerr << "Warning: " << txt << std::endl;
         }
     }

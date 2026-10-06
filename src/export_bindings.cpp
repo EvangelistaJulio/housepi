@@ -73,6 +73,8 @@ namespace housepi::msg
     /// Raise warning `txt` as a housepi_cpp_warning condition.
     void warn(const std::string &txt)
     {
+        if (WarningBuffer::hold(txt))
+            return;
         Rcpp::List cond = Rcpp::List::create(Rcpp::_["message"] = txt,
                                              Rcpp::_["call"] = R_NilValue);
         cond.attr("class") = Rcpp::CharacterVector::create(

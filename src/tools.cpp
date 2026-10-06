@@ -135,6 +135,44 @@ namespace housepi
     template void KeyModuleWithRequests::assert_requests(size_t, const Variable &) const;
 }
 
+///////////////////////////  messages  ///////////////////////////
+
+namespace housepi::msg
+{
+    namespace
+    {
+        /// Innermost warning buffer of the calling thread.
+        thread_local WarningBuffer *innermost_ = nullptr;
+    }
+
+    WarningBuffer::WarningBuffer() noexcept
+        : outer_(innermost_) { innermost_ = this; }
+    WarningBuffer::~WarningBuffer()
+    {
+        if (is_open_)
+            innermost_ = outer_;
+    }
+
+    bool WarningBuffer::hold(const std::string &txt)
+    {
+        if (!innermost_)
+            return false;
+        if (!vect::contains(innermost_->warnings_, txt))
+            innermost_->warnings_.push_back(txt);
+        return true;
+    }
+
+    void WarningBuffer::flush()
+    {
+        if (is_open_)
+            innermost_ = outer_;
+        is_open_ = false;
+        for (const std::string &txt : warnings_)
+            warn(txt);
+        warnings_.clear();
+    }
+}
+
 ///////////////////////////  na values  ///////////////////////////
 
 namespace housepi::na

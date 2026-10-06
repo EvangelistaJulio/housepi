@@ -11,6 +11,7 @@
 #include <exception>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace housepi
 {
@@ -47,6 +48,30 @@ namespace housepi::msg
     void warn(const std::string &txt);
     /// Throw error `txt`.
     [[noreturn]] void stop(const std::string &txt);
+
+    /// Store the warnings raised by the running thread.
+    ///
+    /// - each distinct warning: raised once, by flush();
+    /// - nested scopes: the innermost holds;
+    /// - scope left without flush(), on an error: warnings dropped.
+    struct WarningBuffer
+    {
+        WarningBuffer() noexcept;
+        ~WarningBuffer();
+        WarningBuffer(const WarningBuffer &) = delete;
+        WarningBuffer &operator=(const WarningBuffer &) = delete;
+
+        /// Hold warning `txt` in the innermost buffer of the calling thread.
+        /// @return Whether a buffer holds it.
+        static bool hold(const std::string &txt);
+        /// Leave the scope, then raise each distinct warning once.
+        void flush();
+
+    private:
+        std::vector<std::string> warnings_ = {}; /// Distinct warnings, in order of first occurrence.
+        WarningBuffer *outer_;                   /// Buffer in scope before this one.
+        bool is_open_ = true;                    /// Whether it holds the warnings of its thread.
+    };
 
     /// Build cli inline markup.
     /// @note Wrap identifier-safe tokens only.
