@@ -419,6 +419,8 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' The check itself goes back to
 #' \insertCite{talts_validating_2020;textual}{housepi}.
 #'
+#' `r rd_sweep_reporting_`
+#'
 #' `r rd_sweep_seed_`
 #' @references
 #' \insertAllCited{}

@@ -138,14 +138,15 @@ get_latent_state <- function(latent_draws, index) {
 ##################################################
 
 test_that("Without transmission only the introductions are infected", {
-  obs_process <- function(hhdata) {
+  report_onset <- function(hhdata) {
     hhdata$onset_time <- hhdata$infec_time + hhdata$incub_period
     hhdata
   }
   # the introduction is the only case, its onset_time at 0
   simulated <- mk_simulation$model |>
     add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hhsize_ref = 4) |>
-    run_simulation(obs_process = obs_process)
+    add_reporting_process(report_onset) |>
+    run_simulation()
   length(unique(simulated$hhid)) |>
     expect_identical(sum(simulated$onset_time == 0, na.rm = TRUE))
 })

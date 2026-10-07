@@ -179,6 +179,17 @@ test_that("A failed replicate is named in the error", {
     expect_error("[Rr]eplicate 2 at.*20.*households.*missing status")
 })
 
+test_that("Recovery fits the survey the wide reporting process returns", {
+  # the wide process empties every status and fails the fit, the long one
+  # would fail the simulation if it ran
+  mk_recov$model |>
+    add_reporting_process(wide = \(x) transform(x, status = NA_integer_),
+                          long = \(x) stop("long reporting process ran")) |>
+    check_recovery(nrep = 1, houses = 20, steps = 50, chains = 1,
+                   progress = FALSE) |>
+    expect_error("[Rr]eplicate 1 at.*20.*households.*missing status")
+})
+
 test_that("A failed replicate stops the fits sampled with it", {
   # `record = 5` fails at chain initialization, `record = 0.5` samples
   hhmodel <- data.frame(hhid = "h1", status = 1, record = 0.5) |>

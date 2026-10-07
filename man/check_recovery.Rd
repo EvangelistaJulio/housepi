@@ -82,6 +82,10 @@ simulation model is needed.
 \details{
 The first replicate that fails stops the check, with an error naming its
 household count and replicate.
+Each survey goes through the \code{wide} reporting process
+of the model before it is fitted back, see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+Inference does not model it: one losing information makes the check measure
+the resulting misspecification.
 Results are summarised at the point estimate and the
 credible level held by the global options;
 see \code{\link[=set_housepi_summary]{set_housepi_summary()}}.

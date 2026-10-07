@@ -299,7 +299,7 @@ simulated <- hhmodel |> run_simulation()
 head(simulated)
 ```
 
-Pass `obs_process` a function to apply to the simulated `data.frame` before it is returned.
+To mimic how the survey was reported, such as rounded dates or missed cases, attach functions with `add_reporting_process()`: every simulated survey goes through them before it is returned.
 
 # Validation
 

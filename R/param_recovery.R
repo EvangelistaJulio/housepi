@@ -379,6 +379,7 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' @details
 #' The first replicate that fails stops the check, with an error naming its
 #' household count and replicate.
+#' `r rd_sweep_reporting_`
 #' `r rd_global_summary_`
 #' `r rd_sweep_seed_`
 #' @examples

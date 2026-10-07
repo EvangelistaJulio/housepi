@@ -338,10 +338,12 @@ test_that("Each kind of predictive check refuses the arguments of the other", {
     check_predictive(mk_ppc$results, sar = measure_sar_by_hhsize,
                      max_hhsize = 3L) |>
     expect_error("[Mm]in_hhsize.*max_hhsize.*bound only the standard")
-  # a long observation process needs a measure on data_long
+})
+
+test_that("Measures on data_long need a long reporting process", {
   mk_ppc$model |>
-    check_predictive(mk_ppc$results, obs_process_long = identity) |>
-    expect_error("[Oo]bs_process_long.*has no measure")
+    check_predictive(mk_ppc$results, measures_long = nrow) |>
+    expect_error("[Ll]ong reporting process")
 })
 
 test_that("Predictive check on custom measures has read-only fields", {
@@ -435,8 +437,8 @@ test_that("Epi PPC honours min/max_hhsize arguments", {
 
 test_that("Epi PPC observed values are stable across calls and status codes", {
   data_wide <- mk_ppc$model$data_wide
-  run_on <- function(...) {
-    mk_ppc$model |>
+  run_on <- function(hhmodel = mk_ppc$model, ...) {
+    hhmodel |>
       check_predictive(mk_ppc$results, thin_ess = FALSE, nrep = 5, ...) |>
       suppressWarnings()
   }
@@ -444,12 +446,12 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
   # repeated PPC calls must not mutate the model's data_wide
   mk_ppc$model$data_wide |> expect_identical(data_wide)
 
-  # without an observation process the replicates stay engine-coded
+  # without a reporting process the replicates stay engine-coded
   observed <- measure_ar_by_hhsize(data_wide, mk_ppc$model$escaped)
   ppc$formatted_attack_rate$observed |> expect_equal(observed$ar)
   # with one, they are relabelled before the measure sees them
-  run_on(obs_process = \(x) x)$formatted_attack_rate$observed |>
-    expect_equal(observed$ar)
+  ppc_labelled <- run_on(add_reporting_process(mk_ppc$model, wide = identity))
+  ppc_labelled$formatted_attack_rate$observed |> expect_equal(observed$ar)
 
   # observed values agree across thread counts
   ppc_2 <- run_on(threads = 2L)

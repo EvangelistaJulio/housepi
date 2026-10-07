@@ -1131,11 +1131,11 @@ namespace housepi
             }
         }
 
-        /// Run the simulation, returning wide and long results after post-processing.
+        /// Run the simulation, returning wide and long results after the reporting process.
         Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr,
-                                  Rcpp::Nullable<Rcpp::Function> obs_process,
+                                  Rcpp::Nullable<Rcpp::Function> reporting_wide,
                                   Rcpp::Nullable<Rcpp::Function> apply_wide,
-                                  Rcpp::Nullable<Rcpp::Function> obs_process_and_apply_long)
+                                  Rcpp::Nullable<Rcpp::Function> reporting_and_apply_long)
         {
             MCMC &engine = *mcmc_ptr;
             Setup &setup = engine.setup;
@@ -1155,17 +1155,17 @@ namespace housepi
                 // latents are not built yet, so a latent profile cannot be checked
                 // engine.assert_valid_infectivity_profile(); // assert profile is valid
 
-                //////  Observation Process & Measures  //////
+                //////  Reporting Process & Measures  //////
 
                 // @todo Hold nullable R functions without a pointer work-around.
-                std::unique_ptr<Rcpp::Function> f_obs_process = nullptr, f_wide = nullptr, f_long = nullptr;
+                std::unique_ptr<Rcpp::Function> f_reporting = nullptr, f_wide = nullptr, f_long = nullptr;
 
-                if (!obs_process.isNull())
-                    f_obs_process = std::make_unique<Rcpp::Function>(obs_process);
+                if (!reporting_wide.isNull())
+                    f_reporting = std::make_unique<Rcpp::Function>(reporting_wide);
                 if (!apply_wide.isNull())
                     f_wide = std::make_unique<Rcpp::Function>(apply_wide);
-                if (!obs_process_and_apply_long.isNull())
-                    f_long = std::make_unique<Rcpp::Function>(obs_process_and_apply_long);
+                if (!reporting_and_apply_long.isNull())
+                    f_long = std::make_unique<Rcpp::Function>(reporting_and_apply_long);
 
                 //////  Initialization  //////
 
@@ -1215,16 +1215,16 @@ namespace housepi
                     Rcpp::DataFrame simulated(simulate::build_simulated(
                         shared_df, status_col, latent_cols, discr_cols, sim_names));
 
-                    // observation process
-                    if (f_obs_process)
-                        simulated = (*f_obs_process)(simulated);
+                    // wide reporting process
+                    if (f_reporting)
+                        simulated = (*f_reporting)(simulated);
 
                     // apply the measure to data-wide, or store it
                     if (f_wide)
                         out_wide[r] = (*f_wide)(simulated);
                     else
                         out_wide[r] = simulated;
-                    // long observation process and apply measure
+                    // long reporting process and apply measure
                     if (f_long)
                         out_long[r] = (*f_long)(simulated);
                 }

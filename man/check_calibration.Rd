@@ -91,6 +91,11 @@ sampler is rejected with probability at most 0.05.
 The check itself goes back to
 \insertCite{talts_validating_2020;textual}{housepi}.
 
+Each survey goes through the \code{wide} reporting process
+of the model before it is fitted back, see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+Inference does not model it: one losing information makes the check measure
+the resulting misspecification.
+
 Replicates are independent draws: call \code{set.seed()} before
 the check to replay a whole sweep, at any \code{threads} up to \code{nrep}.
 }

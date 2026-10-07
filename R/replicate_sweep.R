@@ -18,6 +18,10 @@ are generated on, called as `structure_sampler(data_wide, houses)`.
 `NULL` reuses the attached structure verbatim and ignores `houses`."
 rd_sweep_seed_ <- "Replicates are independent draws: call `set.seed()` before
 the check to replay a whole sweep, at any `threads` up to `nrep`."
+rd_sweep_reporting_ <- "Each survey goes through the `wide` reporting process
+of the model before it is fitted back, see [add_reporting_process()].
+Inference does not model it: one losing information makes the check measure
+the resulting misspecification."
 rd_sweep_threads_ <- "`integer(1)` Number of threads. Up to `threads`
 replicates are fitted at once. Beyond `nrep`, the households of each fit
 share the threads left over."
@@ -212,6 +216,8 @@ sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, pins,
                        fit_args, threads, dots, reducer, progress, label) {
   do.call(resolve_setup_, c(fit_args, dots[names(dots) == "adapt_window"]))
   estimates <- replicates <- raised <- list()
+  # fits read the wide survey only
+  hhmodel <- add_reporting_process(hhmodel, long = NULL)
   # one simulation call per household count yields the whole cell: the pins
   # are repeated, one row per replicate
   sim_args <- c(list(param_table = sweep_param_table_(pins, nrep)),

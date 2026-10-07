@@ -9,6 +9,7 @@
 \alias{get_group_risks}
 \alias{get_contact_risks}
 \alias{get_infectivity_profiles}
+\alias{get_reporting_process}
 \title{Retrieve currently loaded data and definitions from a housepi model}
 \usage{
 get_data_wide(hhmodel)
@@ -26,6 +27,8 @@ get_group_risks(hhmodel, name = NA)
 get_contact_risks(hhmodel)
 
 get_infectivity_profiles(hhmodel)
+
+get_reporting_process(hhmodel)
 }
 \arguments{
 \item{hhmodel}{\code{HousepiModel} object.}
@@ -35,12 +38,14 @@ get_infectivity_profiles(hhmodel)
 All of them when \code{NA} (default).}
 }
 \value{
-\code{data.frame}
+\code{data.frame}. \code{get_reporting_process()} returns
+\code{list(wide = , long = )}, see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }
 \description{
 Return the definitions currently stored in the housepi model.
 Each variant returns one category (data, parameters, latent variables,
-observations, group risks, contact risks, infectivity profile).
+observations, group risks, contact risks, infectivity profile, reporting
+process).
 }
 \details{
 \code{get_data_wide()} returns the individual-level data the model reads: a column

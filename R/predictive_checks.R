@@ -360,19 +360,15 @@ HousepiPredictiveCheck <- R6::R6Class(
     #' performs simulation and compute predicted values of a set of measures.
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
-    #' @param obs_process `r rd_simul_observ_`
-    #' @param obs_process_long `r rd_simul_obs_long_`
     #' @param ... `r rd_measure_dots_`
     #' @param nrep `r rd_nrep_`
     #' @param thin_ess `r rd_thin_ess_`
     #' @param measures_long `function` | `list` of `function`s.
-    #' Applied to `data_long` (derived via `obs_process_long`).
+    #' Applied to `data_long` (derived by the `long` reporting process).
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hhmodel,
                           param_table,
-                          obs_process = NULL,
-                          obs_process_long = NULL,
                           ...,
                           measures_long = NULL,
                           nrep = NA_integer_,
@@ -390,9 +386,9 @@ HousepiPredictiveCheck <- R6::R6Class(
       m_long <- list()
       if (!is.null(measures_long)) m_long <- list(measures_long)
 
-      # FIXME: temporary forcing obs process long
-      if (length(m_long) && is.null(obs_process_long)) stop_h(
-        "{.arg obs_process_long} is required when long measures are provided."
+      if (length(m_long) && is.null(hhmodel$reporting_process$long)) stop_h(
+        "Measures on {.code data_long} need a long reporting process.",
+        "Add one with {.code add_reporting_process(long = )}."
       )
 
       # store (and test) results from observed data wide and/or long
@@ -425,8 +421,6 @@ HousepiPredictiveCheck <- R6::R6Class(
         param_table,
         apply_wide = apply_wide,
         apply_long = apply_long,
-        obs_proc_wide = obs_process,
-        obs_proc_long = obs_process_long,
         nrep = nrep,
         thin_ess = thin_ess,
         threads = threads,
@@ -711,7 +705,6 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
   public = list(
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
-    #' @param obs_process `r rd_simul_observ_`
     #' @param nrep `r rd_nrep_`
     #' @param thin_ess `r rd_thin_ess_`
     #' @param min_hhsize `r rd_min_hhsize_`
@@ -720,18 +713,17 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' @param progress `r rd_progress_`
     initialize = function(hhmodel,
                           param_table,
-                          obs_process = NULL,
                           nrep = NA_integer_,
                           thin_ess = TRUE,
                           min_hhsize = NA_integer_,
                           max_hhsize = NA_integer_,
                           threads = 1L,
                           progress = TRUE) {
-      # the built-in measures read only hhid and status, so without an
-      # observation process the simulated frames stay engine-coded: the
+      # the built-in measures read only hhid and status, so without a wide
+      # reporting process the simulated frames stay engine-coded: the
       # relabelling round trip is skipped once per replicate
       esc <- hhmodel$escaped
-      private$labelled_ <- !is.null(obs_process)
+      private$labelled_ <- !is.null(hhmodel$reporting_process$wide)
 
       # initialize parent class HousepiPredictiveCheck
       super$initialize(
@@ -739,7 +731,6 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
         attack_rate = \(x) measure_ar_by_hhsize(x, esc),
         sec_attack_rate = \(x) measure_sar_by_hhsize(x, esc),
         cases_count = \(x) measure_cases_by_hhsize(x, esc),
-        obs_process = obs_process,
         nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
       )
@@ -793,12 +784,11 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' \item{`"cases_count"`}{see [measure_cases_by_hhsize].}
 #' }
 #' Named measure functions in `...` replace them.
+#' Each replicate goes through the reporting process of the model, see
+#' [add_reporting_process()].
 #' @param hhmodel `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param ... `r rd_measure_dots_`
-#' @param obs_process `r rd_simul_observ_`
-#' @param obs_process_long `r rd_simul_obs_long_`
-#' Only with measures in `...`.
 #' @param nrep `r rd_nrep_`
 #' @param thin_ess `r rd_thin_ess_`
 #' @param min_hhsize `r rd_min_hhsize_`
@@ -836,8 +826,6 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 check_predictive <- function(hhmodel,
                              param_table,
                              ...,
-                             obs_process = NULL,
-                             obs_process_long = NULL,
                              nrep = NA_integer_,
                              thin_ess = TRUE,
                              min_hhsize = NA_integer_,
@@ -845,18 +833,11 @@ check_predictive <- function(hhmodel,
                              threads = 1L,
                              progress = TRUE) {
   stopifnothousepi(hhmodel)
-  if (!...length()) {
-    if (!is.null(obs_process_long)) stop_h(
-      "{.arg obs_process_long} has no measure to apply to.",
-      "Pass the measures on {.code data_long} in {.arg ...}."
-    )
-    return(HousepiEpiPredictiveCheck$new(
-      hhmodel$copy(), param_table,
-      obs_process = obs_process, nrep = nrep, 
-      thin_ess = thin_ess, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
-      threads = threads, progress = progress
-    ))
-  }
+  if (!...length()) return(HousepiEpiPredictiveCheck$new(
+    hhmodel$copy(), param_table, nrep = nrep,
+    thin_ess = thin_ess, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
+    threads = threads, progress = progress
+  ))
   if (!is.na(min_hhsize) || !is.na(max_hhsize)) stop_h(
     paste("{.arg min_hhsize} and {.arg max_hhsize} bound only the standard",
           "epidemiological measures, not the measures in {.arg ...}."),
@@ -865,7 +846,6 @@ check_predictive <- function(hhmodel,
   HousepiPredictiveCheck$new(
     hhmodel$copy(), param_table, ...,
     nrep = nrep, thin_ess = thin_ess,
-    obs_process = obs_process, obs_process_long = obs_process_long,
     threads = threads, progress = progress
   )
 }

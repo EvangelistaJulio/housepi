@@ -53,6 +53,9 @@ Column 'level' tells member ("member") from household ("house") entries.}
 
     \item{\code{infectivity_profiles}}{\code{data.frame}
 Infectivity profile definitions.}
+
+    \item{\code{reporting_process}}{\code{list}
+Reporting process: functions \code{wide} and \code{long}, \code{NULL} when absent.}
   }
   \if{html}{\out{</div>}}
 }

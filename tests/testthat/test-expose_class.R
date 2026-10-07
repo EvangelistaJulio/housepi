@@ -31,10 +31,12 @@ test_that("Wrappers reject objects that are not a housepi model", {
   get_latent(obj) |> expect_error(err)
   get_group_risks(obj) |> expect_error(err)
   get_infectivity_profiles(obj) |> expect_error(err)
+  get_reporting_process(obj) |> expect_error(err)
   add_contact_risk(obj) |> expect_error(err)
   add_parameter(obj) |> expect_error(err)
   add_latent(obj) |> expect_error(err)
   add_infectivity_profile(obj, "gamma") |> expect_error(err)
+  add_reporting_process(obj, wide = identity) |> expect_error(err)
   evaluate_log_lik(obj) |> expect_error(err)
   run_inference(obj) |> expect_error(err)
   run_simulation(obj) |> expect_error(err)
@@ -202,6 +204,35 @@ test_that("add_observation routes every input branch on `level`", {
   hhmodel |>
     add_observation(record_2 = min(datum), level = "unknown") |>
     expect_error("should be one of")
+})
+
+test_that("Reporting process wrapper replaces only the slots passed", {
+  # a model starts without one
+  get_reporting_process(mk_wrapper$model) |>
+    expect_identical(list(wide = NULL, long = NULL))
+
+  hhmodel <- mk_wrapper$model |>
+    add_reporting_process(wide = identity, long = nrow)
+  # an omitted slot is kept
+  hhmodel_2 <- add_reporting_process(hhmodel, long = ncol)
+  get_reporting_process(hhmodel_2) |>
+    expect_identical(list(wide = identity, long = ncol))
+  # NULL removes a slot
+  add_reporting_process(hhmodel_2, wide = NULL) |>
+    get_reporting_process() |>
+    expect_identical(list(wide = NULL, long = ncol))
+  # the input model is left untouched
+  get_reporting_process(hhmodel) |>
+    expect_identical(list(wide = identity, long = nrow))
+})
+
+test_that("Reporting process wrapper rejects anything but a function", {
+  mk_wrapper$model |>
+    add_reporting_process() |>
+    expect_error("[Nn]o reporting process given")
+  mk_wrapper$model |>
+    add_reporting_process(wide = "not a function") |>
+    expect_error("[Rr]eporting process .wide. must be a function")
 })
 
 test_that("Advanced setup options route through `...`", {

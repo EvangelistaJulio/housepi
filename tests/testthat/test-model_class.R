@@ -25,8 +25,8 @@ test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
     expect_read_only_field(
       "data_wide", "data_long", "parameters", "latent", "observations",
-      "infectivity_profiles", "group_risks", "contact_risks", "name", "setup",
-      "escaped"
+      "infectivity_profiles", "group_risks", "contact_risks",
+      "reporting_process", "name", "setup", "escaped"
     )
 })
 
@@ -354,6 +354,13 @@ test_that("Every declared name maps to the source declaring it", {
   unname(dict["datum"]) |> expect_identical("")
 })
 
+test_that("The summary reports an attached reporting process", {
+  mk_frederick$template |>
+    add_reporting_process(identity) |>
+    print() |>
+    expect_output("Reporting process")
+})
+
 test_that("An unresolved source is reported softly and at the wall", {
   # nothing unresolved: both modes stay quiet
   dig_(mk_sources$model, "assert_sources_", wall = FALSE) |> expect_length(0)
@@ -519,10 +526,6 @@ test_that("A followed household without infected members warns", {
 
 test_that("Simulation rejects wrong arguments", {
   hhmodel <- new_housepi_model(model = "test")
-  # wrong observation process
-  hhmodel |>
-    run_simulation(obs_process = "not a function") |>
-    expect_error("function")
   # wrong number of replicates
   hhmodel |>
     run_simulation(nrep = 0) |>
@@ -598,17 +601,16 @@ test_that("Simulation reads undeclared parameters from param_table", {
 })
 
 test_that("Simulation returns combined wide/long output", {
-  # supplying obs_process_long forces the long branch into a non-empty list
-  obs_long <- \(x) data.frame(id = "m1", measure = 1.0)
-  simulated <- mk_frederick$template |>
-    run_simulation(obs_process_long = obs_long)
+  # a long reporting process forces the long branch into a non-empty list
+  hhmodel <- mk_frederick$template |>
+    add_reporting_process(long = \(x) data.frame(id = "m1", measure = 1.0))
+  simulated <- hhmodel |> run_simulation()
   simulated |> expect_named(c("wide", "long"))
   simulated$wide |> expect_s3_class("data.frame")
   simulated$long |> expect_s3_class("data.frame")
 
   # multiple repetitions
-  simulated <- mk_frederick$template |>
-    run_simulation(obs_process_long = obs_long, nrep = 2)
+  simulated <- hhmodel |> run_simulation(nrep = 2)
   simulated$wide[[1]] |> expect_s3_class("data.frame")
   simulated$long[[2]] |> expect_s3_class("data.frame")
 })
@@ -620,7 +622,8 @@ test_that("Each simulated repetition holds its own draws", {
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform")) |>
     add_observation(record = hidden + 2) |>
-    run_simulation(nrep = 2, obs_process_long = \(x) x[, c("id", "hidden")])
+    add_reporting_process(long = \(x) x[, c("id", "hidden")]) |>
+    run_simulation(nrep = 2)
   results$long[[1]]$hidden |> expect_identical(results$wide[[1]]$hidden)
   results$long[[2]]$hidden |> expect_identical(results$wide[[2]]$hidden)
 })
@@ -641,30 +644,15 @@ test_that("Simulation replicates are a list of data frames", {
     expect_length(4L)
 })
 
-test_that("A simulation with an observation process is reproducible", {
-  flag <- \(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
-  simulated <- withr::with_seed(
-    1, run_simulation(mk_frederick$template, obs_process = flag)
-  )
+test_that("A simulation with a reporting process is reproducible", {
+  hhmodel <- mk_frederick$template |>
+    add_reporting_process(
+      \(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
+    )
+  simulated <- withr::with_seed(1, run_simulation(hhmodel))
   ("flag" %in% colnames(simulated)) |> expect_true()
-  withr::with_seed(
-    1, run_simulation(mk_frederick$template, obs_process = flag)
-  ) |>
+  withr::with_seed(1, run_simulation(hhmodel)) |>
     expect_identical(simulated)
-})
-
-test_that("Measures on long data require obs_process_long", {
-  hhmodel <- new_housepi_model(model = "test") |>
-    add_parameter(rho = 1)
-
-  dig_(hhmodel, "run_measure_",
-    param_table = data.frame(rho = c(0.1, 0.2, 0.3)),
-    apply_wide = list,
-    apply_long = list,
-    obs_proc_wide = NULL,
-    obs_proc_long = NULL
-  ) |>
-    expect_error("obs_process_long")
 })
 
 test_that("A household error in simulation names the household", {
@@ -680,9 +668,10 @@ test_that("A household error in simulation names the household", {
   conditionMessage(err) |> expect_no_match("{.val", fixed = TRUE)
 })
 
-test_that("An error raised by an observation process reaches R verbatim", {
+test_that("An error raised by a reporting process reaches R verbatim", {
   mk_frederick$template |>
-    run_simulation(obs_process = \(x) stop("a {b} c")) |>
+    add_reporting_process(\(x) stop("a {b} c")) |>
+    run_simulation() |>
     expect_error("{b} c", fixed = TRUE)
 })
 
@@ -694,7 +683,8 @@ test_that("A failed simulation leaves the observed data in place", {
   calls <- 0L
   fail_second <- \(x) if ((calls <<- calls + 1L) == 2L) stop("stop") else x
   hhmodel |>
-    run_simulation(nrep = 3L, obs_process = fail_second) |>
+    add_reporting_process(fail_second) |>
+    run_simulation(nrep = 3L) |>
     expect_error("[Ss]top")
   hhmodel |>
     evaluate_log_lik() |>

@@ -44,6 +44,7 @@ HousepiModel <- R6::R6Class(
     group_risks_ = NULL,
     contact_risks_ = NULL,
     infec_profile_ = NULL,
+    reporting_process_ = NULL,
     collapse_seen_ = character(),
 
     ############################################################################
@@ -451,6 +452,7 @@ HousepiModel <- R6::R6Class(
       private$group_risks_ <- HousepiGroupRisk$new()
       private$contact_risks_ <- HousepiContactRisk$new()
       private$infec_profile_ <- HousepiInfecProfile$new()
+      private$reporting_process_ <- list(wide = NULL, long = NULL)
       private$collapse_seen_ <- character()
       invisible(self)
     },
@@ -782,20 +784,28 @@ HousepiModel <- R6::R6Class(
       nrep
     },
 
-    # Helper with observation process import.
-    # Combine observation process to measures and refactor.
-    # UPDATE: I shall drop necessity for refactoring with variant data.
-    # `labelled = FALSE` hands the simulated frames over engine-coded, which
-    # only suits consumers reading `hhid` and `status`.
-    helper_obs_process_ = function(obs_process, labelled = TRUE) {
-      gen <- private$gen_
-      if (is.function(obs_process)) \(x) obs_process(gen$refactor_data_wide(x))
-      else if (!is.null(obs_process)) stop_h(
-        "Observation process must be a function.",
-        format_type_error(obs_process)
+    # Set reporting process `slot` ("wide" or "long") to `func`, `NULL`
+    # removing it.
+    set_reporting_process_ = function(slot, func) {
+      if (!is.null(func) && !is.function(func)) stop_h(
+        "Reporting process {.arg {slot}} must be a function or {.code NULL}.",
+        format_type_error(func)
       )
-      else if (!labelled) NULL
-      else \(x) gen$refactor_data_wide(x)
+      private$reporting_process_[slot] <- list(func)
+      invisible(self)
+    },
+
+    # Function relabelling each simulated `data_wide` and applying the wide
+    # reporting process.
+    # UPDATE: I shall drop necessity for refactoring with variant data.
+    # `labelled = FALSE` hands the simulated frames over engine-coded when no
+    # reporting process reads them, which only suits consumers reading `hhid`
+    # and `status`.
+    helper_reporting_wide_ = function(labelled = TRUE) {
+      gen <- private$gen_
+      wide <- private$reporting_process_$wide
+      if (is.function(wide)) \(x) wide(gen$refactor_data_wide(x))
+      else if (labelled) \(x) gen$refactor_data_wide(x)
     },
 
     # @description
@@ -804,8 +814,6 @@ HousepiModel <- R6::R6Class(
     run_measure_ = function(param_table,
                             apply_wide,
                             apply_long = NULL,
-                            obs_proc_wide = NULL,
-                            obs_proc_long = NULL,
                             nrep = NA_integer_,
                             thin_ess = TRUE,
                             threads = 1L,
@@ -820,16 +828,11 @@ HousepiModel <- R6::R6Class(
       # attach param_table
       .engine$import_param_table(private$gen_$mcmc_ptr, param_table)
 
-      if (!is.null(apply_long) &&
-            (is.null(obs_proc_long) || !is.function(obs_proc_long))) stop_h(
-        "{.arg obs_process_long} must be a function."
-      )
-
-      obs_func <- private$helper_obs_process_(obs_proc_wide, labelled)
+      long <- private$reporting_process_$long
       .engine$run_simulation(
         private$gen_$mcmc_ptr,
-        obs_func, apply_wide,
-        if (is.null(apply_long)) NULL else \(x) apply_long(obs_proc_long(x))
+        private$helper_reporting_wide_(labelled), apply_wide,
+        if (is.null(apply_long)) NULL else \(x) apply_long(long(x))
       )
     }
   ),
@@ -933,6 +936,13 @@ HousepiModel <- R6::R6Class(
     infectivity_profiles = function(value) {
       if (!missing(value)) stop_read_only("infectivity_profiles")
       private$infec_profile_$showcase(private$resolved_profile_())
+    },
+
+    #' @field reporting_process `list`
+    #' Reporting process: functions `wide` and `long`, `NULL` when absent.
+    reporting_process = function(value) {
+      if (!missing(value)) stop_read_only("reporting_process")
+      private$reporting_process_
     }
   ),
 
@@ -984,8 +994,9 @@ HousepiModel <- R6::R6Class(
       obj_priv <- obj$.__enclos_env__$private
 
       # clone definition fields
-      for (field in c("param_", "augm_", "group_risks_",
-                      "contact_risks_", "infec_profile_", "collapse_seen_")) {
+      for (field in c("param_", "augm_", "group_risks_", "contact_risks_",
+                      "infec_profile_", "reporting_process_",
+                      "collapse_seen_")) {
         obj_priv[[field]] <- helper_clone(private[[field]])
       }
 
@@ -1089,6 +1100,11 @@ HousepiModel <- R6::R6Class(
         list(fmt_assert_cli("Infectivity profile",
                             private$assert_infec_profile_(FALSE)))
       )
+
+      # reporting process (only when attached)
+      if (!all(vapply(private$reporting_process_, is.null, logical(1)))) {
+        blocks <- c(blocks, list(fmt_assert_cli("Reporting process", NULL)))
+      }
 
       # order blocks by gravity (error, minor, satisfied), stable within ties
       rank <- c(x = 1L, `!` = 2L, v = 3L)
