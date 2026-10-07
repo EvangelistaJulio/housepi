@@ -1018,12 +1018,11 @@ namespace housepi
         for (unsigned long i = 0; i < setup.n_burn; ++i)
             move_all_<false>();
 
-        unsigned long local = 0;
-        for (unsigned long i = setup.n_burn; i < setup.n_steps; i += setup.n_thin)
+        for (unsigned long i = 0; i < setup.c_sample_size; ++i)
         {
             for (unsigned long t = 1; t <= setup.n_thin; ++t)
                 move_all_<false>();
-            posterior.store(*this, chain_id, local++);
+            posterior.store(*this, chain_id, i);
         }
     }
 

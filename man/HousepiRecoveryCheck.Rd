@@ -138,12 +138,12 @@ One between
 
 Several rows are collapsed to their point estimate.}
       \item{\code{steps}}{\code{integer(1)} Number of MCMC iterations per chain.}
-      \item{\code{burn}}{\code{integer(1)} Number of initial iterations within \code{steps} to
-discard before storing draws.}
-      \item{\code{thin}}{\code{integer(1)} Keep one iteration every \code{thin} after burn-in.}
+      \item{\code{burn}}{\code{integer(1)} Number of iterations per chain discarded before
+\code{steps}. Run after adaptation.}
+      \item{\code{thin}}{\code{integer(1)} Keep one iteration every \code{thin} of \code{steps}.}
       \item{\code{adapt}}{\code{integer(1)} Number of iterations to adapt proposal scales.
-They are run before \code{steps} and are not stored as draws.
-If no proposals are adaptable and \code{burn = 0}, repurposed as burn-in instead.}
+Run first and not stored as draws.
+If no proposal is adaptable, dropped or run as burn-in when \code{burn = 0}.}
       \item{\code{chains}}{\code{integer(1)} Number of independent MCMC chains to run.}
       \item{\code{threads}}{\code{integer(1)} Number of threads. Up to \code{threads}
 replicates are fitted at once. Beyond \code{nrep}, the households of each fit

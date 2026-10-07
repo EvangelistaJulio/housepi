@@ -198,8 +198,8 @@ sweep_guard_ <- function(expr, rep, houses) {
 #' carrying `ess_bulk` and `flagged`. The fitted model is built from the given
 #' model and never from the one that simulated, which holds the truth of the
 #' last replicate. Fits run in waves of replicates sampled at once, each wave
-#' reduced before the next one runs. The first replicate that fails stops the
-#' sweep.
+#' reduced before the next one runs. Sampler settings are asserted before any
+#' survey is simulated, and the first replicate that fails stops the sweep.
 #' @param pins `numeric` Simulation value of the parameters, `NA` drawn from
 #' the prior.
 #' @param fit_args `list` Sampler settings of each fit.
@@ -210,6 +210,7 @@ sweep_guard_ <- function(expr, rep, houses) {
 #' @noRd
 sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, pins,
                        fit_args, threads, dots, reducer, progress, label) {
+  do.call(resolve_setup_, c(fit_args, dots[names(dots) == "adapt_window"]))
   estimates <- replicates <- raised <- list()
   # one simulation call per household count yields the whole cell: the pins
   # are repeated, one row per replicate
@@ -260,10 +261,8 @@ sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, pins,
 sweep_fit_wave_ <- function(hhmodel, wides, reps, houses, seeds, fit_args,
                             outer) {
   local_quiet_warnings_(TRUE)
-  fits <- Map(function(simulated, rep, seed) {
-    sweep_guard_(sweep_prepare_one_(simulated, seed, hhmodel, fit_args),
-                 rep, houses)
-  }, wides, reps, seeds)
+  fits <- Map(sweep_prepare_one_, wides, seeds,
+              MoreArgs = list(hhmodel = hhmodel, fit_args = fit_args))
   ran <- .engine$run_inference_list(lapply(fits, `[[`, "ptr"), outer)
   if (!is.null(ran$error)) sweep_guard_(
     with_cpp_conditions(stop(ran$error)), reps[[ran$failed]], houses

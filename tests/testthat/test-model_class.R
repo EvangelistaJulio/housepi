@@ -418,17 +418,29 @@ test_that("Posterior memory budget is asserted", {
   data.frame(hhid = 1, id = "m1", status = 0) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
-    run_inference(steps = 1e20, chains = 1e3) |>
+    run_inference(steps = 1e15, chains = 1e3) |>
     expect_error("memory budget")
 })
 
 test_that("Inference rejects invalid setup arguments", {
   mk_frederick$template |>
-    run_inference(steps = 5L, burn = 10L) |>
-    expect_error("[Bb]urn")
-  mk_frederick$template |>
     run_inference(steps = 5L, thin = 10L) |>
-    expect_error("[Tt]hin")
+    expect_error("[Tt]hin.*cannot be greater than.*steps")
+  mk_frederick$template |>
+    run_inference(steps = 5L, thin = 0L) |>
+    expect_error("[Tt]hinning interval should be a positive integer")
+  mk_frederick$template |>
+    run_inference(steps = 5.5) |>
+    expect_error("[Nn]umber of steps should be a positive integer")
+  mk_frederick$template |>
+    run_inference(steps = 5L, burn = -1L) |>
+    expect_error("[Nn]umber of burn-in steps should be a non-negative integer")
+  mk_frederick$template |>
+    run_inference(steps = 5L, adapt = -1L) |>
+    expect_error("[Nn]umber of adaptive steps should be a non-negative integer")
+  mk_frederick$template |>
+    run_inference(steps = 5L, adapt_window = 0L) |>
+    expect_error("[Aa]daptation window should be a positive integer")
   mk_frederick$template |>
     run_inference(steps = 5L, adapt_windows = 10L) |>
     expect_error("[Uu]nexpected argument.*adapt_windows")
@@ -439,15 +451,25 @@ test_that("Inference rejects invalid setup arguments", {
     suppressWarnings()
 })
 
-test_that("A run with nothing to adapt keeps its sample size", {
-  # the adaptation budget of a non-adaptive sampler is spent as burn-in
-  new_housepi_model(model = "test") |>
-    add_parameter(rho = list(prior = "uniform", proposal = "forward")) |>
-    run_inference(steps = 5L, burn = 0L, adapt = 3L, thin = 1L, chains = 1L) |>
-    suppressWarnings() |>
-    get_parameter_draws() |>
-    posterior::niterations() |>
-    expect_identical(5L)
+test_that("A run stores the sample size its setup asks for", {
+  hhmodel <- new_housepi_model(model = "test") |>
+    add_parameter(rho = list(prior = "uniform", proposal = "forward"))
+  n_draws <- function(...) {
+    run_inference(hhmodel, chains = 1L, ...) |>
+      suppressWarnings() |>
+      get_parameter_draws() |>
+      posterior::niterations()
+  }
+  # burn-in runs on top of steps
+  n_draws(steps = 5L, burn = 10L, adapt = 0L, thin = 1L) |> expect_identical(5L)
+  # steps are extended to store the last thinned draw: 10 thinned by 3
+  n_draws(steps = 10L, burn = 0L, adapt = 0L, thin = 3L) |> expect_identical(4L)
+  # the adaptation budget of a non-adaptive sampler runs as burn-in
+  n_draws(steps = 5L, burn = 0L, adapt = 3L, thin = 1L) |> expect_identical(5L)
+  hhmodel$setup[c("burn", "adapt")] |> expect_equal(list(burn = 3, adapt = 0))
+  # unless a burn-in is set: then it is dropped
+  n_draws(steps = 5L, burn = 2L, adapt = 3L, thin = 1L) |> expect_identical(5L)
+  hhmodel$setup[c("burn", "adapt")] |> expect_equal(list(burn = 2, adapt = 0))
 })
 
 test_that("id_draws selections are resolved before the run", {

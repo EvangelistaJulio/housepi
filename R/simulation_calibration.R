@@ -329,8 +329,8 @@ HousepiCalibrationCheck <- R6::R6Class(
                           progress = TRUE, ...) {
       private$nrep_ <- assert_count_(nrep, "Number of replicates")
       private$rank_draws_ <- assert_count_(rank_draws, "Number of ranked draws")
-      stored <- max(0, setup_sample_size_(steps, burn, thin, chains)$total)
-      if (isTRUE(stored < rank_draws)) stop_h(
+      stored <- resolve_setup_(steps, burn, thin, adapt, chains)$total
+      if (stored < rank_draws) stop_h(
         "The fit stores {stored} draw{?s}, fewer than {.arg rank_draws}.",
         paste("Raise {.arg steps} or {.arg chains}, or lower {.arg thin} or",
               "{.arg rank_draws}.")

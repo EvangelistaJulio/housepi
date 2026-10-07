@@ -731,11 +731,8 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Assert peak memory needed to materialise draws is available.
-    assert_posterior_memory_ = function(steps, burn, thin, chains, id_draws) {
-      n_sample <- setup_sample_size_(steps = steps, burn = burn,
-                                     thin = thin, chains = chains)$total
-
+    # Assert peak memory needed to materialise `n_sample` draws is available.
+    assert_posterior_memory_ = function(n_sample, id_draws) {
       # UPDATE: n. of latent/parameters might be smaller if functions/private
       n_params_defs <- NROW(private$param_$defs)
       n_param_cols <- 2L * n_params_defs

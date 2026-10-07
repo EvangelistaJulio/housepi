@@ -40,8 +40,8 @@ namespace housepi
 
         std::int32_t seed;                    /// Seed of the pseudo-random number generators.
         unsigned n_threads;                   /// Number of threads for parallel computations.
-        unsigned long n_steps;                /// Total number of MCMC iterations per chain.
-        unsigned long n_burn;                 /// Number of initial burn-in iterations to discard.
+        unsigned long n_steps;                /// Number of iterations per chain after burn-in, a multiple of n_thin.
+        unsigned long n_burn;                 /// Number of burn-in iterations to discard, run after adaptation.
         unsigned long n_thin;                 /// Thinning interval, storing every n_thin-th iteration.
         unsigned long n_adapt;                /// Number of adaptive MCMC steps, 0 for no adaptation.
         unsigned long n_chains;               /// Number of independent MCMC chains.
@@ -82,7 +82,9 @@ namespace housepi
         void reset_defaults();
         /// Build setup from input table.
         void build(const housepi::str_table &input);
-        /// Assert consistency of MCMC options and derive the sample size.
+        /// Derive the sample size, then settle the adaptation steps.
+        /// - nothing adaptive: adaptation steps turn into burn-in when `burn` is 0, else are dropped.
+        /// @note Counts are asserted R-side, `steps` extended to a multiple of `thin`.
         void init_mcmc_configuration(bool is_adaptive);
 
         //////  Random  //////

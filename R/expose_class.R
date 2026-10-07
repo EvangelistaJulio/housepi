@@ -205,12 +205,12 @@ reference does not name leaves the whole risk absolute.", cell, cell)
 ## Run-time knobs.
 
 rd_smpl_steps_ <- "`integer(1)` Number of MCMC iterations per chain."
-rd_smpl_burn_ <- "`integer(1)` Number of initial iterations within `steps` to
-discard before storing draws."
-rd_smpl_thin_ <- "`integer(1)` Keep one iteration every `thin` after burn-in."
+rd_smpl_burn_ <- "`integer(1)` Number of iterations per chain discarded before
+`steps`. Run after adaptation."
+rd_smpl_thin_ <- "`integer(1)` Keep one iteration every `thin` of `steps`."
 rd_smpl_adapt_ <- "`integer(1)` Number of iterations to adapt proposal scales.
-They are run before `steps` and are not stored as draws.
-If no proposals are adaptable and `burn = 0`, repurposed as burn-in instead."
+Run first and not stored as draws.
+If no proposal is adaptable, dropped or run as burn-in when `burn = 0`."
 rd_smpl_chain_ <- "`integer(1)` Number of independent MCMC chains to run."
 rd_thread_ <- "`integer(1)` Number of threads for parallel household runs."
 rd_progress_ <- "`integer(1)` | `logical(1)` Control progressbar visualization.
@@ -1226,14 +1226,12 @@ run_inference <- function(hhmodel,
 prepare_inference_ <- function(hhmodel, steps, burn, thin, adapt, chains,
                                threads, id_draws, progress, seed, ...) {
   assert_advanced_setup_("adapt_window", ...)
-  pvt <- hhmodel$.__enclos_env__$private
+  setup <- resolve_setup_(steps, burn, thin, adapt, chains, ...)
   id_draws <- resolve_id_draws_(id_draws)
-  pvt$assert_posterior_memory_(
-    steps = steps, burn = burn, thin = thin,
-    chains = chains, id_draws = id_draws
-  )
+  pvt <- hhmodel$.__enclos_env__$private
+  pvt$assert_posterior_memory_(setup$total, id_draws)
   pvt$build_full_(
-    steps = steps, burn = burn, thin = thin, adapt = adapt,
+    steps = setup$steps, burn = burn, thin = thin, adapt = adapt,
     chains = chains, threads = threads, id_draws = id_draws,
     progress = progress, seed = seed, ...
   )

@@ -159,35 +159,16 @@ namespace housepi
 
     void Setup::init_mcmc_configuration(bool is_adaptive)
     {
-        // counts set to 0 are clamped to 1
-        n_steps = std::max(1ul, n_steps);
-        n_chains = std::max(1ul, n_chains);
-        n_thin = std::max(1ul, n_thin);
-        n_adapt_window = std::max(1ul, n_adapt_window);
         adapt_smoothing = 1. / n_adapt_window;
-
-        if (n_burn >= n_steps)
-            msg::stop(
-                "Wrong setup: " + msg::arg("burn") + " must be smaller than " + msg::arg("steps") + ".");
-        if (n_thin > n_steps)
-            msg::stop(
-                "Wrong setup: " + msg::arg("thin") + " cannot be greater than " + msg::arg("steps") + ".");
-
-        // round sample size up, then extend steps to fill it
-        c_sample_size = (n_steps - n_burn) / n_thin;
-        c_sample_size += (n_steps - n_burn) % n_thin > 0;
-        n_steps = n_burn + c_sample_size * n_thin;
+        c_sample_size = n_steps / n_thin;
 
         // if nothing to adapt, adaptation steps are:
         // - converted in burn-in steps when burn is 0;
         // - dropped otherwise.
         if (!is_adaptive)
         {
-            if (n_adapt > 0 && n_burn == 0)
-            {
+            if (n_burn == 0)
                 n_burn = n_adapt;
-                n_steps += n_adapt;
-            }
             n_adapt = 0;
         }
     }
@@ -201,7 +182,7 @@ namespace housepi
     void Setup::prog_open_for_mcmc_sample()
     {
         prog_set_text();
-        progressbar_->open((n_adapt + n_steps) * n_chains, progress);
+        progressbar_->open((n_adapt + n_burn + n_steps) * n_chains, progress);
     }
     void Setup::prog_open_for_simulation()
     {

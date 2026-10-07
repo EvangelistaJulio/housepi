@@ -403,12 +403,32 @@ char_setup_input_ <- function(defs) {
   data.frame(lapply(defs, as.character))
 }
 
-# Derive (per-chain, total) sample sizes from a setup list, mirroring the
-# ceiling-division formula in Setup::assert_mcmc_setup.
-setup_sample_size_ <- function(steps, burn, thin, chains) {
-  diff <- steps - burn
-  c_size <- suppressWarnings(diff %/% thin + (diff %% thin > 0))
-  list(chain = c_size, total = c_size * chains)
+#' Sampler setup of an inference run, asserted then resolved: `steps` extended
+#' to store the last thinned draw, and the sample size per chain and in total.
+#' Counts are whole numbers, `thin` up to `steps`.
+#' @param adapt_window `integer(1)` Adaptation window, `NULL` for the default.
+#' @noRd
+resolve_setup_ <- function(steps, burn, thin, adapt, chains,
+                           adapt_window = NULL) {
+  # a whole number past the integer range stays a double
+  assert_whole <- function(x, what, min = 1) {
+    if (rlang::is_scalar_integerish(x) && !is.na(x) && x >= min) return()
+    # nolint next: object_usage_linter. read by the cli glue below
+    kind <- if (min > 0) "positive" else "non-negative"
+    stop_h("Wrong setup: {what} should be a {kind} integer.")
+  }
+  assert_whole(steps, "number of steps")
+  assert_whole(burn, "number of burn-in steps", min = 0)
+  assert_whole(thin, "thinning interval")
+  assert_whole(adapt, "number of adaptive steps", min = 0)
+  assert_whole(chains, "number of chains")
+  if (!is.null(adapt_window)) assert_whole(adapt_window, "adaptation window")
+  if (thin > steps) stop_h(
+    "Wrong setup: {.arg thin} cannot be greater than {.arg steps}."
+  )
+  # round the sample size up, then extend steps to fill it
+  chain <- steps %/% thin + (steps %% thin > 0)
+  list(steps = chain * thin, chain = chain, total = as.double(chain) * chains)
 }
 
 #' Format elements of data (wide or long) to pass to import Rcpp method.

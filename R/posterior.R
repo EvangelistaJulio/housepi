@@ -91,8 +91,7 @@ get_global_point_estimate <- function() {
 #' old <- set_housepi_summary(point_estimate = "mean")
 #' do.call(set_housepi_summary, old)
 #' @export
-set_housepi_summary <- function(point_estimate = NULL,
-                                         cri_level = NULL) {
+set_housepi_summary <- function(point_estimate = NULL, cri_level = NULL) {
   old <- list(point_estimate = get_global_point_estimate(),
               cri_level = get_global_cri_level())
   # both values are validated before either is written
@@ -120,10 +119,8 @@ empty_draws_ <- function() {
 
 # Per-draw chain and iteration index implied by an MCMC `setup` list.
 draws_index_ <- function(setup) {
-  chain_size <- setup_sample_size_(
-    steps = setup[["steps"]], burn = setup[["burn"]],
-    thin = setup[["thin"]], chains = setup[["chains"]]
-  )$chain
+  counts <- setup[c("steps", "burn", "thin", "adapt", "chains")]
+  chain_size <- do.call(resolve_setup_, counts)$chain
   list(chain = rep(seq_len(setup[["chains"]]), each = chain_size),
        iteration = setup[["burn"]] + seq_len(chain_size) * setup[["thin"]])
 }

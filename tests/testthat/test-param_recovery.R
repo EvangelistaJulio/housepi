@@ -279,11 +279,11 @@ test_that("Recovery refuses a sweep it cannot run", {
     add_parameter(import = "template") |>
     check_recovery(nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o data is attached")
-  # UPDATE: a setting no fit can run is blamed on the first replicate, once
-  # the first household count is simulated
-  check_recovery(mk_recov$model, nrep = 1, houses = 20, steps = 50, burn = 50,
-                 chains = 1, progress = FALSE) |>
-    expect_error("[Rr]eplicate 1 at.*20.*households.*burn.*smaller than")
+  # a setting no fit can run is refused up front, naming no replicate
+  failed <- check_recovery(mk_recov$model, nrep = 1, houses = 20, steps = 50,
+                           thin = 100, chains = 1, progress = FALSE) |>
+    expect_error("[Tt]hin.*cannot be greater than.*steps")
+  conditionMessage(failed) |> expect_no_match("[Rr]eplicate")
 })
 
 test_that("Latent inference recovers the simulating parameter", {
