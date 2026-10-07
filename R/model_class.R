@@ -731,41 +731,6 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Assert peak memory needed to materialise `n_sample` draws is available.
-    assert_posterior_memory_ = function(n_sample, id_draws) {
-      # UPDATE: n. of latent/parameters might be smaller if functions/private
-      n_params_defs <- NROW(private$param_$defs)
-      n_param_cols <- 2L * n_params_defs
-      n_latent_defs <- NROW(private$augm_$defs)
-      # structural upper bound: every named/default household counts as its
-      # largest possible size (status filtering happens in the engine)
-      hhid <- self$data_wide$hhid
-      max_hhsize <- if (!length(hhid)) 1L else max(table(hhid))
-
-      n_house_pick <- length(unique(id_draws$hhid))
-      n_members_upper <- length(unique(id_draws$id)) + n_house_pick * max_hhsize
-      n_latent_cols <- n_members_upper * n_latent_defs
-      n_house_total <- length(unique(hhid))
-      # total count of columns
-      total_cols <- n_param_cols + n_latent_cols + n_house_total + 1L
-      # the column-by-sample product exceeds the 32-bit range on large runs
-      bytes_final <- 8 * as.double(n_sample) * as.double(total_cols)
-
-      # byte budget for posterior draws materialisation
-      # set 80% cap under R vsize, otherwise fall back to 16 GiB
-      budget <- 16 * 2^30
-      vsize_mb <- tryCatch(mem.maxVSize(), error = \(e) Inf)
-      if (is.finite(vsize_mb) && vsize_mb > 0) budget <- 0.8 * vsize_mb * 2^20
-
-      if (bytes_final <= budget) return(invisible())
-      stop_h(c(
-        paste("Posterior draws would exceed the memory budget",
-              "({round(budget / 2^30)} GB)."),
-        paste("Consider increasing {.arg thin},",
-              "or reducing {.arg {c('steps', 'chains')}}.")
-      ))
-    },
-
     # Helper with simulation build.
     # FIXME: If there's a param table, build should change
     helper_simulation_build_ = function(param_table = NULL,

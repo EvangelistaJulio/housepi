@@ -1228,14 +1228,49 @@ prepare_inference_ <- function(hhmodel, steps, burn, thin, adapt, chains,
   assert_advanced_setup_("adapt_window", ...)
   setup <- resolve_setup_(steps, burn, thin, adapt, chains, ...)
   id_draws <- resolve_id_draws_(id_draws)
+  assert_posterior_memory_(hhmodel, setup$total, id_draws)
   pvt <- hhmodel$.__enclos_env__$private
-  pvt$assert_posterior_memory_(setup$total, id_draws)
   pvt$build_full_(
     steps = setup$steps, burn = burn, thin = thin, adapt = adapt,
     chains = chains, threads = threads, id_draws = id_draws,
     progress = progress, seed = seed, ...
   )
   pvt$gen_$mcmc_ptr
+}
+
+#' Stop when `n_sample` posterior draws of `hhmodel` would not fit under R's
+#' vector memory limit, in the room the memory in use leaves. No limit, no
+#' check: R raises no error then.
+#' @noRd
+assert_posterior_memory_ <- function(hhmodel, n_sample, id_draws) {
+  limit <- mem.maxVSize() * 2^20
+  if (!is.finite(limit)) return(invisible())
+  pvt <- hhmodel$.__enclos_env__$private
+  # UPDATE: n. of latent/parameters might be smaller if functions/private
+  n_param_cols <- 2L * NROW(pvt$param_$defs)
+  n_latent_defs <- NROW(pvt$augm_$defs)
+  # structural upper bound: every named/default household counts as its
+  # largest possible size (status filtering happens in the engine)
+  hhid <- hhmodel$data_wide$hhid
+  max_hhsize <- if (!length(hhid)) 1L else max(table(hhid))
+  n_members_upper <- length(unique(id_draws$id)) +
+    length(unique(id_draws$hhid)) * max_hhsize
+  total_cols <- n_param_cols + n_members_upper * n_latent_defs +
+    length(unique(hhid)) + 1L
+  # the column-by-sample product exceeds the 32-bit range on large runs
+  needed <- 8 * as.double(n_sample) * as.double(total_cols)
+  room <- limit - gc()["Vcells", "used"] * 8
+  if (needed <= room) return(invisible())
+  # nolint next: object_usage_linter. read by the cli glue below
+  size <- \(bytes) {
+    format(structure(bytes, class = "object_size"), units = "auto")
+  }
+  stop_h(
+    "Posterior draws would exceed R's memory limit.",
+    "They need up to {size(needed)}, and {size(room)} are left.",
+    paste("Raise the limit with {.fn mem.maxVSize}, increase {.arg thin},",
+          "or reduce {.arg steps} or {.arg chains}.")
+  )
 }
 
 #' Posterior draws of the engine of `hhmodel`, entry `i` of the engine run
