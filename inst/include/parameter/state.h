@@ -49,16 +49,4 @@ namespace housepi::param
     /// Finalize every parameter (see Variable::finalize).
     void finalize(const Scheme &scheme,
                   State &state);
-
-    //////  Log-prior  //////
-
-    /// Total log-prior over sampled parameters.
-    inline double total_log_prior(const Scheme &scheme,
-                                  const State &state)
-    {
-        double out = 0.;
-        for (size_t p : scheme.sample)
-            out += state.vec[p].log_pdf();
-        return out;
-    }
 }

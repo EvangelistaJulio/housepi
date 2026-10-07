@@ -246,12 +246,6 @@ namespace housepi
                 " could not be interpreted as a numeric constant.");
         return storage_;
     }
-    const Attribute &Translator::to_numeric(
-        const std::string &expr,
-        const Individual *indiv_ptr) const
-    {
-        return to_numeric(parse::Definition(expr).root, indiv_ptr);
-    }
 
     dict<Attribute> Translator::to_numeric_args(const parse::Entry &node,
                                                 const Individual *indiv_ptr) const
@@ -430,11 +424,11 @@ namespace housepi
         tracked_indivs.clear();
 
         const Setup &setup = mcmc.setup;
-        sample_size_ = setup.c_sample_size * setup.n_chains;
+        const unsigned long sample_size = setup.c_sample_size * setup.n_chains;
 
-        init_param_draws_(mcmc.param, sample_size_);
-        init_house_draws_(mcmc.data.wide(), sample_size_);
-        init_latent_draws_(mcmc.augm, mcmc.data.wide(), setup, sample_size_);
+        init_param_draws_(mcmc.param, sample_size);
+        init_house_draws_(mcmc.data.wide(), sample_size);
+        init_latent_draws_(mcmc.augm, mcmc.data.wide(), setup, sample_size);
     }
 
     void Posterior::store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local)

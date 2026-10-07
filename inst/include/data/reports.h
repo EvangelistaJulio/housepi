@@ -8,7 +8,6 @@
 #pragma once
 
 #include <cstddef>
-#include <utility>
 
 //////////////////////////////  data::Report*  //////////////////////////////
 
@@ -30,13 +29,5 @@ namespace housepi::data
         size_t no_cases = 0;         /// Households with no infected member.
         size_t at_least_1_case = 0;  /// Households with at least one infected member.
         size_t at_least_2_cases = 0; /// Households with at least two infected members.
-    };
-    /// Extremes over household sizes, each paired with the number of households reaching it.
-    struct ReportHouseSizes
-    {
-        std::pair<unsigned short, size_t> max_cases = {0, 0};   /// Most infected members.
-        std::pair<unsigned short, size_t> max_miss = {0, 0};    /// Most members with missing status.
-        std::pair<unsigned short, size_t> min_size = {1000, 0}; /// Fewest members.
-        std::pair<unsigned short, size_t> max_size = {0, 0};    /// Most members.
     };
 }

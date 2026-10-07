@@ -69,7 +69,6 @@ namespace housepi::data
 
         /// Transmission log-likelihood of the equivalence class of `house`.
         LogProba &transm_log_lik(const Household &house) noexcept { return transm_log_lik_[house.eq_class()]; }
-        const LogProba &transm_log_lik(const Household &house) const noexcept { return transm_log_lik_[house.eq_class()]; }
 
         /// Cached member value.
         MAKE_HOUSEPI_CACHE_ACCESSOR(MemberIdx, member)

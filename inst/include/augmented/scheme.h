@@ -153,9 +153,7 @@ namespace housepi::augm
         /// @param infected Infected statuses the data carries.
         /// @return Data names read as equivalence-class covariates.
         std::vector<std::string> order(const std::vector<StatusLvl> &infected,
-                                       const Parameter &param,
-                                       const KeyHolder &data,
-                                       const KeyHolder &group_risk);
+                                       const Parameter &param);
 
         /// Order and classify surrogate columns of both levels into `list_surrogate`.
         /// Household ones are also collected into `list_obs_house`.
@@ -188,8 +186,6 @@ namespace housepi::augm
         struct Sources_
         {
             const Parameter &param;
-            const KeyHolder &data;
-            const KeyHolder &group_risk;
             std::vector<std::string> covariates = {};
         };
 

@@ -31,8 +31,6 @@ namespace housepi
 	public:
 		//////  Operator  //////
 
-		/// Whether both are the same individual.
-		bool operator==(const Individual &other) const noexcept { return indiv_index_ == other.indiv_index_; }
 		/// Whether they are different individuals.
 		bool operator!=(const Individual &other) const noexcept { return indiv_index_ != other.indiv_index_; }
 
@@ -43,8 +41,6 @@ namespace housepi
 
 		/// Whether status is infected.
 		bool is_infected_status() const noexcept { return status::is_infected(status_); }
-		/// Whether status is escaped.
-		bool is_escaped_status() const noexcept { return status::is_escaped(status_); }
 		/// Whether status is missing.
 		bool is_missing_status() const noexcept { return status::is_missing(status_); }
 

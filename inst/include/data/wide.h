@@ -36,7 +36,6 @@ namespace housepi::data
 
         ReportIndividual report_indiv;   /// Member report.
         ReportHousehold report_house;    /// Household report.
-        ReportHouseSizes report_hh_size; /// Household-size report.
 
         //////  Setter  //////
 
@@ -60,7 +59,6 @@ namespace housepi::data
         Household &at(size_t H) noexcept { return house_vector_[H]; }
         const Household &at(size_t H) const noexcept { return house_vector_[H]; }
         Household &at(std::string_view hhid) { return at(index_of_(hhid)); }
-        const Household &at(std::string_view hhid) const { return at(index_of_(hhid)); }
 
         /// Imported value of column `d` for member `indiv`.
         /// - column produced by an observation: missing.
@@ -128,9 +126,6 @@ namespace housepi::data
         /// - values read through the read-cells of `state`;
         /// - `live` columns: skipped, they take their value during the run.
         void assert_required_everyone(const State &state, const std::vector<std::string> &live = {}) const;
-
-        /// Maximum number of infected members observed in one household.
-        size_t get_max_hh_cases() const noexcept { return report_hh_size.max_cases.first; }
 
         /// Whether no data was provided.
         bool is_empty() const noexcept { return house_vector_.empty(); }

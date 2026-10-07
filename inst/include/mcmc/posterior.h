@@ -60,12 +60,7 @@ namespace housepi
         /// Store current values as draw `local` of chain `chain_id`, in its own column block.
         void store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local);
 
-        /// Return the number of draws of the whole sample, over all chains.
-        unsigned long sample_size() const noexcept { return sample_size_; }
-
     private:
-        unsigned long sample_size_ = 0; /// Draws of the whole sample.
-
         /// Initialize the parameter draws of the posterior.
         void init_param_draws_(const Parameter &param,
                                unsigned long sample_size);

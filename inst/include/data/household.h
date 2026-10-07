@@ -38,10 +38,7 @@ namespace housepi
 			size_t size_;
 			const MemberIdx *begin() const noexcept { return data_; }
 			const MemberIdx *end() const noexcept { return data_ + size_; }
-			size_t size() const noexcept { return size_; }
-			bool empty() const noexcept { return size_ == 0; }
 			const MemberIdx &operator[](size_t i) const noexcept { return data_[i]; }
-			const MemberIdx &front() const noexcept { return data_[0]; }
 		};
 
 		/// Range of individuals sharing a status.
@@ -64,9 +61,6 @@ namespace housepi
 			};
 			Iterator_ begin() const noexcept { return {house_, data_}; }
 			Iterator_ end() const noexcept { return {house_, data_ + size_}; }
-			size_t size() const noexcept { return size_; }
-			bool empty() const noexcept { return size_ == 0; }
-			const Individual &operator[](size_t k) const noexcept { return house_->indivs_[data_[k]]; }
 		};
 
 	public:
@@ -85,15 +79,11 @@ namespace housepi
 		MemberRange_ infected_members() const noexcept { return {status_vec_.data(), ninf_}; }
 		/// Range of member indexes with escaped status.
 		MemberRange_ escaped_members() const noexcept { return {status_vec_.data() + ninf_, nsus_}; }
-		/// Range of member indexes with missing status.
-		MemberRange_ missing_members() const noexcept { return {status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 
 		/// Range of individuals with infected status.
 		ConstIndivRange_ infected_indivs() const noexcept { return {this, status_vec_.data(), ninf_}; }
 		/// Range of individuals with escaped status.
 		ConstIndivRange_ escaped_indivs() const noexcept { return {this, status_vec_.data() + ninf_, nsus_}; }
-		/// Range of individuals with missing status.
-		ConstIndivRange_ missing_indivs() const noexcept { return {this, status_vec_.data() + ninf_ + nsus_, n_missing_status()}; }
 
 		/// Number of members with infected status.
 		MemberIdx n_infected_status() const noexcept { return ninf_; }

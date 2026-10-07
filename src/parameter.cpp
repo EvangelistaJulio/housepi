@@ -203,18 +203,6 @@ namespace housepi
             pProp_->finalize(str());
     }
 
-    double Variable::operator()(double x) const
-    {
-        switch (mode_)
-        {
-        case Mode::Function:
-            return pFunc_->evaluate(x);
-        default: // cases Mode::Empty, Mode::Numeric, Mode::Pointer
-            msg::stop(
-                "Called undefined evaluate operator for non-function " + str() + ".");
-        }
-    }
-
     void Variable::clear() noexcept
     {
         mode_ = Mode::Empty;

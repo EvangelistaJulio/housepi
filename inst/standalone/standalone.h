@@ -63,12 +63,6 @@ namespace housepi
                                          const std::vector<std::string> &data_headers,
                                          const std::vector<std::string> &latent_headers);
 
-    /// Write the rows of `house`: data, then exported latents.
-    void update_ofstream_datawide(std::ofstream &ofs,
-                                  const Household &house,
-                                  size_t data_wide_size,
-                                  const std::vector<size_t> &latent_export);
-
     /// Simulate and write the data to `pathtofile`.
     void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile);
 

@@ -325,11 +325,6 @@ namespace housepi
                  double domain_max = na::DOUBLE);
         virtual ~Function() = default;
 
-        //////  Operators  //////
-
-        /// Call evaluate() at `x`.
-        double operator()(double x) const { return evaluate(x); }
-
         /// Return a copy.
         virtual std::unique_ptr<Function> clone() const = 0;
 

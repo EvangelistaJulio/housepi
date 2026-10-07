@@ -289,7 +289,6 @@ namespace housepi::data
         hhids_.clear();
         report_indiv = ReportIndividual();
         report_house = ReportHousehold();
-        report_hh_size = ReportHouseSizes();
     }
 
     void Wide::helper_build_data_headers_(const str_table &input)
@@ -323,7 +322,6 @@ namespace housepi::data
         for (const Household &house : house_vector_)
         {
             // observed quantities in-house
-            size_t house_size = house.size();
             size_t n_infec = house.n_infected_status();
             size_t n_miss = house.n_missing_status();
             size_t n_esc = house.n_escaped_status();
@@ -335,24 +333,6 @@ namespace housepi::data
             report_house.no_cases += (n_infec == 0);
             report_house.at_least_1_case += (n_infec > 0);
             report_house.at_least_2_cases += (n_infec > 1);
-
-#define UPDATE_REPORT_SIZE(Report, Value, Symbol) \
-    if (Report.first Symbol Value)                \
-    {                                             \
-        Report.first = Value;                     \
-        Report.second = 1;                        \
-    }                                             \
-    else if (Report.first == Value)               \
-        ++Report.second;
-
-            // max number of house cases
-            UPDATE_REPORT_SIZE(report_hh_size.max_cases, n_infec, <);
-            // max number of missing status
-            UPDATE_REPORT_SIZE(report_hh_size.max_miss, n_miss, <);
-            // minimum house number of members
-            UPDATE_REPORT_SIZE(report_hh_size.min_size, house_size, >);
-            // maximum house number of members
-            UPDATE_REPORT_SIZE(report_hh_size.max_size, house_size, <);
         }
     }
 

@@ -39,9 +39,6 @@ namespace housepi::param
         std::vector<DefRow> rows = {};
 
         const DefRow &operator[](size_t k) const noexcept { return rows[k]; }
-        size_t size() const noexcept { return rows.size(); }
-        bool empty() const noexcept { return rows.empty(); }
-        void clear() noexcept { rows.clear(); }
         /// Replace definitions with those of `input`.
         void build(const str_table &input);
 

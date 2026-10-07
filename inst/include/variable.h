@@ -43,8 +43,6 @@ namespace housepi
 
         /// Swap contents with `other`.
         void swap(Variable &other) noexcept;
-        /// Call the function at `x`, error when the variable holds none.
-        double operator()(double x) const;
 
         //////  Setter  //////
 

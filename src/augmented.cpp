@@ -795,13 +795,11 @@ namespace housepi
         //////  augm::SchemeBuilder : order  //////
 
         std::vector<std::string> SchemeBuilder::order(const std::vector<StatusLvl> &infected,
-                                                      const Parameter &param,
-                                                      const KeyHolder &data,
-                                                      const KeyHolder &group_risk)
+                                                      const Parameter &param)
         {
             const auto &rows = scheme_.status_rows_;
             auto &index = scheme_.status_index_;
-            Sources_ src{param, data, group_risk};
+            Sources_ src{param};
 
             // skip if no member definition goes into a status scheme
             // household observations need no status scheme
@@ -1604,8 +1602,7 @@ namespace housepi
 
         // definition order per status, and equivalence-class covariates
         mcmc_->data.wide().set_eq_class_data_names(
-            builder.order({infected.begin(), infected.end()}, mcmc_->param,
-                          mcmc_->data.wide().khold(), mcmc_->risks.group().khold()));
+            builder.order({infected.begin(), infected.end()}, mcmc_->param));
 
         // surrogate columns
         builder.init_surrogates();

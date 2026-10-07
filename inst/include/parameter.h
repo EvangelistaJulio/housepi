@@ -57,8 +57,6 @@ namespace housepi
 
         //////  Getter  //////
 
-        /// Parameter definitions.
-        const param::DefTable &def() const noexcept { return def_; }
         /// Sampling scheme of parameters.
         const param::Scheme &scheme() const noexcept { return scheme_; }
 
@@ -82,9 +80,6 @@ namespace housepi
 
         /// Whether some parameter is sampled.
         bool is_any_sample() const noexcept { return !scheme_.sample.empty(); }
-
-        /// Total log-prior over sampled parameters.
-        double total_log_prior() const { return param::total_log_prior(scheme_, state); }
 
     private:
         param::DefTable def_;  /// Parameter definitions.

@@ -56,9 +56,6 @@ namespace housepi
         /// Translate definition node `node` into a numeric constant attribute.
         const Attribute &to_numeric(const parse::Entry &node,
                                     const Individual *indiv_ptr = nullptr) const;
-        /// Translate expression `expr` into a numeric constant attribute.
-        const Attribute &to_numeric(const std::string &expr,
-                                    const Individual *indiv_ptr = nullptr) const;
 
         /// Translate the arguments of call `node` into numeric constants, keyed by name.
         dict<Attribute> to_numeric_args(const parse::Entry &node,

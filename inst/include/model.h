@@ -194,9 +194,6 @@ namespace housepi
 			return mcmc_->risks.contact().intra_value(house, i);
 		}
 
-		/// Maximum number of infected members observed in one household.
-		size_t get_max_hh_cases() const noexcept { return mcmc_->data.wide().get_max_hh_cases(); }
-
 		/// Instantaneous infectivity profile of member `m` at time `t`.
 		double infec_profile_inst(const Individual &m, double t) const
 		{
