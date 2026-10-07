@@ -49,7 +49,9 @@ If no proposals are adaptable and \code{burn = 0}, repurposed as burn-in instead
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
+\item{threads}{\code{integer(1)} Number of threads. Up to \code{threads}
+replicates are fitted at once. Beyond \code{nrep}, the households of each fit
+share the threads left over.}
 
 \item{progress}{\code{logical(1)} Whether to show a progress bar over the
 replicates. The progress of each fit is always suppressed.}
@@ -89,11 +91,8 @@ sampler is rejected with probability at most 0.05.
 The check itself goes back to
 \insertCite{talts_validating_2020;textual}{housepi}.
 
-A replicate that crashes is recorded, left out of the ranks, and the sweep
-carries on. The left-out draws are not a random subset of the prior, so
-many crashes bias the check.
 Replicates are independent draws: call \code{set.seed()} before
-the check to replay a whole sweep, and only at \code{threads = 1}.
+the check to replay a whole sweep, at any \code{threads} up to \code{nrep}.
 }
 \examples{
 calibration <- flu_1918_frederick |>

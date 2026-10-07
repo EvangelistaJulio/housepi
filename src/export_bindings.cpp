@@ -45,22 +45,24 @@
 
 namespace housepi
 {
-    /// Exception raised by housepi code.
+    /// Exception raised by housepi code, its message written as cli markup.
+    ///
+    /// - any other exception: foreign, its message rendered literally in R.
     /// @note Keep its qualified name in sync with the R side.
-    struct CppError : std::exception
+    struct TrustedException : std::exception
     {
         std::string m;
-        explicit CppError(std::string s) : m(std::move(s)) {}
+        explicit TrustedException(std::string s) : m(std::move(s)) {}
         const char *what() const noexcept override { return m.c_str(); }
     };
 }
 
 namespace housepi::msg
 {
-    /// Throw `txt` as a CppError.
+    /// Throw `txt` as a TrustedException.
     [[noreturn]] void stop(const std::string &txt)
     {
-        throw housepi::CppError(txt);
+        throw housepi::TrustedException(txt);
     }
 
     /// Print an information message to stdout.
@@ -472,7 +474,7 @@ namespace housepi
         }
 
         // import helpers run serially at the Rcpp boundary
-        // their build() paths raise housepi::CppError through msg::stop
+        // their build() paths raise housepi::TrustedException through msg::stop
         // Rcpp forwards it to R with its class
         // no import needs its own try/catch conversion
         void import_setup(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
@@ -998,7 +1000,7 @@ namespace housepi
                     Rcpp::_["observation_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_obs_member),
                     Rcpp::_["transmission_log_lik"] = hsp_to_rcpp(mcmc_ptr->data.state.transm_log_lik(house).value()));
             }
-            catch (const housepi::CppError &e)
+            catch (const housepi::TrustedException &e)
             {
                 msg::stop(msg::join(e.what(), "for household " + msg::val(hhid)));
             }
@@ -1017,7 +1019,7 @@ namespace housepi
                 data::Wide &data_wide = engine.data.wide();
                 const Augmented &augm = engine.augm;
 
-                housepi::parallel::for_each(
+                parallel::for_each(
                     data_wide.report_house.total,
                     [&](size_t H)
                     {
@@ -1065,7 +1067,7 @@ namespace housepi
                                 ++c;
                             }
                         }
-                        catch (const housepi::CppError &e)
+                        catch (const housepi::TrustedException &e)
                         {
                             msg::stop(msg::join(e.what(), "for " + data_wide.str(data_wide.at(H))));
                         }
@@ -1327,17 +1329,37 @@ namespace housepi
         {
             return mcmc_ptr->evaluate_log_lik(hhid);
         }
-        double run_inference(Rcpp::XPtr<MCMC> mcmc_ptr)
+        /// Run inference on every engine of `engine_list`, `workers` of them at once.
+        /// - first error or user interrupt: every engine stops at its next iteration.
+        /// @return List of `seconds` per engine, the `error` that stopped the run and the engine that `failed`.
+        Rcpp::List run_inference_list(Rcpp::List engine_list, int workers)
         {
-            try
-            {
-                return mcmc_ptr->run_inference();
-            }
-            catch (const std::exception &)
-            {
-                mcmc_ptr->setup.prog_crash();
-                throw;
-            }
+            std::vector<MCMC *> mcmc_vec;
+            for (SEXP ptr : engine_list)
+                mcmc_vec.push_back(Rcpp::XPtr<MCMC>(ptr).get());
+            const InferenceRun run = run_inference(mcmc_vec, std::max(1, workers));
+
+            Rcpp::NumericVector seconds(mcmc_vec.size());
+            for (size_t i = 0; i < mcmc_vec.size(); ++i)
+                seconds[i] = hsp_to_rcpp(run.seconds[i]);
+
+            // the error as the R condition Rcpp builds, classed by exception type
+            // an exception outside std::exception (user interrupt) escapes to R
+            Rcpp::RObject error;
+            int failed = NA_INTEGER;
+            if (run.failure.error)
+                try
+                {
+                    std::rethrow_exception(run.failure.error);
+                }
+                catch (const std::exception &e)
+                {
+                    error = ::exception_to_r_condition(e);
+                    failed = static_cast<int>(run.failure.index) + 1;
+                }
+
+            return Rcpp::List::create(Rcpp::_["seconds"] = seconds, Rcpp::_["error"] = error,
+                                      Rcpp::_["failed"] = failed);
         }
 
         /// Aggregate individuals by hhid, given as 1-based codes of the distinct ids.
@@ -1492,10 +1514,10 @@ RCPP_MODULE(housepi)
     Rcpp::function("measure_geom_mean_hhsize", &measure_geom_mean_hhsize);
     Rcpp::function("count_houses_by_hhsize", &count_houses_by_hhsize);
 
-    Rcpp::function("aux_chain_binomial_debugger", &housepi::chain_binom::aux_debugger);
+    Rcpp::function("aux_chain_binomial_debugger", &chain_binom::aux_debugger);
 
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
-    Rcpp::function("run_inference", &run_inference);
+    Rcpp::function("run_inference_list", &run_inference_list);
     Rcpp::function("run_simulation", &run_simulation);
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);

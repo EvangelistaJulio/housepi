@@ -818,7 +818,7 @@ add_observation <- function(hhmodel, name = NULL,
 #' @title Add a status process
 #' @description
 #' Declare how a member's infected status is generated during simulation, as a
-#' categorical distribution over the infected statuses. The probabilities are given
+#' categorical distribution over infected statuses. The probabilities are given
 #' in declaration order (the \eqn{k}-th probability is that of the \eqn{k}-th
 #' infected status); when named, the names become the status labels.
 #' During evaluation the status is fixed observed data, so it contributes a
@@ -1214,6 +1214,17 @@ run_inference <- function(hhmodel,
   stopifnothousepi(hhmodel)
   # the whole run is quiet, its build included
   local_quiet_warnings_(!warn)
+  ptr <- prepare_inference_(hhmodel, steps, burn, thin, adapt, chains,
+                            threads, id_draws, progress, draw_seed_(), ...)
+  wrap_inference_(hhmodel, .engine$run_inference_list(list(ptr), 1L))
+}
+
+#' Build the engine of `hhmodel` for inference, seeded at `seed`.
+#' Shared by [run_inference()] and the replicate sweep.
+#' @return The engine pointer.
+#' @noRd
+prepare_inference_ <- function(hhmodel, steps, burn, thin, adapt, chains,
+                               threads, id_draws, progress, seed, ...) {
   assert_advanced_setup_("adapt_window", ...)
   pvt <- hhmodel$.__enclos_env__$private
   id_draws <- resolve_id_draws_(id_draws)
@@ -1224,11 +1235,18 @@ run_inference <- function(hhmodel,
   pvt$build_full_(
     steps = steps, burn = burn, thin = thin, adapt = adapt,
     chains = chains, threads = threads, id_draws = id_draws,
-    progress = progress, ...
+    progress = progress, seed = seed, ...
   )
-  secs <- .engine$run_inference(pvt$gen_$mcmc_ptr)
-  HousepiPosteriorDraws$new(pvt$gen_$raw_name,
-                            pvt$gen_$mcmc_ptr, secs)
+  pvt$gen_$mcmc_ptr
+}
+
+#' Posterior draws of the engine of `hhmodel`, entry `i` of the engine run
+#' `ran`, or the error that stopped the run, rendered as any engine error.
+#' @noRd
+wrap_inference_ <- function(hhmodel, ran, i = 1L) {
+  if (!is.null(ran$error)) with_cpp_conditions(stop(ran$error))
+  gen <- hhmodel$.__enclos_env__$private$gen_
+  HousepiPosteriorDraws$new(gen$raw_name, gen$mcmc_ptr, ran$seconds[[i]])
 }
 
 #' @title Simulate a household survey from a housepi model

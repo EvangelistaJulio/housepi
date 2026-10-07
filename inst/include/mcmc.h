@@ -14,6 +14,7 @@
 
 #include "tools/logproba.h"
 #include "tools/nan.h"
+#include "tools/parallel.h"
 #include "mcmc/base.h"
 #include "mcmc/setup.h"
 #include "model.h"
@@ -56,19 +57,23 @@ namespace housepi
 	public:
 		std::unique_ptr<ModelBase> model; /// Transmission model.
 
-		//////  Constructor  //////
-
 		explicit MCMC(std::string_view model_name);
 
 		/// Detach a shared data store before mutation (copy-on-write).
 		void detach_data_store();
 
-		//////  Evaluation  //////
-
 		/// Initialize the model and evaluate the complete-data log-likelihood, joint over latents.
 		/// - sum of observation, transmission and latent terms;
 		/// - missing `hhid`: every household.
 		double evaluate_log_lik(std::string_view hhid);
+
+		/// Assert definitions and allocate the posterior, before sample().
+		/// @note Call on the main thread: it may raise warnings.
+		void prepare_inference();
+		/// Run every chain: initialization, adaptation, then posterior sampling.
+		/// @return Seconds spent sampling.
+		/// @note Call after prepare_inference(). Off the main thread, it calls no R.
+		double sample();
 
 	private:
 		/// Assert definitions, then initialize for evaluation.
@@ -118,17 +123,6 @@ namespace housepi
 			return output;
 		}
 
-	public:
-		//////  Metropolis-Hastings  //////
-
-		/// Run inference with the Metropolis-Hastings algorithm.
-		/// Based on @cite metropolis_equation_1953 and @cite hastings_monte_1970
-		/// @return Seconds spent sampling.
-		double run_inference();
-
-	private:
-		/// Run every chain: initialization, adaptation, then posterior sampling.
-		void run_monte_carlo_();
 		/// Initialize a chain: restart every variable, then commit the guarded total.
 		/// - infeasible start: redraws, then error.
 		void init_chain_()
@@ -174,4 +168,22 @@ namespace housepi
 													   const Individual &indiv,
 													   size_t a);
 	};
+
+	/// Outcome of run_inference().
+	struct InferenceRun
+	{
+		std::vector<double> seconds; /// Seconds spent sampling, NA where the engine did not complete.
+		parallel::Failure failure;	 /// Error that stopped the run, with the index of its engine.
+	};
+
+	/// Run inference on every engine, `workers` of them at once.
+	/// Component-wise Metropolis-Hastings algorithm.
+	/// Based on @cite metropolis_equation_1953 and @cite hastings_monte_1970
+	///
+	/// - prepare and progress bars: in order, on the calling thread;
+	/// - sampling: one engine per unit, in an arena of the largest `inner` among engines;
+	/// - error while preparing: nothing sampled;
+	/// - error or user interrupt while sampling: every engine stops at its next iteration.
+	/// @note A user interrupt raised while preparing escapes at once.
+	InferenceRun run_inference(const std::vector<MCMC *> &engine_list, size_t workers);
 }

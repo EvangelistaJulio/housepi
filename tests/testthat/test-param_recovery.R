@@ -28,7 +28,7 @@ mk_recov_frame <- local({
   list(estimates = estimates)
 })
 
-test_that("Default household resampling behaves as expected", {
+test_that("The household count defaults to the observed one", {
   sample_house_structure(data.frame(datum = 1)) |>
     expect_error("[Cc]olumn.*hhid.*is missing")
   sample_house_structure(mk_recov_data$hhdata, houses = 0) |>
@@ -40,6 +40,12 @@ test_that("Default household resampling behaves as expected", {
   # default sampling targets the observed household count
   struct <- sample_house_structure(mk_recov_data$hhdata)
   length(unique(struct$hhid)) |> expect_identical(2L)
+  # without a sampler the observed count stands, whatever count is asked
+  expect_warning(
+    houses <- sweep_houses_(mk_recov_data$hhdata, houses = 6, verbatim = TRUE),
+    "[Aa]rgument.*houses.*is ignored"
+  )
+  houses |> expect_identical(2L)
 })
 
 test_that("Households are resampled whole", {
@@ -73,16 +79,15 @@ test_that("Recovery statistics summarise the replicates", {
 test_that("Sweep cost is averaged over the replicates", {
   replicates <- data.frame(
     houses = c(10L, 10L, 20L), rep = c(1L, 2L, 1L),
-    inference_secs = c(1, 3, NA), min_ess_bulk = c(100, 600, NA),
-    flagged = c(FALSE, TRUE, NA), error = c(NA, NA, "crashed")
+    inference_secs = c(1, 3, 5), min_ess_bulk = c(100, 600, NA),
+    flagged = c(FALSE, TRUE, FALSE)
   )
   overview <- sweep_overview_(replicates)
   overview$nrep |> expect_identical(c(2L, 1L))
-  overview$n_crashed |> expect_identical(c(0L, 1L))
   overview$n_flagged |> expect_identical(c(1L, 0L))
-  # a crashed replicate carries no cost to average
-  overview$mean_inference_secs |> expect_equal(c(2, NaN))
+  overview$mean_inference_secs |> expect_equal(c(2, 5))
   # pooled over the replicates: (1 + 3) / (100 + 600)
+  # a fit without effective sample size carries no cost per draw
   overview$secs_per_ess |> expect_equal(c(4 / 700, NaN))
 })
 
@@ -124,8 +129,8 @@ expect_recovered <- function(results) {
 test_that("Recovery results are read only", {
   mk_recov$results |>
     expect_read_only_field("estimates", "replicates", "summary",
-                          "overview", "truth", "houses", "nrep",
-                          "point_estimate", "cri_level", "warnings")
+                           "overview", "truth", "houses", "nrep",
+                           "point_estimate", "cri_level", "warnings")
 })
 
 test_that("Recovery sweeps every household count", {
@@ -139,7 +144,6 @@ test_that("Recovery sweeps every household count", {
   results$replicates |> expect_nrow(4L)
   results$summary |> expect_nrow(6L)
   results$overview$houses |> expect_identical(c(20L, 40L))
-  results$overview$n_crashed |> expect_identical(c(0L, 0L))
   results$nrep |> expect_identical(2L)
   results$point_estimate |> expect_identical("median")
   results$cri_level |> expect_equal(0.95)
@@ -153,11 +157,53 @@ test_that("Each replicate reports its cost and its survey", {
     expect_equal(as.vector(tapply(estimates$ess_bulk,
                                   estimates[c("rep", "houses")], min)))
   (mk_recov$results$overview$secs_per_ess > 0) |> expect_all_true()
-  replicates$error |> expect_all_na()
+  mk_recov$results$summary$coverage |> expect_in(c(0, 0.5, 1))
+  replicates$seed |> expect_type("integer")
+  replicates$seed |> expect_no_na()
   estimates$covers |>
     expect_identical(estimates$cri_lower <= estimates$truth &
                        estimates$truth <= estimates$cri_upper)
-  mk_recov$results$summary$coverage |> expect_in(c(0, 0.5, 1))
+})
+
+test_that("A failed replicate is named in the error", {
+  hhdata <- sample_house_structure(mk_recov$model$data_wide, houses = 20)
+  # every status missing passes the model build and stops the engine before
+  # any fit samples
+  hhdata_2 <- hhdata
+  hhdata_2$status <- NA_integer_
+  fit_args <- list(steps = 50, burn = 0, thin = 1, adapt = 0, chains = 1,
+                   threads = 1L, id_draws = ".none", progress = FALSE)
+  sweep_fit_wave_(mk_recov$model, list(hhdata, hhdata_2), reps = 1:2,
+                  houses = 20L, seeds = 1:2, fit_args = fit_args,
+                  outer = 2L) |>
+    expect_error("[Rr]eplicate 2 at.*20.*households.*missing status")
+})
+
+test_that("A failed replicate stops the fits sampled with it", {
+  # `record = 5` fails at chain initialization, `record = 0.5` samples
+  hhmodel <- data.frame(hhid = "h1", status = 1, record = 0.5) |>
+    new_housepi_model("test") |>
+    add_latent("hidden", model = "uniform") |>
+    add_observation("record", model = "uniform", loc = hidden,
+                    min = -0.1, max = 0.1)
+  hhdata <- hhmodel$data_wide
+  hhdata_2 <- transform(hhdata, record = 5)
+  # the fit of `hhdata` alone samples for minutes
+  fit_args <- list(steps = 400000000L, burn = 0, thin = 100000L, adapt = 0,
+                   chains = 1, threads = 1L, id_draws = ".none",
+                   progress = FALSE)
+  fit_wave <- function(wides, outer, failed) {
+    system.time(
+      sweep_fit_wave_(hhmodel, wides, reps = 1:2, houses = 1L, seeds = 1:2,
+                      fit_args = fit_args, outer = outer) |>
+        expect_error(paste0("[Rr]eplicate ", failed,
+                            " at.*[Ee]xceeded attempts"))
+    )[["elapsed"]]
+  }
+  # sampled together: the running fit stops at its next iteration
+  fit_wave(list(hhdata, hhdata_2), outer = 2L, failed = 2L) |> expect_lt(10)
+  # sampled in turn: the next fit never starts
+  fit_wave(list(hhdata_2, hhdata), outer = 1L, failed = 1L) |> expect_lt(10)
 })
 
 test_that("A run too short to diagnose is flagged whole", {
@@ -220,7 +266,7 @@ test_that("A collapsed baseline takes no simulation value", {
     expect_error("[Tt]ruth.*alpha.*other than 1")
 })
 
-test_that("Recovery needs a parameter to recover", {
+test_that("Recovery refuses a sweep it cannot run", {
   hhmodel <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = list(value = 0.15, const = TRUE),
@@ -229,6 +275,15 @@ test_that("Recovery needs a parameter to recover", {
 
   check_recovery(hhmodel, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o parameter to estimate")
+  new_housepi_model(model = "final-size") |>
+    add_parameter(import = "template") |>
+    check_recovery(nrep = 1, progress = FALSE) |>
+    expect_error("[Nn]o data is attached")
+  # UPDATE: a setting no fit can run is blamed on the first replicate, once
+  # the first household count is simulated
+  check_recovery(mk_recov$model, nrep = 1, houses = 20, steps = 50, burn = 50,
+                 chains = 1, progress = FALSE) |>
+    expect_error("[Rr]eplicate 1 at.*20.*households.*burn.*smaller than")
 })
 
 test_that("Latent inference recovers the simulating parameter", {

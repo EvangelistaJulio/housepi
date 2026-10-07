@@ -54,15 +54,17 @@ vpath %.cpp . $(SRC) $(DIRMODEL)
 
 # Boost headers come from the BH package in the R build; locate them for standalone
 BH_INC := $(shell Rscript -e 'cat(system.file("include", package="BH"))')
+# TBB headers and library come from the RcppParallel package, as in the R build
+TBB_DIR := $(shell Rscript -e 'cat(system.file(package="RcppParallel"))')
 
 # compilation flags
 CXX := g++
 CXXFLAGS := -std=c++17 -D_STANDALONE\
--I./ -I../include/ -I$(BH_INC) \
+-I./ -I../include/ -I$(BH_INC) -I$(TBB_DIR)/include \
 -Wall -Wextra -pedantic \
 -Wno-unknown-pragmas \
 -MMD -MP
-LDFLAGS :=
+LDFLAGS := -L$(TBB_DIR)/lib -Wl,-rpath,$(TBB_DIR)/lib -ltbb
 
 ifdef DEBUG
 CXXFLAGS += -g3 -O0 \
@@ -85,9 +87,7 @@ ifdef DISCRETE
 CXXFLAGS += -D_HOUSEPI_DISCRETE_TIME
 endif
 
-# Standalone builds run single-threaded: parallelism is delegated to
-# RcppParallel which only exists inside the R package. Pick up Boost
-# headers from Homebrew on macOS when available.
+# Pick up Boost headers from Homebrew on macOS when available.
 ifeq ($(shell uname -s),Linux)
 # nothing to add
 else ifeq ($(shell uname -s),Darwin)

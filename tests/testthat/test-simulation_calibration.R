@@ -90,7 +90,8 @@ test_that("The calibration summary reads one verdict per parameter", {
 #############################################
 
 # a sweep short enough for the suite, every fit too short to pass the
-# diagnostics; the pin of `rho` is never read
+# diagnostics; the pin of `rho` is never read, and the attached households
+# are surveyed as they are
 mk_calib <- local({
   hhmodel <- data.frame(hhid = seq(30), status = 1) |>
     new_housepi_model("test") |>
@@ -98,8 +99,8 @@ mk_calib <- local({
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden, sd = 1)
   results <- hhmodel |>
-    check_calibration(nrep = 3, rank_draws = 9, steps = 400,
-                      thin = 1, chains = 1, progress = FALSE) |>
+    check_calibration(nrep = 3, structure_sampler = NULL, rank_draws = 9,
+                      steps = 400, thin = 1, chains = 1, progress = FALSE) |>
     suppressWarnings()
   list(model = hhmodel, results = results)
 })
@@ -121,12 +122,29 @@ test_that("Every replicate is ranked at a value drawn from the prior", {
   unique(estimates$truth) |> expect_length(3L)
   (estimates$truth > -5 & estimates$truth < 5 & estimates$truth != 2) |>
     expect_all_true()
-  results$replicates$error |> expect_all_na()
   results$ecdf |> expect_nrow(9L)
   results$summary$nrep |> expect_identical(3L)
   results$overview$nrep |> expect_identical(3L)
   results$houses |> expect_identical(30L)
   results$rank_draws |> expect_identical(9L)
+})
+
+test_that("A sweep reproduces from a seed at any thread count", {
+  sweep_at <- function(threads) {
+    withr::with_seed(1L, check_calibration(
+      mk_calib$model, nrep = 3, rank_draws = 9, steps = 400, thin = 1,
+      chains = 1, threads = threads, progress = FALSE
+    )) |>
+      suppressWarnings()
+  }
+  # one fit per wave, then a single wave of three: the ranks break ties
+  # from the same stream as the engine seeds
+  results <- sweep_at(1L)
+  results_2 <- sweep_at(3L)
+  untimed <- \(replicates) replicates[names(replicates) != "inference_secs"]
+  results_2$estimates |> expect_identical(results$estimates)
+  untimed(results_2$replicates) |> expect_identical(untimed(results$replicates))
+  results_2$warnings |> expect_identical(results$warnings)
 })
 
 test_that("Calibration refuses a sweep it cannot rank", {
@@ -147,8 +165,9 @@ test_that("Calibration refuses a sweep it cannot rank", {
 
 test_that("Latent inference is calibrated against the prior", {
   skip_on_cran()
-  results <- check_calibration(mk_calib$model, progress = FALSE)
-  results$overview$n_crashed |> expect_identical(0L)
+  # a replicate flagged by convergence diagnostics warns
+  results <- check_calibration(mk_calib$model, progress = FALSE) |>
+    suppressWarnings()
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
   threshold <- calibration_log_threshold_(results$summary$nrep, 99, 0.001)
   (results$summary$log_gamma >= threshold) |> expect_true()

@@ -127,28 +127,26 @@ namespace housepi
             }
         }
 
-        /// End the line of a bar left open by an error.
+        /// End the line of a bar left open by an error, once.
         /// - static mode: no-op, every print ends its line.
-        void crash() const noexcept
+        void crash() noexcept
         {
             // # nocov start
             if (has_bar_print_ && mode_ == Mode::Interactive)
                 msg::info("\n");
             // # nocov end
+            has_bar_print_ = false;
         }
 
-        /// Close the progress bar, returning the seconds since `open()`.
-        double close()
+        /// Close the progress bar.
+        void close()
         {
-            const auto now = Clock::now();
-            const double spent = std::chrono::duration<double>(now - start_).count();
-
             // close an opened bar only
             if (!has_bar_print_)
-                return spent;
+                return;
             has_bar_print_ = false;
 
-            const auto elapsed = std::chrono::duration_cast<Seconds>(now - start_);
+            const auto elapsed = std::chrono::duration_cast<Seconds>(Clock::now() - start_);
             if (static_cast<unsigned long>(elapsed.count()) > thintime_)
             {
                 std::ostringstream oss;
@@ -164,7 +162,6 @@ namespace housepi
             }
 
             check_user_interrupt_();
-            return spent;
         }
 
     private:

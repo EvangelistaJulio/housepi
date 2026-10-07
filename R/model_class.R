@@ -698,7 +698,7 @@ HousepiModel <- R6::R6Class(
     build_full_ = function(steps = 0L, adapt = 0L, burn = 0L,
                            thin = 1L, chains = 1L, threads = 1L,
                            id_draws = NULL, progress = FALSE,
-                           simulating = FALSE, ...) {
+                           simulating = FALSE, seed = draw_seed_(), ...) {
       # only run_inference resolves a selection; other builds store nothing
       if (!is.list(id_draws))
         id_draws <- list(id = character(), hhid = character())
@@ -713,8 +713,7 @@ HousepiModel <- R6::R6Class(
           threads = threads,
           id_draws = id_draws$id,
           house_draws = id_draws$hhid,
-          # generate a seed for Cpp random number generator
-          seed = sample.int(.Machine$integer.max, 1L),
+          seed = seed,
           progress = progress
         ), list(...)))
       )

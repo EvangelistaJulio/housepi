@@ -5,6 +5,7 @@
  * See the LICENSE file for details.
  */
 
+#include <exception>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -250,7 +251,9 @@ namespace housepi
     /// Run inference and write its trace to `out_file`.
     void print_infer_state(MCMC &engine, const std::string &out_file)
     {
-        engine.run_inference();
+        const InferenceRun run = run_inference({&engine}, 1);
+        if (run.failure.error)
+            std::rethrow_exception(run.failure.error);
 
         if (na::is(out_file))
             return;

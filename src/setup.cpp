@@ -128,13 +128,6 @@ namespace housepi
     {
         n_threads = std::max(1u, n_threads);
 
-#ifdef _STANDALONE
-        if (n_threads != 1)
-            msg::warn(
-                "Multi-threading is disabled.\nRcppParallel is not available in standalone mode.");
-        n_threads = 1;
-
-#else
         size_t max_threads = housepi::parallel::max_num_threads();
         if (n_threads > max_threads)
         {
@@ -143,7 +136,6 @@ namespace housepi
                 std::to_string(max_threads) + " available threads.");
             n_threads = max_threads;
         }
-#endif
         // every thread goes to the households of a single chain
         budget = {1, n_threads};
     }
@@ -217,7 +209,12 @@ namespace housepi
         progressbar_->open(n_steps, progress);
     }
 
-    void Setup::prog_update() { progressbar_->update(); }
-    double Setup::prog_close() { return progressbar_->close(); }
-    void Setup::prog_crash() const noexcept { progressbar_->crash(); }
+    void Setup::prog_update()
+    {
+        if (stop_flag && stop_flag->load(std::memory_order_relaxed))
+            throw parallel::Cancelled{};
+        progressbar_->update();
+    }
+    void Setup::prog_close() { progressbar_->close(); }
+    void Setup::prog_crash() noexcept { progressbar_->crash(); }
 }

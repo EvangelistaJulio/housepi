@@ -6,7 +6,10 @@
  */
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cmath>
+#include <exception>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -865,19 +868,59 @@ namespace housepi
 
     //////  Metropolis-Hastings  //////
 
-    double MCMC::run_inference()
+    InferenceRun run_inference(const std::vector<MCMC *> &mcmc_vec, size_t workers)
+    {
+        const size_t n = mcmc_vec.size();
+        InferenceRun run{std::vector<double>(n, na::DOUBLE), {}};
+
+        // prepare in order on the calling thread, the first error ends the run
+        size_t inner = 1;
+        for (size_t i = 0; i < n; ++i)
+            try
+            {
+                mcmc_vec[i]->prepare_inference();
+                inner = std::max(inner, mcmc_vec[i]->setup.budget.inner);
+            }
+            catch (const std::exception &)
+            {
+                run.failure = {std::current_exception(), i};
+                return run;
+            }
+
+        // the first error stops every engine at its next iteration
+        std::atomic<bool> stop_flag{false};
+        for (MCMC *engine : mcmc_vec)
+            engine->setup.stop_flag = &stop_flag;
+        run.failure = parallel::for_units(
+            n, [&](size_t i)
+            { run.seconds[i] = mcmc_vec[i]->sample(); },
+            workers, inner, stop_flag);
+        for (MCMC *engine : mcmc_vec)
+            engine->setup.stop_flag = nullptr;
+
+        // close bars in order, on the calling thread
+        for (MCMC *engine : mcmc_vec)
+        {
+            if (run.failure.error)
+                engine->setup.prog_crash();
+            else
+                engine->setup.prog_close();
+        }
+        return run;
+    }
+
+    void MCMC::prepare_inference()
     {
         init_monte_carlo_();
         init_for_evaluation_();
+        posterior.init(*this);
         setup.prog_open_for_mcmc_sample();
-        run_monte_carlo_();
-        return setup.prog_close();
     }
 
-    void MCMC::run_monte_carlo_()
+    double MCMC::sample()
     {
+        const auto start = std::chrono::steady_clock::now();
         setup.prog_set_text(); // refresh label
-        posterior.init(*this); // initialize posterior sample
 
         // run multiple MCMC chains
         for (unsigned long chain_id = 0; chain_id < setup.n_chains; ++chain_id)
@@ -885,6 +928,7 @@ namespace housepi
             init_chain_();
             run_chain_(chain_id);
         }
+        return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
     }
 
     void MCMC::init_guarded_commit_total_()

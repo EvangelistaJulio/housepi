@@ -36,11 +36,11 @@ Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) 
     \item{\code{replicates}}{\code{data.frame}
 One row per household count and replicate
 \describe{
+\item{seed}{Seed of the fit's random number generators}
 \item{inference_secs}{Wall-clock of the sampling loop}
 \item{min_ess_bulk}{Smallest bulk effective sample size over the
 parameters of the fit}
 \item{flagged}{Whether any parameter of the fit was flagged}
-\item{error}{Message of a replicate that crashed, else \code{NA}}
 }}
 
     \item{\code{summary}}{\code{data.frame}
@@ -56,7 +56,7 @@ Recovery statistics per household count and parameter
     \item{\code{overview}}{\code{data.frame}
 Sweep cost per household count, averaged over the replicates
 \describe{
-\item{nrep, n_crashed, n_flagged}{Replicates run, crashed and flagged}
+\item{nrep, n_flagged}{Replicates run, and those flagged}
 \item{mean_inference_secs}{Mean wall-clock of a sampling loop}
 \item{secs_per_ess}{Seconds of sampling per effective draw of the
 worst-mixing parameter, pooled over the replicates: a cost of this
@@ -145,7 +145,9 @@ discard before storing draws.}
 They are run before \code{steps} and are not stored as draws.
 If no proposals are adaptable and \code{burn = 0}, repurposed as burn-in instead.}
       \item{\code{chains}}{\code{integer(1)} Number of independent MCMC chains to run.}
-      \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
+      \item{\code{threads}}{\code{integer(1)} Number of threads. Up to \code{threads}
+replicates are fitted at once. Beyond \code{nrep}, the households of each fit
+share the threads left over.}
       \item{\code{progress}}{\code{logical(1)} Whether to show a progress bar over the
 replicates. The progress of each fit is always suppressed.}
       \item{\code{...}}{Advanced configuration.}

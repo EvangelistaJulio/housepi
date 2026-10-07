@@ -17,7 +17,10 @@ rd_sweep_sampler_ <- "`function` Sampler of the household structure the surveys
 are generated on, called as `structure_sampler(data_wide, houses)`.
 `NULL` reuses the attached structure verbatim and ignores `houses`."
 rd_sweep_seed_ <- "Replicates are independent draws: call `set.seed()` before
-the check to replay a whole sweep, and only at `threads = 1`."
+the check to replay a whole sweep, at any `threads` up to `nrep`."
+rd_sweep_threads_ <- "`integer(1)` Number of threads. Up to `threads`
+replicates are fitted at once. Beyond `nrep`, the households of each fit
+share the threads left over."
 
 #' Columns the surveys are generated on: the attached data without the
 #' observations and latent variables, which simulation regenerates and a
@@ -81,12 +84,11 @@ sweep_diagnostics_ <- function(draws, variables) {
 #' @noRd
 sweep_overview_ <- function(replicates) {
   sweep_by_(replicates, "houses", function(d) {
-    ok <- !is.na(d[["inference_secs"]]) & !is.na(d[["min_ess_bulk"]])
+    ok <- !is.na(d[["min_ess_bulk"]])
     data.frame(
       houses = d[["houses"]][[1L]], nrep = nrow(d),
-      n_crashed = sum(!is.na(d[["error"]])),
-      n_flagged = sum(d[["flagged"]] %in% TRUE),
-      mean_inference_secs = mean(d[["inference_secs"]], na.rm = TRUE),
+      n_flagged = sum(d[["flagged"]]),
+      mean_inference_secs = mean(d[["inference_secs"]]),
       secs_per_ess =
         sum(d[["inference_secs"]][ok]) / sum(d[["min_ess_bulk"]][ok])
     )
@@ -106,12 +108,6 @@ sweep_stack_ <- function(parts, cols) {
   out <- out[do.call(order, out[cols]), , drop = FALSE]
   rownames(out) <- NULL
   out
-}
-
-#' Run `fn` on the model re-attached to `data`, with the given arguments.
-#' @noRd
-sweep_run_fn_ <- function(fn, hhmodel, data, args) {
-  do.call(fn, c(list(add_data_wide(hhmodel, data)), args))
 }
 
 #' Household counts of the sweep, one cell each.
@@ -174,40 +170,77 @@ sweep_report_warnings_ <- function(warnings, what) {
   emit_cli_condition(c(list(header), as.list(bullets)), "warn")
 }
 
+#' Workers of a sweep: `outer` replicates fitted at once, each fit's
+#' households sharing `inner` threads.
+#' @noRd
+sweep_split_ <- function(nrep, threads) {
+  threads <- assert_count_(threads, "Number of threads")
+  # UPDATE: threads idle on the remainder of `threads %/% outer`, and through
+  # a last wave holding fewer than `outer` replicates
+  outer <- min(nrep, threads)
+  list(outer = outer, inner = threads %/% outer)
+}
+
+#' Value of `expr`, or an error naming replicate `rep` at `houses` households,
+#' followed by the lines of the error `expr` raised.
+#' @noRd
+sweep_guard_ <- function(expr, rep, houses) {
+  tryCatch(expr, error = function(e) {
+    # rendered text: shown verbatim, never parsed as markup
+    header <- paste(rlang::cnd_header(e), collapse = "\n")
+    cause <- escape_cli_(c(`!` = header, rlang::cnd_body(e)))
+    stop_h("Replicate {rep} at {.val {houses}} households failed.", cause)
+  })
+}
+
 #' The sweep: one simulation call per household count, then one fit per
 #' replicate, reduced by `reducer(draws, truth)` to one row per parameter
 #' carrying `ess_bulk` and `flagged`. The fitted model is built from the given
 #' model and never from the one that simulated, which holds the truth of the
-#' last replicate.
-#' @param sim_args,fit_args `list` Arguments of the simulation and of each fit.
+#' last replicate. Fits run in waves of replicates sampled at once, each wave
+#' reduced before the next one runs. The first replicate that fails stops the
+#' sweep.
+#' @param pins `numeric` Simulation value of the parameters, `NA` drawn from
+#' the prior.
+#' @param fit_args `list` Sampler settings of each fit.
+#' @param threads `integer(1)` Threads shared by the fits of a wave.
+#' @param dots `list` Advanced setup of the check, split between the
+#' simulation and the fits.
 #' @param label `character(1)` Label of the progress bar.
 #' @noRd
-sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, sim_args,
-                       fit_args, reducer, progress, label) {
+sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, pins,
+                       fit_args, threads, dots, reducer, progress, label) {
   estimates <- replicates <- raised <- list()
+  # one simulation call per household count yields the whole cell: the pins
+  # are repeated, one row per replicate
+  sim_args <- c(list(param_table = sweep_param_table_(pins, nrep)),
+                dots[names(dots) == "time_step"])
+  workers <- sweep_split_(nrep, threads)
+  fit_args <- c(fit_args, dots[names(dots) == "adapt_window"],
+                threads = workers$inner, id_draws = ".none", progress = FALSE)
+  waves <- split(seq_len(nrep), (seq_len(nrep) - 1L) %/% workers$outer)
   bar <- sweep_progress_bar_(progress, length(houses) * nrep, label)
   for (n_houses in houses) {
     struct <- structure
     if (!is.null(sampler)) struct <- sampler(structure, n_houses)
-    surveys <- sweep_run_fn_(simulate_with_parameters_, hhmodel, struct,
-                             sim_args)
-    cell <- lapply(seq_len(nrep), function(rep) {
-      truth <- unlist(surveys$parameters[rep, , drop = FALSE])
-      one <- sweep_one_replicate_(hhmodel, surveys$wide[[rep]], truth,
-                                  n_houses, rep, fit_args, reducer)
-      if (!is.null(bar)) cli::cli_progress_update(id = bar)
-      one
-    })
+    surveys <- do.call(simulate_with_parameters_,
+                       c(list(add_data_wide(hhmodel, struct)), sim_args))
+    truths <- lapply(seq_len(nrep),
+                     \(rep) unlist(surveys$parameters[rep, , drop = FALSE]))
+    # seeds drawn ahead of the fits: the reducers draw from the same stream
+    # whatever the size of a wave
+    seeds <- draw_seed_(nrep)
+    cell <- list()
+    for (reps in waves) {
+      draws <- sweep_fit_wave_(hhmodel, surveys$wide[reps], reps, n_houses,
+                               seeds[reps], fit_args, workers$outer)
+      reduced <- Map(sweep_reduce_one_, draws, truths[reps], reps, seeds[reps],
+                     MoreArgs = list(houses = n_houses, reducer = reducer))
+      cell <- c(cell, reduced)
+      if (!is.null(bar)) cli::cli_progress_update(inc = length(reps), id = bar)
+    }
     rm(surveys)
-    done <- Filter(Negate(is.null), lapply(cell, `[[`, "estimates"))
-    # an engine message carries no markup: interpolate, never inline
-    # nolint next: object_usage_linter. read by the cli glue below
-    reason <- cell[[1L]]$replicate[["error"]]
-    if (!length(done)) stop_h(
-      "Every replicate crashed at {.val {n_houses}} households.",
-      `!` = "{reason}"
-    )
-    estimates <- c(estimates, done)
+    estimates <- c(estimates, lapply(cell, `[[`, "estimates"))
     replicates <- c(replicates, lapply(cell, `[[`, "replicate"))
     raised <- c(raised, lapply(cell, `[[`, "warnings"))
   }
@@ -216,42 +249,44 @@ sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, sim_args,
        warnings = sweep_warning_counts_(raised))
 }
 
-#' One replicate: the fit of the survey simulated at `truth`.
-#' A replicate that crashes is recorded and the sweep carries on.
+#' One wave: the surveys of `wides` built in order and sampled `outer` at a
+#' time, with housepi warnings held back. The first survey that fails stops
+#' every fit of the wave.
+#' @param reps `integer` Replicate of each survey.
+#' @param houses `integer(1)` Household count of the surveys.
+#' @param seeds `integer` Engine seed of each survey.
+#' @return Posterior draws of each survey.
 #' @noRd
-sweep_one_replicate_ <- function(hhmodel, simulated, truth, houses, rep,
-                                 fit_args, reducer) {
-  crash <- NA_character_
-  fit <- tryCatch(
-    sweep_fit_one_(hhmodel, simulated, truth, houses, rep, fit_args, reducer),
-    error = function(e) {
-      crash <<- conditionMessage(e)
-      NULL
-    }
+sweep_fit_wave_ <- function(hhmodel, wides, reps, houses, seeds, fit_args,
+                            outer) {
+  local_quiet_warnings_(TRUE)
+  fits <- Map(function(simulated, rep, seed) {
+    sweep_guard_(sweep_prepare_one_(simulated, seed, hhmodel, fit_args),
+                 rep, houses)
+  }, wides, reps, seeds)
+  ran <- .engine$run_inference_list(lapply(fits, `[[`, "ptr"), outer)
+  if (!is.null(ran$error)) sweep_guard_(
+    with_cpp_conditions(stop(ran$error)), reps[[ran$failed]], houses
   )
-  list(
-    estimates = fit$estimates,
-    warnings = fit$warnings,
-    replicate = data.frame(
-      houses = houses, rep = rep,
-      inference_secs = if (is.null(fit)) NA_real_ else fit$secs,
-      min_ess_bulk = if (is.null(fit)) NA_real_ else
-        min(fit$estimates$ess_bulk),
-      flagged = if (is.null(fit)) NA else any(fit$estimates$flagged),
-      error = crash
-    )
-  )
+  Map(\(fit, i) wrap_inference_(fit$model, ran, i), fits, seq_along(fits))
 }
 
-#' Fit one survey back and reduce its draws.
-#' Kept whole and free of sweep state, so it can be mapped.
+#' Build the fit of one survey: its model and engine.
 #' @noRd
-sweep_fit_one_ <- function(hhmodel, simulated, truth, houses, rep, fit_args,
-                           reducer) {
-  latent <- intersect(hhmodel$latent[["name"]], names(simulated))
-  hhdata <- simulated[setdiff(names(simulated), latent)]
-  draws <- sweep_run_fn_(run_inference, hhmodel, hhdata, fit_args)
-  list(estimates = cbind(houses = houses, rep = rep, reducer(draws, truth)),
-       warnings = draws$warnings,
-       secs = draws$inference_secs)
+sweep_prepare_one_ <- function(simulated, seed, hhmodel, fit_args) {
+  kept <- setdiff(names(simulated), hhmodel$latent[["name"]])
+  model <- add_data_wide(hhmodel, simulated[kept])
+  ptr <- do.call(prepare_inference_, c(list(model), fit_args, seed = seed))
+  list(model = model, ptr = ptr)
+}
+
+#' One replicate: the fit reduced against `truth`.
+#' @noRd
+sweep_reduce_one_ <- function(draws, truth, rep, seed, houses, reducer) {
+  estimates <- cbind(houses = houses, rep = rep, reducer(draws, truth))
+  replicate <- data.frame(houses = houses, rep = rep, seed = seed,
+                          inference_secs = draws$inference_secs,
+                          min_ess_bulk = min(estimates$ess_bulk),
+                          flagged = any(estimates$flagged))
+  list(estimates = estimates, warnings = draws$warnings, replicate = replicate)
 }

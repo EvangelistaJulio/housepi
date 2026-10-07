@@ -17,7 +17,7 @@ names label the corresponding statuses: name all of them or none.}
 }
 \description{
 Declare how a member's infected status is generated during simulation, as a
-categorical distribution over the infected statuses. The probabilities are given
+categorical distribution over infected statuses. The probabilities are given
 in declaration order (the \eqn{k}-th probability is that of the \eqn{k}-th
 infected status); when named, the names become the status labels.
 During evaluation the status is fixed observed data, so it contributes a

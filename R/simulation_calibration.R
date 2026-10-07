@@ -214,11 +214,11 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @field replicates `data.frame`
     #' One row per replicate
     #' \describe{
+    #'   \item{seed}{Seed of the fit's random number generators}
     #'   \item{inference_secs}{Wall-clock of the sampling loop}
     #'   \item{min_ess_bulk}{Smallest bulk effective sample size over the
     #'     parameters of the fit}
     #'   \item{flagged}{Whether any parameter of the fit was flagged}
-    #'   \item{error}{Message of a replicate that crashed, else `NA`}
     #' }
     replicates = function(value) {
       if (!missing(value)) stop_read_only("replicates")
@@ -259,7 +259,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @field overview `data.frame`
     #' Sweep cost, averaged over the replicates
     #' \describe{
-    #'   \item{nrep, n_crashed, n_flagged}{Replicates run, crashed and flagged}
+    #'   \item{nrep, n_flagged}{Replicates run, and those flagged}
     #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop}
     #'   \item{secs_per_ess}{Seconds of sampling per effective draw of the
     #'     worst-mixing parameter, pooled over the replicates: a cost of this
@@ -317,7 +317,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @param thin `r rd_smpl_thin_`
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
-    #' @param threads `r rd_thread_`
+    #' @param threads `r rd_sweep_threads_`
     #' @param progress `logical(1)` Whether to show a progress bar over the
     #' replicates. The progress of each fit is always suppressed.
     #' @param ... `r rd_dots_config_`
@@ -341,24 +341,15 @@ HousepiCalibrationCheck <- R6::R6Class(
       private$houses_ <- sweep_houses_(structure, houses,
                                        is.null(structure_sampler), one = TRUE)
 
-      dots <- list(...)
       # an estimated parameter gets no column: simulation draws it anew
       pins <- sweep_pins_(hhmodel)
       pins <- pins[setdiff(names(pins), private$variables_)]
-      sim_args <- c(
-        list(param_table = sweep_param_table_(pins, private$nrep_)),
-        dots[names(dots) == "time_step"]
-      )
-      fit_args <- c(
-        list(steps = steps, burn = burn, thin = thin, adapt = adapt,
-             chains = chains, threads = threads, id_draws = ".none",
-             progress = FALSE, warn = FALSE),
-        dots[names(dots) == "adapt_window"]
-      )
+      fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
+                       chains = chains)
       swept <- sweep_run_(
         hhmodel, structure, structure_sampler, private$houses_, private$nrep_,
-        sim_args, fit_args, private$summarise_ranks_, progress,
-        "Calibration replicates"
+        pins, fit_args, threads, list(...), private$summarise_ranks_,
+        progress, "Calibration replicates"
       )
       private$estimates_ <- swept$estimates
       private$replicates_ <- swept$replicates
@@ -370,14 +361,13 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @description Override the default printing behavior.
     print = function() {
       model <- spaced_template_choice(private$name_)
-      crashed <- sum(!is.na(private$replicates_[["error"]]))
-      flagged <- sum(private$replicates_[["flagged"]] %in% TRUE)
+      flagged <- sum(private$replicates_[["flagged"]])
       print_bullets(c(
         i = "Simulation calibration check of model {.val {model}}.",
         "Households: {.val {private$houses_}}. \\
          Replicates: {private$nrep_}.",
         "Posterior draws each value is ranked among: {private$rank_draws_}.",
-        "Replicates crashed: {crashed}. Flagged by diagnostics: {flagged}."
+        "Flagged by diagnostics: {flagged}."
       ))
       invisible(self)
     }
@@ -406,7 +396,7 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
-#' @param threads `r rd_thread_`
+#' @param threads `r rd_sweep_threads_`
 #' @param progress `logical(1)` Whether to show a progress bar over the
 #' replicates. The progress of each fit is always suppressed.
 #' @param ... `r rd_dots_config_`
@@ -429,9 +419,6 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' The check itself goes back to
 #' \insertCite{talts_validating_2020;textual}{housepi}.
 #'
-#' A replicate that crashes is recorded, left out of the ranks, and the sweep
-#' carries on. The left-out draws are not a random subset of the prior, so
-#' many crashes bias the check.
 #' `r rd_sweep_seed_`
 #' @references
 #' \insertAllCited{}

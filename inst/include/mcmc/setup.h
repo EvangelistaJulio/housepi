@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -59,6 +60,10 @@ namespace housepi
         unsigned long c_sample_size; /// Sample size for a single chain after thinning.
         double adapt_smoothing;      /// Smoothing factor of the accept-rate average, 1 / n_adapt_window.
 
+        //////  Run config  //////
+
+        const std::atomic<bool> *stop_flag = nullptr; /// Flag shared by the engines of one run, null outside it.
+
         //////  Constructor  //////
 
         Setup();
@@ -100,12 +105,13 @@ namespace housepi
         /// Update progress bar display text.
         void prog_set_text(std::string text = "");
         /// Increment progress bar by one iteration.
+        /// - stop flag raised: throws parallel::Cancelled.
         void prog_update();
-        /// Close the progress bar, returning the seconds it timed.
-        double prog_close();
+        /// Close the progress bar.
+        void prog_close();
         /// End the line of a bar left open by an error.
         /// @note Skip on user interrupt: R ends the line itself.
-        void prog_crash() const noexcept;
+        void prog_crash() noexcept;
 
         /// Open progress bar for standard MCMC sample.
         void prog_open_for_mcmc_sample();

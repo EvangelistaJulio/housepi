@@ -199,11 +199,11 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @field replicates `data.frame`
     #' One row per household count and replicate
     #' \describe{
+    #'   \item{seed}{Seed of the fit's random number generators}
     #'   \item{inference_secs}{Wall-clock of the sampling loop}
     #'   \item{min_ess_bulk}{Smallest bulk effective sample size over the
     #'     parameters of the fit}
     #'   \item{flagged}{Whether any parameter of the fit was flagged}
-    #'   \item{error}{Message of a replicate that crashed, else `NA`}
     #' }
     replicates = function(value) {
       if (!missing(value)) stop_read_only("replicates")
@@ -227,7 +227,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @field overview `data.frame`
     #' Sweep cost per household count, averaged over the replicates
     #' \describe{
-    #'   \item{nrep, n_crashed, n_flagged}{Replicates run, crashed and flagged}
+    #'   \item{nrep, n_flagged}{Replicates run, and those flagged}
     #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop}
     #'   \item{secs_per_ess}{Seconds of sampling per effective draw of the
     #'     worst-mixing parameter, pooled over the replicates: a cost of this
@@ -299,7 +299,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @param thin `r rd_smpl_thin_`
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
-    #' @param threads `r rd_thread_`
+    #' @param threads `r rd_sweep_threads_`
     #' @param progress `logical(1)` Whether to show a progress bar over the
     #' replicates. The progress of each fit is always suppressed.
     #' @param ... `r rd_dots_config_`
@@ -320,23 +320,12 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$houses_ <- sweep_houses_(structure, houses,
                                        is.null(structure_sampler))
 
-      dots <- list(...)
-      # one simulation call per household count yields the whole cell: the
-      # pins are repeated, one row per replicate
-      sim_args <- c(
-        list(param_table = sweep_param_table_(pins, private$nrep_)),
-        dots[names(dots) == "time_step"]
-      )
-      fit_args <- c(
-        list(steps = steps, burn = burn, thin = thin, adapt = adapt,
-             chains = chains, threads = threads, id_draws = ".none",
-             progress = FALSE, warn = FALSE),
-        dots[names(dots) == "adapt_window"]
-      )
+      fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
+                       chains = chains)
       swept <- sweep_run_(
         hhmodel, structure, structure_sampler, private$houses_, private$nrep_,
-        sim_args, fit_args, private$summarise_draws_, progress,
-        "Recovery replicates"
+        pins, fit_args, threads, list(...), private$summarise_draws_,
+        progress, "Recovery replicates"
       )
       private$estimates_ <- swept$estimates
       private$replicates_ <- swept$replicates
@@ -348,15 +337,14 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @description Override the default printing behavior.
     print = function() {
       model <- spaced_template_choice(private$name_)
-      crashed <- sum(!is.na(private$replicates_[["error"]]))
-      flagged <- sum(private$replicates_[["flagged"]] %in% TRUE)
+      flagged <- sum(private$replicates_[["flagged"]])
       print_bullets(c(
         i = "Parameter recovery check of model {.val {model}}.",
         "Households: {.val {private$houses_}}. \\
          Replicates each: {private$nrep_}.",
         "Point estimate: {.val {private$point_estimate_}}. \\
          Credible level: {.val {private$cri_level_}}.",
-        "Replicates crashed: {crashed}. Flagged by diagnostics: {flagged}."
+        "Flagged by diagnostics: {flagged}."
       ))
       invisible(self)
     }
@@ -383,14 +371,14 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
-#' @param threads `r rd_thread_`
+#' @param threads `r rd_sweep_threads_`
 #' @param progress `logical(1)` Whether to show a progress bar over the
 #' replicates. The progress of each fit is always suppressed.
 #' @param ... `r rd_dots_config_`
 #' @return An object of class [HousepiRecoveryCheck].
 #' @details
-#' A replicate that crashes is recorded and the sweep carries on; a household
-#' count whose every replicate crashed raises an error.
+#' The first replicate that fails stops the check, with an error naming its
+#' household count and replicate.
 #' `r rd_global_summary_`
 #' `r rd_sweep_seed_`
 #' @examples

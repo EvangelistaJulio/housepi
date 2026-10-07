@@ -57,7 +57,9 @@ If no proposals are adaptable and \code{burn = 0}, repurposed as burn-in instead
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
+\item{threads}{\code{integer(1)} Number of threads. Up to \code{threads}
+replicates are fitted at once. Beyond \code{nrep}, the households of each fit
+share the threads left over.}
 
 \item{progress}{\code{logical(1)} Whether to show a progress bar over the
 replicates. The progress of each fit is always suppressed.}
@@ -78,13 +80,13 @@ at, and the priors of the very same model drive inference, so no separate
 simulation model is needed.
 }
 \details{
-A replicate that crashes is recorded and the sweep carries on; a household
-count whose every replicate crashed raises an error.
+The first replicate that fails stops the check, with an error naming its
+household count and replicate.
 Results are summarised at the point estimate and the
 credible level held by the global options;
 see \code{\link[=set_housepi_summary]{set_housepi_summary()}}.
 Replicates are independent draws: call \code{set.seed()} before
-the check to replay a whole sweep, and only at \code{threads = 1}.
+the check to replay a whole sweep, at any \code{threads} up to \code{nrep}.
 }
 \examples{
 recovery <- flu_1918_frederick |>

@@ -116,7 +116,7 @@ with_cpp_conditions <- function(expr) {
   }
   withCallingHandlers(
     tryCatch(expr, error = function(e) {
-      reemit(e, "stop", inherits(e, "housepi::CppError"))
+      reemit(e, "stop", inherits(e, "housepi::TrustedException"))
     }),
     warning = function(w) {
       reemit(w, "warn", inherits(w, "housepi_cpp_warning"))
@@ -163,6 +163,13 @@ helper_thin_even_ <- function(x, n) {
   if (is.na(n) || NROW(x) <= n) return(x)
   keep <- round(seq.int(1L, NROW(x), length.out = n))
   if (is.data.frame(x)) x[keep, , drop = FALSE] else x[keep]
+}
+
+#' Seeds of the engine random number generators, drawn from the R stream.
+#' @param n `integer(1)` Number of seeds.
+#' @noRd
+draw_seed_ <- function(n = 1L) {
+  sample.int(.Machine$integer.max, n)
 }
 
 #' A count argument as a whole positive number.
