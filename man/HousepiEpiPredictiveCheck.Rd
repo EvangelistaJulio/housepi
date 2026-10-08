@@ -5,7 +5,7 @@
 \alias{HousepiEpiPredictiveCheck}
 \title{Standard epidemiological posterior predictive check}
 \description{
-Posterior predictive check on the standard epidemiological measures by
+Posterior predictive check on standard epidemiological measures by
 household size: cases, attack rate and secondary attack rate, comparing
 observed and predicted values.
 }
@@ -63,6 +63,7 @@ Sizes outside the set household size bounds are not returned.}
     \preformatted{HousepiEpiPredictiveCheck$new(
   hhmodel,
   param_table,
+  ...,
   nrep = NA_integer_,
   thin_ess = TRUE,
   min_hhsize = NA_integer_,
@@ -82,6 +83,10 @@ Sizes outside the set household size bounds are not returned.}
 \item \code{posterior::draws};
 \item \link{HousepiPosteriorDraws}.
 }}
+      \item{\code{...}}{Named arguments. \code{function}s to compute measures from data.
+Each function should return one between \code{numeric()}, \code{list} or \code{data.frame}.
+Names must be unique and cannot match a member of the returned object.
+They are checked alongside standard epidemiological measures.}
       \item{\code{nrep}}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
 Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
 Then \code{nrep} evenly spaced rows are kept (all of them when fewer remain).

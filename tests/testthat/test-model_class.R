@@ -422,12 +422,14 @@ test_that("Model class inconsistent inference throw errors", {
 })
 
 test_that("Posterior memory is checked against R's vector limit", {
-  # R ignores a limit below the memory in use: set one just above it
+  # R ignores a limit below its heap capacity, which a collection does not
+  # shrink: set one above any heap and ask for draws that cannot fit under it
   limit <- mem.maxVSize()
   withr::defer(mem.maxVSize(limit))
-  mem.maxVSize(gc()["Vcells", "used"] * 8 / 2^20 + 50)
+  mem.maxVSize(1e9)
+  expect_equal(mem.maxVSize(), 1e9)
   mk_frederick$template |>
-    run_inference(steps = 1e7, chains = 1L) |>
+    run_inference(steps = 1e15, chains = 1L) |>
     expect_error("[Pp]osterior draws would exceed R.s memory limit")
   # no limit, no check: the engine stops at a model with nothing to sample
   mem.maxVSize(Inf)

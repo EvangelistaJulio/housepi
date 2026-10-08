@@ -11,7 +11,7 @@ rd_max_hhsize_ <- "`integer(1)` Maximum household size retained in the outputs.
 If `NA`, no upper bound is applied."
 rd_measure_dots_ <- "Named arguments. `function`s to compute measures from data.
 Each function should return one between `numeric()`, `list` or `data.frame`.
-If none is given, the standard epidemiological measures are checked."
+Names must be unique and cannot match a member of the returned object."
 
 ############################################################################
 ############################################################################
@@ -245,6 +245,24 @@ ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
        cri_upper = ppc_frame_apply_cri(x, cri, upper = TRUE, name = name))
 }
 
+# Assert measure names are given, unique and free of the members of `self`:
+# each measure becomes a read-only field of the check object.
+assert_measure_names_ <- function(nms, taken = character()) {
+  if (is.null(nms) || anyNA(nms) || !all(nzchar(nms))) stop_h(
+    "Every measure in {.arg ...} must be named."
+  )
+  duplicates <- unique(nms[duplicated(nms)])
+  if (length(duplicates)) stop_h(
+    "{cli::qty(duplicates)}Repeated measure name{?s} {.field {duplicates}}."
+  )
+  clash <- intersect(nms, taken)
+  if (length(clash)) stop_h(
+    "{cli::qty(clash)}Measure name{?s} {.field {clash}} {?is/are} reserved.",
+    "Rename the measure."
+  )
+  invisible(nms)
+}
+
 #' @title Posterior predictive check container for user-defined measures
 #' @description
 #' Class to extract posterior predictive checks over measures on simulations.
@@ -259,7 +277,7 @@ ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
 #' ppc <- check_predictive(hhmodel, results,
 #'                         sar = measure_sar_by_hhsize,
 #'                         overall = overall_ar,
-#'                         nrep = 50, progress = FALSE)
+#'                         epi = FALSE, nrep = 50, progress = FALSE)
 #' ppc$overall
 #' @docType class
 HousepiPredictiveCheck <- R6::R6Class(
@@ -382,6 +400,9 @@ HousepiPredictiveCheck <- R6::R6Class(
 
       # load and classify measure functions (wide vs long)
       m_wide <- list(...)
+      if (length(m_wide)) {
+        assert_measure_names_(names(m_wide), ls(self, all.names = TRUE))
+      }
       # FIXME this breaks if it's already list
       m_long <- list()
       if (!is.null(measures_long)) m_long <- list(measures_long)
@@ -589,7 +610,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 
 #' @title Standard epidemiological posterior predictive check
 #' @description
-#' Posterior predictive check on the standard epidemiological measures by
+#' Posterior predictive check on standard epidemiological measures by
 #' household size: cases, attack rate and secondary attack rate, comparing
 #' observed and predicted values.
 #' @examples
@@ -705,6 +726,8 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
   public = list(
     #' @param hhmodel `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
+    #' @param ... `r rd_measure_dots_`
+    #' They are checked alongside standard epidemiological measures.
     #' @param nrep `r rd_nrep_`
     #' @param thin_ess `r rd_thin_ess_`
     #' @param min_hhsize `r rd_min_hhsize_`
@@ -713,17 +736,26 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' @param progress `r rd_progress_`
     initialize = function(hhmodel,
                           param_table,
+                          ...,
                           nrep = NA_integer_,
                           thin_ess = TRUE,
                           min_hhsize = NA_integer_,
                           max_hhsize = NA_integer_,
                           threads = 1L,
                           progress = TRUE) {
+      epi_names <- c("attack_rate", "sec_attack_rate", "cases_count")
+      clash <- intersect(names(list(...)), epi_names)
+      if (length(clash)) stop_h(
+        paste("{cli::qty(clash)}Measure name{?s} {.field {clash}} already used",
+              "by a standard epidemiological measure."),
+        "Rename the measure or set {.code epi = FALSE}."
+      )
       # the built-in measures read only hhid and status, so without a wide
-      # reporting process the simulated frames stay engine-coded: the
-      # relabelling round trip is skipped once per replicate
+      # reporting process or a custom measure the simulated frames stay
+      # engine-coded: the relabelling round trip is skipped once per replicate
       esc <- hhmodel$escaped
-      private$labelled_ <- !is.null(hhmodel$reporting_process$wide)
+      private$labelled_ <- !is.null(hhmodel$reporting_process$wide) ||
+        length(list(...))
 
       # initialize parent class HousepiPredictiveCheck
       super$initialize(
@@ -731,6 +763,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
         attack_rate = \(x) measure_ar_by_hhsize(x, esc),
         sec_attack_rate = \(x) measure_sar_by_hhsize(x, esc),
         cases_count = \(x) measure_cases_by_hhsize(x, esc),
+        ...,
         nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
       )
@@ -776,14 +809,14 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' Posterior predictive check comparing observed values of household measures
 #' against their values on surveys simulated from a table of parameters
 #' \insertCite{gelman_posterior_1996}{housepi}.
-#' Without measures in `...`, it checks the standard epidemiological measures
-#' by household size:
+#' It checks standard epidemiological measures by household size:
 #' \describe{
 #' \item{`"attack_rate"`}{see [measure_ar_by_hhsize];}
 #' \item{`"sec_attack_rate"`}{see [measure_sar_by_hhsize];}
 #' \item{`"cases_count"`}{see [measure_cases_by_hhsize].}
 #' }
-#' Named measure functions in `...` replace them.
+#' Named measure functions in `...` are checked alongside them,
+#' under names that differ from these.
 #' Each replicate goes through the reporting process of the model, see
 #' [add_reporting_process()].
 #' @param hhmodel `r rd_model_in_`
@@ -791,16 +824,19 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' @param ... `r rd_measure_dots_`
 #' @param nrep `r rd_nrep_`
 #' @param thin_ess `r rd_thin_ess_`
+#' @param epi `logical(1)` Whether to check standard epidemiological
+#' measures. If `FALSE`, only the measures in `...` are checked, and
+#' the formatted outputs and household size bounds of
+#' [HousepiEpiPredictiveCheck] are unavailable.
 #' @param min_hhsize `r rd_min_hhsize_`
-#' Only with the standard epidemiological measures.
+#' Only with `epi = TRUE`.
 #' @param max_hhsize `r rd_max_hhsize_`
-#' Only with the standard epidemiological measures.
+#' Only with `epi = TRUE`.
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return
-#' An object of class [HousepiEpiPredictiveCheck] for the standard
-#' epidemiological measures, of class [HousepiPredictiveCheck] for measures
-#' in `...`.
+#' An object of class [HousepiEpiPredictiveCheck] if `epi = TRUE`,
+#' of class [HousepiPredictiveCheck] otherwise.
 #' @details
 #' `r rd_global_summary_`
 #' @references
@@ -816,16 +852,20 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #'
 #' # a user-defined measure: the overall attack rate
 #' overall_ar <- function(data_wide) mean(data_wide$status > 0)
-#' ppc <- check_predictive(hhmodel, results,
-#'                         sar = measure_sar_by_hhsize,
-#'                         overall = overall_ar,
+#' ppc <- check_predictive(hhmodel, results, overall = overall_ar,
 #'                         nrep = 50, progress = FALSE)
 #' ppc
-#' ppc$sar$observed
+#' ppc$overall$observed
+#'
+#' # only the user-defined measures
+#' ppc <- check_predictive(hhmodel, results, overall = overall_ar,
+#'                         epi = FALSE, nrep = 50, progress = FALSE)
+#' ppc
 #' @export
 check_predictive <- function(hhmodel,
                              param_table,
                              ...,
+                             epi = TRUE,
                              nrep = NA_integer_,
                              thin_ess = TRUE,
                              min_hhsize = NA_integer_,
@@ -833,15 +873,22 @@ check_predictive <- function(hhmodel,
                              threads = 1L,
                              progress = TRUE) {
   stopifnothousepi(hhmodel)
-  if (!...length()) return(HousepiEpiPredictiveCheck$new(
-    hhmodel$copy(), param_table, nrep = nrep,
+  if (!rlang::is_bool(epi)) stop_h(
+    "{.arg epi} should be {.code TRUE} or {.code FALSE}."
+  )
+  if (isTRUE(epi)) return(HousepiEpiPredictiveCheck$new(
+    hhmodel$copy(), param_table, ..., nrep = nrep,
     thin_ess = thin_ess, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
     threads = threads, progress = progress
   ))
-  if (!is.na(min_hhsize) || !is.na(max_hhsize)) stop_h(
-    paste("{.arg min_hhsize} and {.arg max_hhsize} bound only the standard",
-          "epidemiological measures, not the measures in {.arg ...}."),
-    "Restrict household sizes inside the measure functions."
+  if (!length(list(...))) stop_h(
+    "No measure to check.",
+    "Pass measure functions in {.arg ...} or keep {.code epi = TRUE}."
+  )
+  if (!all(is.na(c(min_hhsize, max_hhsize)))) stop_h(
+    paste("Arguments {.arg min_hhsize} and {.arg max_hhsize} bound only",
+          "standard epidemiological measures."),
+    "Set {.code epi = TRUE} or restrict household sizes inside the measures."
   )
   HousepiPredictiveCheck$new(
     hhmodel$copy(), param_table, ...,

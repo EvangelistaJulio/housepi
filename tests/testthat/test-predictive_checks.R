@@ -332,12 +332,63 @@ test_that("Observed entries outside the interval are flagged", {
 ## PREDICTIVE CHECKS : END-TO-END       ##
 ##########################################
 
-test_that("Each kind of predictive check refuses the arguments of the other", {
-  # household size bounds apply to the standard measures only
+test_that("Household size bounds need the standard measures", {
   mk_ppc$model |>
     check_predictive(mk_ppc$results, sar = measure_sar_by_hhsize,
-                     max_hhsize = 3L) |>
-    expect_error("[Mm]in_hhsize.*max_hhsize.*bound only the standard")
+                     epi = FALSE, max_hhsize = 3L) |>
+    expect_error("[Mm]in_hhsize.*max_hhsize.*bound.*only.*standard")
+
+  # next to custom measures, the bounds restrict the standard outputs
+  ppc <- mk_ppc$model |>
+    check_predictive(mk_ppc$results, overall = \(x) mean(x$status > 0),
+                     max_hhsize = 3L, thin_ess = FALSE, nrep = 5) |>
+    suppressWarnings()
+  (ppc$formatted_attack_rate$hhsize <= 3) |> expect_all_true()
+})
+
+test_that("Custom measures are checked next to the standard ones", {
+  ppc <- mk_ppc$model |>
+    check_predictive(mk_ppc$results, overall = \(x) mean(x$status > 0),
+                     thin_ess = FALSE, nrep = 5) |>
+    suppressWarnings()
+  class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
+  names(ppc$overall) |> expect_contains(c("observed", "predicted"))
+  names(ppc$attack_rate) |> expect_contains(c("observed", "predicted"))
+  colnames(ppc$formatted_attack_rate) |> expect_contains("observed")
+  ppc |> expect_read_only_field("overall", "attack_rate")
+})
+
+test_that("Standard measures can be dropped", {
+  ppc <- mk_ppc$model |>
+    check_predictive(mk_ppc$results, overall = \(x) mean(x$status > 0),
+                     epi = FALSE, thin_ess = FALSE, nrep = 5) |>
+    suppressWarnings()
+  class(ppc)[1] |> expect_identical("HousepiPredictiveCheck")
+  ppc$formatted_attack_rate |> expect_null()
+  ppc$attack_rate |> expect_null()
+  ppc$overall$observed |> expect_type("double")
+
+  mk_ppc$model |>
+    check_predictive(mk_ppc$results, epi = FALSE) |>
+    expect_error("[Nn]o measure to check")
+  mk_ppc$model |>
+    check_predictive(mk_ppc$results, epi = NA) |>
+    expect_error("epi.*TRUE.*FALSE")
+})
+
+test_that("Measure names are unique, given and free of the members", {
+  overall <- \(x) mean(x$status > 0)
+  run <- \(...) mk_ppc$model |> check_predictive(mk_ppc$results, ...)
+  run(overall) |> expect_error("must be named")
+  run(overall = overall, overall = overall) |>
+    expect_error("[Rr]epeated measure.*overall")
+  # standard names are free once the standard measures are dropped
+  run(attack_rate = overall) |> expect_error("attack_rate.*used.*standard")
+  ppc <- run(attack_rate = overall, epi = FALSE) |> suppressWarnings()
+  ppc$attack_rate$observed |> expect_type("double")
+  # a measure cannot take the name of a method or field of the check
+  run(print = overall, epi = FALSE) |>  expect_error("reserved")
+  run(formatted_attack_rate = overall) |> expect_error("reserved")
 })
 
 test_that("Measures on data_long need a long reporting process", {
@@ -350,7 +401,7 @@ test_that("Predictive check on custom measures has read-only fields", {
   ppc <- mk_ppc$model |>
     check_predictive(
       mk_ppc$results, sar = measure_sar_by_hhsize,
-      thin_ess = FALSE, nrep = 10
+      epi = FALSE, thin_ess = FALSE, nrep = 10
     ) |>
     suppressWarnings()
 
@@ -368,7 +419,7 @@ test_that("Predictive check on custom measures has read-only fields", {
       averaged <- mk_ppc$model |>
         check_predictive(
           mk_ppc$results, sar = measure_sar_by_hhsize,
-          thin_ess = FALSE, nrep = 2
+          epi = FALSE, thin_ess = FALSE, nrep = 2
         ) |>
         suppressWarnings()
       averaged$point_estimate |> expect_identical("mean")
@@ -467,6 +518,6 @@ test_that("Custom PPC warns on observed values outside the interval", {
   param_table <- data.frame(alpha = 50, beta = 50, gamma = 1, hhsize_ref = 4)
   mk_ppc$model |>
     check_predictive(param_table, sar = measure_sar_by_hhsize,
-                     thin_ess = FALSE, nrep = 20L) |>
+                     epi = FALSE, thin_ess = FALSE, nrep = 20L) |>
     expect_warning(".*outside.*CrI")
 })

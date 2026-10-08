@@ -18,7 +18,7 @@ overall_ar <- function(data_wide) mean(data_wide$status > 0)
 ppc <- check_predictive(hhmodel, results,
                         sar = measure_sar_by_hhsize,
                         overall = overall_ar,
-                        nrep = 50, progress = FALSE)
+                        epi = FALSE, nrep = 50, progress = FALSE)
 ppc$overall
 }
 \section{Active bindings}{
@@ -79,7 +79,7 @@ performs simulation and compute predicted values of a set of measures.
 }}
       \item{\code{...}}{Named arguments. \code{function}s to compute measures from data.
 Each function should return one between \code{numeric()}, \code{list} or \code{data.frame}.
-If none is given, the standard epidemiological measures are checked.}
+Names must be unique and cannot match a member of the returned object.}
       \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s.
 Applied to \code{data_long} (derived by the \code{long} reporting process).}
       \item{\code{nrep}}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.

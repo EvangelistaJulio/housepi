@@ -8,6 +8,7 @@ check_predictive(
   hhmodel,
   param_table,
   ...,
+  epi = TRUE,
   nrep = NA_integer_,
   thin_ess = TRUE,
   min_hhsize = NA_integer_,
@@ -28,7 +29,12 @@ check_predictive(
 
 \item{...}{Named arguments. \code{function}s to compute measures from data.
 Each function should return one between \code{numeric()}, \code{list} or \code{data.frame}.
-If none is given, the standard epidemiological measures are checked.}
+Names must be unique and cannot match a member of the returned object.}
+
+\item{epi}{\code{logical(1)} Whether to check standard epidemiological
+measures. If \code{FALSE}, only the measures in \code{...} are checked, and
+the formatted outputs and household size bounds of
+\link{HousepiEpiPredictiveCheck} are unavailable.}
 
 \item{nrep}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
 Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
@@ -41,11 +47,11 @@ Ignored if \code{param_table} has no posterior draws.}
 
 \item{min_hhsize}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied.
-Only with the standard epidemiological measures.}
+Only with \code{epi = TRUE}.}
 
 \item{max_hhsize}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA}, no upper bound is applied.
-Only with the standard epidemiological measures.}
+Only with \code{epi = TRUE}.}
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
@@ -58,22 +64,21 @@ One between:
 }}
 }
 \value{
-An object of class \link{HousepiEpiPredictiveCheck} for the standard
-epidemiological measures, of class \link{HousepiPredictiveCheck} for measures
-in \code{...}.
+An object of class \link{HousepiEpiPredictiveCheck} if \code{epi = TRUE},
+of class \link{HousepiPredictiveCheck} otherwise.
 }
 \description{
 Posterior predictive check comparing observed values of household measures
 against their values on surveys simulated from a table of parameters
 \insertCite{gelman_posterior_1996}{housepi}.
-Without measures in \code{...}, it checks the standard epidemiological measures
-by household size:
+It checks standard epidemiological measures by household size:
 \describe{
 \item{\code{"attack_rate"}}{see \link{measure_ar_by_hhsize};}
 \item{\code{"sec_attack_rate"}}{see \link{measure_sar_by_hhsize};}
 \item{\code{"cases_count"}}{see \link{measure_cases_by_hhsize}.}
 }
-Named measure functions in \code{...} replace them.
+Named measure functions in \code{...} are checked alongside them,
+under names that differ from these.
 Each replicate goes through the reporting process of the model, see
 \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }
@@ -93,12 +98,15 @@ ppc
 
 # a user-defined measure: the overall attack rate
 overall_ar <- function(data_wide) mean(data_wide$status > 0)
-ppc <- check_predictive(hhmodel, results,
-                        sar = measure_sar_by_hhsize,
-                        overall = overall_ar,
+ppc <- check_predictive(hhmodel, results, overall = overall_ar,
                         nrep = 50, progress = FALSE)
 ppc
-ppc$sar$observed
+ppc$overall$observed
+
+# only the user-defined measures
+ppc <- check_predictive(hhmodel, results, overall = overall_ar,
+                        epi = FALSE, nrep = 50, progress = FALSE)
+ppc
 }
 \references{
 \insertAllCited{}

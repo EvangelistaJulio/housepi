@@ -127,10 +127,9 @@ ggplot(ppc$formatted_sec_attack_rate,
 
 # Other posterior measures
 
-`check_predictive()` also accepts named measure functions: it then computes them on simulated data in place of the built-in measures, and compares them against the observed values.
-
-Custom measures can be passed alongside the built-in measure functions it checks by default. 
-Current built-in measures are stratified by household size:
+`check_predictive()` also accepts named measure functions, computed on the simulated data and compared with the observed values.
+They are checked alongside the standard epidemiological measures, so each needs a name of its own.
+Current standard measures are stratified by household size:
 
 - `measure_ar_by_hhsize`: attack rate;
 - `measure_sar_by_hhsize`: secondary attack rate;
@@ -147,23 +146,31 @@ measure_overall_attack_rate <- function(data_wide) {
   sum(data_wide$status > 0, na.rm = TRUE) / nrow(data_wide)
 }
 
-# compute both built-in and custom measures together
+# compute standard and custom measures together
 ppc_multi <- hhmodel |>
-  check_predictive(results,
-                   sar = measure_sar_by_hhsize,
-                   overall = measure_overall_attack_rate)
+  check_predictive(results, overall = measure_overall_attack_rate)
 ppc_multi
 ```
 
-The returned `HousepiPredictiveCheck` object stores `observed`, `predicted`, `cri_lower` and `cri_upper` for each measure, accessible by name:
+The returned `HousepiEpiPredictiveCheck` object stores `observed`, `predicted`, `cri_lower` and `cri_upper` for each measure, accessible by name:
   
 ```{r}
 #| label: extract-sar-components
 # bind observed secondary attack rates
-ppc_multi$sar$observed |> 
+ppc_multi$sec_attack_rate$observed |> 
   # to predicted (posterior mean) values
-  dplyr::left_join(ppc_multi$sar$predicted, by = "hhsize", 
+  dplyr::left_join(ppc_multi$sec_attack_rate$predicted, by = "hhsize", 
                    suffix = c("_observed", "_predicted"))
+```
+
+With `epi = FALSE` only the custom measures are checked.
+The result is then a `HousepiPredictiveCheck` object, without the formatted outputs and the household size bounds of the standard check:
+
+```{r}
+#| label: predicted-measures-only-custom
+hhmodel |>
+  check_predictive(results, overall = measure_overall_attack_rate,
+                   epi = FALSE)
 ```
 
 Similarly can be done for all stored measures:
