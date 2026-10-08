@@ -910,11 +910,11 @@ namespace housepi
     namespace
     {
 #define MAKE_REAL_TO_INTEGER_FUNCTION(Name, call)                                    \
-    class Name final : public Function                                               \
+    class Name final : public Cloneable<Name, Function>                              \
     {                                                                                \
     public:                                                                          \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Name)                                 \
-        HOUSEPI_OVERRIDE_NAME_METHOD(call)                                           \
+        static constexpr const char *NAME = #call;                                   \
+                                                                                     \
         Codomain codomain() const noexcept override final                            \
         {                                                                            \
             Codomain c = x_arg_.codomain();                                          \
@@ -936,11 +936,11 @@ namespace housepi
         MAKE_REAL_TO_INTEGER_FUNCTION(Ceil_, ceil)
         MAKE_REAL_TO_INTEGER_FUNCTION(Floor_, floor)
 
-        class Minus_ final : public Function
+        class Minus_ final : public Cloneable<Minus_, Function>
         {
         public:
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Minus_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(minus)
+            static constexpr const char *NAME = "minus";
+
             Codomain codomain() const noexcept override final
             {
                 const Codomain a = x_arg_.codomain();
@@ -958,12 +958,12 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(Minus_, Arithmetic)
 
-        class Subtraction_ final : public Function
+        class Subtraction_ final : public Cloneable<Subtraction_, Function>
         {
         public:
-            Subtraction_() : Function({{"x2", na::DOUBLE}}) {}
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Subtraction_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(sub)
+            static constexpr const char *NAME = "sub";
+            Subtraction_() : Cloneable({{"x2", na::DOUBLE}}) {}
+
             Codomain codomain() const noexcept override final
             {
                 Codomain b = arguments_(0).codomain();
@@ -979,12 +979,12 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(Subtraction_, Arithmetic)
 
-        class Division_ final : public Function
+        class Division_ final : public Cloneable<Division_, Function>
         {
         public:
-            Division_() : Function({{"x2", na::DOUBLE}}) {}
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Division_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(div)
+            static constexpr const char *NAME = "div";
+            Division_() : Cloneable({{"x2", na::DOUBLE}}) {}
+
             Codomain codomain() const noexcept override final
             {
                 Codomain c;
@@ -999,12 +999,12 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(Division_, Arithmetic)
 
-        class Power_ final : public Function
+        class Power_ final : public Cloneable<Power_, Function>
         {
         public:
-            Power_() : Function({{"x2", na::DOUBLE}}) {}
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Power_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(pow)
+            static constexpr const char *NAME = "pow";
+            Power_() : Cloneable({{"x2", na::DOUBLE}}) {}
+
             Codomain codomain() const noexcept override final
             {
                 const Codomain b = x_arg_.codomain();
@@ -1031,12 +1031,12 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(Power_, Transcendental)
 
-        class SquareRoot_ final : public Function
+        class SquareRoot_ final : public Cloneable<SquareRoot_, Function>
         {
         public:
-            SquareRoot_() : Function({}, 0.) {}
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(SquareRoot_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(sqrt)
+            static constexpr const char *NAME = "sqrt";
+            SquareRoot_() : Cloneable({}, 0.) {}
+
             Codomain codomain() const noexcept override final
             {
                 const Codomain a = x_arg_.codomain();
@@ -1058,11 +1058,11 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(SquareRoot_, Transcendental)
 
-        class Exponential_ final : public Function
+        class Exponential_ final : public Cloneable<Exponential_, Function>
         {
         public:
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Exponential_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(exp)
+            static constexpr const char *NAME = "exp";
+
             Codomain codomain() const noexcept override final
             {
                 const Codomain a = x_arg_.codomain();
@@ -1083,12 +1083,12 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(Exponential_, Transcendental)
 
-        class Logarithm_ final : public Function
+        class Logarithm_ final : public Cloneable<Logarithm_, Function>
         {
         public:
-            Logarithm_() : Function({}, 0.) { domain_.below = Interval::Open; }
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Logarithm_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(log)
+            static constexpr const char *NAME = "log";
+            Logarithm_() : Cloneable({}, 0.) { domain_.below = Interval::Open; }
+
             Codomain codomain() const noexcept override final
             {
                 const Codomain a = x_arg_.codomain();
@@ -1109,11 +1109,11 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(Logarithm_, Transcendental)
 
-        class Sine_ final : public Function
+        class Sine_ final : public Cloneable<Sine_, Function>
         {
         public:
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Sine_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(sin)
+            static constexpr const char *NAME = "sin";
+
             Codomain codomain() const noexcept override final
             {
                 Codomain c;
@@ -1129,11 +1129,11 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(Sine_, Transcendental)
 
-        class Cosine_ final : public Function
+        class Cosine_ final : public Cloneable<Cosine_, Function>
         {
         public:
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Cosine_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(cos)
+            static constexpr const char *NAME = "cos";
+
             Codomain codomain() const noexcept override final
             {
                 Codomain c;
@@ -1149,11 +1149,10 @@ namespace housepi
         };
         HOUSEPI_REGISTER_FUNCTION(Cosine_, Transcendental)
 
-        class Tangent_ final : public Function
+        class Tangent_ final : public Cloneable<Tangent_, Function>
         {
         public:
-            HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Tangent_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(tan)
+            static constexpr const char *NAME = "tan";
 
         protected:
             double raw_function_(double x) const override final { return std::tan(x); }
@@ -1275,32 +1274,30 @@ namespace housepi
             }
         };
 
-#define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol, fold_)      \
-    class Class_ final : public ReductionFunction                  \
-    {                                                              \
-    public:                                                        \
-        Class_() : ReductionFunction() {}                          \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)             \
-        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                        \
-                                                                   \
-        Codomain codomain() const noexcept override final          \
-        {                                                          \
-            return reduce_codomain_(fold_);                        \
-        }                                                          \
-                                                                   \
-        void finalize() override                                   \
-        {                                                          \
-            Function::finalize();                                  \
-            reduce_const_(                                         \
-                [](double a, double b) { return a symbol b; });    \
-        }                                                          \
-                                                                   \
-    protected:                                                     \
-        double raw_function_(double x) const override final        \
-        {                                                          \
-            return reduce_(                                        \
-                x, [](double a, double b) { return a symbol b; }); \
-        }                                                          \
+#define MAKE_VARIADIC_ALGEBRAIC(Class_, name_, symbol, fold_)        \
+    class Class_ final : public Cloneable<Class_, ReductionFunction> \
+    {                                                                \
+    public:                                                          \
+        static constexpr const char *NAME = #name_;                  \
+                                                                     \
+        Codomain codomain() const noexcept override final            \
+        {                                                            \
+            return reduce_codomain_(fold_);                          \
+        }                                                            \
+                                                                     \
+        void finalize() override                                     \
+        {                                                            \
+            Function::finalize();                                    \
+            reduce_const_(                                           \
+                [](double a, double b) { return a symbol b; });      \
+        }                                                            \
+                                                                     \
+    protected:                                                       \
+        double raw_function_(double x) const override final          \
+        {                                                            \
+            return reduce_(                                          \
+                x, [](double a, double b) { return a symbol b; });   \
+        }                                                            \
     };
         MAKE_VARIADIC_ALGEBRAIC(Summation_, sum, +, add_)
         HOUSEPI_REGISTER_FUNCTION(Summation_, Arithmetic)
@@ -1308,12 +1305,10 @@ namespace housepi
         HOUSEPI_REGISTER_FUNCTION(Product_, Arithmetic)
 
 #define MAKE_VARIADIC_MIN_MAX(Class_, name_, symbol, fold_)                \
-    class Class_ final : public ReductionFunction                          \
+    class Class_ final : public Cloneable<Class_, ReductionFunction>       \
     {                                                                      \
     public:                                                                \
-        Class_() : ReductionFunction() {}                                  \
-        HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_)                     \
-        HOUSEPI_OVERRIDE_NAME_METHOD(name_)                                \
+        static constexpr const char *NAME = #name_;                        \
                                                                            \
         Codomain codomain() const noexcept override final                  \
         {                                                                  \

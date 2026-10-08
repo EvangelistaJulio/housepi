@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -643,4 +644,23 @@ namespace housepi
         }
     }
 
+    //////////////////////////////  Cloneable  //////////////////////////////
+
+    /// Implement clone() and name() of a concrete function class `D` deriving from `B`.
+    ///
+    /// - `D` derives from `Cloneable<D, B>` and inherits the constructors of `B`;
+    /// - `D` is `final`, so no subclass clones as `D`;
+    /// - `D` declares `static constexpr const char *NAME`, the name it registers under.
+    template <class D, class B>
+    struct Cloneable : B
+    {
+        using B::B;
+
+        std::unique_ptr<Function> clone() const override final
+        {
+            static_assert(std::is_final_v<D>, "Class deriving from Cloneable must be final.");
+            return std::make_unique<D>(static_cast<const D &>(*this));
+        }
+        std::string name() const noexcept override final { return D::NAME; }
+    };
 }

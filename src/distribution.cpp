@@ -72,15 +72,9 @@ namespace housepi
             const RegDistributions &distr_instance_(Kind kind,
                                                     ErrType err_type)
             {
-                switch (kind)
-                {
-                case Kind::Continuous:
-                case Kind::Discrete:
-                case Kind::InfecProfile:
-                    return static_cast<const RegDistributions &>(instance(kind));
-                default:
+                if (!is_distribution_kind(kind))
                     msg::stop("Registry does not hold " + str::format(err_type) + " objects.");
-                }
+                return static_cast<const RegDistributions &>(instance(kind));
             }
         }
 
@@ -166,13 +160,11 @@ namespace housepi
 
         //////////////////////////////  Uniform  //////////////////////////////
 
-        class Uniform_ final : public Distribution
+        class Uniform_ final : public Cloneable<Uniform_, Distribution>
         {
         public:
-            Uniform_()
-                : Distribution({}, 0., 1.) {}
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Uniform_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
+            static constexpr const char *NAME = "uniform";
+            Uniform_() : Cloneable({}, 0., 1.) {}
 
         private:
             double norm_() const { return domain_.max.value() - domain_.min.value(); }
@@ -198,13 +190,11 @@ namespace housepi
         //////////////////////////////  Discrete uniform  //////////////////////////////
 
         /// Flat mass over the integers in [min, max].
-        class UniformDiscrete_ final : public Distribution
+        class UniformDiscrete_ final : public Cloneable<UniformDiscrete_, Distribution>
         {
         public:
-            UniformDiscrete_()
-                : Distribution({}, 0., 1.) { discr_mode_ = Discrete::Defined; }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(UniformDiscrete_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(uniform)
+            static constexpr const char *NAME = "uniform";
+            UniformDiscrete_() : Cloneable({}, 0., 1.) { discr_mode_ = Discrete::Defined; }
 
             void discretize() override final {}
 
@@ -230,13 +220,11 @@ namespace housepi
 
         //////////////////////////////  Normal  //////////////////////////////
 
-        class Normal_ final : public Distribution
+        class Normal_ final : public Cloneable<Normal_, Distribution>
         {
         public:
-            Normal_()
-                : Distribution({{"mean", 0.}, {"sd", 1.}}) {}
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Normal_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(normal)
+            static constexpr const char *NAME = "normal";
+            Normal_() : Cloneable({{"mean", 0.}, {"sd", 1.}}) {}
 
             void discretize() override final
             {
@@ -288,20 +276,18 @@ namespace housepi
         //////////////////////////////  Lognormal  //////////////////////////////
 
         /// Lognormal distribution.
-        class Lognormal_ final : public Distribution
+        class Lognormal_ final : public Cloneable<Lognormal_, Distribution>
         {
         public:
+            static constexpr const char *NAME = "lognormal";
             /// Build with parametrizations:
             /// - 0: meanlog-sdlog;
             /// - 1: mean-sd.
-            Lognormal_()
-                : Distribution({{"meanlog", 0.}, {"sdlog", 1.}}, 0.)
+            Lognormal_() : Cloneable({{"meanlog", 0.}, {"sdlog", 1.}}, 0.)
             {
                 alts_[0].name = "meanlog-sdlog";
                 register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
             }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Lognormal_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(lognormal)
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -376,17 +362,16 @@ namespace housepi
 
         //////////////////////////////  Beta  //////////////////////////////
 
-        class Beta_ final : public Distribution
+        class Beta_ final : public Cloneable<Beta_, Distribution>
         {
         public:
+            static constexpr const char *NAME = "beta";
             Beta_()
-                : Distribution({{"shape1", na::DOUBLE}, {"shape2", na::DOUBLE}}, 0., 1.)
+                : Cloneable({{"shape1", na::DOUBLE}, {"shape2", na::DOUBLE}}, 0., 1.)
             {
                 domain_.below = Interval::Open;
                 domain_.above = Interval::Open;
             }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Beta_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(beta)
 
             void discretize() override final
             {
@@ -448,20 +433,18 @@ namespace housepi
 
         //////////////////////////////  Gamma  //////////////////////////////
 
-        class Gamma_ final : public Distribution
+        class Gamma_ final : public Cloneable<Gamma_, Distribution>
         {
         public:
+            static constexpr const char *NAME = "gamma";
             /// Build with parametrizations:
             /// - 0: shape-scale;
             /// - 1: mean-sd.
-            Gamma_()
-                : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.)
+            Gamma_() : Cloneable({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.)
             {
                 alts_[0].name = "shape-scale";
                 register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
             }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Gamma_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(gamma)
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -537,13 +520,11 @@ namespace housepi
 
         //////////////////////////////  Rayleigh  //////////////////////////////
 
-        class Rayleigh_ final : public Distribution
+        class Rayleigh_ final : public Cloneable<Rayleigh_, Distribution>
         {
         public:
-            Rayleigh_()
-                : Distribution({{"scale", 1.}}, 0.) {}
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Rayleigh_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(rayleigh)
+            static constexpr const char *NAME = "rayleigh";
+            Rayleigh_() : Cloneable({{"scale", 1.}}, 0.) {}
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -588,13 +569,11 @@ namespace housepi
 
         //////////////////////////////  Weibull  //////////////////////////////
 
-        class Weibull_ final : public Distribution
+        class Weibull_ final : public Cloneable<Weibull_, Distribution>
         {
         public:
-            Weibull_()
-                : Distribution({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.) {}
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Weibull_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(weibull)
+            static constexpr const char *NAME = "weibull";
+            Weibull_() : Cloneable({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.) {}
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -640,13 +619,11 @@ namespace housepi
 
         //////////////////////////////  Exponential  //////////////////////////////
 
-        class Exponential_ final : public Distribution
+        class Exponential_ final : public Cloneable<Exponential_, Distribution>
         {
         public:
-            Exponential_()
-                : Distribution({{"rate", 1.}}, 0.) {}
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Exponential_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(exponential)
+            static constexpr const char *NAME = "exponential";
+            Exponential_() : Cloneable({{"rate", 1.}}, 0.) {}
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
@@ -686,16 +663,14 @@ namespace housepi
 
         //////////////////////////////  Poisson  //////////////////////////////
 
-        class Poisson_ final : public Distribution
+        class Poisson_ final : public Cloneable<Poisson_, Distribution>
         {
         public:
-            Poisson_()
-                : Distribution({{"lambda", na::DOUBLE}}, 0.)
+            static constexpr const char *NAME = "poisson";
+            Poisson_() : Cloneable({{"lambda", na::DOUBLE}}, 0.)
             {
                 discr_mode_ = Discrete::Defined;
             }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Poisson_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(poisson)
 
             INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -735,19 +710,18 @@ namespace housepi
 
         //////////////////////////////  Binomial  //////////////////////////////
 
-        class Binomial_ final : public Distribution
+        class Binomial_ final : public Cloneable<Binomial_, Distribution>
         {
         public:
+            static constexpr const char *NAME = "binomial";
             Binomial_()
-                : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
+                : Cloneable({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
             {
                 discr_mode_ = Discrete::Defined;
                 domain_.max.init_pointer(arguments_(0).pointer());
                 domain_.below = Interval::Closed;
                 domain_.above = Interval::Closed;
             }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Binomial_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(binomial)
 
             void discretize() override final {}
             void truncate() override final
@@ -818,16 +792,15 @@ namespace housepi
 
         //////////////////////////////  NegativeBinomial  //////////////////////////////
 
-        class NegativeBinomial_ final : public Distribution
+        class NegativeBinomial_ final : public Cloneable<NegativeBinomial_, Distribution>
         {
         public:
+            static constexpr const char *NAME = "negative_binomial";
             NegativeBinomial_()
-                : Distribution({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
+                : Cloneable({{"size", na::DOUBLE}, {"prob", na::DOUBLE}}, 0.)
             {
                 discr_mode_ = Discrete::Defined;
             }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(NegativeBinomial_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(negative_binomial)
 
             INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -875,16 +848,14 @@ namespace housepi
 
         //////////////////////////////  Geometric  //////////////////////////////
 
-        class Geometric_ final : public Distribution
+        class Geometric_ final : public Cloneable<Geometric_, Distribution>
         {
         public:
-            Geometric_()
-                : Distribution({{"prob", na::DOUBLE}}, 0.)
+            static constexpr const char *NAME = "geometric";
+            Geometric_() : Cloneable({{"prob", na::DOUBLE}}, 0.)
             {
                 discr_mode_ = Discrete::Defined;
             }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Geometric_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(geometric)
 
             INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
@@ -930,15 +901,14 @@ namespace housepi
 
         //////////////////////////////  Categorical  //////////////////////////////
 
-        class Categorical_ final : public Distribution
+        class Categorical_ final : public Cloneable<Categorical_, Distribution>
         {
         public:
-            Categorical_() : Distribution()
+            static constexpr const char *NAME = "categorical";
+            Categorical_()
             {
                 discr_mode_ = Discrete::Defined;
             }
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Categorical_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(categorical)
 
             void discretize() override final {}
             void truncate() override final
@@ -1035,13 +1005,12 @@ namespace housepi
         /// - `c_loc`: custom location;
         /// - `mean_incub`: mean incubation period;
         /// - `incub_period`: individual incubation period.
-        class Ferretti20_ final : public Distribution
+        class Ferretti20_ final : public Cloneable<Ferretti20_, Distribution>
         {
         public:
+            static constexpr const char *NAME = "ferretti20";
             Ferretti20_()
-                : Distribution({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", na::DOUBLE}}, 0.) {}
-            HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Ferretti20_)
-            HOUSEPI_OVERRIDE_NAME_METHOD(ferretti20)
+                : Cloneable({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", na::DOUBLE}}, 0.) {}
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 

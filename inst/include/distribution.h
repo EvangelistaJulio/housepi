@@ -42,9 +42,10 @@ namespace housepi
 		virtual ~Distribution() = default;
 
 		/// Return a copy, typed as a distribution.
-		virtual std::unique_ptr<Distribution> clone_distrib() const = 0;
-		/// Return a copy.
-		std::unique_ptr<Function> clone() const override final { return clone_distrib(); };
+		std::unique_ptr<Distribution> clone_distrib() const
+		{
+			return std::unique_ptr<Distribution>(static_cast<Distribution *>(clone().release()));
+		}
 
 		/// Finalize, then store the truncation normalizer when nothing it reads can move.
 		void finalize() override
@@ -411,12 +412,11 @@ namespace housepi
 	/// - log-density and log-ratio: 0, the variable never moves;
 	/// - draws: `x0`.
 	/// @note Unregistered: built in place of a collapsed model, never named by the user.
-	class NullDistribution final : public Distribution
+	class NullDistribution final : public Cloneable<NullDistribution, Distribution>
 	{
 	public:
+		static constexpr const char *NAME = "null";
 		NullDistribution(double x0) : x0_(x0) {}
-		std::unique_ptr<Distribution> clone_distrib() const override final { return std::make_unique<NullDistribution>(*this); }
-		std::string name() const noexcept override final { return "null"; }
 
 	protected:
 		double raw_rand_(rnd_gen & /*prng*/) const override final { return x0_; }

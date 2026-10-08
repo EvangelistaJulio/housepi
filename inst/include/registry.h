@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "function.h"
@@ -28,9 +29,28 @@ namespace housepi
     /// Factory-based creation of Function, Distribution and ModelBase objects by name.
     namespace registry
     {
+        /// Categories a name can be looked up in.
+        enum class Kind : uint8_t
+        {
+            Custom,
+            Arithmetic,
+            Transcendental,
+            Continuous,
+            Discrete,
+            InfecProfile
+        };
+
+        /// Whether `kind` holds distributions, the others plain functions.
+        constexpr bool is_distribution_kind(Kind kind)
+        {
+            return kind == Kind::Continuous ||
+                   kind == Kind::Discrete ||
+                   kind == Kind::InfecProfile;
+        }
+
         /// Map names to factories of Function objects.
         ///
-        /// - each function type registers a factory under its name();
+        /// - each function type registers a factory under its `NAME`;
         /// - new types are added without touching core code.
         class RegFunctions
         {
@@ -48,10 +68,13 @@ namespace housepi
             virtual func_uptr create(std::string_view name, bool is_prim = false) const;
 
             /// Register the factory of function class `T` under its name.
-            template <typename T>
+            /// Distributions go in a distribution kind `K` and plain functions in a function kind.
+            template <Kind K, typename T>
             void register_factory()
             {
-                factory_map_.emplace(std::string(T().name()),
+                static_assert(std::is_base_of_v<Distribution, T> == is_distribution_kind(K),
+                              "Class is registered under the wrong kind of registry.");
+                factory_map_.emplace(std::string(T::NAME),
                                      []() -> std::unique_ptr<T>
                                      { return std::make_unique<T>(); });
             }
@@ -68,17 +91,6 @@ namespace housepi
             /// Create the distribution registered under `name`, or nullptr if unknown.
             /// @param is_cumul Whether the object evaluates as its cumulative.
             func_uptr create(std::string_view name, bool is_cumul = false) const override final;
-        };
-
-        /// Categories a name can be looked up in.
-        enum class Kind : uint8_t
-        {
-            Custom,
-            Arithmetic,
-            Transcendental,
-            Continuous,
-            Discrete,
-            InfecProfile
         };
 
         /// Registry holding `kind`.
@@ -115,18 +127,6 @@ namespace housepi
     }
 }
 
-/// Define the name a function class registers under.
-#define HOUSEPI_OVERRIDE_NAME_METHOD(name_) \
-    std::string name() const noexcept override final { return #name_; }
-
-/// Define the copy of a function class.
-#define HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Class_) \
-    std::unique_ptr<housepi::Function> clone() const override final { return std::make_unique<Class_>(*this); }
-
-/// Define the copy of a distribution class.
-#define HOUSEPI_OVERRIDE_DISTRIBUTION_CLONE_METHOD(Class_) \
-    std::unique_ptr<housepi::Distribution> clone_distrib() const override final { return std::make_unique<Class_>(*this); }
-
 /// Register a function class into the registry of the given kind, at load time.
 #define HOUSEPI_REGISTER_FUNCTION(T, kind)                                 \
     namespace                                                              \
@@ -136,7 +136,7 @@ namespace housepi
             T##kind##_AutoRegister()                                       \
             {                                                              \
                 housepi::registry::instance(housepi::registry::Kind::kind) \
-                    .register_factory<T>();                                \
+                    .register_factory<housepi::registry::Kind::kind, T>(); \
             }                                                              \
         };                                                                 \
         static T##kind##_AutoRegister T##kind##_auto_register;             \

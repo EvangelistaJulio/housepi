@@ -7,12 +7,11 @@
 HOUSEPI_OPEN_MODULE_NAMESPACE()
 
 /// Exponential growth `initial * exp(rate * x)`, a custom function.
-class Growth_ : public Function
+class Growth_ final : public Cloneable<Growth_, Function>
 {
 public:
-    Growth_() : Function({{"initial", 1.}, {"rate", 1.}}, 0.) {}
-    HOUSEPI_OVERRIDE_FUNCTION_CLONE_METHOD(Growth_)
-    HOUSEPI_OVERRIDE_NAME_METHOD(growth)
+    static constexpr const char *NAME = "growth";
+    Growth_() : Cloneable({{"initial", 1.}, {"rate", 1.}}, 0.) {}
 
     /// Set the domain to x >= 0.
     void truncate() override final { helper_init_domain_min_(0.); }
@@ -75,12 +74,12 @@ public:
     /// Initialize the latent variables of infected members.
     void simulate_single_house(Household &house) override final
     {
-		for (MemberIdx i = 0; i < house.size(); ++i)
-		{
-			Individual &indiv = house.at(i);
-			if (indiv.is_infected_status())
-				init_missing_latent(indiv);
-		}
+        for (MemberIdx i = 0; i < house.size(); ++i)
+        {
+            Individual &indiv = house.at(i);
+            if (indiv.is_infected_status())
+                init_missing_latent(indiv);
+        }
     }
 };
 

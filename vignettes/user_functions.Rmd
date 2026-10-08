@@ -90,11 +90,11 @@ cat("\n```\n")
 
 Here is what each part does:
 
-1. **Inheritance and constructor**: `Growth_` inherits from `Function`. The constructor defines:
+1. **Inheritance and constructor**: `Growth_` inherits from `Cloneable<Growth_, Function>`, which provides the copy and the name. The constructor defines:
     - A list of argument names and default values (`"initial"` = 1, `"rate"` = 1);
     - The minimum value of the function (0.0).
 
-2. **Name macro**: `HOUSEPI_OVERRIDE_NAME_METHOD(growth)` sets the register name to `"growth"`.
+2. **Name**: the static member `NAME` sets the register name to `"growth"`.
 
 3. **Truncation**: `truncate()` is overridden to bound the support below at 0.
 
