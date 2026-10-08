@@ -252,28 +252,28 @@ test_that("Advanced setup options route through `...`", {
   hhmodel$setup$adapt_window |> expect_equal(2)
 })
 
-test_that("Progress bar renders, refreshes and closes", {
-  # progressbar is time sensitive, run has to last well beyond 2 secs
-  # I cannot run a long test in the CI, so I set a time limit and check that
+test_that("Progress bar prints every `progress` seconds until interrupted", {
+  # the run outlasts the time limit, whose interrupt stops it
   on.exit(setTimeLimit())
-  bar <- capture.output(type = "output",
+  printed <- capture.output(type = "output",
     notice <- capture.output(type = "message", { # R time-limit notice
       outcome <- tryCatch({
         setTimeLimit(elapsed = 3.5, transient = TRUE)
-        hhmodel <- mk_wrapper$model |>
+        mk_wrapper$model |>
           add_parameter("rho", prior = "uniform") |>
-          run_inference(steps = 1e10, thin = 1e4, progress = 3)
+          run_inference(steps = 1e10, thin = 1e4, progress = 1)
       }, interrupt = \(e) e)
     })
   )
   outcome |> expect_s3_class("interrupt")
 
-  # an opening "0s<?s" line, then refreshes every `progress` seconds,
-  # the last reporting the time left, "3s<6h17m"
+  # every line reports a percentage: the interrupted bar prints no closing line
+  bar <- grep("^sample [|]", printed, value = TRUE)
+  (length(bar) >= 2L) |> expect_true()
+  bar |> expect_match("%")
+  # elapsed whole seconds before "<", one second apart
   secs <- as.integer(sub(".*% ([0-9]+)s<.*", "\\1", bar))
-  secs |> expect_identical(c(0L, 3L))
-  bar[1] |> expect_match("0s<\\?s")
-  bar[length(bar)] |> expect_match("[0-9]+s<[0-9]+[dhms]")
+  diff(secs) |> expect_all_equal(1L)
 })
 
 ######################################

@@ -172,10 +172,10 @@ test_that("A failed replicate is named in the error", {
   hhdata_2 <- hhdata
   hhdata_2$status <- NA_integer_
   fit_args <- list(steps = 50, burn = 0, thin = 1, adapt = 0, chains = 1,
-                   threads = 1L, id_draws = ".none", progress = FALSE)
+                   threads = 1L, id_draws = ".none")
   sweep_fit_wave_(mk_recov$model, list(hhdata, hhdata_2), reps = 1:2,
                   houses = 20L, seeds = 1:2, fit_args = fit_args,
-                  outer = 2L) |>
+                  outer = 2L, bar = NULL) |>
     expect_error("[Rr]eplicate 2 at.*20.*households.*missing status")
 })
 
@@ -201,12 +201,11 @@ test_that("A failed replicate stops the fits sampled with it", {
   hhdata_2 <- transform(hhdata, record = 5)
   # the fit of `hhdata` alone samples for minutes
   fit_args <- list(steps = 400000000L, burn = 0, thin = 100000L, adapt = 0,
-                   chains = 1, threads = 1L, id_draws = ".none",
-                   progress = FALSE)
+                   chains = 1, threads = 1L, id_draws = ".none")
   fit_wave <- function(wides, outer, failed) {
     system.time(
       sweep_fit_wave_(hhmodel, wides, reps = 1:2, houses = 1L, seeds = 1:2,
-                      fit_args = fit_args, outer = outer) |>
+                      fit_args = fit_args, outer = outer, bar = NULL) |>
         expect_error(paste0("[Rr]eplicate ", failed,
                             " at.*[Ee]xceeded attempts"))
     )[["elapsed"]]
@@ -252,10 +251,12 @@ test_that("Every estimated parameter needs a simulation value", {
 
   check_recovery(hhmodel, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o simulation value.*beta")
-  # a value given for a parameter the model does not carry is reported
-  check_recovery(hhmodel, nrep = 1, progress = FALSE,
-                 truth = data.frame(beta = 0.2, rho = 1)) |>
-    expect_warning("[Nn]o parameter named")
+  # a value given for a parameter the model does not carry is reported; the
+  # fit is too short to pass the diagnostics
+  check_recovery(hhmodel, nrep = 1, steps = 50, thin = 1, chains = 1,
+                 progress = FALSE, truth = data.frame(beta = 0.2, rho = 1)) |>
+    expect_warning("[Nn]o parameter named") |>
+    suppressWarnings()
 })
 
 test_that("A collapsed baseline takes no simulation value", {

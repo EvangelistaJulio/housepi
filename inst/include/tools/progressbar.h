@@ -7,14 +7,13 @@
 
 #pragma once
 
-#include <atomic>
+#include <algorithm>
 #include <chrono>
-#include <cstdint>
-#include <functional>
+#include <cmath>
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <thread>
+#include <utility>
 
 #include "tools/messages.h"
 
@@ -22,119 +21,67 @@
 
 namespace housepi
 {
-    /// Display the progress of an iteration count, with elapsed and remaining time.
+    /// Display the progress of a sequence of runs, with elapsed and remaining time.
     /// Based on @cite hammouchi_fancy_2024
     ///
-    /// - the thread calling `open()` prints and checks for user interrupts;
-    /// - any other thread only counts its iterations.
+    /// - one thread prints, the threads running engines only count their iterations;
+    /// - each run fills one unit per engine, after the units of past runs;
+    /// - open line: `text |■■■   | 50% 3s<3s`, closing line: `text |■■■■■■| 6s`;
+    /// - closed with no line printed: prints nothing.
     class ProgressBar
     {
-        enum class Mode : std::uint8_t
-        {
-            Interactive,
-            Static
-        } mode_ = Mode::Interactive;
-
         using Clock = std::chrono::steady_clock;
-        using Seconds = std::chrono::seconds;
 
     public:
         //////  Constructor  //////
 
-        ProgressBar(
-            unsigned barwidth = 33,
-            bool is_interactive = true,
-            std::function<void()> interrupt_func = [] {})
-            : barwidth_(barwidth), interrupt_func_(std::move(interrupt_func))
-        {
-            if (!is_interactive)
-                mode_ = Mode::Static;
-        };
-        ~ProgressBar() = default;
+        /// Open a bar named `text` over `total` units, printed every `thintime` seconds.
+        /// @param barwidth Symbols in a full bar.
+        /// @param symbol Character filling the bar.
+        ProgressBar(std::string text,
+                    double total,
+                    double thintime,
+                    unsigned barwidth,
+                    bool is_interactive,
+                    std::string symbol)
+            : interactive_(is_interactive),
+              symbol_(std::move(symbol)),
+              barwidth_(barwidth),
+              text_(std::move(text)),
+              total_(total),
+              thintime_(thintime), next_(thintime) {}
 
         //////  Setter  //////
 
-        /// Set description text of progress bar.
-        void set_text(const std::string &text) { text_ = text; }
+        /// Add `units` filled by a completed run.
+        void advance(double units) { offset_ += units; }
 
-        /// Start progress bar clock and display first message.
-        void open(unsigned long total, unsigned long thintime)
+        /// Print `done` units of the current run, every `thintime` seconds from opening.
+        /// - prints missed by a busy thread: skipped.
+        void update(double done)
         {
-            check_user_interrupt_();
-
-            // initialize internal fields
-            total_ = total;
-            start_ = Clock::now();
-            lastprint_ = start_;
-            main_id_ = std::this_thread::get_id();
-            state_ = 0;
-            has_bar_print_ = false;
-            verbose_ = thintime > 0;
-            thintime_ = thintime - 1;
-        }
-
-        /// Update progress bar given the progress state.
-        void update()
-        {
-            using std::chrono::duration_cast;
-
-            const unsigned long state = ++state_;
-            if (std::this_thread::get_id() != main_id_)
+            const double secs = secs_();
+            if (secs < next_)
                 return;
-            check_user_interrupt_();
-            if (!verbose_)
-                return;
+            next_ = thintime_ * (std::floor(secs / thintime_) + 1.);
 
-            const double progress = static_cast<double>(state) / static_cast<double>(total_);
-            const auto now = Clock::now();
-            const auto elapsed = duration_cast<Seconds>(now - start_);
-            const auto missing = duration_cast<Seconds>(elapsed * (1. - progress) / progress);
-
-            // skip if expected to finish soon (less than 1 second)
-            if (missing.count() < 1)
-                return;
-
-            // print update message if time since last print greater than thin-time
-            if (static_cast<unsigned long>(duration_cast<Seconds>(now - lastprint_).count()) > thintime_)
-            {
-                std::ostringstream oss;
-                oss << text_
-                    << bar_(progress)
-                    << std::fixed << std::setprecision(0) << 100. * progress << "% "
-                    << format_time_(elapsed) << "<"
-                    << ((elapsed.count() > 2) ? format_time_(missing) : "?s");
-                oss << std::string(10, ' ');
-                print_(oss.str());
-
-                lastprint_ = Clock::now();
-                has_bar_print_ = true;
-            }
-            else if (!has_bar_print_ && static_cast<unsigned long>(missing.count()) > thintime_)
-            {
-                std::ostringstream oss;
-                oss << text_
-                    << bar_(0.)
-                    << std::fixed << std::setprecision(0) << 0. << "% "
-                    << "0s<?s"
-                    << std::string(10, ' ');
-
-                // initial message prints no '\r', a '\n' in static mode
-                if (mode_ == Mode::Static)
-                    oss << "\n";
-                msg::info(oss.str());
-
-                has_bar_print_ = true;
-            }
+            const double prog = std::min(1., (offset_ + done) / total_);
+            std::ostringstream oss;
+            line_(oss, prog);
+            oss << std::fixed << std::setprecision(0) << 100. * prog << "% "
+                << fmt_time_(secs) << "<"
+                << (secs >= silencer_ && prog > 0. ? fmt_time_(secs * (1. - prog) / prog) : "?s")
+                << std::setw(interactive_ ? 10 : 0) << ""; // wipe a longer previous line
+            print_(oss, false);
+            has_bar_print_ = true;
         }
 
         /// End the line of a bar left open by an error, once.
-        /// - static mode: no-op, every print ends its line.
+        /// - non-interactive: no-op, every print ends its line.
         void crash() noexcept
         {
-            // # nocov start
-            if (has_bar_print_ && mode_ == Mode::Interactive)
-                msg::info("\n");
-            // # nocov end
+            if (has_bar_print_ && interactive_)
+                msg::info("\n"); // # nocov
             has_bar_print_ = false;
         }
 
@@ -146,111 +93,66 @@ namespace housepi
                 return;
             has_bar_print_ = false;
 
-            const auto elapsed = std::chrono::duration_cast<Seconds>(Clock::now() - start_);
-            if (static_cast<unsigned long>(elapsed.count()) > thintime_)
-            {
-                std::ostringstream oss;
-                oss << text_
-                    << bar_(1)
-                    << format_time_(elapsed)
-                    << std::string(25, ' ');
-                // # nocov start
-                if (mode_ == Mode::Interactive)
-                    oss << "\n";
-                // # nocov end
-                print_(oss.str());
-            }
-
-            check_user_interrupt_();
+            std::ostringstream oss;
+            line_(oss, 1.);
+            oss << fmt_time_(secs_()) << std::setw(interactive_ ? 15 : 0) << "";
+            print_(oss, true);
         }
 
     private:
         static constexpr const char *ansi_reset_ = "\033[39m"; /// Default foreground colour.
         static constexpr const char *ansi_green_ = "\033[32m"; /// Green foreground colour.
 
-        const std::string symbol_ = "■";       /// Bar decorator.
-        unsigned barwidth_ = 33;               /// Bar total size.
-        std::function<void()> interrupt_func_; /// User-interrupt callback.
-        bool verbose_ = true;                  /// Whether to show the bar.
-        bool has_bar_print_ = false;           /// Whether the bar has printed once.
-        std::atomic<unsigned long> state_{0};  /// Current iteration.
-        std::thread::id main_id_;              /// Thread that called `open()`.
-        unsigned long total_ = 0;              /// Total number of iterations.
-        std::string text_ = "";                /// Current text to show.
-        Clock::time_point start_;              /// Time of `open()`.
-        Clock::time_point lastprint_;          /// Time of the last print.
-        unsigned long thintime_ = 0;           /// Seconds between two prints.
+        const bool interactive_;                 /// Whether prints overwrite the current line.
+        const std::string symbol_;               /// Character filling the bar.
+        unsigned barwidth_ = 33;                 /// Bar total size.
+        double silencer_ = 3.;                   /// Minimal time to wait before estimating.
+        bool has_bar_print_ = false;             /// Whether the bar has printed once.
+        std::string text_ = "";                  /// Text heading the bar.
+        double total_ = 1.;                      /// Units of a full bar.
+        double offset_ = 0.;                     /// Units filled by past runs.
+        double thintime_ = 1.;                   /// Seconds between two prints.
+        double next_ = 1.;                       /// Seconds from opening of the next print.
+        Clock::time_point start_ = Clock::now(); /// Time of opening.
 
-        /// Format elapsed time `scs`, showing large time scales only when relevant.
-        static std::string format_time_(Seconds scs)
+        /// Seconds since opening.
+        double secs_() const { return std::chrono::duration<double>(Clock::now() - start_).count(); }
+
+        /// Format `secs` in whole seconds, showing large time scales only when relevant.
+        static std::string fmt_time_(double secs)
         {
-            using namespace std::chrono;
+            const long t = static_cast<long>(secs);
+            const long dys = t / 86400, hrs = t / 3600 % 24, mns = t / 60 % 60, scs = t % 60;
             std::ostringstream oss;
-
-            const auto dys = duration_cast<duration<int, std::ratio<86400>>>(scs);
-            scs -= duration_cast<seconds>(dys);
-
-            const auto hrs = duration_cast<hours>(scs);
-            scs -= duration_cast<seconds>(hrs);
-
-            const auto mns = duration_cast<minutes>(scs);
-            scs -= duration_cast<seconds>(mns);
-
-            if (dys.count() > 0)
-                oss << dys.count() << "d"
-                    << std::setfill('0') << std::setw(2) << hrs.count() << "h";
-
-            else if (hrs.count() > 0)
-                oss << hrs.count() << "h"
-                    << std::setfill('0') << std::setw(2) << mns.count() << "m";
-
-            else if (mns.count() > 0)
-                oss << mns.count() << "m"
-                    << std::setfill('0') << std::setw(2) << scs.count() << "s";
-
+            oss << std::setfill('0');
+            if (dys > 0)
+                oss << dys << "d" << std::setw(2) << hrs << "h";
+            else if (hrs > 0)
+                oss << hrs << "h" << std::setw(2) << mns << "m";
+            else if (mns > 0)
+                oss << mns << "m" << std::setw(2) << scs << "s";
             else
-                oss << scs.count() << "s";
-
+                oss << scs << "s";
             return oss.str();
         }
 
-        /// Colored progress bar.
-        std::string bar_(double progress) const
+        /// Write into `os` the text and the bar filled at progress `prog`.
+        /// - interactive: led by a carriage return, bar in green.
+        void line_(std::ostream &os, double prog) const
         {
-            const unsigned where = progress * barwidth_;
-            std::ostringstream oss;
-            oss << " |";
-            // # nocov start
-            if (mode_ == Mode::Interactive)
-                oss << ansi_green_;
-            // # nocov end
+            const unsigned where = prog * barwidth_;
+            os << (interactive_ ? "\r" : "") << text_ << " |" << (interactive_ ? ansi_green_ : "");
             for (unsigned u = 0; u < where; ++u)
-                oss << symbol_;
-            // # nocov start
-            if (mode_ == Mode::Interactive)
-                oss << ansi_reset_;
-            // # nocov end
-            oss << std::string(barwidth_ - where, ' ') << "| ";
-            return oss.str();
+                os << symbol_;
+            os << (interactive_ ? ansi_reset_ : "") << std::setw(barwidth_ - where) << "" << "| ";
         }
 
-        /// Check for user interrupt.
-        void check_user_interrupt_() const { interrupt_func_(); }
-
-        /// Print message `sms`, overwriting the current line in interactive mode.
-        void print_(const std::string &sms) const
+        /// Print line `oss`, ended on `end` or when non-interactive.
+        void print_(std::ostringstream &oss, bool end) const
         {
-            switch (mode_)
-            {
-            case Mode::Static:
-                msg::info(sms + "\n");
-                return;
-            default:
-                // # nocov start
-                msg::info("\r" + sms);
-                return;
-                // # nocov end
-            }
+            if (end || !interactive_)
+                oss << "\n";
+            msg::info(oss.str());
         }
     };
 }

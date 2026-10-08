@@ -53,8 +53,13 @@ If no proposal is adaptable, dropped or run as burn-in when \code{burn = 0}.}
 replicates are fitted at once. Beyond \code{nrep}, the households of each fit
 share the threads left over.}
 
-\item{progress}{\code{logical(1)} Whether to show a progress bar over the
-replicates. The progress of each fit is always suppressed.}
+\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
+One between:
+\describe{
+\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{TRUE}}{one print per second;}
+\item{\code{FALSE} or \code{0}}{no progress bar.}
+}}
 
 \item{...}{Advanced configuration.}
 }

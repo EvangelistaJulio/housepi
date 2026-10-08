@@ -146,7 +146,7 @@ hhmodel <- hhmodel |>
     alpha = list(prior = "uniform", proposal = "rw_log"),
     beta = list(prior = "uniform", proposal = "rw_log"),
     gamma = list(prior = "uniform", proposal = "rw_unif", max = 5),
-    hhsize_ref = 5
+    hhsize_ref = 4
   ) |>
   # latent definitions
   add_latent(

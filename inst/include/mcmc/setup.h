@@ -9,8 +9,6 @@
 
 #include <atomic>
 #include <cstddef>
-#include <functional>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -21,8 +19,6 @@
 
 namespace housepi
 {
-    class ProgressBar;
-
     /// Split workers between the two levels of parallel dispatch.
     struct Budget
     {
@@ -33,7 +29,7 @@ namespace housepi
     /// Configure an MCMC run.
     ///
     /// - holds user, advanced and derived options;
-    /// - owns the random number generators and the progress bar.
+    /// - owns the random number generators and the iteration count of a run.
     struct Setup
     {
         //////  User config  //////
@@ -45,7 +41,6 @@ namespace housepi
         unsigned long n_thin;                 /// Thinning interval, storing every n_thin-th iteration.
         unsigned long n_adapt;                /// Number of adaptive MCMC steps, 0 for no adaptation.
         unsigned long n_chains;               /// Number of independent MCMC chains.
-        unsigned long progress;               /// Progress bar update interval in seconds.
         std::vector<std::string> id_draws;    /// Individual IDs whose latent draws are traced.
         std::vector<std::string> house_draws; /// Household IDs whose infected members are traced.
 
@@ -63,16 +58,11 @@ namespace housepi
         //////  Run config  //////
 
         const std::atomic<bool> *stop_flag = nullptr; /// Flag shared by the engines of one run, null outside it.
+        std::atomic<unsigned long> n_iter{0};         /// Iterations counted in the run, written by one thread.
 
         //////  Constructor  //////
 
         Setup();
-        ~Setup();
-
-        /// Configure progress bar for R sessions.
-        /// @note Call once after construction when running from R.
-        void init_R_context(unsigned barwidth, bool is_interactive,
-                            std::function<void()> interrupt_func);
 
         //////  Setter  //////
 
@@ -102,27 +92,16 @@ namespace housepi
         /// Sample an exponential-distributed variable with rate 1.
         double exponential() const { return housepi::standard_exponential(prng()); }
 
-        //////  Progress bar  //////
+        //////  Progress  //////
 
-        /// Update progress bar display text.
-        void prog_set_text(std::string text = "");
-        /// Increment progress bar by one iteration.
+        /// Count one iteration.
         /// - stop flag raised: throws parallel::Cancelled.
-        void prog_update();
-        /// Close the progress bar.
-        void prog_close();
-        /// End the line of a bar left open by an error.
-        /// @note Skip on user interrupt: R ends the line itself.
-        void prog_crash() noexcept;
-
-        /// Open progress bar for standard MCMC sample.
-        void prog_open_for_mcmc_sample();
-        /// Open progress bar for simulation.
-        void prog_open_for_simulation();
+        void count_iter();
+        /// Return fraction of the run's iterations counted, from 0 to 1.
+        double fraction_iter() const;
 
     private:
         mutable std::vector<housepi::rnd_gen> prng_parallel_ = {}; /// One generator per thread.
-        std::unique_ptr<housepi::ProgressBar> progressbar_;        /// Progress bar UI component.
 
         /// Associate non-default user setup.
         void helper_non_default_build_(const housepi::str_table &input);

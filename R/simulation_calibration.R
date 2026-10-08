@@ -67,7 +67,7 @@ calibration_inside_ <- function(n, size, gamma) {
   prob <- 1
   for (k in seq_len(size)) {
     to <- seq(band$lower[[k]], band$upper[[k]])
-    step <- outer(states, to, \(from, at) {
+    step <- outer(states, to, function(from, at) {
       stats::dbinom(at - from, n - from, 1 / (size + 2 - k))
     })
     prob <- drop(prob %*% step)
@@ -85,9 +85,7 @@ calibration_inside_ <- function(n, size, gamma) {
 #' starting from the union bound.
 #' @noRd
 calibration_log_threshold_ <- function(n, size, alpha) {
-  holds <- \(log_gamma) {
-    calibration_inside_(n, size, exp(log_gamma)) >= 1 - alpha
-  }
+  holds <- \(lgamma) calibration_inside_(n, size, exp(lgamma)) >= 1 - alpha
   lower <- log(alpha / size)
   upper <- 0
   while (upper - lower > 1e-9) {
@@ -168,7 +166,7 @@ HousepiCalibrationCheck <- R6::R6Class(
       pdraws <- get_parameter_draws(draws)
       size <- private$rank_draws_
       variables <- private$variables_
-      rank <- vapply(variables, \(v) {
+      rank <- vapply(variables, function(v) {
         calibration_rank_(as.numeric(pdraws[[v]]), truth[[v]], size)
       }, integer(1L))
       diag <- sweep_diagnostics_(draws, variables)
@@ -318,8 +316,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
     #' @param threads `r rd_sweep_threads_`
-    #' @param progress `logical(1)` Whether to show a progress bar over the
-    #' replicates. The progress of each fit is always suppressed.
+    #' @param progress `r rd_progress_`
     #' @param ... `r rd_dots_config_`
     initialize = function(hhmodel, nrep = 200L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
@@ -397,8 +394,7 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
 #' @param threads `r rd_sweep_threads_`
-#' @param progress `logical(1)` Whether to show a progress bar over the
-#' replicates. The progress of each fit is always suppressed.
+#' @param progress `r rd_progress_`
 #' @param ... `r rd_dots_config_`
 #' @return An object of class [HousepiCalibrationCheck].
 #' @details

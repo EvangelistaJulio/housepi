@@ -213,11 +213,13 @@ Run first and not stored as draws.
 If no proposal is adaptable, dropped or run as burn-in when `burn = 0`."
 rd_smpl_chain_ <- "`integer(1)` Number of independent MCMC chains to run."
 rd_thread_ <- "`integer(1)` Number of threads for parallel household runs."
-rd_progress_ <- "`integer(1)` | `logical(1)` Control progressbar visualization.
+rd_progress_ <- "`integer(1)` | `logical(1)` Control the progress bar.
 One between:
-- If `integer`, prints progress every `progress` seconds;
-- If `TRUE` prints progress every second (default);
-- If `FALSE` or `0`, suppresses progress display."
+\\describe{
+  \\item{`integer`}{seconds between prints. A shorter run does not print.}
+  \\item{`TRUE`}{one print per second;}
+  \\item{`FALSE` or `0`}{no progress bar.}
+}"
 rd_dots_config_ <- "Advanced configuration."
 rd_param_table_ <- "One between
 - `data.frame`;
@@ -1260,8 +1262,10 @@ run_inference <- function(hhmodel,
   # the whole run is quiet, its build included
   local_quiet_warnings_(!warn)
   ptr <- prepare_inference_(hhmodel, steps, burn, thin, adapt, chains,
-                            threads, id_draws, progress, draw_seed_(), ...)
-  wrap_inference_(hhmodel, .engine$run_inference_list(list(ptr), 1L))
+                            threads, id_draws, draw_seed_(), ...)
+  with_progress_(progress, "sample", 1, function(bar) {
+    wrap_inference_(hhmodel, .engine$run_inference_list(list(ptr), 1L, bar))
+  })
 }
 
 #' Build the engine of `hhmodel` for inference, seeded at `seed`.
@@ -1269,7 +1273,7 @@ run_inference <- function(hhmodel,
 #' @return The engine pointer.
 #' @noRd
 prepare_inference_ <- function(hhmodel, steps, burn, thin, adapt, chains,
-                               threads, id_draws, progress, seed, ...) {
+                               threads, id_draws, seed, ...) {
   assert_advanced_setup_("adapt_window", ...)
   setup <- resolve_setup_(steps, burn, thin, adapt, chains, ...)
   id_draws <- resolve_id_draws_(id_draws)
@@ -1278,7 +1282,7 @@ prepare_inference_ <- function(hhmodel, steps, burn, thin, adapt, chains,
   pvt$build_full_(
     steps = setup$steps, burn = burn, thin = thin, adapt = adapt,
     chains = chains, threads = threads, id_draws = id_draws,
-    progress = progress, seed = seed, ...
+    seed = seed, ...
   )
   pvt$gen_$mcmc_ptr
 }
@@ -1288,8 +1292,8 @@ prepare_inference_ <- function(hhmodel, steps, burn, thin, adapt, chains,
 #' check: R raises no error then.
 #' @noRd
 assert_posterior_memory_ <- function(hhmodel, n_sample, id_draws) {
-  limit <- mem.maxVSize() * 2^20
-  if (!is.finite(limit)) return(invisible())
+  max_bytes <- mem.maxVSize() * 2^20 # limit in bytes
+  if (!is.finite(max_bytes)) return(invisible())
   pvt <- hhmodel$.__enclos_env__$private
   # UPDATE: n. of latent/parameters might be smaller if functions/private
   n_param_cols <- 2L * NROW(pvt$param_$defs)
@@ -1304,17 +1308,19 @@ assert_posterior_memory_ <- function(hhmodel, n_sample, id_draws) {
     length(unique(hhid)) + 1L
   # the column-by-sample product exceeds the 32-bit range on large runs
   needed <- 8 * as.double(n_sample) * as.double(total_cols)
-  room <- limit - gc()["Vcells", "used"] * 8
+  # a minor collection overstates the memory in use: room under it holds, and
+  # only a shortfall pays for a full collection
+  room <- max_bytes - gc(full = FALSE)["Vcells", "used"] * 8
+  if (needed <= room) return(invisible())
+  room <- max_bytes - gc()["Vcells", "used"] * 8
   if (needed <= room) return(invisible())
   # nolint next: object_usage_linter. read by the cli glue below
-  size <- \(bytes) {
-    format(structure(bytes, class = "object_size"), units = "auto")
-  }
+  size <- \(b) format(structure(b, class = "object_size"), units = "auto")
   stop_h(
     "Posterior draws would exceed R's memory limit.",
     "They need up to {size(needed)}, and {size(room)} are left.",
     paste("Raise the limit with {.fn mem.maxVSize}, increase {.arg thin},",
-          "or reduce {.arg steps} or {.arg chains}.")
+          "or reduce {.arg steps} and/or {.arg chains}.")
   )
 }
 
@@ -1393,7 +1399,7 @@ simulate_with_parameters_ <- function(hhmodel,
   output <- .engine$run_simulation(
     pvt$gen_$mcmc_ptr,
     pvt$helper_reporting_wide_(), NULL,
-    pvt$reporting_process_$long
+    pvt$reporting_process_$long, NULL
   )
 
   # drop empty long

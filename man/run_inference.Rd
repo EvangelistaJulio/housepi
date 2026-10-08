@@ -43,12 +43,12 @@ and/or \code{hhid} (whole household infected members are stored).
 If \code{NA}, one random eligible household is followed (default).
 Pass \code{".none"} to store nothing.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
+\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
 One between:
-\itemize{
-\item If \code{integer}, prints progress every \code{progress} seconds;
-\item If \code{TRUE} prints progress every second (default);
-\item If \code{FALSE} or \code{0}, suppresses progress display.
+\describe{
+\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{TRUE}}{one print per second;}
+\item{\code{FALSE} or \code{0}}{no progress bar.}
 }}
 
 \item{warn}{\code{logical(1)} Whether to report the warnings the run raises.

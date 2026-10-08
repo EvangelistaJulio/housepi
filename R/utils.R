@@ -38,6 +38,29 @@ flatten_cli_parts_ <- function(dots) {
 quiet_warnings_ <- new.env(parent = emptyenv())
 quiet_warnings_$on <- FALSE
 
+#' Value of `code(bar)`, `bar` a progress bar over `total` units printed every
+#' `progress` seconds, `NULL` for `FALSE` or 0. `TRUE` prints every second.
+#' Leaving `code` closes the bar:
+#' - returned: with its closing line;
+#' - failed: its line ended, before the error prints;
+#' - interrupted: as left, R ends the line.
+#' @param label `character(1)` Name heading the bar.
+#' @param code `function(bar)` Code filling the bar.
+#' @noRd
+with_progress_ <- function(progress, label, total, code) {
+  pace <- as.double(progress[[1L]])
+  if (is.na(pace) || pace <= 0) return(code(NULL))
+  # half the console, at most 39 symbols: squares on UTF-8 output, "#" otherwise
+  bar <- .engine$progress_open(label, total, pace,
+                               min(getOption("width"), 78L) %/% 2L,
+                               interactive(),
+                               if (cli::is_utf8_output()) "■" else "#")
+  out <- withCallingHandlers(code(bar),
+                             error = \(e) .engine$progress_crash(bar))
+  .engine$progress_close(bar)
+  out
+}
+
 #' Hold back housepi warnings for the rest of the calling frame.
 #' @param quiet `logical(1)` Whether to hold the switch; `FALSE` does nothing.
 #' @param .envir `environment` Frame the switch is released at the end of.
@@ -389,11 +412,6 @@ assert_advanced_setup_ <- function(allowed, ...) {
 char_setup_input_ <- function(defs) {
   # change scientific notation locally
   withr::local_options(list(scipen = 500))
-  # correct logical flags
-  for (flag in intersect(c("progress", "follow_default"), names(defs))) {
-    y <- unlist(defs[[flag]])
-    if (is.logical(y)) defs[[flag]] <- as.integer(y)
-  }
   # correct id / house trace vectors
   for (key in intersect(c("id_draws", "house_draws"), names(defs))) {
     y <- unlist(defs[[key]])

@@ -23,6 +23,7 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parallel.h"
+#include "tools/progressbar.h"
 #include "tools/string.h"
 #include "tools/vector.h"
 #include "mcmc.h"
@@ -545,7 +546,6 @@ namespace housepi
                 Rcpp::_["threads"] = setup.n_threads,
                 Rcpp::_["id_draws"] = setup.id_draws,
                 Rcpp::_["seed"] = setup.seed,
-                Rcpp::_["progress"] = setup.progress,
                 Rcpp::_["time_step"] = setup.time_step);
         }
 
@@ -1131,12 +1131,57 @@ namespace housepi
             }
         }
 
+        //////  Progress bar  //////
+
+        /// Report the progress of a run to the R session.
+        ///
+        /// - each report checks for user interrupts;
+        /// - R `NULL` handle: no bar to fill.
+        struct Progress
+        {
+            ProgressBar *bar; /// Bar filled, null for none.
+
+            explicit Progress(SEXP handle)
+                : bar(Rf_isNull(handle) ? nullptr : Rcpp::XPtr<ProgressBar>(handle).get()) {}
+
+            /// Report `done` units of the current run.
+            void operator()(double done) const
+            {
+                Rcpp::checkUserInterrupt();
+                if (bar)
+                    bar->update(done);
+            }
+            /// Add `units` filled by a completed run.
+            void advance(double units) const
+            {
+                if (bar)
+                    bar->advance(units);
+            }
+        };
+
+        /// Open progress bar `name` over `total` units, printed every `pace` seconds.
+        /// @param width Symbols in a full bar.
+        /// @param symbol Character filling the bar.
+        Rcpp::XPtr<ProgressBar> progress_open(std::string name, double total, double pace, unsigned width,
+                                              bool is_interactive, std::string symbol)
+        {
+            return Rcpp::XPtr<ProgressBar>(
+                new ProgressBar(name, total, pace, width, is_interactive, symbol), true);
+        }
+
+        /// Close progress bar `ptr` with its closing line.
+        void progress_close(Rcpp::XPtr<ProgressBar> ptr) { ptr->close(); }
+        /// End the line of progress bar `ptr` left open by an error.
+        void progress_crash(Rcpp::XPtr<ProgressBar> ptr) { ptr->crash(); }
+
         /// Run the simulation, returning wide and long results after the reporting process.
         Rcpp::List run_simulation(Rcpp::XPtr<MCMC> mcmc_ptr,
                                   Rcpp::Nullable<Rcpp::Function> reporting_wide,
                                   Rcpp::Nullable<Rcpp::Function> apply_wide,
-                                  Rcpp::Nullable<Rcpp::Function> reporting_and_apply_long)
+                                  Rcpp::Nullable<Rcpp::Function> reporting_and_apply_long,
+                                  SEXP progress)
         {
+            const Progress report(progress);
             MCMC &engine = *mcmc_ptr;
             Setup &setup = engine.setup;
             const Augmented &augm = engine.augm;
@@ -1191,8 +1236,7 @@ namespace housepi
 
                 //////  Simulations  //////
 
-                setup.prog_open_for_simulation();
-                for (size_t r = 0; r < setup.n_steps; ++r, setup.prog_update())
+                for (size_t r = 0; r < setup.n_steps; ++r)
                 {
                     engine.augm.clear_all();
                     engine.data.wide().recover_all_status();
@@ -1227,19 +1271,15 @@ namespace housepi
                     // long reporting process and apply measure
                     if (f_long)
                         out_long[r] = (*f_long)(simulated);
+
+                    report((r + 1.) / setup.n_steps);
                 }
-                setup.prog_close();
+                report.advance(1.);
                 simulate::restore(engine);
 
                 return Rcpp::List::create(Rcpp::_["wide"] = out_wide,
                                           Rcpp::_["long"] = out_long,
                                           Rcpp::_["parameters"] = param_trace.flush());
-            }
-            catch (const std::exception &)
-            {
-                setup.prog_crash();
-                simulate::restore(engine);
-                throw;
             }
             catch (...)
             {
@@ -1295,18 +1335,7 @@ namespace housepi
 
         Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)
         {
-            Rcpp::XPtr<MCMC> mcmc(new MCMC(module_name), true);
-
-            // options passed to the progress setup
-            const unsigned width = Rcpp::as<unsigned>(Rcpp::Function("getOption")("width"));
-            const bool is_interactive = Rcpp::as<bool>(Rcpp::Function("interactive")());
-            mcmc->setup.init_R_context(
-                std::min(width, 78u) / 2,
-                is_interactive,
-                []
-                { Rcpp::checkUserInterrupt(); });
-
-            return mcmc;
+            return Rcpp::XPtr<MCMC>(new MCMC(module_name), true);
         }
 
         /// Share the imported tables of `src` with `dest`, copy-on-write.
@@ -1330,17 +1359,24 @@ namespace housepi
             return mcmc_ptr->evaluate_log_lik(hhid);
         }
         /// Run inference on every engine of `engine_list`, `workers` of them at once.
+        ///
+        /// - main thread: checks user interrupts and refreshes `progress`;
         /// - first error or user interrupt: every engine stops at its next iteration.
+        /// @param progress Progress handle filled one unit per engine, or R `NULL`.
         /// @return List of `seconds` per engine, the `error` that stopped the run and the engine that `failed`.
-        Rcpp::List run_inference_list(Rcpp::List engine_list, int workers)
+        Rcpp::List run_inference_list(Rcpp::List engine_list, int workers, SEXP progress)
         {
-            std::vector<MCMC *> mcmc_vec;
-            for (SEXP ptr : engine_list)
-                mcmc_vec.push_back(Rcpp::XPtr<MCMC>(ptr).get());
-            const InferenceRun run = run_inference(mcmc_vec, std::max(1, workers));
+            const Progress report(progress);
+            const size_t n = engine_list.size();
+            std::vector<MCMC *> mcmc_vec(n);
 
-            Rcpp::NumericVector seconds(mcmc_vec.size());
-            for (size_t i = 0; i < mcmc_vec.size(); ++i)
+            for (size_t i = 0; i < n; ++i)
+                mcmc_vec[i] = Rcpp::XPtr<MCMC>(engine_list[i]).get();
+            const InferenceRun run = run_inference(mcmc_vec, std::max(1, workers), report);
+            report.advance(n);
+
+            Rcpp::NumericVector seconds(n);
+            for (size_t i = 0; i < n; ++i)
                 seconds[i] = hsp_to_rcpp(run.seconds[i]);
 
             // the error as the R condition Rcpp builds, classed by exception type
@@ -1519,6 +1555,9 @@ RCPP_MODULE(housepi)
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference_list", &run_inference_list);
     Rcpp::function("run_simulation", &run_simulation);
+    Rcpp::function("progress_open", &progress_open);
+    Rcpp::function("progress_close", &progress_close);
+    Rcpp::function("progress_crash", &progress_crash);
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);

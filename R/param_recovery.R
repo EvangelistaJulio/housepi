@@ -300,8 +300,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
     #' @param threads `r rd_sweep_threads_`
-    #' @param progress `logical(1)` Whether to show a progress bar over the
-    #' replicates. The progress of each fit is always suppressed.
+    #' @param progress `r rd_progress_`
     #' @param ... `r rd_dots_config_`
     initialize = function(hhmodel, nrep = 50L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
@@ -372,8 +371,7 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
 #' @param threads `r rd_sweep_threads_`
-#' @param progress `logical(1)` Whether to show a progress bar over the
-#' replicates. The progress of each fit is always suppressed.
+#' @param progress `r rd_progress_`
 #' @param ... `r rd_dots_config_`
 #' @return An object of class [HousepiRecoveryCheck].
 #' @details

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -49,6 +50,8 @@ namespace housepi
 			latent_ll += other.latent_ll;
 			return *this;
 		}
+		/// Return the terms multiplied by `w`.
+		LogLikAccumulator scaled(double w) const noexcept { return {w * obs_ll, w * transm_ll, w * latent_ll}; }
 	};
 
 	/// Engine running a built-in or custom model: evaluation, inference and simulation.
@@ -85,6 +88,12 @@ namespace housepi
 		void commit_total_log_posterior_(bool with_cache,
 										 bool with_latent_ll = true,
 										 bool with_obs_ll = true);
+		/// Store the totals of `acc`.
+		/// - transmission: always;
+		/// - observation, latent model: when `do_obs`, `do_latent`.
+		void set_total_log_lik_(const LogLikAccumulator &acc,
+								bool do_obs,
+								bool do_latent);
 		/// Commit the posterior contribution of `house`.
 		LogLikAccumulator commit_house_log_posterior_(const Household &house,
 													  bool with_cache,
@@ -180,10 +189,13 @@ namespace housepi
 	/// Component-wise Metropolis-Hastings algorithm.
 	/// Based on @cite metropolis_equation_1953 and @cite hastings_monte_1970
 	///
-	/// - prepare and progress bars: in order, on the calling thread;
+	/// - preparation: in order, on the calling thread;
 	/// - sampling: one engine per unit, in an arena of the largest `inner` among engines;
+	/// - sampling on a new thread, `monitor` called on the calling thread every 250 ms;
 	/// - error while preparing: nothing sampled;
-	/// - error or user interrupt while sampling: every engine stops at its next iteration.
-	/// @note A user interrupt raised while preparing escapes at once.
-	InferenceRun run_inference(const std::vector<MCMC *> &engine_list, size_t workers);
+	/// - error while sampling, or `monitor` throwing: every engine stops at its next iteration.
+	/// @param monitor Callback taking the sum over engines of the fraction of iterations done.
+	/// @note An exception thrown by `monitor` escapes once every engine has stopped.
+	InferenceRun run_inference(const std::vector<MCMC *> &engine_list, size_t workers,
+							   const std::function<void(double)> &monitor);
 }

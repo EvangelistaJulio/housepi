@@ -5,9 +5,8 @@
  * See the LICENSE file for details.
  */
 
+#include <algorithm>
 #include <cstdint>
-#include <functional>
-#include <memory>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -17,7 +16,6 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/parallel.h"
-#include "tools/progressbar.h"
 #include "tools/string.h"
 #include "mcmc/setup.h"
 
@@ -25,19 +23,7 @@ namespace housepi
 {
     //////////////////////////////  Setup  //////////////////////////////
 
-    Setup::Setup()
-        : progressbar_(std::make_unique<ProgressBar>()) { reset_defaults(); }
-    Setup::~Setup() = default;
-
-    void Setup::init_R_context(unsigned barwidth,
-                               bool is_interactive,
-                               std::function<void()> interrupt_func)
-    {
-        progressbar_ = std::make_unique<ProgressBar>(
-            barwidth,
-            is_interactive,
-            std::move(interrupt_func));
-    }
+    Setup::Setup() { reset_defaults(); }
 
     void Setup::reset_defaults()
     {
@@ -49,7 +35,6 @@ namespace housepi
         n_thin = 1;
         n_adapt = 0;
         n_chains = 1;
-        progress = 1;
         id_draws.clear();
         house_draws.clear();
         // advanced configuration
@@ -71,10 +56,6 @@ namespace housepi
 
     void Setup::helper_non_default_build_(const housepi::str_table &input)
     {
-        // progress bar interval
-        if (input.count("progress") && !na::is(input.at("progress")[0]))
-            progress = str::toul(input.at("progress")[0]);
-
         // number of threads
         if (input.count("threads") && !na::is(input.at("threads")[0]))
             n_threads = str::toi(input.at("threads")[0], "threads");
@@ -173,29 +154,14 @@ namespace housepi
         }
     }
 
-    void Setup::prog_set_text(std::string text)
-    {
-        if (na::is(text))
-            text = "sample";
-        progressbar_->set_text(text);
-    }
-    void Setup::prog_open_for_mcmc_sample()
-    {
-        prog_set_text();
-        progressbar_->open((n_adapt + n_burn + n_steps) * n_chains, progress);
-    }
-    void Setup::prog_open_for_simulation()
-    {
-        prog_set_text("simulate");
-        progressbar_->open(n_steps, progress);
-    }
-
-    void Setup::prog_update()
+    void Setup::count_iter()
     {
         if (stop_flag && stop_flag->load(std::memory_order_relaxed))
             throw parallel::Cancelled{};
-        progressbar_->update();
+        n_iter.store(n_iter.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
     }
-    void Setup::prog_close() { progressbar_->close(); }
-    void Setup::prog_crash() noexcept { progressbar_->crash(); }
+    double Setup::fraction_iter() const
+    {
+        return static_cast<double>(n_iter.load(std::memory_order_relaxed)) / ((n_adapt + n_burn + n_steps) * n_chains);
+    }
 }

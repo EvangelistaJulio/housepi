@@ -94,12 +94,12 @@ If \code{NA}, no lower bound is applied.}
       \item{\code{max_hhsize}}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA}, no upper bound is applied.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
-      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control progressbar visualization.
+      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
 One between:
-\itemize{
-\item If \code{integer}, prints progress every \code{progress} seconds;
-\item If \code{TRUE} prints progress every second (default);
-\item If \code{FALSE} or \code{0}, suppresses progress display.
+\describe{
+\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{TRUE}}{one print per second;}
+\item{\code{FALSE} or \code{0}}{no progress bar.}
 }}
     }
     \if{html}{\out{</div>}}

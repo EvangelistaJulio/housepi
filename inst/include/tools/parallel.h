@@ -8,8 +8,11 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <exception>
+#include <future>
+#include <utility>
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
@@ -153,5 +156,31 @@ namespace housepi::parallel
         };
         for_each(n, unit, workers);
         return failure;
+    }
+
+    /// Run `work()` on a new thread, calling `monitor()` on the calling thread every 250 ms.
+    ///
+    /// - `monitor()` throws: raises `stop_flag`, waits for `work()`, then rethrows;
+    /// - `work()` throws: rethrown on the calling thread.
+    /// @return Value of `work()`.
+    template <class F, class M>
+    inline auto monitored(F &&work,
+                          M &&monitor,
+                          std::atomic<bool> &stop_flag)
+    {
+        constexpr std::chrono::milliseconds period(250);
+        auto result = std::async(std::launch::async, std::forward<F>(work));
+        try
+        {
+            while (result.wait_for(period) != std::future_status::ready)
+                monitor();
+        }
+        catch (...)
+        {
+            // setting shared stop_flag causes work() to interrupt
+            stop_flag.store(true);
+            throw;
+        }
+        return result.get();
     }
 }

@@ -699,8 +699,8 @@ HousepiModel <- R6::R6Class(
     # then push the final state to the engine.
     build_full_ = function(steps = 0L, adapt = 0L, burn = 0L,
                            thin = 1L, chains = 1L, threads = 1L,
-                           id_draws = NULL, progress = FALSE,
-                           simulating = FALSE, seed = draw_seed_(), ...) {
+                           id_draws = NULL, simulating = FALSE,
+                           seed = draw_seed_(), ...) {
       # only run_inference resolves a selection; other builds store nothing
       if (!is.list(id_draws))
         id_draws <- list(id = character(), hhid = character())
@@ -715,8 +715,7 @@ HousepiModel <- R6::R6Class(
           threads = threads,
           id_draws = id_draws$id,
           house_draws = id_draws$hhid,
-          seed = seed,
-          progress = progress
+          seed = seed
         ), list(...)))
       )
       # hard validation before MCMC
@@ -762,7 +761,7 @@ HousepiModel <- R6::R6Class(
 
       # internal build function
       private$build_full_(
-        steps = nrep, progress = FALSE, simulating = TRUE, ...
+        steps = nrep, simulating = TRUE, ...
       )
 
       # NOTE: there might be not parameters at all
@@ -823,17 +822,19 @@ HousepiModel <- R6::R6Class(
       nsim <- nrow(param_table)
 
       # internal build function
-      private$build_full_(steps = nsim, threads = threads, progress = progress)
+      private$build_full_(steps = nsim, threads = threads)
 
       # attach param_table
       .engine$import_param_table(private$gen_$mcmc_ptr, param_table)
 
       long <- private$reporting_process_$long
-      .engine$run_simulation(
-        private$gen_$mcmc_ptr,
-        private$helper_reporting_wide_(labelled), apply_wide,
+      apply_long_func <-
         if (is.null(apply_long)) NULL else \(x) apply_long(long(x))
-      )
+      with_progress_(progress, "simulate", 1, \(bar) {
+        .engine$run_simulation(private$gen_$mcmc_ptr,
+                               private$helper_reporting_wide_(labelled),
+                               apply_wide, apply_long_func, bar)
+      })
     }
   ),
 

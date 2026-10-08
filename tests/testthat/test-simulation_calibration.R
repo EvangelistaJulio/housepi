@@ -166,7 +166,7 @@ test_that("Calibration refuses a sweep it cannot rank", {
 test_that("Latent inference is calibrated against the prior", {
   skip_on_cran()
   # a replicate flagged by convergence diagnostics warns
-  results <- check_calibration(mk_calib$model, progress = FALSE) |>
+  results <- check_calibration(mk_calib$model, threads = 4, progress = FALSE) |>
     suppressWarnings()
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
   threshold <- calibration_log_threshold_(results$summary$nrep, 99, 0.001)

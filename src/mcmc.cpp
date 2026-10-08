@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cmath>
 #include <exception>
+#include <functional>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -601,7 +602,6 @@ namespace housepi
 
     void MCMCBase::init_monte_carlo_chain_()
     {
-        setup.prog_set_text();       // set progress bar text
         param.restart(setup.prng()); // reset parameters
         augm.restart(setup.prng());  // reset latent
 
@@ -821,14 +821,15 @@ namespace housepi
             data_wide.eq_class_size(),
             [&](size_t R) -> LogLikAccumulator
             {
-                double w = data_wide.eq_class_weight(R);
-                LogLikAccumulator a = commit_house_log_posterior_(
-                    data_wide.eq_class_head(R),
-                    with_cache, do_latent, do_obs);
-                return {w * a.obs_ll, w * a.transm_ll, w * a.latent_ll};
+                return commit_house_log_posterior_(data_wide.eq_class_head(R), with_cache, do_latent, do_obs)
+                    .scaled(data_wide.eq_class_weight(R));
             },
             setup.budget.inner);
+        set_total_log_lik_(acc, do_obs, do_latent);
+    }
 
+    void MCMC::set_total_log_lik_(const LogLikAccumulator &acc, bool do_obs, bool do_latent)
+    {
         tot_transm_log_lik.set(acc.transm_ll);
         if (do_obs)
             tot_obs_log_lik.set(acc.obs_ll);
@@ -862,14 +863,58 @@ namespace housepi
 
     //////  Metropolis-Hastings  //////
 
-    InferenceRun run_inference(const std::vector<MCMC *> &mcmc_vec, size_t workers)
+    namespace
     {
-        const size_t n = mcmc_vec.size();
-        InferenceRun run{std::vector<double>(n, na::DOUBLE), {}};
+        /// Bind every engine to a stop flag until destroyed.
+        struct StopFlagBinding
+        {
+            StopFlagBinding(const std::vector<MCMC *> &e,
+                            const std::atomic<bool> &flag)
+                : mcmc_ptrs_(e) { bind_(&flag); }
+            ~StopFlagBinding() { bind_(nullptr); }
+
+        private:
+            const std::vector<MCMC *> &mcmc_ptrs_;
+
+            void bind_(const std::atomic<bool> *flag) const
+            {
+                for (MCMC *engine : mcmc_ptrs_)
+                    engine->setup.stop_flag = flag;
+            }
+        };
+
+        /// Sample each engine as a unit, writing its seconds.
+        parallel::Failure sample_engines(const std::vector<MCMC *> &engines,
+                                         std::vector<double> &seconds,
+                                         size_t workers,
+                                         size_t inner,
+                                         std::atomic<bool> &stop_flag)
+        {
+            return parallel::for_units(
+                engines.size(), [&](size_t i)
+                { seconds[i] = engines[i]->sample(); },
+                workers, inner, stop_flag);
+        }
+
+        /// Return the sum over engines of the fraction of iterations done.
+        double fraction_iter(const std::vector<MCMC *> &engines)
+        {
+            double done = 0.;
+            for (const MCMC *engine : engines)
+                done += engine->setup.fraction_iter();
+            return done;
+        }
+    }
+
+    InferenceRun run_inference(const std::vector<MCMC *> &mcmc_vec,
+                               size_t workers,
+                               const std::function<void(double)> &monitor)
+    {
+        InferenceRun run{std::vector<double>(mcmc_vec.size(), na::DOUBLE), {}};
 
         // prepare in order on the calling thread, the first error ends the run
         size_t inner = 1;
-        for (size_t i = 0; i < n; ++i)
+        for (size_t i = 0; i < mcmc_vec.size(); ++i)
             try
             {
                 mcmc_vec[i]->prepare_inference();
@@ -883,23 +928,14 @@ namespace housepi
 
         // the first error stops every engine at its next iteration
         std::atomic<bool> stop_flag{false};
-        for (MCMC *engine : mcmc_vec)
-            engine->setup.stop_flag = &stop_flag;
-        run.failure = parallel::for_units(
-            n, [&](size_t i)
-            { run.seconds[i] = mcmc_vec[i]->sample(); },
-            workers, inner, stop_flag);
-        for (MCMC *engine : mcmc_vec)
-            engine->setup.stop_flag = nullptr;
+        const StopFlagBinding binding(mcmc_vec, stop_flag);
 
-        // close bars in order, on the calling thread
-        for (MCMC *engine : mcmc_vec)
-        {
-            if (run.failure.error)
-                engine->setup.prog_crash();
-            else
-                engine->setup.prog_close();
-        }
+        run.failure = parallel::monitored(
+            [&]
+            { return sample_engines(mcmc_vec, run.seconds, workers, inner, stop_flag); },
+            [&]
+            { monitor(fraction_iter(mcmc_vec)); },
+            stop_flag);
         return run;
     }
 
@@ -908,13 +944,12 @@ namespace housepi
         init_monte_carlo_();
         init_for_evaluation_();
         posterior.init(*this);
-        setup.prog_open_for_mcmc_sample();
+        setup.n_iter = 0;
     }
 
     double MCMC::sample()
     {
         const auto start = std::chrono::steady_clock::now();
-        setup.prog_set_text(); // refresh label
 
         // run multiple MCMC chains
         for (unsigned long chain_id = 0; chain_id < setup.n_chains; ++chain_id)
@@ -933,17 +968,10 @@ namespace housepi
         // single serial pass
         LogLikAccumulator acc;
         for (size_t R = 0; R < data.wide().eq_class_size(); ++R)
-        {
-            double w = data.wide().eq_class_weight(R);
-            LogLikAccumulator a = init_guarded_commit_house_(data.wide().eq_class_head(R));
-            acc += {w * a.obs_ll, w * a.transm_ll, w * a.latent_ll};
-        }
+            acc += init_guarded_commit_house_(data.wide().eq_class_head(R))
+                       .scaled(data.wide().eq_class_weight(R));
 
-        tot_transm_log_lik.set(acc.transm_ll);
-        if (augm.scheme().is_any_obs_model())
-            tot_obs_log_lik.set(acc.obs_ll);
-        if (augm.scheme().is_any_latent_model())
-            tot_latent_log_lik.set(acc.latent_ll);
+        set_total_log_lik_(acc, augm.scheme().is_any_obs_model(), augm.scheme().is_any_latent_model());
     }
 
     LogLikAccumulator MCMC::init_guarded_commit_house_(Household &house)
@@ -1038,9 +1066,7 @@ namespace housepi
         // move parameters with cached dependencies
         for (size_t p : param.scheme().sample_cached)
             move_single_parameter_<Adapt>(p, true);
-
-        // update progress bar
-        setup.prog_update();
+        setup.count_iter();
     }
 
     template <bool Adapt>
