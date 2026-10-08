@@ -149,19 +149,19 @@ namespace housepi::chain_binom
 
     void LookUpTables::ensure_homogeneous(MemberIdx n)
     {
-        if (n < num_generations.size())
+        if (n < num_generations_.size())
             return;
 
-        unsigned old_size(num_generations.size());
-        num_generations.resize(n + 1);
-        gen_multiplicity.resize(n + 1);
-        generations.resize(n + 1);
+        unsigned old_size(num_generations_.size());
+        num_generations_.resize(n + 1);
+        gen_multiplicity_.resize(n + 1);
+        generations_.resize(n + 1);
 
         if (old_size == 0)
         {
-            num_generations[0] = 0;
-            gen_multiplicity[0].push_back(0);
-            generations[0].push_back({});
+            num_generations_[0] = 0;
+            gen_multiplicity_[0].push_back(0);
+            generations_[0].push_back({});
             old_size = 1;
         }
 
@@ -196,14 +196,14 @@ namespace housepi::chain_binom
             }
 
             size_t tot_num_gen = aux_gen_vec.size();
-            num_generations[k] = tot_num_gen;
-            gen_multiplicity[k].resize(tot_num_gen);
-            generations[k].resize(tot_num_gen);
+            num_generations_[k] = tot_num_gen;
+            gen_multiplicity_[k].resize(tot_num_gen);
+            generations_[k].resize(tot_num_gen);
 
             for (size_t c = 0; c < tot_num_gen; ++c)
             {
-                gen_multiplicity[k][c] = aux_num_vec[c];
-                generations[k][c] = aux_gen_vec[c];
+                gen_multiplicity_[k][c] = aux_num_vec[c];
+                generations_[k][c] = aux_gen_vec[c];
             }
         }
     }
@@ -212,7 +212,10 @@ namespace housepi::chain_binom
 
     /// Compute the homogeneous chain-binomial log-likelihood.
     /// Based on @cite longini_household_1982
-    double log_lik_homogeneous_(const LookUpTables &lut,
+    /// @param multiplicity Multiplicity of each generation of `n_infec` infected.
+    /// @param generations Count-compressed generations of `n_infec` infected.
+    double log_lik_homogeneous_(const vector<unsigned long> &multiplicity,
+                                const vector<gentype> &generations,
                                 MemberIdx n_infec,
                                 double commu_infec_rate,
                                 double p2p_infec_rate)
@@ -231,10 +234,10 @@ namespace housepi::chain_binom
 
         // sum over all possible generations
         double sero_positive_term = 0., tmp = 0.;
-        for (unsigned long c = 0; c < lut.num_generations[n_infec]; ++c)
+        for (size_t c = 0; c < generations.size(); ++c)
         {
             // generation counts
-            const auto &gen_counts = lut.generations[n_infec][c];
+            const auto &gen_counts = generations[c];
 
             // generation (0) : infected by community
             tmp = gen_counts[0] * log_commu_infec_proba;
@@ -255,7 +258,7 @@ namespace housepi::chain_binom
             }
 
             // weighted by the number of equivalent configurations
-            sero_positive_term += lut.gen_multiplicity[n_infec][c] * std::exp(tmp);
+            sero_positive_term += multiplicity[c] * std::exp(tmp);
         }
 
         return std::log(sero_positive_term);
@@ -551,13 +554,15 @@ namespace housepi::chain_binom
         return dp;
     }
 
-    void LookUpTables::ensure_partitioned(HouseIdx idx,
-                                          const std::vector<MemberIdx> &part_counts,
-                                          MemberIdx n_parts)
+    ShapeIdx LookUpTables::ensure_partitioned(const std::vector<MemberIdx> &part_counts,
+                                              MemberIdx n_parts)
     {
-        if (partition_trees.size() <= idx)
-            partition_trees.resize(idx + 1);
-        partition_trees[idx] = build_partition_tree_(part_counts.data(), n_parts);
+        auto [it, is_new] = shapes_.try_emplace(
+            gentype(part_counts.begin(), part_counts.begin() + n_parts),
+            static_cast<ShapeIdx>(partition_trees_.size()));
+        if (is_new)
+            partition_trees_.push_back(build_partition_tree_(part_counts.data(), n_parts));
+        return it->second;
     }
 
     /// Evaluate log P(final = c_root | all infecteds in c_root).
@@ -609,12 +614,12 @@ namespace housepi::chain_binom
     ///
     /// Seropositives sharing a contribution enumerate partition sequences, not permutations.
     /// @note Subset bitmasks do not carry over: integer partitions have no closed-form count.
+    /// @param tree Partition tree of the part counts.
     /// @param n_parts Number of parts.
     /// @param part_indexes Member representative of each part.
     /// @param commu_infec_rate Community infection rate per member.
     /// @param p2p_infec_rate Person-to-person infection rate per member pair.
-    double log_lik_partitioned_(const LookUpTables &lut,
-                                HouseIdx dp_idx,
+    double log_lik_partitioned_(const PartitionTree &tree,
                                 MemberIdx n_parts,
                                 const std::vector<MemberIdx> &part_indexes,
                                 const std::vector<double> &commu_infec_rate,
@@ -633,15 +638,14 @@ namespace housepi::chain_binom
                 log_p2p_esc[t][s] = -p2p_infec_rate[part_indexes[t]][part_indexes[s]];
         }
 
-        return evaluate_partition_tree_(lut.partition_trees[dp_idx],
-                                        log_commu_esc, log_p2p_esc);
+        return evaluate_partition_tree_(tree, log_commu_esc, log_p2p_esc);
     }
 
     //////////////////////////////  Log-likelihood dispatcher  //////////////////////////////
 
     double log_likelihood(const LookUpTables &lut,
-                          HouseIdx dp_idx,
                           MemberIdx n_infec, MemberIdx n_parts,
+                          ShapeIdx shape_idx,
                           const std::vector<MemberIdx> &part_indexes,
                           const std::vector<double> &commu_infec_rate,
                           const std::vector<std::vector<double>> &p2p_infec_rate)
@@ -669,11 +673,12 @@ namespace housepi::chain_binom
         // homogeneous case
         else if (n_parts < 2)
             return ll + log_lik_homogeneous_(
-                            lut, n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
+                            lut.gen_multiplicity_[n_infec], lut.generations_[n_infec],
+                            n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
         // partitioned case
         else if (n_parts < n_infec)
             return ll + log_lik_partitioned_(
-                            lut, dp_idx, n_parts, part_indexes,
+                            lut.partition_trees_[shape_idx], n_parts, part_indexes,
                             commu_infec_rate, p2p_infec_rate);
         // heterogeneous case
         else

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,6 +18,7 @@
 namespace housepi::chain_binom
 {
     using gentype = std::vector<MemberIdx>; /// Count vector, one entry per generation or per part.
+    using ShapeIdx = std::uint32_t;         /// Index of a shape (part-count vector) in LookUpTables.
 
     //////////////////////////////  chain_binom::PartitionTree  //////////////////////////////
 
@@ -39,26 +41,37 @@ namespace housepi::chain_binom
     /// - read-only during evaluation.
     struct LookUpTables
     {
-        //////  Transmission generations  //////
-
-        std::vector<unsigned long> num_generations;               /// Number of generations, per infected count.
-        std::vector<std::vector<unsigned long>> gen_multiplicity; /// Multiplicity of each generation.
-        std::vector<std::vector<gentype>> generations;            /// Count-compressed generations, per infected count.
-
-        //////  Cached partition trees  //////
-
-        std::vector<PartitionTree> partition_trees; /// Partition trees, per equivalence class.
-
+    public:
         //////  Setter  //////
 
         /// Ensure homogeneous generation tables are available up to `n` infected.
         void ensure_homogeneous(MemberIdx n);
 
-        /// Build and store the partition tree of equivalence class `idx`.
+        /// Return the shape index of `part_counts`, building its partition tree if absent.
         /// Only the first `n_parts` entries of `part_counts` are read.
-        void ensure_partitioned(HouseIdx idx,
-                                const std::vector<MemberIdx> &part_counts,
-                                MemberIdx n_parts);
+        ShapeIdx ensure_partitioned(const std::vector<MemberIdx> &part_counts,
+                                    MemberIdx n_parts);
+
+    private:
+        //////  Transmission generations  //////
+
+        std::vector<unsigned long> num_generations_;               /// Number of generations, per infected count.
+        std::vector<std::vector<unsigned long>> gen_multiplicity_; /// Multiplicity of each generation.
+        std::vector<std::vector<gentype>> generations_;            /// Count-compressed generations, per infected count.
+
+        //////  Cached partition trees  //////
+
+        std::vector<PartitionTree> partition_trees_; /// Partition trees, one per shape.
+        std::map<gentype, ShapeIdx> shapes_;         /// Shape index, per part-count vector.
+
+        /// Read the tables.
+        friend double log_likelihood(const LookUpTables &lut,
+                                     MemberIdx n_infec,
+                                     MemberIdx n_parts,
+                                     ShapeIdx shape_idx,
+                                     const std::vector<MemberIdx> &part_indexes,
+                                     const std::vector<double> &commu_infec_rate,
+                                     const std::vector<std::vector<double>> &p2p_infec_rate);
     };
 
     /// Compute the chain-binomial log-likelihood with the cheapest algorithm for the partition.
@@ -66,10 +79,11 @@ namespace housepi::chain_binom
     /// - `n_parts == 1`: homogeneous;
     /// - `n_parts == n_infec`: bitmask DP, heterogeneous;
     /// - otherwise: multitype partition tree, grouped.
+    /// @param shape_idx Shape index from LookUpTables::ensure_partitioned(), read only when grouped.
     double log_likelihood(const LookUpTables &lut,
-                          HouseIdx dp_idx,
                           MemberIdx n_infec,
                           MemberIdx n_parts,
+                          ShapeIdx shape_idx,
                           const std::vector<MemberIdx> &part_indexes,
                           const std::vector<double> &commu_infec_rate,
                           const std::vector<std::vector<double>> &p2p_infec_rate);

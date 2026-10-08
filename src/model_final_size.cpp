@@ -19,7 +19,8 @@ HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Model final : public ModelBase
 {
 private:
-	chain_binom::LookUpTables lut_; /// Chain-binomial lookup tables.
+	chain_binom::LookUpTables lut_;                /// Chain-binomial lookup tables.
+	std::vector<chain_binom::ShapeIdx> shape_idx_; /// Shape index in `lut_`, per equivalence class.
 
 public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(Latent)
@@ -104,8 +105,10 @@ public:
 
 		if (K <= 1 && n_infec > 1)
 			lut_.ensure_homogeneous(n_infec);
-		else if (K > 1 && K < n_infec)
-			lut_.ensure_partitioned(house.eq_class(), part_counts, K);
+		// assign a shape index to the equivalence class
+		if (shape_idx_.size() <= house.eq_class())
+			shape_idx_.resize(house.eq_class() + 1);
+		shape_idx_[house.eq_class()] = (K > 1 && K < n_infec) ? lut_.ensure_partitioned(part_counts, K) : 0;
 	}
 
 	//////////////////////////////  Model : household log-likelihood  //////////////////////////////
@@ -172,9 +175,9 @@ public:
 
 		return chain_binom::log_likelihood(
 			lut_,
-			house.eq_class(),
 			house.n_infected_status(),
 			cache_member(house, HHmember::num_parts),
+			shape_idx_[house.eq_class()],
 			cache_member_vector(house, HHmembervec::part_indexes),
 			cache_double_vector(house, HHdoublevec::commu_escape_rate),
 			cache_double_matrix(house, HHdoublemtx::p2p_escape_rate));
