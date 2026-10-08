@@ -25,7 +25,7 @@ test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
     expect_read_only_field(
       "data_wide", "data_long", "parameters", "latent", "observations",
-      "infectivity_profiles", "group_risks", "contact_risks",
+      "status_process", "infectivity_profiles", "group_risks", "contact_risks",
       "reporting_process", "name", "setup", "escaped"
     )
 })

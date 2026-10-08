@@ -819,7 +819,7 @@ test_that("Status strata are declared, not read off the data", {
     dplyr::mutate(status = NA) |>
     new_housepi_model("final-size") |>
     add_latent(infec_time = list(model = "uniform", min = 0, max = 5)) |>
-    add_status(symptomatic = 0.3, asymptomatic = 0.7)
+    add_status_process(symptomatic = 0.3, asymptomatic = 0.7)
   hhmodel |>
     add_group_risk(infectivity = list(by = "status", reference = ".auto")) |>
     expect_error("reference = list\\(status")
@@ -876,7 +876,7 @@ test_that("A status stratum drives simulated transmission", {
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     ) |>
-    add_status(symptomatic = 0.5, asymptomatic = 0.5) |>
+    add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
     add_group_risk(infectivity = list(
       by = "status", reference = list(status = "symptomatic")
     )) |>
@@ -887,7 +887,7 @@ test_that("A status stratum drives simulated transmission", {
   # the status weights must reach the categorical as literals
   attack_rate <- function(symptomatic) {
     simulated <- hhmodel |>
-      add_status(symptomatic = !!symptomatic,
+      add_status_process(symptomatic = !!symptomatic,
                  asymptomatic = !!(1 - symptomatic)) |>
       run_simulation() |>
       suppressWarnings()

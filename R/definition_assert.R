@@ -13,7 +13,7 @@ kind2family <- function(kind) {
   switch(kind,
     "member" = "observation",
     "house" = "household observation",
-    "status" = "status observation",
+    "status" = "status process",
     "latent"
   )
 }

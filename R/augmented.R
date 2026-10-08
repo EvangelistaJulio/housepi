@@ -43,7 +43,7 @@ HousepiAugmented <- R6::R6Class(
     # "latent": latent variables;
     # "member": member-level observation;
     # "house": household-level observations;
-    # "status": individual status observation (resolves status in simulation).
+    # "status": status process (resolves status in simulation).
     kind_ = "latent"
   ),
 
@@ -249,7 +249,7 @@ HousepiAugmented <- R6::R6Class(
         if (!is.na(model)) {
           const <- TRUE
           # observation reads its datum from a like-named column
-          # status observation requires no data column
+          # status process requires no data column
           if (is.null(value)) {
             value <- if (identical(.kind, "status")) "0|N"
             else paste0(name, "|D")
@@ -262,7 +262,7 @@ HousepiAugmented <- R6::R6Class(
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- .kind
 
-      # add_status names its node itself, no user name may claim the prefix
+      # add_status_process names its node, no user name may claim the prefix
       assert_valid_definition_name(
         name, self$family, allow_reserved = identical(.kind, "status")
       )
@@ -278,8 +278,8 @@ HousepiAugmented <- R6::R6Class(
       )
       if (is_bounded && !is.null(value) && is.na(model) &&
             is.na(proposal) && is.na(const)) stop_h(
-        "Latent {.val {name}} has a value and bounds, but no model or proposal.",
-        "Add {.arg proposal} to sample it within the bounds, or drop {.arg min} and {.arg max}."
+        "Latent {.val {name}} has value and bounds, but no model or proposal.",
+        "Add {.arg proposal} to sample it, or drop {.arg min} and {.arg max}."
       )
       if (!is.null(func) && !is.na(model)) stop_h(
         "Wrong definition for latent {.val {name}}.",

@@ -480,8 +480,9 @@ namespace housepi
         {
             if (!def.is_pure_data(row))
                 msg::stop(
-                    "Status observation " + msg::val(def[row].name) +
-                    " must depend only on data or numeric constants.");
+                    "Probabilities of " + msg::fn("add_status_process") +
+                    " must depend only on data or numeric constants.\n" +
+                    "Inference holds the observed status fixed and does not estimate them.");
         }
 
         /// List the data names (source D) read by `def` that are in `names`.

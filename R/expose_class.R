@@ -398,8 +398,8 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @description
 #' Return the definitions currently stored in the housepi model.
 #' Each variant returns one category (data, parameters, latent variables,
-#' observations, group risks, contact risks, infectivity profile, reporting
-#' process).
+#' observations, status process, group risks, contact risks, infectivity
+#' profile, reporting process).
 #' @details
 #' `get_data_wide()` returns the individual-level data the model reads: a column
 #' a deterministic observation stands in for carries the derived value, not the
@@ -409,8 +409,10 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @param name `character()`. Names of the definitions to return.
 #' `get_group_risks()` matches the name of the group risk.
 #' All of them when `NA` (default).
-#' @return `data.frame`. `get_reporting_process()` returns
-#' `list(wide = , long = )`, see [add_reporting_process()].
+#' @return `data.frame`. `get_status_process()` returns one row per infected
+#' status: its code `status`, its `label` and its probability `weight`.
+#' `get_reporting_process()` returns `list(wide = , long = )`, see
+#' [add_reporting_process()].
 #' @examples
 #' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
 #'   add_parameter(import = "template")
@@ -452,6 +454,13 @@ get_latent <- function(hhmodel, name = NA) {
 get_observations <- function(hhmodel, name = NA) {
   stopifnothousepi(hhmodel)
   subset_definitions_(hhmodel$observations, name)
+}
+
+#' @rdname get_definitions
+#' @export
+get_status_process <- function(hhmodel) {
+  stopifnothousepi(hhmodel)
+  hhmodel$status_process
 }
 
 #' @rdname get_definitions
@@ -548,15 +557,23 @@ is_template_import_ <- function(import) {
   TRUE
 }
 
+# Read the templated definitions shipped with the model.
+# `NULL`, with a warning, for the test model, which ships none.
+template_defs_ <- function(generator, family) {
+  if (generator$is_test_model()) {
+    warn_h("No template {family} definitions available for test model.")
+    return(NULL)
+  }
+  get_template_def_list(generator$source_dir, family)
+}
+
 # Load default templated definitions shipped with the package.
 # Reject the sentinel combined with single-mode or inline `...` pairs.
 add_template_defs_ <- function(holder, generator, family, append, key, dots,
                                singles) {
   assert_no_def_mixing_(key, dots, singles)
-  if (generator$is_test_model()) {
-    warn_h("No template {family} definitions available for test model.")
-  } else {
-    defs <- get_template_def_list(generator$source_dir, family)
+  defs <- template_defs_(generator, family)
+  if (!is.null(defs)) {
     holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
   }
 }
@@ -831,21 +848,43 @@ add_observation <- function(hhmodel, name = NULL,
 #' @param hhmodel `r rd_model_in_`
 #' @param ... Probabilities of the infected statuses, in order. When named, the
 #' names label the corresponding statuses: name all of them or none.
+#' @param import Named `list` of probabilities of the infected statuses, read
+#' like `...`, or `"template"` for the ones shipped with the model.
+#' The template is R code evaluated from the model folder, so use it only with
+#' model folders you trust.
+#' Cannot be combined with `...`.
 #' @return `r rd_model_out_`
 #' @examples
 #' # simulate infected members as symptomatic (70%) or asymptomatic (30%)
-#' simulated <- flu_1918_frederick |>
+#' hhmodel <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   add_status(symptomatic = 0.7, asymptomatic = 0.3) |>
-#'   run_simulation()
+#'   add_status_process(symptomatic = 0.7, asymptomatic = 0.3)
+#' get_status_process(hhmodel)
+#' simulated <- run_simulation(hhmodel)
 #' table(simulated$status)
+#'
+#' # the same probabilities, from a pre-built list
+#' probs <- list(symptomatic = 0.7, asymptomatic = 0.3)
+#' hhmodel <- flu_1918_frederick |>
+#'   new_housepi_model("final-size") |>
+#'   add_status_process(import = probs)
 #' @export
-add_status <- function(hhmodel, ...) {
+add_status_process <- function(hhmodel, ..., import = NULL) {
   stopifnothousepi(hhmodel)
   new_obj <- hhmodel$copy()
   pvt <- new_obj$.__enclos_env__$private
   weights <- rlang::enquos(...)
+  env <- rlang::caller_env()
+  if (length(import) && length(weights)) stop_h(
+    "Mixing imported and inline status probabilities.",
+    "Provide the probabilities either in {.arg ...} or in {.arg import}."
+  )
+  if (is_template_import_(import)) {
+    import <- template_defs_(pvt$gen_, "status process")
+    if (is.null(import)) return(new_obj)
+  }
+  if (length(import)) weights <- rlang::as_quosures(import, env = env)
   if (!length(weights)) stop_h(
     "No status probability provided.",
     "Provide at least one infected-status probability."

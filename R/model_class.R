@@ -932,6 +932,19 @@ HousepiModel <- R6::R6Class(
       housepi_defin_showcaser(defs)
     },
 
+    #' @field status_process `data.frame`
+    #' Status process: one row per infected status, with its code, label and
+    #' probability.
+    status_process = function(value) {
+      if (!missing(value)) stop_read_only("status_process")
+      defs <- augm_defs_of_kind(private$resolved_latent_(), "status")
+      weights <- if (is.null(defs)) numeric() else
+        unname(showcase_extract_args(defs[["model"]])[[1]])
+      labels <- private$augm_$status_levels
+      if (!length(labels)) labels <- rep(NA_character_, length(weights))
+      data.frame(status = seq_along(weights), label = labels, weight = weights)
+    },
+
     #' @field infectivity_profiles `data.frame`
     #' Infectivity profile definitions.
     infectivity_profiles = function(value) {

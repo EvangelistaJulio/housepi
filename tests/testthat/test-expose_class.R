@@ -120,6 +120,42 @@ test_that("Bulk import mirrors inline name = value pairs", {
     expect_error("[Uu]nknown import source")
 })
 
+test_that("Status probabilities import as a list or from the template", {
+  # an external list equals the inline probabilities, labelled or not
+  mk_wrapper$model |>
+    add_status_process(import = list(symptomatic = 0.7, asymptomatic = 0.3)) |>
+    get_status_process() |>
+    expect_identical(get_status_process(add_status_process(
+      mk_wrapper$model, symptomatic = 0.7, asymptomatic = 0.3
+    )))
+  mk_wrapper$model |>
+    add_status_process(import = list(0, 1)) |>
+    get_status_process() |>
+    expect_identical(get_status_process(add_status_process(mk_wrapper$model,
+                                                           0, 1)))
+
+  # `import` cannot be combined with inline probabilities
+  mk_wrapper$model |>
+    add_status_process(symptomatic = 1, import = list(asymptomatic = 1)) |>
+    expect_error("[Mm]ixing imported and inline status probabilities")
+  mk_wrapper$model |>
+    add_status_process(symptomatic = 1, import = "template") |>
+    expect_error("[Mm]ixing imported and inline status probabilities")
+  mk_wrapper$model |>
+    add_status_process(import = "templte") |>
+    expect_error("[Uu]nknown import source")
+
+  # a model shipping no status template
+  new_housepi_model(model = "final-size") |>
+    add_status_process(import = "template") |>
+    expect_error("[Ii]mpossible to use templated status process")
+  expect_warning(
+    hhmodel <- add_status_process(mk_wrapper$model, import = "template"),
+    "[Nn]o template status process definitions.*test model"
+  )
+  nrow(get_status_process(hhmodel)) |> expect_identical(0L)
+})
+
 test_that("A definition named like a single-mode argument is not dropped", {
   hhmodel <- data.frame(hhid = "h1", status = 1, datum = 2) |>
     new_housepi_model("test")

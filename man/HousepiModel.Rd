@@ -51,6 +51,10 @@ Latent definitions.}
 Observation definitions.
 Column 'level' tells member ("member") from household ("house") entries.}
 
+    \item{\code{status_process}}{\code{data.frame}
+Status process: one row per infected status, with its code, label and
+probability.}
+
     \item{\code{infectivity_profiles}}{\code{data.frame}
 Infectivity profile definitions.}
 

@@ -371,7 +371,8 @@ untracked_changes <- function(source_dir, dll) {
 # File shipped by a model for each templated definition family.
 template_def_files <- c(parameter = "param.R",
                         latent = "latent.R",
-                        `infectivity profile` = "infecprof.R")
+                        `infectivity profile` = "infecprof.R",
+                        `status process` = "status.R")
 
 # helper function to deep clone R6 objects
 helper_clone <- function(x) {

@@ -6,6 +6,7 @@
 \alias{get_parameters}
 \alias{get_latent}
 \alias{get_observations}
+\alias{get_status_process}
 \alias{get_group_risks}
 \alias{get_contact_risks}
 \alias{get_infectivity_profiles}
@@ -21,6 +22,8 @@ get_parameters(hhmodel, name = NA)
 get_latent(hhmodel, name = NA)
 
 get_observations(hhmodel, name = NA)
+
+get_status_process(hhmodel)
 
 get_group_risks(hhmodel, name = NA)
 
@@ -38,14 +41,16 @@ get_reporting_process(hhmodel)
 All of them when \code{NA} (default).}
 }
 \value{
-\code{data.frame}. \code{get_reporting_process()} returns
-\code{list(wide = , long = )}, see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+\code{data.frame}. \code{get_status_process()} returns one row per infected
+status: its code \code{status}, its \code{label} and its probability \code{weight}.
+\code{get_reporting_process()} returns \code{list(wide = , long = )}, see
+\code{\link[=add_reporting_process]{add_reporting_process()}}.
 }
 \description{
 Return the definitions currently stored in the housepi model.
 Each variant returns one category (data, parameters, latent variables,
-observations, group risks, contact risks, infectivity profile, reporting
-process).
+observations, status process, group risks, contact risks, infectivity
+profile, reporting process).
 }
 \details{
 \code{get_data_wide()} returns the individual-level data the model reads: a column

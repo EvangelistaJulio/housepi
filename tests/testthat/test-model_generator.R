@@ -240,6 +240,15 @@ test_that("A session template compiles user flags and warns when they change", {
   readLines(dll_flags_file(template_dll_file(path))) |>
     expect_identical("_HOUSEPI_DISCRETE_TIME")
 
+  # a status template in the model folder is read by `import = "template"`
+  dput(list(symptomatic = 0.6, asymptomatic = 0.4), file.path(path, "status.R"))
+  status <- new_housepi_model(model = path, discr = TRUE, as_template = TRUE,
+                              quiet = TRUE) |>
+    add_status_process(import = "template") |>
+    get_status_process()
+  status$label |> expect_identical(c("symptomatic", "asymptomatic"))
+  status$weight |> expect_equal(c(0.6, 0.4))
+
   # the loaded discrete dll cannot be replaced by the continuous variant
   new_housepi_model(model = path, as_template = TRUE, quiet = TRUE) |>
     expect_warning("replace existing template")
