@@ -31,6 +31,7 @@ Here we show how to compute common household measures according to the model pos
 # repeat inference as in 'Get Started'
 library(housepi)
 set_housepi_theme()
+set_housepi_summary(cri_level = 0.95)
 set.seed(42)
 
 hh_model <- flu_1918_frederick |>
@@ -157,9 +158,9 @@ The returned `HousepiEpiPredictiveCheck` object stores `observed`, `predicted`, 
 ```{r}
 #| label: extract-sar-components
 # bind observed secondary attack rates
-ppc_multi$sec_attack_rate$observed |> 
+ppc_multi$sec_attack_rate$observed |>
   # to predicted (posterior mean) values
-  dplyr::left_join(ppc_multi$sec_attack_rate$predicted, by = "hh_size", 
+  dplyr::left_join(ppc_multi$sec_attack_rate$predicted, by = "hh_size",
                    suffix = c("_observed", "_predicted"))
 ```
 
@@ -186,7 +187,7 @@ Similarly can be done for all stored measures:
 ggplot(data.frame(ppc_multi$overall)) +
   geom_point(aes(x = "observed", y = observed), color = "black") +
   geom_errorbar(aes(x = "predicted", y = observed,
-                    ymin = cri_lower, ymax = cri_upper)) + 
+                    ymin = cri_lower, ymax = cri_upper)) +
   geom_point(aes(x = "predicted", y = predicted)) +
   labs(x = NULL, y = "Attack rate")
 

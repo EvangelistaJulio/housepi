@@ -70,7 +70,7 @@ test_that("The global posterior summary is set and read back", {
   withr::with_options(
     list(housepi.point_estimate = NULL, housepi.cri_level = NULL), {
       get_global_point_estimate() |> expect_identical("median")
-      get_global_cri_level() |> expect_equal(0.95)
+      get_global_cri_level() |> expect_equal(0.9)
     }
   )
   withr::with_options(
@@ -96,6 +96,13 @@ test_that("Summarise-draws default columns track cri_level", {
   # spelling alias dispatches to the same handler
   posterior::summarize_draws(draws) |>
     expect_identical(posterior::summarise_draws(draws))
+
+  # by default the method reproduces posterior::summarise_draws
+  withr::with_options(list(housepi.cri_level = NULL), {
+    posterior::summarise_draws(draws) |>
+      colnames() |>
+      expect_identical(colnames(posterior::summarise_draws(plain)))
+  })
 
   # housepi method matches posterior::summarise_draws on every column
   # except the credible-interval quantile pair, which tracks cri_level.
@@ -216,7 +223,8 @@ test_that("A quiet run holds back its build warnings too", {
 test_that("The sampling loop reports its own cost", {
   secs <- mk_draws$results$inference_secs
   secs |> expect_length(1L)
-  (is.finite(secs) && secs > 0) |> expect_true()
+  secs |> expect_all_finite()
+  secs |> expect_gt(0)
 })
 
 test_that("Diagnostic warning fires on poor mixing", {

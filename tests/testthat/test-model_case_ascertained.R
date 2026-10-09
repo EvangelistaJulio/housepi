@@ -226,7 +226,16 @@ test_that("Log-likelihood of case ascertained model is correct", {
       evaluate_log_lik() |>
       expect_equal(latent_infec_obs_log_lik(house, tiny, discr))
 
-    # test complex print, discrete and continuous time
+    # test complex print, discrete and continuous time:
+    # the discrete one has the community risk defined, the others stay default
+    if (discr) {
+      strata <- data.frame(age = c(NA, "child"),
+                           param_name = c(".reference", "com_child"),
+                           value = c(NA, 0), const = c(NA, TRUE))
+      hh_model <- transform(house, age = c("adult", "child", rep("adult", 5))) |>
+        build_onset_model(mk_house$param, discr) |>
+        add_group_risk("community", strata = strata)
+    }
     print(hh_model) |> expect_snapshot()
   }
 })

@@ -39,6 +39,7 @@ We start by creating categorical groupings to stratify individuals based on thei
 #| label: format-age-data
 library(housepi)
 set_housepi_theme()
+set_housepi_summary(cri_level = 0.95)
 set.seed(42)
 
 # define a model object with a subset of the ICoFs dataset

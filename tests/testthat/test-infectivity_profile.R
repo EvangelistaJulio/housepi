@@ -194,7 +194,7 @@ test_that("A discrete-time model resolves a flat latent to the lattice", {
       add_infectivity_profile("uniform", max = 4) |>
       evaluate_log_lik()
   }
-  mk(0) |> is.finite() |> expect_true()
+  mk(0) |> expect_all_finite()
 
   # the flat lattice law owns every integer value in the window, so a bound that
   # is not one has no reading, and the error names the latent that carries it
@@ -227,8 +227,8 @@ test_that("Declaration order does not matter", {
 
   # both reach the wall: the log-likelihood is random, only finiteness is
   # comparable (see evaluate_log_lik)
-  is.finite(evaluate_log_lik(before)) |> expect_true()
-  is.finite(evaluate_log_lik(after)) |> expect_true()
+  evaluate_log_lik(before) |> expect_all_finite()
+  evaluate_log_lik(after) |> expect_all_finite()
 })
 
 test_that("A model needing a profile throws", {
@@ -262,16 +262,14 @@ test_that("A profile transmitting at generation time 0 is refused", {
   mk_infec$model |>
     add_infectivity_profile("exponential", discr = TRUE) |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 
   # a registered profile considered as authored
   # NOTE: 'ferretti20' is a custom with non-zero pdf at origin
   mk_infec$model |>
     add_infectivity_profile("ferretti20", incub_period = 5) |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 })
 
 test_that("A non-zero profile at day 0 is always refused in discrete time", {
@@ -320,15 +318,13 @@ test_that("A profile shifted by a sampled latent is judged on its support", {
   kept_away |>
     add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
   # the explicit spelling of the same support agrees
   kept_away |>
     add_infectivity_profile("uniform", min = incub_period,
                             max = incub_period + 2) |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 
   # dropping the incubation's own minimum makes day 0 attainable
   hh_model |>

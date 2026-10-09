@@ -343,8 +343,7 @@ test_that("Independence proposal must cover the prior domain", {
                proposal = "gamma", proposal_shape = 2) |>
     helper_flat_sink(loc = hidden, column = "record") |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
   # a live minimum drawn in [-1, 1] reaches below the support of the proposal
   mk_latent$model |>
     add_parameter("rho", prior = "uniform", min = -1) |>
@@ -516,8 +515,7 @@ test_that("Nested latent definitions raise errors", {
                layer_1 = list(value = layer_2, status = c(2, 3, 4)),
                hidden = layer_1) |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 
   # simple nest
   hh_model |>
@@ -559,8 +557,7 @@ test_that("A discrete latent resolves 'uniform' to the discrete distribution", {
   hh_model |>
     add_latent("hidden", model = "uniform", min = 0, max = 3, discr = TRUE) |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 
   # the flat lattice law owns every integer value in the window, so a bound that
   # is not one has no reading, and the error names the latent that carries it
@@ -1071,7 +1068,7 @@ test_that("A surrogate observation overwrites the corresponding data column", {
   ("record_3" %in% colnames(get_data_wide(hh_model))) |> expect_false()
 
   # and after evaluation
-  evaluate_log_lik(hh_model) |> is.finite() |> expect_true()
+  evaluate_log_lik(hh_model) |> expect_all_finite()
   unique(get_data_wide(hh_model)[["record_2"]]) |> expect_identical(2)
   ("record_3" %in% colnames(get_data_wide(hh_model))) |> expect_false()
 
@@ -1467,8 +1464,7 @@ test_that("Bounds of a flat latent read neither draws nor free parameters", {
     add_latent(infec_time = list(min = -window, max = end_date),
                append = FALSE) |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
   # nor does an observation, read as its datum even when the latent generates it
   results <- mk_onset$model |>
     add_latent(incub_period = list(model = "gamma", shape = 2, scale = 1),
@@ -1478,7 +1474,7 @@ test_that("Bounds of a flat latent read neither draws nor free parameters", {
                     mean = onset_time, sd = 1, min = floor(onset_time)) |>
     run_inference(steps = 10L, thin = 1L, adapt = 0L, chains = 1L,
                   progress = FALSE, warn = FALSE)
-  get_log_lik_draws(results)$h1 |> is.finite() |> expect_all_true()
+  get_log_lik_draws(results)$h1 |> expect_all_finite()
 })
 
 test_that("A flat latent is set by transmission, else by its value", {
@@ -2027,7 +2023,7 @@ test_that("Discretized observation node initializes finite", {
     run_inference(steps = 50L, thin = 1L, adapt = 0L, chains = 1L) |>
     suppressWarnings()
 
-  is.finite(get_log_lik_draws(results)$h1) |> expect_all_true()
+  get_log_lik_draws(results)$h1 |> expect_all_finite()
 })
 
 test_that("A stochastic observation is simulated for infected members only", {

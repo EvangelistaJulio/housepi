@@ -213,7 +213,7 @@ ppc_frame_apply_summary <- function(frame_list,
 #' @return `data.frame`
 #' @keywords internal
 #' @noRd
-ppc_frame_apply_cri <- function(frame_list, cri_level = 0.95,
+ppc_frame_apply_cri <- function(frame_list, cri_level = 0.9,
                                 upper = TRUE, name = NA_character_) {
   p <- cri_level_probs(cri_level)[[if (isTRUE(upper)) "upper" else "lower"]]
   ppc_frame_apply_stat(frame_list,
@@ -291,7 +291,7 @@ HousepiPredictiveCheck <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
-    cri_level_ = 0.95,
+    cri_level_ = 0.9,
     point_estimate_ = "median",
     nrep_ = NA_integer_,
     thin_ess_ = TRUE,

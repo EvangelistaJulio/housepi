@@ -187,7 +187,8 @@ bayesplot::ppc_pit_ecdf_grouped(
 code_words <- \(x) knitr::combine_words(x, before = "`")
 failed <- short$summary$variable[!short$summary$uniform]
 passed <- short$summary$variable[short$summary$uniform]
-extreme <- with(short$estimates, tapply(rank %in% c(0, rank_draws), variable, mean))
+extreme <- with(short$estimates,
+                tapply(rank %in% c(0, rank_draws), variable, mean))
 ```
 
 `r sum(short$replicates$flagged)` of `r short$nrep` replicates are flagged, since 100 correlated draws are worth far fewer than 99 independent ones.

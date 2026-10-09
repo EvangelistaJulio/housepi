@@ -411,7 +411,7 @@ test_that("Predictive check on custom measures has read-only fields", {
   # read access returns the run settings
   ppc$nrep |> expect_identical(10L)
   ppc$point_estimate |> expect_identical("median")
-  ppc$cri_level |> expect_identical(0.95)
+  ppc$cri_level |> expect_identical(0.9)
   # the summary settings are read off the global options at construction
   withr::with_options(
     list(housepi.point_estimate = "mean", housepi.cri_level = 0.8), {

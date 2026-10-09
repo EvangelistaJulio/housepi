@@ -218,7 +218,7 @@ test_that("Status process generates a labelled status factor in simulation", {
     dplyr::select(id, hh_id, status, infec_date = infec_time, start_date,
                   end_date) |>
     add_data_wide(hh_model = mk_pinned$model)
-  is.finite(evaluate_log_lik(hh_model)) |> expect_true()
+  evaluate_log_lik(hh_model) |> expect_all_finite()
 
   # the data-derived dictionary matches the simulated infected labels
   levels(get_data_wide(hh_model)$status) |>

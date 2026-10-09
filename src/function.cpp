@@ -406,16 +406,6 @@ namespace housepi
         pFunc_->init_attr(key, attr);
     }
 
-    void Attribute::raise_set_error_() const
-    {
-        std::string sms = "Tried to change non numeric ";
-        if (na::is(name()))
-            sms += "empty " + str::format(err_type_);
-        else
-            sms += str();
-        msg::stop(sms + ".");
-    }
-
     //////////////////////////////  Function  //////////////////////////////
 
     /// Name the standard arguments, register the canonical parametrization, close the given bounds.
@@ -609,22 +599,11 @@ namespace housepi
             for (const Attribute &attr : alt.args)
                 existing_names.emplace_back(attr.name());
 
-        // parametrization names are unique too
-        for (const AltArgSet &alt : alts_)
-            if (alt.name == alt_name)
-                msg::stop(
-                    "Duplicate parametrization name " + msg::val(alt_name) + " in " + str() + ".");
-
         AltArgSet alt;
         alt.name = alt_name;
         alt.args.reserve(args.size());
         for (const auto &[key, val] : args)
         {
-            for (const std::string &n : existing_names)
-                if (n == key)
-                    msg::stop(
-                        "Argument name " + msg::arg(key) + " from parametrization " + msg::val(alt_name) +
-                        " collides with an existing argument in " + str() + ".");
             existing_names.emplace_back(key);
 
             if (na::is(val))
@@ -853,7 +832,6 @@ namespace housepi
             case Kind::InfecProfile:
                 return infec_profile;
             }
-            msg::stop("Unknown registry.");
         }
 
         std::vector<Kind> distr_kinds(bool discr)

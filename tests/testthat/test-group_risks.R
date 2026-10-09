@@ -189,13 +189,13 @@ test_that("Group risks hold without data and re-derive on add_data_wide", {
   hh_model_2 <- add_data_wide(hh_model, mk_flu$data)
   full_params <- hh_model_2$parameters$name
   full_params |> expect_match("^sus_member", all = FALSE)
-  is.finite(evaluate_log_lik(hh_model_2)) |> expect_true()
+  evaluate_log_lik(hh_model_2) |> expect_all_finite()
 
   # replacing data re-derives: a single-level subset drops the stale risk params
   hh_model_3 <- add_data_wide(hh_model_2,
                               mk_flu$data[mk_flu$data$member == "student", ])
   hh_model_3$parameters$name |> expect_no_match("^sus_member")
-  is.finite(evaluate_log_lik(hh_model_3)) |> expect_true()
+  evaluate_log_lik(hh_model_3) |> expect_all_finite()
 
   # re-attaching the full data restores the exact original parameter set
   add_data_wide(hh_model_3, mk_flu$data)$parameters$name |>
@@ -939,7 +939,7 @@ test_that("An absolute risk collapses the baseline it scales", {
     add_group_risk("community", by = "member") |>
     add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4)
 
-  is.finite(evaluate_log_lik(hh_model)) |> expect_true()
+  evaluate_log_lik(hh_model) |> expect_all_finite()
   params <- get_parameters(hh_model)
   params$const[params$name == "alpha"] |> expect_true()
   params$value[params$name == "alpha"] |> expect_equal(1.)
@@ -1016,8 +1016,7 @@ test_that("An absolute group risk holds its baseline at the reference", {
     add_parameter(com_member_student = 1.7) |>
     suppressWarnings() |> # suppress overwrite warning
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 })
 
 test_that("A declared baseline is collapsed at the decorator", {
@@ -1038,8 +1037,7 @@ test_that("A declared baseline is collapsed at the decorator", {
     add_parameter(gamma = 2) |>
     suppressWarnings() |> # suppress overwrite warning
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 
   # the run cannot give the scale back
   hh_model |>
@@ -1125,15 +1123,15 @@ test_that("A fixed stratum holds across draws, a pinned one is resampled", {
 
 test_that("A fixed stratum anchors the scale of its rule group", {
   # the group is anchored by the constant, so no baseline is collapsed onto it
-  log_lik <- mk_flu$model |>
+  mk_flu$model |>
     add_parameter(alpha = list(prior = "uniform", min = 0.2, max = 0.9),
                   beta = 0.1, gamma = 1, hh_size_ref = 4) |>
     add_group_risk("community",
       strata = pin_strata(value = c(NA, 1.2, 0.5), const = c(NA, TRUE, TRUE)),
       prior = "lognormal", sdlog = 3
     ) |>
-    evaluate_log_lik()
-  is.finite(log_lik) |> expect_true()
+    evaluate_log_lik() |>
+    expect_all_finite()
 })
 
 test_that("Strata counts come from the engine cross-tabulation", {

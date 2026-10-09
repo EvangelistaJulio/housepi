@@ -35,6 +35,7 @@ We use the same final-size example presented in [Get started](housepi.html):
 # repeat inference as in 'Get Started'
 library(housepi)
 set_housepi_theme()
+set_housepi_summary(cri_level = 0.95)
 set.seed(42)
 
 hh_model <- flu_1918_frederick |>
@@ -160,7 +161,7 @@ A fit is only as usable as its worst-mixing parameter, so the effective sample s
 #| label: design-table
 n_vars <- length(names(recovery$truth))
 
-cost <- recovery$overview |> 
+cost <- recovery$overview |>
   dplyr::summarise(cost = 1000 * secs_per_ess, .by = "houses")
 
 recovery$summary |>
@@ -182,11 +183,13 @@ recovery$summary |>
 ```{r}
 #| label: doubling
 #| include: false
-width <- tidyr::pivot_wider(recovery$summary[c("houses", "variable", "cri_width")],
-                            names_from = houses, values_from = cri_width)
-narrower <- 1 - width[[as.character(2 * n_houses)]] / width[[as.character(n_houses)]]
+width <- recovery$summary[c("houses", "variable", "cri_width")] |>
+  tidyr::pivot_wider(names_from = houses, values_from = cri_width)
+narrower <- 1 - width[[as.character(2 * n_houses)]] /
+  width[[as.character(n_houses)]]
 secs <- setNames(cost$cost, cost$houses)
-slower <- secs[[as.character(2 * n_houses)]] / secs[[as.character(n_houses)]] - 1
+slower <- secs[[as.character(2 * n_houses)]] /
+  secs[[as.character(n_houses)]] - 1
 ```
 
 Doubling the sample size narrows the intervals by `r round(100 * min(narrower))`% - `r round(100 * max(narrower))`%, but makes its `r round(100 * slower)`% slower to collect 1000 effective draws.

@@ -771,6 +771,40 @@ test_that("Contact risks raise an error for incompatible models", {
 ###  CONTACT RISKS : STRATA PINS  ###
 #####################################
 
+test_that("Infected members under different contact rules are kept apart", {
+  # same-group members whose self-contacts differ in kind:
+  # M-to-M: reference
+  # F-to-F: variable confined to a window too narrow to move the likelihood
+  strata <- tibble::tribble(
+    ~from_sex, ~to_sex, ~param_name, ~value, ~const,
+    "M",       "M",     ".reference", NA,    NA,
+    "M",       "F",     "mf",         2,     TRUE,
+    "F",       "M",     "fm",         3,     TRUE,
+    "F",       "F",     "ff",         NA,    NA
+  )
+  hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
+                       status = 1L, sex = c("M", "F", "M", "F"))
+  log_lik <- function(data, ff) {
+    data |>
+      new_housepi_model("final-size") |>
+      add_parameter(alpha = 0.15, beta = 0.2, gamma = 1, hh_size_ref = 4) |>
+      add_contact_risk(
+        strata = strata,
+        params = list(ff = list(value = ff, prior = "uniform",
+                                min = ff - 1e-6, max = ff + 1e-6))
+      ) |>
+      evaluate_log_lik()
+  }
+
+  # the likelihood does not depend on the order of the members
+  ll <- log_lik(hhdata, ff = 4)
+  ll |> expect_all_finite()
+  log_lik(hhdata[c(2, 3, 4, 1), ], ff = 4) |> expect_equal(ll, tolerance = 1e-4)
+
+  # a member with another self-contact is not merged with the others
+  (abs(log_lik(hhdata, ff = 0.5) - ll) > 1e-2) |> expect_true()
+})
+
 test_that("A contact strata value pins the stratum and keeps its prior", {
   pinned <- pin_ctr_strata(const = c(NA, NA)) |>
     get_parameters("ctr_fm")

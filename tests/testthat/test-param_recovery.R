@@ -140,7 +140,7 @@ test_that("Recovery results print their settings", {
   printed |> expect_identical(results)
   lines[1] |> expect_match("[Pp]arameter recovery check.*final size")
   lines |> expect_contains("Households: 20 and 40. Replicates each: 2.")
-  lines |> expect_contains("Point estimate: \"median\". Credible level: 0.95.")
+  lines |> expect_contains("Point estimate: \"median\". Credible level: 0.9.")
   # the count is that of the flagged replicates
   lines |>
     expect_contains(paste0("Flagged by diagnostics: ",
@@ -160,7 +160,7 @@ test_that("Recovery sweeps every household count", {
   results$overview$houses |> expect_identical(c(20L, 40L))
   results$nrep |> expect_identical(2L)
   results$point_estimate |> expect_identical("median")
-  results$cri_level |> expect_equal(0.95)
+  results$cri_level |> expect_equal(0.9)
 })
 
 test_that("Each replicate reports its cost and its survey", {

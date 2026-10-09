@@ -27,6 +27,11 @@ helper_onset_house <- list(
                hh_size_ref = 4, shape = 2, scale = 1.1)
 )
 
+# Expect every element to be finite.
+expect_all_finite <- function(object) {
+  testthat::expect_all_true(is.finite(object))
+}
+
 # Expect every element to be missing, or none of them; an empty vector passes.
 # The failure names the offending positions.
 expect_all_na <- function(object) {

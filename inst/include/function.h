@@ -131,7 +131,7 @@ namespace housepi
                 value_ = x;
                 return;
             default: // cases Mode::Pointer, Mode::Function
-                raise_set_error_();
+                msg::stop("Tried to change non numeric " + str() + ".");
             }
         }
 
@@ -212,9 +212,6 @@ namespace housepi
         double value_ = na::DOUBLE;                 /// Numeric value.
         const Attribute *pAttr_ = nullptr;          /// Pointed attribute.
         std::unique_ptr<Function> pFunc_ = nullptr; /// Owned function.
-
-        /// Throw on setting a value into an attribute that is not numeric.
-        [[noreturn]] void raise_set_error_() const;
     };
 
     //////////////////////////////  Domain  //////////////////////////////

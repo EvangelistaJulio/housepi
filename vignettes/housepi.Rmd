@@ -195,6 +195,9 @@ results <- hh_model |>
                 chains = 4,   # independent chains
                 threads = 1)  # parallel threads
 
+# report 95% credible intervals (default is 90%, as in `posterior`)
+set_housepi_summary(cri_level = 0.95)
+
 # summarise posterior draws of parameters
 results |> summarise_draws()
 ```
@@ -268,7 +271,7 @@ hh_model <- hh_model |>
     ),
     # followup starts with earliest onset date (house-level observation)
     start_date = list(value = min(onset_date), level = "house"),
-    # followup ends after 3 weeks after first onset 
+    # followup ends after 3 weeks after first onset
     end_date = start_date + 21
   )
 ```
@@ -373,9 +376,12 @@ Finally we wrap all together to compare to the parameters used for simulation.
 #| label: parameter-comparison-table
 param_draws |>
   summarise_draws() |>
-  dplyr::reframe(parameter = variable,
-                 inferred = format_credible_interval(
-                   median, q2.5, q97.5, fmt = "%s (95%% CrI, %s-%s)")) |>
+  dplyr::reframe(
+    parameter = variable,
+    inferred = format_credible_interval(
+      median, q2.5, q97.5, fmt = "%s (95%% CrI, %s-%s)"
+    )
+  ) |>
   dplyr::inner_join(simul_parameters, by = "parameter") |>
   flextable::flextable() |>
   flextable::separate_header() |>

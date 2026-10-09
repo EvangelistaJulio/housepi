@@ -437,14 +437,12 @@ test_that("A parameter meets the model definition requirements", {
     add_parameter(hh_size_ref = 3.3) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
   hh_model |>
     add_parameter(hh_size_ref = list(prior = "uniform", min = 2, max = 6)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 })
 
 test_that("Strict positivity propagates through a parameter function", {
@@ -458,26 +456,22 @@ test_that("Strict positivity propagates through a parameter function", {
   }
 
   # positivity follows the operands, one node at a time
-  mk(alpha = exp(-rho)) |> is.finite() |> expect_true()
-  mk(alpha = sqrt(rho) / 10) |> is.finite() |> expect_true()
-  mk(alpha = rho^2 * 1e-2) |> is.finite() |> expect_true()
+  mk(alpha = exp(-rho)) |> expect_all_finite()
+  mk(alpha = sqrt(rho) / 10) |> expect_all_finite()
+  mk(alpha = rho^2 * 1e-2) |> expect_all_finite()
   mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
      alpha = min(rho, rho_2) * 1e-2) |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
   mk(rho_2 = list(prior = "normal"), alpha = max(rho, rho_2) * 1e-2) |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
   mk(rho_2 = list(prior = "gamma", shape = 2, scale = 1),
      alpha = (rho + rho_2) * 1e-2) |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
   # a bounded operand caps the unbounded side of the other
-  mk(alpha = min(rho, 1e-2)) |> is.finite() |> expect_true()
-  mk(alpha = min(1e-2, rho)) |> is.finite() |> expect_true()
+  mk(alpha = min(rho, 1e-2)) |> expect_all_finite()
+  mk(alpha = min(1e-2, rho)) |> expect_all_finite()
   mk(rho_2 = list(prior = "normal"), alpha = max(rho_2, 1e-2) * rho) |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 
   # a sign-indefinite node is not provably positive, whatever it evaluates to
   mk(alpha = log(rho)) |>
@@ -499,8 +493,7 @@ test_that("Strict positivity propagates through a shifted prior", {
                                loc = 1e-3)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 
   # the same interval, unshifted, keeps no proof
   mk_final_size$template |>
@@ -628,7 +621,7 @@ test_that("An unpinned parameter is drawn from its prior at evaluation", {
   pinned <- \(a) evaluate_log_lik(add_parameter(hh_model, alpha = !!a))
   span <- abs(pinned(0.9) - pinned(0.1))
 
-  is.finite(log_lik) |> expect_all_true()
+  log_lik |> expect_all_finite()
   stats::sd(log_lik) |> expect_gt(0.05 * span)
 })
 

@@ -120,7 +120,8 @@ new_housepi_model(model = "test") |>
     data = data.frame(Parameter = c("gamma_0", "gamma_1", "gamma_2", "gamma_3"),
                       xintercept = c(0, 1, 2, 3)),
     aes(xintercept = xintercept),
-    linetype = 2)
+    linetype = 2
+  )
 ```
 
 # Discrete priors

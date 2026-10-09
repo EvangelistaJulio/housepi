@@ -10,7 +10,10 @@ trapezoid <- \(x, y) 0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
 drayleigh <- function(x, scale) {
   ifelse(x >= 0, x / scale^2 * exp(-x^2 / (2 * scale^2)), 0)
 }
-prayleigh <- \(q, scale) ifelse(q >= 0, -expm1(-q^2 / (2 * scale^2)), 0)
+prayleigh <- function(q, scale, lower.tail = TRUE) {
+  z <- pmax(q, 0)^2 / (2 * scale^2)
+  if (lower.tail) -expm1(-z) else exp(-z)
+}
 qrayleigh <- \(p, scale) scale * sqrt(-2 * log1p(-p))
 
 # R reference `<prefix><ref>` (e.g. "d" + "norm") bound to named arguments.
@@ -98,7 +101,7 @@ expect_tail_finite <- function(name, args, ref, x, bin = c(0, 1)) {
   p <- stats_ref("p", ref, args)
   any(p(x + bin[2]) == p(x + bin[1])) |> expect_true()
   pmf <- p(x + bin[1], lower.tail = FALSE) - p(x + bin[2], lower.tail = FALSE)
-  is.finite(distr$log_pdf(x)) |> expect_all_true()
+  distr$log_pdf(x) |> expect_all_finite()
   distr$pdf(x) |> expect_equal(pmf)
   distr$log_pdf(x) |> expect_equal(log(pmf))
 }
@@ -470,6 +473,16 @@ test_that("Discrete uniform spreads flat mass over the integers", {
     expect_equal(distr$pdf(k))
 })
 
+test_that("Discretizing an already discrete law keeps its mass", {
+  args <- list(size = 6, prob = 0.3)
+  browse_distributions("binomial", args, discr = TRUE)$pdf(0:6) |>
+    expect_equal(dbinom(0:6, 6, 0.3))
+
+  weights <- c(a = 2, b = 1, c = 7)
+  browse_distributions("categorical", as.list(weights), discr = TRUE)$pdf(0:2) |>
+    expect_equal(unname(weights) / sum(weights))
+})
+
 test_that("An argument off the integers is refused where one is required", {
   # the flat lattice law owns every integer value in its support
   browse_distributions("uniform", min = 0.5, max = 3.2, discr = TRUE) |>
@@ -676,13 +689,17 @@ test_that("Discretized lognormal keeps the mass of the origin bin", {
 
 test_that("Discretized laws stay finite far in the upper tail", {
   # complementary-CDF branches: center bins for the normal, gamma/erfc
-  # complement for the lognormal, boost gamma_q complement for the gamma
+  # complement for the lognormal, boost gamma_q complement for the gamma,
+  # closed forms for the weibull and rayleigh
   expect_tail_finite("normal", list(mean = 0, sd = 1), "norm", seq(9, 30, 1),
                      bin = c(-0.5, 0.5))
   expect_tail_finite("lognormal", list(meanlog = 0, sdlog = 0.5), "lnorm",
                      seq(60, 200, 5))
   expect_tail_finite("gamma", list(shape = 2, scale = 1.5), "gamma",
                      seq(55, 120, 1))
+  expect_tail_finite("weibull", list(shape = 2, scale = 1), "weibull",
+                     seq(7, 12, 1))
+  expect_tail_finite("rayleigh", list(scale = 1), "rayleigh", seq(9, 30, 1))
 
   # symmetry: reflecting about the mean matches the lower tail
   distr <- browse_distributions("normal", mean = 0, sd = 1, discr = TRUE)
@@ -895,7 +912,9 @@ test_that("rand() is reproducible and plausible for all distributions", {
     list(args = list("negative_binomial", size = 5, prob = 0.4),
          mean = 5 * 0.6 / 0.4, int = TRUE),
     list(args = list("geometric", prob = 0.3),
-         mean = 0.7 / 0.3, int = TRUE)
+         mean = 0.7 / 0.3, int = TRUE),
+    list(args = list("categorical", a = 2, b = 1, c = 7),
+         mean = 1.5, int = TRUE, max = 2)
   )
   for (cc in cases) {
     d <- do.call(browse_distributions, cc$args)

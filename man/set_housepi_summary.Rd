@@ -10,7 +10,7 @@ set_housepi_summary(point_estimate = NULL, cri_level = NULL)
 \item{point_estimate}{\code{character(1)} One between \code{"mean"} and \code{"median"}.
 Default is \code{"median"}.}
 
-\item{cri_level}{\code{numeric(1)} Must lie in \verb{(0.5, 1)}. Default is \code{0.95}.}
+\item{cri_level}{\code{numeric(1)} Must lie in \verb{(0.5, 1)}. Default is \code{0.9}.}
 }
 \value{
 Invisibly returns the previous values, as a \code{list} the function

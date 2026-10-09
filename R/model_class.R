@@ -1128,12 +1128,12 @@ HousepiModel <- R6::R6Class(
         # group risks (optional: default when definitions are absent)
         risks <- private$get_required_group_risks_()
         if (length(risks)) {
-          is_default <- length(template_missing_find(
+          risks <- intersect(risks, template_missing_find(
             risks, names(private$group_risks_$defs)
-          )) > 0
+          ))
           blocks <- c(blocks, list(fmt_assert_cli(
             "Group risks",
-            if (is_default) c(
+            if (length(risks)) c(
               "Using default group risks.",
               inline_cli_("Available: {.val {risks}}.")
             ) else NULL,

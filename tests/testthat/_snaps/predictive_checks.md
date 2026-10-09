@@ -7,5 +7,5 @@
       * sar
       N. replicates: 10
       Point estimate: median
-      Credible interval: 95%
+      Credible interval: 90%
 

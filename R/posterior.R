@@ -51,7 +51,7 @@ validate_cri_level <- function(value) {
 # Return the global credible interval level (option "housepi.cri_level").
 # Not exported: housepi internals must always pull through this helper.
 get_global_cri_level <- function() {
-  validate_cri_level(getOption("housepi.cri_level", 0.95))
+  validate_cri_level(getOption("housepi.cri_level", 0.9))
 }
 
 # Lower/upper quantile probabilities corresponding to a credible interval level.
@@ -82,7 +82,7 @@ get_global_point_estimate <- function() {
 #' An argument left out keeps the value in place.
 #' @param point_estimate `character(1)` One between `"mean"` and `"median"`.
 #' Default is `"median"`.
-#' @param cri_level `numeric(1)` Must lie in `(0.5, 1)`. Default is `0.95`.
+#' @param cri_level `numeric(1)` Must lie in `(0.5, 1)`. Default is `0.9`.
 #' @return Invisibly returns the previous values, as a `list` the function
 #' takes back to restore them.
 #' @details

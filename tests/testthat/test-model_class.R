@@ -156,7 +156,7 @@ test_that("Wide data can be deferred and attached with add_data_wide", {
   hh_model <- add_data_wide(hh_model, flu_1918_frederick)
   hh_model$data_wide |> expect_s3_class("data.frame")
   hh_model$data_wide |> expect_nrow(nrow(flu_1918_frederick))
-  is.finite(evaluate_log_lik(hh_model)) |> expect_true()
+  evaluate_log_lik(hh_model) |> expect_all_finite()
 })
 
 test_that("Deferred data answers the model requests", {
