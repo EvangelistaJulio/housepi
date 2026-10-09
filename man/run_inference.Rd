@@ -5,7 +5,7 @@
 \title{Run Bayesian MCMC inference on a housepi model}
 \usage{
 run_inference(
-  hhmodel,
+  hh_model,
   steps = 1000L,
   burn = 0L,
   thin = 5L,
@@ -19,7 +19,7 @@ run_inference(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{steps}{\code{integer(1)} Number of MCMC iterations per chain.}
 
@@ -39,7 +39,7 @@ If no proposal is adaptable, dropped or run as burn-in when \code{burn = 0}.}
 \item{id_draws}{Infected members whose public latent draws are stored.
 Either a \code{character()} of individual identifiers,
 or a \code{list} with entries \code{id} (individual identifiers)
-and/or \code{hhid} (whole household infected members are stored).
+and/or \code{hh_id} (whole household infected members are stored).
 If \code{NA}, one random eligible household is followed (default).
 Pass \code{".none"} to store nothing.}
 

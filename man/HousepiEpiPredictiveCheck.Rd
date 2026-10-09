@@ -10,12 +10,12 @@ household size: cases, attack rate and secondary attack rate, comparing
 observed and predicted values.
 }
 \examples{
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+results <- run_inference(hh_model, chains = 2, progress = FALSE)
 
-ppc <- check_predictive(hhmodel, results, nrep = 50, progress = FALSE)
+ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
 ppc$formatted_attack_rate
 }
 \section{Super class}{
@@ -42,10 +42,10 @@ Sizes outside the set household size bounds are not returned.}
 \subsection{Public methods}{
   \itemize{
     \item \href{#method-HousepiEpiPredictiveCheck-initialize}{\code{HousepiEpiPredictiveCheck$new()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-set_min_hhsize}{\code{HousepiEpiPredictiveCheck$set_min_hhsize()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-drop_min_hhsize}{\code{HousepiEpiPredictiveCheck$drop_min_hhsize()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-set_max_hhsize}{\code{HousepiEpiPredictiveCheck$set_max_hhsize()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-drop_max_hhsize}{\code{HousepiEpiPredictiveCheck$drop_max_hhsize()}}
+    \item \href{#method-HousepiEpiPredictiveCheck-set_min_hh_size}{\code{HousepiEpiPredictiveCheck$set_min_hh_size()}}
+    \item \href{#method-HousepiEpiPredictiveCheck-drop_min_hh_size}{\code{HousepiEpiPredictiveCheck$drop_min_hh_size()}}
+    \item \href{#method-HousepiEpiPredictiveCheck-set_max_hh_size}{\code{HousepiEpiPredictiveCheck$set_max_hh_size()}}
+    \item \href{#method-HousepiEpiPredictiveCheck-drop_max_hh_size}{\code{HousepiEpiPredictiveCheck$drop_max_hh_size()}}
     \item \href{#method-HousepiEpiPredictiveCheck-clone}{\code{HousepiEpiPredictiveCheck$clone()}}
   }
 }
@@ -61,13 +61,13 @@ Sizes outside the set household size bounds are not returned.}
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiEpiPredictiveCheck$new(
-  hhmodel,
+  hh_model,
   param_table,
   ...,
   nrep = NA_integer_,
   thin_ess = TRUE,
-  min_hhsize = NA_integer_,
-  max_hhsize = NA_integer_,
+  min_hh_size = NA_integer_,
+  max_hh_size = NA_integer_,
   threads = 1L,
   progress = TRUE
 )}
@@ -76,7 +76,7 @@ Sizes outside the set household size bounds are not returned.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{hhmodel}}{\code{HousepiModel} object.}
+      \item{\code{hh_model}}{\code{HousepiModel} object.}
       \item{\code{param_table}}{One between
 \itemize{
 \item \code{data.frame};
@@ -94,9 +94,9 @@ If \code{NA}, every row is simulated (default).}
       \item{\code{thin_ess}}{\code{logical(1)} Whether to thin \code{param_table} to its
 bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws.}
-      \item{\code{min_hhsize}}{\code{integer(1)} Minimum household size retained in the outputs.
+      \item{\code{min_hh_size}}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied.}
-      \item{\code{max_hhsize}}{\code{integer(1)} Maximum household size retained in the outputs.
+      \item{\code{max_hh_size}}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA}, no upper bound is applied.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
       \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
@@ -112,13 +112,13 @@ One between:
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-set_min_hhsize"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-set_min_hhsize}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$set_min_hhsize()}}{
+\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-set_min_hh_size"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-set_min_hh_size}{}}}
+\subsection{\code{HousepiEpiPredictiveCheck$set_min_hh_size()}}{
   Set minimum household size to consider in result outputs.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$set_min_hhsize(n)}
+    \preformatted{HousepiEpiPredictiveCheck$set_min_hh_size(n)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -132,25 +132,25 @@ If \code{NA}, restore observed minimum.}
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-drop_min_hhsize"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-drop_min_hhsize}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$drop_min_hhsize()}}{
+\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-drop_min_hh_size"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-drop_min_hh_size}{}}}
+\subsection{\code{HousepiEpiPredictiveCheck$drop_min_hh_size()}}{
   Restore minimum household size to observed minimum.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$drop_min_hhsize()}
+    \preformatted{HousepiEpiPredictiveCheck$drop_min_hh_size()}
     \if{html}{\out{</div>}}
   }
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-set_max_hhsize"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-set_max_hhsize}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$set_max_hhsize()}}{
+\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-set_max_hh_size"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-set_max_hh_size}{}}}
+\subsection{\code{HousepiEpiPredictiveCheck$set_max_hh_size()}}{
   Set maximum household size to consider in result outputs.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$set_max_hhsize(n)}
+    \preformatted{HousepiEpiPredictiveCheck$set_max_hh_size(n)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -164,13 +164,13 @@ If \code{NA}, restore observed maximum.}
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-drop_max_hhsize"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-drop_max_hhsize}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$drop_max_hhsize()}}{
+\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-drop_max_hh_size"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-drop_max_hh_size}{}}}
+\subsection{\code{HousepiEpiPredictiveCheck$drop_max_hh_size()}}{
   Restore maximum household size to observed maximum.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$drop_max_hhsize()}
+    \preformatted{HousepiEpiPredictiveCheck$drop_max_hh_size()}
     \if{html}{\out{</div>}}
   }
 }

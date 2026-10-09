@@ -4,10 +4,10 @@
 \alias{add_data_long}
 \title{Attach individual-level long-format data to a housepi model}
 \usage{
-add_data_long(hhmodel, data_long)
+add_data_long(hh_model, data_long)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{data_long}{\code{data.frame} Additional individual long format data.}
 }
@@ -21,8 +21,8 @@ Make an internal copy of the provided data in long format.
 # repeated measures of one individual, matched on `id`
 measures <- data.frame(id = "hh001m02", day = 1:3,
                        viral_load = c(5.2, 6.8, 4.1))
-hhmodel <- sarscov2_2021_icofs |>
+hh_model <- sarscov2_2021_icofs |>
   new_housepi_model("case-ascertained") |>
   add_data_long(measures)
-get_data_long(hhmodel)
+get_data_long(hh_model)
 }

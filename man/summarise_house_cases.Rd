@@ -5,12 +5,12 @@
 \alias{summarize_house_cases}
 \title{Summarise observed cases in the loaded household data}
 \usage{
-summarise_house_cases(hhmodel)
+summarise_house_cases(hh_model)
 
-summarize_house_cases(hhmodel)
+summarize_house_cases(hh_model)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 }
 \value{
 \code{data.frame}, one row per metric:
@@ -27,6 +27,6 @@ The row \code{classes}, counts the equivalence classes:
 households indistinguishable by the model (same size, statuses, risk, etc.).
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
-summarise_house_cases(hhmodel)
+hh_model <- new_housepi_model(flu_1918_frederick, "final_size")
+summarise_house_cases(hh_model)
 }

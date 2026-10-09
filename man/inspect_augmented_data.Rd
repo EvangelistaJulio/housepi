@@ -4,10 +4,10 @@
 \alias{inspect_augmented_data}
 \title{Inspect the augmented data of a housepi model}
 \usage{
-inspect_augmented_data(hhmodel)
+inspect_augmented_data(hh_model)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 }
 \value{
 \code{data.frame}, the dataset with its latent variables.
@@ -25,11 +25,11 @@ replicate.}
 }
 }
 \examples{
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-evaluate_log_lik(hhmodel)
-inspect_augmented_data(hhmodel) |>
+evaluate_log_lik(hh_model)
+inspect_augmented_data(hh_model) |>
   head()
 }
 \seealso{

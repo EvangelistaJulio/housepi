@@ -8,8 +8,8 @@ mk_house <- helper_onset_house
 
 # simulation over real households, the transmission risk left to each test
 mk_simulation <- local({
-  hhmodel <- sarscov2_2021_icofs |>
-    dplyr::filter(hhid %in% utils::head(unique(hhid), 100)) |>
+  hh_model <- sarscov2_2021_icofs |>
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 100)) |>
     dplyr::mutate(start_date = 0, end_date = 21) |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
@@ -17,7 +17,7 @@ mk_simulation <- local({
       incub_period = list(model = "gamma", shape = 2, scale = 1),
       infec_time = -incub_period
     )
-  list(model = hhmodel)
+  list(model = hh_model)
 })
 
 # cumulative infectivity profile
@@ -43,7 +43,7 @@ find_introduction <- function(house) {
 
 # transmission rate
 transmission_rate <- function(house, param) {
-  param$beta * (param$hhsize_ref / dim(house)[1]) ^ param$gamma
+  param$beta * (param$hh_size_ref / dim(house)[1]) ^ param$gamma
 }
 
 # log-likelihood contribution of escaped members
@@ -144,16 +144,16 @@ test_that("Without transmission only the introductions are infected", {
   }
   # the introduction is the only case, its onset_time at 0
   simulated <- mk_simulation$model |>
-    add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hh_size_ref = 4) |>
     add_reporting_process(report_onset) |>
     run_simulation()
-  length(unique(simulated$hhid)) |>
+  length(unique(simulated$hh_id)) |>
     expect_identical(sum(simulated$onset_time == 0, na.rm = TRUE))
 })
 
 test_that("A saturated transmission infects every member", {
   simulated <- mk_simulation$model |>
-    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hh_size_ref = 4) |>
     run_simulation()
 
   (simulated$status > 0) |> expect_all_true()
@@ -166,7 +166,7 @@ test_that("A saturated transmission infects every member", {
 ##################################################
 
 test_that("Sentinel against no introduction throws error", {
-  data.frame(id = seq(2), hhid = "h1", status = 0,
+  data.frame(id = seq(2), hh_id = "h1", status = 0,
              start_date = 0, end_date = 21) |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
@@ -178,7 +178,7 @@ test_that("Sentinel against no introduction throws error", {
 
 test_that("Sentinel against a reversed follow-up window throws error", {
   # end_date < start_date has no valid exposure period
-  data.frame(id = c("m1", "m2"), hhid = "h1",
+  data.frame(id = c("m1", "m2"), hh_id = "h1",
              status = c(1, 0), infec_date = c(0, NA),
              start_date = 5, end_date = 2) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
@@ -191,19 +191,19 @@ test_that("Sentinel against a reversed follow-up window throws error", {
 
 test_that("Sentinel against a member missing a follow-up date throws error", {
   hhdata <- transform(mk_house$data, infec_date = infec_time)
-  hhmodel <- new_housepi_model(model = "case-ascertained") |>
+  hh_model <- new_housepi_model(model = "case-ascertained") |>
     add_parameter(import = "template") |>
     add_latent(infec_time = infec_date) |>
     add_infectivity_profile(import = "template")
 
   # escaped members without end_date throw
-  hhmodel |>
+  hh_model |>
     add_data_wide(transform(hhdata, end_date = c(rep(21, 6), NA))) |>
     evaluate_log_lik() |>
     expect_error("[Dd]ata .end_date. has no value for individual .m7.")
 
   # end_date computed from member observations have no value for escaped members
-  hhmodel |>
+  hh_model |>
     add_data_wide(dplyr::select(hhdata, -end_date)) |>
     add_observation(onset_date = list(model = "normal", mean = infec_time),
                     end_date = onset_date + 21) |>
@@ -212,14 +212,14 @@ test_that("Sentinel against a member missing a follow-up date throws error", {
 })
 
 test_that("Log-likelihood of case ascertained model is correct", {
-  house <- mk_house$data[c("id", "hhid", "status", "infec_time",
+  house <- mk_house$data[c("id", "hh_id", "status", "infec_time",
                            "start_date", "end_date")]
   # risks far below the machine epsilon
   tiny <- modifyList(mk_house$param, list(alpha = 1e-20, beta = 1e-20))
 
   for (discr in c(FALSE, TRUE)) {
-    hhmodel <- build_onset_model(house, mk_house$param, discr)
-    evaluate_log_lik(hhmodel) |>
+    hh_model <- build_onset_model(house, mk_house$param, discr)
+    evaluate_log_lik(hh_model) |>
       expect_equal(latent_infec_obs_log_lik(house, mk_house$param, discr))
 
     build_onset_model(house, tiny, discr) |>
@@ -227,14 +227,14 @@ test_that("Log-likelihood of case ascertained model is correct", {
       expect_equal(latent_infec_obs_log_lik(house, tiny, discr))
 
     # test complex print, discrete and continuous time
-    print(hhmodel) |> expect_snapshot()
+    print(hh_model) |> expect_snapshot()
   }
 })
 
 test_that("A case with no source of infection has zero likelihood", {
   # `m2` is the only child, out of reach of the community,
   # and no household transmission
-  hhdata <- transform(mk_house$data[c("id", "hhid", "status", "infec_time",
+  hhdata <- transform(mk_house$data[c("id", "hh_id", "status", "infec_time",
                                       "start_date", "end_date")],
                       age = c("adult", "child", rep("adult", 5)))
   strata <- data.frame(age = c(NA, "child"),
@@ -251,9 +251,9 @@ test_that("A case with no source of infection has zero likelihood", {
 })
 
 test_that("Latent moves preserve log-likelihood", {
-  house <- mk_house$data[c("id", "hhid", "status", "onset_date",
+  house <- mk_house$data[c("id", "hh_id", "status", "onset_date",
                            "start_date", "end_date")]
-  hhmodel <- house |>
+  hh_model <- house |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_parameter(shape = 2, scale = 1.1, append = TRUE) |>
@@ -268,7 +268,7 @@ test_that("Latent moves preserve log-likelihood", {
 
   # the latent moves are reduced over two threads
   n_steps <- 30L
-  results <- hhmodel |>
+  results <- hh_model |>
     run_inference(steps = n_steps, thin = 1L, adapt = 0L, chains = 1L,
                   threads = 2L, id_draws = house$id[house$status > 0]) |>
     suppressWarnings()
@@ -281,7 +281,7 @@ test_that("Latent moves preserve log-likelihood", {
     draws_to_frame()
   latent_draws <- get_latent_draws(results) |>
     draws_to_frame()
-  consts <- get_parameters(hhmodel) |>
+  consts <- get_parameters(hh_model) |>
     subset(const, c("name", "value")) |>
     tidyr::pivot_wider(names_from = "name", values_from = "value") |>
     as.list()
@@ -290,8 +290,8 @@ test_that("Latent moves preserve log-likelihood", {
   }
 
   # the snapshot holds the last state
-  snapshot <- inspect_house_state(hhmodel, "h1")
-  unlist(c(param_draws[n_steps, ], consts)) |>
+  snapshot <- inspect_house_state(hh_model, "h1")
+  unlist(c(param_draws[n_steps, ], consts))[names(snapshot$parameters)] |>
     expect_identical(snapshot$parameters)
   get_latent_state(latent_draws, n_steps) |>
     expect_identical(snapshot$latent[house$status > 0, ])

@@ -100,7 +100,7 @@ directly.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiRecoveryCheck$new(
-  hhmodel,
+  hh_model,
   nrep = 50L,
   houses = NA_integer_,
   structure_sampler = sample_house_structure,
@@ -119,7 +119,7 @@ directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{hhmodel}}{\code{HousepiModel} object.}
+      \item{\code{hh_model}}{\code{HousepiModel} object.}
       \item{\code{nrep}}{\code{integer(1)} Number of surveys simulated and fitted back
 at each household count.}
       \item{\code{houses}}{\code{integer()} One or more household counts to sweep.

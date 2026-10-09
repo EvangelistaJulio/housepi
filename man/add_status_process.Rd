@@ -4,10 +4,10 @@
 \alias{add_status_process}
 \title{Add a status process}
 \usage{
-add_status_process(hhmodel, ..., import = NULL)
+add_status_process(hh_model, ..., import = NULL)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{...}{Probabilities of the infected statuses, in order. When named, the
 names label the corresponding statuses: name all of them or none.}
@@ -31,17 +31,17 @@ constant and the probabilities must be data or numeric constants.
 }
 \examples{
 # simulate infected members as symptomatic (70\%) or asymptomatic (30\%)
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   add_status_process(symptomatic = 0.7, asymptomatic = 0.3)
-get_status_process(hhmodel)
-simulated <- run_simulation(hhmodel)
+get_status_process(hh_model)
+simulated <- run_simulation(hh_model)
 table(simulated$status)
 
 # the same probabilities, from a pre-built list
 probs <- list(symptomatic = 0.7, asymptomatic = 0.3)
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_status_process(import = probs)
 }

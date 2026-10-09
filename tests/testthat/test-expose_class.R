@@ -7,13 +7,13 @@ mk_wrapper <- local({
 
 # households over a member covariate the risk wrappers stratify on
 mk_member <- local({
-  hhmodel <- data.frame(
-    hhid = c(1, 1, 2, 2, 2),
+  hh_model <- data.frame(
+    hh_id = c(1, 1, 2, 2, 2),
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
   ) |>
     new_housepi_model("final-size")
-  list(model = hhmodel)
+  list(model = hh_model)
 })
 
 ###################################
@@ -46,12 +46,12 @@ test_that("Wrappers reject objects that are not a housepi model", {
 
 test_that("Data provided at construction is exposed via get_data_wide", {
   hhdata <- get_data_wide(new_housepi_model(flu_1918_baltimore, "test"))
-  colnames(hhdata) |> expect_contains(c("hhid", "status"))
+  colnames(hhdata) |> expect_contains(c("hh_id", "status"))
 
   # id automatically added
   hhdata$id |> expect_identical(as.character(seq_len(nrow(hhdata))))
-  # hhid cast to character
-  hhdata$hhid |> expect_identical(as.character(flu_1918_baltimore$hhid))
+  # hh_id cast to character
+  hhdata$hh_id |> expect_identical(as.character(flu_1918_baltimore$hh_id))
   # statuses are integer
   hhdata$status |> expect_identical(flu_1918_baltimore$status)
 })
@@ -150,37 +150,37 @@ test_that("Status probabilities import as a list or from the template", {
     add_status_process(import = "template") |>
     expect_error("[Ii]mpossible to use templated status process")
   expect_warning(
-    hhmodel <- add_status_process(mk_wrapper$model, import = "template"),
+    hh_model <- add_status_process(mk_wrapper$model, import = "template"),
     "[Nn]o template status process definitions.*test model"
   )
-  nrow(get_status_process(hhmodel)) |> expect_identical(0L)
+  nrow(get_status_process(hh_model)) |> expect_identical(0L)
 })
 
 test_that("A definition named like a single-mode argument is not dropped", {
-  hhmodel <- data.frame(hhid = "h1", status = 1, datum = 2) |>
+  hh_model <- data.frame(hh_id = "h1", status = 1, datum = 2) |>
     new_housepi_model("test")
   err <- "[Dd]efinition can.t be named"
 
   mk_wrapper$model |>
     add_parameter(rho = 1, min = 2, rho_2 = 3) |>
     expect_error(paste0(err, ".*min"))
-  hhmodel |>
+  hh_model |>
     add_latent(hidden = min(datum), value = 1) |>
     expect_error(paste0(err, ".*value"))
-  hhmodel |>
+  hh_model |>
     add_observation(record = min(datum), value = max(datum),
                     level = "house") |>
     expect_error(paste0(err, ".*value"))
   mk_member$model |>
     add_group_risk(community = "member", reference = ".auto") |>
     expect_error(paste0(err, ".*reference"))
-  data.frame(hhid = "h1", status = 1, start_date = 0, end_date = 20) |>
+  data.frame(hh_id = "h1", status = 1, start_date = 0, end_date = 20) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_infectivity_profile(discr = TRUE) |>
     expect_error(paste0(err, ".*discr"))
 
   # the arguments multiple mode reads apply to every definition
-  hhmodel |>
+  hh_model |>
     add_latent(hidden = min(datum), hidden_2 = max(datum), status = 1) |>
     get_latent() |>
     getElement("status") |>
@@ -199,22 +199,22 @@ test_that("Bulk import resolves symbols in the calling frame", {
 })
 
 test_that("add_observation routes every input branch on `level`", {
-  hhmodel <- data.frame(hhid = "h1", status = 1, record = 3, datum = 2) |>
+  hh_model <- data.frame(hh_id = "h1", status = 1, record = 3, datum = 2) |>
     new_housepi_model("test")
 
   # default level is member
-  hhmodel |>
+  hh_model |>
     add_observation("record", model = "normal") |>
     get_observations() |>
     getElement("level") |>
     expect_identical("member")
 
   # single, bulk and imported definitions
-  single <- hhmodel |>
+  single <- hh_model |>
     add_observation("record_2", value = min(datum), level = "house")
-  bulk <- hhmodel |>
+  bulk <- hh_model |>
     add_observation(record_2 = min(datum), level = "house")
-  imported <- hhmodel |>
+  imported <- hh_model |>
     add_observation(import = list(record_2 = quote(min(datum))),
                     level = "house")
 
@@ -223,11 +223,11 @@ test_that("add_observation routes every input branch on `level`", {
   get_observations(single)[["level"]] |> expect_identical("house")
 
   # a member-level function reaches the definition through `func`
-  single <- hhmodel |>
+  single <- hh_model |>
     add_observation("record_2", func = min(datum), status = 1)
-  bulk <- hhmodel |>
+  bulk <- hh_model |>
     add_observation(record_2 = list(func = min(datum), status = 1))
-  imported <- hhmodel |>
+  imported <- hh_model |>
     add_observation(
       import = list(record_2 = list(func = quote(min(datum)), status = 1))
     )
@@ -237,7 +237,7 @@ test_that("add_observation routes every input branch on `level`", {
   get_observations(single)[["func"]] |> expect_identical("min")
 
   # an unknown level is rejected before anything is stored
-  hhmodel |>
+  hh_model |>
     add_observation(record_2 = min(datum), level = "unknown") |>
     expect_error("should be one of")
 })
@@ -247,18 +247,18 @@ test_that("Reporting process wrapper replaces only the slots passed", {
   get_reporting_process(mk_wrapper$model) |>
     expect_identical(list(wide = NULL, long = NULL))
 
-  hhmodel <- mk_wrapper$model |>
+  hh_model <- mk_wrapper$model |>
     add_reporting_process(wide = identity, long = nrow)
   # an omitted slot is kept
-  hhmodel_2 <- add_reporting_process(hhmodel, long = ncol)
-  get_reporting_process(hhmodel_2) |>
+  hh_model_2 <- add_reporting_process(hh_model, long = ncol)
+  get_reporting_process(hh_model_2) |>
     expect_identical(list(wide = identity, long = ncol))
   # NULL removes a slot
-  add_reporting_process(hhmodel_2, wide = NULL) |>
+  add_reporting_process(hh_model_2, wide = NULL) |>
     get_reporting_process() |>
     expect_identical(list(wide = NULL, long = ncol))
   # the input model is left untouched
-  get_reporting_process(hhmodel) |>
+  get_reporting_process(hh_model) |>
     expect_identical(list(wide = identity, long = nrow))
 })
 
@@ -272,20 +272,20 @@ test_that("Reporting process wrapper rejects anything but a function", {
 })
 
 test_that("Advanced setup options route through `...`", {
-  hhmodel <- mk_wrapper$model |>
+  hh_model <- mk_wrapper$model |>
     add_parameter(rho = list(prior = "gamma", shape = 2, scale = 1))
 
   # a name that is no advanced option is rejected, closest match suggested
-  hhmodel |>
+  hh_model |>
     run_inference(adapt_windows = 2L) |>
     expect_error("adapt_windows.*adapt_window")
 
   # the adaptation window is carried to the engine and read back
-  hhmodel |>
+  hh_model |>
     run_inference(steps = 4L, thin = 1L, adapt = 4L, chains = 1L,
                   adapt_window = 2L) |>
     suppressWarnings()
-  hhmodel$setup$adapt_window |> expect_equal(2)
+  hh_model$setup$adapt_window |> expect_equal(2)
 })
 
 test_that("Progress bar prints every `progress` seconds until interrupted", {
@@ -317,39 +317,39 @@ test_that("Progress bar prints every `progress` seconds until interrupted", {
 ######################################
 
 test_that("Group risk wrapper input branches", {
-  hhmodel <- add_group_risk(mk_member$model, "community", by = "member")
-  groups <- get_group_risks(hhmodel)
+  hh_model <- add_group_risk(mk_member$model, "community", by = "member")
+  groups <- get_group_risks(hh_model)
   nrow(groups) |> expect_gt(0)
 
   # the bulk form overwrites the single one with the same definition
   expect_warning(
-    hhmodel_2 <- add_group_risk(hhmodel, community = "member"),
+    hh_model_2 <- add_group_risk(hh_model, community = "member"),
     "[Oo]verwriting.*community"
   )
-  get_group_risks(hhmodel_2) |> expect_identical(groups)
+  get_group_risks(hh_model_2) |> expect_identical(groups)
 
   # load custom definitions
   strata <- tibble::tribble(~member,   ~param_name,
                             "student", "sus_student",
                             NA,        ".reference")
-  hhmodel <- hhmodel |>
+  hh_model <- hh_model |>
     add_group_risk(
       susceptibility = list(strata = strata, params = list(sus_student = 1.23))
     )
-  get_parameters(hhmodel, "sus_student")$value |> expect_equal(1.23)
+  get_parameters(hh_model, "sus_student")$value |> expect_equal(1.23)
 
   # a covariate value the data never carries resolves no member
   strata <- tibble::tribble(~member,   ~param_name,
                             "unknown", "sus_student",
                             NA,        ".reference")
-  hhmodel |>
+  hh_model |>
     add_group_risk("susceptibility", strata = strata, append = FALSE) |>
     expect_error("1 rule no member resolves to.*member = .unknown.")
 
   # append = FALSE drops the existing group risks
-  ("susceptibility" %in% get_group_risks(hhmodel)[["group_risk"]]) |>
+  ("susceptibility" %in% get_group_risks(hh_model)[["group_risk"]]) |>
     expect_true()
-  hhmodel |>
+  hh_model |>
     add_group_risk(community = list(by = "member"), append = FALSE) |>
     get_group_risks() |>
     getElement("group_risk") |>
@@ -374,16 +374,16 @@ test_that("Contact risk wrapper input branches", {
     expect_error("[Ii]nvalid")
 
   # the wrapper returns a new model, leaving its input untouched
-  hhmodel <- mk_member$model |>
+  hh_model <- mk_member$model |>
     add_contact_risk(strata = strata, params = list(ctr_student = 1.21))
   mk_member$model$contact_risks |> expect_nrow(0L)
-  nrow(get_contact_risks(hhmodel)) |> expect_gt(0L)
-  get_contact_risks(hhmodel) |> expect_identical(hhmodel$contact_risks)
+  nrow(get_contact_risks(hh_model)) |> expect_gt(0L)
+  get_contact_risks(hh_model) |> expect_identical(hh_model$contact_risks)
   # the rebuilt parameter is exposed on the returned model
-  ("ctr_student" %in% get_parameters(hhmodel)$name) |> expect_true()
+  ("ctr_student" %in% get_parameters(hh_model)$name) |> expect_true()
 
   # second call warns about overwrite
-  hhmodel |>
+  hh_model |>
     add_contact_risk(strata = strata, params = list(ctr_student = 1.21)) |>
     expect_warning("[Oo]verwriting")
 })

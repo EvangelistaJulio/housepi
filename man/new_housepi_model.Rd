@@ -57,8 +57,8 @@ used to run inference and simulation routines.
 }
 \examples{
 # build a model from a template using a built-in dataset
-hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
-print(hhmodel)
+hh_model <- new_housepi_model(flu_1918_frederick, "final_size")
+print(hh_model)
 
 # 'test' template provides a minimal model for testing
 new_housepi_model(model = "test")

@@ -26,7 +26,7 @@ An observation standing for them is defined at household level, or from data col
 \item \code{alpha} \eqn{\alpha}{alpha} : baseline community instantaneous transmission risk
 \item \code{beta} \eqn{\beta}{beta} : baseline person-to-person instantaneous transmission rate
 \item \code{gamma} \eqn{\gamma}{gamma} : household-size scaling of person-to-person risk
-\item \code{hhsize_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
+\item \code{hh_size_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
 }
 }
 
@@ -86,7 +86,7 @@ for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_
 In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
 so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
 The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
-Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hhsize]{measure_geom_mean_hhsize()}} to keep them nearly uncorrelated.
+Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hh_size]{measure_geom_mean_hh_size()}} to keep them nearly uncorrelated.
 }
 
 \references{

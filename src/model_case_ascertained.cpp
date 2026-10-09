@@ -27,7 +27,7 @@ public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHmembervec)
 	HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevec)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtx, inst, cumul)
-	HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha, beta, gamma, hhsize_ref)
+	HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha, beta, gamma, hh_size_ref)
 
 	/// Declare data, parameter, risk and latent requirements.
 	void init_model_requirements() override final
@@ -37,7 +37,7 @@ public:
 		request_data_every_member(
 			{Data::start_date, Data::end_date});
 		request_param_positive(
-			{Param::alpha, Param::hhsize_ref});
+			{Param::alpha, Param::hh_size_ref});
 		request_risk_identifiability(
 			Param::alpha, {GroupRisk::community});
 		request_risk_identifiability(
@@ -85,7 +85,7 @@ public:
 	double transmission_rate(MemberIdx house_size) const
 	{
 		return par(Param::beta) *
-			   std::exp(par(Param::gamma) * std::log(par(Param::hhsize_ref) / house_size));
+			   std::exp(par(Param::gamma) * std::log(par(Param::hh_size_ref) / house_size));
 	}
 
 	/// Return end of follow-up of `indiv`: `end_date` is the last fully observed day, included.

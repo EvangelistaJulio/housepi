@@ -21,7 +21,7 @@ rd_model_out_ <- paste(
 rd_add_wide_ <- "`data.frame` Household data used for analysis (wide format).
 Optional at construction; if omitted, attach it later with
 [add_data_wide()][housepi::add_data_wide]."
-rd_hhid_ <- "`character(1)` ID of the household of interest."
+rd_hh_id_ <- "`character(1)` ID of the household of interest."
 rd_mdl_choice_ <- "`character(1)` Choice for the model.
 One between:
 \\describe{
@@ -270,8 +270,8 @@ call that ran it:
 #' @return `r rd_model_in_`
 #' @examples
 #' # build a model from a template using a built-in dataset
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
-#' print(hhmodel)
+#' hh_model <- new_housepi_model(flu_1918_frederick, "final_size")
+#' print(hh_model)
 #'
 #' # 'test' template provides a minimal model for testing
 #' new_housepi_model(model = "test")
@@ -290,9 +290,9 @@ new_housepi_model <- function(data = NULL, model = NA_character_,
 ############################################################################
 
 # Ensure object of class HousepiModel.
-stopifnothousepi <- function(hhmodel) {
-  if (!inherits(hhmodel, "HousepiModel")) stop_h(
-    "{.arg hhmodel} must be of class {.cls HousepiModel}.",
+stopifnothousepi <- function(hh_model) {
+  if (!inherits(hh_model, "HousepiModel")) stop_h(
+    "{.arg hh_model} must be of class {.cls HousepiModel}.",
     "Create one with {.fn new_housepi_model}."
   )
 }
@@ -303,19 +303,19 @@ stopifnothousepi <- function(hhmodel) {
 #' (re)building any definitions that depend on it.
 #' An empty cell of a categorical column is missing data, not a category of
 #' its own: recode it to a label of your choice to stratify on it.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param data `r rd_add_wide_`
 #' @return `r rd_model_out_`
 #' @examples
 #' # construct the model first, attach the data afterwards
-#' hhmodel <- new_housepi_model(model = "final_size") |>
+#' hh_model <- new_housepi_model(model = "final_size") |>
 #'   add_data_wide(flu_1918_frederick)
-#' summarise_house_cases(hhmodel)
+#' summarise_house_cases(hh_model)
 #' @export
-add_data_wide <- function(hhmodel, data) {
-  stopifnothousepi(hhmodel)
+add_data_wide <- function(hh_model, data) {
+  stopifnothousepi(hh_model)
   if (is.null(data)) stop_h("Missing argument {.arg data}.")
-  new_obj <- hhmodel$copy()
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
   # drop stale risk params (read pre-change tables) before re-importing data
   pvt$drop_stale_risk_params_()
@@ -327,21 +327,21 @@ add_data_wide <- function(hhmodel, data) {
 #' @title Attach individual-level long-format data to a housepi model
 #' @description
 #' Make an internal copy of the provided data in long format.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param data_long `data.frame` Additional individual long format data.
 #' @return `r rd_model_out_`
 #' @examples
 #' # repeated measures of one individual, matched on `id`
 #' measures <- data.frame(id = "hh001m02", day = 1:3,
 #'                        viral_load = c(5.2, 6.8, 4.1))
-#' hhmodel <- sarscov2_2021_icofs |>
+#' hh_model <- sarscov2_2021_icofs |>
 #'   new_housepi_model("case-ascertained") |>
 #'   add_data_long(measures)
-#' get_data_long(hhmodel)
+#' get_data_long(hh_model)
 #' @export
-add_data_long <- function(hhmodel, data_long) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
+add_data_long <- function(hh_model, data_long) {
+  stopifnothousepi(hh_model)
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
   pvt$gen_$import_data_long(data_long)
   pvt$rebuild_()
@@ -353,7 +353,7 @@ add_data_long <- function(hhmodel, data_long) {
 #' Summarise cases as given from the statuses in the loaded household data.
 #' The row `classes`, counts the equivalence classes:
 #' households indistinguishable by the model (same size, statuses, risk, etc.).
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @return `data.frame`, one row per metric:
 #' \describe{
 #'   \item{level}{`individual` or `household`}
@@ -362,12 +362,12 @@ add_data_long <- function(hhmodel, data_long) {
 #'   \item{percent}{percentage of the relevant total, `NA` for `classes`}
 #' }
 #' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size")
-#' summarise_house_cases(hhmodel)
+#' hh_model <- new_housepi_model(flu_1918_frederick, "final_size")
+#' summarise_house_cases(hh_model)
 #' @export
-summarise_house_cases <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  pvt <- hhmodel$.__enclos_env__$private
+summarise_house_cases <- function(hh_model) {
+  stopifnothousepi(hh_model)
+  pvt <- hh_model$.__enclos_env__$private
   .engine$summarise_house_cases(pvt$gen_$mcmc_ptr)
 }
 
@@ -405,7 +405,7 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' a deterministic observation stands in for carries the derived value, not the
 #' imported one. A column an observation produces without standing in for data
 #' is not part of the dataset, and is reported by [get_observations()].
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param name `character()`. Names of the definitions to return.
 #' `get_group_risks()` matches the name of the group risk.
 #' All of them when `NA` (default).
@@ -414,81 +414,81 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' `get_reporting_process()` returns `list(wide = , long = )`, see
 #' [add_reporting_process()].
 #' @examples
-#' hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
+#' hh_model <- new_housepi_model(flu_1918_frederick, "final_size") |>
 #'   add_parameter(import = "template")
-#' get_data_wide(hhmodel) |>
+#' get_data_wide(hh_model) |>
 #'   head()
-#' get_parameters(hhmodel)
-#' get_parameters(hhmodel, name = c("alpha", "beta"))
+#' get_parameters(hh_model)
+#' get_parameters(hh_model, name = c("alpha", "beta"))
 #' @rdname get_definitions
 #' @export
-get_data_wide <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
+get_data_wide <- function(hh_model) {
+  stopifnothousepi(hh_model)
   # UPDATE: drop active getter fields and move logic here
-  hhmodel$data_wide
+  hh_model$data_wide
 }
 
 #' @rdname get_definitions
 #' @export
-get_data_long <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  hhmodel$data_long
+get_data_long <- function(hh_model) {
+  stopifnothousepi(hh_model)
+  hh_model$data_long
 }
 
 #' @rdname get_definitions
 #' @export
-get_parameters <- function(hhmodel, name = NA) {
-  stopifnothousepi(hhmodel)
-  subset_definitions_(hhmodel$parameters, name)
+get_parameters <- function(hh_model, name = NA) {
+  stopifnothousepi(hh_model)
+  subset_definitions_(hh_model$parameters, name)
 }
 
 #' @rdname get_definitions
 #' @export
-get_latent <- function(hhmodel, name = NA) {
-  stopifnothousepi(hhmodel)
-  subset_definitions_(hhmodel$latent, name)
+get_latent <- function(hh_model, name = NA) {
+  stopifnothousepi(hh_model)
+  subset_definitions_(hh_model$latent, name)
 }
 
 #' @rdname get_definitions
 #' @export
-get_observations <- function(hhmodel, name = NA) {
-  stopifnothousepi(hhmodel)
-  subset_definitions_(hhmodel$observations, name)
+get_observations <- function(hh_model, name = NA) {
+  stopifnothousepi(hh_model)
+  subset_definitions_(hh_model$observations, name)
 }
 
 #' @rdname get_definitions
 #' @export
-get_status_process <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  hhmodel$status_process
+get_status_process <- function(hh_model) {
+  stopifnothousepi(hh_model)
+  hh_model$status_process
 }
 
 #' @rdname get_definitions
 #' @export
-get_group_risks <- function(hhmodel, name = NA) {
-  stopifnothousepi(hhmodel)
-  subset_definitions_(hhmodel$group_risks, name, "group_risk")
+get_group_risks <- function(hh_model, name = NA) {
+  stopifnothousepi(hh_model)
+  subset_definitions_(hh_model$group_risks, name, "group_risk")
 }
 
 #' @rdname get_definitions
 #' @export
-get_contact_risks <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  hhmodel$contact_risks
+get_contact_risks <- function(hh_model) {
+  stopifnothousepi(hh_model)
+  hh_model$contact_risks
 }
 
 #' @rdname get_definitions
 #' @export
-get_infectivity_profiles <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  hhmodel$infectivity_profiles
+get_infectivity_profiles <- function(hh_model) {
+  stopifnothousepi(hh_model)
+  hh_model$infectivity_profiles
 }
 
 #' @rdname get_definitions
 #' @export
-get_reporting_process <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  hhmodel$reporting_process
+get_reporting_process <- function(hh_model) {
+  stopifnothousepi(hh_model)
+  hh_model$reporting_process
 }
 
 ############################################################################
@@ -519,7 +519,7 @@ assert_bulk_defs_ <- function(family, dots, has_template = FALSE) {
 # `listed` are the formals the list-like modes read besides `...`, `import`
 # and `append`.
 single_args_ <- function(call, listed) {
-  setdiff(names(call)[-1], c("hhmodel", "...", "import", "append", listed))
+  setdiff(names(call)[-1], c("hh_model", "...", "import", "append", listed))
 }
 
 # Reject a `...` definition bound to a formal only single mode reads.
@@ -609,7 +609,7 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 #' Add parameter(s) to a housepi model.
 #' If a parameter with the same name exists, the former gets overwritten.
 #' `r rd_add_modes_`
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `numeric(1)` `r rd_var_val_("prior")`
 #' @param const `r rd_var_const_`
@@ -626,28 +626,28 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 #' @return `r rd_model_out_`
 #' @examples
 #' # the single, inline-bulk and list-bulk forms compose freely in a pipe
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   # single: alpha, with a uniform prior and a lognormal random-walk proposal
 #'   add_parameter("alpha", prior = "uniform", proposal = "rw_log") |>
 #'   # single: beta, fixed to a constant
 #'   add_parameter("beta", value = 0.3, const = TRUE) |>
 #'   # inline bulk: several definitions as `name = value` pairs
-#'   add_parameter(gamma = 1, hhsize_ref = 4)
+#'   add_parameter(gamma = 1, hh_size_ref = 4)
 #'
 #' # list bulk: load a pre-built named list of definitions through `import`
-#' my_import <- list(gamma = 1, hhsize_ref = 4)
-#' hhmodel <- flu_1918_frederick |>
+#' my_import <- list(gamma = 1, hh_size_ref = 4)
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = my_import)
 #'
 #' # `"template"` loads the definitions shipped with the model
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' get_parameters(hhmodel)
+#' get_parameters(hh_model)
 #' @export
-add_parameter <- function(hhmodel,
+add_parameter <- function(hh_model,
                           name = NULL, value = NULL, ...,
                           const = NA, discr = NA,
                           prior = NA_character_,
@@ -655,8 +655,8 @@ add_parameter <- function(hhmodel,
                           min = NULL, max = NULL,
                           proposal = NA_character_,
                           import = NULL, append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
+  stopifnothousepi(hh_model)
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
 
   #> template, import and multiple modes
@@ -695,7 +695,7 @@ add_parameter <- function(hhmodel,
 #' probability, and inference samples it flat within `min` and `max`.
 #' In simulation, transmission sets it, except where it does not, such as the
 #' first infection of a household, which takes `value`.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_aug_val_`
 #' @param status `r rd_aug_status_`
@@ -715,13 +715,13 @@ add_parameter <- function(hhmodel,
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @examples
-#' hhmodel <- dummy_household |>
+#' hh_model <- dummy_household |>
 #'   new_housepi_model("test") |>
 #'   # define an incubation period drawn from a gamma distribution
 #'   add_latent("incub_period",
 #'                 model = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
-add_latent <- function(hhmodel,
+add_latent <- function(hh_model,
                        name = NULL, value = NULL, ...,
                        status = NA_integer_, const = NA, discr = NA,
                        func = NULL,
@@ -729,8 +729,8 @@ add_latent <- function(hhmodel,
                        min = NULL, max = NULL,
                        proposal = NA_character_,
                        import = NULL, append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
+  stopifnothousepi(hh_model)
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
 
   #> template, import and multiple modes
@@ -771,7 +771,7 @@ add_latent <- function(hhmodel,
 #' it is evaluated for every member, and overwrites data of the same name.
 #'
 #' `r rd_add_modes_`
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param model `character(1)` Choice for the observation model distribution.
 #' Reserved to member-level observations.
@@ -791,7 +791,7 @@ add_latent <- function(hhmodel,
 #' @param append `r rd_list_append_`
 #' @return `r rd_model_out_`
 #' @examples
-#' hhmodel <- sarscov2_2021_icofs |>
+#' hh_model <- sarscov2_2021_icofs |>
 #'   new_housepi_model("case-ascertained") |>
 #'   add_parameter(import = "template") |>
 #'   add_infectivity_profile(import = "template") |>
@@ -805,18 +805,18 @@ add_latent <- function(hhmodel,
 #'                   mean = onset_time, sd = 1, min = floor(onset_time)) |>
 #'   # house level: the earliest positive test among members
 #'   add_observation("first_test", value = min(test_date), level = "house")
-#' get_observations(hhmodel)
+#' get_observations(hh_model)
 #' @export
-add_observation <- function(hhmodel, name = NULL,
+add_observation <- function(hh_model, name = NULL,
                             model = NA_character_, ...,
                             level = c("member", "house"), value = NULL,
                             func = NULL, status = NA_integer_, discr = NA,
                             min = NULL, max = NULL,
                             import = NULL, append = TRUE) {
-  stopifnothousepi(hhmodel)
+  stopifnothousepi(hh_model)
   # bulk default: a per-definition 'level =' overrides it (see add_quo)
   level <- match.arg(level)
-  new_obj <- hhmodel$copy()
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
 
   #> import and multiple modes
@@ -845,7 +845,7 @@ add_observation <- function(hhmodel, name = NULL,
 #' infected status); when named, the names become the status labels.
 #' During evaluation the status is fixed observed data, so it contributes a
 #' constant and the probabilities must be data or numeric constants.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param ... Probabilities of the infected statuses, in order. When named, the
 #' names label the corresponding statuses: name all of them or none.
 #' @param import Named `list` of probabilities of the infected statuses, read
@@ -856,23 +856,23 @@ add_observation <- function(hhmodel, name = NULL,
 #' @return `r rd_model_out_`
 #' @examples
 #' # simulate infected members as symptomatic (70%) or asymptomatic (30%)
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   add_status_process(symptomatic = 0.7, asymptomatic = 0.3)
-#' get_status_process(hhmodel)
-#' simulated <- run_simulation(hhmodel)
+#' get_status_process(hh_model)
+#' simulated <- run_simulation(hh_model)
 #' table(simulated$status)
 #'
 #' # the same probabilities, from a pre-built list
 #' probs <- list(symptomatic = 0.7, asymptomatic = 0.3)
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_status_process(import = probs)
 #' @export
-add_status_process <- function(hhmodel, ..., import = NULL) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
+add_status_process <- function(hh_model, ..., import = NULL) {
+  stopifnothousepi(hh_model)
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
   weights <- rlang::enquos(...)
   env <- rlang::caller_env()
@@ -914,7 +914,7 @@ add_status_process <- function(hhmodel, ..., import = NULL) {
 #' @title Add a stratified group risk definition
 #' @description `r rd_risk_desc_("group")`
 #' `r rd_add_modes_`
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `list` Covariates associated to group risk as data headers.
 #' Corresponding data columns have to be categorical.
@@ -934,22 +934,22 @@ add_status_process <- function(hhmodel, ..., import = NULL) {
 #' \insertRef{cauchemez_household_2009}{housepi}
 #' @return `r rd_model_out_`
 #' @examples
-#' hhmodel <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
+#' hh_model <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
 #'
 #' # single: one susceptibility parameter per age class
-#' hhmodel |>
+#' hh_model |>
 #'   add_group_risk("susceptibility", by = "age") |>
 #'   get_group_risks()
 #'
 #' # inline bulk: relative risks, against a chosen or the most frequent group
-#' hhmodel |>
+#' hh_model |>
 #'   add_group_risk(
 #'     infectivity = list(by = "isolated", reference = ".auto"),
 #'     susceptibility = list(by = "vacc_status", reference = "unvaccinated")
 #'   ) |>
 #'   get_parameters()
 #' @export
-add_group_risk <-  function(hhmodel,
+add_group_risk <-  function(hh_model,
                             name = NULL, by = NA_character_, ...,
                             reference = NULL, joint = FALSE,
                             strata = NULL, params = NULL,
@@ -958,8 +958,8 @@ add_group_risk <-  function(hhmodel,
                             proposal = NA_character_,
                             prefix = NA_character_,
                             import = NULL, append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
+  stopifnothousepi(hh_model)
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
 
   # drop stale parameters and re-derive in `rebuild_()`
@@ -990,7 +990,7 @@ add_group_risk <-  function(hhmodel,
 
 #' @title Add a pairwise contact risk definition
 #' @description `r rd_risk_desc_("contact")`
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param by `character()` Covariates for from/to matching as data headers.
 #' Corresponding data columns have to be categorical.
 #' @param reference `r rd_risk_reference_("pair")`
@@ -1012,19 +1012,19 @@ add_group_risk <-  function(hhmodel,
 #' Cannot be combined with the single definition.
 #' @return `r rd_model_out_`
 #' @examples
-#' hhmodel <- new_housepi_model(flu_2014_matsumoto, "final_size")
+#' hh_model <- new_housepi_model(flu_2014_matsumoto, "final_size")
 #'
 #' # one parameter per pair of family roles, relative to the most frequent pair
-#' hhmodel |>
+#' hh_model |>
 #'   add_contact_risk("member", reference = ".auto") |>
 #'   get_contact_risks()
 #'
 #' # asymmetric: infector-infectee and infectee-infector pairs differ
-#' hhmodel |>
+#' hh_model |>
 #'   add_contact_risk("member", symmetric = FALSE) |>
 #'   get_contact_risks()
 #' @export
-add_contact_risk <- function(hhmodel, by = NA_character_, ...,
+add_contact_risk <- function(hh_model, by = NA_character_, ...,
                              reference = NULL,
                              joint = FALSE, symmetric = TRUE,
                              strata = NULL, params = NULL,
@@ -1033,8 +1033,8 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
                              proposal = NA_character_,
                              prefix = NA_character_,
                              import = NULL) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
+  stopifnothousepi(hh_model)
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
   pvt$assert_feature_supported_(pvt$gen_$has_contact_risk,
                                 "Contact risks")
@@ -1063,7 +1063,7 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 #' @description
 #' Add definitions for the infectivity profiles.
 #' `r rd_add_modes_`
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param func `r rd_var_name_`
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_var_discr_("profile", "the model time discretization")`
@@ -1076,18 +1076,18 @@ add_contact_risk <- function(hhmodel, by = NA_character_, ...,
 #' @return `r rd_model_out_`
 #' @examples
 #' # `"template"` loads the profile shipped with the model
-#' hhmodel <- sarscov2_2021_icofs |>
+#' hh_model <- sarscov2_2021_icofs |>
 #'   new_housepi_model("case-ascertained") |>
 #'   add_infectivity_profile(import = "template")
-#' get_infectivity_profiles(hhmodel)
+#' get_infectivity_profiles(hh_model)
 #' @export
-add_infectivity_profile <- function(hhmodel,
+add_infectivity_profile <- function(hh_model,
                                     func = NULL, ...,
                                     status = NA_integer_, discr = NA,
                                     min = NULL, max = NULL,
                                     import = NULL, append = TRUE) {
-  stopifnothousepi(hhmodel)
-  new_obj <- hhmodel$copy()
+  stopifnothousepi(hh_model)
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
   pvt$assert_feature_supported_(pvt$gen_$has_infec_profile,
                                 "Infectivity profiles")
@@ -1119,7 +1119,7 @@ add_infectivity_profile <- function(hhmodel,
 #' @details
 #' Inference does not model the reporting process,
 #' which introduces a misspecification.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param wide `function` | `NULL`. Turns a simulated `data_wide` into the
 #' reported `data_wide`. `NULL` removes it.
 #' @param long `function` | `NULL`. Turns the reported `data_wide` into a
@@ -1140,13 +1140,13 @@ add_infectivity_profile <- function(hhmodel,
 #'   run_simulation() |>
 #'   head()
 #' @export
-add_reporting_process <- function(hhmodel, wide, long) {
-  stopifnothousepi(hhmodel)
+add_reporting_process <- function(hh_model, wide, long) {
+  stopifnothousepi(hh_model)
   if (missing(wide) && missing(long)) stop_h(
     "No reporting process given.",
     "Pass a function to {.arg wide}, {.arg long} or both."
   )
-  new_obj <- hhmodel$copy()
+  new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
   if (!missing(wide)) pvt$set_reporting_process_("wide", wide)
   if (!missing(long)) pvt$set_reporting_process_("long", long)
@@ -1163,8 +1163,8 @@ add_reporting_process <- function(hhmodel, wide, long) {
 #' transmission plus observation.
 #' For models with latent variables
 #' this is conditioned on current latent values.
-#' @param hhmodel `r rd_model_in_`
-#' @param hhid `r rd_hhid_`
+#' @param hh_model `r rd_model_in_`
+#' @param hh_id `r rd_hh_id_`
 #' If `NA` (default) it computes for the whole data.
 #' @return `numeric(1)`. The complete-data log-likelihood.
 #' `r rd_natural_log_`
@@ -1174,31 +1174,31 @@ add_reporting_process <- function(hhmodel, wide, long) {
 #'   add_parameter(import = "template") |>
 #'   evaluate_log_lik()
 #' @export
-evaluate_log_lik <- function(hhmodel, hhid = NA_character_) {
-  stopifnothousepi(hhmodel)
-  pvt <- hhmodel$.__enclos_env__$private
+evaluate_log_lik <- function(hh_model, hh_id = NA_character_) {
+  stopifnothousepi(hh_model)
+  pvt <- hh_model$.__enclos_env__$private
   pvt$build_full_()
-  .engine$evaluate_log_lik(pvt$gen_$mcmc_ptr, hhid)
+  .engine$evaluate_log_lik(pvt$gen_$mcmc_ptr, hh_id)
 }
 
 #' @title Inspect the augmented data of a housepi model
 #' @description
 #' Read the dataset of a `HousepiModel` with its latent variables.
 #' `r rd_inspect_state_`
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @return `data.frame`, the dataset with its latent variables.
 #' @seealso [inspect_house_state()]
 #' @examples
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' evaluate_log_lik(hhmodel)
-#' inspect_augmented_data(hhmodel) |>
+#' evaluate_log_lik(hh_model)
+#' inspect_augmented_data(hh_model) |>
 #'   head()
 #' @export
-inspect_augmented_data <- function(hhmodel) {
-  stopifnothousepi(hhmodel)
-  gen <- hhmodel$.__enclos_env__$private$gen_
+inspect_augmented_data <- function(hh_model) {
+  stopifnothousepi(hh_model)
+  gen <- hh_model$.__enclos_env__$private$gen_
   gen$refactor_data_wide(.engine$export_augmented_data_wide(gen$mcmc_ptr))
 }
 
@@ -1206,24 +1206,24 @@ inspect_augmented_data <- function(hhmodel) {
 #' @description
 #' Read all the variables a `HousepiModel` holds for one household.
 #' `r rd_inspect_state_`
-#' @param hhmodel `r rd_model_in_`
-#' @param hhid `r rd_hhid_`
+#' @param hh_model `r rd_model_in_`
+#' @param hh_id `r rd_hh_id_`
 #' @return `list`, all variables of the household.
 #' Entries are named after the homonymous active fields, followed by the
 #' latent, observation and transmission log-likelihood contributions.
 #' An empty definition is dropped unless the model requires it.
 #' @seealso [inspect_augmented_data()]
 #' @examples
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' evaluate_log_lik(hhmodel)
-#' inspect_house_state(hhmodel, "1")
+#' evaluate_log_lik(hh_model)
+#' inspect_house_state(hh_model, "1")
 #' @export
-inspect_house_state <- function(hhmodel, hhid) {
-  stopifnothousepi(hhmodel)
-  gen <- hhmodel$.__enclos_env__$private$gen_
-  out <- .engine$export_house_snapshot(gen$mcmc_ptr, as.character(hhid))
+inspect_house_state <- function(hh_model, hh_id) {
+  stopifnothousepi(hh_model)
+  gen <- hh_model$.__enclos_env__$private$gen_
+  out <- .engine$export_house_snapshot(gen$mcmc_ptr, as.character(hh_id))
   out$data_wide <- gen$refactor_data_wide(out$data_wide)
   ## data long
   if (all(dim(out$data_long) == 0)) out$data_long <- NULL
@@ -1255,7 +1255,7 @@ inspect_house_state <- function(hhmodel, hhid) {
 #' Run inference with Bayesian Markov Chain Monte Carlo, by the
 #' component-wise Metropolis-Hastings algorithm
 #' \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
 #' @param burn `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
@@ -1265,7 +1265,7 @@ inspect_house_state <- function(hhmodel, hhid) {
 #' @param id_draws Infected members whose public latent draws are stored.
 #' Either a `character()` of individual identifiers,
 #' or a `list` with entries `id` (individual identifiers)
-#' and/or `hhid` (whole household infected members are stored).
+#' and/or `hh_id` (whole household infected members are stored).
 #' If `NA`, one random eligible household is followed (default).
 #' Pass `".none"` to store nothing.
 #' @param progress `r rd_progress_`
@@ -1289,7 +1289,7 @@ inspect_house_state <- function(hhmodel, hhid) {
 #'   get_parameter_draws() |>
 #'   posterior::summarize_draws()
 #' @export
-run_inference <- function(hhmodel,
+run_inference <- function(hh_model,
                           steps = 1000L, burn = 0L,
                           thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
@@ -1297,27 +1297,27 @@ run_inference <- function(hhmodel,
                           progress = TRUE,
                           warn = TRUE,
                           ...) {
-  stopifnothousepi(hhmodel)
+  stopifnothousepi(hh_model)
   # the whole run is quiet, its build included
   local_quiet_warnings_(!warn)
-  ptr <- prepare_inference_(hhmodel, steps, burn, thin, adapt, chains,
+  ptr <- prepare_inference_(hh_model, steps, burn, thin, adapt, chains,
                             threads, id_draws, draw_seed_(), ...)
   with_progress_(progress, "sample", 1, function(bar) {
-    wrap_inference_(hhmodel, .engine$run_inference_list(list(ptr), 1L, bar))
+    wrap_inference_(hh_model, .engine$run_inference_list(list(ptr), 1L, bar))
   })
 }
 
-#' Build the engine of `hhmodel` for inference, seeded at `seed`.
+#' Build the engine of `hh_model` for inference, seeded at `seed`.
 #' Shared by [run_inference()] and the replicate sweep.
 #' @return The engine pointer.
 #' @noRd
-prepare_inference_ <- function(hhmodel, steps, burn, thin, adapt, chains,
+prepare_inference_ <- function(hh_model, steps, burn, thin, adapt, chains,
                                threads, id_draws, seed, ...) {
   assert_advanced_setup_("adapt_window", ...)
   setup <- resolve_setup_(steps, burn, thin, adapt, chains, ...)
   id_draws <- resolve_id_draws_(id_draws)
-  assert_posterior_memory_(hhmodel, setup$total, id_draws)
-  pvt <- hhmodel$.__enclos_env__$private
+  assert_posterior_memory_(hh_model, setup$total, id_draws)
+  pvt <- hh_model$.__enclos_env__$private
   pvt$build_full_(
     steps = setup$steps, burn = burn, thin = thin, adapt = adapt,
     chains = chains, threads = threads, id_draws = id_draws,
@@ -1326,25 +1326,25 @@ prepare_inference_ <- function(hhmodel, steps, burn, thin, adapt, chains,
   pvt$gen_$mcmc_ptr
 }
 
-#' Stop when `n_sample` posterior draws of `hhmodel` would not fit under R's
+#' Stop when `n_sample` posterior draws of `hh_model` would not fit under R's
 #' vector memory limit, in the room the memory in use leaves. No limit, no
 #' check: R raises no error then.
 #' @noRd
-assert_posterior_memory_ <- function(hhmodel, n_sample, id_draws) {
+assert_posterior_memory_ <- function(hh_model, n_sample, id_draws) {
   max_bytes <- mem.maxVSize() * 2^20 # limit in bytes
   if (!is.finite(max_bytes)) return(invisible())
-  pvt <- hhmodel$.__enclos_env__$private
+  pvt <- hh_model$.__enclos_env__$private
   # UPDATE: n. of latent/parameters might be smaller if functions/private
   n_param_cols <- 2L * NROW(pvt$param_$defs)
   n_latent_defs <- NROW(pvt$augm_$defs)
   # structural upper bound: every named/default household counts as its
   # largest possible size (status filtering happens in the engine)
-  hhid <- hhmodel$data_wide$hhid
-  max_hhsize <- if (!length(hhid)) 1L else max(table(hhid))
+  hh_id <- hh_model$data_wide$hh_id
+  max_hh_size <- if (!length(hh_id)) 1L else max(table(hh_id))
   n_members_upper <- length(unique(id_draws$id)) +
-    length(unique(id_draws$hhid)) * max_hhsize
+    length(unique(id_draws$hh_id)) * max_hh_size
   total_cols <- n_param_cols + n_members_upper * n_latent_defs +
-    length(unique(hhid)) + 1L
+    length(unique(hh_id)) + 1L
   # the column-by-sample product exceeds the 32-bit range on large runs
   needed <- 8 * as.double(n_sample) * as.double(total_cols)
   # a minor collection overstates the memory in use: room under it holds, and
@@ -1363,12 +1363,12 @@ assert_posterior_memory_ <- function(hhmodel, n_sample, id_draws) {
   )
 }
 
-#' Posterior draws of the engine of `hhmodel`, entry `i` of the engine run
+#' Posterior draws of the engine of `hh_model`, entry `i` of the engine run
 #' `ran`, or the error that stopped the run, rendered as any engine error.
 #' @noRd
-wrap_inference_ <- function(hhmodel, ran, i = 1L) {
+wrap_inference_ <- function(hh_model, ran, i = 1L) {
   if (!is.null(ran$error)) with_cpp_conditions(stop(ran$error))
-  gen <- hhmodel$.__enclos_env__$private$gen_
+  gen <- hh_model$.__enclos_env__$private$gen_
   HousepiPosteriorDraws$new(gen$raw_name, gen$mcmc_ptr, ran$seconds[[i]])
 }
 
@@ -1378,7 +1378,7 @@ wrap_inference_ <- function(hhmodel, ran, i = 1L) {
 #' It assumes the same community structure of the loaded data.
 #' Eventually, generated data goes through the reporting process
 #' (see  [add_reporting_process()]).
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param nrep `r rd_nrep_`
 #' @param thin_ess `r rd_thin_ess_`
@@ -1397,13 +1397,13 @@ wrap_inference_ <- function(hhmodel, ran, i = 1L) {
 #'   run_simulation() |>
 #'   head()
 #' @export
-run_simulation <- function(hhmodel,
+run_simulation <- function(hh_model,
                            param_table = NULL,
                            nrep = NA_integer_,
                            thin_ess = TRUE,
                            ...) {
   output <- simulate_with_parameters_(
-    hhmodel, param_table = param_table, thin_ess = thin_ess, nrep = nrep, ...
+    hh_model, param_table = param_table, thin_ess = thin_ess, nrep = nrep, ...
   )
   output$parameters <- NULL
   # the arguments, not the replicates left after thinning, ask for one frame
@@ -1415,21 +1415,21 @@ run_simulation <- function(hhmodel,
   if (length(output) == 1) output[[1]] else output
 }
 
-#' Simulate from `hhmodel` as [run_simulation()] does, returning the lists of
+#' Simulate from `hh_model` as [run_simulation()] does, returning the lists of
 #' `wide` and `long` surveys, one frame per replicate, and `parameters`: the
 #' values each replicate is simulated at, pinned or drawn from the prior, one
 #' row per replicate.
 #' @keywords internal
 #' @noRd
-simulate_with_parameters_ <- function(hhmodel,
+simulate_with_parameters_ <- function(hh_model,
                                       param_table = NULL,
                                       nrep = NA_integer_,
                                       thin_ess = TRUE,
                                       ...) {
-  stopifnothousepi(hhmodel)
+  stopifnothousepi(hh_model)
   # simulation specific build
   assert_advanced_setup_("time_step", ...)
-  pvt <- hhmodel$.__enclos_env__$private
+  pvt <- hh_model$.__enclos_env__$private
   pvt$helper_simulation_build_(
     param_table = param_table, nrep = nrep, thin_ess = thin_ess, ...
   )

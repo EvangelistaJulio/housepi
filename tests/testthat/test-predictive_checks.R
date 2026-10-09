@@ -2,20 +2,20 @@ library(testthat)
 
 # templated chain-binomial model and one short inference run on it
 mk_ppc <- local({
-  hhmodel <- flu_1918_frederick |>
+  hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
-  results <- hhmodel |>
+  results <- hh_model |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings()
-  list(model = hhmodel, results = results)
+  list(model = hh_model, results = results)
 })
 
 # three households of sizes two, three and two
 mk_houses <- local({
   hhdata <- data.frame(
     id = paste0("m", 1:7),
-    hhid = c(rep("h1", 2), rep("h2", 3), rep("h3", 2)),
+    hh_id = c(rep("h1", 2), rep("h2", 3), rep("h3", 2)),
     status = c(1, 1, 1, 0, 0, 1, 0)
   )
   list(data = hhdata)
@@ -26,112 +26,112 @@ mk_houses <- local({
 ######################################
 
 test_that("Measures require the columns they aggregate over", {
-  mk_houses$data[c("id", "hhid")] |>
-    measure_sar_by_hhsize() |>
+  mk_houses$data[c("id", "hh_id")] |>
+    measure_sar_by_hh_size() |>
     expect_error("status")
 
   # without a household identifier every row would count as its own household
   mk_houses$data[c("id", "status")] |>
-    measure_sar_by_hhsize() |>
-    expect_error("hhid")
+    measure_sar_by_hh_size() |>
+    expect_error("hh_id")
 })
 
 test_that("Attack rate is averaged per household size", {
-  # empty call: columns c(hhsize, ar)
-  measure_ar_by_hhsize(NULL) |>
+  # empty call: columns c(hh_size, ar)
+  measure_ar_by_hh_size(NULL) |>
     dim() |>
     expect_identical(c(0L, 2L))
 
-  result <- measure_ar_by_hhsize(mk_houses$data)
-  result |> expect_named(c("hhsize", "ar"), ignore.order = TRUE)
+  result <- measure_ar_by_hh_size(mk_houses$data)
+  result |> expect_named(c("hh_size", "ar"), ignore.order = TRUE)
   # size 2: mean of AR 2/2 (h1) and 1/2 (h3) = 0.75
-  result[result$hhsize == 2, "ar"] |> expect_equal(0.75)
+  result[result$hh_size == 2, "ar"] |> expect_equal(0.75)
   # size 3: AR = 1/3
-  result[result$hhsize == 3, "ar"] |> expect_equal(1 / 3)
+  result[result$hh_size == 3, "ar"] |> expect_equal(1 / 3)
 })
 
 test_that("Secondary attack rate is averaged per household size", {
-  # empty call: columns c(hhsize, sar)
-  measure_sar_by_hhsize(NULL) |>
+  # empty call: columns c(hh_size, sar)
+  measure_sar_by_hh_size(NULL) |>
     dim() |>
     expect_identical(c(0L, 2L))
 
-  result <- measure_sar_by_hhsize(mk_houses$data)
-  result |> expect_named(c("hhsize", "sar"), ignore.order = TRUE)
+  result <- measure_sar_by_hh_size(mk_houses$data)
+  result |> expect_named(c("hh_size", "sar"), ignore.order = TRUE)
   # size 2: mean of SAR 1.0 (h1) and 0.0 (h3) = 0.5
-  result[result$hhsize == 2, "sar"] |> expect_equal(0.5)
+  result[result$hh_size == 2, "sar"] |> expect_equal(0.5)
   # size 3: SAR = (1-1)/(3-1) = 0
-  result[result$hhsize == 3, "sar"] |> expect_equal(0)
+  result[result$hh_size == 3, "sar"] |> expect_equal(0)
 })
 
 test_that("Cases are tabulated on the complete household size grid", {
-  # empty call: columns c(hhsize, 0)
-  measure_cases_by_hhsize(NULL) |>
+  # empty call: columns c(hh_size, 0)
+  measure_cases_by_hh_size(NULL) |>
     dim() |>
     expect_identical(c(0L, 2L))
 
-  result <- measure_cases_by_hhsize(mk_houses$data)
-  ("hhsize" %in% colnames(result)) |> expect_true()
-  result$hhsize |> expect_setequal(c(2, 3))
+  result <- measure_cases_by_hh_size(mk_houses$data)
+  ("hh_size" %in% colnames(result)) |> expect_true()
+  result$hh_size |> expect_setequal(c(2, 3))
 })
 
 test_that("Measures keep households that all share one size", {
-  hhdata <- data.frame(id = paste0("m", 1:3), hhid = "h1",
+  hhdata <- data.frame(id = paste0("m", 1:3), hh_id = "h1",
                        status = c(1, 1, 0))
   # AR = 2/3, SAR = (2-1)/(3-1)
-  measure_ar_by_hhsize(hhdata) |>
-    expect_equal(data.frame(hhsize = 3L, ar = 2 / 3))
-  measure_sar_by_hhsize(hhdata) |>
-    expect_equal(data.frame(hhsize = 3L, sar = 0.5))
-  measure_cases_by_hhsize(hhdata)$hhsize |> expect_identical(3L)
+  measure_ar_by_hh_size(hhdata) |>
+    expect_equal(data.frame(hh_size = 3L, ar = 2 / 3))
+  measure_sar_by_hh_size(hhdata) |>
+    expect_equal(data.frame(hh_size = 3L, sar = 0.5))
+  measure_cases_by_hh_size(hhdata)$hh_size |> expect_identical(3L)
 })
 
 test_that("Household size geometric mean is weighted by secondary cases", {
   # no household with a secondary case
-  measure_geom_mean_hhsize(NULL) |>
+  measure_geom_mean_hh_size(NULL) |>
     expect_equal(NA_real_)
 
   # only h1 (size 2, 2 cases) carries weight
-  measure_geom_mean_hhsize(mk_houses$data) |>
+  measure_geom_mean_hh_size(mk_houses$data) |>
     expect_equal(2)
 
   # h4 (size 4, 3 cases) weighs 2: exp((log 2 + 2 log 4) / 3) = 2^(5/3)
   mk_houses$data |>
     rbind(data.frame(
-      id = paste0("m", 8:11), hhid = "h4", status = c(1, 1, 1, 0)
+      id = paste0("m", 8:11), hh_id = "h4", status = c(1, 1, 1, 0)
     )) |>
-    measure_geom_mean_hhsize() |>
+    measure_geom_mean_hh_size() |>
     expect_equal(2^(5 / 3))
 })
 
 test_that("Measures decode a labelled status column", {
-  ref_ar <- measure_ar_by_hhsize(mk_houses$data)
-  ref_sar <- measure_sar_by_hhsize(mk_houses$data)
+  ref_ar <- measure_ar_by_hh_size(mk_houses$data)
+  ref_sar <- measure_sar_by_hh_size(mk_houses$data)
 
   # a factor status is decoded through its levels, not through level indices
   as_factor <- mk_houses$data
   as_factor$status = factor(ifelse(as_factor$status == 1,
                                    "symptomatic", "escaped"))
-  measure_sar_by_hhsize(as_factor) |> expect_equal(ref_sar)
-  measure_ar_by_hhsize(as_factor) |> expect_equal(ref_ar)
+  measure_sar_by_hh_size(as_factor) |> expect_equal(ref_sar)
+  measure_ar_by_hh_size(as_factor) |> expect_equal(ref_ar)
 
   # a character status is decoded, not coerced to NA
   as_char <- as_factor
   as_char$status <- as.character(as_factor$status)
-  measure_sar_by_hhsize(as_char) |> expect_equal(ref_sar)
-  measure_ar_by_hhsize(as_char) |> expect_equal(ref_ar)
+  measure_sar_by_hh_size(as_char) |> expect_equal(ref_sar)
+  measure_ar_by_hh_size(as_char) |> expect_equal(ref_ar)
 
   # an unnamed negative level warns, and still returns the (all-case) measure
   unnamed <- mk_houses$data
   unnamed$status <- ifelse(unnamed$status == 1, "positive", "negative")
   expect_warning(
-    all_cases <- measure_ar_by_hhsize(unnamed),
+    all_cases <- measure_ar_by_hh_size(unnamed),
     "escaped label"
   )
   all_cases$ar |> expect_all_equal(1)
 
   # naming it silences the guard and recovers the coded result
-  measure_ar_by_hhsize(unnamed, escaped = "negative") |>
+  measure_ar_by_hh_size(unnamed, escaped = "negative") |>
     expect_equal(ref_ar)
 })
 
@@ -257,49 +257,49 @@ test_that("Predicted results carry the point estimate and its interval", {
 
 test_that("Houses are counted by household size", {
   hhdata <- data.frame(
-    hhid = c(rep("h1", 2), rep("h2", 3), rep("h3", 2), rep("h4", 2)),
+    hh_id = c(rep("h1", 2), rep("h2", 3), rep("h3", 2), rep("h4", 2)),
     status = c(1, 1, 1, 0, 0, 1, 0, 0, 0)
   )
   hhdata$id <- paste0("m", seq_len(nrow(hhdata)))
   result <- helper_house_counts(hhdata)
-  colnames(result) |> expect_contains(c("hhsize", "total", "at_least_1_case"))
+  colnames(result) |> expect_contains(c("hh_size", "total", "at_least_1_case"))
   # size 2: h1 (2 cases), h3 (1 case), h4 (0 cases) -> 3 total, 2 affected
-  result$total[result$hhsize == 2] |> expect_equal(3)
-  result$at_least_1_case[result$hhsize == 2] |> expect_equal(2)
+  result$total[result$hh_size == 2] |> expect_equal(3)
+  result$at_least_1_case[result$hh_size == 2] |> expect_equal(2)
   # size 3: h2 (1 case) -> 1 total, 1 affected
-  result$total[result$hhsize == 3] |> expect_equal(1)
-  result$at_least_1_case[result$hhsize == 3] |> expect_equal(1)
+  result$total[result$hh_size == 3] |> expect_equal(1)
+  result$at_least_1_case[result$hh_size == 3] |> expect_equal(1)
 })
 
 test_that("Tables are filtered by household size band", {
   # one case column per count a household of the largest size can hold
-  observed <- data.frame(hhsize = 2:4,
+  observed <- data.frame(hh_size = 2:4,
                          `0` = c(1, 2, 3), `1` = c(4, 5, 0), `2` = c(0, 1, 0),
                          `3` = c(0, 1, 1), `4` = c(0, 0, 1),
                          check.names = FALSE)
-  scaled <- \(k) transform(observed * k, hhsize = observed$hhsize)
+  scaled <- \(k) transform(observed * k, hh_size = observed$hh_size)
   tables <- list(observed = observed, predicted = scaled(1.1),
                  cri_lower = scaled(0.9), cri_upper = scaled(1.2))
 
   # no filter
   helper_filter_tables(tables)$observed |> expect_nrow(3L)
   # upper, lower and both bounds
-  helper_filter_tables(tables, max_hhsize = 3)$observed$hhsize |>
+  helper_filter_tables(tables, max_hh_size = 3)$observed$hh_size |>
     expect_identical(2:3)
-  helper_filter_tables(tables, min_hhsize = 3)$observed$hhsize |>
+  helper_filter_tables(tables, min_hh_size = 3)$observed$hh_size |>
     expect_identical(3:4)
-  helper_filter_tables(tables, min_hhsize = 3, max_hhsize = 3) |>
-    (\(x) x$observed$hhsize)() |>
+  helper_filter_tables(tables, min_hh_size = 3, max_hh_size = 3) |>
+    (\(x) x$observed$hh_size)() |>
     expect_identical(3L)
 })
 
 test_that("Observations and predictions are interleaved row by row", {
   result <- helper_combine_obs_pred(
-    data.frame(hhsize = c(2, 3), `0` = c(1, 2), `1` = c(3, 4),
+    data.frame(hh_size = c(2, 3), `0` = c(1, 2), `1` = c(3, 4),
                check.names = FALSE),
     data.frame(`0` = c(1.1, 2.1), `1` = c(3.1, 4.1), check.names = FALSE)
   )
-  colnames(result) |> expect_contains(c("distr", "hhsize"))
+  colnames(result) |> expect_contains(c("distr", "hh_size"))
   result$distr |> expect_identical(rep(c("observed", "predicted"), 2))
 })
 
@@ -334,16 +334,16 @@ test_that("Observed entries outside the interval are flagged", {
 
 test_that("Household size bounds need the standard measures", {
   mk_ppc$model |>
-    check_predictive(mk_ppc$results, sar = measure_sar_by_hhsize,
-                     epi = FALSE, max_hhsize = 3L) |>
-    expect_error("[Mm]in_hhsize.*max_hhsize.*bound.*only.*standard")
+    check_predictive(mk_ppc$results, sar = measure_sar_by_hh_size,
+                     epi = FALSE, max_hh_size = 3L) |>
+    expect_error("[Mm]in_hh_size.*max_hh_size.*bound.*only.*standard")
 
   # next to custom measures, the bounds restrict the standard outputs
   ppc <- mk_ppc$model |>
     check_predictive(mk_ppc$results, overall = \(x) mean(x$status > 0),
-                     max_hhsize = 3L, thin_ess = FALSE, nrep = 5) |>
+                     max_hh_size = 3L, thin_ess = FALSE, nrep = 5) |>
     suppressWarnings()
-  (ppc$formatted_attack_rate$hhsize <= 3) |> expect_all_true()
+  (ppc$formatted_attack_rate$hh_size <= 3) |> expect_all_true()
 })
 
 test_that("Custom measures are checked next to the standard ones", {
@@ -400,7 +400,7 @@ test_that("Measures on data_long need a long reporting process", {
 test_that("Predictive check on custom measures has read-only fields", {
   ppc <- mk_ppc$model |>
     check_predictive(
-      mk_ppc$results, sar = measure_sar_by_hhsize,
+      mk_ppc$results, sar = measure_sar_by_hh_size,
       epi = FALSE, thin_ess = FALSE, nrep = 10
     ) |>
     suppressWarnings()
@@ -418,7 +418,7 @@ test_that("Predictive check on custom measures has read-only fields", {
     list(housepi.point_estimate = "mean", housepi.cri_level = 0.8), {
       averaged <- mk_ppc$model |>
         check_predictive(
-          mk_ppc$results, sar = measure_sar_by_hhsize,
+          mk_ppc$results, sar = measure_sar_by_hh_size,
           epi = FALSE, thin_ess = FALSE, nrep = 2
         ) |>
         suppressWarnings()
@@ -446,14 +446,14 @@ test_that("Predicted cases by house size works as expected", {
 
   # formatted_attack_rate: counts are the raw house totals on the AR grid
   ar <- ppc$formatted_attack_rate
-  colnames(ar) |> expect_contains(c("hhsize", "observed", "counts"))
-  ar$counts |> expect_identical(counts$total[match(ar$hhsize, counts$hhsize)])
+  colnames(ar) |> expect_contains(c("hh_size", "observed", "counts"))
+  ar$counts |> expect_identical(counts$total[match(ar$hh_size, counts$hh_size)])
 
   # formatted_sec_attack_rate: counts are houses with at least one case
   sar <- ppc$formatted_sec_attack_rate
-  colnames(sar) |> expect_contains(c("hhsize", "observed"))
+  colnames(sar) |> expect_contains(c("hh_size", "observed"))
   sar$counts |>
-    expect_identical(counts$at_least_1_case[match(sar$hhsize, counts$hhsize)])
+    expect_identical(counts$at_least_1_case[match(sar$hh_size, counts$hh_size)])
 
   # formatted_cases_count
   ppc$formatted_cases_count |> expect_length(3)
@@ -466,30 +466,30 @@ test_that("Predicted cases by house size works as expected", {
       "formatted_cases_count", "cases_count"
     )
 
-  # set_max_hhsize and drop
-  ppc$set_max_hhsize(3)
-  (ppc$formatted_sec_attack_rate$hhsize <= 3) |> expect_all_true()
-  ppc$drop_max_hhsize()
+  # set_max_hh_size and drop
+  ppc$set_max_hh_size(3)
+  (ppc$formatted_sec_attack_rate$hh_size <= 3) |> expect_all_true()
+  ppc$drop_max_hh_size()
 
-  # set_min_hhsize and drop
-  ppc$set_min_hhsize(3)
-  (ppc$formatted_sec_attack_rate$hhsize >= 3) |> expect_all_true()
-  (ppc$formatted_attack_rate$hhsize >= 3) |> expect_all_true()
-  ppc$drop_min_hhsize()
+  # set_min_hh_size and drop
+  ppc$set_min_hh_size(3)
+  (ppc$formatted_sec_attack_rate$hh_size >= 3) |> expect_all_true()
+  (ppc$formatted_attack_rate$hh_size >= 3) |> expect_all_true()
+  ppc$drop_min_hh_size()
 })
 
-test_that("Epi PPC honours min/max_hhsize arguments", {
+test_that("Epi PPC honours min/max_hh_size arguments", {
   ppc <- mk_ppc$model |>
-    check_predictive(mk_ppc$results, min_hhsize = 2L, max_hhsize = 3L) |>
+    check_predictive(mk_ppc$results, min_hh_size = 2L, max_hh_size = 3L) |>
     suppressWarnings()
-  ppc$formatted_attack_rate$hhsize |> expect_in(2:3)
-  ppc$formatted_sec_attack_rate$hhsize |> expect_in(2:3)
+  ppc$formatted_attack_rate$hh_size |> expect_in(2:3)
+  ppc$formatted_sec_attack_rate$hh_size |> expect_in(2:3)
 })
 
 test_that("Epi PPC observed values are stable across calls and status codes", {
   data_wide <- mk_ppc$model$data_wide
-  run_on <- function(hhmodel = mk_ppc$model, ...) {
-    hhmodel |>
+  run_on <- function(hh_model = mk_ppc$model, ...) {
+    hh_model |>
       check_predictive(mk_ppc$results, thin_ess = FALSE, nrep = 5, ...) |>
       suppressWarnings()
   }
@@ -498,7 +498,7 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
   mk_ppc$model$data_wide |> expect_identical(data_wide)
 
   # without a reporting process the replicates stay engine-coded
-  observed <- measure_ar_by_hhsize(data_wide, mk_ppc$model$escaped)
+  observed <- measure_ar_by_hh_size(data_wide, mk_ppc$model$escaped)
   ppc$formatted_attack_rate$observed |> expect_equal(observed$ar)
   # with one, they are relabelled before the measure sees them
   ppc_labelled <- run_on(add_reporting_process(mk_ppc$model, wide = identity))
@@ -515,9 +515,9 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
 
 test_that("Custom PPC warns on observed values outside the interval", {
   # parameter set deliberately so that SAR~1
-  param_table <- data.frame(alpha = 50, beta = 50, gamma = 1, hhsize_ref = 4)
+  param_table <- data.frame(alpha = 50, beta = 50, gamma = 1, hh_size_ref = 4)
   mk_ppc$model |>
-    check_predictive(param_table, sar = measure_sar_by_hhsize,
+    check_predictive(param_table, sar = measure_sar_by_hh_size,
                      epi = FALSE, thin_ess = FALSE, nrep = 20L) |>
     expect_warning(".*outside.*CrI")
 })

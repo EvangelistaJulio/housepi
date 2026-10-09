@@ -36,7 +36,7 @@ NULL
 #' - \code{alpha} \eqn{\alpha}{alpha} : baseline community transmission risk
 #' - \code{beta} \eqn{\beta}{beta} : baseline person-to-person transmission risk
 #' - \code{gamma} \eqn{\gamma}{gamma} : household-size scaling of person-to-person risk
-#' - \code{hhsize_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
+#' - \code{hh_size_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
 #'
 #' @section Group Risks:
 #' - \code{community} \eqn{\mu^\mathrm{com}}{mu^com} : predisposition to infection from community relative to reference
@@ -69,7 +69,7 @@ NULL
 #' In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
 #' so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
 #' The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
-#' Choose \eqn{n_\mathrm{ref}}{n_ref} from [measure_geom_mean_hhsize()] to keep them nearly uncorrelated.
+#' Choose \eqn{n_\mathrm{ref}}{n_ref} from [measure_geom_mean_hh_size()] to keep them nearly uncorrelated.
 #'
 #' @references
 #' \insertAllCited{}
@@ -97,7 +97,7 @@ NULL
 #' - \code{alpha} \eqn{\alpha}{alpha} : baseline community instantaneous transmission risk
 #' - \code{beta} \eqn{\beta}{beta} : baseline person-to-person instantaneous transmission rate
 #' - \code{gamma} \eqn{\gamma}{gamma} : household-size scaling of person-to-person risk
-#' - \code{hhsize_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
+#' - \code{hh_size_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
 #'
 #' @section Latent:
 #' - \code{infec_time} \eqn{t_{i}}{t_i} : time of infection of infectious member
@@ -143,7 +143,7 @@ NULL
 #' In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
 #' so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
 #' The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
-#' Choose \eqn{n_\mathrm{ref}}{n_ref} from [measure_geom_mean_hhsize()] to keep them nearly uncorrelated.
+#' Choose \eqn{n_\mathrm{ref}}{n_ref} from [measure_geom_mean_hh_size()] to keep them nearly uncorrelated.
 #'
 #' @references
 #' \insertAllCited{}

@@ -31,21 +31,21 @@ share the threads left over."
 #' definition reading one of them must not see observed.
 #' Status is kept as simulation receives it: a transmission model draws it anew.
 #' @noRd
-sweep_base_structure_ <- function(hhmodel) {
-  data <- hhmodel$data_wide
+sweep_base_structure_ <- function(hh_model) {
+  data <- hh_model$data_wide
   if (!NROW(data)) stop_h(
     "No data is attached to the model.",
     paste("The check generates its surveys on the structure of the",
           "attached data: add one with {.fn add_data_wide}.")
   )
-  written <- c(hhmodel$observations[["name"]], hhmodel$latent[["name"]])
+  written <- c(hh_model$observations[["name"]], hh_model$latent[["name"]])
   data[setdiff(names(data), written)]
 }
 
 #' Simulation value of every parameter, `NA` where it has none.
 #' @noRd
-sweep_pins_ <- function(hhmodel) {
-  defs <- get_parameters(hhmodel)
+sweep_pins_ <- function(hh_model) {
+  defs <- get_parameters(hh_model)
   stats::setNames(defs[["value"]], defs[["name"]])
 }
 
@@ -62,8 +62,8 @@ sweep_param_table_ <- function(pins, nrep) {
 #' The parameters a check is about: estimated, hence carrying a prior and
 #' free.
 #' @noRd
-sweep_estimated_ <- function(hhmodel) {
-  defs <- get_parameters(hhmodel)
+sweep_estimated_ <- function(hh_model) {
+  defs <- get_parameters(hh_model)
   estimated <- defs[["name"]][!is.na(defs[["prior"]]) &
                                 !defs[["const"]] %in% TRUE]
   if (!length(estimated)) stop_h(
@@ -118,7 +118,7 @@ sweep_stack_ <- function(parts, cols) {
 #' @param one `logical(1)` Demand a single count.
 #' @noRd
 sweep_houses_ <- function(structure, houses, verbatim, one = FALSE) {
-  observed <- length(unique(structure[["hhid"]]))
+  observed <- length(unique(structure[["hh_id"]]))
   if (!verbatim) return(unique(sweep_house_counts_(houses, observed, one)))
   if (!all(is.na(houses))) warn_h(
     "Argument {.arg houses} is ignored.",
@@ -204,12 +204,12 @@ sweep_guard_ <- function(expr, rep, houses) {
 #' simulation and the fits.
 #' @param label `character(1)` Label of the progress bar.
 #' @noRd
-sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, pins,
+sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
                        fit_args, threads, dots, reducer, progress, label) {
   adapt <- dots[names(dots) == "adapt_window"]
   do.call(resolve_setup_, c(fit_args, adapt))
   # fits read the wide survey only
-  hhmodel <- add_reporting_process(hhmodel, long = NULL)
+  hh_model <- add_reporting_process(hh_model, long = NULL)
   # one simulation call per household count yields the whole cell: the pins
   # are repeated, one row per replicate
   sim_args <- c(list(param_table = sweep_param_table_(pins, nrep)),
@@ -221,14 +221,14 @@ sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, pins,
   cell <- function(n, bar) {
     struct <- if (is.null(sampler)) structure else sampler(structure, n)
     surveys <- do.call(simulate_with_parameters_,
-                       c(list(add_data_wide(hhmodel, struct)), sim_args))
+                       c(list(add_data_wide(hh_model, struct)), sim_args))
     truths <- lapply(seq_len(nrep),
                      \(rep) unlist(surveys$parameters[rep, , drop = FALSE]))
     # seeds drawn ahead of the fits: the reducers draw from the same stream
     # whatever the size of a wave
     seeds <- draw_seed_(nrep)
     unlist(lapply(waves, \(reps) {
-      draws <- sweep_fit_wave_(hhmodel, surveys$wide[reps], reps, n,
+      draws <- sweep_fit_wave_(hh_model, surveys$wide[reps], reps, n,
                                seeds[reps], fit_args, workers$outer, bar)
       Map(sweep_reduce_one_, draws, truths[reps], reps, seeds[reps],
           MoreArgs = list(houses = n, reducer = reducer))
@@ -252,11 +252,11 @@ sweep_run_ <- function(hhmodel, structure, sampler, houses, nrep, pins,
 #' @param bar Progress bar each fit fills by one unit, `NULL` for none.
 #' @return Posterior draws of each survey.
 #' @noRd
-sweep_fit_wave_ <- function(hhmodel, wides, reps, houses, seeds, fit_args,
+sweep_fit_wave_ <- function(hh_model, wides, reps, houses, seeds, fit_args,
                             outer, bar) {
   local_quiet_warnings_(TRUE)
   fits <- Map(sweep_prepare_one_, wides, seeds,
-              MoreArgs = list(hhmodel = hhmodel, fit_args = fit_args))
+              MoreArgs = list(hh_model = hh_model, fit_args = fit_args))
   ran <- .engine$run_inference_list(lapply(fits, `[[`, "ptr"), outer, bar)
   if (!is.null(ran$error)) sweep_guard_(
     with_cpp_conditions(stop(ran$error)), reps[[ran$failed]], houses
@@ -266,9 +266,9 @@ sweep_fit_wave_ <- function(hhmodel, wides, reps, houses, seeds, fit_args,
 
 #' Build the fit of one survey: its model and engine.
 #' @noRd
-sweep_prepare_one_ <- function(simulated, seed, hhmodel, fit_args) {
-  kept <- setdiff(names(simulated), hhmodel$latent[["name"]])
-  model <- add_data_wide(hhmodel, simulated[kept])
+sweep_prepare_one_ <- function(simulated, seed, hh_model, fit_args) {
+  kept <- setdiff(names(simulated), hh_model$latent[["name"]])
+  model <- add_data_wide(hh_model, simulated[kept])
   ptr <- do.call(prepare_inference_, c(list(model), fit_args, seed = seed))
   list(model = model, ptr = ptr)
 }

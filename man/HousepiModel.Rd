@@ -10,11 +10,11 @@ definitions, run inference and simulations from a single class.
 }
 \examples{
 # created and modified through new_housepi_model() and the add_*() verbs
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-hhmodel
-hhmodel$parameters
+hh_model
+hh_model$parameters
 }
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}

@@ -5,7 +5,7 @@
 \title{Add or overwrite parameter definitions}
 \usage{
 add_parameter(
-  hhmodel,
+  hh_model,
   name = NULL,
   value = NULL,
   ...,
@@ -21,7 +21,7 @@ add_parameter(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
@@ -105,24 +105,24 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 \examples{
 # the single, inline-bulk and list-bulk forms compose freely in a pipe
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   # single: alpha, with a uniform prior and a lognormal random-walk proposal
   add_parameter("alpha", prior = "uniform", proposal = "rw_log") |>
   # single: beta, fixed to a constant
   add_parameter("beta", value = 0.3, const = TRUE) |>
   # inline bulk: several definitions as `name = value` pairs
-  add_parameter(gamma = 1, hhsize_ref = 4)
+  add_parameter(gamma = 1, hh_size_ref = 4)
 
 # list bulk: load a pre-built named list of definitions through `import`
-my_import <- list(gamma = 1, hhsize_ref = 4)
-hhmodel <- flu_1918_frederick |>
+my_import <- list(gamma = 1, hh_size_ref = 4)
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = my_import)
 
 # `"template"` loads the definitions shipped with the model
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-get_parameters(hhmodel)
+get_parameters(hh_model)
 }

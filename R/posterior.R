@@ -545,7 +545,7 @@ stopifnotdraws <- function(hhdraws) {
 #' @param variable `character()`. Variables to return, all of them when `NULL`.
 #' A name also returns its indexed elements, as `log_lik` returns `log_lik[1]`,
 #' `log_lik[2]`, ... from `get_complete_draws()`. `get_log_lik_draws()` names
-#' its columns by `hhid`: a household id returns that household's draws.
+#' its columns by `hh_id`: a household id returns that household's draws.
 #' Latent draws are named `<id>_<latent>`: a latent name
 #' returns its draws for every stored individual, a full name only that
 #' individual's. For finer selections use [posterior::subset_draws()].

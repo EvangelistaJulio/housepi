@@ -2,20 +2,21 @@ library(testthat)
 
 # transmission model over real data, bare and with its template parameters
 mk_frederick <- local({
-  hhmodel <- new_housepi_model(flu_1918_frederick, "final-size")
-  list(model = hhmodel, template = add_parameter(hhmodel, import = "template"))
+  hh_model <- new_housepi_model(flu_1918_frederick, "final-size")
+  list(model = hh_model,
+       template = add_parameter(hh_model, import = "template"))
 })
 
 # model carrying the data columns the source lookup refers to
 mk_sources <- local({
-  hhmodel <- data.frame(hhid = "h1", status = 1, datum = 1,
-                        record = 3, datum_2 = 2) |>
+  hh_model <- data.frame(hh_id = "h1", status = 1, datum = 1,
+                         record = 3, datum_2 = 2) |>
     new_housepi_model("test")
-  list(model = hhmodel)
+  list(model = hh_model)
 })
 
 # the dictionary and its assertion are private: reach them through the object
-dig_ <- \(hhmodel, what, ...) hhmodel$.__enclos_env__$private[[what]](...)
+dig_ <- \(hh_model, what, ...) hh_model$.__enclos_env__$private[[what]](...)
 
 ##################################
 ## MODEL CLASS : STANDARD CALLS ##
@@ -39,34 +40,34 @@ test_that("Escaped label is readable back from the model", {
 
 test_that("Model class inconsistent IDs throw errors", {
   # missing individual ID
-  data.frame(id = NA, hhid = "h1") |>
+  data.frame(id = NA, hh_id = "h1") |>
     new_housepi_model("test") |>
     expect_error("[Mm]issing.*id")
 
   # missing house ID
-  data.frame(id = "m1", hhid = NA) |>
+  data.frame(id = "m1", hh_id = NA) |>
     new_housepi_model("test") |>
-    expect_error("[Mm]issing.*hhid")
+    expect_error("[Mm]issing.*hh_id")
 
   # not unique individual IDs
-  data.frame(id = c("m1", "m1"), hhid = "h1") |>
+  data.frame(id = c("m1", "m1"), hh_id = "h1") |>
     new_housepi_model("test") |>
     expect_error("not unique")
 })
 
 test_that("Data status is capped by the engine status storage", {
   # above the highest storable infected status
-  data.frame(hhid = "h1", status = 255) |>
+  data.frame(hh_id = "h1", status = 255) |>
     new_housepi_model("test") |>
     expect_error("maximum of 254")
 
   # a negative status has no meaning: NA declares a missing status
-  data.frame(hhid = "h1", status = -200) |>
+  data.frame(hh_id = "h1", status = -200) |>
     new_housepi_model("test") |>
     expect_error("[Nn]egative status")
 
   # a missing status round trips as NA, the top level is never exported
-  data.frame(hhid = "h1", status = c(NA, 254)) |>
+  data.frame(hh_id = "h1", status = c(NA, 254)) |>
     new_housepi_model("test") |>
     get_data_wide() |>
     getElement("status") |>
@@ -74,7 +75,7 @@ test_that("Data status is capped by the engine status storage", {
 })
 
 test_that("Household size is capped by the engine member storage", {
-  data.frame(hhid = "h1", status = 0, id = seq(256)) |>
+  data.frame(hh_id = "h1", status = 0, id = seq(256)) |>
     new_housepi_model("test") |>
     expect_error("[Ee]xceeded the maximum of 255 members")
 })
@@ -84,7 +85,7 @@ test_that("A missing datum is not a requirement violation", {
   # cell carries no verdict, so it imports and reads back as NA -- the
   # requirement itself is asserted at the run wall
   hhdata <- data.frame(
-    id = c("m1", "m2", "m3"), hhid = "h1", status = c(1, 1, 0),
+    id = c("m1", "m2", "m3"), hh_id = "h1", status = c(1, 1, 0),
     start_date = c(1, NA, 1), end_date = c(21, 21, NA)
   ) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
@@ -96,7 +97,7 @@ test_that("A missing datum is not a requirement violation", {
 
 test_that("A datum violating a model requirement is refused at import", {
   mk <- function(...) {
-    data.frame(id = c("m1", "m2", "m3"), hhid = "h1",
+    data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
                status = c(1, 1, 0), ...) |>
       new_housepi_model("case-ascertained", quiet = TRUE)
   }
@@ -119,59 +120,59 @@ test_that("A datum violating a model requirement is refused at import", {
 test_that("Model-required data can be postponed to the run wall", {
   # a model-required data column may be supplied later: construction
   # tolerates the gap, the wall (evaluate_*/run_*) names it
-  hhmodel <- sarscov2_2021_icofs |>
-    dplyr::filter(hhid %in% utils::head(unique(hhid), 20)) |>
+  hh_model <- sarscov2_2021_icofs |>
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 20)) |>
     dplyr::select(-start_date) |>
     new_housepi_model("case-ascertained")
 
-  hhmodel |>
+  hh_model |>
     evaluate_log_lik() |>
     expect_error("start_date")
-  hhmodel |>
+  hh_model |>
     run_simulation() |>
     expect_error("start_date")
 })
 
 test_that("Wide data can be deferred and attached with add_data_wide", {
   # construct without data: no data exposed
-  hhmodel <- new_housepi_model(model = "final-size") |>
+  hh_model <- new_housepi_model(model = "final-size") |>
     add_parameter(import = "template")
-  hhmodel$data_wide |> expect_null()
+  hh_model$data_wide |> expect_null()
 
   # evaluate_/run_ refuse a data-less model
-  hhmodel |>
+  hh_model |>
     evaluate_log_lik() |>
     expect_error("[Nn]o household data")
 
   # bad inputs rejected by the wrapper
-  hhmodel |>
+  hh_model |>
     add_data_wide(NULL) |>
     expect_error("data")
-  hhmodel |>
+  hh_model |>
     add_data_wide("not a frame") |>
     expect_error("data.frame")
 
   # attach data later: populated and runnable
-  hhmodel <- add_data_wide(hhmodel, flu_1918_frederick)
-  hhmodel$data_wide |> expect_s3_class("data.frame")
-  hhmodel$data_wide |> expect_nrow(nrow(flu_1918_frederick))
-  is.finite(evaluate_log_lik(hhmodel)) |> expect_true()
+  hh_model <- add_data_wide(hh_model, flu_1918_frederick)
+  hh_model$data_wide |> expect_s3_class("data.frame")
+  hh_model$data_wide |> expect_nrow(nrow(flu_1918_frederick))
+  is.finite(evaluate_log_lik(hh_model)) |> expect_true()
 })
 
 test_that("Deferred data answers the model requests", {
   # case-ascertained follow-up dates are requested discrete
-  hhmodel <- new_housepi_model(model = "case-ascertained") |>
+  hh_model <- new_housepi_model(model = "case-ascertained") |>
     add_parameter(import = "template") |>
     add_latent(import = "template") |>
     add_infectivity_profile(import = "template")
 
-  hhmodel |>
+  hh_model |>
     add_data_wide(transform(helper_onset_house$data, end_date = 21.5)) |>
     evaluate_log_lik() |>
     expect_error("[Dd]ata.*end_date.*not discrete-valued")
 })
 
-test_that("Data without hhid warns on every attach", {
+test_that("Data without hh_id warns on every attach", {
   # no household structure: every row becomes a household of its own
   hhdata <- data.frame(id = c("m1", "m2", "m3"), status = c(1, 0, 1))
 
@@ -179,25 +180,25 @@ test_that("Data without hhid warns on every attach", {
     expect_warning("[Ii]gnored household structure")
   # a second model in the same session must warn again
   expect_warning(
-    hhmodel <- new_housepi_model(hhdata, "test"),
+    hh_model <- new_housepi_model(hhdata, "test"),
     "[Ii]gnored household structure"
   )
   # and so must a later attach on an existing model
-  add_data_wide(hhmodel, hhdata) |> expect_warning("[Ii]gnored household")
+  add_data_wide(hh_model, hhdata) |> expect_warning("[Ii]gnored household")
 })
 
 test_that("Model class 'test' calls", {
-  hhmodel <- new_housepi_model(model = "test")
+  hh_model <- new_housepi_model(model = "test")
 
   # 'test' default data wide format
-  hhmodel$data_wide |> expect_equal(dummy_household)
+  hh_model$data_wide |> expect_equal(dummy_household)
 
   # templates
-  add_latent(hhmodel, import = "template") |>
+  add_latent(hh_model, import = "template") |>
     expect_warning("test")
 
   # zero log-likelihood ('test' model evaluates silently)
-  evaluate_log_lik(hhmodel) |> expect_equal(0.)
+  evaluate_log_lik(hh_model) |> expect_equal(0.)
 
   # factorization round-trips through a fresh 'test' model
   hhdata <- sarscov2_2021_icofs
@@ -205,7 +206,7 @@ test_that("Model class 'test' calls", {
   new_housepi_model(hhdata, "test")$data_wide |> expect_equal(hhdata)
 
   # not existing household id
-  hhmodel |>
+  hh_model |>
     evaluate_log_lik("h9") |>
     expect_error("[Ii]ndex.*h9.*did not match")
 })
@@ -232,21 +233,21 @@ test_that("Household snapshot reads before any definition is pushed", {
 })
 
 test_that("Data long format is correctly handled", {
-  hhmodel <- new_housepi_model(model = "test")
+  hh_model <- new_housepi_model(model = "test")
 
   # data_long errors surface via add_data_long
-  hhmodel |>
+  hh_model |>
     add_data_long("zero") |>
     expect_error("data.frame")
 
   # every long row names an individual of the wide data
-  hhmodel |>
+  hh_model |>
     add_data_long(data.frame(id = NA_character_, measure = 1)) |>
     expect_error("[Ii]nvalid id found in row n.1")
-  hhmodel |>
+  hh_model |>
     add_data_long(data.frame(id = "unknown", measure = 1)) |>
     expect_error("[Ii]d .unknown. from data long-format had no match")
-  hhmodel |>
+  hh_model |>
     add_data_long(data.frame(measure = 1)) |>
     expect_error("[Ii]dentifier column .id. was missing")
   # long data hangs off the wide data
@@ -255,13 +256,13 @@ test_that("Data long format is correctly handled", {
     expect_error("before wide format")
 
   # correct data long format
-  hhdata <- data.frame(id = hhmodel$data_wide$id[1],
+  hhdata <- data.frame(id = hh_model$data_wide$id[1],
                        time = seq(3), measure = seq(3)**3)
-  hhmodel <- add_data_long(hhmodel, hhdata)
-  get_data_long(hhmodel) |> expect_equal(hhdata)
+  hh_model <- add_data_long(hh_model, hhdata)
+  get_data_long(hh_model) |> expect_equal(hhdata)
 
   # inspect_house_state returns refactored data_long when present
-  inspect_house_state(hhmodel, hhmodel$data_wide$hhid[1])$data_long |>
+  inspect_house_state(hh_model, hh_model$data_wide$hh_id[1])$data_long |>
     expect_s3_class("data.frame")
 })
 
@@ -279,50 +280,72 @@ test_that("Print behavior works as expected", {
     expect_snapshot()
 
   # with data and parameters
-  hhmodel <- mk_frederick$template
-  print(hhmodel) |>
+  hh_model <- mk_frederick$template
+  print(hh_model) |>
     expect_snapshot()
 
   # help() opens the template page, mocked so no pager is spawned
   called_with <- NULL
   with_mocked_bindings(
     open_model_helper_ = \(name) called_with <<- name,
-    code = hhmodel$help()
+    code = hh_model$help()
   )
   called_with |> expect_identical("final_size")
 })
 
+test_that("Definitions are listed by status, then by name", {
+  hh_model <- data.frame(hh_id = "h1", status = c(1, 2), datum = c(3, 4),
+                         datum_2 = c(1, 2)) |>
+    new_housepi_model("test") |>
+    add_parameter(rho_2 = 1, rho = 1) |>
+    add_latent(hidden_2 = list(func = min(datum_2), status = 10),
+               hidden_2 = list(func = min(datum_2), status = 2),
+               hidden = list(func = min(datum), status = 2),
+               layer_1 = list(model = "uniform", min = 0, max = 3),
+               hidden_3 = list(model = "uniform", min = 0, max = 3))
+
+  # alphabetical by name
+  get_parameters(hh_model)[["name"]] |> expect_identical(c("rho", "rho_2"))
+
+  # generic definitions first, then numerically by status, then by name
+  latent <- get_latent(hh_model)
+  latent[["name"]] |>
+    expect_identical(c("hidden_3", "layer_1", "hidden", "hidden_2", "hidden_2"))
+  latent[["status"]] |>
+    expect_identical(c(NA, NA, "2", "2", "10"))
+})
+
 test_that("A copy is deep", {
   house <- data.frame(
-    hhid = c(1, 1, 2, 2, 2),
+    hh_id = c(1, 1, 2, 2, 2),
     status = c(1, 0, 1, 0, 0),
     member = c("student", "other", "student", "mother", "father")
   )
-  hhmodel <- house |>
+  hh_model <- house |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
   invisible(suppressWarnings(
-    run_inference(hhmodel, steps = 2L, chains = 1L, adapt = 0L, thin = 1L)
+    run_inference(hh_model, steps = 2L, chains = 1L, adapt = 0L, thin = 1L)
   ))
-  hhmodel_2 <- hhmodel$copy()
+  hh_model_2 <- hh_model$copy()
 
   # data
-  hhmodel$data_wide |> expect_identical(hhmodel_2$data_wide)
-  hhmodel$data_long |> expect_identical(hhmodel_2$data_long)
+  hh_model$data_wide |> expect_identical(hh_model_2$data_wide)
+  hh_model$data_long |> expect_identical(hh_model_2$data_long)
 
   # a copy's setup starts from the default configuration
-  hhmodel_2$setup |>
+  hh_model_2$setup |>
     expect_identical(new_housepi_model(house, "final-size")$setup)
 
   # definitions
-  hhmodel$parameters |> expect_identical(hhmodel_2$parameters)
-  hhmodel$latent |> expect_identical(hhmodel_2$latent)
-  hhmodel$group_risks |> expect_identical(hhmodel_2$group_risks)
+  hh_model$parameters |> expect_identical(hh_model_2$parameters)
+  hh_model$latent |> expect_identical(hh_model_2$latent)
+  hh_model$group_risks |> expect_identical(hh_model_2$group_risks)
 
   # changes on the original do not reach the copy
-  hhmodel <- add_group_risk(hhmodel, "susceptibility", by = "member") |>
+  hh_model <- add_group_risk(hh_model, "susceptibility", by = "member") |>
     suppressWarnings() # suppress baseline collapse warning
-  isTRUE(all.equal(hhmodel$group_risks, hhmodel_2$group_risks)) |>
+  isTRUE(all.equal(hh_model$group_risks, hh_model_2$group_risks)) |>
     expect_false()
 })
 
@@ -366,13 +389,13 @@ test_that("An unresolved source is reported softly and at the wall", {
   dig_(mk_sources$model, "assert_sources_", wall = FALSE) |> expect_length(0)
   dig_(mk_sources$model, "assert_sources_", wall = TRUE) |> expect_length(0)
 
-  hhmodel <- mk_sources$model |>
+  hh_model <- mk_sources$model |>
     add_observation(record = list(model = "normal", mean = unknown, sd = 1))
   # soft: the messages are returned, and the model summary carries them
-  length(dig_(hhmodel, "assert_sources_", wall = FALSE)) |> expect_gt(0)
-  print(hhmodel) |> expect_output("Sources")
+  length(dig_(hh_model, "assert_sources_", wall = FALSE)) |> expect_gt(0)
+  print(hh_model) |> expect_output("Sources")
   # wall: the same messages are raised
-  dig_(hhmodel, "assert_sources_", wall = TRUE) |>
+  dig_(hh_model, "assert_sources_", wall = TRUE) |>
     expect_error("[Cc]ould not resolve the source of .unknown.")
 })
 
@@ -381,21 +404,21 @@ test_that("An unresolved source is reported softly and at the wall", {
 ##################################
 
 test_that("Flu 2014 Matsumoto is correctly pre-processed", {
-  hhmodel <- new_housepi_model(flu_2014_matsumoto, "final-size")
+  hh_model <- new_housepi_model(flu_2014_matsumoto, "final-size")
 
-  case_summary <- summarise_house_cases(hhmodel)
+  case_summary <- summarise_house_cases(hh_model)
   # expect same household count as in Endo, et al. ('19)
   subset(case_summary, level == "household" & metric == "total")$count |>
     expect_identical(10486L)
 
   # house_size vs status equivalence groups correspond to measure non-zeros
-  cases <- measure_cases_by_hhsize(flu_2014_matsumoto)
-  cases$hhsize <- NULL
+  cases <- measure_cases_by_hh_size(flu_2014_matsumoto)
+  cases$hh_size <- NULL
   subset(case_summary, level == "household" & metric == "classes")$count |>
     expect_identical(sum(cases[!is.na(cases)] > 0))
 
   # fix expected equivalence classes by member composition
-  hhmodel |>
+  hh_model |>
     add_group_risk("community", by = "member") |>
     summarise_house_cases() |>
     subset(level == "household" & metric == "classes") |>
@@ -414,7 +437,7 @@ test_that("Model class inconsistent inference throw errors", {
     expect_error("[Nn]othing to sample")
 
   # missing status: all
-  data.frame(id = "m1", hhid = "h1", status = NA) |>
+  data.frame(id = "m1", hh_id = "h1", status = NA) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference() |>
@@ -468,10 +491,10 @@ test_that("Inference rejects invalid setup arguments", {
 })
 
 test_that("A run stores the sample size its setup asks for", {
-  hhmodel <- new_housepi_model(model = "test") |>
+  hh_model <- new_housepi_model(model = "test") |>
     add_parameter(rho = list(prior = "uniform", proposal = "forward"))
   n_draws <- function(...) {
-    run_inference(hhmodel, chains = 1L, ...) |>
+    run_inference(hh_model, chains = 1L, ...) |>
       suppressWarnings() |>
       get_parameter_draws() |>
       posterior::niterations()
@@ -482,25 +505,25 @@ test_that("A run stores the sample size its setup asks for", {
   n_draws(steps = 10L, burn = 0L, adapt = 0L, thin = 3L) |> expect_identical(4L)
   # the adaptation budget of a non-adaptive sampler runs as burn-in
   n_draws(steps = 5L, burn = 0L, adapt = 3L, thin = 1L) |> expect_identical(5L)
-  hhmodel$setup[c("burn", "adapt")] |> expect_equal(list(burn = 3, adapt = 0))
+  hh_model$setup[c("burn", "adapt")] |> expect_equal(list(burn = 3, adapt = 0))
   # unless a burn-in is set: then it is dropped
   n_draws(steps = 5L, burn = 2L, adapt = 3L, thin = 1L) |> expect_identical(5L)
-  hhmodel$setup[c("burn", "adapt")] |> expect_equal(list(burn = 2, adapt = 0))
+  hh_model$setup[c("burn", "adapt")] |> expect_equal(list(burn = 2, adapt = 0))
 })
 
 test_that("id_draws selections are resolved before the run", {
-  hhmodel <- data.frame(id = c("m1", "m2"), hhid = "h1",
-                        status = 1, obs = 0) |>
+  hh_model <- data.frame(id = c("m1", "m2"), hh_id = "h1",
+                         status = 1, obs = 0) |>
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform") |>
     helper_flat_sink(loc = hidden)
 
-  hhmodel |>
+  hh_model |>
     run_inference(steps = 5L, chains = 1L, id_draws = list(member = "m1")) |>
     expect_error("[Uu]nknown .id_draws. name.*member")
 
   # the explicit opt-out stores no latent draw
-  hhmodel |>
+  hh_model |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, id_draws = ".none") |>
     suppressWarnings() |>
     get_latent_draws() |>
@@ -510,14 +533,14 @@ test_that("id_draws selections are resolved before the run", {
 })
 
 test_that("A followed household without infected members warns", {
-  hhmodel <- data.frame(id = c("m1", "m2"), hhid = c("h1", "h2"),
-                        status = c(1, 0)) |>
+  hh_model <- data.frame(id = c("m1", "m2"), hh_id = c("h1", "h2"),
+                         status = c(1, 0)) |>
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform")
 
-  hhmodel |>
+  hh_model |>
     run_inference(steps = 20L, adapt = 0L, chains = 1L,
-                  id_draws = list(hhid = "h2")) |>
+                  id_draws = list(hh_id = "h2")) |>
     expect_warning("no infected members") |>
     suppressWarnings()
 })
@@ -527,13 +550,13 @@ test_that("A followed household without infected members warns", {
 ##################################
 
 test_that("Simulation rejects wrong arguments", {
-  hhmodel <- new_housepi_model(model = "test")
+  hh_model <- new_housepi_model(model = "test")
   # wrong number of replicates
-  hhmodel |>
+  hh_model |>
     run_simulation(nrep = 0) |>
     expect_error("positive integer")
   # the integration step is a positive duration
-  hhmodel |>
+  hh_model |>
     run_simulation(time_step = 0) |>
     expect_error("time_step. must be strictly positive")
   run_simulation(mk_frederick$template, time_step = 0.5) |>
@@ -549,28 +572,28 @@ test_that("Param table with degenerate columns raises an ESS error", {
 })
 
 test_that("Thinning to ESS keeps from a few draws up to all draws", {
-  hhmodel <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 0) |>
+  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 0) |>
     new_housepi_model("test")
   # two disjoint trending chains of 20 iterations: ESS near the chain count
   trend <- posterior::as_draws_df(data.frame(
     rho = rep(c(10, 20), each = 20) + rep(seq_len(20L), 2) / 20,
     .chain = rep(1:2, each = 20), .iteration = rep(seq_len(20L), 2)
   ))
-  thinned <- run_simulation(hhmodel, param_table = trend)
+  thinned <- run_simulation(hh_model, param_table = trend)
   length(thinned) |> expect_gte(2L)
   length(thinned) |> expect_lt(5L)
   # without thinning, every draw is simulated, under a cap above their count
-  hhmodel |>
+  hh_model |>
     run_simulation(param_table = trend, thin_ess = FALSE, nrep = 100) |>
     expect_length(40L)
   # one chain of 20 iterations alternating low and high draws:
   # its ESS lies above the draw count, where `posterior` caps it
   alternate <- data.frame(rho = c(rbind(1:10, 20:11)))
-  hhmodel |>
+  hh_model |>
     run_simulation(param_table = posterior::as_draws_df(alternate)) |>
     expect_length(20L)
   # one trending chain: its ESS floors to a single draw, still in a list
-  hhmodel |>
+  hh_model |>
     run_simulation(param_table = posterior::as_draws_df(
       data.frame(rho = seq_len(100L))
     )) |>
@@ -578,24 +601,24 @@ test_that("Thinning to ESS keeps from a few draws up to all draws", {
 })
 
 test_that("Simulation reads undeclared parameters from param_table", {
-  hhmodel <- mk_frederick$model$copy()
+  hh_model <- mk_frederick$model$copy()
   param_table <- data.frame(alpha = c(0.3, 0.1), beta = c(0.2, 0.4),
-                            gamma = 1, hhsize_ref = 4)
-  hhmodel |>
+                            gamma = 1, hh_size_ref = 4)
+  hh_model |>
     run_simulation(param_table = param_table) |>
     expect_length(2L)
   # the model holds the parameters of the last replicate
-  state <- hhmodel |> inspect_house_state(hhmodel$data_wide$hhid[1])
+  state <- hh_model |> inspect_house_state(hh_model$data_wide$hh_id[1])
   unlist(state$parameters[names(param_table)]) |>
     expect_equal(unlist(param_table[2, ]), ignore_attr = TRUE)
   # the table is not declared on the model
-  get_parameters(hhmodel) |> expect_nrow(0L)
-  hhmodel |>
+  get_parameters(hh_model) |> expect_nrow(0L)
+  hh_model |>
     evaluate_log_lik() |>
     expect_error("[Mm]issing parameter definition")
 
   # a parameter defined as a function takes no value from the table
-  data.frame(hhid = "h1", status = 1) |>
+  data.frame(hh_id = "h1", status = 1) |>
     new_housepi_model("test") |>
     add_parameter(rho = list(prior = "uniform"), rho_2 = exp(rho)) |>
     run_simulation(param_table = data.frame(rho = 0.5, rho_2 = 3)) |>
@@ -604,22 +627,22 @@ test_that("Simulation reads undeclared parameters from param_table", {
 
 test_that("Simulation returns combined wide/long output", {
   # a long reporting process forces the long branch into a non-empty list
-  hhmodel <- mk_frederick$template |>
+  hh_model <- mk_frederick$template |>
     add_reporting_process(long = \(x) data.frame(id = "m1", measure = 1.0))
-  simulated <- hhmodel |> run_simulation()
+  simulated <- hh_model |> run_simulation()
   simulated |> expect_named(c("wide", "long"))
   simulated$wide |> expect_s3_class("data.frame")
   simulated$long |> expect_s3_class("data.frame")
 
   # multiple repetitions
-  simulated <- hhmodel |> run_simulation(nrep = 2)
+  simulated <- hh_model |> run_simulation(nrep = 2)
   simulated$wide[[1]] |> expect_s3_class("data.frame")
   simulated$long[[2]] |> expect_s3_class("data.frame")
 })
 
 test_that("Each simulated repetition holds its own draws", {
   # a long frame passing a column through keeps its repetition's draws
-  results <- data.frame(id = c("m1", "m2", "m3"), hhid = "h1",
+  results <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
                         status = c(1, 1, 0), record = 0) |>
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform")) |>
@@ -647,24 +670,24 @@ test_that("Simulation replicates are a list of data frames", {
 })
 
 test_that("A simulation with a reporting process is reproducible", {
-  hhmodel <- mk_frederick$template |>
+  hh_model <- mk_frederick$template |>
     add_reporting_process(
       \(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
     )
-  simulated <- withr::with_seed(1, run_simulation(hhmodel))
+  simulated <- withr::with_seed(1, run_simulation(hh_model))
   ("flag" %in% colnames(simulated)) |> expect_true()
-  withr::with_seed(1, run_simulation(hhmodel)) |>
+  withr::with_seed(1, run_simulation(hh_model)) |>
     expect_identical(simulated)
 })
 
 test_that("A household error in simulation names the household", {
   # a negative datum in h2 empties the latent domain
-  hhmodel <- data.frame(hhid = c("h1", "h1", "h2"), id = c("m1", "m2", "m3"),
-                        status = 1, datum = c(1, 1, -1), obs = 0) |>
+  hh_model <- data.frame(hh_id = c("h1", "h1", "h2"), id = c("m1", "m2", "m3"),
+                         status = 1, datum = c(1, 1, -1), obs = 0) |>
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform", min = 0, max = datum)) |>
     helper_flat_sink(loc = hidden)
-  err <- run_simulation(hhmodel) |> expect_error("[Ii]nconsistent domain")
+  err <- run_simulation(hh_model) |> expect_error("[Ii]nconsistent domain")
   # cli markup is rendered, not printed raw
   conditionMessage(err) |> expect_match("household \"h2\"")
   conditionMessage(err) |> expect_no_match("{.val", fixed = TRUE)
@@ -678,17 +701,17 @@ test_that("An error raised by a reporting process reaches R verbatim", {
 })
 
 test_that("A failed simulation leaves the observed data in place", {
-  hhmodel <- mk_frederick$model |>
-    add_parameter(alpha = 0.15, beta = 0.2, gamma = 1, hhsize_ref = 4)
-  log_lik <- evaluate_log_lik(hhmodel)
+  hh_model <- mk_frederick$model |>
+    add_parameter(alpha = 0.15, beta = 0.2, gamma = 1, hh_size_ref = 4)
+  log_lik <- evaluate_log_lik(hh_model)
   # the second replicate fails after the first one is simulated
   calls <- 0L
   fail_second <- \(x) if ((calls <<- calls + 1L) == 2L) stop("stop") else x
-  hhmodel |>
+  hh_model |>
     add_reporting_process(fail_second) |>
     run_simulation(nrep = 3L) |>
     expect_error("[Ss]top")
-  hhmodel |>
+  hh_model |>
     evaluate_log_lik() |>
     expect_identical(log_lik)
 })

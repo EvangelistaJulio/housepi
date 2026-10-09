@@ -42,8 +42,8 @@ set_housepi_theme()
 set.seed(42)
 
 # define a model object with a subset of the ICoFs dataset
-hhmodel <- sarscov2_2021_icofs |>
-  dplyr::filter(hhid %in% sample(unique(hhid), 200)) |>
+hh_model <- sarscov2_2021_icofs |>
+  dplyr::filter(hh_id %in% sample(unique(hh_id), 200)) |>
   new_housepi_model("case-ascertained")
 ```
 
@@ -53,7 +53,7 @@ All group risks without a definition are treated as associated to the reference 
 
 ```{r}
 #| label: susceptibility-by-age
-hhmodel |>
+hh_model |>
   # associate susceptibility group risk by column age
   add_group_risk("susceptibility", by = "age") |>
   # inspect group risk definitions
@@ -70,7 +70,7 @@ Manually set a `reference` by providing the corresponding group factor values, o
 
 ```{r}
 #| label: susceptibility-by-sex-age
-hhmodel |>
+hh_model |>
   # multiplicative group risks, adult female chosen as reference
   add_group_risk("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult")) |>
@@ -84,7 +84,7 @@ Alternatively, we can make the risk joint between the covariates:
 
 ```{r}
 #| label: susceptibility-joint
-hhmodel |>
+hh_model |>
   # here covariates are assumed to be joint
   add_group_risk("susceptibility", c("sex", "age"),
                  reference = c(sex = "F", age = "adult"),
@@ -101,12 +101,12 @@ The group risk definition takes the same MCMC arguments as a parameter definitio
 ```{r}
 #| label: group-risk-parameters
 # default parameter associated to group risks
-hhmodel |>
+hh_model |>
   add_group_risk("susceptibility", c("sex", "age"), prefix = "") |>
   get_parameters()
 
 # custom parameter priors associated to group risks
-hhmodel |>
+hh_model |>
   add_group_risk("susceptibility", c("sex", "age"), prefix = "",
                  prior = "normal") |>
   get_parameters()
@@ -122,7 +122,7 @@ We can proceed with the inference as shown in [Get started](housepi.html):
 ```{r}
 #| label: final-group-risks
 
-hhmodel <- hhmodel |>
+hh_model <- hh_model |>
   # load group risks from definition list, both relative to keep beta free
   add_group_risk(
     infectivity = list(by = "isolated", reference = ".auto"),
@@ -130,7 +130,7 @@ hhmodel <- hhmodel |>
   )
 
 # show parameter definitions used for the inference
-get_parameters(hhmodel)
+get_parameters(hh_model)
 ```
 
 
@@ -140,13 +140,13 @@ get_parameters(hhmodel)
 #|  Six trace plots displaying MCMC sampling behaviour for model parameters: alpha, beta, infectivity by isolation, and susceptibility parameters stratified by vaccination status.
 #|  Multiple chains (1-3) are overlaid across iterations, showing convergence diagnostics and mixing properties of the Markov chains.
 
-hhmodel <- hhmodel |>
+hh_model <- hh_model |>
   # parameter definitions
   add_parameter(
     alpha = list(prior = "uniform", proposal = "rw_log"),
     beta = list(prior = "uniform", proposal = "rw_log"),
     gamma = list(prior = "uniform", proposal = "rw_unif", max = 5),
-    hhsize_ref = 4
+    hh_size_ref = 4
   ) |>
   # latent definitions
   add_latent(
@@ -173,7 +173,7 @@ hhmodel <- hhmodel |>
   add_infectivity_profile("gamma", mean = 4, sd = 1.6)
 
 # perform inference
-results <- hhmodel |>
+results <- hh_model |>
   run_inference(progress = 4)
 
 bayesplot::mcmc_trace(get_parameter_draws(results))
@@ -195,7 +195,7 @@ library(ggplot2)
 risk_id <- "susceptibility"
 prefix <- "sus_"
 
-tmp <- get_group_risks(hhmodel) |>
+tmp <- get_group_risks(hh_model) |>
   # extract reference value and create a label
   dplyr::filter(group_risk == risk_id, param_name == ".reference") |>
   dplyr::select(vacc_status)
@@ -208,7 +208,7 @@ ylabel <- if (nrow(tmp) == 0) risk_id else
 results |>
   summarise_draws() |>
   dplyr::filter(startsWith(variable, prefix)) |>
-  dplyr::left_join(get_group_risks(hhmodel) |>
+  dplyr::left_join(get_group_risks(hh_model) |>
                      dplyr::select(param_name, n) |>
                      dplyr::rename(variable = param_name),
                    by = "variable") |>

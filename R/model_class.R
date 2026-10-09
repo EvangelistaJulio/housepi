@@ -22,11 +22,11 @@
 #' definitions, run inference and simulations from a single class.
 #' @examples
 #' # created and modified through new_housepi_model() and the add_*() verbs
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' hhmodel
-#' hhmodel$parameters
+#' hh_model
+#' hh_model$parameters
 #' @docType class
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
@@ -702,8 +702,9 @@ HousepiModel <- R6::R6Class(
                            id_draws = NULL, simulating = FALSE,
                            seed = draw_seed_(), ...) {
       # only run_inference resolves a selection; other builds store nothing
-      if (!is.list(id_draws))
-        id_draws <- list(id = character(), hhid = character())
+      if (!is.list(id_draws)) {
+        id_draws <- list(id = character(), hh_id = character())
+      }
       .engine$import_setup(
         private$gen_$mcmc_ptr,
         char_setup_input_(c(list(
@@ -714,7 +715,7 @@ HousepiModel <- R6::R6Class(
           chains = chains,
           threads = threads,
           id_draws = id_draws$id,
-          house_draws = id_draws$hhid,
+          house_draws = id_draws$hh_id,
           seed = seed
         ), list(...)))
       )
@@ -798,7 +799,7 @@ HousepiModel <- R6::R6Class(
     # reporting process.
     # UPDATE: I shall drop necessity for refactoring with variant data.
     # `labelled = FALSE` hands the simulated frames over engine-coded when no
-    # reporting process reads them, which only suits consumers reading `hhid`
+    # reporting process reads them, which only suits consumers reading `hh_id`
     # and `status`.
     helper_reporting_wide_ = function(labelled = TRUE) {
       gen <- private$gen_
@@ -830,7 +831,7 @@ HousepiModel <- R6::R6Class(
       long <- private$reporting_process_$long
       apply_long_func <-
         if (is.null(apply_long)) NULL else \(x) apply_long(long(x))
-      with_progress_(progress, "simulate", 1, \(bar) {
+      with_progress_(progress, "simulate", 1, function(bar) {
         .engine$run_simulation(private$gen_$mcmc_ptr,
                                private$helper_reporting_wide_(labelled),
                                apply_wide, apply_long_func, bar)
@@ -871,51 +872,55 @@ HousepiModel <- R6::R6Class(
       if (!missing(value)) stop_read_only("data_wide")
       # no data attached yet (deferred until add_data_wide() or the wall)
       if (!length(private$gen_$cols_data_wide)) return(NULL)
-      private$gen_$refactor_data_wide(
-        .engine$export_data_wide(private$gen_$mcmc_ptr)
-      )
+      .engine$export_data_wide(private$gen_$mcmc_ptr) |>
+        private$gen_$refactor_data_wide()
     },
 
     #' @field data_long `data.frame`
     #' Additional data rows indexed by individual (long format).
     data_long = function(value) {
       if (!missing(value)) stop_read_only("data_long")
-      private$gen_$refactor_data_long(
-        .engine$export_data_long(private$gen_$mcmc_ptr)
-      )
+      .engine$export_data_long(private$gen_$mcmc_ptr) |>
+        private$gen_$refactor_data_long()
     },
 
     #' @field parameters `data.frame`
     #' Parameter definitions.
     parameters = function(value) {
       if (!missing(value)) stop_read_only("parameters")
-      housepi_defin_showcaser(private$resolved_param_())
+      private$resolved_param_() |>
+        housepi_defin_showcaser() |>
+        sort_definitions_()
     },
 
     #' @field group_risks `data.frame`
     #' Group risk definitions.
     group_risks = function(value) {
       if (!missing(value)) stop_read_only("group_risks")
-      helper_show_risk_table(private$group_risks_,
-                             setdiff(risk_reserved_cols, risk_pin_cols),
-                             private$has_data_wide_())
+      private$group_risks_ |>
+        helper_show_risk_table(setdiff(risk_reserved_cols, risk_pin_cols),
+                               private$has_data_wide_()) |>
+        sort_definitions_("group_risk", by_status = FALSE)
     },
 
     #' @field contact_risks `data.frame`
     #' Contact risk definitions.
     contact_risks = function(value) {
       if (!missing(value)) stop_read_only("contact_risks")
-      helper_show_risk_table(private$contact_risks_,
-                             c("param_name", "n", "rule_group"),
-                             private$has_data_wide_())
+      private$contact_risks_ |>
+        helper_show_risk_table(c("param_name", "n", "rule_group"),
+                               private$has_data_wide_()) |>
+        sort_definitions_("param_name", by_status = FALSE)
     },
 
     #' @field latent `data.frame`
     #' Latent definitions.
     latent = function(value) {
       if (!missing(value)) stop_read_only("latent")
-      defs <- augm_defs_of_kind(private$resolved_latent_(), "latent")
-      housepi_defin_showcaser(defs)
+      private$resolved_latent_() |>
+        augm_defs_of_kind("latent") |>
+        housepi_defin_showcaser() |>
+        sort_definitions_()
     },
 
     #' @field observations `data.frame`
@@ -924,12 +929,13 @@ HousepiModel <- R6::R6Class(
     observations = function(value) {
       if (!missing(value)) stop_read_only("observations")
       resolved <- private$resolved_latent_()
-      defs <- do.call(rbind, lapply(c("member", "house"), function(level) {
+      do.call(rbind, lapply(c("member", "house"), function(level) {
         out <- augm_defs_of_kind(resolved, level)
         if (is.null(out)) return(NULL)
         cbind(out, level = level)
-      }))
-      housepi_defin_showcaser(defs)
+      })) |>
+        housepi_defin_showcaser() |>
+        sort_definitions_()
     },
 
     #' @field status_process `data.frame`
@@ -942,14 +948,18 @@ HousepiModel <- R6::R6Class(
         unname(showcase_extract_args(defs[["model"]])[[1]])
       labels <- private$augm_$status_levels
       if (!length(labels)) labels <- rep(NA_character_, length(weights))
-      data.frame(status = seq_along(weights), label = labels, weight = weights)
+      data.frame(status = seq_along(weights),
+                 label = labels,
+                 weight = weights)
     },
 
     #' @field infectivity_profiles `data.frame`
     #' Infectivity profile definitions.
     infectivity_profiles = function(value) {
       if (!missing(value)) stop_read_only("infectivity_profiles")
-      private$infec_profile_$showcase(private$resolved_profile_())
+      private$resolved_profile_() |>
+        private$infec_profile_$showcase() |>
+        sort_definitions_()
     },
 
     #' @field reporting_process `list`
@@ -1160,15 +1170,15 @@ HousepiModel <- R6::R6Class(
 #' @description
 #' Export definitions in standalone folder in order to run debuggin in Cpp.
 #' Used for development.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @details
 #' This could be designed to be more helpful, e. g.
 #' by creating a standalone folder somewhere with correct links to headers
 #' @keywords internal
 #' @noRd
-export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
-  stopifnothousepi(hhmodel)
-  pvt <- hhmodel$.__enclos_env__$private
+export_to_cpp_standalone <- function(hh_model, outpath = "inst/standalone/") {
+  stopifnothousepi(hh_model)
+  pvt <- hh_model$.__enclos_env__$private
   status_codes <- pvt$status_codes_()
   pvt$build_group_risks_()
   pvt$build_contact_risks_()
@@ -1199,7 +1209,7 @@ export_to_cpp_standalone <- function(hhmodel, outpath = "inst/standalone/") {
   utils::write.csv(pvt$resolved_param_(),
                    file.path(outpath, "param.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(char_setup_input_(hhmodel$setup),
+  utils::write.csv(char_setup_input_(hh_model$setup),
                    file.path(outpath, "setup.csv"),
                    quote = FALSE, row.names = FALSE)
 }

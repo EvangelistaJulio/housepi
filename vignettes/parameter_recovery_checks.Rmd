@@ -37,12 +37,12 @@ library(housepi)
 set_housepi_theme()
 set.seed(42)
 
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
 
 # store posterior draws
-results <- hhmodel |>
+results <- hh_model |>
   run_inference(progress = FALSE)
 
 results
@@ -62,7 +62,7 @@ Besides the observed number of households, we ask what a quarter, half and twice
 ```{r}
 #| label: house-counts
 # number of households in target data
-n_houses <- length(unique(flu_1918_frederick$hhid))
+n_houses <- length(unique(flu_1918_frederick$hh_id))
 # household sample sizes for power analysis
 houses <- round(n_houses * c(0.25, 0.5, 1, 2))
 houses
@@ -73,7 +73,7 @@ We can run different replicates at each sample size using `check_recovery()`:
 
 ```{r}
 #| label: sweep
-recovery <- hhmodel |>
+recovery <- hh_model |>
   check_recovery(truth = results, nrep = 15, houses = houses, progress = FALSE)
 recovery
 

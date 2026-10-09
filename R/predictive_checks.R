@@ -5,9 +5,9 @@
 ## See the LICENSE file for details.
 ##
 
-rd_min_hhsize_ <- "`integer(1)` Minimum household size retained in the outputs.
+rd_min_hh_size_ <- "`integer(1)` Minimum household size retained in the outputs.
 If `NA`, no lower bound is applied."
-rd_max_hhsize_ <- "`integer(1)` Maximum household size retained in the outputs.
+rd_max_hh_size_ <- "`integer(1)` Maximum household size retained in the outputs.
 If `NA`, no upper bound is applied."
 rd_measure_dots_ <- "Named arguments. `function`s to compute measures from data.
 Each function should return one between `numeric()`, `list` or `data.frame`.
@@ -25,7 +25,7 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
   df <- as.data.frame(data_wide)
   # an empty call returns the empty shape of the measure
   if (!ncol(df)) return(df)
-  for (col in c("hhid", "status")) if (!col %in% colnames(df)) stop_h(
+  for (col in c("hh_id", "status")) if (!col %in% colnames(df)) stop_h(
     "Column {.field {col}} is missing from the data.",
     paste("Measures by household size need one row per individual, with a",
           "household identifier and a follow-up outcome.")
@@ -34,7 +34,7 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
     df$status <- status_to_codes_(df$status, escaped)$codes
   }
   df$status <- as.integer(df$status)
-  df$hhid <- match(df$hhid, unique(df$hhid))
+  df$hh_id <- match(df$hh_id, unique(df$hh_id))
   df
 }
 
@@ -49,13 +49,13 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
 #' with size \eqn{n \ge 1} according to
 #' \eqn{\frac{\mathbb{E}_{n}[n^{+}]}{n}}
 #' @examples
-#' measure_ar_by_hhsize(flu_1918_frederick)
+#' measure_ar_by_hh_size(flu_1918_frederick)
 #' @export
-measure_ar_by_hhsize <- function(data_wide, escaped = "escaped") {
+measure_ar_by_hh_size <- function(data_wide, escaped = "escaped") {
   # normalise eagerly: a lazy argument would raise inside the engine wrapper,
   # which restyles the condition as if the engine had authored it
   df <- helper_process_data(data_wide, escaped)
-  .engine$measure_ar_by_hhsize(df)
+  .engine$measure_ar_by_hh_size(df)
 }
 
 #' @title Compute observed secondary attack rate by household size
@@ -69,11 +69,11 @@ measure_ar_by_hhsize <- function(data_wide, escaped = "escaped") {
 #' with size \eqn{n > 1} according to
 #' \eqn{\frac{\mathbb{E}_{n}[n^{+}] - 1}{n - 1}}
 #' @examples
-#' measure_sar_by_hhsize(flu_1918_frederick)
+#' measure_sar_by_hh_size(flu_1918_frederick)
 #' @export
-measure_sar_by_hhsize <- function(data_wide, escaped = "escaped") {
+measure_sar_by_hh_size <- function(data_wide, escaped = "escaped") {
   df <- helper_process_data(data_wide, escaped)
-  .engine$measure_sar_by_hhsize(df)
+  .engine$measure_sar_by_hh_size(df)
 }
 
 #' @title Tabulate observed household cases by household size
@@ -83,18 +83,18 @@ measure_sar_by_hhsize <- function(data_wide, escaped = "escaped") {
 #' @param escaped `r rd_mdl_escaped_`
 #' @return `data.frame`
 #' @examples
-#' measure_cases_by_hhsize(flu_1918_frederick)
+#' measure_cases_by_hh_size(flu_1918_frederick)
 #' @export
-measure_cases_by_hhsize <- function(data_wide, escaped = "escaped") {
+measure_cases_by_hh_size <- function(data_wide, escaped = "escaped") {
   df <- helper_process_data(data_wide, escaped)
-  .engine$measure_cases_by_hhsize(df)
+  .engine$measure_cases_by_hh_size(df)
 }
 
 #' @title Compute the case-weighted geometric mean of household size
 #' @description
 #' Retrieve the geometric mean of household size from household data,
 #' weighted by the number of secondary cases in each household.
-#' It is a data-driven choice for the reference household size `hhsize_ref`
+#' It is a data-driven choice for the reference household size `hh_size_ref`
 #' of the built-in models.
 #' @param data_wide `r rd_add_wide_`
 #' @param escaped `r rd_mdl_escaped_`
@@ -105,11 +105,11 @@ measure_cases_by_hhsize <- function(data_wide, escaped = "escaped") {
 #' \eqn{\exp\left(\frac{\sum_h w_h \log n_h}{\sum_h w_h}\right)}
 #' with weights \eqn{w_h = \max(n_h^{+} - 1, 0)}.
 #' @examples
-#' measure_geom_mean_hhsize(flu_1918_frederick)
+#' measure_geom_mean_hh_size(flu_1918_frederick)
 #' @export
-measure_geom_mean_hhsize <- function(data_wide, escaped = "escaped") {
+measure_geom_mean_hh_size <- function(data_wide, escaped = "escaped") {
   df <- helper_process_data(data_wide, escaped)
-  .engine$measure_geom_mean_hhsize(df)
+  .engine$measure_geom_mean_hh_size(df)
 }
 
 ############################################################################
@@ -267,15 +267,15 @@ assert_measure_names_ <- function(nms, taken = character()) {
 #' @description
 #' Class to extract posterior predictive checks over measures on simulations.
 #' @examples
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+#' results <- run_inference(hh_model, chains = 2, progress = FALSE)
 #'
 #' # a user-defined measure: the overall attack rate
 #' overall_ar <- function(data_wide) mean(data_wide$status > 0)
-#' ppc <- check_predictive(hhmodel, results,
-#'                         sar = measure_sar_by_hhsize,
+#' ppc <- check_predictive(hh_model, results,
+#'                         sar = measure_sar_by_hh_size,
 #'                         overall = overall_ar,
 #'                         epi = FALSE, nrep = 50, progress = FALSE)
 #' ppc$overall
@@ -376,7 +376,7 @@ HousepiPredictiveCheck <- R6::R6Class(
     #' @description
     #' Given a model and a posterior sample of parameters,
     #' performs simulation and compute predicted values of a set of measures.
-    #' @param hhmodel `r rd_model_in_`
+    #' @param hh_model `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param ... `r rd_measure_dots_`
     #' @param nrep `r rd_nrep_`
@@ -385,7 +385,7 @@ HousepiPredictiveCheck <- R6::R6Class(
     #' Applied to `data_long` (derived by the `long` reporting process).
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
-    initialize = function(hhmodel,
+    initialize = function(hh_model,
                           param_table,
                           ...,
                           measures_long = NULL,
@@ -407,7 +407,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       m_long <- list()
       if (!is.null(measures_long)) m_long <- list(measures_long)
 
-      if (length(m_long) && is.null(hhmodel$reporting_process$long)) stop_h(
+      if (length(m_long) && is.null(hh_model$reporting_process$long)) stop_h(
         "Measures on {.code data_long} need a long reporting process.",
         "Add one with {.code add_reporting_process(long = )}."
       )
@@ -419,7 +419,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       apply_wide <- NULL
       if (length(m_wide)) {
         observations <- c(
-          observations, lapply(m_wide, \(func) func(hhmodel$data_wide))
+          observations, lapply(m_wide, \(func) func(hh_model$data_wide))
         )
         apply_wide <- \(x) lapply(m_wide, \(func) func(x))
       }
@@ -427,7 +427,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       apply_long <- NULL
       if (length(m_long)) {
         observations <- c(
-          observations, lapply(m_long, \(func) func(hhmodel$data_long))
+          observations, lapply(m_long, \(func) func(hh_model$data_long))
         )
         apply_long <- \(x) lapply(m_long, \(func) func(x))
       }
@@ -438,7 +438,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       )
 
       # run measures on posterior simulations
-      output <- hhmodel$.__enclos_env__$private$run_measure_(
+      output <- hh_model$.__enclos_env__$private$run_measure_(
         param_table,
         apply_wide = apply_wide,
         apply_long = apply_long,
@@ -487,7 +487,7 @@ HousepiPredictiveCheck <- R6::R6Class(
         })
       }
       # store decorations for print and read-only access
-      private$model_name_ <- hhmodel$name
+      private$model_name_ <- hh_model$name
       private$is_posterior_ <-
         inherits(param_table, "HousepiPosteriorDraws") ||
         posterior::is_draws(param_table)
@@ -533,7 +533,7 @@ HousepiPredictiveCheck <- R6::R6Class(
 # @return `data.frame`
 helper_house_counts <- function(data_wide, escaped = "escaped") {
   df <- helper_process_data(data_wide, escaped)
-  .engine$count_houses_by_hhsize(df)
+  .engine$count_houses_by_hh_size(df)
 }
 
 # @description
@@ -541,13 +541,13 @@ helper_house_counts <- function(data_wide, escaped = "escaped") {
 #
 # @return `list`
 helper_filter_tables <- function(cases_count,
-                                 min_hhsize = NA,
-                                 max_hhsize = NA) {
+                                 min_hh_size = NA,
+                                 max_hh_size = NA) {
   # load observed table to use as a type shape template
   obsdf <- cases_count$observed
 
   # remove rows without counts
-  mask_row <- rowSums(obsdf[colnames(obsdf) != "hhsize"], na.rm = TRUE) != 0
+  mask_row <- rowSums(obsdf[colnames(obsdf) != "hh_size"], na.rm = TRUE) != 0
 
   # remove column with zero cases if none was observed
   mask_col <- colnames(obsdf) != "0" |
@@ -555,15 +555,15 @@ helper_filter_tables <- function(cases_count,
 
   # implement max household size mask (also caps the case columns, as a
   # household cannot hold more cases than its size)
-  if (!is.na(max_hhsize)) {
-    col_max <- which(colnames(obsdf) == max_hhsize)
+  if (!is.na(max_hh_size)) {
+    col_max <- which(colnames(obsdf) == max_hh_size)
     mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
-    mask_row <- mask_row & (obsdf$hhsize <= max_hhsize)
+    mask_row <- mask_row & (obsdf$hh_size <= max_hh_size)
   }
 
   # implement min household size mask (rows only: any case column stays valid)
-  if (!is.na(min_hhsize)) {
-    mask_row <- mask_row & (obsdf$hhsize >= min_hhsize)
+  if (!is.na(min_hh_size)) {
+    mask_row <- mask_row & (obsdf$hh_size >= min_hh_size)
   }
 
   list(
@@ -587,7 +587,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
 
   # 2. curate predicted dataframe
-  preddf$hhsize <- obsdf$hhsize
+  preddf$hh_size <- obsdf$hh_size
   preddf$distr <- "predicted"
   rownames(preddf) <- seq(2, 2 * nrow(preddf), 2)
 
@@ -597,7 +597,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   rownames(combined) <- NULL
   # reorder columns
   y <- colnames(combined)
-  aux <- c("hhsize", "distr")
+  aux <- c("hh_size", "distr")
   combined <- combined[, c(aux, y[!y %in% aux])]
 
   # format columns to extract labels with labelizor
@@ -614,12 +614,12 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 #' household size: cases, attack rate and secondary attack rate, comparing
 #' observed and predicted values.
 #' @examples
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+#' results <- run_inference(hh_model, chains = 2, progress = FALSE)
 #'
-#' ppc <- check_predictive(hhmodel, results, nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
 #' ppc$formatted_attack_rate
 #' @docType class
 HousepiEpiPredictiveCheck <- R6::R6Class(
@@ -634,17 +634,17 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
-    min_hhsize_ = NA_integer_,
-    max_hhsize_ = NA_integer_,
+    min_hh_size_ = NA_integer_,
+    max_hh_size_ = NA_integer_,
     house_counts_ = NULL,
 
-    # Restrict a by-hhsize data.frame to the set [min_hhsize_, max_hhsize_].
-    filter_hhsize_ = function(df) {
-      if (!is.na(private$min_hhsize_)) {
-        df <- df[df$hhsize >= private$min_hhsize_, ]
+    # Restrict a by-hh_size data.frame to the set [min_hh_size_, max_hh_size_].
+    filter_hh_size_ = function(df) {
+      if (!is.na(private$min_hh_size_)) {
+        df <- df[df$hh_size >= private$min_hh_size_, ]
       }
-      if (!is.na(private$max_hhsize_)) {
-        df <- df[df$hhsize <= private$max_hhsize_, ]
+      if (!is.na(private$max_hh_size_)) {
+        df <- df[df$hh_size <= private$max_hh_size_, ]
       }
       df
     }
@@ -662,18 +662,18 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       if (!missing(value)) stop_read_only("formatted_attack_rate")
       # convert internal list to data.frame
       output <- data.frame(
-        hhsize = self$attack_rate$observed$hhsize,
+        hh_size = self$attack_rate$observed$hh_size,
         observed = self$attack_rate$observed$ar,
         predicted = self$attack_rate$predicted$ar,
         cri_lower = self$attack_rate$cri_lower$ar,
         cri_upper = self$attack_rate$cri_upper$ar,
         counts = private$house_counts_$total[
-          match(self$attack_rate$observed$hhsize,
-                private$house_counts_$hhsize)
+          match(self$attack_rate$observed$hh_size,
+                private$house_counts_$hh_size)
         ]
       )
       # filter to household size bounds if applicable
-      private$filter_hhsize_(output)
+      private$filter_hh_size_(output)
     },
 
     #' @field formatted_sec_attack_rate `data.frame`.
@@ -683,18 +683,18 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       if (!missing(value)) stop_read_only("formatted_sec_attack_rate")
       # convert internal list to data.frame
       output <- data.frame(
-        hhsize = self$sec_attack_rate$observed$hhsize,
+        hh_size = self$sec_attack_rate$observed$hh_size,
         observed = self$sec_attack_rate$observed$sar,
         predicted = self$sec_attack_rate$predicted$sar,
         cri_lower = self$sec_attack_rate$cri_lower$sar,
         cri_upper = self$sec_attack_rate$cri_upper$sar,
         counts = private$house_counts_$at_least_1_case[
-          match(self$sec_attack_rate$observed$hhsize,
-                private$house_counts_$hhsize)
+          match(self$sec_attack_rate$observed$hh_size,
+                private$house_counts_$hh_size)
         ]
       )
       # filter to household size bounds if applicable
-      private$filter_hhsize_(output)
+      private$filter_hh_size_(output)
     },
 
     #' @field formatted_cases_count `data.frame`.
@@ -704,12 +704,12 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       if (!missing(value)) stop_read_only("formatted_cases_count")
       # filter according to household size bounds
       cases <- helper_filter_tables(self$cases_count,
-                                    private$min_hhsize_, private$max_hhsize_)
+                                    private$min_hh_size_, private$max_hh_size_)
 
       # empty frame as a placeholder for Credible Interval
       na_df <- cases$observed
       na_df[] <- lapply(na_df, \(col) if (is.numeric(col)) NA else col)
-      na_df$hhsize <- cases$observed$hhsize
+      na_df$hh_size <- cases$observed$hh_size
 
       list(
         predicted = helper_combine_obs_pred(cases$observed, cases$predicted),
@@ -724,23 +724,23 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
   ############################################################################
 
   public = list(
-    #' @param hhmodel `r rd_model_in_`
+    #' @param hh_model `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param ... `r rd_measure_dots_`
     #' They are checked alongside standard epidemiological measures.
     #' @param nrep `r rd_nrep_`
     #' @param thin_ess `r rd_thin_ess_`
-    #' @param min_hhsize `r rd_min_hhsize_`
-    #' @param max_hhsize `r rd_max_hhsize_`
+    #' @param min_hh_size `r rd_min_hh_size_`
+    #' @param max_hh_size `r rd_max_hh_size_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
-    initialize = function(hhmodel,
+    initialize = function(hh_model,
                           param_table,
                           ...,
                           nrep = NA_integer_,
                           thin_ess = TRUE,
-                          min_hhsize = NA_integer_,
-                          max_hhsize = NA_integer_,
+                          min_hh_size = NA_integer_,
+                          max_hh_size = NA_integer_,
                           threads = 1L,
                           progress = TRUE) {
       epi_names <- c("attack_rate", "sec_attack_rate", "cases_count")
@@ -750,26 +750,26 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
               "by a standard epidemiological measure."),
         "Rename the measure or set {.code epi = FALSE}."
       )
-      # the built-in measures read only hhid and status, so without a wide
+      # the built-in measures read only hh_id and status, so without a wide
       # reporting process or a custom measure the simulated frames stay
       # engine-coded: the relabelling round trip is skipped once per replicate
-      esc <- hhmodel$escaped
-      private$labelled_ <- !is.null(hhmodel$reporting_process$wide) ||
+      esc <- hh_model$escaped
+      private$labelled_ <- !is.null(hh_model$reporting_process$wide) ||
         length(list(...))
 
       # initialize parent class HousepiPredictiveCheck
       super$initialize(
-        hhmodel = hhmodel, param_table = param_table,
-        attack_rate = \(x) measure_ar_by_hhsize(x, esc),
-        sec_attack_rate = \(x) measure_sar_by_hhsize(x, esc),
-        cases_count = \(x) measure_cases_by_hhsize(x, esc),
+        hh_model = hh_model, param_table = param_table,
+        attack_rate = \(x) measure_ar_by_hh_size(x, esc),
+        sec_attack_rate = \(x) measure_sar_by_hh_size(x, esc),
+        cases_count = \(x) measure_cases_by_hh_size(x, esc),
         ...,
         nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
       )
-      private$house_counts_ <- helper_house_counts(hhmodel$data_wide, esc)
-      self$set_min_hhsize(min_hhsize)
-      self$set_max_hhsize(max_hhsize)
+      private$house_counts_ <- helper_house_counts(hh_model$data_wide, esc)
+      self$set_min_hh_size(min_hh_size)
+      self$set_max_hh_size(max_hh_size)
 
       invisible(self)
     },
@@ -777,28 +777,28 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' @description Set minimum household size to consider in result outputs.
     #' @param n `integer(1)`. Minimum household size to consider.
     #' If `NA`, restore observed minimum.
-    set_min_hhsize = function(n) {
-      private$min_hhsize_ <- n
+    set_min_hh_size = function(n) {
+      private$min_hh_size_ <- n
       invisible(self)
     },
 
     #' @description Restore minimum household size to observed minimum.
-    drop_min_hhsize = function() {
-      self$set_min_hhsize(NA_integer_)
+    drop_min_hh_size = function() {
+      self$set_min_hh_size(NA_integer_)
       invisible(self)
     },
 
     #' @description Set maximum household size to consider in result outputs.
     #' @param n `integer(1)`. Maximum household size to consider.
     #' If `NA`, restore observed maximum.
-    set_max_hhsize = function(n) {
-      private$max_hhsize_ <- n
+    set_max_hh_size = function(n) {
+      private$max_hh_size_ <- n
       invisible(self)
     },
 
     #' @description Restore maximum household size to observed maximum.
-    drop_max_hhsize = function() {
-      self$set_max_hhsize(NA_integer_)
+    drop_max_hh_size = function() {
+      self$set_max_hh_size(NA_integer_)
       invisible(self)
     }
   )
@@ -811,15 +811,15 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' \insertCite{gelman_posterior_1996}{housepi}.
 #' It checks standard epidemiological measures by household size:
 #' \describe{
-#' \item{`"attack_rate"`}{see [measure_ar_by_hhsize];}
-#' \item{`"sec_attack_rate"`}{see [measure_sar_by_hhsize];}
-#' \item{`"cases_count"`}{see [measure_cases_by_hhsize].}
+#' \item{`"attack_rate"`}{see [measure_ar_by_hh_size];}
+#' \item{`"sec_attack_rate"`}{see [measure_sar_by_hh_size];}
+#' \item{`"cases_count"`}{see [measure_cases_by_hh_size].}
 #' }
 #' Named measure functions in `...` are checked alongside them,
 #' under names that differ from these.
 #' Each replicate goes through the reporting process of the model, see
 #' [add_reporting_process()].
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param ... `r rd_measure_dots_`
 #' @param nrep `r rd_nrep_`
@@ -828,9 +828,9 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' measures. If `FALSE`, only the measures in `...` are checked, and
 #' the formatted outputs and household size bounds of
 #' [HousepiEpiPredictiveCheck] are unavailable.
-#' @param min_hhsize `r rd_min_hhsize_`
+#' @param min_hh_size `r rd_min_hh_size_`
 #' Only with `epi = TRUE`.
-#' @param max_hhsize `r rd_max_hhsize_`
+#' @param max_hh_size `r rd_max_hh_size_`
 #' Only with `epi = TRUE`.
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
@@ -842,56 +842,56 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' @references
 #' \insertAllCited{}
 #' @examples
-#' hhmodel <- flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+#' results <- run_inference(hh_model, chains = 2, progress = FALSE)
 #'
-#' ppc <- check_predictive(hhmodel, results, nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
 #' ppc
 #'
 #' # a user-defined measure: the overall attack rate
 #' overall_ar <- function(data_wide) mean(data_wide$status > 0)
-#' ppc <- check_predictive(hhmodel, results, overall = overall_ar,
+#' ppc <- check_predictive(hh_model, results, overall = overall_ar,
 #'                         nrep = 50, progress = FALSE)
 #' ppc
 #' ppc$overall$observed
 #'
 #' # only the user-defined measures
-#' ppc <- check_predictive(hhmodel, results, overall = overall_ar,
+#' ppc <- check_predictive(hh_model, results, overall = overall_ar,
 #'                         epi = FALSE, nrep = 50, progress = FALSE)
 #' ppc
 #' @export
-check_predictive <- function(hhmodel,
+check_predictive <- function(hh_model,
                              param_table,
                              ...,
                              epi = TRUE,
                              nrep = NA_integer_,
                              thin_ess = TRUE,
-                             min_hhsize = NA_integer_,
-                             max_hhsize = NA_integer_,
+                             min_hh_size = NA_integer_,
+                             max_hh_size = NA_integer_,
                              threads = 1L,
                              progress = TRUE) {
-  stopifnothousepi(hhmodel)
+  stopifnothousepi(hh_model)
   if (!rlang::is_bool(epi)) stop_h(
     "{.arg epi} should be {.code TRUE} or {.code FALSE}."
   )
   if (isTRUE(epi)) return(HousepiEpiPredictiveCheck$new(
-    hhmodel$copy(), param_table, ..., nrep = nrep,
-    thin_ess = thin_ess, min_hhsize = min_hhsize, max_hhsize = max_hhsize,
+    hh_model$copy(), param_table, ..., nrep = nrep,
+    thin_ess = thin_ess, min_hh_size = min_hh_size, max_hh_size = max_hh_size,
     threads = threads, progress = progress
   ))
   if (!length(list(...))) stop_h(
     "No measure to check.",
     "Pass measure functions in {.arg ...} or keep {.code epi = TRUE}."
   )
-  if (!all(is.na(c(min_hhsize, max_hhsize)))) stop_h(
-    paste("Arguments {.arg min_hhsize} and {.arg max_hhsize} bound only",
+  if (!all(is.na(c(min_hh_size, max_hh_size)))) stop_h(
+    paste("Arguments {.arg min_hh_size} and {.arg max_hh_size} bound only",
           "standard epidemiological measures."),
     "Set {.code epi = TRUE} or restrict household sizes inside the measures."
   )
   HousepiPredictiveCheck$new(
-    hhmodel$copy(), param_table, ...,
+    hh_model$copy(), param_table, ...,
     nrep = nrep, thin_ess = thin_ess,
     threads = threads, progress = progress
   )

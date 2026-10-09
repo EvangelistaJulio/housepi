@@ -13,28 +13,28 @@
 \alias{get_reporting_process}
 \title{Retrieve currently loaded data and definitions from a housepi model}
 \usage{
-get_data_wide(hhmodel)
+get_data_wide(hh_model)
 
-get_data_long(hhmodel)
+get_data_long(hh_model)
 
-get_parameters(hhmodel, name = NA)
+get_parameters(hh_model, name = NA)
 
-get_latent(hhmodel, name = NA)
+get_latent(hh_model, name = NA)
 
-get_observations(hhmodel, name = NA)
+get_observations(hh_model, name = NA)
 
-get_status_process(hhmodel)
+get_status_process(hh_model)
 
-get_group_risks(hhmodel, name = NA)
+get_group_risks(hh_model, name = NA)
 
-get_contact_risks(hhmodel)
+get_contact_risks(hh_model)
 
-get_infectivity_profiles(hhmodel)
+get_infectivity_profiles(hh_model)
 
-get_reporting_process(hhmodel)
+get_reporting_process(hh_model)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{name}{\code{character()}. Names of the definitions to return.
 \code{get_group_risks()} matches the name of the group risk.
@@ -57,12 +57,16 @@ profile, reporting process).
 a deterministic observation stands in for carries the derived value, not the
 imported one. A column an observation produces without standing in for data
 is not part of the dataset, and is reported by \code{\link[=get_observations]{get_observations()}}.
+
+Definitions are listed by name. Those that apply to every status come
+first, followed by the status-specific ones ordered by status, numerically
+when the statuses are numbers.
 }
 \examples{
-hhmodel <- new_housepi_model(flu_1918_frederick, "final_size") |>
+hh_model <- new_housepi_model(flu_1918_frederick, "final_size") |>
   add_parameter(import = "template")
-get_data_wide(hhmodel) |>
+get_data_wide(hh_model) |>
   head()
-get_parameters(hhmodel)
-get_parameters(hhmodel, name = c("alpha", "beta"))
+get_parameters(hh_model)
+get_parameters(hh_model, name = c("alpha", "beta"))
 }

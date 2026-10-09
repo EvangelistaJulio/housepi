@@ -26,11 +26,11 @@ Several rows are collapsed to their point estimate."
 #' Mirrors what `run_simulation()` builds from the pins on its own, so the
 #' surveys are generated exactly as an ordinary simulation would.
 #' @noRd
-recovery_pins_ <- function(hhmodel, truth, point_estimate) {
-  pins <- sweep_pins_(hhmodel)
+recovery_pins_ <- function(hh_model, truth, point_estimate) {
+  pins <- sweep_pins_(hh_model)
   if (!is.null(truth)) {
     given <- recovery_collapse_truth_(truth, point_estimate)
-    hhmodel$.__enclos_env__$private$assert_no_baseline_value_(given, "truth")
+    hh_model$.__enclos_env__$private$assert_no_baseline_value_(given, "truth")
     known <- intersect(names(given), names(pins))
     pins[known] <- given[known]
     unknown <- setdiff(names(given), names(pins))
@@ -54,8 +54,8 @@ recovery_collapse_truth_ <- function(truth, point_estimate) {
 #' pinned, since a recovery check simulates every replicate at the same known
 #' values.
 #' @noRd
-recovery_truth_ <- function(hhmodel, pins) {
-  estimated <- sweep_estimated_(hhmodel)
+recovery_truth_ <- function(hh_model, pins) {
+  estimated <- sweep_estimated_(hh_model)
   unpinned <- setdiff(estimated, names(pins))
   if (length(unpinned)) stop_h(
     "No simulation value for parameter{?s} {.val {unpinned}}.",
@@ -94,7 +94,7 @@ recovery_summary_ <- function(estimates) {
 #' @param data_wide `r rd_add_wide_`
 #' @param houses `integer(1)` Number of households to draw.
 #' `NA` targets the number of households carried by `data_wide`.
-#' @return `data.frame` with `hhid` renumbered sequentially, so a household
+#' @return `data.frame` with `hh_id` renumbered sequentially, so a household
 #' drawn twice stands as two independent households, and `id` regenerated as
 #' a row number when the input carries one.
 #' @examples
@@ -104,16 +104,16 @@ recovery_summary_ <- function(estimates) {
 #' @export
 sample_house_structure <- function(data_wide, houses = NA_integer_) {
   data <- as.data.frame(data_wide)
-  if (!"hhid" %in% names(data)) stop_h(
-    "Column {.field hhid} is missing from the data.",
+  if (!"hh_id" %in% names(data)) stop_h(
+    "Column {.field hh_id} is missing from the data.",
     "Provide an household identifier in order to allow sampling."
   )
-  blocks <- split(data, data[["hhid"]], drop = TRUE)
+  blocks <- split(data, data[["hh_id"]], drop = TRUE)
   houses <- sweep_house_counts_(houses, length(blocks), one = TRUE)
   drawn <- blocks[sample.int(length(blocks), houses, replace = TRUE)]
   out <- do.call(rbind, drawn)
   rownames(out) <- NULL
-  out[["hhid"]] <- rep(seq_along(drawn), vapply(drawn, nrow, integer(1L)))
+  out[["hh_id"]] <- rep(seq_along(drawn), vapply(drawn, nrow, integer(1L)))
   if ("id" %in% names(out)) out[["id"]] <- seq_len(nrow(out))
   out
 }
@@ -289,7 +289,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @description
     #' Internal: [check_recovery()] builds this object, don't call `$new()`
     #' directly.
-    #' @param hhmodel `r rd_model_in_`
+    #' @param hh_model `r rd_model_in_`
     #' @param nrep `r rd_sweep_nrep_`
     #' @param houses `r rd_recov_houses_`
     #' @param structure_sampler `r rd_sweep_sampler_`
@@ -302,7 +302,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @param threads `r rd_sweep_threads_`
     #' @param progress `r rd_progress_`
     #' @param ... `r rd_dots_config_`
-    initialize = function(hhmodel, nrep = 50L, houses = NA_integer_,
+    initialize = function(hh_model, nrep = 50L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
                           truth = NULL, steps = 1000L, burn = 0L,
                           thin = 5L, adapt = 500L,
@@ -311,18 +311,18 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$nrep_ <- assert_count_(nrep, "Number of replicates")
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
-      private$name_ <- hhmodel$.__enclos_env__$private$gen_$raw_name
+      private$name_ <- hh_model$.__enclos_env__$private$gen_$raw_name
 
-      pins <- recovery_pins_(hhmodel, truth, private$point_estimate_)
-      private$truth_ <- recovery_truth_(hhmodel, pins)
-      structure <- sweep_base_structure_(hhmodel)
+      pins <- recovery_pins_(hh_model, truth, private$point_estimate_)
+      private$truth_ <- recovery_truth_(hh_model, pins)
+      structure <- sweep_base_structure_(hh_model)
       private$houses_ <- sweep_houses_(structure, houses,
                                        is.null(structure_sampler))
 
       fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
                        chains = chains)
       swept <- sweep_run_(
-        hhmodel, structure, structure_sampler, private$houses_, private$nrep_,
+        hh_model, structure, structure_sampler, private$houses_, private$nrep_,
         pins, fit_args, threads, list(...), private$summarise_draws_,
         progress, "Recovery replicates"
       )
@@ -360,7 +360,7 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' The parameter pins of the model are the values the surveys are simulated
 #' at, and the priors of the very same model drive inference, so no separate
 #' simulation model is needed.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param nrep `r rd_sweep_nrep_`
 #' @param houses `r rd_recov_houses_`
 #' @param structure_sampler `r rd_sweep_sampler_`
@@ -388,7 +388,7 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' recovery$summary
 #' recovery$overview
 #' @export
-check_recovery <- function(hhmodel,
+check_recovery <- function(hh_model,
                            nrep = 50L,
                            houses = NA_integer_,
                            structure_sampler = sample_house_structure,
@@ -398,10 +398,10 @@ check_recovery <- function(hhmodel,
                            chains = 4L, threads = 1L,
                            progress = TRUE,
                            ...) {
-  stopifnothousepi(hhmodel)
+  stopifnothousepi(hh_model)
   assert_advanced_setup_(c("adapt_window", "time_step"), ...)
   HousepiRecoveryCheck$new(
-    hhmodel$copy(), nrep = nrep, houses = houses,
+    hh_model$copy(), nrep = nrep, houses = houses,
     structure_sampler = structure_sampler, truth = truth,
     steps = steps, burn = burn, thin = thin, adapt = adapt,
     chains = chains, threads = threads, progress = progress, ...

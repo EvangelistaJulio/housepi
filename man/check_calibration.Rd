@@ -5,7 +5,7 @@
 \title{Check that inference is calibrated against the prior}
 \usage{
 check_calibration(
-  hhmodel,
+  hh_model,
   nrep = 200L,
   houses = NA_integer_,
   structure_sampler = sample_house_structure,
@@ -21,7 +21,7 @@ check_calibration(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{nrep}{\code{integer(1)} Number of surveys simulated and fitted back
 at each household count.}

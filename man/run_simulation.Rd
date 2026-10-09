@@ -5,7 +5,7 @@
 \title{Simulate a household survey from a housepi model}
 \usage{
 run_simulation(
-  hhmodel,
+  hh_model,
   param_table = NULL,
   nrep = NA_integer_,
   thin_ess = TRUE,
@@ -13,7 +13,7 @@ run_simulation(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{param_table}{One between
 \itemize{

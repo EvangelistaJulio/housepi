@@ -67,8 +67,8 @@ namespace housepi
 
 		/// Initialize the model and evaluate the complete-data log-likelihood, joint over latents.
 		/// - sum of observation, transmission and latent terms;
-		/// - missing `hhid`: every household.
-		double evaluate_log_lik(std::string_view hhid);
+		/// - missing `hh_id`: every household.
+		double evaluate_log_lik(std::string_view hh_id);
 
 		/// Assert definitions and allocate the posterior, before sample().
 		/// @note Call on the main thread: it may raise warnings.

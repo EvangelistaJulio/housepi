@@ -246,7 +246,7 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
 #' @param id_draws Selection given to [run_inference()].
 #' @noRd
 resolve_id_draws_ <- function(id_draws) {
-  out <- list(id = character(), hhid = character())
+  out <- list(id = character(), hh_id = character())
   # unspecified: let the engine follow one random household
   if (!length(id_draws)) {
     return(out)
@@ -258,13 +258,13 @@ resolve_id_draws_ <- function(id_draws) {
   }
   # named list: split individual and household identifiers
   if (is.list(id_draws)) {
-    extra <- setdiff(names(id_draws), c("id", "hhid"))
+    extra <- setdiff(names(id_draws), c("id", "hh_id"))
     if (length(extra)) stop_h(
       "Unknown {.arg id_draws} name{?s}: {.val {extra}}."
     )
     if (!is.null(id_draws$id)) out$id <- as.character(id_draws$id)
-    if (!is.null(id_draws$hhid))
-      out$hhid <- as.character(id_draws$hhid)
+    if (!is.null(id_draws$hh_id))
+      out$hh_id <- as.character(id_draws$hh_id)
     return(out)
   }
   # bare vector: individual identifiers
@@ -596,7 +596,7 @@ status_to_codes_ <- function(x, escaped = "escaped") {
 #' @keywords internal
 #' @noRd
 cpp_data_factorize <- function(df, escaped = "escaped") {
-  skip <- c("id", "hhid", "status")
+  skip <- c("id", "hh_id", "status")
   cols <- colnames(df)
   info <- list()
 

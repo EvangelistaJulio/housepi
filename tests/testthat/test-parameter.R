@@ -83,11 +83,11 @@ test_that("A func definition is deterministic", {
     expect_error("[Dd]eterministic parameter.*rho.*cannot be sampled")
 
   # the spare arguments reach the function, whichever spelling declares it
-  hhmodel <- mk_param$model |> add_parameter("rho_2", value = 2)
-  by_args <- hhmodel |> add_parameter("rho", func = "log", x = rho_2)
-  by_expr <- hhmodel |> add_parameter(rho = log(rho_2))
+  hh_model <- mk_param$model |> add_parameter("rho_2", value = 2)
+  by_args <- hh_model |> add_parameter("rho", func = "log", x = rho_2)
+  by_expr <- hh_model |> add_parameter(rho = log(rho_2))
   get_parameters(by_args) |> expect_identical(get_parameters(by_expr))
-  get_parameters(by_args)$func_args[[2]] |> expect_identical(c(x = "rho_2|P"))
+  get_parameters(by_args)$func_args[[1]] |> expect_identical(c(x = "rho_2|P"))
 })
 
 test_that("A parameter takes a single defining argument", {
@@ -178,23 +178,23 @@ test_that("Constant parameter definitions are correct", {
     expect_error("[Mm]issing value")
 
   # bulk and single add should be coherent
-  hhmodel <- mk_param$model |> add_parameter(rho = 3)
-  hhmodel_2 <- mk_param$model |> add_parameter("rho", value = 3)
-  get_parameters(hhmodel) |> expect_identical(get_parameters(hhmodel_2))
+  hh_model <- mk_param$model |> add_parameter(rho = 3)
+  hh_model_2 <- mk_param$model |> add_parameter("rho", value = 3)
+  get_parameters(hh_model) |> expect_identical(get_parameters(hh_model_2))
 
-  param <- get_parameters(hhmodel)
+  param <- get_parameters(hh_model)
   param$name |> expect_identical("rho")
   param$value |> expect_equal(3)
   param$const |> expect_identical(TRUE)
   param$proposal |> expect_equal(NA_real_)
 
   expect_warning(
-    overwritten <- hhmodel |>
+    overwritten <- hh_model |>
       add_parameter("rho", value = 3, prior = "uniform",
                     min = 0, max = 5, const = TRUE),
     "[Oo]verwriting"
   )
-  get_parameters(overwritten) |> expect_identical(get_parameters(hhmodel_2))
+  get_parameters(overwritten) |> expect_identical(get_parameters(hh_model_2))
 })
 
 test_that("Parameter options typed as values refuse other types", {
@@ -215,15 +215,15 @@ test_that("Parameter options typed as values refuse other types", {
 
 test_that("Unsupported parameter definitions throw errors", {
   # eager rebuild: errors surface at definition, not at run_inference
-  data.frame(id = 1, hhid = 1, status = 1, datum = 1) |>
+  data.frame(id = 1, hh_id = 1, status = 1, datum = 1) |>
     new_housepi_model("test") |>
     add_parameter("rho", prior = "uniform", min = datum) |>
     expect_error("[Nn]ot supported")
   # a bare name nothing declares carries no source yet: it waits for the wall
-  hhmodel <- add_parameter(mk_param$model, "rho", prior = "uniform",
-                           min = datum)
-  get_parameters(hhmodel)$min |> expect_identical("datum|?")
-  hhmodel |>
+  hh_model <- add_parameter(mk_param$model, "rho", prior = "uniform",
+                            min = datum)
+  get_parameters(hh_model)$min |> expect_identical("datum|?")
+  hh_model |>
     evaluate_log_lik() |>
     expect_error("[Cc]ould not resolve the source of .datum.")
 
@@ -356,34 +356,34 @@ test_that("A discrete prior resolves 'uniform' to the discrete distribution", {
 })
 
 test_that("Parameter defined as a function tracks its dependencies", {
-  hhmodel <- mk_final_size$model |>
-    add_parameter(alpha = 1e-4, beta = hhsize_ref^-gamma,
-                  gamma = list(prior = "uniform"), hhsize_ref = 4)
-  get_parameters(hhmodel)$func_args[[2]] |>
-    expect_identical(c(x = "hhsize_ref|P", x2 = "minus|x|[gamma|P]"))
+  hh_model <- mk_final_size$model |>
+    add_parameter(alpha = 1e-4, beta = hh_size_ref^-gamma,
+                  gamma = list(prior = "uniform"), hh_size_ref = 4)
+  get_parameters(hh_model)$func_args[[2]] |>
+    expect_identical(c(x = "hh_size_ref|P", x2 = "minus|x|[gamma|P]"))
 
   # both sampled and function-derived parameters appear in the trace
-  draws <- hhmodel |>
+  draws <- hh_model |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings() |>
     getElement("parameter_draws") |>
     posterior::as_draws_df() |>
     as.data.frame()
   names(draws) |> expect_contains(c("gamma", "beta"))
-  # every draw of beta equals hhsize_ref^(-gamma) exactly
+  # every draw of beta equals hh_size_ref^(-gamma) exactly
   draws$beta |> expect_equal(4^(-draws$gamma))
 })
 
 test_that("Parameter function rejects non-parameter dependencies", {
-  hhmodel <- add_latent(mk_param$model, "hidden", model = "normal")
+  hh_model <- add_latent(mk_param$model, "hidden", model = "normal")
 
   # parameters do not accept individual-specifc definitons
-  hhmodel |>
+  hh_model |>
     add_parameter("rho", prior = "normal", mean = hidden + 1) |>
     expect_error("[Ii]ndividual.*specific")
 
   # a bare name declared as a latent resolves there, and is refused as such
-  hhmodel |>
+  hh_model |>
     add_parameter(rho = hidden^-2) |>
     expect_error("rho.*cannot.*depend.*latent")
 
@@ -396,7 +396,7 @@ test_that("Parameter function rejects non-parameter dependencies", {
 
 test_that("Parameter template import loads the shipped definitions", {
   get_parameters(mk_final_size$template)$name |>
-    expect_setequal(c("alpha", "beta", "gamma", "hhsize_ref"))
+    expect_setequal(c("alpha", "beta", "gamma", "hh_size_ref"))
 
   # a model shipping no template definition file says so
   mk_final_size$model |>
@@ -405,42 +405,42 @@ test_that("Parameter template import loads the shipped definitions", {
 
   # the test model carries no template at all: warn and add nothing
   expect_warning(
-    hhmodel <- add_parameter(mk_param$model, import = "template"),
+    hh_model <- add_parameter(mk_param$model, import = "template"),
     regexp = "test model"
   )
-  get_parameters(hhmodel) |> expect_nrow(0L)
+  get_parameters(hh_model) |> expect_nrow(0L)
 })
 
 test_that("A parameter meets the model definition requirements", {
-  hhmodel <- sarscov2_2021_icofs |>
+  hh_model <- sarscov2_2021_icofs |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_infectivity_profile(import = "template") |>
     add_latent(import = "template")
 
   # the household size reference is required strictly positive
-  hhmodel |>
-    add_parameter(hhsize_ref = 0) |>
+  hh_model |>
+    add_parameter(hh_size_ref = 0) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_error("not strictly positive")
 
   # a discrete prior owns the zero bin
-  hhmodel |>
-    add_parameter(hhsize_ref = list(prior = "poisson", lambda = 4)) |>
+  hh_model |>
+    add_parameter(hh_size_ref = list(prior = "poisson", lambda = 4)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_error("not strictly positive")
 
   # a non-integer reference is accepted, constant or sampled
-  hhmodel |>
-    add_parameter(hhsize_ref = 3.3) |>
+  hh_model |>
+    add_parameter(hh_size_ref = 3.3) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     is.finite() |>
     expect_true()
-  hhmodel |>
-    add_parameter(hhsize_ref = list(prior = "uniform", min = 2, max = 6)) |>
+  hh_model |>
+    add_parameter(hh_size_ref = list(prior = "uniform", min = 2, max = 6)) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     is.finite() |>
@@ -560,14 +560,14 @@ test_that("Every prior family and nested function samples across chains", {
 test_that("An unpinned parameter is drawn from its prior in simulation", {
   # the proposal is an independence sampler parked in a corner of the prior's
   # domain: a generative draw reading it would pin every replicate there
-  hhmodel <- data.frame(id = seq_len(20), hhid = 1, status = 1) |>
+  hh_model <- data.frame(id = seq_len(20), hh_id = 1, status = 1) |>
     new_housepi_model("test") |>
     add_parameter(rho = list(prior = "uniform", min = 0.1, max = 0.9,
                              proposal = "normal",
                              proposal_mean = 0.88, proposal_sd = 0.005)) |>
     add_latent(hidden = rho)
 
-  results <- simulate_with_parameters_(hhmodel, nrep = 40)
+  results <- simulate_with_parameters_(hh_model, nrep = 40)
   drawn <- results$parameters$rho
 
   drawn |> expect_length(40L)
@@ -580,16 +580,16 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
 })
 
 test_that("A pinned parameter is returned at its pin in simulation", {
-  hhmodel <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 0) |>
+  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 0) |>
     new_housepi_model("test") |>
     add_parameter(rho = list(value = 0.3, prior = "uniform"),
                   rho_2 = list(prior = "uniform"))
 
-  results <- simulate_with_parameters_(hhmodel, nrep = 5)
+  results <- simulate_with_parameters_(hh_model, nrep = 5)
   results$parameters |> expect_named(c("rho", "rho_2"), ignore.order = TRUE)
   results$parameters$rho |> expect_all_equal(0.3)
   # a single replicate returns one frame and a one-row table
-  results <- simulate_with_parameters_(hhmodel)
+  results <- simulate_with_parameters_(hh_model)
   results$wide |> expect_length(1L)
   results$parameters |> expect_nrow(1L)
   results$parameters$rho |> expect_equal(0.3)
@@ -599,15 +599,15 @@ test_that("Per-replicate parameter values reach the latents reading them", {
   rho_table <- data.frame(rho = c(0, 10, 20))
   # a deterministic latent and a model argument, both reading rho
   # undeclared: the model is built on the table's first row
-  hhmodel <- data.frame(hhid = "h1", id = c("m1", "m2"), status = 1) |>
+  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 1) |>
     new_housepi_model("test") |>
     add_latent(hidden = rho,
                hidden_2 = list(model = "normal", mean = rho, sd = 1e-3))
   # declared constant: the table overrides its value
-  hhmodel_2 <- hhmodel |> add_parameter(rho = 0.3)
+  hh_model_2 <- hh_model |> add_parameter(rho = 0.3)
 
-  for (results in list(run_simulation(hhmodel, param_table = rho_table),
-                       run_simulation(hhmodel_2, param_table = rho_table))) {
+  for (results in list(run_simulation(hh_model, param_table = rho_table),
+                       run_simulation(hh_model_2, param_table = rho_table))) {
     vapply(results, \(x) x$hidden[2], numeric(1)) |>
       expect_equal(rho_table$rho)
     vapply(results, \(x) x$hidden_2[2], numeric(1)) |>
@@ -616,16 +616,16 @@ test_that("Per-replicate parameter values reach the latents reading them", {
 })
 
 test_that("An unpinned parameter is drawn from its prior at evaluation", {
-  hhmodel <- mk_final_size$model |>
-    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
-  log_lik <- hhmodel |>
+  hh_model <- mk_final_size$model |>
+    add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4)
+  log_lik <- hh_model |>
     add_parameter(alpha = list(prior = "uniform", min = 0.1, max = 0.9,
                                proposal = "normal",
                                proposal_mean = 0.88, proposal_sd = 0.005)) |>
     (\(x) replicate(20, evaluate_log_lik(x)))()
 
   # what the whole prior domain is worth, to scale the spread against
-  pinned <- \(a) evaluate_log_lik(add_parameter(hhmodel, alpha = !!a))
+  pinned <- \(a) evaluate_log_lik(add_parameter(hh_model, alpha = !!a))
   span <- abs(pinned(0.9) - pinned(0.1))
 
   is.finite(log_lik) |> expect_all_true()

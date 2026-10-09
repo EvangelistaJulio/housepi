@@ -5,7 +5,7 @@
 \title{Add an infectivity profile definition}
 \usage{
 add_infectivity_profile(
-  hhmodel,
+  hh_model,
   func = NULL,
   ...,
   status = NA_integer_,
@@ -17,7 +17,7 @@ add_infectivity_profile(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{func}{\code{character(1)} Name used by internal calls.}
 
@@ -72,8 +72,8 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 \examples{
 # `"template"` loads the profile shipped with the model
-hhmodel <- sarscov2_2021_icofs |>
+hh_model <- sarscov2_2021_icofs |>
   new_housepi_model("case-ascertained") |>
   add_infectivity_profile(import = "template")
-get_infectivity_profiles(hhmodel)
+get_infectivity_profiles(hh_model)
 }

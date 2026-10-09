@@ -2,42 +2,42 @@ library(testthat)
 
 # model carrying no infectivity profile of its own
 mk_infec <- local({
-  hhmodel <- sarscov2_2021_icofs |>
+  hh_model <- sarscov2_2021_icofs |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
     add_latent(import = "template")
-  list(model = hhmodel)
+  list(model = hh_model)
 })
 
 # same model, but in discrete-time
 mk_infec_discr <- local({
-  hhmodel <- sarscov2_2021_icofs |>
+  hh_model <- sarscov2_2021_icofs |>
     new_housepi_model("case-ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_latent(import = "template")
-  list(model = hhmodel)
+  list(model = hh_model)
 })
 
 # three-member household with fixed transmission, followed until day 20
 mk_house <- local({
-  hhmodel <- data.frame(
-    id = c("m1", "m2", "m3"), hhid = "h1",
+  hh_model <- data.frame(
+    id = c("m1", "m2", "m3"), hh_id = "h1",
     status = c(1, 1, 0), start_date = 0, end_date = 20, datum = c(2, 9, 4)
   ) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
-    add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4)
-  list(model = hhmodel)
+    add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hh_size_ref = 4)
+  list(model = hh_model)
 })
 
 # same household in discrete time, followed until day 6
 mk_house_discr <- local({
-  hhmodel <- data.frame(
-    id = c("m1", "m2", "m3"), hhid = "h1",
+  hh_model <- data.frame(
+    id = c("m1", "m2", "m3"), hh_id = "h1",
     status = c(1, 1, 0), start_date = 0, end_date = 6
   ) |>
     new_housepi_model("case-ascertained", discr = TRUE, quiet = TRUE) |>
-    add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hhsize_ref = 4)
-  list(model = hhmodel)
+    add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hh_size_ref = 4)
+  list(model = hh_model)
 })
 
 ####################################
@@ -114,11 +114,11 @@ test_that("Status-specific definitions replace the generic one", {
     ) |>
     get_infectivity_profiles()
 
-  defs$func |> expect_identical(c("lognormal", "ferretti20", "uniform"))
-  defs$func_args[[2]] |>
+  defs$func |> expect_identical(c("uniform", "lognormal", "ferretti20"))
+  defs$func_args[[3]] |>
     expect_equal(c(incub_period = 5, shape = 5.85, scale = 1.85,
                    c_loc = -4, mean_incub = 5.42))
-  defs$status |> expect_equal(c(1, 2, NA_real_))
+  defs$status |> expect_equal(c(NA_real_, 1, 2))
 
   # one call over several statuses fills the defaults of every row it appends
   defs <- mk_infec$model |>
@@ -145,19 +145,19 @@ test_that("Spurious names of imported definitions are dropped", {
 })
 
 test_that("A new profile overwrites the previous one", {
-  hhmodel <- mk_infec$model |>
+  hh_model <- mk_infec$model |>
     add_infectivity_profile(func = "gamma", shape = 2, scale = 1)
-  hhmodel$infectivity_profiles$func |> expect_identical("gamma")
+  hh_model$infectivity_profiles$func |> expect_identical("gamma")
   expect_warning(
-    hhmodel <- add_infectivity_profile(hhmodel, func = "lognormal"),
+    hh_model <- add_infectivity_profile(hh_model, func = "lognormal"),
     regexp = "Overwriting"
   )
-  hhmodel$infectivity_profiles$func |> expect_identical("lognormal")
+  hh_model$infectivity_profiles$func |> expect_identical("lognormal")
 })
 
 test_that("The domain minimum defaults to the first transmission day", {
-  profile_min <- function(hhmodel, ...) {
-    hhmodel |>
+  profile_min <- function(hh_model, ...) {
+    hh_model |>
       add_infectivity_profile(...) |>
       get_infectivity_profiles() |>
       getElement("min")
@@ -289,21 +289,21 @@ test_that("Shifting a profile with 'loc' matches the explicit bounds", {
   # the support is loc + [min, max]: both spellings place it on
   # [incub_period, incub_period + 2]. The follow-up stops at day 6, so a
   # profile reaching past it loses the mass it puts outside
-  hhmodel <- mk_house_discr$model |>
+  hh_model <- mk_house_discr$model |>
     # deterministic, so the likelihood is reproducible across builds
     add_latent(infec_time = start_date, incub_period = 3)
 
-  shifted <- hhmodel |>
+  shifted <- hh_model |>
     add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
     evaluate_log_lik()
-  hhmodel |>
+  hh_model |>
     add_infectivity_profile("uniform", min = incub_period,
                             max = incub_period + 2) |>
     evaluate_log_lik() |>
     expect_equal(shifted)
 
   # and 'max' still widens the support it is handed
-  wider <- hhmodel |>
+  wider <- hh_model |>
     add_infectivity_profile("uniform", loc = incub_period, max = 4) |>
     evaluate_log_lik()
   isTRUE(all.equal(shifted, wider)) |> expect_false()
@@ -312,8 +312,8 @@ test_that("Shifting a profile with 'loc' matches the explicit bounds", {
 test_that("A profile shifted by a sampled latent is judged on its support", {
   # the incubation is drawn, so the shift holds no value while the guard runs:
   # the support it places starts at day 1 and clears the day of infection
-  hhmodel <- add_latent(mk_house_discr$model, infec_time = start_date)
-  kept_away <- hhmodel |>
+  hh_model <- add_latent(mk_house_discr$model, infec_time = start_date)
+  kept_away <- hh_model |>
     add_latent(
       "incub_period", model = "gamma", discr = TRUE, min = 1, mean = 3, sd = 2
     )
@@ -331,7 +331,7 @@ test_that("A profile shifted by a sampled latent is judged on its support", {
     expect_true()
 
   # dropping the incubation's own minimum makes day 0 attainable
-  hhmodel |>
+  hh_model |>
     add_latent(
       "incub_period", model = "gamma", discr = TRUE, mean = 3, sd = 2
     ) |>
@@ -341,16 +341,16 @@ test_that("A profile shifted by a sampled latent is judged on its support", {
 })
 
 test_that("A latent parameterizing the profile drives transmission", {
-  hhmodel <- mk_house$model |>
+  hh_model <- mk_house$model |>
     add_latent("infec_time", min = start_date, max = end_date)
 
   # the profile is resolved per member, so the latent reaches the household
   # cache without ever passing through 'infec_time'
-  short <- hhmodel |>
+  short <- hh_model |>
     add_latent(incub_period = 3) |>
     add_infectivity_profile("ferretti20", incub_period = incub_period) |>
     evaluate_log_lik()
-  long <- hhmodel |>
+  long <- hh_model |>
     add_latent(incub_period = 8) |>
     add_infectivity_profile("ferretti20", incub_period = incub_period) |>
     evaluate_log_lik()
@@ -358,14 +358,14 @@ test_that("A latent parameterizing the profile drives transmission", {
 })
 
 test_that("The household snapshot reports the profile of each member", {
-  hhmodel <- mk_house$model
+  hh_model <- mk_house$model
   profiles_of <- \(h) inspect_house_state(h, "h1")$infectivity_profiles
 
   # the model requires a profile, so the entry is kept but reads empty
-  profiles_of(hhmodel) |> expect_nrow(0L)
+  profiles_of(hh_model) |> expect_nrow(0L)
 
   # a generic profile repeats on every infected member, susceptibles read NA
-  generic <- hhmodel |>
+  generic <- hh_model |>
     add_latent(infec_time = start_date) |>
     add_infectivity_profile("gamma", shape = 2, scale = 1) |>
     profiles_of()
@@ -381,7 +381,7 @@ test_that("The household snapshot reports the profile of each member", {
   generic$func_args[[3]] |> expect_length(0)
 
   # a latent profile is resolved per member: same house, two incubations
-  latent <- hhmodel |>
+  latent <- hh_model |>
     add_latent(infec_time = start_date, incub_period = datum) |>
     add_infectivity_profile("ferretti20", incub_period = incub_period)
 

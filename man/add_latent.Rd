@@ -5,7 +5,7 @@
 \title{Add or update latent variable definitions}
 \usage{
 add_latent(
-  hhmodel,
+  hh_model,
   name = NULL,
   value = NULL,
   ...,
@@ -22,7 +22,7 @@ add_latent(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
@@ -133,7 +133,7 @@ In simulation, transmission sets it, except where it does not, such as the
 first infection of a household, which takes \code{value}.
 }
 \examples{
-hhmodel <- dummy_household |>
+hh_model <- dummy_household |>
   new_housepi_model("test") |>
   # define an incubation period drawn from a gamma distribution
   add_latent("incub_period",

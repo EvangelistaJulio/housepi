@@ -90,7 +90,7 @@ namespace housepi
 		/// Number of members with escaped status.
 		MemberIdx n_escaped_status() const noexcept { return nsus_; }
 		/// Number of members with missing status.
-		MemberIdx n_missing_status() const noexcept { return hhsize_ - ninf_ - nsus_; }
+		MemberIdx n_missing_status() const noexcept { return hh_size_ - ninf_ - nsus_; }
 
 		//////  Iterators  //////
 
@@ -102,14 +102,14 @@ namespace housepi
 		//////  Show  //////
 
 		/// Number of household members.
-		MemberIdx size() const noexcept { return hhsize_; }
+		MemberIdx size() const noexcept { return hh_size_; }
 		/// Equivalence class index.
 		HouseIdx eq_class() const noexcept { return eq_class_; }
 
 	private:
 		HouseIdx house_index_ = 0;				 /// Internal household index.
 		HouseIdx eq_class_ = na::UINDEX;		 /// Equivalence class index.
-		MemberIdx hhsize_ = 0;					 /// Number of household members.
+		MemberIdx hh_size_ = 0;					 /// Number of household members.
 		MemberIdx ninf_ = 0;					 /// Number of infected members.
 		MemberIdx nsus_ = 0;					 /// Number of escaped members.
 		std::vector<Individual> indivs_ = {};	 /// Household members.

@@ -4,12 +4,12 @@
 \alias{evaluate_log_lik}
 \title{Evaluate the log-likelihood of a housepi model at current values}
 \usage{
-evaluate_log_lik(hhmodel, hhid = NA_character_)
+evaluate_log_lik(hh_model, hh_id = NA_character_)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
-\item{hhid}{\code{character(1)} ID of the household of interest.
+\item{hh_id}{\code{character(1)} ID of the household of interest.
 If \code{NA} (default) it computes for the whole data.}
 }
 \value{

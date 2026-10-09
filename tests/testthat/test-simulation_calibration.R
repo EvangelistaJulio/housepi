@@ -93,16 +93,16 @@ test_that("The calibration summary reads one verdict per parameter", {
 # diagnostics; the pin of `rho` is never read, and the attached households
 # are surveyed as they are
 mk_calib <- local({
-  hhmodel <- data.frame(hhid = seq(30), status = 1) |>
+  hh_model <- data.frame(hh_id = seq(30), status = 1) |>
     new_housepi_model("test") |>
     add_parameter("rho", value = 2, prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden, sd = 1)
-  results <- hhmodel |>
+  results <- hh_model |>
     check_calibration(nrep = 3, structure_sampler = NULL, rank_draws = 9,
                       steps = 400, thin = 1, chains = 1, progress = FALSE) |>
     suppressWarnings()
-  list(model = hhmodel, results = results)
+  list(model = hh_model, results = results)
 })
 
 test_that("Calibration results are read only", {
@@ -148,15 +148,15 @@ test_that("A sweep reproduces from a seed at any thread count", {
 })
 
 test_that("Calibration refuses a sweep it cannot rank", {
-  hhmodel <- mk_calib$model
-  check_calibration(hhmodel, steps = 50, chains = 1, progress = FALSE) |>
+  hh_model <- mk_calib$model
+  check_calibration(hh_model, steps = 50, chains = 1, progress = FALSE) |>
     expect_error("[Ss]tores 10 draws.*fewer than.*rank_draws")
-  check_calibration(hhmodel, rank_draws = 0, progress = FALSE) |>
+  check_calibration(hh_model, rank_draws = 0, progress = FALSE) |>
     expect_error("[Nn]umber of ranked draws")
   # one household count per check
-  check_calibration(hhmodel, houses = c(10, 20), progress = FALSE) |>
+  check_calibration(hh_model, houses = c(10, 20), progress = FALSE) |>
     expect_error("[Nn]umber of households")
-  data.frame(hhid = seq(30), status = 1) |>
+  data.frame(hh_id = seq(30), status = 1) |>
     new_housepi_model("test") |>
     add_parameter("rho", value = 2, const = TRUE) |>
     check_calibration(progress = FALSE) |>

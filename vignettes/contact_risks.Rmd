@@ -34,7 +34,7 @@ set_housepi_theme()
 set.seed(42)
 
 #| label: recall-original-data
-hhmodel <- new_housepi_model(model = "final-size")
+hh_model <- new_housepi_model(model = "final-size")
 
 # group together children and parents
 dataset <- flu_2014_matsumoto |>
@@ -43,10 +43,10 @@ dataset <- flu_2014_matsumoto |>
     member %in% c("father", "mother") ~ "parent",
     .default = member
   )) |>
-  dplyr::filter(hhid %in% sample(unique(hhid), 500L))
+  dplyr::filter(hh_id %in% sample(unique(hh_id), 500L))
 
 # associate the data
-hhmodel <- hhmodel |>
+hh_model <- hh_model |>
   add_data_wide(dataset)
 
 table(dataset$member)
@@ -59,7 +59,7 @@ This reads one or more covariate columns and introduces a parameter per pair.
 
 ```{r}
 #| label: load-model-data
-hhmodel |>
+hh_model |>
   add_contact_risk("member") |>
   get_contact_risks()
 ```
@@ -75,7 +75,7 @@ Set `symmetric = FALSE` to let them differ.
 ```{r}
 #| label: symmetry-count
 # disable symmetric risks
-hhmodel |>
+hh_model |>
   add_contact_risk("member", symmetric = FALSE) |>
   get_contact_risks()
 ```
@@ -85,8 +85,8 @@ hhmodel |>
 #| include: false
 # count the number of parameters associated to contact risks
 count_ctr <- function(x) length(unique(get_contact_risks(x)$param_name))
-c_diff <- count_ctr(add_contact_risk(hhmodel, "member", symmetric = FALSE)) -
-  count_ctr(add_contact_risk(hhmodel, "member"))
+c_diff <- count_ctr(add_contact_risk(hh_model, "member", symmetric = FALSE)) -
+  count_ctr(add_contact_risk(hh_model, "member"))
 ```
 
 Dropping symmetry splits every mixed pair in two, leaving the homologous pairs alone, and costing `r c_diff` new parameters to infer.
@@ -96,7 +96,7 @@ Dropping symmetry splits every mixed pair in two, leaving the homologous pairs a
 Parameters associated to risks are collected alongside other declarations.
 ```{r}
 #| label: parameters-default
-hhmodel |>
+hh_model |>
   add_contact_risk("member") |>
   get_parameters()
 ```
@@ -107,7 +107,7 @@ Instead, naming a `reference` pair makes it the unit, `beta` is freed, and every
 
 ```{r}
 #| label: custom-reference
-hhmodel |>
+hh_model |>
   add_contact_risk(
     "member",
     reference = c(from_member = "child", to_member = "other")
@@ -129,7 +129,7 @@ Ask for `".auto"` to take the pair with the largest sample size, which here is p
 
 ```{r}
 #| label: auto-reference
-hhmodel |>
+hh_model |>
   add_contact_risk("member", reference = ".auto") |>
   get_contact_risks()
 ```
@@ -148,7 +148,7 @@ strata <- tibble::tribble(
   "child",      "parent",   "child_to_parent", 2.5,
   NA,           NA,         ".reference",      NA
 )
-model_strata <- hhmodel |>
+model_strata <- hh_model |>
   add_contact_risk(strata = strata)
 
 # show contact risk definitions
@@ -156,14 +156,14 @@ model_strata |>
   get_contact_risks()
 
 # extract the first household with all classes
-hhid <- model_strata$data_wide |>
-  dplyr::filter(dplyr::n_distinct(member) > 2, .by = hhid) |>
+hh_id <- model_strata$data_wide |>
+  dplyr::filter(dplyr::n_distinct(member) > 2, .by = hh_id) |>
   dplyr::slice_head(n = 1) |>
-  dplyr::pull(hhid)
+  dplyr::pull(hh_id)
 
 # inspect how the definitions reach the given household
 state <- model_strata |>
-  inspect_house_state(hhid)
+  inspect_house_state(hh_id)
 # recall the data associated to household '1133'
 state$data_wide
 # export loaded contact risks
@@ -194,12 +194,12 @@ half_keyed <- tibble::tribble(
 )
 
 # not ambiguos definiton for symmetric risks
-hhmodel |>
+hh_model |>
   add_contact_risk(strata = half_keyed, symmetric = FALSE) |>
   get_contact_risks()
 
 # ambiguos definiton for symmetric risks
-hhmodel |>
+hh_model |>
   add_contact_risk(strata = half_keyed, symmetric = TRUE) |>
   get_contact_risks()
 ```
@@ -218,11 +218,11 @@ The relative parametrization estimates `beta` alongside the rates, and on this s
 #|  Five trace plots of the MCMC draws: the community risk alpha, the
 #|  household-size exponent gamma, and the three pairwise transmission rates
 #|  between children and parents. Four chains are overlaid across iterations.
-hhmodel <- hhmodel |>
+hh_model <- hh_model |>
   add_contact_risk("member") |>
   add_parameter(import = "template")
 
-results <- hhmodel |>
+results <- hh_model |>
   run_inference(progress = 4)
 results |>
   get_parameter_draws() |>
@@ -240,7 +240,7 @@ The from/to table returned by `get_contact_risks()` joins the draws back onto th
 #|  median rate and credible interval.
 library(ggplot2)
 
-hhmodel |>
+hh_model |>
   get_contact_risks() |>
   dplyr::rename(variable = param_name) |>
   dplyr::left_join(summarise_draws(results), by = "variable") |>

@@ -588,7 +588,7 @@ namespace housepi
         /// Number of columns `add_wide_columns` adds for `n_data` data columns.
         size_t n_wide_cols(size_t n_data, bool is_status) { return 2 + is_status + n_data; }
 
-        /// Add id, hhid, status when `is_status`, then data `columns`, on the members of `scope`.
+        /// Add id, hh_id, status when `is_status`, then data `columns`, on the members of `scope`.
         template <class Scope>
         void add_wide_columns(RcppFrame &frame,
                               const Data &data,
@@ -599,11 +599,11 @@ namespace housepi
             const data::Wide &data_wide = data.wide();
             const size_t n_rows = n_members(scope);
             const std::vector<size_t> keys = data_wide.khold(columns);
-            Rcpp::CharacterVector hhid_col(n_rows);
+            Rcpp::CharacterVector hh_id_col(n_rows);
             Rcpp::IntegerVector status_col(n_rows);
 
             frame.add("id", rcpp_ids(data_wide, scope));
-            frame.add("hhid", hhid_col);
+            frame.add("hh_id", hh_id_col);
             if (is_status)
                 frame.add("status", status_col);
             std::vector<Rcpp::NumericVector> cols;
@@ -614,7 +614,7 @@ namespace housepi
             size_t row = 0;
             for_each_member(scope, [&](const Household &house, const Individual &indiv)
                             {
-                            hhid_col[row] = data_wide.hhid(house);
+                            hh_id_col[row] = data_wide.hh_id(house);
                             status_col[row] = hsp_to_rcpp(indiv);
                             for (size_t d = 0; d < cols.size(); ++d)
                                 cols[d][row] = hsp_to_rcpp(data.at(keys[d], indiv).value());
@@ -977,15 +977,15 @@ namespace housepi
             return frame.frame();
         }
 
-        /// Export every snapshot of household `hhid`, for debugging.
-        Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &hhid)
+        /// Export every snapshot of household `hh_id`, for debugging.
+        Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &hh_id)
         {
             try
             {
                 if (mcmc_ptr->data.wide().is_empty())
                     return Rcpp::List::create();
 
-                const Household &house = mcmc_ptr->data.wide().at(hhid);
+                const Household &house = mcmc_ptr->data.wide().at(hh_id);
                 const Augmented &augm = mcmc_ptr->augm;
 
                 return Rcpp::List::create(
@@ -1002,7 +1002,7 @@ namespace housepi
             }
             catch (const housepi::TrustedException &e)
             {
-                msg::stop(msg::join(e.what(), "for household " + msg::val(hhid)));
+                msg::stop(msg::join(e.what(), "for household " + msg::val(hh_id)));
             }
         }
 
@@ -1354,9 +1354,9 @@ namespace housepi
             return mcmc_ptr->model->has_infec_profile();
         }
 
-        double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string hhid)
+        double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string hh_id)
         {
-            return mcmc_ptr->evaluate_log_lik(hhid);
+            return mcmc_ptr->evaluate_log_lik(hh_id);
         }
         /// Run inference on every engine of `engine_list`, `workers` of them at once.
         ///
@@ -1398,25 +1398,25 @@ namespace housepi
                                       Rcpp::_["failed"] = failed);
         }
 
-        /// Aggregate individuals by hhid, given as 1-based codes of the distinct ids.
+        /// Aggregate individuals by hh_id, given as 1-based codes of the distinct ids.
         /// - missing status: NA (NA_INTEGER is INT_MIN).
         measure::cases::Table summarise_houses_from_df(Rcpp::DataFrame data_wide)
         {
             Rcpp::CharacterVector col_names = data_wide.names();
 
-            std::vector<int> hhid = {};
-            if (vect::contains(col_names, "hhid"))
-                hhid = Rcpp::as<std::vector<int>>(data_wide["hhid"]);
+            std::vector<int> hh_id = {};
+            if (vect::contains(col_names, "hh_id"))
+                hh_id = Rcpp::as<std::vector<int>>(data_wide["hh_id"]);
 
             std::vector<int> status = {};
             if (vect::contains(col_names, "status"))
                 status = Rcpp::as<std::vector<int>>(data_wide["status"]);
 
-            return measure::summarise_houses(hhid, status);
+            return measure::summarise_houses(hh_id, status);
         }
 
         /// Export `n` consecutive household sizes from `grid_min`.
-        Rcpp::IntegerVector rcpp_hhsize_grid(unsigned grid_min, size_t n)
+        Rcpp::IntegerVector rcpp_hh_size_grid(unsigned grid_min, size_t n)
         {
             Rcpp::IntegerVector out(n);
             std::iota(out.begin(), out.end(), static_cast<int>(grid_min));
@@ -1425,7 +1425,7 @@ namespace housepi
 
         /// Export a mean rate per household size, in column `name`.
         /// - size with no contributing household: NA.
-        Rcpp::DataFrame rcpp_rate_by_hhsize(unsigned grid_min,
+        Rcpp::DataFrame rcpp_rate_by_hh_size(unsigned grid_min,
                                             const std::vector<double> &mean,
                                             const std::vector<unsigned> &count,
                                             const char *name)
@@ -1435,44 +1435,44 @@ namespace housepi
                 rate[i] = count[i] > 0 ? mean[i] : NA_REAL;
 
             RcppFrame frame(2);
-            frame.add("hhsize", rcpp_hhsize_grid(grid_min, mean.size()));
+            frame.add("hh_size", rcpp_hh_size_grid(grid_min, mean.size()));
             frame.add(name, rate);
             return frame.frame();
         }
 
-        Rcpp::DataFrame count_houses_by_hhsize(Rcpp::DataFrame data_wide)
+        Rcpp::DataFrame count_houses_by_hh_size(Rcpp::DataFrame data_wide)
         {
             const measure::cases::HouseCounts res =
                 measure::house_counts(summarise_houses_from_df(data_wide));
 
             RcppFrame frame(3);
-            frame.add("hhsize", rcpp_hhsize_grid(res.grid_min, res.total.size()));
+            frame.add("hh_size", rcpp_hh_size_grid(res.grid_min, res.total.size()));
             frame.add("total", Rcpp::IntegerVector(res.total.begin(), res.total.end()));
             frame.add("at_least_1_case", Rcpp::IntegerVector(res.at_least_1_case.begin(), res.at_least_1_case.end()));
             return frame.frame();
         }
 
-        Rcpp::DataFrame measure_ar_by_hhsize(Rcpp::DataFrame data_wide)
+        Rcpp::DataFrame measure_ar_by_hh_size(Rcpp::DataFrame data_wide)
         {
             const measure::cases::AttackRates res =
-                measure::attack_rate_by_hhsize(summarise_houses_from_df(data_wide));
-            return rcpp_rate_by_hhsize(res.grid_min, res.ar_mean, res.count, "ar");
+                measure::attack_rate_by_hh_size(summarise_houses_from_df(data_wide));
+            return rcpp_rate_by_hh_size(res.grid_min, res.ar_mean, res.count, "ar");
         }
 
-        Rcpp::DataFrame measure_sar_by_hhsize(Rcpp::DataFrame data_wide)
+        Rcpp::DataFrame measure_sar_by_hh_size(Rcpp::DataFrame data_wide)
         {
             const measure::cases::SecAttackRates res =
-                measure::sar_by_hhsize(summarise_houses_from_df(data_wide));
-            return rcpp_rate_by_hhsize(res.grid_min, res.sar_mean, res.count, "sar");
+                measure::sar_by_hh_size(summarise_houses_from_df(data_wide));
+            return rcpp_rate_by_hh_size(res.grid_min, res.sar_mean, res.count, "sar");
         }
 
-        Rcpp::DataFrame measure_cases_by_hhsize(Rcpp::DataFrame data_wide)
+        Rcpp::DataFrame measure_cases_by_hh_size(Rcpp::DataFrame data_wide)
         {
             const measure::cases::Table res = summarise_houses_from_df(data_wide);
             const size_t n_rows = res.counts.size();
 
             RcppFrame frame(2 + res.max_size);
-            frame.add("hhsize", rcpp_hhsize_grid(res.min_size, n_rows));
+            frame.add("hh_size", rcpp_hh_size_grid(res.min_size, n_rows));
             for (unsigned c = 0; c <= res.max_size; ++c)
             {
                 // more cases than members: NA
@@ -1484,10 +1484,10 @@ namespace housepi
             return frame.frame();
         }
 
-        double measure_geom_mean_hhsize(Rcpp::DataFrame data_wide)
+        double measure_geom_mean_hh_size(Rcpp::DataFrame data_wide)
         {
             measure::cases::Table table = summarise_houses_from_df(data_wide);
-            return table.max_cases > 1 ? measure::geom_mean_hhsize(table) : NA_REAL;
+            return table.max_cases > 1 ? measure::geom_mean_hh_size(table) : NA_REAL;
         }
     }
 }
@@ -1544,11 +1544,11 @@ RCPP_MODULE(housepi)
     Rcpp::function("risk_anchors", &risk_anchors);
     Rcpp::function("risk_status_stratified", &risk_status_stratified);
 
-    Rcpp::function("measure_sar_by_hhsize", &measure_sar_by_hhsize);
-    Rcpp::function("measure_ar_by_hhsize", &measure_ar_by_hhsize);
-    Rcpp::function("measure_cases_by_hhsize", &measure_cases_by_hhsize);
-    Rcpp::function("measure_geom_mean_hhsize", &measure_geom_mean_hhsize);
-    Rcpp::function("count_houses_by_hhsize", &count_houses_by_hhsize);
+    Rcpp::function("measure_sar_by_hh_size", &measure_sar_by_hh_size);
+    Rcpp::function("measure_ar_by_hh_size", &measure_ar_by_hh_size);
+    Rcpp::function("measure_cases_by_hh_size", &measure_cases_by_hh_size);
+    Rcpp::function("measure_geom_mean_hh_size", &measure_geom_mean_hh_size);
+    Rcpp::function("count_houses_by_hh_size", &count_houses_by_hh_size);
 
     Rcpp::function("aux_chain_binomial_debugger", &chain_binom::aux_debugger);
 

@@ -31,13 +31,13 @@ public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHmembervec, order, part_counts, part_indexes)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublevec, commu_escape_rate)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHdoublemtx, p2p_escape_rate)
-	HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha, beta, gamma, hhsize_ref)
+	HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha, beta, gamma, hh_size_ref)
 
 	/// Declare parameter and risk requirements.
 	void init_model_requirements() override final
 	{
 		request_param_positive(
-			{Param::alpha, Param::hhsize_ref});
+			{Param::alpha, Param::hh_size_ref});
 		request_risk_identifiability(
 			Param::alpha, {GroupRisk::community});
 		request_risk_identifiability(
@@ -120,7 +120,7 @@ public:
 	double person_to_person_risk(MemberIdx house_size) const
 	{
 		return par(Param::beta) *
-			   std::exp(par(Param::gamma) * std::log(par(Param::hhsize_ref) / house_size));
+			   std::exp(par(Param::gamma) * std::log(par(Param::hh_size_ref) / house_size));
 	}
 
 	/// Store community and person-to-person escape rates of `house` in the cache.

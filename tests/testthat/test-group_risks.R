@@ -3,7 +3,7 @@ library(testthat)
 # Model over two covariates. Covariate columns stay character on purpose:
 # levels follow order of first appearance, which fixes the reference stratum.
 mk_risk <- local({
-  hhdata <- data.frame(hhid = 1, status = 0,
+  hhdata <- data.frame(hh_id = 1, status = 0,
                        age = c("child", "child", "adult", "adult"),
                        sex = c("M", "F", "M", "M"),
                        isolation = c(FALSE, FALSE, TRUE, TRUE))
@@ -18,7 +18,7 @@ mk_risk <- local({
 # present in every household
 mk_flu <- local({
   hhdata <- data.frame(
-    hhid = c(rep(1, 2), rep(2, 2), rep(3, 3), rep(4, 2), rep(5, 3)),
+    hh_id = c(rep(1, 2), rep(2, 2), rep(3, 3), rep(4, 2), rep(5, 3)),
     status = c(1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1),
     member = c("student", "other",
                "student", "sibling",
@@ -26,11 +26,11 @@ mk_flu <- local({
                "student", "other",
                "student", "mother", "father")
   )
-  hhmodel <- hhdata |>
+  hh_model <- hhdata |>
     new_housepi_model("final-size")
-  pinned <- hhmodel |>
-    add_parameter(alpha = 0.01, beta = 0.1, gamma = 1, hhsize_ref = 4)
-  list(data = hhdata, model = hhmodel, pinned = pinned)
+  pinned <- hh_model |>
+    add_parameter(alpha = 0.01, beta = 0.1, gamma = 1, hh_size_ref = 4)
+  list(data = hhdata, model = hh_model, pinned = pinned)
 })
 
 # real dataset for validation: add_group_risk() copies before mutating
@@ -44,22 +44,22 @@ mk_status <- local({
   status <- c("escaped", "symptomatic", "asymptomatic", "symptomatic",
               "escaped", "asymptomatic", "symptomatic", "escaped",
               "asymptomatic", "symptomatic", "asymptomatic", "escaped")
-  hhdata <- data.frame(hhid = rep(1:4, each = 3), status = status,
+  hhdata <- data.frame(hh_id = rep(1:4, each = 3), status = status,
                        datum = ifelse(status == "escaped", NA, status))
   list(data = hhdata, model = new_housepi_model(hhdata, "final-size"))
 })
 
 # numeric covariates a risk can stratify on, and an observation can read
 mk_observed <- local({
-  hhmodel <- data.frame(hhid = c(1, 1), status = c(1, 0),
-                        datum = c(2, 3), datum_2 = c(2, 6)) |>
+  hh_model <- data.frame(hh_id = c(1, 1), status = c(1, 0),
+                         datum = c(2, 3), datum_2 = c(2, 6)) |>
     new_housepi_model("final-size")
-  list(model = hhmodel)
+  list(model = hh_model)
 })
 
 # a simulation table giving every free parameter of the model a value
-pin_all_params <- function(hhmodel, value = 0.5) {
-  defs <- get_parameters(hhmodel)
+pin_all_params <- function(hh_model, value = 0.5) {
+  defs <- get_parameters(hh_model)
   names <- defs$name[!(defs$const %in% TRUE)]
   as.data.frame(stats::setNames(as.list(rep(value, length(names))), names))
 }
@@ -140,10 +140,10 @@ test_that("Custom strata logic table is validated", {
 ######################################
 
 test_that("Group risks integrate with data", {
-  hhmodel <- mk_risk$model |>
+  hh_model <- mk_risk$model |>
     add_group_risk("community", by = c("age", "sex"), joint = TRUE)
 
-  tidy <- get_group_risks(hhmodel)
+  tidy <- get_group_risks(hh_model)
   tidy$group_risk |> expect_all_equal("community")
   # joint expansion: one rule group over both covariates
   length(unique(tidy$rule_group)) |> expect_identical(1L)
@@ -152,7 +152,7 @@ test_that("Group risks integrate with data", {
   sum(tidy$param_name == ".reference") |> expect_identical(0L)
 
   # mcmc setup is the absolute default
-  params <- get_parameters(hhmodel)
+  params <- get_parameters(hh_model)
   params <- params[!params$const, ]
   params$min |> expect_all_equal(0)
   params$max |> expect_all_equal(1)
@@ -160,17 +160,17 @@ test_that("Group risks integrate with data", {
 })
 
 test_that("Reference turns group risks relative with its own mcmc setup", {
-  hhmodel <- mk_risk$model |>
+  hh_model <- mk_risk$model |>
     add_group_risk("community", by = c("age", "sex"), joint = TRUE,
                    reference = ".auto")
 
-  tidy <- get_group_risks(hhmodel)
+  tidy <- get_group_risks(hh_model)
   sum(tidy$param_name == ".reference") |> expect_identical(1L)
   # the reference is the largest stratum
   tidy$n[tidy$param_name == ".reference"] |> expect_identical(max(tidy$n))
 
   # mcmc setup is default (Cauchemez et al., 2009)
-  params <- get_parameters(hhmodel)
+  params <- get_parameters(hh_model)
   params$args[[1]] |> expect_equal(c(meanlog = 0, sdlog = 3))
   params$min |> expect_all_equal(0)
   params$max |> expect_all_equal(NA_real_)
@@ -179,33 +179,33 @@ test_that("Reference turns group risks relative with its own mcmc setup", {
 
 test_that("Group risks hold without data and re-derive on add_data_wide", {
   # risks ingest data: a data-less model holds them, no risk params yet
-  hhmodel <- new_housepi_model(model = "final-size") |>
+  hh_model <- new_housepi_model(model = "final-size") |>
     add_parameter(import = "template") |>
     # relative: the template's baseline stays free alongside the risk
     add_group_risk("susceptibility", by = "member", reference = ".auto")
-  hhmodel$parameters$name |> expect_no_match("^sus_member")
+  hh_model$parameters$name |> expect_no_match("^sus_member")
 
   # attaching data materialises the risk parameters and runs
-  hhmodel_2 <- add_data_wide(hhmodel, mk_flu$data)
-  full_params <- hhmodel_2$parameters$name
+  hh_model_2 <- add_data_wide(hh_model, mk_flu$data)
+  full_params <- hh_model_2$parameters$name
   full_params |> expect_match("^sus_member", all = FALSE)
-  is.finite(evaluate_log_lik(hhmodel_2)) |> expect_true()
+  is.finite(evaluate_log_lik(hh_model_2)) |> expect_true()
 
   # replacing data re-derives: a single-level subset drops the stale risk params
-  hhmodel_3 <- add_data_wide(hhmodel_2,
-                             mk_flu$data[mk_flu$data$member == "student", ])
-  hhmodel_3$parameters$name |> expect_no_match("^sus_member")
-  is.finite(evaluate_log_lik(hhmodel_3)) |> expect_true()
+  hh_model_3 <- add_data_wide(hh_model_2,
+                              mk_flu$data[mk_flu$data$member == "student", ])
+  hh_model_3$parameters$name |> expect_no_match("^sus_member")
+  is.finite(evaluate_log_lik(hh_model_3)) |> expect_true()
 
   # re-attaching the full data restores the exact original parameter set
-  add_data_wide(hhmodel_3, mk_flu$data)$parameters$name |>
+  add_data_wide(hh_model_3, mk_flu$data)$parameters$name |>
     expect_setequal(full_params)
 })
 
 test_that("Group risks expand on their own covariates only", {
   hhdata <- sarscov2_2021_icofs |>
     dplyr::select(-start_date) |>
-    dplyr::filter(hhid %in% utils::head(unique(hhid), 50))
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50))
 
   # a data column the risk does not read leaves the expansion untouched
   risks <- hhdata |>
@@ -336,8 +336,8 @@ test_that("A risk prior outside the naming convention is refused", {
 
 test_that("Parameter options work correctly", {
   # the collapsed baseline is not one of the risk parameters
-  sampled_params <- function(hhmodel) {
-    params <- get_parameters(hhmodel)
+  sampled_params <- function(hh_model) {
+    params <- get_parameters(hh_model)
     params[!params$const, ]
   }
 
@@ -382,18 +382,18 @@ test_that("Load list works as expected", {
 #################################################
 
 test_that("Group risks deal with custom logic table correctly", {
-  hhmodel <- mk_risk$model |>
+  hh_model <- mk_risk$model |>
     add_group_risk("infectivity", strata = mk_risk$strata,
                    prior = "lognormal", meanlog = 0, sdlog = 2)
 
-  tidy <- get_group_risks(hhmodel)
+  tidy <- get_group_risks(hh_model)
   tidy$group_risk |> expect_all_equal("infectivity")
   # the custom strata drives the covariate column and the rows
   ("isolation" %in% colnames(tidy)) |> expect_true()
   tidy$param_name |> expect_setequal(c(".reference", "inf_isol"))
 
   # parameters generated for non-reference only
-  params <- get_parameters(hhmodel)
+  params <- get_parameters(hh_model)
   params$name |> expect_identical("inf_isol")
   params$prior |> expect_identical("lognormal")
   params$args[[1]] |> expect_equal(c(meanlog = 0, sdlog = 2))
@@ -422,26 +422,26 @@ test_that("Group risk parameter overrides work", {
                      min = NA_real_, max = 10,
                      proposal = "rw_log", proposal_scale = 1)
   )
-  hhmodel <- mk_risk$data |>
+  hh_model <- mk_risk$data |>
     transform(age = c("child", "adult", "uncle", "adult")) |>
     new_housepi_model("final-size") |>
     add_group_risk("susceptibility", strata = strata,
                    params = overrides, prior = "gamma", shape = 2, scale = 1)
 
-  params <- get_parameters(hhmodel)
+  params <- get_parameters(hh_model)
   params$name |> expect_setequal(c("sus_old", "sus_uncle"))
   # overrides used instead of raw params
-  old <- get_parameters(hhmodel, "sus_old")
+  old <- get_parameters(hh_model, "sus_old")
   old$value |> expect_equal(1.73)
   old$const |> expect_true()
-  uncle <- get_parameters(hhmodel, "sus_uncle")
+  uncle <- get_parameters(hh_model, "sus_uncle")
   uncle$prior |> expect_identical("lognormal")
   uncle$args[[1]] |> expect_equal(c(sdlog = 1.2, meanlog = 0))
 
   strata <- tibble::tribble(~sex, ~param_name,
                             "M",  "inf_male",
                             "F",  ".reference")
-  hhmodel |>
+  hh_model |>
     add_group_risk("infectivity", strata = strata, params = list(rho = 2.4)) |>
     expect_error("[Uu]nknown.*rho")
 })
@@ -454,28 +454,28 @@ test_that("An automatic definition takes no params list", {
 })
 
 test_that("Group risk mixed auto and custom modes preserve strata entries", {
-  hhmodel <- mk_risk$model |>
+  hh_model <- mk_risk$model |>
     add_group_risk(community = list(by = "age", prefix = "com"),
                    infectivity = list(strata = mk_risk$strata))
 
-  tidy <- get_group_risks(hhmodel)
+  tidy <- get_group_risks(hh_model)
   unique(tidy$group_risk) |>
     expect_setequal(c("community", "infectivity"))
   # strata entry is unchanged
   subset(tidy, group_risk == "infectivity")$param_name |>
     expect_setequal(c(".reference", "inf_isol"))
   # both modes materialise their parameters
-  param_names <- get_parameters(hhmodel)$name
+  param_names <- get_parameters(hh_model)$name
   ("inf_isol" %in% param_names) |> expect_true()
   param_names |> expect_match("^com_", all = FALSE)
 
-  add_group_risk(hhmodel, "infectivity", by = "age") |>
+  add_group_risk(hh_model, "infectivity", by = "age") |>
     expect_warning("[Oo]verwriting.*infectivity")
-  add_group_risk(hhmodel, "community", strata = mk_risk$strata) |>
+  add_group_risk(hh_model, "community", strata = mk_risk$strata) |>
     expect_warning("[Oo]verwriting.*community")
 
   # a covariate the data does not carry fails as soon as data is attached
-  data.frame(hhid = 1, status = 0, age = c("child", "adult")) |>
+  data.frame(hh_id = 1, status = 0, age = c("child", "adult")) |>
     new_housepi_model("final-size") |>
     add_group_risk("infectivity", strata = mk_risk$strata) |>
     expect_error("[Uu]nknown covariate.*isolation")
@@ -598,22 +598,22 @@ test_that("Rules tied at equal specificity are refused", {
 ###################################
 
 test_that("A strata value pins the stratum and keeps its prior", {
-  hhmodel <- mk_flu$model |>
+  hh_model <- mk_flu$model |>
     add_group_risk("susceptibility", strata = pin_strata(),
                    prior = "lognormal", sdlog = 3)
-  mum <- get_parameters(hhmodel, "sus_mum")
+  mum <- get_parameters(hh_model, "sus_mum")
   mum$value |> expect_equal(1.2)
   mum$const |> expect_false()
   mum$prior |> expect_identical("lognormal")
 
   # a fixed stratum is a constant parameter: it carries no prior
-  dad <- get_parameters(hhmodel, "sus_dad")
+  dad <- get_parameters(hh_model, "sus_dad")
   dad$value |> expect_equal(0.5)
   dad$const |> expect_true()
   dad$prior |> expect_all_na()
 
   # pin columns surface on the read table only when a pin exists
-  tidy <- get_group_risks(hhmodel)
+  tidy <- get_group_risks(hh_model)
   colnames(tidy) |> expect_contains(c("value", "const"))
   # padding keeps the columns typed across sub-tables
   tidy$value |> expect_type("double")
@@ -724,14 +724,14 @@ test_that("A status stratum leaving a level uncovered is refused", {
 
 test_that("A status stratum covers combinations the data never realised", {
   # children are never asymptomatic, and the one mother not infected escaped
-  hhdata <- data.frame(hhid = c(1, 1, 2, 2),
+  hhdata <- data.frame(hh_id = c(1, 1, 2, 2),
                        status = c("symptomatic", "asymptomatic",
                                   "symptomatic", "escaped"),
                        member = c("child", "mother", "child", "mother"))
-  hhmodel <- new_housepi_model(hhdata, "final-size")
+  hh_model <- new_housepi_model(hhdata, "final-size")
 
   # a table covering the observed combinations only leaves 4 members exposed
-  hhmodel |>
+  hh_model |>
     add_group_risk("infectivity", strata = tibble::tribble(
       ~member,  ~status,        ~param_name,
       "child",  "symptomatic",  ".reference",
@@ -740,7 +740,7 @@ test_that("A status stratum covers combinations the data never realised", {
     expect_error("leaves 4 members unmatched")
 
   # a rule for an unrealised combination stands, with no observed member
-  risks <- hhmodel |>
+  risks <- hh_model |>
     add_group_risk("infectivity", strata = tibble::tribble(
       ~member,  ~status,        ~param_name,
       "child",  "symptomatic",  ".reference",
@@ -753,7 +753,7 @@ test_that("A status stratum covers combinations the data never realised", {
     expect_identical(c(0L, 0L))
 
   # the automatic grid carries every declared level on each member role
-  risks <- hhmodel |>
+  risks <- hh_model |>
     add_group_risk(infectivity = list(by = c("member", "status"),
                                       joint = TRUE, reference = ".auto")) |>
     get_group_risks()
@@ -769,7 +769,7 @@ test_that("Escaped members leave a status stratum scale free", {
   mk_status$model |>
     add_group_risk(infectivity = list(by = "status"),
                    susceptibility = list(strata = strata)) |>
-    add_parameter(alpha = 0.1, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 0.1, gamma = 1, hh_size_ref = 4) |>
     evaluate_log_lik() |>
     expect_error("2 absolute rule groups.*susceptibility.*infectivity")
 })
@@ -792,10 +792,10 @@ test_that("Only the risks the model declares may be status stratified", {
   # a model that declares no status level cannot stratify on it. The risk
   # waits for the declaration, so decorator order is free, and the wall reports
   # that it never came
-  hhmodel <- add_group_risk(mk_risk$model, "infectivity", by = "status")
-  get_group_risks(hhmodel)$group_risk |> expect_identical("infectivity")
-  hhmodel |>
-    add_parameter(alpha = 0.01, beta = 0.2, gamma = 1, hhsize_ref = 3) |>
+  hh_model <- add_group_risk(mk_risk$model, "infectivity", by = "status")
+  get_group_risks(hh_model)$group_risk |> expect_identical("infectivity")
+  hh_model |>
+    add_parameter(alpha = 0.01, beta = 0.2, gamma = 1, hh_size_ref = 3) |>
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_error("model declares no level")
@@ -815,18 +815,18 @@ test_that("Status strata are declared, not read off the data", {
     expect_error("1 rule no member resolves to.*asymptomatic")
 
   # with no status observed at all, no sample size can pick a reference
-  hhmodel <- mk_status$data |>
+  hh_model <- mk_status$data |>
     dplyr::mutate(status = NA) |>
     new_housepi_model("final-size") |>
     add_latent(infec_time = list(model = "uniform", min = 0, max = 5)) |>
     add_status_process(symptomatic = 0.3, asymptomatic = 0.7)
-  hhmodel |>
+  hh_model |>
     add_group_risk(infectivity = list(by = "status", reference = ".auto")) |>
     expect_error("reference = list\\(status")
 
   # a custom table stands all the same, its sample sizes unknown
   strata
-  hhmodel |>
+  hh_model |>
     add_group_risk("infectivity", strata = strata) |>
     get_group_risks() |>
     getElement("n") |>
@@ -837,10 +837,10 @@ test_that("A status stratum reads as a covariate duplicating it", {
   # the workaround a status axis replaces: a data column carrying the status
   # of the infected members, NA elsewhere. Escapees read a catch-all rule, which
   # the likelihood never evaluates for them
-  pin <- function(hhmodel, name) {
-    hhmodel <- add_parameter(hhmodel, alpha = 0.01, beta = 0.2,
-                             gamma = 1, hhsize_ref = 3)
-    suppressWarnings(add_parameter(hhmodel, import = stats::setNames(
+  pin <- function(hh_model, name) {
+    hh_model <- add_parameter(hh_model, alpha = 0.01, beta = 0.2,
+                              gamma = 1, hh_size_ref = 3)
+    suppressWarnings(add_parameter(hh_model, import = stats::setNames(
       as.list(rep(0.4, length(name))), name
     )))
   }
@@ -867,8 +867,8 @@ test_that("A status stratum drives simulated transmission", {
   # the drawn status, not a frozen covariate, selects the infectivity: with the
   # asymptomatic stratum near zero, a run that draws only asymptomatic cases
   # must transmit far less than one that draws only symptomatic ones
-  hhmodel <- sarscov2_2021_icofs |>
-    dplyr::filter(hhid %in% sample(unique(hhid), 150)) |>
+  hh_model <- sarscov2_2021_icofs |>
+    dplyr::filter(hh_id %in% sample(unique(hh_id), 150)) |>
     dplyr::mutate(status = NA, start_date = 0, end_date = 21) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_infectivity_profile(import = "template") |>
@@ -880,15 +880,15 @@ test_that("A status stratum drives simulated transmission", {
     add_group_risk(infectivity = list(
       by = "status", reference = list(status = "symptomatic")
     )) |>
-    add_parameter(alpha = 1e-12, beta = 20, gamma = 1, hhsize_ref = 4,
+    add_parameter(alpha = 1e-12, beta = 20, gamma = 1, hh_size_ref = 4,
                   inf_status_asymptomatic = 1e-3) |>
     suppressWarnings()
 
   # the status weights must reach the categorical as literals
   attack_rate <- function(symptomatic) {
-    simulated <- hhmodel |>
+    simulated <- hh_model |>
       add_status_process(symptomatic = !!symptomatic,
-                 asymptomatic = !!(1 - symptomatic)) |>
+                         asymptomatic = !!(1 - symptomatic)) |>
       run_simulation() |>
       suppressWarnings()
     mean(as.character(simulated$status) != "escaped")
@@ -916,17 +916,17 @@ test_that("Status strata count the infected members only", {
 
 test_that("An absolute risk collapses the baseline it scales", {
   # alpha is never declared: the community risk carries the whole rate
-  hhmodel <- mk_flu$model |>
+  hh_model <- mk_flu$model |>
     add_group_risk("community", by = "member") |>
-    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
+    add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4)
 
-  is.finite(evaluate_log_lik(hhmodel)) |> expect_true()
-  params <- get_parameters(hhmodel)
+  is.finite(evaluate_log_lik(hh_model)) |> expect_true()
+  params <- get_parameters(hh_model)
   params$const[params$name == "alpha"] |> expect_true()
   params$value[params$name == "alpha"] |> expect_equal(1.)
 
   # the collapsed baseline is carried into the posterior
-  draws <- hhmodel |>
+  draws <- hh_model |>
     run_inference(steps = 5L, thin = 1L, adapt = 0L, chains = 1L) |>
     suppressWarnings() |>
     summarise_draws()
@@ -935,40 +935,40 @@ test_that("An absolute risk collapses the baseline it scales", {
 })
 
 test_that("A baseline pinned by an absolute risk follows its redeclaration", {
-  hhmodel <- mk_flu$model |>
+  hh_model <- mk_flu$model |>
     add_group_risk("community", by = "member", reference = "student") |>
-    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
+    add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4)
   # the same risk declared absolute first, then relative
-  hhmodel_2 <- mk_flu$model |>
+  hh_model_2 <- mk_flu$model |>
     add_group_risk("community", by = "member") |>
-    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4)
+    add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4)
   expect_warning(
-    hhmodel_2 <- hhmodel_2 |>
+    hh_model_2 <- hh_model_2 |>
       add_group_risk("community", by = "member", reference = "student"),
     "[Oo]verwriting.*community"
   )
 
   by_name <- \(x) x[order(x$name), , drop = FALSE]
-  by_name(get_parameters(hhmodel_2)) |>
-    expect_equal(by_name(get_parameters(hhmodel)), ignore_attr = TRUE)
-  ("alpha" %in% get_parameters(hhmodel_2)$name) |> expect_false()
-  hhmodel_2 |>
+  by_name(get_parameters(hh_model_2)) |>
+    expect_equal(by_name(get_parameters(hh_model)), ignore_attr = TRUE)
+  ("alpha" %in% get_parameters(hh_model_2)$name) |> expect_false()
+  hh_model_2 |>
     evaluate_log_lik() |>
     expect_error("[Mm]issing parameter definition.*alpha")
 })
 
 test_that("Two absolute risks on one baseline are identifiable once pinned", {
-  hhmodel <- mk_flu$model |>
+  hh_model <- mk_flu$model |>
     add_group_risk("susceptibility", by = "member") |>
     add_group_risk("infectivity", by = "member") |>
-    add_parameter(alpha = 0.01, gamma = 1, hhsize_ref = 4)
-  hhmodel |>
+    add_parameter(alpha = 0.01, gamma = 1, hh_size_ref = 4)
+  hh_model |>
     evaluate_log_lik() |>
     expect_error("[Nn]on-identifiability.*susceptibility.*infectivity")
 
   # a simulation table gives every scale a value: no product of free scales
   # is left to resolve
-  run_simulation(hhmodel, param_table = pin_all_params(hhmodel)) |>
+  run_simulation(hh_model, param_table = pin_all_params(hh_model)) |>
     expect_s3_class("data.frame")
 })
 
@@ -976,24 +976,24 @@ test_that("An absolute group risk holds its baseline at the reference", {
   # `community` names no reference, so it absorbs the scale `alpha` carried
   # NOTE: even if baseline gets outside of its proposed prior domain
   expect_warning(
-    hhmodel <- mk_flu$model |>
+    hh_model <- mk_flu$model |>
       add_parameter(alpha = list(prior = "uniform", max = 0.7),
-                    beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+                    beta = 0.1, gamma = 1, hh_size_ref = 4) |>
       add_group_risk("community", by = "member"),
     "[A]bsolute risk.*community.*no reference"
   )
 
   # one stratum read from the table fixes the level of the whole group
-  hhmodel |>
+  hh_model |>
     run_simulation(param_table = data.frame(com_member_mother = 0.5)) |>
     expect_s3_class("data.frame")
   # the prior it was given leaves with the scale
-  params <- get_parameters(hhmodel)
+  params <- get_parameters(hh_model)
   params$const[params$name == "alpha"] |> expect_true()
   params$value[params$name == "alpha"] |> expect_equal(1.)
 
   # a stratum held constant anchors the same way
-  hhmodel |>
+  hh_model |>
     add_parameter(com_member_student = 1.7) |>
     suppressWarnings() |> # suppress overwrite warning
     evaluate_log_lik() |>
@@ -1004,18 +1004,18 @@ test_that("An absolute group risk holds its baseline at the reference", {
 test_that("A declared baseline is collapsed at the decorator", {
   # the collapse is settled where the risk is declared, not at the run
   expect_warning(
-    hhmodel <- mk_flu$model |>
+    hh_model <- mk_flu$model |>
       add_parameter(alpha = list(prior = "uniform", min = 0, max = 1),
-                    beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+                    beta = 0.1, gamma = 1, hh_size_ref = 4) |>
       add_group_risk("community", by = "member"),
     "[Bb]aseline.*constant reference"
   )
 
-  run_simulation(hhmodel, param_table = pin_all_params(hhmodel)) |>
+  run_simulation(hh_model, param_table = pin_all_params(hh_model)) |>
     expect_s3_class("data.frame")
 
   # a later definition on an untouched baseline says nothing again
-  hhmodel |>
+  hh_model |>
     add_parameter(gamma = 2) |>
     suppressWarnings() |> # suppress overwrite warning
     evaluate_log_lik() |>
@@ -1023,10 +1023,10 @@ test_that("A declared baseline is collapsed at the decorator", {
     expect_true()
 
   # the run cannot give the scale back
-  hhmodel |>
+  hh_model |>
     run_simulation(param_table = data.frame(alpha = 0.5)) |>
     expect_error("[Pp]aram_table.*alpha.*other than 1")
-  hhmodel |>
+  hh_model |>
     run_simulation(param_table = data.frame(alpha = 1)) |>
     expect_s3_class("data.frame")
 })
@@ -1035,28 +1035,28 @@ test_that("A collapsed baseline is reported again only on a new declaration", {
   warned <- function(x) {
     any(grepl("[Bb]aseline.*constant reference", testthat::capture_warnings(x)))
   }
-  hhmodel <- mk_flu$model |>
-    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+  hh_model <- mk_flu$model |>
+    add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4) |>
     add_parameter(alpha = list(prior = "uniform", min = 0, max = 1)) |>
     suppressWarnings() # suppress overwrite warning
   warned(
-    hhmodel <- add_group_risk(hhmodel, "community", by = "member")
+    hh_model <- add_group_risk(hh_model, "community", by = "member")
   ) |>
     expect_true()
 
   # an untouched baseline and a copy of the model say nothing more
-  warned(hhmodel |> add_parameter(gamma = 2)) |> expect_false()
-  warned(hhmodel$copy() |> add_parameter(gamma = 2)) |> expect_false()
+  warned(hh_model |> add_parameter(gamma = 2)) |> expect_false()
+  warned(hh_model$copy() |> add_parameter(gamma = 2)) |> expect_false()
 
   # a new range for the same prior is a new declaration
   warned(
-    hhmodel |>
+    hh_model |>
       add_parameter(alpha = list(prior = "uniform", min = 0, max = 2))
   ) |>
     expect_true()
 
   # a baseline its risk released is reported again once re-collapsed
-  released <- hhmodel |>
+  released <- hh_model |>
     add_group_risk("community", by = "member", reference = "student") |>
     suppressWarnings() # suppress overwrite warning
   get_parameters(released, "alpha")$const |> expect_false()
@@ -1064,14 +1064,14 @@ test_that("A collapsed baseline is reported again only on a new declaration", {
 })
 
 test_that("A measure table cannot give a collapsed baseline its scale back", {
-  hhmodel <- mk_flu$model |>
-    add_parameter(beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+  hh_model <- mk_flu$model |>
+    add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4) |>
     add_group_risk("community", by = "member")
-  hhmodel |>
+  hh_model |>
     check_predictive(
-      data.frame(alpha = 0.5, beta = 0.1, gamma = 1, hhsize_ref = 4L,
+      data.frame(alpha = 0.5, beta = 0.1, gamma = 1, hh_size_ref = 4L,
                  com_member_mother = 0.5),
-      sar = measure_sar_by_hhsize, thin_ess = FALSE, nrep = 2L
+      sar = measure_sar_by_hh_size, thin_ess = FALSE, nrep = 2L
     ) |>
     expect_error("[Pp]aram_table.*alpha.*other than 1")
 })
@@ -1091,7 +1091,7 @@ test_that("A fixed stratum holds across draws, a pinned one is resampled", {
       add_group_risk("susceptibility", strata = strata,
                      prior = "lognormal", sdlog = 3)
   }
-  twice <- \(hhmodel) c(evaluate_log_lik(hhmodel), evaluate_log_lik(hhmodel))
+  twice <- \(hh_model) c(evaluate_log_lik(hh_model), evaluate_log_lik(hh_model))
 
   # every stratum fixed: inference reads the values, nothing is drawn
   log_lik <- twice(mk(pin_strata(value = c(NA, 1.2, 0.5, 0.8),
@@ -1108,7 +1108,7 @@ test_that("A fixed stratum anchors the scale of its rule group", {
   # the group is anchored by the constant, so no baseline is collapsed onto it
   log_lik <- mk_flu$model |>
     add_parameter(alpha = list(prior = "uniform", min = 0.2, max = 0.9),
-                  beta = 0.1, gamma = 1, hhsize_ref = 4) |>
+                  beta = 0.1, gamma = 1, hh_size_ref = 4) |>
     add_group_risk("community",
       strata = pin_strata(value = c(NA, 1.2, 0.5), const = c(NA, TRUE, TRUE)),
       prior = "lognormal", sdlog = 3
@@ -1120,26 +1120,26 @@ test_that("A fixed stratum anchors the scale of its rule group", {
 test_that("Strata counts come from the engine cross-tabulation", {
   # a cell the data does not carry forms no stratum of its own: the member
   # holding it is left unmatched
-  hhmodel <- data.frame(hhid = c("h1", "h1", "h2", "h2", "h3"),
-                        status = c(1, 0, 1, 1, 0),
-                        datum = c("a", "b", "a", NA, "b"),
-                        datum_2 = c(TRUE, FALSE, TRUE, FALSE, NA)) |>
+  hh_model <- data.frame(hh_id = c("h1", "h1", "h2", "h2", "h3"),
+                         status = c(1, 0, 1, 1, 0),
+                         datum = c("a", "b", "a", NA, "b"),
+                         datum_2 = c(TRUE, FALSE, TRUE, FALSE, NA)) |>
     new_housepi_model("final-size", quiet = TRUE) |>
     add_parameter(import = "template")
 
   # susceptibility reads the member missing its datum: no stratum resolves it
-  hhmodel |>
+  hh_model |>
     add_group_risk(susceptibility = list(by = "datum", reference = ".auto")) |>
     expect_error("leaves 1 member unmatched")
 
   # infectivity reads the escaped member missing its datum_2 too: a
   # simulation may infect it
-  hhmodel |>
+  hh_model |>
     add_group_risk(infectivity = list(by = "datum_2", reference = ".auto")) |>
     expect_error("leaves 1 member unmatched")
 
   # a logical column keeps both of its levels
-  datum_2 <- data.frame(hhid = c("h1", "h1", "h2"), status = c(1, 0, 1),
+  datum_2 <- data.frame(hh_id = c("h1", "h1", "h2"), status = c(1, 0, 1),
                         datum_2 = c(TRUE, FALSE, TRUE)) |>
     new_housepi_model("final-size", quiet = TRUE) |>
     add_group_risk(infectivity = list(by = "datum_2", reference = ".auto")) |>
@@ -1154,13 +1154,13 @@ test_that("A catch-all stratum survives a missing covariate cell", {
   strata <- tibble::tribble(~datum, ~param_name,
                             "a",    ".reference",
                             NA,     "sus_rest")
-  hhmodel <- data.frame(id = c("m1", "m2", "m3"), hhid = "h1",
-                        status = c(1, 0, 0), datum = c("a", "b", NA)) |>
+  hh_model <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
+                         status = c(1, 0, 0), datum = c("a", "b", NA)) |>
     new_housepi_model("final-size", quiet = TRUE) |>
     add_parameter(import = "template") |>
     add_group_risk("susceptibility", strata = strata,
                    params = list(sus_rest = 3))
-  snapshot <- hhmodel |> inspect_house_state("h1")
+  snapshot <- hh_model |> inspect_house_state("h1")
 
   risk <- stats::setNames(snapshot$group_risks$susceptibility,
                           snapshot$group_risks$id)
@@ -1173,7 +1173,7 @@ test_that("A catch-all stratum survives a missing covariate cell", {
   unname(risk["m3"]) |> expect_equal(3)
 
   # the catch-all stratum counts the members it resolves to
-  risks <- get_group_risks(hhmodel)
+  risks <- get_group_risks(hh_model)
   risks$n[risks$param_name == ".reference"] |> expect_identical(sum(risk == 1))
   risks$n[risks$param_name == "sus_rest"] |> expect_identical(sum(risk == 3))
 })

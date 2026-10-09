@@ -5,7 +5,7 @@
 \title{Add an observation}
 \usage{
 add_observation(
-  hhmodel,
+  hh_model,
   name = NULL,
   model = NA_character_,
   ...,
@@ -21,7 +21,7 @@ add_observation(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
@@ -118,7 +118,7 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 \examples{
-hhmodel <- sarscov2_2021_icofs |>
+hh_model <- sarscov2_2021_icofs |>
   new_housepi_model("case-ascertained") |>
   add_parameter(import = "template") |>
   add_infectivity_profile(import = "template") |>
@@ -132,5 +132,5 @@ hhmodel <- sarscov2_2021_icofs |>
                   mean = onset_time, sd = 1, min = floor(onset_time)) |>
   # house level: the earliest positive test among members
   add_observation("first_test", value = min(test_date), level = "house")
-get_observations(hhmodel)
+get_observations(hh_model)
 }

@@ -6,7 +6,7 @@ library(testthat)
 
 # households of two sizes, the covariate constant within each one
 mk_recov_data <- local({
-  hhdata <- data.frame(hhid = c("h1", rep("h2", 3)),
+  hhdata <- data.frame(hh_id = c("h1", rep("h2", 3)),
                        id = paste0("m", seq(4)),
                        datum = c("a", rep("b", 3)))
   list(hhdata = hhdata)
@@ -30,7 +30,7 @@ mk_recov_frame <- local({
 
 test_that("The household count defaults to the observed one", {
   sample_house_structure(data.frame(datum = 1)) |>
-    expect_error("[Cc]olumn.*hhid.*is missing")
+    expect_error("[Cc]olumn.*hh_id.*is missing")
   sample_house_structure(mk_recov_data$hhdata, houses = 0) |>
     expect_error("[Nn]umber of households")
   # the sampler draws one structure, so a sweep of counts is refused here
@@ -39,7 +39,7 @@ test_that("The household count defaults to the observed one", {
 
   # default sampling targets the observed household count
   struct <- sample_house_structure(mk_recov_data$hhdata)
-  length(unique(struct$hhid)) |> expect_identical(2L)
+  length(unique(struct$hh_id)) |> expect_identical(2L)
   # without a sampler the observed count stands, whatever count is asked
   expect_warning(
     houses <- sweep_houses_(mk_recov_data$hhdata, houses = 6, verbatim = TRUE),
@@ -51,14 +51,14 @@ test_that("The household count defaults to the observed one", {
 test_that("Households are resampled whole", {
   struct <- sample_house_structure(mk_recov_data$hhdata, houses = 6)
   # every household is renumbered
-  sort(unique(struct$hhid)) |> expect_identical(1:6)
+  sort(unique(struct$hh_id)) |> expect_identical(1:6)
   # an identifier carried by the input is regenerated
   struct$id |> expect_identical(seq_len(nrow(struct)))
   # household sizes are only the observed ones
-  sizes <- as.integer(table(struct$hhid))
+  sizes <- as.integer(table(struct$hh_id))
   sizes |> expect_in(c(1L, 3L))
   # covariate datum is still unique per household and not mixed
-  levels <- tapply(struct$datum, struct$hhid, \(x) length(unique(x)))
+  levels <- tapply(struct$datum, struct$hh_id, \(x) length(unique(x)))
   levels |> as.vector() |> expect_all_equal(1L)
 })
 
@@ -106,14 +106,14 @@ test_that("A table of values collapses to its point estimate", {
 # a sweep short enough for the suite: every fit is too short to diagnose,
 # so the whole run is flagged and its one aggregated warning is asserted below
 mk_recov <- local({
-  hhmodel <- flu_1918_frederick |>
+  hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
-  results <- hhmodel |>
+  results <- hh_model |>
     check_recovery(nrep = 2, houses = c(20, 40),
                    steps = 50, chains = 1, progress = FALSE) |>
     suppressWarnings()
-  list(model = hhmodel, results = results)
+  list(model = hh_model, results = results)
 })
 
 # no fit is flagged and every point estimate lies within four posterior sd
@@ -192,19 +192,19 @@ test_that("Recovery fits the survey the wide reporting process returns", {
 
 test_that("A failed replicate stops the fits sampled with it", {
   # `record = 5` fails at chain initialization, `record = 0.5` samples
-  hhmodel <- data.frame(hhid = "h1", status = 1, record = 0.5) |>
+  hh_model <- data.frame(hh_id = "h1", status = 1, record = 0.5) |>
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform") |>
     add_observation("record", model = "uniform", loc = hidden,
                     min = -0.1, max = 0.1)
-  hhdata <- hhmodel$data_wide
+  hhdata <- hh_model$data_wide
   hhdata_2 <- transform(hhdata, record = 5)
   # the fit of `hhdata` alone samples for minutes
   fit_args <- list(steps = 400000000L, burn = 0, thin = 100000L, adapt = 0,
                    chains = 1, threads = 1L, id_draws = ".none")
   fit_wave <- function(wides, outer, failed) {
     system.time(
-      sweep_fit_wave_(hhmodel, wides, reps = 1:2, houses = 1L, seeds = 1:2,
+      sweep_fit_wave_(hh_model, wides, reps = 1:2, houses = 1L, seeds = 1:2,
                       fit_args = fit_args, outer = outer, bar = NULL) |>
         expect_error(paste0("[Rr]eplicate ", failed,
                             " at.*[Ee]xceeded attempts"))
@@ -234,26 +234,26 @@ test_that("A run too short to diagnose is flagged whole", {
 })
 
 test_that("Recovery leaves the model it was given untouched", {
-  hhmodel <- mk_recov$model
-  params <- get_parameters(hhmodel)
+  hh_model <- mk_recov$model
+  params <- get_parameters(hh_model)
   stats::setNames(params$value, params$name)[c("alpha", "beta")] |>
     expect_equal(c(alpha = 0.15, beta = 0.20))
-  hhmodel$data_wide |> expect_nrow(nrow(flu_1918_frederick))
+  hh_model$data_wide |> expect_nrow(nrow(flu_1918_frederick))
 })
 
 test_that("Every estimated parameter needs a simulation value", {
-  hhmodel <- flu_1918_frederick |>
+  hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = list(value = 0.15, prior = "uniform"),
                   beta = list(prior = "uniform"),
                   gamma = list(value = 1, prior = "uniform", max = 3),
-                  hhsize_ref = 4)
+                  hh_size_ref = 4)
 
-  check_recovery(hhmodel, nrep = 1, progress = FALSE) |>
+  check_recovery(hh_model, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o simulation value.*beta")
   # a value given for a parameter the model does not carry is reported; the
   # fit is too short to pass the diagnostics
-  check_recovery(hhmodel, nrep = 1, steps = 50, thin = 1, chains = 1,
+  check_recovery(hh_model, nrep = 1, steps = 50, thin = 1, chains = 1,
                  progress = FALSE, truth = data.frame(beta = 0.2, rho = 1)) |>
     expect_warning("[Nn]o parameter named") |>
     suppressWarnings()
@@ -262,8 +262,8 @@ test_that("Every estimated parameter needs a simulation value", {
 test_that("A collapsed baseline takes no simulation value", {
   # `community` names no reference, so `alpha` is the scale of its own group
   expect_warning(
-    hhmodel <- data.frame(
-      hhid = rep(1:4, each = 3),
+    hh_model <- data.frame(
+      hh_id = rep(1:4, each = 3),
       status = c(1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1),
       member = rep(c("child", "adult", "adult"), 4)
     ) |>
@@ -273,19 +273,19 @@ test_that("A collapsed baseline takes no simulation value", {
     "alpha.*constant reference"
   )
 
-  check_recovery(hhmodel, nrep = 1, progress = FALSE,
+  check_recovery(hh_model, nrep = 1, progress = FALSE,
                  truth = data.frame(alpha = 0.3)) |>
     expect_error("[Tt]ruth.*alpha.*other than 1")
 })
 
 test_that("Recovery refuses a sweep it cannot run", {
-  hhmodel <- flu_1918_frederick |>
+  hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = list(value = 0.15, const = TRUE),
                   beta = list(value = 0.20, const = TRUE),
-                  gamma = list(value = 1, const = TRUE), hhsize_ref = 4)
+                  gamma = list(value = 1, const = TRUE), hh_size_ref = 4)
 
-  check_recovery(hhmodel, nrep = 1, progress = FALSE) |>
+  check_recovery(hh_model, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o parameter to estimate")
   new_housepi_model(model = "final-size") |>
     add_parameter(import = "template") |>
@@ -301,7 +301,7 @@ test_that("Recovery refuses a sweep it cannot run", {
 test_that("Latent inference recovers the simulating parameter", {
   skip_on_cran()
   # @note test model simulates only on the statuses it is given
-  data.frame(hhid = seq(200), status = 1) |>
+  data.frame(hh_id = seq(200), status = 1) |>
     new_housepi_model("test") |>
     add_parameter("rho", value = 2, prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
@@ -322,7 +322,7 @@ test_that("Final-size inference recovers the simulating parameters", {
 test_that("Case-ascertained inference recovers the simulating parameters", {
   skip_on_cran()
   # observed onsets date the infection times the transmission reads
-  sarscov2_2021_icofs[c("id", "hhid")] |>
+  sarscov2_2021_icofs[c("id", "hh_id")] |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
     add_infectivity_profile(import = "template") |>

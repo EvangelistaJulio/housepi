@@ -11,7 +11,7 @@
 #'
 #' \describe{
 #'   \item{id}{Individual identifier}
-#'   \item{hhid}{Household identifier}
+#'   \item{hh_id}{Household identifier}
 #'   \item{status}{Serological test result}
 #' }
 #'
@@ -30,14 +30,14 @@ NULL
 #' Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 #'
 #' \describe{
-#'   \item{hhid}{Household identifier}
+#'   \item{hh_id}{Household identifier}
 #'   \item{status}{Reported case}
 #' }
 #'
 #' @docType data
 #' @keywords datasets
 #' @examples
-#' measure_ar_by_hhsize(flu_1918_frederick)
+#' measure_ar_by_hh_size(flu_1918_frederick)
 #' @name flu_1918_frederick
 #' @usage data(flu_1918_frederick)
 #' @format A data frame with 2,207 rows and 2 columns
@@ -55,14 +55,14 @@ NULL
 #' Reported cases of "Spanish" flu in Baltimore (USA), in 1918.
 #'
 #' \describe{
-#'   \item{hhid}{Household identifier}
+#'   \item{hh_id}{Household identifier}
 #'   \item{status}{Reported case}
 #' }
 #'
 #' @docType data
 #' @keywords datasets
 #' @examples
-#' measure_ar_by_hhsize(flu_1918_baltimore)
+#' measure_ar_by_hh_size(flu_1918_baltimore)
 #' @name flu_1918_baltimore
 #' @usage data(flu_1918_baltimore)
 #' @format A data frame with 28,977 rows and 2 columns
@@ -83,7 +83,7 @@ NULL
 #'
 #' \describe{
 #'   \item{id}{Individual identifier}
-#'   \item{hhid}{Household identifier}
+#'   \item{hh_id}{Household identifier}
 #'   \item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic}
 #'   \item{age}{Age class, adult or child}
 #'   \item{sex}{Sex}
@@ -100,8 +100,8 @@ NULL
 #' @keywords datasets
 #' @examples
 #' head(sarscov2_2021_icofs)
-#' hhmodel <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
-#' summarise_house_cases(hhmodel)
+#' hh_model <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
+#' summarise_house_cases(hh_model)
 #' @name sarscov2_2021_icofs
 #' @usage data(sarscov2_2021_icofs)
 #' @format A data frame with 4,168 rows and 12 columns
@@ -128,7 +128,7 @@ NULL
 #' Original observational study from Uchida et al. (2017).
 #'
 #' \describe{
-#'   \item{hhid}{Household identifier}
+#'   \item{hh_id}{Household identifier}
 #'   \item{member}{Family member}
 #'   \item{status}{Symptoms reported}
 #' }

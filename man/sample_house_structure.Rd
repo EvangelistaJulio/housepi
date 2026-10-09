@@ -15,7 +15,7 @@ Optional at construction; if omitted, attach it later with
 \code{NA} targets the number of households carried by \code{data_wide}.}
 }
 \value{
-\code{data.frame} with \code{hhid} renumbered sequentially, so a household
+\code{data.frame} with \code{hh_id} renumbered sequentially, so a household
 drawn twice stands as two independent households, and \code{id} regenerated as
 a row number when the input carries one.
 }

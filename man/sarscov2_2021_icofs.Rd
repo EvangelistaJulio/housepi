@@ -21,7 +21,7 @@ Contacts averaged 3 tests during follow-up.
 \details{
 \describe{
 \item{id}{Individual identifier}
-\item{hhid}{Household identifier}
+\item{hh_id}{Household identifier}
 \item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic}
 \item{age}{Age class, adult or child}
 \item{sex}{Sex}
@@ -45,8 +45,8 @@ To reproduce the data processing, see the script at:
 }
 \examples{
 head(sarscov2_2021_icofs)
-hhmodel <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
-summarise_house_cases(hhmodel)
+hh_model <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
+summarise_house_cases(hh_model)
 }
 \references{
 \insertRef{cortier_factors_2025}{housepi}

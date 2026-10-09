@@ -113,3 +113,27 @@ housepi_defin_showcaser <- function(defs) {
   }
   output
 }
+
+#' Order readable definitions for display.
+#' Generic definitions (no `status`) come first, then by status (numerically
+#' when every status is a number, alphabetically otherwise), then by name.
+#' @param defs `data.frame()` or `NULL`. Readable definitions.
+#' @param name `character(1)`. Column holding the definition name.
+#' @param by_status `logical(1)`. Order by `status` first; `FALSE` for tables
+#' where `status` is a stratum, not a definition key.
+#' @return `defs` with its rows reordered.
+#' @keywords internal
+#' @noRd
+sort_definitions_ <- function(defs, name = "name", by_status = TRUE) {
+  if (NROW(defs) < 2L) return(defs)
+  sort_key <- function(x) {
+    num <- suppressWarnings(as.numeric(x))
+    if (anyNA(num[!is.na(x)])) tolower(as.character(x)) else num
+  }
+  keys <- lapply(intersect(c(if (by_status) "status", name), names(defs)),
+                 \(col) sort_key(defs[[col]]))
+  rows <- do.call(order, c(keys, list(na.last = FALSE, method = "radix")))
+  out <- defs[rows, , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}

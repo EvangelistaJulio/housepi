@@ -41,15 +41,15 @@ library(housepi)
 set_housepi_theme()
 set.seed(42)
 
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
 
-hhmodel$parameters
+hh_model$parameters
 ```
 
 The check needs no fit to the Frederick data.
-The truth of each replicate is drawn from the uniform priors of `alpha`, `beta` and `gamma`, while `hhsize_ref` is held constant at 4.
+The truth of each replicate is drawn from the uniform priors of `alpha`, `beta` and `gamma`, while `hh_size_ref` is held constant at 4.
 The data only lends its households to the simulated studies.
 
 # Rank the prior draws
@@ -60,7 +60,7 @@ The drawn value is ranked among 99 draws thinned evenly from these 800:
 
 ```{r}
 #| label: calibration
-calibration <- hhmodel |>
+calibration <- hh_model |>
   check_calibration(nrep = 100, progress = FALSE)
 calibration
 
@@ -161,7 +161,7 @@ We repeat the check with two chains of 50 steps, the first 25 of each spent adap
 
 ```{r}
 #| label: short-chains
-short <- hhmodel |>
+short <- hh_model |>
   check_calibration(nrep = 100, steps = 50, thin = 1, adapt = 25,
                     chains = 2, progress = FALSE)
 short$summary

@@ -291,7 +291,7 @@ namespace housepi
         struct LatentDraws_
         {
             std::vector<std::string> ids;
-            std::vector<std::string> hhids;
+            std::vector<std::string> hh_ids;
             std::vector<const Individual *> ptrs;
 
             void store(const data::Wide &data_wide,
@@ -299,7 +299,7 @@ namespace housepi
                        const Individual &indiv)
             {
                 ids.emplace_back(data_wide.id(indiv));
-                hhids.emplace_back(data_wide.hhid(house));
+                hh_ids.emplace_back(data_wide.hh_id(house));
                 ptrs.emplace_back(&indiv);
             }
         };
@@ -341,7 +341,7 @@ namespace housepi
                     continue;
                 }
 
-                if (vect::contains(house_draws, data_wide.hhid(house)))
+                if (vect::contains(house_draws, data_wide.hh_id(house)))
                     for (const Individual &indiv : house.infected_indivs())
                         seen.store(data_wide, house, indiv);
                 else
@@ -352,7 +352,7 @@ namespace housepi
 
             // warn on draws not found in the data
             std::vector<std::string> missed_id = vect::difference(id_draws, seen.ids);
-            std::vector<std::string> missed_house = vect::difference(house_draws, seen.hhids);
+            std::vector<std::string> missed_house = vect::difference(house_draws, seen.hh_ids);
             if (!missed_id.empty())
                 msg::warn(
                     "Ignored draws of non infected " + msg::qty(missed_id) +
@@ -397,7 +397,7 @@ namespace housepi
         size_t H = 0;
         for (const Household &house : data_wide)
         {
-            house_log_lik.names.push_back(data_wide.hhid(house));
+            house_log_lik.names.push_back(data_wide.hh_id(house));
             house_log_lik.source.push_back(data_wide.get_eq_class(H++));
         }
     }
@@ -687,7 +687,7 @@ namespace housepi
 
     std::vector<std::string> MCMCBase::get_col_names() const
     {
-        std::vector<std::string> output = {"id", "hhid"};
+        std::vector<std::string> output = {"id", "hh_id"};
         vect::append(output, get_static_data_names());
         vect::append(output, {"status"});
 
@@ -745,7 +745,7 @@ namespace housepi
 
     //////  Evaluation  //////
 
-    double MCMC::evaluate_log_lik(std::string_view hhid)
+    double MCMC::evaluate_log_lik(std::string_view hh_id)
     {
         setup.n_chains = 0; // using '0 chains' as a state variable
         init_for_evaluation_();
@@ -754,7 +754,7 @@ namespace housepi
 
         // evaluation at current state
         LogLikAccumulator acc;
-        if (na::is(hhid))
+        if (na::is(hh_id))
         {
             // evaluation across all households
             commit_total_log_posterior_(true);
@@ -767,7 +767,7 @@ namespace housepi
             // single household evaluation
             infec_profile.update_cache();
             acc = commit_house_log_posterior_(
-                data.wide().at(hhid),
+                data.wide().at(hh_id),
                 true, augm.scheme().is_any_latent_model(), augm.scheme().is_any_obs_model());
         }
 

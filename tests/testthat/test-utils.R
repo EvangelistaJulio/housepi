@@ -3,7 +3,7 @@ library(testthat)
 # data frame carrying one column of each storage type the engine encodes
 mk_types <- local({
   hhdata <- data.frame(id = c("m1", "m2"),
-                       hhid = c("h1", "h1"),
+                       hh_id = c("h1", "h1"),
                        status = c(1, 0),
                        date_col = as.Date(c("2024-01-01", "2024-01-02")),
                        char_col = c("male", "female"),
@@ -170,8 +170,8 @@ test_that("Data factorization handles default types", {
   # logical encoded
   result$info$logic_col$class |> expect_identical("logical")
 
-  # numeric column untouched, and id, hhid, status skipped (no info entry)
-  (c("num_col", "id", "hhid", "status") %in% names(result$info)) |>
+  # numeric column untouched, and id, hh_id, status skipped (no info entry)
+  (c("num_col", "id", "hh_id", "status") %in% names(result$info)) |>
     expect_all_false()
 
   # status extraction
@@ -195,7 +195,7 @@ test_that("Data refactor restores original types", {
 
 test_that("Data factorization codes a labelled status column", {
   hhdata <- data.frame(id = paste0("m", 1:4),
-                       hhid = rep(c("h1", "h2"), each = 2),
+                       hh_id = rep(c("h1", "h2"), each = 2),
                        status = c("positive", rep("negative", 3)),
                        stringsAsFactors = FALSE)
 
@@ -268,21 +268,21 @@ test_that("A data column R can only spell quoted, survives the round trip", {
   hhdata[["3"]] <- c(42L, 7L)
   hhdata[["if"]] <- c(1L, 2L)
 
-  hhmodel <- new_housepi_model(hhdata, "test")
+  hh_model <- new_housepi_model(hhdata, "test")
   # the engine reports the column under the user's own spelling
-  colnames(hhmodel$data_wide) |> expect_identical(colnames(hhdata))
-  hhmodel$data_wide[["3"]] |> expect_equal(hhdata[["3"]])
-  names(inspect_house_state(hhmodel, "house")$data_wide) |>
+  colnames(hh_model$data_wide) |> expect_identical(colnames(hhdata))
+  hh_model$data_wide[["3"]] |> expect_equal(hhdata[["3"]])
+  names(inspect_house_state(hh_model, "house")$data_wide) |>
     expect_identical(colnames(hhdata))
 
   # a definition sources it by its name, quoted
-  get_latent(add_latent(hhmodel, hidden = `if`))$value |>
+  get_latent(add_latent(hh_model, hidden = `if`))$value |>
     expect_identical("if|D")
 
   # data-long keys cross the same way
   long <- data.frame(id = hhdata$id, check.names = FALSE)
   long[["3"]] <- c(1.5, 2.5)
-  add_data_long(hhmodel, long) |>
+  add_data_long(hh_model, long) |>
     get_data_long() |>
     getElement("3") |>
     expect_identical(long[["3"]])

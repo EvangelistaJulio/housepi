@@ -5,7 +5,7 @@
 \title{Check that inference recovers known parameters}
 \usage{
 check_recovery(
-  hhmodel,
+  hh_model,
   nrep = 50L,
   houses = NA_integer_,
   structure_sampler = sample_house_structure,
@@ -21,7 +21,7 @@ check_recovery(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{nrep}{\code{integer(1)} Number of surveys simulated and fitted back
 at each household count.}

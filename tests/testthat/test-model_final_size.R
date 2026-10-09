@@ -13,7 +13,7 @@ mk_homo <- local({
   crisks <- list(class_b_to_class_a = 2.3)
 
   house <- data.frame(
-    id = c("m1", "m2"), hhid = "h1", status = c(1, 0),
+    id = c("m1", "m2"), hh_id = "h1", status = c(1, 0),
     class = c("a", "b"),
     community = c(1, grisks$b$com),
     susceptibility = c(1, grisks$b$sus),
@@ -21,7 +21,7 @@ mk_homo <- local({
   )
 
   # parameters matching automatic names
-  par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hhsize_ref = 4),
+  par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
            crisks,
            list(com_class_b = grisks$b$com,
                 sus_class_b = grisks$b$sus,
@@ -51,7 +51,7 @@ mk_heter <- local({
                  class_c_to_class_c = 1.2)
 
   house <- data.frame(
-    id = sprintf("m%s", seq(1, 4)), hhid = "h1",
+    id = sprintf("m%s", seq(1, 4)), hh_id = "h1",
     status = c(rep(1, 3), 0),
     class = c("a", "b", rep("c", 2)),
     community = c(1, grisks$b$com, rep(grisks$c$com, 2)),
@@ -60,7 +60,7 @@ mk_heter <- local({
   )
 
   # parameters matching automatic names
-  par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hhsize_ref = 4),
+  par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
            crisks,
            list(com_class_b = grisks$b$com,
                 sus_class_b = grisks$b$sus,
@@ -92,7 +92,7 @@ mk_part <- local({
                  class_c_to_class_c = 1.2)
 
   house <- data.frame(
-    id = sprintf("m%s", seq(1, 4)), hhid = "h1",
+    id = sprintf("m%s", seq(1, 4)), hh_id = "h1",
     status = c(rep(1, 3), 0),
     class = c("a", rep("c", 2), "b"),
     community = c(1, rep(grisks$c$com, 2), grisks$b$com),
@@ -101,7 +101,7 @@ mk_part <- local({
   )
 
   # parameters matching automatic names
-  par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hhsize_ref = 4),
+  par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
            crisks,
            list(com_class_b = grisks$b$com,
                 sus_class_b = grisks$b$sus,
@@ -140,7 +140,7 @@ chain_binomial_log_lik <- function(house, par, ctr) {
   n_full <- nrow(house)
   n_infec <- sum(house$status > 0L)
   commu_infec_rate <- par$alpha * house$community
-  p2p_infec_rate <- par$beta * (par$hhsize_ref / n_full) ^ par$gamma *
+  p2p_infec_rate <- par$beta * (par$hh_size_ref / n_full) ^ par$gamma *
     house$infectivity %o% house$susceptibility * ctr
   if (n_infec == 0) return(-sum(commu_infec_rate))
 
@@ -164,7 +164,7 @@ test_that("Chain binomial guards against misusage", {
     expect_error("No visible discrete time option")
 
   # no support for missing status
-  data.frame(id = c("m1", "m2"), hhid = "h1", status = c(1, NA)) |>
+  data.frame(id = c("m1", "m2"), hh_id = "h1", status = c(1, NA)) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference() |>
@@ -276,20 +276,20 @@ test_that("A contact-risk mismatch keeps risk-equivalent members apart", {
 test_that("A free baseline under an absolute risk is pinned on real data", {
   # households carrying a sibling, so every member level of the strata is seen
   hhdata <- flu_2014_matsumoto |>
-    dplyr::filter(hhid %in% utils::head(
-      unique(hhid[member == "sibling"]), 500
+    dplyr::filter(hh_id %in% utils::head(
+      unique(hh_id[member == "sibling"]), 500
     ))
 
   # the template declares a free alpha, which the absolute community risk
   # leaves no scale for: it is pinned, and the anomaly is reported
   expect_warning(
-    hhmodel <- hhdata |>
+    hh_model <- hhdata |>
       new_housepi_model("final-size") |>
       add_parameter(import = "template") |>
       add_group_risk("community", by = "member"),
     "alpha.*turned.*reference"
   )
-  params <- get_parameters(hhmodel)
+  params <- get_parameters(hh_model)
   params$value[params$name == "alpha"] |> expect_equal(1)
 
   # the contact table names a reference, so `beta` keeps its scale
@@ -302,7 +302,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
     "other",      "other",    "ctr_other_other",
     NA,           NA,         "ctr_cross_generational"
   )
-  hhmodel |>
+  hh_model |>
     add_contact_risk(strata = strata) |>
     get_parameters() |>
     subset(name == "beta", "const") |>
@@ -311,28 +311,28 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
 })
 
 test_that("Infection rates below the machine epsilon keep their probability", {
-  hhmodel <- data.frame(id = c(1, 2), hhid = "h1",
-                        status = c(1, 1), age = c("child", "adult")) |>
+  hh_model <- data.frame(id = c(1, 2), hh_id = "h1",
+                         status = c(1, 1), age = c("child", "adult")) |>
     new_housepi_model("final-size") |>
-    add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hhsize_ref = 4)
+    add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hh_size_ref = 4)
 
   # homogeneous branch: both infected from the community,
   # or one from the community and the other from it, at rate beta * 4 / 2
   p_commu <- -expm1(-1e-20)
   p_p2p <- -expm1(-2e-20)
-  evaluate_log_lik(hhmodel) |>
+  evaluate_log_lik(hh_model) |>
     expect_equal(log(p_commu^2 + 2 * p_commu * (1 - p_commu) * p_p2p))
 
   # single infected member, the other escaping both routes
-  data.frame(id = c(1, 2), hhid = "h1", status = c(1, 0)) |>
+  data.frame(id = c(1, 2), hh_id = "h1", status = c(1, 0)) |>
     new_housepi_model("final-size") |>
-    add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 1e-20, beta = 1e-20, gamma = 1, hh_size_ref = 4) |>
     evaluate_log_lik() |>
     expect_equal(log(p_commu) - 1e-20 - 2e-20)
 
   # heterogeneous branch: the risk names a reference, so `beta` stays extreme
   # UPDATE: the recursion takes `1 - sum` over probabilities and returns -Inf
-  hhmodel |>
+  hh_model |>
     add_group_risk("susceptibility", by = "age", reference = ".auto") |>
     evaluate_log_lik() |>
     is.finite() |>
@@ -342,9 +342,9 @@ test_that("Infection rates below the machine epsilon keep their probability", {
 test_that("Chain binomial raises if the log-likelihood is not a number", {
   # a null person-to-person risk against an overflowing household-size scaling
   # leaves the escape rate undefined, and the log-likelihood with it
-  data.frame(id = c(1, 2), hhid = "h1", status = c(1, 1)) |>
+  data.frame(id = c(1, 2), hh_id = "h1", status = c(1, 1)) |>
     new_housepi_model("final-size") |>
-    add_parameter(alpha = 0.1, beta = 0, gamma = 1e10, hhsize_ref = 4) |>
+    add_parameter(alpha = 0.1, beta = 0, gamma = 1e10, hh_size_ref = 4) |>
     evaluate_log_lik() |>
     expect_error("[Nn]ot a number")
 })

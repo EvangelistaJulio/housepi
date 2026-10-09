@@ -38,10 +38,10 @@ test_that("Model generator inconsistent calls are caught", {
 test_that("Model choice helper handles malformed input", {
   # NA falls back to 'test' with a warning
   expect_warning(
-    hhmodel <- new_housepi_model(model = NA_character_),
+    hh_model <- new_housepi_model(model = NA_character_),
     regexp = "test"
   )
-  hhmodel$name |> expect_identical("test")
+  hh_model$name |> expect_identical("test")
 
   # non-character input is rejected
   new_housepi_model(model = 42) |> expect_error("non-empty")
@@ -79,18 +79,18 @@ test_that("Compile flags are validated against model source", {
 
 test_that("as_template is refused for a built-in template", {
   expect_warning(
-    hhmodel <- new_housepi_model(model = "test", as_template = TRUE),
+    hh_model <- new_housepi_model(model = "test", as_template = TRUE),
     regexp = "browse_templates"
   )
   # construction still succeeds
-  hhmodel$name |> expect_identical("test")
+  hh_model$name |> expect_identical("test")
 })
 
 test_that("as_template is dropped on the 'test' fallback", {
   # a missing model falls back to 'test': only fallback warning should fire
   warns <- character()
   withCallingHandlers(
-    hhmodel <- new_housepi_model(as_template = TRUE),
+    hh_model <- new_housepi_model(as_template = TRUE),
     warning = function(w) {
       warns <<- c(warns, conditionMessage(w))
       invokeRestart("muffleWarning")
@@ -98,7 +98,7 @@ test_that("as_template is dropped on the 'test' fallback", {
   )
   warns |> expect_match("No model specified", all = FALSE)
   warns |> expect_no_match("Cannot store template")
-  hhmodel$name |> expect_identical("test")
+  hh_model$name |> expect_identical("test")
 })
 
 test_that("A custom model directory without model.cpp is rejected", {
@@ -138,7 +138,7 @@ test_that("Required keys reflect the underlying template", {
   generator$data_required |>
     expect_setequal(c("start_date", "end_date"))
   generator$param_required |>
-    expect_setequal(c("alpha", "beta", "gamma", "hhsize_ref"))
+    expect_setequal(c("alpha", "beta", "gamma", "hh_size_ref"))
   generator$group_risks_required |>
     expect_setequal(c("community", "susceptibility", "infectivity"))
   generator$latent_required |>
@@ -178,7 +178,7 @@ test_that("Wide data is factorized and refactored by the generator", {
   # round-trip refactor keeps the original character columns intact
   refactored <- generator$refactor_data_wide(dummy_household)
   refactored$id |> expect_identical(dummy_household$id)
-  refactored$hhid |> expect_identical(dummy_household$hhid)
+  refactored$hh_id |> expect_identical(dummy_household$hh_id)
 
   # data long format
   generator$import_data_long(list(a = 1)) |> expect_error("data.frame")
@@ -264,16 +264,16 @@ test_that("Custom models share function registries", {
   browse_functions("growth") |> expect_error("Unknown function")
 
   # compile example, skipping any cached build
-  hhmodel <- flu_1918_frederick |>
+  hh_model <- flu_1918_frederick |>
     new_housepi_model(system.file("examples", "custom", package = "housepi"),
                       force = TRUE, quiet = TRUE)
 
   # no templates available for custom example
-  hhmodel |>
+  hh_model |>
     add_latent(import = "template") |>
     expect_error("file.*not found")
   # no help page for custom example
-  hhmodel$help() |> expect_error("not a template")
+  hh_model$help() |> expect_error("not a template")
 
   # Growth_ overrides only raw_function_ and raw_primitive_
   # other raw_ virtuals fall back to raise_undefined_call_err_

@@ -5,7 +5,7 @@
 \title{Add a pairwise contact risk definition}
 \usage{
 add_contact_risk(
-  hhmodel,
+  hh_model,
   by = NA_character_,
   ...,
   reference = NULL,
@@ -22,7 +22,7 @@ add_contact_risk(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{by}{\code{character()} Covariates for from/to matching as data headers.
 Corresponding data columns have to be categorical.}
@@ -117,15 +117,15 @@ If no MCMC options are provided, absolute risks are assumed
 Bypass automatic generation by providing a custom pre-built logic table.
 }
 \examples{
-hhmodel <- new_housepi_model(flu_2014_matsumoto, "final_size")
+hh_model <- new_housepi_model(flu_2014_matsumoto, "final_size")
 
 # one parameter per pair of family roles, relative to the most frequent pair
-hhmodel |>
+hh_model |>
   add_contact_risk("member", reference = ".auto") |>
   get_contact_risks()
 
 # asymmetric: infector-infectee and infectee-infector pairs differ
-hhmodel |>
+hh_model |>
   add_contact_risk("member", symmetric = FALSE) |>
   get_contact_risks()
 }

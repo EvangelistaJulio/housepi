@@ -1,7 +1,7 @@
 # Log-likelihood of case ascertained model is correct
 
     Code
-      print(hhmodel)
+      print(hh_model)
     Output
       i Household transmission model "case ascertained" (`template`).
       ! Group risks: using default group risks.
@@ -16,7 +16,7 @@
 ---
 
     Code
-      print(hhmodel)
+      print(hh_model)
     Output
       i Household transmission model "case ascertained" (`template`).
       Model is set to discrete time mode.

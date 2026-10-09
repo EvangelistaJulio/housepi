@@ -2,17 +2,17 @@ library(testthat)
 
 # model over two covariates
 mk_risk <- local({
-  hhmodel <- data.frame(hhid = 1L, status = 0L,
-                        age = c(rep("child", 2), rep("adult", 2)),
-                        sex = c("M", "F", "M", "M")) |>
+  hh_model <- data.frame(hh_id = 1L, status = 0L,
+                         age = c(rep("child", 2), rep("adult", 2)),
+                         sex = c("M", "F", "M", "M")) |>
     new_housepi_model("final-size")
-  list(model = hhmodel)
+  list(model = hh_model)
 })
 
 # house holding one of each member type, with template parameters
 mk_house <- local({
   model <- data.frame(id = c("m1", "m2", "m3", "m4"),
-                      hhid = "h1", status = 0L,
+                      hh_id = "h1", status = 0L,
                       member = c("father", "mother", "student", "sibling")) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
@@ -41,7 +41,7 @@ pin_ctr_strata <- function(value = c(0.4, NA), const = c(TRUE, NA), ...) {
 #################################
 
 test_that("Contact risks pair counts are computed correctly", {
-  tbl <- data.frame(hhid = c(rep("h1", 2L), rep("h2", 2L)),
+  tbl <- data.frame(hh_id = c(rep("h1", 2L), rep("h2", 2L)),
                     age = rep(c("child", "adult"), 2L)) |>
     contact_risk_logic_table("age")
   count <- \(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
@@ -59,7 +59,7 @@ test_that("Contact risks pair counts are computed correctly", {
 
 test_that("Pair counts drop the member meeting itself", {
   # 2 children in one household imply 2 ordered child->child pairs, not 4
-  tbl <- data.frame(hhid = c(rep("h1", 3), rep("h2", 2)),
+  tbl <- data.frame(hh_id = c(rep("h1", 3), rep("h2", 2)),
                     age = c(rep("child", 2), rep("adult", 3))) |>
     contact_risk_logic_table("age")
   count <- \(from, to) tbl$n[tbl$from_age == from & tbl$to_age == to]
@@ -221,44 +221,44 @@ test_that("Absoluteness follows the reference across every definition mode", {
 test_that("Two absolute rule groups are not identifiable", {
   mk_risk$model |>
     add_contact_risk(by = c("age", "sex")) |>
-    add_parameter(alpha = 0.1, gamma = 1, hhsize_ref = 4) |>
+    add_parameter(alpha = 0.1, gamma = 1, hh_size_ref = 4) |>
     evaluate_log_lik() |>
     expect_error("2 absolute rule groups.*non-identifiability")
 })
 
 test_that("Every rule group keeps its anchoring in auto", {
   by <- c("age", "sex")
-  hhmodel <-  sarscov2_2021_icofs |>
-    dplyr::filter(hhid %in% utils::head(unique(hhid), 50)) |>
+  hh_model <-  sarscov2_2021_icofs |>
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50)) |>
     new_housepi_model("final-size")
 
-  contact_prior <- function(hhmodel) {
-    params <- get_parameters(hhmodel)
+  contact_prior <- function(hh_model) {
+    params <- get_parameters(hh_model)
     params$prior[grepl("^(age|sex)_", params$name)]
   }
 
   # no reference makes it scale free and sets uniform prior
-  hhmodel |>
+  hh_model |>
     add_contact_risk(by = by) |>
     contact_prior() |>
     expect_all_equal("uniform")
 
   # the sex rule group left without reference makes the risk absolute
-  hhmodel |>
+  hh_model |>
     add_contact_risk(by = by,
                      reference = c(from_age = "adult", to_age = "adult")) |>
     contact_prior() |>
     expect_all_equal("uniform")
 
   # a reference in every rule group anchors the risk: lognormal prior
-  hhmodel <- hhmodel |>
+  hh_model <- hh_model |>
     add_contact_risk(by = by,
                      reference = c(from_age = "adult", to_age = "adult",
                                    from_sex = "F", to_sex = "F"))
-  contact_prior(hhmodel) |> expect_all_equal("lognormal")
+  contact_prior(hh_model) |> expect_all_equal("lognormal")
 
   # joint = FALSE by default so each covariate owns a rule group
-  get_contact_risks(hhmodel)$rule_group |>
+  get_contact_risks(hh_model)$rule_group |>
     expect_setequal(c(1L, 2L))
 })
 
@@ -287,20 +287,20 @@ test_that("A reference naming part of its pair is refused", {
 
 test_that("An automatic contact risk refuses pairs missing a covariate", {
   # the member with no role meets the two others both ways: 4 ordered pairs
-  data.frame(hhid = 1, status = 0, member = c("father", "mother", NA)) |>
+  data.frame(hh_id = 1, status = 0, member = c("father", "mother", NA)) |>
     new_housepi_model("final-size") |>
     add_contact_risk(by = "member") |>
     expect_error("leaves 4 ordered pairs unmatched")
 
   # no member carries the covariate: the table holds no rule
-  data.frame(hhid = 1, status = 0, member = rep(NA_character_, 2)) |>
+  data.frame(hh_id = 1, status = 0, member = rep(NA_character_, 2)) |>
     new_housepi_model("final-size") |>
     add_contact_risk(by = "member") |>
     expect_error("leaves 2 ordered pairs unmatched")
 })
 
 test_that("Households of singles give an automatic risk no rule", {
-  data.frame(hhid = c("h1", "h2"), status = 0, member = c("a", "b")) |>
+  data.frame(hh_id = c("h1", "h2"), status = 0, member = c("a", "b")) |>
     new_housepi_model("final-size") |>
     add_contact_risk(by = "member") |>
     get_contact_risks() |>
@@ -336,7 +336,7 @@ test_that("An unnamed reference names the single covariate", {
 test_that("Contact risks expand on their own covariates only", {
   hhdata <- sarscov2_2021_icofs |>
     dplyr::select(-start_date) |>
-    dplyr::filter(hhid %in% utils::head(unique(hhid), 50))
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50))
 
   # the covariate itself must be a genuine data column
   hhdata |>
@@ -376,30 +376,30 @@ test_that("Contact risk custom mode default behaves correctly", {
     c2a = 2.34
   )
 
-  hhmodel <- mk_risk$model |>
+  hh_model <- mk_risk$model |>
     add_contact_risk(strata = strata, prior = "lognormal", sdlog = 1.8,
                      params = overrides)
 
   # the custom logic table drives the tidy table
-  tidy <- get_contact_risks(hhmodel)
+  tidy <- get_contact_risks(hh_model)
   tidy |> expect_nrow(4L)
   tidy$param_name |> expect_setequal(strata$param_name)
 
   # parameters generated for non-reference
-  get_parameters(hhmodel) |>
+  get_parameters(hh_model) |>
     getElement("name") |>
     expect_setequal(c("a2c", "c2a", "c2c"))
 
   # default parameter definitions
-  default <- get_parameters(hhmodel, "c2c")
+  default <- get_parameters(hh_model, "c2c")
   default$prior |> expect_identical("lognormal")
   default$args[[1]] |> expect_equal(c(sdlog = 1.8, meanlog = 0))
   # overrides as variable
-  variable <- get_parameters(hhmodel, "a2c")
+  variable <- get_parameters(hh_model, "a2c")
   variable$prior |> expect_identical("uniform")
   variable$min |> expect_equal(1)
   # overrides as constant
-  constant <- get_parameters(hhmodel, "c2a")
+  constant <- get_parameters(hh_model, "c2a")
   constant$value |> expect_equal(2.34)
   constant$const |> expect_true()
 })
@@ -460,20 +460,20 @@ test_that("Custom mode fills the symmetric counterpart of a pair", {
                             "adult",   "child", "a_to_c",
                             "child",   "child", "c_to_c")
 
-  hhmodel <- mk_risk$model |>
+  hh_model <- mk_risk$model |>
     add_contact_risk(strata = strata, params = list(a_to_c = 2))
 
   # symmetric fill adds child->adult with same param_name as adult->child
-  filled <- get_contact_risks(hhmodel)
+  filled <- get_contact_risks(hh_model)
   filled |> expect_nrow(4L)
   filled$param_name[filled$from_age == "child" & filled$to_age == "adult"] |>
     expect_identical("a_to_c")
 
   # both directions share the override value
-  get_parameters(hhmodel) |>
+  get_parameters(hh_model) |>
     getElement("name") |>
     expect_setequal(c("a_to_c", "c_to_c"))
-  a_to_c <- get_parameters(hhmodel, "a_to_c")
+  a_to_c <- get_parameters(hh_model, "a_to_c")
   a_to_c$value |> expect_equal(2)
   a_to_c$const |> expect_true()
 
@@ -500,26 +500,27 @@ test_that("A catch-all contact rule counts every pair it reaches", {
     "father",     "mother",   "rho",
     NA,           NA,         ".reference"
   )
-  hhmodel <- mk_house$model |>
+  hh_model <- mk_house$model |>
     add_contact_risk(strata = strata, symmetric = FALSE,
                      params = list(rho = 2))
-  risks <- hhmodel |>
+  risks <- hh_model |>
     get_contact_risks()
 
-  ctr <- inspect_house_state(hhmodel, "h1")$contact_risks
+  ctr <- inspect_house_state(hh_model, "h1")$contact_risks
   risks$n[risks$param_name == "rho"] |> expect_identical(sum(ctr == 2))
   risks$n[risks$param_name == ".reference"] |> expect_identical(sum(ctr == 1))
 })
 
 test_that("A contact table setting no covariate value is refused", {
   # a single risk over every pair duplicates the baseline
-  hhmodel <- data.frame(hhid = c(1, 1, 2, 2, 2), status = c(1, 0, 1, 1, 0),
-                        age = c("child", "adult", "child", "adult", "adult")) |>
+  hh_model <- data.frame(hh_id = c(1, 1, 2, 2, 2), status = c(1, 0, 1, 1, 0),
+                         age = c("child", "adult", "child", "adult",
+                                 "adult")) |>
     new_housepi_model("final-size")
-  hhmodel |>
+  hh_model |>
     add_contact_risk(strata = data.frame(param_name = "ctr")) |>
     expect_error("[Ss]trata table sets no covariate value")
-  hhmodel |>
+  hh_model |>
     add_contact_risk(strata = data.frame(from_age = NA, to_age = NA,
                                          param_name = "ctr")) |>
     expect_error("[Ss]trata table sets no covariate value")
@@ -532,7 +533,7 @@ test_that("Households that never form a pair leave every contact rule dead", {
     "father",     "mother",   "rho",
     NA,           NA,         ".reference"
   )
-  data.frame(hhid = c("h1", "h2"), status = 0,
+  data.frame(hh_id = c("h1", "h2"), status = 0,
              member = c("father", "mother")) |>
     new_housepi_model("final-size") |>
     add_contact_risk(strata = strata, symmetric = FALSE,
@@ -618,7 +619,7 @@ test_that("Custom mode absorbs all-NA default into single group", {
     "father",     "mother",   ".reference",
     NA,           NA,         "ctr_cross_gen"
   )
-  data.frame(hhid = 1, status = 0,
+  data.frame(hh_id = 1, status = 0,
              member = c("student", "mother", "father", "student")) |>
     new_housepi_model("final-size") |>
     add_contact_risk(strata = strata, symmetric = FALSE) |>
@@ -733,7 +734,7 @@ test_that("Distinct rule_groups multiply at the cell", {
     NA,        NA,      "b",         NA,        "ctr_class_b"
   )
   snapshot <- data.frame(
-    id = c("m1", "m2", "m3", "m4"), hhid = "h1", status = 0L,
+    id = c("m1", "m2", "m3", "m4"), hh_id = "h1", status = 0L,
     age = c("adult", "adult", "child", "adult"),
     class = c("a", "a", "b", "b")
   ) |>
@@ -760,8 +761,8 @@ test_that("Distinct rule_groups multiply at the cell", {
 })
 
 test_that("Contact risk definition work as expected", {
-  hhmodel <- data.frame(
-    hhid = c(rep("h1", 3), rep("h2", 6)),
+  hh_model <- data.frame(
+    hh_id = c(rep("h1", 3), rep("h2", 6)),
     status = c(1, 0, 0, 1, 0, 0, 0, 0, 0),
     member = c("student", "other", "other",
                "student", "sibling", "mother", "father", "other", "student")
@@ -770,7 +771,7 @@ test_that("Contact risk definition work as expected", {
     add_parameter(import = "template")
 
   # no contact risk defs -> empty matrix
-  contact_risks <- inspect_house_state(hhmodel, "h2")$contact_risks
+  contact_risks <- inspect_house_state(hh_model, "h2")$contact_risks
   is.matrix(contact_risks) |> expect_true()
   dim(contact_risks) |> expect_identical(c(0L, 0L))
 
@@ -788,10 +789,10 @@ test_that("Contact risk definition work as expected", {
   # prime numbers as param values to ensure non duplicate pair products
   params <- stats::setNames(c(2, 3, 5, 7, 11, 13, 17), strata$param_name)
   params <- params[names(params) != ".reference"]
-  hhmodel <- add_contact_risk(hhmodel, strata = strata, params = params)
+  hh_model <- add_contact_risk(hh_model, strata = strata, params = params)
 
   # matrix is n x n with a null diagonal
-  snapshot <- inspect_house_state(hhmodel, "h2")
+  snapshot <- inspect_house_state(hh_model, "h2")
   n <- nrow(snapshot$data_wide)
   dim(snapshot$contact_risks) |> expect_equal(c(n, n))
   unname(diag(snapshot$contact_risks)) |> expect_equal(rep(0., n))
@@ -801,29 +802,29 @@ test_that("Contact risk definition work as expected", {
   snapshot$contact_risks |> expect_in(c(0, 1, params))
 
   # the template parameters added previously survive alongside the risk ones
-  hhmodel$parameters$name |> expect_contains(c("alpha", "beta", "gamma"))
+  hh_model$parameters$name |> expect_contains(c("alpha", "beta", "gamma"))
 })
 
 test_that("A contact risk keyed on an observation is rejected", {
   # the risk feeds the transmission model the observation is generated from
-  hhmodel <- data.frame(hhid = c(1, 1), status = c(1, 0),
-                        datum = c(2, 3), datum_2 = c(2, 6)) |>
+  hh_model <- data.frame(hh_id = c(1, 1), status = c(1, 0),
+                         datum = c(2, 3), datum_2 = c(2, 6)) |>
     new_housepi_model("final-size")
 
-  hhmodel |>
+  hh_model |>
     add_contact_risk(by = "datum") |>
     add_observation("datum", model = "uniform", min = 0, max = 5) |>
     expect_error("keyed on observation.*datum")
 
   # a deterministic household observation stands in for the column all the same
-  hhmodel |>
+  hh_model |>
     add_observation(datum = min(datum_2), level = "house") |>
     add_contact_risk(by = "datum") |>
     expect_error("keyed on observation.*datum")
 })
 
 test_that("Contact risks raise an error for incompatible models", {
-  data.frame(hhid = 1, id = seq(4), status = seq(4),
+  data.frame(hh_id = 1, id = seq(4), status = seq(4),
              datum = c("a", "a", "b", "b")) |>
     new_housepi_model("test") |>
     add_contact_risk(by = "datum") |>
@@ -842,14 +843,14 @@ test_that("A contact strata value pins the stratum and keeps its prior", {
   pinned$prior |> expect_identical("lognormal")
 
   # a fixed stratum is a constant parameter: it carries no prior
-  hhmodel <- pin_ctr_strata()
-  fixed <- get_parameters(hhmodel, "ctr_fm")
+  hh_model <- pin_ctr_strata()
+  fixed <- get_parameters(hh_model, "ctr_fm")
   fixed$value |> expect_equal(0.4)
   fixed$const |> expect_true()
   fixed$prior |> expect_all_na()
 
   # the read table keeps the columns typed
-  tidy <- get_contact_risks(hhmodel)
+  tidy <- get_contact_risks(hh_model)
   tidy$value |> expect_type("double")
   tidy$const |> expect_type("logical")
 })

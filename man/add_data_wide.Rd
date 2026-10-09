@@ -4,10 +4,10 @@
 \alias{add_data_wide}
 \title{Attach household wide-format data to a housepi model}
 \usage{
-add_data_wide(hhmodel, data)
+add_data_wide(hh_model, data)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{data}{\code{data.frame} Household data used for analysis (wide format).
 Optional at construction; if omitted, attach it later with
@@ -24,7 +24,7 @@ its own: recode it to a label of your choice to stratify on it.
 }
 \examples{
 # construct the model first, attach the data afterwards
-hhmodel <- new_housepi_model(model = "final_size") |>
+hh_model <- new_housepi_model(model = "final_size") |>
   add_data_wide(flu_1918_frederick)
-summarise_house_cases(hhmodel)
+summarise_house_cases(hh_model)
 }

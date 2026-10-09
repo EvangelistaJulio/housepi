@@ -5,20 +5,20 @@
 \title{Posterior predictive check of a housepi model}
 \usage{
 check_predictive(
-  hhmodel,
+  hh_model,
   param_table,
   ...,
   epi = TRUE,
   nrep = NA_integer_,
   thin_ess = TRUE,
-  min_hhsize = NA_integer_,
-  max_hhsize = NA_integer_,
+  min_hh_size = NA_integer_,
+  max_hh_size = NA_integer_,
   threads = 1L,
   progress = TRUE
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{param_table}{One between
 \itemize{
@@ -45,11 +45,11 @@ If \code{NA}, every row is simulated (default).}
 bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws.}
 
-\item{min_hhsize}{\code{integer(1)} Minimum household size retained in the outputs.
+\item{min_hh_size}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied.
 Only with \code{epi = TRUE}.}
 
-\item{max_hhsize}{\code{integer(1)} Maximum household size retained in the outputs.
+\item{max_hh_size}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA}, no upper bound is applied.
 Only with \code{epi = TRUE}.}
 
@@ -73,9 +73,9 @@ against their values on surveys simulated from a table of parameters
 \insertCite{gelman_posterior_1996}{housepi}.
 It checks standard epidemiological measures by household size:
 \describe{
-\item{\code{"attack_rate"}}{see \link{measure_ar_by_hhsize};}
-\item{\code{"sec_attack_rate"}}{see \link{measure_sar_by_hhsize};}
-\item{\code{"cases_count"}}{see \link{measure_cases_by_hhsize}.}
+\item{\code{"attack_rate"}}{see \link{measure_ar_by_hh_size};}
+\item{\code{"sec_attack_rate"}}{see \link{measure_sar_by_hh_size};}
+\item{\code{"cases_count"}}{see \link{measure_cases_by_hh_size}.}
 }
 Named measure functions in \code{...} are checked alongside them,
 under names that differ from these.
@@ -88,23 +88,23 @@ credible level held by the global options;
 see \code{\link[=set_housepi_summary]{set_housepi_summary()}}.
 }
 \examples{
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+results <- run_inference(hh_model, chains = 2, progress = FALSE)
 
-ppc <- check_predictive(hhmodel, results, nrep = 50, progress = FALSE)
+ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
 ppc
 
 # a user-defined measure: the overall attack rate
 overall_ar <- function(data_wide) mean(data_wide$status > 0)
-ppc <- check_predictive(hhmodel, results, overall = overall_ar,
+ppc <- check_predictive(hh_model, results, overall = overall_ar,
                         nrep = 50, progress = FALSE)
 ppc
 ppc$overall$observed
 
 # only the user-defined measures
-ppc <- check_predictive(hhmodel, results, overall = overall_ar,
+ppc <- check_predictive(hh_model, results, overall = overall_ar,
                         epi = FALSE, nrep = 50, progress = FALSE)
 ppc
 }

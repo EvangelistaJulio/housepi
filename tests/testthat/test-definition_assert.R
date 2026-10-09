@@ -93,9 +93,9 @@ test_that("Definitions carry the defaults the user left out", {
   param$min |> expect_equal(c(0, 0, 0, NA))
   param$max |> expect_equal(c(1, 1, 3, NA))
 
-  hhdata <- data.frame(hhid = c("h1", "h1"), status = c(1, 0),
+  hhdata <- data.frame(hh_id = c("h1", "h1"), status = c(1, 0),
                        record = c(3L, 1L), record_2 = c(0.5, 2.1))
-  hhmodel <- hhdata |>
+  hh_model <- hhdata |>
     new_housepi_model("final-size") |>
     add_parameter(
       rho = list(value = 0.3, prior = "gamma", shape = 2),
@@ -107,7 +107,7 @@ test_that("Definitions carry the defaults the user left out", {
       record = list(model = "binomial", size = 5, prob = rho),
       record_2 = list(model = "gamma", shape = 2, scale = 3)
     )
-  param <- get_parameters(hhmodel, name = c("rho", "rho_2", "rho_3", "rho_4"))
+  param <- get_parameters(hh_model, name = c("rho", "rho_2", "rho_3", "rho_4"))
   # the parametrization in use lends its defaults, the other one has none
   param$args[[1]] |> expect_equal(c(shape = 2, scale = 1))
   param$args[[2]] |> expect_equal(c(mean = 2, sd = 1))
@@ -115,7 +115,7 @@ test_that("Definitions carry the defaults the user left out", {
   # the open bound of `log` at 0 is passed back as it is declared
   param$min |> expect_equal(c(0, 0, -1, 0))
 
-  obs <- get_observations(hhmodel)
+  obs <- get_observations(hh_model)
   obs$args[[2]] |> expect_equal(c(shape = 2, scale = 3))
   # the binomial upper bound reads `size`, so it is left to track it
   obs$min |> expect_equal(c(0, 0))
@@ -123,19 +123,19 @@ test_that("Definitions carry the defaults the user left out", {
 })
 
 test_that("Constant arguments and bounds are checked at definition", {
-  hhmodel <- data.frame(hhid = "h1", status = 1) |>
+  hh_model <- data.frame(hh_id = "h1", status = 1) |>
     new_housepi_model("test")
 
   # the latent build waits for the run, the definition does not
-  hhmodel |>
+  hh_model |>
     add_latent(hidden = list(model = "categorical", 0, 0)) |>
     expect_error("weights summing to non-strictly")
-  hhmodel |>
+  hh_model |>
     add_latent(hidden = list(model = "uniform", min = 2, max = 1)) |>
     expect_error("[Ii]nconsistent domain")
 
   # a sourced argument has no value at definition
-  augm <- hhmodel |>
+  augm <- hh_model |>
     add_parameter(rho = list(prior = "gamma", shape = 2)) |>
     add_latent(hidden = list(model = "normal", sd = rho)) |>
     get_latent()

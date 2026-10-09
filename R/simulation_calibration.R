@@ -305,7 +305,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @description
     #' Internal: [check_calibration()] builds this object, don't call `$new()`
     #' directly.
-    #' @param hhmodel `r rd_model_in_`
+    #' @param hh_model `r rd_model_in_`
     #' @param nrep `r rd_sweep_nrep_`
     #' @param houses `r rd_calib_houses_`
     #' @param structure_sampler `r rd_sweep_sampler_`
@@ -318,7 +318,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @param threads `r rd_sweep_threads_`
     #' @param progress `r rd_progress_`
     #' @param ... `r rd_dots_config_`
-    initialize = function(hhmodel, nrep = 200L, houses = NA_integer_,
+    initialize = function(hh_model, nrep = 200L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
                           rank_draws = 99L, steps = 1000L, burn = 0L,
                           thin = 5L, adapt = 500L,
@@ -332,19 +332,19 @@ HousepiCalibrationCheck <- R6::R6Class(
         paste("Raise {.arg steps} or {.arg chains}, or lower {.arg thin} or",
               "{.arg rank_draws}.")
       )
-      private$name_ <- hhmodel$.__enclos_env__$private$gen_$raw_name
-      private$variables_ <- sweep_estimated_(hhmodel)
-      structure <- sweep_base_structure_(hhmodel)
+      private$name_ <- hh_model$.__enclos_env__$private$gen_$raw_name
+      private$variables_ <- sweep_estimated_(hh_model)
+      structure <- sweep_base_structure_(hh_model)
       private$houses_ <- sweep_houses_(structure, houses,
                                        is.null(structure_sampler), one = TRUE)
 
       # an estimated parameter gets no column: simulation draws it anew
-      pins <- sweep_pins_(hhmodel)
+      pins <- sweep_pins_(hh_model)
       pins <- pins[setdiff(names(pins), private$variables_)]
       fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
                        chains = chains)
       swept <- sweep_run_(
-        hhmodel, structure, structure_sampler, private$houses_, private$nrep_,
+        hh_model, structure, structure_sampler, private$houses_, private$nrep_,
         pins, fit_args, threads, list(...), private$summarise_ranks_,
         progress, "Calibration replicates"
       )
@@ -383,7 +383,7 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' Every parameter carrying a prior and free to move is drawn anew for each
 #' replicate, and its `value` is ignored. Any other parameter is held at its
 #' value.
-#' @param hhmodel `r rd_model_in_`
+#' @param hh_model `r rd_model_in_`
 #' @param nrep `r rd_sweep_nrep_`
 #' @param houses `r rd_calib_houses_`
 #' @param structure_sampler `r rd_sweep_sampler_`
@@ -428,7 +428,7 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' calibration$summary
 #' calibration$overview
 #' @export
-check_calibration <- function(hhmodel,
+check_calibration <- function(hh_model,
                               nrep = 200L,
                               houses = NA_integer_,
                               structure_sampler = sample_house_structure,
@@ -438,10 +438,10 @@ check_calibration <- function(hhmodel,
                               chains = 4L, threads = 1L,
                               progress = TRUE,
                               ...) {
-  stopifnothousepi(hhmodel)
+  stopifnothousepi(hh_model)
   assert_advanced_setup_(c("adapt_window", "time_step"), ...)
   HousepiCalibrationCheck$new(
-    hhmodel$copy(), nrep = nrep, houses = houses,
+    hh_model$copy(), nrep = nrep, houses = houses,
     structure_sampler = structure_sampler, rank_draws = rank_draws,
     steps = steps, burn = burn, thin = thin, adapt = adapt,
     chains = chains, threads = threads, progress = progress, ...

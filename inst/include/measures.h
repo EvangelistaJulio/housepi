@@ -23,7 +23,7 @@ namespace housepi::measure
             unsigned min_size = 0;                     /// Smallest household size observed.
             unsigned max_size = 0;                     /// Largest household size observed.
             unsigned max_cases = 0;                    /// Most cases observed in a single household.
-            std::vector<std::vector<unsigned>> counts; /// Rows: hhsize - min_size; columns: cases 0..max_size.
+            std::vector<std::vector<unsigned>> counts; /// Rows: hh_size - min_size; columns: cases 0..max_size.
         };
 
         /// Count households per size, with at least one case or in total.
@@ -51,11 +51,11 @@ namespace housepi::measure
         };
     }
 
-    /// Tabulate households by size and number of cases, aggregating individuals by `hhid`.
+    /// Tabulate households by size and number of cases, aggregating individuals by `hh_id`.
     ///
-    /// - `hhid`: 1-based codes 1..n_houses, each code used at least once;
+    /// - `hh_id`: 1-based codes 1..n_houses, each code used at least once;
     /// - `status`: values as read from an R column, NA missing, 0 escaped, 1 or more infected.
-    inline cases::Table summarise_houses(const std::vector<int> &hhid,
+    inline cases::Table summarise_houses(const std::vector<int> &hh_id,
                                          const std::vector<int> &status)
     {
         const size_t n_indiv = status.size();
@@ -64,14 +64,14 @@ namespace housepi::measure
 
         struct House
         {
-            unsigned hhsize = 0;
+            unsigned hh_size = 0;
             unsigned cases = 0;
         };
-        std::vector<House> houses(*std::max_element(hhid.begin(), hhid.end()));
+        std::vector<House> houses(*std::max_element(hh_id.begin(), hh_id.end()));
         for (size_t i = 0; i < n_indiv; ++i)
         {
-            House &h = houses[hhid[i] - 1];
-            ++h.hhsize;
+            House &h = houses[hh_id[i] - 1];
+            ++h.hh_size;
             h.cases += status::is_infected(status[i]);
         }
 
@@ -79,20 +79,20 @@ namespace housepi::measure
         output.min_size = -1;
         for (const auto &h : houses)
         {
-            output.min_size = std::min(output.min_size, h.hhsize);
-            output.max_size = std::max(output.max_size, h.hhsize);
+            output.min_size = std::min(output.min_size, h.hh_size);
+            output.max_size = std::max(output.max_size, h.hh_size);
             output.max_cases = std::max(output.max_cases, h.cases);
         }
 
         output.counts.assign(output.max_size - output.min_size + 1,
                              std::vector<unsigned>(output.max_size + 1, 0));
         for (const auto &h : houses)
-            ++output.counts[h.hhsize - output.min_size][h.cases];
+            ++output.counts[h.hh_size - output.min_size][h.cases];
 
         return output;
     }
 
-    /// Count households per size, all and with a case, on the `attack_rate_by_hhsize` grid.
+    /// Count households per size, all and with a case, on the `attack_rate_by_hh_size` grid.
     inline cases::HouseCounts house_counts(const cases::Table &table)
     {
         cases::HouseCounts output;
@@ -109,7 +109,7 @@ namespace housepi::measure
     }
 
     /// Compute mean attack rate per household size.
-    inline cases::AttackRates attack_rate_by_hhsize(const cases::Table &table)
+    inline cases::AttackRates attack_rate_by_hh_size(const cases::Table &table)
     {
         cases::AttackRates output;
         output.grid_min = std::max(table.min_size, 1u);
@@ -129,7 +129,7 @@ namespace housepi::measure
     }
 
     /// Compute mean secondary attack rate per household size, from size 2.
-    inline cases::SecAttackRates sar_by_hhsize(const cases::Table &table)
+    inline cases::SecAttackRates sar_by_hh_size(const cases::Table &table)
     {
         cases::SecAttackRates output;
         output.grid_min = std::max(table.min_size, 2u);
@@ -150,7 +150,7 @@ namespace housepi::measure
 
     /// Return geometric mean of household size, weighted by secondary cases max(cases - 1, 0).
     /// @note Requires `cases::Table::max_cases` above 1.
-    inline double geom_mean_hhsize(const cases::Table &table)
+    inline double geom_mean_hh_size(const cases::Table &table)
     {
         double sum_w = 0.0, sum_wlog = 0.0;
         for (unsigned r = 0; r < table.counts.size(); ++r)

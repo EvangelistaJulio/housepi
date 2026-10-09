@@ -29,10 +29,10 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
     )
   ) |>
   # rename household and respective members IDs
-  dplyr::group_by(raw_hhid = hhid) |>
+  dplyr::group_by(raw_hh_id = hhid) |>
   dplyr::mutate(
-    hhid = sprintf("hh%03d", dplyr::cur_group_id()),
-    id = sprintf("%sm%02d", hhid, dplyr::row_number()),
+    hh_id = sprintf("hh%03d", dplyr::cur_group_id()),
+    id = sprintf("%sm%02d", hh_id, dplyr::row_number()),
     # first positive test
     start_date = min(test_date, na.rm = TRUE),
     # last in-window positive or last negative test taken
@@ -61,7 +61,7 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
     isolated = isolation != "no quarantine"
   ) |>
   dplyr::select(
-    id, hhid, status, age, sex,
+    id, hh_id, status, age, sex,
     start_date, end_date, test_date,
     vacc_status, recovered, isolated, asymptomatic
   ) |>

@@ -5,7 +5,7 @@
 \title{Add a stratified group risk definition}
 \usage{
 add_group_risk(
-  hhmodel,
+  hh_model,
   name = NULL,
   by = NA_character_,
   ...,
@@ -23,7 +23,7 @@ add_group_risk(
 )
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
@@ -129,15 +129,15 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 }
 \examples{
-hhmodel <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
+hh_model <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
 
 # single: one susceptibility parameter per age class
-hhmodel |>
+hh_model |>
   add_group_risk("susceptibility", by = "age") |>
   get_group_risks()
 
 # inline bulk: relative risks, against a chosen or the most frequent group
-hhmodel |>
+hh_model |>
   add_group_risk(
     infectivity = list(by = "isolated", reference = ".auto"),
     susceptibility = list(by = "vacc_status", reference = "unvaccinated")

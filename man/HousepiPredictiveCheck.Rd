@@ -8,15 +8,15 @@
 Class to extract posterior predictive checks over measures on simulations.
 }
 \examples{
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-results <- run_inference(hhmodel, chains = 2, progress = FALSE)
+results <- run_inference(hh_model, chains = 2, progress = FALSE)
 
 # a user-defined measure: the overall attack rate
 overall_ar <- function(data_wide) mean(data_wide$status > 0)
-ppc <- check_predictive(hhmodel, results,
-                        sar = measure_sar_by_hhsize,
+ppc <- check_predictive(hh_model, results,
+                        sar = measure_sar_by_hh_size,
                         overall = overall_ar,
                         epi = FALSE, nrep = 50, progress = FALSE)
 ppc$overall
@@ -56,7 +56,7 @@ performs simulation and compute predicted values of a set of measures.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPredictiveCheck$new(
-  hhmodel,
+  hh_model,
   param_table,
   ...,
   measures_long = NULL,
@@ -70,7 +70,7 @@ performs simulation and compute predicted values of a set of measures.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{hhmodel}}{\code{HousepiModel} object.}
+      \item{\code{hh_model}}{\code{HousepiModel} object.}
       \item{\code{param_table}}{One between
 \itemize{
 \item \code{data.frame};

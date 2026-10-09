@@ -4,10 +4,10 @@
 \alias{add_reporting_process}
 \title{Add a reporting process to a housepi model}
 \usage{
-add_reporting_process(hhmodel, wide, long)
+add_reporting_process(hh_model, wide, long)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
 \item{wide}{\code{function} | \code{NULL}. Turns a simulated \code{data_wide} into the
 reported \code{data_wide}. \code{NULL} removes it.}

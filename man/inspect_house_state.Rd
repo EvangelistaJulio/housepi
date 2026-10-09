@@ -4,12 +4,12 @@
 \alias{inspect_house_state}
 \title{Inspect the state of a household in a housepi model}
 \usage{
-inspect_house_state(hhmodel, hhid)
+inspect_house_state(hh_model, hh_id)
 }
 \arguments{
-\item{hhmodel}{\code{HousepiModel} object.}
+\item{hh_model}{\code{HousepiModel} object.}
 
-\item{hhid}{\code{character(1)} ID of the household of interest.}
+\item{hh_id}{\code{character(1)} ID of the household of interest.}
 }
 \value{
 \code{list}, all variables of the household.
@@ -30,11 +30,11 @@ replicate.}
 }
 }
 \examples{
-hhmodel <- flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-evaluate_log_lik(hhmodel)
-inspect_house_state(hhmodel, "1")
+evaluate_log_lik(hh_model)
+inspect_house_state(hh_model, "1")
 }
 \seealso{
 \code{\link[=inspect_augmented_data]{inspect_augmented_data()}}
